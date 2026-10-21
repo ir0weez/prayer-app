@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Animated, Easing, View, Pressable } from "react-native";
-import Svg, { Path, Polygon, Rect, Circle } from "react-native-svg";
+import Svg, { G, Path, Polygon, Rect, Circle } from "react-native-svg";
+import { PAPER_SHADOW } from "@/components/paper-interior";
 import { getTimeOfDay, SKY_THEMES, type TimeOfDay } from "@/lib/daynight";
 import { getHolidaySeason, getSeason, SEASON_HUES, SEASON_SKY_TINT, mixHex } from "@/lib/seasons";
 import { HolidaySkyEffect, LighthouseHolidayDressing, HolidayBorderMood } from "@/components/holiday-decor";
@@ -23,6 +24,14 @@ import type { Season } from "@/lib/seasons";
  *     school / garden / well / field → quiet woods on both sides
  *
  * Windows glow warm at dusk and night, dark by day.
+ *
+ * Paper Town (2026-10-21): the frame is paper too — every silhouette
+ * carries the kit's soft offset shadow and a cut-paper edge light:
+ * the skyline sheets, the pines (this frame serves the town map AND
+ * the place scenes, incl. the forest's own frame — the forest
+ * INTERIOR and its hero stay pixel, untouched), the cottages, the
+ * lighthouse tower, and a torn white foam edge on the beach's front
+ * wave. All themes, animations and dressings are unchanged.
  *
  * Purely decorative — pointerEvents disabled, native-driver animations.
  * No emojis anywhere; all art is drawn (Views / SVG).
@@ -259,6 +268,10 @@ function CityBuilding({
   }
   return (
     <View style={{ position: "absolute", left, bottom: 0, width, height, backgroundColor: scene.building, borderTopLeftRadius: 1, borderTopRightRadius: 1 }}>
+      {/* paper sheet dressing: cast shadow down the right edge,
+          cut-paper edge light down the left */}
+      <View pointerEvents="none" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 1.6, backgroundColor: PAPER_SHADOW }} />
+      <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 0.8, backgroundColor: "#FFFFFF", opacity: 0.35 }} />
       {windows}
     </View>
   );
@@ -298,6 +311,13 @@ function PineTree({ size, scene }: { size: number; scene: SceneTheme }) {
   const w = size * 0.55;
   return (
     <Svg width={w} height={size} viewBox="0 0 22 40">
+      {/* the paper shadow: the whole pine, offset — one silhouette */}
+      <G transform="translate(1.6 1.1)" opacity={0.28}>
+        <Polygon points="11,1 19,15 3,15" fill="#241A33" />
+        <Polygon points="11,10 21,26 1,26" fill="#241A33" />
+        <Polygon points="11,20 20,33 2,33" fill="#241A33" />
+        <Rect x="9" y="33" width="4" height="7" fill="#241A33" />
+      </G>
       <Polygon points="11,1 19,15 3,15" fill={scene.tree} />
       <Polygon points="11,10 21,26 1,26" fill={scene.treeDark} />
       <Polygon points="11,20 20,33 2,33" fill={scene.tree} />
@@ -341,6 +361,8 @@ function ForestStrip({ scene }: { scene: SceneTheme }) {
       <SwayingTree size={62} scene={scene} left={-4} bottom={6} duration={2800} delay={0} sway={1.6} />
       <SwayingTree size={44} scene={scene} left={8} bottom={6} duration={3400} delay={700} sway={1.2} />
       <SwayingTree size={54} scene={scene} left={13} bottom={6} duration={3100} delay={1400} sway={1.4} />
+      {/* the ground sheet's cast shadow along its top edge */}
+      <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, bottom: 7, height: 3, backgroundColor: PAPER_SHADOW, opacity: 0.45 }} />
       {/* Ground */}
       <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 10, backgroundColor: scene.ground }} />
     </View>
@@ -414,6 +436,9 @@ function Cottage({
   return (
     <View style={{ position: "absolute", left, bottom: 0, width, height }}>
       <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+        {/* paper shadow copies of roof + body */}
+        <Polygon points={`${width / 2},0 ${width},${roofH} 0,${roofH}`} fill="#241A33" opacity={0.28} transform="translate(1.2 1)" />
+        <Rect x={0.5} y={roofH} width={width - 1} height={height - roofH} fill="#241A33" opacity={0.28} transform="translate(1.2 1)" />
         <Polygon points={`${width / 2},0 ${width},${roofH} 0,${roofH}`} fill={scene.cottageRoof} />
         <Rect x={0.5} y={roofH} width={width - 1} height={height - roofH} fill={scene.cottageBody} />
         {/* Door */}
@@ -450,6 +475,8 @@ function TownStrip({ scene, lit }: { scene: SceneTheme; lit: boolean }) {
       <Cottage left={-3} width={20} height={36} scene={scene} glow={glow} lit={lit} />
       <Cottage left={10} width={17} height={27} scene={scene} glow={glow} lit={lit} />
       <Cottage left={19} width={13} height={31} scene={scene} glow={glow} lit={lit} />
+      {/* the ground sheet's cast shadow along its top edge */}
+      <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, bottom: 4, height: 2.4, backgroundColor: PAPER_SHADOW, opacity: 0.45 }} />
       {/* Ground */}
       <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 6, backgroundColor: scene.ground }} />
     </View>
@@ -551,6 +578,8 @@ function LighthouseStrip({ scene, lit, level, rewardPulse, milestonePulse, onPre
         {/* Tower — red/white bands, tapered. viewBox starts at y=-26 so the
             gallery, lamp room, and roof cap above the bands stay visible. */}
         <Svg width={14} height={towerH + 26} viewBox={`0 -26 14 ${towerH + 26}`} style={{ position: "absolute", bottom: 8, left: 6 }}>
+          {/* the tower's paper shadow — one tapered silhouette */}
+          <Polygon points={`2,-25 12,-25 13,${towerH} 3,${towerH}`} fill="#241A33" opacity={0.28} transform="translate(1.3 1.2)" />
           {[0, 1, 2, 3, 4].map((i) => {
             const bandH = towerH / 5;
             return (
@@ -669,6 +698,8 @@ function BeachStrip({ scene }: { scene: SceneTheme }) {
 
   return (
     <View style={{ height: BEACH_H, backgroundColor: scene.sand, overflow: "hidden", position: "relative" }}>
+      {/* the map sheet's cast shadow falls across the top of the sand */}
+      <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, backgroundColor: PAPER_SHADOW, opacity: 0.5 }} />
       <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 34, backgroundColor: scene.waterDeep, overflow: "hidden" }}>
         <Animated.View style={{ position: "absolute", left: 0, top: 0, transform: [{ translateX: backX }] }}>
           <Svg width={1000} height={34} viewBox="0 0 1000 34">
@@ -677,6 +708,8 @@ function BeachStrip({ scene }: { scene: SceneTheme }) {
         </Animated.View>
         <Animated.View style={{ position: "absolute", left: 0, top: 5, transform: [{ translateX: frontX }] }}>
           <Svg width={1000} height={34} viewBox="0 0 1000 34">
+            {/* torn-paper foam edge riding the front wave */}
+            <Path d={WAVE_PATH} fill="#FFFFFF" opacity={0.75} transform="translate(0,-3)" />
             <Path d={WAVE_PATH} fill={scene.water} />
           </Svg>
         </Animated.View>

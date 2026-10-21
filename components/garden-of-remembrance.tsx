@@ -14,6 +14,8 @@ import {
 import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Rect } from "react-native-svg";
 import { REMEMBRANCE_FLOWERS, REMEMBRANCE_UPGRADE_COSTS, MEMORY_CANDLE_COST, candleLit, type RememberedPerson, type RemembranceState } from "@/lib/hometown";
 import type { PageTheme, TimeOfDay } from "@/lib/daynight";
+import { PaperStandingVillager } from "@/components/paper-interior";
+import { paperMapLookFor } from "@/lib/paper-town";
 
 export type GardenOfRemembranceProps = {
   remembrance: RemembranceState;
@@ -24,8 +26,9 @@ export type GardenOfRemembranceProps = {
   onUpdateNote: (id: string, note: string) => void;
   onRemovePerson: (id: string) => void;
   onUpgrade: () => void;
-  /** Prayer lights currently visiting the garden (1-2, daytime). */
-  visitors?: { personId: string; name: string }[];
+  /** Prayer villagers currently visiting the garden (1-2, daytime) —
+   *  rendered as paper figures of the actual people. */
+  visitors?: { personId: string; name: string; accentColor?: string }[];
   /** Light a memory candle for a remembered loved one (5 coins, burns 24h). */
   onLightCandle?: (id: string) => void;
 };
@@ -321,29 +324,25 @@ const SCENE_BG: Record<TimeOfDay, string> = {
   night: "#252135",
 };
 
-/** A resident paying their respects — small golden figure with a candle above. */
-function GardenVisitor({ x, y }: { x: number; y: number }) {
+/** A resident paying their respects — a paper figure of the actual
+ *  visitor (their own deterministic look, the same one they wear on
+ *  the map and in the interiors), holding a small drawn candle. */
+function GardenVisitor({ x, y, visitor }: { x: number; y: number; visitor: { personId: string; name: string; accentColor?: string } }) {
+  const look = paperMapLookFor({ id: visitor.personId, accentColor: visitor.accentColor });
   return (
     <View
       pointerEvents="none"
-      style={{ position: "absolute", left: x - 8, top: y - 34, width: 16, height: 34, alignItems: "center" }}
+      style={{ position: "absolute", left: x - 10, top: y - 40, width: 20, height: 40, alignItems: "center", justifyContent: "flex-end" }}
     >
-      <Text style={{ fontSize: 11, marginBottom: -3 }}>🕯️</Text>
-      {/* head */}
-      <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FBBF24", alignItems: "center", justifyContent: "center" }}>
-        <View style={{ flexDirection: "row", gap: 2 }}>
-          <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: "#1F2937" }} />
-          <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: "#1F2937" }} />
-        </View>
+      <PaperStandingVillager look={look} width={15} />
+      {/* the candle in their hand — a drawn flame, like the memory candles */}
+      <View style={{ position: "absolute", right: -1, bottom: 5 }}>
+        <Svg width={9} height={14} viewBox="0 0 9 14">
+          <Rect x={2.6} y={6} width={3.8} height={7} rx={1} fill="#FFF7ED" />
+          <Ellipse cx={4.5} cy={3.6} rx={1.6} ry={2.6} fill="#F59E0B" />
+          <Ellipse cx={4.5} cy={4.4} rx={0.8} ry={1.4} fill="#FEF3C7" />
+        </Svg>
       </View>
-      {/* body */}
-      <View
-        style={{
-          width: 11, height: 8, borderTopLeftRadius: 4, borderTopRightRadius: 4,
-          borderBottomLeftRadius: 2, borderBottomRightRadius: 2,
-          backgroundColor: "#FBBF24", marginTop: 0.5, opacity: 0.92,
-        }}
-      />
     </View>
   );
 }
@@ -438,7 +437,7 @@ function GardenScene({
   onTapPerson: (p: RememberedPerson) => void;
   onOpenWall: () => void;
   /** Prayer lights currently paying their respects (daytime only). */
-  visitors?: { personId: string; name: string }[];
+  visitors?: { personId: string; name: string; accentColor?: string }[];
 }) {
   const isNight = timeOfDay === "night";
   const level = remembrance.level;
@@ -602,7 +601,7 @@ function GardenScene({
 
       {/* visiting prayer lights — they linger, pay respects, return to town */}
       {!isNight && showVisitors && (visitors || []).slice(0, 2).map((v, i) => (
-        <GardenVisitor key={v.personId} x={visitorSpots[i]?.x ?? 180} y={visitorSpots[i]?.y ?? 122} />
+        <GardenVisitor key={v.personId} visitor={v} x={visitorSpots[i]?.x ?? 180} y={visitorSpots[i]?.y ?? 122} />
       ))}
       {hidden > 0 && (
         <Pressable

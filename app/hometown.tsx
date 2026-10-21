@@ -318,6 +318,10 @@ import {
 import { SafeBoundary } from "@/components/safe-boundary";
 import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
 import { TownNPCs, CityNPCs, countHometownNpcs, type LightInfo } from "@/components/town-npcs";
+import { PaperBuildingArt, PaperLandmarkArt } from "@/components/paper-building-art";
+import { PaperDecoration } from "@/components/paper-decoration";
+import { PaperCanvas } from "@/components/paper-interior";
+import { PAPER_GROUND, paperDecorationKind } from "@/lib/paper-town";
 import { CityTraffic } from "@/components/city-traffic";
 import { ChimneySmoke, hasChimney } from "@/components/chimney-smoke";
 import { MapBirds } from "@/components/map-birds";
@@ -762,74 +766,13 @@ function StreamBridge({ size }: { size: number }) {
   );
 }
 
-/** Hub landmark art — the five gates to the other maps. 2x2 cells. */
+/** Hub landmark art — the five gates to the other maps, in paper
+ * (Paper Town): PaperLandmarkArt draws the well, the garden gate, the
+ * mission trailhead, the river dock and the dark-forest portal grove
+ * as layered paper scenes. The forest beyond the portal stays pixel —
+ * this is only the town map's gate to it. */
 function LandmarkArt({ art, size }: { art: TownLandmark["art"]; size: number }) {
-  const s = size;
-  switch (art) {
-    case "well":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ position: "absolute", bottom: s * 0.42, width: s * 0.62, height: s * 0.3, backgroundColor: "#A8A29E", borderRadius: 8, borderWidth: 2, borderColor: "#78716C" }} />
-          <View style={{ position: "absolute", bottom: s * 0.48, width: s * 0.4, height: s * 0.16, backgroundColor: "#0C4A6E", borderRadius: s * 0.08 }} />
-          <View style={{ position: "absolute", bottom: s * 0.42, left: s * 0.22, width: s * 0.07, height: s * 0.42, backgroundColor: "#78350F", borderRadius: 2 }} />
-          <View style={{ position: "absolute", bottom: s * 0.42, right: s * 0.22, width: s * 0.07, height: s * 0.42, backgroundColor: "#78350F", borderRadius: 2 }} />
-          <View style={{ position: "absolute", bottom: s * 0.78, width: s * 0.78, height: s * 0.16, backgroundColor: "#92400E", borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
-          <View style={{ position: "absolute", bottom: s * 0.06, width: s * 0.7, height: s * 0.1, backgroundColor: "#000000", opacity: 0.12, borderRadius: 999 }} />
-        </View>
-      );
-    case "garden-gate":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ position: "absolute", bottom: s * 0.1, left: s * 0.12, width: s * 0.12, height: s * 0.62, backgroundColor: "#D6D3D1", borderRadius: 4, borderWidth: 1.5, borderColor: "#A8A29E" }} />
-          <View style={{ position: "absolute", bottom: s * 0.1, right: s * 0.12, width: s * 0.12, height: s * 0.62, backgroundColor: "#D6D3D1", borderRadius: 4, borderWidth: 1.5, borderColor: "#A8A29E" }} />
-          <View style={{ position: "absolute", bottom: s * 0.66, width: s * 0.8, height: s * 0.14, backgroundColor: "#D6D3D1", borderRadius: 6, borderWidth: 1.5, borderColor: "#A8A29E" }} />
-          {[0.2, 0.38, 0.56, 0.74].map((fx, i) => (
-            <View key={i} style={{ position: "absolute", bottom: s * 0.72, left: s * fx, width: s * 0.09, height: s * 0.09, borderRadius: s * 0.045, backgroundColor: i % 2 ? "#F9A8D4" : "#F472B6" }} />
-          ))}
-          <View style={{ position: "absolute", bottom: s * 0.1, width: s * 0.5, height: s * 0.08, backgroundColor: "#000000", opacity: 0.1, borderRadius: 999 }} />
-        </View>
-      );
-    case "mission-field":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ position: "absolute", top: s * 0.08, right: s * 0.12, width: s * 0.22, height: s * 0.22, borderRadius: s * 0.11, backgroundColor: "#FBBF24" }} />
-          {[0, 1, 2].map((r) => (
-            <View key={r} style={{ position: "absolute", bottom: s * (0.14 + r * 0.2), width: s * 0.84, height: s * 0.12, backgroundColor: "#65A30D", borderRadius: 4, opacity: 0.9 - r * 0.12 }}>
-              {[0, 1, 2, 3, 4].map((c) => (
-                <View key={c} style={{ position: "absolute", bottom: s * 0.1, left: s * (0.08 + c * 0.16), width: s * 0.05, height: s * 0.14, backgroundColor: "#3F6212", borderRadius: 2 }} />
-              ))}
-            </View>
-          ))}
-        </View>
-      );
-    case "dark-forest":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ position: "absolute", top: 0, width: s, height: s * 0.9, backgroundColor: "#1C1917", opacity: 0.35, borderRadius: 8 }} />
-          {[0.16, 0.42, 0.68].map((fx, i) => (
-            <View key={i} style={{ position: "absolute", bottom: s * 0.1, left: s * fx, alignItems: "center" }}>
-              <View style={{ width: 0, height: 0, borderLeftWidth: s * 0.11, borderRightWidth: s * 0.11, borderBottomWidth: s * 0.3, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: i === 1 ? "#14532D" : "#1C3A2A" }} />
-              <View style={{ width: s * 0.06, height: s * 0.12, backgroundColor: "#3F2D1C" }} />
-            </View>
-          ))}
-          <View style={{ position: "absolute", top: s * 0.2, left: s * 0.3, width: s * 0.06, height: s * 0.06, borderRadius: s * 0.03, backgroundColor: "#FDE68A", opacity: 0.9 }} />
-          <View style={{ position: "absolute", top: s * 0.32, right: s * 0.28, width: s * 0.05, height: s * 0.05, borderRadius: s * 0.025, backgroundColor: "#FDE68A", opacity: 0.7 }} />
-        </View>
-      );
-    case "river-dock":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ position: "absolute", bottom: s * 0.08, width: s * 0.9, height: s * 0.34, backgroundColor: "#7DD3FC", borderRadius: 8 }} />
-          <Svg width={s * 0.9} height={s * 0.2} viewBox="0 0 72 16" style={{ position: "absolute", bottom: s * 0.2 }}>
-            <Path d="M0 8 Q9 3 18 8 T36 8 T54 8 T72 8" fill="none" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" opacity={0.8} />
-          </Svg>
-          <View style={{ position: "absolute", bottom: s * 0.3, width: s * 0.5, height: s * 0.1, backgroundColor: "#92400E", borderRadius: 2 }} />
-          {[0.3, 0.45, 0.6].map((fx, i) => (
-            <View key={i} style={{ position: "absolute", bottom: s * 0.14, left: s * fx, width: s * 0.05, height: s * 0.24, backgroundColor: "#78350F", borderRadius: 2 }} />
-          ))}
-        </View>
-      );
-  }
+  return <PaperLandmarkArt art={art} size={size} />;
 }
 
 function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH, blessed = false, night = false }: { type: string; size: number; level?: number; floors?: number; prayedCount?: number; artH?: number; blessed?: boolean; night?: boolean }) {
@@ -3498,7 +3441,7 @@ const BuildingArtFX = React.memo(function BuildingArtFX(props: BuildingArtProps)
     return () => a.stop();
   }, [fx, anim]);
 
-  if (!fx) return <MemoBuildingArt {...props} />;
+  if (!fx) return <PaperBuildingArt {...props} />;
 
   const w = props.size;
   const h = props.artH ?? props.size;
@@ -3512,10 +3455,10 @@ const BuildingArtFX = React.memo(function BuildingArtFX(props: BuildingArtProps)
         style={{ position: "absolute", left: 0, top: 0, width: w, height: h, borderRadius: 18, backgroundColor: "#FDE68A", opacity: glowOpacity }}
       />
       <Animated.View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, opacity: oldOpacity }}>
-        <MemoBuildingArt {...fx.prev} />
+        <PaperBuildingArt {...fx.prev} />
       </Animated.View>
       <Animated.View pointerEvents="none" style={{ opacity: anim }}>
-        <MemoBuildingArt {...props} />
+        <PaperBuildingArt {...props} />
       </Animated.View>
     </Animated.View>
   );
@@ -3548,25 +3491,37 @@ const ConstructionSiteArt = React.memo(function ConstructionSiteArt({ width, hei
   const poleW = Math.max(4, w * 0.045);
   return (
     <View pointerEvents="none" style={{ width: w, height: h }}>
-      {/* ground shadow */}
-      <View style={{ position: "absolute", bottom: 0, left: w * 0.04, width: w * 0.92, height: Math.max(5, h * 0.05), backgroundColor: "#000000", opacity: 0.15, borderRadius: 999 }} />
-      {/* striped tarp draped over the footprint */}
-      <View style={{ position: "absolute", bottom: h * 0.04, left: w * 0.07, width: w * 0.86, height: h * 0.6, borderRadius: 7, overflow: "hidden", borderWidth: 2, borderColor: "#B45309" }}>
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <View key={i} style={{ flex: 1, backgroundColor: i % 2 === 0 ? "#F59E0B" : "#FEF3C7" }} />
-        ))}
-        {/* center seam + hem */}
-        <View style={{ position: "absolute", top: 0, bottom: 0, left: "49%", width: 2, backgroundColor: "#92400E", opacity: 0.35 }} />
-        <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: h * 0.07, backgroundColor: "#D97706", opacity: 0.55 }} />
-      </View>
-      {/* scaffold frame: two poles, top bar + mid bar, one diagonal brace */}
-      <View style={{ position: "absolute", bottom: h * 0.02, left: w * 0.015, width: poleW, height: h * 0.86, backgroundColor: "#92400E", borderRadius: 2 }} />
-      <View style={{ position: "absolute", bottom: h * 0.02, right: w * 0.015, width: poleW, height: h * 0.86, backgroundColor: "#92400E", borderRadius: 2 }} />
-      <View style={{ position: "absolute", top: h * 0.1, left: 0, width: w, height: poleW, backgroundColor: "#92400E", borderRadius: 2 }} />
-      <View style={{ position: "absolute", top: h * 0.42, left: 0, width: w, height: Math.max(3, poleW * 0.7), backgroundColor: "#B45309", borderRadius: 2, opacity: 0.9 }} />
-      <View style={{ position: "absolute", top: h * 0.3, left: w * 0.3, width: w * 0.55, height: Math.max(3, poleW * 0.6), backgroundColor: "#B45309", borderRadius: 2, opacity: 0.75, transform: [{ rotate: "24deg" }] }} />
-      {/* crane jib reaching in from the top-right, hook + crate swaying */}
-      <View style={{ position: "absolute", top: h * 0.02, right: 0, width: w * 0.42, height: poleW, backgroundColor: "#78350F", borderRadius: 2 }} />
+      {/* Paper Town: the whole site is one paper canvas — a striped
+          paper tarp over the footprint, a paper-plank scaffold, the
+          crane jib; the hook and the sign stay live Animated overlays
+          (sine sway/bob only), now carrying little paper glyphs. */}
+      <PaperCanvas cols={100} rows={Math.max(24, Math.round((100 * h) / Math.max(w, 1)))} unit={w / 100} draw={(p) => {
+          const rows = Math.max(24, Math.round((100 * h) / Math.max(w, 1)));
+          const ground = rows - 1.5;
+          p.ellipse(50, ground + 0.6, 47, 1.7, "#000000", { shadow: false, opacity: 0.16 });
+          // striped paper tarp draped over the footprint
+          const tarpW = 84;
+          const tarpH = rows * 0.58;
+          const tarpX = 8;
+          const tarpY = ground - tarpH;
+          for (let i = 0; i < 6; i++) {
+            p.rect(tarpX, tarpY + (tarpH / 6) * i, tarpW, tarpH / 6 - 0.5, i % 2 ? "#FEF3C7" : "#F59E0B", { shadow: false, r: 0.9 });
+          }
+          p.line(50, tarpY + 0.5, 50, ground - 0.5, "#92400E", 0.55);
+          p.rect(tarpX, ground - tarpH * 0.07, tarpW, tarpH * 0.07, "#D97706", { shadow: false, r: 0.7, opacity: 0.55 });
+          // scaffold frame: two paper-plank poles, top + mid bars, brace
+          const plank = 4.6;
+          p.rect(2, ground - rows * 0.84, plank, rows * 0.84, "#92400E", { r: 0.8 });
+          p.rect(100 - 2 - plank, ground - rows * 0.84, plank, rows * 0.84, "#92400E", { r: 0.8 });
+          p.rect(0.5, ground - rows * 0.87, 99, plank * 0.9, "#92400E", { r: 0.8 });
+          p.rect(0.5, ground - rows * 0.56, 99, plank * 0.62, "#B45309", { shadow: false, r: 0.7, opacity: 0.9 });
+          p.rect(28, ground - rows * 0.68, 52, plank * 0.55, "#B45309", { shadow: false, r: 0.6, opacity: 0.75, rot: { deg: 24, cx: 54, cy: ground - rows * 0.68 } });
+          // crane jib reaching in from the top-right
+          p.rect(58, ground - rows * 0.985, 42, plank, "#78350F", { r: 0.8 });
+          // a paper crate waiting on the ground
+          p.rect(79, ground - rows * 0.1, 12, rows * 0.1, "#B45309", { r: 0.7 });
+          p.line(79, ground - rows * 0.05, 91, ground - rows * 0.05, "#92400E", 0.5);
+        }} />
       <Animated.View style={{ position: "absolute", top: h * 0.045, right: w * 0.1, alignItems: "center", transform: [{ translateX: hookDx }] }}>
         <View style={{ width: 2, height: h * 0.2, backgroundColor: "#57534E" }} />
         <View style={{ width: Math.max(8, w * 0.09), height: Math.max(6, h * 0.055), backgroundColor: "#78716C", borderRadius: 2 }} />
@@ -4357,6 +4312,7 @@ export default function HometownScreen() {
     return prayedPeople.map((p) => ({
       personId: String(p.id),
       name: p.name,
+      accentColor: p.accentColor,
     }));
   }, [prayedPeople]);
 
@@ -7602,15 +7558,19 @@ export default function HometownScreen() {
           style={{
             width: cellSize,
             height: cellSize,
-            backgroundColor: isSelected ? "#FEF3C7" : b ? "#D1FAE5" : onStream ? "#7DD3FC" : beachCells.has(`${x}-${y}`) ? "#FDE68A" : "#F3F4F6",
+            backgroundColor: isSelected ? PAPER_GROUND.selected : b ? PAPER_GROUND.plot : onStream ? PAPER_GROUND.stream : beachCells.has(`${x}-${y}`) ? PAPER_GROUND.sand : PAPER_GROUND.grass,
             borderWidth: isOrigin || !b ? 1 : 0,
-            borderColor: isSelected ? "#F59E0B" : onStream ? "#38BDF8" : beachCells.has(`${x}-${y}`) ? "#FCD34D" : "#E5E7EB",
+            borderColor: isSelected ? "#F59E0B" : onStream ? "#38BDF8" : beachCells.has(`${x}-${y}`) ? PAPER_GROUND.sandEdge : PAPER_GROUND.grassEdge,
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          {decorationAt(x, y) && (
-            <Text style={{ fontSize: 22 }}>{DECORATIONS[decorationAt(x, y)!.type].icon}</Text>
+          {decorationAt(x, y) && paperDecorationKind(decorationAt(x, y)!.type) && (
+            <PaperDecoration
+              kind={paperDecorationKind(decorationAt(x, y)!.type)!}
+              size={Math.round(cellSize * 0.72)}
+              night={isNight}
+            />
           )}
           {onStream && !onBridge && <StreamWater size={cellSize} phase={x + y} />}
           {onBridge && (
@@ -7620,8 +7580,8 @@ export default function HometownScreen() {
             </View>
           )}
           {roadAt(x, y) && !onStream && (
-            <View style={{ position: "absolute", width: cellSize, height: cellSize, backgroundColor: "#9CA3AF", alignItems: "center", justifyContent: "center" }}>
-              <View style={{ width: cellSize * 0.7, height: 8, backgroundColor: "#6B7280", borderRadius: 4 }} />
+            <View style={{ position: "absolute", width: cellSize, height: cellSize, backgroundColor: PAPER_GROUND.road, alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: cellSize * 0.7, height: 8, backgroundColor: PAPER_GROUND.roadLine, borderRadius: 4 }} />
             </View>
           )}
           {null}
@@ -7638,7 +7598,7 @@ export default function HometownScreen() {
     // buildingAt/decorationAt/roadAt read `map` (a dep) from the render
     // closure, so the memoized cells always match the current map data.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMap, map, selectedTile, gridW, gridH, cellSize]);
+  }, [activeMap, map, selectedTile, gridW, gridH, cellSize, isNight]);
 
   // Fast-length gate: Hometown only appears on fasts longer than 40 days.
   // (The entry buttons in profile are hidden too; this covers direct opens.)
@@ -8106,6 +8066,7 @@ export default function HometownScreen() {
           pt={pt}
           tunicColor={forestTunic}
           villagerNames={prayedPeople.map((p) => p.name.split(" ")[0])}
+          villagerPeople={prayedPeople.map((p) => ({ id: String(p.id), name: p.name, accentColor: p.accentColor }))}
           onCatch={handleRiverCatch}
           onSell={handleRiverSell}
           onUpgrade={handleRiverUpgrade}
@@ -8792,7 +8753,7 @@ export default function HometownScreen() {
                 onPress={() => handleBuild(type)}
                 style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8, opacity: affordable ? 1 : 0.5 }}
               >
-                <MemoBuildingArt type={type} size={32} />
+                <PaperBuildingArt type={type} size={32} />
                 <View style={{ marginLeft: 10, flex: 1 }}>
                   <Text style={{ fontWeight: "600", color: pt.text }}>{def.name}</Text>
                   <Text style={{ fontSize: 12, color: pt.subtext }}>{def.description}</Text>

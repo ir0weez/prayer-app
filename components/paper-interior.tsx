@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { Animated, Easing, View, type ViewStyle } from "react-native";
-import Svg, { Circle, Defs, Ellipse, Line, Path, Polygon, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Circle, Defs, Ellipse, G, Line, Path, Polygon, RadialGradient, Rect, Stop } from "react-native-svg";
 import { GentleBob } from "@/components/activity-figures";
 import { FIGURE_H, FIGURE_W, paperDinerLookFor, type PaperDinerLook } from "@/lib/paper-interior";
 import type { PrayedPerson } from "@/lib/hometown";
@@ -51,6 +51,8 @@ export type PaperPainter = {
   poly: (points: string, fill: string, opts?: PaperOpts) => void;
   /** A plain stroked line (stitching, cords, straws) — casts no shadow. */
   line: (x1: number, y1: number, x2: number, y2: number, color: string, w?: number, dash?: string) => void;
+  /** A stroked path (water arcs, steam curls, swags) — casts no shadow. */
+  stroke: (d: string, color: string, w?: number, opacity?: number) => void;
   /** A soft radial pool of light — lantern warmth on paper. */
   glow: (cx: number, cy: number, r: number, color: string, opacity: number) => void;
 };
@@ -129,6 +131,19 @@ export function PaperCanvas({
           strokeWidth={w}
           strokeLinecap="round"
           strokeDasharray={dash}
+        />
+      );
+    },
+    stroke: (d, color, w = 0.4, opacity) => {
+      nodes.push(
+        <Path
+          key={k++}
+          d={d}
+          fill="none"
+          stroke={color}
+          strokeWidth={w}
+          strokeLinecap="round"
+          opacity={opacity}
         />
       );
     },
@@ -547,5 +562,120 @@ export function PaperHeroFigure({ pawn, unit }: { pawn: CustomPawn; unit: number
         </>
       )}
     </Svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* The standing villager — the map-facing paper figure (Paper Town).   */
+/* Front-facing, drawn ONCE here as raw SVG shapes in a 10x16 box, so   */
+/* every surface draws the identical person: the map streets            */
+/* (PaperStandingVillager), the Garden of Remembrance, and — wrapped    */
+/* in a <G> — the SVG scenes of the River camp and the Mission Field   */
+/* (PaperFigureGlyph). The look is the person's deterministic paper     */
+/* look (paperDinerLookFor): the villager you meet on the street IS     */
+/* the diner seated in the cantina — same skin, same hair cap (short /  */
+/* long / bun / genuinely bald with its shine), same beard in the       */
+/* pawn system's vocabulary, same shirt. No golden light bodies: real   */
+/* paper people, characteristic, as Jonathan asked.                     */
+/* ------------------------------------------------------------------ */
+export const PAPER_FIGURE_W = 10;
+export const PAPER_FIGURE_H = 16;
+
+export function paperFigureShapes(look: PaperDinerLook): ReactNode {
+  const bald = look.hairStyle === "bald";
+  const beardG = look.beardStyle === "none" ? 0 : Math.min(Math.max(look.beardLength, 0), 100) / 100;
+  return (
+    <>
+      {/* ground shadow */}
+      <Ellipse cx={5} cy={15.35} rx={3.6} ry={0.55} fill={PAPER_SHADOW} />
+      {/* long hair falls behind the shoulders */}
+      {look.hairStyle === "long" && (
+        <>
+          <Rect x={1.7} y={2.3} width={1.6} height={6.2} rx={0.8} fill={look.hair} />
+          <Rect x={6.7} y={2.3} width={1.6} height={6.2} rx={0.8} fill={look.hair} />
+        </>
+      )}
+      {/* legs + shoes */}
+      <Rect x={3.15} y={11.2} width={1.6} height={3.8} rx={0.6} fill={look.pants} />
+      <Rect x={5.25} y={11.2} width={1.6} height={3.8} rx={0.6} fill={look.pants} />
+      <Ellipse cx={3.9} cy={15.15} rx={1.1} ry={0.5} fill="#3A2A1C" />
+      <Ellipse cx={6.1} cy={15.15} rx={1.1} ry={0.5} fill="#3A2A1C" />
+      {/* torso + arms at the sides, in their shirt */}
+      <Rect x={2.5} y={6.0} width={5.0} height={5.5} rx={1.5} fill={look.shirt} />
+      <Rect x={1.25} y={6.35} width={1.3} height={4.1} rx={0.65} fill={look.shirt} />
+      <Rect x={7.45} y={6.35} width={1.3} height={4.1} rx={0.65} fill={look.shirt} />
+      <Circle cx={1.9} cy={10.8} r={0.62} fill={look.skin} />
+      <Circle cx={8.1} cy={10.8} r={0.62} fill={look.skin} />
+      {/* neck, hair mass, face */}
+      <Rect x={4.4} y={5.15} width={1.2} height={1.05} fill={look.skin} />
+      {!bald && <Circle cx={5} cy={2.9} r={2.78} fill={look.hair} />}
+      <Circle cx={5} cy={3.32} r={2.45} fill={look.skin} />
+      {/* the hair CAP over the face's top — a real band with a hairline,
+          thick enough to read at map scale in any color */}
+      {!bald && (
+        <Path
+          d="M 2.58 3.28 A 2.48 2.48 0 0 1 7.42 3.28 L 6.95 3.24 A 1.98 1.98 0 0 0 3.05 3.24 Z"
+          fill={look.hair}
+          stroke="rgba(42,26,51,0.25)"
+          strokeWidth={0.22}
+        />
+      )}
+      {look.hairStyle === "bun" && <Circle cx={4.35} cy={0.72} r={0.92} fill={look.hair} />}
+      {/* bald is a style, not a missing render: a bare head with a shine */}
+      {bald && <Ellipse cx={4.45} cy={1.7} rx={0.95} ry={0.42} fill="#FFFFFF" opacity={0.38} transform="rotate(-18 4.45 1.7)" />}
+      {/* face */}
+      <Circle cx={4.32} cy={3.5} r={0.25} fill={PAPER_INK} />
+      <Circle cx={5.68} cy={3.5} r={0.25} fill={PAPER_INK} />
+      {!(look.beardStyle === "full" && beardG > 0.25) && (
+        <Path d="M4.45 4.6 Q5 5.05 5.55 4.6" stroke={PAPER_INK} strokeWidth={0.26} fill="none" strokeLinecap="round" />
+      )}
+      {/* the beard, where the look calls for one */}
+      {look.beardStyle === "full" && (
+        <Ellipse cx={5} cy={5.3} rx={1.68} ry={0.58 + beardG * 0.8} fill={look.hair} />
+      )}
+      {look.beardStyle === "goatee" && (
+        <Rect x={4.48} y={4.95} width={1.05} height={0.5 + beardG * 1.05} rx={0.5} fill={look.hair} />
+      )}
+      {look.beardStyle === "mustache" && (
+        <Rect x={4.12} y={4.58} width={1.76} height={0.34 + beardG * 0.16} rx={0.17} fill={look.hair} />
+      )}
+    </>
+  );
+}
+
+/** A villager standing in the world — an Svg of the shared shapes. */
+export function PaperStandingVillager({
+  look,
+  width,
+}: {
+  look: PaperDinerLook;
+  width: number;
+}) {
+  return (
+    <Svg width={width} height={(width * PAPER_FIGURE_H) / PAPER_FIGURE_W} viewBox={`0 0 ${PAPER_FIGURE_W} ${PAPER_FIGURE_H}`}>
+      {paperFigureShapes(look)}
+    </Svg>
+  );
+}
+
+/** The same figure as an SVG group, for the drawn scenes (River camp,
+ *  Mission Field) whose worlds are one big Svg: place the figure's
+ *  feet at (x, yFeet) at the given height in scene units. */
+export function PaperFigureGlyph({
+  look,
+  x,
+  yFeet,
+  height,
+}: {
+  look: PaperDinerLook;
+  x: number;
+  yFeet: number;
+  height: number;
+}) {
+  const k = height / PAPER_FIGURE_H;
+  return (
+    <G transform={`translate(${x - (PAPER_FIGURE_W / 2) * k} ${yFeet - height}) scale(${k})`}>
+      {paperFigureShapes(look)}
+    </G>
   );
 }

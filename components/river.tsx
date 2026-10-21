@@ -18,6 +18,9 @@ import { isEventActive } from "@/lib/heavenly-events";
 import { SKY_THEMES, type PageTheme, type TimeOfDay } from "@/lib/daynight";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { PaperFigureGlyph } from "@/components/paper-interior";
+import type { PaperDinerLook } from "@/lib/paper-interior";
+import { paperMapLookFor } from "@/lib/paper-town";
 
 export type RiverCampProps = {
   river: RiverState;
@@ -27,6 +30,10 @@ export type RiverCampProps = {
   tunicColor: string;
   /** First names of prayed people — a deterministic daily pick fish here. */
   villagerNames: string[];
+  /** The prayed people themselves, when the caller has them: campers
+   *  render as paper figures of the actual people (their own looks).
+   *  Falls back to name-keyed looks when absent. */
+  villagerPeople?: { id: string; name: string; accentColor?: string }[];
   onCatch: (speciesId: string, speciesName: string) => void;
   onSell: () => void;
   onUpgrade: () => void;
@@ -59,24 +66,25 @@ function pickVillagers(names: string[], count: number, seed: string): string[] {
 /* Small SVG building blocks                                           */
 /* ------------------------------------------------------------------ */
 
-/** Golden prayer light (a villager) with a soft halo. */
-function VillagerLight({ x, y, r = 7 }: { x: number; y: number; r?: number }) {
+/** A villager at the camp (Paper Town): a paper figure in their own
+ *  look — the same person the map and the interiors show — with the
+ *  prayer's soft halo behind them. */
+function VillagerLight({ x, y, r = 7, look }: { x: number; y: number; r?: number; look: PaperDinerLook }) {
   return (
     <G>
-      <Circle cx={x} cy={y} r={r * 1.9} fill="#FFD66B" opacity={0.28} />
-      <Circle cx={x} cy={y} r={r * 1.35} fill="#FFD66B" opacity={0.5} />
-      <Circle cx={x} cy={y} r={r} fill="#FFE9A8" />
-      <Circle cx={x - r * 0.3} cy={y - r * 0.3} r={r * 0.35} fill="#FFFFFF" opacity={0.9} />
+      <Circle cx={x} cy={y} r={r * 1.9} fill="#FFD66B" opacity={0.22} />
+      <PaperFigureGlyph look={look} x={x} yFeet={y + r * 1.3} height={r * 2.6} />
     </G>
   );
 }
 
-/** A villager light fishing: halo plus a tiny rod reaching into the water. */
-function FishingVillager({ x, groundY, bobber }: { x: number; groundY: number; bobber: { x: number; y: number } }) {
+/** A villager fishing: paper figure plus a tiny rod reaching into the water. */
+function FishingVillager({ x, groundY, bobber, look }: { x: number; groundY: number; bobber: { x: number; y: number }; look: PaperDinerLook }) {
   return (
     <G>
-      <VillagerLight x={x} y={groundY - 10} r={6} />
-      <Line x1={x + 5} y1={groundY - 12} x2={bobber.x - 6} y2={bobber.y - 26} stroke="#8B5E34" strokeWidth={2.5} strokeLinecap="round" />
+      <Circle cx={x} cy={groundY - 8} r={11} fill="#FFD66B" opacity={0.2} />
+      <PaperFigureGlyph look={look} x={x} yFeet={groundY} height={16} />
+      <Line x1={x + 4.5} y1={groundY - 8} x2={bobber.x - 6} y2={bobber.y - 26} stroke="#8B5E34" strokeWidth={2.5} strokeLinecap="round" />
       <Line x1={bobber.x - 6} y1={bobber.y - 26} x2={bobber.x} y2={bobber.y} stroke="#D6C9A8" strokeWidth={1.2} />
       <Circle cx={bobber.x} cy={bobber.y} r={3.5} fill="#EF4444" />
       <Circle cx={bobber.x} cy={bobber.y - 2} r={1.4} fill="#FFFFFF" />
@@ -303,7 +311,7 @@ function Dock({ x, fromY, toY, lanterns, night }: { x: number; fromY: number; to
 /* Main component                                                       */
 /* ------------------------------------------------------------------ */
 
-export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, onCatch, onSell, onUpgrade }: RiverCampProps) {
+export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, villagerPeople, onCatch, onSell, onUpgrade }: RiverCampProps) {
   const level = river.level;
   const info = RIVER_LEVELS[level];
   const night = timeOfDay === "night";
@@ -397,6 +405,19 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, onC
     () => pickVillagers(villagerNames, 5, river.day),
     [villagerNames, river.day]
   );
+  /* The campers as paper people: when the caller passes the prayed
+   * people, each camper is that person's own look (same pick, keyed
+   * by person id); otherwise looks key off the first name alone. */
+  const villagerFolks = useMemo(() => {
+    if (villagerPeople && villagerPeople.length > 0) {
+      const byId = new Map(villagerPeople.map((p) => [p.id, p]));
+      return pickVillagers(villagerPeople.map((p) => p.id), 5, river.day)
+        .map((id) => byId.get(id))
+        .filter((p): p is NonNullable<typeof p> => !!p)
+        .map((p) => ({ key: p.id, look: paperMapLookFor({ id: p.id, accentColor: p.accentColor }) }));
+    }
+    return villagers.map((n) => ({ key: n, look: paperMapLookFor({ id: `river-name:${n}` }) }));
+  }, [villagerPeople, villagers, river.day]);
 
   /* Where the pawn fishes. */
   const fishSpot =
@@ -742,27 +763,27 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, onC
             {/* villagers: nights gather at the fire; days fish the bank */}
             {night ? (
               <G>
-                {villagers.slice(0, 4).map((n, i) => {
+                {villagerFolks.slice(0, 4).map((f, i) => {
                   const a = (i / 4) * Math.PI * 2 - Math.PI / 2;
-                  return <VillagerLight key={n + i} x={firePos.x + Math.cos(a) * 52} y={firePos.y - 14 + Math.sin(a) * 18} r={6} />;
+                  return <VillagerLight key={f.key + i} look={f.look} x={firePos.x + Math.cos(a) * 52} y={firePos.y - 14 + Math.sin(a) * 18} r={6} />;
                 })}
-                {villagers[4] && (
-                  <FishingVillager x={52} groundY={BANK_BOTTOM - 4} bobber={{ x: 78, y: 300 }} />
+                {villagerFolks[4] && (
+                  <FishingVillager look={villagerFolks[4].look} x={52} groundY={BANK_BOTTOM - 4} bobber={{ x: 78, y: 300 }} />
                 )}
               </G>
             ) : (
               <G>
-                {villagers.slice(0, 3).map((n, i) => {
+                {villagerFolks.slice(0, 3).map((f, i) => {
                   const spots = [
                     { x: 44, bobber: { x: 70, y: 300 } },
                     { x: 128, bobber: { x: 152, y: 310 } },
                     { x: 250, bobber: { x: 276, y: 300 } },
                   ];
                   const s = spots[i % spots.length];
-                  return <FishingVillager key={n + i} x={s.x} groundY={BANK_BOTTOM - 4} bobber={s.bobber} />;
+                  return <FishingVillager key={f.key + i} look={f.look} x={s.x} groundY={BANK_BOTTOM - 4} bobber={s.bobber} />;
                 })}
-                {villagers.slice(3).map((n, i) => (
-                  <VillagerLight key={n + i} x={firePos.x - 40 + i * 80} y={firePos.y - 12} r={6} />
+                {villagerFolks.slice(3).map((f, i) => (
+                  <VillagerLight key={f.key + i} look={f.look} x={firePos.x - 40 + i * 80} y={firePos.y - 12} r={6} />
                 ))}
               </G>
             )}

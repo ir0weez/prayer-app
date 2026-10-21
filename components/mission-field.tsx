@@ -18,6 +18,9 @@ import {
   type MissionDurationId,
 } from "@/lib/hometown";
 import type { PageTheme, TimeOfDay } from "@/lib/daynight";
+import { PaperFigureGlyph } from "@/components/paper-interior";
+import type { PaperDinerLook } from "@/lib/paper-interior";
+import { paperMapLookFor } from "@/lib/paper-town";
 
 export type MissionFieldProps = {
   missions: FieldMission[];
@@ -60,13 +63,13 @@ function Tree({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
   );
 }
 
-/** A small golden figure walking the path (a light out on mission). */
-function MissionWalker({ x, y, returning }: { x: number; y: number; returning: boolean }) {
+/** A villager out on mission (Paper Town): a paper figure in their
+ *  own look walking the path — the returned keep a golden halo. */
+function MissionWalker({ x, y, returning, look }: { x: number; y: number; returning: boolean; look: PaperDinerLook }) {
   return (
-    <G transform={`translate(${x} ${y})`}>
-      {returning && <Circle cx={0} cy={-14} r={16} fill="#FBBF24" opacity={0.3} />}
-      <Circle cx={0} cy={-18} r={7} fill="#FDE68A" stroke="#F59E0B" strokeWidth={1.5} />
-      <Rect x={-6} y={-12} width={12} height={16} rx={6} fill="#FDE68A" stroke="#F59E0B" strokeWidth={1.5} />
+    <G>
+      {returning && <Circle cx={x} cy={y - 12} r={17} fill="#FBBF24" opacity={0.3} />}
+      <PaperFigureGlyph look={look} x={x} yFeet={y + 4} height={26} />
     </G>
   );
 }
@@ -136,6 +139,7 @@ function MissionScene({
         {out.slice(0, 6).map((m, i) => (
           <MissionWalker
             key={m.id}
+            look={paperMapLookFor({ id: m.personId, accentColor: m.accentColor })}
             x={168 + (i % 3) * 22 - 20}
             y={150 + Math.floor(i / 3) * 36 + (i % 2) * 8}
             returning={false}
@@ -144,6 +148,7 @@ function MissionScene({
         {returned.slice(0, 6).map((m, i) => (
           <MissionWalker
             key={m.id}
+            look={paperMapLookFor({ id: m.personId, accentColor: m.accentColor })}
             x={120 + i * 48}
             y={282}
             returning={true}

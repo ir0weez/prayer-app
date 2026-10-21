@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Text } from "react-native";
-import { HeroForPawn } from "@/components/hero-sprite";
+import { PAPER_HERO_W, PaperHeroFigure } from "@/components/paper-interior";
 import { buildPath } from "@/components/town-npcs";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { getTimeOfDay } from "@/lib/daynight";
@@ -13,10 +13,12 @@ const WALK_PX_PER_SEC = 46;
 
 /**
  * The Hero — the player's own character, walking the hometown during
- * the day: the 8-bit Dark Forest hero wearing what's equipped, with the
- * saved appearance's hair and beard. He travels the way the villagers
- * do — along the road network (buildPath: nearest road tile, BFS over
- * the roads, then the final step off-road to the door) — never in a
+ * the day: a PAPER figure in his normal clothes (Paper Town), with his
+ * equipped hair and his beard at its current growth — armor and
+ * weapons are Dark-Forest-only, and the 8-bit pixel hero lives on
+ * inside the forest alone. He travels the way the villagers do —
+ * along the road network (buildPath: nearest road tile, BFS over the
+ * roads, then the final step off-road to the door) — never in a
  * straight line over the rooftops. Idle, he strolls from road tile to
  * road tile. At night he's in bed in the Hero's house (rendered there),
  * so this hides after dark.
@@ -228,6 +230,7 @@ export function PlayerPawnWanderer({
         width: PAWN_SIZE,
         height: PAWN_SIZE + 14,
         alignItems: "center",
+        justifyContent: "flex-end",
         transform: [...pos.getTranslateTransform(), { translateY: bobY }],
         // Depth sort by feet Y — the pawn walks BEHIND tall buildings too.
         zIndex: Math.round((tileY + 0.5) * cellSize),
@@ -251,10 +254,10 @@ export function PlayerPawnWanderer({
       >
         {pawn.name || "You"}
       </Text>
-      {/* the Hero in his normal clothes — armor + weapons are
-          Dark-Forest-only (gear rule), so the wanderer renders the
-          default "world" context */}
-      <HeroForPawn pawn={pawn} size={PAWN_SIZE} />
+      {/* the Hero as a paper figure in the world — normal clothes,
+          equipped hair, live-grown beard (PaperHeroFigure reads the
+          pawn's saved appearance) */}
+      <PaperHeroFigure pawn={pawn} unit={PAWN_SIZE / PAPER_HERO_W} />
     </Animated.View>
   );
 }

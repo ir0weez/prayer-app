@@ -15,6 +15,8 @@ import {
 } from "@/lib/hometown";
 import { getTimeOfDay } from "@/lib/daynight";
 import { WORK_KINDS } from "@/lib/villager-work";
+import { PaperGlowDisc, PaperStandingVillager } from "@/components/paper-interior";
+import { paperCityLookFor, paperMapLookFor } from "@/lib/paper-town";
 
 /** Work badge icon per work kind — shown above a light on a shift. */
 const WORK_BADGE_ICONS: Record<string, string> = Object.fromEntries(
@@ -108,10 +110,15 @@ const MAX_CHAT_PAIRS = 6;
 type Tile = { x: number; y: number };
 type Px = { x: number; y: number };
 
-/** A prayer light — someone Jonathan prayed for today, glowing golden. */
+/** A prayer villager — someone Jonathan prayed for today. On the maps
+ *  they walk as a real paper figure (Paper Town): the same look the
+ *  interiors give them, keyed by personId + accentColor. */
 export type LightInfo = {
   personId: string;
   name: string;
+  /** The person's saved accent color, when they have one — it becomes
+   *  their shirt, on the map and in the interiors alike. */
+  accentColor?: string;
 };
 
 type NpcDef = {
@@ -123,6 +130,8 @@ type NpcDef = {
   name?: string;
   /** Prayer contact id. */
   prayerId?: string;
+  /** The person's accent color — their paper figure's shirt. */
+  accentColor?: string;
 };
 
 type NpcLogic = {
@@ -132,6 +141,7 @@ type NpcLogic = {
   color: string;
   name?: string;
   prayerId?: string;
+  accentColor?: string;
   pos: Animated.ValueXY;
   bob: Animated.Value;
   snore: Animated.Value;
@@ -320,7 +330,7 @@ function TownNPCsImpl({
   const scheduleMapRef = useRef(scheduleMap);
   scheduleMapRef.current = scheduleMap;
   const [renderIds, setRenderIds] = useState<string[]>([]);
-  // Villagers asleep at home (night && idle). Synced in tick; drives the 💤 render.
+  // Villagers asleep at home (night && idle). Synced in tick; drives the sleeping-"z" render.
   const [sleepingIds, setSleepingIds] = useState<Set<string>>(new Set());
   const sleepingRef = useRef<Set<string>>(new Set());
   // Lights at the church or a restaurant show their name (the fellowship
@@ -385,6 +395,7 @@ function TownNPCsImpl({
         color: LIGHT_COLOR,
         name: p.name,
         prayerId: String(p.personId),
+        accentColor: p.accentColor,
       });
     }
     return defs;
@@ -842,7 +853,7 @@ function TownNPCsImpl({
           }
         }
       }
-      // Sync the sleeping set for the 💤 render (only fires when someone dozes off / wakes).
+      // Sync the sleeping set for the "z" render (only fires when someone dozes off / wakes).
       const next = new Set<string>();
       if (night) {
         for (const npc of Object.values(logic)) {
@@ -1054,7 +1065,7 @@ function TownNPCsImpl({
             }),
           ])
         ).start();
-        // Slow rising 💤 loop — only rendered while the villager sleeps.
+        // Slow rising "z" loop — only rendered while the villager sleeps.
         const snore = new Animated.Value(0);
         Animated.loop(
           Animated.sequence([
@@ -1079,6 +1090,7 @@ function TownNPCsImpl({
           color: def.color,
           name: def.name,
           prayerId: def.prayerId,
+          accentColor: def.accentColor,
           pos: new Animated.ValueXY(homePx),
           bob,
           snore,
@@ -1157,36 +1169,34 @@ function TownNPCsImpl({
         const floatY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
         // Alternate bubble content so meetups feel alive: heart or "...".
         const chatHeart = id.charCodeAt(id.length - 1) % 2 === 0;
-        // All lights glow golden — they're the people Jonathan prayed for today.
-        const bodyColor = "#FBBF24";
+        // Paper Town: the villager IS a paper person now — the exact
+        // look the interiors give them (same person id, same accent
+        // shirt), so the face on the street is the face at the table.
+        // A soft golden glow disc stays behind them: the prayer's
+        // warmth, not a body.
+        const look = paperMapLookFor({ id: npc.prayerId || npc.id, accentColor: npc.accentColor });
         const body = (
           <>
-            {/* golden halo */}
-            <View
-              style={{
-                position: "absolute",
-                top: -6,
-                width: 24,
-                height: 24,
-                borderRadius: 12,
-                backgroundColor: "#FBBF24",
-                opacity: 0.3,
-              }}
-            />
-            {/* 💤 while asleep at home */}
+            {/* the prayer's warm glow, behind the paper figure */}
+            <View style={{ position: "absolute", top: -8 }} pointerEvents="none">
+              <PaperGlowDisc size={32} color="#FDE68A" opacity={0.45} />
+            </View>
+            {/* a drawn "z" while asleep at home (no emoji in the art) */}
             {asleep ? (
               <Animated.Text
                 style={{
                   position: "absolute",
                   top: -16,
-                  fontSize: 11,
+                  fontSize: 12,
+                  fontWeight: "800",
+                  color: "#7DD3FC",
                   opacity: npc.snore.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }),
                   transform: [
                     { translateY: npc.snore.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) },
                   ],
                 }}
               >
-                💤
+                z
               </Animated.Text>
             ) : null}
             {/* work badge — on a Jonathan-assigned shift (takes precedence) */}
@@ -1338,36 +1348,9 @@ function TownNPCsImpl({
                 {npc.name}
               </Text>
             ) : null}
-            {/* head */}
-            <View
-              style={{
-                width: 9,
-                height: 9,
-                borderRadius: 4.5,
-                backgroundColor: bodyColor,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <View style={{ flexDirection: "row", gap: 2 }}>
-                <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: "#1F2937" }} />
-                <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: "#1F2937" }} />
-              </View>
-            </View>
-            {/* body */}
-            <View
-              style={{
-                width: 11,
-                height: 8,
-                borderTopLeftRadius: 4,
-                borderTopRightRadius: 4,
-                borderBottomLeftRadius: 2,
-                borderBottomRightRadius: 2,
-                backgroundColor: bodyColor,
-                marginTop: 0.5,
-                opacity: 0.92,
-              }}
-            />
+            {/* the paper figure — this person's own look, the same
+                one the interiors seat at the table */}
+            <PaperStandingVillager look={look} width={13} />
             {/* restock box — carried in front on the church -> shop leg */}
             {carryingIds.has(id) && !asleep ? (
               <View style={{ position: "absolute", bottom: 1, left: 1 }}>
@@ -1822,13 +1805,11 @@ function CityNPCsImpl({
           zIndex: npc.state === "visiting" ? 1000000 : Math.round(npc.py),
         }}
       >
-        <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: npc.color, alignItems: "center", justifyContent: "center" }}>
-          <View style={{ flexDirection: "row", gap: 2 }}>
-            <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: "#1F2937" }} />
-            <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: "#1F2937" }} />
-          </View>
-        </View>
-        <View style={{ width: 11, height: 8, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: npc.color, marginTop: 0.5, opacity: 0.92 }} />
+        {/* Synthetic city folk (plot workers + commuters): paper
+            figures with synthetic identities keyed by their npc id and
+            tinted by their old body color — deliberately NOT the
+            prayer-person look system. */}
+        <PaperStandingVillager look={paperCityLookFor(npc.id, npc.color)} width={12.5} />
       </Animated.View>
     );
   });

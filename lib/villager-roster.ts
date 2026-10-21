@@ -17,10 +17,12 @@ import {
   isRestaurantType,
   missionCountdown,
   missionStatus,
+  scaledCoins,
   type FieldMission,
   type PlacedBuilding,
   type PrayedPerson,
 } from "./hometown";
+import { BLOODMOON_COIN_MULT } from "./badges";
 import {
   WORK_KINDS,
   workCountdownText,
@@ -279,4 +281,37 @@ export function rosterSummary(rows: RosterRow[]): RosterSummary {
 export function rosterSummaryText(summary: RosterSummary): string {
   const villagerWord = summary.total === 1 ? "villager" : "villagers";
   return `${summary.total} ${villagerWord} · ${summary.working} working · ${summary.idle} idle`;
+}
+
+// ---- Collect All (the office pays every finished shift at once) ----
+
+/** Rows with a finished shift waiting to be paid out. */
+export function collectableRows(rows: RosterRow[]): RosterRow[] {
+  return rows.filter((r) => r.status === "collect" && !!r.assignment);
+}
+
+/** Collect All shows only when two or more finished shifts are waiting —
+ *  with a single one, the row's own Collect button is enough and the
+ *  header stays clean. */
+export function showCollectAll(rows: RosterRow[]): boolean {
+  return collectableRows(rows).length >= 2;
+}
+
+/** The coin grant for one finished shift — the exact payout the row
+ *  Collect button (and collecting on the town map) grants: the scaled
+ *  job reward with any banked box bonus included, and the Bloodmoon
+ *  Badge's blessing on top when Jonathan holds it. */
+export function collectPayoutCoins(rawCoins: number, bloodmoon: boolean): number {
+  const base = scaledCoins(rawCoins);
+  return bloodmoon ? base * BLOODMOON_COIN_MULT : base;
+}
+
+/** The Collect All total: the sum of the individual ready shifts'
+ *  payouts, computed per shift with the same formula the single collect
+ *  pays — so the button's label and the sweep's grant always agree. */
+export function collectAllTotalCoins(rows: RosterRow[], bloodmoon: boolean): number {
+  return collectableRows(rows).reduce(
+    (sum, r) => sum + collectPayoutCoins(r.collectCoins ?? 0, bloodmoon),
+    0
+  );
 }

@@ -17,24 +17,33 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
 
 import {
   BUILDINGS,
+  scaledCoins,
   type BuildingType,
   type FieldMission,
   type PlacedBuilding,
   type PrayedPerson,
 } from "../hometown";
+import { BLOODMOON_COIN_MULT } from "../badges";
 import {
   buildRosterRows,
   canAssignRow,
+  collectAllTotalCoins,
+  collectPayoutCoins,
+  collectableRows,
   jobOptionsFor,
   rosterSummary,
   rosterSummaryText,
+  showCollectAll,
   workSiteFor,
   type RosterRow,
 } from "../villager-roster";
 import {
   WORK_KINDS,
+  collectWorkAssignment,
+  collectWorkAssignments,
   createWorkAssignment,
   type VillagerWorkAssignment,
+  type VillagerWorkState,
 } from "../villager-work";
 import type { VillagerMission } from "../villager-missions";
 
@@ -298,6 +307,139 @@ describe("buildRosterRows — sort + summary", () => {
   });
 });
 
+describe("collectWorkAssignments — the Collect All sweep", () => {
+  const doneRestock = assignment("1", "Cody", "restock", "done", { bonusCoins: 45 });
+  const doneFarm = assignment("2", "Joy", "work-farm", "done");
+  const doneBank = assignment("3", "Melody", "bank-shift", "done");
+  const stillWorking = assignment("4", "Eva", "restock", "working");
+  const freshState = (): VillagerWorkState => ({
+    assignments: [doneRestock, doneFarm, doneBank, stillWorking].map((a) => ({ ...a })),
+  });
+  const ids = [doneRestock.id, doneFarm.id, doneBank.id];
+
+  /** The single-collect payout for one shift, spelled out from the raw
+   *  numbers: scaled reward (bonus included), Bloodmoon on top. */
+  const singlePayout = (a: VillagerWorkAssignment, bloodmoon: boolean) => {
+    const base = scaledCoins(WORK_KINDS[a.kind].rewardCoins + (a.bonusCoins ?? 0));
+    return bloodmoon ? base * BLOODMOON_COIN_MULT : base;
+  };
+
+  it("collects every done shift in the set, once each", () => {
+    const { state, collected, skippedIds } = collectWorkAssignments(freshState(), ids);
+    expect(collected.map((a) => a.id).sort()).toEqual([...ids].sort());
+    expect(skippedIds).toEqual([]);
+    expect(state.assignments.map((a) => a.id)).toEqual([stillWorking.id]);
+  });
+
+  it("skips ids that fail the guard and still collects the rest", () => {
+    const { state, collected, skippedIds } = collectWorkAssignments(freshState(), [
+      doneFarm.id,
+      stillWorking.id, // not done yet
+      "no-such-shift",
+    ]);
+    expect(collected.map((a) => a.id)).toEqual([doneFarm.id]);
+    expect(skippedIds).toEqual([stillWorking.id, "no-such-shift"]);
+    expect(state.assignments.map((a) => a.id).sort()).toEqual(
+      [doneRestock.id, doneBank.id, stillWorking.id].sort()
+    );
+  });
+
+  it("a repeat sweep over the same ids collects nothing twice", () => {
+    const first = collectWorkAssignments(freshState(), ids);
+    const second = collectWorkAssignments(first.state, ids);
+    expect(second.collected).toEqual([]);
+    expect(second.skippedIds).toEqual(ids);
+    expect(second.state.assignments.map((a) => a.id)).toEqual([stillWorking.id]);
+  });
+
+  it("pays exactly the sum of collecting each shift individually", () => {
+    for (const bloodmoon of [false, true]) {
+      // Individual path: one guarded collect at a time, fresh state.
+      let individual = freshState();
+      let individualTotal = 0;
+      for (const id of ids) {
+        const { state, assignment: done } = collectWorkAssignment(individual, id);
+        expect(done).not.toBeNull();
+        individual = state;
+        individualTotal += singlePayout(done!, bloodmoon);
+      }
+      // Sweep path: same set, same state — the grant must match to the cent.
+      const { collected } = collectWorkAssignments(freshState(), ids);
+      const sweepTotal = collected.reduce((s, a) => s + singlePayout(a, bloodmoon), 0);
+      expect(sweepTotal).toBeCloseTo(individualTotal, 10);
+      // And the shared payout helper the office pays through agrees.
+      const helperTotal = collected.reduce(
+        (s, a) =>
+          s + collectPayoutCoins(WORK_KINDS[a.kind].rewardCoins + (a.bonusCoins ?? 0), bloodmoon),
+        0
+      );
+      expect(helperTotal).toBeCloseTo(individualTotal, 10);
+    }
+  });
+});
+
+describe("Collect All roster helpers", () => {
+  const base = {
+    fieldMissions: [] as FieldMission[],
+    villagerMissions: [] as VillagerMission[],
+    townBuildings: TOWN,
+    isNight: false,
+    nowMs: NOW,
+  };
+  const rowsFor = (doneCount: number) =>
+    buildRosterRows({
+      ...base,
+      people: [
+        person("1", "Cody"),
+        person("2", "Joy"),
+        person("3", "Melody"),
+        person("4", "Eva"),
+      ],
+      assignments: [
+        ...(doneCount >= 1
+          ? [assignment("1", "Cody", "restock", "done", { bonusCoins: 45 })]
+          : []),
+        ...(doneCount >= 2 ? [assignment("2", "Joy", "work-farm", "done")] : []),
+        ...(doneCount >= 3 ? [assignment("3", "Melody", "bank-shift", "done")] : []),
+        assignment("4", "Eva", "restock", "working"),
+      ] as VillagerWorkAssignment[],
+    });
+
+  it("the button stays hidden below two ready shifts", () => {
+    expect(showCollectAll(rowsFor(0))).toBe(false);
+    expect(showCollectAll(rowsFor(1))).toBe(false);
+    expect(showCollectAll(rowsFor(2))).toBe(true);
+    expect(showCollectAll(rowsFor(3))).toBe(true);
+    expect(collectableRows(rowsFor(3))).toHaveLength(3);
+  });
+
+  it("the label total equals the sum of the individual ready payouts", () => {
+    const rows = rowsFor(3);
+    for (const bloodmoon of [false, true]) {
+      const expected = collectableRows(rows).reduce((sum, r) => {
+        const a = r.assignment!;
+        const baseCoins = scaledCoins(WORK_KINDS[a.kind].rewardCoins + (a.bonusCoins ?? 0));
+        return sum + (bloodmoon ? baseCoins * BLOODMOON_COIN_MULT : baseCoins);
+      }, 0);
+      expect(collectAllTotalCoins(rows, bloodmoon)).toBeCloseTo(expected, 10);
+      // Per-row display amounts (what each row button pays) sum to it too.
+      const rowSum = collectableRows(rows).reduce(
+        (sum, r) => sum + collectPayoutCoins(r.collectCoins ?? 0, bloodmoon),
+        0
+      );
+      expect(collectAllTotalCoins(rows, bloodmoon)).toBeCloseTo(rowSum, 10);
+    }
+  });
+
+  it("working and idle rows never count toward the total", () => {
+    const rows = rowsFor(1);
+    expect(collectAllTotalCoins(rows, false)).toBeCloseTo(
+      collectPayoutCoins(WORK_KINDS.restock.rewardCoins + 45, false),
+      10
+    );
+  });
+});
+
 describe("Main Office wiring (source guards)", () => {
   const office = readFileSync(join(process.cwd(), "app/main-office-interior.tsx"), "utf8");
   const hometown = readFileSync(join(process.cwd(), "app/hometown.tsx"), "utf8");
@@ -305,9 +447,17 @@ describe("Main Office wiring (source guards)", () => {
   it("assigns and collects through the same villager-work APIs as the map", () => {
     expect(office).toContain("createWorkAssignment");
     expect(office).toContain("collectWorkAssignment");
+    expect(office).toContain("collectWorkAssignments");
     expect(office).toContain("loadVillagerWorkState");
     expect(office).toContain("saveVillagerWorkState");
     expect(office).toContain("tickWorkAssignments");
+  });
+
+  it("Collect All: one button, live total, gated at two ready shifts", () => {
+    expect(office).toContain("Collect All");
+    expect(office).toContain("showCollectAll(rows)");
+    expect(office).toContain("collectAllTotalCoins(rows, bloodmoon)");
+    expect(office).toContain("collectableRows(rowsRef.current)");
   });
 
   it("keeps the roster live: focus + interval refresh of the shared keys", () => {
@@ -316,7 +466,11 @@ describe("Main Office wiring (source guards)", () => {
   });
 
   it("pays the Bloodmoon blessing on collect, like the map's ledger", () => {
-    expect(office).toContain("BLOODMOON_COIN_MULT");
+    // The office pays through the one shared payout helper, and the
+    // helper is where the Bloodmoon multiplier lives.
+    expect(office).toContain("collectPayoutCoins");
+    const roster = readFileSync(join(process.cwd(), "lib/villager-roster.ts"), "utf8");
+    expect(roster).toContain("BLOODMOON_COIN_MULT");
   });
 
   it("is reachable: campus tap routes to the office interior, with map art", () => {

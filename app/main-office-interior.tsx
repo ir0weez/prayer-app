@@ -42,6 +42,7 @@ import {
 import {
   WORK_KINDS,
   collectWorkAssignment,
+  collectWorkAssignments,
   createWorkAssignment,
   loadVillagerWorkState,
   personHasActiveWork,
@@ -54,13 +55,17 @@ import { loadVillagerMissionState, type VillagerMission } from "@/lib/villager-m
 import {
   buildRosterRows,
   canAssignRow,
+  collectAllTotalCoins,
+  collectPayoutCoins,
+  collectableRows,
   jobOptionsFor,
   rosterSummary,
   rosterSummaryText,
+  showCollectAll,
   workSiteFor,
   type RosterRow,
 } from "@/lib/villager-roster";
-import { BLOODMOON_COIN_MULT, refreshBadgeCache } from "@/lib/badges";
+import { refreshBadgeCache } from "@/lib/badges";
 import { RosterRowCard } from "@/components/roster-board";
 import { PawnPreview } from "@/components/pawn-preview";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
@@ -95,6 +100,10 @@ const STATUS_COLORS: Record<RosterRow["status"], string> = {
   mission: "#7C3AED",
   sleeping: "#78716C",
 };
+
+/** Coin totals with thousands separators, always to the cent. */
+const formatCoinTotal = (n: number) =>
+  n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const PAPERWORK_KEY = "prayercircle.interior.main-office.paperwork.v1";
 const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
@@ -247,6 +256,121 @@ function ConferenceTable() {
   );
 }
 
+/** Collect All: one wide button under the roster summary that pays every
+ *  finished shift at once. The flourish is a single moment — a few coin
+ *  dots rise off the button while the summary line fades in below — not
+ *  one coin-fly per villager. All motion is sine-eased, native driver. */
+function CollectAllBar({
+  buttonVisible,
+  totalCoins,
+  busy,
+  celebrateKey,
+  summary,
+  onPress,
+}: {
+  buttonVisible: boolean;
+  totalCoins: number;
+  busy: boolean;
+  celebrateKey: number;
+  summary: { key: number; text: string } | null;
+  onPress: () => void;
+}) {
+  const dots = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0))).current;
+  const summaryOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!celebrateKey) return;
+    dots.forEach((v) => v.setValue(0));
+    Animated.parallel(
+      dots.map((v, i) =>
+        Animated.timing(v, {
+          toValue: 1,
+          duration: 620,
+          delay: i * 70,
+          easing: Easing.out(Easing.sin),
+          useNativeDriver: true,
+        })
+      )
+    ).start();
+  }, [celebrateKey, dots]);
+
+  useEffect(() => {
+    if (!summary) return;
+    summaryOpacity.setValue(0);
+    const seq = Animated.sequence([
+      Animated.timing(summaryOpacity, {
+        toValue: 1,
+        duration: 240,
+        easing: Easing.out(Easing.sin),
+        useNativeDriver: true,
+      }),
+      Animated.delay(2600),
+      Animated.timing(summaryOpacity, {
+        toValue: 0,
+        duration: 500,
+        easing: Easing.inOut(Easing.sin),
+        useNativeDriver: true,
+      }),
+    ]);
+    seq.start();
+    return () => seq.stop();
+  }, [summary, summaryOpacity]);
+
+  if (!buttonVisible && !summary) return null;
+  return (
+    <View>
+      {buttonVisible && (
+        <View style={{ position: "relative", marginTop: 10 }}>
+          {dots.map((v, i) => (
+            <Animated.View
+              key={i}
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                top: -2,
+                left: `${10 + i * 20}%`,
+                width: 10,
+                height: 10,
+                borderRadius: 5,
+                backgroundColor: "#FBBF24",
+                borderWidth: 1.5,
+                borderColor: AMBER,
+                zIndex: 5,
+                opacity: v.interpolate({ inputRange: [0, 0.25, 1], outputRange: [0, 1, 0] }),
+                transform: [
+                  { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -30] }) },
+                ],
+              }}
+            />
+          ))}
+          <Pressable
+            onPress={onPress}
+            disabled={busy}
+            style={{
+              backgroundColor: AMBER,
+              borderRadius: 12,
+              paddingVertical: 11,
+              alignItems: "center",
+              opacity: busy ? 0.6 : 1,
+            }}
+          >
+            <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 14 }}>
+              {busy ? "Collecting…" : `Collect All · ${formatCoinTotal(totalCoins)} coins`}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+      {summary && (
+        <Animated.Text
+          style={{ color: AMBER, fontSize: 12.5, fontWeight: "700", marginTop: 6, opacity: summaryOpacity }}
+        >
+          {summary.text}
+        </Animated.Text>
+      )}
+    </View>
+  );
+}
+
 type RosterData = {
   people: PrayedPerson[];
   assignments: VillagerWorkAssignment[];
@@ -266,6 +390,15 @@ export default function MainOfficeInteriorScreen() {
   const [assignKind, setAssignKind] = useState<WorkKind | null>(null);
   const rosterRef = useRef<RosterData | null>(null);
   rosterRef.current = roster;
+  const rowsRef = useRef<RosterRow[]>([]);
+  // Every collect (a row button or Collect All) runs through this chain,
+  // so two payout paths can never load the shared work ledger at the
+  // same moment and pay the same shift twice.
+  const collectChainRef = useRef<Promise<void>>(Promise.resolve());
+  const [collectingAll, setCollectingAll] = useState(false);
+  const collectingAllRef = useRef(false);
+  const [collectSummary, setCollectSummary] = useState<{ key: number; text: string } | null>(null);
+  const [collectCelebrateKey, setCollectCelebrateKey] = useState(0);
 
   // Load the paperwork cooldown + the Bloodmoon Badge blessing flag.
   useEffect(() => {
@@ -338,6 +471,7 @@ export default function MainOfficeInteriorScreen() {
       nowMs,
     });
   }, [roster, nowMs]);
+  rowsRef.current = rows;
 
   const summary = useMemo(() => rosterSummary(rows), [rows]);
   const jobOptions = useMemo(
@@ -450,30 +584,81 @@ export default function MainOfficeInteriorScreen() {
     refreshRoster();
   };
 
+  /** Serialize every payout through one chain: a collect always loads,
+   *  guards, saves, and pays against the freshest shared work ledger,
+   *  never in parallel with another collect. */
+  const enqueueCollect = (work: () => Promise<void>): Promise<void> => {
+    const run = collectChainRef.current.then(work);
+    collectChainRef.current = run.catch(() => undefined);
+    return run;
+  };
+
   /** Pay out a finished shift — identical to collecting on the map:
    *  scaled job reward + banked restock box bonus, with the Bloodmoon
    *  Badge's +10% on the grant when Jonathan holds it. */
-  const handleCollect = async (row: RosterRow) => {
-    if (!row.assignment) return;
-    const fresh = await loadVillagerWorkState();
-    const { state, assignment: done } = collectWorkAssignment(fresh, row.assignment.id);
-    if (!done) {
+  const handleCollect = (row: RosterRow) =>
+    enqueueCollect(async () => {
+      if (!row.assignment) return;
+      const fresh = await loadVillagerWorkState();
+      const { state, assignment: done } = collectWorkAssignment(fresh, row.assignment.id);
+      if (!done) {
+        refreshRoster();
+        return;
+      }
+      await saveVillagerWorkState(state);
+      const def = WORK_KINDS[done.kind];
+      addCoins(collectPayoutCoins(def.rewardCoins + (done.bonusCoins ?? 0), bloodmoon));
+      await awardCustomXP(scaledXP(def.rewardXP), `villager-work:${done.id}`).catch(() => undefined);
       refreshRoster();
-      return;
-    }
-    await saveVillagerWorkState(state);
-    const def = WORK_KINDS[done.kind];
-    let payout = scaledCoins(def.rewardCoins + (done.bonusCoins ?? 0));
-    if (bloodmoon) payout = payout * BLOODMOON_COIN_MULT;
-    addCoins(payout);
-    await awardCustomXP(scaledXP(def.rewardXP), `villager-work:${done.id}`).catch(() => undefined);
-    refreshRoster();
+    });
+
+  /** Collect All: pay every finished shift with one tap. The ready set
+   *  is snapshotted at tap time — a shift that finishes mid-sweep is not
+   *  swept in. Each shift goes through the same guarded collect as the
+   *  row button; a shift whose guard fails is skipped and the rest still
+   *  pay. The balance moves once, to the final total. */
+  const handleCollectAll = () => {
+    if (collectingAllRef.current) return;
+    const ready = collectableRows(rowsRef.current);
+    if (ready.length < 2) return;
+    const ids = ready.map((r) => r.assignment!.id);
+    collectingAllRef.current = true;
+    setCollectingAll(true);
+    void enqueueCollect(async () => {
+      try {
+        const fresh = await loadVillagerWorkState();
+        const { state, collected, skippedIds } = collectWorkAssignments(fresh, ids);
+        if (collected.length > 0) {
+          await saveVillagerWorkState(state);
+          let total = 0;
+          for (const done of collected) {
+            const def = WORK_KINDS[done.kind];
+            total += collectPayoutCoins(def.rewardCoins + (done.bonusCoins ?? 0), bloodmoon);
+          }
+          addCoins(total);
+          for (const done of collected) {
+            await awardCustomXP(scaledXP(WORK_KINDS[done.kind].rewardXP), `villager-work:${done.id}`).catch(
+              () => undefined
+            );
+          }
+          setCollectSummary({
+            key: Date.now(),
+            text:
+              `Collected ${collected.length} ${collected.length === 1 ? "shift" : "shifts"} · +${formatCoinTotal(total)} coins` +
+              (skippedIds.length > 0 ? ` · ${skippedIds.length} couldn't be collected` : ""),
+          });
+          setCollectCelebrateKey(Date.now());
+        }
+      } finally {
+        collectingAllRef.current = false;
+        setCollectingAll(false);
+        refreshRoster();
+      }
+    });
   };
 
-  const collectDisplay = (row: RosterRow) => {
-    const base = scaledCoins(row.collectCoins ?? 0);
-    return (bloodmoon ? base * BLOODMOON_COIN_MULT : base).toFixed(2);
-  };
+  const collectDisplay = (row: RosterRow) =>
+    collectPayoutCoins(row.collectCoins ?? 0, bloodmoon).toFixed(2);
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -558,6 +743,14 @@ export default function MainOfficeInteriorScreen() {
               {summary.collectable} finished {summary.collectable === 1 ? "shift" : "shifts"} ready to collect
             </Text>
           )}
+          <CollectAllBar
+            buttonVisible={showCollectAll(rows)}
+            totalCoins={collectAllTotalCoins(rows, bloodmoon)}
+            busy={collectingAll}
+            celebrateKey={collectCelebrateKey}
+            summary={collectSummary}
+            onPress={handleCollectAll}
+          />
           <Text style={{ color: TEXT_DIM, fontSize: 11.5, marginTop: 4 }}>
             Everyone here is a prayer light — someone you prayed for today. The little gold flame marks it.
           </Text>

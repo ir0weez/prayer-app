@@ -346,6 +346,31 @@ export function collectWorkAssignment(
   };
 }
 
+/** Collect several finished shifts in one sweep (the office's Collect
+ *  All). Every id goes through the exact same guard as
+ *  collectWorkAssignment — only a "done" shift pays out, and it leaves
+ *  the ledger as it's collected, so a repeat sweep over the same ids
+ *  collects nothing twice. Ids whose shift is missing or not done yet
+ *  are skipped, never fatal: the rest still collect. */
+export function collectWorkAssignments(
+  state: VillagerWorkState,
+  ids: string[]
+): { state: VillagerWorkState; collected: VillagerWorkAssignment[]; skippedIds: string[] } {
+  let current = state;
+  const collected: VillagerWorkAssignment[] = [];
+  const skippedIds: string[] = [];
+  for (const id of ids) {
+    const { state: next, assignment } = collectWorkAssignment(current, id);
+    if (assignment) {
+      current = next;
+      collected.push(assignment);
+    } else {
+      skippedIds.push(id);
+    }
+  }
+  return { state: current, collected, skippedIds };
+}
+
 /** mm:ss (or h:mm:ss) countdown text for an assignment. */
 export function workCountdownText(endsAt: number, nowMs: number): string {
   const ms = Math.max(0, endsAt - nowMs);

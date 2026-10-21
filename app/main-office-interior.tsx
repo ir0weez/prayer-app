@@ -28,10 +28,12 @@ import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { getTimeOfDay } from "@/lib/daynight";
 import {
+  MAP_UNLOCKED_KEY,
   TOWN_STORAGE_KEY,
   emptyTownState,
   loadMissions,
   parseTown,
+  parseUnlockedMaps,
   prayedTodayPeople,
   scaledCoins,
   scaledXP,
@@ -39,6 +41,10 @@ import {
   type PlacedBuilding,
   type PrayedPerson,
 } from "@/lib/hometown";
+import {
+  settleAndSaveVillagerLocations,
+  type VillagerLocations,
+} from "@/lib/villager-locations";
 import {
   WORK_KINDS,
   collectWorkAssignment,
@@ -377,6 +383,9 @@ type RosterData = {
   fieldMissions: FieldMission[];
   villagerMissions: VillagerMission[];
   townBuildings: PlacedBuilding[];
+  /** Single-location truth (lib/villager-locations), settled on refresh:
+   *  the roster can now say which map each villager is actually on. */
+  locations: VillagerLocations;
 };
 
 export default function MainOfficeInteriorScreen() {
@@ -431,12 +440,29 @@ export default function MainOfficeInteriorScreen() {
         await saveVillagerWorkState(ticked);
       }
       const town = townRaw ? parseTown(JSON.parse(townRaw)) : emptyTownState();
+      // Settle single-location truth with the same ticked ledger, so an
+      // assignment started at this desk pins its villager to town at
+      // once — and a finished shift leaves them there until they drift.
+      let locations: VillagerLocations = {};
+      try {
+        const unlockedRaw = await AsyncStorage.getItem(MAP_UNLOCKED_KEY);
+        const settled = await settleAndSaveVillagerLocations({
+          people: people.map((p) => ({ personId: String(p.id) })),
+          assignments,
+          fieldMissions,
+          unlockedMaps: parseUnlockedMaps(unlockedRaw ? JSON.parse(unlockedRaw) : null),
+          nowMs: Date.now(),
+          isNight: getTimeOfDay() === "night",
+        });
+        locations = settled.locations;
+      } catch {}
       setRoster({
         people,
         assignments,
         fieldMissions,
         villagerMissions: vmState.missions,
         townBuildings: town.maps.town.buildings,
+        locations,
       });
     } catch {}
   }, []);
@@ -469,6 +495,7 @@ export default function MainOfficeInteriorScreen() {
       townBuildings: roster.townBuildings,
       isNight: getTimeOfDay() === "night",
       nowMs,
+      locations: roster.locations,
     });
   }, [roster, nowMs]);
   rowsRef.current = rows;

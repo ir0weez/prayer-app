@@ -280,6 +280,16 @@ import {
   type VillagerWorkAssignment,
   type VillagerWorkState,
 } from "@/lib/villager-work";
+import {
+  lightsForMap,
+  loadVillagerLocations,
+  locatedCountOnMap,
+  saveVillagerLocations,
+  settleAndSaveVillagerLocations,
+  settleVillagerLocations,
+  villagerMapOf,
+  type VillagerLocations,
+} from "@/lib/villager-locations";
 import { SeasonalBorder } from "@/components/seasonal-border";
 import { MapSigns } from "@/components/map-signs";
 import { MissionField } from "@/components/mission-field";
@@ -4004,6 +4014,17 @@ export default function HometownScreen() {
   const prayedTodayRef = useRef(0);
   prayedTodayRef.current = prayedToday;
   const [prayedPeople, setPrayedPeople] = useState<PrayedPerson[]>([]);
+  const prayedIdsRef = useRef<string[]>([]);
+  prayedIdsRef.current = prayedPeople.map((p) => String(p.id));
+  const activeMapRef = useRef(activeMap);
+  activeMapRef.current = activeMap;
+  // Villager single-location: the one map each villager is on
+  // (lib/villager-locations). Settled from timestamps on load/render —
+  // workers are pinned to their shift's map, everyone else drifts
+  // casually, and no villager is ever drawn on two maps at once.
+  const [villagerLocations, setVillagerLocations] = useState<VillagerLocations>({});
+  const villagerLocationsRef = useRef<VillagerLocations>({});
+  villagerLocationsRef.current = villagerLocations;
   const [prayerVillagerInfo, setPrayerVillagerInfo] = useState<{ id: string; name: string } | null>(null);
   const [missionsVisible, setMissionsVisible] = useState(false);
   const [purchasedPlots, setPurchasedPlots] = useState<string[]>([]);
@@ -4368,7 +4389,15 @@ export default function HometownScreen() {
     const away = new Set(
       fieldMissionsRef.current.filter((m) => !m.collected).map((m) => m.personId)
     );
-    return lightInfosRef.current.filter((l) => !away.has(l.personId));
+    // Villager requests are a town-life system (their targets are town
+    // buildings, the community garden, the well): only villagers actually
+    // in town can ask. A villager located elsewhere isn't there to raise a
+    // hand — before locations load, everyone counts as being in town.
+    return lightInfosRef.current.filter(
+      (l) =>
+        !away.has(l.personId) &&
+        villagerMapOf(villagerLocationsRef.current, l.personId) === "town"
+    );
   }, []);
 
   /** Spawn any villager-mission slots that have passed. Idempotent. */
@@ -4427,6 +4456,40 @@ export default function HometownScreen() {
       setWorkState(st);
     })().catch(() => undefined);
   }, [lightInfos]);
+
+  // Villager single-location settle: re-derive where everyone is whenever
+  // the inputs change (prayer list, work ledger, field missions, a live
+  // schedule scene, unlocked maps). Timestamp-based, no timers — the same
+  // settle-on-load pattern as construction. While a schedule event with
+  // villagers is live, its cast is summoned to the event (town) for the
+  // event's span, so no other map draws them meanwhile.
+  useEffect(() => {
+    if (lightInfos.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const settled = await settleAndSaveVillagerLocations({
+        people: lightInfos,
+        assignments: workStateRef.current?.assignments ?? [],
+        fieldMissions: fieldMissionsRef.current,
+        scenePersonIds: scheduleActivity?.withVillagers
+          ? lightInfos.map((l) => l.personId)
+          : null,
+        sceneEndsAtMs: scheduleActivity?.withVillagers
+          ? scheduleActivity.endsAtMs
+          : undefined,
+        unlockedMaps,
+        nowMs: Date.now(),
+        isNight: getTimeOfDay() === "night",
+      }).catch(() => null);
+      if (!cancelled && settled) {
+        villagerLocationsRef.current = settled.locations;
+        setVillagerLocations(settled.locations);
+      }
+    })().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [lightInfos, workState, fieldMissions, scheduleActivity, unlockedMaps]);
 
   /** Where a work shift happens on the town map (null = not available). */
   const findWorkTarget = useCallback(
@@ -4837,6 +4900,20 @@ export default function HometownScreen() {
       .map((r) => ({ personId: r.personId, name: r.name }));
     return pickGardenVisitors(blessed, gardenVisitHourKey(), false);
   }, [lightInfos, timeOfDay, fieldMissions, vmState]);
+
+  // Single-location render list: this map draws ONLY the villagers whose
+  // one location is this map (TownNPCs' wandering, visits, chats and
+  // cottages then all happen per-map automatically). Exception: this
+  // hour's Garden visitors are drawn by the Garden scene itself, so no
+  // other map draws them meanwhile (their stored location is untouched —
+  // the Garden visit is an hourly rotation inside the town visit system).
+  const lightsForActiveMap = useMemo(() => {
+    const onMap = lightsForMap(visibleLights, villagerLocations, activeMap);
+    if (activeMap === "mall") return onMap;
+    const visiting = new Set(gardenVisitors.map((v) => v.personId));
+    if (visiting.size === 0) return onMap;
+    return onMap.filter((l) => !visiting.has(l.personId));
+  }, [visibleLights, villagerLocations, activeMap, gardenVisitors]);
 
   // Villager missions: personIds with a waiting "?" (stand still) and
   // guiding targets (walk straight to the mission building).
@@ -5526,6 +5603,36 @@ export default function HometownScreen() {
         const stockRecord: Record<string, number> = { ...(t.stockByBuilding ?? {}) };
         const stockAnchors: Record<string, { stock: number; atMs: number }> = { ...(t.stockAnchorsByBuilding ?? {}) };
         const stockedDates: Record<string, string> = { ...(t.stockedDateByBuilding ?? {}) };
+        // Villager single-location: settle where everyone is BEFORE the
+        // time-away accrual, so the presence proxy counts, per map, only
+        // the villagers actually located on that map (a building's nearby
+        // villagers are its own map's). Falls back to the global prayed
+        // count if the settle can't run.
+        let awayPresenceCounts: Record<string, number> | null = null;
+        try {
+          const [storedLocations, workNow, missionsNow] = await Promise.all([
+            loadVillagerLocations(),
+            loadVillagerWorkState(),
+            loadFieldMissions().catch(() => [] as FieldMission[]),
+          ]);
+          const settledAway = settleVillagerLocations(storedLocations, {
+            people: [...prayedIdSet].map((personId) => ({ personId })),
+            assignments: workNow.assignments,
+            fieldMissions: missionsNow,
+            unlockedMaps: parseUnlockedMaps(unlockedRaw ? JSON.parse(unlockedRaw) : null),
+            nowMs: awayNow,
+            isNight: getTimeOfDay() === "night",
+          });
+          awayPresenceCounts = {};
+          for (const mid of TOWN_MAP_IDS) {
+            awayPresenceCounts[mid] = locatedCountOnMap(settledAway.locations, prayedIdSet, mid);
+          }
+          villagerLocationsRef.current = settledAway.locations;
+          setVillagerLocations(settledAway.locations);
+          if (settledAway.changed) {
+            await saveVillagerLocations(settledAway.locations);
+          }
+        } catch {}
         for (const id of TOWN_MAP_IDS) {
           const m = newMaps[id];
           const updatedBuildings = m.buildings.map(b => {
@@ -5572,8 +5679,15 @@ export default function HometownScreen() {
               const rate = perMinuteRateRef.current[b.id];
               const perMinuteCoins = rate ? rate.coins : 0;
               const perMinuteXP = rate ? rate.xp : 0;
-              // Presence gate (time away): scale by prayed count proxy.
-              const presenceMult = presenceMultiplierFor(b, [], prayedCount, false);
+              // Presence gate (time away): scale by the count of
+              // villagers located on THIS building's map (single-location
+              // truth), falling back to the global prayed count.
+              const presenceMult = presenceMultiplierFor(
+                b,
+                [],
+                awayPresenceCounts ? (awayPresenceCounts[id] ?? 0) : prayedCount,
+                false
+              );
               // Stock (time away): the stocked switch boosts this catch-up
               // income — a building stocked today earns ×1.5 whatever its
               // shelves have drained to; an unstocked one earns the
@@ -5799,7 +5913,24 @@ export default function HometownScreen() {
               return b.lastTick ? b : { ...b, lastTick: new Date(now).toISOString() };
             }
             // Presence gate (live): only earn when villagers are nearby.
-            const presenceMult = presenceMultiplierFor(b, positions, prayedTodayRef.current, true);
+            // The map being viewed uses its real positions (its NPC layer
+            // now renders only villagers located there). Every other map
+            // uses the away proxy — but counting only the villagers
+            // located on THAT map, so a crowd in town no longer feeds
+            // presence on the school or city maps (single-location truth).
+            const presenceMult =
+              mapId === activeMapRef.current
+                ? presenceMultiplierFor(b, positions, prayedTodayRef.current, true)
+                : presenceMultiplierFor(
+                    b,
+                    [],
+                    locatedCountOnMap(
+                      villagerLocationsRef.current,
+                      prayedIdsRef.current,
+                      mapId
+                    ),
+                    false
+                  );
             if (presenceMult <= 0) {
               return b.lastTick ? b : { ...b, lastTick: new Date(now).toISOString() };
             }
@@ -8223,7 +8354,7 @@ export default function HometownScreen() {
           {/* Townsfolk — prayer lights; those out on field missions (or waiting to be welcomed home) are away.
               bare: entities render directly in the depth layer so villagers walk
               BEHIND tall buildings (zIndex by Y). */}
-          <TownNPCs mapState={map} cellSize={cellSize} bare positionsRef={townNpcPositionsRef} onBankVisit={handleBankVisit} lights={visibleLights} onVillagerTap={handleVillagerTap} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} scheduleGuides={scheduleGuides} scheduleMap={scheduleMap} scheduleKind={scheduleActivity?.kind} />
+          <TownNPCs mapState={map} cellSize={cellSize} bare positionsRef={townNpcPositionsRef} onBankVisit={handleBankVisit} lights={lightsForActiveMap} onVillagerTap={handleVillagerTap} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} scheduleGuides={scheduleGuides} scheduleMap={scheduleMap} scheduleKind={scheduleActivity?.kind} />
           {/* City life: commuters from town (depth-sorted, bare). The
               traffic layer is ambient — it mounts after first paint. */}
           {activeMap === "city" && ambientReady && (

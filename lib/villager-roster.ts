@@ -22,7 +22,13 @@ import {
   type FieldMission,
   type PlacedBuilding,
   type PrayedPerson,
+  type TownMapId,
 } from "./hometown";
+import {
+  locationPhrase,
+  villagerMapOf,
+  type VillagerLocations,
+} from "./villager-locations";
 import { BLOODMOON_COIN_MULT } from "./badges";
 import {
   WORK_KINDS,
@@ -146,6 +152,11 @@ export type RosterRow = {
   statusLabel: string;
   /** Secondary line: countdowns, mission details, request target. */
   detail?: string;
+  /** The one map this villager is on right now (single-location truth,
+   *  lib/villager-locations) — present when the caller passes locations. */
+  mapId?: TownMapId;
+  /** Plain-words place phrase for that map: "in Town", "at School", … */
+  mapLabel?: string;
   /** The villager's work assignment (active or finished), if any. */
   assignment?: VillagerWorkAssignment;
   /** Raw payout for a finished shift (job reward + banked box bonus). */
@@ -172,17 +183,24 @@ export function buildRosterRows(args: {
   townBuildings: PlacedBuilding[];
   isNight: boolean;
   nowMs: number;
+  /** Single-location truth (lib/villager-locations). When passed, rows
+   *  carry the map each villager is actually on; when omitted, rows are
+   *  exactly what they were before locations existed. */
+  locations?: VillagerLocations;
 }): RosterRow[] {
   const { people, assignments, fieldMissions, villagerMissions, townBuildings, isNight, nowMs } = args;
   const now = new Date(nowMs);
 
   const rows: RosterRow[] = people.map((person) => {
     const personId = String(person.id);
+    const mapId = args.locations ? villagerMapOf(args.locations, personId) : undefined;
+    const phrase = mapId ? locationPhrase(mapId) : undefined;
     const base = {
       personId,
       name: person.name,
       accentColor: person.accentColor,
       prayedToday: true,
+      ...(mapId ? { mapId, mapLabel: phrase } : {}),
     };
 
     // 1. A finished shift outranks everything — it is money waiting.
@@ -238,17 +256,33 @@ export function buildRosterRows(args: {
         ...base,
         status: "request" as const,
         statusLabel: "Has a request for you",
-        detail: `Wants to visit: ${request.targetLabel}`,
+        detail: `Wants to visit: ${request.targetLabel}${phrase ? ` · ${phrase}` : ""}`,
       };
     }
 
-    // 5. Night: everyone still awake in the roster is asleep at home.
+    // The place phrase as a standalone line: "In Town", "At School".
+    const placeDetail = phrase
+      ? phrase.charAt(0).toUpperCase() + phrase.slice(1)
+      : undefined;
+
+    // 5. Night: everyone still awake in the roster is asleep at home —
+    // on whichever map is their home-for-now.
     if (isNight) {
-      return { ...base, status: "sleeping" as const, statusLabel: "Sleeping" };
+      return {
+        ...base,
+        status: "sleeping" as const,
+        statusLabel: "Sleeping",
+        ...(placeDetail ? { detail: placeDetail } : {}),
+      };
     }
 
     // 6. Free and ready.
-    return { ...base, status: "idle" as const, statusLabel: "Idle" };
+    return {
+      ...base,
+      status: "idle" as const,
+      statusLabel: "Idle",
+      ...(placeDetail ? { detail: placeDetail } : {}),
+    };
   });
 
   rows.sort((a, b) => {

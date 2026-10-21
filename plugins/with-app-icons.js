@@ -3,12 +3,25 @@
  *
  * - Copies the 12 unlockable icon PNGs (everything except icon-original, which
  *   is the default launcher icon) into android/app/src/main/res/mipmap/
- *   as app_icon_<name>.png (the foreground layer + the pre-API-26 fallback).
+ *   TWICE: as app_icon_<name>.png (the pre-API-26 fallback the alias
+ *   resolves to below API 26) and as app_icon_<name>_fg.png (the adaptive
+ *   icon's foreground/monochrome layer).
  * - Writes an adaptive-icon XML per icon into mipmap-anydpi-v26/
  *   (app_icon_<name>.xml), mirroring the Expo-generated default
  *   (mipmap-anydpi-v26/ic_launcher.xml): a solid @color background sampled
- *   from each PNG's own field color, the PNG as foreground, and the same
- *   PNG as the monochrome layer.
+ *   from each PNG's own field color, the _fg PNG as foreground, and the
+ *   same _fg PNG as the monochrome layer.
+ *
+ * The layer names MUST differ from the adaptive icon's own resource name.
+ * v162 pointed <foreground> and <monochrome> at @mipmap/app_icon_<name> —
+ * the very resource being defined. On API 26+ that reference resolves to
+ * the anydpi XML itself (best config match), not the unqualified PNG, so
+ * the icon's foreground was itself: inflating it recurses until Android
+ * kills the process loading it. Switching icons crashed the app and the
+ * launcher icon never changed. Expo's generated ic_launcher.xml avoids
+ * this by giving every layer its own resource name (ic_launcher_foreground,
+ * ic_launcher_background, ic_launcher_monochrome); this plugin now does
+ * the same.
  * - Adds 12 <activity-alias> entries to AndroidManifest.xml, each disabled by
  *   default, each with a MAIN/LAUNCHER intent-filter targeting .MainActivity,
  *   each pointing at @mipmap/app_icon_<name> — which resolves to the
@@ -77,8 +90,8 @@ function adaptiveIconXml(name) {
     '<?xml version="1.0" encoding="utf-8"?>',
     '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">',
     `    <background android:drawable="@color/app_icon_${name}_bg"/>`,
-    `    <foreground android:drawable="@mipmap/app_icon_${name}"/>`,
-    `    <monochrome android:drawable="@mipmap/app_icon_${name}"/>`,
+    `    <foreground android:drawable="@mipmap/app_icon_${name}_fg"/>`,
+    `    <monochrome android:drawable="@mipmap/app_icon_${name}_fg"/>`,
     "</adaptive-icon>",
     "",
   ].join("\n");
@@ -124,8 +137,13 @@ const withAppIconResources = (config) =>
           "app-icons",
           `icon-${name}.png`
         );
-        // Foreground layer + pre-API-26 fallback bitmap.
+        // Pre-API-26 fallback bitmap (what the alias resolves to below
+        // API 26, where mipmap-anydpi-v26/ does not apply).
         await fs.promises.copyFile(src, path.join(mipmapDir, `app_icon_${name}.png`));
+        // The adaptive icon's foreground/monochrome layer, under its OWN
+        // resource name — referencing @mipmap/app_icon_<name> here would
+        // point the layer at the adaptive icon itself (see header note).
+        await fs.promises.copyFile(src, path.join(mipmapDir, `app_icon_${name}_fg.png`));
         // The adaptive icon the alias resolves to on API 26+.
         await fs.promises.writeFile(
           path.join(anydpiDir, `app_icon_${name}.xml`),

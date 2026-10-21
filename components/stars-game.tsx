@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import Svg, { Circle, Line, Path } from "react-native-svg";
-import { CONSTELLATIONS, starsReward } from "@/lib/mini-games";
+import { CONSTELLATIONS, chartSegments, starsReward } from "@/lib/mini-games";
 import { GameCard, GameResults, useSceneBox, type MiniGameProps, type MiniGameReward } from "@/components/mini-game-scene";
 
 const REVEAL_STEP_MS = 750;
@@ -132,6 +132,17 @@ export function StarsGame({ accent, onComplete, onExit }: MiniGameProps) {
         if (idx + 1 >= CONSTELLATIONS.length) {
           finish();
         } else {
+          // Advance AND reset in the same update. The reset used to
+          // live only in the [idx] effect below, which runs after the
+          // first render at the new index — that render still held
+          // THIS constellation's finished charted list, and when this
+          // constellation had more stars than the next (the 7-star
+          // Net before the 6-star Crown) the line drawing reached for
+          // a star that doesn't exist and took the app down.
+          chartedRef.current = [];
+          setCharted([]);
+          setLitUpTo(0);
+          setPhase("reveal");
           setIdx(idx + 1);
         }
       }, CELEBRATE_MS);
@@ -199,23 +210,18 @@ export function StarsGame({ accent, onComplete, onExit }: MiniGameProps) {
                 {BACKGROUND_DOTS.map(([fx, fy, r], i) => (
                   <Circle key={i} cx={fx * innerW} cy={fy * sceneH} r={r} fill="#94A3B8" opacity={0.35} />
                 ))}
-                {charted.map((starIdx, i) => {
-                  if (i === 0) return null;
-                  const prev = constellation.stars[charted[i - 1]];
-                  const cur = constellation.stars[starIdx];
-                  return (
-                    <Line
-                      key={`line-${i}`}
-                      x1={prev.x * innerW}
-                      y1={prev.y * sceneH}
-                      x2={cur.x * innerW}
-                      y2={cur.y * sceneH}
-                      stroke="#FDE68A"
-                      strokeWidth={1.6}
-                      opacity={0.85}
-                    />
-                  );
-                })}
+                {chartSegments(constellation.stars, charted).map((seg, i) => (
+                  <Line
+                    key={`line-${i}`}
+                    x1={seg.x1 * innerW}
+                    y1={seg.y1 * sceneH}
+                    x2={seg.x2 * innerW}
+                    y2={seg.y2 * sceneH}
+                    stroke="#FDE68A"
+                    strokeWidth={1.6}
+                    opacity={0.85}
+                  />
+                ))}
               </Svg>
               {/* the constellation stars */}
               {constellation.stars.map((star, i) => {

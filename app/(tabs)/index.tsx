@@ -10,7 +10,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext } from "@/lib/theme-provider";
 import { APP_ICONS, getAppIconDef, isIconUnlocked, loadSelectedAppIconId, saveSelectedAppIconId } from "@/lib/app-icons";
-import { setAppIcon as setNativeAppIcon } from "@/modules/expo-app-icon/src/index";
+import { setAppIcon as setNativeAppIcon, getAppIcon as getNativeAppIcon, isAppIconSwitchingAvailable } from "@/modules/expo-app-icon/src/index";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
@@ -730,15 +730,30 @@ export default function HomeScreen() {
   const [showThemeSheet, setShowThemeSheet] = useState(false);
   const [showAppIconSheet, setShowAppIconSheet] = useState(false);
   const [selectedAppIconId, setSelectedAppIconId] = useState("original");
+  const [iconSwitchError, setIconSwitchError] = useState<string | null>(null);
   const [iconToast, setIconToast] = useState<string | null>(null);
   const iconToastOpacity = useRef(new Animated.Value(0)).current;
 
-  // Load the persisted app icon choice on mount.
+  // Load the persisted app icon choice on mount. The launcher is the
+  // source of truth: if a past switch was saved but never actually
+  // applied (the v162 crash), adopt the icon the phone really shows and
+  // persist that, so the picker never claims a change that didn't happen.
   useEffect(() => {
     let active = true;
-    loadSelectedAppIconId().then((id) => {
-      if (active) setSelectedAppIconId(id);
-    }).catch(() => undefined);
+    (async () => {
+      const stored = await loadSelectedAppIconId().catch(() => "original");
+      if (!active) return;
+      let effective = stored;
+      if (isAppIconSwitchingAvailable()) {
+        const native = await getNativeAppIcon().catch(() => stored);
+        if (!active) return;
+        if (native !== stored) {
+          effective = native;
+          await saveSelectedAppIconId(native).catch(() => undefined);
+        }
+      }
+      if (active) setSelectedAppIconId(effective);
+    })();
     return () => { active = false; };
   }, []);
 
@@ -2693,7 +2708,7 @@ export default function HomeScreen() {
         <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("palette", "Color Theme", getAccentThemeDefinition(settings.colorTheme).name)}
         </Pressable>
-        <Pressable onPress={() => setShowAppIconSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+        <Pressable onPress={() => { setIconSwitchError(null); setShowAppIconSheet(true); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("image", "App Icon", getAppIconDef(selectedAppIconId).name)}
         </Pressable>
         {renderSettingsRow("visibility-off", "Demo Mode", "Blur names & photos for screenshots", "normal", <M3Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} />)}
@@ -3569,9 +3584,20 @@ export default function HomeScreen() {
                     accessibilityState={{ disabled: !unlocked, selected }}
                     onPress={async () => {
                       if (!unlocked) return;
+                      // Switch FIRST, record SECOND: the stored choice
+                      // must only ever name an icon the launcher actually
+                      // applied. (The old order saved the new id before
+                      // the native switch ran and ignored its result, so
+                      // a failed switch left the picker claiming a change
+                      // that never happened.)
+                      const applied = await setNativeAppIcon(icon.id);
+                      if (!applied) {
+                        setIconSwitchError("Couldn't switch the icon — your current one is still active.");
+                        return;
+                      }
+                      setIconSwitchError(null);
                       setSelectedAppIconId(icon.id);
                       await saveSelectedAppIconId(icon.id);
-                      await setNativeAppIcon(icon.id);
                       setShowAppIconSheet(false);
                       showIconToast("App icon updated — check your home screen");
                     }}
@@ -3605,6 +3631,11 @@ export default function HomeScreen() {
                 );
               })}
             </ScrollView>
+            {iconSwitchError && (
+              <Text style={{ color: "#D3384A", fontSize: 12, fontWeight: "700", textAlign: "center", paddingBottom: 8, paddingHorizontal: 24 }}>
+                {iconSwitchError}
+              </Text>
+            )}
             <Text style={{ color: colors.muted, fontSize: 11, textAlign: "center", paddingBottom: 20, paddingHorizontal: 24 }}>
               Unlock more icon styles as you level up. Your home-screen icon changes instantly.
             </Text>

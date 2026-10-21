@@ -136,8 +136,16 @@ describe("launcher wiring names the same unlockables", () => {
     expect(plugin).toContain("adaptiveIconXml(name)");
     expect(plugin).toContain("<adaptive-icon");
     expect(plugin).toContain('<background android:drawable="@color/app_icon_${name}_bg"/>');
-    expect(plugin).toContain('<foreground android:drawable="@mipmap/app_icon_${name}"/>');
-    expect(plugin).toContain('<monochrome android:drawable="@mipmap/app_icon_${name}"/>');
+    // Layers reference their OWN resource (app_icon_<name>_fg), exactly
+    // like the Expo-generated default's ic_launcher_foreground. The
+    // v162 originals pointed foreground/monochrome at
+    // @mipmap/app_icon_<name> — the adaptive icon's own resource — which
+    // resolves to the anydpi XML itself on API 26+, recursing until the
+    // process loading the icon died (switching crashed, icon unchanged).
+    expect(plugin).toContain('<foreground android:drawable="@mipmap/app_icon_${name}_fg"/>');
+    expect(plugin).toContain('<monochrome android:drawable="@mipmap/app_icon_${name}_fg"/>');
+    expect(plugin).not.toContain('<foreground android:drawable="@mipmap/app_icon_${name}"/>');
+    expect(plugin).not.toContain('<monochrome android:drawable="@mipmap/app_icon_${name}"/>');
     expect(plugin).toContain("app_icon_colors.xml");
   });
 

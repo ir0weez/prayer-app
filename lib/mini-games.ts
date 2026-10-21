@@ -646,6 +646,33 @@ export const CONSTELLATIONS: Constellation[] = [
   },
 ];
 
+export type ChartSegment = { x1: number; y1: number; x2: number; y2: number };
+
+/** The line segments joining a charted sequence, in scene fractions.
+ *  Pure and total: a charted index that does not exist in `stars` is
+ *  skipped, never dereferenced. That guard matters — the game once
+ *  crashed the moment the 7-star Fisher's Net was completed, because
+ *  advancing to the 6-star Crown rendered one frame with the new
+ *  constellation but the previous constellation's finished `charted`
+ *  list (the state reset lived in an effect that runs after render),
+ *  and charted index 6 has no star in a 6-star constellation. The game
+ *  now also resets its per-constellation state in the same update
+ *  that advances the constellation; this function staying total means
+ *  no stale sequence can ever take the renderer down again. */
+export function chartSegments(
+  stars: ReadonlyArray<StarPoint>,
+  charted: readonly number[],
+): ChartSegment[] {
+  const segments: ChartSegment[] = [];
+  for (let i = 1; i < charted.length; i += 1) {
+    const prev = stars[charted[i - 1]];
+    const cur = stars[charted[i]];
+    if (!prev || !cur) continue;
+    segments.push({ x1: prev.x, y1: prev.y, x2: cur.x, y2: cur.y });
+  }
+  return segments;
+}
+
 /** Chart the Stars (Observatory) — every star placed in order counts. */
 export function starsReward(starsInOrder: number, constellationsDone: number): { coins: number; xp: number } {
   return {

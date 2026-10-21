@@ -60,17 +60,30 @@ describe("campus rooms host the shared mini-games", () => {
 });
 
 describe("no new cap counters", () => {
-  it("MINI_GAME_CAPS holds exactly the twelve game ids (eleven + arcade)", () => {
+  it("MINI_GAME_CAPS holds exactly the twenty-five game ids (original twelve + the thirteen-game wave)", () => {
     expect(Object.keys(MINI_GAME_CAPS).sort()).toEqual(
       [
         "arcade",
+        "beam",
+        "bell",
+        "brew",
         "candle",
+        "cascade",
+        "clay",
+        "echo",
         "garden",
         "grill",
+        "harvest",
+        "hearth",
+        "needle",
         "packing",
         "popcorn",
         "rhythm",
+        "rounds",
         "serve",
+        "shelf",
+        "shelve",
+        "stars",
         "tide",
         "training",
         "trim",

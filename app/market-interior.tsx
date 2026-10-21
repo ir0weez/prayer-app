@@ -17,6 +17,9 @@ import type { CustomPawn } from "@/lib/pawn";
 import { PawnPreview } from "@/components/pawn-preview";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { ShelfGame } from "@/components/shelf-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 import {
   FigureName,
   GentleBob,
@@ -357,6 +360,7 @@ function PottedTopiary() {
 
 export default function MarketInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
+  const shelf = useMiniGameHost("shelf", addCoins);
   const [lastBrowse, setLastBrowse] = useState(0);
 
   useEffect(() => {
@@ -465,6 +469,16 @@ export default function MarketInteriorScreen() {
             handleUpgrade(level >= 2 ? "Eight stalls, a tiered golden fountain, lanterns, and a flower cart." : "Four stalls around a plaza fountain.")
           }
         />
+        <PlayCard
+          icon="storefront"
+          title="Play: Shelf It Right"
+          blurb="Groceries arrive one by one — every one has a shelf it belongs on."
+          playsLeft={shelf.playsLeft}
+          cap={shelf.cap}
+          accent={BRONZE}
+          onPlay={() => shelf.setPlaying(true)}
+        />
+        {shelf.playing && <ShelfGame accent={BRONZE} onComplete={shelf.handleComplete} onExit={() => shelf.setPlaying(false)} />}
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Browse the stalls once an hour for fresh coins and XP.
         </Text>

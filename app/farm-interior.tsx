@@ -15,6 +15,9 @@ import type { CustomPawn } from "@/lib/pawn";
 import { PawnPreview } from "@/components/pawn-preview";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { HarvestGame } from "@/components/harvest-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 import {
   FigureName,
   GentleBob,
@@ -482,6 +485,7 @@ function AppleCrate() {
 
 export default function FarmInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
+  const harvest = useMiniGameHost("harvest", addCoins);
   const [lastHarvest, setLastHarvest] = useState(0);
 
   useEffect(() => {
@@ -592,6 +596,16 @@ export default function FarmInteriorScreen() {
             handleUpgrade(level >= 2 ? "A Sunny Acres arch, sunflower rows, flower beds, a scarecrow, and a white picket fence." : "A bigger barn, four crop rows, and a windmill.")
           }
         />
+        <PlayCard
+          icon="agriculture"
+          title="Play: Harvest Rows"
+          blurb="Rows ripen one by one — gather them in their golden moment."
+          playsLeft={harvest.playsLeft}
+          cap={harvest.cap}
+          accent={GREEN}
+          onPlay={() => harvest.setPlaying(true)}
+        />
+        {harvest.playing && <HarvestGame accent={GREEN} onComplete={harvest.handleComplete} onExit={() => harvest.setPlaying(false)} />}
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Lend a hand in the fields once an hour for fresh coins and XP.
         </Text>

@@ -24,6 +24,9 @@ import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { BeamGame } from "@/components/beam-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 
 const BG = "#F5EBD7";
 const WOOD = "#A9713F";
@@ -132,6 +135,7 @@ function FinishedGoods({ level }: { level: number }) {
 
 export default function CarpenterInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
+  const beam = useMiniGameHost("beam", addCoins);
   const [lastBuild, setLastBuild] = useState(0);
 
   useEffect(() => {
@@ -270,6 +274,16 @@ export default function CarpenterInteriorScreen() {
             )
           }
         />
+        <PlayCard
+          icon="handyman"
+          title="Play: True the Beam"
+          blurb="A marker sweeps the beam — stop it in the chalk band to set it true."
+          playsLeft={beam.playsLeft}
+          cap={beam.cap}
+          accent={ACCENT}
+          onPlay={() => beam.setPlaying(true)}
+        />
+        {beam.playing && <BeamGame accent={ACCENT} onComplete={beam.handleComplete} onExit={() => beam.setPlaying(false)} />}
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Help build once an hour. Finer tools mean finer furniture.
         </Text>

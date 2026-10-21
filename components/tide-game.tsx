@@ -5,17 +5,24 @@
 // stings (a plain red flash; nothing bounces here). Every shell is a
 // real species from the collections book: the host records finds via
 // onShellUpdate, exactly the way the River records fish.
+//
+// Event-driven rebuild: no tick loop. Finds spawn on a timeout chain,
+// each find fades in and out on its own Animated value (native
+// driver) and is removed by its own timeout at the end of its life.
+// The game ends on a single 45-second timeout; the "seconds of low
+// tide" text and bar step down on a one-second timeout chain.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Animated, Pressable, Text, View } from "react-native";
 import Svg, { Ellipse, G, Path, Rect } from "react-native-svg";
 import { GameCard, GameResults, useSceneBox, type MiniGameProps, type MiniGameReward } from "@/components/mini-game-scene";
 import { ShellArt } from "@/components/shell-art";
 import { randomShellSpecies, recordShellFind, type CollectionUpdate, type ShellSpecies } from "@/lib/collections";
 
 const DURATION_S = 45;
-const TICK_MS = 100;
 const MAX_ALIVE = 4;
+const FADE_MS = 180;
+const PINCH_MS = 300;
 
 type FindKind = "shell" | "starfish" | "crab";
 type Find = {
@@ -28,8 +35,9 @@ type Find = {
   ox: number;
   oy: number;
   /** ms on screen */
-  age: number;
   lifeMs: number;
+  /** 0 hidden, 1 fully surfaced — native-driven fade/scale */
+  anim: Animated.Value;
 };
 
 let findId = 0;
@@ -50,25 +58,50 @@ export function TideGame({ accent, onComplete, onExit, onShellUpdate }: TideGame
   const { sceneW, sceneH, ready, onLayout } = useSceneBox(0.86);
   const [finds, setFinds] = useState<Find[]>([]);
   const [score, setScore] = useState(0);
-  const [elapsed, setElapsed] = useState(0);
+  const [secondsLeft, setSecondsLeft] = useState(DURATION_S);
   const [pinched, setPinched] = useState(false);
   const [newShells, setNewShells] = useState<string[]>([]);
   const [granted, setGranted] = useState<MiniGameReward | null>(null);
 
   const findsRef = useRef<Find[]>([]);
   const tallyRef = useRef({ shells: 0, stars: 0, crabs: 0 });
-  const lastSpawnRef = useRef(0);
-  const pinchUntilRef = useRef(0);
+  const secondsLeftRef = useRef(DURATION_S);
   const completedRef = useRef(false);
   const startedRef = useRef(false);
+  const timeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const findTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>[]>>(new Map());
+  const pinchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
   const onShellRef = useRef(onShellUpdate);
   onShellRef.current = onShellUpdate;
 
+  /** Schedule a one-shot timeout tracked for cleanup. */
+  const later = useCallback((fn: () => void, ms: number) => {
+    const t = setTimeout(() => {
+      timeoutsRef.current.delete(t);
+      fn();
+    }, ms);
+    timeoutsRef.current.add(t);
+    return t;
+  }, []);
+
+  const cancelLater = useCallback((t: ReturnType<typeof setTimeout>) => {
+    clearTimeout(t);
+    timeoutsRef.current.delete(t);
+  }, []);
+
+  const clearAllTimeouts = useCallback(() => {
+    timeoutsRef.current.forEach((t) => clearTimeout(t));
+    timeoutsRef.current.clear();
+    findTimersRef.current.clear();
+    pinchTimerRef.current = null;
+  }, []);
+
   const finish = useCallback(() => {
     if (completedRef.current) return;
     completedRef.current = true;
+    clearAllTimeouts();
     const { shells, stars } = tallyRef.current;
     setGranted(
       onCompleteRef.current({
@@ -76,65 +109,91 @@ export function TideGame({ accent, onComplete, onExit, onShellUpdate }: TideGame
         xp: Math.min(48, shells * 2 + stars * 2),
       })
     );
-  }, []);
+  }, [clearAllTimeouts]);
 
   useEffect(() => {
     if (!ready || startedRef.current) return;
     startedRef.current = true;
-    const startAt = Date.now();
-    let lastTick = startAt;
-    const timer = setInterval(() => {
-      if (completedRef.current) return;
-      const now = Date.now();
-      const dt = now - lastTick;
-      lastTick = now;
-      const elapsedMs = now - startAt;
-      setElapsed(elapsedMs / 1000);
 
-      if (now - lastSpawnRef.current > 620 + Math.random() * 420 && findsRef.current.length < MAX_ALIVE) {
-        lastSpawnRef.current = now;
-        const roll = Math.random();
-        const kind: FindKind = roll < 0.58 ? "shell" : roll < 0.84 ? "starfish" : "crab";
-        findsRef.current = [
-          ...findsRef.current,
-          {
-            id: ++findId,
-            kind,
-            shell: kind === "shell" ? randomShellSpecies() : undefined,
-            pool: Math.floor(Math.random() * POOLS.length),
-            ox: (Math.random() - 0.5) * 1.1,
-            oy: (Math.random() - 0.5) * 1.1,
-            age: 0,
-            lifeMs: 1500 + Math.random() * 900,
-          },
-        ];
-      }
+    const spawnOne = () => {
+      const roll = Math.random();
+      const kind: FindKind = roll < 0.58 ? "shell" : roll < 0.84 ? "starfish" : "crab";
+      const anim = new Animated.Value(0);
+      const find: Find = {
+        id: ++findId,
+        kind,
+        shell: kind === "shell" ? randomShellSpecies() : undefined,
+        pool: Math.floor(Math.random() * POOLS.length),
+        ox: (Math.random() - 0.5) * 1.1,
+        oy: (Math.random() - 0.5) * 1.1,
+        lifeMs: 1500 + Math.random() * 900,
+        anim,
+      };
+      findsRef.current = [...findsRef.current, find];
+      setFinds(findsRef.current);
+      // Fade/scale in on the native driver.
+      Animated.timing(anim, { toValue: 1, duration: FADE_MS, useNativeDriver: true }).start();
+      // Start the fade-out near the end of the find's life, then let
+      // its own removal timeout take it off the sand.
+      const fadeTimer = later(() => {
+        Animated.timing(anim, { toValue: 0, duration: FADE_MS, useNativeDriver: true }).start();
+      }, Math.max(0, find.lifeMs - FADE_MS));
+      const removeTimer = later(() => {
+        findTimersRef.current.delete(find.id);
+        findsRef.current = findsRef.current.filter((x) => x.id !== find.id);
+        setFinds(findsRef.current);
+      }, find.lifeMs);
+      findTimersRef.current.set(find.id, [fadeTimer, removeTimer]);
+    };
 
-      const next = findsRef.current
-        .map((f) => ({ ...f, age: f.age + dt }))
-        .filter((f) => f.age < f.lifeMs);
-      findsRef.current = next;
-      setFinds(next);
+    const scheduleSpawn = () => {
+      later(() => {
+        if (completedRef.current) return;
+        if (findsRef.current.length < MAX_ALIVE) spawnOne();
+        scheduleSpawn();
+      }, 620 + Math.random() * 420);
+    };
+    scheduleSpawn();
 
-      if (pinchUntilRef.current && now > pinchUntilRef.current) {
-        pinchUntilRef.current = 0;
-        setPinched(false);
-      }
+    // One-second chain for the countdown text and bar.
+    const scheduleSecond = () => {
+      later(() => {
+        if (completedRef.current) return;
+        secondsLeftRef.current = Math.max(0, secondsLeftRef.current - 1);
+        setSecondsLeft(secondsLeftRef.current);
+        if (secondsLeftRef.current > 0) scheduleSecond();
+      }, 1000);
+    };
+    scheduleSecond();
 
-      if (elapsedMs >= DURATION_S * 1000) finish();
-    }, TICK_MS);
-    return () => clearInterval(timer);
-  }, [ready, finish]);
+    // The game ends on one timeout at the full duration.
+    later(finish, DURATION_S * 1000);
+
+    return () => {
+      clearAllTimeouts();
+    };
+  }, [ready, finish, later, clearAllTimeouts]);
 
   const tapFind = (f: Find) => {
     if (completedRef.current) return;
+    // This find is gathered (or pinches) — its own timers die with it.
+    const timers = findTimersRef.current.get(f.id);
+    if (timers) {
+      timers.forEach((t) => cancelLater(t));
+      findTimersRef.current.delete(f.id);
+    }
+    f.anim.stopAnimation();
     findsRef.current = findsRef.current.filter((x) => x.id !== f.id);
     setFinds(findsRef.current);
     if (f.kind === "crab") {
       tallyRef.current = { ...tallyRef.current, crabs: tallyRef.current.crabs + 1 };
       setScore((s) => Math.max(0, s - 4));
       setPinched(true);
-      pinchUntilRef.current = Date.now() + 300;
+      if (pinchTimerRef.current) cancelLater(pinchTimerRef.current);
+      pinchTimerRef.current = later(() => {
+        pinchTimerRef.current = null;
+        setPinched(false);
+      }, PINCH_MS);
       return;
     }
     if (f.kind === "starfish") {
@@ -176,7 +235,7 @@ export function TideGame({ accent, onComplete, onExit, onShellUpdate }: TideGame
     );
   }
 
-  const timeLeft = Math.max(0, DURATION_S - elapsed);
+  const timeLeft = secondsLeft;
   const chartW = sceneW - 28;
 
   return (
@@ -228,15 +287,13 @@ export function TideGame({ accent, onComplete, onExit, onShellUpdate }: TideGame
               const pool = POOLS[f.pool];
               const x = (pool.cx + f.ox * pool.rx) * chartW;
               const y = (pool.cy + f.oy * pool.ry) * sceneH;
-              const fadeIn = Math.min(1, f.age / 220);
-              const fadeOut = Math.min(1, Math.max(0, (f.lifeMs - f.age) / 260));
-              const opacity = Math.min(fadeIn, fadeOut);
               const icon = f.kind === "shell" ? f.shell!.icon : f.kind;
               const color = f.kind === "shell" ? f.shell!.color : f.kind === "starfish" ? "#FB923C" : "#DC2626";
+              const scale = f.anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
               return (
                 <Pressable
                   key={f.id}
-                  onPress={() => tapFind(f)}
+                  onPressIn={() => tapFind(f)}
                   style={{
                     position: "absolute",
                     left: x - 21,
@@ -245,10 +302,11 @@ export function TideGame({ accent, onComplete, onExit, onShellUpdate }: TideGame
                     height: 42,
                     alignItems: "center",
                     justifyContent: "center",
-                    opacity,
                   }}
                 >
-                  <ShellArt icon={icon} color={color} size={34} />
+                  <Animated.View style={{ opacity: f.anim, transform: [{ scale }], alignItems: "center", justifyContent: "center" }}>
+                    <ShellArt icon={icon} color={color} size={34} />
+                  </Animated.View>
                 </Pressable>
               );
             })}

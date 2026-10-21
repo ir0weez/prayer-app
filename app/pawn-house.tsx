@@ -36,7 +36,9 @@ import {
 import { RoomFurnitureArt, type RoomPieceId } from "@/components/room-furniture-art";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { GrillGame } from "@/components/grill-game";
+import { HearthGame } from "@/components/hearth-game";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
 import { PawnPreview } from "@/components/pawn-preview";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
@@ -813,6 +815,8 @@ export default function PawnHouseScreen() {
     [persistCoins]
   );
 
+  const hearth = useMiniGameHost("hearth", addCoins);
+
   const handleGrillComplete = useCallback(
     (raw: MiniGameReward): MiniGameReward => {
       const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
@@ -1281,6 +1285,17 @@ export default function PawnHouseScreen() {
           </Text>
         )
       )}
+
+      <PlayCard
+        icon="fireplace"
+        title="Play: Hearth Keeper"
+        blurb="Keep the hearth warm — feed the fire, catch the kettle and the bread in their moments."
+        playsLeft={hearth.playsLeft}
+        cap={hearth.cap}
+        accent={"#EA580C"}
+        onPlay={() => hearth.setPlaying(true)}
+      />
+      {hearth.playing && <HearthGame accent={"#EA580C"} onComplete={hearth.handleComplete} onExit={() => hearth.setPlaying(false)} />}
 
       {room.unlocked && def.kind === "living" && (
         <View style={{ marginTop: 12 }}>

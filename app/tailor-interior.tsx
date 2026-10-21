@@ -24,6 +24,9 @@ import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { NeedleGame } from "@/components/needle-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 
 const BG = "#F6F0F8";
 const FABRIC = ["#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#A855F7"];
@@ -141,6 +144,7 @@ function DressForm() {
 
 export default function TailorInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
+  const needle = useMiniGameHost("needle", addCoins);
   const [lastSew, setLastSew] = useState(0);
 
   useEffect(() => {
@@ -269,6 +273,16 @@ export default function TailorInteriorScreen() {
             )
           }
         />
+        <PlayCard
+          icon="content-cut"
+          title="Play: Thread the Needle"
+          blurb="The thread swings past the needle's eye — thread it as it crosses."
+          playsLeft={needle.playsLeft}
+          cap={needle.cap}
+          accent={ACCENT}
+          onPlay={() => needle.setPlaying(true)}
+        />
+        {needle.playing && <NeedleGame accent={ACCENT} onComplete={needle.handleComplete} onExit={() => needle.setPlaying(false)} />}
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Help sew once an hour. Every stitch is measured twice.
         </Text>

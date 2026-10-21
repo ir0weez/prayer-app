@@ -25,6 +25,9 @@ import { scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { EchoGame } from "@/components/echo-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 
 const BG = "#F7ECEC";
 const CURTAIN = "#A31621";
@@ -139,6 +142,7 @@ function HallChandelier() {
 
 export default function MusicHallInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
+  const echo = useMiniGameHost("echo", addCoins);
   const [lastSong, setLastSong] = useState(0);
 
   useEffect(() => {
@@ -278,6 +282,16 @@ export default function MusicHallInteriorScreen() {
             )
           }
         />
+        <PlayCard
+          icon="piano"
+          title="Play: Encore Echo"
+          blurb="The hall plays a melody — echo it back on the pads, note for note."
+          playsLeft={echo.playsLeft}
+          cap={echo.cap}
+          accent={ACCENT}
+          onPlay={() => echo.setPlaying(true)}
+        />
+        {echo.playing && <EchoGame accent={ACCENT} onComplete={echo.handleComplete} onExit={() => echo.setPlaying(false)} />}
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Join the song once an hour. Music is its own reward — pure XP.
         </Text>

@@ -3,11 +3,16 @@
 // Tap a lane's pad as its note crosses the ring: dead center is
 // Perfect, close is Good, and a note that slips past just fades —
 // worship isn't a performance review. Thirty notes, XP-forward.
-// Positions are computed from the beat schedule on a tick, the same
-// deterministic model as the candle game — no per-note animations.
+//
+// TIMING STANDARD (the Token Toss / Steady Trim rule): no tick loop
+// of any kind. Each note owns one Animated.Value that runs its whole
+// fall on the native driver; React only hears about events — a pad
+// tap (captured on onPressIn, finger down), a note's animation
+// finishing (that's the miss), or the safety deadline. The beat pulse
+// on the target rings is a native loop too.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Animated, Easing, Pressable, Text, View } from "react-native";
 import Svg, { Circle, Ellipse, Path, Rect } from "react-native-svg";
 import { GameCard, GameResults, useSceneBox, type MiniGameProps, type MiniGameReward } from "@/components/mini-game-scene";
 
@@ -38,17 +43,23 @@ export function RhythmGame({ accent, onComplete, onExit }: MiniGameProps) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [counts, setCounts] = useState({ perfect: 0, good: 0, missed: 0 });
   const [judge, setJudge] = useState<Judge>(null);
-  const [elapsed, setElapsed] = useState(0);
   const [granted, setGranted] = useState<MiniGameReward | null>(null);
 
   const notesRef = useRef<Note[]>([]);
   const countsRef = useRef({ perfect: 0, good: 0, missed: 0 });
   const startAtRef = useRef(0);
-  const judgeUntilRef = useRef(0);
   const completedRef = useRef(false);
   const startedRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+
+  // One native-driver fall value per note (index-aligned with the
+  // notes), plus the beat pulse for the target rings.
+  const noteAnimsRef = useRef<Animated.Value[]>([]);
+  const pulseRef = useRef<Animated.CompositeAnimation | null>(null);
+  const judgeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const finishTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pulse = useRef(new Animated.Value(0)).current;
 
   const lineY = sceneH * 0.8;
   const totalMs = (TOTAL_NOTES + 4) * BEAT_MS + TRAVEL_MS;
@@ -58,14 +69,41 @@ export function RhythmGame({ accent, onComplete, onExit }: MiniGameProps) {
     completedRef.current = true;
     const { perfect, good } = countsRef.current;
     const points = perfect * 3 + good * 2;
-    const maxPoints = TOTAL_NOTES * 3;
     setGranted(
       onCompleteRef.current({
-        xp: Math.round((points / maxPoints) * 105),
-        coins: Math.round((points / maxPoints) * 40),
+        xp: Math.round((points / 90) * 105),
+        coins: Math.round((points / 90) * 40),
       })
     );
   }, []);
+
+  const showJudge = useCallback((next: Judge, clearAfterMs: number) => {
+    if (judgeTimeoutRef.current) {
+      clearTimeout(judgeTimeoutRef.current);
+      judgeTimeoutRef.current = null;
+    }
+    setJudge(next);
+    judgeTimeoutRef.current = setTimeout(() => {
+      judgeTimeoutRef.current = null;
+      setJudge(null);
+    }, clearAfterMs);
+  }, []);
+
+  // A note's fall completing while it's still pending IS the miss —
+  // an animation-completion event, not a tick catching p slipping by.
+  const markMissed = useCallback(
+    (id: number) => {
+      if (completedRef.current) return;
+      const note = notesRef.current.find((n) => n.id === id);
+      if (!note || note.state !== "pending") return;
+      notesRef.current = notesRef.current.map((n) => (n.id === id ? { ...n, state: "missed" as NoteState } : n));
+      setNotes(notesRef.current);
+      countsRef.current = { ...countsRef.current, missed: countsRef.current.missed + 1 };
+      setCounts({ ...countsRef.current });
+      if (notesRef.current.every((n) => n.state !== "pending")) finish();
+    },
+    [finish]
+  );
 
   useEffect(() => {
     if (!ready || startedRef.current) return;
@@ -82,44 +120,59 @@ export function RhythmGame({ accent, onComplete, onExit }: MiniGameProps) {
     setNotes(song);
     startAtRef.current = Date.now();
 
-    const timer = setInterval(() => {
-      if (completedRef.current) return;
-      const now = Date.now();
-      const elapsedMs = now - startAtRef.current;
-      setElapsed(elapsedMs);
-
-      let changed = false;
-      const next = notesRef.current.map((n) => {
-        if (n.state !== "pending") return n;
-        const p = (elapsedMs - n.beat * BEAT_MS) / TRAVEL_MS;
-        if (p > 1 + GOOD_WINDOW) {
-          changed = true;
-          countsRef.current = { ...countsRef.current, missed: countsRef.current.missed + 1 };
-          return { ...n, state: "missed" as NoteState };
-        }
-        return n;
+    // Each note: one linear native-driver run 0 → 1.3 (progress
+    // units), delayed to its beat, lasting the travel time. No state
+    // moves while it flies; completion is the miss event.
+    noteAnimsRef.current = song.map((n) => {
+      const value = new Animated.Value(0);
+      Animated.timing(value, {
+        toValue: 1.3,
+        duration: TRAVEL_MS * 1.3,
+        delay: n.beat * BEAT_MS,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) markMissed(n.id);
       });
-      if (changed) {
-        notesRef.current = next;
-        setNotes(next);
-        setCounts({ ...countsRef.current });
-      }
-      if (judgeUntilRef.current && now > judgeUntilRef.current) {
-        judgeUntilRef.current = 0;
-        setJudge(null);
-      }
+      return value;
+    });
 
-      const last = notesRef.current[notesRef.current.length - 1];
-      const allResolved = notesRef.current.every((n) => n.state !== "pending");
-      if ((last && elapsedMs > last.beat * BEAT_MS + TRAVEL_MS * 1.4) || allResolved) finish();
-      if (elapsedMs > totalMs + 4000) finish(); // hard stop, just in case
-    }, 50);
-    return () => clearInterval(timer);
+    // The target rings breathe with the beat: a native loop of two
+    // inOut-sin legs, BEAT_MS per full pulse.
+    pulse.setValue(0);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: BEAT_MS / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: BEAT_MS / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    pulseRef.current = loop;
+    loop.start();
+
+    // Safety net only — the game normally ends in the hit/miss
+    // handlers the moment every note is resolved.
+    finishTimeoutRef.current = setTimeout(finish, totalMs + 4000);
+
+    return () => {
+      pulseRef.current?.stop();
+      pulseRef.current = null;
+      for (const value of noteAnimsRef.current) value.stopAnimation();
+      if (finishTimeoutRef.current) {
+        clearTimeout(finishTimeoutRef.current);
+        finishTimeoutRef.current = null;
+      }
+      if (judgeTimeoutRef.current) {
+        clearTimeout(judgeTimeoutRef.current);
+        judgeTimeoutRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, finish]);
+  }, [ready, finish, markMissed]);
 
   const tapLane = (lane: number) => {
     if (completedRef.current || !startedRef.current) return;
+    // Read the clock on the input event itself — same judgement math
+    // as the tick build, sampled at finger-down instead of a frame.
     const elapsedMs = Date.now() - startAtRef.current;
     // nearest pending note in this lane
     let best: Note | null = null;
@@ -134,12 +187,13 @@ export function RhythmGame({ accent, onComplete, onExit }: MiniGameProps) {
       }
     }
     if (!best || bestDist > GOOD_WINDOW) {
-      setJudge({ text: "Off the beat…", color: "#A8A29E" });
-      judgeUntilRef.current = Date.now() + 450;
+      showJudge({ text: "Off the beat…", color: "#A8A29E" }, 450);
       return;
     }
     const perfect = bestDist <= PERFECT_WINDOW;
     const state: NoteState = perfect ? "perfect" : "good";
+    // Freeze this note's fall where it was caught, then record the hit.
+    noteAnimsRef.current[best.id]?.stopAnimation();
     notesRef.current = notesRef.current.map((n) => (n.id === best!.id ? { ...n, state } : n));
     setNotes(notesRef.current);
     countsRef.current = {
@@ -148,10 +202,11 @@ export function RhythmGame({ accent, onComplete, onExit }: MiniGameProps) {
       good: countsRef.current.good + (perfect ? 0 : 1),
     };
     setCounts({ ...countsRef.current });
-    setJudge(
-      perfect ? { text: "Perfect", color: "#B45309" } : { text: "Good", color: "#2F9E5F" }
+    showJudge(
+      perfect ? { text: "Perfect", color: "#B45309" } : { text: "Good", color: "#2F9E5F" },
+      550
     );
-    judgeUntilRef.current = Date.now() + 550;
+    if (notesRef.current.every((n) => n.state !== "pending")) finish();
   };
 
   if (granted) {
@@ -170,8 +225,8 @@ export function RhythmGame({ accent, onComplete, onExit }: MiniGameProps) {
   }
 
   const laneW = (sceneW - 28) / 3;
-  const pulse = 1 + 0.1 * Math.sin((elapsed / BEAT_MS) * Math.PI * 2);
   const resolved = counts.perfect + counts.good + counts.missed;
+  const ringScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] });
 
   return (
     <GameCard title="Rhythm of Worship" accent={accent} onLayout={onLayout}>
@@ -211,42 +266,55 @@ export function RhythmGame({ accent, onComplete, onExit }: MiniGameProps) {
           {/* target rings — they breathe with the beat */}
           {ready &&
             [0, 1, 2].map((lane) => (
-              <View
+              <Animated.View
                 key={lane}
                 pointerEvents="none"
                 style={{
                   position: "absolute",
-                  left: laneW * lane + laneW / 2 - 21 * pulse,
-                  top: lineY - 21 * pulse,
-                  width: 42 * pulse,
-                  height: 42 * pulse,
+                  left: laneW * lane + laneW / 2 - 21,
+                  top: lineY - 21,
+                  width: 42,
+                  height: 42,
                   borderRadius: 999,
                   borderWidth: 2.5,
                   borderColor: "#F2C14E",
                   opacity: 0.75,
+                  transform: [{ scale: ringScale }],
                 }}
               />
             ))}
-          {/* falling notes */}
+          {/* falling notes — y from each note's own native value
+              (translateY of p × lineY, base top 0); hit notes are
+              not rendered, as before */}
           {ready &&
             notes.map((n) => {
               if (n.state === "perfect" || n.state === "good") return null;
-              const p = (elapsed - n.beat * BEAT_MS) / TRAVEL_MS;
-              if (p < -0.05 || p > 1.3) return null;
-              const y = p * lineY;
+              const value = noteAnimsRef.current[n.id];
+              if (!value) return null;
               return (
-                <View
+                <Animated.View
                   key={n.id}
                   pointerEvents="none"
                   style={{
                     position: "absolute",
                     left: laneW * n.lane + laneW / 2 - 14,
-                    top: y - 14,
-                    opacity: n.state === "missed" ? Math.max(0, 1 - (p - 1.17) * 6) : 1,
+                    top: 0,
+                    opacity:
+                      n.state === "missed"
+                        ? value.interpolate({ inputRange: [1, 1.17, 1.3], outputRange: [1, 1, 0] })
+                        : 1,
+                    transform: [
+                      {
+                        translateY: value.interpolate({
+                          inputRange: [0, 1.3],
+                          outputRange: [-14, 1.3 * lineY - 14],
+                        }),
+                      },
+                    ],
                   }}
                 >
                   <MusicNote size={28} color={n.state === "missed" ? "#6B6486" : "#F2C14E"} />
-                </View>
+                </Animated.View>
               );
             })}
           {/* judgement */}
@@ -262,12 +330,12 @@ export function RhythmGame({ accent, onComplete, onExit }: MiniGameProps) {
           )}
         </View>
 
-        {/* lane pads */}
+        {/* lane pads — judgement is sampled on finger DOWN */}
         <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
           {[0, 1, 2].map((lane) => (
             <Pressable
               key={lane}
-              onPress={() => tapLane(lane)}
+              onPressIn={() => tapLane(lane)}
               style={{
                 flex: 1,
                 borderRadius: 14,

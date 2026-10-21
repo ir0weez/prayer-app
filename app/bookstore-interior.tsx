@@ -16,6 +16,9 @@ import { awardCustomXP } from "@/lib/xp-engine";
 import { PawnPreview } from "@/components/pawn-preview";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { ShelveGame } from "@/components/shelve-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 import {
   useInteriorData,
   InteriorHeader,
@@ -277,6 +280,7 @@ function WallSconce({ delay = 0 }: { delay?: number }) {
 
 export default function BookstoreInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
+  const shelve = useMiniGameHost("shelve", addCoins);
   const [lastBrowse, setLastBrowse] = useState(0);
 
   useEffect(() => {
@@ -288,7 +292,6 @@ export default function BookstoreInteriorScreen() {
     })();
   }, []);
 
-  void addCoins;
   const remaining = Math.max(0, lastBrowse + BROWSE_COOLDOWN_MS - Date.now());
   const browseXp = BROWSE_XP[level];
   const browsers = pickPeople(people, `bookstore|${building?.id ?? "book"}`, level >= 3 ? 3 : 2);
@@ -417,6 +420,16 @@ export default function BookstoreInteriorScreen() {
           level={level}
           onUpgrade={() => handleUpgrade("More shelves, a warmer nook, better finds.")}
         />
+        <PlayCard
+          icon="menu-book"
+          title="Play: Shelve the Stories"
+          blurb="Returned books carry their section mark — shelve each one where it belongs."
+          playsLeft={shelve.playsLeft}
+          cap={shelve.cap}
+          accent={ACCENT}
+          onPlay={() => shelve.setPlaying(true)}
+        />
+        {shelve.playing && <ShelveGame accent={ACCENT} onComplete={shelve.handleComplete} onExit={() => shelve.setPlaying(false)} />}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Opening the shop…</Text>}
       </ScrollView>

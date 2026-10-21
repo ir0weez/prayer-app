@@ -5,7 +5,7 @@
 // line is waiting). Coins + XP scale with every box packed.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Animated, Easing, Pressable, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Svg, { Circle, Ellipse, Line, Path, Rect } from "react-native-svg";
 import {
@@ -176,8 +176,11 @@ export function PackingGame({ accent, onComplete, onExit }: MiniGameProps) {
 
   const packedRef = useRef(0);
   const deadlineRef = useRef(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const finishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const secondsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const completedRef = useRef(false);
+  // Countdown bar drain: one native linear animation over the round.
+  const barAnim = useRef(new Animated.Value(1)).current;
   // Ref-held so a parent re-render can never restart the clock.
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -185,10 +188,15 @@ export function PackingGame({ accent, onComplete, onExit }: MiniGameProps) {
   const finish = useCallback(() => {
     if (completedRef.current) return;
     completedRef.current = true;
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+    if (finishTimerRef.current) {
+      clearTimeout(finishTimerRef.current);
+      finishTimerRef.current = null;
     }
+    if (secondsTimerRef.current) {
+      clearTimeout(secondsTimerRef.current);
+      secondsTimerRef.current = null;
+    }
+    barAnim.stopAnimation();
     const p = packedRef.current;
     setGranted(
       onCompleteRef.current({
@@ -200,15 +208,37 @@ export function PackingGame({ accent, onComplete, onExit }: MiniGameProps) {
 
   useEffect(() => {
     deadlineRef.current = Date.now() + DURATION_S * 1000;
-    timerRef.current = setInterval(() => {
-      const remaining = Math.max(0, deadlineRef.current - Date.now());
-      setTimeLeft(remaining / 1000);
-      if (remaining <= 0) finish();
-    }, 100);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+    // The bar drains on the native driver; no clock ticks behind it.
+    barAnim.setValue(1);
+    Animated.timing(barAnim, {
+      toValue: 0,
+      duration: DURATION_S * 1000,
+      easing: Easing.linear,
+      useNativeDriver: true,
+    }).start();
+    // One finish timeout at the deadline.
+    finishTimerRef.current = setTimeout(finish, DURATION_S * 1000);
+    // Seconds text: a timeout chain that wakes exactly when
+    // Math.ceil(remaining) is about to change (≈ once a second).
+    const scheduleSeconds = () => {
+      const remainingMs = Math.max(0, deadlineRef.current - Date.now());
+      if (remainingMs <= 0 || completedRef.current) return;
+      const ceil = Math.ceil(remainingMs / 1000);
+      const delay = remainingMs - (ceil - 1) * 1000;
+      secondsTimerRef.current = setTimeout(() => {
+        secondsTimerRef.current = null;
+        if (completedRef.current) return;
+        setTimeLeft(Math.ceil(Math.max(0, deadlineRef.current - Date.now()) / 1000));
+        scheduleSeconds();
+      }, delay);
     };
-  }, [finish]);
+    scheduleSeconds();
+    return () => {
+      if (finishTimerRef.current) clearTimeout(finishTimerRef.current);
+      if (secondsTimerRef.current) clearTimeout(secondsTimerRef.current);
+      barAnim.stopAnimation();
+    };
+  }, [finish, barAnim]);
 
   const choose = (category: PackCategory) => {
     if (completedRef.current) return;
@@ -246,12 +276,14 @@ export function PackingGame({ accent, onComplete, onExit }: MiniGameProps) {
           </Text>
         </View>
         <View style={{ height: 7, borderRadius: 4, backgroundColor: "#EFE6D8", marginTop: 7, overflow: "hidden" }}>
-          <View
+          <Animated.View
             style={{
               height: 7,
               borderRadius: 4,
-              width: `${Math.max(0, (timeLeft / DURATION_S) * 100)}%`,
+              width: "100%",
               backgroundColor: timeLeft <= 10 ? "#C4493B" : accent,
+              transform: [{ scaleX: barAnim }],
+              transformOrigin: "left center",
             }}
           />
         </View>

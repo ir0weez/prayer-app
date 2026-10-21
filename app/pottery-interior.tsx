@@ -24,6 +24,9 @@ import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { ClayGame } from "@/components/clay-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 
 const BG = "#F3EDE2";
 const CLAY = "#C97B4A";
@@ -157,6 +160,7 @@ function DryingRack() {
 
 export default function PotteryInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
+  const clay = useMiniGameHost("clay", addCoins);
   const [lastThrow, setLastThrow] = useState(0);
 
   useEffect(() => {
@@ -288,6 +292,16 @@ export default function PotteryInteriorScreen() {
             )
           }
         />
+        <PlayCard
+          icon="filter-vintage"
+          title="Play: Center the Clay"
+          blurb="The clay keeps drifting off-center on the wheel — nudge it back and keep it true."
+          playsLeft={clay.playsLeft}
+          cap={clay.cap}
+          accent={ACCENT}
+          onPlay={() => clay.setPlaying(true)}
+        />
+        {clay.playing && <ClayGame accent={ACCENT} onComplete={clay.handleComplete} onExit={() => clay.setPlaying(false)} />}
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Throw a pot once an hour. Patience shapes the finest vessels.
         </Text>

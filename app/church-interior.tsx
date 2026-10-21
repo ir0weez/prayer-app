@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Animated, Easing, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -28,6 +28,9 @@ import {
 } from "@/components/activity-figures";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { BellGame } from "@/components/bell-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 
 // ---------- palette: warm community church ----------
 // Bright morning light, honey wood, cream walls — a welcoming gathering place.
@@ -942,6 +945,22 @@ export default function ChurchInteriorScreen() {
     })();
   }, [buildingId]);
 
+  // Coin grants for the bell game, in the same storage pattern the
+  // hometown economy uses everywhere: update the shown coins and
+  // persist the whole object under COINS_STORAGE_KEY.
+  const addCoins = useCallback((delta: number) => {
+    setCoins((prev) => {
+      const next = {
+        balance: Math.round((prev.balance + delta) * 100) / 100,
+        lifetimeEarned: delta > 0 ? Math.round((prev.lifetimeEarned + delta) * 100) / 100 : prev.lifetimeEarned,
+      };
+      AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+      return next;
+    });
+  }, []);
+
+  const bell = useMiniGameHost("bell", addCoins);
+
   const level = building?.level || 1;
   const churchName = churchNameFor(level);
   const prayed = people.filter((p) => p.prayed);
@@ -1239,6 +1258,17 @@ export default function ChurchInteriorScreen() {
             </View>
           )}
         </View>
+
+        <PlayCard
+          icon="notifications"
+          title="Play: Bell Peal"
+          blurb="The bells chime a pattern over the town — ring it back, note for note."
+          playsLeft={bell.playsLeft}
+          cap={bell.cap}
+          accent={GOLD}
+          onPlay={() => bell.setPlaying(true)}
+        />
+        {bell.playing && <BellGame accent={GOLD} onComplete={bell.handleComplete} onExit={() => bell.setPlaying(false)} />}
 
         {!loaded && (
           <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Lighting candles…</Text>

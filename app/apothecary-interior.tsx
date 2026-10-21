@@ -25,6 +25,9 @@ import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { BrewGame } from "@/components/brew-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 
 const BG = "#F1F7EC";
 const WOOD = "#7A5230";
@@ -181,6 +184,7 @@ function HangingHerbs() {
 
 export default function ApothecaryInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
+  const brew = useMiniGameHost("brew", addCoins);
   const [lastBrew, setLastBrew] = useState(0);
 
   useEffect(() => {
@@ -309,6 +313,16 @@ export default function ApothecaryInteriorScreen() {
             )
           }
         />
+        <PlayCard
+          icon="science"
+          title="Play: Brew the Tonic"
+          blurb="Each tonic has its recipe — add the jars in order and watch it glow."
+          playsLeft={brew.playsLeft}
+          cap={brew.cap}
+          accent={ACCENT}
+          onPlay={() => brew.setPlaying(true)}
+        />
+        {brew.playing && <BrewGame accent={ACCENT} onComplete={brew.handleComplete} onExit={() => brew.setPlaying(false)} />}
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Brew a remedy once an hour. Measure twice, stir once.
         </Text>

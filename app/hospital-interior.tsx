@@ -35,6 +35,9 @@ import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { PawnPreview } from "@/components/pawn-preview";
 import { DoctorFigure, GentleBob, NurseFigure, SoftPulse, pickPeople } from "@/components/activity-figures";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { RoundsGame } from "@/components/rounds-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 
 const BG = "#F2F7FA"; // clean clinical light
@@ -387,6 +390,8 @@ export default function HospitalInteriorScreen() {
     });
   }, []);
 
+  const rounds = useMiniGameHost("rounds", addCoins);
+
   const level = Math.min(Math.max(building?.level || 1, 1), 3);
   const def = building ? BUILDINGS[building.type as keyof typeof BUILDINGS] : null;
   const name = def?.name ?? "Hospital";
@@ -566,6 +571,17 @@ export default function HospitalInteriorScreen() {
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           The blessing is consumed when your next Dark Forest battle begins.
         </Text>
+
+        <PlayCard
+          icon="healing"
+          title="Play: Gentle Rounds"
+          blurb="Water, medicine, a blanket, a prayer — bring each patient what they're asking for."
+          playsLeft={rounds.playsLeft}
+          cap={rounds.cap}
+          accent={TEAL}
+          onPlay={() => rounds.setPlaying(true)}
+        />
+        {rounds.playing && <RoundsGame accent={TEAL} onComplete={rounds.handleComplete} onExit={() => rounds.setPlaying(false)} />}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Preparing the exam room…</Text>}
       </ScrollView>

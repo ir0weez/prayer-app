@@ -38,6 +38,9 @@ import {
   type PlacedBuilding,
 } from "@/lib/hometown";
 import { completeMission, loadMissions, type Mission } from "@/lib/missions";
+import { CascadeGame } from "@/components/cascade-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 
 let idCounter = 0;
 function nextId() {
@@ -697,6 +700,8 @@ export default function BankInteriorScreen() {
       return next;
     });
   }, []);
+
+  const cascade = useMiniGameHost("cascade", addCoins);
 
   const floorInterior: BankFloorInterior = interior.floors[String(safeFloor)] ?? EMPTY_FLOOR;
 
@@ -1395,6 +1400,17 @@ export default function BankInteriorScreen() {
           Long-press any item to move it. Tap furniture or {carpetName.toLowerCase()}s to sell them back.
         </Text>
       )}
+
+      <PlayCard
+        icon="savings"
+        title="Play: Coin Cascade"
+        blurb="Coins pour from the chutes — slide the vault tray and catch them as they fall."
+        playsLeft={cascade.playsLeft}
+        cap={cascade.cap}
+        accent={"#B45309"}
+        onPlay={() => cascade.setPlaying(true)}
+      />
+      {cascade.playing && <CascadeGame accent={"#B45309"} onComplete={cascade.handleComplete} onExit={() => cascade.setPlaying(false)} />}
     </ScrollView>
   );
 }

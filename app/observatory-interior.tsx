@@ -25,6 +25,9 @@ import { scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { StarsGame } from "@/components/stars-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 
 const BG = "#101828";
 const DOME = "#1E293B";
@@ -145,6 +148,7 @@ function PlanetGlobe() {
 
 export default function ObservatoryInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
+  const stars = useMiniGameHost("stars", addCoins);
   const [lastChart, setLastChart] = useState(0);
 
   useEffect(() => {
@@ -279,6 +283,16 @@ export default function ObservatoryInteriorScreen() {
             )
           }
         />
+        <PlayCard
+          icon="star"
+          title="Play: Chart the Stars"
+          blurb="Constellations light star by star — tap them in order and draw the chart."
+          playsLeft={stars.playsLeft}
+          cap={stars.cap}
+          accent={ACCENT}
+          onPlay={() => stars.setPlaying(true)}
+        />
+        {stars.playing && <StarsGame accent={ACCENT} onComplete={stars.handleComplete} onExit={() => stars.setPlaying(false)} />}
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Chart the stars once an hour. The heavens declare His glory — pure XP.
         </Text>

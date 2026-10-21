@@ -128,6 +128,113 @@ function GlowPulse({ children, duration = 1600 }: { children: React.ReactNode; d
   );
 }
 
+// ---------- steam wisps: three curls riding one slow sine loop ----------
+// One Animated.Value drives all three wisps (per-wisp interpolation ranges
+// give the stagger) — cheap, native driver, no bounce.
+function SteamWisps({ color = "#F6EEFC", width = 72 }: { color?: string; width?: number }) {
+  const s = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(s, { toValue: 1, duration: 2300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(s, { toValue: 0, duration: 2300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [s]);
+  return (
+    <View pointerEvents="none" style={{ flexDirection: "row", justifyContent: "space-between", width, height: 20 }}>
+      {[0, 1, 2].map((i) => (
+        <Animated.View
+          key={i}
+          style={{
+            width: 6,
+            height: 16,
+            borderRadius: 3,
+            backgroundColor: color,
+            opacity: s.interpolate({ inputRange: [0, 1], outputRange: i === 1 ? [0.34, 0.12] : [0.1, 0.36] }),
+            transform: [
+              { translateY: s.interpolate({ inputRange: [0, 1], outputRange: [4 + i * 1.5, -4 - i * 1.5] }) },
+              { translateX: s.interpolate({ inputRange: [0, 1], outputRange: [0, i === 0 ? -2 : i === 2 ? 2 : 0] }) },
+            ],
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+// ---------- the cantina sun: drawn face, rays shimmering on a slow sine ----------
+function SunMedallion() {
+  const shimmer = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 1, duration: 3400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 0, duration: 3400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmer]);
+  return (
+    <View style={{ alignItems: "center", justifyContent: "center", width: 58, height: 58 }}>
+      {/* rays — one very slow shimmer (opacity + a breath of scale) */}
+      <Animated.View
+        style={{
+          position: "absolute",
+          width: 58,
+          height: 58,
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }),
+          transform: [{ scale: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.93, 1.05] }) }],
+        }}
+      >
+        {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+          <View
+            key={deg}
+            style={{
+              position: "absolute",
+              width: 5,
+              height: 13,
+              borderRadius: 2.5,
+              backgroundColor: "#FF9E4F",
+              borderWidth: 1,
+              borderColor: "#D97A24",
+              transform: [{ rotate: `${deg}deg` }, { translateY: -25 }],
+            }}
+          />
+        ))}
+      </Animated.View>
+      {/* the face — warm disc, drawn eyes, smile, rosy cheeks */}
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: "#FFD23F",
+          borderWidth: 2,
+          borderColor: "#E8A20C",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+        }}
+      >
+        <View style={{ position: "absolute", top: 3, left: 6, width: 11, height: 5, borderRadius: 2.5, backgroundColor: "#FFF3C9", opacity: 0.85 }} />
+        <View style={{ flexDirection: "row", marginTop: 3 }}>
+          <View style={{ width: 3.6, height: 3.6, borderRadius: 1.8, backgroundColor: "#7A5410", marginHorizontal: 3 }} />
+          <View style={{ width: 3.6, height: 3.6, borderRadius: 1.8, backgroundColor: "#7A5410", marginHorizontal: 3 }} />
+        </View>
+        <View style={{ width: 13, height: 6.5, borderBottomLeftRadius: 6.5, borderBottomRightRadius: 6.5, backgroundColor: "#7A5410", marginTop: 2.6, opacity: 0.9 }} />
+        <View style={{ position: "absolute", bottom: 8, left: 4, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FF7BAC", opacity: 0.75 }} />
+        <View style={{ position: "absolute", bottom: 8, right: 4, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FF7BAC", opacity: 0.75 }} />
+      </View>
+    </View>
+  );
+}
+
 // ============================================================
 // WALL DECOR — themed art frames per cuisine
 // ============================================================
@@ -211,16 +318,29 @@ export function CuisineWallDecor({ cuisine, tier }: { cuisine: string; tier: num
               <View style={{ height: 8, backgroundColor: "#FFD23F" }} />
               <View style={{ height: 8, backgroundColor: "#2EC4B6" }} />
               <View style={{ height: 8, backgroundColor: "#3A2260" }} />
-              <View style={{ position: "absolute", top: 12, left: 13, width: 18, height: 18, borderRadius: 9, backgroundColor: "#FFF3C9", opacity: 0.9 }} />
+              {/* the little sun, ringed, with stubby rays */}
+              <View style={{ position: "absolute", top: 8, left: 10, width: 24, height: 24, alignItems: "center", justifyContent: "center" }}>
+                {[45, 135, 225, 315].map((deg) => (
+                  <View key={deg} style={{ position: "absolute", width: 3.4, height: 8, borderRadius: 1.7, backgroundColor: "#FF9E4F", transform: [{ rotate: `${deg}deg` }, { translateY: -11 }] }} />
+                ))}
+                <View style={{ width: 17, height: 17, borderRadius: 8.5, backgroundColor: "#FFF3C9", borderWidth: 1.6, borderColor: "#FF9E4F" }} />
+              </View>
             </View>
           ))}
           {frame(1, (
-            <View style={{ width: 50, height: 38, backgroundColor: "#2EC4B6", overflow: "hidden" }}>
+            <View style={{ width: 50, height: 38, backgroundColor: "#2EC4B6", overflow: "hidden", borderWidth: 1.5, borderColor: "#1F8A80" }}>
               <View style={{ position: "absolute", top: 5, left: 6, width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 12, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#FF7BAC" }} />
               <View style={{ position: "absolute", top: 22, left: 24, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFD23F" }} />
               <View style={{ position: "absolute", top: 8, right: 6, width: 14, height: 4, borderRadius: 2, backgroundColor: "#3A2260", transform: [{ rotate: "24deg" }] }} />
-              <View style={{ position: "absolute", bottom: 5, left: 8, width: 16, height: 4, borderRadius: 2, backgroundColor: "#F6EEFC", transform: [{ rotate: "-18deg" }] }} />
+              {/* a zigzag, chained from three little bars */}
+              <View style={{ position: "absolute", bottom: 6, left: 7, flexDirection: "row" }}>
+                {[0, 1, 2].map((i) => (
+                  <View key={i} style={{ width: 6, height: 3, borderRadius: 1.5, backgroundColor: "#F6EEFC", transform: [{ rotate: i % 2 === 0 ? "-28deg" : "28deg" }] }} />
+                ))}
+              </View>
               <View style={{ position: "absolute", bottom: 7, right: 9, width: 7, height: 7, backgroundColor: "#FF7BAC", transform: [{ rotate: "45deg" }] }} />
+              {/* outlined ring, drawn not filled */}
+              <View style={{ position: "absolute", top: 20, left: 5, width: 11, height: 11, borderRadius: 5.5, borderWidth: 2, borderColor: "#3A2260" }} />
             </View>
           ))}
         </>
@@ -456,14 +576,37 @@ function StripedAwning({ rich }: { rich: boolean }) {
 }
 
 function RetroSunsetBand({ rich }: { rich: boolean }) {
+  const bulbColors = ["#FFD23F", "#FF7BAC", "#2EC4B6", "#FF9E4F"];
+  const bulbCount = rich ? 7 : 5;
   return (
     <View style={{ alignItems: "center", marginVertical: 6 }}>
-      {/* the sunset stripes */}
-      <View style={{ width: "92%", borderRadius: 6, overflow: "hidden", borderWidth: 2, borderColor: "#FFD23F" }}>
+      {/* the sunset stripes, in a drawn frame: gold rim, inner trim line */}
+      <View style={{ width: "92%", borderRadius: 7, overflow: "hidden", borderWidth: 3, borderColor: "#FFD23F" }}>
         <View style={{ height: 6, backgroundColor: "#FF7BAC" }} />
         <View style={{ height: 6, backgroundColor: "#FF9E4F" }} />
         <View style={{ height: 6, backgroundColor: "#FFD23F" }} />
         <View style={{ height: 6, backgroundColor: "#2EC4B6" }} />
+        <View style={{ position: "absolute", top: 2, left: 2, right: 2, bottom: 2, borderWidth: 1, borderColor: "rgba(58,34,96,0.55)", borderRadius: 5 }} />
+      </View>
+      {/* a wire of bulbs under the band, twinkling in stagger */}
+      <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 1 }}>
+        {Array.from({ length: bulbCount }).map((_, i) => (
+          <View key={i} style={{ alignItems: "center", marginHorizontal: 13 }}>
+            <View style={{ width: 2, height: 7, backgroundColor: "#5E4390" }} />
+            <GlowPulse duration={1500 + (i % 4) * 350}>
+              <View
+                style={{
+                  width: 9,
+                  height: 9,
+                  borderRadius: 4.5,
+                  backgroundColor: bulbColors[i % bulbColors.length],
+                  borderWidth: 1,
+                  borderColor: "rgba(36,20,51,0.65)",
+                }}
+              />
+            </GlowPulse>
+          </View>
+        ))}
       </View>
       {/* hanging Memphis shapes */}
       <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 1 }}>
@@ -476,7 +619,7 @@ function RetroSunsetBand({ rich }: { rich: boolean }) {
             {shape === "tri" ? (
               <View style={{ width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderBottomWidth: 10, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#FF7BAC" }} />
             ) : shape === "dot" ? (
-              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFD23F" }} />
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFD23F", borderWidth: 1, borderColor: "#D97A24" }} />
             ) : shape === "bar" ? (
               <View style={{ width: 13, height: 4.5, borderRadius: 2, backgroundColor: "#2EC4B6", transform: [{ rotate: i % 2 === 0 ? "22deg" : "-22deg" }] }} />
             ) : (
@@ -706,48 +849,123 @@ function BurgerCounter({ level }: { level: number }) {
   );
 }
 
+// ---------- taco menu board: drawn items + prices, no words ----------
+// Same idiom as the burger counter's boards — a header stripe, item bars,
+// and a little gold price tag per row — in cantina colors.
+function CantinaMenuBoard() {
+  return (
+    <View
+      style={{
+        width: 46,
+        height: 58,
+        borderRadius: 5,
+        backgroundColor: "#2A1745",
+        borderWidth: 2,
+        borderColor: "#FF7BAC",
+        padding: 4,
+        marginHorizontal: 2,
+      }}
+    >
+      <View style={{ height: 6, borderRadius: 3, backgroundColor: "#2EC4B6", marginBottom: 5 }} />
+      {[17, 12, 15].map((w, i) => (
+        <View key={i} style={{ flexDirection: "row", alignItems: "center", marginTop: i === 0 ? 0 : 5 }}>
+          <View style={{ width: w, height: 4, borderRadius: 2, backgroundColor: "#F6EEFC", opacity: 0.9 }} />
+          <View style={{ flex: 1 }} />
+          <View style={{ width: 8, height: 4.5, borderRadius: 2, backgroundColor: "#FFD23F" }} />
+        </View>
+      ))}
+      {/* a tiny taco doodle at the foot of the board */}
+      <View style={{ alignSelf: "center", marginTop: 6, width: 14, height: 8, borderTopLeftRadius: 7, borderTopRightRadius: 7, backgroundColor: "#E8C86A", borderWidth: 1, borderColor: "#A87838" }} />
+    </View>
+  );
+}
+
 // ---------- taco: retro cantina — arch, sun medallion, sunset-stripe grill ----------
 // The beloved 90s cantina: purple arch, a generic sun (no logos), teal and
 // pink stripes, geometric shapes. The grill still cooks underneath.
+// Drawn pass: double-outlined arch on pilasters with a keystone, menu
+// boards flanking from L2, steam curling off the grill pass.
 function RetroCantina({ level, kitchenTier }: { level: number; kitchenTier: number }) {
+  const pilaster = (key: number) => (
+    <View key={key} style={{ alignItems: "center", marginHorizontal: 2 }}>
+      {/* capital + base in pink, the column itself teal with a groove */}
+      <View style={{ width: 16, height: 6, borderRadius: 2, backgroundColor: "#FF7BAC", borderWidth: 1, borderColor: "#33224F" }} />
+      <View style={{ width: 11, height: 54, backgroundColor: "#2EC4B6", borderWidth: 1.5, borderColor: "#1F8A80" }}>
+        <View style={{ position: "absolute", left: 3.5, top: 4, bottom: 4, width: 2, backgroundColor: "#1F8A80", opacity: 0.8 }} />
+      </View>
+      <View style={{ width: 16, height: 6, borderRadius: 2, backgroundColor: "#FF7BAC", borderWidth: 1, borderColor: "#33224F" }} />
+    </View>
+  );
   return (
     <View style={{ alignItems: "center", marginTop: 6 }}>
-      {/* cantina arch with the sun medallion */}
-      <View
-        style={{
-          width: 150,
-          height: 74,
-          borderTopLeftRadius: 75,
-          borderTopRightRadius: 75,
-          backgroundColor: "#3A2260",
-          borderWidth: 3,
-          borderColor: "#2EC4B6",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-        }}
-      >
-        {/* sunset stripes across the arch */}
-        <View style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
-          <View style={{ height: 6, backgroundColor: "#FF7BAC", opacity: 0.85 }} />
-          <View style={{ height: 6, backgroundColor: "#FF9E4F", opacity: 0.85 }} />
-          <View style={{ height: 6, backgroundColor: "#FFD23F", opacity: 0.85 }} />
-        </View>
-        {/* the sun */}
-        <GlowPulse duration={2400}>
-          <View style={{ alignItems: "center", justifyContent: "center", width: 52, height: 52 }}>
-            {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
-              <View key={deg} style={{ position: "absolute", width: 5, height: 12, borderRadius: 2.5, backgroundColor: "#FF9E4F", transform: [{ rotate: `${deg}deg` }, { translateY: -24 }] }} />
-            ))}
-            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "#FFD23F", borderWidth: 2, borderColor: "#FF9E4F", alignItems: "center", justifyContent: "center" }}>
-              <View style={{ flexDirection: "row" }}>
-                <View style={{ width: 3.4, height: 3.4, borderRadius: 1.7, backgroundColor: "#7A5410", marginHorizontal: 2.6 }} />
-                <View style={{ width: 3.4, height: 3.4, borderRadius: 1.7, backgroundColor: "#7A5410", marginHorizontal: 2.6 }} />
-              </View>
-              <View style={{ width: 12, height: 6, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, backgroundColor: "#7A5410", marginTop: 2.4, opacity: 0.85 }} />
+      <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+        {level >= 2 && <CantinaMenuBoard />}
+        {pilaster(0)}
+        {/* the arch, double-outlined, keystone at the crown */}
+        <View style={{ position: "relative" }}>
+          <View
+            style={{
+              width: 150,
+              height: 78,
+              borderTopLeftRadius: 75,
+              borderTopRightRadius: 75,
+              backgroundColor: "#3A2260",
+              borderWidth: 3,
+              borderColor: "#2EC4B6",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+            }}
+          >
+            {/* inner arch line in pink */}
+            <View
+              style={{
+                position: "absolute",
+                top: 5,
+                left: 5,
+                right: 5,
+                bottom: 0,
+                borderTopLeftRadius: 68,
+                borderTopRightRadius: 68,
+                borderWidth: 1.5,
+                borderBottomWidth: 0,
+                borderColor: "#FF7BAC",
+                opacity: 0.85,
+              }}
+            />
+            {/* sunset stripes across the arch */}
+            <View style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
+              <View style={{ height: 6, backgroundColor: "#FF7BAC", opacity: 0.85 }} />
+              <View style={{ height: 6, backgroundColor: "#FF9E4F", opacity: 0.85 }} />
+              <View style={{ height: 6, backgroundColor: "#FFD23F", opacity: 0.85 }} />
             </View>
+            {/* little Memphis diamonds on the arch face */}
+            <View style={{ position: "absolute", top: 16, left: 18, width: 7, height: 7, backgroundColor: "#2EC4B6", transform: [{ rotate: "45deg" }] }} />
+            <View style={{ position: "absolute", top: 16, right: 18, width: 7, height: 7, backgroundColor: "#FF7BAC", transform: [{ rotate: "45deg" }] }} />
+            {/* the sun */}
+            <SunMedallion />
           </View>
-        </GlowPulse>
+          {/* keystone */}
+          <View
+            style={{
+              position: "absolute",
+              top: -5,
+              alignSelf: "center",
+              width: 16,
+              height: 20,
+              borderRadius: 3,
+              backgroundColor: "#FFD23F",
+              borderWidth: 2,
+              borderColor: "#E8A20C",
+            }}
+          />
+        </View>
+        {pilaster(1)}
+        {level >= 2 && <CantinaMenuBoard />}
+      </View>
+      {/* steam curling off the grill pass */}
+      <View style={{ height: 16, marginTop: 1, marginBottom: -3, zIndex: 2 }}>
+        <SteamWisps width={92} />
       </View>
       {/* grill top with heat shimmer */}
       <View style={{ width: 150, height: 16, borderRadius: 8, backgroundColor: "#241433", borderWidth: 2, borderColor: "#5E4390", marginTop: 4 }}>
@@ -761,6 +979,7 @@ function RetroCantina({ level, kitchenTier }: { level: number; kitchenTier: numb
       </View>
       {/* sunset-stripe grill front (richer with level) */}
       <View style={{ width: 150, marginTop: 2, borderRadius: 8, overflow: "hidden", borderWidth: 2, borderColor: "#33224F" }}>
+        <View style={{ height: 3, backgroundColor: "#FFD23F" }} />
         {["#FF7BAC", "#FF9E4F", "#FFD23F", "#2EC4B6"].slice(0, level >= 3 ? 4 : level >= 2 ? 3 : 2).map((c, i) => (
           <View key={i} style={{ height: 11, backgroundColor: c, opacity: 0.92 }} />
         ))}
@@ -773,10 +992,104 @@ function RetroCantina({ level, kitchenTier }: { level: number; kitchenTier: numb
       {kitchenTier >= 3 && (
         <View style={{ flexDirection: "row", marginTop: 4 }}>
           {[0, 1, 2].map((i) => (
-            <View key={i} style={{ width: 22, height: 14, borderRadius: 7, backgroundColor: "#E8C86A", marginHorizontal: 5, borderWidth: 1, borderColor: "#A87838" }} />
+            <View key={i} style={{ width: 22, height: 14, borderRadius: 7, backgroundColor: "#E8C86A", marginHorizontal: 5, borderWidth: 1.5, borderColor: "#A87838" }} />
           ))}
         </View>
       )}
+    </View>
+  );
+}
+
+// ---------- taco: the cantina counter (the stand's own kitchen station) ----------
+// Drawn pots with lids on a wood slab; the front is plain planks at tier 0,
+// then cantina tile from tier 1, deeper and richer by tier, with a hanging
+// chili ristra from tier 2. Labeled as this place's kitchen — the Cantina
+// Kitchen — never the generic home one.
+export function TacoCantinaCounter({ tier }: { tier: number }) {
+  const pot = (key: number, w: number, h: number) => (
+    <View key={key} style={{ alignItems: "center", marginHorizontal: 4 }}>
+      {/* lid knob + lid */}
+      <View style={{ width: 6, height: 4, borderRadius: 2, backgroundColor: "#33333C" }} />
+      <View style={{ width: w * 0.72, height: 5, borderTopLeftRadius: 4, borderTopRightRadius: 4, backgroundColor: "#8A8A96", borderWidth: 1.5, borderColor: "#33333C", marginBottom: -1.5, zIndex: 2 }} />
+      {/* body with a rim band and a shine */}
+      <View style={{ width: w, height: h, borderRadius: 5, backgroundColor: "#5A5A64", borderWidth: 2, borderColor: "#33333C", overflow: "hidden" }}>
+        <View style={{ height: 4, backgroundColor: "#8A8A96", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 4, top: 8, width: 4, height: Math.max(h - 14, 4), borderRadius: 2, backgroundColor: "#FFFFFF", opacity: 0.16 }} />
+      </View>
+    </View>
+  );
+  const tileColors = ["#2EC4B6", "#FF7BAC", "#5E4390", "#7B2D8B"];
+  const tileRows = tier >= 2 ? 3 : 2;
+  return (
+    <View style={{ alignItems: "center", marginTop: 6 }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+        {pot(0, 24, 20)}
+        {pot(1, 30, 26)}
+        {pot(2, 20, 16)}
+        {/* chili ristra hanging by the pots (tier 2+) */}
+        {tier >= 2 && (
+          <View style={{ alignItems: "center", marginLeft: 7 }}>
+            <View style={{ width: 2, height: 7, backgroundColor: "#5E4390" }} />
+            {[0, 1, 2, 3].map((i) => (
+              <View
+                key={i}
+                style={{
+                  width: 9,
+                  height: 13,
+                  borderRadius: 5,
+                  backgroundColor: "#C22E2E",
+                  borderWidth: 1,
+                  borderColor: "#7E1B1B",
+                  marginTop: i === 0 ? 0 : -4,
+                  transform: [{ rotate: i % 2 === 0 ? "-14deg" : "14deg" }],
+                }}
+              >
+                <View style={{ position: "absolute", top: -2, left: 2.5, width: 3.5, height: 4.5, borderRadius: 1.75, backgroundColor: "#4E8B4A" }} />
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+      {/* the slab top, with a highlight along its front edge */}
+      <View style={{ width: 166, height: 10, borderRadius: 4, backgroundColor: "#8B5E34", borderWidth: 2, borderColor: "#46301E", marginTop: -1, zIndex: 2 }}>
+        <View style={{ height: 3, borderRadius: 1.5, backgroundColor: "#C68B4E", marginHorizontal: 5, marginTop: 1 }} />
+      </View>
+      {/* the front: planks at tier 0, cantina tile from tier 1 */}
+      <View style={{ width: 158, borderWidth: 2, borderColor: "#241433", borderTopWidth: 0, backgroundColor: "#33224F", padding: tier >= 1 ? 4 : 5 }}>
+        {tier >= 1 ? (
+          Array.from({ length: tileRows }).map((_, r) => (
+            <View key={r} style={{ flexDirection: "row" }}>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <View
+                  key={i}
+                  style={{
+                    flex: 1,
+                    height: 11,
+                    borderRadius: 1.5,
+                    margin: 1,
+                    backgroundColor: tileColors[(i + r * 2) % tileColors.length],
+                    borderWidth: 0.75,
+                    borderColor: "rgba(36,20,51,0.5)",
+                  }}
+                />
+              ))}
+            </View>
+          ))
+        ) : (
+          <>
+            <View style={{ height: 9 }} />
+            <View style={{ height: 2, backgroundColor: "#241433", opacity: 0.65 }} />
+            <View style={{ height: 9 }} />
+            <View style={{ height: 2, backgroundColor: "#241433", opacity: 0.65 }} />
+            <View style={{ height: 9 }} />
+          </>
+        )}
+      </View>
+      {/* ground shadow */}
+      <View style={{ width: 148, height: 8, borderRadius: 4, backgroundColor: "#000000", opacity: 0.18, marginTop: 3 }} />
+      <Text style={{ color: "#B9A3D9", fontSize: 10, marginTop: 3, fontStyle: "italic" }}>
+        {tier > 0 ? "Cantina Kitchen" : "Cantina Counter"}
+      </Text>
     </View>
   );
 }
@@ -1105,12 +1418,57 @@ export function CuisineFloor({ cuisine, level }: { cuisine: string; level: numbe
         </View>
       );
     case "taco-stand":
-      // retro medallion inlay: teal ring, pink ring, on purple tile
+      // cantina tile underfoot: deep purple tiles with a teal or pink
+      // accent tile scattered in, and the retro medallion inlay on top —
+      // teal ring, pink ring, golden sun at the heart (a dotted outer
+      // ring joins at L3).
       return (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.45, alignItems: "center", justifyContent: "center" }}>
-          <View style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 8, borderColor: "#2EC4B6", opacity: 0.55 }} />
-          <View style={{ position: "absolute", width: 80, height: 80, borderRadius: 40, borderWidth: 6, borderColor: "#FF7BAC", opacity: 0.55 }} />
-          <View style={{ position: "absolute", width: 34, height: 34, borderRadius: 17, backgroundColor: "#FFD23F", opacity: 0.4 }} />
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.5 }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              {Array.from({ length: 70 }).map((_, i) => {
+                const accentTile = i % 17 === 8 ? "#2EC4B6" : i % 23 === 11 ? "#FF7BAC" : null;
+                return (
+                  <View
+                    key={i}
+                    style={{
+                      width: "10%",
+                      height: 24,
+                      backgroundColor: accentTile ?? (i % 2 === 0 ? "#463264" : "#3E2A5C"),
+                      borderWidth: 0.5,
+                      borderColor: "#2E1B47",
+                    }}
+                  />
+                );
+              })}
+            </View>
+          </View>
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.45, alignItems: "center", justifyContent: "center" }}>
+            <View style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 8, borderColor: "#2EC4B6", opacity: 0.55 }} />
+            <View style={{ position: "absolute", width: 80, height: 80, borderRadius: 40, borderWidth: 6, borderColor: "#FF7BAC", opacity: 0.55 }} />
+            <View style={{ position: "absolute", width: 34, height: 34, borderRadius: 17, backgroundColor: "#FFD23F", opacity: 0.4 }} />
+            {level >= 3 &&
+              Array.from({ length: 10 }).map((_, i) => {
+                const rad = (i * 36 * Math.PI) / 180;
+                return (
+                  <View
+                    key={i}
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      top: "50%",
+                      marginLeft: -3.5 + Math.cos(rad) * 70,
+                      marginTop: -3.5 + Math.sin(rad) * 70,
+                      width: 7,
+                      height: 7,
+                      borderRadius: 3.5,
+                      backgroundColor: i % 2 === 0 ? "#FFD23F" : "#F6EEFC",
+                      opacity: 0.65,
+                    }}
+                  />
+                );
+              })}
+          </View>
         </View>
       );
     case "sushi-bar":

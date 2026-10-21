@@ -2,6 +2,7 @@ import "@/global.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -32,6 +33,17 @@ import {
   snoozeScheduleNotification,
 } from "@/lib/notification-scheduler";
 import { XpGainIndicator } from "@/components/xp-gain-indicator";
+import { SplashOverlay } from "@/components/splash-overlay";
+import { SPLASH_MAX_DISPLAY_MS } from "@/lib/splash";
+
+// Hold the native splash until the root layout has actually laid out,
+// then hand off to the animated in-app splash (SplashOverlay), which is
+// a pixel-matched twin of the native one (v166). The fallback timer in
+// RootLayoutContent guarantees the native splash is released even if
+// the first layout is somehow delayed, so it can never trap the user.
+if (Platform.OS !== "web") {
+  SplashScreen.preventAutoHideAsync().catch(() => {});
+}
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
@@ -47,6 +59,21 @@ function RootLayoutContent() {
 
   const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
   const [frame, setFrame] = useState<Rect>(initialFrame);
+
+  // Splash handoff (v166): the app is "ready" once the root view has
+  // laid out its first frame. Release the native splash then — the
+  // animated SplashOverlay (rendered below, visually identical to the
+  // native splash) covers the seam and fades on its own schedule.
+  const [appReady, setAppReady] = useState(false);
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const fallback = setTimeout(() => setAppReady(true), SPLASH_MAX_DISPLAY_MS);
+    return () => clearTimeout(fallback);
+  }, []);
+  useEffect(() => {
+    if (!appReady || Platform.OS === "web") return;
+    SplashScreen.hideAsync().catch(() => {});
+  }, [appReady]);
 
   // Initialize Manus runtime for cookie injection from parent container
   useEffect(() => {
@@ -160,7 +187,7 @@ function RootLayoutContent() {
   }, [initialInsets, initialFrame]);
 
   const content = (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }} onLayout={() => setAppReady(true)}>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
           {/* Default to hiding native headers so raw route segments don't appear (e.g. "(tabs)", "products/[id]"). */}
@@ -171,6 +198,7 @@ function RootLayoutContent() {
             <Stack.Screen name="oauth/callback" />
           </Stack>
           <XpGainIndicator />
+          {Platform.OS !== "web" && <SplashOverlay ready={appReady} />}
           <StatusBar hidden={false} />
         </QueryClientProvider>
       </trpc.Provider>

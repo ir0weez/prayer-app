@@ -38,6 +38,19 @@ const env = {
   androidPackage: bundleId,
 };
 
+// The default app icon is the single source for the launch splash too
+// (v166): the splash draws ICON_ART on ICON_FIELD_COLOR — the icon's own
+// art on the icon's own field — so the two can never drift apart again.
+// The previous splash had a private asset (a flame emblem with a
+// checkerboard baked into its "transparent" background) on the old
+// icon era's dark purple, and it silently stopped matching the icon
+// when the icon changed. ICON_FIELD_COLOR is the cream paper field
+// sampled from the icon art itself (#F7F0DE at every corner/edge); it
+// is mirrored by SPLASH_BACKGROUND_COLOR in lib/splash.ts and the pair
+// is pinned by lib/__tests__/splash.test.ts.
+const ICON_ART = "./assets/images/icon.png";
+const ICON_FIELD_COLOR = "#F7F0DE";
+
 // Build variant: set APP_VARIANT=test (e.g. in CI) to produce a separately
 // installable test build. It gets its own app name and package id so it
 // installs alongside the production app instead of clashing with it
@@ -53,7 +66,7 @@ const config: ExpoConfig = {
   slug: env.appSlug,
   version: "1.0.0",
   orientation: "portrait",
-  icon: "./assets/images/icon.png",
+  icon: ICON_ART,
   scheme: env.scheme,
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
@@ -68,7 +81,7 @@ const config: ExpoConfig = {
     adaptiveIcon: {
       // Paper main icon (v160): the fallback field behind the paper disc
       // is the same warm cream as the paper background image.
-      backgroundColor: "#F7F0DE",
+      backgroundColor: ICON_FIELD_COLOR,
       foregroundImage: "./assets/images/android-icon-foreground.png",
       backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
@@ -118,12 +131,14 @@ const config: ExpoConfig = {
     [
       "expo-splash-screen",
       {
-        image: "./assets/images/splash-icon.png",
+        // The splash IS the app icon (v166): same art file, same field
+        // color, full-bleed background — no private splash asset.
+        image: ICON_ART,
         imageWidth: 200,
         resizeMode: "contain",
-        backgroundColor: "#201334",
+        backgroundColor: ICON_FIELD_COLOR,
         dark: {
-          backgroundColor: "#201334",
+          backgroundColor: ICON_FIELD_COLOR,
         },
       },
     ],

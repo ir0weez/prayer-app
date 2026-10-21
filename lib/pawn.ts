@@ -21,9 +21,211 @@ export const PAWN_BODY_STYLES: { id: PawnBodyStyle; name: string }[] = [
   { id: "stocky", name: "Stocky" },
 ];
 
-export const HAIR_GROWTH_PER_DAY = 12;
 export const HAIR_MAX = 100;
-export const BEARD_GROWTH_PER_DAY = 12;
+/**
+ * Rider G weekly growth cycle (Jonathan, 2026-10-21): hair and beard
+ * grow out over ONE WEEK without a cut. Day 0 (the day of the cut /
+ * trim) is fresh; each day is a visible step longer; day 6 is FULLY
+ * grown — the barbershop's "trim needed / needs a cut" state — and
+ * growth plateaus there (no overgrowth, no penalty) until the next
+ * cut resets the cycle to day 0. The ramp is driven by DAYS SINCE
+ * TRIM, not by the weekday: a cut must visibly reset growth (that is
+ * the system's core verb), so "Saturday = fully grown" is the cadence
+ * Jonathan experiences when cuts land on the week's rhythm, while a
+ * mid-week cut simply starts its own 7-day cycle. 100 / 6 per day
+ * makes day 6 land exactly on full.
+ */
+export const GROWTH_FULL_DAYS = 6;
+export const HAIR_GROWTH_PER_DAY = 100 / GROWTH_FULL_DAYS;
+export const BEARD_GROWTH_PER_DAY = 100 / GROWTH_FULL_DAYS;
+
+/**
+ * Pure growth ramp: the growth value (0-100) after `days` days since
+ * a cut, on top of the length stored at that cut (`base`). Linear —
+ * every day adds the same visible step — strictly increasing on
+ * days 0..6, exactly 100 at day 6, and flat (plateau, no overgrowth)
+ * beyond. `rateMult` is the devotion growth boost (1 = none).
+ */
+export function growthValueForDays(days: number, base = 0, rateMult = 1): number {
+  const d = Math.max(0, days);
+  // HAIR_ and BEARD_GROWTH_PER_DAY are the same weekly rate by design.
+  const grown = d * HAIR_GROWTH_PER_DAY * Math.max(0, rateMult);
+  return Math.max(0, Math.min(HAIR_MAX, base + grown));
+}
+
+/* ------------------------------------------------------------------ */
+/* Rider F — the growth -> beard-SHAPE ramp. Rendering a beard used to */
+/* jump cut -> full in one step (a `> 2` gate plus one scaled         */
+/* ellipse). This pure helper turns a style + a growth value (0-100)  */
+/* into near-continuous shape parameters: stubble deepening -> short  */
+/* boxed -> filling cheeks -> full -> long (tapered chin). Every      */
+/* field is piecewise-linear between keyframes, so coverage is        */
+/* monotonic in growth and no single growth point adds more than a    */
+/* whisper of area. Coordinates are FACE-LOCAL: the face is a circle  */
+/* of radius 1 centered on (0, 0), +y down. Containment contract:     */
+/* |x| <= 1 always, the beard never rises above y = 0.15 (below the   */
+/* nose), and the chin may extend below the face circle only as a     */
+/* TAPER (chinWidthFrac <= jawWidthFrac) down to BEARD_MAX_BOTTOM.    */
+/* ------------------------------------------------------------------ */
+
+export type BeardGrowthStage = "bare" | "stubble" | "short" | "filling" | "full" | "long";
+export type BeardFamily = "none" | "mustache" | "goatee" | "full";
+
+export type BeardShape = {
+  visible: boolean;
+  stage: BeardGrowthStage;
+  family: BeardFamily;
+  /** Approximate covered fraction of the lower face, 0..1. Monotonic
+   *  non-decreasing in growth; a +1 growth step never adds > 0.02. */
+  coverage: number;
+  /** Fill opacity — stubble is a shadow, not a solid mass. */
+  opacity: number;
+  /** Half-width of the jaw mass, in face radii (<= 0.95). */
+  jawWidthFrac: number;
+  /** How far coverage has risen up the cheeks, 0..1 (goatee: 0, the
+   *  cheeks stay bare by definition). */
+  cheekRiseFrac: number;
+  /** Chin extension below the chin line (0.82 radii), in face radii. */
+  chinDropFrac: number;
+  /** Half-width at the chin tip — the taper (<= jawWidthFrac). */
+  chinWidthFrac: number;
+  /** Mustache half-width / thickness, in face radii. */
+  mustacheWidthFrac: number;
+  mustacheThickFrac: number;
+  /** Face-local bounds of everything the shape may draw. */
+  bounds: { left: number; right: number; top: number; bottom: number };
+};
+
+/** The lowest point (face-local) any beard may reach: the chin line
+ *  (0.82) plus the longest tapered drop (heavenly, 0.62). */
+export const BEARD_MAX_BOTTOM = 1.44;
+
+export function beardStageFor(growth: number): BeardGrowthStage {
+  if (growth <= 0) return "bare";
+  if (growth < 18) return "stubble";
+  if (growth < 40) return "short";
+  if (growth < 65) return "filling";
+  if (growth < 90) return "full";
+  return "long";
+}
+
+type BeardKeys = {
+  coverage: number;
+  opacity: number;
+  jaw: number;
+  cheek: number;
+  drop: number;
+  chinW: number;
+  mw: number;
+  mth: number;
+};
+const BEARD_KEY_GROWTH = [0, 15, 35, 60, 85, 100] as const;
+const BEARD_KEYS: Record<Exclude<BeardFamily, "none">, BeardKeys[]> = {
+  full: [
+    { coverage: 0, opacity: 0, jaw: 0, cheek: 0, drop: 0, chinW: 0, mw: 0, mth: 0 },
+    { coverage: 0.16, opacity: 0.38, jaw: 0.68, cheek: 0.18, drop: 0.04, chinW: 0.55, mw: 0.5, mth: 0.09 },
+    { coverage: 0.36, opacity: 0.75, jaw: 0.78, cheek: 0.45, drop: 0.14, chinW: 0.52, mw: 0.62, mth: 0.13 },
+    { coverage: 0.6, opacity: 0.95, jaw: 0.86, cheek: 0.72, drop: 0.26, chinW: 0.48, mw: 0.72, mth: 0.17 },
+    { coverage: 0.83, opacity: 1, jaw: 0.91, cheek: 0.92, drop: 0.36, chinW: 0.44, mw: 0.8, mth: 0.2 },
+    { coverage: 1, opacity: 1, jaw: 0.93, cheek: 1, drop: 0.42, chinW: 0.42, mw: 0.84, mth: 0.22 },
+  ],
+  goatee: [
+    { coverage: 0, opacity: 0, jaw: 0, cheek: 0, drop: 0, chinW: 0, mw: 0, mth: 0 },
+    { coverage: 0.05, opacity: 0.4, jaw: 0.34, cheek: 0, drop: 0.06, chinW: 0.3, mw: 0.45, mth: 0.09 },
+    { coverage: 0.11, opacity: 0.78, jaw: 0.38, cheek: 0, drop: 0.18, chinW: 0.32, mw: 0.58, mth: 0.13 },
+    { coverage: 0.17, opacity: 0.95, jaw: 0.4, cheek: 0, drop: 0.32, chinW: 0.33, mw: 0.68, mth: 0.17 },
+    { coverage: 0.21, opacity: 1, jaw: 0.42, cheek: 0, drop: 0.44, chinW: 0.34, mw: 0.76, mth: 0.2 },
+    { coverage: 0.24, opacity: 1, jaw: 0.43, cheek: 0, drop: 0.5, chinW: 0.34, mw: 0.8, mth: 0.22 },
+  ],
+  mustache: [
+    { coverage: 0, opacity: 0, jaw: 0, cheek: 0, drop: 0, chinW: 0, mw: 0, mth: 0 },
+    { coverage: 0.04, opacity: 0.42, jaw: 0, cheek: 0, drop: 0, chinW: 0, mw: 0.5, mth: 0.1 },
+    { coverage: 0.08, opacity: 0.8, jaw: 0, cheek: 0, drop: 0, chinW: 0, mw: 0.64, mth: 0.15 },
+    { coverage: 0.11, opacity: 0.95, jaw: 0, cheek: 0, drop: 0, chinW: 0, mw: 0.74, mth: 0.19 },
+    { coverage: 0.13, opacity: 1, jaw: 0, cheek: 0, drop: 0, chinW: 0, mw: 0.8, mth: 0.22 },
+    { coverage: 0.14, opacity: 1, jaw: 0, cheek: 0, drop: 0, chinW: 0, mw: 0.84, mth: 0.24 },
+  ],
+};
+
+function lerpKeys(keys: BeardKeys[], growth: number): BeardKeys {
+  const g = Math.max(0, Math.min(100, growth));
+  let i = 0;
+  while (i < BEARD_KEY_GROWTH.length - 2 && g > BEARD_KEY_GROWTH[i + 1]) i++;
+  const g0 = BEARD_KEY_GROWTH[i];
+  const g1 = BEARD_KEY_GROWTH[i + 1];
+  const t = g1 === g0 ? 0 : (g - g0) / (g1 - g0);
+  const a = keys[i];
+  const b = keys[i + 1];
+  const mix = (x: number, y: number) => x + (y - x) * t;
+  return {
+    coverage: mix(a.coverage, b.coverage),
+    opacity: mix(a.opacity, b.opacity),
+    jaw: mix(a.jaw, b.jaw),
+    cheek: mix(a.cheek, b.cheek),
+    drop: mix(a.drop, b.drop),
+    chinW: mix(a.chinW, b.chinW),
+    mw: mix(a.mw, b.mw),
+    mth: mix(a.mth, b.mth),
+  };
+}
+
+/**
+ * The beard shape for a style at a growth value (0-100). Pure and
+ * deterministic. Style "none" (or growth 0) is truly bare. The
+ * prestige full-family styles share the full ramp; "heavenly" wears
+ * it longer and more tapered, as befits the elder's crown.
+ */
+export function beardShapeFor(style: PawnBeardStyle, growth: number): BeardShape {
+  const g = Math.max(0, Math.min(100, growth));
+  const family: BeardFamily =
+    style === "none" || g <= 0
+      ? "none"
+      : style === "mustache"
+        ? "mustache"
+        : style === "goatee"
+          ? "goatee"
+          : "full";
+  if (family === "none") {
+    return {
+      visible: false,
+      stage: "bare",
+      family,
+      coverage: 0,
+      opacity: 0,
+      jawWidthFrac: 0,
+      cheekRiseFrac: 0,
+      chinDropFrac: 0,
+      chinWidthFrac: 0,
+      mustacheWidthFrac: 0,
+      mustacheThickFrac: 0,
+      bounds: { left: 0, right: 0, top: 0, bottom: 0 },
+    };
+  }
+  const k = lerpKeys(BEARD_KEYS[family], g);
+  const dropScale = style === "heavenly" ? 1.45 : 1;
+  const chinDropFrac = Math.min(k.drop * dropScale, BEARD_MAX_BOTTOM - 0.82);
+  const chinWidthFrac = Math.min(k.chinW, k.jaw);
+  const halfW = Math.max(k.jaw, family === "mustache" ? k.mw : 0);
+  return {
+    visible: true,
+    stage: beardStageFor(g),
+    family,
+    coverage: k.coverage,
+    opacity: k.opacity,
+    jawWidthFrac: k.jaw,
+    cheekRiseFrac: k.cheek,
+    chinDropFrac,
+    chinWidthFrac,
+    mustacheWidthFrac: k.mw,
+    mustacheThickFrac: k.mth,
+    bounds: {
+      left: -halfW,
+      right: halfW,
+      top: 0.3,
+      bottom: family === "mustache" ? 0.3 + k.mth : 0.82 + chinDropFrac,
+    },
+  };
+}
 
 export type PawnBeardStyle = "none" | "full" | "goatee" | "mustache" | "gilded" | "radiant" | "heavenly";
 
@@ -115,14 +317,16 @@ export type CustomPawn = {
   gender: PawnGender;
   hairStyle: PawnHairStyle;
   bodyStyle: PawnBodyStyle;
-  /** Beard length (0-100) at the time of lastTrim. Grows +15/day for male pawns. */
+  /** Beard length (0-100) at the time of lastTrim. Grows on the
+   *  Rider G weekly ramp (full at day 6) for male pawns. */
   beardLength: number;
   /** ISO timestamp of the last trim (baseline for growth). */
   lastTrim: string;
   beardStyle: PawnBeardStyle;
   /** Hair color (hex). */
   hairColor: string;
-  /** Hair length (0-100) at the time of lastHaircut. Grows +12/day. */
+  /** Hair length (0-100) at the time of lastHaircut. Grows on the
+   *  Rider G weekly ramp (full at day 6). */
   hairLength: number;
   /** ISO timestamp of the last haircut (baseline for growth). */
   lastHaircut: string;
@@ -317,8 +521,8 @@ export function beardGrowthFor(pawn: CustomPawn): number {
   const last = new Date(pawn.lastTrim).getTime();
   if (!isFinite(last)) return Math.max(0, Math.min(BEARD_MAX, pawn.beardLength || 0));
   const days = Math.max(0, (Date.now() - last) / 86400000);
-  const rate = BEARD_GROWTH_PER_DAY * (1 + cachedGrowthMult);
-  return Math.max(0, Math.min(BEARD_MAX, (pawn.beardLength || 0) + days * rate));
+  // Rider G: days-since-trim on the weekly ramp (full at day 6).
+  return growthValueForDays(days, pawn.beardLength || 0, 1 + cachedGrowthMult);
 }
 
 /** Trim the beard back to zero and reset the growth clock. */
@@ -331,8 +535,9 @@ export function hairGrowthFor(pawn: CustomPawn): number {
   const last = new Date(pawn.lastHaircut).getTime();
   if (!isFinite(last)) return Math.max(0, Math.min(HAIR_MAX, pawn.hairLength || 0));
   const days = Math.max(0, (Date.now() - last) / 86400000);
-  const rate = HAIR_GROWTH_PER_DAY * (1 + cachedGrowthMult);
-  return Math.max(0, Math.min(HAIR_MAX, (pawn.hairLength || 0) + days * rate));
+  // Rider G: hair rides the same days-since-cut weekly ramp as the
+  // beard (full at day 6, plateau after) — one cycle, one helper.
+  return growthValueForDays(days, pawn.hairLength || 0, 1 + cachedGrowthMult);
 }
 
 /** Cut hair back to zero and reset the growth clock. */
@@ -340,23 +545,25 @@ export function cutHair(pawn: CustomPawn): CustomPawn {
   return { ...pawn, hairLength: 0, lastHaircut: new Date().toISOString() };
 }
 
-/** Friendly label for a hair length. */
+/** Friendly label for a hair length. Rider G alignment: the
+ *  "Needs a cut" state IS full growth (100, reached at day 6) — no
+ *  earlier rung claims it. */
 export function hairLabel(length: number): string {
   if (length <= 0) return "Fresh cut";
-  if (length <= 20) return "Just growing";
-  if (length <= 45) return "Getting shaggy";
-  if (length <= 75) return "Needs a cut";
-  return "Wild hair!";
+  if (length <= 35) return "Just growing";
+  if (length <= 70) return "Getting shaggy";
+  if (length < 100) return "Long — nearly grown out";
+  return "Needs a cut";
 }
 
-/** Friendly label for a beard length. */
+/** Friendly label for a beard length. Rider G alignment: "Trim
+ *  needed" lands exactly at full growth (100), like the hair. */
 export function beardLabel(length: number): string {
   if (length <= 0) return "Clean shaven";
-  if (length <= 20) return "Just stubble";
-  if (length <= 40) return "Trim needed";
-  if (length <= 65) return "Getting shaggy";
-  if (length <= 90) return "Getting wild";
-  return "Wild!";
+  if (length <= 35) return "Just stubble";
+  if (length <= 70) return "Getting shaggy";
+  if (length < 100) return "Getting wild";
+  return "Trim needed";
 }
 
 export async function loadCustomPawn(): Promise<CustomPawn | null> {

@@ -8,7 +8,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Polygon, Rect } from "react-native-svg";
-import { PaperHeroFigure } from "@/components/paper-interior";
+import { PAPER_HERO_H, PaperHeroFigure } from "@/components/paper-interior";
 import type { CustomPawn } from "@/lib/pawn";
 
 export type PawnMoodStatus = "completed" | "missed" | "skipped" | undefined;
@@ -303,8 +303,11 @@ export function PawnMoodScene({
       lastHaircut: "2026-01-01T00:00:00.000Z",
       createdAt: "2026-01-01T00:00:00.000Z",
     } as CustomPawn);
+  // Scale fix (v160): unit derives from the hero's HEIGHT (17 kit
+  // units), so the figure stands exactly pawnSize tall — the old
+  // pawnSize / 9 made him ~1.89x pawnSize (102px in the 54px scene).
   const renderPawn = (pawnSize: number) => (
-    <PaperHeroFigure pawn={moodPawn} unit={pawnSize / 9} />
+    <PaperHeroFigure pawn={moodPawn} unit={pawnSize / PAPER_HERO_H} />
   );
 
   if (status === "missed") {

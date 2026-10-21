@@ -66,6 +66,8 @@ export const HOUSE_ROOMS: RoomDef[] = [
       { id: "nightstand", name: "Nightstand", tierNames: ["Crate Stand", "Drawer Stand", "Heirloom Stand"], costs: [8, 30, 80], pos: { x: 0.62, y: 0.66 }, size: 80 },
       { id: "lamp", name: "Lamp", tierNames: ["Simple Lamp", "Tall Lamp", "Glow Lamp"], costs: [10, 35, 90], pos: { x: 0.82, y: 0.58 }, size: 90 },
       { id: "rug", name: "Rug", tierNames: ["Flat Rug", "Bordered Rug", "Medallion Rug"], costs: [6, 25, 70], pos: { x: 0.45, y: 0.86 }, size: 100 },
+      { id: "wardrobe", name: "Wardrobe", tierNames: ["Clothes Rail", "Oak Wardrobe", "Grand Armoire"], costs: [22, 75, 175], pos: { x: 0.05, y: 0.52 }, size: 95 },
+      { id: "vanity", name: "Vanity", tierNames: ["Mirror Stool", "Vanity Table", "Dressing Vanity"], costs: [14, 45, 110], pos: { x: 0.88, y: 0.84 }, size: 85 },
     ],
     themes: [
       { id: "amber", name: "Cozy Amber", cost: 0, wall: "#F5E6D0", floor: "#D9B98F", accent: "#C97B4A", trim: "#8B5E34" },
@@ -85,6 +87,8 @@ export const HOUSE_ROOMS: RoomDef[] = [
       { id: "coffeeTable", name: "Coffee Table", tierNames: ["Plank Table", "Shelf Table", "Styled Table"], costs: [12, 40, 100], pos: { x: 0.58, y: 0.72 }, size: 90 },
       { id: "bookshelf", name: "Bookshelf", tierNames: ["Two-Shelf", "Library Shelf", "Grand Shelf"], costs: [18, 60, 140], pos: { x: 0.84, y: 0.55 }, size: 100 },
       { id: "fireplace", name: "Fireplace", tierNames: ["Brick Hearth", "Mantel Hearth", "Stone Hearth"], costs: [25, 80, 180], pos: { x: 0.08, y: 0.55 }, size: 100 },
+      { id: "armchair", name: "Armchair", tierNames: ["Reading Chair", "Plush Armchair", "Wingback Chair"], costs: [16, 55, 130], pos: { x: 0.62, y: 0.46 }, size: 90 },
+      { id: "tvStand", name: "TV Stand", tierNames: ["Crate Stand", "Media Console", "Entertainment Wall"], costs: [18, 60, 145], pos: { x: 0.38, y: 0.28 }, size: 100 },
     ],
     themes: [
       { id: "hearth", name: "Warm Hearth", cost: 0, wall: "#F3E2CF", floor: "#Cfa878", accent: "#B4563C", trim: "#7A4A2B" },
@@ -104,6 +108,9 @@ export const HOUSE_ROOMS: RoomDef[] = [
       { id: "chairs", name: "Chairs", tierNames: ["Stool", "Cushioned Chair", "Chair Pair"], costs: [10, 40, 110], pos: { x: 0.64, y: 0.64 }, size: 100 },
       { id: "stove", name: "Stove", tierNames: ["Cook Box", "Oven Stove", "Chef's Stove"], costs: [20, 65, 150], pos: { x: 0.12, y: 0.55 }, size: 100 },
       { id: "shelf", name: "Pantry Shelf", tierNames: ["Bare Shelves", "Stocked Shelves", "Full Pantry"], costs: [12, 45, 120], pos: { x: 0.84, y: 0.42 }, size: 100 },
+      { id: "hearth", name: "Hearth", tierNames: ["Cook Pot", "Hearth Fire", "Hearth Kitchen"], costs: [25, 75, 190], pos: { x: 0.55, y: 0.38 }, size: 105 },
+      { id: "counter", name: "Counter", tierNames: ["Cutting Board", "Stone Counter", "Chef's Counter"], costs: [16, 55, 135], pos: { x: 0.12, y: 0.28 }, size: 95 },
+      { id: "herbPots", name: "Herb Pots", tierNames: ["Windowsill Pot", "Herb Trio", "Herb Garden Rail"], costs: [8, 30, 80], pos: { x: 0.86, y: 0.70 }, size: 85 },
     ],
     themes: [
       { id: "buttery", name: "Buttery", cost: 0, wall: "#FAF0DC", floor: "#E3CDA1", accent: "#D9A441", trim: "#8B5E34" },
@@ -123,6 +130,9 @@ export const HOUSE_ROOMS: RoomDef[] = [
       { id: "sink", name: "Sink", tierNames: ["Basin", "Pedestal Sink", "Vanity Sink"], costs: [12, 45, 120], pos: { x: 0.60, y: 0.60 }, size: 95 },
       { id: "mirror", name: "Mirror", tierNames: ["Oval Mirror", "Framed Mirror", "Grand Mirror"], costs: [8, 35, 100], pos: { x: 0.60, y: 0.32 }, size: 80 },
       { id: "plant", name: "Plant", tierNames: ["Sprout", "Fern", "Blooming Plant"], costs: [6, 25, 70], pos: { x: 0.86, y: 0.68 }, size: 90 },
+      { id: "shower", name: "Shower", tierNames: ["Wash Basin", "Shower Stall", "Rain Shower"], costs: [20, 65, 170], pos: { x: 0.86, y: 0.40 }, size: 100 },
+      { id: "linenShelf", name: "Linen Shelf", tierNames: ["Towel Basket", "Linen Shelf", "Spa Cabinet"], costs: [10, 38, 95], pos: { x: 0.10, y: 0.34 }, size: 90 },
+      { id: "stool", name: "Stool", tierNames: ["Step Stool", "Padded Stool", "Vanity Stool"], costs: [7, 28, 75], pos: { x: 0.44, y: 0.86 }, size: 75 },
     ],
     themes: [
       { id: "spa", name: "Spa White", cost: 0, wall: "#F4F6F5", floor: "#D5DDD9", accent: "#7FA39A", trim: "#8A7A63" },
@@ -200,6 +210,8 @@ export const HOUSE_ROOMS: RoomDef[] = [
       { id: "bbq", name: "BBQ Grill", tierNames: ["Kettle Grill", "Gas Grill", "Smokehouse"], costs: [30, 90, 220], pos: { x: 0.68, y: 0.60 }, size: 100 },
       { id: "patio", name: "Patio Set", tierNames: ["Picnic Table", "Patio Set", "Outdoor Lounge"], costs: [25, 80, 200], pos: { x: 0.50, y: 0.82 }, size: 110 },
       { id: "stringlights", name: "String Lights", tierNames: ["Fairy Lights", "Globe Lights", "Festival Lights"], costs: [20, 60, 160], pos: { x: 0.50, y: 0.22 }, size: 120 },
+      { id: "firePit", name: "Fire Pit", tierNames: ["Fire Bowl", "Stone Fire Pit", "Fireplace Ring"], costs: [22, 70, 170], pos: { x: 0.87, y: 0.85 }, size: 95 },
+      { id: "hammock", name: "Hammock", tierNames: ["Cloth Hammock", "Rope Hammock", "Shade Hammock"], costs: [18, 60, 150], pos: { x: 0.09, y: 0.87 }, size: 100 },
     ],
     themes: [
       { id: "sunny", name: "Sunny Day", cost: 0, wall: "#BAE6FD", floor: "#86EFAC", accent: "#F59E0B", trim: "#92400E" },
@@ -349,6 +361,84 @@ export function furnitureBonuses(state: HouseState): HouseBonuses {
     bibleXpMult: roomTierPoints(state, "study") * 0.02,
     fastXpMult: roomTierPoints(state, "kitchen") * 0.01,
   };
+}
+
+// ---- Care fixtures + named effects (Rider H) ----
+// Every house slot has a named, real effect — nothing is cosmetic-only.
+// The care fixtures (kitchen hearth, bath tub, bathroom shower, bedroom
+// bed) fill the hero's daily care stats (lib/hero-needs careStatsFor) to
+// a value set by their tier; two care-adjacent pieces (herb pots, linen
+// shelf) add a small bonus on top of a tend; every other slot feeds its
+// room's HouseBonuses family through furnitureBonuses above (each tier
+// placed in a room counts toward that room's bonus, exactly as the
+// room's bonusText says).
+
+/** Care-stat fill when a need is tended, by fixture tier 0..3. */
+export const CARE_FILL_BY_TIER: readonly number[] = [60, 75, 90, 100];
+/** Rested fill after a night's sleep, by bed tier 0..3. */
+export const REST_FILL_BY_TIER: readonly number[] = [55, 70, 85, 100];
+/** Extra care points per tier from a care-adjacent piece (herb pots → Fed, linen shelf → Washed). */
+export const CARE_BONUS_PER_TIER = 2;
+
+type SlotEffectKind =
+  | "fed" // kitchen hearth — tending food fills Fed
+  | "relieved" // bathroom tub — tending bathroom fills Relieved
+  | "washed" // bathroom shower — tending shower fills Washed
+  | "rested" // bedroom bed — the night's sleep fills Rested
+  | "fedBonus" // kitchen herb pots — +Fed on a tend
+  | "washedBonus" // bathroom linen shelf — +Washed on a tend
+  | "family"; // everything else — the room's HouseBonuses family
+
+const SLOT_EFFECT_KINDS: Partial<Record<string, SlotEffectKind>> = {
+  "bedroom:bed": "rested",
+  "kitchen:hearth": "fed",
+  "kitchen:herbPots": "fedBonus",
+  "bathroom:tub": "relieved",
+  "bathroom:shower": "washed",
+  "bathroom:linenShelf": "washedBonus",
+};
+
+/** The room bonus family a non-care slot feeds (mirrors furnitureBonuses). */
+const ROOM_FAMILY_TEXT: Partial<Record<HouseRoomId, string>> = {
+  bedroom: "+2% all XP per tier placed in the Bedroom (well rested)",
+  living: "+1% coin income per tier placed in the Living Room",
+  kitchen: "+1% fast XP per tier placed in the Kitchen",
+  bathroom: "+1% prayer XP per tier placed in the Bathroom",
+  study: "+2% Bible study XP per tier placed in the Study",
+  backyard: "+1% coin income per tier placed in the Backyard (good times with good people)",
+};
+
+/**
+ * The plain-words effect of one slot at one tier (0 = not placed yet,
+ * 1..3 = built tiers). Shown in the buy/upgrade sheet before purchase:
+ * the current tier's effect, and the next tier's on the button. Every
+ * slot in HOUSE_ROOMS returns a real, system-backed effect.
+ */
+export function effectTextFor(roomId: HouseRoomId, slotId: string, tier: number): string {
+  const t = Math.max(0, Math.min(3, Math.floor(tier) || 0));
+  const kind = SLOT_EFFECT_KINDS[`${roomId}:${slotId}`] ?? "family";
+  switch (kind) {
+    case "fed":
+      return `Meals at the hearth fill Fed to ${CARE_FILL_BY_TIER[t]} — a fuller morning, a stronger Set for the Day boon`;
+    case "relieved":
+      return `The bath fills Relieved to ${CARE_FILL_BY_TIER[t]} — a fuller morning, a stronger Set for the Day boon`;
+    case "washed":
+      return `A wash here fills Washed to ${CARE_FILL_BY_TIER[t]} — a fuller morning, a stronger Set for the Day boon`;
+    case "rested":
+      return `A night's sleep here fills Rested to ${REST_FILL_BY_TIER[t]} by morning`;
+    case "fedBonus":
+      return t === 0
+        ? "Fresh herbs would add a little more to every meal he eats"
+        : `Fresh herbs add +${CARE_BONUS_PER_TIER * t} to Fed whenever he eats`;
+    case "washedBonus":
+      return t === 0
+        ? "Soft towels within reach would add a little more to every wash"
+        : `Soft towels add +${CARE_BONUS_PER_TIER * t} to Washed whenever he showers`;
+    default: {
+      const family = ROOM_FAMILY_TEXT[roomId] ?? "A home bonus per tier placed in this room";
+      return t === 0 ? `${family} — once placed` : `${family} — this piece counts ${t} ${t === 1 ? "tier" : "tiers"}`;
+    }
+  }
 }
 
 // ---- Desirables ----

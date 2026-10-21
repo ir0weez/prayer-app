@@ -13,11 +13,18 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { Animated, Easing, View, type ViewStyle } from "react-native";
-import Svg, { Circle, Defs, Ellipse, G, Line, Path, Polygon, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, Path, Polygon, RadialGradient, Rect, Stop } from "react-native-svg";
 import { GentleBob } from "@/components/activity-figures";
 import { FIGURE_H, FIGURE_W, paperDinerLookFor, type PaperDinerLook } from "@/lib/paper-interior";
 import type { PrayedPerson } from "@/lib/hometown";
-import { beardGrowthFor, type CustomPawn } from "@/lib/pawn";
+import {
+  beardGrowthFor,
+  beardShapeFor,
+  hairGrowthFor,
+  type BeardShape,
+  type CustomPawn,
+  type PawnBeardStyle,
+} from "@/lib/pawn";
 
 /** The kit's ink — faces and fine lines, a warm near-black violet. */
 export const PAPER_INK = "#2A1A33";
@@ -25,6 +32,342 @@ export const PAPER_INK = "#2A1A33";
 export const PAPER_SHADOW = "rgba(24,8,44,0.28)";
 const SHADOW_DX = 0.7;
 const SHADOW_DY = 1.1;
+
+/* ------------------------------------------------------------------ */
+/* The shared FACE kit (Riders C + D + F, 2026-10-21). Every paper    */
+/* figure — hero, standing villager, seated diner — draws its hair    */
+/* and beard through these helpers, so a fix lands on every face at   */
+/* once.                                                              */
+/*                                                                    */
+/* Rider C — the "unibrow": the old caps were an arc band whose       */
+/* hairline ran straight and low across the forehead, and a light     */
+/* notch sat in the hair mass. The cap below has a REAL hairline: it  */
+/* sits HIGH (center at cy - 0.5r), curves (temples fall lower at     */
+/* the sides, a shallow widow's dip at the center), and the shine is  */
+/* a small offset highlight PATCH — never a full-width arc. No       */
+/* skin-colored shape is ever cut into the hair.                      */
+/*                                                                    */
+/* Rider D/F — beards: shape comes from lib/pawn's beardShapeFor      */
+/* (style family x growth ramp), drawn as contour paths — jaw-       */
+/* framing for full, chin patch + mustache for goatee, twin lobes     */
+/* for mustache — and CLIPPED to the head contour (a ClipPath of the  */
+/* face circle plus a tapered chin zone), so no growth stage spills  */
+/* past the jaw or cheek lines.                                       */
+/* ------------------------------------------------------------------ */
+
+const n2 = (v: number): number => Math.round(v * 100) / 100;
+
+/** The shine on hair (and on a bald head): one small offset patch,
+ *  up and to the left — never an arc, never full-width. */
+function hairShinePatch(cx: number, cy: number, r: number, opacity = 0.2): ReactNode {
+  return (
+    <Ellipse
+      cx={cx - 0.36 * r}
+      cy={cy - 0.6 * r}
+      rx={0.3 * r}
+      ry={0.12 * r}
+      fill="#FFFFFF"
+      opacity={opacity}
+      transform={`rotate(-24 ${n2(cx - 0.36 * r)} ${n2(cy - 0.6 * r)})`}
+    />
+  );
+}
+
+/**
+ * Front-facing: the hair CAP over the face's top, with a real
+ * curved hairline: high at the center with a shallow widow's dip,
+ * falling lower at the temples (the side fall), tapering into the
+ * sides of the head. `thin` draws the buzz-cut version (a close ring
+ * following the same curve). `sweep` shifts the dip sideways for
+ * parted styles. Clipped to the hair volume so it can never band
+ * across the forehead.
+ */
+function paperHairCapFront({
+  cx,
+  cy,
+  r,
+  color,
+  thin = false,
+  sweep = 0,
+  clipId,
+}: {
+  cx: number;
+  cy: number;
+  r: number;
+  color: string;
+  thin?: boolean;
+  sweep?: number;
+  clipId: string;
+}): ReactNode {
+  const R = r + (thin ? 0.07 : 0.22);
+  const sideY = cy - 0.1 * r;
+  const dipX = cx + sweep * 0.22 * r;
+  const hl = thin ? 0.16 : 0; // buzz hairline rides closer to the edge
+  const d = [
+    `M ${n2(cx - R)} ${n2(sideY)}`,
+    `A ${n2(R)} ${n2(R)} 0 0 1 ${n2(cx + R)} ${n2(sideY)}`,
+    `C ${n2(cx + 0.97 * r)} ${n2(cy - (0.26 + hl) * r)}, ${n2(cx + 0.82 * r)} ${n2(cy - (0.38 + hl) * r)}, ${n2(cx + 0.56 * r)} ${n2(cy - (0.5 + hl) * r)}`,
+    `C ${n2(cx + 0.36 * r)} ${n2(cy - (0.62 + hl) * r)}, ${n2(dipX + 0.16 * r)} ${n2(cy - (0.58 + hl) * r)}, ${n2(dipX)} ${n2(cy - (0.48 + hl) * r)}`,
+    `C ${n2(dipX - 0.16 * r)} ${n2(cy - (0.58 + hl) * r)}, ${n2(cx - 0.36 * r)} ${n2(cy - (0.62 + hl) * r)}, ${n2(cx - 0.56 * r)} ${n2(cy - (0.5 + hl) * r)}`,
+    `C ${n2(cx - 0.82 * r)} ${n2(cy - (0.38 + hl) * r)}, ${n2(cx - 0.97 * r)} ${n2(cy - (0.26 + hl) * r)}, ${n2(cx - R)} ${n2(sideY)}`,
+    "Z",
+  ].join(" ");
+  return (
+    <G clipPath={`url(#${clipId})`}>
+      <Path d={d} fill={color} stroke="rgba(42,26,51,0.25)" strokeWidth={0.22} />
+      {hairShinePatch(cx, cy, r, thin ? 0.14 : 0.2)}
+    </G>
+  );
+}
+
+/**
+ * The hair cap in profile (the seated diner, facing +x): hair covers
+ * the top and back of the head; the hairline ends at the front temple
+ * — it never crosses the forehead. Same shine patch, offset back.
+ */
+function paperHairCapProfile({
+  cx,
+  cy,
+  r,
+  color,
+  clipId,
+}: {
+  cx: number;
+  cy: number;
+  r: number;
+  color: string;
+  clipId: string;
+}): ReactNode {
+  const R = r + 0.2;
+  const backX = cx - 0.99 * R;
+  const backY = cy + 0.08 * r;
+  const templeX = cx + 0.86 * r;
+  const templeY = cy - 0.4 * r;
+  const d = [
+    `M ${n2(backX)} ${n2(backY)}`,
+    `A ${n2(R)} ${n2(R)} 0 0 1 ${n2(templeX)} ${n2(templeY)}`,
+    `C ${n2(cx + 0.52 * r)} ${n2(cy - 0.64 * r)}, ${n2(cx + 0.02 * r)} ${n2(cy - 0.8 * r)}, ${n2(cx - 0.48 * r)} ${n2(cy - 0.68 * r)}`,
+    `C ${n2(cx - 0.78 * r)} ${n2(cy - 0.6 * r)}, ${n2(cx - 0.97 * r)} ${n2(cy - 0.34 * r)}, ${n2(backX)} ${n2(backY)}`,
+    "Z",
+  ].join(" ");
+  return (
+    <G clipPath={`url(#${clipId})`}>
+      <Path d={d} fill={color} stroke="rgba(42,26,51,0.25)" strokeWidth={0.22} />
+      {hairShinePatch(cx - 0.18 * r, cy - 0.08 * r, r, 0.2)}
+    </G>
+  );
+}
+
+/** Clip region for hair: the hair volume itself (face circle grown by
+ *  the cap's lift) — the cap can fill it but never leave it. */
+function hairClipDef(id: string, cx: number, cy: number, r: number, thin = false): ReactNode {
+  const R = r + (thin ? 0.09 : 0.24);
+  return (
+    <Defs>
+      <ClipPath id={id}>
+        <Circle cx={cx} cy={cy} r={R} />
+      </ClipPath>
+    </Defs>
+  );
+}
+
+/** Clip region for a beard: the face circle plus a TAPERED chin zone
+ *  below the jaw — the only place a beard may extend past the face,
+ *  and only narrowing as it goes (Rider F containment). */
+function beardClipDef(id: string, cx: number, cy: number, r: number, chinDropFrac: number): ReactNode {
+  const chinY = cy + (0.82 + chinDropFrac) * r;
+  const d = [
+    `M ${n2(cx - r)} ${n2(cy)}`,
+    `A ${n2(r)} ${n2(r)} 0 0 0 ${n2(cx + r)} ${n2(cy)}`,
+    `L ${n2(cx + 0.44 * r)} ${n2(chinY)}`,
+    `Q ${n2(cx)} ${n2(chinY + 0.14 * r)} ${n2(cx - 0.44 * r)} ${n2(chinY)}`,
+    "Z",
+  ].join(" ");
+  return (
+    <Defs>
+      <ClipPath id={id}>
+        <Path d={d} />
+      </ClipPath>
+    </Defs>
+  );
+}
+
+/** Twin mustache lobes — a real mustache silhouette (two lobes with a
+ *  center dip), not a plain bar. Shared by every family that wears
+ *  one: mustache alone, and the goatee / full connections. */
+function mustacheLobes(cx: number, cy: number, r: number, shape: BeardShape, color: string): ReactNode {
+  if (shape.mustacheWidthFrac <= 0) return null;
+  const w = shape.mustacheWidthFrac * r;
+  const t = Math.max(0.09, shape.mustacheThickFrac) * r;
+  const y = cy + 0.42 * r;
+  return (
+    <G opacity={shape.opacity}>
+      <Ellipse cx={cx - w * 0.48} cy={y} rx={w * 0.56} ry={t * 0.62} fill={color} transform={`rotate(-11 ${n2(cx - w * 0.48)} ${n2(y)})`} />
+      <Ellipse cx={cx + w * 0.48} cy={y} rx={w * 0.56} ry={t * 0.62} fill={color} transform={`rotate(11 ${n2(cx + w * 0.48)} ${n2(y)})`} />
+    </G>
+  );
+}
+
+/**
+ * The beard, front-facing — drawn from beardShapeFor's ramp, never a
+ * scaled ellipse. Full: a jaw-framing contour that follows the face
+ * (cheeks rise with cheekRiseFrac, the chin tapers as it lengthens,
+ * the top edge sags under the mouth with a philtrum rise, mustache
+ * lobes connect at the lip). Goatee: chin patch + mustache, cheeks
+ * bare. Mustache: the lobes alone. Stubble stages ride the same
+ * paths at shadow opacity, so growth deepens instead of jumping.
+ * `extras` renders prestige dressing (gilded band, radiant edges)
+ * inside the same clip.
+ */
+function paperBeardFront({
+  cx,
+  cy,
+  r,
+  style,
+  growth,
+  color,
+  clipId,
+  extras,
+}: {
+  cx: number;
+  cy: number;
+  r: number;
+  style: PawnBeardStyle;
+  growth: number;
+  color: string;
+  clipId: string;
+  extras?: (shape: BeardShape) => ReactNode;
+}): ReactNode {
+  const shape = beardShapeFor(style, growth);
+  if (!shape.visible) return null;
+  const chinY = cy + (0.82 + shape.chinDropFrac) * r;
+  let mass: ReactNode = null;
+  if (shape.family === "full") {
+    const jawX = shape.jawWidthFrac * r;
+    const chinW = shape.chinWidthFrac * r;
+    const sideY = cy + (0.58 - 0.43 * shape.cheekRiseFrac) * r;
+    const lipY = cy + 0.58 * r;
+    const d = [
+      `M ${n2(cx - jawX)} ${n2(sideY)}`,
+      `C ${n2(cx - jawX - 0.05 * r)} ${n2(cy + 0.64 * r)}, ${n2(cx - chinW - 0.3 * r)} ${n2(chinY - 0.22 * r)}, ${n2(cx - chinW)} ${n2(chinY - 0.04 * r)}`,
+      `Q ${n2(cx)} ${n2(chinY + 0.15 * r)} ${n2(cx + chinW)} ${n2(chinY - 0.04 * r)}`,
+      `C ${n2(cx + chinW + 0.3 * r)} ${n2(chinY - 0.22 * r)}, ${n2(cx + jawX + 0.05 * r)} ${n2(cy + 0.64 * r)}, ${n2(cx + jawX)} ${n2(sideY)}`,
+      `C ${n2(cx + jawX * 0.7)} ${n2(sideY + 0.12 * r)}, ${n2(cx + 0.44 * r)} ${n2(cy + 0.42 * r)}, ${n2(cx + 0.17 * r)} ${n2(lipY)}`,
+      `Q ${n2(cx)} ${n2(lipY - 0.13 * r)} ${n2(cx - 0.17 * r)} ${n2(lipY)}`,
+      `C ${n2(cx - 0.44 * r)} ${n2(cy + 0.42 * r)}, ${n2(cx - jawX * 0.7)} ${n2(sideY + 0.12 * r)}, ${n2(cx - jawX)} ${n2(sideY)}`,
+      "Z",
+    ].join(" ");
+    mass = <Path d={d} fill={color} opacity={shape.opacity} />;
+  } else if (shape.family === "goatee") {
+    const patchW = shape.jawWidthFrac * r;
+    const chinW = shape.chinWidthFrac * r;
+    const topY = cy + 0.56 * r;
+    const d = [
+      `M ${n2(cx - patchW)} ${n2(topY)}`,
+      `C ${n2(cx - patchW - 0.04 * r)} ${n2(cy + 0.72 * r)}, ${n2(cx - chinW - 0.14 * r)} ${n2(chinY - 0.18 * r)}, ${n2(cx - chinW)} ${n2(chinY - 0.03 * r)}`,
+      `Q ${n2(cx)} ${n2(chinY + 0.13 * r)} ${n2(cx + chinW)} ${n2(chinY - 0.03 * r)}`,
+      `C ${n2(cx + chinW + 0.14 * r)} ${n2(chinY - 0.18 * r)}, ${n2(cx + patchW + 0.04 * r)} ${n2(cy + 0.72 * r)}, ${n2(cx + patchW)} ${n2(topY)}`,
+      `Q ${n2(cx)} ${n2(topY + 0.14 * r)} ${n2(cx - patchW)} ${n2(topY)}`,
+      "Z",
+    ].join(" ");
+    mass = <Path d={d} fill={color} opacity={shape.opacity} />;
+  }
+  return (
+    <>
+      {beardClipDef(clipId, cx, cy, r, shape.chinDropFrac)}
+      <G clipPath={`url(#${clipId})`}>
+        {mass}
+        {mustacheLobes(cx, cy, r, shape, color)}
+        {extras?.(shape)}
+      </G>
+    </>
+  );
+}
+
+/**
+ * The beard in profile (seated diner, facing +x): the mass rides the
+ * FRONT of the jaw — a contour from the jaw's underside around the
+ * chin, top edge under the mouth. Goatee shrinks to the chin front
+ * plus a small mustache lobe; mustache is the lobe alone. Same ramp,
+ * same tapered containment clip (rotated to the profile's front).
+ */
+function paperBeardProfile({
+  cx,
+  cy,
+  r,
+  style,
+  growth,
+  color,
+  clipId,
+}: {
+  cx: number;
+  cy: number;
+  r: number;
+  style: PawnBeardStyle;
+  growth: number;
+  color: string;
+  clipId: string;
+}): ReactNode {
+  const shape = beardShapeFor(style, growth);
+  if (!shape.visible) return null;
+  const chinY = cy + (0.82 + shape.chinDropFrac) * r;
+  const y = cy + 0.44 * r; // mustache line, just above the mouth
+  const lobe =
+    shape.mustacheWidthFrac > 0 ? (
+      <Ellipse
+        cx={cx + 0.82 * r}
+        cy={y}
+        rx={shape.mustacheWidthFrac * r * 0.42}
+        ry={Math.max(0.09, shape.mustacheThickFrac) * r * 0.62}
+        fill={color}
+        opacity={shape.opacity}
+        transform={`rotate(14 ${n2(cx + 0.82 * r)} ${n2(y)})`}
+      />
+    ) : null;
+  let mass: ReactNode = null;
+  if (shape.family === "full") {
+    const backX = cx - (0.15 + 0.55 * shape.cheekRiseFrac) * r;
+    const d = [
+      `M ${n2(backX)} ${n2(cy + 0.42 * r)}`,
+      `C ${n2(cx + 0.1 * r)} ${n2(cy + 0.72 * r)}, ${n2(cx + 0.55 * r)} ${n2(chinY - 0.16 * r)}, ${n2(cx + 0.62 * r)} ${n2(chinY - 0.02 * r)}`,
+      `Q ${n2(cx + 0.88 * r)} ${n2(chinY + 0.02 * r)} ${n2(cx + 0.92 * r)} ${n2(cy + 0.6 * r)}`,
+      `C ${n2(cx + 0.95 * r)} ${n2(cy + 0.5 * r)}, ${n2(cx + 0.8 * r)} ${n2(cy + 0.52 * r)}, ${n2(cx + 0.62 * r)} ${n2(cy + 0.56 * r)}`,
+      `Q ${n2(cx + 0.2 * r)} ${n2(cy + 0.62 * r)} ${n2(backX)} ${n2(cy + 0.42 * r)}`,
+      "Z",
+    ].join(" ");
+    mass = <Path d={d} fill={color} opacity={shape.opacity} />;
+  } else if (shape.family === "goatee") {
+    const d = [
+      `M ${n2(cx + 0.34 * r)} ${n2(cy + 0.56 * r)}`,
+      `C ${n2(cx + 0.45 * r)} ${n2(cy + 0.78 * r)}, ${n2(cx + 0.55 * r)} ${n2(chinY - 0.14 * r)}, ${n2(cx + 0.62 * r)} ${n2(chinY - 0.02 * r)}`,
+      `Q ${n2(cx + 0.9 * r)} ${n2(chinY)} ${n2(cx + 0.9 * r)} ${n2(cy + 0.62 * r)}`,
+      `Q ${n2(cx + 0.6 * r)} ${n2(cy + 0.66 * r)} ${n2(cx + 0.34 * r)} ${n2(cy + 0.56 * r)}`,
+      "Z",
+    ].join(" ");
+    mass = <Path d={d} fill={color} opacity={shape.opacity} />;
+  }
+  // Profile containment: face circle + tapered zone toward the front chin.
+  const clipD = [
+    `M ${n2(cx - r)} ${n2(cy)}`,
+    `A ${n2(r)} ${n2(r)} 0 0 0 ${n2(cx + r)} ${n2(cy)}`,
+    `L ${n2(cx + 0.44 * r)} ${n2(chinY)}`,
+    `Q ${n2(cx)} ${n2(chinY + 0.14 * r)} ${n2(cx - 0.44 * r)} ${n2(chinY)}`,
+    "Z",
+  ].join(" ");
+  return (
+    <>
+      <Defs>
+        <ClipPath id={clipId}>
+          <Path d={clipD} />
+        </ClipPath>
+      </Defs>
+      <G clipPath={`url(#${clipId})`}>
+        {mass}
+        {lobe}
+      </G>
+    </>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* PaperCanvas — one Svg of layered paper pieces. The painter's every  */
@@ -309,7 +652,6 @@ export function PaperSeatedDiner({
   const w = FIGURE_W * unit;
   const h = FIGURE_H * unit;
   const bald = look.hairStyle === "bald";
-  const beardG = look.beardStyle === "none" ? 0 : Math.min(Math.max(look.beardLength, 0), 100) / 100;
   const figure = (
     <Svg width={w} height={h} viewBox={`0 0 ${FIGURE_W} ${FIGURE_H}`}>
       {/* long hair falls behind everything — a wide panel down the back */}
@@ -329,27 +671,29 @@ export function PaperSeatedDiner({
       {!bald && <Circle cx={5.9} cy={2.9} r={3.05} fill={look.hair} />}
       {look.hairStyle === "bun" && <Circle cx={4.05} cy={0.8} r={1.15} fill={look.hair} />}
       <Circle cx={6.4} cy={3.35} r={2.8} fill={look.skin} />
-      {/* the hair CAP over the face's top: an arc band with a wavy
-          hairline, thick enough to read at room scale in any color */}
-      {!bald && (
-        <Path
-          d="M 3.55 3.15 A 2.95 2.95 0 0 1 9.25 3.15 Q 8.25 1.95 7.25 2.6 Q 6.25 3.2 5.25 2.5 Q 4.3 1.9 3.55 3.15 Z"
-          fill={look.hair}
-          stroke="rgba(42,26,51,0.25)"
-          strokeWidth={0.25}
-        />
-      )}
+      {/* the shared profile hair cap (Rider C): the hairline ends at
+          the front temple with a curved fall — never a band across
+          the forehead — and the shine is a small offset patch */}
+      {!bald && hairClipDef("paper-diner-hairclip", 6.4, 3.35, 2.8)}
+      {!bald && paperHairCapProfile({ cx: 6.4, cy: 3.35, r: 2.8, color: look.hair, clipId: "paper-diner-hairclip" })}
       {/* bald is a style, not a missing render: a bare head with a shine */}
       {bald && <Ellipse cx={5.7} cy={1.65} rx={1.15} ry={0.5} fill="#FFFFFF" opacity={0.38} transform="rotate(-18 5.7 1.65)" />}
       {/* face: one kind eye, a small smile, a rosy cheek */}
       <Circle cx={8.45} cy={3.4} r={0.34} fill={PAPER_INK} />
       <Path d="M8.0 4.7 Q8.65 5.15 9.2 4.65" stroke={PAPER_INK} strokeWidth={0.32} fill="none" strokeLinecap="round" />
       <Circle cx={7.8} cy={4.55} r={0.5} fill="#FF7BAC" opacity={0.5} />
-      {/* the beard, where the look calls for one — over the chin/jaw,
-          in the hair color, sized by the grown length */}
-      {look.beardStyle === "full" && <Ellipse cx={7.45} cy={5.95} rx={1.8} ry={0.8 + beardG * 0.55} fill={look.hair} />}
-      {look.beardStyle === "goatee" && <Ellipse cx={8.3} cy={6.05} rx={0.85} ry={0.55 + beardG * 0.55} fill={look.hair} />}
-      {look.beardStyle === "mustache" && <Rect x={8.0} y={4.58} width={1.55} height={0.36 + beardG * 0.18} rx={0.18} fill={look.hair} />}
+      {/* the beard, where the look calls for one — the shared profile
+          renderer (Riders D/F): beardShapeFor's ramp in the pawn
+          system's vocabulary, clipped to the jaw's front contour */}
+      {paperBeardProfile({
+        cx: 6.4,
+        cy: 3.35,
+        r: 2.8,
+        style: look.beardStyle,
+        growth: look.beardLength,
+        color: look.hair,
+        clipId: "paper-diner-beardclip",
+      })}
     </Svg>
   );
   return (
@@ -398,26 +742,32 @@ export function PaperHeroFigure({ pawn, unit }: { pawn: CustomPawn; unit: number
   // guard mirrors HeroForPawn).
   const beardLength = pawn.gender === "male" ? beardGrowthFor(pawn) : 0;
   const beardStyle = pawn.beardStyle;
-  const g = Math.min(Math.max(beardLength, 0), 100) / 100;
-  const hasBeard = beardStyle !== "none" && beardLength > 2;
-  const fullBeard = hasBeard && beardStyle !== "mustache" && beardStyle !== "goatee";
+  const beardShape = beardShapeFor(beardStyle, beardLength);
+  const hasBeard = beardShape.visible;
+  const fullBeard = hasBeard && beardShape.family === "full";
+  // Hair growth rides the same weekly ramp (Rider F): as the days
+  // since the last cut pass, long panels hang lower and short styles
+  // grow sideburn shag — a ramp, never a jump.
+  const hairG = Math.min(Math.max(hairGrowthFor(pawn), 0), 100) / 100;
   const bald = style === "bald";
   const mohawk = style === "mohawk";
   const buzz = style === "buzz";
-  // The hair cap: a mass behind the face plus a band over its top —
-  // thick enough to read as hair at room scale, in every style that
-  // wears one.
+  // The hair cap is the SHARED front cap (Rider C): a curved, high
+  // hairline with a temple fall and a small offset shine patch —
+  // never the old straight band across the forehead.
   const capBand = !bald && !mohawk && (
-    <Path
-      d={
-        buzz
-          ? "M 2.95 3.35 A 2.62 2.62 0 0 1 8.05 3.35 L 7.62 3.33 A 2.3 2.3 0 0 0 3.38 3.33 Z"
-          : "M 2.95 3.35 A 2.62 2.62 0 0 1 8.05 3.35 L 7.5 3.32 A 2.08 2.08 0 0 0 3.5 3.32 Z"
-      }
-      fill={hair}
-      stroke="rgba(42,26,51,0.25)"
-      strokeWidth={0.25}
-    />
+    <>
+      {hairClipDef("paper-hero-hairclip", 5.5, 3.55, 2.62, buzz)}
+      {paperHairCapFront({
+        cx: 5.5,
+        cy: 3.55,
+        r: 2.62,
+        color: hair,
+        thin: buzz,
+        sweep: style === "sidepart" ? 1 : 0,
+        clipId: "paper-hero-hairclip",
+      })}
+    </>
   );
   return (
     <Svg width={PAPER_HERO_W * unit} height={PAPER_HERO_H * unit} viewBox={`0 0 ${PAPER_HERO_W} ${PAPER_HERO_H}`}>
@@ -427,8 +777,8 @@ export function PaperHeroFigure({ pawn, unit }: { pawn: CustomPawn; unit: number
           braid, pigtails, dreads, the glory mane */}
       {(style === "long" || style === "wavy" || style === "lob" || style === "glorymane") && (
         <>
-          <Rect x={1.95} y={2.4} width={1.9} height={7.6} rx={0.95} fill={hair} />
-          <Rect x={7.15} y={2.4} width={1.9} height={7.6} rx={0.95} fill={hair} />
+          <Rect x={1.95} y={2.4} width={1.9} height={7.6 + hairG * 1.6} rx={0.95} fill={hair} />
+          <Rect x={7.15} y={2.4} width={1.9} height={7.6 + hairG * 1.6} rx={0.95} fill={hair} />
           {style === "glorymane" && (
             <>
               <Rect x={2.5} y={3.2} width={0.5} height={6.0} fill="#FDE68A" opacity={0.85} />
@@ -446,7 +796,7 @@ export function PaperHeroFigure({ pawn, unit }: { pawn: CustomPawn; unit: number
       {style === "ponytail" && (
         <>
           <Circle cx={7.9} cy={1.5} r={0.95} fill={hair} />
-          <Rect x={7.55} y={1.6} width={1.6} height={6.8} rx={0.8} fill={hair} />
+          <Rect x={7.55} y={1.6} width={1.6} height={6.8 + hairG * 1.2} rx={0.8} fill={hair} />
         </>
       )}
       {style === "braid" &&
@@ -476,8 +826,16 @@ export function PaperHeroFigure({ pawn, unit }: { pawn: CustomPawn; unit: number
       <Circle cx={9.1} cy={11.5} r={0.8} fill={skin} />
       {/* neck, hair mass, head */}
       <Rect x={4.8} y={5.2} width={1.5} height={1.2} fill={skin} />
-      {!bald && !mohawk && <Circle cx={5.5} cy={3.0} r={buzz ? 2.78 : 2.95} fill={hair} />}
+      {!bald && !mohawk && <Circle cx={5.5} cy={3.0} r={(buzz ? 2.78 : 2.95) + hairG * 0.12} fill={hair} />}
       <Circle cx={5.5} cy={3.55} r={2.62} fill={skin} />
+      {/* grown-out short styles gather sideburn shag at the ears —
+          the visible daily step of the hair ramp (Rider F) */}
+      {!bald && !mohawk && hairG > 0.05 && (
+        <>
+          <Rect x={2.82} y={3.1} width={0.42} height={0.5 + hairG * 0.95} rx={0.2} fill={hair} />
+          <Rect x={7.76} y={3.1} width={0.42} height={0.5 + hairG * 0.95} rx={0.2} fill={hair} />
+        </>
+      )}
       {/* bald is a chosen style: bare head, a little shine */}
       {bald && <Ellipse cx={4.9} cy={1.8} rx={1.05} ry={0.46} fill="#FFFFFF" opacity={0.38} transform="rotate(-18 4.9 1.8)" />}
       {capBand}
@@ -493,7 +851,11 @@ export function PaperHeroFigure({ pawn, unit }: { pawn: CustomPawn; unit: number
       )}
       {mohawk && <Rect x={4.8} y={0.1} width={1.4} height={3.6} rx={0.65} fill={hair} />}
       {style === "pompadour" && <Rect x={3.3} y={0.15} width={4.4} height={1.35} rx={0.65} fill={hair} transform="rotate(-7 5.5 0.8)" />}
-      {style === "sidepart" && <Rect x={4.05} y={0.75} width={0.3} height={1.5} fill={skin} opacity={0.9} transform="rotate(12 4.2 1.5)" />}
+      {/* the part is a DARK hairline stroke swept through the cap —
+          never a skin-colored notch cut into the hair (Rider C) */}
+      {style === "sidepart" && (
+        <Path d="M4.35 0.85 Q4.1 1.6 4.3 2.3" stroke="rgba(42,26,51,0.45)" strokeWidth={0.22} fill="none" strokeLinecap="round" />
+      )}
       {style === "laurel" && (
         <>
           {[3.3, 4.4, 5.5, 6.6, 7.7].map((x, i) => (
@@ -513,54 +875,50 @@ export function PaperHeroFigure({ pawn, unit }: { pawn: CustomPawn; unit: number
           ))}
         </>
       )}
-      {style === "glorymane" && (
-        <>
-          <Rect x={4.3} y={0.8} width={0.45} height={1.1} fill="#FFFFFF" opacity={0.65} />
-          <Rect x={6.3} y={0.8} width={0.45} height={1.1} fill="#FFFFFF" opacity={0.65} />
-        </>
-      )}
+      {/* glorymane's light lives in the mane's gold side streaks
+          (drawn with the back panels) — no light bars on the cap,
+          which read as stray notches (Rider C) */}
       {/* face */}
       <Circle cx={4.75} cy={3.6} r={0.3} fill={PAPER_INK} />
       <Circle cx={6.25} cy={3.6} r={0.3} fill={PAPER_INK} />
       {(!fullBeard || beardLength <= 25) && (
         <Path d="M4.85 4.75 Q5.5 5.35 6.15 4.75" stroke={PAPER_INK} strokeWidth={0.3} fill="none" strokeLinecap="round" />
       )}
-      {/* the beard — his style, at its grown length, mirroring
-          HeroBeard: mustache over the lip, goatee on the chin, the
-          full family over the jaw (heavenly wears white + longer,
-          gilded binds a gold band, radiant keeps light at the edges) */}
-      {hasBeard && beardStyle === "mustache" && (
-        <Rect x={4.42} y={4.78} width={2.16} height={0.4 + g * 0.24} rx={0.2} fill={hair} />
-      )}
-      {hasBeard && beardStyle === "goatee" && (
-        <Rect x={4.9} y={5.2} width={1.2} height={0.55 + g * 1.25} rx={0.55} fill={hair} />
-      )}
-      {fullBeard && (
-        <>
-          <Ellipse
-            cx={5.5}
-            cy={5.5 + g * 0.3}
-            rx={1.95}
-            ry={(0.72 + g * 1.0) * (beardStyle === "heavenly" ? 1.45 : 1)}
-            fill={beardStyle === "heavenly" ? "#E8E4DA" : hair}
-          />
-          {beardStyle === "gilded" && (
-            <Rect x={3.95} y={5.5 + g * 0.3 + (0.72 + g * 1.0) - 0.75} width={3.1} height={0.42} rx={0.2} fill="#D4AF37" />
-          )}
-          {beardStyle === "radiant" && (
+      {/* the beard — the SHARED shaped renderer (Riders D/F): his
+          style at its grown length via beardShapeFor's ramp, clipped
+          to the head contour. The prestige families dress the same
+          full shape: "heavenly" wears white + longer, "gilded" binds
+          a gold band at the chin, "radiant" keeps light at the edges,
+          "mustache" and "goatee" are their own silhouettes. */}
+      {paperBeardFront({
+        cx: 5.5,
+        cy: 3.55,
+        r: 2.62,
+        style: beardStyle,
+        growth: beardLength,
+        color: beardStyle === "heavenly" ? "#E8E4DA" : hair,
+        clipId: "paper-hero-beardclip",
+        extras: (shape) => {
+          const chinY = 3.55 + (0.82 + shape.chinDropFrac) * 2.62;
+          const chinW = shape.chinWidthFrac * 2.62;
+          return (
             <>
-              <Rect x={4.15} y={5.35} width={0.34} height={(0.72 + g * 1.0) * 1.2} fill="#FDE68A" opacity={0.9} />
-              <Rect x={6.55} y={5.35} width={0.34} height={(0.72 + g * 1.0) * 1.2} fill="#FDE68A" opacity={0.9} />
+              {beardStyle === "gilded" && shape.stage !== "stubble" && (
+                <Rect x={5.5 - chinW - 0.25} y={chinY - 0.55} width={(chinW + 0.25) * 2} height={0.4} rx={0.2} fill="#D4AF37" />
+              )}
+              {beardStyle === "radiant" && shape.family === "full" && (
+                <>
+                  <Rect x={5.5 - shape.jawWidthFrac * 2.62 + 0.05} y={4.4} width={0.32} height={Math.max(0.4, chinY - 4.9)} fill="#FDE68A" opacity={0.9} />
+                  <Rect x={5.5 + shape.jawWidthFrac * 2.62 - 0.37} y={4.4} width={0.32} height={Math.max(0.4, chinY - 4.9)} fill="#FDE68A" opacity={0.9} />
+                </>
+              )}
+              {beardStyle === "heavenly" && shape.family === "full" && (
+                <Rect x={5.5 - chinW - 0.25} y={chinY - 0.5} width={(chinW + 0.25) * 2} height={0.38} rx={0.19} fill="#D4AF37" opacity={0.85} />
+              )}
             </>
-          )}
-          {beardStyle === "heavenly" && (
-            <>
-              <Rect x={5.32} y={5.3} width={0.36} height={(0.72 + g * 1.0) * 1.45 - 0.5} fill="#FFFFFF" opacity={0.8} />
-              <Rect x={3.95} y={5.5 + g * 0.3 + (0.72 + g * 1.0) * 1.45 - 0.75} width={3.1} height={0.4} rx={0.2} fill="#D4AF37" opacity={0.85} />
-            </>
-          )}
-        </>
-      )}
+          );
+        },
+      })}
     </Svg>
   );
 }
@@ -583,7 +941,7 @@ export const PAPER_FIGURE_H = 16;
 
 export function paperFigureShapes(look: PaperDinerLook): ReactNode {
   const bald = look.hairStyle === "bald";
-  const beardG = look.beardStyle === "none" ? 0 : Math.min(Math.max(look.beardLength, 0), 100) / 100;
+  const villagerBeard = beardShapeFor(look.beardStyle, look.beardLength);
   return (
     <>
       {/* ground shadow */}
@@ -610,35 +968,35 @@ export function paperFigureShapes(look: PaperDinerLook): ReactNode {
       <Rect x={4.4} y={5.15} width={1.2} height={1.05} fill={look.skin} />
       {!bald && <Circle cx={5} cy={2.9} r={2.78} fill={look.hair} />}
       <Circle cx={5} cy={3.32} r={2.45} fill={look.skin} />
-      {/* the hair CAP over the face's top — a real band with a hairline,
-          thick enough to read at map scale in any color */}
-      {!bald && (
-        <Path
-          d="M 2.58 3.28 A 2.48 2.48 0 0 1 7.42 3.28 L 6.95 3.24 A 1.98 1.98 0 0 0 3.05 3.24 Z"
-          fill={look.hair}
-          stroke="rgba(42,26,51,0.25)"
-          strokeWidth={0.22}
-        />
-      )}
+      {/* the shared front hair cap (Rider C) — the same curved,
+          high hairline the hero wears; identical clip geometry for
+          every villager, so the deterministic id is shared safely */}
+      {!bald && hairClipDef("paper-figure-hairclip", 5, 3.32, 2.45)}
+      {!bald &&
+        paperHairCapFront({ cx: 5, cy: 3.32, r: 2.45, color: look.hair, sweep: 0.35, clipId: "paper-figure-hairclip" })}
       {look.hairStyle === "bun" && <Circle cx={4.35} cy={0.72} r={0.92} fill={look.hair} />}
       {/* bald is a style, not a missing render: a bare head with a shine */}
       {bald && <Ellipse cx={4.45} cy={1.7} rx={0.95} ry={0.42} fill="#FFFFFF" opacity={0.38} transform="rotate(-18 4.45 1.7)" />}
       {/* face */}
       <Circle cx={4.32} cy={3.5} r={0.25} fill={PAPER_INK} />
       <Circle cx={5.68} cy={3.5} r={0.25} fill={PAPER_INK} />
-      {!(look.beardStyle === "full" && beardG > 0.25) && (
+      {!(villagerBeard.family === "full" && villagerBeard.coverage > 0.25) && (
         <Path d="M4.45 4.6 Q5 5.05 5.55 4.6" stroke={PAPER_INK} strokeWidth={0.26} fill="none" strokeLinecap="round" />
       )}
-      {/* the beard, where the look calls for one */}
-      {look.beardStyle === "full" && (
-        <Ellipse cx={5} cy={5.3} rx={1.68} ry={0.58 + beardG * 0.8} fill={look.hair} />
-      )}
-      {look.beardStyle === "goatee" && (
-        <Rect x={4.48} y={4.95} width={1.05} height={0.5 + beardG * 1.05} rx={0.5} fill={look.hair} />
-      )}
-      {look.beardStyle === "mustache" && (
-        <Rect x={4.12} y={4.58} width={1.76} height={0.34 + beardG * 0.16} rx={0.17} fill={look.hair} />
-      )}
+      {/* the beard, where the look calls for one — the shared shaped
+          renderer (Riders D/F), in the pawn system's vocabulary */}
+      {paperBeardFront({
+        cx: 5,
+        cy: 3.32,
+        r: 2.45,
+        style: look.beardStyle,
+        growth: look.beardLength,
+        color: look.beardStyle === "heavenly" ? "#E8E4DA" : look.hair,
+        // glyph scenes hold many villagers in ONE Svg: the clip id
+        // carries the shape's chin drop so different beard lengths
+        // never share (and shrink) each other's clip
+        clipId: `paper-figure-beardclip-${Math.round(villagerBeard.chinDropFrac * 100)}`,
+      })}
     </>
   );
 }

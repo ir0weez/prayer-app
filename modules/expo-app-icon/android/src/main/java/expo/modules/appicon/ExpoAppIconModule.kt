@@ -11,8 +11,8 @@ class ExpoAppIconModule : Module() {
   companion object {
     // Must match plugins/with-app-icons.js alias naming.
     private val ICON_IDS = listOf(
-      "ember", "ocean", "retro", "sketch", "watercolor",
-      "aurora", "neon", "liquid", "gold"
+      "ember", "ocean", "retro", "glass", "sketch", "watercolor",
+      "melting", "aurora", "neon", "prism", "liquid", "gold"
     )
   }
 

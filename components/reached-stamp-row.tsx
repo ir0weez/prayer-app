@@ -44,9 +44,11 @@ function getMonthLabel(monthKey: string): string {
 /*   postmark — four bold cancellation waves crossing the FULL stamp   */
 /*              plus a large, legible circular date seal overlapping   */
 /*              the edge, and heavier broken-ink texture.              */
-/*   linen    — a woven crosshatch clipped inside the stamp's shape,   */
-/*              a stitched inner border, a soft cloth halo and a       */
-/*              faint offset ghost of the rings: a stamp ON fabric.    */
+/*   linen    — chunky plain-weave thread bundles (5–8 units, soft     */
+/*              feathered edges, flax/cream tones) plus bold slubs,    */
+/*              clipped inside the stamp's shape, a stitched inner     */
+/*              border, a soft cloth halo and a faint offset ghost     */
+/*              of the rings: a stamp ON fabric.                       */
 /*   embossed — the whole artwork struck three times: a paper-light    */
 /*              copy offset up-left, a shadow copy offset down-right,  */
 /*              the ink on top — pressed INTO the paper, all shapes.   */
@@ -62,13 +64,47 @@ const POSTMARK_WAVE_PATHS = [
 ] as const;
 const POSTMARK_WAVE_WIDTHS = [2.3, 1.9, 1.6, 1.3] as const;
 
-/** Linen weave pitch — fine enough to read as fabric at grid size. */
-const LINEN_WEAVE_STEP = 3;
-const LINEN_WEAVE_COORDS: number[] = (() => {
-  const coords: number[] = [];
-  for (let p = 9; p <= 115; p += LINEN_WEAVE_STEP) coords.push(p);
-  return coords;
-})();
+/** Linen weave — plain-weave at THREAD scale, hand-loomed.
+ *  Thread BUNDLES 5–8 units wide (never hairlines): chunky enough to
+ *  read as cloth at the collection grid's 124-unit size. Widths and
+ *  opacities follow a fixed irregular pattern — no bundle repeats its
+ *  neighbour's width, and the vertical (warp) pass is rotated against
+ *  the horizontal (weft) pass — so the weave never resolves into a
+ *  machined uniform grid / graph paper. Bundles are FILLED rects laid
+ *  with a 1-unit overlap, so their edges feather by translucency
+ *  instead of ending in a hard line, and they alternate between the
+ *  stamp ink (at whisper opacity) and flax / cream fibre tones. */
+const LINEN_FLAX = "#D9C69C";
+const LINEN_CREAM = "#EEE1C2";
+const LINEN_BUNDLE_WIDTHS = [7, 5, 6, 8, 5, 7, 6, 5, 8, 6, 7, 5, 6, 8, 5, 7, 6, 5] as const;
+const LINEN_BUNDLE_OPACITIES = [0.14, 0.09, 0.17, 0.11, 0.15, 0.1, 0.13, 0.08, 0.16, 0.12, 0.15, 0.09, 0.14, 0.11, 0.16, 0.1, 0.13, 0.09] as const;
+
+type LinenBundle = { offset: number; width: number; opacity: number };
+
+function buildLinenBundles(widths: readonly number[], startOffset: number): LinenBundle[] {
+  let offset = startOffset;
+  return widths.map((width, index) => {
+    const bundle: LinenBundle = { offset, width, opacity: LINEN_BUNDLE_OPACITIES[index % LINEN_BUNDLE_OPACITIES.length] };
+    offset += width;
+    return bundle;
+  });
+}
+
+/** Horizontal weft bundles, laid from the top of the stamp. */
+const LINEN_H_BUNDLES: LinenBundle[] = buildLinenBundles(LINEN_BUNDLE_WIDTHS, 4);
+/** Vertical warp bundles — the same irregular widths, rotated by
+ *  three, so warp/weft crossings never form identical squares. */
+const LINEN_V_BUNDLES: LinenBundle[] = buildLinenBundles([...LINEN_BUNDLE_WIDTHS.slice(3), ...LINEN_BUNDLE_WIDTHS.slice(0, 3)], 4);
+
+/** Slubs — linen's signature: a few thicker, imperfect threads laid
+ *  ACROSS the weave. Slightly wavy (Q/T curves, never straight),
+ *  round-capped, each a different length / weight / opacity — clearly
+ *  visible at collection size without shouting. */
+const LINEN_SLUBS = [
+  { d: "M 16 39 Q 39 37.2 62 39.1 T 101 38.3", width: 3.4, opacity: 0.3 },
+  { d: "M 24 73 Q 47 71.4 70 73.3 T 109 72.5", width: 2.6, opacity: 0.24 },
+  { d: "M 12 95 Q 33 93.6 55 95.4 T 87 94.6", width: 3.8, opacity: 0.27 },
+] as const;
 
 /** The stamp's outline rings (outer solid + inner ring). The inner
  *  ring is the dashed classic ring — or, with `stitch`, the linen
@@ -169,14 +205,25 @@ function PassportStamp({ stamp, ink, skin = "classic" }: { stamp: ReachedStamp; 
           {skin === "linen" && <>
             {/* The cloth the stamp sits on: a soft halo at the edge… */}
             <StampShapeHalo ink={ink} variation={variation} />
-            {/* …the woven crosshatch itself, clipped to the stamp… */}
-            <G clipPath={`url(#${weaveClipId})`} stroke={ink} strokeWidth={0.55} opacity={0.16}>
-              {LINEN_WEAVE_COORDS.map((p) => (
-                <Line key={`wh${p}`} x1={4} y1={p} x2={120} y2={p} />
+            {/* …the plain weave itself, clipped to the stamp: chunky
+                thread bundles (filled rects overlapping by a unit so
+                the edges feather), never hairlines. Weft first, then
+                warp over it — where they cross, the translucency
+                deepens, which is what reads as woven cloth. */}
+            <G clipPath={`url(#${weaveClipId})`}>
+              <Rect x="4" y="4" width="116" height="116" fill={LINEN_CREAM} opacity={0.16} />
+              {LINEN_H_BUNDLES.map((bundle, index) => (
+                <Rect key={`lh${bundle.offset}`} x="4" y={bundle.offset - 0.5} width="116" height={bundle.width + 1} fill={index % 2 === 0 ? ink : LINEN_FLAX} opacity={index % 2 === 0 ? bundle.opacity : bundle.opacity + 0.07} />
               ))}
-              {LINEN_WEAVE_COORDS.map((p) => (
-                <Line key={`wv${p}`} x1={p} y1={4} x2={p} y2={120} />
+              {LINEN_V_BUNDLES.map((bundle, index) => (
+                <Rect key={`lv${bundle.offset}`} x={bundle.offset - 0.5} y="4" width={bundle.width + 1} height="116" fill={index % 2 === 0 ? LINEN_FLAX : ink} opacity={index % 2 === 0 ? bundle.opacity + 0.05 : bundle.opacity * 0.85} />
               ))}
+              {/* Slubs: the thicker imperfect threads across the weave. */}
+              <G fill="none" stroke={ink} strokeLinecap="round">
+                {LINEN_SLUBS.map((slub) => (
+                  <Path key={slub.d} d={slub.d} strokeWidth={slub.width} opacity={slub.opacity} />
+                ))}
+              </G>
             </G>
             {/* …and ink printed on fabric sits slightly diffused: a
                 faint ghost of the rings, offset a whisper. */}

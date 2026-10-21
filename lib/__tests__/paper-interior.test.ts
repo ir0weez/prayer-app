@@ -265,9 +265,11 @@ describe("diner hair + beards — a crowd must not read as clones (2026-10-21)",
     // a real cap over the face's top — not the old offset-circle sliver
     expect(kit).toContain("the hair CAP over the face's top");
     expect(kit).toContain('look.hairStyle === "bald"');
-    expect(kit).toContain('look.beardStyle === "full"');
-    expect(kit).toContain('look.beardStyle === "goatee"');
-    expect(kit).toContain('look.beardStyle === "mustache"');
+    // beards render through the shared shaped kit (Riders C/D/F):
+    // the diner passes its look's style + grown length to it
+    expect(kit).toContain("paperBeardProfile");
+    expect(kit).toContain("style: look.beardStyle");
+    expect(kit).toContain("growth: look.beardLength");
     expect(kit).toContain("look.beardLength");
   });
 

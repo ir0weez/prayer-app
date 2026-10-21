@@ -7,6 +7,12 @@ import { getTimeOfDay } from "@/lib/daynight";
 import { TOWN_GRID_H, type MapState } from "@/lib/hometown";
 
 const PAWN_SIZE = 34;
+/** The Hero's figure width on the map, px (v160 scale fix): the kit
+ *  hero is 11x17, so at this width he stands ~21.2px tall — villager
+ *  scale (town villagers render 13 wide, 20.8 tall), at most ~10%
+ *  taller, distinct through detail rather than size. PAWN_SIZE stays
+ *  the container/anchor size; only the figure shrinks inside it. */
+const MAP_HERO_FIGURE_W = 13.7;
 /** Walk speed, px per second. The villagers stroll at ~42; the Hero
  *  keeps a touch brisker pace so a cross-town road trip stays watchable. */
 const WALK_PX_PER_SEC = 46;
@@ -257,7 +263,7 @@ export function PlayerPawnWanderer({
       {/* the Hero as a paper figure in the world — normal clothes,
           equipped hair, live-grown beard (PaperHeroFigure reads the
           pawn's saved appearance) */}
-      <PaperHeroFigure pawn={pawn} unit={PAWN_SIZE / PAPER_HERO_W} />
+      <PaperHeroFigure pawn={pawn} unit={MAP_HERO_FIGURE_W / PAPER_HERO_W} />
     </Animated.View>
   );
 }

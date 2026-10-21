@@ -66,7 +66,9 @@ const config: ExpoConfig = {
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: "#7C5CFF",
+      // Paper main icon (v160): the fallback field behind the paper disc
+      // is the same warm cream as the paper background image.
+      backgroundColor: "#F7F0DE",
       foregroundImage: "./assets/images/android-icon-foreground.png",
       backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",

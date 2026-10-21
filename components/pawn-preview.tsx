@@ -11,7 +11,7 @@ import type {
 } from "@/lib/pawn";
 import type { GearItem } from "@/lib/gear";
 import { HeroForPawn, type HeroContext } from "@/components/hero-sprite";
-import { PAPER_HERO_W, PaperHeroFigure } from "@/components/paper-interior";
+import { PAPER_HERO_H, PaperHeroFigure } from "@/components/paper-interior";
 
 /**
  * The player's character in the WORLD: a PAPER figure in his normal
@@ -52,7 +52,10 @@ export function PawnPreview({
   const clothesItem = equippedGear && equippedGear.type === "clothes" ? equippedGear : null;
   const bodyColor = clothesItem?.visual.bodyColor ?? pawn.bodyColor;
   const effPawn = bodyColor === pawn.bodyColor ? pawn : { ...pawn, bodyColor };
-  return <PaperHeroFigure pawn={effPawn} unit={size / PAPER_HERO_W} />;
+  // Scale fix (v160): size is the figure's HEIGHT — unit derives from
+  // the hero's 17-unit height, so he renders exactly size tall (the old
+  // width-derived unit made him ~1.545x size).
+  return <PaperHeroFigure pawn={effPawn} unit={size / PAPER_HERO_H} />;
 }
 
 /**
@@ -108,7 +111,10 @@ export function PaperHeroThumbnail({
     lastHaircut: now,
     createdAt: now,
   };
-  const figure = <PaperHeroFigure pawn={pawn} unit={(headOnly ? size * 1.38 : size) / PAPER_HERO_W} />;
+  // Scale fix (v160): same height-derived base as PawnPreview (height
+  // = size); headOnly keeps its 1.38 enlargement against that corrected
+  // base, and the size x size clip below crops the overflow to the head.
+  const figure = <PaperHeroFigure pawn={pawn} unit={(headOnly ? size * 1.38 : size) / PAPER_HERO_H} />;
   if (!headOnly) return figure;
   return (
     <View style={{ width: size, height: size, overflow: "hidden", alignItems: "center" }}>

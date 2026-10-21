@@ -255,7 +255,10 @@ describe("wiring guards", () => {
 
   it("the fight loop rolls crits from combat stats at 150% damage", () => {
     const src = read("components/dark-forest.tsx");
-    expect(src).toContain("stats.critChance");
+    // v160 healing wave: the fight loop rolls from the EFFECTIVE stats
+    // (base combat stats with the Set-for-the-Day boon applied), so the
+    // crit read is effStats.critChance — same stats, boon-scaled.
+    expect(src).toContain("effStats.critChance");
     expect(src).toContain("CRIT_DAMAGE_MULT");
     expect(src).toContain("bossGateOpensOn");
   });

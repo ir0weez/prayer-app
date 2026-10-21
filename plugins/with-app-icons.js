@@ -1,10 +1,10 @@
 /**
  * Expo config plugin: alternate PrayerCircle app icons.
  *
- * - Copies the 9 unlockable icon PNGs (everything except icon-original, which
+ * - Copies the 12 unlockable icon PNGs (everything except icon-original, which
  *   is the default launcher icon) into android/app/src/main/res/drawable/
  *   as app_icon_<name>.png.
- * - Adds 9 <activity-alias> entries to AndroidManifest.xml, each disabled by
+ * - Adds 12 <activity-alias> entries to AndroidManifest.xml, each disabled by
  *   default, each with a MAIN/LAUNCHER intent-filter targeting .MainActivity.
  *
  * The native module expo-app-icon toggles these aliases at runtime via
@@ -21,10 +21,13 @@ const ICON_NAMES = [
   "ember",
   "ocean",
   "retro",
+  "glass",
   "sketch",
   "watercolor",
+  "melting",
   "aurora",
   "neon",
+  "prism",
   "liquid",
   "gold",
 ];

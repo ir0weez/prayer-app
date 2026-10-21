@@ -57,6 +57,12 @@ import {
   type VillagerWorkAssignment,
   type WorkKind,
 } from "@/lib/villager-work";
+import {
+  jobCollectXP,
+  loadJobCollectLedger,
+  recordCollect,
+  saveJobCollectLedger,
+} from "@/lib/job-collect-xp";
 import { loadVillagerMissionState, type VillagerMission } from "@/lib/villager-missions";
 import {
   buildRosterRows,
@@ -487,7 +493,10 @@ export default function MainOfficeInteriorScreen() {
       await saveVillagerWorkState(state);
       const def = WORK_KINDS[done.kind];
       addCoins(collectPayoutCoins(def.rewardCoins + (done.bonusCoins ?? 0), bloodmoon));
-      await awardCustomXP(scaledXP(def.rewardXP), `villager-work:${done.id}`).catch(() => undefined);
+      // Rider I: banded, tapered job-collect XP (coins unchanged).
+      const collectLedger = await loadJobCollectLedger();
+      await awardCustomXP(scaledXP(jobCollectXP(done.kind, collectLedger.count)), `villager-work:${done.id}`).catch(() => undefined);
+      await saveJobCollectLedger(recordCollect(collectLedger));
       refreshRoster();
     });
 
@@ -515,11 +524,16 @@ export default function MainOfficeInteriorScreen() {
             total += collectPayoutCoins(def.rewardCoins + (done.bonusCoins ?? 0), bloodmoon);
           }
           addCoins(total);
+          // Rider I: each swept shift pays its banded XP and counts
+          // individually toward the daily taper (coins unchanged).
+          let collectLedger = await loadJobCollectLedger();
           for (const done of collected) {
-            await awardCustomXP(scaledXP(WORK_KINDS[done.kind].rewardXP), `villager-work:${done.id}`).catch(
+            await awardCustomXP(scaledXP(jobCollectXP(done.kind, collectLedger.count)), `villager-work:${done.id}`).catch(
               () => undefined
             );
+            collectLedger = recordCollect(collectLedger);
           }
+          await saveJobCollectLedger(collectLedger);
           setCollectSummary({
             key: Date.now(),
             text:

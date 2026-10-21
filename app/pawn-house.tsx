@@ -1,4 +1,4 @@
-import type { JSX } from "react";
+import type { JSX, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Animated, Easing, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -17,6 +17,7 @@ import {
   HOUSE_ROOMS,
   TROPHY_COIN_EACH,
   computeTrophies,
+  effectTextFor,
   getGardenData,
   getPrayerCandles,
   loadHouseState,
@@ -42,35 +43,89 @@ import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
 import { useMiniGameHost } from "@/components/mini-game-host";
 import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
 import { PaperHeroFigure, PaperSeatedDiner, PaperStandingVillager } from "@/components/paper-interior";
-import { PaperSwimFigure } from "@/components/paper-room";
+import {
+  PaperHeroKneel,
+  PaperHeroLyingFigure,
+  PaperHeroSeatedFigure,
+  PaperHeroShowerFigure,
+  PaperHeroTubFigure,
+  PaperSwimFigure,
+} from "@/components/paper-room";
 import { paperDinerLookFor } from "@/lib/paper-interior";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { getTimeOfDay } from "@/lib/daynight";
 import { prayedTodayPeople, type PrayedPerson } from "@/lib/hometown";
+import {
+  CARE_STAT_IDS,
+  CARE_STAT_LABELS,
+  NEED_META,
+  boonFor,
+  careStatsFor,
+  fixtureTierFor,
+  loadHeroNeeds,
+  saveHeroNeeds,
+  tendNeed,
+  type HeroNeedsState,
+  type NeedId,
+} from "@/lib/hero-needs";
 import { pickPeople } from "@/components/activity-figures";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
+/** A gentle sine bob for a tend performance — motion only, no bounce. */
+function SineBob({
+  children,
+  amount = 2,
+  duration = 850,
+}: {
+  children: ReactNode;
+  amount?: number;
+  duration?: number;
+}) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [v, duration]);
+  const translateY = v.interpolate({ inputRange: [0, 1], outputRange: [amount, -amount] });
+  return <Animated.View style={{ transform: [{ translateY }] }}>{children}</Animated.View>;
+}
+
 /**
- * The player's pawn, shown using the room's furniture.
- * - Bedroom: in bed (sleeping at night, with "Z" indicator)
- * - Living: sitting on the sofa
- * - Kitchen: at the table
- * - Bathroom: at the sink
- * - Study: at the desk
- * - Prayer: kneeling in the center
- * Only shows if the relevant furniture piece is unlocked (tier > 0).
+ * The hero, living in his house (Rider H2 — literal poses, never a
+ * static standing figure in his own home):
+ * - Bedroom: LYING in the bed at night (head on the pillow, blanket
+ *   over him); seated on the bed's edge by day.
+ * - Living: SEATED on the sofa.
+ * - Kitchen: SEATED at the table eating (a plate drawn before him);
+ *   standing at the hearth when there is no table yet.
+ * - Bathroom: IN the shower stall with the water running over him, or
+ *   soaking IN the tub (body below the water line); at the sink only
+ *   when neither fixture is placed.
+ * - Study: SEATED at the desk. Prayer: kneeling.
+ * - Backyard: at the grill, swimming in the pool, seated at the patio.
+ * When a Morning Care need was just tended, `activeNeed` routes him to
+ * that fixture in its pose, wrapped in a few seconds of sine motion.
+ * Only shows where the relevant furniture piece is placed (tier > 0).
  */
 function PawnInRoom({
   roomId,
   room,
   roomViewWidth,
   roomViewHeight,
+  activeNeed = null,
 }: {
   roomId: HouseRoomId;
   room: { furniture: Record<string, number> };
   roomViewWidth: number;
   roomViewHeight: number;
+  activeNeed?: NeedId | null;
 }) {
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
   useEffect(() => {
@@ -78,68 +133,117 @@ function PawnInRoom({
   }, []);
   if (!pawn) return null;
 
+  const W = roomViewWidth;
+  const H = roomViewHeight;
   const isNight = getTimeOfDay() === "night";
-  const size = 56;
+  const tier = (id: string) => room.furniture[id] || 0;
+  const fx = activeNeed !== null;
 
-  let pos = { x: 0.5, y: 0.65 };
-  let show = false;
+  let figure: ReactNode = null;
+  let left = 0;
+  let top = 0;
   let sleeping = false;
 
-  if (roomId === "bedroom" && (room.furniture["bed"] || 0) > 0) {
-    pos = { x: 0.30, y: 0.52 };
-    show = true;
-    sleeping = isNight;
-  } else if (roomId === "living" && (room.furniture["sofa"] || 0) > 0) {
-    pos = { x: 0.30, y: 0.52 };
-    show = true;
-  } else if (roomId === "kitchen" && (room.furniture["ktable"] || 0) > 0) {
-    pos = { x: 0.38, y: 0.54 };
-    show = true;
-  } else if (roomId === "bathroom" && (room.furniture["sink"] || 0) > 0) {
-    pos = { x: 0.60, y: 0.52 };
-    show = true;
-  } else if (roomId === "study" && (room.furniture["desk"] || 0) > 0) {
-    pos = { x: 0.32, y: 0.52 };
-    show = true;
+  if (roomId === "bedroom" && tier("bed") > 0) {
+    if (isNight) {
+      sleeping = true;
+      figure = <PaperHeroLyingFigure pawn={pawn} unit={6.4} blanket="#8A6BA8" />;
+      left = 0.3 * W - 54;
+      top = 0.6 * H - 30;
+    } else {
+      figure = <PaperHeroSeatedFigure pawn={pawn} unit={4} />;
+      left = 0.3 * W - 22;
+      top = 0.6 * H - 12;
+    }
+  } else if (roomId === "living" && tier("sofa") > 0) {
+    figure = <PaperHeroSeatedFigure pawn={pawn} unit={4.2} />;
+    left = 0.3 * W - 23;
+    top = 0.6 * H - 15;
+  } else if (roomId === "kitchen" && (tier("ktable") > 0 || tier("hearth") > 0)) {
+    if (tier("ktable") > 0) {
+      // seated at the table, eating — a plate on the table before him
+      figure = (
+        <View style={{ alignItems: "center" }}>
+          <PaperHeroSeatedFigure pawn={pawn} unit={4.2} />
+          <View
+            style={{
+              marginTop: -14,
+              width: 26,
+              height: 9,
+              borderRadius: 5,
+              backgroundColor: "#FFFFFF",
+              borderWidth: 1,
+              borderColor: "rgba(42,26,51,0.18)",
+            }}
+          >
+            <View style={{ alignSelf: "center", marginTop: 2, width: 12, height: 4, borderRadius: 2, backgroundColor: "#D9A441" }} />
+          </View>
+        </View>
+      );
+      left = 0.38 * W - 23;
+      top = 0.62 * H - 20;
+    } else {
+      figure = <PaperHeroFigure pawn={pawn} unit={44 / 11} />;
+      left = 0.55 * W - 22;
+      top = 0.38 * H - 12;
+    }
+  } else if (roomId === "bathroom" && (tier("shower") > 0 || tier("tub") > 0 || tier("sink") > 0)) {
+    if (activeNeed === "shower" && tier("shower") > 0) {
+      figure = <PaperHeroShowerFigure pawn={pawn} unit={4} />;
+      left = 0.86 * W - 20;
+      top = 0.4 * H - 26;
+    } else if (activeNeed === "bathroom" && tier("tub") > 0) {
+      figure = <PaperHeroTubFigure pawn={pawn} unit={5.2} />;
+      left = 0.28 * W - 29;
+      top = 0.62 * H - 32;
+    } else if (tier("tub") > 0) {
+      figure = <PaperHeroTubFigure pawn={pawn} unit={5.2} />;
+      left = 0.28 * W - 29;
+      top = 0.62 * H - 32;
+    } else if (tier("shower") > 0) {
+      figure = <PaperHeroShowerFigure pawn={pawn} unit={4} />;
+      left = 0.86 * W - 20;
+      top = 0.4 * H - 26;
+    } else {
+      figure = <PaperHeroFigure pawn={pawn} unit={44 / 11} />;
+      left = 0.6 * W - 22;
+      top = 0.6 * H - 34;
+    }
+  } else if (roomId === "study" && tier("desk") > 0) {
+    figure = <PaperHeroSeatedFigure pawn={pawn} unit={4.2} />;
+    left = 0.32 * W - 23;
+    top = 0.6 * H - 14;
   } else if (roomId === "prayer") {
-    pos = { x: 0.5, y: 0.60 };
-    show = true;
+    figure = <PaperHeroKneel pawn={pawn} unit={4} />;
+    left = 0.5 * W - 22;
+    top = 0.6 * H - 22;
   } else if (roomId === "backyard") {
-    // Out back: at the BBQ if there's a grill, otherwise by the pool.
-    if ((room.furniture["bbq"] || 0) > 0) {
-      pos = { x: 0.68, y: 0.48 };
-      show = true;
-    } else if ((room.furniture["pool"] || 0) > 0) {
-      pos = { x: 0.28, y: 0.50 };
-      show = true;
-    } else if ((room.furniture["patio"] || 0) > 0) {
-      pos = { x: 0.50, y: 0.68 };
-      show = true;
+    if (tier("bbq") > 0) {
+      figure = <PaperHeroFigure pawn={pawn} unit={44 / 11} />;
+      left = 0.68 * W - 22;
+      top = 0.6 * H - 40;
+    } else if (tier("pool") > 0) {
+      figure = <PaperHeroTubFigure pawn={pawn} unit={5.2} />;
+      left = 0.28 * W - 29;
+      top = 0.62 * H - 14;
+    } else if (tier("patio") > 0) {
+      figure = <PaperHeroSeatedFigure pawn={pawn} unit={4.2} />;
+      left = 0.5 * W - 23;
+      top = 0.82 * H - 32;
     }
   }
 
-  if (!show) return null;
+  if (!figure) return null;
 
   return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: "absolute",
-        left: pos.x * roomViewWidth - size / 2,
-        top: pos.y * roomViewHeight - size / 2,
-        alignItems: "center",
-        zIndex: 5,
-      }}
-    >
+    <View pointerEvents="none" style={{ position: "absolute", left, top, alignItems: "center", zIndex: 5 }}>
       {sleeping && (
-        <View style={{ flexDirection: "row", marginBottom: -6, marginLeft: 18, zIndex: 6 }}>
+        <View style={{ flexDirection: "row", marginBottom: -4, marginLeft: 26, zIndex: 6 }}>
           <Text style={{ fontSize: 14, fontWeight: "800", color: "#93C5FD" }}>Z</Text>
           <Text style={{ fontSize: 11, fontWeight: "800", color: "#93C5FD", marginLeft: 1, marginTop: -3 }}>Z</Text>
         </View>
       )}
-      <View style={{ opacity: sleeping ? 0.92 : 1, transform: sleeping ? [{ rotate: "-8deg" }] : [] }}>
-        <PaperHeroFigure pawn={pawn} unit={size / 11} />
-      </View>
+      {fx && !sleeping ? <SineBob>{figure}</SineBob> : figure}
     </View>
   );
 }
@@ -274,6 +378,254 @@ function FlowerDot({ bloom, color }: { bloom: boolean; color: string }) {
         <Circle cx={11} cy={8} r={2.4} fill="#FFD98A" />
       </Svg>
     </View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Rider E — the paper room shell. The house rooms are drawn in the    */
+/* shared paper kit's language, never as flat color blocks: a layered  */
+/* paper wall (field + panel seams + wainscot + baseboard, each with   */
+/* its soft offset shadow), a planked paper floor, a paper window      */
+/* (frame, sill shadow, a spill of light across the floor), and drawn  */
+/* decor that ACCUMULATES with the room's tier points — pictures, a    */
+/* plant, a bookshelf, cushions, a pendant — so a room with many       */
+/* tiers placed LOOKS furnished. Every layer tints from the room's     */
+/* active theme. The backyard gets the same treatment: paper sky,      */
+/* fence and grass layers, flower beds and trees as it fills up.       */
+/* ------------------------------------------------------------------ */
+
+/** Shift a hex color lighter (positive amt) or darker (negative amt). */
+function shadeHex(hex: string, amt: number): string {
+  const raw = hex.replace("#", "");
+  const full = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw;
+  const num = parseInt(full, 16);
+  const clamp = (v: number) => Math.min(255, Math.max(0, v));
+  const r = clamp((num >> 16) + amt);
+  const g = clamp(((num >> 8) & 0xff) + amt);
+  const b = clamp((num & 0xff) + amt);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
+const PAPER_SHADOW_FILL = "rgba(24,8,44,0.25)";
+
+/** A small framed paper picture: shadow, frame, a hill-and-sun scene. */
+function PaperPicture({ x, y, w, h, trim, accent }: { x: number; y: number; w: number; h: number; trim: string; accent: string }) {
+  return (
+    <G>
+      <Rect x={x + 3} y={y + 4} width={w} height={h} rx={3} fill={PAPER_SHADOW_FILL} />
+      <Rect x={x} y={y} width={w} height={h} rx={3} fill={trim} />
+      <Rect x={x + 4} y={y + 4} width={w - 8} height={h - 8} fill="#DCEEF5" />
+      <Circle cx={x + w * 0.68} cy={y + h * 0.34} r={h * 0.13} fill="#FDBA74" />
+      <Path d={`M${x + 4} ${y + h - 4} Q${x + w * 0.32} ${y + h * 0.5} ${x + w * 0.6} ${y + h - 4} Z`} fill="#7BAF7E" />
+      <Path d={`M${x + w * 0.4} ${y + h - 4} Q${x + w * 0.68} ${y + h * 0.46} ${x + w - 4} ${y + h - 4} Z`} fill={accent} opacity={0.65} />
+    </G>
+  );
+}
+
+/** A potted paper plant standing on the floor line. */
+function PaperCornerPlant({ x, floorY, accent }: { x: number; floorY: number; accent: string }) {
+  return (
+    <G>
+      <Ellipse cx={x} cy={floorY - 2} rx={13} ry={3} fill={PAPER_SHADOW_FILL} />
+      <Polygon points={`${x - 9},${floorY - 16} ${x + 9},${floorY - 16} ${x + 6},${floorY} ${x - 6},${floorY}`} fill="#B4563C" />
+      <Rect x={x - 10} y={floorY - 20} width={20} height={5} rx={2.5} fill="#8F3E2A" />
+      <Ellipse cx={x} cy={floorY - 30} rx={8} ry={11} fill="#4E7A3A" />
+      <Ellipse cx={x - 7} cy={floorY - 24} rx={6} ry={8} fill="#5E8C4A" transform={`rotate(-24 ${x - 7} ${floorY - 24})`} />
+      <Ellipse cx={x + 7} cy={floorY - 24} rx={6} ry={8} fill="#5E8C4A" transform={`rotate(24 ${x + 7} ${floorY - 24})`} />
+      <Circle cx={x - 3} cy={floorY - 36} r={2.4} fill={accent} />
+      <Circle cx={x + 4} cy={floorY - 28} r={2} fill={accent} />
+    </G>
+  );
+}
+
+export function PaperHouseShell({
+  theme,
+  roomId,
+  w,
+  h,
+  tierPoints,
+}: {
+  theme: RoomTheme;
+  roomId: HouseRoomId;
+  w: number;
+  h: number;
+  tierPoints: number;
+}) {
+  const tp = tierPoints;
+  if (roomId === "backyard") {
+    const skyH = h * 0.34;
+    const fenceY = skyH - 4;
+    return (
+      <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: "absolute", left: 0, top: 0 }}>
+        {/* paper sky + sun + clouds */}
+        <Rect x={0} y={0} width={w} height={skyH + 42} fill={theme.wall} />
+        <Circle cx={w - 52} cy={36} r={30} fill="#FDE68A" opacity={0.35} />
+        <Circle cx={w - 52} cy={36} r={19} fill="#FDE68A" />
+        <G opacity={0.85}>
+          <Ellipse cx={w * 0.2} cy={30} rx={26} ry={9} fill="#FFFFFF" />
+          <Ellipse cx={w * 0.26} cy={24} rx={18} ry={8} fill="#FFFFFF" />
+          <Ellipse cx={w * 0.62} cy={52} rx={20} ry={7} fill="#FFFFFF" opacity={0.8} />
+        </G>
+        {/* paper fence: posts with offset shadows + two rails */}
+        {Array.from({ length: Math.floor(w / 26) + 1 }).map((_, i) => (
+          <G key={i}>
+            <Rect x={i * 26 + 3} y={fenceY + 3} width={13} height={46} rx={3} fill={PAPER_SHADOW_FILL} />
+            <Rect x={i * 26} y={fenceY} width={13} height={46} rx={3} fill={shadeHex(theme.trim, -4)} />
+          </G>
+        ))}
+        <Rect x={0} y={fenceY + 8} width={w} height={6} fill={shadeHex(theme.trim, 16)} />
+        <Rect x={0} y={fenceY + 28} width={w} height={6} fill={shadeHex(theme.trim, 16)} />
+        {/* paper grass: a field + blade tufts + a stone path for depth */}
+        <Rect x={0} y={fenceY + 42} width={w} height={h - fenceY - 42} fill={theme.floor} />
+        <Rect x={0} y={fenceY + 42} width={w} height={4} fill={PAPER_SHADOW_FILL} opacity={0.5} />
+        {Array.from({ length: 42 }).map((_, i) => {
+          const bx = ((i * 41) % Math.max(1, Math.floor(w))) + 4;
+          const by = fenceY + 56 + ((i * 29) % Math.max(1, Math.floor(h - fenceY - 66)));
+          return <Path key={i} d={`M${bx} ${by} q1.5 -6 3.5 -8 M${bx + 3.5} ${by} q0 -7 -2 -9.5`} stroke={shadeHex(theme.floor, -22)} strokeWidth={1.6} fill="none" strokeLinecap="round" />;
+        })}
+        <Ellipse cx={w * 0.5} cy={h - 26} rx={17} ry={5} fill={shadeHex(theme.floor, -18)} />
+        <Ellipse cx={w * 0.44} cy={h - 12} rx={13} ry={4} fill={shadeHex(theme.floor, -14)} />
+        <Ellipse cx={w * 0.57} cy={h - 44} rx={12} ry={4} fill={shadeHex(theme.floor, -14)} />
+        {/* density decor: flower beds, then trees, as the yard fills */}
+        {tp >= 2 && (
+          <G>
+            {Array.from({ length: 7 }).map((_, i) => (
+              <G key={i}>
+                <Ellipse cx={14 + i * 16} cy={fenceY + 46} rx={7} ry={3.4} fill="#5E8C4A" />
+                <Circle cx={14 + i * 16} cy={fenceY + 41} r={3} fill={["#F472B6", "#E9C767", "#F97316"][i % 3]} />
+              </G>
+            ))}
+          </G>
+        )}
+        {tp >= 5 && (
+          <G>
+            <Rect x={10} y={fenceY - 26} width={9} height={52} rx={3} fill={shadeHex(theme.trim, -10)} />
+            <Circle cx={14} cy={fenceY - 34} r={24} fill="#5E8C4A" />
+            <Circle cx={30} cy={fenceY - 22} r={17} fill="#6E9C52" />
+            <Circle cx={0} cy={fenceY - 20} r={14} fill="#4E7A3A" />
+          </G>
+        )}
+        {tp >= 8 && (
+          <G>
+            <Rect x={w - 20} y={fenceY - 20} width={8} height={46} rx={3} fill={shadeHex(theme.trim, -10)} />
+            <Circle cx={w - 16} cy={fenceY - 28} r={20} fill="#5E8C4A" />
+            <Circle cx={w - 32} cy={fenceY - 16} r={13} fill="#6E9C52" />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Circle key={i} cx={w - 30 - i * 15} cy={fenceY + 41} r={2.6} fill={["#E9C767", "#F472B6"][i % 2]} />
+            ))}
+          </G>
+        )}
+        {tp >= 11 && (
+          <G>
+            {/* a bird bath by the path */}
+            <Rect x={w * 0.2 - 2} y={h - 66} width={5} height={22} fill="#9AA3AD" />
+            <Ellipse cx={w * 0.2} cy={h - 68} rx={13} ry={4.6} fill="#B9C4CC" />
+            <Ellipse cx={w * 0.2} cy={h - 69} rx={9} ry={3} fill="#7DD3FC" />
+            <Polygon points={`${w * 0.2 - 16},${h - 44} ${w * 0.2 + 16},${h - 44} ${w * 0.2 + 8},${h - 40} ${w * 0.2 - 8},${h - 40}`} fill="#9AA3AD" />
+          </G>
+        )}
+      </Svg>
+    );
+  }
+
+  const wallH = h * 0.66;
+  const wx = w * 0.42;
+  const wy = 16;
+  const ww = 70;
+  const wh = 58;
+  return (
+    <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: "absolute", left: 0, top: 0 }}>
+      {/* layered paper wall: field, panel seams, wainscot, baseboard */}
+      <Rect x={0} y={0} width={w} height={wallH} fill={theme.wall} />
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Line key={i} x1={((i + 1) * w) / 6} y1={8} x2={((i + 1) * w) / 6} y2={wallH - 36} stroke={theme.trim} strokeWidth={1.4} opacity={0.16} />
+      ))}
+      <Rect x={0} y={wallH - 34} width={w} height={34} fill={shadeHex(theme.wall, -13)} />
+      <Rect x={0} y={wallH - 38} width={w} height={5} rx={2} fill={theme.trim} opacity={0.55} />
+      <Rect x={0} y={wallH - 33} width={w} height={3} fill={PAPER_SHADOW_FILL} opacity={0.45} />
+      <Rect x={0} y={wallH - 7} width={w} height={7} fill={shadeHex(theme.wall, -30)} />
+      {/* paper floor: field + plank seams + the baseboard's soft shadow */}
+      <Rect x={0} y={wallH} width={w} height={h - wallH} fill={theme.floor} />
+      <Rect x={0} y={wallH} width={w} height={5} fill={PAPER_SHADOW_FILL} opacity={0.55} />
+      {Array.from({ length: 4 }).map((_, i) => {
+        const py = wallH + 14 + i * ((h - wallH - 10) / 4);
+        return (
+          <G key={i}>
+            <Line x1={0} y1={py} x2={w} y2={py} stroke={shadeHex(theme.floor, -24)} strokeWidth={1.6} opacity={0.5} />
+            <Line x1={((i * 67) % Math.max(1, Math.floor(w))) + 20} y1={py} x2={((i * 67) % Math.max(1, Math.floor(w))) + 20} y2={py + (h - wallH - 10) / 4} stroke={shadeHex(theme.floor, -24)} strokeWidth={1.4} opacity={0.4} />
+          </G>
+        );
+      })}
+      {/* the paper window: offset shadow, frame, sky, sill, light spill */}
+      <Rect x={wx + 4} y={wy + 5} width={ww} height={wh} rx={8} fill={PAPER_SHADOW_FILL} />
+      <Rect x={wx} y={wy} width={ww} height={wh} rx={8} fill={theme.trim} />
+      <Rect x={wx + 5} y={wy + 5} width={ww - 10} height={wh - 10} rx={5} fill="#DCEEF5" />
+      <Circle cx={wx + ww - 18} cy={wy + 16} r={7} fill="#FDBA74" />
+      <Path d={`M${wx + 5} ${wy + wh - 5} Q${wx + ww * 0.36} ${wy + wh * 0.52} ${wx + ww * 0.62} ${wy + wh - 5} Z`} fill="#A9C6A4" />
+      <Line x1={wx + ww / 2} y1={wy + 3} x2={wx + ww / 2} y2={wy + wh - 3} stroke={theme.trim} strokeWidth={4} />
+      <Line x1={wx + 3} y1={wy + wh / 2} x2={wx + ww - 3} y2={wy + wh / 2} stroke={theme.trim} strokeWidth={4} />
+      <Rect x={wx - 4} y={wy + wh} width={ww + 8} height={6} rx={3} fill={shadeHex(theme.trim, 22)} />
+      <Rect x={wx - 4} y={wy + wh + 6} width={ww + 8} height={3} fill={PAPER_SHADOW_FILL} opacity={0.5} />
+      <Polygon points={`${wx + 6},${wy + wh + 8} ${wx + ww - 6},${wy + wh + 8} ${wx + ww + 20},${h - 4} ${wx - 14},${h - 4}`} fill="#FFF3C4" opacity={0.13} />
+      {/* density decor — accumulates with the room's tier points */}
+      {tp >= 2 && <PaperPicture x={16} y={24} w={54} h={40} trim={theme.trim} accent={theme.accent} />}
+      {tp >= 4 && <PaperCornerPlant x={w - 30} floorY={wallH + 4} accent={theme.accent} />}
+      {tp >= 6 && (
+        <G>
+          {/* a wall shelf with books, right of the window */}
+          <Rect x={w - 118} y={44} width={76} height={5} rx={2} fill={theme.trim} />
+          <Rect x={w - 118} y={49} width={76} height={3} fill={PAPER_SHADOW_FILL} opacity={0.4} />
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Rect key={i} x={w - 112 + i * 14} y={44 - 15 - (i % 2) * 3} width={9} height={15 + (i % 2) * 3} rx={1.5} fill={["#B85450", "#4E79A7", "#59A14F", "#9C6FB5", "#D4A54C"][i]} />
+          ))}
+        </G>
+      )}
+      {tp >= 8 && (
+        <G>
+          <PaperPicture x={w * 0.14} y={86} w={40} h={30} trim={theme.trim} accent={theme.accent} />
+          {/* floor cushions by the wall */}
+          <Rect x={w * 0.58} y={wallH + 16} width={30} height={11} rx={5} fill={theme.accent} opacity={0.75} />
+          <Rect x={w * 0.58 + 34} y={wallH + 18} width={26} height={10} rx={5} fill={shadeHex(theme.accent, 26)} opacity={0.75} />
+        </G>
+      )}
+      {tp >= 11 && (
+        <G>
+          {/* a pendant lamp over the room's heart + a stack of books */}
+          <Line x1={w * 0.5} y1={0} x2={w * 0.5} y2={20} stroke={theme.trim} strokeWidth={2.4} />
+          <Polygon points={`${w * 0.5 - 13},32 ${w * 0.5 + 13},32 ${w * 0.5 + 5},20 ${w * 0.5 - 5},20`} fill={theme.accent} />
+          <Circle cx={w * 0.5} cy={35} r={4} fill="#FFE9B8" />
+          <Circle cx={w * 0.5} cy={35} r={11} fill="#FFD66B" opacity={0.22} />
+          <Rect x={26} y={wallH + 22} width={26} height={6} rx={2} fill="#4E79A7" />
+          <Rect x={29} y={wallH + 16} width={21} height={6} rx={2} fill="#B85450" />
+          <Rect x={32} y={wallH + 10} width={16} height={6} rx={2} fill="#D4A54C" />
+        </G>
+      )}
+    </Svg>
+  );
+}
+
+/**
+ * A layered paper backdrop for the content rooms (prayer / trophy /
+ * garden): wall field, wainscot band and floor in the room's theme,
+ * stretched behind the card's content — the same paper language as
+ * PaperHouseShell at card scale.
+ */
+function PaperRoomBackdrop({ theme }: { theme: RoomTheme }) {
+  return (
+    <Svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      style={{ position: "absolute", left: 0, top: 0 }}
+    >
+      <Rect x={0} y={0} width={100} height={64} fill={theme.wall} />
+      <Rect x={0} y={52} width={100} height={12} fill={shadeHex(theme.wall, -13)} />
+      <Rect x={0} y={50} width={100} height={2.4} fill={theme.trim} opacity={0.55} />
+      <Rect x={0} y={61} width={100} height={3} fill={shadeHex(theme.wall, -30)} />
+      <Rect x={0} y={64} width={100} height={36} fill={theme.floor} />
+      <Rect x={0} y={64} width={100} height={2.4} fill={PAPER_SHADOW_FILL} opacity={0.5} />
+    </Svg>
   );
 }
 
@@ -759,6 +1111,46 @@ function GardenGrandeur({
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Morning Care (lib/hero-needs): food, bathroom, shower — tended at   */
+/* the house's fixtures. All three tended before noon lights the      */
+/* "Set for the Day" boon for the Dark Forest. No failure states: if  */
+/* the morning gets away, he simply takes care of himself.            */
+/* ------------------------------------------------------------------ */
+
+const NEED_ORDER: NeedId[] = ["food", "bathroom", "shower"];
+
+/** The room a need's fixture lives in (food → kitchen, the rest → bathroom). */
+function roomForNeed(need: NeedId): HouseRoomId {
+  return need === "food" ? "kitchen" : "bathroom";
+}
+
+/**
+ * The fixture's current tier name, derived from HOUSE_ROOMS slots: the
+ * slot whose built tier matches fixtureTierFor for this need. Tier 0
+ * (nothing built yet) has no name — the care still works, the boon is
+ * simply at its gentlest.
+ */
+function fixtureTierName(house: HouseState, need: NeedId, tier: number): string | null {
+  if (tier <= 0) return null;
+  const roomId = roomForNeed(need);
+  const def = roomDef(roomId);
+  const candidates = need === "food" ? ["hearth", "stove"] : need === "bathroom" ? ["tub"] : ["shower", "sink", "tub"];
+  for (const id of candidates) {
+    const slot = def.slots.find((s) => s.id === id);
+    if (slot && (house.rooms[roomId].furniture[id] || 0) === tier) {
+      return slot.tierNames[tier - 1] ?? null;
+    }
+  }
+  return `Tier ${tier}`;
+}
+
+/** 0.10 → "10", 0.065 → "6.5" — whole percents stay whole. */
+function pctLabel(pct: number): string {
+  const v = pct * 100;
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
 export default function PawnHouseScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -774,6 +1166,15 @@ export default function PawnHouseScreen() {
   const [bonuses, setBonuses] = useState<HouseBonuses>(getCachedHouseBonuses());
   const [grillPlaysLeft, setGrillPlaysLeft] = useState<number | null>(null);
   const [playingGrill, setPlayingGrill] = useState(false);
+  const [needs, setNeeds] = useState<HeroNeedsState | null>(null);
+  /** The just-tended need: the hero performs it at its fixture (Rider H2). */
+  const [tendFx, setTendFx] = useState<{ need: NeedId; at: number } | null>(null);
+
+  useEffect(() => {
+    if (!tendFx) return;
+    const t = setTimeout(() => setTendFx(null), 3000);
+    return () => clearTimeout(t);
+  }, [tendFx]);
 
   useEffect(() => {
     playsLeftToday("grill").then(setGrillPlaysLeft).catch(() => setGrillPlaysLeft(0));
@@ -849,6 +1250,8 @@ export default function PawnHouseScreen() {
       setCandles(cd);
       setTrophies(tr);
       setGarden(gd);
+      // Morning Care: loadHeroNeeds comes back pre-settled for today.
+      loadHeroNeeds().then((n) => setNeeds(n)).catch(() => undefined);
       // villagers who may be enjoying the backyard
       prayedTodayPeople().then((pp) => setVisitors(pp)).catch(() => undefined);
     } catch {}
@@ -866,6 +1269,21 @@ export default function PawnHouseScreen() {
       setBonuses({ ...b });
     },
     []
+  );
+
+  const handleTendNeed = useCallback(
+    async (need: NeedId) => {
+      if (!needs) return;
+      const next = tendNeed(needs, need, Date.now());
+      setNeeds(next);
+      await saveHeroNeeds(next).catch(() => undefined);
+      // Show him at the fixture, performing it: jump the room view to
+      // where it lives and let PawnInRoom play the literal pose.
+      setRoomId(roomForNeed(need));
+      setSelectedSlot(null);
+      setTendFx({ need, at: Date.now() });
+    },
+    [needs]
   );
 
   if (!house) {
@@ -967,29 +1385,11 @@ export default function PawnHouseScreen() {
   if (bonuses.fastXpMult > 0) bonusLines.push(`+${Math.round(bonuses.fastXpMult * 100)}% fast XP`);
 
   const renderLivingRoom = () => (
-    <View style={{ width: roomViewWidth, height: roomViewHeight, borderRadius: 16, overflow: "hidden", backgroundColor: theme.wall }}>
+    <View style={{ width: roomViewWidth, height: roomViewHeight, borderRadius: 16, overflow: "hidden" }}>
+      {/* Rider E: the layered paper shell (walls / floor / window /
+          accumulating decor), tinted from the active theme */}
+      <PaperHouseShell theme={theme} roomId={roomId} w={roomViewWidth} h={roomViewHeight} tierPoints={roomTierPoints(house, roomId)} />
       <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="pawn-house" />
-      {/* floor */}
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: roomViewHeight * 0.34, backgroundColor: theme.floor }} />
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: roomViewHeight * 0.34, height: 4, backgroundColor: "rgba(0,0,0,0.12)" }} />
-      {roomId === "backyard" ? (
-        /* fence along the back of the yard */
-        <View style={{ position: "absolute", left: 0, right: 0, top: roomViewHeight * 0.30, height: 44 }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-around", height: 44 }}>
-            {Array.from({ length: 12 }).map((_, i) => (
-              <View key={i} style={{ width: 14, height: 44, backgroundColor: theme.trim, borderRadius: 3 }} />
-            ))}
-          </View>
-          <View style={{ position: "absolute", left: 0, right: 0, top: 8, height: 6, backgroundColor: theme.trim, opacity: 0.85 }} />
-          <View style={{ position: "absolute", left: 0, right: 0, top: 28, height: 6, backgroundColor: theme.trim, opacity: 0.85 }} />
-        </View>
-      ) : (
-        /* window */
-        <View style={{ position: "absolute", left: roomViewWidth * 0.42, top: 18, width: 64, height: 52, borderRadius: 8, backgroundColor: "#CFE8EF", borderWidth: 5, borderColor: theme.trim }}>
-          <View style={{ position: "absolute", left: "48%", top: 0, bottom: 0, width: 3, backgroundColor: theme.trim }} />
-          <View style={{ position: "absolute", top: "48%", left: 0, right: 0, height: 3, backgroundColor: theme.trim }} />
-        </View>
-      )}
       {/* L3 extravagance: full-room luxury when every slot is maxed (drawn behind furniture) */}
       {roomMaxed && (
         <MaxedRoomDecor
@@ -1057,8 +1457,8 @@ export default function PawnHouseScreen() {
           </Pressable>
         );
       })}
-      {/* the player's pawn, using the furniture */}
-      <PawnInRoom roomId={roomId} room={room} roomViewWidth={roomViewWidth} roomViewHeight={roomViewHeight} />
+      {/* the hero, living in the room (Rider H2 literal poses) */}
+      <PawnInRoom roomId={roomId} room={room} roomViewWidth={roomViewWidth} roomViewHeight={roomViewHeight} activeNeed={tendFx?.need ?? null} />
       {/* villagers enjoying the backyard */}
       {roomId === "backyard" && (
         <VillagersInBackyard
@@ -1076,7 +1476,8 @@ export default function PawnHouseScreen() {
     /** Every candle lit (at least 6): the sanctuary blazes. */
     const blazing = candles.length >= 6 && litCount === candles.length;
     return (
-      <View style={{ width: roomViewWidth, borderRadius: 16, overflow: "hidden", backgroundColor: theme.wall, padding: 16 }}>
+      <View style={{ width: roomViewWidth, borderRadius: 16, overflow: "hidden", padding: 16 }}>
+        <PaperRoomBackdrop theme={theme} />
         <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="pawn-house" />
         <Text style={{ color: "#FFE9C4", fontWeight: "700", fontSize: 15, textAlign: "center", marginBottom: 4 }}>
           {litCount} of {candles.length} candles lit
@@ -1103,7 +1504,8 @@ export default function PawnHouseScreen() {
   };
 
   const renderTrophyRoom = () => (
-    <View style={{ width: roomViewWidth, borderRadius: 16, overflow: "hidden", backgroundColor: theme.wall, padding: 16 }}>
+    <View style={{ width: roomViewWidth, borderRadius: 16, overflow: "hidden", padding: 16 }}>
+      <PaperRoomBackdrop theme={theme} />
       <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="pawn-house" />
       {trophies.length >= 8 && (
         <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 0, height: 170 }}>
@@ -1164,7 +1566,8 @@ export default function PawnHouseScreen() {
     /** A garden in full bloom gets the grand treatment. */
     const grand = garden.completed >= 24;
     return (
-      <View style={{ width: roomViewWidth, borderRadius: 16, overflow: "hidden", backgroundColor: theme.wall, padding: 16 }}>
+      <View style={{ width: roomViewWidth, borderRadius: 16, overflow: "hidden", padding: 16 }}>
+        <PaperRoomBackdrop theme={theme} />
         <Text style={{ color: "#2F4A2F", fontWeight: "700", fontSize: 15, textAlign: "center", marginBottom: 4 }}>
           {garden.completed} flowers blooming (+{(garden.completed * 0.1).toFixed(1)}% income)
         </Text>
@@ -1216,6 +1619,8 @@ export default function PawnHouseScreen() {
   const selectedSlotDef = def.slots.find((s) => s.id === selectedSlot);
   const selectedTier = selectedSlotDef ? room.furniture[selectedSlotDef.id] || 0 : 0;
 
+  const needsBoon = needs ? boonFor(needs, house) : null;
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#FDF6E3" }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
@@ -1234,6 +1639,89 @@ export default function PawnHouseScreen() {
         <View style={{ backgroundColor: "#EDE9FE", borderRadius: 12, padding: 10, marginBottom: 12 }}>
           <Text style={{ fontWeight: "700", color: "#5B4BC4", fontSize: 13 }}>Home bonuses</Text>
           <Text style={{ color: "#5B4BC4", fontSize: 12, marginTop: 2 }}>{bonusLines.join(" · ")}</Text>
+        </View>
+      )}
+
+      {needs && (
+        <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "#E7DCC8" }}>
+          <Text style={{ fontWeight: "800", fontSize: 15, color: "#1F2937" }}>Morning Care</Text>
+          <Text style={{ color: "#78716C", fontSize: 12, marginTop: 2, marginBottom: 6 }}>
+            A few small things to start his day.
+          </Text>
+          {NEED_ORDER.map((need) => {
+            const meta = NEED_META[need];
+            const tier = fixtureTierFor(house, need);
+            const tierName = fixtureTierName(house, need, tier);
+            const tended = !!needs.tended[need];
+            return (
+              <View key={need} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "700", color: "#1F2937", fontSize: 13 }}>{meta.label}</Text>
+                  <Text style={{ color: "#78716C", fontSize: 12, marginTop: 1 }}>
+                    at the {meta.fixtureLabel}
+                    {tierName ? ` · ${tierName}` : ""}
+                  </Text>
+                </View>
+                {tended ? (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <MaterialIcons name="check-circle" size={18} color="#4E8A5E" />
+                    <Text style={{ color: "#4E8A5E", fontWeight: "700", fontSize: 12, marginLeft: 4 }}>Done</Text>
+                  </View>
+                ) : needs.selfCared ? (
+                  <Text style={{ color: "#78716C", fontSize: 12, fontStyle: "italic" }}>Taken care of</Text>
+                ) : (
+                  <Pressable
+                    onPress={() => handleTendNeed(need)}
+                    style={{ backgroundColor: "#F59E0B", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 }}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 13 }}>Tend</Text>
+                  </Pressable>
+                )}
+              </View>
+            );
+          })}
+          {(() => {
+            const stats = careStatsFor(needs, house, Date.now());
+            return (
+              <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: "#EFE6D2", paddingTop: 10 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <Text style={{ fontWeight: "800", fontSize: 13, color: "#1F2937" }}>Today's care</Text>
+                  {needsBoon?.active ? (
+                    <View style={{ backgroundColor: "#FEF3C7", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <Text style={{ color: "#92400E", fontWeight: "800", fontSize: 11 }}>Set for the Day</Text>
+                    </View>
+                  ) : (
+                    <Text style={{ color: "#A08B7A", fontSize: 11 }}>a plain read of the morning</Text>
+                  )}
+                </View>
+                {CARE_STAT_IDS.map((id) => (
+                  <View key={id} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 3 }}>
+                    <Text style={{ width: 64, fontSize: 12, fontWeight: "700", color: "#57534E" }}>{CARE_STAT_LABELS[id]}</Text>
+                    <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: "#EFE9DC", overflow: "hidden" }}>
+                      <View style={{ width: `${stats[id]}%`, height: 8, borderRadius: 4, backgroundColor: "#7BA05B" }} />
+                    </View>
+                    <Text style={{ width: 34, textAlign: "right", fontSize: 12, fontWeight: "700", color: "#57534E" }}>{stats[id]}</Text>
+                  </View>
+                ))}
+                <Text style={{ color: "#A08B7A", fontSize: 11, marginTop: 4 }}>
+                  Better fixtures fill each one further; Rested comes from the night's sleep in his bed.
+                </Text>
+              </View>
+            );
+          })()}
+          {needs.selfCared && (
+            <Text style={{ color: "#78716C", fontSize: 12, fontStyle: "italic", marginTop: 4 }}>
+              He took care of himself this morning.
+            </Text>
+          )}
+          {needsBoon?.active && (
+            <View style={{ backgroundColor: "#FEF3C7", borderRadius: 10, padding: 10, marginTop: 8 }}>
+              <Text style={{ fontWeight: "800", color: "#92400E", fontSize: 13 }}>Set for the Day</Text>
+              <Text style={{ color: "#92400E", fontSize: 12, marginTop: 2 }}>
+                Forest strength till midnight: +{pctLabel(needsBoon.hpPct)}% HP, +{pctLabel(needsBoon.atkPct)}% attack — better fixtures make it stronger.
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -1362,6 +1850,19 @@ export default function PawnHouseScreen() {
               </View>
             ))}
           </View>
+          {/* Rider H: every slot's named effect, shown before purchase —
+              the current tier's effect, and the next tier's on the button. */}
+          <View style={{ backgroundColor: "#F5F0E4", borderRadius: 10, padding: 10, marginTop: 8 }}>
+            <Text style={{ fontSize: 12, color: "#57534E" }}>
+              <Text style={{ fontWeight: "800" }}>{selectedTier === 0 ? "Placing it: " : "Now: "}</Text>
+              {effectTextFor(roomId, selectedSlotDef.id, selectedTier)}
+            </Text>
+            {selectedTier >= 3 && (
+              <Text style={{ fontSize: 12, color: "#57534E", marginTop: 4 }}>
+                This is its fullest form — the effect above is at its strongest.
+              </Text>
+            )}
+          </View>
           {selectedTier < 3 ? (
             <Pressable
               onPress={() => handleBuyOrUpgrade(selectedSlotDef.id)}
@@ -1369,6 +1870,10 @@ export default function PawnHouseScreen() {
             >
               <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>
                 {selectedTier === 0 ? "Buy" : "Upgrade"} — {selectedSlotDef.costs[selectedTier]} coins
+              </Text>
+              <Text style={{ color: "#FFF7E0", fontSize: 11, marginTop: 3, textAlign: "center" }}>
+                {selectedTier === 0 ? "It will: " : "Next tier: "}
+                {effectTextFor(roomId, selectedSlotDef.id, selectedTier + 1)}
               </Text>
             </Pressable>
           ) : (

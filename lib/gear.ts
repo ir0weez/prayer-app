@@ -49,6 +49,12 @@ export type GearItem = {
 
 export const GEAR_INVENTORY_KEY = "prayercircle.gear.inventory.v1";
 export const GEAR_EQUIPPED_KEY = "prayercircle.gear.equipped.v1";
+export const GEAR_TEMPER_KEY = "prayercircle.gear.temper.v1";
+
+/** Maximum temper level for any weapon or armor (+5). */
+export const MAX_TEMPER = 5;
+/** Each temper level multiplies the item's combat boost by +10%. */
+export const TEMPER_STAT_MULT_PER_LEVEL = 0.1;
 
 export const GEAR_CATALOG: GearItem[] = [
   // ---- Clothes (visual on the cylindrical body) ----
@@ -205,6 +211,82 @@ export const GEAR_CATALOG: GearItem[] = [
     boost: { hearts: 2, xpMult: 0.2, coinMult: 0.15 },
     visual: { bodyColor: "#FDE68A", pattern: "stripes" },
   },
+  // ---- Everyday clothes wave (workwear / formal / seasonal) ----
+  {
+    id: "gardeners-apron",
+    name: "Gardener's Apron",
+    type: "clothes",
+    icon: "spa",
+    cost: 45,
+    unlockDays: 0,
+    minShopLevel: 1,
+    description: "Canvas pockets for seeds and twine. +5% town coins.",
+    boost: { coinMult: 0.05 },
+    visual: { bodyColor: "#6A994E", pattern: "belt" },
+  },
+  {
+    id: "smiths-workshirt",
+    name: "Smith's Workshirt",
+    type: "clothes",
+    icon: "handyman",
+    cost: 85,
+    unlockDays: 0,
+    unlockLevel: 15,
+    minShopLevel: 1,
+    description: "Scorch-marked and sturdy at the forge. +5% XP.",
+    boost: { xpMult: 0.05 },
+    visual: { bodyColor: "#92400E", pattern: "stripes" },
+  },
+  {
+    id: "sunday-best",
+    name: "Sunday Best",
+    type: "clothes",
+    icon: "workspace-premium",
+    cost: 180,
+    unlockDays: 0,
+    unlockLevel: 25,
+    minShopLevel: 2,
+    description: "Pressed, brushed, and kept for the gathering. +5% XP, +5% town coins.",
+    boost: { xpMult: 0.05, coinMult: 0.05 },
+    visual: { bodyColor: "#312E81", pattern: "collar" },
+  },
+  {
+    id: "celebration-vest",
+    name: "Celebration Vest",
+    type: "clothes",
+    icon: "celebration",
+    cost: 220,
+    unlockDays: 40,
+    minShopLevel: 2,
+    description: "Worn when the table is full and the day is glad. +10% town coins.",
+    boost: { coinMult: 0.1 },
+    visual: { bodyColor: "#BE185D", pattern: "dots" },
+  },
+  {
+    id: "harvest-flannel",
+    name: "Harvest Flannel",
+    type: "clothes",
+    icon: "wb-sunny",
+    cost: 110,
+    unlockDays: 0,
+    minShopLevel: 1,
+    description: "Warm checks for the gathering-in season. +8% XP.",
+    boost: { xpMult: 0.08 },
+    visual: { bodyColor: "#B91C1C", pattern: "stripes" },
+  },
+  {
+    id: "winter-wrap",
+    name: "Winter Wrap",
+    type: "clothes",
+    icon: "nightlight",
+    cost: 450,
+    unlockDays: 0,
+    unlockLevel: 50,
+    minShopLevel: 3,
+    description: "Layered wool against the long cold. +10% XP, +5% town coins.",
+    boost: { xpMult: 0.1, coinMult: 0.05 },
+    visual: { bodyColor: "#0E7490", pattern: "collar" },
+  },
   // ---- Armor (+hearts, +defense for the Dark Forest) ----
   {
     id: "cloth-guard",
@@ -216,6 +298,18 @@ export const GEAR_CATALOG: GearItem[] = [
     minShopLevel: 1,
     description: "Padded cloth. +1 forest heart.",
     boost: { hearts: 1, defense: 2 },
+    visual: {},
+  },
+  {
+    id: "leather-brigandine",
+    name: "Leather Brigandine",
+    type: "armor",
+    icon: "shield",
+    cost: 75,
+    unlockDays: 0,
+    minShopLevel: 1,
+    description: "Leather over riveted plates. +1 forest heart.",
+    boost: { hearts: 1, defense: 3 },
     visual: {},
   },
   {
@@ -255,6 +349,18 @@ export const GEAR_CATALOG: GearItem[] = [
     visual: {},
   },
   {
+    id: "starsteel-plate",
+    name: "Starsteel Plate",
+    type: "armor",
+    icon: "security",
+    cost: 1050,
+    unlockDays: 250,
+    minShopLevel: 3,
+    description: "Star-fallen steel, hammered bright. +5 forest hearts.",
+    boost: { hearts: 5, defense: 17 },
+    visual: {},
+  },
+  {
     id: "celestial-bulwark",
     name: "Celestial Bulwark",
     type: "armor",
@@ -277,6 +383,18 @@ export const GEAR_CATALOG: GearItem[] = [
     minShopLevel: 1,
     description: "A pilgrim's staff. +5% XP.",
     boost: { xpMult: 0.05, attack: 8 },
+    visual: {},
+  },
+  {
+    id: "bronze-mace",
+    name: "Bronze Mace",
+    type: "weapon",
+    icon: "swords",
+    cost: 65,
+    unlockDays: 0,
+    minShopLevel: 1,
+    description: "A cast-bronze head on an oak haft. +8% XP.",
+    boost: { xpMult: 0.08, attack: 12 },
     visual: {},
   },
   {
@@ -325,6 +443,18 @@ export const GEAR_CATALOG: GearItem[] = [
     minShopLevel: 3,
     description: "Etched with words of power. +40% XP.",
     boost: { xpMult: 0.4, attack: 46 },
+    visual: {},
+  },
+  {
+    id: "ember-spear",
+    name: "Ember Spear",
+    type: "weapon",
+    icon: "bolt",
+    cost: 950,
+    unlockDays: 200,
+    minShopLevel: 3,
+    description: "Its tip holds a coal that never cools. +45% XP.",
+    boost: { xpMult: 0.45, attack: 54 },
     visual: {},
   },
   {
@@ -886,7 +1016,135 @@ export function getCachedBoosts(): TotalBoosts {
 export async function refreshGearBoostCache(): Promise<TotalBoosts> {
   const equipped = await loadEquipped();
   cachedBoosts = totalBoosts(equipped);
+  // Temper rides along: every existing boot / equip refresh also warms
+  // the temper cache combatStats reads, so a tempered blade is sharp
+  // in the forest without a detour through the gear shop first.
+  try {
+    await refreshTemperCache();
+  } catch {}
   return cachedBoosts;
+}
+
+// Sync temper cache for combatStats (sync, like getCachedBoosts /
+// getCachedBadges): combatStats reads this cache, refreshed whenever
+// temper changes or the app boots via refreshTemperCache(). Declared
+// up here so the storage helpers below can keep it warm on save.
+let cachedTemper: Record<string, number> = {};
+
+// ---- Tempering (weapons + armor only, +1..+5) ----
+// Tempering is a permanent per-item upgrade bought with hometown coins
+// in the gear shop. Each level multiplies that item's combat boost —
+// attack for weapons, defense for armor — by (1 + 0.10 x level),
+// rounded to the nearest whole point (Math.round) so the Character /
+// forest numbers stay whole. Hearts, XP and coin boosts are NOT
+// tempered: temper sharpens the fighting edge only, and it NEVER
+// touches fasting hearts (a separate system, not in this file).
+// Temper levels persist under GEAR_TEMPER_KEY as Record<itemId, level>
+// and survive prestige exactly like the owned item does — prestige
+// resets inventory in the prestige flow, not here.
+
+/** Clamp an unknown value to a valid temper level (0..MAX_TEMPER). */
+export function clampTemperLevel(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(MAX_TEMPER, Math.floor(value)));
+}
+
+/** Only weapons and armor can be tempered. */
+export function isTemperable(item: GearItem): boolean {
+  return item.type === "weapon" || item.type === "armor";
+}
+
+/**
+ * Parse guard for stored temper data, mirroring the other loaders:
+ * junk, unknown ids, non-temperable types and out-of-range levels are
+ * dropped; level 0 (untempered) is not stored.
+ */
+export function parseTemper(value: unknown): Record<string, number> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: Record<string, number> = {};
+  for (const [id, raw] of Object.entries(value as Record<string, unknown>)) {
+    const item = GEAR_BY_ID[id];
+    if (!item || !isTemperable(item)) continue;
+    const level = clampTemperLevel(raw);
+    if (level > 0) out[id] = level;
+  }
+  return out;
+}
+
+export async function loadTemper(): Promise<Record<string, number>> {
+  try {
+    const raw = await AsyncStorage.getItem(GEAR_TEMPER_KEY);
+    if (!raw) return {};
+    return parseTemper(JSON.parse(raw));
+  } catch {
+    return {};
+  }
+}
+
+export async function saveTemper(map: Record<string, number>): Promise<void> {
+  const clean = parseTemper(map);
+  await AsyncStorage.setItem(GEAR_TEMPER_KEY, JSON.stringify(clean));
+  cachedTemper = clean;
+}
+
+/** Temper level for one item in a temper map (0 when untempered). */
+export function temperLevelFor(itemId: string, temperMap: Record<string, number>): number {
+  return clampTemperLevel(temperMap?.[itemId]);
+}
+
+/**
+ * Pure temper math, pinned directly by tests: returns a NEW boost with
+ * the item's attack (weapon) or defense (armor) multiplied by
+ * (1 + 0.10 x level) and rounded with Math.round. Level 0, missing
+ * entries, and non-temperable types (clothes/tools) return the boost
+ * unchanged; xpMult / coinMult / hearts are never modified.
+ */
+export function applyTemper(
+  boost: GearBoost,
+  item: GearItem,
+  temperMap: Record<string, number>
+): GearBoost {
+  if (!isTemperable(item)) return { ...boost };
+  const level = temperLevelFor(item.id, temperMap || {});
+  if (level <= 0) return { ...boost };
+  const mult = 1 + TEMPER_STAT_MULT_PER_LEVEL * level;
+  const out: GearBoost = { ...boost };
+  if (item.type === "weapon" && typeof boost.attack === "number") {
+    out.attack = Math.round(boost.attack * mult);
+  }
+  if (item.type === "armor" && typeof boost.defense === "number") {
+    out.defense = Math.round(boost.defense * mult);
+  }
+  return out;
+}
+
+/**
+ * Cost in hometown coins to temper `item` from `currentLevel` to the
+ * next level: round((item.cost x 0.25 + 40) x (currentLevel + 1)).
+ * The flat 40 keeps even the cheapest gear a real decision; the 25%
+ * of purchase price scales the curve with the item's tier, and the
+ * (level + 1) factor makes each successive level pricier than the
+ * last (strictly monotonic in level for any temperable item).
+ * Returns 0 when the item is not temperable or already at MAX_TEMPER.
+ */
+export function temperCost(item: GearItem, currentLevel: number): number {
+  if (!isTemperable(item)) return 0;
+  const level = clampTemperLevel(currentLevel);
+  if (level >= MAX_TEMPER) return 0;
+  return Math.round((item.cost * 0.25 + 40) * (level + 1));
+}
+
+export function getCachedTemper(): Record<string, number> {
+  return cachedTemper;
+}
+
+export function setCachedTemper(map: Record<string, number>): void {
+  cachedTemper = parseTemper(map);
+}
+
+export async function refreshTemperCache(): Promise<Record<string, number>> {
+  cachedTemper = await loadTemper();
+  return cachedTemper;
 }
 
 // ---- Dark Forest combat ----
@@ -915,13 +1173,19 @@ export function combatStats(equipped: EquippedGear): CombatStats {
   const weapon = equipped.weapon ? GEAR_BY_ID[equipped.weapon] : undefined;
   const armor = equipped.armor ? GEAR_BY_ID[equipped.armor] : undefined;
   const clothes = equipped.clothes ? GEAR_BY_ID[equipped.clothes] : undefined;
+  // Temper first: the item's own attack/defense is multiplied by its
+  // temper level (sync cache — see refreshTemperCache), THEN badges
+  // multiply the tempered value, so badges empower tempered gear just
+  // as they empower base gear. Hearts are never tempered.
+  const weaponBoost = weapon ? applyTemper(weapon.boost, weapon, cachedTemper) : undefined;
+  const armorBoost = armor ? applyTemper(armor.boost, armor, cachedTemper) : undefined;
   // Boss badges empower the gear itself (lib/badges): Gloaming/Throne
   // multiply every stat, Ember the weapon, Frost the armor, Fen the HP.
   // Prestige resets the gear — the badges are what carry over.
   const bm = badgeGearMultipliers(getCachedBadges());
-  const attack = 5 + Math.round((weapon?.boost.attack || 0) * bm.all * bm.weaponAttack);
+  const attack = 5 + Math.round((weaponBoost?.attack || 0) * bm.all * bm.weaponAttack);
   const defense = Math.round(
-    ((armor?.boost.defense || 0) * bm.armorDefense + (clothes?.boost.defense || 0)) * bm.all
+    ((armorBoost?.defense || 0) * bm.armorDefense + (clothes?.boost.defense || 0)) * bm.all
   );
   const hearts =
     (armor?.boost.hearts || 0) + (clothes?.boost.hearts || 0) + (weapon?.boost.hearts || 0);

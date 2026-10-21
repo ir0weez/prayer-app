@@ -15,6 +15,19 @@ import { BADGE_BY_ID, type BossDef } from "@/lib/badges";
 import { loadForestEnergy, spendForestEnergy, type ForestEnergy } from "@/lib/forest-energy";
 import { BadgeMedallion } from "@/components/badge-case";
 import { BASE_CRIT_CHANCE, CRIT_DAMAGE_MULT, type CombatStats } from "@/lib/gear";
+import { loadHouseState } from "@/lib/pawn-house";
+import { boonFor, loadHeroNeeds } from "@/lib/hero-needs";
+
+/** The Morning Care boon shape (lib/hero-needs boonFor). */
+type NeedsBoon = { active: boolean; hpPct: number; atkPct: number };
+import {
+  loadHeroHealthRaw,
+  restPctForBedTier,
+  saveHeroHealth,
+  settleHealth,
+  wakeAfterDefeat,
+  type HeroHealthState,
+} from "@/lib/hero-health";
 import type { PawnBeardStyle, PawnBodyStyle, PawnHairStyle } from "@/lib/pawn";
 import type { PageTheme, TimeOfDay } from "@/lib/daynight";
 
@@ -623,6 +636,35 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
   const [snuff, setSnuff] = useState<SnuffState | null>(null);
   const clearSnuff = useCallback(() => setSnuff(null), []);
 
+  // Hero health (lib/hero-health): HP persists across waves, runs, and
+  // app restarts — it settles over time (rest + slow mend) instead of
+  // resetting per fight. The Morning Care boon (lib/hero-needs) lifts
+  // max HP and attack while it lasts (till midnight).
+  const [boon, setBoon] = useState<NeedsBoon>({ active: false, hpPct: 0, atkPct: 0 });
+  const [heroHealth, setHeroHealth] = useState<HeroHealthState | null>(null);
+  const healthRef = useRef<HeroHealthState | null>(null);
+
+  const effStats: CombatStats = useMemo(
+    () =>
+      boon.active
+        ? {
+            ...stats,
+            maxHp: Math.round(stats.maxHp * (1 + boon.hpPct)),
+            attack: Math.round(stats.attack * (1 + boon.atkPct)),
+          }
+        : stats,
+    [stats, boon.active, boon.hpPct, boon.atkPct]
+  );
+  /** Persist a new HP value into the settled health state. */
+  const persistHp = useCallback((hp: number) => {
+    const prev = healthRef.current;
+    if (!prev) return;
+    const next: HeroHealthState = { ...prev, hp, updatedAt: Date.now() };
+    healthRef.current = next;
+    setHeroHealth(next);
+    void saveHeroHealth(next);
+  }, []);
+
   // (Re)load the store whenever the player is back at the select panel —
   // picks up midnight rekindles and level-ups between fights.
   const backAtSelect = phase === "select";
@@ -632,6 +674,42 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
     loadForestEnergy().then((e) => { if (live) setEnergyState(e); });
     return () => { live = false; };
   }, [backAtSelect]);
+
+  // Settle hero health whenever the player is back at the select panel
+  // (and on mount): house → bed tier (rest %) + Morning Care boon
+  // (effective max HP); needs → boon; raw health → settleHealth (day
+  // rollover rest, +5% per full 4h, null → full). Persist when the
+  // settle changed anything.
+  useEffect(() => {
+    if (!backAtSelect) return;
+    let live = true;
+    (async () => {
+      try {
+        const house = await loadHouseState();
+        const settledNeeds = await loadHeroNeeds();
+        const b = boonFor(settledNeeds, house);
+        if (!live) return;
+        setBoon(b);
+        const effMax = b.active ? Math.round(stats.maxHp * (1 + b.hpPct)) : stats.maxHp;
+        const bedTier = house.rooms.bedroom?.furniture["bed"] || 0;
+        const raw = await loadHeroHealthRaw();
+        const rawState: HeroHealthState =
+          raw ?? { hp: null, updatedAt: Date.now(), day: "", hospitalHealsUsed: 0 };
+        const { state: settled, changed } = settleHealth(
+          rawState,
+          Date.now(),
+          effMax,
+          restPctForBedTier(bedTier)
+        );
+        if (!live) return;
+        healthRef.current = settled;
+        setHeroHealth(settled);
+        setPlayerHp(settled.hp ?? effMax);
+        if (changed) void saveHeroHealth(settled);
+      } catch {}
+    })();
+    return () => { live = false; };
+  }, [backAtSelect, stats.maxHp]);
 
   const noEnergy = energyState !== null && energyState.energy <= 0;
 
@@ -686,7 +764,7 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
     if (!spendEnergyForWave()) return;
     setBossFight(null);
     setWave(w);
-    setPlayerHp(stats.maxHp);
+    // HP is NOT reset: the settled/persisted pool carries across waves.
     setDemonHp(demonForWave(w).hp);
     setPrayed(false);
     setBusy(false);
@@ -699,7 +777,7 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
   const startBoss = () => {
     if (!bossGate || bossGate.cleared) return;
     setBossFight(bossGate.boss);
-    setPlayerHp(stats.maxHp);
+    // Same HP pool as wave fights — no reset at the gate either.
     setDemonHp(bossGate.boss.hp);
     setPrayed(false);
     setBusy(false);
@@ -737,8 +815,8 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
     flashDemon();
     // Critical: chance from combat stats (base + Zeal), 150% damage,
     // announced in gold with a pulse (see FloatText's crit swell).
-    const crit = Math.random() < (stats.critChance ?? BASE_CRIT_CHANCE);
-    const dmg = Math.max(1, Math.round(stats.attack * (0.9 + Math.random() * 0.2) * (crit ? CRIT_DAMAGE_MULT : 1)));
+    const crit = Math.random() < (effStats.critChance ?? BASE_CRIT_CHANCE);
+    const dmg = Math.max(1, Math.round(effStats.attack * (0.9 + Math.random() * 0.2) * (crit ? CRIT_DAMAGE_MULT : 1)));
     pushFloat(crit ? `CRIT ${dmg}!` : `${dmg}`, crit ? "#FDE68A" : "#FFFFFF", "right", crit);
     const newDemonHp = Math.max(0, demonHp - dmg);
     setDemonHp(newDemonHp);
@@ -746,6 +824,8 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
     setTimeout(() => {
       if (!alive.current) return;
       if (newDemonHp <= 0) {
+        // Victory: the HP he finished with is the HP he keeps.
+        persistHp(playerHp);
         setPhase("victory");
         setBusy(false);
         if (!victoryFired) {
@@ -757,11 +837,26 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
       }
       // The foe retaliates.
       const raw = foeAttack * (0.9 + Math.random() * 0.2);
-      const taken = Math.max(1, Math.round(raw - stats.defense));
+      const taken = Math.max(1, Math.round(raw - effStats.defense));
       shakeScene();
       pushFloat(`${taken}`, "#F87171", "left");
       const newPlayerHp = Math.max(0, playerHp - taken);
       setPlayerHp(newPlayerHp);
+      if (newPlayerHp > 0) {
+        persistHp(newPlayerHp);
+      } else {
+        // Defeat: he wakes at home (lib/hero-health decides the HP he
+        // wakes with) and that state is what persists. The HUD keeps
+        // showing 0 on the defeat panel; returning to select re-settles
+        // and surfaces the woken HP.
+        const prev = healthRef.current;
+        if (prev) {
+          const woken = wakeAfterDefeat({ ...prev, hp: 0 }, effStats.maxHp);
+          healthRef.current = woken;
+          setHeroHealth(woken);
+          void saveHeroHealth(woken);
+        }
+      }
       setTimeout(() => {
         if (!alive.current) return;
         if (newPlayerHp <= 0) setPhase("defeat");
@@ -774,7 +869,11 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
     if (phase !== "fight" || busy || prayed) return;
     setPrayed(true);
     const heal = Math.round(stats.maxHp * 0.3);
-    setPlayerHp((h) => Math.min(stats.maxHp, h + heal));
+    // The heal amount and once-per-fight gating are unchanged. The cap
+    // follows the effective max (boon included) so praying at boon-
+    // lifted HP can never lower it; with no boon, effStats === stats.
+    setPlayerHp((h) => Math.min(effStats.maxHp, h + heal));
+    persistHp(Math.min(effStats.maxHp, playerHp + heal));
     pushFloat(`+${heal}`, "#86EFAC", "left");
   };
 
@@ -942,10 +1041,10 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <Text style={{ color: "#E2E8F0", fontWeight: "800", fontSize: 13 }}>You</Text>
                   <Text style={{ color: "#93C5FD", fontWeight: "700", fontSize: 12 }}>
-                    {playerHp}/{stats.maxHp} HP
+                    {playerHp}/{effStats.maxHp} HP
                   </Text>
                 </View>
-                <HpBar hp={playerHp} maxHp={stats.maxHp} color="#60A5FA" />
+                <HpBar hp={playerHp} maxHp={effStats.maxHp} color="#60A5FA" />
                 {energyState && (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 5 }}>
                     <EnergyFlames energy={energyState.energy} max={energyState.max} cap={12} size={11} snuff={snuff} onSnuffDone={clearSnuff} />
@@ -1143,8 +1242,23 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
             </View>
           )}
           <Text style={{ color: "#C7D2FE", fontSize: 12, textAlign: "center", marginBottom: trainingBonus ? 2 : 8 }}>
-            Attack {stats.attack} · Defense {stats.defense} · {stats.maxHp} HP · {Math.round((stats.critChance ?? BASE_CRIT_CHANCE) * 100)}% crit — your strength for the forest.
+            Attack {effStats.attack} · Defense {effStats.defense} · {effStats.maxHp} HP · {Math.round((effStats.critChance ?? BASE_CRIT_CHANCE) * 100)}% crit — your strength for the forest.
           </Text>
+          {boon.active && (
+            <Text style={{ color: "#FDE68A", fontSize: 11.5, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
+              Set for the Day — forest strength till midnight.
+            </Text>
+          )}
+          {heroHealth && (
+            <Text style={{ color: playerHp < effStats.maxHp ? "#FCA5A5" : "#93C5FD", fontSize: 12, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
+              HP {playerHp}/{effStats.maxHp}
+            </Text>
+          )}
+          {heroHealth && playerHp < effStats.maxHp && (
+            <Text style={{ color: "#8B8BA8", fontSize: 11.5, textAlign: "center", marginBottom: 8 }}>
+              Wounded? The hospital in town heals free — 2 visits a day.
+            </Text>
+          )}
           {trainingBonus && (
             <Text style={{ color: "#F2C14E", fontSize: 11.5, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
               Training bonus active — +{trainingBonusPct}% attack &amp; defense until midnight.

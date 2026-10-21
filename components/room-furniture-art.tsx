@@ -6,7 +6,13 @@ export type RoomPieceId =
   | "sofa" | "coffeeTable" | "bookshelf" | "fireplace"
   | "ktable" | "chairs" | "stove" | "shelf"
   | "tub" | "sink" | "mirror" | "plant" | "desk"
-  | "pool" | "bbq" | "patio" | "stringlights";
+  | "hearth" | "shower"
+  | "wardrobe" | "vanity"
+  | "armchair" | "tvStand"
+  | "counter" | "herbPots"
+  | "linenShelf" | "stool"
+  | "pool" | "bbq" | "patio" | "stringlights"
+  | "firePit" | "hammock";
 
 export interface RoomFurnitureArtProps {
   piece: RoomPieceId;
@@ -766,7 +772,612 @@ function renderDesk(tier: 1 | 2 | 3, p: Palette): JSX.Element {
   );
 }
 
-/* --------------------------------- switch -------------------------------- */
+/* --------------------------------- hearth -------------------------------- */
+// Kitchen care fixture (hero-needs: food). Stone/brick cooking hearth with
+// a hanging pot; the fire grows by tier — ember glow at Cook Pot, a real
+// flame under a brick arch at Hearth Fire, and a full Hearth Kitchen with
+// mantel, jars and steam at tier 3.
+
+function renderHearth(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  return (
+    <G>
+      {groundShadow(46)}
+      {tier >= 2 && (
+        <G>
+          {/* brick body + arch opening */}
+          <Rect x={28} y={30} width={64} height={66} rx={4} fill={BRICK} />
+          <Line x1={28} y1={52} x2={92} y2={52} stroke={BRICK_DARK} strokeWidth={1.5} opacity={0.6} />
+          <Line x1={28} y1={74} x2={92} y2={74} stroke={BRICK_DARK} strokeWidth={1.5} opacity={0.6} />
+          <Path d="M40 96 L40 62 A20 20 0 0 1 80 62 L80 96 Z" fill={INK} />
+          <Rect x={24} y={92} width={72} height={6} rx={2} fill={STONE_DARK} />
+        </G>
+      )}
+      {tier === 1 && (
+        <G>
+          {/* low stone base for the cook pot */}
+          <Rect x={32} y={84} width={56} height={12} rx={4} fill={STONE_DARK} />
+          <Circle cx={40} cy={86} r={5} fill={STONE} />
+          <Circle cx={54} cy={84} r={5} fill={STONE} />
+          <Circle cx={68} cy={84} r={5} fill={STONE} />
+          <Circle cx={80} cy={86} r={5} fill={STONE} />
+        </G>
+      )}
+      {tier === 3 && (
+        <G>
+          {/* mantel shelf with jars + hanging utensils */}
+          <Rect x={20} y={20} width={80} height={8} rx={3} fill={p.wood} />
+          <Rect x={20} y={26} width={80} height={3} fill={p.woodDark} />
+          <Rect x={28} y={8} width={11} height={12} rx={3} fill={GLASS} />
+          <Rect x={27} y={5} width={13} height={4} rx={2} fill={p.woodDark} />
+          <Rect x={46} y={10} width={9} height={10} rx={3} fill={TERRACOTTA} />
+          <Line x1={86} y1={28} x2={86} y2={38} stroke={METAL_DARK} strokeWidth={1.5} />
+          <Ellipse cx={86} cy={42} rx={3.5} ry={5} fill={METAL} />
+          <Line x1={94} y1={28} x2={94} y2={36} stroke={METAL_DARK} strokeWidth={1.5} />
+          <Rect x={91.5} y={36} width={5} height={9} rx={2} fill={METAL} />
+        </G>
+      )}
+      {/* fire under the pot — ember (t1) -> flame (t2) -> full fire (t3) */}
+      {tier === 1 && (
+        <G>
+          <Ellipse cx={60} cy={88} rx={16} ry={4} fill={FLAME_OUTER} opacity={0.35} />
+          <Circle cx={50} cy={88} r={2.6} fill={FLAME_INNER} />
+          <Circle cx={60} cy={89} r={3} fill={FLAME_OUTER} />
+          <Circle cx={70} cy={88} r={2.6} fill={FLAME_INNER} />
+          <Circle cx={55} cy={87} r={1.6} fill={FLAME_CORE} />
+          <Circle cx={66} cy={87} r={1.6} fill={FLAME_CORE} />
+        </G>
+      )}
+      {tier >= 2 && (
+        <G>
+          {tier === 3 && <Circle cx={60} cy={82} r={17} fill={FLAME_OUTER} opacity={0.25} />}
+          <Rect x={44} y={90} width={32} height={5} rx={2.5} fill={p.woodDarker} transform="rotate(-4 60 92)" />
+          <Rect x={44} y={90} width={32} height={5} rx={2.5} fill={p.woodDark} transform="rotate(5 60 92)" />
+          <Path
+            d={tier === 3 ? "M60 92 C50 82 52 68 60 55 C68 68 70 82 60 92 Z" : "M60 92 C53 84 54 74 60 65 C66 74 67 84 60 92 Z"}
+            fill={FLAME_OUTER}
+          />
+          <Path d="M60 90 C55 83 56 76 60 69 C64 76 65 83 60 90 Z" fill={FLAME_INNER} />
+          <Path d="M60 88 C57.5 84 58 79 60 75 C62 79 62.5 84 60 88 Z" fill={FLAME_CORE} />
+        </G>
+      )}
+      {/* hanging cook pot on its chain / crane */}
+      <Line x1={60} y1={tier >= 2 ? 40 : 30} x2={60} y2={52} stroke={METAL_DARK} strokeWidth={2.5} />
+      {tier === 1 && (
+        <G>
+          <Line x1={38} y1={96} x2={52} y2={30} stroke={METAL_DARK} strokeWidth={2.5} />
+          <Line x1={82} y1={96} x2={68} y2={30} stroke={METAL_DARK} strokeWidth={2.5} />
+        </G>
+      )}
+      <Path d="M46 58 A14 10 0 0 0 74 58 Z" fill={INK} />
+      <Ellipse cx={60} cy={58} rx={14} ry={3.5} fill={METAL_DARK} />
+      <Path d="M48 52 A13 8 0 0 1 72 52" stroke={METAL_DARK} strokeWidth={2} fill="none" />
+      {tier === 3 && (
+        <G>
+          {/* steam curling off the pot */}
+          <Path d="M52 44 q-4 -6 0 -11 q4 -5 0 -10" stroke="#D1D5DB" strokeWidth={2.5} fill="none" opacity={0.65} strokeLinecap="round" />
+          <Path d="M64 44 q4 -6 0 -11 q-4 -5 0 -10" stroke="#D1D5DB" strokeWidth={2.5} fill="none" opacity={0.5} strokeLinecap="round" />
+        </G>
+      )}
+    </G>
+  );
+}
+
+/* --------------------------------- shower -------------------------------- */
+// Bathroom care fixture (hero-needs: shower). Wash Basin + jug at tier 1,
+// a curtained Shower Stall at tier 2, and a wide-head Rain Shower with
+// water streaks and steam at tier 3.
+
+function renderShower(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  if (tier === 1) {
+    return (
+      <G>
+        {groundShadow(30)}
+        {/* basin on its stand */}
+        <Polygon points="44,70 68,70 62,98 50,98" fill="#E4EAF1" />
+        <Polygon points="56,70 68,70 62,98 56,98" fill={PORCELAIN_DARK} opacity={0.7} />
+        <Ellipse cx={56} cy={62} rx={26} ry={10} fill={PORCELAIN} />
+        <Ellipse cx={56} cy={61} rx={17} ry={6} fill={WATER} opacity={0.75} />
+        {/* the water jug beside it */}
+        <Path d="M84 98 L86 74 Q87 66 92 66 Q97 66 98 74 L100 98 Z" fill={TERRACOTTA} />
+        <Path d="M86 72 Q78 70 80 62" stroke={shade(TERRACOTTA, -25)} strokeWidth={3} fill="none" strokeLinecap="round" />
+        <Ellipse cx={92} cy={66} rx={6} ry={2.5} fill={shade(TERRACOTTA, -25)} />
+        <Rect x={84} y={82} width={16} height={4} fill={shade(TERRACOTTA, 22)} opacity={0.7} />
+      </G>
+    );
+  }
+  const wide = tier === 3;
+  const x0 = wide ? 26 : 34;
+  const x1 = wide ? 94 : 86;
+  const headRx = wide ? 19 : 11;
+  return (
+    <G>
+      {groundShadow(36)}
+      {/* stall back + frame */}
+      <Rect x={x0} y={16} width={x1 - x0} height={78} rx={4} fill={GLASS} opacity={0.55} />
+      <Rect x={x0} y={16} width={4} height={78} fill={METAL_DARK} />
+      <Rect x={x1 - 4} y={16} width={4} height={78} fill={METAL_DARK} />
+      <Rect x={x0} y={16} width={x1 - x0} height={4} fill={METAL_DARK} />
+      {/* riser pipe + head */}
+      <Path d={`M${x1 - 8} 20 L${x1 - 8} 28 L64 28`} stroke={METAL} strokeWidth={4} fill="none" strokeLinecap="round" />
+      <Ellipse cx={60} cy={31} rx={headRx} ry={4.5} fill={METAL} />
+      <Ellipse cx={60} cy={29.5} rx={headRx} ry={3.5} fill={shade(METAL, 26)} />
+      {/* water streaks under the head */}
+      {(wide ? [44, 52, 60, 68, 76] : [52, 60, 68]).map((x) => (
+        <Line key={x} x1={x} y1={38} x2={x} y2={wide ? 84 : 78} stroke={WATER} strokeWidth={2.2} opacity={0.75} strokeLinecap="round" />
+      ))}
+      {wide &&
+        [48, 56, 64, 72].map((x) => (
+          <Line key={`s${x}`} x1={x} y1={46} x2={x} y2={76} stroke={WATER} strokeWidth={1.6} opacity={0.45} strokeLinecap="round" />
+        ))}
+      {/* curtain — full at t2, gathered to the side at t3 */}
+      {tier === 2 && (
+        <G>
+          <Rect x={x0 + 3} y={23} width={30} height={68} rx={3} fill={p.fabric} />
+          {[x0 + 10, x0 + 17, x0 + 24].map((x) => (
+            <Line key={x} x1={x} y1={25} x2={x} y2={89} stroke={p.fabricDark} strokeWidth={1.6} opacity={0.7} />
+          ))}
+          {[x0 + 8, x0 + 17, x0 + 26].map((x) => (
+            <Circle key={`r${x}`} cx={x} cy={21.5} r={2.2} fill="none" stroke={METAL} strokeWidth={1.4} />
+          ))}
+          <Rect x={x0} y={19} width={x1 - x0} height={3} rx={1.5} fill={METAL} />
+        </G>
+      )}
+      {tier === 3 && (
+        <G>
+          <Path
+            d={`M${x0 + 3} 24 L${x0 + 15} 24 L${x0 + 11} 52 L${x0 + 15} 91 L${x0 + 4} 91 L${x0 + 7} 52 Z`}
+            fill={p.fabric}
+          />
+          <Line x1={x0 + 10} y1={26} x2={x0 + 8} y2={89} stroke={p.fabricDark} strokeWidth={1.6} opacity={0.7} />
+          {/* steam drifting at the sides */}
+          <Path d="M32 84 q-4 -6 0 -11 q4 -5 0 -10" stroke="#D1D5DB" strokeWidth={2.4} fill="none" opacity={0.55} strokeLinecap="round" />
+          <Path d="M88 84 q4 -6 0 -11 q-4 -5 0 -10" stroke="#D1D5DB" strokeWidth={2.4} fill="none" opacity={0.55} strokeLinecap="round" />
+          {/* mixer knobs */}
+          <Circle cx={80} cy={58} r={3.2} fill={METAL} />
+          <Circle cx={80} cy={68} r={3.2} fill={METAL_DARK} />
+        </G>
+      )}
+      {/* tiled base */}
+      <Rect x={x0 - 2} y={92} width={x1 - x0 + 4} height={7} rx={2} fill={STONE_DARK} />
+      <Line x1={60} y1={92} x2={60} y2={99} stroke={PAPER} strokeWidth={1.4} opacity={0.6} />
+    </G>
+  );
+}
+
+/* -------------------------------- wardrobe ------------------------------- */
+
+function renderWardrobe(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  return (
+    <G>
+      {groundShadow(40)}
+      <Rect x={28} y={18} width={64} height={80} rx={3} fill={p.wood} />
+      <Rect x={28} y={18} width={64} height={6} fill={p.woodLight} />
+      <Rect x={32} y={92} width={8} height={8} fill={p.woodDarker} />
+      <Rect x={80} y={92} width={8} height={8} fill={p.woodDarker} />
+      {tier === 1 && (
+        <G>
+          {/* the clothes rail: a bar with hanging shirts */}
+          <Line x1={34} y1={34} x2={86} y2={34} stroke={METAL_DARK} strokeWidth={2.5} />
+          <Polygon points="44,36 52,36 50,58 46,58" fill={p.fabric} />
+          <Polygon points="58,36 66,36 64,62 60,62" fill={BOOK_COLORS[1]} />
+          <Polygon points="70,36 78,36 76,56 72,56" fill={BOOK_COLORS[2]} />
+        </G>
+      )}
+      {tier >= 2 && (
+        <G>
+          <Line x1={60} y1={24} x2={60} y2={92} stroke={p.woodDarker} strokeWidth={2} />
+          <Rect x={33} y={26} width={22} height={58} rx={2} fill={p.woodLight} opacity={0.55} />
+          <Rect x={65} y={26} width={22} height={58} rx={2} fill={p.woodLight} opacity={0.55} />
+          <Circle cx={55} cy={56} r={3} fill={METAL} />
+          <Circle cx={65} cy={56} r={3} fill={METAL} />
+        </G>
+      )}
+      {tier === 3 && (
+        <G>
+          <Rect x={24} y={10} width={72} height={9} rx={3} fill={p.woodDark} />
+          <Rect x={40} y={30} width={40} height={26} rx={3} fill={GLASS} opacity={0.85} />
+          <Polygon points="48,30 56,30 46,56 41,56" fill={PAPER} opacity={0.35} />
+          <Rect x={36} y={86} width={48} height={5} rx={2} fill={p.woodDark} />
+        </G>
+      )}
+    </G>
+  );
+}
+
+/* --------------------------------- vanity -------------------------------- */
+
+function renderVanity(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  return (
+    <G>
+      {groundShadow(34)}
+      <Rect x={30} y={66} width={6} height={34} fill={p.woodDark} />
+      <Rect x={84} y={66} width={6} height={34} fill={p.woodDark} />
+      <Rect x={26} y={58} width={68} height={9} rx={3} fill={p.wood} />
+      <Rect x={26} y={58} width={68} height={3} fill={p.woodLight} />
+      {/* mirror — oval at t1, framed and grand by t3 */}
+      <Ellipse cx={60} cy={36} rx={tier === 3 ? 24 : 17} ry={tier === 3 ? 30 : 22} fill={p.wood} />
+      <Ellipse cx={60} cy={36} rx={tier === 3 ? 19 : 13} ry={tier === 3 ? 25 : 18} fill={GLASS} />
+      <Polygon points="52,16 58,16 50,54 45,54" fill={PAPER} opacity={0.35} />
+      {tier >= 2 && (
+        <G>
+          {/* the little stool tucked under */}
+          <Rect x={48} y={80} width={24} height={7} rx={3} fill={p.fabric} />
+          <Rect x={51} y={87} width={4} height={13} fill={p.woodDarker} />
+          <Rect x={65} y={87} width={4} height={13} fill={p.woodDarker} />
+          {/* bottles on the top */}
+          <Rect x={32} y={46} width={6} height={12} rx={2} fill={BOOK_COLORS[3]} />
+          <Rect x={41} y={50} width={5} height={8} rx={2} fill={BOOK_COLORS[1]} />
+        </G>
+      )}
+      {tier === 3 && (
+        <G>
+          <Rect x={30} y={67} width={60} height={12} rx={2} fill={p.woodLight} />
+          <Line x1={60} y1={67} x2={60} y2={79} stroke={p.woodDarker} strokeWidth={1.5} />
+          <Circle cx={53} cy={73} r={2.2} fill={METAL} />
+          <Circle cx={67} cy={73} r={2.2} fill={METAL} />
+          {flower(80, 50, p.fabricLight, "vf")}
+          <Rect x={78} y={50} width={4} height={8} fill={LEAF_DARK} />
+        </G>
+      )}
+    </G>
+  );
+}
+
+/* -------------------------------- armchair ------------------------------- */
+
+function renderArmchair(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  return (
+    <G>
+      {groundShadow(30)}
+      <Rect x={38} y={92} width={5} height={8} fill={p.woodDarker} />
+      <Rect x={77} y={92} width={5} height={8} fill={p.woodDarker} />
+      {tier === 3 && (
+        <G>
+          {/* wingback wings */}
+          <Rect x={26} y={30} width={13} height={40} rx={6} fill={p.fabricDark} />
+          <Rect x={81} y={30} width={13} height={40} rx={6} fill={p.fabricDark} />
+        </G>
+      )}
+      <Rect x={34} y={36} width={52} height={32} rx={8} fill={p.fabric} />
+      {tier >= 2 && <Rect x={40} y={42} width={40} height={20} rx={5} fill={p.fabricLight} />}
+      <Rect x={28} y={54} width={13} height={38} rx={6} fill={p.fabricDark} />
+      <Rect x={79} y={54} width={13} height={38} rx={6} fill={p.fabricDark} />
+      <Rect x={34} y={64} width={52} height={28} rx={8} fill={p.fabric} />
+      {tier >= 2 && <Rect x={42} y={68} width={36} height={16} rx={5} fill={p.fabricLight} />}
+      {tier === 3 && (
+        <G transform="rotate(-10 50 76)">
+          <Rect x={42} y={68} width={16} height={16} rx={4} fill={TERRACOTTA} />
+        </G>
+      )}
+      {tier === 3 && (
+        <Path d="M66 64 L86 64 L86 92 L78 92 L78 74 L66 74 Z" fill={p.fabricPale} opacity={0.8} />
+      )}
+    </G>
+  );
+}
+
+/* -------------------------------- tv stand ------------------------------- */
+
+function renderTvStand(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  const screenW = tier === 3 ? 76 : tier === 2 ? 62 : 44;
+  const screenH = tier === 3 ? 44 : tier === 2 ? 36 : 26;
+  const screenY = 58 - screenH;
+  return (
+    <G>
+      {groundShadow(42)}
+      {/* console */}
+      <Rect x={24} y={72} width={72} height={22} rx={3} fill={p.wood} />
+      <Rect x={24} y={72} width={72} height={4} fill={p.woodLight} />
+      <Rect x={28} y={94} width={6} height={6} fill={p.woodDarker} />
+      <Rect x={86} y={94} width={6} height={6} fill={p.woodDarker} />
+      {tier >= 2 && (
+        <G>
+          <Line x1={60} y1={76} x2={60} y2={94} stroke={p.woodDarker} strokeWidth={1.5} />
+          <Circle cx={52} cy={85} r={2.2} fill={METAL} />
+          <Circle cx={68} cy={85} r={2.2} fill={METAL} />
+        </G>
+      )}
+      {/* the screen — a little set at t1, a glowing wall screen at t3 */}
+      <Rect x={60 - screenW / 2} y={screenY} width={screenW} height={screenH} rx={3} fill={INK} />
+      <Rect x={60 - screenW / 2 + 3} y={screenY + 3} width={screenW - 6} height={screenH - 6} rx={2} fill={tier === 1 ? "#5B7A8C" : "#7FB3C8"} />
+      <Polygon points={`${60 - screenW / 4},${screenY + screenH - 5} ${60},${screenY + 12} ${60 + screenW / 4},${screenY + screenH - 5}`} fill="#7BAF7E" opacity={0.85} />
+      <Circle cx={60 + screenW / 5} cy={screenY + 9} r={3} fill="#FDBA74" />
+      <Rect x={56} y={58} width={8} height={14} fill={p.woodDarker} />
+      {tier === 3 && (
+        <G>
+          <Rect x={14} y={52} width={8} height={42} rx={2} fill={INK} />
+          <Rect x={98} y={52} width={8} height={42} rx={2} fill={INK} />
+          <Circle cx={18} cy={60} r={2.4} fill={METAL} />
+          <Circle cx={102} cy={60} r={2.4} fill={METAL} />
+          <Circle cx={60} cy={screenY + screenH / 2} r={screenH} fill={GLOW} opacity={0.14} />
+        </G>
+      )}
+      {tier === 1 && (
+        <G>
+          {/* a radio on the crate at t1 */}
+          <Rect x={80} y={60} width={14} height={12} rx={2} fill={TERRACOTTA} />
+          <Circle cx={87} cy={66} r={3} fill={PAPER} />
+        </G>
+      )}
+    </G>
+  );
+}
+
+/* -------------------------------- counter -------------------------------- */
+
+function renderCounter(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  return (
+    <G>
+      {groundShadow(42)}
+      <Rect x={22} y={52} width={76} height={44} rx={3} fill={p.wood} />
+      <Rect x={22} y={92} width={76} height={4} fill={p.woodDarker} />
+      <Rect x={18} y={44} width={84} height={9} rx={3} fill={tier >= 2 ? STONE : p.woodLight} />
+      {tier === 1 && (
+        <G>
+          {/* the board + knife + tomatoes */}
+          <Rect x={34} y={34} width={30} height={10} rx={3} fill={p.woodLight} />
+          <Circle cx={74} cy={40} r={4} fill="#C0392B" />
+          <Circle cx={83} cy={41} r={3.4} fill="#C0392B" />
+        </G>
+      )}
+      {tier >= 2 && (
+        <G>
+          <Line x1={41} y1={56} x2={41} y2={92} stroke={p.woodDarker} strokeWidth={1.5} />
+          <Line x1={60} y1={56} x2={60} y2={92} stroke={p.woodDarker} strokeWidth={1.5} />
+          <Line x1={79} y1={56} x2={79} y2={92} stroke={p.woodDarker} strokeWidth={1.5} />
+          <Circle cx={41} cy={64} r={2.2} fill={METAL} />
+          <Circle cx={60} cy={64} r={2.2} fill={METAL} />
+          <Circle cx={79} cy={64} r={2.2} fill={METAL} />
+          {jar(30, 44, p, "cj1")}
+          {jar(78, 44, p, "cj2")}
+        </G>
+      )}
+      {tier === 3 && (
+        <G>
+          {/* fruit bowl + hanging pans */}
+          <Path d="M46 44 A14 8 0 0 0 74 44 Z" fill={TERRACOTTA} />
+          <Circle cx={53} cy={36} r={4.4} fill="#E4572E" />
+          <Circle cx={62} cy={34} r={4.4} fill="#D4A54C" />
+          <Circle cx={70} cy={37} r={4} fill="#C0392B" />
+          <Line x1={30} y1={18} x2={30} y2={28} stroke={METAL_DARK} strokeWidth={1.5} />
+          <Circle cx={30} cy={33} r={5.5} fill={METAL} />
+          <Line x1={90} y1={18} x2={90} y2={28} stroke={METAL_DARK} strokeWidth={1.5} />
+          <Circle cx={90} cy={33} r={5.5} fill={METAL_DARK} />
+          <Rect x={24} y={14} width={72} height={4} rx={2} fill={p.woodDark} />
+        </G>
+      )}
+    </G>
+  );
+}
+
+/* -------------------------------- herb pots ------------------------------ */
+
+function herbPot(x: number, tall: number, blooms: boolean, key: string): JSX.Element {
+  return (
+    <G key={key}>
+      <Ellipse cx={x} cy={62 - tall} rx={7} ry={13} fill={LEAF} />
+      <Ellipse cx={x - 6} cy={66 - tall} rx={5} ry={9} fill={LEAF_DARK} transform={`rotate(-24 ${x - 6} ${66 - tall})`} />
+      <Ellipse cx={x + 6} cy={66 - tall} rx={5} ry={9} fill={LEAF_DARK} transform={`rotate(24 ${x + 6} ${66 - tall})`} />
+      {blooms && flower(x, 52 - tall, "#F2A541", `${key}-b`)}
+      <Polygon points={`${x - 9},74 ${x + 9},74 ${x + 6},92 ${x - 6},92`} fill={TERRACOTTA} />
+      <Rect x={x - 10} y={68} width={20} height={7} rx={3} fill={shade(TERRACOTTA, -25)} />
+    </G>
+  );
+}
+
+function renderHerbPots(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  return (
+    <G>
+      {groundShadow(36)}
+      {/* the rail the pots sit on */}
+      <Rect x={18} y={90} width={84} height={6} rx={2} fill={p.wood} />
+      <Rect x={24} y={96} width={5} height={6} fill={p.woodDarker} />
+      <Rect x={91} y={96} width={5} height={6} fill={p.woodDarker} />
+      {herbPot(60, 0, false, "h1")}
+      {tier >= 2 && herbPot(32, 2, false, "h2")}
+      {tier >= 2 && herbPot(88, 2, tier === 3, "h3")}
+      {tier === 3 && (
+        <G>
+          {/* hanging sprigs drying above */}
+          <Line x1={44} y1={16} x2={44} y2={30} stroke={LEAF_DARK} strokeWidth={1.6} />
+          <Ellipse cx={44} cy={36} rx={4} ry={7} fill={LEAF} />
+          <Line x1={76} y1={16} x2={76} y2={30} stroke={LEAF_DARK} strokeWidth={1.6} />
+          <Ellipse cx={76} cy={36} rx={4} ry={7} fill={LEAF_DARK} />
+          <Rect x={30} y={12} width={60} height={4} rx={2} fill={p.woodDark} />
+        </G>
+      )}
+    </G>
+  );
+}
+
+/* ------------------------------- linen shelf ----------------------------- */
+
+function towelStack(x: number, y: number, colors: string[], key: string): JSX.Element {
+  return (
+    <G key={key}>
+      {colors.map((c, i) => (
+        <Rect key={i} x={x} y={y - i * 8} width={24} height={7} rx={3} fill={c} />
+      ))}
+    </G>
+  );
+}
+
+function renderLinenShelf(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  if (tier === 1) {
+    return (
+      <G>
+        {groundShadow(26)}
+        {/* the towel basket */}
+        <Polygon points="34,64 86,64 78,98 42,98" fill={p.woodLight} />
+        <Line x1={38} y1={76} x2={82} y2={76} stroke={p.woodDark} strokeWidth={2} opacity={0.6} />
+        <Line x1={40} y1={88} x2={80} y2={88} stroke={p.woodDark} strokeWidth={2} opacity={0.6} />
+        <Rect x={40} y={52} width={40} height={10} rx={5} fill={PAPER} />
+        <Rect x={44} y={44} width={32} height={9} rx={4.5} fill={p.fabricPale} />
+      </G>
+    );
+  }
+  return (
+    <G>
+      {groundShadow(36)}
+      <Rect x={26} y={22} width={7} height={76} fill={p.wood} />
+      <Rect x={87} y={22} width={7} height={76} fill={p.wood} />
+      <Rect x={26} y={18} width={68} height={7} rx={2} fill={p.woodDark} />
+      <Rect x={26} y={52} width={68} height={5} fill={p.woodLight} />
+      <Rect x={26} y={80} width={68} height={5} fill={p.woodLight} />
+      <Rect x={26} y={94} width={68} height={6} fill={p.woodDark} />
+      {towelStack(34, 52, [PAPER, p.fabricPale], "t1")}
+      {towelStack(64, 52, [p.fabricLight, PAPER], "t2")}
+      {towelStack(34, 80, [p.fabricPale, PAPER, p.fabricLight], "t3")}
+      {/* rolled towels on the bottom shelf */}
+      <Circle cx={70} cy={74} r={6} fill={PAPER} />
+      <Circle cx={70} cy={74} r={2.6} fill={p.fabricPale} />
+      <Circle cx={83} cy={74} r={6} fill={p.fabricPale} />
+      <Circle cx={83} cy={74} r={2.6} fill={PAPER} />
+      {tier === 3 && (
+        <G>
+          {/* spa touches: a candle + a little plant on top */}
+          <Rect x={36} y={6} width={7} height={12} rx={2} fill="#F5E6C8" />
+          <Path d="M39.5 0 C42 3 41.4 5.6 39.5 6.6 C37.6 5.6 37 3 39.5 0 Z" fill={FLAME_OUTER} />
+          <Ellipse cx={74} cy={10} rx={7} ry={5} fill={LEAF} />
+          <Polygon points="68,14 80,14 77,20 71,20" fill={TERRACOTTA} />
+          <Rect x={30} y={88} width={60} height={4} rx={2} fill="#D4A54C" opacity={0.75} />
+        </G>
+      )}
+    </G>
+  );
+}
+
+/* ---------------------------------- stool -------------------------------- */
+
+function renderStool(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  return (
+    <G>
+      {groundShadow(24)}
+      {tier === 3 && (
+        <G>
+          {/* little backrest */}
+          <Rect x={42} y={30} width={36} height={8} rx={4} fill={p.wood} />
+          <Rect x={46} y={38} width={5} height={22} fill={p.woodDark} />
+          <Rect x={69} y={38} width={5} height={22} fill={p.woodDark} />
+        </G>
+      )}
+      <Rect x={40} y={66} width={5} height={34} fill={p.woodDark} />
+      <Rect x={75} y={66} width={5} height={34} fill={p.woodDark} />
+      <Rect x={36} y={64} width={48} height={6} fill={p.woodDarker} opacity={0.7} />
+      {tier === 1 && <Ellipse cx={60} cy={62} rx={26} ry={8} fill={p.wood} />}
+      {tier >= 2 && (
+        <G>
+          <Ellipse cx={60} cy={62} rx={27} ry={9} fill={p.fabric} />
+          <Ellipse cx={60} cy={59} rx={22} ry={6} fill={p.fabricLight} />
+        </G>
+      )}
+      {tier === 3 && (
+        <G>
+          <Circle cx={50} cy={59} r={1.8} fill={p.fabricDark} />
+          <Circle cx={60} cy={57} r={1.8} fill={p.fabricDark} />
+          <Circle cx={70} cy={59} r={1.8} fill={p.fabricDark} />
+          {/* a folded towel waiting on top */}
+          <Rect x={64} y={44} width={20} height={8} rx={4} fill={PAPER} transform="rotate(8 74 48)" />
+        </G>
+      )}
+      {tier === 1 && (
+        <G>
+          {/* the step below */}
+          <Rect x={44} y={82} width={32} height={6} rx={2} fill={p.woodLight} />
+        </G>
+      )}
+    </G>
+  );
+}
+
+/* -------------------------------- fire pit ------------------------------- */
+
+function renderFirePit(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  const ringRx = tier === 3 ? 44 : tier === 2 ? 38 : 30;
+  return (
+    <G>
+      {groundShadow(ringRx + 4)}
+      {/* seating stones at t3 */}
+      {tier === 3 && (
+        <G>
+          <Ellipse cx={16} cy={84} rx={10} ry={6} fill={STONE_DARK} />
+          <Ellipse cx={104} cy={84} rx={10} ry={6} fill={STONE_DARK} />
+          <Ellipse cx={60} cy={104} rx={12} ry={5} fill={STONE} />
+        </G>
+      )}
+      {/* stone ring */}
+      <Ellipse cx={60} cy={78} rx={ringRx} ry={16} fill={STONE_DARK} />
+      <Ellipse cx={60} cy={74} rx={ringRx - 4} ry={13} fill={STONE} />
+      <Ellipse cx={60} cy={74} rx={ringRx - 12} ry={9} fill="#3A2E26" />
+      {/* logs */}
+      <Rect x={44} y={72} width={32} height={5} rx={2.5} fill={p.woodDarker} transform="rotate(-6 60 74)" />
+      <Rect x={44} y={72} width={32} height={5} rx={2.5} fill={p.woodDark} transform="rotate(7 60 74)" />
+      {/* flames climb with tier */}
+      <Path
+        d={tier === 3 ? "M60 78 C46 66 49 48 60 32 C71 48 74 66 60 78 Z" : tier === 2 ? "M60 78 C50 68 52 54 60 42 C68 54 70 68 60 78 Z" : "M60 78 C53 70 54 60 60 50 C66 60 67 70 60 78 Z"}
+        fill={FLAME_OUTER}
+      />
+      <Path d="M60 76 C54 69 55 60 60 52 C65 60 66 69 60 76 Z" fill={FLAME_INNER} />
+      <Path d="M60 74 C57 70 57.5 64 60 60 C62.5 64 63 70 60 74 Z" fill={FLAME_CORE} />
+      {tier >= 2 && <Circle cx={60} cy={58} r={tier === 3 ? 20 : 14} fill={FLAME_OUTER} opacity={0.22} />}
+      {tier === 3 && (
+        <G>
+          {/* sparks + a cooking grate */}
+          <Circle cx={44} cy={30} r={1.8} fill={FLAME_CORE} />
+          <Circle cx={72} cy={22} r={1.5} fill={FLAME_OUTER} />
+          <Circle cx={62} cy={14} r={1.3} fill={FLAME_CORE} />
+          <Line x1={60 - ringRx + 4} y1={66} x2={60 + ringRx - 4} y2={66} stroke={METAL_DARK} strokeWidth={2} />
+          <Line x1={48} y1={62} x2={48} y2={70} stroke={METAL_DARK} strokeWidth={1.4} />
+          <Line x1={60} y1={62} x2={60} y2={70} stroke={METAL_DARK} strokeWidth={1.4} />
+          <Line x1={72} y1={62} x2={72} y2={70} stroke={METAL_DARK} strokeWidth={1.4} />
+        </G>
+      )}
+    </G>
+  );
+}
+
+/* -------------------------------- hammock -------------------------------- */
+
+function renderHammock(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  return (
+    <G>
+      {groundShadow(46)}
+      {/* posts (trees at t3) */}
+      <Rect x={12} y={30} width={7} height={70} rx={3} fill={p.woodDark} />
+      <Rect x={101} y={30} width={7} height={70} rx={3} fill={p.woodDark} />
+      {tier === 3 && (
+        <G>
+          <Ellipse cx={15} cy={24} rx={13} ry={10} fill={LEAF} />
+          <Ellipse cx={104} cy={24} rx={13} ry={10} fill={LEAF_DARK} />
+          {/* the shade canopy strung above */}
+          <Path d="M10 34 Q60 20 110 34 L110 40 Q60 27 10 40 Z" fill={p.fabricPale} opacity={0.9} />
+        </G>
+      )}
+      {/* ropes */}
+      <Line x1={19} y1={44} x2={34} y2={58} stroke={shade(p.wood, -20)} strokeWidth={2} />
+      <Line x1={101} y1={44} x2={86} y2={58} stroke={shade(p.wood, -20)} strokeWidth={2} />
+      {/* the sling */}
+      <Path d="M34 58 Q60 84 86 58 L82 66 Q60 90 38 66 Z" fill={p.fabric} />
+      <Path d="M34 58 Q60 84 86 58" stroke={p.fabricDark} strokeWidth={2.5} fill="none" />
+      {tier >= 2 && (
+        <G>
+          {/* rope weave lines */}
+          <Path d="M40 62 Q60 84 80 62" stroke={p.fabricLight} strokeWidth={1.6} fill="none" opacity={0.8} />
+          <Path d="M45 66 Q60 84 75 66" stroke={p.fabricLight} strokeWidth={1.6} fill="none" opacity={0.6} />
+          {/* a pillow at the head end */}
+          <Rect x={36} y={54} width={15} height={9} rx={4} fill={PAPER} transform="rotate(14 43 58)" />
+        </G>
+      )}
+      {tier === 3 && (
+        <G>
+          {/* a book left open on the sling */}
+          <Polygon points="56,66 62,63 62,72 56,74" fill={PAPER} />
+          <Polygon points="68,66 62,63 62,72 68,74" fill="#F1F5F9" />
+        </G>
+      )}
+    </G>
+  );
+}
 
 /* --------------------------------- switch -------------------------------- */
 
@@ -944,6 +1555,26 @@ function renderPiece(piece: RoomPieceId, tier: 1 | 2 | 3, p: Palette): JSX.Eleme
       return renderPlant(tier, p);
     case "desk":
       return renderDesk(tier, p);
+    case "hearth":
+      return renderHearth(tier, p);
+    case "shower":
+      return renderShower(tier, p);
+    case "wardrobe":
+      return renderWardrobe(tier, p);
+    case "vanity":
+      return renderVanity(tier, p);
+    case "armchair":
+      return renderArmchair(tier, p);
+    case "tvStand":
+      return renderTvStand(tier, p);
+    case "counter":
+      return renderCounter(tier, p);
+    case "herbPots":
+      return renderHerbPots(tier, p);
+    case "linenShelf":
+      return renderLinenShelf(tier, p);
+    case "stool":
+      return renderStool(tier, p);
     case "pool":
       return renderPool(tier, p);
     case "bbq":
@@ -952,6 +1583,10 @@ function renderPiece(piece: RoomPieceId, tier: 1 | 2 | 3, p: Palette): JSX.Eleme
       return renderPatio(tier, p);
     case "stringlights":
       return renderStringlights(tier, p);
+    case "firePit":
+      return renderFirePit(tier, p);
+    case "hammock":
+      return renderHammock(tier, p);
   }
 }
 

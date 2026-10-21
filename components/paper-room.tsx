@@ -25,7 +25,7 @@ import {
 } from "@/components/paper-interior";
 import { paperDinerLookFor, paperHash, type PaperDinerLook } from "@/lib/paper-interior";
 import type { PrayedPerson } from "@/lib/hometown";
-import type { CustomPawn } from "@/lib/pawn";
+import { beardGrowthFor, beardShapeFor, type CustomPawn } from "@/lib/pawn";
 import {
   paperRoomDressingFor,
   type PaperChurchMode,
@@ -826,7 +826,7 @@ export function PaperRoomScene({
           const h = pawnPose === "seated" ? 17 : PAPER_HERO_UNITS_H;
           return (
             <View key="pawn" style={{ position: "absolute", left: cx * unit - (PAPER_HERO_UNITS_W * unit) / 2, top: (FLOOR_FEET - h) * unit, alignItems: "center" }}>
-              <PaperHeroFigure pawn={pawn} unit={unit * 1.06} />
+              <PaperHeroFigure pawn={pawn} unit={unit} />
               <Text style={{ fontSize: Math.max(8, unit * 2.6), color: labelColor, marginTop: unit * 0.4, fontWeight: "700" }}>
                 {pawn.name}
               </Text>
@@ -852,8 +852,11 @@ export function PaperRoomScene({
   );
 }
 
-const PAPER_HERO_UNITS_W = 11 * 1.06;
-const PAPER_HERO_UNITS_H = 17 * 1.06;
+// Hero placement box in room units — kit parity (v160 scale fix:
+// a small hero-only multiplier used to make him larger than every
+// villager in the room; he now renders at the same unit as the cast).
+const PAPER_HERO_UNITS_W = 11;
+const PAPER_HERO_UNITS_H = 17;
 
 /* ------------------------------------------------------------------ */
 /* The church — paper, and still event-adaptive: the same room reads   */
@@ -1034,7 +1037,7 @@ export function PaperChurchScene({
           }
           return (
             <View key="pawn" style={{ position: "absolute", left: pl.x * unit - (PAPER_HERO_UNITS_W * unit) / 2, top: (pl.feet - PAPER_HERO_UNITS_H) * unit, alignItems: "center" }}>
-              <PaperHeroFigure pawn={pawn} unit={unit * 1.06} />
+              <PaperHeroFigure pawn={pawn} unit={unit} />
               <Text style={{ fontSize: Math.max(8, unit * 2.6), color: labelColor, marginTop: unit * 0.4, fontWeight: "700" }}>{pawn.name}</Text>
             </View>
           );
@@ -1079,6 +1082,189 @@ export function PaperHeroKneel({ pawn, unit }: { pawn: CustomPawn; unit: number 
       {pawn.hairStyle === "bald" && <Ellipse cx={5.2} cy={1.75} rx={1} ry={0.44} fill="#FFFFFF" opacity={0.38} transform="rotate(-18 5.2 1.75)" />}
       {pawn.hairStyle === "bun" && <Circle cx={5.2} cy={0.75} r={0.92} fill={hair} />}
       {pawn.hairStyle === "mohawk" && <Rect x={5.1} y={0.1} width={1.4} height={3.4} rx={0.65} fill={hair} />}
+    </Svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero poses (Rider H2) — the hero DOING his house's life, in his     */
+/* own look: his hair style/color and his beard at its live grown      */
+/* length (beardGrowthFor + beardShapeFor from lib/pawn, the same      */
+/* vocabulary PaperHeroFigure speaks). Seated, lying, in the shower,   */
+/* soaking in the tub — a static standing hero in his own home is a    */
+/* fail, and so is a scene naming an activity the picture doesn't      */
+/* show.                                                               */
+/* ------------------------------------------------------------------ */
+
+const HERO_SKIN = "#EFC39A";
+
+function HeroHeadShapes({
+  pawn,
+  cx,
+  cy,
+  r,
+  closedEyes = false,
+}: {
+  pawn: CustomPawn;
+  cx: number;
+  cy: number;
+  r: number;
+  closedEyes?: boolean;
+}) {
+  const hair = pawn.hairColor || "#6B4423";
+  const bald = pawn.hairStyle === "bald";
+  const beardLength = pawn.gender === "male" ? beardGrowthFor(pawn) : 0;
+  const beard = beardShapeFor(pawn.beardStyle, beardLength);
+  const beardColor = pawn.beardStyle === "heavenly" ? "#E8E4DA" : hair;
+  return (
+    <>
+      {pawn.hairStyle === "long" && (
+        <>
+          <Rect x={cx - r - 0.5} y={cy - r * 0.3} width={r * 0.55} height={r * 2.2} rx={r * 0.27} fill={hair} />
+          <Rect x={cx + r - r * 0.28} y={cy - r * 0.3} width={r * 0.55} height={r * 2.2} rx={r * 0.27} fill={hair} />
+        </>
+      )}
+      {!bald && <Circle cx={cx} cy={cy - r * 0.16} r={r * 1.08} fill={hair} />}
+      <Circle cx={cx} cy={cy} r={r} fill={HERO_SKIN} />
+      {!bald && pawn.hairStyle !== "mohawk" && (
+        <Path
+          d={`M ${cx - r * 0.98} ${cy - r * 0.12} A ${r * 1.02} ${r * 1.02} 0 0 1 ${cx + r * 0.98} ${cy - r * 0.12} L ${cx + r * 0.78} ${cy - r * 0.2} A ${r * 0.8} ${r * 0.8} 0 0 0 ${cx - r * 0.78} ${cy - r * 0.2} Z`}
+          fill={hair}
+          stroke="rgba(42,26,51,0.25)"
+          strokeWidth={0.2}
+        />
+      )}
+      {pawn.hairStyle === "bun" && <Circle cx={cx - r * 0.25} cy={cy - r * 1.3} r={r * 0.38} fill={hair} />}
+      {pawn.hairStyle === "mohawk" && <Rect x={cx - r * 0.22} y={cy - r * 1.5} width={r * 0.44} height={r * 1.4} rx={r * 0.2} fill={hair} />}
+      {bald && <Ellipse cx={cx - r * 0.22} cy={cy - r * 0.62} rx={r * 0.4} ry={r * 0.18} fill="#FFFFFF" opacity={0.38} transform={`rotate(-18 ${cx - r * 0.22} ${cy - r * 0.62})`} />}
+      {closedEyes ? (
+        <>
+          <Path d={`M ${cx - r * 0.42} ${cy + r * 0.05} Q ${cx - r * 0.26} ${cy + r * 0.2} ${cx - r * 0.1} ${cy + r * 0.05}`} stroke={PAPER_INK} strokeWidth={0.22} fill="none" strokeLinecap="round" />
+          <Path d={`M ${cx + r * 0.1} ${cy + r * 0.05} Q ${cx + r * 0.26} ${cy + r * 0.2} ${cx + r * 0.42} ${cy + r * 0.05}`} stroke={PAPER_INK} strokeWidth={0.22} fill="none" strokeLinecap="round" />
+        </>
+      ) : (
+        <>
+          <Circle cx={cx - r * 0.28} cy={cy + r * 0.06} r={r * 0.1} fill={PAPER_INK} />
+          <Circle cx={cx + r * 0.28} cy={cy + r * 0.06} r={r * 0.1} fill={PAPER_INK} />
+        </>
+      )}
+      {beard.visible && beard.family === "full" && (
+        <Ellipse cx={cx} cy={cy + r * 0.74} rx={r * 0.66} ry={r * (0.24 + beard.chinDropFrac * 0.55)} fill={beardColor} opacity={beard.opacity} />
+      )}
+      {beard.visible && beard.family === "goatee" && (
+        <Rect x={cx - r * 0.22} y={cy + r * 0.58} width={r * 0.44} height={r * (0.24 + beard.chinDropFrac * 0.5)} rx={r * 0.2} fill={beardColor} opacity={beard.opacity} />
+      )}
+      {beard.visible && beard.mustacheWidthFrac > 0 && (
+        <Rect x={cx - r * 0.36} y={cy + r * 0.4} width={r * 0.72} height={r * 0.15} rx={r * 0.07} fill={beardColor} opacity={beard.opacity} />
+      )}
+    </>
+  );
+}
+
+/** Seated — on the sofa, at the kitchen table, at the study desk.
+ *  Thigh + shin folded under him, torso upright, one arm resting
+ *  forward toward whatever is in front of him. */
+export function PaperHeroSeatedFigure({ pawn, unit }: { pawn: CustomPawn; unit: number }) {
+  const W = 11, H = 12.6;
+  return (
+    <Svg width={W * unit} height={H * unit} viewBox={`0 0 ${W} ${H}`}>
+      <Ellipse cx={5.5} cy={12.1} rx={4.2} ry={0.55} fill="rgba(24,8,44,0.28)" />
+      {/* seated legs: thigh forward, shin down, shoe */}
+      <Rect x={4.6} y={9.6} width={5.4} height={1.8} rx={0.9} fill="#3E4A5C" />
+      <Rect x={8.6} y={10.6} width={1.5} height={1.6} rx={0.6} fill="#3E4A5C" />
+      <Ellipse cx={10.2} cy={12.2} rx={1.3} ry={0.5} fill="#3A2A1C" />
+      <Rect x={3.4} y={9.9} width={2.2} height={1.7} rx={0.8} fill="#3E4A5C" />
+      {/* torso + arm resting forward */}
+      <Rect x={3} y={4.9} width={4.9} height={5.2} rx={1.6} fill={pawn.bodyColor} />
+      <Rect x={6.4} y={6.6} width={3.4} height={1.6} rx={0.8} fill={pawn.bodyColor} transform="rotate(14 8 7.4)" />
+      <Circle cx={9.7} cy={8.3} r={0.72} fill={HERO_SKIN} />
+      <Rect x={4.7} y={4.1} width={1.5} height={1.1} fill={HERO_SKIN} />
+      <HeroHeadShapes pawn={pawn} cx={5.5} cy={2.7} r={2.35} />
+    </Svg>
+  );
+}
+
+/** Lying in bed — horizontal, head on the pillow, the blanket drawn
+ *  over his body. The bed furniture draws its own frame around him;
+ *  this figure is the sleeper himself, eyes closed. */
+export function PaperHeroLyingFigure({
+  pawn,
+  unit,
+  blanket = "#8A6BA8",
+}: {
+  pawn: CustomPawn;
+  unit: number;
+  blanket?: string;
+}) {
+  const W = 17, H = 7.6;
+  return (
+    <Svg width={W * unit} height={H * unit} viewBox={`0 0 ${W} ${H}`}>
+      <Ellipse cx={8.5} cy={7.1} rx={7.6} ry={0.5} fill="rgba(24,8,44,0.22)" />
+      {/* the pillow under his head */}
+      <Rect x={0.5} y={3.3} width={4.9} height={2.7} rx={1.1} fill="#FFFFFF" />
+      <Rect x={0.5} y={3.3} width={4.9} height={2.7} rx={1.1} fill="none" stroke="rgba(42,26,51,0.12)" strokeWidth={0.25} />
+      {/* body stretched out in his clothes, blanket over the top */}
+      <Rect x={4.4} y={3.5} width={12.1} height={3.1} rx={1.5} fill={pawn.bodyColor} />
+      <Rect x={7.3} y={3.8} width={9.2} height={3} rx={1.3} fill={blanket} />
+      <Rect x={7.3} y={3.8} width={1.1} height={3} fill="#FFFFFF" opacity={0.35} />
+      {/* feet peeking past the blanket's end */}
+      <Ellipse cx={16.3} cy={6.4} rx={0.85} ry={0.5} fill="#3A2A1C" />
+      {/* head resting on the pillow, eyes closed */}
+      <HeroHeadShapes pawn={pawn} cx={3.1} cy={3} r={2.15} closedEyes />
+    </Svg>
+  );
+}
+
+/** In the shower — standing in the stall with the water running over
+ *  him: streaks from above his head to his feet, droplets at his
+ *  shoulders, a drift of steam at the side. */
+export function PaperHeroShowerFigure({ pawn, unit }: { pawn: CustomPawn; unit: number }) {
+  const W = 10, H = 15;
+  return (
+    <Svg width={W * unit} height={H * unit} viewBox={`0 0 ${W} ${H}`}>
+      <Ellipse cx={5} cy={14.5} rx={3.9} ry={0.5} fill="rgba(24,8,44,0.22)" />
+      {/* legs + torso in his clothes, soaked through */}
+      <Rect x={3.4} y={10} width={1.5} height={4.2} rx={0.6} fill="#3E4A5C" />
+      <Rect x={5.2} y={10} width={1.5} height={4.2} rx={0.6} fill="#3E4A5C" />
+      <Rect x={2.7} y={5.1} width={4.7} height={5.3} rx={1.5} fill={pawn.bodyColor} />
+      <Rect x={1.5} y={5.5} width={1.3} height={4.2} rx={0.6} fill={pawn.bodyColor} />
+      <Rect x={7.3} y={5.5} width={1.3} height={4.2} rx={0.6} fill={pawn.bodyColor} />
+      <Rect x={4.3} y={4.3} width={1.4} height={1} fill={HERO_SKIN} />
+      <HeroHeadShapes pawn={pawn} cx={5} cy={2.7} r={2.3} />
+      {/* the water itself, running over him */}
+      {[1.9, 3.1, 4.3, 5.6, 6.8, 8].map((x) => (
+        <Path key={x} d={`M${x} 0.6 L${x} 13.6`} stroke="#7DD3FC" strokeWidth={0.5} strokeLinecap="round" opacity={0.75} />
+      ))}
+      {[2.5, 5, 7.5].map((x) => (
+        <Path key={`w${x}`} d={`M${x} 3.4 L${x} 12.2`} stroke="#BAE6FD" strokeWidth={0.34} strokeLinecap="round" opacity={0.6} />
+      ))}
+      <Circle cx={2.6} cy={5.6} r={0.42} fill="#BAE6FD" />
+      <Circle cx={7.5} cy={6.4} r={0.42} fill="#BAE6FD" />
+      <Circle cx={5.1} cy={11.8} r={0.38} fill="#BAE6FD" />
+      {/* steam drifting at the stall's edge */}
+      <Ellipse cx={9.1} cy={4.6} rx={0.75} ry={1.6} fill="#FFFFFF" opacity={0.35} />
+      <Ellipse cx={0.9} cy={6.4} rx={0.65} ry={1.3} fill="#FFFFFF" opacity={0.28} />
+    </Svg>
+  );
+}
+
+/** Soaking in the tub — body below the water line, head and shoulders
+ *  above it, bubbles on the surface. Also his pool swim: the same
+ *  head-and-shoulders read above the pool's water. */
+export function PaperHeroTubFigure({ pawn, unit }: { pawn: CustomPawn; unit: number }) {
+  const W = 11, H = 7.2;
+  return (
+    <Svg width={W * unit} height={H * unit} viewBox={`0 0 ${W} ${H}`}>
+      {/* shoulders above the water */}
+      <Rect x={2.7} y={4.2} width={5.6} height={2.6} rx={1.2} fill={pawn.bodyColor} />
+      <Rect x={4.8} y={3.6} width={1.4} height={1} fill={HERO_SKIN} />
+      <HeroHeadShapes pawn={pawn} cx={5.5} cy={2.55} r={2.25} />
+      {/* the water line across him, with bubbles */}
+      <Rect x={0.7} y={5.5} width={9.6} height={1.5} rx={0.75} fill="#8FC9CF" opacity={0.92} />
+      <Path d="M0.9 5.6 q1.2 -0.7 2.4 0 q1.2 0.7 2.4 0 q1.2 -0.7 2.4 0 q1.2 0.7 2.2 0" stroke="#EAFBFA" strokeWidth={0.4} fill="none" />
+      <Circle cx={2.2} cy={5.3} r={0.5} fill="#FFFFFF" opacity={0.85} />
+      <Circle cx={8.6} cy={5.2} r={0.62} fill="#FFFFFF" opacity={0.85} />
+      <Circle cx={9.6} cy={5.9} r={0.4} fill="#FFFFFF" opacity={0.7} />
     </Svg>
   );
 }
@@ -1403,7 +1589,7 @@ export function PaperHospitalScene({
       )}
       {pawn && (
         <View style={{ position: "absolute", left: 68 * unit, top: (FLOOR_FEET - PAPER_HERO_UNITS_H) * unit, alignItems: "center" }}>
-          <PaperHeroFigure pawn={pawn} unit={unit * 1.06} />
+          <PaperHeroFigure pawn={pawn} unit={unit} />
           <Text style={{ fontSize: Math.max(8, unit * 2.6), color: labelColor, marginTop: unit * 0.4, fontWeight: "700" }}>{pawn.name}</Text>
         </View>
       )}
@@ -1499,7 +1685,7 @@ export function PaperBackyardScene({
       ))}
       {pawn && (
         <View style={{ position: "absolute", left: 66 * unit, top: (88 - PAPER_HERO_UNITS_H) * unit, alignItems: "center" }}>
-          <PaperHeroFigure pawn={pawn} unit={unit * 1.06} />
+          <PaperHeroFigure pawn={pawn} unit={unit} />
           <Text style={{ fontSize: Math.max(8, unit * 2.6), color: labelColor, marginTop: unit * 0.4, fontWeight: "700" }}>{pawn.name}</Text>
         </View>
       )}

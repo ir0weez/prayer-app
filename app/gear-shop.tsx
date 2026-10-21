@@ -12,15 +12,22 @@ import {
   GEAR_BY_ID,
   GEAR_CATALOG,
   GEAR_TYPE_META,
+  MAX_TEMPER,
+  applyTemper,
   isLevelUnlocked,
   isPrestigeUnlocked,
+  isTemperable,
   isUnlocked,
   loadEquipped,
   loadInventory,
   refreshGearBoostCache,
+  refreshTemperCache,
   saveEquipped,
   saveInventory,
+  saveTemper,
   shopLevelFor,
+  temperCost,
+  temperLevelFor,
   type EquippedGear,
   type GearItem,
   type GearType,
@@ -88,6 +95,7 @@ export default function GearShopScreen() {
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
   const [coins, setCoins] = useState<Coins>({ balance: 0, lifetimeEarned: 0 });
   const [inventory, setInventory] = useState<string[]>([]);
+  const [temper, setTemper] = useState<Record<string, number>>({});
   const [equipped, setEquipped] = useState<EquippedGear>({ clothes: null, armor: null, weapon: null, tool: null });
   const [fastDay, setFastDay] = useState(1);
   const [level, setLevel] = useState(1);
@@ -96,7 +104,7 @@ export default function GearShopScreen() {
   const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [p, c, inv, eq, day, lvl, xp, prestige] = await Promise.all([
+    const [p, c, inv, eq, day, lvl, xp, prestige, temperMap] = await Promise.all([
       loadCustomPawn(),
       loadCoins(),
       loadInventory(),
@@ -105,11 +113,13 @@ export default function GearShopScreen() {
       shopLevelFor(shopType),
       loadXPState(),
       loadPrestigeLevel(),
+      refreshTemperCache(),
     ]);
     setPrestigeLevel(prestige);
     setPawn(p);
     setCoins(c);
     setInventory(inv);
+    setTemper(temperMap);
     setEquipped(eq);
     setFastDay(day);
     setLevel(getLevelForXP(xp.totalXP));
@@ -172,6 +182,33 @@ export default function GearShopScreen() {
     await refreshGearBoostCache();
   };
 
+  const handleTemper = async (item: GearItem) => {
+    if (!isTemperable(item)) return;
+    const current = temperLevelFor(item.id, temper);
+    if (current >= MAX_TEMPER) return;
+    const cost = temperCost(item, current);
+    if (coins.balance < cost) {
+      Alert.alert(
+        "Not enough coins",
+        `Tempering ${item.name} to +${current + 1} costs ${formatCoins(cost)} coins. You have ${formatCoins(coins.balance)}.`
+      );
+      return;
+    }
+    const nextTemper: Record<string, number> = { ...temper, [item.id]: current + 1 };
+    await saveTemper(nextTemper);
+    // Same hometown coin ledger as purchases: deduct from the shared
+    // balance key with the shop's existing rounding.
+    const nextCoins: Coins = {
+      balance: Math.round((coins.balance - cost) * 10) / 10,
+      lifetimeEarned: coins.lifetimeEarned,
+    };
+    await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(nextCoins));
+    const savedTemper = await refreshTemperCache();
+    setTemper(savedTemper);
+    setCoins(nextCoins);
+    await refreshGearBoostCache();
+  };
+
   if (!loaded) {
     return <View style={{ flex: 1, backgroundColor: BG }} />;
   }
@@ -219,6 +256,20 @@ export default function GearShopScreen() {
           const crownLocked = !isPrestigeUnlocked(item, prestigeLevel);
           const blocked = !unlocked || levelLocked || xpLocked || crownLocked;
           const boost = boostLabel(item);
+          const temperLevel = temperLevelFor(item.id, temper);
+          const showTemper = owned && isTemperable(item);
+          const temperCostNext = temperCost(item, temperLevel);
+          const temperedNow = applyTemper(item.boost, item, temper);
+          const temperedNext =
+            temperLevel < MAX_TEMPER
+              ? applyTemper(item.boost, item, { ...temper, [item.id]: temperLevel + 1 })
+              : temperedNow;
+          const temperStatLabel = item.type === "weapon" ? "attack" : "defense";
+          const temperCurrentStat =
+            item.type === "weapon" ? temperedNow.attack || 0 : temperedNow.defense || 0;
+          const temperNextStat =
+            item.type === "weapon" ? temperedNext.attack || 0 : temperedNext.defense || 0;
+          const temperAffordable = coins.balance >= temperCostNext;
           return (
             <View key={item.id} style={{ backgroundColor: CARD, borderRadius: 16, padding: 16, marginBottom: 12, opacity: blocked ? 0.6 : 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -287,6 +338,50 @@ export default function GearShopScreen() {
                   </Pressable>
                 )}
               </View>
+              {showTemper && (
+                <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.12)", paddingTop: 12 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 13 }}>
+                      Temper +{temperLevel}
+                    </Text>
+                    <Text style={{ color: LABEL, fontSize: 12 }}>
+                      {temperStatLabel} {temperCurrentStat}
+                    </Text>
+                  </View>
+                  {temperLevel >= MAX_TEMPER ? (
+                    <Text style={{ color: GOLD, fontSize: 12, fontWeight: "700", marginTop: 6 }}>
+                      Fully tempered
+                    </Text>
+                  ) : (
+                    <>
+                      <Text style={{ color: LABEL, fontSize: 12, marginTop: 4 }}>
+                        Next level: {temperStatLabel} {temperCurrentStat} to {temperNextStat} (+
+                        {temperNextStat - temperCurrentStat})
+                      </Text>
+                      {!temperAffordable && (
+                        <Text style={{ color: "#F87171", fontSize: 12, marginTop: 4 }}>
+                          Need {formatCoins(temperCostNext - coins.balance)} more coins to temper
+                        </Text>
+                      )}
+                      <Pressable
+                        onPress={() => handleTemper(item)}
+                        disabled={!temperAffordable}
+                        style={{
+                          marginTop: 8,
+                          paddingVertical: 10,
+                          borderRadius: 12,
+                          backgroundColor: temperAffordable ? ACCENT : "rgba(255,255,255,0.12)",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>
+                          Temper · {formatCoins(temperCostNext)}
+                        </Text>
+                      </Pressable>
+                    </>
+                  )}
+                </View>
+              )}
             </View>
           );
         })}

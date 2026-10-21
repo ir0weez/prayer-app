@@ -282,6 +282,12 @@ import {
   type VillagerWorkState,
 } from "@/lib/villager-work";
 import {
+  jobCollectXP,
+  loadJobCollectLedger,
+  recordCollect,
+  saveJobCollectLedger,
+} from "@/lib/job-collect-xp";
+import {
   lightsForMap,
   loadVillagerLocations,
   locatedCountOnMap,
@@ -4058,25 +4064,37 @@ export default function HometownScreen() {
   /** Collections book modal. */
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [collectBreakdownOpen, setCollectBreakdownOpen] = useState(false);
-  // Coin-fly FX — PURELY DECORATIVE, and only for single-building
-  // collects now. Collecting awards coins/XP synchronously in the tap
-  // handler (buildings zeroed + persisted, balance updated, XP
-  // granted) BEFORE any of this is touched. Bursts, the balance pulse,
-  // and the "+X" receipt only read state afterwards: no animation
-  // completion callback calls setState, no phase flags gate the money,
-  // and an interrupted or unmounted animation can break nothing.
+  // Coin-fly FX — PURELY DECORATIVE. Collecting awards coins/XP
+  // synchronously in the tap handler (buildings zeroed + persisted,
+  // balance updated, XP granted) BEFORE any of this is touched. Bursts,
+  // the balance pulse, and the pill's collected-face crossfade only
+  // read state afterwards: no animation completion callback gates the
+  // money, no phase flags gate the money, and an interrupted or
+  // unmounted animation can break nothing.
   //
-  // The header Collect All pill itself NO LONGER ANIMATES (Jonathan,
-  // 2026-10-21: the 360° spin + JS-driven face morph read as slow and
-  // laggy on his phone). Like the Pray Today claim line, its label is
-  // a direct state swap: gold "Collect X.XX" while coins wait, and the
-  // moment a collect lands the pending total is zero, so the same
-  // render shows the cream balance face with the new balance — one
-  // tap, one render, nothing rolling in between.
+  // The header pill (v160 correction, Jonathan, 2026-10-21): the
+  // coin-fly animation STAYS — on Collect All, coins burst from the
+  // pending buildings, fly to the counter, and the balance pulses,
+  // exactly as they did before v159. What stays REMOVED is the pill's
+  // own janky stack: no 360° spin, no JS-driven face morph, no
+  // count-up or rolling digits. The label change is a SIMPLE
+  // two-state opacity crossfade (stacked faces, sine ease, ~240ms,
+  // native driver): "Collect X" fades out as the collected amount
+  // ("+X") fades in on a green face, holds briefly, then crossfades
+  // back — and the pill settles to whatever its normal derived face
+  // dictates (the new balance, since the pending total just zeroed).
   const { width: windowW } = useWindowDimensions();
   const [bursts, setBursts] = useState<CoinBurstData[]>([]);
   // Floating "+X.XX" receipt by the pill after a single-building collect.
   const [collectDelta, setCollectDelta] = useState<{ id: number; label: string } | null>(null);
+  // Pill label crossfade: 0 = normal face, 1 = collected-amount face.
+  // Opacity only, native driver — the two faces are stacked and fade
+  // through each other; nothing scales, spins, or rolls.
+  const collectFade = useRef(new Animated.Value(0)).current;
+  // The collected-amount face shown briefly after a Collect All lands.
+  const [collectedFace, setCollectedFace] = useState<{ id: number; label: string } | null>(null);
+  const collectedIdRef = useRef(0);
+  const collectedTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const balancePulseAnim = useRef(new Animated.Value(0)).current;
   const balanceRef = useRef<View>(null);
   const balancePosRef = useRef({ x: 0, y: 0 });
@@ -4094,6 +4112,8 @@ export default function HometownScreen() {
     burstTimersRef.current.forEach(clearTimeout);
     burstTimersRef.current = [];
     if (deltaTimerRef.current) clearTimeout(deltaTimerRef.current);
+    collectedTimersRef.current.forEach(clearTimeout);
+    collectedTimersRef.current = [];
   }, []);
 
   const measureBalance = useCallback(() => {
@@ -4144,8 +4164,8 @@ export default function HometownScreen() {
   /**
    * Decorative receipt for a single-building collect that has ALREADY
    * landed: a floating "+X" by the pill. A plain timer tidies it up;
-   * nothing depends on it. (Collect All no longer calls this — the
-   * pill's own label swap IS its receipt.)
+   * nothing depends on it. (Collect All has its own receipt — the
+   * pill's collected-amount crossfade below.)
    */
   const showCollectReceipt = useCallback((label: string) => {
     const id = ++deltaIdRef.current;
@@ -4156,6 +4176,32 @@ export default function HometownScreen() {
       setCollectDelta(null);
     }, 1500);
   }, []);
+
+  /**
+   * The Collect All pill's label morph — fire-and-forget decoration
+   * for a collect that has ALREADY landed: crossfade the pill from
+   * its "Collect X" face to the collected amount, hold briefly, then
+   * crossfade back so the pill settles to its normal derived face.
+   * Two opacity timings (sine ease, native driver) and plain timers;
+   * nothing rolls, spins, or counts, and nothing depends on it.
+   */
+  const showCollectedFace = useCallback((label: string) => {
+    const id = ++collectedIdRef.current;
+    setCollectedFace({ id, label });
+    collectFade.setValue(0);
+    Animated.timing(collectFade, { toValue: 1, duration: 240, easing: Easing.inOut(Easing.sin), useNativeDriver: true }).start();
+    collectedTimersRef.current.forEach(clearTimeout);
+    collectedTimersRef.current = [
+      setTimeout(() => {
+        if (!mountedRef.current || collectedIdRef.current !== id) return;
+        Animated.timing(collectFade, { toValue: 0, duration: 240, easing: Easing.inOut(Easing.sin), useNativeDriver: true }).start();
+      }, 1250),
+      setTimeout(() => {
+        if (!mountedRef.current || collectedIdRef.current !== id) return;
+        setCollectedFace(null);
+      }, 1550),
+    ];
+  }, [collectFade]);
 
   /** Measure the map grid's on-screen origin, then run cb with it. */
   const withGridOrigin = useCallback((cb: (gx: number, gy: number) => void) => {
@@ -4251,9 +4297,10 @@ export default function HometownScreen() {
   // Coin amounts render WHOLE everywhere (Jonathan, 2026-10-21) — the
   // pill included: full numbers with separators, no K shorthand, no cents.
   const headerCoinText = (n: number) => formatCoins(n);
-  // The pill face is DERIVED, never animated: pillCollectMode picks
-  // the face in the same render the state changes — the direct label
-  // swap Jonathan asked for (see the FX note above).
+  // The pill's resting face is DERIVED from state: pillCollectMode
+  // picks Collect vs balance. The only animation layered on top is
+  // the collected-amount crossfade after a Collect All (collectFade,
+  // opacity only) and the native balance pulse on the outer view.
 
   // Prayer lights: everyone prayed for today appears as a golden light.
   // Gone by midnight — each day brings a new set.
@@ -5035,7 +5082,11 @@ export default function HometownScreen() {
       await saveVillagerWorkState(state);
       // Restock shifts also pay the per-box bonus banked along the route.
       addCoins(scaledCoins(def.rewardCoins + (done.bonusCoins ?? 0)));
-      awardCustomXP(scaledXP(def.rewardXP), `villager-work:${done.id}`).catch(() => undefined);
+      // Rider I: job-collect XP pays by duration band with a daily taper
+      // (lib/job-collect-xp) — coins above are unchanged.
+      const collectLedger = await loadJobCollectLedger();
+      awardCustomXP(scaledXP(jobCollectXP(done.kind, collectLedger.count)), `villager-work:${done.id}`).catch(() => undefined);
+      void saveJobCollectLedger(recordCollect(collectLedger));
     },
     [addCoins]
   );
@@ -7110,6 +7161,7 @@ export default function HometownScreen() {
     const now = Date.now();
     let totalCoins = 0;
     let totalXP = 0;
+    const pendingBuildings = map.buildings.filter((b) => (b.accumulated || 0) > 0);
     const updatedBuildings = map.buildings.map((b) => {
       const acc = b.accumulated || 0;
       if (acc <= 0) return b;
@@ -7136,11 +7188,32 @@ export default function HometownScreen() {
     if (coinsAward > 0) {
       addCoins(coinsAward);
     }
-    // ── NO DECORATION ────────────────────────────────────────────────
-    // The collect IS the feedback: the pending total just zeroed, so
-    // the header pill's derived face swaps straight from "Collect
-    // X.XX" to the new balance in this same render (Jonathan's ask —
-    // no spin, no count-up, no coin-fly on the Collect All path).
+    // ── DECORATION ONLY ─────────────────────────────────────────────────
+    // Fire-and-forget visuals (restored in v160 — the coin collection
+    // animation STAYS): coins burst from up to 8 pending buildings and
+    // fly to the counter, the balance pulses, and the pill label
+    // crossfades "Collect X" → the collected amount. No spin, no
+    // count-up. They read state; they never gate, trigger, or
+    // complete any of it. Wrapped so even a throw here costs only
+    // the sparkle.
+    try {
+      pulseBalance();
+      showCollectedFace(coinsAward > 0 ? `+${formatCoins(coinsAward)}` : `+${totalXP} XP`);
+      measureBalance();
+      withGridOrigin((gx, gy) => {
+        if (!mountedRef.current) return;
+        pendingBuildings.slice(0, 8).forEach((b) => {
+          const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
+          spawnBurst(
+            gx + (b.x + fp.w / 2) * cellSize,
+            gy + (b.y + fp.h / 2) * cellSize,
+            xpIncomeFor(b.type, b.level || 1) > 0 ? "xp" : "coins"
+          );
+        });
+      });
+    } catch {
+      // Decoration failed — the collect already landed. Nothing to do.
+    }
   };
 
   /** Send a prayer light out on a mission. */
@@ -7559,12 +7632,13 @@ export default function HometownScreen() {
         </Pressable>
         <Text numberOfLines={1} style={{ fontSize: 22, fontWeight: "800", color: pt.text, flexShrink: 1 }}>{MAP_INFO[activeMap].icon} {MAP_INFO[activeMap].name}</Text>
         <View style={{ flex: 1 }} />
-        {/* ONE pill, two faces, NO animation between them: it rests cream
-            showing the coin balance; when coins are waiting it is gold
-            "Collect X.XX"; a Collect All tap lands the money and the
-            pill is simply the balance face again in the same render —
-            a direct label swap, like the Pray Today claim line. The
-            info button opens the per-building breakdown. */}
+        {/* ONE pill: it rests cream showing the coin balance; when coins
+            are waiting it is gold "Collect X". A Collect All tap lands
+            the money, coins fly to the counter, the balance pulses,
+            and the label crossfades to the collected amount ("+X") on
+            a green face before settling back to the balance face —
+            opacity only, no spin, no count-up. The info button opens
+            the per-building breakdown. */}
         <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1, marginLeft: 8 }}>
           <Animated.View
             ref={balanceRef}
@@ -7591,7 +7665,7 @@ export default function HometownScreen() {
                   shadowRadius: 2,
                 }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+                <Animated.View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", opacity: collectFade.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>
                   {pillCollectMode ? (
                     <>
                       <MaterialIcons name="monetization-on" size={18} color="#FFFFFF" />
@@ -7603,7 +7677,19 @@ export default function HometownScreen() {
                       <Text numberOfLines={1} style={{ marginLeft: 6, fontWeight: "700" }}>{headerCoinText(coins.balance)}</Text>
                     </>
                   )}
-                </View>
+                </Animated.View>
+                {/* Collected-amount face: crossfades in over the normal
+                    face after a Collect All, then back out (collectFade). */}
+                {collectedFace && (
+                  <Animated.View
+                    key={collectedFace.id}
+                    pointerEvents="none"
+                    style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#16A34A", borderRadius: 999, opacity: collectFade, flexDirection: "row", alignItems: "center", justifyContent: "center" }}
+                  >
+                    <MaterialIcons name="check-circle" size={18} color="#FFFFFF" />
+                    <Text numberOfLines={1} style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>{collectedFace.label}</Text>
+                  </Animated.View>
+                )}
               </View>
             </Pressable>
             {/* Floating "+X" receipt — the balance above already updated;

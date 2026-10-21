@@ -14,10 +14,13 @@ export const APP_ICONS: AppIconDef[] = [
   { id: "ember", name: "Ember", level: 5, file: require("@/assets/images/app-icons/icon-ember.png") },
   { id: "ocean", name: "Ocean", level: 10, file: require("@/assets/images/app-icons/icon-ocean.png") },
   { id: "retro", name: "Retro", level: 15, file: require("@/assets/images/app-icons/icon-retro.png") },
+  { id: "glass", name: "Glass", level: 20, file: require("@/assets/images/app-icons/icon-glass.png") },
   { id: "sketch", name: "Sketch", level: 25, file: require("@/assets/images/app-icons/icon-sketch.png") },
   { id: "watercolor", name: "Watercolor", level: 40, file: require("@/assets/images/app-icons/icon-watercolor.png") },
+  { id: "melting", name: "Melting", level: 50, file: require("@/assets/images/app-icons/icon-melting.png") },
   { id: "aurora", name: "Aurora", level: 60, file: require("@/assets/images/app-icons/icon-aurora.png") },
   { id: "neon", name: "Neon", level: 75, file: require("@/assets/images/app-icons/icon-neon.png") },
+  { id: "prism", name: "Prism", level: 85, file: require("@/assets/images/app-icons/icon-prism.png") },
   { id: "liquid", name: "Liquid", level: 90, file: require("@/assets/images/app-icons/icon-liquid.png") },
   { id: "gold", name: "Gold", level: 100, file: require("@/assets/images/app-icons/icon-gold.png") },
 ];

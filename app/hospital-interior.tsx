@@ -32,6 +32,20 @@ import {
   saveLastCheckup,
 } from "@/lib/gathering-places";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
+import { loadHouseState } from "@/lib/pawn-house";
+import { boonFor, loadHeroNeeds } from "@/lib/hero-needs";
+import {
+  HOSPITAL_HEALS_PER_DAY,
+  hospitalHeal,
+  loadHeroHealthRaw,
+  restPctForBedTier,
+  saveHeroHealth,
+  settleHealth,
+  type HeroHealthState,
+} from "@/lib/hero-health";
+import { combatStats, loadEquipped, refreshGearBoostCache } from "@/lib/gear";
+import { refreshBadgeCache } from "@/lib/badges";
+import { refreshStatBoostCache } from "@/lib/character-stats";
 import { pickPeople } from "@/components/activity-figures";
 import { PaperHospitalScene } from "@/components/paper-room";
 import { RoundsGame } from "@/components/rounds-game";
@@ -54,6 +68,9 @@ export default function HospitalInteriorScreen() {
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
   const [lastCheckup, setLastCheckup] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  // Hero care (lib/hero-health): the hero's persistent Dark Forest HP.
+  const [heroHealth, setHeroHealth] = useState<HeroHealthState | null>(null);
+  const [effMax, setEffMax] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -74,6 +91,35 @@ export default function HospitalInteriorScreen() {
         const p = await loadCustomPawn().catch(() => null);
         if (p) setPawn(p);
         setLastCheckup(await loadLastCheckup());
+        // Hero care: effective max HP exactly as the Dark Forest sees
+        // it — gear caches refreshed first (combatStats reads them),
+        // then the Morning Care boon from needs + house.
+        try {
+          try { await refreshGearBoostCache(); } catch {}
+          try { await refreshBadgeCache(); } catch {}
+          try { await refreshStatBoostCache(); } catch {}
+          const [house, needs, equipped] = await Promise.all([
+            loadHouseState(),
+            loadHeroNeeds(),
+            loadEquipped(),
+          ]);
+          const boon = boonFor(needs, house);
+          const base = combatStats(equipped);
+          const max = boon.active ? Math.round(base.maxHp * (1 + boon.hpPct)) : base.maxHp;
+          setEffMax(max);
+          const bedTier = house.rooms.bedroom?.furniture["bed"] || 0;
+          const raw = await loadHeroHealthRaw();
+          const rawState: HeroHealthState =
+            raw ?? { hp: null, updatedAt: Date.now(), day: "", hospitalHealsUsed: 0 };
+          const { state: settled, changed } = settleHealth(
+            rawState,
+            Date.now(),
+            max,
+            restPctForBedTier(bedTier)
+          );
+          setHeroHealth(settled);
+          if (changed) await saveHeroHealth(settled).catch(() => undefined);
+        } catch {}
       } catch {}
       setLoaded(true);
     })();
@@ -120,6 +166,19 @@ export default function HospitalInteriorScreen() {
     await saveLastCheckup(t).catch(() => undefined);
     await saveHospitalBuff({ hpMult: blessing.hpMult, attackMult: blessing.attackMult, grantedAt: new Date(t).toISOString(), level });
     Alert.alert("Doctor's Blessing", `The doctor smiles. "You're in fine shape."\n\n${blessing.label}.`);
+  };
+
+  const healsLeft = heroHealth
+    ? Math.max(0, HOSPITAL_HEALS_PER_DAY - heroHealth.hospitalHealsUsed)
+    : HOSPITAL_HEALS_PER_DAY;
+  const heroHp = heroHealth ? heroHealth.hp ?? effMax : effMax;
+  const heroFull = effMax > 0 && heroHp >= effMax;
+
+  const handleReceiveHealing = async () => {
+    if (!heroHealth || effMax <= 0) return;
+    const { state: next, ok } = hospitalHeal(heroHealth, effMax, Date.now());
+    setHeroHealth(next);
+    if (ok) await saveHeroHealth(next).catch(() => undefined);
   };
 
   const handleUpgrade = () => {
@@ -222,6 +281,37 @@ export default function HospitalInteriorScreen() {
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           The blessing is consumed when your next Dark Forest battle begins.
         </Text>
+
+        {/* hero care: persistent Dark Forest HP, healed free */}
+        {heroHealth && effMax > 0 && (
+          <View style={{ marginHorizontal: 16, marginTop: 16, borderRadius: 16, backgroundColor: CARD, borderWidth: 1, borderColor: "#BFE3E8", padding: 14 }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <MaterialIcons name="favorite" size={24} color={RED} />
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={{ color: TEXT, fontWeight: "800", fontSize: 15 }}>Hero Care</Text>
+                <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 2 }}>
+                  HP {heroHp}/{effMax} · {HOSPITAL_HEALS_PER_DAY} free healings a day — always free. {healsLeft} left today.
+                </Text>
+              </View>
+            </View>
+            {heroFull ? (
+              <Text style={{ color: TEAL, fontWeight: "700", fontSize: 13, marginTop: 10 }}>
+                You're at full strength.
+              </Text>
+            ) : healsLeft > 0 ? (
+              <Pressable
+                onPress={handleReceiveHealing}
+                style={{ backgroundColor: TEAL, borderRadius: 12, paddingVertical: 12, alignItems: "center", marginTop: 12 }}
+              >
+                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 14 }}>Receive healing</Text>
+              </Pressable>
+            ) : (
+              <Text style={{ color: TEXT_DIM, fontSize: 12.5, marginTop: 10, lineHeight: 18 }}>
+                Both healings used — rest and time still mend, and tomorrow brings two more.
+              </Text>
+            )}
+          </View>
+        )}
 
         <PlayCard
           icon="healing"

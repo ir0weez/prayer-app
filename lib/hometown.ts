@@ -445,8 +445,10 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "theater":          { name: "Grand Theater",    icon: "🎭", cost: 550, tier: 1, incomePerDay: 220, xpPerDay: 0, maps: ["city"], description: "Music and stories nightly. +220 coins/day." },
   // Mall (retired) — the map is now the Garden of Remembrance. Defs are kept
   // so old saves can be refunded at full price; maps: [] means unbuildable.
+  // The Bookstore is the exception: it reopened on town lots (its art,
+  // interior, and tap routing never left), so its maps list is ["town"].
   "food-court": { name: "Food Court", icon: "🍔", cost: 1430, tier: 1, incomePerDay: 80,  xpPerDay: 0, maps: [], description: "Hungry shoppers. +80 coins/day." },
-  "bookstore":  { name: "Bookstore",  icon: "📚", cost: 1155,  tier: 1, incomePerDay: 60,  xpPerDay: 0, maps: [], description: "Quiet readers. +60 coins/day." },
+  "bookstore":  { name: "Bookstore",  icon: "📚", cost: 1155,  tier: 1, incomePerDay: 60,  xpPerDay: 0, maps: ["town"], description: "Quiet readers. +60 coins/day." },
   "arcade":     { name: "Arcade",     icon: "🕹️", cost: 1760, tier: 1, incomePerDay: 100, xpPerDay: 0, maps: [], description: "Tokens and high scores. +100 coins/day." },
   "cinema":     { name: "Cinema",     icon: "🎬", cost: 2200, tier: 1, incomePerDay: 120, xpPerDay: 0, maps: [], description: "Now showing. +120 coins/day." },
   // School — XP earners
@@ -1813,11 +1815,27 @@ export type TownLot = {
   beach?: boolean;
 };
 
+/**
+ * Gear-economy buildings — the Hero's gear shops. They are NOT lot
+ * purchases and appear in no lot catalog: a gear shop already standing
+ * keeps working (the gear screens read placed buildings), but lots sell
+ * food, retail, services, and community buildings only.
+ */
+export const GEAR_BUILDING_TYPES: BuildingType[] = [
+  "clothes-shop", "armory", "weaponsmith", "toolshop",
+];
+
 /** Commercial building types allowed on flexible Main Street shop lots. */
-const TOWN_SHOP_TYPES: BuildingType[] = [
+export const TOWN_SHOP_TYPES: BuildingType[] = [
   "shop", "bakery", "market", "bank",
-  "barbershop", "clothes-shop", "armory", "weaponsmith", "toolshop",
+  "barbershop",
   "pizza-place", "burger-joint", "taco-stand", "sushi-bar", "diner",
+  // The Bookstore came home from the retired mall — its art, interior,
+  // and tap routing never left; only its buildable flag did.
+  "bookstore",
+  // Artisans' Row trades — the same crafts that keep their own preset
+  // lots along Artisans' Way may also open on any flexible lot.
+  "carpenter", "pottery", "tailor", "apothecary", "music-hall", "observatory",
 ];
 
 export const TOWN_LOTS: TownLot[] = [
@@ -1838,12 +1856,12 @@ export const TOWN_LOTS: TownLot[] = [
   // Old Town South — 4 preset commercial lots (the 5th moved south to make
   // room for Chapel Avenue, the vertical spine connecting every street)
   { id: "town-lot-s6", x: 0, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Old Town West", presetType: "barbershop" },
-  { id: "town-lot-s7", x: 2, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Old Town", presetType: "armory" },
-  { id: "town-lot-s8", x: 4, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Old Town Central", presetType: "weaponsmith" },
-  { id: "town-lot-s9", x: 6, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Old Town East", presetType: "toolshop" },
+  { id: "town-lot-s7", x: 2, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Old Town", presetType: "carpenter" },
+  { id: "town-lot-s8", x: 4, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Old Town Central", presetType: "pottery" },
+  { id: "town-lot-s9", x: 6, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Old Town East", presetType: "tailor" },
   // South End — Market Corner, Garden Corner, and the Marriage Supper green,
   // served by Old Town Lane (north) and Harbor Lane (south)
-  { id: "town-lot-s5", x: 0, y: 9, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "South End West", presetType: "clothes-shop" },
+  { id: "town-lot-s5", x: 0, y: 9, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "South End West", presetType: "bookstore" },
   { id: "town-lot-s10", x: 2, y: 9, w: 2, h: 2, allowedTypes: ["community-garden"], cost: 825, name: "South End Garden", presetType: "community-garden" },
   { id: "town-lot-banquet", x: 4, y: 9, w: 2, h: 2, allowedTypes: ["banquet-table"], cost: 2200, name: "Marriage Supper Green", presetType: "banquet-table" },
   // Fountain Plaza — a quiet gathering place in the South End, east of the garden
@@ -2074,6 +2092,21 @@ export function lotPurchaseBlocker(
     return `${name} already stands on this lot. Move or sell it first.`;
   }
   return null;
+}
+
+/**
+ * How many buildings of a type currently stand in a buildings array —
+ * drives the "In your town ×N" marker on lot build rows. Duplicates stay
+ * purchasable (Jonathan's pick); the marker just tells the truth, and the
+ * sheet recomputes it from the live town state on every render.
+ */
+export function countBuildingsOfType(
+  buildings: PlacedBuilding[],
+  type: BuildingType
+): number {
+  let n = 0;
+  for (const b of buildings) if (b.type === type) n++;
+  return n;
 }
 
 /** True if a building sits on a town lot (fixed position, no move/sell). */

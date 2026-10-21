@@ -84,6 +84,7 @@ import {
   TOWN_LOTS,
   townLotAt,
   lotPurchaseBlocker,
+  countBuildingsOfType,
   buildingCoveringRect,
   isTownLotBuilding,
   isTownPath,
@@ -10047,7 +10048,9 @@ export default function HometownScreen() {
                       ) : lot.presetType === "fountain-plaza" ? (
                         <View style={{ marginRight: 14 }}><PlazaGlyph size={44} /></View>
                       ) : (
-                        <Text style={{ fontSize: 40, marginRight: 14 }}>{def.icon}</Text>
+                        <View style={{ width: 48, height: 48, marginRight: 14, alignItems: "center", justifyContent: "flex-end" }}>
+                          <BuildingArt type={lot.presetType} size={48} level={1} />
+                        </View>
                       )}
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 17, fontWeight: "800", color: pt.text }}>{def.name}</Text>
@@ -10081,8 +10084,10 @@ export default function HometownScreen() {
               );
               const groups: { title: string; types: BuildingType[] }[] = [
                 { title: "Food & Drink", types: ["pizza-place", "burger-joint", "taco-stand", "sushi-bar", "diner", "bakery"] },
-                { title: "Shops", types: ["shop", "market", "clothes-shop", "armory", "weaponsmith", "toolshop"] },
+                { title: "Shops", types: ["shop", "market", "bookstore"] },
                 { title: "Services", types: ["bank", "barbershop"] },
+                { title: "Crafts", types: ["carpenter", "pottery", "tailor", "apothecary"] },
+                { title: "Community", types: ["music-hall", "observatory"] },
                 { title: "Homes", types: ["villager-cottage"] },
                 { title: "Special", types: ["church", "pawn-house", "farm", "house"] },
               ];
@@ -10114,6 +10119,10 @@ export default function HometownScreen() {
                             const def = BUILDINGS[type];
                             const total = scaledCoins(lot.cost + def.cost);
                             const affordable = coinsRef.current.balance >= total;
+                            // Duplicates stay buyable — the badge just says
+                            // how many already stand, counted live from the
+                            // town state on every render of this sheet.
+                            const ownedCount = countBuildingsOfType(map.buildings, type);
                             return (
                               <Pressable
                                 key={type}
@@ -10125,13 +10134,18 @@ export default function HometownScreen() {
                                   borderWidth: 1, borderColor: pt.border, opacity: affordable ? 1 : 0.55,
                                 }]}
                               >
-                                {type === "villager-cottage" ? (
-                                  <View style={{ marginRight: 12 }}><CottageGlyph size={28} /></View>
-                                ) : (
-                                  <Text style={{ fontSize: 28, marginRight: 12 }}>{def.icon}</Text>
-                                )}
+                                <View style={{ width: 40, height: 40, marginRight: 12, alignItems: "center", justifyContent: "flex-end" }}>
+                                  <BuildingArt type={type} size={40} level={1} />
+                                </View>
                                 <View style={{ flex: 1 }}>
-                                  <Text style={{ fontSize: 15, fontWeight: "700", color: pt.text }}>{def.name}</Text>
+                                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                                    <Text style={{ fontSize: 15, fontWeight: "700", color: pt.text }}>{def.name}</Text>
+                                    {ownedCount > 0 ? (
+                                      <View style={{ marginLeft: 8, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: pt.border }}>
+                                        <Text style={{ fontSize: 10, fontWeight: "700", color: pt.subtext }}>In your town ×{ownedCount}</Text>
+                                      </View>
+                                    ) : null}
+                                  </View>
                                   <Text style={{ fontSize: 12, color: pt.subtext }}>
                                     {effectiveIncomeFor({ type, level: 1 } as PlacedBuilding) > 0 ? `+${effectiveIncomeFor({ type, level: 1 } as PlacedBuilding)}/day` : xpIncomeFor(type, 1) > 0 ? `+${xpIncomeFor(type, 1)} XP/day` : def.description}
                                   </Text>

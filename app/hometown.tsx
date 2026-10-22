@@ -4,7 +4,7 @@ import Svg, { Path, Circle, Ellipse, Rect, Line, Polygon, G } from "react-native
 import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   BUILDINGS,
   DECORATIONS,
@@ -63,6 +63,8 @@ import {
   churchNameFor,
   CHURCH_PRAYER_COINS_PER_HOUR,
   parseCoins,
+  applyCoinsDelta,
+  loadCoinsRecord,
   parseTown,
   parseOwnedItems,
   parseUnlockedMaps,
@@ -4925,10 +4927,20 @@ export default function HometownScreen() {
   /** Refresh the coin chip from storage (after mission rewards land). */
   const refreshCoins = useCallback(async () => {
     try {
-      const coinsRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
-      setCoins(parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {}));
+      setCoins(await loadCoinsRecord());
     } catch {}
   }, []);
+
+  // This screen stays mounted underneath every interior (the Main
+  // Office included), and interiors transact against the same record.
+  // Re-read the balance whenever the map comes back into focus, so the
+  // chip can never show a stale copy after another screen earned or
+  // spent — the display half of the v167 vanishing-coins fix.
+  useFocusEffect(
+    useCallback(() => {
+      void refreshCoins();
+    }, [refreshCoins])
+  );
 
   /** Jonathan taps "Help" on a villager request — the light heads to its target. */
   const helpVillagerMission = useCallback(async (mission: VillagerMission) => {
@@ -5034,10 +5046,9 @@ export default function HometownScreen() {
     });
   }, []);
 
-  const saveCoins = useCallback((next: HometownCoins) => {
-    setCoins(next);
-    AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
-  }, []);
+  // (v167: the old whole-record save-coins writer is gone — it let this
+  // screen's mount-time snapshot overwrite fresher balances. Every coin
+  // change now goes through applyCoinsDelta; see lib/hometown.ts.)
 
   // Ref mirror of coins for fresh reads inside event handlers (avoids stale closures).
   const coinsRef = useRef(coins);
@@ -5045,8 +5056,12 @@ export default function HometownScreen() {
     coinsRef.current = coins;
   }, [coins]);
 
-  // Transactional coin delta: functional setState so concurrent transactions
-  // (sell, upgrade, collect, hire, purchases) never clobber each other.
+  // Transactional coin delta (v167): applied to the FRESHEST stored
+  // record via the canonical ledger (lib applyCoinsDelta), never to this
+  // screen's in-memory copy. This screen stays mounted underneath every
+  // interior, so its copy can be hours stale — the old functional-setState
+  // version wrote that stale copy back as the whole record and erased
+  // whatever the interiors had earned (the vanishing office collect).
   const addCoins = useCallback((rawDelta: number) => {
     // The Bloodmoon Badge (boss 5) blesses every positive hometown coin
     // grant with +10%. This is the one ledger every grant flows through.
@@ -5057,14 +5072,7 @@ export default function HometownScreen() {
       // The border lighthouse glows brighter whenever Jonathan earns.
       setRewardPulse((p) => p + 1);
     }
-    setCoins(prev => {
-      const next = {
-        balance: Math.round((prev.balance + delta) * 10) / 10,
-        lifetimeEarned: delta > 0 ? Math.round((prev.lifetimeEarned + delta) * 10) / 10 : prev.lifetimeEarned,
-      };
-      AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
-      return next;
-    });
+    void applyCoinsDelta(delta, "dime").then((next) => setCoins(next));
   }, []);
 
   const switchMap = useCallback((id: TownMapId) => {
@@ -5253,12 +5261,7 @@ export default function HometownScreen() {
               }
             }
             if (completedCount > 0) {
-              const c0 = parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {});
-              const backfilled = {
-                balance: c0.balance + completedCount,
-                lifetimeEarned: c0.lifetimeEarned + completedCount,
-              };
-              await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(backfilled));
+              const backfilled = await applyCoinsDelta(completedCount, "none");
               effectiveCoinsRaw = JSON.stringify(backfilled);
             }
           } catch {}
@@ -5329,8 +5332,7 @@ export default function HometownScreen() {
           if (!refundDone && mallBuildings.length > 0) {
             const refund = mallBuildings.reduce((sum, b) => sum + remembranceRefundFor(b), 0);
             if (refund > 0) {
-              c = { balance: c.balance + refund, lifetimeEarned: c.lifetimeEarned + refund };
-              await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(c));
+              c = await applyCoinsDelta(refund, "none");
             }
             t = { ...t, maps: { ...t.maps, mall: { buildings: [], decorations: [], roads: [] } } };
             await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(t));
@@ -5348,8 +5350,7 @@ export default function HometownScreen() {
           if (!houseRefundDone && houses.length > 0) {
             const refund = houses.reduce((sum, b) => sum + remembranceRefundFor(b), 0);
             if (refund > 0) {
-              c = { balance: Math.round((c.balance + refund) * 100) / 100, lifetimeEarned: Math.round((c.lifetimeEarned + refund) * 100) / 100 };
-              await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(c));
+              c = await applyCoinsDelta(refund, "cent");
             }
             t = {
               ...t,
@@ -5465,6 +5466,11 @@ export default function HometownScreen() {
         if (plotsR.ok) setPurchasedPlots(plotsR.value);
         // Bell Tower: whether today's campus blessing has already rung.
         if (bellR.ok) setBellRungDate(bellR.value.lastRungDate);
+        // v167: adopt the FRESHEST stored record for the display, not
+        // the mount-start snapshot — everything this mount granted was
+        // already persisted above, and another screen's earnings during
+        // the mount must survive into the chip too.
+        c = await loadCoinsRecord();
         setCoins(c);
         if (frenzyR.ok) {
           const lastFrenzy = frenzyR.value;
@@ -5512,14 +5518,9 @@ export default function HometownScreen() {
             if (prayedCount >= threshold && !bonusState.awarded.includes(threshold)) {
               bonusState.awarded.push(threshold);
               await AsyncStorage.setItem(PRAYER_BONUS_KEY, JSON.stringify(bonusState));
-              // Award via addCoins — but we're in load, use direct storage
-              const cRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
-              const c0 = parseCoins(cRaw ? JSON.parse(cRaw) : {});
-              const next = {
-                balance: Math.round((c0.balance + bonusCoins) * 10) / 10,
-                lifetimeEarned: Math.round((c0.lifetimeEarned + bonusCoins) * 10) / 10,
-              };
-              await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+              // Award via the canonical ledger (v167): a serialized
+              // delta against the freshest stored record.
+              const next = await applyCoinsDelta(bonusCoins, "dime");
               setCoins(next);
               setFireworksKey((k) => k + 1);
               Alert.alert(
@@ -5553,13 +5554,7 @@ export default function HometownScreen() {
           if (newGreens > 0) {
             await AsyncStorage.setItem(FAST_DAY_COIN_KEY, JSON.stringify([...counted]));
             const reward = newGreens * FAST_DAY_COINS;
-            const cRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
-            const c0 = parseCoins(cRaw ? JSON.parse(cRaw) : {});
-            const next = {
-              balance: Math.round((c0.balance + reward) * 10) / 10,
-              lifetimeEarned: Math.round((c0.lifetimeEarned + reward) * 10) / 10,
-            };
-            await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+            const next = await applyCoinsDelta(reward, "dime");
             setCoins(next);
           }
         } catch {}
@@ -5718,17 +5713,17 @@ export default function HometownScreen() {
         setTown(t);
         // The missed-days award lands right after the commit — the
         // same position relative to the town paint the old chain gave
-        // it (its saveCoins followed the town paint there too). The
-        // day count itself can never double-award: lastIncomeDate
-        // already advanced inside the committed record above.
+        // it. The day count itself can never double-award:
+        // lastIncomeDate already advanced inside the committed record
+        // above. v167: the award is a DELTA against the freshest
+        // stored record — the old code built a whole record from the
+        // mount-start snapshot `c` and wrote it here, erasing anything
+        // earned after this mount began (the vanishing-coins bug).
         if (missed) {
           const { earnedCoins, earnedXP } = missed;
           if (earnedCoins > 0) {
-            const nextCoins = {
-              balance: c.balance + earnedCoins,
-              lifetimeEarned: c.lifetimeEarned + earnedCoins,
-            };
-            saveCoins(nextCoins);
+            const nextCoins = await applyCoinsDelta(earnedCoins, "dime");
+            setCoins(nextCoins);
           }
           if (earnedXP > 0) {
             await awardCustomXP(earnedXP, `town-missed-${lastDate}-to-${today}`).catch(() => undefined);

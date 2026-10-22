@@ -15,6 +15,7 @@ import {
   COINS_STORAGE_KEY,
   TOWN_STORAGE_KEY,
   parseCoins,
+  applyCoinsDelta,
   parseTown,
   prayedTodayPeople,
   scaledCoins,
@@ -128,15 +129,10 @@ export default function TheaterInteriorScreen() {
   const coinsRef = useRef(coins);
   useEffect(() => { coinsRef.current = coins; }, [coins]);
 
+  // Canonical ledger (v167): delta applied to the freshest stored
+  // record via lib applyCoinsDelta — never this screen's snapshot.
   const addCoins = useCallback((delta: number) => {
-    setCoins((prev) => {
-      const next = {
-        balance: Math.round((prev.balance + delta) * 100) / 100,
-        lifetimeEarned: delta > 0 ? Math.round((prev.lifetimeEarned + delta) * 100) / 100 : prev.lifetimeEarned,
-      };
-      AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
-      return next;
-    });
+    void applyCoinsDelta(delta, "cent").then((next) => setCoins(next));
   }, []);
 
   const handlePopcornComplete = (raw: MiniGameReward): MiniGameReward => {

@@ -8,6 +8,7 @@ import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Rect } from "react-native
 import {
   COINS_STORAGE_KEY,
   parseCoins,
+  applyCoinsDelta,
   type HometownCoins,
   scaledCoins,
   scaledXP,
@@ -1200,24 +1201,15 @@ export default function PawnHouseScreen() {
   const luxuryGlow = luxuryPulse.interpolate({ inputRange: [0, 1], outputRange: [0.16, 0.38] });
   const chandelierSway = luxuryPulse.interpolate({ inputRange: [0, 1], outputRange: [-2, 2] });
 
-  const persistCoins = useCallback((next: HometownCoins) => {
-    coinsRef.current = next;
-    setCoins(next);
-    AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+  // Canonical ledger (v167): deltas land on the freshest stored record
+  // via lib applyCoinsDelta (this screen's old math — no rounding,
+  // lifetime rises only on gains — is the ledger's "none" mode).
+  const addCoins = useCallback((delta: number) => {
+    void applyCoinsDelta(delta, "none").then((next) => {
+      coinsRef.current = next;
+      setCoins(next);
+    });
   }, []);
-
-  const addCoins = useCallback(
-    (delta: number) => {
-      const cur = coinsRef.current;
-      const next = {
-        balance: cur.balance + delta,
-        lifetimeEarned: cur.lifetimeEarned + Math.max(0, delta),
-      };
-      persistCoins(next);
-      return next.balance >= 0;
-    },
-    [persistCoins]
-  );
 
   const hearth = useMiniGameHost("hearth", addCoins);
 

@@ -13,6 +13,7 @@ import {
   BUILDINGS,
   COINS_STORAGE_KEY,
   TOWN_STORAGE_KEY,
+  applyCoinsDelta,
   beginConstruction,
   constructionTimeLabel,
   parseCoins,
@@ -74,15 +75,12 @@ export function useInteriorData(): InteriorData {
   const coinsRef = useRef(coins);
   useEffect(() => { coinsRef.current = coins; }, [coins]);
 
+  // Canonical ledger (v167): the delta is applied to the FRESHEST stored
+  // record via lib applyCoinsDelta — never computed from this screen's
+  // mount-time snapshot, whose whole-record write used to erase coins
+  // other screens had earned (the Main Office collect that vanished).
   const addCoins = useCallback((delta: number) => {
-    setCoins((prev) => {
-      const next = {
-        balance: Math.round((prev.balance + delta) * 100) / 100,
-        lifetimeEarned: delta > 0 ? Math.round((prev.lifetimeEarned + delta) * 100) / 100 : prev.lifetimeEarned,
-      };
-      AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
-      return next;
-    });
+    void applyCoinsDelta(delta, "cent").then((next) => setCoins(next));
   }, []);
 
   const level = Math.min(Math.max(building?.level || 1, 1), 3) as 1 | 2 | 3;

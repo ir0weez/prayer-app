@@ -129,7 +129,7 @@ import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
 import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/monuments";
-import { COINS_STORAGE_KEY, parseCoins } from "@/lib/hometown";
+import { COINS_STORAGE_KEY, parseCoins, applyCoinsDelta } from "@/lib/hometown";
 import { awardXP, awardCustomXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
 
@@ -1483,11 +1483,9 @@ export default function HomeScreen() {
       const allDone = updatedPeople.every((p) => hasPersonCompletedPrayerToday(p, todayStr));
       if (!allDone) return;
 
-      // Award 1 coin
-      const coinsRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
-      const coins = parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {});
-      const next = { balance: coins.balance + 1, lifetimeEarned: coins.lifetimeEarned + 1 };
-      await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+      // Award 1 coin — via the canonical ledger (v167): a serialized
+      // delta against the freshest stored record.
+      await applyCoinsDelta(1, "none");
       await AsyncStorage.setItem(awardedKey, "1");
     } catch {}
   }, []);

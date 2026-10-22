@@ -4,8 +4,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  COINS_STORAGE_KEY,
-  parseCoins,
+  applyCoinsDelta,
   isRestaurantType,
   isUnderConstruction,
   type PlacedBuilding,
@@ -296,16 +295,8 @@ export async function completeVillagerMission(
 
   if (mission.rewardCoins > 0) {
     try {
-      const coinsRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
-      const coins = parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {});
       const boosted = Math.round(mission.rewardCoins * (1 + missionMult));
-      await AsyncStorage.setItem(
-        COINS_STORAGE_KEY,
-        JSON.stringify({
-          balance: coins.balance + boosted,
-          lifetimeEarned: coins.lifetimeEarned + boosted,
-        })
-      );
+      await applyCoinsDelta(boosted, "none");
     } catch {}
   }
   if (mission.rewardXP > 0) {

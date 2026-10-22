@@ -39,6 +39,7 @@ import {
   TOWN_STORAGE_KEY,
   emptyTownState,
   parseCoins,
+  writeCoinsRecord,
   parseUnlockedMaps,
   type HometownCoins,
   type TownMapId,
@@ -393,7 +394,9 @@ export async function performPrestige(fasts: PersonalFast[]): Promise<PerformPre
     const raw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
     const prev = parseCoins(raw ? JSON.parse(raw) : {});
     coins = { balance: 0, lifetimeEarned: prev.lifetimeEarned };
-    await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(coins));
+    // A true reset (balance → 0 by design) — written through the
+    // canonical ledger's serialized absolute write (v167).
+    await writeCoinsRecord(coins);
   } catch {}
 
   const town = emptyTownState();

@@ -36,6 +36,7 @@ import { getLevelForXP, loadXPState } from "@/lib/xp-engine";
 import { loadPrestigeLevel } from "@/lib/prestige";
 import { COINS_STORAGE_KEY,
   formatCoins,
+  applyCoinsDelta,
 } from "@/lib/hometown";
 import { FASTS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { getActiveFast, getCurrentFastDay, type PersonalFast } from "@/lib/prayercircle-fasting";
@@ -161,11 +162,7 @@ export default function GearShopScreen() {
     }
     const nextInv = [...inventory, item.id];
     await saveInventory(nextInv);
-    const nextCoins: Coins = {
-      balance: Math.round((coins.balance - item.cost) * 10) / 10,
-      lifetimeEarned: coins.lifetimeEarned,
-    };
-    await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(nextCoins));
+    const nextCoins = await applyCoinsDelta(-item.cost, "dime");
     setInventory(nextInv);
     setCoins(nextCoins);
     // Auto-equip on purchase
@@ -196,13 +193,9 @@ export default function GearShopScreen() {
     }
     const nextTemper: Record<string, number> = { ...temper, [item.id]: current + 1 };
     await saveTemper(nextTemper);
-    // Same hometown coin ledger as purchases: deduct from the shared
-    // balance key with the shop's existing rounding.
-    const nextCoins: Coins = {
-      balance: Math.round((coins.balance - cost) * 10) / 10,
-      lifetimeEarned: coins.lifetimeEarned,
-    };
-    await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(nextCoins));
+    // Same hometown coin ledger as purchases (v167): deduct via the
+    // canonical fresh read-modify-write, with the shop's rounding.
+    const nextCoins = await applyCoinsDelta(-cost, "dime");
     const savedTemper = await refreshTemperCache();
     setTemper(savedTemper);
     setCoins(nextCoins);

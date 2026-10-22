@@ -30,7 +30,7 @@ import {
   shopLevelFor,
 } from "@/lib/pawn";
 import { COINS_STORAGE_KEY, TOWN_STORAGE_KEY, scaledCoins, scaledXP,
-  formatCoins,
+  formatCoins, applyCoinsDelta,
 } from "@/lib/hometown";
 import { loadPrestigeLevel } from "@/lib/prestige";
 import { awardCustomXP } from "@/lib/xp-engine";
@@ -164,14 +164,7 @@ export default function BarbershopScreen() {
     const c = _pay.coins;
     const xp = _pay.xp;
     if (c > 0) {
-      setCoins((prev) => {
-        const next = {
-          balance: Math.round((prev.balance + c) * 10) / 10,
-          lifetimeEarned: Math.round((prev.lifetimeEarned + c) * 10) / 10,
-        };
-        AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
-        return next;
-      });
+      void applyCoinsDelta(c, "dime").then((next) => setCoins(next));
     }
     if (xp > 0) awardCustomXP(xp, `minigame-trim-${Date.now()}`).catch(() => undefined);
     recordPlay("trim").then(setTrimPlaysLeft).catch(() => undefined);
@@ -232,11 +225,7 @@ export default function BarbershopScreen() {
     }
     const trimmed = trimBeard(pawn);
     await saveCustomPawn(trimmed);
-    const next: Coins = {
-      balance: Math.round((coins.balance - BARBERSHOP_TRIM_COST) * 10) / 10,
-      lifetimeEarned: coins.lifetimeEarned,
-    };
-    await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+    const next = await applyCoinsDelta(-BARBERSHOP_TRIM_COST, "dime");
     setPawn(trimmed);
     setCoins(next);
   };
@@ -249,11 +238,7 @@ export default function BarbershopScreen() {
     }
     const cut = cutHair(pawn);
     await saveCustomPawn(cut);
-    const next: Coins = {
-      balance: Math.round((coins.balance - BARBERSHOP_TRIM_COST) * 10) / 10,
-      lifetimeEarned: coins.lifetimeEarned,
-    };
-    await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+    const next = await applyCoinsDelta(-BARBERSHOP_TRIM_COST, "dime");
     setPawn(cut);
     setCoins(next);
   };
@@ -263,11 +248,7 @@ export default function BarbershopScreen() {
       Alert.alert("Not enough coins", `That costs ${cost} coins. You have ${formatCoins(coins.balance)}.`);
       return false;
     }
-    const next: Coins = {
-      balance: Math.round((coins.balance - cost) * 10) / 10,
-      lifetimeEarned: coins.lifetimeEarned,
-    };
-    await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+    const next = await applyCoinsDelta(-cost, "dime");
     setCoins(next);
     return true;
   };

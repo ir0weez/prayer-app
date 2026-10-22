@@ -7,6 +7,7 @@ import {
   SHOP_ITEMS,
   SHOP_OWNED_KEY,
   parseCoins,
+  applyCoinsDelta,
   parseOwnedItems,
   type HometownCoins,
   type ShopItem,
@@ -20,10 +21,9 @@ export default function HometownShopScreen() {
   const [owned, setOwned] = useState<string[]>([]);
   const [tier] = useState(1); // TODO: derive from active fast day
 
-  const saveCoins = useCallback((next: HometownCoins) => {
-    setCoins(next);
-    AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
-  }, []);
+  // (v167: purchases deduct through the canonical ledger —
+  // applyCoinsDelta against the freshest stored record. The old
+  // saveCoins wrote this screen's snapshot as the whole record.)
 
   const saveOwned = useCallback((next: string[]) => {
     setOwned(next);
@@ -61,7 +61,7 @@ export default function HometownShopScreen() {
         {
           text: "Buy",
           onPress: () => {
-            saveCoins({ balance: coins.balance - item.cost, lifetimeEarned: coins.lifetimeEarned });
+            void applyCoinsDelta(-item.cost, "none").then((next) => setCoins(next));
             saveOwned([...owned, item.id]);
           },
         },

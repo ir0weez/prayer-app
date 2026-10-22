@@ -11,6 +11,7 @@ import {
   BANQUET_GATHER_CAPS,
   isGatheringTime,
   parseCoins,
+  applyCoinsDelta,
   parseTown,
   prayedTodayPeople,
   scaledCoins,
@@ -355,15 +356,10 @@ export default function RestaurantInteriorScreen() {
   }, [coins]);
 
   // Transactional coin delta: functional setState so concurrent transactions never clobber each other.
+  // Canonical ledger (v167): delta applied to the freshest stored
+  // record via lib applyCoinsDelta — never this screen's snapshot.
   const addCoins = useCallback((delta: number) => {
-    setCoins((prev) => {
-      const next = {
-        balance: Math.round((prev.balance + delta) * 10) / 10,
-        lifetimeEarned: delta > 0 ? Math.round((prev.lifetimeEarned + delta) * 10) / 10 : prev.lifetimeEarned,
-      };
-      AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
-      return next;
-    });
+    void applyCoinsDelta(delta, "dime").then((next) => setCoins(next));
   }, []);
 
   const handleBuy = useCallback(

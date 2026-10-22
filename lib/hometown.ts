@@ -32,6 +32,109 @@ export function parseCoins(value: unknown): HometownCoins {
   };
 }
 
+// ---- Canonical coins ledger (v167) -------------------------------------
+// THE bug this kills (Jonathan, 2026-10-21): he collected finished
+// villager shifts at the Main Office and watched the balance read
+// ~57,000 — then backed out to the Hometown map and it read ~31,000,
+// and ~31,000 is what stayed stored. The office had credited the shifts
+// correctly. But every screen used to keep its OWN in-memory copy of
+// this record, loaded once at mount, and wrote the WHOLE record back
+// from that copy on every transaction. Hometown sits mounted underneath
+// every interior and never re-read the record, so its copy drifted
+// below the stored truth by everything earned elsewhere — and its next
+// whole-record write (any collect, blessing, purchase…) silently
+// erased all of it. A lost update, structural, not a typo.
+//
+// The rule now: NOBODY computes a new coins record from a screen-local
+// snapshot. Every change goes through applyCoinsDelta, which — inside a
+// module-level serial chain, so two transactions can never interleave
+// their read/write pairs — re-reads the FRESHEST stored record, applies
+// exactly the caller's delta (amounts and each call site's historical
+// rounding preserved), and writes the result. Whole-record writes are
+// reserved for true resets (prestige) via writeCoinsRecord, serialized
+// through the same chain.
+
+export type CoinsRounding = "cent" | "dime" | "none";
+
+let lastKnownCoins: HometownCoins = { balance: 0, lifetimeEarned: 0 };
+let coinsLedgerChain: Promise<unknown> = Promise.resolve();
+
+function enqueueCoinsOp<T>(op: () => Promise<T>): Promise<T> {
+  const run = coinsLedgerChain.then(op, op);
+  coinsLedgerChain = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
+
+async function coinsStorage() {
+  const { default: AsyncStorage } = await import(
+    "@react-native-async-storage/async-storage"
+  );
+  return AsyncStorage;
+}
+
+/** Fresh read of the canonical coins record (never a cached snapshot —
+ *  the cache only backstops a failed storage read). */
+export async function loadCoinsRecord(): Promise<HometownCoins> {
+  try {
+    const AsyncStorage = await coinsStorage();
+    const raw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
+    lastKnownCoins = parseCoins(raw ? JSON.parse(raw) : {});
+  } catch {}
+  return lastKnownCoins;
+}
+
+function roundCoinsValue(v: number, rounding: CoinsRounding): number {
+  if (rounding === "cent") return Math.round(v * 100) / 100;
+  if (rounding === "dime") return Math.round(v * 10) / 10;
+  return v;
+}
+
+/**
+ * Apply a signed coin delta against the FRESHEST stored record and
+ * persist the result. Positive deltas also raise lifetimeEarned;
+ * negative ones never lower it — the exact semantics every screen's
+ * hand-rolled copy used to implement. Returns the record that was
+ * written, so callers can sync their display from the truth.
+ */
+export function applyCoinsDelta(
+  delta: number,
+  rounding: CoinsRounding = "cent"
+): Promise<HometownCoins> {
+  return enqueueCoinsOp(async () => {
+    const current = await loadCoinsRecord();
+    const next: HometownCoins = {
+      balance: roundCoinsValue(current.balance + delta, rounding),
+      lifetimeEarned:
+        delta > 0
+          ? roundCoinsValue(current.lifetimeEarned + delta, rounding)
+          : current.lifetimeEarned,
+    };
+    lastKnownCoins = next;
+    try {
+      const AsyncStorage = await coinsStorage();
+      await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+    } catch {}
+    return next;
+  });
+}
+
+/** Serialized absolute write — for true resets only (prestige zeroes
+ *  the balance by design). Delta-shaped changes must use
+ *  applyCoinsDelta so they can never clobber a fresher record. */
+export function writeCoinsRecord(next: HometownCoins): Promise<HometownCoins> {
+  return enqueueCoinsOp(async () => {
+    lastKnownCoins = next;
+    try {
+      const AsyncStorage = await coinsStorage();
+      await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+    } catch {}
+    return next;
+  });
+}
+
 // Unlock tiers scaled for a 365-day fast. Shorter fasts unlock less.
 export type HometownTier = 1 | 2 | 3 | 4;
 export function tierForFastDay(dayNum: number): HometownTier {

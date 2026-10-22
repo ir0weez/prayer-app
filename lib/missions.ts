@@ -4,7 +4,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PEOPLE_STORAGE_KEY } from "./prayercircle-storage";
 import { getPrayerCheckInPeople, type Person } from "./prayercircle-data";
-import { COINS_STORAGE_KEY, parseCoins } from "./hometown";
+import { applyCoinsDelta } from "./hometown";
 
 // Daily popup missions ONLY. Field missions (lib/hometown.ts) used to
 // share this exact key and both systems wiped each other's records on
@@ -172,17 +172,12 @@ export async function completeMission(id: string): Promise<Mission[]> {
     missionMult = (await refreshStatBoostCache()).missionMult;
   } catch {}
 
-  // Award coins
+  // Award coins — via the canonical ledger (v167): a serialized delta
+  // against the freshest stored record.
   if (mission.rewardCoins > 0) {
     try {
-      const coinsRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
-      const coins = parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {});
       const boostedCoins = Math.round(mission.rewardCoins * (1 + missionMult));
-      const next = {
-        balance: coins.balance + boostedCoins,
-        lifetimeEarned: coins.lifetimeEarned + boostedCoins,
-      };
-      await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+      await applyCoinsDelta(boostedCoins, "none");
     } catch {}
   }
 

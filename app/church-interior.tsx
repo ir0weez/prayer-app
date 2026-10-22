@@ -9,6 +9,7 @@ import {
   TOWN_STORAGE_KEY,
   churchNameFor,
   parseCoins,
+  applyCoinsDelta,
   parseTown,
   prayedTodayPeople,
   type HometownCoins,
@@ -213,15 +214,10 @@ export default function ChurchInteriorScreen() {
   // Coin grants for the bell game, in the same storage pattern the
   // hometown economy uses everywhere: update the shown coins and
   // persist the whole object under COINS_STORAGE_KEY.
+  // Canonical ledger (v167): delta applied to the freshest stored
+  // record via lib applyCoinsDelta — never this screen's snapshot.
   const addCoins = useCallback((delta: number) => {
-    setCoins((prev) => {
-      const next = {
-        balance: Math.round((prev.balance + delta) * 100) / 100,
-        lifetimeEarned: delta > 0 ? Math.round((prev.lifetimeEarned + delta) * 100) / 100 : prev.lifetimeEarned,
-      };
-      AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
-      return next;
-    });
+    void applyCoinsDelta(delta, "cent").then((next) => setCoins(next));
   }, []);
 
   const bell = useMiniGameHost("bell", addCoins);

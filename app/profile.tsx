@@ -12,7 +12,7 @@ import { FastBoard, FastPawnPicker, PawnCompanion, getSpecialSpace, getSpecialSp
 import { PrestigePrompt } from "@/components/prestige-prompt";
 import { MONUMENT_STORAGE_KEY, parseMonuments, type MonumentDesign } from "@/lib/monuments";
 import { COINS_STORAGE_KEY, SHOP_OWNED_KEY, parseCoins, parseOwnedItems, type HometownCoins, HOMETOWN_MIN_FAST_DAYS, hometownUnlockedForFastLength,
-  formatCoins,
+  formatCoins, applyCoinsDelta,
 } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
 import { getTodayISOString } from "@/lib/prayercircle-data";
@@ -331,12 +331,9 @@ export default function ProfileScreen() {
     const heartKey = `fasting-day-missed:${selectedFast.id}:${dateString}`;
     if (status === "completed" && previousStatus !== "completed") {
       void awardXP("fasting-day", `${selectedFast.id}:${dateString}`, position).catch(() => undefined);
-      // Hometown: 1 coin per fast green day
-      setCoins((prev) => {
-        const next = { balance: prev.balance + 1, lifetimeEarned: prev.lifetimeEarned + 1 };
-        AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
-        return next;
-      });
+      // Hometown: 1 coin per fast green day — via the canonical ledger
+      // (v167), never this screen's snapshot.
+      void applyCoinsDelta(1, "none").then((next) => setCoins(next));
       // Special-space bonus, scaled by streak tier.
       const dayNum = selectedFastDays.indexOf(dateString) + 1;
       const special = dayNum > 0 ? getSpecialSpace(dayNum, selectedFast.durationDays) : null;

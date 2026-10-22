@@ -9,9 +9,20 @@
 // a few hours — by timestamp, never by timer (lib/mountain settles on
 // open). The pickaxe ladder climbs Wood → Stone → Iron → Gold with
 // coins, then Diamond behind prestige and the Crown Pick behind a
-// Crown. Ore sells for coins through the canonical ledger, and only
-// through it. Prayer stays the town's engine; the mine is a supplement.
+// Crown — bought at the Tool Shop in town (v170); the strip here only
+// shows what the hero carries. Ore sells for coins through the
+// canonical ledger, and only through it. Prayer stays the town's
+// engine; the mine is a supplement.
 // No emojis — SVG paper art and MaterialIcons only.
+//
+// Danger and reward (v170): the Gold band and the Deep are unstable —
+// a cracked face there groans (dust, amber cracks) and can come down
+// on the next hit: face lost, unsold satchel partly buried, and the
+// hero takes a real HP hit through lib/hero-health (a fall that would
+// drop him to zero wakes him at home at the defeat floor instead).
+// Any face can hide a rich vein, revealed gold at the first crack and
+// paying double; breaking Deep rock can bare the still pool — one
+// drink, a full heal or a forest blessing till midnight.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
@@ -32,6 +43,28 @@ import {
 import { loadPrestigeLevel, loadPrestigeState } from "@/lib/prestige";
 import { formatCooldown } from "@/lib/gathering-places";
 import { paperDinerLookFor } from "@/lib/paper-interior";
+import { loadHouseState } from "@/lib/pawn-house";
+import {
+  boonFor,
+  combineBoons,
+  grantPoolBoon,
+  loadHeroNeeds,
+  poolBoonFor,
+  saveHeroNeeds,
+  type HeroNeedsState,
+} from "@/lib/hero-needs";
+import {
+  applyCaveInDamage,
+  healToFull,
+  loadHeroHealthRaw,
+  restPctForBedTier,
+  saveHeroHealth,
+  settleHealth,
+  type HeroHealthState,
+} from "@/lib/hero-health";
+import { combatStats, loadEquipped, refreshGearBoostCache } from "@/lib/gear";
+import { refreshBadgeCache } from "@/lib/badges";
+import { refreshStatBoostCache } from "@/lib/character-stats";
 import {
   DAILY_FACE_CAP,
   FACES_PER_BAND,
@@ -44,14 +77,16 @@ import {
   bandIndexForFace,
   canPickBand,
   effectiveHits,
+  faceRumbles,
   faceStatus,
+  isRichFace,
   loadMineState,
   mineTap,
   pickGateMet,
-  pickPurchaseCheck,
   pickaxeFor,
   satchelValue,
   saveMineState,
+  spendPool,
   type MineGates,
   type MineState,
   type OreKind,
@@ -109,12 +144,16 @@ const FLECKS: Record<number, Array<[number, number]>> = {
   3: [[20, 12], [44, 30], [30, 36]],
 };
 
-function FaceArt({ bandIndex, slot, status, hitsLeft, hitsMax }: {
+function FaceArt({ bandIndex, slot, status, hitsLeft, hitsMax, rich = false, rumbling = false }: {
   bandIndex: number;
   slot: number;
   status: "ready" | "cracked" | "resting";
   hitsLeft: number | null;
   hitsMax: number;
+  /** A rich vein, revealed at the first crack: gold shimmer (v170). */
+  rich?: boolean;
+  /** A cracked face in an unstable band: dust and amber cracks (v170). */
+  rumbling?: boolean;
 }) {
   const band = MINE_BANDS[bandIndex];
   const fleckColor = bandIndex === 1 ? "#C96F3F" : bandIndex === 2 ? "#FBBF24" : bandIndex === 3 ? "#9BE8F5" : "#8D8D99";
@@ -123,9 +162,16 @@ function FaceArt({ bandIndex, slot, status, hitsLeft, hitsMax }: {
     Math.min(40, Math.max(5, y + ((slot * 5 + i * 2) % 5) - 2)),
   ] as [number, number]);
   const crackDepth = status === "cracked" ? (hitsLeft != null && hitsLeft <= Math.ceil(hitsMax / 2) ? 2 : 1) : 0;
+  const crackColor = rumbling ? "#B45309" : "#4A3548";
   return (
     <Svg width={62} height={46} viewBox="0 0 62 46">
       <Rect x={1} y={1} width={60} height={44} rx={11} fill={status === "resting" ? "#5F4E47" : band.faceColor} />
+      {rich && status !== "resting" && (
+        <>
+          <Rect x={1} y={1} width={60} height={44} rx={11} fill="#F2B33D" opacity={0.22} />
+          <Rect x={1} y={1} width={60} height={44} rx={11} fill="none" stroke="#FDE68A" strokeWidth={1.6} />
+        </>
+      )}
       {bandIndex === 3 &&
         flecks.map(([x, y], i) => (
           <Path key={i} d={`M${x} ${y - 5} l3.4 4.6 -3.4 6 -3.4 -6 Z`} fill={fleckColor} opacity={status === "resting" ? 0.25 : 0.95} />
@@ -141,15 +187,50 @@ function FaceArt({ bandIndex, slot, status, hitsLeft, hitsMax }: {
       {bandIndex === 2 && status !== "resting" && flecks.map(([x, y], i) => (
         <Circle key={`s${i}`} cx={x} cy={y} r={1.4} fill="#FFE9A8" />
       ))}
+      {rich && status === "cracked" && (
+        <>
+          <Circle cx={16} cy={12} r={1.7} fill="#FFF3C4" />
+          <Circle cx={47} cy={20} r={1.4} fill="#FFF3C4" />
+          <Circle cx={31} cy={36} r={1.5} fill="#FFF3C4" />
+          <Path d="M22 6 l1.2 2.6 L26 10 l-2.8 1.2 L22 14 l-1.2 -2.8 L18 10 l2.8 -1.4 Z" fill="#FDE68A" />
+        </>
+      )}
       {crackDepth >= 1 && (
-        <Path d="M33 2 L27 13 L35 21 L29 33" fill="none" stroke="#4A3548" strokeWidth={1.8} strokeLinecap="round" />
+        <Path d="M33 2 L27 13 L35 21 L29 33" fill="none" stroke={crackColor} strokeWidth={1.8} strokeLinecap="round" />
       )}
       {crackDepth >= 2 && (
-        <Path d="M14 4 L19 14 L13 24 M48 6 L43 16 L49 27" fill="none" stroke="#4A3548" strokeWidth={1.5} strokeLinecap="round" />
+        <Path d="M14 4 L19 14 L13 24 M48 6 L43 16 L49 27" fill="none" stroke={crackColor} strokeWidth={1.5} strokeLinecap="round" />
+      )}
+      {rumbling && (
+        <>
+          {/* dust shaking loose at the base — the rock groans */}
+          <Circle cx={14} cy={41} r={2.4} fill="#D8C7A8" opacity={0.75} />
+          <Circle cx={24} cy={43} r={1.7} fill="#D8C7A8" opacity={0.6} />
+          <Circle cx={40} cy={42} r={2.1} fill="#D8C7A8" opacity={0.7} />
+          <Circle cx={50} cy={40} r={1.5} fill="#D8C7A8" opacity={0.55} />
+          <Circle cx={20} cy={16} r={1.3} fill="#D8C7A8" opacity={0.65} />
+          <Circle cx={45} cy={26} r={1.2} fill="#D8C7A8" opacity={0.6} />
+        </>
       )}
       {status === "resting" && (
         <Rect x={1} y={1} width={60} height={44} rx={11} fill="none" stroke="#CBB8A5" strokeWidth={1.6} strokeDasharray="5 4" />
       )}
+    </Svg>
+  );
+}
+
+/** The still pool, showing where a Deep face broke (v170): calm,
+ *  glowing water — the mountain's mercy, deep down. */
+function PoolArt() {
+  return (
+    <Svg width={62} height={46} viewBox="0 0 62 46">
+      <Rect x={1} y={1} width={60} height={44} rx={11} fill="#1D2B47" />
+      <Circle cx={31} cy={23} r={17} fill="#7DD3FC" opacity={0.18} />
+      <Path d="M10 27 Q 20 20, 31 26 T 52 25 L 52 38 Q 41 43, 31 39 T 10 37 Z" fill="#38BDF8" opacity={0.75} />
+      <Path d="M14 29 Q 22 24, 31 28 T 48 27" fill="none" stroke="#E0F2FE" strokeWidth={1.6} strokeLinecap="round" opacity={0.9} />
+      <Path d="M20 34 Q 27 31, 34 34 T 46 33" fill="none" stroke="#BAE6FD" strokeWidth={1.2} strokeLinecap="round" opacity={0.7} />
+      <Circle cx={24} cy={14} r={1.5} fill="#E0F2FE" />
+      <Circle cx={40} cy={10} r={1.2} fill="#E0F2FE" opacity={0.8} />
     </Svg>
   );
 }
@@ -179,6 +260,16 @@ export default function MineInteriorScreen() {
   const [people, setPeople] = useState<PrayedPerson[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Hero health (lib/hero-health): the SAME persistent HP the Dark
+  // Forest fights with — a cave-in hits it here, the still pool can
+  // mend it here. effMax is computed exactly as the forest and the
+  // hospital compute it (gear + stacked boons).
+  const [heroHealth, setHeroHealth] = useState<HeroHealthState | null>(null);
+  const [effMax, setEffMax] = useState(0);
+  const [needs, setNeeds] = useState<HeroNeedsState | null>(null);
+  /** The last cave-in's account, shown at the entrance until he digs again. */
+  const [caveInMsg, setCaveInMsg] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -198,6 +289,27 @@ export default function MineInteriorScreen() {
     setCoins(c);
     setGates({ totalPrestiges: pState.totalPrestiges, crowns });
     setPeople(ppl);
+    // Hero health, settled the way the Dark Forest settles it.
+    try {
+      try { await refreshGearBoostCache(); } catch {}
+      try { await refreshBadgeCache(); } catch {}
+      try { await refreshStatBoostCache(); } catch {}
+      const [house, nds, equipped] = await Promise.all([
+        loadHouseState(),
+        loadHeroNeeds(),
+        loadEquipped(),
+      ]);
+      setNeeds(nds);
+      const boon = combineBoons(boonFor(nds, house), poolBoonFor(nds));
+      const base = combatStats(equipped);
+      const max = boon.active ? Math.round(base.maxHp * (1 + boon.hpPct)) : base.maxHp;
+      setEffMax(max);
+      const bedTier = house.rooms.bedroom?.furniture["bed"] || 0;
+      const raw = await loadHeroHealthRaw();
+      const { state: settled, changed } = settleHealth(raw, Date.now(), max, restPctForBedTier(bedTier));
+      setHeroHealth(settled);
+      if (changed) await saveHeroHealth(settled).catch(() => undefined);
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -214,23 +326,108 @@ export default function MineInteriorScreen() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
   }, []);
 
+  /** Drink the still pool — one drink per discovery, his choice:
+   *  mended whole, or blessed for the forest till midnight. */
+  const handleDrinkPool = useCallback(
+    (choice: "heal" | "blessing") => {
+      if (!mine || mine.poolFace == null) return;
+      void (async () => {
+        const next = spendPool(mine);
+        setMine(next);
+        await saveMineState(next);
+        if (choice === "heal") {
+          if (heroHealth && effMax > 0) {
+            const healed = healToFull(heroHealth, effMax, Date.now());
+            setHeroHealth(healed);
+            await saveHeroHealth(healed).catch(() => undefined);
+          }
+          showToast("You drink deep — strength returns, whole.");
+        } else {
+          if (needs) {
+            const blessed = grantPoolBoon(needs, Date.now());
+            setNeeds(blessed);
+            await saveHeroNeeds(blessed).catch(() => undefined);
+          }
+          showToast("The pool's blessing settles on you — forest strength till midnight.");
+        }
+      })();
+    },
+    [mine, heroHealth, effMax, needs, showToast]
+  );
+
   const handleTapFace = useCallback(
     (faceIndex: number) => {
       if (!mine) return;
+      // The pool shows at a Deep face's spot — tapping it is the drink.
+      if (mine.poolFace === faceIndex) {
+        Alert.alert(
+          "The still pool",
+          "Still water, deep down, glowing faintly. One drink: it can mend you whole, or bless your strength in the Dark Forest until midnight.",
+          [
+            { text: "Not yet", style: "cancel" },
+            { text: "Drink — full heal", onPress: () => handleDrinkPool("heal") },
+            { text: "Drink — forest blessing", onPress: () => handleDrinkPool("blessing") },
+          ]
+        );
+        return;
+      }
+      setCaveInMsg(null); // digging again — a new trip
       const now = Date.now();
-      const { state, outcome } = mineTap(mine, faceIndex, now, Math.random());
+      const wasCracked = mine.faces[faceIndex]?.hitsLeft != null;
+      const { state, outcome } = mineTap(mine, faceIndex, now, Math.random(), Math.random(), Math.random());
       setMine(state);
       void saveMineState(state);
       const band = MINE_BANDS[bandIndexForFace(faceIndex)];
-      if (outcome.kind === "broke") {
+      if (outcome.kind === "collapse") {
+        // The hero takes the hit through the one HP store (v170):
+        // 20% of max, and a hit that would drop him to zero wakes
+        // him at home at the defeat floor instead — never worse.
+        const buriedParts = ORE_KINDS.filter((k) => outcome.buried[k] > 0).map(
+          (k) => `${outcome.buried[k]} ${k}`
+        );
+        let hpLine = "You scramble out to the lantern light.";
+        if (heroHealth && effMax > 0) {
+          const hit = applyCaveInDamage(heroHealth, effMax, now);
+          setHeroHealth(hit.state);
+          void saveHeroHealth(hit.state);
+          hpLine = hit.wokeAtHome
+            ? "Darkness — then home. You wake shaken but whole, at a whisper of strength. The mountain kept the rest."
+            : `The fall costs you ${hit.damage} HP. You scramble out to the lantern light, digging done for now.`;
+        }
+        const msg =
+          `The ${band.name} face came down.` +
+          (buriedParts.length ? ` Buried from your satchel: ${buriedParts.join(", ")}.` : "") +
+          ` ${hpLine}`;
+        setCaveInMsg(msg);
+        scrollRef.current?.scrollTo({ y: 0, animated: true });
+        Alert.alert("Cave-in!", msg);
+      } else if (outcome.kind === "broke") {
         const parts = ORE_KINDS.filter((k) => (outcome.yield[k] ?? 0) > 0).map(
           (k) => `+${outcome.yield[k]} ${k}`
         );
-        showToast(parts.length ? parts.join("  ") : "The face crumbles");
+        showToast(
+          (outcome.rich ? "A rich vein! " : "") +
+            (parts.length ? parts.join("  ") : "The face crumbles")
+        );
+        if (outcome.poolRevealed) {
+          Alert.alert(
+            "Still water",
+            "Beneath the broken rock, water gathers — still, and faintly glowing. The still pool is showing in the Deep. Tap it to drink."
+          );
+        }
+      } else if (outcome.kind === "hit") {
+        if (!wasCracked) {
+          // The first crack is the reveal moment: a rich vein shows
+          // its gold, and unstable rock gives its one fair warning.
+          const notes: string[] = [];
+          if (isRichFace(faceIndex, state.day)) notes.push("Gold in the crack — a rich vein!");
+          if (outcome.rumbling) notes.push("The rock groans… this face could come down.");
+          if (notes.length) showToast(notes.join(" "));
+        }
       } else if (outcome.kind === "locked") {
         Alert.alert(
           "Too deep for this pick",
-          `The ${band.name} band needs the ${pickaxeFor(outcome.requiredPick).name}. Better rock takes a better pick — the ladder is on the right.`
+          `The ${band.name} band needs the ${pickaxeFor(outcome.requiredPick).name}. Better rock takes a better pick — picks are sold at the Tool Shop in town.`
         );
       } else if (outcome.kind === "resting") {
         Alert.alert(
@@ -244,49 +441,7 @@ export default function MineInteriorScreen() {
         );
       }
     },
-    [mine, showToast]
-  );
-
-  const handleBuyPick = useCallback(
-    (tier: number) => {
-      if (!mine) return;
-      const pick = pickaxeFor(tier);
-      const check = pickPurchaseCheck(mine.pickTier, tier, gates);
-      if (!check.ok) {
-        if (check.reason === "order") {
-          Alert.alert("One rung at a time", `The ${pickaxeFor(mine.pickTier + 1).name} comes first — the ladder is climbed in order.`);
-        } else if (check.reason === "prestige") {
-          Alert.alert("Behind Begin Again", "The Diamond Pick waits behind prestige. Begin Again once — any fast — and the deep way opens.");
-        } else if (check.reason === "crown") {
-          Alert.alert("Crown work", "The Crown Pick belongs to the Crown. Earn a Crown — a 365-day fast, then Begin Again — and it can be yours.");
-        }
-        return;
-      }
-      if (coins.balance < check.cost) {
-        Alert.alert("Not enough coins", `${pick.name} costs ${formatCoins(check.cost)} coins. You have ${formatCoins(coins.balance)}.`);
-        return;
-      }
-      Alert.alert(`Buy the ${pick.name}?`, `${formatCoins(check.cost)} coins. It cracks deeper rock — and lesser rock faster.`, [
-        { text: "Not yet", style: "cancel" },
-        {
-          text: "Buy",
-          onPress: () => {
-            void (async () => {
-              const next = await applyCoinsDelta(-check.cost, "dime");
-              setCoins(next);
-              setMine((prev) => {
-                if (!prev) return prev;
-                const m = { ...prev, pickTier: tier };
-                void saveMineState(m);
-                return m;
-              });
-              showToast(`${pick.name} — yours`);
-            })();
-          },
-        },
-      ]);
-    },
-    [mine, gates, coins.balance, showToast]
+    [mine, heroHealth, effMax, handleDrinkPool, showToast]
   );
 
   const handleSellAll = useCallback(() => {
@@ -308,16 +463,24 @@ export default function MineInteriorScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <InteriorHeader icon="terrain" iconColor={GOLD} title={MINE_TITLE} coins={coins} bg={BG} textColor={CREAM} />
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView ref={scrollRef} contentContainerStyle={{ paddingBottom: 40 }}>
         <Text style={{ color: DIM, fontSize: 13, lineHeight: 19, marginHorizontal: 16, marginBottom: 12 }}>
           Come in out of the wild — the lanterns are lit, the stone is warm, and the rock provides. Tap a face to
           mine it with your pick — iron near the top, gold deeper, diamonds sleeping in the Deep. Faces settle
-          back over a few hours.
+          back over a few hours. But mind the deep bands: gold rock and the Deep can groan, and groaning rock
+          can fall — a cave-in buries unsold ore and costs the hero dear. What glitters down there is real, too.
         </Text>
 
         {toast && (
           <View style={{ marginHorizontal: 16, marginBottom: 10, backgroundColor: "#3B2C14", borderColor: GOLD, borderWidth: 1, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center" }}>
             <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 14 }}>{toast}</Text>
+          </View>
+        )}
+
+        {caveInMsg && (
+          <View style={{ marginHorizontal: 16, marginBottom: 10, backgroundColor: "#3D1420", borderColor: "#F87171", borderWidth: 1, borderRadius: 12, paddingVertical: 9, paddingHorizontal: 12 }}>
+            <Text style={{ color: "#FCA5A5", fontWeight: "800", fontSize: 13, marginBottom: 2 }}>Cave-in!</Text>
+            <Text style={{ color: "#FECACA", fontSize: 12.5, lineHeight: 17 }}>{caveInMsg}</Text>
           </View>
         )}
 
@@ -354,18 +517,25 @@ export default function MineInteriorScreen() {
                         const faceIndex = bandIndex * FACES_PER_BAND + slot;
                         const face = mine.faces[faceIndex];
                         const status = faceStatus(mine, faceIndex);
+                        const isPool = mine.poolFace === faceIndex;
                         return (
-                          <Pressable key={faceIndex} onPress={() => handleTapFace(faceIndex)} style={{ opacity: locked ? 0.55 : 1 }}>
+                          <Pressable key={faceIndex} onPress={() => handleTapFace(faceIndex)} style={{ opacity: locked && !isPool ? 0.55 : 1 }}>
                             <View style={{ position: "relative", width: 62, height: 46 }}>
                               <View style={{ position: "absolute", left: 2.5, top: 3, width: 62, height: 46, borderRadius: 12, backgroundColor: "rgba(24,8,44,.3)" }} />
-                              <FaceArt
-                                bandIndex={bandIndex}
-                                slot={slot}
-                                status={status}
-                                hitsLeft={face.hitsLeft}
-                                hitsMax={effectiveHits(band, mine.pickTier)}
-                              />
-                              {locked && (
+                              {isPool ? (
+                                <PoolArt />
+                              ) : (
+                                <FaceArt
+                                  bandIndex={bandIndex}
+                                  slot={slot}
+                                  status={status}
+                                  hitsLeft={face.hitsLeft}
+                                  hitsMax={effectiveHits(band, mine.pickTier)}
+                                  rich={status === "cracked" && isRichFace(faceIndex, mine.day)}
+                                  rumbling={faceRumbles(mine, faceIndex)}
+                                />
+                              )}
+                              {locked && !isPool && (
                                 <View style={{ position: "absolute", left: 0, top: 0, width: 62, height: 46, alignItems: "center", justifyContent: "center" }}>
                                   <MaterialIcons name="lock" size={18} color={CREAM} />
                                 </View>
@@ -385,7 +555,9 @@ export default function MineInteriorScreen() {
               })}
             </View>
 
-            {/* the pickaxe ladder */}
+            {/* the pickaxe ladder — STATUS ONLY (v170): picks are
+                bought at the Tool Shop in town; this strip just shows
+                what the hero carries and where the next rung lives. */}
             <View style={{ width: 96, marginLeft: 10, backgroundColor: PANEL, borderRadius: 16, paddingVertical: 10, paddingHorizontal: 8, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }}>
               <Text style={{ color: CREAM, fontWeight: "800", fontSize: 12, marginBottom: 8, textAlign: "center" }}>Pickaxes</Text>
               {PICKAXES.map((pick) => {
@@ -397,7 +569,12 @@ export default function MineInteriorScreen() {
                   <Pressable
                     key={pick.tier}
                     onPress={() => {
-                      if (!owned) handleBuyPick(pick.tier);
+                      if (!owned) {
+                        Alert.alert(
+                          "Sold at the Tool Shop",
+                          `Picks are tools, and tools are sold at the Tool Shop in town. The ${pick.name} waits there${pick.cost > 0 ? ` for ${formatCoins(pick.cost)} coins` : ""}. This wall only shows what you carry.`
+                        );
+                      }
                     }}
                     style={{
                       paddingVertical: 7,
@@ -430,16 +607,43 @@ export default function MineInteriorScreen() {
                       </View>
                     ) : (
                       <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3 }}>
-                        <MaterialIcons name="monetization-on" size={11} color="#FDE68A" />
-                        <Text style={{ color: "#FDE68A", fontSize: 9.5, fontWeight: "700", marginLeft: 2 }}>{formatCoins(pick.cost)}</Text>
+                        <MaterialIcons name="storefront" size={11} color="#FDE68A" />
+                        <Text style={{ color: "#FDE68A", fontSize: 9.5, fontWeight: "700", marginLeft: 2 }}>Tool Shop</Text>
                       </View>
                     )}
                   </Pressable>
                 );
               })}
               <Text style={{ color: DIM, fontSize: 9, lineHeight: 13, textAlign: "center", marginTop: 2 }}>
-                Deeper bands need the pick named for the rock above them.
+                Better picks are sold at the Tool Shop. Deeper bands need the pick named for the rock above them.
               </Text>
+            </View>
+          </View>
+        )}
+
+        {/* the still pool — showing in the Deep until drunk (v170) */}
+        {mine && mine.poolFace != null && (
+          <View style={{ marginHorizontal: 16, marginTop: 14, backgroundColor: "#16263F", borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: "#38BDF8" }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <MaterialIcons name="water-drop" size={20} color="#7DD3FC" />
+              <Text style={{ color: "#E0F2FE", fontWeight: "800", fontSize: 14, marginLeft: 8 }}>The Still Pool</Text>
+            </View>
+            <Text style={{ color: "#BAE6FD", fontSize: 12.5, lineHeight: 18, marginTop: 6 }}>
+              Still water in the Deep, faintly glowing. One drink — it stays until you take it.
+            </Text>
+            <View style={{ flexDirection: "row", marginTop: 10, gap: 8 }}>
+              <Pressable
+                onPress={() => handleDrinkPool("heal")}
+                style={{ flex: 1, backgroundColor: "#0EA5E9", borderRadius: 10, paddingVertical: 10, alignItems: "center" }}
+              >
+                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 12.5 }}>Drink — Full heal</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleDrinkPool("blessing")}
+                style={{ flex: 1, backgroundColor: "rgba(56,189,248,.18)", borderRadius: 10, paddingVertical: 10, alignItems: "center", borderWidth: 1, borderColor: "#38BDF8" }}
+              >
+                <Text style={{ color: "#E0F2FE", fontWeight: "800", fontSize: 12.5 }}>Drink — Forest blessing</Text>
+              </Pressable>
             </View>
           </View>
         )}
@@ -469,6 +673,7 @@ export default function MineInteriorScreen() {
             </View>
             <Text style={{ color: DIM, fontSize: 12, textAlign: "center", marginTop: 10 }}>
               Faces mined today: {mine.minedToday} / {DAILY_FACE_CAP} · Your pick: {pickaxeFor(mine.pickTier).name}
+              {heroHealth && effMax > 0 ? ` · Hero HP ${heroHealth.hp ?? effMax}/${effMax}` : ""}
             </Text>
             <Text style={{ color: DIM, fontSize: 12, textAlign: "center", marginTop: 6, paddingHorizontal: 40, lineHeight: 17 }}>
               Mined faces settle back over a few hours. And remember — prayer still runs this town. The mine just helps.

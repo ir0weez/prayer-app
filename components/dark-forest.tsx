@@ -16,7 +16,7 @@ import { loadForestEnergy, spendForestEnergy, type ForestEnergy } from "@/lib/fo
 import { BadgeMedallion } from "@/components/badge-case";
 import { BASE_CRIT_CHANCE, CRIT_DAMAGE_MULT, type CombatStats } from "@/lib/gear";
 import { loadHouseState } from "@/lib/pawn-house";
-import { boonFor, loadHeroNeeds } from "@/lib/hero-needs";
+import { boonFor, combineBoons, loadHeroNeeds, poolBoonFor } from "@/lib/hero-needs";
 
 /** The Morning Care boon shape (lib/hero-needs boonFor). */
 type NeedsBoon = { active: boolean; hpPct: number; atkPct: number };
@@ -687,7 +687,8 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
       try {
         const house = await loadHouseState();
         const settledNeeds = await loadHeroNeeds();
-        const b = boonFor(settledNeeds, house);
+        // Set for the Day and the still pool's blessing stack (v170).
+        const b = combineBoons(boonFor(settledNeeds, house), poolBoonFor(settledNeeds));
         if (!live) return;
         setBoon(b);
         const effMax = b.active ? Math.round(stats.maxHp * (1 + b.hpPct)) : stats.maxHp;

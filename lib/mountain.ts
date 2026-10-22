@@ -37,6 +37,20 @@
 //  - Prestige RESET (mirroring the gear precedent in performPrestige):
 //    the pickaxe ladder starts over at Wood and the satchel empties.
 //    Sell your ore before you Begin Again.
+//
+// v170 — danger and reward (Jonathan's picks, 2026-10-22): the Gold
+// band and the Deep are UNSTABLE — a cracked face there can come down
+// on the next hit (cave-in: the face is lost, part of the unsold
+// satchel is buried, and the hero takes an HP hit through
+// lib/hero-health — the screen applies it; this lib only decides the
+// fall). Any face can hide a RICH VEIN (deterministic per face per
+// day, revealed at the first crack, paying double — a cluster of
+// diamonds in the Deep). And breaking a Deep face can reveal the
+// STILL POOL: drink for a full heal or a forest blessing till
+// midnight (lib/hero-needs' pool boon). His guardrails hold: banked
+// coins are never touched, fasting hearts are never involved, and a
+// collapse that would drop the hero to zero wakes him at home at the
+// defeat floor instead — the screen runs that path via hero-health.
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -99,6 +113,79 @@ export const FACE_COUNT = MINE_BANDS.length * FACES_PER_BAND;
 
 /** Faces that may be broken per day (the mini-game-style daily cap). */
 export const DAILY_FACE_CAP = 24;
+
+// ---- Danger and reward (v170) ----------------------------------------------
+
+/** Band indexes whose rock is unstable: Gold (2) and The Deep (3).
+ *  Stone and Iron never come down — the danger lives where the
+ *  money is. */
+export function isUnstableBand(bandIndex: number): boolean {
+  return bandIndex === 2 || bandIndex === 3;
+}
+
+/** Collapse chance for each hit on an ALREADY-CRACKED face in an
+ *  unstable band. The first crack is the warning (the rock groans);
+ *  every hit after it is the player's own gamble. */
+export const COLLAPSE_CHANCE: Record<number, number> = { 2: 0.12, 3: 0.2 };
+
+export function collapseChanceFor(bandIndex: number): number {
+  return COLLAPSE_CHANCE[bandIndex] ?? 0;
+}
+
+/** Fraction of each unsold ore a cave-in buries (rounded down per
+ *  kind). The banked coins are never touched — only what's still in
+ *  the satchel is at risk. */
+export const CAVE_IN_BURIAL_FRACTION = 0.5;
+
+/** Split a satchel into what a cave-in leaves and what it buries. */
+export function burySatchel(satchel: Satchel): { kept: Satchel; buried: Satchel } {
+  const kept = emptySatchel();
+  const buried = emptySatchel();
+  for (const k of ORE_KINDS) {
+    buried[k] = Math.floor((satchel[k] || 0) * CAVE_IN_BURIAL_FRACTION);
+    kept[k] = (satchel[k] || 0) - buried[k];
+  }
+  return { kept, buried };
+}
+
+/** FNV-1a hash → 32-bit seed (the same pattern as lib/surprise-visitors). */
+function hashStr(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** Mulberry32 seeded RNG (same pattern as lib/surprise-visitors). */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Chance a face hides a rich vein on a given day. */
+export const RICH_FACE_CHANCE = 0.15;
+
+/**
+ * Whether a face hides a rich vein on `day` — deterministic per face
+ * per day (seeded by face + date, like the day's other quiet rolls),
+ * so every render agrees and the vein is revealed the moment the
+ * face first cracks.
+ */
+export function isRichFace(faceIndex: number, day: string): boolean {
+  return mulberry32(hashStr(`mine|rich:${day}:${faceIndex}`))() < RICH_FACE_CHANCE;
+}
+
+/** Chance that breaking a Deep face reveals the still pool (only
+ *  while no unspent pool is already showing). */
+export const POOL_REVEAL_CHANCE = 0.1;
 
 /** Which band a face index (0..FACE_COUNT-1, top band first) belongs to. */
 export function bandIndexForFace(faceIndex: number): number {
@@ -194,6 +281,10 @@ export type MineState = {
   day: string;
   /** Faces broken today, against DAILY_FACE_CAP. */
   minedToday: number;
+  /** Face index (in The Deep) where the still pool is showing,
+   *  revealed and not yet drunk — or null. It stays until used:
+   *  settle and day rollovers never clear it. */
+  poolFace: number | null;
 };
 
 export function mineTodayString(nowMs: number = Date.now()): string {
@@ -208,6 +299,7 @@ export function defaultMineState(nowMs: number = Date.now()): MineState {
     faces: Array.from({ length: FACE_COUNT }, () => ({ hitsLeft: null, minedAt: null })),
     day: mineTodayString(nowMs),
     minedToday: 0,
+    poolFace: null,
   };
 }
 
@@ -233,6 +325,12 @@ export function parseMineState(value: unknown, nowMs: number = Date.now()): Mine
           : null,
     };
   });
+  const poolFace =
+    typeof v.poolFace === "number" && Number.isFinite(v.poolFace) &&
+    Math.floor(v.poolFace) >= 0 && Math.floor(v.poolFace) < FACE_COUNT &&
+    bandIndexForFace(Math.floor(v.poolFace)) === 3
+      ? Math.floor(v.poolFace)
+      : null;
   return {
     pickTier: Math.min(Math.max(Math.floor(typeof v.pickTier === "number" ? v.pickTier : 0) || 0, 0), MAX_PICK_TIER),
     satchel: {
@@ -243,6 +341,7 @@ export function parseMineState(value: unknown, nowMs: number = Date.now()): Mine
     faces,
     day: typeof v.day === "string" && v.day ? v.day : base.day,
     minedToday: cleanCount(v.minedToday),
+    poolFace,
   };
 }
 
@@ -297,6 +396,22 @@ export function canPickBand(state: MineState, faceIndex: number): boolean {
   return state.pickTier >= MINE_BANDS[bandIndexForFace(faceIndex)].requiredPick;
 }
 
+/** The rumble warning: a CRACKED face in an unstable band (Gold /
+ *  The Deep). It shows from the first crack, so the collapse risk on
+ *  the next hit is never a surprise. */
+export function faceRumbles(state: MineState, faceIndex: number): boolean {
+  return isUnstableBand(bandIndexForFace(faceIndex)) && faceStatus(state, faceIndex) === "cracked";
+}
+
+/** Drink the still pool: the pool is spent and fades; the face under
+ *  it keeps its own lifecycle (it was mined out when it broke). The
+ *  drink's EFFECT (full heal / forest blessing) is the screen's work,
+ *  through lib/hero-health and lib/hero-needs. */
+export function spendPool(state: MineState): MineState {
+  if (state.poolFace == null) return state;
+  return { ...state, poolFace: null };
+}
+
 // ---- Mining -----------------------------------------------------------------
 
 /** Ore from one broken face. `roll` is a [0,1) random kept as a
@@ -321,9 +436,28 @@ export function yieldForFace(bandIndex: number, pickTier: number, roll: number):
   }
 }
 
+/** What one face pays, rich vein applied: everything doubles, and a
+ *  rich face in The Deep that was sleeping on diamonds wakes a whole
+ *  cluster (2–3, by the same roll) instead of a single stone. The
+ *  prestige picks' own bonuses ride on top, as before. */
+export function richYieldForFace(bandIndex: number, pickTier: number, roll: number): Partial<Satchel> {
+  const base = yieldForFace(bandIndex, pickTier, roll);
+  if (bandIndex === 3 && (base.diamond ?? 0) > 0) {
+    const pickBonus = pickTier >= 4 ? 1 : 0;
+    return { diamond: (roll >= 0.5 ? 3 : 2) + pickBonus };
+  }
+  const out: Partial<Satchel> = {};
+  for (const k of ORE_KINDS) {
+    const v = base[k];
+    if (v) out[k] = v * 2;
+  }
+  return out;
+}
+
 export type MineTapOutcome =
-  | { kind: "hit"; hitsLeft: number }
-  | { kind: "broke"; yield: Partial<Satchel> }
+  | { kind: "hit"; hitsLeft: number; rumbling: boolean }
+  | { kind: "broke"; yield: Partial<Satchel>; rich: boolean; poolRevealed: boolean }
+  | { kind: "collapse"; buried: Satchel; bandIndex: number }
   | { kind: "locked"; requiredPick: number }
   | { kind: "resting"; readyAt: number }
   | { kind: "cap" };
@@ -333,12 +467,27 @@ export type MineTapOutcome =
  * locked when the pick is under the band's tier, resting while a
  * mined-out face regrows, cap when the day's faces are spent — else a
  * hit, and the breaking hit pays the yield into the satchel.
+ *
+ * Danger (v170): a hit on an ALREADY-CRACKED face in an unstable band
+ * first rolls `collapseRoll` against the band's collapse chance — a
+ * fall destroys the face (normal regrow), buries part of the unsold
+ * satchel, and ends the trip (the screen applies the hero's HP hit
+ * and carries him out). The breaking hit rolls the same way: the
+ * gamble lasts until the face is down. `collapseRoll`/`poolRoll`
+ * default to 1 (never triggers) so plain callers stay safe; both are
+ * parameters for the same reason `roll` is.
+ *
+ * Reward (v170): a rich face (isRichFace for the settled day) pays
+ * richYieldForFace; breaking a Deep face rolls `poolRoll` for the
+ * still pool when none is showing.
  */
 export function mineTap(
   stateIn: MineState,
   faceIndex: number,
   nowMs: number,
-  roll: number
+  roll: number,
+  collapseRoll: number = 1,
+  poolRoll: number = 1
 ): { state: MineState; outcome: MineTapOutcome } {
   const state = settleMineState(stateIn, nowMs);
   const idx = Math.min(Math.max(Math.floor(faceIndex) || 0, 0), FACE_COUNT - 1);
@@ -356,6 +505,18 @@ export function mineTap(
     return { state, outcome: { kind: "cap" } };
   }
 
+  // Cave-in: only a face already carrying cracks can come down, and
+  // only in the unstable bands. The first crack was the warning.
+  if (face.hitsLeft != null && collapseRoll < collapseChanceFor(bandIndex)) {
+    const { kept, buried } = burySatchel(state.satchel);
+    const faces = state.faces.slice();
+    faces[idx] = { hitsLeft: null, minedAt: nowMs };
+    return {
+      state: { ...state, faces, satchel: kept, minedToday: state.minedToday + 1 },
+      outcome: { kind: "collapse", buried, bandIndex },
+    };
+  }
+
   const max = effectiveHits(band, state.pickTier);
   const current = face.hitsLeft ?? max;
   const hitsLeft = current - 1;
@@ -363,10 +524,16 @@ export function mineTap(
   if (hitsLeft > 0) {
     const faces = state.faces.slice();
     faces[idx] = { hitsLeft, minedAt: null };
-    return { state: { ...state, faces }, outcome: { kind: "hit", hitsLeft } };
+    return {
+      state: { ...state, faces },
+      outcome: { kind: "hit", hitsLeft, rumbling: isUnstableBand(bandIndex) },
+    };
   }
 
-  const y = yieldForFace(bandIndex, state.pickTier, roll);
+  const rich = isRichFace(idx, state.day);
+  const y = rich
+    ? richYieldForFace(bandIndex, state.pickTier, roll)
+    : yieldForFace(bandIndex, state.pickTier, roll);
   const satchel: Satchel = {
     iron: state.satchel.iron + (y.iron ?? 0),
     gold: state.satchel.gold + (y.gold ?? 0),
@@ -374,9 +541,17 @@ export function mineTap(
   };
   const faces = state.faces.slice();
   faces[idx] = { hitsLeft: null, minedAt: nowMs };
+  const poolRevealed =
+    bandIndex === 3 && state.poolFace == null && poolRoll < POOL_REVEAL_CHANCE;
   return {
-    state: { ...state, faces, satchel, minedToday: state.minedToday + 1 },
-    outcome: { kind: "broke", yield: y },
+    state: {
+      ...state,
+      faces,
+      satchel,
+      minedToday: state.minedToday + 1,
+      poolFace: poolRevealed ? idx : state.poolFace,
+    },
+    outcome: { kind: "broke", yield: y, rich, poolRevealed },
   };
 }
 

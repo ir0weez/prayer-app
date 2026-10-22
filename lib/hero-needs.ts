@@ -52,6 +52,11 @@ export type HeroNeedsState = {
   boonLocked: boolean;
   /** Epoch ms when the third need was tended, or null. */
   allTendedAt: number | null;
+  /** The still pool's blessing (v170): drunk from the pool deep in the
+   *  mine (lib/mountain), a forest boon in the Set for the Day shape
+   *  until midnight. Stored in this same per-day record, so the day
+   *  rollover is its midnight expiry — no separate clock. */
+  poolBoonActive: boolean;
 };
 
 export const NEED_META: Record<NeedId, { label: string; fixtureLabel: string }> = {
@@ -119,6 +124,7 @@ export function defaultNeedsState(day: string): HeroNeedsState {
     boonActive: false,
     boonLocked: false,
     allTendedAt: null,
+    poolBoonActive: false,
   };
 }
 
@@ -152,6 +158,7 @@ export function parseNeedsState(value: unknown): HeroNeedsState {
     boonLocked: s.boonLocked === true,
     allTendedAt:
       typeof s.allTendedAt === "number" && Number.isFinite(s.allTendedAt) ? s.allTendedAt : null,
+    poolBoonActive: s.poolBoonActive === true,
   };
 }
 
@@ -307,6 +314,41 @@ export function boonFor(state: HeroNeedsState, house: HouseState): HeroBoon {
     hpPct: (0.1 + 0.02 * quality) * factor,
     atkPct: (0.05 + 0.015 * quality) * factor,
   };
+}
+
+// ---- The still pool's blessing (v170) ----
+
+/** The still pool's forest blessing: a flat gift in the Set for the
+ *  Day shape — +15% HP, +10% attack until midnight. Deliberately a
+ *  plain flat gift (no fixture scaling): the Deep is far from home,
+ *  and what the pool gives, it gives whole. */
+export const POOL_BOON_HP_PCT = 0.15;
+export const POOL_BOON_ATK_PCT = 0.1;
+
+/** The still pool boon read from a (settled) needs record — the same
+ *  HeroBoon shape as boonFor, so callers combine the two. */
+export function poolBoonFor(state: HeroNeedsState): HeroBoon {
+  if (!state.poolBoonActive) return { active: false, hpPct: 0, atkPct: 0 };
+  return { active: true, hpPct: POOL_BOON_HP_PCT, atkPct: POOL_BOON_ATK_PCT };
+}
+
+/**
+ * Pure: drink the blessing. Settles first — a drink on a new day
+ * lands on the fresh record — and raises the pool boon for the rest
+ * of the day. The morning boon is untouched; the two stack.
+ */
+export function grantPoolBoon(state: HeroNeedsState, now: NowInput): HeroNeedsState {
+  const settled = settleNeeds(state, now);
+  if (settled.poolBoonActive) return settled;
+  return { ...settled, poolBoonActive: true };
+}
+
+/** Two boons in the same shape combine additively — Set for the Day
+ *  and the still pool's blessing stack rather than replace. */
+export function combineBoons(a: HeroBoon, b: HeroBoon): HeroBoon {
+  if (!a.active) return b;
+  if (!b.active) return a;
+  return { active: true, hpPct: a.hpPct + b.hpPct, atkPct: a.atkPct + b.atkPct };
 }
 
 // ---- Storage ----

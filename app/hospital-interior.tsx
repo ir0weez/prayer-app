@@ -34,7 +34,7 @@ import {
 } from "@/lib/gathering-places";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { loadHouseState } from "@/lib/pawn-house";
-import { boonFor, loadHeroNeeds } from "@/lib/hero-needs";
+import { boonFor, combineBoons, loadHeroNeeds, poolBoonFor } from "@/lib/hero-needs";
 import {
   HOSPITAL_HEALS_PER_DAY,
   hospitalHeal,
@@ -104,7 +104,9 @@ export default function HospitalInteriorScreen() {
             loadHeroNeeds(),
             loadEquipped(),
           ]);
-          const boon = boonFor(needs, house);
+          // Morning boon + the still pool's blessing stack (v170),
+          // so this max is the same one the Dark Forest fights with.
+          const boon = combineBoons(boonFor(needs, house), poolBoonFor(needs));
           const base = combatStats(equipped);
           const max = boon.active ? Math.round(base.maxHp * (1 + boon.hpPct)) : base.maxHp;
           setEffMax(max);

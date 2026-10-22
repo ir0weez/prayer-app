@@ -174,6 +174,46 @@ export function hospitalHeal(
   };
 }
 
+/** A cave-in in the mine costs the hero this fraction of max HP
+ *  (v170, Jonathan's ask: "an HP hit or something with cave-ins"). */
+export const CAVE_IN_DAMAGE_PCT = 0.2;
+
+/**
+ * Pure: a cave-in in the mine (lib/mountain) hits the hero for
+ * CAVE_IN_DAMAGE_PCT of max HP through this same store — the mine
+ * never keeps a parallel health value. If the hit would take him
+ * to/below zero he wakes at home at the defeat floor instead, by the
+ * exact forest-defeat path (wakeAfterDefeat), and `wokeAtHome` says
+ * so. A null hp (new hero) is treated as full before the hit lands.
+ * Fasting hearts are never involved — this is combat HP only.
+ */
+export function applyCaveInDamage(
+  state: HeroHealthState,
+  maxHp: number,
+  now: NowInput = Date.now(),
+): { state: HeroHealthState; damage: number; wokeAtHome: boolean } {
+  const max = Math.max(0, maxHp);
+  const damage = Math.round(CAVE_IN_DAMAGE_PCT * max);
+  const current = state.hp ?? max;
+  const next = current - damage;
+  if (next <= 0) {
+    return { state: wakeAfterDefeat({ ...state, hp: 0 }, max, now), damage, wokeAtHome: true };
+  }
+  return { state: { ...state, hp: next, updatedAt: toMs(now) }, damage, wokeAtHome: false };
+}
+
+/**
+ * Pure: heal to full WITHOUT spending one of the hospital's daily
+ * free heals — the still pool's gift (v170), not the hospital's.
+ */
+export function healToFull(
+  state: HeroHealthState,
+  maxHp: number,
+  now: NowInput = Date.now(),
+): HeroHealthState {
+  return { ...state, hp: Math.max(0, maxHp), updatedAt: toMs(now) };
+}
+
 /**
  * Pure: the hero wakes at home after a defeat with at least
  * DEFEAT_WAKE_PCT of max HP. Only ever raises HP to that floor — if he

@@ -347,6 +347,7 @@ describe("parse + storage", () => {
       boonActive: false,
       boonLocked: true,
       allTendedAt: 123,
+      poolBoonActive: false,
     });
   });
 

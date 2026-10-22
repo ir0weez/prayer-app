@@ -132,7 +132,7 @@ import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/
 import { COINS_STORAGE_KEY, parseCoins, applyCoinsDelta } from "@/lib/hometown";
 import { awardXP, awardCustomXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
-import { BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, TERM_BG, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, getSkinThemeDefinition, normalizeSkinThemeId, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
+import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, TERM_BG, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, getSkinThemeDefinition, normalizeSkinThemeId, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 
@@ -1971,7 +1971,7 @@ export default function HomeScreen() {
         )}
         <View style={styles.personInfo}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <ReAnimated.Text numberOfLines={1} style={[styles.personName, (isExpanded || closingFamilyId === familyId) ? cardFillTitleStyle : { color: "#FFFFFF" }, { fontSize: 13, lineHeight: 17 }]}>{familyName}</ReAnimated.Text>
+            <ReAnimated.Text numberOfLines={1} style={[styles.personName, (isExpanded || closingFamilyId === familyId) ? cardFillTitleStyle : { color: "#FFFFFF" }, { fontSize: 13, lineHeight: 17 }, skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 10, lineHeight: 16 } : null]}>{familyName}</ReAnimated.Text>
             {isFamilyComplete && <VerifiedBadge />}
           </View>
           <ReAnimated.Text numberOfLines={1} style={[styles.personMeta, (isExpanded || closingFamilyId === familyId) ? cardFillMetaStyle : { color: "#FFFFFF" }, { fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>
@@ -2138,7 +2138,7 @@ export default function HomeScreen() {
     const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
     return <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: isSkinned ? skinTokens.surface ?? colors.background : colors.background, borderBottomLeftRadius: skinTokens.isEightBit ? 2 : 12, borderBottomRightRadius: skinTokens.isEightBit ? 2 : 12, borderWidth: skinTokens.isEightBit ? 3 : 1, borderTopWidth: 0, borderColor: skinTokens.isEightBit ? skinTokens.border : `${accent}45` }}>
       {isSkinned ? <PaperGrainOverlay /> : null}
-      <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>{completedMembers} of {familyMembers.length} complete</Text><Text style={{ color: accent, fontSize: 12, fontWeight: "800" }}>{Math.round((completedMembers / familyMembers.length) * 100)}%</Text></View><View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${accent}18`, overflow: "hidden" }}><View style={{ width: `${Math.round((completedMembers / familyMembers.length) * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: accent }} /></View></View>
+      <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800", ...(skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 9, lineHeight: 15 } : {}) }}>{completedMembers} of {familyMembers.length} complete</Text><Text style={{ color: accent, fontSize: 12, fontWeight: "800" }}>{Math.round((completedMembers / familyMembers.length) * 100)}%</Text></View><View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${accent}18`, overflow: "hidden" }}><View style={{ width: `${Math.round((completedMembers / familyMembers.length) * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: accent }} /></View></View>
       {familyMembers.map((member, memberIdx) => {
         const emergency = getAllActiveEmergencyPrayers(people).find((entry) => entry.person.id === member.id);
         const emergencyCountdown = emergency ? emergencyCountdowns[emergency.item.id] : undefined;
@@ -2146,18 +2146,18 @@ export default function HomeScreen() {
         const complete = hasPersonCompletedPrayerToday(member, today);
         return <ReAnimated.View key={member.id} entering={isSkinned ? FadeInUp.duration(skinMotion.settle.duration).delay(memberIdx * 65).easing(skinMotion.settle.easing) : FadeInUp.duration(280).delay(memberIdx * 65)}>
           <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: memberIdx === familyMembers.length - 1 ? 0 : 1, borderBottomColor: colors.border, backgroundColor: pressed ? colors.primary + "15" : "transparent" }]}>
-          {renderAvatar(member, 48)}<View style={{ flex: 1, marginLeft: 12 }}><Text numberOfLines={1} style={styles.personName}>{member.name}</Text><Text numberOfLines={1} style={styles.personMeta}>{formatLastReachedSummary(member)}</Text></View>
+          {renderAvatar(member, 48)}<View style={{ flex: 1, marginLeft: 12 }}><Text numberOfLines={1} style={[styles.personName, skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null]}>{member.name}</Text><Text numberOfLines={1} style={styles.personMeta}>{formatLastReachedSummary(member)}</Text></View>
           {emergencyCountdown ? <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} progress={emergency ? getEmergencyPrayerProgress(emergency.item.emergencyExpiresAt) : 0} /> : <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}><View style={[styles.reachPillFill, { backgroundColor: daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(member), width: `${Math.round(getReachProgressRatio(daysSince) * 100)}%` }]} /><Text style={[styles.reachPillText, (daysSince === 999 || getReachProgressRatio(daysSince) < 0.42) && styles.reachPillTextMuted]}>{daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince)}</Text></View>}
           <Pressable onPress={(event) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; const count = familyMembers.filter((familyMember) => hasPersonCompletedPrayerToday(familyMember, today)).length; if (!complete && count === familyMembers.length - 1) playVerifiedPop(); if (complete) void revokeExperience("scheduled-prayer", `${today}:${member.id}`, position); else void awardExperience("scheduled-prayer", `${today}:${member.id}`, position); setPeople((previousPeople) => complete ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id)); }} hitSlop={8} style={({ pressed }) => [{ width: 24, height: 24, marginLeft: 10, borderRadius: 12, borderWidth: 1.5, borderColor: accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}>{complete && <MaterialIcons name={iconName("check")} size={16} color={accent} />}</Pressable>
         </Pressable>
         </ReAnimated.View>;
       })}
-      <Pressable onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))} style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 6, marginBottom: 12, minHeight: 38, borderRadius: 8, backgroundColor: accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.8 }]}><Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text></Pressable>
+      <Pressable onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))} style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 6, marginBottom: 12, minHeight: 38, borderRadius: 8, backgroundColor: accent, alignItems: "center", justifyContent: "center", ...(bitButtonStyle(skinTokens, "primary") ?? {}) }, pressed && { opacity: 0.8 }]}><Text style={{ color: skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text></Pressable>
     </UnfurlPanel>;
   };
 
   const renderPeopleRow = ({ item }: { item: (typeof peopleRows)[number] }) => {
-    if (item.kind === "section") return <View style={styles.sectionBlock}><Text style={[styles.relationshipTitle, { color: relationshipColors[item.section.title].accent }]}>{item.section.title.toUpperCase()}</Text></View>;
+    if (item.kind === "section") return <View style={styles.sectionBlock}><Text style={[styles.relationshipTitle, { color: relationshipColors[item.section.title].accent }, skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null]}>{item.section.title.toUpperCase()}</Text></View>;
     if (item.kind === "person") return renderPersonCard(item.person, item.index, item.section.people);
     const familyId = item.familyMembers[0]?.familyId || "";
     const isExpanded = expandedFamilyId === familyId;
@@ -2606,7 +2606,7 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
-            <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: colors.primary }, pressed && styles.pressed]}>
+            <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.isEightBit ? (skinTokens.frame ?? {}) : null, pressed && styles.pressed]}>
               {activeFastTypeInfo ? (
                 <MaterialIcons name={iconName(activeFastTypeInfo.icon)} size={32} color="#FFFFFF" />
               ) : (
@@ -2671,7 +2671,7 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.settingsSectionLabel}>FASTING</Text>
-      <View style={[styles.settingsCard, { borderColor: colors.border, padding: 16 }]}>
+      <View style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border, padding: 16 }]}>
         {activeFast ? (
           isActiveFastEnded ? (
             <FastSummaryCard fast={activeFast} colors={colors} />
@@ -2679,7 +2679,7 @@ export default function HomeScreen() {
             <>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "800" }}>{activeFast.name}</Text>
+                  <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "800", ...(skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : {}) }}>{activeFast.name}</Text>
                   <Text style={{ color: colors.muted, fontSize: 12, marginTop: 3 }}>{activeFast.type} · {activeFast.durationDays} days</Text>
                 </View>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -2725,7 +2725,7 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
-      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
+      <View style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
         <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("palette", "Color Theme", getAccentThemeDefinition(settings.colorTheme).name)}
         </Pressable>
@@ -2740,13 +2740,13 @@ export default function HomeScreen() {
 
 
       <Text style={styles.settingsSectionLabel}>SCHEDULE</Text>
-      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
+      <View style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
         {renderSettingsRow("hourglass-empty", "White Space", "Show tappable free-hour blocks on the schedule", "normal", <M3Switch value={settings.whiteSpaceEnabled} onValueChange={(whiteSpaceEnabled) => setSettings((previous) => ({ ...previous, whiteSpaceEnabled }))} />)}
         {renderSettingsRow("event", "Holidays", "Show US holidays on the schedule", "normal", <M3Switch value={settings.holidaysEnabled} onValueChange={(holidaysEnabled) => setSettings((previous) => ({ ...previous, holidaysEnabled }))} />)}
       </View>
 
       <Text style={styles.settingsSectionLabel}>NOTIFICATIONS</Text>
-      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
+      <View style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
         {renderSettingsRow("notifications-active", "Prayer reminders", "Notify me when scheduled prayers are due", "normal", <M3Switch value={settings.prayerRemindersEnabled} onValueChange={(prayerRemindersEnabled) => setSettings((previous) => ({ ...previous, prayerRemindersEnabled }))} />)}
         {renderSettingsRow("event", "Scheduled event reminders", "Notify me about events on my schedule", "normal", <M3Switch value={settings.eventRemindersEnabled} onValueChange={(eventRemindersEnabled) => setSettings((previous) => ({ ...previous, eventRemindersEnabled }))} />)}
         {renderSettingsRow("attach-money", "Budget due reminders", "Notify me one day before unpaid bills are due", "normal", <M3Switch value={settings.budgetRemindersEnabled} onValueChange={(budgetRemindersEnabled) => setSettings((previous) => ({ ...previous, budgetRemindersEnabled }))} />)}
@@ -2787,7 +2787,7 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.settingsSectionLabel}>DATA</Text>
-      <View style={[styles.settingsCard, { borderColor: colors.border }]}> 
+      <View style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}> 
         <Pressable onPress={() => setShowStampCollection(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
           {renderSettingsRow("collections-bookmark", "Stamp Collection", "View your stamps grouped by month and personal bests")}
         </Pressable>
@@ -2804,7 +2804,7 @@ export default function HomeScreen() {
       </View>
 
       <Text style={[styles.settingsSectionLabel, { color: "#EF4444" }]}>DANGER ZONE</Text>
-      <View style={[styles.settingsCard, { borderColor: "#EF444440" }]}>
+      <View style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? "#EF444440") : "#EF444440" }]}>
         <Pressable onPress={() => setDangerDialog("reset")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("cancel", "Reset Today's Prayers", "Uncheck all items for today", "danger")}
         </Pressable>
@@ -2817,7 +2817,7 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.settingsSectionLabel}>ABOUT</Text>
-      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
+      <View style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
         {renderSettingsRow("favorite", "PrayerCircle", "Version 1.0.0 · Pray for the people you love")}
       </View>
       <M3Dialog
@@ -3180,7 +3180,7 @@ export default function HomeScreen() {
 
   if (showAddPerson) {
     return (
-      <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.addScreenRoot, { backgroundColor: colors.background }]}>
+      <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.addScreenRoot, { backgroundColor: skinTokens.isEightBit ? "transparent" : colors.background }]}>
         <View style={styles.addTopBar}>
           <Pressable onPress={() => setShowAddPerson(false)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("close")} size={30} color="#46525D" />
@@ -3325,7 +3325,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: skinTokens.isTerminal ? "transparent" : colors.background }]}>
+    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : colors.background }]}>
       <ReAnimated.View style={[{ flex: 1 }, tabContentStyle]}>
         {renderContent()}
       </ReAnimated.View>
@@ -3980,11 +3980,15 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
   },
   subheading: {
     marginHorizontal: 16,
-    color: colors.muted,
+    // v187 (8-bit only): the PRAY TODAY header speaks the pixel face
+    // in the on-dusk ink — on the dusk page the palette muted grey
+    // vanished, and the regular type read as Classic.
+    color: skin?.isEightBit ? BIT_ON_DUSK : colors.muted,
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: 0.7,
     lineHeight: 16,
+    ...(skin?.isEightBit && skin?.displayFont ? { fontFamily: skin?.displayFont, fontSize: 10, lineHeight: 16 } : {}),
   },
   storyScroller: {
     paddingHorizontal: 16,
@@ -4415,11 +4419,15 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
   },
   profileSettingsCard: {
     minHeight: 140,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    borderWidth: 1,
+    // v187 (8-bit only): squared cartridge corners + the 3px frame.
+    // The per-corner radii are why this card stayed round through
+    // v184/v185 — they override the frame's borderRadius shorthand
+    // no matter where the frame lands in the style array.
+    borderTopLeftRadius: skin?.isEightBit ? 2 : 20,
+    borderTopRightRadius: skin?.isEightBit ? 2 : 20,
+    borderBottomLeftRadius: skin?.isEightBit ? 2 : 8,
+    borderBottomRightRadius: skin?.isEightBit ? 2 : 8,
+    borderWidth: skin?.isEightBit ? 3 : 1,
     paddingHorizontal: 24,
     paddingVertical: 18,
     flexDirection: "column",
@@ -4520,7 +4528,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     marginBottom: 14,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: skin?.isEightBit ? 2 : 12,
     borderTopWidth: 0,
     borderBottomWidth: 0,
     gap: 8,
@@ -4847,6 +4855,8 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     fontSize: 18,
     fontWeight: "900",
     lineHeight: 23,
+    // v187 (8-bit only): the profile name speaks the pixel face.
+    ...(skin?.isEightBit && skin?.displayFont ? { fontFamily: skin?.displayFont, fontSize: 11, lineHeight: 18 } : {}),
   },
   profileSubtitle: {
     marginTop: 2,
@@ -4882,7 +4892,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
   fastIconButton: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: skin?.isEightBit ? 2 : 28,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
@@ -5133,16 +5143,22 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
   settingsSectionLabel: {
     marginLeft: 6,
     marginBottom: 12,
-    color: "#5E6570",
+    // v187 (8-bit only): section labels speak the pixel face in the
+    // on-dusk ink; the hard-coded light grey was invisible on dusk.
+    color: skin?.isEightBit ? BIT_ON_DUSK : "#5E6570",
     fontSize: 14,
     fontWeight: "900",
     letterSpacing: 1.7,
     lineHeight: 19,
+    ...(skin?.isEightBit && skin?.displayFont ? { fontFamily: skin?.displayFont, fontSize: 10, lineHeight: 16 } : {}),
   },
   settingsCard: {
     marginBottom: 30,
-    borderRadius: 20,
-    borderWidth: 1,
+    // v187 (8-bit only): the Settings cards are cartridges — squared
+    // corners and the 3px ink frame (the call sites pass the matching
+    // ink border color). Other skins keep the soft card exactly.
+    borderRadius: skin?.isEightBit ? 2 : 20,
+    borderWidth: skin?.isEightBit ? 3 : 1,
     overflow: "hidden",
     backgroundColor: paperSurface ?? colors.surface,
     ...cardShadow,
@@ -5159,7 +5175,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
   settingsIconTile: {
     width: 40,
     height: 40,
-    borderRadius: 11,
+    borderRadius: skin?.isEightBit ? 2 : 11,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -5172,6 +5188,8 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     fontSize: 18,
     fontWeight: "900",
     lineHeight: 23,
+    // v187 (8-bit only): row titles speak the pixel face (~60% rule).
+    ...(skin?.isEightBit && skin?.displayFont ? { fontFamily: skin?.displayFont, fontSize: 11, lineHeight: 18 } : {}),
   },
   settingsRowTitleDanger: {
     color: "#D3384A",

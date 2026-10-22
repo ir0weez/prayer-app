@@ -6,6 +6,7 @@ import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, Vi
 
 import { ScreenContainer } from "@/components/screen-container";
 import { useSkin } from "@/hooks/use-skin";
+import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 
 const PURPLE = "#8557D9";
@@ -83,12 +84,12 @@ export default function PersonalPrayerScreen() {
   };
 
   return (
-    <ScreenContainer className="bg-background">
+    <ScreenContainer className={skinTokens.isEightBit ? undefined : "bg-background"}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <MaterialIcons name="arrow-back" size={24} color={DEEP_TEXT} />
+          <MaterialIcons name="arrow-back" size={24} color={skinTokens.isEightBit ? BIT_ON_DUSK : DEEP_TEXT} />
         </Pressable>
-        <Text style={styles.headerTitle}>My Prayers</Text>
+        <Text style={[styles.headerTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null]}>My Prayers</Text>
         <View style={{ width: 34 }} />
       </View>
 
@@ -96,8 +97,8 @@ export default function PersonalPrayerScreen() {
         <View style={styles.content}>
           {prayerItems.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No prayer items yet</Text>
-              <Text style={styles.emptyText}>Add personal prayer items to track what you're praying about.</Text>
+              <Text style={[styles.emptyTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null]}>No prayer items yet</Text>
+              <Text style={[styles.emptyText, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null]}>Add personal prayer items to track what you're praying about.</Text>
             </View>
           ) : (
             <>

@@ -11,6 +11,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage } from "@/components/avatar-system";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
+import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
 import {
   addPrayerItem,
   formatDaysSinceLastPrayer,
@@ -739,7 +740,7 @@ export default function PersonScreen() {
 
   if (!hasHydratedPeople) {
     return (
-      <ScreenContainer containerClassName="bg-background" style={styles.container}>
+      <ScreenContainer containerClassName="bg-background" style={[styles.container, skinTokens.isEightBit ? { backgroundColor: "transparent" } : null]}>
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateText}>Loading prayer list…</Text>
         </View>
@@ -749,12 +750,12 @@ export default function PersonScreen() {
 
   if (!currentPerson) {
     return (
-      <ScreenContainer containerClassName="bg-background" style={styles.container}>
+      <ScreenContainer containerClassName="bg-background" style={[styles.container, skinTokens.isEightBit ? { backgroundColor: "transparent" } : null]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("chevron-left")} size={34} color={colors.primary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Prayer</Text>
+          <Text style={[styles.headerTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null]}>Prayer</Text>
           <View style={styles.headerIconButton} />
         </View>
         <View style={styles.emptyState}>
@@ -765,12 +766,12 @@ export default function PersonScreen() {
   }
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={styles.container}>
+    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.container, skinTokens.isEightBit ? { backgroundColor: "transparent" } : null]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}>
           <MaterialIcons name={iconName("chevron-left")} size={34} color={colors.primary} />
         </Pressable>
-        <Text style={styles.headerTitle}>Prayer List</Text>
+        <Text style={[styles.headerTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null]}>Prayer List</Text>
         <Pressable onPress={openEditModal} style={({ pressed }) => [styles.headerEditButton, pressed && styles.pressed]}>
           <Text style={styles.headerEditButtonText}>Edit</Text>
         </Pressable>
@@ -779,10 +780,10 @@ export default function PersonScreen() {
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileSection}>
           <AvatarImage id={currentPerson.id} name={currentPerson.name} gender={currentPerson.gender} avatarAsset={currentPerson.avatarAsset} photoUri={currentPerson.photoUri} size={96} fallbackColor={currentPerson.avatarColor} style={{ borderWidth: 3, borderColor: currentPerson.accentColor, borderRadius: 48, backgroundColor: "transparent" }} />
-          <Text style={styles.personName}>{currentPerson.name}</Text>
+          <Text style={[styles.personName, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null]}>{currentPerson.name}</Text>
           <Text style={[styles.personRelationship, { color: currentPerson.accentColor }]}>{currentPerson.relationship}</Text>
           {currentPerson.birthday && (
-            <Text style={styles.personBirthday}>Birthday: {currentPerson.birthday}</Text>
+            <Text style={[styles.personBirthday, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null]}>Birthday: {currentPerson.birthday}</Text>
           )}
           <Pressable onPress={openReminderModal} style={({ pressed }) => [styles.reminderChip, pressed && styles.pressed]}>
              <MaterialIcons name={iconName("notifications")} size={17} color={colors.primary} />
@@ -790,7 +791,7 @@ export default function PersonScreen() {
               {getReminderScheduleText(currentPerson)}
             </Text>
           </Pressable>
-          <Text style={styles.statusText}>{getStatusText(currentPerson)}</Text>
+          <Text style={[styles.statusText, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null]}>{getStatusText(currentPerson)}</Text>
           {currentPerson.lastMeetingLocation ? (
             <Text style={styles.personBirthday}>Last met at {currentPerson.lastMeetingLocation}</Text>
           ) : null}

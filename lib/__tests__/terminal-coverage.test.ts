@@ -54,7 +54,9 @@ describe("chrome surfaces converted to the terminal dialect", () => {
     // The skin picker's swatch ring for Terminal is phosphor bright.
     expect(index).toContain('theme.id === "terminal" && { borderWidth: 1, borderColor: "#3DFF6E" }');
     // The tabs shell lets the CRT show through instead of painting over it.
-    expect(index).toContain('backgroundColor: skinTokens.isTerminal ? "transparent" : colors.background');
+    // v187: the same gate now also lets the 8-bit dusk show through —
+    // Terminal's transparency is preserved inside the combined branch.
+    expect(index).toContain('backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : colors.background');
   });
 
   it("white blocks become > prompt rows with bracketed duration pills", () => {

@@ -34,6 +34,9 @@ import { describe, expect, it } from "vitest";
 import { getThemedPalette } from "../color-themes";
 import { allPaperSceneIds, paperSceneIdFor } from "../paper-keywords";
 import {
+  BIT_GOLD,
+  BIT_ON_DUSK,
+  BIT_PANEL,
   DEFAULT_SKIN_THEME,
   SKIN_THEMES,
   TERM_BG,
@@ -45,6 +48,8 @@ import {
   TERM_PANEL_2,
   TERM_PHOS,
   TERM_SOFT,
+  bitButtonInk,
+  bitButtonStyle,
   getSkinThemeDefinition,
   getSkinTokens,
   getUnlockedSkinThemeIds,
@@ -712,14 +717,29 @@ describe("v185 floating cards: under 8-bit the sheet is gone and every row float
     expect(schedule).toContain("borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth");
   });
 
-  it("the date header sits on the dusk: transparent card, on-dusk inks, gold selected chip", () => {
+  it("the date header is a solid HUD panel under 8-bit (v187) — Terminal keeps its transparent branch", () => {
     const header = schedule.slice(schedule.indexOf("const renderDateHeaderCard"), schedule.indexOf("const renderItem"));
-    expect(header).toContain('(skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: "transparent" }');
+    // v185 made the header transparent on-dusk; on his phone that read
+    // as NO date at all ("the date is gone", 2026-10-22). v187: under
+    // 8-bit the header is the dark HUD panel again — BIT_PANEL fill,
+    // the kit frame + hard shadow, squared corners.
+    expect(header).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL");
+    expect(header).toContain("borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2");
+    // Terminal's v186 transparent-on-tube branch survives untouched.
+    expect(header).toContain('skinTokens.isTerminal ? { backgroundColor: "transparent" }');
     // v186: the day name chains Terminal phosphor ahead of the 8-bit
     // on-dusk ink — both skins' branches survive in one expression.
     expect(header).toContain("skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground");
     expect(header).toContain("backgroundColor: BIT_GOLD");
     expect(header).toContain("BIT_ON_DUSK_SOFT");
+    // The full date is spelled out in the pixel face under 8-bit, so
+    // the date reads even where the week strip alone would not say it.
+    expect(header).toContain("dateHeader.monthName} ${dateHeader.dayNum}, ${dateHeader.year}");
+    expect(header).toContain("bitDisplay(skinTokens, 8)");
+    // And the list pins the header sticky under 8-bit only, so the
+    // date never scrolls out of sight (data[0] is child index 1,
+    // after the ListHeaderComponent spacer at index 0).
+    expect(schedule).toContain("stickyHeaderIndices={skinTokens.isEightBit ? [1] : undefined}");
   });
 
   it("plain and grouped-completed todos become cartridges under 8-bit", () => {
@@ -994,5 +1014,129 @@ describe("Terminal keyword scenes (v186): every scene id has a bespoke Pip-Boy l
     expect(schedule).toContain("ROBCO INDUSTRIES (TM) TERMLINK");
     expect(schedule).toContain("TermCheckbox");
     expect(schedule).toContain("TermCursor");
+  });
+});
+
+describe("v187 — 8-bit, everywhere it claims to be", () => {
+  // Jonathan's third rejection of the 8-bit skin (2026-10-22, from his
+  // v185 phone screenshots): "all the backgrounds should match the
+  // schedule one, and some of this still isn't 8-Bit. Those beige
+  // tiles don't say 8-bit at all... It's not that close to the mockup"
+  // — plus "the date is gone." Each fix below is pinned per screen;
+  // a coverage claim without a per-screen pin is how v183–v185 shipped
+  // three lookalike rounds.
+  const palette = getThemedPalette("light", "default");
+
+  it("the routine-cartridge shadow exists only under 8-bit: hard offset + the mockup's gold inset ring", () => {
+    const bit = getSkinTokens("8bit", "light", palette);
+    expect(bit.accentShadow).toEqual({
+      boxShadow: "6px 6px 0px rgba(13,5,32,0.55), inset 0px 0px 0px 3px #FFC531",
+      elevation: 6,
+    });
+    expect(getSkinTokens("classic", "light", palette).accentShadow).toBeNull();
+    expect(getSkinTokens("paper", "light", palette).accentShadow).toBeNull();
+    expect(getSkinTokens("terminal", "light", palette).accentShadow).toBeNull();
+  });
+
+  it("buttons resolve to the mockup's cartridges only under 8-bit", () => {
+    const bit = getSkinTokens("8bit", "light", palette);
+    expect(bitButtonStyle(bit, "primary")).toEqual({
+      backgroundColor: BIT_GOLD,
+      borderRadius: 2,
+      borderWidth: 3,
+      borderColor: "#150A2E",
+      boxShadow: "4px 4px 0px rgba(13,5,32,0.55)",
+      elevation: 4,
+    });
+    expect(bitButtonStyle(bit, "secondary")?.backgroundColor).toBe(BIT_PANEL);
+    expect(bitButtonInk("primary")).toBe("#3A2703");
+    expect(bitButtonInk("secondary")).toBe(BIT_ON_DUSK);
+    for (const id of ["classic", "paper", "terminal"] as const) {
+      expect(bitButtonStyle(getSkinTokens(id, "light", palette), "primary")).toBeNull();
+      expect(bitButtonStyle(getSkinTokens(id, "light", palette), "secondary")).toBeNull();
+    }
+  });
+
+  it("item 2 — the dusk reaches every screen: the main shell stops painting the palette over the BitBackground", () => {
+    const index = read("app/(tabs)/index.tsx");
+    // THE cause, three rounds running: ScreenContainer mounts the
+    // BitBackground, but the main shell passed the palette background
+    // as the SafeAreaView style, painting opaque Classic over the
+    // dusk on People / Journal / Settings. Terminal was let through
+    // in v186; v187 adds 8-bit to the same gate.
+    expect(index).toContain('backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : colors.background');
+    // The add-person shell had the same paint-over, unconditionally.
+    expect(index).toContain('style={[styles.addScreenRoot, { backgroundColor: skinTokens.isEightBit ? "transparent" : colors.background }]}');
+    // Per-screen roots that paint through their own props:
+    // Journal (inside the shell, already transparent-gated),
+    const journal = read("components/prayer-journal-tab.tsx");
+    expect(journal).toContain('(skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent"');
+    // Person detail (its container style hard-paints SCREEN_BG),
+    const person = read("app/(tabs)/person.tsx");
+    expect(person.split('skinTokens.isEightBit ? { backgroundColor: "transparent" } : null').length - 1).toBe(3);
+    // Personal Prayers + Family list (content className bg-background),
+    expect(read("app/personal-prayer.tsx")).toContain('className={skinTokens.isEightBit ? undefined : "bg-background"}');
+    expect(read("app/(tabs)/family.tsx")).toContain('className={skinTokens.isEightBit ? undefined : "bg-background"}');
+    // Fasting profile.
+    expect(read("app/profile.tsx")).toContain('className={skinTokens.isEightBit ? "flex-1" : "flex-1 bg-background"}');
+  });
+
+  it("item 6 — the fixed summary fades out as the 8-bit list scrolls over it, so its text never ghosts through the rows", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    const summary = schedule.slice(schedule.indexOf("Fixed summary behind the sliding sheet"), schedule.indexOf("ListHeaderComponent"));
+    expect(summary).toContain("Animated.View");
+    expect(summary).toContain('opacity: scrollY.interpolate({ inputRange: [0, 120], outputRange: [1, 0], extrapolate: "clamp" })');
+    expect(summary).toContain("skinTokens.isEightBit");
+  });
+
+  it("items 3+5 — todo titles speak the pixel face and the everyday rows wear the cartridge shadow", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    const todoItem = schedule.slice(schedule.indexOf("function TodoItem"), schedule.indexOf("function MinistryTicket"));
+    expect(todoItem).toContain("cartridgeShadowFor(skinTokens)");
+    // Plain todo title + grouped-completed title, pixel face, 8-bit only.
+    expect(todoItem).toContain("skinTokens.isEightBit ? bitDisplay(skinTokens, 10) : null");
+    expect(todoItem).toContain("skinTokens.isEightBit ? bitDisplay(skinTokens, 9) : null");
+    // The Personal Study card wears the cartridge shadow too, and its
+    // chapter line speaks the pixel face.
+    expect(schedule).toContain("cartridgeShadowFor(skinTokens) ?? {}");
+    expect(schedule).toContain("skinTokens.isEightBit ? bitDisplay(skinTokens, 11) : {}");
+    // The summary's progress label joins the pixel face under 8-bit.
+    expect(read("components/schedule-progress-bar.tsx")).toContain("skinTokens.displayFont");
+  });
+
+  it("item 4 — the schedule's and journal's purple pills become gold/dark cartridges under 8-bit", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    expect(schedule).toContain('bitButtonStyle(skinTokens, "primary")');
+    expect(schedule).toContain('bitButtonStyle(skinTokens, "secondary")');
+    const journal = read("components/prayer-journal-tab.tsx");
+    expect(journal).toContain('bitButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary")');
+    expect(journal).toContain('bitButtonStyle(skinTokens, "primary")');
+    const index = read("app/(tabs)/index.tsx");
+    expect(index).toContain('bitButtonStyle(skinTokens, "primary")');
+  });
+
+  it("item 7 — Settings is fully skinned: squared framed cards, pixel labels and titles, on-dusk section ink", () => {
+    const index = read("app/(tabs)/index.tsx");
+    expect(index).toContain("borderRadius: skin?.isEightBit ? 2 : 20");
+    expect(index).toContain("borderWidth: skin?.isEightBit ? 3 : 1");
+    expect(index).toContain('color: skin?.isEightBit ? BIT_ON_DUSK : "#5E6570"');
+    // The profile header card's per-corner radii are squared too —
+    // they were why it stayed round through v184/v185.
+    expect(index).toContain("borderTopLeftRadius: skin?.isEightBit ? 2 : 20");
+    // Every settingsCard call site passes the ink border under 8-bit.
+    expect(index.split("skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border").length - 1).toBe(6);
+    // Journal titles + section headers speak the pixel face via bitText.
+    const journal = read("components/prayer-journal-tab.tsx");
+    expect(journal).toContain("bitText(11)");
+    expect(journal).toContain("skinTokens.isEightBit ? BIT_ON_DUSK : colors.muted");
+  });
+
+  it("item 3 — People names and headers speak the pixel face under 8-bit", () => {
+    const index = read("app/(tabs)/index.tsx");
+    // PRAY TODAY header: on-dusk ink from the factory.
+    expect(index).toContain("color: skin?.isEightBit ? BIT_ON_DUSK : colors.muted");
+    // Family name, member names, section titles.
+    expect(index).toContain("styles.personName, skinTokens.isEightBit && skinTokens.displayFont");
+    expect(index).toContain("styles.relationshipTitle, { color: relationshipColors[item.section.title].accent }, skinTokens.isEightBit && skinTokens.displayFont");
   });
 });

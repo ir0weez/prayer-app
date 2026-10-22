@@ -541,7 +541,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScreenContainer className="flex-1 bg-background">
+    <ScreenContainer className={skinTokens.isEightBit ? "flex-1" : "flex-1 bg-background"}>
       <ScrollView
         ref={profileScrollRef}
         contentContainerStyle={styles.content}

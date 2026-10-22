@@ -53,7 +53,7 @@ import { BitBackground } from "./bit-background";
 import { TerminalBackground } from "./terminal-background";
 import { TermCursor } from "./terminal-kit";
 import { TerminalRestSky, terminalKeywordSceneFor } from "./terminal-keyword-scenes";
-import { BIT_GOLD, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint } from "@/lib/skin-themes";
+import { BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint } from "@/lib/skin-themes";
 import type { SkinTokens } from "@/lib/skin-themes";
 
 /**
@@ -67,6 +67,16 @@ import type { SkinTokens } from "@/lib/skin-themes";
 function bitDisplay(tokens: SkinTokens, size: number): { fontFamily?: string; fontSize?: number; lineHeight?: number; textTransform?: "uppercase" } {
   if (!tokens.displayFont) return {};
   return { fontFamily: tokens.displayFont, fontSize: size, lineHeight: Math.round(size * 1.6), textTransform: "uppercase" };
+}
+
+/**
+ * The shadow an everyday schedule card wears (v187): under 8-bit the
+ * routine-cartridge shadow (hard offset + the mockup's gold inset
+ * ring, tokens.accentShadow); under every other skin the kit's plain
+ * card shadow, exactly as before.
+ */
+function cartridgeShadowFor(tokens: SkinTokens) {
+  return tokens.isEightBit ? (tokens.accentShadow ?? tokens.cardShadow) : tokens.cardShadow;
 }
 
 /**
@@ -8016,6 +8026,11 @@ function TodoItem({
 }) {
   const colors = useColors();
   const { isSkinned, tokens: skinTokens, motion: skinMotion } = useSkin();
+  // v187: everyday cards wear the routine-cartridge shadow (see
+  // cartridgeShadowFor) — under 8-bit that's the hard offset PLUS the
+  // mockup's gold inset ring, so a cream card reads as a gold-edged
+  // cartridge, not a beige tile.
+  const cartridgeShadow = cartridgeShadowFor(skinTokens);
   const iconNameStr = getIconForTodo(todo.title);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
@@ -8140,18 +8155,18 @@ function TodoItem({
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
-          style={({ pressed }) => [todoStyles.row, { marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(skinTokens.cardShadow ?? {}) } : null]}
+          style={({ pressed }) => [todoStyles.row, { marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(cartridgeShadow ?? {}) } : null]}
         >
           {skinTokens.isTerminal ? <TermCheckbox checked size={20} /> : <MaterialIcons name={iconName(iconNameStr)} size={20} color={colors.success} />}
           <View style={{ flex: 1, gap: 1 }}>
-            <Text numberOfLines={1} style={[todoStyles.title, { color: colors.muted, textDecorationLine: 'line-through' }]}>{todo.title}</Text>
+            <Text numberOfLines={1} style={[todoStyles.title, { color: colors.muted, textDecorationLine: 'line-through' }, skinTokens.isEightBit ? bitDisplay(skinTokens, 9) : null]}>{todo.title}</Text>
             <Text style={{ color: colors.muted, fontSize: 10, fontWeight: '600' }}>{subtaskProgress.total} steps complete</Text>
           </View>
           <MaterialIcons name="folder" size={18} color={colors.muted} />
         </Pressable>
       ) : isGroupedTodo ? (
         <View style={{ marginBottom: 12, marginHorizontal: 12 }}>
-          <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: groupBorderColor, overflow: 'hidden', ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
+          <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: groupBorderColor, overflow: 'hidden', ...(skinTokens.frame ?? {}), ...(isSkinned ? cartridgeShadow ?? {} : {}) }}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${todo.isGroupExpanded ? 'Collapse' : 'Expand'} ${todo.title} subtasks`}
@@ -8263,7 +8278,7 @@ function TodoItem({
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
-          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(skinTokens.cardShadow ?? {}) } : null, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(cartridgeShadow ?? {}) } : null, pressed && { opacity: 0.7 }]}
         >
           {skinTokens.isTerminal ? (
             <View style={{ marginRight: 12, alignSelf: "center" }}>
@@ -8279,7 +8294,7 @@ function TodoItem({
           </ReAnimated.View>
           )}
           <View style={{ flex: 1, alignItems: 'flex-start' }}>
-            <Text style={[todoStyles.title, { color: colors.foreground }, todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]} numberOfLines={1}>{todo.title}</Text>
+            <Text style={[todoStyles.title, { color: colors.foreground }, todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted }, skinTokens.isEightBit ? bitDisplay(skinTokens, 10) : null]} numberOfLines={1}>{todo.title}</Text>
             {(todo.startTime || todo.notes) && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 }}>
                 {todo.startTime && <Text style={{ fontSize: 11, color: todo.isCompleted ? colors.muted : colors.primary, fontWeight: '500' }}>{format12HourTime(todo.startTime)}</Text>}
@@ -11875,8 +11890,14 @@ export function ScheduleTab({
     <>
       {/* Date Header Card - sticky sheet header. v185 (8-bit only): the
           header is no longer a card — its text sits directly on the dusk
-          in the mockup's on-dusk inks, and the selected day is a gold chip. */}
-      <View style={[scheduleStyles.dateHeaderCard, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
+          in the mockup's on-dusk inks, and the selected day is a gold chip.
+          v187 (8-bit only): that read as NO date at all on his phone
+          ("the date is gone") — the header is a solid HUD panel again,
+          a dark cartridge with the frame + hard shadow, the full date
+          spelled out in the pixel face, and the list pins it sticky so
+          the date never scrolls out of sight. Terminal keeps v186's
+          transparent-on-tube treatment; Classic/Paper keep the sheet top. */}
+      <View style={[scheduleStyles.dateHeaderCard, skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : skinTokens.isTerminal ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
   <View style={scheduleStyles.dayHeaderContent}>
     <Text style={[scheduleStyles.dayName, { color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...bitDisplay(skinTokens, 13) }]}>
       {dateHeader.dayName}
@@ -11891,6 +11912,11 @@ export function ScheduleTab({
       compact
     />
   </View>
+  {skinTokens.isEightBit ? (
+    <Text style={{ color: BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, 8) }}>
+      {`${dateHeader.monthName} ${dateHeader.dayNum}, ${dateHeader.year}`}
+    </Text>
+  ) : null}
   <View style={scheduleStyles.dateStrip} {...weekStripPanResponder.panHandlers}>
     <View
       style={{ flex: 1, flexDirection: "row", justifyContent: "space-between" }}
@@ -11961,7 +11987,7 @@ export function ScheduleTab({
                 : router.push({ pathname: '/bible-chapters', params: { openBookNav: '1' } })}
               style={({ pressed }) => [{ marginBottom: 12, marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }]}
             >
-              <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
+              <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(skinTokens.frame ?? {}), ...(isSkinned ? cartridgeShadowFor(skinTokens) ?? {} : {}) }}>
                 <View style={{ padding: 16, gap: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -11996,9 +12022,10 @@ export function ScheduleTab({
                           marginLeft: 'auto',
                           marginRight: 8,
                           opacity: pressed ? 0.8 : 1,
+                          ...(bitButtonStyle(skinTokens, "primary") ?? {}),
                         }]}
                       >
-                        <Text style={{ color: colors.background, fontSize: 12, fontWeight: '700' }}>
+                        <Text style={{ color: skinTokens.isEightBit ? bitButtonInk("primary") : colors.background, fontSize: 12, fontWeight: '700', ...(skinTokens.isEightBit ? bitDisplay(skinTokens, 8) : {}) }}>
                           Read Chapter
                         </Text>
                       </Pressable>}
@@ -12007,7 +12034,7 @@ export function ScheduleTab({
                   </View>
 
                   {hasCurrentBook ? <View style={{ gap: 8 }}>
-                    <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
+                    <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700', ...(skinTokens.isEightBit ? bitDisplay(skinTokens, 11) : {}) }}>
                       {item.data.display}
                     </Text>
                     {(() => {
@@ -12098,8 +12125,8 @@ export function ScheduleTab({
                         }}
                         style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                       >
-                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
-                          <MaterialIcons name="arrow-back" size={18} color={colors.foreground} />
+                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', ...(bitButtonStyle(skinTokens, "secondary") ?? {}) }}>
+                          <MaterialIcons name="arrow-back" size={18} color={skinTokens.isEightBit ? bitButtonInk("secondary") : colors.foreground} />
                         </View>
                       </Pressable>
 
@@ -12112,8 +12139,8 @@ export function ScheduleTab({
                         }}
                         style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                       >
-                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
-                          <MaterialIcons name="list" size={19} color={colors.primary} />
+                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', ...(bitButtonStyle(skinTokens, "secondary") ?? {}) }}>
+                          <MaterialIcons name="list" size={19} color={skinTokens.isEightBit ? bitButtonInk("secondary") : colors.primary} />
                         </View>
                       </Pressable>
 
@@ -12142,9 +12169,9 @@ export function ScheduleTab({
                         }}
                         style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.7 : 1 }]}
                       >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8 }}>
-                          <MaterialIcons name="check" size={18} color="#FFFFFF" />
-                          <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Mark as Read</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8, ...(bitButtonStyle(skinTokens, "primary") ?? {}) }}>
+                          <MaterialIcons name="check" size={18} color={skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF"} />
+                          <Text style={{ color: skinTokens.isEightBit ? bitButtonInk("primary") : '#FFFFFF', fontSize: 14, fontWeight: '600', ...(skinTokens.isEightBit ? bitDisplay(skinTokens, 9) : {}) }}>Mark as Read</Text>
                         </View>
                       </Pressable>
                         </View>
@@ -12543,7 +12570,7 @@ export function ScheduleTab({
               {item.data?.state ? (
                 <View style={{ gap: 12 }}>
                   <View style={{ paddingHorizontal: 4 }}>
-                    <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
+                    <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700', ...(skinTokens.isEightBit ? bitDisplay(skinTokens, 11) : {}) }}>
                       {item.data.display}
                     </Text>
                     {(() => {
@@ -12597,9 +12624,9 @@ export function ScheduleTab({
                     }}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8 }}>
-                      <MaterialIcons name="check" size={20} color="#FFFFFF" />
-                      <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>Mark as Read</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8, ...(bitButtonStyle(skinTokens, "primary") ?? {}) }}>
+                      <MaterialIcons name="check" size={20} color={skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF"} />
+                      <Text style={{ color: skinTokens.isEightBit ? bitButtonInk("primary") : '#FFFFFF', fontSize: 15, fontWeight: '600', ...(skinTokens.isEightBit ? bitDisplay(skinTokens, 10) : {}) }}>Mark as Read</Text>
                     </View>
                   </Pressable>
                 </View>
@@ -12763,16 +12790,25 @@ export function ScheduleTab({
         {viewMode === 'day' ? (
           <View style={{ flex: 1 }}>
             {/* Fixed summary behind the sliding sheet (Joi-style) */}
-            <View
-              style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 0 }}
+            {/* v187 (8-bit only): the floating rows never cover the fixed
+                summary opaquely, so its text ghosted through every gap
+                between cards at any scroll depth ("Good evening,
+                Jonathan Roberts" bleeding through the completed bars).
+                Under 8-bit the summary now fades out as the list starts
+                to scroll over it — fully present at rest, gone before
+                the first row reaches it. Other skins keep the opaque
+                sheet, which covers the summary on its own. */}
+            <Animated.View
+              style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 0, ...(skinTokens.isEightBit ? { opacity: scrollY.interpolate({ inputRange: [0, 120], outputRange: [1, 0], extrapolate: "clamp" }) } : {}) }}
               onLayout={(event) => setScheduleSummaryHeight(event.nativeEvent.layout.height)}
             >
               {renderScheduleSummary()}
-            </View>
+            </Animated.View>
             <Animated.FlatList
               ref={mainListRef}
               style={{ flex: 1, position: "relative", zIndex: 1 }}
               data={scheduleSheetData}
+              stickyHeaderIndices={skinTokens.isEightBit ? [1] : undefined}
               scrollEnabled={slidePicker == null}
               onMomentumScrollEnd={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
               onScrollEndDrag={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}

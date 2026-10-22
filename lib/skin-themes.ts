@@ -39,6 +39,13 @@
 //   - Every keyword scene gets a bespoke pixel rendition (see
 //     components/pixel-keyword-scenes.tsx), drawn chunky on a coarse
 //     grid — the same rule Paper lives by: no shared shells.
+//   - v187 ("everywhere it claims to be"): the dusk reaches EVERY
+//     screen (v184–v185's mount only ever showed on the Schedule —
+//     the main screen's SafeAreaView painted the palette background
+//     over it), the date header is a solid HUD panel pinned in the
+//     list, titles speak the pixel face app-wide, buttons are the
+//     mockup's gold/dark cartridges (bitButtonStyle), and the
+//     everyday cards wear the gold inset ring (accentShadow).
 //
 // "Terminal" (v186) is the RobCo terminal from Fallout — the approved
 // mockup (schedule-mockups/terminal.html), matched to its actual CSS
@@ -310,6 +317,15 @@ export type SkinTokens = {
   /** The kit's one offset shadow, layered (a faint near layer + the shadow itself). */
   cardShadow: SkinShadow | null;
   sheetShadow: SkinShadow | null;
+  /**
+   * The routine-cartridge shadow (v187, 8-bit only): the hard offset
+   * shadow PLUS the mockup's gold inset ring (`inset 0 0 0 3px gold`
+   * on its routine card). The schedule's everyday cards — todos, the
+   * study card — wear this instead of the plain cardShadow so a cream
+   * card reads as a gold-edged cartridge, not a beige tile. Null under
+   * Classic, Paper and Terminal.
+   */
+  accentShadow: SkinShadow | null;
   cardRadius: number | null;
   sheetRadius: number | null;
   /** Chunky edge width for cards/tiles/buttons under this skin; null = leave component borders alone. */
@@ -398,6 +414,38 @@ export const BIT_ON_DUSK_SOFT = "#CFC6F2";
 export const BIT_ON_DUSK_FAINT = "#A99CDD";
 /** The bundled pixel display face (Press Start 2P, OFL — assets/fonts). */
 export const PIXEL_FONT_FAMILY = "PressStart2P";
+/** Ink that reads on the mockup's gold (its button text, #3A2703). */
+export const BIT_GOLD_INK = "#3A2703";
+
+/**
+ * The 8-bit button treatment (v187): square corners, the chunky 3px
+ * ink edge, and the kit's hard offset shadow at button scale. PRIMARY
+ * actions are the mockup's gold with dark ink text (its "Mark as
+ * Complete"); SECONDARY actions are the dark HUD panel with on-dusk
+ * text. Returns null under every other skin — Classic, Paper and
+ * Terminal buttons render exactly as they already do, so spreading
+ * the result is a no-op for them. (v185's phone verdict: "Mark as
+ * Read" and "Read Chapter" were still big rounded purple pills.)
+ */
+export function bitButtonStyle(
+  tokens: SkinTokens,
+  variant: "primary" | "secondary",
+): { backgroundColor: string; borderRadius: number; borderWidth: number; borderColor: string; boxShadow: string; elevation: number } | null {
+  if (!tokens.isEightBit) return null;
+  return {
+    backgroundColor: variant === "primary" ? BIT_GOLD : BIT_PANEL,
+    borderRadius: 2,
+    borderWidth: 3,
+    borderColor: BIT_INK_HEX,
+    boxShadow: `4px 4px 0px ${BIT_SHADOW_HEX}`,
+    elevation: 4,
+  };
+}
+
+/** Text ink for a bitButtonStyle variant (gold ink / on-dusk). */
+export function bitButtonInk(variant: "primary" | "secondary"): string {
+  return variant === "primary" ? BIT_GOLD_INK : BIT_ON_DUSK;
+}
 
 /** The terminal tube: the mockup's near-black green page and its deep stop. */
 export const TERM_BG = "#041207";
@@ -435,6 +483,7 @@ export function getSkinTokens(
       darkSurface: null,
       cardShadow: null,
       sheetShadow: null,
+      accentShadow: null,
       cardRadius: null,
       sheetRadius: null,
       borderWidth: null,
@@ -477,6 +526,12 @@ export function getSkinTokens(
       sheetShadow: {
         boxShadow: `0px -6px 0px rgba(13,5,32,0.45)`,
         elevation: 8,
+      },
+      accentShadow: {
+        // The mockup's routine card: the same hard block shadow, plus
+        // its gold inset frame drawn inside the cartridge's edge.
+        boxShadow: `6px 6px 0px ${BIT_SHADOW_HEX}, inset 0px 0px 0px 3px ${BIT_GOLD}`,
+        elevation: 6,
       },
       // Genuinely square (the mockup's stepped clip-path staircase
       // reads as square at display size; v183's 4/6 plus inherited
@@ -526,6 +581,7 @@ export function getSkinTokens(
         boxShadow: `0px -2px 0px rgba(29,158,75,0.7), 0px 0px 18px rgba(61,255,110,0.12)`,
         elevation: 4,
       },
+      accentShadow: null,
       // Square, like the mockup's windows (radius 2).
       cardRadius: 2,
       sheetRadius: 2,
@@ -572,6 +628,7 @@ export function getSkinTokens(
       boxShadow: `0px -3px 0px rgba(24,8,44,0.14), 0px -6px 0px rgba(24,8,44,0.20)`,
       elevation: 8,
     },
+    accentShadow: null,
     cardRadius: 18,
     sheetRadius: 24,
     borderWidth: null,

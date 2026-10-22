@@ -201,7 +201,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
     <View style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}>
       {/* Label and count */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={{ fontSize: 14, fontWeight: "600", color: isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground }}>
+        <Text style={{ fontSize: 14, fontWeight: "600", color: isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...(skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 9, lineHeight: 14, textTransform: "uppercase" } : {}) }}>
           {label}
         </Text>
         <Text style={{ fontSize: 13, color: isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted }}>

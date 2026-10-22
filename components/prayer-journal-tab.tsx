@@ -24,7 +24,7 @@ import { DateTimePicker } from "@/components/date-time-picker";
 import { AvatarImage } from "@/components/avatar-system";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, TERM_BG, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT } from "@/lib/skin-themes";
+import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle } from "@/lib/skin-themes";
 import type { Person } from "@/lib/prayercircle-data";
 import {
   addPrayerJournalReply,
@@ -64,6 +64,13 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   // no color), gains the kit's one offset shadow and the paper radius.
   const paperSurface = isSkinned ? skinTokens.surface ?? colors.surface : colors.surface;
   const fieldBg = paperSurface;
+  // v187 (8-bit only): titles and section headers speak the pixel face
+  // (Press Start 2P at ~60% size, the v184 rule) — the Journal's entry
+  // titles and date lines were still in the app's regular type.
+  const bitText = (size: number) =>
+    skinTokens.isEightBit && skinTokens.displayFont
+      ? { fontFamily: skinTokens.displayFont, fontSize: size, lineHeight: Math.round(size * 1.6), textTransform: "uppercase" as const }
+      : {};
   const headerVisible = useSharedValue(1);
   const lastScrollY = useRef(0);
   const headerAnimatedStyle = useAnimatedStyle(() => ({
@@ -249,6 +256,12 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     const cardMuted = item.color ? "rgba(255, 255, 255, 0.8)" : skinTokens.isTerminal ? TERM_MID : colors.muted;
     const cardText = item.color ? "#FFFFFF" : skinTokens.isTerminal ? TERM_SOFT : colors.foreground;
     const cardFaint = item.color ? "rgba(255, 255, 255, 0.35)" : colors.border;
+    // v187 (8-bit only): the entry actions are the mockup's buttons —
+    // gold for the active Bookmark toggle, the dark HUD panel for the
+    // rest — never the rounded purple/outline pills. Other skins keep
+    // the outline-pill treatment exactly.
+    const bookmarkInk = skinTokens.isEightBit ? bitButtonInk(item.isBookmarked ? "primary" : "secondary") : (item.isBookmarked ? "#FFFFFF" : item.color ? "#FFFFFF" : colors.primary);
+    const replyInk = skinTokens.isEightBit ? bitButtonInk("secondary") : (item.color ? "#FFFFFF" : colors.primary);
     return (
     <Pressable
       delayLongPress={500}
@@ -281,7 +294,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       ]}
     >
       <View style={styles.entryTopRow}>
-        <Text style={[styles.entryDate, { color: cardMuted }]}>{formatPrayerJournalDate(item.date)}</Text>
+        <Text style={[styles.entryDate, { color: cardMuted }, bitText(9)]}>{formatPrayerJournalDate(item.date)}</Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           {item.body.length > 150 && (
             <MaterialIcons
@@ -295,7 +308,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       </View>
 
       {item.title && (
-        <Text style={{ color: cardText, fontSize: 17, fontWeight: "800", marginBottom: 6 }}>
+        <Text style={{ color: cardText, fontSize: 17, fontWeight: "800", marginBottom: 6, ...bitText(11) }}>
           {item.title}
         </Text>
       )}
@@ -349,12 +362,14 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           }}
           style={({ pressed }) => [
             styles.outlineAction,
-            { borderColor: item.color ? "#FFFFFF" : colors.primary, backgroundColor: item.isBookmarked ? colors.primary : "transparent" },
+            skinTokens.isEightBit
+              ? (bitButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary") ?? {})
+              : { borderColor: item.color ? "#FFFFFF" : colors.primary, backgroundColor: item.isBookmarked ? colors.primary : "transparent" },
             pressed && styles.pressed,
           ]}
         >
-          <MaterialIcons name={item.isBookmarked ? "bookmark" : "bookmark-border"} size={18} color={item.isBookmarked ? "#FFFFFF" : item.color ? "#FFFFFF" : colors.primary} />
-          <Text style={[styles.outlineActionText, { color: item.isBookmarked ? "#FFFFFF" : item.color ? "#FFFFFF" : colors.primary }]}>
+          <MaterialIcons name={item.isBookmarked ? "bookmark" : "bookmark-border"} size={18} color={bookmarkInk} />
+          <Text style={[styles.outlineActionText, { color: bookmarkInk }]}>
             {item.isBookmarked ? "Bookmarked" : "Bookmark"}
           </Text>
         </Pressable>
@@ -363,10 +378,10 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             setDraftReply("");
             setReplyEntryId(item.id);
           }}
-          style={({ pressed }) => [styles.outlineAction, { borderColor: item.color ? "#FFFFFF" : colors.primary }, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.outlineAction, skinTokens.isEightBit ? (bitButtonStyle(skinTokens, "secondary") ?? {}) : { borderColor: item.color ? "#FFFFFF" : colors.primary }, pressed && styles.pressed]}
         >
-          <MaterialIcons name="reply" size={18} color={item.color ? "#FFFFFF" : colors.primary} />
-          <Text style={[styles.outlineActionText, { color: item.color ? "#FFFFFF" : colors.primary }]}>Reply</Text>
+          <MaterialIcons name="reply" size={18} color={replyInk} />
+          <Text style={[styles.outlineActionText, { color: replyInk }]}>Reply</Text>
         </Pressable>
       </View>
 
@@ -414,11 +429,12 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
               {
                 backgroundColor: bookmarksOnly ? colors.primary : (isSkinned ? paperSurface : colors.background),
                 borderColor: bookmarksOnly ? colors.primary : colors.border,
+                ...(bitButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary") ?? {}),
               },
               pressed && styles.pressed,
             ]}
           >
-            <MaterialIcons name={bookmarksOnly ? "bookmark" : "bookmark-border"} size={23} color={bookmarksOnly ? "#FFFFFF" : colors.primary} />
+            <MaterialIcons name={bookmarksOnly ? "bookmark" : "bookmark-border"} size={23} color={skinTokens.isEightBit ? bitButtonInk(bookmarksOnly ? "primary" : "secondary") : bookmarksOnly ? "#FFFFFF" : colors.primary} />
           </Pressable>
         </View>
       </ReAnimated.View>
@@ -430,7 +446,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         onScroll={handleJournalScroll}
         scrollEventThrottle={16}
         renderSectionHeader={({ section }) => (
-          <Text style={[styles.sectionTitle, { color: colors.muted }]}>{section.title}</Text>
+          <Text style={[styles.sectionTitle, { color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.muted }, bitText(11)]}>{section.title}</Text>
         )}
         stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}
@@ -451,10 +467,10 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             {!bookmarksOnly ? (
               <Pressable
                 onPress={() => setShowEntryComposer(true)}
-                style={({ pressed }) => [styles.emptyButton, { backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary }, pressed && styles.primaryPressed]}
+                style={({ pressed }) => [styles.emptyButton, { backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, ...(bitButtonStyle(skinTokens, "primary") ?? {}) }, pressed && styles.primaryPressed]}
               >
-                <MaterialIcons name="edit" size={18} color={skinTokens.isTerminal ? TERM_BG : "#FFFFFF"} />
-                <Text style={[styles.emptyButtonText, skinTokens.isTerminal ? { color: TERM_BG } : null]}>Write your first entry</Text>
+                <MaterialIcons name="edit" size={18} color={skinTokens.isEightBit ? bitButtonInk("primary") : skinTokens.isTerminal ? TERM_BG : "#FFFFFF"} />
+                <Text style={[styles.emptyButtonText, skinTokens.isTerminal ? { color: TERM_BG } : skinTokens.isEightBit ? { color: bitButtonInk("primary") } : null]}>Write your first entry</Text>
               </Pressable>
             ) : null}
           </View>
@@ -469,6 +485,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           styles.fab,
           { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.primary },
           skinTokens.isTerminal ? { ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : null,
+          skinTokens.isEightBit ? { backgroundColor: BIT_PURPLE, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : null,
           pressed && styles.primaryPressed,
         ]}
       >
@@ -663,10 +680,10 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                     onPress={handleSaveEntry}
                   style={({ pressed }) => [
                     styles.saveEntryButton,
-                    { backgroundColor: colors.primary, opacity: draftBody.trim() ? (pressed ? 0.82 : 1) : 0.22 },
+                    { backgroundColor: colors.primary, opacity: draftBody.trim() ? (pressed ? 0.82 : 1) : 0.22, ...(bitButtonStyle(skinTokens, "primary") ?? {}) },
                   ]}
                 >
-                  <Text style={styles.saveEntryButtonText}>Save Entry</Text>
+                  <Text style={[styles.saveEntryButtonText, skinTokens.isEightBit ? { color: bitButtonInk("primary") } : null]}>Save Entry</Text>
                   </Pressable>
                 </View>
               }
@@ -715,10 +732,10 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 onPress={handlePostReply}
                 style={({ pressed }) => [
                   styles.saveEntryButton,
-                  { backgroundColor: colors.primary, opacity: draftReply.trim() ? (pressed ? 0.82 : 1) : 0.22 },
+                  { backgroundColor: colors.primary, opacity: draftReply.trim() ? (pressed ? 0.82 : 1) : 0.22, ...(bitButtonStyle(skinTokens, "primary") ?? {}) },
                 ]}
               >
-                <Text style={styles.saveEntryButtonText}>Post Reply</Text>
+                <Text style={[styles.saveEntryButtonText, skinTokens.isEightBit ? { color: bitButtonInk("primary") } : null]}>Post Reply</Text>
               </Pressable>
             </View>
           </SafeAreaView>

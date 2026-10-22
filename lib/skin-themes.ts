@@ -107,6 +107,8 @@ export type SkinTokens = {
   /** Paper grain overlay: 0 renders nothing. */
   grainOpacity: number;
   grainColor: string;
+  /** Grain flecks for saturated/colored paper stock (light fibers). */
+  grainLightOpacity: number;
   motion: SkinMotionTokens;
 };
 
@@ -146,6 +148,7 @@ export function getSkinTokens(
       sheetRadius: null,
       grainOpacity: 0,
       grainColor: PAPER_INK_HEX,
+      grainLightOpacity: 0,
       motion: CLASSIC_MOTION,
     };
   }
@@ -154,16 +157,21 @@ export function getSkinTokens(
   return {
     id: "paper",
     isPaper: true,
-    // Paper takes the theme's hues: tint the palette's own chrome colors
-    // toward warm paper instead of replacing them, so Paper + Ocean
-    // still reads as Ocean, just printed on paper.
-    background: dark ? mix(palette.background, "#2A1F3D", 0.4) : mix(palette.background, "#F1E7CE", 0.5),
-    surface: dark ? mix(palette.surface, "#332741", 0.38) : mix(palette.surface, "#F8F1DE", 0.55),
+    // Paper is a MATERIAL, not a color (Jonathan, v176): the page keeps
+    // the palette's own hue — only a whisper of warm paper in it — and
+    // the paper lives on the SURFACES: neutral cards become warm paper
+    // stock, colored cards keep their full-strength hue and gain grain
+    // + the one offset shadow as colored construction paper. v174 mixed
+    // the whole app halfway to tan and read as a wash; this doesn't.
+    background: dark ? mix(palette.background, "#2A1F3D", 0.22) : mix(palette.background, "#F1E7CE", 0.16),
+    surface: dark ? mix(palette.surface, "#332741", 0.38) : mix(palette.surface, "#FBF3DE", 0.6),
     border: dark ? mix(palette.border, "#000000", 0.25) : mix(palette.border, PAPER_INK_HEX, 0.1),
     darkBackground: mix(mix("#1E1B4B", palette.primary, 0.07), "#3A2A20", 0.16),
     darkSurface: mix("#2A2140", palette.primary, 0.08),
     cardShadow: {
-      boxShadow: `3px 3px 0px rgba(24,8,44,0.12), 6px 7px 0px rgba(24,8,44,${PAPER_SHADOW_ALPHA})`,
+      // The mockup's exact shadow: a faint near layer + the kit shadow
+      // at 7px/8px — one shadow for every card, sheet, and button.
+      boxShadow: `3px 3px 0px rgba(24,8,44,0.12), 7px 8px 0px rgba(24,8,44,${PAPER_SHADOW_ALPHA})`,
       elevation: 5,
     },
     sheetShadow: {
@@ -172,8 +180,11 @@ export function getSkinTokens(
     },
     cardRadius: 18,
     sheetRadius: 24,
-    grainOpacity: dark ? 0.06 : 0.05,
+    // Grain you can actually see at phone size (v174's 0.05 speckle
+    // was invisible on his phone — part of why Paper read as Classic).
+    grainOpacity: dark ? 0.13 : 0.15,
     grainColor: dark ? "#FFFFFF" : PAPER_INK_HEX,
+    grainLightOpacity: dark ? 0.14 : 0.11,
     motion: PAPER_MOTION,
   };
 }

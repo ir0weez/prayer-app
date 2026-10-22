@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Pressable, Animated, Easing, type GestureResponderEvent } from "react-native";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { TimeBlock, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { format12HourTime } from "@/lib/utils";
@@ -53,6 +54,7 @@ function blockCardHeight(block: TimeBlock, nowMinutes?: number | null): number {
 
 export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, onPressOut }: TimeBlockIndicatorProps) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const isNow = blockContainsNow(block, nowMinutes);
 
   return (
@@ -66,10 +68,14 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
       style={({ pressed }) => [
         styles.container,
         {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
+          // Paper (mockup "Unified"): solid edge, paper-white stock,
+          // the kit offset shadow — the dashed Classic edge is gone.
+          backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface,
+          borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border,
+          borderStyle: isPaper ? "solid" : "dashed",
           opacity: pressed ? 0.65 : 1,
           minHeight: blockCardHeight(block, nowMinutes),
+          ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
         },
       ]}
     >
@@ -103,6 +109,7 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
  */
 export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPressOut }: TimeBlockGroupProps) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   if (blocks.length === 0) return null;
 
   return (
@@ -111,8 +118,10 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
       style={[
         styles.groupContainer,
         {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
+          backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface,
+          borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border,
+          borderStyle: isPaper ? "solid" : "dashed",
+          ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
         },
       ]}
     >

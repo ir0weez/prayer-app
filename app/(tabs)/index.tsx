@@ -1106,6 +1106,7 @@ export default function HomeScreen() {
 
   const colors = useColors();
   const { tokens: skinTokens, motion: skinMotion } = useSkin();
+  const isPaper = skinTokens.isPaper;
   const styles = createStyles(colors, skinTokens);
 
   // Emergency notification "Dismiss" button: clear the active emergency prayer.
@@ -1937,8 +1938,11 @@ export default function HomeScreen() {
       .at(-1);
 
     return (
-      <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: (isExpanded || closingFamilyId === familyId) ? colors.surface : familyRelationship.accent, overflow: (isExpanded || closingFamilyId === familyId) ? "hidden" : "visible", borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+      <ReAnimated.View key={familyId} entering={isPaper ? FadeInUp.duration(skinMotion.settle.duration).delay(familyIndex * 50).easing(skinMotion.settle.easing) : FadeIn.duration(400).delay(familyIndex * 50).springify()}>
+        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: (isExpanded || closingFamilyId === familyId) ? (isPaper ? skinTokens.surface ?? colors.surface : colors.surface) : familyRelationship.accent, overflow: (isExpanded || closingFamilyId === familyId) ? "hidden" : "visible", borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+        {/* Paper: the family card is colored stock — full-strength
+            accent, matte grain over it, never a tan wash. */}
+        {isPaper ? <PaperGrainOverlay tone={(isExpanded || closingFamilyId === familyId) ? "ink" : "light"} /> : null}
         {(isExpanded || closingFamilyId === familyId) && (
           <ReAnimated.View
             pointerEvents="none"
@@ -2003,12 +2007,13 @@ export default function HomeScreen() {
     const relationshipStyle = relationshipColors[person.relationship] ?? relationshipColors.Friends;
 
     return (
-      <ReAnimated.View key={person.id} style={[isDragged && { opacity: 0.6 }]} entering={FadeIn.duration(400).delay(personIndex * 50).springify()}>
+      <ReAnimated.View key={person.id} style={[isDragged && { opacity: 0.6 }]} entering={isPaper ? FadeInUp.duration(skinMotion.settle.duration).delay(personIndex * 50).easing(skinMotion.settle.easing) : FadeIn.duration(400).delay(personIndex * 50).springify()}>
         <Pressable
           onLongPress={() => handleContactLongPress(person)}
           onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
-          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: colors.surface, borderColor: `${relationshipStyle.accent}65`, borderWidth: 1 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: colors.background }]}
+          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderColor: `${relationshipStyle.accent}65`, borderWidth: 1 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: colors.background }]}
         >
+          {isPaper ? <PaperGrainOverlay /> : null}
           {renderAvatar(person, 48)}
           <View style={styles.personInfo}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -2129,14 +2134,15 @@ export default function HomeScreen() {
   const renderExpandedFamily = (familyMembers: Person[], section: RelationshipSection, closing?: boolean) => {
     const accent = relationshipColors[section.title].accent;
     const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
-    return <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: colors.background, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: `${accent}45` }}>
+    return <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: isPaper ? skinTokens.surface ?? colors.background : colors.background, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: `${accent}45` }}>
+      {isPaper ? <PaperGrainOverlay /> : null}
       <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>{completedMembers} of {familyMembers.length} complete</Text><Text style={{ color: accent, fontSize: 12, fontWeight: "800" }}>{Math.round((completedMembers / familyMembers.length) * 100)}%</Text></View><View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${accent}18`, overflow: "hidden" }}><View style={{ width: `${Math.round((completedMembers / familyMembers.length) * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: accent }} /></View></View>
       {familyMembers.map((member, memberIdx) => {
         const emergency = getAllActiveEmergencyPrayers(people).find((entry) => entry.person.id === member.id);
         const emergencyCountdown = emergency ? emergencyCountdowns[emergency.item.id] : undefined;
         const daysSince = getDaysSinceLastPrayed(member.lastPrayedDate);
         const complete = hasPersonCompletedPrayerToday(member, today);
-        return <ReAnimated.View key={member.id} entering={FadeInUp.duration(280).delay(memberIdx * 65)}>
+        return <ReAnimated.View key={member.id} entering={isPaper ? FadeInUp.duration(skinMotion.settle.duration).delay(memberIdx * 65).easing(skinMotion.settle.easing) : FadeInUp.duration(280).delay(memberIdx * 65)}>
           <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: memberIdx === familyMembers.length - 1 ? 0 : 1, borderBottomColor: colors.border, backgroundColor: pressed ? colors.primary + "15" : "transparent" }]}>
           {renderAvatar(member, 48)}<View style={{ flex: 1, marginLeft: 12 }}><Text numberOfLines={1} style={styles.personName}>{member.name}</Text><Text numberOfLines={1} style={styles.personMeta}>{formatLastReachedSummary(member)}</Text></View>
           {emergencyCountdown ? <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} progress={emergency ? getEmergencyPrayerProgress(emergency.item.emergencyExpiresAt) : 0} /> : <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}><View style={[styles.reachPillFill, { backgroundColor: daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(member), width: `${Math.round(getReachProgressRatio(daysSince) * 100)}%` }]} /><Text style={[styles.reachPillText, (daysSince === 999 || getReachProgressRatio(daysSince) < 0.42) && styles.reachPillTextMuted]}>{daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince)}</Text></View>}
@@ -2196,19 +2202,20 @@ export default function HomeScreen() {
 
 
   const renderPeopleScreen = () => (
-    <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
+    <View style={[styles.peopleScreen, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }]}>
       <ReAnimated.View style={[styles.floatingHeaderRow, pillAnimatedStyle]}>
-        <View style={[styles.floatingPill, { backgroundColor: colors.surface }]}>
+        <View style={[styles.floatingPill, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+          {isPaper ? <PaperGrainOverlay /> : null}
           <Text style={[styles.pillTitle, { color: colors.foreground }]}>PrayerCircle</Text>
           <Text style={[styles.pillSubtitle, { color: colors.muted }]}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
         <View style={styles.m3StatsContainer}>
           <ReAnimated.View style={[styles.m3StatsRow, pillsTransformStyle]}>
-            <View style={[styles.m3StatChip, { backgroundColor: colors.surface }]}>
+            <View style={[styles.m3StatChip, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
               <MaterialIcons name={iconName("local-fire-department")} size={16} color={colors.primary} />
               <Text style={[styles.m3StatText, { color: colors.foreground }]}>{streak}</Text>
             </View>
-            <View style={[styles.m3StatChip, { backgroundColor: colors.surface }]}>
+            <View style={[styles.m3StatChip, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
               <MaterialIcons name={iconName("chat-bubble")} size={14} color={colors.primary} />
               <Text style={[styles.m3StatText, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
             </View>
@@ -2555,7 +2562,8 @@ export default function HomeScreen() {
   const renderSettingsScreen = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
       <Text style={styles.settingsTitle}>Settings</Text>
-      <View style={[styles.profileSettingsCard, { borderColor: profileAura?.glowColor || colors.border, backgroundColor: profileAura ? auraWashColor(profileAura, "20") : colors.surface }]}>
+      <View style={[styles.profileSettingsCard, { borderColor: profileAura?.glowColor || colors.border, backgroundColor: profileAura ? auraWashColor(profileAura, "20") : (isPaper ? skinTokens.surface ?? colors.surface : colors.surface) }]}>
+        {isPaper ? <PaperGrainOverlay /> : null}
         <View style={styles.profileCardTop}>
           <View style={styles.profileCardTopLeft}>
             <View style={styles.profileAvatarContainer}>
@@ -3777,7 +3785,8 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
   },
   peopleScreen: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    // Paper: the list sits on the paper page, not flat white.
+    backgroundColor: skin?.background ?? "#FFFFFF",
   },
   floatingHeaderRow: {
     position: "absolute",
@@ -4240,7 +4249,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     marginBottom: 8,
     paddingHorizontal: 14,
     paddingVertical: 13,
-    borderRadius: 14,
+    borderRadius: skin?.cardRadius ?? 14,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: "#FFFFFF",
@@ -4252,6 +4261,10 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 1,
+    // Paper (v176): the card is a sheet of stock — the kit's one
+    // offset shadow replaces the soft Classic shadow entirely.
+    ...cardShadow,
+    ...(skin?.isPaper ? { shadowOpacity: 0, shadowRadius: 0 } : null),
   },
   singlePersonCard: {
     minHeight: 62,
@@ -4259,7 +4272,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     marginBottom: 6,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: skin?.isPaper ? 14 : 10,
   },
   personInfo: {
     flex: 1,
@@ -4407,6 +4420,8 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     marginHorizontal: 0,
     marginBottom: 24,
     backgroundColor: "#FFFFFF",
+    // Paper (v176): the Settings header card is a sheet too.
+    ...cardShadow,
   },
   profileCardTop: {
     flexDirection: "row",

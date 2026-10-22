@@ -28,6 +28,7 @@ import * as Linking from "expo-linking";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ReAnimated, {
   FadeIn,
+  FadeInUp,
   SlideInLeft,
   SlideInRight,
   ZoomIn,
@@ -46,6 +47,7 @@ import ReAnimated, {
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperRestSky, paperKeywordSceneFor } from "./paper-keyword-scenes";
+import { PaperGrainOverlay } from "./paper-grain";
 import { createTRPCClient } from "@/lib/trpc";
 import { FlameSparkIcon } from "./flame-spark-icon";
 import { DateTimePicker } from "./date-time-picker";
@@ -160,6 +162,7 @@ function iconName(name: string) {
 
 // ─── Travel Ticker Component (LED departure board style) ─────────────────────
 function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) {
+  const { isPaper } = useSkin();
   const [now, setNow] = useState(Date.now());
   const [weather, setWeather] = useState<{ tempF: number; icon: string; label: string } | null>(null);
   const eventColor = event.color || colors.primary;
@@ -235,13 +238,14 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
   return (
     <ReAnimated.View
       entering={FadeIn.duration(250)}
-      style={{ height: tickerHeight, backgroundColor: "transparent", borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: "hidden" }}
+      style={{ height: tickerHeight, backgroundColor: isPaper ? "#FBF7EC" : "transparent", borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: "hidden" }}
     >
-      {/* Solid outline, no background — just outline + text in event color */}
+      {/* Solid outline — under Paper the strip sits on warm paper stock
+          with a soft lavender edge, exactly like the approved mockup. */}
       <View style={{
         position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
         borderTopWidth: 2, borderLeftWidth: 2, borderRightWidth: 2,
-        borderStyle: "solid", borderColor: eventColor,
+        borderStyle: "solid", borderColor: isPaper ? "#D8CCF2" : eventColor,
         borderTopLeftRadius: 12, borderTopRightRadius: 12,
       }} />
       <View style={{ flex: 1, justifyContent: "center", overflow: "hidden" }}>
@@ -7098,9 +7102,10 @@ function detectRestaurantScene(location: string | undefined | null): React.React
 
 /** Picks the ambient animation for a keyword card. */
 function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" }: { label: string; title?: string; location?: string; notes?: string }) {
-  // Paper skin (v174): the highest-use keyword scenes have paper
-  // renditions — cut pieces with the kit's offset shadow, settling on
-  // sine. Everything else keeps its original artwork under every skin.
+  // Paper skin (v174, completed v176): EVERY keyword scene has a
+  // paper rendition — cut pieces with the kit's offset shadow,
+  // settling on sine — routed by lib/paper-keywords.ts to mirror this
+  // dispatch exactly. Under Classic this branch never runs.
   const { isPaper } = useSkin();
   if (isPaper) {
     const paperScene = paperKeywordSceneFor(label, title, location, notes);
@@ -7440,7 +7445,7 @@ function EventCardInner({
   squareTop?: boolean;
 }) {
   const colors = useColors();
-  const { isPaper } = useSkin();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const timeOffCardColor = getTimeOffEventColor(event);
   const timeOffTextColor = readableTextColor(timeOffCardColor);
   const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title, event.location, event.notes);
@@ -7614,7 +7619,7 @@ function EventCardInner({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         >
-          <View style={[eventStyles.illustratedCard, { backgroundColor: mc.bg, borderColor: mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
+          <View style={[eventStyles.illustratedCard, { backgroundColor: mc.bg, borderColor: mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
             {isPaper ? (
               <PaperRestSky mood={mood} bg={mc.bg} />
             ) : (
@@ -7705,7 +7710,7 @@ function EventCardInner({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isHolidayCard ? (isLiveScheduledBlock ? 155 : 140) : (isLiveScheduledBlock ? 112 : 80), overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
+        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isHolidayCard ? (isLiveScheduledBlock ? 155 : 140) : (isLiveScheduledBlock ? 112 : 80), overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
             {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
             {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} location={event.location} notes={event.notes} />}
             <View style={eventStyles.illustratedContent}>
@@ -7842,10 +7847,12 @@ function EventCard(props: {
   isNew?: boolean;
 }) {
   const colors = useColors();
+  const { isPaper, motion: skinMotion } = useSkin();
   const { event } = props;
   const now = props.liveNow || new Date();
   const showTicker = event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && !event.isCompleted && !isEventOver(event, now);
-  const popStyle = props.isNew ? { entering: FadeIn.duration(300) } : {};
+  // Paper dialect: a new card settles like a sheet, not a plain fade.
+  const popStyle = props.isNew ? { entering: isPaper ? FadeInUp.duration(skinMotion.settle.duration).easing(skinMotion.settle.easing) : FadeIn.duration(300) } : {};
   if (!showTicker) {
     return <ReAnimated.View {...popStyle}><EventCardInner {...props} /></ReAnimated.View>;
   }
@@ -7901,6 +7908,7 @@ function TodoItem({
   isNew?: boolean;
 }) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens, motion: skinMotion } = useSkin();
   const iconNameStr = getIconForTodo(todo.title);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
@@ -8009,7 +8017,9 @@ function TodoItem({
 
   return (
     <ReAnimated.View
-      entering={isNew ? FadeIn.duration(300) : undefined}
+      // Paper dialect: a new card settles like a sheet (fade + short
+      // sine slide) instead of Classic's plain fade.
+      entering={isNew ? (isPaper ? FadeInUp.duration(skinMotion.settle.duration).easing(skinMotion.settle.easing) : FadeIn.duration(300)) : undefined}
     >
       <>
       {isGroupedTodo && todo.isCompleted ? (
@@ -8034,7 +8044,7 @@ function TodoItem({
         </Pressable>
       ) : isGroupedTodo ? (
         <View style={{ marginBottom: 12, marginHorizontal: 12 }}>
-          <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: groupBorderColor, overflow: 'hidden' }}>
+          <View style={{ backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isPaper ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: groupBorderColor, overflow: 'hidden', ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${todo.isGroupExpanded ? 'Collapse' : 'Expand'} ${todo.title} subtasks`}
@@ -8097,7 +8107,7 @@ function TodoItem({
             </Pressable>
 
             {isGroupedTodo && !todo.isCompleted && todo.isGroupExpanded && (
-              <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 16, backgroundColor: colors.surface, gap: 12 }}>
+              <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 16, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, gap: 12 }}>
                 <View style={{ height: 1, width: '100%', alignSelf: 'center', backgroundColor: colors.border, opacity: 0.8 }} />
                 {groupedSubtasks.map((subtask, index) => (
                   <Pressable
@@ -8191,6 +8201,7 @@ function TodoItem({
 
 // ─── Ministry Ticket Component (Mission Ticket style) ────────────────────────
 function MinistryTicket({ ministry, colors }: { ministry: ScheduleMinistry; colors: any }) {
+  const { isPaper } = useSkin();
   const [now, setNow] = useState(Date.now());
   const [weather, setWeather] = useState<{ tempF: number; icon: string; label: string } | null>(null);
   const ministryColor = ministry.color || "#7C5CFF";
@@ -8237,7 +8248,8 @@ function MinistryTicket({ ministry, colors }: { ministry: ScheduleMinistry; colo
         backgroundColor: ministryColor + "1A", // 10% opacity
         borderBottomWidth: 1.5,
         borderBottomColor: ministryColor,
-        borderStyle: "dashed",
+        // Paper has no perforated/dashed edges — the ticket edge goes solid.
+        borderStyle: isPaper ? "solid" : "dashed",
         borderTopLeftRadius: 14, borderTopRightRadius: 14,
         paddingVertical: 8, paddingHorizontal: 14,
         flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -8924,7 +8936,7 @@ function RestSquare({
   onLongPress?: (e: any) => void;
 }) {
   const colors = useColors();
-  const { isPaper } = useSkin();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const mood = getRestMood(event.startTime);
   const mc = REST_MOODS[mood];
   // Gentle breathing animation on the icon
@@ -8947,7 +8959,7 @@ function RestSquare({
       onLongPress={onLongPress}
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
-      <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center", ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}>
         {/* Animated sky background by time of day — paper cutouts under the Paper skin */}
         {isPaper ? (
           <PaperRestSky mood={mood} bg={mc.bg} />
@@ -8995,6 +9007,7 @@ function MinistrySquare({
   onDelete?: () => void;
 }) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const accent = ministry.color || "#7C5CFF";
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
@@ -9040,7 +9053,9 @@ function MinistrySquare({
       <View
         style={{
           flex: 1,
-          backgroundColor: accent + "14",
+          // Paper: the square becomes tinted paper stock (a stronger
+          // wash of its accent over the paper page) + the kit shadow.
+          backgroundColor: isPaper ? accent + "30" : accent + "14",
           borderRadius: 12,
           borderWidth: 1.5,
           borderColor: accent,
@@ -9048,6 +9063,7 @@ function MinistrySquare({
           alignItems: "center",
           justifyContent: "center",
           padding: 8,
+          ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
         }}
       >
         {/* Animated background art */}
@@ -9118,6 +9134,7 @@ function MinistryCard({
   people?: Person[];
 }) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const cardScale = useSharedValue(1);
   const swipeX = useSharedValue(0);
   const glowOpacity = useSharedValue(0);
@@ -9254,9 +9271,12 @@ function MinistryCard({
       >
         <ReAnimated.View style={[animatedCardStyle, glowAnimatedStyle]}>
           <View style={[ministryStyles.card, {
-            backgroundColor: ministry.isCompleted ? colors.surface : (ministry.color || "#7C5CFF") + "14",
+            // Paper: tinted paper stock (stronger wash of the ministry
+            // color) + the kit shadow; completed cards go paper-white.
+            backgroundColor: ministry.isCompleted ? (isPaper ? skinTokens.surface ?? colors.surface : colors.surface) : (ministry.color || "#7C5CFF") + (isPaper ? "30" : "14"),
             borderColor: ministry.color || "#7C5CFF",
             borderWidth: 1.5,
+            ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
           }]}>
             {/* Mission Ticket - travel info */}
             {ministry.travelTimeMinutes != null && ministry.travelTimeMinutes > 0 && ministry.startTime && (
@@ -9533,6 +9553,7 @@ export function ScheduleTab({
   onScrollYChange?: (y: number) => void;
 }) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const today = getTodayISOString();
   // selectedDate is lifted to parent for lazy tab mounting.
   const [internalDate, setInternalDate] = useState(today);
@@ -12449,7 +12470,9 @@ export function ScheduleTab({
   );
 
   return (
-    <View ref={rootViewRef} {...rootPanResponder.panHandlers} style={[scheduleStyles.container, { backgroundColor: colors.background }]}>
+    <View ref={rootViewRef} {...rootPanResponder.panHandlers} style={[scheduleStyles.container, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }]}>
+      {/* The page itself is a sheet under Paper (grain behind the list). */}
+      {isPaper ? <PaperGrainOverlay /> : null}
       {/* Pill-style floating header (see-through, like People tab) */}
       <Animated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, opacity: scrollY.interpolate({ inputRange: [200, 320], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: scrollY.interpolate({ inputRange: [200, 320], outputRange: [0, -60], extrapolate: 'clamp' }) }] }]}>
         <View style={{ backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 }}>

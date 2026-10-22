@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, findNodeHandle, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { PaperGrainOverlay } from "@/components/paper-grain";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { FastBoard, FastPawnPicker, PawnCompanion, getSpecialSpace, getSpecialSpaceXP, type FastBoardColors } from "@/components/fast-board";
 import { PrestigePrompt } from "@/components/prestige-prompt";
@@ -154,6 +155,9 @@ export default function ProfileScreen() {
   // the kit's offset shadow joins their style arrays; null under Classic.
   const { isPaper, tokens: skinTokens } = useSkin();
   const skinCardShadow = isPaper ? skinTokens.cardShadow : null;
+  // Paper (v176): cards get an opaque paper-stock fill — v174 left the
+  // fills translucent/white, so the shadow showed through as gray.
+  const paperSurfaceStyle = isPaper ? { backgroundColor: skinTokens.surface ?? "#FFFFFF" } : null;
   const today = getTodayISOString();
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
@@ -503,7 +507,10 @@ export default function ProfileScreen() {
     },
     profileCard: {
       ...styles.profileCard,
-      backgroundColor: auraWashColor(profileAura, "24") || `${colors.primary}15`,
+      // Paper: opaque warm stock (the aura, when set, washes OVER the
+      // paper as its own layer in the JSX — a translucent card over
+      // the offset shadow is what read as a gray frame in v174).
+      backgroundColor: isPaper ? skinTokens.surface ?? "#FFFFFF" : auraWashColor(profileAura, "24") || `${colors.primary}15`,
       borderColor: profileAura?.glowColor || `${colors.primary}30`,
     },
     profileName: {
@@ -609,7 +616,19 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }, skinCardShadow]}>
+        <View style={{ position: 'relative' }}>
+          {/* Paper: a warm stack of sheets under the profile card —
+              the v174 build's single gray offset read as a picture
+              frame; stacked warm stock reads as paper. */}
+          {isPaper ? (
+            <>
+              <View style={{ position: 'absolute', left: 7, right: -7, top: 9, bottom: -9, borderRadius: 28, backgroundColor: '#DCCBA6' }} />
+              <View style={{ position: 'absolute', left: 3.5, right: -3.5, top: 4.5, bottom: -4.5, borderRadius: 28, backgroundColor: '#E9DcBE' }} />
+            </>
+          ) : null}
+        <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }, isPaper ? { overflow: 'hidden' } : null, skinCardShadow]}>
+          {isPaper && profileAura ? <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: auraWashColor(profileAura, "24") }} /> : null}
+          {isPaper ? <PaperGrainOverlay /> : null}
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
             <View>
               <Pressable onPress={() => setShowAvatarPicker(true)}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" profileLevel={profileLevel} photoUri={profile.photoUri} size={76} fallbackColor={PURPLE} /></Pressable>
@@ -654,17 +673,21 @@ export default function ProfileScreen() {
             </View>
           )}
         </View>
+        </View>
 
         <View style={styles.statsGrid}>
-          <View style={[styles.statCard, skinCardShadow]}>
+          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle]}>
+            {isPaper ? <PaperGrainOverlay /> : null}
             <Text style={dynamicStyles.statNumber}>{highestFastStreak}</Text>
             <Text style={styles.statLabel}>Highest Streak</Text>
           </View>
-          <View style={[styles.statCard, skinCardShadow]}>
+          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle]}>
+            {isPaper ? <PaperGrainOverlay /> : null}
             <Text style={dynamicStyles.statNumber}>{completedFastCount}</Text>
             <Text style={styles.statLabel}>Completed Fasts</Text>
           </View>
-          <View style={[styles.statCard, skinCardShadow]}>
+          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle]}>
+            {isPaper ? <PaperGrainOverlay /> : null}
             <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }]}>
               {lastCompletedFastProgress ? `${lastCompletedFastPercentage}%` : "Collecting Data"}
             </Text>
@@ -691,7 +714,8 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
         {lastCompletedFast && lastCompletedFastProgress ? (
-          <View style={[styles.previousFastCard, skinCardShadow]}>
+          <View style={[styles.previousFastCard, skinCardShadow, paperSurfaceStyle]}>
+            {isPaper ? <PaperGrainOverlay /> : null}
             <View style={styles.previousFastHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.previousFastTitle}>{lastCompletedFast.name}</Text>
@@ -729,7 +753,8 @@ export default function ProfileScreen() {
                 </View>
               )}
             </View>
-            <View style={[styles.fastCard, skinCardShadow]}>
+            <View style={[styles.fastCard, skinCardShadow, paperSurfaceStyle]}>
+              {isPaper ? <PaperGrainOverlay /> : null}
               <View style={[styles.fastIcon, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
                 <MaterialIcons name={iconName(selectedFastType?.icon ?? "local-fire-department")} size={28} color="#FFFFFF" />
               </View>
@@ -1078,7 +1103,8 @@ export default function ProfileScreen() {
                       <View style={[styles.timelineDot, { backgroundColor: typeInfo?.color ?? colors.primary }]} />
                       {index < fastHistory.length - 1 && <View style={styles.timelineLine} />}
                     </View>
-                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, skinCardShadow, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
+                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, skinCardShadow, paperSurfaceStyle, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
+                      {isPaper ? <PaperGrainOverlay /> : null}
                       <View style={styles.historyCardHeader}>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.historyTitle}>{fast.name}</Text>

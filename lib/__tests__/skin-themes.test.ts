@@ -1,14 +1,24 @@
-// The Paper skin (v174) — Jonathan, 2026-10-22: an unlockable
-// material SKIN axis beside the color themes. Classic is the app as
-// it has always looked and stays the default; Paper (Level 10) turns
-// the CHROME into flat paper — grain, tinted paper surfaces, the paper
-// kit's one offset shadow rgba(24,8,44,.28) — with its own softer
-// sheet-settle motion dialect (calm sine, no bounce, no springs).
+// The Paper skin (v174, rebuilt v176) — Jonathan, 2026-10-22: an
+// unlockable material SKIN axis beside the color themes. Classic is
+// the app as it has always looked and stays the default; Paper
+// (Level 10) turns the CHROME into flat paper — grain, tinted paper
+// surfaces, the paper kit's one offset shadow rgba(24,8,44,.28) —
+// with its own softer sheet-settle motion dialect (calm sine, no
+// bounce, no springs).
+//
+// v176 is the rebuild after his phone verdict on v174 ("too subtle —
+// shadow on white reads as Classic"): paper is a MATERIAL, not a
+// color. Surfaces keep full-strength hues as colored construction
+// paper (matte, visible grain, cut edges, the one offset shadow);
+// cream/tan stock only where a surface was white/neutral. Grain is
+// strong enough to see at phone size, and EVERY keyword scene the
+// schedule can dispatch has a paper rendition — no remainder.
 //
 // His paper rules, pinned here: NO stitches anywhere, NO crease/fold
-// lines across content (flat paper is the baseline; v1 ships zero
-// folds), and the schedule's keyword art is theme-adaptive — paper
-// renditions under Paper, the originals byte-for-byte under Classic.
+// lines across content (flat paper is the baseline; folds only where
+// they make sense), and the schedule's keyword art is theme-adaptive
+// — paper renditions under Paper, the originals byte-for-byte under
+// Classic.
 //
 // Excluded by his call, also pinned: the Dark Forest (stays pixel)
 // and the town/city/school maps consume no skin tokens at all.
@@ -18,7 +28,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { getThemedPalette } from "../color-themes";
-import { paperKeywordSceneKind } from "../paper-keywords";
+import { allPaperSceneIds, paperSceneIdFor } from "../paper-keywords";
 import {
   DEFAULT_SKIN_THEME,
   SKIN_THEMES,
@@ -86,13 +96,20 @@ describe("skin tokens", () => {
   it("Paper carries the kit's one offset shadow, paper radii, and grain", () => {
     const tokens = getSkinTokens("paper", "light", light);
     expect(tokens.cardShadow?.boxShadow).toContain("rgba(24,8,44,0.28)");
+    // The mockup's exact card shadow: 3px near layer, 7px/8px kit layer.
+    expect(tokens.cardShadow?.boxShadow).toContain("7px 8px 0px rgba(24,8,44,0.28)");
     // The sheet shadow is the same ink, layered upward like stacked
     // sheet edges — two ink layers, never a different shadow color.
     expect(tokens.sheetShadow?.boxShadow).toContain("rgba(24,8,44,");
     expect(tokens.sheetShadow?.boxShadow.split("rgba(24,8,44,")).toHaveLength(3);
     expect(tokens.cardRadius).toBe(18);
     expect(tokens.sheetRadius).toBe(24);
-    expect(tokens.grainOpacity).toBeGreaterThan(0);
+    // v176: grain you can SEE at phone size — v174's 0.05 was
+    // invisible on his phone and read as Classic.
+    expect(tokens.grainOpacity).toBeGreaterThanOrEqual(0.12);
+    expect(tokens.grainLightOpacity).toBeGreaterThan(0);
+    const classic = getSkinTokens("classic", "light", light);
+    expect(classic.grainLightOpacity).toBe(0);
   });
 
   it("Paper surfaces are tinted paper, distinct from the raw palette in both schemes", () => {
@@ -121,26 +138,78 @@ describe("skin tokens", () => {
 
 describe("paper keyword routing (theme-adaptive schedule art)", () => {
   it("covers the daily-card keywords: meals, photo, travel, church", () => {
-    expect(paperKeywordSceneKind("Meal", "Lunch with Eva", "", "")).toBe("lunch");
-    expect(paperKeywordSceneKind("Meal", "Breakfast", "", "")).toBe("breakfast");
-    expect(paperKeywordSceneKind("Meal", "Brunch at the cafe", "", "")).toBe("breakfast");
-    expect(paperKeywordSceneKind("Meal", "Family Dinner", "", "")).toBe("dinner");
-    expect(paperKeywordSceneKind("Photo", "Photos at the lake", "", "")).toBe("photo");
-    expect(paperKeywordSceneKind("Travel", "Drive to Texas", "", "")).toBe("travel");
-    expect(paperKeywordSceneKind("Church", "Church", "", "")).toBe("church");
+    expect(paperSceneIdFor("Meal", "Lunch with Eva", "", "")).toBe("lunch");
+    expect(paperSceneIdFor("Meal", "Breakfast", "", "")).toBe("breakfast");
+    expect(paperSceneIdFor("Meal", "Brunch at the cafe", "", "")).toBe("breakfast");
+    expect(paperSceneIdFor("Meal", "Family Dinner", "", "")).toBe("dinner");
+    expect(paperSceneIdFor("Photo", "Photos at the lake", "", "")).toBe("photo");
+    expect(paperSceneIdFor("Travel", "Drive to Texas", "", "")).toBe("travel");
+    expect(paperSceneIdFor("Church", "Church", "", "")).toBe("church");
   });
 
-  it("a burger in the notes or a burger-chain location wins, like the original routing", () => {
-    expect(paperKeywordSceneKind("Meal", "Lunch", "", "grab a cheeseburger")).toBe("burger");
-    expect(paperKeywordSceneKind("Meal", "Dinner", "McDonald's", "")).toBe("lunch");
-    expect(paperKeywordSceneKind("Meal", "Dinner", "In-N-Out Burger", "")).toBe("lunch");
+  it("mirrors the classic meal routing order: notes food, then restaurant, then title", () => {
+    expect(paperSceneIdFor("Meal", "Lunch", "", "grab a cheeseburger")).toBe("td-burger");
+    expect(paperSceneIdFor("Meal", "Lunch", "", "burritos and tacos")).toBe("td-burrito");
+    expect(paperSceneIdFor("Meal", "Dinner", "", "taco night")).toBe("td-tacos");
+    expect(paperSceneIdFor("Meal", "Dinner", "McDonald's", "")).toBe("lunch");
+    expect(paperSceneIdFor("Meal", "Dinner", "In-N-Out Burger", "")).toBe("lunch");
+    expect(paperSceneIdFor("Meal", "Dinner", "Olive Garden", "")).toBe("rest-italian");
+    expect(paperSceneIdFor("Meal", "Lunch", "Starbucks", "")).toBe("rest-coffee");
+    // No food anywhere: the classic default is the lunch scene.
+    expect(paperSceneIdFor("Meal", "Snack", "", "")).toBe("lunch");
   });
 
-  it("uncovered keywords return null — the original scene renders under Paper too", () => {
-    expect(paperKeywordSceneKind("Movie", "Movie night", "", "")).toBeNull();
-    expect(paperKeywordSceneKind("Meal", "Snack", "", "")).toBeNull();
-    expect(paperKeywordSceneKind("Bible Study", "Bible Study", "", "")).toBeNull();
-    expect(paperKeywordSceneKind("Rest", "Rest", "", "")).toBeNull();
+  it("the Garden set — his daily cards — all route", () => {
+    expect(paperSceneIdFor("Gardening", "Gardening", "", "")).toBe("gardening");
+    expect(paperSceneIdFor("Mow Lawn", "Mow Lawn", "", "")).toBe("mow-lawn");
+    expect(paperSceneIdFor("Prune", "Prune", "", "")).toBe("prune");
+    expect(paperSceneIdFor("Harvest", "Harvest", "", "")).toBe("harvest");
+    expect(paperSceneIdFor("Bible Study", "Bible Study", "", "")).toBe("bible-study");
+    expect(paperSceneIdFor("Worship", "Worship", "", "")).toBe("worship");
+    expect(paperSceneIdFor("Prayer", "Prayer", "", "")).toBe("prayer");
+    expect(paperSceneIdFor("Fast", "Fast", "", "")).toBe("fast");
+  });
+
+  it("movies, shows, and parks route to their specific paper scenes", () => {
+    expect(paperSceneIdFor("Movie", "Movie night", "", "")).toBe("movie");
+    expect(paperSceneIdFor("Movie", "Black Phone 2", "", "")).toBe("mv-black-phone");
+    expect(paperSceneIdFor("Theater", "Theater night", "", "")).toBe("theater");
+    expect(paperSceneIdFor("Theater", "Shrek the Musical", "", "")).toBe("mv-shrek");
+    expect(paperSceneIdFor("TV Show", "The Chosen", "", "")).toBe("tv-chosen");
+    expect(paperSceneIdFor("TV Show", "Some New Show", "", "")).toBe("tv-show");
+    expect(paperSceneIdFor("TV Show", "Dexter: New Blood", "", "")).toBe("tv-dexter-new-blood");
+    expect(paperSceneIdFor("Amusement Park", "Park day", "Knott's Berry Farm", "")).toBe("park-knotts");
+    expect(paperSceneIdFor("Amusement Park", "Park day", "Disneyland", "")).toBe("park-disney");
+    expect(paperSceneIdFor("Amusement Park", "Park day", "County Fair", "")).toBe("park-generic");
+  });
+
+  it("EVERY label the classic dispatch knows routes to a paper scene (no remainder)", () => {
+    const labels = [
+      "BBQ", "Fast", "Church", "Worship", "Bible Study", "Therapy", "Doctor", "Haircut",
+      "Gardening", "Mow Lawn", "Prune", "Harvest", "Park", "Party", "School", "Water Park",
+      "Beach", "Baby Shower", "Birthday", "Christmas", "Easter", "Sunrise Service",
+      "Thanksgiving", "Wedding", "Memorial", "Meeting", "Workout", "Basketball", "Soccer",
+      "Game", "Movie", "Theater", "Photo", "Scary Movie Night", "Christmas Movie Night",
+      "Christmas Breakfast", "Christmas Dinner", "Full Moon", "Prayer", "Outreach", "Concert",
+      "Travel", "Hotel", "Shower", "Study", "Graduation", "Visit", "Reach Out", "Clean",
+      "Wash Car", "Get Gas", "Grocery", "Amusement Park", "New Year", "Valentine's Day",
+      "Halloween", "TV Show", "St. Patrick's Day",
+    ];
+    for (const label of labels) {
+      expect(paperSceneIdFor(label, label, "", ""), label).not.toBeNull();
+    }
+    // Null only where Classic renders nothing: unknown labels, and
+    // Rest (whose paper sky swaps inside its own card branch).
+    expect(paperSceneIdFor("Not A Keyword", "x", "", "")).toBeNull();
+    expect(paperSceneIdFor("Rest", "Rest", "", "")).toBeNull();
+  });
+
+  it("the renderer registry covers every routable id exactly (source pin)", () => {
+    const scenes = read("components/paper-keyword-scenes.tsx");
+    expect(scenes).toContain("paperSceneIdFor");
+    for (const id of allPaperSceneIds()) {
+      expect(scenes, id).toContain(`"${id}":`);
+    }
   });
 });
 
@@ -267,5 +336,35 @@ describe("Jonathan's paper rules (source pins)", () => {
     const grain = read("components/paper-grain.tsx");
     expect(grain).toContain("PaperGrainOverlay");
     expect(grain).toContain('pointerEvents="none"');
+  });
+});
+
+describe("v176 chrome coverage (source pins)", () => {
+  it("People cards are paper stock: accent family cards grained, members on paper surface, no springs under Paper", () => {
+    const index = read("app/(tabs)/index.tsx");
+    // Colored construction paper: light-fiber grain over the accent card.
+    expect(index).toContain('tone={(isExpanded || closingFamilyId === familyId) ? "ink" : "light"}');
+    // Entrances branch to the sheet-settle dialect under Paper.
+    expect(index).toContain("FadeInUp.duration(skinMotion.settle.duration)");
+    expect(index).toContain("skinTokens.surface ?? colors.surface");
+  });
+
+  it("the schedule's white blocks and ticker take the mockup's Unified treatment", () => {
+    const blocks = read("components/time-block-indicator.tsx");
+    expect(blocks).toContain('borderStyle: isPaper ? "solid" : "dashed"');
+    expect(blocks).toContain("skinTokens.cardShadow");
+    const schedule = read("components/schedule-tab.tsx");
+    // Live strip: warm paper stock + soft lavender edge, per the mockup.
+    expect(schedule).toContain('"#FBF7EC"');
+    expect(schedule).toContain('"#D8CCF2"');
+    // New schedule cards settle in the paper dialect.
+    expect(schedule).toContain("FadeInUp.duration(skinMotion.settle.duration)");
+  });
+
+  it("the fasting profile card is opaque paper on a warm sheet stack, not a gray frame", () => {
+    const profile = read("app/profile.tsx");
+    expect(profile).toContain("paperSurfaceStyle");
+    expect(profile).toContain("#DCCBA6");
+    expect(profile).toContain("#E9DcBE");
   });
 });

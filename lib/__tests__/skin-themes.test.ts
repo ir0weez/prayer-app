@@ -223,6 +223,57 @@ describe("paper keyword routing (theme-adaptive schedule art)", () => {
   });
 });
 
+describe("v180 bespoke scenes: the shared emblem shells are dead (source pins)", () => {
+  const scenes = read("components/paper-keyword-scenes.tsx");
+
+  it("the tvScene factory and the TdEmblem/TvEmblem shells no longer exist", () => {
+    expect(scenes).not.toContain("function TdEmblem");
+    expect(scenes).not.toContain("function TvEmblem");
+    expect(scenes).not.toContain("<TdEmblem");
+    expect(scenes).not.toContain("<TvEmblem");
+    expect(scenes).not.toContain("tvScene(");
+    expect(scenes).not.toContain("const DROP");
+  });
+
+  it("every TV and food scene id resolves to its own bespoke root composition", () => {
+    const componentFor = (id: string) => {
+      const m = scenes.match(new RegExp(`"${id}":\\s*(\\w+)`));
+      expect(m, id).not.toBeNull();
+      return m![1];
+    };
+    const bodyFor = (name: string) => {
+      const start = scenes.indexOf(`export function ${name}(`);
+      expect(start, name).toBeGreaterThan(-1);
+      const next = scenes.indexOf("\nexport function", start + 10);
+      return scenes.slice(start, next === -1 ? undefined : next);
+    };
+    const ids = allPaperSceneIds().filter((id) => id.startsWith("tv-") || id.startsWith("td-"));
+    expect(ids.length).toBeGreaterThan(60);
+    const seenComponents = new Set<string>();
+    for (const id of ids) {
+      const name = componentFor(id);
+      // One component per scene id — no two ids share a factory product.
+      expect(seenComponents.has(name), `${id} → ${name}`).toBe(false);
+      seenComponents.add(name);
+      const body = bodyFor(name);
+      // A bespoke composition stands on the scene root itself…
+      expect(body, `${id} → ${name}`).toContain("PaperSceneRoot");
+      // …and never leans on the retired shared shells.
+      expect(body, `${id} → ${name}`).not.toContain("TdEmblem");
+      expect(body, `${id} → ${name}`).not.toContain("TvEmblem");
+    }
+  });
+
+  it("the Sopranos flagship is the pool with the ducks, house behind (source pin)", () => {
+    const start = scenes.indexOf("export function PaperTvSopranosScene(");
+    const body = scenes.slice(start, scenes.indexOf("\nexport function", start + 10));
+    // Two ducks and a duckling ride on the water, in paper motion.
+    expect(body).toContain("PaperBob");
+    expect(body).toContain("#29B6F6"); // pool water
+    expect(body).toContain("#FFF9C4"); // the yellow duckling
+  });
+});
+
 describe("persistence + picker wiring (source pins)", () => {
   const index = read("app/(tabs)/index.tsx");
   const provider = read("lib/theme-provider.tsx");

@@ -50,7 +50,10 @@ import { PaperRestSky, paperKeywordSceneFor } from "./paper-keyword-scenes";
 import { PixelRestSky, pixelKeywordSceneFor } from "./pixel-keyword-scenes";
 import { PaperGrainOverlay } from "./paper-grain";
 import { BitBackground } from "./bit-background";
-import { BIT_GOLD, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint } from "@/lib/skin-themes";
+import { TerminalBackground } from "./terminal-background";
+import { TermCursor } from "./terminal-kit";
+import { TerminalRestSky, terminalKeywordSceneFor } from "./terminal-keyword-scenes";
+import { BIT_GOLD, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint } from "@/lib/skin-themes";
 import type { SkinTokens } from "@/lib/skin-themes";
 
 /**
@@ -64,6 +67,42 @@ import type { SkinTokens } from "@/lib/skin-themes";
 function bitDisplay(tokens: SkinTokens, size: number): { fontFamily?: string; fontSize?: number; lineHeight?: number; textTransform?: "uppercase" } {
   if (!tokens.displayFont) return {};
   return { fontFamily: tokens.displayFont, fontSize: size, lineHeight: Math.round(size * 1.6), textTransform: "uppercase" };
+}
+
+/**
+ * Terminal checkbox (v186): the mockup's glyph box — a square
+ * phosphor outline, an X stamped inside when checked, empty when
+ * not. Controls stay controls (same Pressable, same a11y state);
+ * only the rendering dialect changes. Renders nothing but the box:
+ * callers keep their own layout.
+ */
+/** The boot banner's user handle, mockup-style: "J. ROBERTS". */
+function termHandleFor(name: string): string {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "USER";
+  if (parts.length === 1) return parts[0].toUpperCase();
+  return `${parts[0].charAt(0)}. ${parts.slice(1).join(" ")}`.toUpperCase();
+}
+
+function TermCheckbox({ checked, size = 20 }: { checked: boolean; size?: number }) {
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderWidth: 1.5,
+        borderColor: checked ? TERM_PHOS : TERM_MID,
+        borderRadius: 0,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "transparent",
+      }}
+    >
+      {checked ? (
+        <Text style={{ fontFamily: TERM_FONT_FAMILY, fontSize: size * 1.05, lineHeight: size * 1.05, color: TERM_PHOS }}>X</Text>
+      ) : null}
+    </View>
+  );
 }
 
 /**
@@ -194,14 +233,15 @@ function iconName(name: string) {
 
 // ─── Travel Ticker Component (LED departure board style) ─────────────────────
 function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) {
-  const { isPaper, isEightBit, tokens: skinTokens } = useSkin();
+  const { isPaper, isEightBit, isTerminal, tokens: skinTokens } = useSkin();
   const [now, setNow] = useState(Date.now());
   const [weather, setWeather] = useState<{ tempF: number; icon: string; label: string } | null>(null);
   const eventColor = event.color || colors.primary;
   // Under 8-bit the strip is the mockup's dark HUD panel: segments
   // read in light lavender against the dusk ground, whatever the
-  // event's own color is.
-  const tickerInk = isEightBit ? "#EDE8FF" : eventColor;
+  // event's own color is. Under Terminal the strip is a status line
+  // on the tube: phosphor segments, whatever the event's color is.
+  const tickerInk = isTerminal ? TERM_PHOS : isEightBit ? "#EDE8FF" : eventColor;
   const translateX = useSharedValue(0);
   const [contentWidth, setContentWidth] = useState(0);
 
@@ -274,17 +314,18 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
   return (
     <ReAnimated.View
       entering={FadeIn.duration(250)}
-      style={{ height: tickerHeight, backgroundColor: isPaper ? "#FBF7EC" : isEightBit ? "#1D1233" : "transparent", borderTopLeftRadius: isEightBit ? 2 : 12, borderTopRightRadius: isEightBit ? 2 : 12, overflow: "hidden" }}
+      style={{ height: tickerHeight, backgroundColor: isPaper ? "#FBF7EC" : isTerminal ? TERM_PANEL : isEightBit ? "#1D1233" : "transparent", borderTopLeftRadius: isEightBit || isTerminal ? 2 : 12, borderTopRightRadius: isEightBit || isTerminal ? 2 : 12, overflow: "hidden" }}
     >
       {/* Solid outline — under Paper the strip sits on warm paper stock
           with a soft lavender edge, exactly like the approved mockup.
           Under 8-bit (v184) the outline is the mockup live strip's
-          chunky 3px gold edge and the corners go square. */}
+          chunky 3px gold edge and the corners go square. Under
+          Terminal the edge is the tube's mid green, 2px. */}
       <View style={{
         position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
         borderTopWidth: isEightBit ? 3 : 2, borderLeftWidth: isEightBit ? 3 : 2, borderRightWidth: isEightBit ? 3 : 2,
-        borderStyle: "solid", borderColor: isPaper ? "#D8CCF2" : isEightBit ? "#FFC531" : eventColor,
-        borderTopLeftRadius: isEightBit ? 2 : 12, borderTopRightRadius: isEightBit ? 2 : 12,
+        borderStyle: "solid", borderColor: isPaper ? "#D8CCF2" : isTerminal ? TERM_MID : isEightBit ? "#FFC531" : eventColor,
+        borderTopLeftRadius: isEightBit || isTerminal ? 2 : 12, borderTopRightRadius: isEightBit || isTerminal ? 2 : 12,
       }} />
       <View style={{ flex: 1, justifyContent: "center", overflow: "hidden" }}>
         <ReAnimated.View
@@ -7143,10 +7184,12 @@ function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" 
   // Paper skin (v174, completed v176): EVERY keyword scene has a
   // paper rendition — cut pieces with the kit's offset shadow,
   // settling on sine — routed by lib/paper-keywords.ts to mirror this
-  // dispatch exactly. Under Classic neither branch runs.
+  // dispatch exactly. Under Classic none of the branches run.
   // 8-bit skin (v183): the same routing ids resolve to bespoke pixel
   // renditions (chunky squares, stepped motion) instead.
-  const { isPaper, isEightBit } = useSkin();
+  // Terminal skin (v186): the same ids resolve to bespoke Pip-Boy
+  // line-art renditions (phosphor strokes on the tube) instead.
+  const { isPaper, isEightBit, isTerminal } = useSkin();
   if (isPaper) {
     const paperScene = paperKeywordSceneFor(label, title, location, notes);
     if (paperScene) return paperScene;
@@ -7154,6 +7197,10 @@ function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" 
   if (isEightBit) {
     const pixelScene = pixelKeywordSceneFor(label, title, location, notes);
     if (pixelScene) return pixelScene;
+  }
+  if (isTerminal) {
+    const termScene = terminalKeywordSceneFor(label, title, location, notes);
+    if (termScene) return termScene;
   }
   // Breakfast, lunch, and dinner each get their own illustrated scene.
   // A food named in the notes wins first (homecooked top-down view),
@@ -7675,11 +7722,13 @@ function EventCardInner({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         >
-          <View style={[eventStyles.illustratedCard, { backgroundColor: mc.bg, borderColor: mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(skinTokens.frame ?? {}), ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[eventStyles.illustratedCard, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : mc.bg, borderColor: skinTokens.isTerminal ? TERM_MID : mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(skinTokens.frame ?? {}), ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
             {isPaper ? (
               <PaperRestSky mood={mood} bg={mc.bg} />
             ) : isEightBit ? (
               <PixelRestSky mood={mood} bg={mc.bg} />
+            ) : skinTokens.isTerminal ? (
+              <TerminalRestSky mood={mood} />
             ) : (
               <>
                 {mood === "night" && REST_STARS.map((s, i) => (
@@ -7711,21 +7760,21 @@ function EventCardInner({
               </>
             )}
             <View style={eventStyles.illustratedContent}>
-              <Text style={[eventStyles.illustratedTitle, { color: "#FFFFFF", letterSpacing: 1.5, ...bitDisplay(skinTokens, 13) }]}>{event.title}</Text>
+              <Text style={[eventStyles.illustratedTitle, { color: skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF", letterSpacing: 1.5, ...bitDisplay(skinTokens, 13) }]}>{event.title}</Text>
               {event.notes && (
-                <Text style={[eventStyles.illustratedDescription, { color: "#FFFFFFEE" }]} numberOfLines={2}>
+                <Text style={[eventStyles.illustratedDescription, { color: skinTokens.isTerminal ? TERM_SOFT : "#FFFFFFEE" }]} numberOfLines={2}>
                   {event.notes}
                 </Text>
               )}
               {event.startTime && (
-                <Text style={[eventStyles.illustratedTime, { color: "#FFFFFFDD" }]}>
+                <Text style={[eventStyles.illustratedTime, { color: skinTokens.isTerminal ? TERM_SOFT : "#FFFFFFDD" }]}>
                   {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
                 </Text>
               )}
               {event.location && (
                 <View style={eventStyles.illustratedLocationRow}>
                   <MaterialIcons name="location-on" size={15} color="#FFFFFFBB" />
-                  <Text style={[eventStyles.illustratedLocation, { color: "#FFFFFFBB" }]} numberOfLines={1}>
+                  <Text style={[eventStyles.illustratedLocation, { color: skinTokens.isTerminal ? TERM_MID : "#FFFFFFBB" }]} numberOfLines={1}>
                     {event.location}
                   </Text>
                 </View>
@@ -8091,9 +8140,9 @@ function TodoItem({
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
-          style={({ pressed }) => [todoStyles.row, { marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }, skinTokens.isEightBit ? { backgroundColor: skinTokens.surface ?? colors.surface, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(skinTokens.cardShadow ?? {}) } : null]}
+          style={({ pressed }) => [todoStyles.row, { marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(skinTokens.cardShadow ?? {}) } : null]}
         >
-          <MaterialIcons name={iconName(iconNameStr)} size={20} color={colors.success} />
+          {skinTokens.isTerminal ? <TermCheckbox checked size={20} /> : <MaterialIcons name={iconName(iconNameStr)} size={20} color={colors.success} />}
           <View style={{ flex: 1, gap: 1 }}>
             <Text numberOfLines={1} style={[todoStyles.title, { color: colors.muted, textDecorationLine: 'line-through' }]}>{todo.title}</Text>
             <Text style={{ color: colors.muted, fontSize: 10, fontWeight: '600' }}>{subtaskProgress.total} steps complete</Text>
@@ -8127,12 +8176,12 @@ function TodoItem({
                     }}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
-                    <MaterialIcons name={iconName(iconNameStr)} size={22} color={groupAccentColor} />
+                    {skinTokens.isTerminal ? <TermCheckbox checked={todo.isCompleted} size={22} /> : <MaterialIcons name={iconName(iconNameStr)} size={22} color={groupAccentColor} />}
                   </Pressable>
                   <Text numberOfLines={1} style={{ flex: 1, color: todo.isCompleted ? colors.muted : colors.foreground, fontSize: 14, fontWeight: '600', textDecorationLine: todo.isCompleted ? 'line-through' : 'none', ...bitDisplay(skinTokens, 10) }}>
                     {todo.title}
                   </Text>
-                  {todo.tag && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: skinTokens.isEightBit ? 2 : 8, backgroundColor: `${groupAccentColor}14` }}><Text style={{ color: groupAccentColor, fontSize: 10, fontWeight: '700' }}>{todo.tag}</Text></View>}
+                  {todo.tag && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 8, backgroundColor: `${groupAccentColor}14` }}><Text style={{ color: groupAccentColor, fontSize: 10, fontWeight: '700' }}>{todo.tag}</Text></View>}
                 </View>
                 <MaterialIcons name={todo.isGroupExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
               </View>
@@ -8166,7 +8215,7 @@ function TodoItem({
 
             {isGroupedTodo && !todo.isCompleted && todo.isGroupExpanded && (
               <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 16, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, gap: 12 }}>
-                <View style={{ height: skinTokens.isEightBit ? 2 : 1, width: '100%', alignSelf: 'center', backgroundColor: skinTokens.isEightBit ? "#EBD894" : colors.border, opacity: 0.8 }} />
+                <View style={{ height: skinTokens.isEightBit ? 2 : 1, width: '100%', alignSelf: 'center', backgroundColor: skinTokens.isEightBit ? "#EBD894" : skinTokens.isTerminal ? TERM_DIM : colors.border, opacity: 0.8 }} />
                 {groupedSubtasks.map((subtask, index) => (
                   <Pressable
                     key={subtask.id}
@@ -8175,7 +8224,7 @@ function TodoItem({
                     onPress={(event) => onToggleSubtask?.(subtask.id, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
                     style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10, borderBottomWidth: index < groupedSubtasks.length - 1 ? 1 : 0, borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
                   >
-                    <MaterialIcons name={subtask.isCompleted ? 'check-box' : 'check-box-outline-blank'} size={19} color={groupAccentColor} />
+                    {skinTokens.isTerminal ? <TermCheckbox checked={subtask.isCompleted} size={19} /> : <MaterialIcons name={subtask.isCompleted ? 'check-box' : 'check-box-outline-blank'} size={19} color={groupAccentColor} />}
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: subtask.isCompleted ? colors.muted : colors.foreground, fontSize: 13, fontWeight: '700', lineHeight: 18, textDecorationLine: subtask.isCompleted ? 'line-through' : 'none' }}>
                         {index + 1}. {subtask.title}
@@ -8197,9 +8246,9 @@ function TodoItem({
                   }}
                   style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: skinTokens.isEightBit ? BIT_GOLD : groupAccentColor, borderRadius: skinTokens.isEightBit ? 2 : 8, ...(skinTokens.isEightBit ? { borderWidth: 3, borderColor: BIT_INK_HEX } : {}) }}>
-                    <MaterialIcons name="check" size={18} color={skinTokens.isEightBit ? "#3A2703" : "#FFFFFF"} />
-                    <Text style={{ color: skinTokens.isEightBit ? "#3A2703" : '#FFFFFF', fontSize: 14, fontWeight: '600', ...bitDisplay(skinTokens, 10) }}>Mark as Complete</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: skinTokens.isTerminal ? "transparent" : skinTokens.isEightBit ? BIT_GOLD : groupAccentColor, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 8, ...(skinTokens.isEightBit ? { borderWidth: 3, borderColor: BIT_INK_HEX } : skinTokens.isTerminal ? { borderWidth: 2, borderColor: TERM_PHOS } : {}) }}>
+                    <MaterialIcons name="check" size={18} color={skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? "#3A2703" : "#FFFFFF"} />
+                    <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? "#3A2703" : '#FFFFFF', fontSize: 14, fontWeight: '600', ...bitDisplay(skinTokens, 10) }}>Mark as Complete</Text>
                   </View>
                 </Pressable>
               </View>
@@ -8214,8 +8263,13 @@ function TodoItem({
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
-          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, skinTokens.isEightBit ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(skinTokens.cardShadow ?? {}) } : null, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(skinTokens.cardShadow ?? {}) } : null, pressed && { opacity: 0.7 }]}
         >
+          {skinTokens.isTerminal ? (
+            <View style={{ marginRight: 12, alignSelf: "center" }}>
+              <TermCheckbox checked={todo.isCompleted} size={22} />
+            </View>
+          ) : (
           <ReAnimated.View
             key={`checkbox-${todo.isCompleted}`}
             entering={todo.isCompleted ? FadeIn.duration(200) : undefined}
@@ -8223,6 +8277,7 @@ function TodoItem({
           >
             <MaterialIcons name={todo.isCompleted ? "check" : (iconNameStr as any)} size={16} color="#FFFFFF" />
           </ReAnimated.View>
+          )}
           <View style={{ flex: 1, alignItems: 'flex-start' }}>
             <Text style={[todoStyles.title, { color: colors.foreground }, todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]} numberOfLines={1}>{todo.title}</Text>
             {(todo.startTime || todo.notes) && (
@@ -8233,8 +8288,8 @@ function TodoItem({
             )}
           </View>
           {linkedPeople.length > 0 && <StackedAvatar people={linkedPeople} size={24} />}
-          {isOverdue && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: skinTokens.isEightBit ? 2 : 8, backgroundColor: colors.error, marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>Overdue</Text></View>}
-          {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: skinTokens.isEightBit ? 2 : 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>{linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}</Text></View>}
+          {isOverdue && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 8, backgroundColor: colors.error, marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>Overdue</Text></View>}
+          {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>{linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}</Text></View>}
           {isLiveScheduledBlock && (
             <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={{ width: 70, flexShrink: 0 }}><NowPill /></View>
@@ -8958,13 +9013,19 @@ function OtherArt({ accent, line }: MinistryArtPalette) {
  *  Shown on active (incomplete) ministry cards only. */
 function MinistryTypeArt({ type, accent }: { type: string; accent: string }) {
   const colors = useColors();
-  const p: MinistryArtPalette = {
-    accent,
-    line: colors.muted,
-    ink: colors.foreground,
-    soft: colors.border,
-    surface: colors.surface,
-  };
+  const { tokens: skinTokens } = useSkin();
+  // Terminal (v186): the ministry-type illustrations are line art
+  // already — under the tube the whole palette goes phosphor, so
+  // every type reads as green line work on the panel.
+  const p: MinistryArtPalette = skinTokens.isTerminal
+    ? { accent: TERM_MID, line: TERM_DIM, ink: TERM_PHOS, soft: TERM_DIM, surface: TERM_PANEL }
+    : {
+        accent,
+        line: colors.muted,
+        ink: colors.foreground,
+        soft: colors.border,
+        surface: colors.surface,
+      };
   switch (type) {
     case "Counseling": return <CounselingArt {...p} />;
     case "Worship": return <WorshipArt {...p} />;
@@ -8997,9 +9058,14 @@ function RestSquare({
   const { isPaper, isEightBit, isSkinned, tokens: skinTokens } = useSkin();
   const mood = getRestMood(event.startTime);
   const mc = REST_MOODS[mood];
-  // Gentle breathing animation on the icon
+  // Gentle breathing animation on the icon — except under Terminal,
+  // whose dialect has no sine in it: the icon holds still and lit.
   const breathe = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    if (skinTokens.isTerminal) {
+      breathe.setValue(0);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(breathe, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
@@ -9008,7 +9074,7 @@ function RestSquare({
     );
     loop.start();
     return () => loop.stop();
-  }, [breathe]);
+  }, [breathe, skinTokens.isTerminal]);
   const iconScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
   const iconOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] });
   return (
@@ -9017,12 +9083,14 @@ function RestSquare({
       onLongPress={onLongPress}
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
-      <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center", ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
-        {/* Animated sky background by time of day — paper cutouts under the Paper skin, pixels under 8-bit */}
+      <View style={{ flex: 1, borderRadius: 16, backgroundColor: skinTokens.isTerminal ? TERM_PANEL : mc.bg, borderWidth: 1.5, borderColor: skinTokens.isTerminal ? TERM_MID : mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center", ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
+        {/* Animated sky background by time of day — paper cutouts under the Paper skin, pixels under 8-bit, phosphor line art under Terminal */}
         {isPaper ? (
           <PaperRestSky mood={mood} bg={mc.bg} />
         ) : isEightBit ? (
           <PixelRestSky mood={mood} bg={mc.bg} />
+        ) : skinTokens.isTerminal ? (
+          <TerminalRestSky mood={mood} />
         ) : (
           <>
             {mood === "night" && REST_STARS.map((s, i) => (
@@ -9040,11 +9108,11 @@ function RestSquare({
         )}
         {/* Icon with no tinted background, gentle breathing animation */}
         <Animated.View style={{ transform: [{ scale: iconScale }], opacity: iconOpacity, marginBottom: 8 }}>
-          <MaterialIcons name={mc.icon as any} size={40} color={mc.iconColor} />
+          <MaterialIcons name={mc.icon as any} size={40} color={skinTokens.isTerminal ? TERM_PHOS : mc.iconColor} />
         </Animated.View>
-        <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF", ...bitDisplay(skinTokens, 11) }}>Rest</Text>
+        <Text style={{ fontSize: 16, fontWeight: "700", color: skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF", ...bitDisplay(skinTokens, 11) }}>Rest</Text>
         {event.startTime && (
-          <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
+          <Text style={{ fontSize: 12, color: skinTokens.isTerminal ? TERM_SOFT : "rgba(255,255,255,0.85)" }}>
             {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
           </Text>
         )}
@@ -9116,7 +9184,7 @@ function MinistrySquare({
           // Paper: the square becomes OPAQUE tinted paper stock + the
           // kit shadow (v179 — the v176 translucent wash let the shadow
           // read as a gray frame; see paperStockFor).
-          backgroundColor: isSkinned ? paperStockFor(accent, skinTokens.surface) : accent + "14",
+          backgroundColor: skinTokens.isTerminal ? TERM_PANEL : isSkinned ? paperStockFor(accent, skinTokens.surface) : accent + "14",
           borderRadius: 12,
           borderWidth: 1.5,
           borderColor: accent,
@@ -9144,16 +9212,16 @@ function MinistrySquare({
         </View>
         {/* Centered content */}
         <View style={{ alignItems: "center", paddingHorizontal: 6 }}>
-          <View style={{ backgroundColor: accent, borderRadius: 7, paddingHorizontal: 11, paddingVertical: 4, marginBottom: 8 }}>
-            <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "700" }}>
-              {ministry.type}
+          <View style={{ backgroundColor: skinTokens.isTerminal ? "transparent" : accent, borderRadius: skinTokens.isTerminal ? 2 : 7, ...(skinTokens.isTerminal ? { borderWidth: 1, borderColor: TERM_MID } : {}), paddingHorizontal: 11, paddingVertical: 4, marginBottom: 8 }}>
+            <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF", fontSize: 13, fontWeight: "700", ...bitDisplay(skinTokens, 10) }}>
+              {skinTokens.isTerminal ? ministry.type.toUpperCase() : ministry.type}
             </Text>
           </View>
-          <Text style={{ fontSize: 20, fontWeight: "700", color: colors.foreground, textAlign: "center" }} numberOfLines={2}>
+          <Text style={{ fontSize: 20, fontWeight: "700", color: skinTokens.isTerminal ? TERM_SOFT : colors.foreground, textAlign: "center" }} numberOfLines={2}>
             {ministry.title}
           </Text>
           {ministry.startTime && (
-            <Text style={{ fontSize: 14, color: colors.muted, marginTop: 4 }}>
+            <Text style={{ fontSize: 14, color: skinTokens.isTerminal ? TERM_MID : colors.muted, marginTop: 4 }}>
               {format12HourTime(ministry.startTime)}
             </Text>
           )}
@@ -9343,13 +9411,14 @@ function MinistryCard({
           <View style={[ministryStyles.card, {
             // Paper: OPAQUE tinted paper stock + the kit shadow (v179);
             // completed cards go paper-white.
-            backgroundColor: ministry.isCompleted ? (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface) : (isSkinned ? paperStockFor(ministry.color || "#7C5CFF", skinTokens.surface) : (ministry.color || "#7C5CFF") + "14"),
+            backgroundColor: skinTokens.isTerminal ? (ministry.isCompleted ? TERM_PANEL : TERM_PANEL_2) : ministry.isCompleted ? (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface) : (isSkinned ? paperStockFor(ministry.color || "#7C5CFF", skinTokens.surface) : (ministry.color || "#7C5CFF") + "14"),
             borderColor: ministry.color || "#7C5CFF",
             borderWidth: 1.5,
             // v185 (8-bit only): ministry cards float on the dusk, so they
             // carry the mockup's 12px gap themselves (the sheet used to
-            // butt them against the next row).
-            marginBottom: skinTokens.isEightBit ? 12 : 0,
+            // butt them against the next row). Terminal floats the same
+            // way on the tube (v186).
+            marginBottom: (skinTokens.isEightBit || skinTokens.isTerminal) ? 12 : 0,
             ...(skinTokens.frame ?? {}),
             ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
           }]}>
@@ -9518,7 +9587,7 @@ function PrayerCheckInNotice({ people, selectedDate }: { people: Person[]; selec
   return (
     <View style={[scheduleStyles.prayerCheckInNotice, { backgroundColor: 'transparent' }]} accessibilityRole="text">
       <View style={[scheduleStyles.prayerCheckInDot, { backgroundColor: colors.error }]} />
-      <Animated.Text style={[scheduleStyles.prayerCheckInText, { color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, opacity: nameOpacity }]} numberOfLines={1}>
+      <Animated.Text style={[scheduleStyles.prayerCheckInText, { color: skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, opacity: nameOpacity }]} numberOfLines={1}>
         {displayName} hasn’t been reached in {daysSinceReached} days.
       </Animated.Text>
     </View>
@@ -9549,7 +9618,7 @@ function ExpandableSection({
   }));
 
   return (
-    <View style={[expandStyles.container, { borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, ...(skinTokens.frame ? { borderRadius: skinTokens.frame.borderRadius, borderWidth: skinTokens.frame.borderWidth } : {}), ...(skinTokens.isEightBit ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, ...(skinTokens.cardShadow ?? {}) } : {}) }]}>
+    <View style={[expandStyles.container, { borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, ...(skinTokens.frame ? { borderRadius: skinTokens.frame.borderRadius, borderWidth: skinTokens.frame.borderWidth } : {}), ...((skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, ...(skinTokens.cardShadow ?? {}) } : {}) }]}>
       <View style={[expandStyles.headerContainer, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }]}>
         <Pressable
           onPress={() => {
@@ -11688,8 +11757,28 @@ export function ScheduleTab({
   // Joi-style sheet: summary sits fixed behind; the schedule card slides up over it.
   const renderScheduleSummary = () => (
     <>
+{/* Boot banner (Terminal only, v186): the mockup's RobCo header —
+    the schedule boots like a terminal before it lists the day. It
+    rides in the fixed summary zone, above the summary card. */}
+{skinTokens.isTerminal ? (
+  <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+    <Text style={{ color: TERM_PHOS, ...bitDisplay(skinTokens, 12) }}>ROBCO INDUSTRIES (TM) TERMLINK</Text>
+    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3 }}>
+      <Text style={{ color: TERM_MID, ...bitDisplay(skinTokens, 11) }}>{"> "}</Text>
+      <Text style={{ color: TERM_SOFT, ...bitDisplay(skinTokens, 11) }}>PRAYERLINK v2.1 - DAILY SCHEDULE SUBROUTINE</Text>
+    </View>
+    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3 }}>
+      <Text style={{ color: TERM_MID, ...bitDisplay(skinTokens, 11) }}>{"> "}</Text>
+      <Text style={{ color: TERM_SOFT, ...bitDisplay(skinTokens, 11) }}>{`USER: ${termHandleFor(userName)} ......... ACCESS GRANTED`}</Text>
+      <View style={{ marginLeft: 6 }}>
+        <TermCursor size={12} />
+      </View>
+    </View>
+    <Text numberOfLines={1} style={{ color: TERM_DIM, ...bitDisplay(skinTokens, 11), marginTop: 3 }}>{"=================================================="}</Text>
+  </View>
+) : null}
 {/* Summary Card - Sticky Header Index 0 */}
-<View style={[scheduleStyles.summaryContainer, { backgroundColor: skinTokens.isEightBit ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background, paddingBottom: 8 }]}>
+<View style={[scheduleStyles.summaryContainer, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background, paddingBottom: 8 }]}>
   {(() => {
     // The summary counts only time still left available: completed items free
     // up their time (it gets added back unless that time has already passed
@@ -11787,9 +11876,9 @@ export function ScheduleTab({
       {/* Date Header Card - sticky sheet header. v185 (8-bit only): the
           header is no longer a card — its text sits directly on the dusk
           in the mockup's on-dusk inks, and the selected day is a gold chip. */}
-      <View style={[scheduleStyles.dateHeaderCard, skinTokens.isEightBit ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
+      <View style={[scheduleStyles.dateHeaderCard, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
   <View style={scheduleStyles.dayHeaderContent}>
-    <Text style={[scheduleStyles.dayName, { color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...bitDisplay(skinTokens, 13) }]}>
+    <Text style={[scheduleStyles.dayName, { color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...bitDisplay(skinTokens, 13) }]}>
       {dateHeader.dayName}
       {selectedDate === today && <Text style={{ color: colors.error }}>•</Text>}
     </Text>
@@ -11815,14 +11904,14 @@ export function ScheduleTab({
           onPress={() => setSelectedDate(date)}
           style={({ pressed }) => [
             scheduleStyles.dateItem,
-            isSelected && (skinTokens.isEightBit ? { backgroundColor: BIT_GOLD, borderColor: BIT_INK_HEX, borderWidth: 3, borderRadius: 2 } : { backgroundColor: isSkinned ? skinTokens.background ?? colors.surface : colors.surface, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, borderWidth: skinTokens.borderWidth ?? 1.5, ...(skinTokens.frame ? { borderRadius: skinTokens.frame.borderRadius } : {}) }),
+            isSelected && (skinTokens.isTerminal ? { backgroundColor: TERM_PHOS, borderColor: TERM_PHOS, borderWidth: 1, borderRadius: 2 } : skinTokens.isEightBit ? { backgroundColor: BIT_GOLD, borderColor: BIT_INK_HEX, borderWidth: 3, borderRadius: 2 } : { backgroundColor: isSkinned ? skinTokens.background ?? colors.surface : colors.surface, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, borderWidth: skinTokens.borderWidth ?? 1.5, ...(skinTokens.frame ? { borderRadius: skinTokens.frame.borderRadius } : {}) }),
             pressed && { opacity: 0.7 },
           ]}
         >
-          <Text style={[scheduleStyles.dateNum, { color: skinTokens.isEightBit ? (isSelected ? "#241547" : isToday ? BIT_GOLD : BIT_ON_DUSK_SOFT) : (isSelected ? colors.foreground : colors.muted) }, !skinTokens.isEightBit && isToday && !isSelected && { color: colors.primary }]}>
+          <Text style={[scheduleStyles.dateNum, { color: skinTokens.isTerminal ? (isSelected ? TERM_BG : isToday ? TERM_PHOS : TERM_SOFT) : skinTokens.isEightBit ? (isSelected ? "#241547" : isToday ? BIT_GOLD : BIT_ON_DUSK_SOFT) : (isSelected ? colors.foreground : colors.muted) }, !skinTokens.isEightBit && !skinTokens.isTerminal && isToday && !isSelected && { color: colors.primary }]}>
             {getDayNumber(date)}
           </Text>
-          <Text style={[scheduleStyles.dateDayName, { color: skinTokens.isEightBit ? (isSelected ? "#241547" : isToday ? BIT_GOLD : BIT_ON_DUSK_SOFT) : (isSelected ? colors.foreground : colors.muted) }, !skinTokens.isEightBit && isToday && !isSelected && { color: colors.primary }]}>
+          <Text style={[scheduleStyles.dateDayName, { color: skinTokens.isTerminal ? (isSelected ? TERM_BG : isToday ? TERM_PHOS : TERM_SOFT) : skinTokens.isEightBit ? (isSelected ? "#241547" : isToday ? BIT_GOLD : BIT_ON_DUSK_SOFT) : (isSelected ? colors.foreground : colors.muted) }, !skinTokens.isEightBit && !skinTokens.isTerminal && isToday && !isSelected && { color: colors.primary }]}>
             {getShortDayName(date)}
           </Text>
           {isDateDuringTimeOff(timeOffList, date) && <View style={[scheduleStyles.timeOffDayMarker, { backgroundColor: colors.primary }]} />}
@@ -11848,11 +11937,11 @@ export function ScheduleTab({
           return (
             // v185 (8-bit only): text-on-dusk — on-dusk inks, not palette muted.
             <View style={scheduleStyles.emptyState}>
-              <MaterialIcons name="event-note" size={48} color={skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted} />
-              <Text style={[scheduleStyles.emptyText, { color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.muted }]}>
+              <MaterialIcons name="event-note" size={48} color={skinTokens.isTerminal ? TERM_DIM : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted} />
+              <Text style={[scheduleStyles.emptyText, { color: skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : colors.muted }]}>
                 No items for this day
               </Text>
-              <Text style={[scheduleStyles.emptySubtext, { color: skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }]}>
+              <Text style={[scheduleStyles.emptySubtext, { color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }]}>
                 Tap + to add an event, todo, or ministry
               </Text>
             </View>
@@ -12555,12 +12644,12 @@ export function ScheduleTab({
       {/* The page itself is a sheet under Paper (flat — no texture since v179).
           Under 8-bit (v184) the page is the mockup's dusk world: the
           three-stop indigo gradient + checker dither, behind everything. */}
-      {skinTokens.isEightBit ? <BitBackground /> : isSkinned ? <PaperGrainOverlay /> : null}
+      {skinTokens.isEightBit ? <BitBackground /> : skinTokens.isTerminal ? <TerminalBackground /> : isSkinned ? <PaperGrainOverlay /> : null}
       {/* Pill-style floating header (see-through, like People tab) */}
       <Animated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, opacity: scrollY.interpolate({ inputRange: [200, 320], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: scrollY.interpolate({ inputRange: [200, 320], outputRange: [0, -60], extrapolate: 'clamp' }) }] }]}>
-        <View style={{ backgroundColor: skinTokens.isEightBit ? BIT_PANEL : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
-          <Text style={{ color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, fontSize: 20, fontWeight: "800", ...bitDisplay(skinTokens, 12) }}>Schedule</Text>
-          <Text style={{ color: skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12 }}>{(() => { const total = dayEvents.length; const remaining = dayEvents.filter((e) => !e.isCompleted).length; return remaining === total ? `${total} events today` : `${remaining} of ${total} events left`; })()}</Text>
+        <View style={{ backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
+          <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, fontSize: 20, fontWeight: "800", ...bitDisplay(skinTokens, 12) }}>Schedule</Text>
+          <Text style={{ color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12 }}>{(() => { const total = dayEvents.length; const remaining = dayEvents.filter((e) => !e.isCompleted).length; return remaining === total ? `${total} events today` : `${remaining} of ${total} events left`; })()}</Text>
         </View>
         <ReAnimated.View
           style={{
@@ -12568,7 +12657,7 @@ export function ScheduleTab({
             flexDirection: 'row',
             alignItems: 'center',
             gap: missedTodos.length > 0 ? 0 : 8,
-            backgroundColor: skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
+            backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
             borderRadius: 16,
             overflow: 'hidden',
             padding: missedTodos.length > 0 ? 4 : 0,
@@ -12599,8 +12688,8 @@ export function ScheduleTab({
             style={({ pressed }) => [{
               paddingHorizontal: 12,
               paddingVertical: 6,
-              borderRadius: skinTokens.isEightBit ? 2 : 16,
-              backgroundColor: missedTodos.length > 0 ? 'transparent' : skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
+              borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 16,
+              backgroundColor: missedTodos.length > 0 ? 'transparent' : skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
               opacity: pressed ? 0.7 : 1,
               flexDirection: 'row',
               alignItems: 'center',
@@ -12700,14 +12789,14 @@ export function ScheduleTab({
                 // cartridge (each row component carries its own surface +
                 // frame + hard shadow under the skin). Classic and Paper
                 // keep the continuous sheet exactly as shipped.
-                if (skinTokens.isEightBit) return element;
+                if (skinTokens.isEightBit || skinTokens.isTerminal) return element;
                 return <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ? { borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth, borderLeftColor: skinTokens.frame.borderColor, borderRightColor: skinTokens.frame.borderColor } : {}) }}>{element}</View>;
               }}
               extraData={[selectedDate, listData, scheduleSheetData, colors, currentAlbum, isWorshipExpanded]}
             ListFooterComponent={
               // v185 (8-bit only): the footer floats on the dusk too — no
               // sheet bottom, no rails; the stamp row wears on-dusk inks.
-              <View style={skinTokens.isEightBit ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomLeftRadius: skinTokens.frame ? 2 : 24, borderBottomRightRadius: skinTokens.frame ? 2 : 24, overflow: "hidden", ...(skinTokens.frame ? { borderBottomWidth: skinTokens.frame.borderWidth, borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth, borderColor: skinTokens.frame.borderColor } : {}) }}>
+              <View style={(skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomLeftRadius: skinTokens.frame ? 2 : 24, borderBottomRightRadius: skinTokens.frame ? 2 : 24, overflow: "hidden", ...(skinTokens.frame ? { borderBottomWidth: skinTokens.frame.borderWidth, borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth, borderColor: skinTokens.frame.borderColor } : {}) }}>
                 <ReachedStampRow stamps={reachedStamps} people={people} selectedDate={selectedDate} onChange={onReachedStampsChange} />
               </View>
             }
@@ -12928,14 +13017,14 @@ export function ScheduleTab({
       {/* FAB Button with Google Calendar-style popup menu */}
       <Pressable
         onPress={() => setShowAddModal(!showAddModal)}
-        style={({ pressed }) => [scheduleStyles.fab, { backgroundColor: skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.frame, skinTokens.isEightBit ? skinTokens.cardShadow ?? {} : null, pressed && { transform: [{ scale: 0.95 }], opacity: 0.9 }]}
+        style={({ pressed }) => [scheduleStyles.fab, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.frame, (skinTokens.isEightBit || skinTokens.isTerminal) ? skinTokens.cardShadow ?? {} : null, pressed && { transform: [{ scale: 0.95 }], opacity: 0.9 }]}
       >
         <ReAnimated.View
           style={useAnimatedStyle(() => ({
             transform: [{ rotate: withTiming(showAddModal ? "135deg" : "0deg", { duration: 250, easing: Easing.out(Easing.quad) }) }],
           }))}
         >
-          <MaterialIcons name="add" size={32} color="#FFFFFF" />
+          <MaterialIcons name="add" size={32} color={skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF"} />
         </ReAnimated.View>
       </Pressable>
 

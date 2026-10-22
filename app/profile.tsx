@@ -17,6 +17,7 @@ import { COINS_STORAGE_KEY, SHOP_OWNED_KEY, parseCoins, parseOwnedItems, type Ho
 } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
+import { TERM_DEEP, TERM_PANEL_2 } from "@/lib/skin-themes";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -625,9 +626,10 @@ export default function ProfileScreen() {
               back). */}
           {isSkinned ? (
             <>
-              {/* 8-bit: the same stack in dusk layers with square corners. */}
-              <View style={{ position: 'absolute', left: 7, right: -7, top: 9, bottom: -9, borderRadius: isPaper ? 28 : 6, backgroundColor: isPaper ? '#E6DCC2' : '#1E1138' }} />
-              <View style={{ position: 'absolute', left: 3.5, right: -3.5, top: 4.5, bottom: -4.5, borderRadius: isPaper ? 28 : 6, backgroundColor: isPaper ? '#EFE9DB' : '#2A1B4E' }} />
+              {/* 8-bit: the same stack in dusk layers with square corners.
+                  Terminal (v186): deeper tube greens, 2px corners. */}
+              <View style={{ position: 'absolute', left: 7, right: -7, top: 9, bottom: -9, borderRadius: isPaper ? 28 : skinTokens.isTerminal ? 2 : 6, backgroundColor: isPaper ? '#E6DCC2' : skinTokens.isTerminal ? TERM_DEEP : '#1E1138' }} />
+              <View style={{ position: 'absolute', left: 3.5, right: -3.5, top: 4.5, bottom: -4.5, borderRadius: isPaper ? 28 : skinTokens.isTerminal ? 2 : 6, backgroundColor: isPaper ? '#EFE9DB' : skinTokens.isTerminal ? TERM_PANEL_2 : '#2A1B4E' }} />
             </>
           ) : null}
         <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }, isSkinned ? { overflow: 'hidden' } : null, skinCardShadow]}>

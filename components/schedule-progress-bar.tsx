@@ -14,7 +14,7 @@ import Animated, {
 import type { SharedValue } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { BIT_GOLD, BIT_ON_DUSK, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
+import { BIT_GOLD, BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_DIM, TERM_MID, TERM_PHOS, TERM_SOFT } from "@/lib/skin-themes";
 
 interface ScheduleProgressBarProps {
   completed: number;
@@ -31,7 +31,7 @@ const BURST_PARTICLES = [
   { x: 15, y: -20 },
 ];
 
-function BurstParticle({ burst, grow, x, y }: { burst: SharedValue<number>; grow: SharedValue<number>; x: number; y: number }) {
+function BurstParticle({ burst, grow, x, y, color = "#4ADE80" }: { burst: SharedValue<number>; grow: SharedValue<number>; x: number; y: number; color?: string }) {
   const style = useAnimatedStyle(() => ({
     opacity: (1 - burst.value) * grow.value,
     transform: [
@@ -50,7 +50,7 @@ function BurstParticle({ burst, grow, x, y }: { burst: SharedValue<number>; grow
           width: 5,
           height: 5,
           borderRadius: 3,
-          backgroundColor: "#4ADE80",
+          backgroundColor: color,
         },
         style,
       ]}
@@ -62,6 +62,11 @@ function BurstParticle({ burst, grow, x, y }: { burst: SharedValue<number>; grow
 export function ScheduleProgressBar({ completed, total, label = "Progress" }: ScheduleProgressBarProps) {
   const colors = useColors();
   const { tokens: skinTokens } = useSkin();
+  // Terminal (v186): the bar and its celebration seedling speak
+  // phosphor — track in dim green, fill in bright, the sprout as
+  // outline leaves on a bright stem. Only the COLORS change: the
+  // sprout's growth motion is the held A46 item and is untouched.
+  const isTerminal = skinTokens.isTerminal;
   const percentage = total > 0 ? (completed / total) * 100 : 0;
   const isComplete = total > 0 && completed >= total;
   
@@ -196,10 +201,10 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
     <View style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}>
       {/* Label and count */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={{ fontSize: 14, fontWeight: "600", color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground }}>
+        <Text style={{ fontSize: 14, fontWeight: "600", color: isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground }}>
           {label}
         </Text>
-        <Text style={{ fontSize: 13, color: skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted }}>
+        <Text style={{ fontSize: 13, color: isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted }}>
           {completed} of {total}
         </Text>
       </View>
@@ -211,13 +216,13 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
             {
               position: "relative",
               height: 6,
-              backgroundColor: skinTokens.isEightBit ? "#6E5BB5" : colors.border,
-              borderRadius: skinTokens.isEightBit ? 0 : 3,
+              backgroundColor: isTerminal ? TERM_DIM : skinTokens.isEightBit ? "#6E5BB5" : colors.border,
+              borderRadius: (skinTokens.isEightBit || isTerminal) ? 0 : 3,
               overflow: "hidden",
             },
             isComplete && glowStyle,
             isComplete && {
-              shadowColor: "#10B981",
+              shadowColor: isTerminal ? TERM_PHOS : "#10B981",
               shadowOffset: { width: 0, height: 0 },
             },
           ]}
@@ -227,8 +232,8 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
             style={{
               height: "100%",
               width: `${percentage}%`,
-              backgroundColor: isComplete ? "#10B981" : skinTokens.isEightBit ? BIT_GOLD : colors.primary,
-              borderRadius: skinTokens.isEightBit ? 0 : 3,
+              backgroundColor: isTerminal ? TERM_PHOS : isComplete ? "#10B981" : skinTokens.isEightBit ? BIT_GOLD : colors.primary,
+              borderRadius: (skinTokens.isEightBit || isTerminal) ? 0 : 3,
             }}
           />
         </Animated.View>
@@ -259,14 +264,14 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
                   height: 30,
                   borderRadius: 15,
                   borderWidth: 2,
-                  borderColor: "#22C55E",
+                  borderColor: isTerminal ? TERM_MID : "#22C55E",
                 },
                 rippleStyle,
               ]}
             />
             {/* Burst particles fired once on completion */}
             {BURST_PARTICLES.map((p, i) => (
-              <BurstParticle key={i} burst={burst} grow={sproutGrow} x={p.x} y={p.y} />
+              <BurstParticle key={i} burst={burst} grow={sproutGrow} x={p.x} y={p.y} color={isTerminal ? TERM_PHOS : "#4ADE80"} />
             ))}
             {/* Soil mound so the seedling reads as planted in the bar */}
             <View
@@ -276,7 +281,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
                 width: 13,
                 height: 6,
                 borderRadius: 3,
-                backgroundColor: "#15803D",
+                backgroundColor: isTerminal ? TERM_DIM : "#15803D",
               }}
             />
             {/* Stem grows upward with its base pinned in the bar */}
@@ -286,7 +291,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
                   width: 5,
                   height: 18,
                   borderRadius: 2.5,
-                  backgroundColor: "#16A34A",
+                  backgroundColor: isTerminal ? TERM_PHOS : "#16A34A",
                 },
                 stemStyle,
               ]}
@@ -314,7 +319,8 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
                   width: 15,
                   height: 9,
                   borderRadius: 5,
-                  backgroundColor: "#22C55E",
+                  backgroundColor: isTerminal ? "transparent" : "#22C55E",
+                  ...(isTerminal ? { borderWidth: 1.5, borderColor: TERM_MID } : {}),
                   transform: [{ rotate: "-28deg" }],
                 }}
               />
@@ -326,7 +332,8 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
                   width: 15,
                   height: 9,
                   borderRadius: 5,
-                  backgroundColor: "#4ADE80",
+                  backgroundColor: isTerminal ? "transparent" : "#4ADE80",
+                  ...(isTerminal ? { borderWidth: 1.5, borderColor: TERM_PHOS } : {}),
                   transform: [{ rotate: "28deg" }],
                 }}
               />
@@ -337,7 +344,8 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
                   width: 8,
                   height: 8,
                   borderRadius: 4,
-                  backgroundColor: "#86EFAC",
+                  backgroundColor: isTerminal ? "transparent" : "#86EFAC",
+                  ...(isTerminal ? { borderWidth: 1.5, borderColor: TERM_SOFT } : {}),
                 }}
               />
             </Animated.View>

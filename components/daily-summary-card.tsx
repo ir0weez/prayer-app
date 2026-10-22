@@ -2,7 +2,7 @@ import { Animated, View, Text, Pressable, ScrollView, Modal } from "react-native
 import { formatCoins } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
+import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_MID, TERM_SOFT } from "@/lib/skin-themes";
 import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { getIconForTodo } from "@/lib/prayercircle-data";
@@ -89,8 +89,8 @@ export function DailySummaryCard({
   // 8-bit (v184): this card renders directly on the dusk page (the
   // summary zone), so its inks flip to the mockup's on-dusk text —
   // #EDE8FF body, #CFC6F2 soft — instead of the palette's dark inks.
-  const ink = skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground;
-  const inkSoft = skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted;
+  const ink = skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground;
+  const inkSoft = skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted;
   const [showDayDropdown, setShowDayDropdown] = useState(false);
   
   // Format fasting status for display
@@ -203,7 +203,7 @@ export function DailySummaryCard({
             style={{
               paddingHorizontal: 12,
               paddingVertical: 6,
-              borderRadius: skinTokens.isEightBit ? 2 : 12,
+              borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 12,
               backgroundColor: getBadgeColor(),
               flexDirection: 'row',
               alignItems: 'center',

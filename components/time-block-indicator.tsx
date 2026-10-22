@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Animated, Easing, type GestureRespon
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { BIT_DUSK, BIT_GOLD, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
+import { BIT_DUSK, BIT_GOLD, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PHOS } from "@/lib/skin-themes";
 import { TimeBlock, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { format12HourTime } from "@/lib/utils";
 import { NowPill } from "./now-indicator";
@@ -55,8 +55,9 @@ function blockCardHeight(block: TimeBlock, nowMinutes?: number | null): number {
 
 export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, onPressOut }: TimeBlockIndicatorProps) {
   const colors = useColors();
-  const { isSkinned, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens, monoFont } = useSkin();
   const isNow = blockContainsNow(block, nowMinutes);
+  const isTerminal = skinTokens.isTerminal;
 
   return (
     <Pressable
@@ -74,28 +75,43 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
           // 8-bit (v184): the mockup's white block is a DUSK HUD panel
           // — #2A1B4E fill, 3px #6E5BB5 edge, lavender text, gold
           // keyword and duration pill — never a light card.
-          backgroundColor: skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
-          borderColor: skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : colors.border,
-          borderStyle: isSkinned ? "solid" : "dashed",
+          // Terminal (v186): the mockup's prompt row — a dashed
+          // mid-green edge on the panel green, a ">" for the plus,
+          // and the duration as a bracketed [ 30m ] outline pill.
+          backgroundColor: isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
+          borderColor: isTerminal ? TERM_MID : skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : colors.border,
+          borderStyle: isTerminal ? "dashed" : isSkinned ? "solid" : "dashed",
           opacity: pressed ? 0.65 : 1,
           minHeight: blockCardHeight(block, nowMinutes),
           ...(skinTokens.isEightBit ? { borderWidth: 3, borderRadius: 2 } : {}),
+          ...(isTerminal ? { borderWidth: 1.5, borderRadius: 2 } : {}),
           ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
         },
       ]}
     >
       <View style={styles.left}>
-        <MaterialIcons name="add" size={18} color={skinTokens.isEightBit ? BIT_GOLD : colors.muted} />
-        <Text style={[styles.label, { color: skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted }]}>Add event?</Text>
+        {isTerminal ? (
+          <Text style={{ fontFamily: TERM_FONT_FAMILY, fontSize: 19, lineHeight: 19, color: TERM_PHOS }}>{">"}</Text>
+        ) : (
+          <MaterialIcons name="add" size={18} color={skinTokens.isEightBit ? BIT_GOLD : colors.muted} />
+        )}
+        <Text style={[styles.label, { color: isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted }, isTerminal && monoFont ? { fontFamily: monoFont } : null]}>Add event?</Text>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Text style={[styles.time, { color: skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }]}>
+        <Text style={[styles.time, { color: isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }, isTerminal && monoFont ? { fontFamily: monoFont } : null]}>
           {isNow && nowMinutes != null ? format12HourTime(minutesToTime(nowMinutes)) : format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
         </Text>
         {(() => {
           if (isNow) return <NowPill />;
           const mins = block.durationMinutes;
           const label = mins === 30 ? "30m" : mins === 60 ? "1h" : mins % 60 === 0 ? `${mins / 60}h` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+          if (isTerminal) {
+            return (
+              <View style={{ backgroundColor: "transparent", borderWidth: 1.5, borderColor: TERM_PHOS, borderRadius: 2, paddingHorizontal: 6, paddingVertical: 2 }}>
+                <Text style={{ color: TERM_PHOS, fontSize: 11, fontFamily: TERM_FONT_FAMILY }}>{`[ ${label} ]`}</Text>
+              </View>
+            );
+          }
           return (
             <View style={{ backgroundColor: skinTokens.isEightBit ? BIT_GOLD : colors.primary, borderRadius: skinTokens.isEightBit ? 2 : 8, paddingHorizontal: 6, paddingVertical: 2 }}>
               <Text style={{ color: skinTokens.isEightBit ? "#241547" : "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{label}</Text>
@@ -114,7 +130,8 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
  */
 export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPressOut }: TimeBlockGroupProps) {
   const colors = useColors();
-  const { isSkinned, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens, monoFont } = useSkin();
+  const isTerminal = skinTokens.isTerminal;
   if (blocks.length === 0) return null;
 
   return (
@@ -123,10 +140,11 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
       style={[
         styles.groupContainer,
         {
-          backgroundColor: skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
-          borderColor: skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : colors.border,
-          borderStyle: isSkinned ? "solid" : "dashed",
+          backgroundColor: isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
+          borderColor: isTerminal ? TERM_MID : skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : colors.border,
+          borderStyle: isTerminal ? "dashed" : isSkinned ? "solid" : "dashed",
           ...(skinTokens.isEightBit ? { borderWidth: 3, borderRadius: 2 } : {}),
+          ...(isTerminal ? { borderWidth: 1.5, borderRadius: 2 } : {}),
           ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
         },
       ]}
@@ -144,7 +162,7 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
             styles.groupRow,
             index > 0 && {
               borderTopWidth: skinTokens.isEightBit ? 2 : StyleSheet.hairlineWidth,
-              borderTopColor: skinTokens.isEightBit ? "#6E5BB5" : colors.border,
+              borderTopColor: isTerminal ? TERM_DIM : skinTokens.isEightBit ? "#6E5BB5" : colors.border,
             },
             {
               opacity: pressed ? 0.65 : 1,
@@ -153,9 +171,13 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
             },
           ]}
         >
-          <CyclingAddLabel startIndex={index} mutedColor={skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted} accentColor={skinTokens.isEightBit ? BIT_GOLD : colors.primary} />
+          {isTerminal ? (
+            <TermPromptLabel startIndex={index} />
+          ) : (
+            <CyclingAddLabel startIndex={index} mutedColor={skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted} accentColor={skinTokens.isEightBit ? BIT_GOLD : colors.primary} />
+          )}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text style={[styles.time, { color: skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }]}>
+            <Text style={[styles.time, { color: isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }, isTerminal && monoFont ? { fontFamily: monoFont } : null]}>
               {(() => {
                 const isNowBlock = blockContainsNow(block, nowMinutes);
                 const start = isNowBlock && nowMinutes != null ? minutesToTime(nowMinutes) : block.startTime;
@@ -168,6 +190,13 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
               // Duration badge: 30m, 1h, 1.5h, 2h, etc.
               const mins = block.durationMinutes;
               const label = mins === 30 ? "30m" : mins === 60 ? "1h" : mins % 60 === 0 ? `${mins / 60}h` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+              if (isTerminal) {
+                return (
+                  <View style={{ backgroundColor: "transparent", borderWidth: 1.5, borderColor: TERM_PHOS, borderRadius: 2, paddingHorizontal: 6, paddingVertical: 2 }}>
+                    <Text style={{ color: TERM_PHOS, fontSize: 11, fontFamily: TERM_FONT_FAMILY }}>{`[ ${label} ]`}</Text>
+                  </View>
+                );
+              }
               return (
                 <View style={{ backgroundColor: skinTokens.isEightBit ? BIT_GOLD : colors.primary, borderRadius: skinTokens.isEightBit ? 2 : 8, paddingHorizontal: 6, paddingVertical: 2 }}>
                   <Text style={{ color: skinTokens.isEightBit ? "#241547" : "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{label}</Text>
@@ -183,6 +212,24 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
 
 const ADD_WORDS = ["event", "todo", "ministry", "rest"];
 const WORD_CYCLE_MS = 2800;
+
+/**
+ * Terminal prompt label (v186): the mockup's white-block row —
+ * "> add ministry ?" as standing text. NO cycling, NO wavy letters:
+ * the terminal doesn't animate its prompts; each row keeps the word
+ * its startIndex assigns, in VT323 with the keyword lit bright.
+ */
+function TermPromptLabel({ startIndex }: { startIndex: number }) {
+  const word = ADD_WORDS[startIndex % ADD_WORDS.length];
+  return (
+    <View style={styles.left}>
+      <Text style={{ fontFamily: TERM_FONT_FAMILY, fontSize: 19, lineHeight: 19, color: TERM_PHOS }}>{">"}</Text>
+      <Text style={{ fontFamily: TERM_FONT_FAMILY, fontSize: 17, color: TERM_MID }}>add </Text>
+      <Text style={{ fontFamily: TERM_FONT_FAMILY, fontSize: 17, color: TERM_PHOS }}>{word}</Text>
+      <Text style={{ fontFamily: TERM_FONT_FAMILY, fontSize: 17, color: TERM_MID }}>?</Text>
+    </View>
+  );
+}
 
 /** One letter gently floating up and down (sine, no bounce). */
 function WavyLetter({ ch, index, color }: { ch: string; index: number; color: string }) {

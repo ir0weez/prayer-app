@@ -68,6 +68,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setSkinThemeState(normalizeSkinThemeId(skin));
   }, []);
 
+  // Terminal skin (v186): the tube is one dark world — while it is
+  // active, the palette resolves as DARK so text stays legible on the
+  // near-black green panels everywhere (the same reason 8-bit's dusk
+  // pairs with dark-scheme inks). The user's own scheme preference
+  // stays untouched in state and returns the moment another skin is
+  // picked; every other skin sees exactly the scheme it always saw.
+  const effectiveColorScheme: ColorScheme = skinTheme === "terminal" ? "dark" : colorScheme;
+
   // Initialize with system color scheme on mount
   useEffect(() => {
     if (!isInitialized) {
@@ -86,10 +94,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [systemScheme, isInitialized, isManuallySet, applyScheme]);
 
   useEffect(() => {
-    if (isInitialized) applyScheme(colorScheme);
-  }, [accentTheme, applyScheme, colorScheme, isInitialized]);
+    if (isInitialized) applyScheme(effectiveColorScheme);
+  }, [accentTheme, applyScheme, effectiveColorScheme, isInitialized]);
 
-  const themedPalette = useMemo(() => getThemedPalette(colorScheme, accentTheme), [accentTheme, colorScheme]);
+  const themedPalette = useMemo(() => getThemedPalette(effectiveColorScheme, accentTheme), [accentTheme, effectiveColorScheme]);
   const themeVariables = useMemo(
     () => vars({
       "color-primary": themedPalette.primary,
@@ -107,14 +115,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(
     () => ({
-      colorScheme,
+      colorScheme: effectiveColorScheme,
       setColorScheme,
       accentTheme,
       setAccentTheme,
       skinTheme,
       setSkinTheme,
     }),
-    [accentTheme, colorScheme, setAccentTheme, setColorScheme, setSkinTheme, skinTheme],
+    [accentTheme, effectiveColorScheme, setAccentTheme, setColorScheme, setSkinTheme, skinTheme],
   );
 
   return (

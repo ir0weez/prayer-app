@@ -24,7 +24,7 @@ import { DateTimePicker } from "@/components/date-time-picker";
 import { AvatarImage } from "@/components/avatar-system";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL } from "@/lib/skin-themes";
+import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, TERM_BG, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT } from "@/lib/skin-themes";
 import type { Person } from "@/lib/prayercircle-data";
 import {
   addPrayerJournalReply,
@@ -246,8 +246,8 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     const previewText = item.body.length > 150 && !isExpanded ? item.body.slice(0, 150) + "..." : item.body;
     // Metadata (date, location, tagged names) needs to stay readable on the
     // saturated card colors, where the theme's muted tone washes out.
-    const cardMuted = item.color ? "rgba(255, 255, 255, 0.8)" : colors.muted;
-    const cardText = item.color ? "#FFFFFF" : colors.foreground;
+    const cardMuted = item.color ? "rgba(255, 255, 255, 0.8)" : skinTokens.isTerminal ? TERM_MID : colors.muted;
+    const cardText = item.color ? "#FFFFFF" : skinTokens.isTerminal ? TERM_SOFT : colors.foreground;
     const cardFaint = item.color ? "rgba(255, 255, 255, 0.35)" : colors.border;
     return (
     <Pressable
@@ -398,11 +398,11 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: skinTokens.isEightBit ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
+    <View style={[styles.container, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
       <ReAnimated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }, headerAnimatedStyle]}>
-        <View style={{ backgroundColor: skinTokens.isEightBit ? BIT_PANEL : paperSurface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }}>
-          <Text style={{ color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, fontSize: 20, fontWeight: "800", ...(skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 12, lineHeight: 19 } : {}) }}>Journal</Text>
-          <Text style={{ color: skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12 }}>{entries.length} entries</Text>
+        <View style={{ backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : paperSurface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }}>
+          <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, fontSize: 20, fontWeight: "800", ...(skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 12, lineHeight: 19 } : {}) }}>Journal</Text>
+          <Text style={{ color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12 }}>{entries.length} entries</Text>
         </View>
         <View style={styles.headerActions}>
           <Pressable
@@ -437,13 +437,13 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         contentContainerStyle={[styles.listContent, sections.length === 0 && styles.emptyListContent]}
         ListEmptyComponent={
           <View style={[styles.emptyCard, { backgroundColor: paperSurface, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
-            <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "18" }]}>
-              <MaterialIcons name={bookmarksOnly ? "bookmark-border" : "auto-stories"} size={30} color={colors.primary} />
+            <View style={[styles.emptyIcon, { backgroundColor: skinTokens.isTerminal ? "rgba(61,255,110,0.10)" : colors.primary + "18" }]}>
+              <MaterialIcons name={bookmarksOnly ? "bookmark-border" : "auto-stories"} size={30} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+            <Text style={[styles.emptyTitle, { color: skinTokens.isTerminal ? TERM_SOFT : colors.foreground }]}>
               {bookmarksOnly ? "No bookmarked prayers" : "Your prayer journal is ready"}
             </Text>
-            <Text style={[styles.emptyDescription, { color: colors.muted }]}>
+            <Text style={[styles.emptyDescription, { color: skinTokens.isTerminal ? TERM_MID : colors.muted }]}>
               {bookmarksOnly
                 ? "Bookmark an entry to keep important prayers and answers close."
                 : "Write a prayer, tag the people it concerns, and add updates as replies over time."}
@@ -451,10 +451,10 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             {!bookmarksOnly ? (
               <Pressable
                 onPress={() => setShowEntryComposer(true)}
-                style={({ pressed }) => [styles.emptyButton, { backgroundColor: colors.primary }, pressed && styles.primaryPressed]}
+                style={({ pressed }) => [styles.emptyButton, { backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary }, pressed && styles.primaryPressed]}
               >
-                <MaterialIcons name="edit" size={18} color="#FFFFFF" />
-                <Text style={styles.emptyButtonText}>Write your first entry</Text>
+                <MaterialIcons name="edit" size={18} color={skinTokens.isTerminal ? TERM_BG : "#FFFFFF"} />
+                <Text style={[styles.emptyButtonText, skinTokens.isTerminal ? { color: TERM_BG } : null]}>Write your first entry</Text>
               </Pressable>
             ) : null}
           </View>
@@ -467,11 +467,12 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         onPress={() => setShowEntryComposer(true)}
         style={({ pressed }) => [
           styles.fab,
-          { backgroundColor: colors.primary },
+          { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.primary },
+          skinTokens.isTerminal ? { ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : null,
           pressed && styles.primaryPressed,
         ]}
       >
-        <MaterialIcons name="add" size={32} color="#FFFFFF" />
+        <MaterialIcons name="add" size={32} color={skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF"} />
       </Pressable>
 
       <Modal transparent visible={showEntryComposer} animationType="slide" onRequestClose={closeEntryComposer}>

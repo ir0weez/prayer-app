@@ -235,6 +235,9 @@ export default function RootLayout() {
   // handoff above, so the result is deliberately unused here.
   useFonts({
     PressStart2P: require("@/assets/fonts/PressStart2P-Regular.ttf"),
+    // Terminal skin (v186): VT323 (SIL OFL 1.1, see
+    // assets/fonts/VT323-OFL.txt) for the terminal's display type.
+    VT323: require("@/assets/fonts/VT323-Regular.ttf"),
   });
   return (
     <ThemeProvider>

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Platform } from "react-native";
 import { Easing, type EasingFunction, type EasingFunctionFactory } from "react-native-reanimated";
 
 type SkinEasing = EasingFunction | EasingFunctionFactory;
@@ -32,8 +33,15 @@ export function useSkin(): {
   skin: SkinThemeId;
   isPaper: boolean;
   isEightBit: boolean;
-  /** A material skin drives the surface kit (Paper or 8-bit). */
+  isTerminal: boolean;
+  /** A material skin drives the surface kit (Paper, 8-bit or Terminal). */
   isSkinned: boolean;
+  /**
+   * The platform's clean monospace family while Terminal is active
+   * (body text — VT323 stays the display face); undefined otherwise,
+   * so spreading it into a text style is a no-op for other skins.
+   */
+  monoFont: string | undefined;
   tokens: SkinTokens;
   motion: SkinMotion;
 } {
@@ -47,6 +55,16 @@ export function useSkin(): {
   );
 
   const motion = useMemo<SkinMotion>(() => {
+    if (tokens.isTerminal) {
+      // The terminal dialect: harder steps than 8-bit — the mockup's
+      // entrances are three opacity chunks (steps(3)) and everything
+      // stamps. No sine survives the tube.
+      return {
+        slide: { duration: tokens.motion.slideDuration, easing: Easing.steps(5) },
+        settle: { duration: tokens.motion.settleDuration, easing: Easing.steps(3) },
+        settleDistance: tokens.motion.settleDistance,
+      };
+    }
     if (tokens.isEightBit) {
       // The stepped dialect: motion ticks in discrete frames, the way
       // the mockup's entrances drop 16 → 10 → 5 → 0 and its checks
@@ -79,7 +97,11 @@ export function useSkin(): {
     skin: skinTheme,
     isPaper: tokens.isPaper,
     isEightBit: tokens.isEightBit,
-    isSkinned: tokens.isPaper || tokens.isEightBit,
+    isTerminal: tokens.isTerminal,
+    isSkinned: tokens.isPaper || tokens.isEightBit || tokens.isTerminal,
+    monoFont: tokens.isTerminal
+      ? Platform.select({ ios: "Courier New", android: "monospace", default: "monospace" })
+      : undefined,
     tokens,
     motion,
   };

@@ -36,6 +36,15 @@ import { allPaperSceneIds, paperSceneIdFor } from "../paper-keywords";
 import {
   DEFAULT_SKIN_THEME,
   SKIN_THEMES,
+  TERM_BG,
+  TERM_DEEP,
+  TERM_DIM,
+  TERM_FONT_FAMILY,
+  TERM_MID,
+  TERM_PANEL,
+  TERM_PANEL_2,
+  TERM_PHOS,
+  TERM_SOFT,
   getSkinThemeDefinition,
   getSkinTokens,
   getUnlockedSkinThemeIds,
@@ -52,8 +61,8 @@ import {
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
 describe("skin definitions + level gating", () => {
-  it("ships exactly Classic (default), Paper and 8-bit", () => {
-    expect(SKIN_THEMES.map((t) => t.id)).toEqual(["classic", "paper", "8bit"]);
+  it("ships exactly Classic (default), Paper, 8-bit and Terminal", () => {
+    expect(SKIN_THEMES.map((t) => t.id)).toEqual(["classic", "paper", "8bit", "terminal"]);
     expect(DEFAULT_SKIN_THEME).toBe("classic");
     expect(getSkinThemeDefinition("classic").unlockLevel).toBe(1);
   });
@@ -72,15 +81,22 @@ describe("skin definitions + level gating", () => {
     expect(isSkinUnlocked("8bit", 10)).toBe(true);
   });
 
+  it("Terminal unlocks at Level 10, mirroring Paper's gate (v186)", () => {
+    expect(getSkinThemeDefinition("terminal").unlockLevel).toBe(10);
+    expect(isSkinUnlocked("terminal", 9)).toBe(false);
+    expect(isSkinUnlocked("terminal", 10)).toBe(true);
+  });
+
   it("the unlocked list follows the level", () => {
     expect(getUnlockedSkinThemeIds(1)).toEqual(["classic"]);
     expect(getUnlockedSkinThemeIds(9)).toEqual(["classic"]);
-    expect(getUnlockedSkinThemeIds(10)).toEqual(["classic", "paper", "8bit"]);
+    expect(getUnlockedSkinThemeIds(10)).toEqual(["classic", "paper", "8bit", "terminal"]);
   });
 
   it("unknown or missing skin ids normalize back to Classic", () => {
     expect(normalizeSkinThemeId("paper")).toBe("paper");
     expect(normalizeSkinThemeId("8bit")).toBe("8bit");
+    expect(normalizeSkinThemeId("terminal")).toBe("terminal");
     expect(normalizeSkinThemeId("classic")).toBe("classic");
     expect(normalizeSkinThemeId("watercolor")).toBe("classic");
     expect(normalizeSkinThemeId(undefined)).toBe("classic");
@@ -451,7 +467,9 @@ describe("v176 chrome coverage (source pins)", () => {
 
   it("the schedule's white blocks and ticker take the mockup's Unified treatment", () => {
     const blocks = read("components/time-block-indicator.tsx");
-    expect(blocks).toContain('borderStyle: isSkinned ? "solid" : "dashed"');
+    // v186: Terminal keeps the mockup's DASHED prompt-row border —
+    // the chain still resolves solid under Paper, dashed under Classic.
+    expect(blocks).toContain('borderStyle: isTerminal ? "dashed" : isSkinned ? "solid" : "dashed"');
     expect(blocks).toContain("skinTokens.cardShadow");
     const schedule = read("components/schedule-tab.tsx");
     // Live strip: warm paper stock + soft lavender edge, per the mockup.
@@ -686,17 +704,20 @@ describe("v185 floating cards: under 8-bit the sheet is gone and every row float
 
   it("the list wrapper and footer are transparent under 8-bit — and the Paper sheet survives", () => {
     // The 8-bit early return skips the sheet wrapper entirely.
-    expect(schedule).toContain("if (skinTokens.isEightBit) return element;");
-    // The footer branches to transparency under 8-bit.
-    expect(schedule).toContain('skinTokens.isEightBit ? { backgroundColor: "transparent" }');
+    // v186: Terminal floats on the tube through the SAME gate.
+    expect(schedule).toContain("if (skinTokens.isEightBit || skinTokens.isTerminal) return element;");
+    // The footer branches to transparency under 8-bit (and Terminal).
+    expect(schedule).toContain('(skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: "transparent" }');
     // Paper/Classic keep the continuous sheet: surface wrapper + frame rails.
     expect(schedule).toContain("borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth");
   });
 
   it("the date header sits on the dusk: transparent card, on-dusk inks, gold selected chip", () => {
     const header = schedule.slice(schedule.indexOf("const renderDateHeaderCard"), schedule.indexOf("const renderItem"));
-    expect(header).toContain('skinTokens.isEightBit ? { backgroundColor: "transparent" }');
-    expect(header).toContain("skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground");
+    expect(header).toContain('(skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: "transparent" }');
+    // v186: the day name chains Terminal phosphor ahead of the 8-bit
+    // on-dusk ink — both skins' branches survive in one expression.
+    expect(header).toContain("skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground");
     expect(header).toContain("backgroundColor: BIT_GOLD");
     expect(header).toContain("BIT_ON_DUSK_SOFT");
   });
@@ -711,10 +732,10 @@ describe("v185 floating cards: under 8-bit the sheet is gone and every row float
   });
 
   it("ministry cards and expandable sections carry their own float under 8-bit", () => {
-    expect(schedule).toContain("marginBottom: skinTokens.isEightBit ? 12 : 0");
+    expect(schedule).toContain("marginBottom: (skinTokens.isEightBit || skinTokens.isTerminal) ? 12 : 0");
     expect(schedule).toContain("marginBottom: skinTokens.isEightBit ? 12 : 8");
     const expandable = schedule.slice(schedule.indexOf("function ExpandableSection"), schedule.indexOf("export function ScheduleTab"));
-    expect(expandable).toContain("skinTokens.isEightBit ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12");
+    expect(expandable).toContain("(skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12");
   });
 
   it("the todo-pair tiles and the empty state no longer paint the sheet under 8-bit", () => {
@@ -791,5 +812,187 @@ describe("8-bit keyword scenes (v183): every scene id has a bespoke pixel rendit
     expect(registry).toContain("PIXEL_SCENE_REGISTRY");
     expect(registry).toContain("pixelKeywordSceneFor");
     expect(registry).toContain("PixelRestSky");
+  });
+});
+
+// ─── v186: the Terminal skin ───────────────────────────────────────
+// Jonathan's idea, approved mockup schedule-mockups/terminal.html
+// (2026-10-22): a RobCo termlink — near-black green tube, phosphor
+// line art (Pip-Boy style, per his mid-build correction: "think of
+// pipboy" — scenes are DRAWN, never ASCII), double-ruled windows,
+// [X] checkboxes, > prompt rows, a boot banner, an inverted bracketed
+// tab menu. Same laws as the skins before it: every keyword scene
+// gets a bespoke rendition (Sopranos flagship first), every surface
+// that wears Paper/8-bit wears Terminal through the shared kit, and
+// Classic/Paper/8-bit stay byte-for-byte. Dark Forest, the Hometown
+// world and the avatars stay exempt.
+
+describe("Terminal skin tokens (v186)", () => {
+  const light = getThemedPalette("light", "default");
+  const dark = getThemedPalette("dark", "default");
+
+  it("carries the mockup's tube values outright — one dark world in both schemes", () => {
+    for (const scheme of ["light", "dark"] as const) {
+      const tokens = getSkinTokens("terminal", scheme, scheme === "light" ? light : dark);
+      expect(tokens.isTerminal).toBe(true);
+      expect(tokens.isPaper).toBe(false);
+      expect(tokens.isEightBit).toBe(false);
+      expect(tokens.background).toBe(TERM_BG);
+      expect(tokens.background).toBe("#041207");
+      expect(tokens.surface).toBe(TERM_PANEL);
+      expect(tokens.surface).toBe("#071A0C");
+      expect(tokens.border).toBe(TERM_MID);
+      expect(tokens.darkBackground).toBe(TERM_DEEP);
+      expect(tokens.darkSurface).toBe(TERM_PANEL_2);
+    }
+  });
+
+  it("fakes the mockup's double-ruled window edge: 1px frame + inset rings + phosphor halo", () => {
+    const tokens = getSkinTokens("terminal", "light", light);
+    expect(tokens.cardRadius).toBe(2);
+    expect(tokens.sheetRadius).toBe(2);
+    expect(tokens.borderWidth).toBe(1);
+    expect(tokens.frame).toEqual({ borderRadius: 2, borderWidth: 1, borderColor: "#1D9E4B" });
+    // The card shadow's three layers: the BG gap ring, the inner
+    // mid-green rule, the halo. Losing any layer loses the window.
+    expect(tokens.cardShadow?.boxShadow).toContain("inset 0px 0px 0px 2px #041207");
+    expect(tokens.cardShadow?.boxShadow).toContain("inset 0px 0px 0px 3px rgba(29,158,75,0.85)");
+    expect(tokens.cardShadow?.boxShadow).toContain("0px 0px 14px rgba(61,255,110,0.16)");
+    expect(tokens.sheetShadow?.boxShadow).toContain("0px -2px 0px rgba(29,158,75,0.7)");
+    expect(tokens.grainOpacity).toBe(0);
+  });
+
+  it("speaks VT323 for display and system monospace for body — and the motion steps hard", () => {
+    const tokens = getSkinTokens("terminal", "light", light);
+    expect(tokens.displayFont).toBe(TERM_FONT_FAMILY);
+    expect(tokens.displayFont).toBe("VT323");
+    expect(tokens.bodyFont).toBe("monospace");
+    expect(tokens.motion).toEqual({ slideDuration: 240, settleDuration: 280, settleDistance: 6 });
+    // The hook layer quantizes terminal motion with coarser steps
+    // than 8-bit, and still no spring/bounce anywhere in the hook.
+    const hook = read("hooks/use-skin.ts");
+    expect(hook).toContain("tokens.isTerminal");
+    expect(hook).toContain("Easing.steps(5)");
+    expect(hook).toContain("Easing.steps(3)");
+    expect(hook.toLowerCase()).not.toContain("spring");
+    expect(hook.toLowerCase()).not.toContain("bounce");
+  });
+
+  it("the bundled VT323 face and its OFL license exist, loaded like Press Start 2P", () => {
+    const layout = read("app/_layout.tsx");
+    expect(layout).toContain("VT323");
+    expect(layout).toContain("assets/fonts/VT323-Regular.ttf");
+    const license = read("assets/fonts/VT323-OFL.txt");
+    expect(license).toContain("SIL Open Font License");
+  });
+
+  it("the other three skins gain nothing: no terminal flags, no mono body, no VT323", () => {
+    for (const id of ["classic", "paper", "8bit"] as const) {
+      const tokens = getSkinTokens(id, "light", light);
+      expect(tokens.isTerminal).toBe(false);
+      expect(tokens.bodyFont).toBeNull();
+      expect(tokens.displayFont).not.toBe("VT323");
+    }
+    // 8-bit's identity is untouched by the fourth skin's arrival.
+    const bit = getSkinTokens("8bit", "light", light);
+    expect(bit.surface).toBe("#FFF3D0");
+    expect(bit.displayFont).toBe("PressStart2P");
+    expect(bit.frame).toEqual({ borderRadius: 2, borderWidth: 3, borderColor: "#150A2E" });
+  });
+
+  it("Terminal resolves the dark palette in the provider — the tube is dark even in light mode", () => {
+    const provider = read("lib/theme-provider.tsx");
+    expect(provider).toContain('skinTheme === "terminal" ? "dark" : colorScheme');
+  });
+});
+
+describe("Terminal keyword scenes (v186): every scene id has a bespoke Pip-Boy line-art rendition", () => {
+  const registry = read("components/terminal-keyword-scenes.tsx");
+  const categoryFiles = [
+    "components/terminal-scenes-labels.tsx",
+    "components/terminal-scenes-food.tsx",
+    "components/terminal-scenes-tv.tsx",
+    "components/terminal-scenes-screen.tsx",
+  ];
+  const bodies = categoryFiles.map(read).join("\n");
+
+  it("the registry maps every Paper scene id, each to a UNIQUE Term component", () => {
+    const entries = [...registry.matchAll(/"([^"]+)":\s*(Term\w+)/g)].map(
+      (m) => [m[1], m[2]] as const,
+    );
+    const byId = new Map(entries);
+    for (const id of allPaperSceneIds()) {
+      expect(byId.has(id), id).toBe(true);
+    }
+    expect(byId.size).toBe(allPaperSceneIds().length);
+    expect(new Set(byId.values()).size).toBe(byId.size);
+  });
+
+  it("every terminal scene is its own line composition rooted on TermSceneRoot — no shared shells", () => {
+    const entries = [...registry.matchAll(/"([^"]+)":\s*(Term\w+)/g)].map((m) => m[2]);
+    const chunksByName = new Map<string, string>();
+    for (const chunk of bodies.split(/(?=export function Term)/)) {
+      const m = chunk.match(/^export function (Term\w+)/);
+      if (m) chunksByName.set(m[1], chunk);
+    }
+    for (const comp of entries) {
+      expect(chunksByName.has(comp), comp).toBe(true);
+      expect(chunksByName.get(comp), comp).toContain("TermSceneRoot");
+    }
+    // Scenes are drawn with the terminal kit only — never the paper
+    // or pixel kits, never raw svg, and never the forbidden words.
+    expect(bodies).not.toContain("paper-keyword-scenes");
+    expect(bodies).not.toContain("pixel-kit");
+    expect(bodies).not.toContain("react-native-svg");
+    expect(bodies.toLowerCase()).not.toContain("stitch");
+    expect(bodies.toLowerCase()).not.toContain("spring");
+    expect(bodies.toLowerCase()).not.toContain("bounce");
+  });
+
+  it("the scenes are LINE ART, not ASCII: no glyph pictures, no text elements, no tilde water", () => {
+    // Jonathan's correction, mid-build: "they aren't all letters and
+    // stuff right? I mean think of pipboy." Any return of text-art
+    // scene bodies fails here.
+    expect(bodies).not.toContain("~~~~");
+    expect(bodies).not.toContain("(o )");
+    expect(bodies).not.toContain("<Text");
+    expect(bodies).not.toContain("fontFamily");
+    expect(registry).not.toContain("~~~~");
+  });
+
+  it("the Sopranos flagship leads the TV file: house behind, pool in phosphor, ducks drawn in strokes", () => {
+    const tv = read("components/terminal-scenes-tv.tsx");
+    const start = tv.indexOf("export function TermTvSopranosScene");
+    expect(start).toBeGreaterThanOrEqual(0);
+    // The flagship is the FIRST scene in the file.
+    expect(tv.indexOf("export function Term")).toBe(start);
+    const next = tv.indexOf("export function", start + 10);
+    const chunk = tv.slice(start, next === -1 ? undefined : next);
+    expect(chunk).toContain("TermSceneRoot");
+    // The pool is the bright stroke; the house sits behind in mid.
+    expect(chunk).toContain("TERM_PHOS");
+    expect(chunk).toContain("TERM_MID");
+    // The ducks: outline bodies + head circles + bill triangles.
+    expect(chunk).toContain("LC");
+    expect(chunk).toContain("LPoly");
+  });
+
+  it("terminal routing reuses the Paper routing ids exactly (one source of truth)", () => {
+    expect(registry).toContain("paperSceneIdFor");
+    expect(registry).toContain("TERMINAL_SCENE_REGISTRY");
+    expect(registry).toContain("terminalKeywordSceneFor");
+    expect(registry).toContain("TerminalRestSky");
+  });
+
+  it("the schedule dispatches terminal line art ONLY under the Terminal skin (v186)", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    expect(schedule).toContain("terminalKeywordSceneFor");
+    expect(schedule).toContain("if (isTerminal)");
+    expect(schedule).toContain("<TerminalRestSky mood={mood} />");
+    // The boot banner, the mockup's termlink header, rides the summary.
+    expect(schedule).toContain("PRAYERLINK v2.1");
+    expect(schedule).toContain("ROBCO INDUSTRIES (TM) TERMLINK");
+    expect(schedule).toContain("TermCheckbox");
+    expect(schedule).toContain("TermCursor");
   });
 });

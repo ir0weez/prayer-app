@@ -40,6 +40,29 @@
 //     components/pixel-keyword-scenes.tsx), drawn chunky on a coarse
 //     grid — the same rule Paper lives by: no shared shells.
 //
+// "Terminal" (v186) is the RobCo terminal from Fallout — the approved
+// mockup (schedule-mockups/terminal.html), matched to its actual CSS
+// values:
+//   - One phosphor ink in three depths (#3DFF6E bright / #1D9E4B mid /
+//     #14532D dim, soft #9BF0B2 for secondary text) on a near-black
+//     green tube (#041207 → #020A04). The tube is the page: a static
+//     scanline + vignette layer baked into the background component,
+//     never an animated overlay.
+//   - Chrome is TYPOGRAPHIC: VT323 (bundled, OFL) on headings and
+//     labels, [X] checkbox glyphs, ">" prompt rows, bracketed menu
+//     selection, windows with square corners and the mockup's double
+//     rule (faked: a 1px mid border + an inset ring in the shadow).
+//   - EVERY illustration in the app — all 167 keyword scenes and the
+//     decorative art across the v179 footprint — renders as Pip-Boy
+//     line art: monochrome green stroke drawings (components/
+//     terminal-kit.tsx), NOT text glyphs. The mockup's ASCII was
+//     placeholder shorthand (Jonathan's correction, 2026-10-22).
+//   - Its motion dialect is STEPPED and hard: cursor blink, chunk
+//     entrances (Easing.steps), no sine, no springs.
+//   - The tube is one dark world in both schemes (like 8-bit's dusk);
+//     the theme provider resolves the DARK palette while Terminal is
+//     active so palette text stays legible on the panels.
+//
 // The Dark Forest and the town/city/school maps never consume these
 // tokens: the forest stays pixel (its rendering is NOT re-skinned)
 // and the maps are already paper.
@@ -49,7 +72,7 @@ import { mix, type ColorScheme } from "./color-themes";
 /** The themed palette (token name → hex), as produced by getThemedPalette. */
 export type SkinPalette = Record<string, string>;
 
-export type SkinThemeId = "classic" | "paper" | "8bit";
+export type SkinThemeId = "classic" | "paper" | "8bit" | "terminal";
 
 export type SkinThemeDefinition = {
   id: SkinThemeId;
@@ -80,6 +103,13 @@ export const SKIN_THEMES: SkinThemeDefinition[] = [
     description: "Stepped pixel corners, hard block shadows, and frame-by-frame motion — the Dark Forest's material, indoors",
     unlockLevel: 10,
     swatch: "#2A1B4E",
+  },
+  {
+    id: "terminal",
+    name: "Terminal",
+    description: "A RobCo terminal: phosphor-green line art, bracketed menus, and type that blinks — the whole app on one tube",
+    unlockLevel: 10,
+    swatch: "#041207",
   },
 ];
 
@@ -269,6 +299,7 @@ export type SkinTokens = {
   id: SkinThemeId;
   isPaper: boolean;
   isEightBit: boolean;
+  isTerminal: boolean;
   /** Paper-tinted replacements for the palette's chrome colors; null = keep palette. */
   background: string | null;
   surface: string | null;
@@ -286,12 +317,21 @@ export type SkinTokens = {
   /**
    * The full card frame (radius + width + ink) a surface kit consumer
    * can spread over its base style in one move. Non-null ONLY under
-   * 8-bit: Classic and Paper must render byte-identically, so their
-   * frame stays null and every spread of it is a no-op for them.
+   * 8-bit and Terminal: Classic and Paper must render
+   * byte-identically, so their frame stays null and every spread of
+   * it is a no-op for them.
    */
   frame: { borderRadius: number; borderWidth: number; borderColor: string } | null;
   /** Display face for headings under this skin; null = the app's regular type. */
   displayFont: string | null;
+  /**
+   * Body face under this skin; null = the app's regular type.
+   * Terminal speaks monospace everywhere (system monospace — VT323
+   * is the display face and is too rough at body sizes; see the
+   * TERM_ constants below). The concrete family name is resolved by
+   * the hook layer per platform; the token only records the intent.
+   */
+  bodyFont: string | null;
   /** Legacy grain knobs — pinned to 0 forever (flat paper only, v179). */
   grainOpacity: number;
   grainColor: string;
@@ -326,6 +366,16 @@ const BIT_MOTION: SkinMotionTokens = {
   settleDistance: 16,
 };
 
+const TERM_MOTION: SkinMotionTokens = {
+  // The terminal dialect: the mockup's entrances are three hard
+  // opacity chunks in 280ms (steps(3)), and its chrome stamps rather
+  // than slides. The stepping itself is applied by the hook layer
+  // (Easing.steps) — these numbers only set the tempo.
+  slideDuration: 240,
+  settleDuration: 280,
+  settleDistance: 6,
+};
+
 /** The 8-bit kit's shadow ink (the mockup's --bit-shadow base). */
 export const BIT_SHADOW_HEX = "rgba(13,5,32,0.55)";
 /** The 8-bit kit's edge ink (the mockup's --bit-ink). */
@@ -349,6 +399,24 @@ export const BIT_ON_DUSK_FAINT = "#A99CDD";
 /** The bundled pixel display face (Press Start 2P, OFL — assets/fonts). */
 export const PIXEL_FONT_FAMILY = "PressStart2P";
 
+/** The terminal tube: the mockup's near-black green page and its deep stop. */
+export const TERM_BG = "#041207";
+export const TERM_DEEP = "#020A04";
+/** The mockup's radial highlight at the top of the tube. */
+export const TERM_GLOW_TOP = "#0B2A12";
+/** The mockup's window panels (two depths). */
+export const TERM_PANEL = "#071A0C";
+export const TERM_PANEL_2 = "#0A2410";
+/** The phosphor ink in three depths, plus the soft secondary ink. */
+export const TERM_PHOS = "#3DFF6E";
+export const TERM_SOFT = "#9BF0B2";
+export const TERM_MID = "#1D9E4B";
+export const TERM_DIM = "#14532D";
+/** The mockup's phosphor glow (text-shadow / halo work). */
+export const TERM_GLOW = "rgba(61,255,110,0.38)";
+/** The bundled terminal display face (VT323, OFL — assets/fonts). */
+export const TERM_FONT_FAMILY = "VT323";
+
 export function getSkinTokens(
   skinId: SkinThemeId,
   scheme: ColorScheme,
@@ -359,6 +427,7 @@ export function getSkinTokens(
       id: "classic",
       isPaper: false,
       isEightBit: false,
+      isTerminal: false,
       background: null,
       surface: null,
       border: null,
@@ -371,6 +440,7 @@ export function getSkinTokens(
       borderWidth: null,
       frame: null,
       displayFont: null,
+      bodyFont: null,
       grainOpacity: 0,
       grainColor: PAPER_INK_HEX,
       grainLightOpacity: 0,
@@ -392,6 +462,7 @@ export function getSkinTokens(
       id: "8bit",
       isPaper: false,
       isEightBit: true,
+      isTerminal: false,
       background: dark ? BIT_DUSK_DEEP : BIT_DUSK,
       surface: dark ? BIT_DUSK : BIT_CREAM,
       border: bitBorder,
@@ -418,6 +489,7 @@ export function getSkinTokens(
       borderWidth: 3,
       frame: { borderRadius: 2, borderWidth: 3, borderColor: bitBorder },
       displayFont: PIXEL_FONT_FAMILY,
+      bodyFont: null,
       grainOpacity: 0,
       grainColor: BIT_INK_HEX,
       grainLightOpacity: 0,
@@ -425,10 +497,54 @@ export function getSkinTokens(
     };
   }
 
+  if (skinId === "terminal") {
+    // v186: the mockup's values, in BOTH schemes — the tube is one
+    // dark world (the provider resolves the dark palette under
+    // Terminal, so palette text stays legible on the panels). The
+    // mockup's 3px double border is faked: a 1px mid-green border
+    // (the frame token) + an inset ring inside the card shadow —
+    // a BG-colored 2px ring reads as the gap between the two rules,
+    // and a mid-green ring at 3px reads as the inner rule. RN has no
+    // borderStyle "double"; at display size the pair of green rules
+    // IS the mockup's window edge. The third shadow layer is the
+    // phosphor halo the mockup's glow gives every window.
+    return {
+      id: "terminal",
+      isPaper: false,
+      isEightBit: false,
+      isTerminal: true,
+      background: TERM_BG,
+      surface: TERM_PANEL,
+      border: TERM_MID,
+      darkBackground: TERM_DEEP,
+      darkSurface: TERM_PANEL_2,
+      cardShadow: {
+        boxShadow: `inset 0px 0px 0px 2px ${TERM_BG}, inset 0px 0px 0px 3px rgba(29,158,75,0.85), 0px 0px 14px rgba(61,255,110,0.16)`,
+        elevation: 2,
+      },
+      sheetShadow: {
+        boxShadow: `0px -2px 0px rgba(29,158,75,0.7), 0px 0px 18px rgba(61,255,110,0.12)`,
+        elevation: 4,
+      },
+      // Square, like the mockup's windows (radius 2).
+      cardRadius: 2,
+      sheetRadius: 2,
+      borderWidth: 1,
+      frame: { borderRadius: 2, borderWidth: 1, borderColor: TERM_MID },
+      displayFont: TERM_FONT_FAMILY,
+      bodyFont: "monospace",
+      grainOpacity: 0,
+      grainColor: TERM_DIM,
+      grainLightOpacity: 0,
+      motion: TERM_MOTION,
+    };
+  }
+
   return {
     id: "paper",
     isPaper: true,
     isEightBit: false,
+    isTerminal: false,
     // Paper is a MATERIAL, not a color (Jonathan, v176): the page keeps
     // the palette's own hue — only a whisper of warm paper in it — and
     // the paper lives on the SURFACES: neutral cards become warm paper
@@ -461,6 +577,7 @@ export function getSkinTokens(
     borderWidth: null,
     frame: null,
     displayFont: null,
+    bodyFont: null,
     // NO grain (Jonathan's ruling, 2026-10-22, after v176): the speckle
     // read as "little sprinkles" — not good, and not like paper. Paper
     // surfaces are flat color/stock + the one offset shadow, nothing

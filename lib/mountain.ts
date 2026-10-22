@@ -51,6 +51,22 @@
 // coins are never touched, fasting hearts are never involved, and a
 // collapse that would drop the hero to zero wakes him at home at the
 // defeat floor instead — the screen runs that path via hero-health.
+//
+// v172 — the Mouth and the haul (Jonathan, 2026-10-22): the peak now
+// opens on the cave MOUTH — a setup area above ground (relax by the
+// hearth, check the pick, sell the satchel) — and only from there
+// does the hero step into the cave. Selling moved OUT of the cave
+// entirely: ore converts to coins at the Mouth and nowhere else.
+// The push-your-luck heart of it is the HAUL MULTIPLIER: breaking a
+// face raises the haul to that band's multiplier (Stone ×1, Iron
+// ×1.5, Gold ×2, The Deep ×3) — the deepest band worked since the
+// last sell — and the whole satchel sells at that rate at the Mouth.
+// A cave-in spends the promise: the multiplier falls back to ×1
+// along with everything else v170 already took. And the satchel
+// itself has a size now: BAGS cap how many pieces of ore it holds,
+// bought one tier at a time at the Mouth counter — a full bag ends
+// the digging until it's hauled up and sold, which is the rhythm
+// the whole loop now breathes to.
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -79,9 +95,15 @@ export function emptySatchel(): Satchel {
   return { iron: 0, gold: 0, diamond: 0 };
 }
 
-/** Total coin value of a satchel's contents. */
+/** Total coin value of a satchel's contents (at face value, ×1). */
 export function satchelValue(satchel: Satchel): number {
   return ORE_KINDS.reduce((sum, k) => sum + (satchel[k] || 0) * ORE_PRICES[k], 0);
+}
+
+/** Total PIECES of ore in the satchel — what the bag's capacity
+ *  counts (a diamond takes the same room as a fleck of iron). */
+export function satchelCount(satchel: Satchel): number {
+  return ORE_KINDS.reduce((sum, k) => sum + (satchel[k] || 0), 0);
 }
 
 // ---- Strata ---------------------------------------------------------------
@@ -113,6 +135,91 @@ export const FACE_COUNT = MINE_BANDS.length * FACES_PER_BAND;
 
 /** Faces that may be broken per day (the mini-game-style daily cap). */
 export const DAILY_FACE_CAP = 24;
+
+// ---- The haul multiplier (v172) -----------------------------------------
+
+/** What a band does to the haul: the deeper the rock you've broken
+ *  since the last sell, the more the WHOLE satchel is worth when it
+ *  finally sells at the Mouth — Stone pays face value, the Deep
+ *  triples it. Indexed by band (same order as MINE_BANDS). */
+export const BAND_MULTIPLIERS: number[] = [1, 1.5, 2, 3];
+
+export function bandMultiplier(bandIndex: number): number {
+  const i = Math.min(Math.max(Math.floor(bandIndex) || 0, 0), BAND_MULTIPLIERS.length - 1);
+  return BAND_MULTIPLIERS[i];
+}
+
+/** "×1.5" without the trailing-zero noise: 1, 1.5, 2, 3. */
+export function formatHaulMultiplier(m: number): string {
+  return m % 1 === 0 ? String(m) : m.toFixed(1);
+}
+
+/** What the satchel in hand sells for at the Mouth: face value at
+ *  the current haul multiplier, rounded to whole coins (the app's
+ *  coin display is whole numbers everywhere). */
+export function haulValue(state: MineState): number {
+  return Math.round(satchelValue(state.satchel) * state.haulMultiplier);
+}
+
+// ---- Satchel bags (v172) --------------------------------------------------
+
+export type SatchelBag = {
+  tier: number;
+  name: string;
+  /** Total ore PIECES the bag holds. */
+  capacity: number;
+  /** Coin cost to buy (0 = the starter, owned from the beginning). */
+  cost: number;
+  /** The top bag belongs to the Crown, like the Crown Pick. */
+  gate: PickGate;
+};
+
+/** The bag ladder, sold one tier at a time at the Mouth counter.
+ *  A full bag is the mine's natural clock: when it fills, the trip
+ *  is over — haul it up, sell, and the multiplier banks with it. */
+export const SATCHEL_BAGS: SatchelBag[] = [
+  { tier: 0, name: "Canvas Bag", capacity: 20, cost: 0, gate: "none" },
+  { tier: 1, name: "Sturdy Bag", capacity: 30, cost: 750, gate: "none" },
+  { tier: 2, name: "Miner's Pack", capacity: 45, cost: 3000, gate: "none" },
+  { tier: 3, name: "Deep Haul Satchel", capacity: 70, cost: 12000, gate: "none" },
+  { tier: 4, name: "Crown Haul Bag", capacity: 120, cost: 50000, gate: "crown" },
+];
+
+export const MAX_BAG_TIER = SATCHEL_BAGS.length - 1;
+
+export function bagFor(tier: number): SatchelBag {
+  const t = Math.min(Math.max(Math.floor(tier) || 0, 0), MAX_BAG_TIER);
+  return SATCHEL_BAGS[t];
+}
+
+/** How many pieces the hero's current bag holds. */
+export function satchelCapacity(state: MineState): number {
+  return bagFor(state.bagTier).capacity;
+}
+
+/** A full bag refuses the next swing — mining resumes only once
+ *  the satchel is sold down below capacity at the Mouth. (A face
+ *  that BREAKS always pays in full, so a satchel can sit a few
+ *  pieces over its cap right after a rich break; it's still full.) */
+export function satchelIsFull(state: MineState): boolean {
+  return satchelCount(state.satchel) >= satchelCapacity(state);
+}
+
+export type BagPurchaseCheck =
+  | { ok: true; cost: number }
+  | { ok: false; reason: "owned" | "order" | "crown" };
+
+/** Validate buying bag `tier` while owning `ownedTier`: one rung
+ *  at a time, and the Crown Haul Bag reads the same Crown gate as
+ *  the Crown Pick (lib/prestige's state, via MineGates). */
+export function bagPurchaseCheck(ownedTier: number, tier: number, gates: MineGates): BagPurchaseCheck {
+  if (tier <= ownedTier) return { ok: false, reason: "owned" };
+  if (tier > ownedTier + 1) return { ok: false, reason: "order" };
+  if (bagFor(tier).gate === "crown" && (gates.crowns || 0) < 1) {
+    return { ok: false, reason: "crown" };
+  }
+  return { ok: true, cost: bagFor(tier).cost };
+}
 
 // ---- Danger and reward (v170) ----------------------------------------------
 
@@ -285,6 +392,12 @@ export type MineState = {
    *  revealed and not yet drunk — or null. It stays until used:
    *  settle and day rollovers never clear it. */
   poolFace: number | null;
+  /** The satchel bag owned (a SATCHEL_BAGS tier, v172). */
+  bagTier: number;
+  /** The haul multiplier (v172): the deepest band's BAND_MULTIPLIERS
+   *  value broken since the last sell or cave-in. Sells multiply
+   *  by it; a cave-in spends it back to ×1. */
+  haulMultiplier: number;
 };
 
 export function mineTodayString(nowMs: number = Date.now()): string {
@@ -300,6 +413,8 @@ export function defaultMineState(nowMs: number = Date.now()): MineState {
     day: mineTodayString(nowMs),
     minedToday: 0,
     poolFace: null,
+    bagTier: 0,
+    haulMultiplier: 1,
   };
 }
 
@@ -331,6 +446,14 @@ export function parseMineState(value: unknown, nowMs: number = Date.now()): Mine
     bandIndexForFace(Math.floor(v.poolFace)) === 3
       ? Math.floor(v.poolFace)
       : null;
+  // v172 fields: a v170-era record carries neither — the bag is the
+  // starter Canvas and the haul stands at ×1. A legacy satchel that
+  // already holds more than the Canvas Bag's 20 is KEPT whole
+  // (grandfathered); it just can't grow until it's sold down.
+  const haulMultiplier =
+    typeof v.haulMultiplier === "number" && BAND_MULTIPLIERS.includes(v.haulMultiplier)
+      ? v.haulMultiplier
+      : 1;
   return {
     pickTier: Math.min(Math.max(Math.floor(typeof v.pickTier === "number" ? v.pickTier : 0) || 0, 0), MAX_PICK_TIER),
     satchel: {
@@ -342,6 +465,8 @@ export function parseMineState(value: unknown, nowMs: number = Date.now()): Mine
     day: typeof v.day === "string" && v.day ? v.day : base.day,
     minedToday: cleanCount(v.minedToday),
     poolFace,
+    bagTier: Math.min(Math.max(Math.floor(typeof v.bagTier === "number" ? v.bagTier : 0) || 0, 0), MAX_BAG_TIER),
+    haulMultiplier,
   };
 }
 
@@ -460,13 +585,17 @@ export type MineTapOutcome =
   | { kind: "collapse"; buried: Satchel; bandIndex: number }
   | { kind: "locked"; requiredPick: number }
   | { kind: "resting"; readyAt: number }
-  | { kind: "cap" };
+  | { kind: "cap" }
+  | { kind: "full" };
 
 /**
  * One tap on a face. Settles first (timestamps, never timers), then:
  * locked when the pick is under the band's tier, resting while a
- * mined-out face regrows, cap when the day's faces are spent — else a
- * hit, and the breaking hit pays the yield into the satchel.
+ * mined-out face regrows, cap when the day's faces are spent, full
+ * when the satchel bag has no room left (v172 — the swing is refused
+ * before it can damage anything) — else a hit, and the breaking hit
+ * pays the yield into the satchel and raises the haul multiplier to
+ * the band's rate.
  *
  * Danger (v170): a hit on an ALREADY-CRACKED face in an unstable band
  * first rolls `collapseRoll` against the band's collapse chance — a
@@ -504,15 +633,23 @@ export function mineTap(
   if (state.minedToday >= DAILY_FACE_CAP) {
     return { state, outcome: { kind: "cap" } };
   }
+  // A full bag refuses the swing outright (v172): no damage, no
+  // collapse roll — the pick never leaves his shoulder. Haul the
+  // satchel up to the Mouth and sell before digging again.
+  if (satchelIsFull(state)) {
+    return { state, outcome: { kind: "full" } };
+  }
 
   // Cave-in: only a face already carrying cracks can come down, and
   // only in the unstable bands. The first crack was the warning.
+  // The fall spends the haul multiplier too (v172): whatever the
+  // deep rock promised, the satchel that survives sells at ×1.
   if (face.hitsLeft != null && collapseRoll < collapseChanceFor(bandIndex)) {
     const { kept, buried } = burySatchel(state.satchel);
     const faces = state.faces.slice();
     faces[idx] = { hitsLeft: null, minedAt: nowMs };
     return {
-      state: { ...state, faces, satchel: kept, minedToday: state.minedToday + 1 },
+      state: { ...state, faces, satchel: kept, minedToday: state.minedToday + 1, haulMultiplier: 1 },
       outcome: { kind: "collapse", buried, bandIndex },
     };
   }
@@ -550,6 +687,10 @@ export function mineTap(
       satchel,
       minedToday: state.minedToday + 1,
       poolFace: poolRevealed ? idx : state.poolFace,
+      // Breaking deep rock raises the whole haul (v172): the
+      // multiplier tracks the deepest band broken since the last
+      // sell or cave-in, and never steps back down on its own.
+      haulMultiplier: Math.max(state.haulMultiplier, bandMultiplier(bandIndex)),
     },
     outcome: { kind: "broke", yield: y, rich, poolRevealed },
   };
@@ -557,11 +698,17 @@ export function mineTap(
 
 // ---- Selling ------------------------------------------------------------------
 
-/** Empty the satchel; returns the coin total for the ledger. */
+/**
+ * Empty the satchel at the Mouth counter — the ONLY place ore
+ * becomes coins (v172; the cave itself sells nothing). The total is
+ * the satchel's face value at the haul multiplier, rounded to whole
+ * coins, and selling banks the run: the multiplier resets to ×1
+ * for the next descent. Returns the coin total for the ledger.
+ */
 export function applySellAll(state: MineState): { state: MineState; coins: number } {
-  const coins = satchelValue(state.satchel);
+  const coins = haulValue(state);
   if (coins <= 0) return { state, coins: 0 };
-  return { state: { ...state, satchel: emptySatchel() }, coins };
+  return { state: { ...state, satchel: emptySatchel(), haulMultiplier: 1 }, coins };
 }
 
 // ---- Storage ------------------------------------------------------------------
@@ -590,7 +737,9 @@ export async function loadMineState(nowMs: number = Date.now()): Promise<MineSta
 /**
  * The prestige reset, mirroring the gear precedent in performPrestige:
  * owned gear resets, so does the pickaxe — back to Wood, satchel empty,
- * every face whole. Called by lib/prestige's performPrestige.
+ * every face whole, and (v172) the bag back to the starter Canvas
+ * with the haul multiplier at ×1 — all of it rides the default state.
+ * Called by lib/prestige's performPrestige.
  */
 export async function resetMineForPrestige(nowMs: number = Date.now()): Promise<void> {
   await saveMineState(defaultMineState(nowMs));

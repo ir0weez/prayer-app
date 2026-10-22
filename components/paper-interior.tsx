@@ -718,6 +718,68 @@ export function PaperSeatedDiner({
 }
 
 /* ------------------------------------------------------------------ */
+/* The hero, SEATED — the diner's profile pose in the hero's own      */
+/* saved look (v172, for the mine Mouth: he sits by the hearth).      */
+/* Same sources as PaperHeroFigure: the pawn's hair color and style,  */
+/* his beard at its live grown length, his shirt — never armor. The   */
+/* figure itself is still; the SCREEN breathes it (a calm sine sway)  */
+/* so rest reads as rest, not as the diners' idle bob.                */
+/* ------------------------------------------------------------------ */
+export const PAPER_SEATED_HERO_W = FIGURE_W;
+export const PAPER_SEATED_HERO_H = FIGURE_H;
+
+export function PaperSeatedHero({ pawn, unit }: { pawn: CustomPawn; unit: number }) {
+  const skin = "#EFC39A";
+  const hair = pawn.hairColor || "#6B4423";
+  const style = pawn.hairStyle;
+  const bald = style === "bald";
+  const beardLength = pawn.gender === "male" ? beardGrowthFor(pawn) : 0;
+  const beardColor = pawn.beardStyle === "heavenly" ? "#E8E4DA" : hair;
+  const w = PAPER_SEATED_HERO_W * unit;
+  const h = PAPER_SEATED_HERO_H * unit;
+  return (
+    <Svg width={w} height={h} viewBox={`0 0 ${PAPER_SEATED_HERO_W} ${PAPER_SEATED_HERO_H}`}>
+      {/* long hair falls behind everything — a wide panel down the back */}
+      {(style === "long" || style === "wavy" || style === "lob" || style === "glorymane") && (
+        <Rect x={3.1} y={2.2} width={2.5} height={7.8} rx={1.2} fill={hair} />
+      )}
+      {/* thigh, shin, shoe — the seated leg, knee up toward the fire */}
+      <Rect x={5.0} y={10.3} width={5.6} height={1.9} rx={0.95} fill="#3E4A5C" />
+      <Rect x={9.3} y={11.4} width={1.5} height={1.9} rx={0.6} fill="#3E4A5C" />
+      <Ellipse cx={10.7} cy={13.3} rx={1.5} ry={0.6} fill="#3A2A1C" />
+      {/* torso, settled back a breath — at rest, not at a table */}
+      <Rect x={2.9} y={6.4} width={4.9} height={4.6} rx={1.6} fill={pawn.bodyColor} />
+      {/* arm resting down along the thigh, hand loose at the knee */}
+      <Rect x={5.6} y={7.8} width={3.4} height={1.7} rx={0.85} fill={pawn.bodyColor} transform="rotate(24 5.6 7.8)" />
+      <Circle cx={8.9} cy={9.9} r={0.85} fill={skin} />
+      {/* neck + head */}
+      <Rect x={5.3} y={5.6} width={1.5} height={1.3} fill={skin} />
+      {!bald && <Circle cx={5.9} cy={2.9} r={3.05} fill={hair} />}
+      {(style === "bun" || style === "highbun") && <Circle cx={4.05} cy={0.8} r={1.15} fill={hair} />}
+      <Circle cx={6.4} cy={3.35} r={2.8} fill={skin} />
+      {!bald && hairClipDef("paper-seated-hero-hairclip", 6.4, 3.35, 2.8, style === "buzz")}
+      {!bald && paperHairCapProfile({ cx: 6.4, cy: 3.35, r: 2.8, color: hair, clipId: "paper-seated-hero-hairclip" })}
+      {bald && <Ellipse cx={5.7} cy={1.65} rx={1.15} ry={0.5} fill="#FFFFFF" opacity={0.38} transform="rotate(-18 5.7 1.65)" />}
+      {/* face: one kind eye, a small rested smile, a rosy cheek —
+          the fire's warmth on him */}
+      <Circle cx={8.45} cy={3.4} r={0.34} fill={PAPER_INK} />
+      <Path d="M8.0 4.7 Q8.65 5.15 9.2 4.65" stroke={PAPER_INK} strokeWidth={0.32} fill="none" strokeLinecap="round" />
+      <Circle cx={7.8} cy={4.55} r={0.5} fill="#FF7BAC" opacity={0.5} />
+      {/* his beard, in profile, at its live grown length */}
+      {paperBeardProfile({
+        cx: 6.4,
+        cy: 3.35,
+        r: 2.8,
+        style: pawn.beardStyle,
+        growth: beardLength,
+        color: beardColor,
+        clipId: "paper-seated-hero-beardclip",
+      })}
+    </Svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* The hero, standing — a paper figure in his normal clothes (the      */
 /* gear rule: armor + weapons exist ONLY in the Dark Forest; this      */
 /* figure never draws them), wearing his ACTUAL saved appearance:      */

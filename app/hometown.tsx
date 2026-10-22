@@ -8155,14 +8155,16 @@ export default function HometownScreen() {
       <View style={{ alignItems: "center", marginBottom: 16 }}>
         {/* The Mountain (v168): the Great Peak crowns the TOP edge
             of the town map, above the grid, so no lot, road or
-            landmark moves. One tap target: the cave mouth opens the
-            mine. The mountain has no name — it should FEEL safe
-            (refuge, warm light at the door), never say so (v169).
-            Town map only — never city or school. */}
+            landmark moves. One tap target: the peak opens on the
+            cave MOUTH (v172) — the entrance setup area (rest, tool
+            check, sell the satchel) — and only from there does the
+            hero step down into the cave. The mountain has no name —
+            it should FEEL safe (refuge, warm light at the door),
+            never say so (v169). Town map only — never city or school. */}
         {activeMap === "town" && (
           <Pressable
-            onPress={() => router.push("/mine-interior")}
-            accessibilityLabel="The Mine — enter the cave"
+            onPress={() => router.push("/mine-mouth")}
+            accessibilityLabel="The Mine — the cave mouth"
             style={{ marginBottom: 10 }}
           >
             <GreatPeakArt width={gridW * cellSize} night={isNight || timeOfDay === "evening"} />

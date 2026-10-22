@@ -271,13 +271,18 @@ describe("sell all", () => {
     expect(applySellAll(state).coins).toBe(0);
   });
 
-  it("ore sells through the ledger: the mine screen's only coin path", () => {
+  it("ore sells through the ledger — at the Mouth since v172, never in the cave", () => {
+    // The sell moved up the shaft to the Mouth counter (v172); the
+    // canonical-ledger rule (v167) moved with it.
+    const mouth = readFileSync(join(process.cwd(), "app/mine-mouth.tsx"), "utf8");
+    expect(mouth).toContain("applyCoinsDelta");
+    expect(mouth).toContain("applySellAll");
+    expect(mouth).not.toContain("COINS_STORAGE_KEY");
+    expect(mouth).not.toContain("setItem(COINS");
+    // The cave itself has no coin path at all anymore.
     const screen = readFileSync(join(process.cwd(), "app/mine-interior.tsx"), "utf8");
-    expect(screen).toContain("applyCoinsDelta");
-    // The canonical-ledger rule (v167): no screen writes the coins
-    // record directly.
-    expect(screen).not.toContain("COINS_STORAGE_KEY");
-    expect(screen).not.toContain("setItem(COINS");
+    expect(screen).not.toContain("applyCoinsDelta");
+    expect(screen).not.toContain("applySellAll");
   });
 });
 
@@ -338,7 +343,9 @@ describe("the mountain on the town map", () => {
     const src = readFileSync(join(process.cwd(), "app/hometown.tsx"), "utf8");
     expect(src).toContain('activeMap === "town"');
     expect(src).toContain("GreatPeakArt");
-    expect(src).toContain('router.push("/mine-interior")');
+    // v172: the peak opens on the Mouth; the cave is entered from there.
+    expect(src).toContain('router.push("/mine-mouth")');
+    expect(src).not.toContain('router.push("/mine-interior")');
     // Town only: the peak must not leak onto city or school — the one
     // render is gated on the town map.
     const peakAt = src.indexOf("<GreatPeakArt");

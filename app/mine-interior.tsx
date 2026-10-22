@@ -10,9 +10,15 @@
 // open). The pickaxe ladder climbs Wood → Stone → Iron → Gold with
 // coins, then Diamond behind prestige and the Crown Pick behind a
 // Crown — bought at the Tool Shop in town (v170); the strip here only
-// shows what the hero carries. Ore sells for coins through the
-// canonical ledger, and only through it. Prayer stays the town's
-// engine; the mine is a supplement.
+// shows what the hero carries. Prayer stays the town's engine; the
+// mine is a supplement.
+//
+// The haul (v172): the cave SELLS NOTHING — ore converts to coins
+// only at the Mouth, up the shaft, where the satchel also banks its
+// HAUL MULTIPLIER (the deepest band broken since the last sell:
+// ×1 / ×1.5 / ×2 / ×3). The satchel has a bag's capacity now, too:
+// full means the digging stops until it's hauled up and sold. A
+// cave-in spends the multiplier along with the buried ore.
 // No emojis — SVG paper art and MaterialIcons only.
 //
 // Danger and reward (v170): the Gold band and the Deep are unstable —
@@ -26,6 +32,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Svg, { Circle, Path, Polygon, Rect } from "react-native-svg";
@@ -33,7 +40,6 @@ import { InteriorHeader } from "@/components/interior-shell";
 import { PaperGlowDisc, PaperPulse } from "@/components/paper-interior";
 import { pickPeople } from "@/components/activity-figures";
 import {
-  applyCoinsDelta,
   formatCoins,
   loadCoinsRecord,
   prayedTodayPeople,
@@ -73,18 +79,22 @@ import {
   ORE_KINDS,
   ORE_PRICES,
   PICKAXES,
-  applySellAll,
+  bagFor,
   bandIndexForFace,
+  bandMultiplier,
   canPickBand,
   effectiveHits,
   faceRumbles,
   faceStatus,
+  formatHaulMultiplier,
+  haulValue,
   isRichFace,
   loadMineState,
   mineTap,
   pickGateMet,
   pickaxeFor,
-  satchelValue,
+  satchelCapacity,
+  satchelCount,
   saveMineState,
   spendPool,
   type MineGates,
@@ -93,7 +103,6 @@ import {
 } from "@/lib/mountain";
 
 const BG = "#20142E";
-const INK = "#2A1A33";
 const PANEL = "#2E2140";
 const CREAM = "#F7F0DE";
 const DIM = "#B8A9CC";
@@ -254,6 +263,7 @@ function DressingMiner({ person }: { person: PrayedPerson }) {
 /* ------------------------------------------------------------------ */
 
 export default function MineInteriorScreen() {
+  const router = useRouter();
   const [mine, setMine] = useState<MineState | null>(null);
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [gates, setGates] = useState<MineGates>({ totalPrestiges: 0, crowns: 0 });
@@ -374,11 +384,14 @@ export default function MineInteriorScreen() {
       setCaveInMsg(null); // digging again — a new trip
       const now = Date.now();
       const wasCracked = mine.faces[faceIndex]?.hitsLeft != null;
+      const haulBefore = mine.haulMultiplier;
       const { state, outcome } = mineTap(mine, faceIndex, now, Math.random(), Math.random(), Math.random());
       setMine(state);
       void saveMineState(state);
       const band = MINE_BANDS[bandIndexForFace(faceIndex)];
-      if (outcome.kind === "collapse") {
+      if (outcome.kind === "full") {
+        showToast("Your bag is full — haul it up to the Mouth.");
+      } else if (outcome.kind === "collapse") {
         // The hero takes the hit through the one HP store (v170):
         // 20% of max, and a hit that would drop him to zero wakes
         // him at home at the defeat floor instead — never worse.
@@ -397,6 +410,9 @@ export default function MineInteriorScreen() {
         const msg =
           `The ${band.name} face came down.` +
           (buriedParts.length ? ` Buried from your satchel: ${buriedParts.join(", ")}.` : "") +
+          (haulBefore > 1
+            ? ` And the haul's ×${formatHaulMultiplier(haulBefore)} promise is buried with it — what survives sells at ×1.`
+            : "") +
           ` ${hpLine}`;
         setCaveInMsg(msg);
         scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -444,25 +460,28 @@ export default function MineInteriorScreen() {
     [mine, heroHealth, effMax, handleDrinkPool, showToast]
   );
 
-  const handleSellAll = useCallback(() => {
-    if (!mine) return;
-    const { state, coins: total } = applySellAll(mine);
-    if (total <= 0) return;
-    void (async () => {
-      const next = await applyCoinsDelta(total, "cent");
-      setCoins(next);
-      setMine(state);
-      await saveMineState(state);
-      showToast(`Satchel sold — +${formatCoins(total)} coins`);
-    })();
-  }, [mine, showToast]);
-
   const dressingMiner = pickPeople(people, "mine|dressing", 1)[0];
-  const sellTotal = mine ? satchelValue(mine.satchel) : 0;
+  const bagCount = mine ? satchelCount(mine.satchel) : 0;
+  const bagCap = mine ? satchelCapacity(mine) : 0;
+  const haulWorth = mine ? haulValue(mine) : 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <InteriorHeader icon="terrain" iconColor={GOLD} title={MINE_TITLE} coins={coins} bg={BG} textColor={CREAM} />
+      {mine && (
+        <View style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginBottom: 10, backgroundColor: "#3B2C14", borderColor: GOLD, borderWidth: 1, borderRadius: 12, paddingVertical: 7, paddingHorizontal: 12 }}>
+          <MaterialIcons name="trending-up" size={16} color="#FDE68A" />
+          <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 13, marginLeft: 7 }}>
+            Haul ×{formatHaulMultiplier(mine.haulMultiplier)}
+          </Text>
+          <Text style={{ color: DIM, fontSize: 11.5, marginLeft: 8, flex: 1 }}>
+            the deepest band worked sets the rate — it banks at the Mouth, a cave-in spends it
+          </Text>
+          <Text style={{ color: bagCount >= bagCap ? "#FCA5A5" : DIM, fontWeight: "800", fontSize: 12 }}>
+            {bagCount}/{bagCap}
+          </Text>
+        </View>
+      )}
       <ScrollView ref={scrollRef} contentContainerStyle={{ paddingBottom: 40 }}>
         <Text style={{ color: DIM, fontSize: 13, lineHeight: 19, marginHorizontal: 16, marginBottom: 12 }}>
           Come in out of the wild — the lanterns are lit, the stone is warm, and the rock provides. Tap a face to
@@ -508,9 +527,11 @@ export default function MineInteriorScreen() {
                 const locked = !canPickBand(mine, bandIndex * FACES_PER_BAND);
                 return (
                   <View key={band.id} style={{ backgroundColor: band.color, height: 84, position: "relative", justifyContent: "center" }}>
-                    {/* rotated band label, as in the mockup */}
+                    {/* rotated band label, as in the mockup — with the
+                        band's haul rate (v172): this is what working
+                        this depth does to everything in the bag */}
                     <View style={{ position: "absolute", left: -29, top: 33, width: 76, alignItems: "center", transform: [{ rotate: "-90deg" }] }}>
-                      <Text style={{ color: CREAM, fontSize: 9, fontWeight: "bold", letterSpacing: 2.2, opacity: 0.92 }}>{band.name.toUpperCase()}</Text>
+                      <Text style={{ color: CREAM, fontSize: 9, fontWeight: "bold", letterSpacing: 2.2, opacity: 0.92 }}>{band.name.toUpperCase()} ×{formatHaulMultiplier(bandMultiplier(bandIndex))}</Text>
                     </View>
                     <View style={{ flexDirection: "row", justifyContent: "space-evenly", marginLeft: 22, marginRight: bandIndex === 1 && dressingMiner ? 30 : 4 }}>
                       {Array.from({ length: FACES_PER_BAND }).map((_, slot) => {
@@ -648,7 +669,8 @@ export default function MineInteriorScreen() {
           </View>
         )}
 
-        {/* the satchel */}
+        {/* the satchel — carried, never sold down here (v172):
+            ore becomes coins only at the Mouth, up the shaft */}
         {mine && (
           <>
             <View style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginTop: 14, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }}>
@@ -662,16 +684,19 @@ export default function MineInteriorScreen() {
               ))}
               <View style={{ flex: 1 }} />
               <Pressable
-                onPress={handleSellAll}
-                disabled={sellTotal <= 0}
-                style={{ backgroundColor: sellTotal > 0 ? GOLD : "rgba(255,255,255,.12)", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}
+                onPress={() => router.back()}
+                style={{ backgroundColor: "rgba(201,150,60,.25)", borderWidth: 1, borderColor: GOLD, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}
               >
-                <Text style={{ color: sellTotal > 0 ? INK : DIM, fontWeight: "800", fontSize: 12.5 }}>
-                  Sell all{sellTotal > 0 ? ` · ${formatCoins(sellTotal)}` : ""}
+                <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 12.5 }}>
+                  Sell at the Mouth{haulWorth > 0 ? ` · ${formatCoins(haulWorth)}` : ""}
                 </Text>
               </Pressable>
             </View>
-            <Text style={{ color: DIM, fontSize: 12, textAlign: "center", marginTop: 10 }}>
+            <Text style={{ color: bagCount >= bagCap ? "#FCA5A5" : DIM, fontSize: 12, textAlign: "center", marginTop: 10, fontWeight: bagCount >= bagCap ? "800" : "400" }}>
+              {bagFor(mine.bagTier).name}: {bagCount} / {bagCap} pieces
+              {bagCount >= bagCap ? " — full. Haul it up to the Mouth to sell." : ""}
+            </Text>
+            <Text style={{ color: DIM, fontSize: 12, textAlign: "center", marginTop: 6 }}>
               Faces mined today: {mine.minedToday} / {DAILY_FACE_CAP} · Your pick: {pickaxeFor(mine.pickTier).name}
               {heroHealth && effMax > 0 ? ` · Hero HP ${heroHealth.hp ?? effMax}/${effMax}` : ""}
             </Text>

@@ -1,7 +1,7 @@
-// The Mountain — "Safety" — and its mine (v168).
+// The Mountain and its mine (v168; naming corrected v169).
 //
 // Jonathan's pitch (2026-10-21): a mountain at the top of the town
-// labeled "safety", a cave you can mine for iron, gold and diamonds,
+// that says "safety", a cave you can mine for iron, gold and diamonds,
 // tools you upgrade to reach the expensive stuff, the top of the
 // ladder behind prestiging. Design approved from mockups the same
 // day: the Great Peak on the town map + the Dig Wall inside.
@@ -347,17 +347,36 @@ describe("the mountain on the town map", () => {
     expect(peakAt - gateAt).toBeLessThan(600);
   });
 
-  it("the peak carries the etched name and the lantern-lit cave", () => {
+  it("the peak carries NO name — the safe feeling is rendered, not spelled (v169)", () => {
     const src = readFileSync(join(process.cwd(), "components/great-peak.tsx"), "utf8");
-    expect(src).toContain("SAFETY");
+    // his correction (2026-10-22): "safety" is a vibe, not a name —
+    // the etched word must never come back
+    expect(src).not.toContain("SAFETY");
+    expect(src).not.toContain("SvgText");
+    expect(src).not.toContain("Safety");
     expect(src).toContain("PaperCanvas");
     expect(src).toContain("night"); // day/night treatment is wired
+    // the arch stays, plain carved stone with its trim lines
+    expect(src).toContain("ARCH_TRIM");
+    // a carved flame MOTIF (an image, not words) sits in the arch
+    expect(src).toContain("CARVE");
+    // the shelter rendering: hearth glow breathing just inside the
+    // entrance + warm light pooled on the ground in front of it
+    expect(src).toContain("PaperPulse");
+    expect(src).toContain("PaperGlowDisc");
+    expect(src).toContain("HEARTH");
   });
 
-  it("the mine screen titles itself from the shared constants", () => {
+  it("the mine screen titles itself from the shared constants — plainly, no name", () => {
     const lib = readFileSync(join(process.cwd(), "lib/mountain.ts"), "utf8");
-    expect(lib).toContain('MOUNTAIN_NAME = "Safety"');
+    expect(lib).toContain('MINE_TITLE = "The Mine"');
+    expect(lib).not.toContain('MOUNTAIN_NAME = "Safety"');
+    expect(lib).not.toContain('"Safety"');
     const screen = readFileSync(join(process.cwd(), "app/mine-interior.tsx"), "utf8");
     expect(screen).toContain("MINE_TITLE");
+    expect(screen).not.toContain("Inside Safety");
+    // the entrance shaft carries the same warm welcome inside
+    expect(screen).toContain("PaperGlowDisc");
+    expect(screen).toContain("PaperPulse");
   });
 });

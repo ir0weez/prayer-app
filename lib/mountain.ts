@@ -1,4 +1,4 @@
-// The Mountain — "Safety" — and the mine inside it (v168).
+// The Mountain and the mine inside it (v168; naming corrected v169).
 //
 // Jonathan's pitch (2026-10-21): "there needs to be a mountain at the
 // top. Something that says 'safety'. Perhaps having [it] can bring you
@@ -7,9 +7,17 @@
 // expensive stuff, and that will require prestiging... Think Minecraft,
 // except obviously less explorable."
 //
+// NAMING (his correction, 2026-10-22): "When I said the cave should
+// say safety, I meant the vibe should feel safe." That word is the
+// intended FEELING — refuge, shelter, welcome — never a literal name.
+// v168 etched the word into the arch and named the place; v169 took
+// the word back out. The mountain and its mine carry NO name beyond
+// the plain description below, and the safe feeling is rendered in
+// the art (warm light at the cave mouth, a hearth glow inside).
+// Future builds must not re-add the word as a name anywhere here.
+//
 // Design approved from the mockups the same day: the Great Peak crowns
-// the town map (components/great-peak.tsx), SAFETY etched into the
-// stone arch over the cave mouth; inside is the Dig Wall — four strata
+// the town map (components/great-peak.tsx); inside is the Dig Wall — four strata
 // of tappable rock faces (Stone / Iron / Gold / The Deep). This lib is
 // the mine's whole logic: pure functions over a small stored record.
 //
@@ -34,10 +42,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const MINE_KEY = "prayercircle.hometown.mine.v1";
 
-/** The mountain's name — his word, etched over the cave door. */
-export const MOUNTAIN_NAME = "Safety";
-/** The mine screen's title (the mockups' "Inside the Mine"). */
-export const MINE_TITLE = "Safety — The Mine";
+/** The mine screen's title — plain and descriptive, on purpose.
+ *  The mountain has no name; see the naming note at the top. */
+export const MINE_TITLE = "The Mine";
 
 // ---- Ore ----------------------------------------------------------------
 

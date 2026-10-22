@@ -1,6 +1,9 @@
-// The Mine inside Safety — the Dig Wall (v168).
+// The Mine — the Dig Wall (v168; warmth pass v169).
 //
-// Through the cave mouth under the Great Peak: four strata of rock
+// Through the cave mouth under the Great Peak — in out of the wild,
+// lantern light on warm stone (the entrance shaft glows, v169: the
+// cave should FEEL safe, a refuge, never a dungeon — and it has no
+// name beyond "The Mine"): four strata of rock
 // faces (Stone / Iron / Gold / The Deep), each a tap. Faces crack as
 // you work them, break into ore for the satchel, and settle back over
 // a few hours — by timestamp, never by timer (lib/mountain settles on
@@ -16,6 +19,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Svg, { Circle, Path, Polygon, Rect } from "react-native-svg";
 import { InteriorHeader } from "@/components/interior-shell";
+import { PaperGlowDisc, PaperPulse } from "@/components/paper-interior";
 import { pickPeople } from "@/components/activity-figures";
 import {
   applyCoinsDelta,
@@ -306,8 +310,9 @@ export default function MineInteriorScreen() {
       <InteriorHeader icon="terrain" iconColor={GOLD} title={MINE_TITLE} coins={coins} bg={BG} textColor={CREAM} />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <Text style={{ color: DIM, fontSize: 13, lineHeight: 19, marginHorizontal: 16, marginBottom: 12 }}>
-          Inside Safety, the rock provides. Tap a face to mine it with your pick — iron near the top, gold deeper,
-          diamonds sleeping in the Deep. Faces settle back over a few hours.
+          Come in out of the wild — the lanterns are lit, the stone is warm, and the rock provides. Tap a face to
+          mine it with your pick — iron near the top, gold deeper, diamonds sleeping in the Deep. Faces settle
+          back over a few hours.
         </Text>
 
         {toast && (
@@ -322,9 +327,19 @@ export default function MineInteriorScreen() {
           <View style={{ flexDirection: "row", marginHorizontal: 16 }}>
             {/* the dig wall */}
             <View style={{ flex: 1, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }}>
-              {/* surface strip — grass and the shaft you came down */}
+              {/* surface strip — grass and the shaft you came down.
+                  The shaft mouth carries the cave's welcome (v169):
+                  warm light pooled where you step in, breathing on
+                  the kit's sine — coming in out of the wild, not
+                  descending into a dungeon. */}
               <View style={{ height: 20, backgroundColor: "#7CB35C", position: "relative" }}>
                 <View style={{ position: "absolute", left: "42%", top: 8, width: 34, height: 12, backgroundColor: "#241430" }} />
+                <PaperPulse duration={2800} min={0.6} max={1} style={{ position: "absolute", left: "42%", marginLeft: -14, top: -16 }}>
+                  <PaperGlowDisc size={62} color="#FFB84D" opacity={0.65} />
+                </PaperPulse>
+                {/* two lantern dots keeping the shaft mouth */}
+                <View style={{ position: "absolute", left: "42%", marginLeft: -5, top: 9, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFD98A" }} />
+                <View style={{ position: "absolute", left: "42%", marginLeft: 34, top: 9, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFD98A" }} />
               </View>
               {MINE_BANDS.map((band, bandIndex) => {
                 const locked = !canPickBand(mine, bandIndex * FACES_PER_BAND);

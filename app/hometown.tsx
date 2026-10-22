@@ -8142,14 +8142,16 @@ export default function HometownScreen() {
         </SeasonalBorder>
       ) : (
       <View style={{ alignItems: "center", marginBottom: 16 }}>
-        {/* The Mountain — "Safety" (v168): the Great Peak crowns the
-            TOP edge of the town map, above the grid, so no lot, road
-            or landmark moves. One tap target: the cave mouth opens
-            the mine. Town map only — never city or school. */}
+        {/* The Mountain (v168): the Great Peak crowns the TOP edge
+            of the town map, above the grid, so no lot, road or
+            landmark moves. One tap target: the cave mouth opens the
+            mine. The mountain has no name — it should FEEL safe
+            (refuge, warm light at the door), never say so (v169).
+            Town map only — never city or school. */}
         {activeMap === "town" && (
           <Pressable
             onPress={() => router.push("/mine-interior")}
-            accessibilityLabel="Safety — enter the mine"
+            accessibilityLabel="The Mine — enter the cave"
             style={{ marginBottom: 10 }}
           >
             <GreatPeakArt width={gridW * cellSize} night={isNight || timeOfDay === "evening"} />

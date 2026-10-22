@@ -302,6 +302,7 @@ import {
   type VillagerLocations,
 } from "@/lib/villager-locations";
 import { SeasonalBorder } from "@/components/seasonal-border";
+import { GreatPeakArt } from "@/components/great-peak";
 import { MapSigns } from "@/components/map-signs";
 import { MissionField } from "@/components/mission-field";
 import { DarkForest } from "@/components/dark-forest";
@@ -8141,6 +8142,19 @@ export default function HometownScreen() {
         </SeasonalBorder>
       ) : (
       <View style={{ alignItems: "center", marginBottom: 16 }}>
+        {/* The Mountain — "Safety" (v168): the Great Peak crowns the
+            TOP edge of the town map, above the grid, so no lot, road
+            or landmark moves. One tap target: the cave mouth opens
+            the mine. Town map only — never city or school. */}
+        {activeMap === "town" && (
+          <Pressable
+            onPress={() => router.push("/mine-interior")}
+            accessibilityLabel="Safety — enter the mine"
+            style={{ marginBottom: 10 }}
+          >
+            <GreatPeakArt width={gridW * cellSize} night={isNight || timeOfDay === "evening"} />
+          </Pressable>
+        )}
         <SeasonalBorder
           variant={activeMap === "city" ? "city" : activeMap === "school" ? "school" : "town"}
           lighthouse={

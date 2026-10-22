@@ -46,6 +46,7 @@ import {
   type TownState,
 } from "./hometown";
 import { GEAR_EQUIPPED_KEY, GEAR_INVENTORY_KEY, defaultEquipped } from "./gear";
+import { resetMineForPrestige } from "./mountain";
 import { sanitizeBadgeIds, type BadgeId } from "./badges";
 
 export const PRESTIGE_LEVEL_KEY = "prayercircle.hometown.prestige.v1";
@@ -354,8 +355,9 @@ export type PerformPrestigeResult = {
  * stock, purchased city plots, the spendable coin balance, the City
  * unlock (bought again at the post-prestige price), and ALL owned +
  * equipped gear (weapons, armor, purchased clothing) — the gear resets
- * too. Crown-gated hairstyles and beards are NOT gear: they belong to the
- * Crown and stay.
+ * too. The mine follows the gear: the pickaxe ladder restarts at Wood
+ * and the ore satchel empties. Crown-gated hairstyles and beards are
+ * NOT gear: they belong to the Crown and stay.
  * KEPT: lifetime earnings (milestones), prayer streak, XP/level,
  * collections, Garden of Remembrance, prayer villagers, villager data,
  * barbershop styles, the other map unlocks, fast progress — and BADGES,
@@ -412,6 +414,13 @@ export async function performPrestige(fasts: PersonalFast[]): Promise<PerformPre
   try {
     await AsyncStorage.setItem(GEAR_INVENTORY_KEY, JSON.stringify([]));
     await AsyncStorage.setItem(GEAR_EQUIPPED_KEY, JSON.stringify(defaultEquipped()));
+  } catch {}
+
+  // The mine follows the same gear precedent (v168): the pickaxe
+  // ladder starts over at Wood and the satchel empties — sell your
+  // ore before you Begin Again.
+  try {
+    await resetMineForPrestige();
   } catch {}
 
   let unlockedMaps: TownMapId[] = ["town"];

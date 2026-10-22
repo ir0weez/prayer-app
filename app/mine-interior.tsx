@@ -1,5 +1,5 @@
 // The Mine — the Descent (v168; warmth pass v169; danger v170;
-// the Mouth v172; the Deep Descent v175).
+// the Mouth v172; the Deep Descent v175; switchback descent v178).
 //
 // Through the cave mouth under the Great Peak — in out of the wild,
 // lantern light on warm stone (the entrance shaft glows, v169: the
@@ -95,6 +95,8 @@ import {
   type ForestEnergy,
 } from "@/lib/forest-energy";
 import { EnergyFlames, type SnuffState } from "@/components/energy-flames";
+import { MineDescent } from "@/components/mine-descent";
+import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import {
   BOOTS_CAVE_IN_DAMAGE_PCT,
   FACES_PER_LEVEL,
@@ -325,8 +327,17 @@ export default function MineInteriorScreen() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The level on the wall: a trip starts at the deepest opened
   // level (null = not chosen yet, follow the mine); wandering among
-  // opened levels is free.
+  // opened levels is free — by the switchback descent (v178), not
+  // by arrows: the Descent button opens the shaft, and a tap on a
+  // lit landing walks the hero there.
   const [viewLevel, setViewLevel] = useState<number | null>(null);
+  const [descentOpen, setDescentOpen] = useState(false);
+  // When a level cracks open, the descent opens with him standing
+  // where he dug, and walks him down to the new landing (v178).
+  const [descentAutoWalk, setDescentAutoWalk] = useState<number | null>(null);
+  // The hero's own paper figure, for the descent (normal clothes —
+  // no armor outside the forest, as ever).
+  const [pawn, setPawn] = useState<CustomPawn | null>(null);
   // Forest energy — the flames (lib/forest-energy): the same daily
   // pool the Dark Forest fights on. One flame per block broken.
   const [flames, setFlames] = useState<ForestEnergy | null>(null);
@@ -365,6 +376,9 @@ export default function MineInteriorScreen() {
     setCoins(c);
     setGates({ totalPrestiges: pState.totalPrestiges, crowns });
     setPeople(ppl);
+    try {
+      setPawn(await loadCustomPawn());
+    } catch {}
     try {
       setFlames(await loadForestEnergy());
     } catch {}
@@ -524,6 +538,13 @@ export default function MineInteriorScreen() {
               (outcome.charmBonus ? " — the Charm finds one more." : "") +
               (outcome.levelOpened ? ` The rock gives way — Level ${outcome.levelOpened} opens below!` : "")
           );
+          if (outcome.levelOpened) {
+            // The descent opens and walks him down to the new
+            // landing (v178) — the way down is a place, and a fresh
+            // level deserves the walk, not just a toast.
+            setDescentAutoWalk(outcome.levelOpened);
+            setDescentOpen(true);
+          }
           if (outcome.poolRevealed) {
             Alert.alert(
               "Still water",
@@ -625,7 +646,8 @@ export default function MineInteriorScreen() {
           <Text style={{ color: DIM, textAlign: "center", marginTop: 24 }}>Lighting the lanterns…</Text>
         ) : (
           <>
-            {/* the level header — where he stands, and the way up/down */}
+            {/* the level header — where he stands, and the way
+                through the mountain: the Descent opens the shaft */}
             <View style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginBottom: 8 }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: CREAM, fontWeight: "900", fontSize: 17 }}>
@@ -638,18 +660,11 @@ export default function MineInteriorScreen() {
                 </Text>
               </View>
               <Pressable
-                onPress={() => setViewLevel(Math.max(1, view - 1))}
-                disabled={view <= 1}
-                style={{ backgroundColor: PANEL, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: "rgba(201,150,60,.45)", opacity: view <= 1 ? 0.4 : 1, marginRight: 8 }}
+                onPress={() => { setDescentAutoWalk(null); setDescentOpen(true); }}
+                style={{ backgroundColor: PANEL, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: "rgba(201,150,60,.45)", flexDirection: "row", alignItems: "center" }}
               >
-                <MaterialIcons name="arrow-upward" size={16} color="#FDE68A" />
-              </Pressable>
-              <Pressable
-                onPress={() => setViewLevel(Math.min(mine.deepestLevel, view + 1))}
-                disabled={view >= mine.deepestLevel}
-                style={{ backgroundColor: PANEL, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: "rgba(201,150,60,.45)", opacity: view >= mine.deepestLevel ? 0.4 : 1 }}
-              >
-                <MaterialIcons name="arrow-downward" size={16} color="#FDE68A" />
+                <MaterialIcons name="route" size={16} color="#FDE68A" />
+                <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 12.5, marginLeft: 6 }}>The Descent</Text>
               </Pressable>
             </View>
             {isFrontier && (
@@ -891,6 +906,24 @@ export default function MineInteriorScreen() {
           </>
         )}
       </ScrollView>
+      {/* the switchback descent (v178): level navigation as a place */}
+      {descentOpen && mine && (
+        <MineDescent
+          deepestLevel={mine.deepestLevel}
+          currentLevel={view}
+          pawn={pawn}
+          autoWalkTo={descentAutoWalk}
+          onArrive={(level) => {
+            setViewLevel(level);
+            setDescentOpen(false);
+            setDescentAutoWalk(null);
+          }}
+          onClose={() => {
+            setDescentOpen(false);
+            setDescentAutoWalk(null);
+          }}
+        />
+      )}
     </View>
   );
 }

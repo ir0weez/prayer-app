@@ -16,6 +16,7 @@ import {
   BUILDINGS,
   isRestaurantType,
   isUnderConstruction,
+  missionCollectRaw,
   missionCountdown,
   missionStatus,
   scaledCoins,
@@ -351,4 +352,16 @@ export function collectAllTotalCoins(rows: RosterRow[], bloodmoon: boolean): num
     (sum, r) => sum + collectPayoutCoins(r.collectCoins ?? 0, bloodmoon),
     0
   );
+}
+
+/** The exact grant for welcoming a returned field mission home — what
+ * the collect dialog shows (v171). The mission sibling of
+ * collectPayoutCoins: lib/hometown's missionCollectRaw (the economy-
+ * scaled blessing for v2 missions, the locked stored coins for pre-v171
+ * ones) with the Bloodmoon Badge's blessing on top when Jonathan holds
+ * it — the same total the hometown screen's ledger applies at collect,
+ * so the dialog's number and the balance's movement always agree. */
+export function missionPayoutCoins(mission: FieldMission, bloodmoon: boolean): number {
+  const raw = missionCollectRaw(mission);
+  return bloodmoon && raw > 0 ? raw * BLOODMOON_COIN_MULT : raw;
 }

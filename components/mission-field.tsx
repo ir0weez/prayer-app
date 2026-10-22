@@ -18,6 +18,7 @@ import {
   type MissionDurationId,
   formatCoins,
 } from "@/lib/hometown";
+import { missionPayoutCoins } from "@/lib/villager-roster";
 import type { PageTheme, TimeOfDay } from "@/lib/daynight";
 import { PaperFigureGlyph } from "@/components/paper-interior";
 import type { PaperDinerLook } from "@/lib/paper-interior";
@@ -27,6 +28,9 @@ export type MissionFieldProps = {
   missions: FieldMission[];
   /** Prayer lights available to send (prayed for today, not already out). */
   availableLights: { personId: string; name: string; accentColor?: string }[];
+  /** Whether Jonathan holds the Bloodmoon Badge — the collect dialog
+   *  shows the exact grant, blessing included (v171). */
+  bloodmoonHeld?: boolean;
   timeOfDay: TimeOfDay;
   pt: PageTheme;
   onSend: (personId: string, duration: MissionDurationId) => void;
@@ -182,7 +186,7 @@ function safeDurationLabel(duration: unknown): string {
 }
 
 export function MissionField(props: MissionFieldProps) {
-  const { missions, availableLights, timeOfDay, pt, onSend, onCollect } = props;
+  const { missions, availableLights, bloodmoonHeld, timeOfDay, pt, onSend, onCollect } = props;
   const [sendVisible, setSendVisible] = useState(false);
   const [collectMission, setCollectMission] = useState<FieldMission | null>(null);
   const [pickedPersonId, setPickedPersonId] = useState<string | null>(null);
@@ -527,7 +531,7 @@ export function MissionField(props: MissionFieldProps) {
               }}
             >
               <Text style={{ fontWeight: "800", fontSize: 16, color: "#92400E" }}>
-                +{typeof collectMission?.coins === "number" ? formatCoins(collectMission.coins) : "0.00"} coins{collectMission && typeof collectMission.xp === "number" && collectMission.xp > 0 ? ` · +${collectMission.xp} XP` : ""}
+                +{collectMission ? formatCoins(missionPayoutCoins(collectMission, bloodmoonHeld ?? false)) : "0.00"} coins{collectMission && typeof collectMission.xp === "number" && collectMission.xp > 0 ? ` · +${collectMission.xp} XP` : ""}
               </Text>
               {collectMission?.verse && typeof collectMission.verse.text === "string" && (
                 <Text style={{ fontSize: 12, color: "#B45309", textAlign: "center", marginTop: 8, fontStyle: "italic" }}>

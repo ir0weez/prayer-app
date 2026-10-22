@@ -1688,6 +1688,12 @@ export type MissionDuration = {
   id: MissionDurationId;
   label: string;
   hours: number;
+  /** Length premium over the plain job hourly rate (v171): the light is
+   *  off the map and unavailable for the whole stretch, so longer trips
+   *  pay MORE per hour, not less — 1h x1.0, 4h x1.25, 8h x1.5. */
+  premium: number;
+  /** Rolled blessing range (raw, pre-scale). Derived from the anchor
+   *  formula — see missionBlessingRange — never hand-set. */
   coinsMin: number;
   coinsMax: number;
   xp: number;
@@ -1696,10 +1702,76 @@ export type MissionDuration = {
   blurb: string;
 };
 
+// ---- Mission pay (v171): pegged to the job economy ---------------------
+// THE bug this kills (Jonathan, 2026-10-22): "The people sent on mission
+// trips don't make NEARLY enough money for as long as that took. I did an
+// 8h trip and got 400 coins? I give them a job and make that much in an
+// hour..." Field missions used to roll a blessing inside a small
+// hardcoded band — the 8-hour Long journey paid 300–500 flat, expected
+// value exactly the 400 he saw — paid RAW at collect, and no multiplier
+// ever touched it: not the economy scale, nothing. Per hour the old
+// bands even paid LESS the longer the trip (75/h → 50/h → 50/h), while
+// one hour of work pays the 1-hour job base (250) times the economy
+// scale, plus any banked bonuses on top.
+//
+// The rule now: a mission blessing is a RAW amount on the same footing
+// as a job's rewardCoins. Its anchor is the job hourly rate × the trip's
+// hours × a length premium, rolled ±10% at send time; the collect grants
+// scaledCoins(raw) through the hometown ledger — the exact path a
+// finished shift collected on the map takes (the screen ledger adds the
+// Bloodmoon Badge's +10% to positive deltas, same as for jobs). Mission
+// pay therefore moves with the same inputs job pay moves with and can
+// never silently fall behind again.
+
+/** Pay-formula version stamped onto missions at send time. Version 2 =
+ *  the job-anchored bands below, paid through scaledCoins at collect.
+ *  Missions sent before v171 carry no stamp: their blessing was locked
+ *  at send time under the old bands and pays its stored coins exactly. */
+export const MISSION_BLESSING_VERSION = 2;
+
+/** The job hourly rate mission pay is anchored to: the reward of the
+ *  1-hour work kinds in lib/villager-work.ts (bank-shift, restaurant-
+ *  shift, work-farm, tend-garden and restock each pay this for 1 hour).
+ *  Pinned to that table by lib/__tests__/mission-pay.test.ts — if job
+ *  pay changes, this constant (and the test) must follow. */
+export const MISSION_JOB_HOURLY_BASE = 250;
+
+/** A rolled blessing lands within ±10% of its anchor. */
+export const MISSION_BLESSING_VARIANCE = 0.1;
+
+/** The raw blessing a trip of this length is anchored to, before the
+ *  seeded ±10% roll: job hourly base × hours × length premium. */
+export function missionBlessingAnchor(durationId: MissionDurationId): number {
+  const d = MISSION_DURATION_DEFS[durationId];
+  return MISSION_JOB_HOURLY_BASE * d.hours * d.premium;
+}
+
+/** The rolled range for a duration (what the dispatch card shows). */
+export function missionBlessingRange(durationId: MissionDurationId): { min: number; max: number } {
+  const anchor = missionBlessingAnchor(durationId);
+  return {
+    min: Math.floor(anchor * (1 - MISSION_BLESSING_VARIANCE)),
+    max: Math.round(anchor * (1 + MISSION_BLESSING_VARIANCE)),
+  };
+}
+
+type MissionDurationDef = Omit<MissionDuration, "coinsMin" | "coinsMax">;
+
+const MISSION_DURATION_DEFS: Record<MissionDurationId, MissionDurationDef> = {
+  short: { id: "short", label: "Short visit", hours: 1, premium: 1, xp: 0, verseChance: 0, blurb: "A quick visit to someone nearby who needs prayer." },
+  day:   { id: "day",   label: "Day trip",    hours: 4, premium: 1.25, xp: 10, verseChance: 0.15, blurb: "A few hours out in the field, breaking bread." },
+  long:  { id: "long",  label: "Long journey", hours: 8, premium: 1.5, xp: 25, verseChance: 0.5, blurb: "A full journey to the far edge — and back changed." },
+};
+
+function missionDuration(def: MissionDurationDef): MissionDuration {
+  const range = missionBlessingRange(def.id);
+  return { ...def, coinsMin: range.min, coinsMax: range.max };
+}
+
 export const MISSION_DURATIONS: Record<MissionDurationId, MissionDuration> = {
-  short: { id: "short", label: "Short visit", hours: 1, coinsMin: 50, coinsMax: 100, xp: 0, verseChance: 0, blurb: "A quick visit to someone nearby who needs prayer." },
-  day:   { id: "day",   label: "Day trip",    hours: 4, coinsMin: 150, coinsMax: 250, xp: 10, verseChance: 0.15, blurb: "A few hours out in the field, breaking bread." },
-  long:  { id: "long",  label: "Long journey", hours: 8, coinsMin: 300, coinsMax: 500, xp: 25, verseChance: 0.5, blurb: "A full journey to the far edge — and back changed." },
+  short: missionDuration(MISSION_DURATION_DEFS.short),
+  day: missionDuration(MISSION_DURATION_DEFS.day),
+  long: missionDuration(MISSION_DURATION_DEFS.long),
 };
 
 export const MISSION_DURATION_ORDER: MissionDurationId[] = ["short", "day", "long"];
@@ -1725,6 +1797,10 @@ export type FieldMission = {
   sentAt: string;   // ISO
   returnAt: string; // ISO
   coins: number;    // blessing, decided at send time (seeded)
+  /** Pay-formula version (v171): MISSION_BLESSING_VERSION for missions
+   *  sent under the job-anchored bands; absent on pre-v171 missions,
+   *  whose blessing stays locked at its stored value. */
+  blessingV?: number;
   xp: number;
   verse?: MissionVerse;
   collected: boolean;
@@ -1776,6 +1852,10 @@ export function parseMissions(value: unknown): FieldMission[] {
       sentAt: r.sentAt,
       returnAt: r.returnAt,
       coins: typeof r.coins === "number" && r.coins >= 0 ? Math.round(r.coins) : 0,
+      blessingV:
+        typeof r.blessingV === "number" && Number.isFinite(r.blessingV) && r.blessingV >= 1
+          ? Math.floor(r.blessingV)
+          : undefined,
       xp: typeof r.xp === "number" && r.xp >= 0 ? Math.round(r.xp) : 0,
       verse: r.verse && typeof r.verse.text === "string" && typeof r.verse.ref === "string"
         ? { text: r.verse.text, ref: r.verse.ref }
@@ -1826,8 +1906,11 @@ export function pruneMissions(missions: FieldMission[], now: Date = new Date()):
 }
 
 /**
- * Build a new mission blessing. Coins roll within the duration's range;
- * a verse may come along on longer journeys. Seeded by id so it's stable.
+ * Build a new mission blessing. Coins roll within the duration's range —
+ * since v171 that range is the job-anchored band from missionBlessingRange
+ * (e.g. the 8-hour Long journey rolls 2,700–3,300 raw, paid through
+ * scaledCoins at collect); a verse may come along on longer journeys.
+ * Seeded by id so it's stable.
  */
 export function rollMissionBlessing(id: string, durationId: MissionDurationId): { coins: number; xp: number; verse?: MissionVerse } {
   const d = MISSION_DURATIONS[durationId];
@@ -1846,6 +1929,20 @@ export function rollMissionBlessing(id: string, durationId: MissionDurationId): 
     ? MISSION_VERSES[Math.floor(rand() * MISSION_VERSES.length)]
     : undefined;
   return { coins, xp: d.xp, verse };
+}
+
+/**
+ * The raw coin amount collecting a returned mission hands the hometown
+ * ledger (v171). A v2 blessing is a pre-scale raw on the same footing as
+ * a job's rewardCoins, so the grant is scaledCoins(raw) — the ledger then
+ * adds the Bloodmoon Badge's blessing to the positive delta, exactly as
+ * it does for a finished shift collected on the map. A pre-v171 mission
+ * (no blessingV) pays its stored coins exactly: its blessing was decided
+ * at send time under the old bands and stays locked — no retroactive
+ * surprises in either direction.
+ */
+export function missionCollectRaw(m: FieldMission): number {
+  return (m.blessingV ?? 1) >= MISSION_BLESSING_VERSION ? scaledCoins(m.coins) : m.coins;
 }
 
 // ---- City streets: proper downtown grid (permanent infrastructure) ----

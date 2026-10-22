@@ -191,7 +191,9 @@ import {
   pruneMissions,
   rollMissionBlessing,
   MISSION_DURATIONS,
+  MISSION_BLESSING_VERSION,
   MAX_ACTIVE_MISSIONS,
+  missionCollectRaw,
   missionStatus,
   type FieldMission,
   type MissionDurationId,
@@ -7298,6 +7300,10 @@ export default function HometownScreen() {
         sentAt: now.toISOString(),
         returnAt: new Date(now.getTime() + def.hours * 3600000).toISOString(),
         coins: blessing.coins,
+        // v171: stamp the pay-formula version — the collect pays this
+        // blessing through scaledCoins (job-anchored bands). Missions
+        // already out carry no stamp and stay locked at their old pay.
+        blessingV: MISSION_BLESSING_VERSION,
         xp: blessing.xp,
         verse: blessing.verse,
         collected: false,
@@ -7311,7 +7317,11 @@ export default function HometownScreen() {
   /** Welcome a returned light home: award their blessing. */
   const handleCollectMission = useCallback((mission: FieldMission) => {
     if (mission.collected || missionStatus(mission) !== "returned") return;
-    if (mission.coins > 0) addCoins(mission.coins);
+    // v171: v2 blessings are pre-scale raws — grant them through
+    // scaledCoins like a job payout (missionCollectRaw); pre-v171
+    // missions pay their locked stored coins. addCoins applies the
+    // Bloodmoon blessing to the delta, same as every hometown grant.
+    if (mission.coins > 0) addCoins(missionCollectRaw(mission));
     if (mission.xp > 0) {
       awardCustomXP(mission.xp, `mission-${mission.id}`).catch(() => undefined);
     }
@@ -8068,6 +8078,7 @@ export default function HometownScreen() {
           )}
           timeOfDay={timeOfDay}
           pt={pt}
+          bloodmoonHeld={ownedBadges.includes("bloodmoon")}
           onSend={handleSendMission}
           onCollect={handleCollectMission}
         />

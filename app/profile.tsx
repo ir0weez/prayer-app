@@ -619,11 +619,14 @@ export default function ProfileScreen() {
         <View style={{ position: 'relative' }}>
           {/* Paper: a warm stack of sheets under the profile card —
               the v174 build's single gray offset read as a picture
-              frame; stacked warm stock reads as paper. */}
+              frame; stacked warm stock reads as paper. v182: the stack
+              stepped to the cleaner white-paper neutral (the old tan
+              sheets were the beige family Jonathan asked to pull
+              back). */}
           {isPaper ? (
             <>
-              <View style={{ position: 'absolute', left: 7, right: -7, top: 9, bottom: -9, borderRadius: 28, backgroundColor: '#DCCBA6' }} />
-              <View style={{ position: 'absolute', left: 3.5, right: -3.5, top: 4.5, bottom: -4.5, borderRadius: 28, backgroundColor: '#E9DcBE' }} />
+              <View style={{ position: 'absolute', left: 7, right: -7, top: 9, bottom: -9, borderRadius: 28, backgroundColor: '#E6DCC2' }} />
+              <View style={{ position: 'absolute', left: 3.5, right: -3.5, top: 4.5, bottom: -4.5, borderRadius: 28, backgroundColor: '#EFE9DB' }} />
             </>
           ) : null}
         <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }, isPaper ? { overflow: 'hidden' } : null, skinCardShadow]}>

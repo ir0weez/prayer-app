@@ -48,17 +48,21 @@ import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperRestSky, paperKeywordSceneFor } from "./paper-keyword-scenes";
 import { PaperGrainOverlay } from "./paper-grain";
-import { mix } from "@/lib/color-themes";
+import { paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint } from "@/lib/skin-themes";
 
 /**
- * Paper stock for the ministry squares/cards (v179): an OPAQUE wash of
- * the ministry's accent into the paper surface. v176 used a translucent
- * accent wash, and the kit shadow read through it as a heavy gray
- * frame on his phone (the Fast Check-In square). Opaque tinted stock
- * kills the frame and reads as colored paper. Classic never calls this.
+ * Paper stock for the ministry squares/cards. v179 made it an OPAQUE
+ * wash (the v176 translucent wash let the kit shadow read as a gray
+ * frame), but the wash itself — the accent RGB-mixed halfway into the
+ * cream surface — still read washed-out gray on his phone (v182, the
+ * Fast Check-In square again): mixing toward a high-red cream kills
+ * the accent's own hue dominance. The stock is now a true HSL tint of
+ * the accent (lib/skin-themes paperStockTint): its hue and saturation
+ * at paper lightness, so the accent reads as the card's color.
+ * Classic never calls this.
  */
 function paperStockFor(accent: string, surface: string | null): string {
-  return mix(accent, surface ?? "#FBF3DE", 0.52);
+  return paperStockTint(accent, surface);
 }
 import { createTRPCClient } from "@/lib/trpc";
 import { FlameSparkIcon } from "./flame-spark-icon";
@@ -7506,6 +7510,18 @@ function EventCardInner({
     // Preserve the event's assigned color when it is completed. Keyword colors
     // remain a fallback for older events that have no explicit color saved.
     const completedColor = event.color || keyword?.accentColor || colors.muted;
+    // Paper (v182): the completed bar is tinted STOCK in the event's own
+    // color — an opaque HSL tint, a solid own-color paper edge, and
+    // darkened own-color ink text. The old translucent wash (+ "30")
+    // over the page read as a muddy gray-beige slab on his phone, and
+    // raw-color text (yellow on a yellow wash — Garden Prayer) was
+    // unreadable. The "done" now comes from the check + the calmer
+    // tint, not from draining the color. Classic keeps the wash.
+    const completedBarStyle = isPaper
+      ? { backgroundColor: paperCompletedTint(completedColor, skinTokens.surface), borderColor: paperStockEdge(completedColor) }
+      : { backgroundColor: completedColor + "30", borderColor: completedColor + "50" };
+    const completedTitleColor = isPaper ? paperStockInk(completedColor, skinTokens.surface) : completedColor;
+    const completedTimeColor = isPaper ? paperStockInkSoft(completedColor, skinTokens.surface) : completedColor + "99";
     return (
       <>
         <Pressable
@@ -7517,17 +7533,17 @@ function EventCardInner({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >
-          <View style={[eventStyles.completedCard, { backgroundColor: completedColor + "30", borderColor: completedColor + "50", ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[eventStyles.completedCard, { ...completedBarStyle, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
             <View style={[eventStyles.completedDot, { backgroundColor: completedColor }]} />
-            <Text style={[eventStyles.completedTitle, { color: completedColor }]} numberOfLines={1}>
+            <Text style={[eventStyles.completedTitle, { color: completedTitleColor }]} numberOfLines={1}>
               {event.title}
             </Text>
             {event.startTime && (
-              <Text style={[eventStyles.completedTime, { color: completedColor + "99" }]}>
+              <Text style={[eventStyles.completedTime, { color: completedTimeColor }]}>
                 {format12HourTime(event.startTime)}{event.endTime ? ` - ${format12HourTime(event.endTime)}` : ""}
               </Text>
             )}
-            <MaterialIcons name="check-circle" size={18} color={completedColor} style={{ marginLeft: "auto" }} />
+            <MaterialIcons name="check-circle" size={18} color={completedTitleColor} style={{ marginLeft: "auto" }} />
           </View>
         </Pressable>
         <ContextMenu
@@ -9230,6 +9246,14 @@ function MinistryCard({
   if (ministry.isCompleted) {
     // Completed: solid color box, smaller
     const completedColor = ministry.color || "#7C5CFF";
+    // Paper (v182): same tinted-stock treatment as the completed event
+    // bar — opaque own-color tint, solid paper edge, darkened ink
+    // text. Classic keeps the translucent wash.
+    const completedBarStyle = isPaper
+      ? { backgroundColor: paperCompletedTint(completedColor, skinTokens.surface), borderColor: paperStockEdge(completedColor) }
+      : { backgroundColor: completedColor + "30", borderColor: completedColor + "50" };
+    const completedTitleColor = isPaper ? paperStockInk(completedColor, skinTokens.surface) : completedColor;
+    const completedTimeColor = isPaper ? paperStockInkSoft(completedColor, skinTokens.surface) : completedColor + "99";
     return (
       <>
         <Pressable
@@ -9241,17 +9265,17 @@ function MinistryCard({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >
-          <View style={[ministryStyles.completedCard, { backgroundColor: completedColor + "30", borderColor: completedColor + "50", ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[ministryStyles.completedCard, { ...completedBarStyle, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
             <View style={[ministryStyles.completedDot, { backgroundColor: completedColor }]} />
-            <Text style={[ministryStyles.completedTitle, { color: completedColor }]} numberOfLines={1}>
+            <Text style={[ministryStyles.completedTitle, { color: completedTitleColor }]} numberOfLines={1}>
               {ministry.title}
             </Text>
             {ministry.startTime && (
-              <Text style={[ministryStyles.completedTime, { color: completedColor + "99" }]}>
+              <Text style={[ministryStyles.completedTime, { color: completedTimeColor }]}>
                 {format12HourTime(ministry.startTime)}{ministry.endTime ? ` - ${format12HourTime(ministry.endTime)}` : ""}
               </Text>
             )}
-            <MaterialIcons name="check-circle" size={18} color={completedColor} style={{ marginLeft: "auto" }} />
+            <MaterialIcons name="check-circle" size={18} color={completedTitleColor} style={{ marginLeft: "auto" }} />
           </View>
         </Pressable>
         <ContextMenu

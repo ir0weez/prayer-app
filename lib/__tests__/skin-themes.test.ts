@@ -39,8 +39,14 @@ import {
   getSkinThemeDefinition,
   getSkinTokens,
   getUnlockedSkinThemeIds,
+  hexContrast,
+  hexLuminance,
   isSkinUnlocked,
   normalizeSkinThemeId,
+  paperCompletedTint,
+  paperStockInk,
+  paperStockInkSoft,
+  paperStockTint,
 } from "../skin-themes";
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
@@ -441,7 +447,93 @@ describe("v176 chrome coverage (source pins)", () => {
   it("the fasting profile card is opaque paper on a warm sheet stack, not a gray frame", () => {
     const profile = read("app/profile.tsx");
     expect(profile).toContain("paperSurfaceStyle");
-    expect(profile).toContain("#DCCBA6");
-    expect(profile).toContain("#E9DcBE");
+    // v182: the stack stepped to the cleaner white-paper neutral.
+    expect(profile).toContain("#E6DCC2");
+    expect(profile).toContain("#EFE9DB");
+  });
+});
+
+describe("v182 paper polish — cleaner neutral, true tints, readable completed bars", () => {
+  const lightPalette = getThemedPalette("light", "default");
+  const paperLight = getSkinTokens("paper", "light", lightPalette);
+  const surface = paperLight.surface as string;
+
+  const channels = (hex: string): [number, number, number] => {
+    const clean = hex.replace("#", "");
+    return [parseInt(clean.slice(0, 2), 16), parseInt(clean.slice(2, 4), 16), parseInt(clean.slice(4, 6), 16)];
+  };
+  const hslOf = (hex: string) => {
+    const [r8, g8, b8] = channels(hex);
+    const r = r8 / 255, g = g8 / 255, b = b8 / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    if (max === min) return { h: 0, s: 0, l };
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    let h = 0;
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+    else if (max === g) h = ((b - r) / d + 2) * 60;
+    else h = ((r - g) / d + 4) * 60;
+    return { h, s, l };
+  };
+
+  it("the neutral stock is a cleaner white-paper, not the v176–v181 beige", () => {
+    // Before: background #F6F0F7 / surface #FDF8EB (R−B = 18, read as
+    // beige across whole screens). After: a barely-warm white-paper.
+    expect(paperLight.background).toBe("#F6F1F9");
+    expect(paperLight.surface).toBe("#FDFAF3");
+    const [r, , b] = channels(surface);
+    expect(r - b).toBeLessThanOrEqual(12);
+    // Still paper, not Classic: distinct from the raw palette surface.
+    expect(paperLight.surface).not.toBe(lightPalette.surface);
+  });
+
+  it("the fasting profile sheet stack stepped to the cleaner neutral family", () => {
+    const profile = read("app/profile.tsx");
+    expect(profile).toContain("#EFE9DB");
+    expect(profile).toContain("#E6DCC2");
+    expect(profile).not.toContain("#DCCBA6");
+    expect(profile).not.toContain("#E9DCBE");
+  });
+
+  it("tinted stock preserves the accent's hue and saturation (no cream-mix washout)", () => {
+    for (const accent of ["#64748B", "#7C5CFF", "#EAB308", "#EF4444", "#22A06B"]) {
+      const tint = paperStockTint(accent, surface);
+      const a = hslOf(accent);
+      const t = hslOf(tint);
+      expect(Math.abs(t.h - a.h), accent).toBeLessThanOrEqual(3);
+      expect(t.s, accent).toBeGreaterThanOrEqual(a.s * 0.85);
+    }
+    // The v179 regression, by name: slate RGB-mixed into the cream
+    // surface landed at #B4B9BD — a gray with the blue gone. The HSL
+    // tint keeps blue the dominant channel: it reads as the color.
+    const slate = paperStockTint("#64748B", surface);
+    expect(slate).not.toBe("#B4B9BD");
+    const [r, , b] = channels(slate);
+    expect(b).toBeGreaterThan(r);
+  });
+
+  it("completed bars: own-color tint, ink clearing a sane contrast bar", () => {
+    for (const accent of ["#64748B", "#7C5CFF", "#EAB308", "#EF4444", "#22A06B", "#8A8A8A"]) {
+      const tint = paperCompletedTint(accent, surface);
+      // Yellow (Garden Prayer) is the pathological case: raw yellow
+      // text on a yellow wash was ~1.5:1. The tuned ink clears 4.5:1
+      // for titles and 3:1 for the smaller time text.
+      expect(hexContrast(paperStockInk(accent, surface), tint), accent).toBeGreaterThanOrEqual(4.5);
+      expect(hexContrast(paperStockInkSoft(accent, surface), tint), accent).toBeGreaterThanOrEqual(3);
+      // Calmer than the active-card stock: lighter over a light surface.
+      expect(hexLuminance(tint)).toBeGreaterThan(hexLuminance(paperStockTint(accent, surface)));
+    }
+  });
+
+  it("both schedule completed bars consume the tinted-stock treatment", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    // Event bar + ministry bar.
+    expect(schedule.split("paperCompletedTint(completedColor, skinTokens.surface)").length - 1).toBeGreaterThanOrEqual(2);
+    expect(schedule.split("paperStockInk(completedColor, skinTokens.surface)").length - 1).toBeGreaterThanOrEqual(2);
+    expect(schedule).toContain("paperStockEdge(completedColor)");
+    // paperStockFor is the HSL tint now — the cream RGB mix is gone.
+    expect(schedule).not.toContain("0.52");
+    expect(schedule).toContain("paperStockTint(accent, surface)");
   });
 });

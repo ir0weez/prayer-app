@@ -39,12 +39,23 @@ describe("v179 paper coverage — every named surface consumes the skin", () => 
 
   it("the Fast Check-In square and ministry cards use OPAQUE tinted paper stock (no gray frame)", () => {
     const schedule = read("components/schedule-tab.tsx");
-    // paperStockFor mixes the accent into the surface — an opaque
-    // stock, never the translucent wash whose shadow read as a frame.
+    // paperStockFor is an opaque HSL tint of the accent (v182 — the
+    // v179 RGB mix into the cream surface still washed out to gray on
+    // his phone), never the translucent wash whose shadow read as a
+    // frame.
     expect(schedule).toContain("function paperStockFor");
     expect(schedule).toContain("paperStockFor(accent, skinTokens.surface)");
     expect(schedule).toContain("paperStockFor(ministry.color");
     expect(schedule).not.toContain('accent + "30"');
+  });
+
+  it("completed schedule bars are tinted stock under Paper, not the gray-beige wash (v182)", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    // Both completed bars (event + ministry) branch to the tinted
+    // stock treatment; the translucent wash remains only as the
+    // Classic branch.
+    expect(schedule).toContain("paperCompletedTint(completedColor, skinTokens.surface)");
+    expect(schedule).toContain("paperStockEdge(completedColor)");
   });
 
   it("creator forms and shared dialogs consume the skin", () => {

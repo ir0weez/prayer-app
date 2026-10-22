@@ -2615,7 +2615,7 @@ export default function HomeScreen() {
                 </View>
               )}
             </View>
-            <Text style={[styles.fastProgressType, { color: colors.muted }]}>{xpState.totalXP} XP · {xpProgress.requiredXP - xpProgress.currentXP} to Level {xpProgress.nextLevel}</Text>
+            <Text numberOfLines={1} style={[styles.fastProgressType, { color: colors.muted }]}>{xpState.totalXP} XP · {xpProgress.requiredXP - xpProgress.currentXP} to Level {xpProgress.nextLevel}</Text>
           </View>
           <View style={[styles.fastProgressBarContainer, { backgroundColor: colors.border }]}>
             <View style={{ width: `${xpProgress.percentage}%`, height: "100%", overflow: "hidden", backgroundColor: colors.primary, borderRadius: 6 }}>
@@ -4437,13 +4437,15 @@ function createStyles(colors: any) {
     gap: 8,
   },
   levelBadgeFrameSlot: {
-    flex: 1,
+    alignSelf: "flex-start",
+    maxWidth: "100%",
     minHeight: 28,
     justifyContent: "center",
   },
   levelBadgeFrame: {
     minHeight: 28,
     alignSelf: "flex-start",
+    maxWidth: "100%",
     justifyContent: "center",
     paddingHorizontal: 8,
     borderRadius: 9,
@@ -4487,20 +4489,31 @@ function createStyles(colors: any) {
     shadowRadius: 7,
     shadowOffset: { width: 0, height: 0 },
   },
+  // v173 layout fix: this header used to be ONE row — badge slot
+  // (flex: 1) beside the XP totals text, neither side shrink-bounded.
+  // At phone width their combined intrinsic widths exceed the card's
+  // inner width, so Yoga squeezed the flex slot and the level label
+  // wrapped mid-phrase inside its little bordered frame ("Level 25 ·"
+  // / "Faithful" in a box, shoving the XP text against it). Now the
+  // header stacks: the badge gets its own line, the totals get the
+  // full width beneath it, and nothing competes for the same row.
   fastProgressHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 4,
   },
   fastProgressLabel: {
     color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "600",
+    flexShrink: 1,
   },
   fastProgressType: {
     color: "rgba(255,255,255,0.8)",
     fontSize: 12,
     fontWeight: "500",
+    flexShrink: 1,
+    maxWidth: "100%",
   },
   fastProgressBarContainer: {
     height: 8,

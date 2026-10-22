@@ -137,9 +137,80 @@ export const WORK_KINDS: Record<
   },
 };
 
+/** A villager's most recent job — remembered so the Main Office can
+ *  offer its one-tap "Same as last time" resend (v173). The kind is the
+ *  whole target: a WorkKind resolves to its site through workSiteFor,
+ *  exactly as a manual assignment does. recipientName is carried only
+ *  for deliver-meal, where the manual flow asks who the meal is for. */
+export type LastJob = {
+  kind: WorkKind;
+  recipientName?: string;
+};
+
 export type VillagerWorkState = {
   assignments: VillagerWorkAssignment[];
+  /** personId -> their last job. Survives collect (collecting removes
+   *  the assignment, not the memory of it) and every state transform in
+   *  this module — transforms spread the state rather than rebuilding
+   *  it, so the memory is never dropped by a tick, an arrival, or a
+   *  collect. Absent on pre-v173 saves until the next send. */
+  lastJobs?: Record<string, LastJob>;
 };
+
+/** Validate a stored lastJobs record. Unknown kinds (a job removed by a
+ *  later build) and malformed entries are dropped, never trusted. */
+export function parseLastJobs(value: unknown): Record<string, LastJob> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: Record<string, LastJob> = {};
+  for (const [personId, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!raw || typeof raw !== "object") continue;
+    const kind = (raw as LastJob).kind;
+    if (typeof kind !== "string" || !(kind in WORK_KINDS)) continue;
+    const recipientName = (raw as LastJob).recipientName;
+    out[personId] = {
+      kind: kind as WorkKind,
+      ...(typeof recipientName === "string" && recipientName
+        ? { recipientName }
+        : {}),
+    };
+  }
+  return out;
+}
+
+/** The villager's remembered last job, or null when they have none. */
+export function lastJobFor(state: VillagerWorkState, personId: string): LastJob | null {
+  const lj = state.lastJobs?.[personId];
+  if (!lj || !(lj.kind in WORK_KINDS)) return null;
+  return { ...lj };
+}
+
+/**
+ * The state after sending a villager out: the assignment appended AND
+ * the job remembered as their last one. Both manual send paths (the
+ * Main Office desk and the on-map picker) go through here, and the
+ * office's "Same as last time" resend goes through the exact same
+ * function with an assignment built from the remembered job — so a
+ * resend IS a manual send by construction, same pay path untouched.
+ * Pure — the caller saves.
+ */
+export function sendWorkAssignment(
+  state: VillagerWorkState,
+  assignment: VillagerWorkAssignment
+): VillagerWorkState {
+  return {
+    ...state,
+    assignments: [...state.assignments, assignment],
+    lastJobs: {
+      ...(state.lastJobs ?? {}),
+      [assignment.personId]: {
+        kind: assignment.kind,
+        ...(assignment.recipientName
+          ? { recipientName: assignment.recipientName }
+          : {}),
+      },
+    },
+  };
+}
 
 function isAssignmentShape(a: unknown): a is VillagerWorkAssignment {
   return (
@@ -158,7 +229,13 @@ export async function loadVillagerWorkState(): Promise<VillagerWorkState> {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.assignments)) {
-        return { assignments: parsed.assignments.filter(isAssignmentShape) };
+        const lastJobs = parseLastJobs(parsed.lastJobs);
+        return {
+          assignments: parsed.assignments.filter(isAssignmentShape),
+          // Only carried when something valid is stored, so pre-v173
+          // saves load to the exact shape they always had.
+          ...(Object.keys(lastJobs).length > 0 ? { lastJobs } : {}),
+        };
       }
     }
   } catch {}
@@ -230,7 +307,7 @@ export function tickWorkAssignments(
     return a;
   });
   if (newlyDone.length === 0) return { state, newlyDone };
-  return { state: { assignments }, newlyDone };
+  return { state: { ...state, assignments }, newlyDone };
 }
 
 /** Mark an assignment's worker as arrived — it is now "working". Pure. */
@@ -239,6 +316,7 @@ export function markWorkArrived(
   personId: string
 ): VillagerWorkState {
   return {
+    ...state,
     assignments: state.assignments.map((a) =>
       a.personId === personId && a.status === "en-route"
         ? { ...a, status: "working" as const }
@@ -302,7 +380,7 @@ export function advanceRestockArrival(
     };
     const assignments = state.assignments.slice();
     assignments[idx] = delivered;
-    return { state: { assignments }, event: "delivered" };
+    return { state: { ...state, assignments }, event: "delivered" };
   }
 
   // Leg "to-church": only a church arrival advances the route.
@@ -316,7 +394,7 @@ export function advanceRestockArrival(
     };
     const assignments = state.assignments.slice();
     assignments[idx] = pickedUp;
-    return { state: { assignments }, event: "picked-up" };
+    return { state: { ...state, assignments }, event: "picked-up" };
   }
   if (a.status === "working" && !a.restockTargetId) {
     // Already waiting at the church with full shelves — nothing changed.
@@ -330,7 +408,7 @@ export function advanceRestockArrival(
   };
   const assignments = state.assignments.slice();
   assignments[idx] = waiting;
-  return { state: { assignments }, event: "waiting" };
+  return { state: { ...state, assignments }, event: "waiting" };
 }
 
 /** Remove an assignment after Jonathan collects its reward. Pure. */
@@ -341,7 +419,9 @@ export function collectWorkAssignment(
   const assignment = state.assignments.find((a) => a.id === id) ?? null;
   if (!assignment || assignment.status !== "done") return { state, assignment: null };
   return {
-    state: { assignments: state.assignments.filter((a) => a.id !== id) },
+    // The collected shift leaves the ledger; the villager's last job
+    // stays remembered for the office resend.
+    state: { ...state, assignments: state.assignments.filter((a) => a.id !== id) },
     assignment,
   };
 }

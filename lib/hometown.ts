@@ -1895,6 +1895,36 @@ export async function saveMissions(missions: FieldMission[]): Promise<void> {
   } catch {}
 }
 
+/**
+ * A mission can be recalled only while the light is still OUT in the
+ * field (v173). Once they've returned, their blessing is waiting to be
+ * received — that mission is welcomed home, never cancelled — and a
+ * collected mission is history.
+ */
+export function canCancelMission(m: FieldMission, now: Date = new Date()): boolean {
+  return !m.collected && missionStatus(m, now) === "out";
+}
+
+/**
+ * Recall a light from the field: the mission record is removed and
+ * NOTHING is granted — the blessing was locked at dispatch but pays
+ * only on completion, so a cancelled trip pays no coins, no XP, no
+ * verse. The villager is free immediately: every surface (roster,
+ * locations, the map's light list) derives "away" from the uncollected
+ * mission list, so dropping the record is the whole recall. A mission
+ * that can't be cancelled (returned, collected, or unknown) returns
+ * the SAME list with cancelled: null. Pure — the caller saves.
+ */
+export function cancelMission(
+  missions: FieldMission[],
+  id: string,
+  now: Date = new Date()
+): { missions: FieldMission[]; cancelled: FieldMission | null } {
+  const target = missions.find((m) => m.id === id);
+  if (!target || !canCancelMission(target, now)) return { missions, cancelled: null };
+  return { missions: missions.filter((m) => m.id !== id), cancelled: target };
+}
+
 /** Drop collected missions older than 24h (keeps the board tidy). */
 export function pruneMissions(missions: FieldMission[], now: Date = new Date()): FieldMission[] {
   const cutoff = now.getTime() - 24 * 3600000;

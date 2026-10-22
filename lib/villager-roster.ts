@@ -14,6 +14,7 @@
 
 import {
   BUILDINGS,
+  canCancelMission,
   isRestaurantType,
   isUnderConstruction,
   missionCollectRaw,
@@ -34,6 +35,7 @@ import { BLOODMOON_COIN_MULT } from "./badges";
 import {
   WORK_KINDS,
   workCountdownText,
+  type LastJob,
   type VillagerWorkAssignment,
   type WorkKind,
 } from "./villager-work";
@@ -163,6 +165,22 @@ export type RosterRow = {
   /** Raw payout for a finished shift (job reward + banked box bonus). */
   collectCoins?: number;
   collectXP?: number;
+  /** The villager's active field mission (status "mission" rows), so
+   *  the office can act on the trip itself. */
+  fieldMission?: FieldMission;
+  /** True while that mission is still out and can be recalled (v173).
+   *  A returned mission is welcomed home, never cancelled, so its row
+   *  carries the mission but no cancellability. */
+  missionCancellable?: boolean;
+  /** Idle rows only: the villager's remembered last job (v173), when
+   *  the caller passes the work state's lastJobs memory. */
+  lastJob?: LastJob;
+  /** Where that last job happens NOW. Present only when the job's site
+   *  still exists and can take them — when the building is gone (or
+   *  under construction), the row keeps lastJob for the record but no
+   *  site name, and the office shows no resend button: there is nowhere
+   *  to send them. */
+  lastJobSiteName?: string;
 };
 
 /** Sort rank: attention first (idle, collectable, requests), then working,
@@ -188,6 +206,11 @@ export function buildRosterRows(args: {
    *  carry the map each villager is actually on; when omitted, rows are
    *  exactly what they were before locations existed. */
   locations?: VillagerLocations;
+  /** The work ledger's last-job memory (lib/villager-work, v173). When
+   *  passed, idle rows carry the villager's last job for the office's
+   *  "Same as last time" resend; when omitted, rows are exactly what
+   *  they were before the memory existed. */
+  lastJobs?: Record<string, LastJob>;
 }): RosterRow[] {
   const { people, assignments, fieldMissions, villagerMissions, townBuildings, isNight, nowMs } = args;
   const now = new Date(nowMs);
@@ -247,6 +270,10 @@ export function buildRosterRows(args: {
         detail: back
           ? "Their blessing waits at the Mission Field"
           : `Back in ${missionCountdown(field, now)}`,
+        fieldMission: field,
+        // Still out → the office can recall them (v173). Returned →
+        // the blessing is waiting; that trip is collected, not cut.
+        missionCancellable: canCancelMission(field, now),
       };
     }
 
@@ -277,12 +304,23 @@ export function buildRosterRows(args: {
       };
     }
 
-    // 6. Free and ready.
+    // 6. Free and ready. The remembered last job rides along (v173)
+    // when the ledger's memory was passed in; its site name resolves
+    // only when the job can actually be worked right now, which is
+    // what gates the office's resend button.
+    const remembered = args.lastJobs?.[personId];
+    const lastJob =
+      remembered && WORK_KINDS[remembered.kind] ? remembered : undefined;
+    const lastJobSite = lastJob
+      ? workSiteFor(lastJob.kind, townBuildings, nowMs)
+      : null;
     return {
       ...base,
       status: "idle" as const,
       statusLabel: "Idle",
       ...(placeDetail ? { detail: placeDetail } : {}),
+      ...(lastJob ? { lastJob } : {}),
+      ...(lastJobSite ? { lastJobSiteName: lastJobSite.buildingName } : {}),
     };
   });
 
@@ -297,6 +335,13 @@ export function buildRosterRows(args: {
 /** True when this villager can be sent to work from the roster right now. */
 export function canAssignRow(row: RosterRow): boolean {
   return row.status === "idle";
+}
+
+/** True when the office's "Same as last time" one-tap resend applies:
+ *  the villager is idle, has a remembered last job, and that job's
+ *  site still exists to receive them (v173). */
+export function canResendRow(row: RosterRow): boolean {
+  return row.status === "idle" && !!row.lastJob && !!row.lastJobSiteName;
 }
 
 export type RosterSummary = {

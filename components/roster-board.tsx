@@ -31,6 +31,7 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import type { RosterRow } from "@/lib/villager-roster";
+import { WORK_KINDS } from "@/lib/villager-work";
 
 const AMBER = "#B45309";
 const GOLD = "#F59E0B";
@@ -121,10 +122,15 @@ export type RosterRowCardProps = {
   celebrateKey: number;
   statusColor: string;
   canAssign: boolean;
+  /** "Same as last time" applies (v173): idle, a last job is
+   *  remembered, and its site still stands. */
+  canResend: boolean;
   /** Formatted payout for a finished shift (Bloodmoon included), else null. */
   collectAmount: string | null;
   onAssign: (row: RosterRow) => void;
   onCollect: (row: RosterRow) => void | Promise<void>;
+  onResend: (row: RosterRow) => void;
+  onCancelMission: (row: RosterRow) => void;
 };
 
 /** Field-level comparison: countdown text changes every second for the
@@ -145,18 +151,24 @@ function rowCardEqual(prev: RosterRowCardProps, next: RosterRowCardProps): boole
     a.assignment?.id === b.assignment?.id &&
     a.assignment?.status === b.assignment?.status &&
     a.collectCoins === b.collectCoins &&
+    a.fieldMission?.id === b.fieldMission?.id &&
+    a.missionCancellable === b.missionCancellable &&
+    a.lastJob?.kind === b.lastJob?.kind &&
+    a.lastJob?.recipientName === b.lastJob?.recipientName &&
+    a.lastJobSiteName === b.lastJobSiteName &&
     prev.index === next.index &&
     prev.entranceEpoch === next.entranceEpoch &&
     prev.stampKey === next.stampKey &&
     prev.celebrateKey === next.celebrateKey &&
     prev.statusColor === next.statusColor &&
     prev.canAssign === next.canAssign &&
+    prev.canResend === next.canResend &&
     prev.collectAmount === next.collectAmount
   );
 }
 
 export const RosterRowCard = memo(function RosterRowCard(props: RosterRowCardProps) {
-  const { row, index, entranceEpoch, stampKey, celebrateKey, statusColor, canAssign, collectAmount } = props;
+  const { row, index, entranceEpoch, stampKey, celebrateKey, statusColor, canAssign, canResend, collectAmount } = props;
   const propsRef = useRef(props);
   propsRef.current = props;
 
@@ -390,11 +402,48 @@ export const RosterRowCard = memo(function RosterRowCard(props: RosterRowCardPro
         </View>
       )}
       {canAssign && (
+        <View style={{ alignItems: "stretch" }}>
+          <Pressable
+            onPress={() => propsRef.current.onAssign(propsRef.current.row)}
+            style={{ backgroundColor: SLATE, borderRadius: 12, paddingHorizontal: 15, paddingVertical: 10, alignItems: "center" }}
+          >
+            <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 13 }}>Assign</Text>
+          </Pressable>
+          {canResend && (
+            <Pressable
+              onPress={() => propsRef.current.onResend(propsRef.current.row)}
+              style={{
+                marginTop: 6,
+                borderWidth: 1.5,
+                borderColor: SLATE,
+                borderRadius: 12,
+                paddingHorizontal: 10,
+                paddingVertical: 7,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: SLATE, fontWeight: "800", fontSize: 11.5 }}>Same as last time</Text>
+              <Text style={{ color: TEXT_DIM, fontWeight: "600", fontSize: 10.5, marginTop: 1 }} numberOfLines={1}>
+                {row.lastJob ? WORK_KINDS[row.lastJob.kind].label : ""}
+                {row.lastJobSiteName ? ` · ${row.lastJobSiteName}` : ""}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+      {row.status === "mission" && row.missionCancellable && (
         <Pressable
-          onPress={() => propsRef.current.onAssign(propsRef.current.row)}
-          style={{ backgroundColor: SLATE, borderRadius: 12, paddingHorizontal: 15, paddingVertical: 10 }}
+          onPress={() => propsRef.current.onCancelMission(propsRef.current.row)}
+          style={{
+            borderWidth: 1.5,
+            borderColor: "#BE3455",
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            paddingVertical: 9,
+            alignItems: "center",
+          }}
         >
-          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 13 }}>Assign</Text>
+          <Text style={{ color: "#BE3455", fontWeight: "800", fontSize: 12.5 }}>Cancel trip</Text>
         </Pressable>
       )}
 

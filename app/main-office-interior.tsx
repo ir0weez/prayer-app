@@ -29,11 +29,13 @@ import { getTimeOfDay } from "@/lib/daynight";
 import {
   MAP_UNLOCKED_KEY,
   TOWN_STORAGE_KEY,
+  cancelMission,
   emptyTownState,
   loadMissions,
   parseTown,
   parseUnlockedMaps,
   prayedTodayPeople,
+  saveMissions,
   scaledCoins,
   scaledXP,
   type FieldMission,
@@ -53,7 +55,9 @@ import {
   loadVillagerWorkState,
   personHasActiveWork,
   saveVillagerWorkState,
+  sendWorkAssignment,
   tickWorkAssignments,
+  type LastJob,
   type VillagerWorkAssignment,
   type WorkKind,
 } from "@/lib/villager-work";
@@ -67,6 +71,7 @@ import { loadVillagerMissionState, type VillagerMission } from "@/lib/villager-m
 import {
   buildRosterRows,
   canAssignRow,
+  canResendRow,
   collectAllTotalCoins,
   collectPayoutCoins,
   collectableRows,
@@ -237,6 +242,9 @@ type RosterData = {
   fieldMissions: FieldMission[];
   villagerMissions: VillagerMission[];
   townBuildings: PlacedBuilding[];
+  /** The work ledger's last-job memory (v173) — feeds the roster's
+   *  "Same as last time" resend. */
+  lastJobs: Record<string, LastJob>;
   /** Single-location truth (lib/villager-locations), settled on refresh:
    *  the roster can now say which map each villager is actually on. */
   locations: VillagerLocations;
@@ -293,6 +301,9 @@ export default function MainOfficeInteriorScreen() {
         assignments = ticked.assignments;
         await saveVillagerWorkState(ticked);
       }
+      // The tick spreads the work state, so the last-job memory (v173)
+      // rides along untouched either way.
+      const lastJobs = ticked.lastJobs ?? {};
       const town = townRaw ? parseTown(JSON.parse(townRaw)) : emptyTownState();
       // Settle single-location truth with the same ticked ledger, so an
       // assignment started at this desk pins its villager to town at
@@ -316,6 +327,7 @@ export default function MainOfficeInteriorScreen() {
         fieldMissions,
         villagerMissions: vmState.missions,
         townBuildings: town.maps.town.buildings,
+        lastJobs,
         locations,
       });
     } catch {}
@@ -350,6 +362,7 @@ export default function MainOfficeInteriorScreen() {
       isNight: getTimeOfDay() === "night",
       nowMs,
       locations: roster.locations,
+      lastJobs: roster.lastJobs,
     });
   }, [roster, nowMs]);
   rowsRef.current = rows;
@@ -428,8 +441,12 @@ export default function MainOfficeInteriorScreen() {
   };
 
   /** Send a villager to work — the same guards and the same assignment
-   *  the on-map picker creates (interrupt, walk to site, stay working). */
-  const handleAssign = async (row: RosterRow, kind: WorkKind, recipientName?: string) => {
+   *  the on-map picker creates (interrupt, walk to site, stay working).
+   *  The manual Assign sheet and the "Same as last time" resend both
+   *  land here, so a resend passes the identical guards and saves
+   *  through the identical path (sendWorkAssignment also refreshes the
+   *  villager's remembered last job). */
+  const dispatchWork = async (row: RosterRow, kind: WorkKind, recipientName?: string) => {
     const data = rosterRef.current;
     if (!data) return;
     if (getTimeOfDay() === "night") {
@@ -459,7 +476,7 @@ export default function MainOfficeInteriorScreen() {
       kind,
       recipientName,
     });
-    await saveVillagerWorkState({ assignments: [...fresh.assignments, assignment] });
+    await saveVillagerWorkState(sendWorkAssignment(fresh, assignment));
     setAssignFor(null);
     setAssignStep("kind");
     setAssignKind(null);
@@ -467,6 +484,55 @@ export default function MainOfficeInteriorScreen() {
     // the status crossfades to the new job, and the ASSIGNED stamp lands.
     setStamps((s) => ({ ...s, [row.personId]: Date.now() }));
     refreshRoster();
+  };
+
+  const handleAssign = (row: RosterRow, kind: WorkKind, recipientName?: string) =>
+    dispatchWork(row, kind, recipientName);
+
+  /** "Same as last time" (v173): one tap resends an idle villager to
+   *  the job they did last — kind and meal recipient remembered in the
+   *  work ledger. Rows only offer it when the roster could still
+   *  resolve the job's site (canResendRow); the dispatch re-checks
+   *  every guard anyway, so a site demolished since the row rendered
+   *  just gets the usual "Not built yet" answer. */
+  const handleResend = (row: RosterRow) => {
+    if (!row.lastJob) return;
+    void dispatchWork(row, row.lastJob.kind, row.lastJob.recipientName);
+  };
+
+  /** Recall a villager from a field mission (v173). One confirmation,
+   *  then the mission record is dropped: no blessing is paid (it pays
+   *  only on completion), and the villager is idle again on the next
+   *  refresh — roster, locations, and the map all derive "away" from
+   *  the uncollected mission list this save rewrites. */
+  const handleCancelMission = (row: RosterRow) => {
+    const mission = row.fieldMission;
+    if (!mission || !row.missionCancellable) return;
+    Alert.alert(
+      "Bring them home early?",
+      `${row.name} will come home now. No blessing will be paid.`,
+      [
+        { text: "Keep them out", style: "cancel" },
+        {
+          text: "Bring them home",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              const fresh = await loadMissions();
+              const { missions: next, cancelled } = cancelMission(fresh, mission.id);
+              if (!cancelled) {
+                // Already back (or welcomed home) since the row
+                // rendered — nothing to recall.
+                refreshRoster();
+                return;
+              }
+              await saveMissions(next);
+              refreshRoster();
+            })();
+          },
+        },
+      ]
+    );
   };
 
   /** Serialize every payout through one chain: a collect always loads,
@@ -626,9 +692,12 @@ export default function MainOfficeInteriorScreen() {
               celebrateKey={celebrations[row.personId] ?? 0}
               statusColor={STATUS_COLORS[row.status]}
               canAssign={canAssignRow(row)}
+              canResend={canResendRow(row)}
               collectAmount={row.status === "collect" ? collectDisplay(row) : null}
               onAssign={openAssign}
               onCollect={handleCollect}
+              onResend={handleResend}
+              onCancelMission={handleCancelMission}
             />
           ))}
         </View>

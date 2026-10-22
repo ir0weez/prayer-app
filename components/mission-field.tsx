@@ -35,6 +35,9 @@ export type MissionFieldProps = {
   pt: PageTheme;
   onSend: (personId: string, duration: MissionDurationId) => void;
   onCollect: (mission: FieldMission) => void;
+  /** Recall a light who is still out (v173): pays nothing — the
+   *  blessing only ever pays on a completed trip. */
+  onCancel: (mission: FieldMission) => void;
 };
 
 const SCENE_W = 360;
@@ -186,7 +189,7 @@ function safeDurationLabel(duration: unknown): string {
 }
 
 export function MissionField(props: MissionFieldProps) {
-  const { missions, availableLights, bloodmoonHeld, timeOfDay, pt, onSend, onCollect } = props;
+  const { missions, availableLights, bloodmoonHeld, timeOfDay, pt, onSend, onCollect, onCancel } = props;
   const [sendVisible, setSendVisible] = useState(false);
   const [collectMission, setCollectMission] = useState<FieldMission | null>(null);
   const [pickedPersonId, setPickedPersonId] = useState<string | null>(null);
@@ -252,6 +255,23 @@ export function MissionField(props: MissionFieldProps) {
     if (!collectMission) return;
     onCollect(collectMission);
     setCollectMission(null);
+  };
+
+  // Recall a light who is still out: one confirmation, then the trip
+  // ends with no blessing — the same words the Main Office uses.
+  const askCancel = (m: FieldMission) => {
+    Alert.alert(
+      "Bring them home early?",
+      `${m.name} will come home now. No blessing will be paid.`,
+      [
+        { text: "Keep them out", style: "cancel" },
+        {
+          text: "Bring them home",
+          style: "destructive",
+          onPress: () => onCancel(m),
+        },
+      ]
+    );
   };
 
   // The SeasonalBorder center column sizes itself from content intrinsic
@@ -373,6 +393,19 @@ export function MissionField(props: MissionFieldProps) {
                   {formatDurationLabel(m.duration)} · back in {missionCountdown(m, now)}
                 </Text>
               </View>
+              <Pressable
+                onPress={() => askCancel(m)}
+                style={{
+                  borderWidth: 1.5,
+                  borderColor: "#BE3455",
+                  borderRadius: 10,
+                  paddingHorizontal: 11,
+                  paddingVertical: 8,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "#BE3455", fontWeight: "800", fontSize: 12 }}>Cancel trip</Text>
+              </Pressable>
             </View>
           ))}
         </View>

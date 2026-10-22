@@ -185,6 +185,7 @@ import {
   type MapState,
   type TownState,
   type PrayedPerson,
+  cancelMission,
   emptyMissions,
   loadMissions as loadFieldMissions,
   saveMissions as saveFieldMissions,
@@ -274,6 +275,7 @@ import {
   loadVillagerWorkState,
   saveVillagerWorkState,
   createWorkAssignment,
+  sendWorkAssignment,
   tickWorkAssignments,
   markWorkArrived,
   advanceRestockArrival,
@@ -4799,7 +4801,11 @@ export default function HometownScreen() {
         kind,
         recipientName,
       });
-      const next: VillagerWorkState = { assignments: [...st.assignments, assignment] };
+      // sendWorkAssignment (v173): appends the shift AND remembers it
+      // as the villager's last job for the office resend — and spreads
+      // the loaded state, so a lastJobs memory recorded at the office
+      // desk is never dropped by a send from the map.
+      const next: VillagerWorkState = sendWorkAssignment(st, assignment);
       workStateRef.current = next;
       setWorkState(next);
       await saveVillagerWorkState(next);
@@ -7314,6 +7320,20 @@ export default function HometownScreen() {
     });
   }, [lightInfos]);
 
+  /** Recall a light who is still out (v173): the record is dropped and
+   *  NOTHING is granted — the blessing pays only on completion. Every
+   *  "away" view (the map's light list, the roster, locations) reads
+   *  this same list, so the light is simply back. A mission that has
+   *  already returned can't be cancelled — cancelMission refuses it. */
+  const handleCancelMission = useCallback((mission: FieldMission) => {
+    setFieldMissions(prev => {
+      const { missions: next, cancelled } = cancelMission(prev, mission.id);
+      if (!cancelled) return prev;
+      saveFieldMissions(next).catch(() => undefined);
+      return next;
+    });
+  }, []);
+
   /** Welcome a returned light home: award their blessing. */
   const handleCollectMission = useCallback((mission: FieldMission) => {
     if (mission.collected || missionStatus(mission) !== "returned") return;
@@ -8081,6 +8101,7 @@ export default function HometownScreen() {
           bloodmoonHeld={ownedBadges.includes("bloodmoon")}
           onSend={handleSendMission}
           onCollect={handleCollectMission}
+          onCancel={handleCancelMission}
         />
         </SafeBoundary>
         {/* Celebration overlays render on every map, including the field. */}

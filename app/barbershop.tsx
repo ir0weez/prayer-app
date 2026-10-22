@@ -38,6 +38,8 @@ import { TrimGame } from "@/components/trim-game";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
 import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
 
+import { useSkin } from "@/hooks/use-skin";
+
 const BG = "#1E1B4B";
 const CARD = "rgba(255,255,255,0.08)";
 const LABEL = "#A78BFA";
@@ -76,11 +78,13 @@ function StyleGridItem({
   onBuy: () => void;
   onEquip: () => void;
 }) {
+  const { tokens: skinTokens } = useSkin();
+  const sceneCard = skinTokens.darkSurface ?? CARD;
   return (
     <View
       style={{
         width: "31%",
-        backgroundColor: CARD,
+        backgroundColor: sceneCard,
         borderRadius: 14,
         padding: 10,
         alignItems: "center",
@@ -142,6 +146,9 @@ async function loadCoins(): Promise<Coins> {
 
 export default function BarbershopScreen() {
   const router = useRouter();
+  const { tokens: skinTokens } = useSkin();
+  const sceneBg = skinTokens.darkBackground ?? BG;
+  const sceneCard = skinTokens.darkSurface ?? CARD;
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
   const [coins, setCoins] = useState<Coins>({ balance: 0, lifetimeEarned: 0 });
   const [ownedHair, setOwnedHair] = useState<PawnHairStyle[]>(["bald", "short"]);
@@ -309,12 +316,12 @@ export default function BarbershopScreen() {
   };
 
   if (!loaded) {
-    return <View style={{ flex: 1, backgroundColor: BG }} />;
+    return <View style={{ flex: 1, backgroundColor: sceneBg }} />;
   }
 
   if (!hasShop) {
     return (
-      <View style={{ flex: 1, backgroundColor: BG, padding: 20, paddingTop: 56, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flex: 1, backgroundColor: sceneBg, padding: 20, paddingTop: 56, alignItems: "center", justifyContent: "center" }}>
         <Text style={{ fontSize: 48 }}>💈</Text>
         <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 20, marginTop: 16, textAlign: "center" }}>
           No Barbershop Yet
@@ -339,7 +346,7 @@ export default function BarbershopScreen() {
   const canCut = hairLength > 0 && pawn?.hairStyle !== "bald" && coins.balance >= BARBERSHOP_TRIM_COST;
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: sceneBg }}>
       {/* decorative background shapes */}
       <View pointerEvents="none" style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: "rgba(124,92,255,0.18)" }} />
       <View pointerEvents="none" style={{ position: "absolute", bottom: 120, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: "rgba(76,29,149,0.35)" }} />
@@ -360,7 +367,7 @@ export default function BarbershopScreen() {
         </View>
 
         {!pawn ? (
-          <View style={{ backgroundColor: CARD, borderRadius: 16, padding: 24, alignItems: "center", marginTop: 16 }}>
+          <View style={{ backgroundColor: sceneCard, borderRadius: 16, padding: 24, alignItems: "center", marginTop: 16 }}>
             <MaterialIcons name="person-add" size={40} color={LABEL} />
             <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16, marginTop: 12, textAlign: "center" }}>
               No pawn yet
@@ -377,7 +384,7 @@ export default function BarbershopScreen() {
           </View>
         ) : !isMale ? (
           <>
-            <View style={{ alignItems: "center", backgroundColor: CARD, borderRadius: 16, paddingVertical: 24, marginTop: 8 }}>
+            <View style={{ alignItems: "center", backgroundColor: sceneCard, borderRadius: 16, paddingVertical: 24, marginTop: 8 }}>
               <PawnPreview pawn={pawn} size={150} />
               <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 18, marginTop: 12 }}>
                 {hairLabel(hairLength)}
@@ -481,7 +488,7 @@ export default function BarbershopScreen() {
           </>
         ) : (
           <>
-            <View style={{ alignItems: "center", backgroundColor: CARD, borderRadius: 16, paddingVertical: 24, marginTop: 8 }}>
+            <View style={{ alignItems: "center", backgroundColor: sceneCard, borderRadius: 16, paddingVertical: 24, marginTop: 8 }}>
               <PawnPreview pawn={pawn} size={150} />
               <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 18, marginTop: 12 }}>
                 {beardLabel(beardLength)}
@@ -521,7 +528,7 @@ export default function BarbershopScreen() {
             )}
 
             {/* Hair section for males */}
-            <View style={{ alignItems: "center", backgroundColor: CARD, borderRadius: 16, paddingVertical: 20, marginTop: 16 }}>
+            <View style={{ alignItems: "center", backgroundColor: sceneCard, borderRadius: 16, paddingVertical: 20, marginTop: 16 }}>
               <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>
                 {hairLabel(hairLength)}
               </Text>

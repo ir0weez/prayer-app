@@ -22,6 +22,8 @@ import {
   type PawnMouthStyle,
 } from "@/lib/pawn";
 
+import { useSkin } from "@/hooks/use-skin";
+
 const BG = "#1E1B4B";
 const CARD = "rgba(255,255,255,0.08)";
 const LABEL = "#A78BFA";
@@ -37,6 +39,9 @@ function SectionLabel({ children }: { children: string }) {
 
 export default function PawnCreatorScreen() {
   const router = useRouter();
+  const { tokens: skinTokens } = useSkin();
+  const sceneBg = skinTokens.darkBackground ?? BG;
+  const sceneCard = skinTokens.darkSurface ?? CARD;
   const [draft, setDraft] = useState<CustomPawn>(() => defaultPawn());
   const [loaded, setLoaded] = useState(false);
 
@@ -61,11 +66,11 @@ export default function PawnCreatorScreen() {
   };
 
   if (!loaded) {
-    return <View style={{ flex: 1, backgroundColor: BG }} />;
+    return <View style={{ flex: 1, backgroundColor: sceneBg }} />;
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: sceneBg }}>
       {/* decorative background shapes */}
       <View pointerEvents="none" style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: "rgba(124,92,255,0.18)" }} />
       <View pointerEvents="none" style={{ position: "absolute", bottom: 120, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: "rgba(76,29,149,0.35)" }} />
@@ -84,7 +89,7 @@ export default function PawnCreatorScreen() {
         </View>
 
         {/* preview */}
-        <View style={{ alignItems: "center", backgroundColor: CARD, borderRadius: 16, paddingVertical: 24, marginTop: 8 }}>
+        <View style={{ alignItems: "center", backgroundColor: sceneCard, borderRadius: 16, paddingVertical: 24, marginTop: 8 }}>
           <PawnPreview pawn={draft} size={150} />
           <TextInput
             value={draft.name}
@@ -156,7 +161,7 @@ export default function PawnCreatorScreen() {
               <Pressable
                 key={opt.id}
                 onPress={() => set("gender", opt.id as PawnGender)}
-                style={{ flex: 1, paddingVertical: 12, alignItems: "center", backgroundColor: CARD, borderRadius: 12, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
+                style={{ flex: 1, paddingVertical: 12, alignItems: "center", backgroundColor: sceneCard, borderRadius: 12, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
                 <MaterialIcons name={opt.id === "male" ? "male" : "female"} size={22} color={selected ? "#FFFFFF" : LABEL} />
                 <Text style={{ fontSize: 13, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
@@ -166,7 +171,7 @@ export default function PawnCreatorScreen() {
         </View>
 
         {/* barbershop link for hair/beard */}
-        <Pressable onPress={() => router.push("/barbershop")} style={{ marginTop: 8, marginBottom: 8, flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 12, padding: 12 }}>
+        <Pressable onPress={() => router.push("/barbershop")} style={{ marginTop: 8, marginBottom: 8, flexDirection: "row", alignItems: "center", backgroundColor: sceneCard, borderRadius: 12, padding: 12 }}>
           <MaterialIcons name="content-cut" size={20} color={LABEL} />
           <Text style={{ fontSize: 12, color: LABEL, marginLeft: 8, flex: 1 }}>
             Hair & beard styles live at the barbershop. Beards grow over time.
@@ -183,7 +188,7 @@ export default function PawnCreatorScreen() {
               <Pressable
                 key={opt.id}
                 onPress={() => set("eyeStyle", opt.id as PawnEyeStyle)}
-                style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
+                style={{ width: 76, alignItems: "center", backgroundColor: sceneCard, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
                 <PaperHeroThumbnail
                   headOnly
@@ -210,7 +215,7 @@ export default function PawnCreatorScreen() {
               <Pressable
                 key={opt.id}
                 onPress={() => set("mouthStyle", opt.id as PawnMouthStyle)}
-                style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
+                style={{ width: 76, alignItems: "center", backgroundColor: sceneCard, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
                 <PaperHeroThumbnail
                   headOnly
@@ -237,7 +242,7 @@ export default function PawnCreatorScreen() {
               <Pressable
                 key={opt.id}
                 onPress={() => set("accessory", opt.id as PawnAccessory)}
-                style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
+                style={{ width: 76, alignItems: "center", backgroundColor: sceneCard, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
                 <PaperHeroThumbnail
                   headOnly
@@ -258,7 +263,7 @@ export default function PawnCreatorScreen() {
 
         {/* actions */}
         <View style={{ flexDirection: "row", gap: 12, marginTop: 28 }}>
-          <Pressable onPress={() => router.back()} style={{ flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: CARD, alignItems: "center" }}>
+          <Pressable onPress={() => router.back()} style={{ flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: sceneCard, alignItems: "center" }}>
             <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 15 }}>Cancel</Text>
           </Pressable>
           <Pressable onPress={handleSave} style={{ flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: ACCENT, alignItems: "center" }}>

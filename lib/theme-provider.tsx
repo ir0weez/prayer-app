@@ -6,12 +6,15 @@ import { colorScheme as nativewindColorScheme, vars } from "nativewind";
 import { type ColorScheme } from "@/constants/theme";
 import { APP_SETTINGS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DEFAULT_ACCENT_THEME, getThemedPalette, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
+import { DEFAULT_SKIN_THEME, normalizeSkinThemeId, type SkinThemeId } from "@/lib/skin-themes";
 
 type ThemeContextValue = {
   colorScheme: ColorScheme;
   setColorScheme: (scheme: ColorScheme) => void;
   accentTheme: AccentThemeId;
   setAccentTheme: (theme: AccentThemeId) => void;
+  skinTheme: SkinThemeId;
+  setSkinTheme: (skin: SkinThemeId) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -20,6 +23,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useSystemColorScheme() ?? "light";
   const [colorScheme, setColorSchemeState] = useState<ColorScheme>(systemScheme);
   const [accentTheme, setAccentThemeState] = useState<AccentThemeId>(DEFAULT_ACCENT_THEME);
+  const [skinTheme, setSkinThemeState] = useState<SkinThemeId>(DEFAULT_SKIN_THEME);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isManuallySet, setIsManuallySet] = useState(false);
 
@@ -27,8 +31,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY).then((stored) => {
       if (!stored) return;
       try {
-        const parsed = JSON.parse(stored) as { colorTheme?: unknown };
+        const parsed = JSON.parse(stored) as { colorTheme?: unknown; skinTheme?: unknown };
         setAccentThemeState(normalizeAccentThemeId(parsed.colorTheme));
+        setSkinThemeState(normalizeSkinThemeId(parsed.skinTheme));
       } catch {
         // Keep the default accent when settings are malformed.
       }
@@ -57,6 +62,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setAccentTheme = useCallback((theme: AccentThemeId) => {
     setAccentThemeState(normalizeAccentThemeId(theme));
+  }, []);
+
+  const setSkinTheme = useCallback((skin: SkinThemeId) => {
+    setSkinThemeState(normalizeSkinThemeId(skin));
   }, []);
 
   // Initialize with system color scheme on mount
@@ -102,8 +111,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setColorScheme,
       accentTheme,
       setAccentTheme,
+      skinTheme,
+      setSkinTheme,
     }),
-    [accentTheme, colorScheme, setAccentTheme, setColorScheme],
+    [accentTheme, colorScheme, setAccentTheme, setColorScheme, setSkinTheme, skinTheme],
   );
 
   return (

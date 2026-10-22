@@ -27,6 +27,7 @@ import {
   formatCoins,
 } from "@/lib/hometown";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
+import { useSkin } from "@/hooks/use-skin";
 
 export type InteriorData = {
   coins: HometownCoins;
@@ -155,15 +156,21 @@ export function InteriorHeader({
   textColor?: string;
 }) {
   const router = useRouter();
+  // Paper skin (v174): only the header's own chrome changes — a paper
+  // surface when the caller left the default white, and the coin pill
+  // becomes a paper chip with the kit's offset shadow. Scene-colored
+  // headers (mine, shops) keep their exact colors.
+  const { isPaper, tokens } = useSkin();
+  const headerBg = isPaper && bg === "#FFFFFF" ? (tokens.surface ?? bg) : bg;
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 48, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: bg }}>
+    <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 48, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: headerBg }}>
       <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
         <MaterialIcons name="arrow-back" size={24} color={textColor} />
       </Pressable>
       <MaterialIcons name={icon} size={26} color={iconColor} style={{ marginLeft: 4 }} />
       <Text style={{ marginLeft: 8, fontSize: 20, fontWeight: "800", color: textColor }} numberOfLines={1}>{title}</Text>
       <View style={{ flex: 1 }} />
-      <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: "#E5E7EB" }}>
+      <View style={[{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: "#E5E7EB" }, isPaper ? tokens.cardShadow : null]}>
         <MaterialIcons name="monetization-on" size={15} color="#B45309" />
         <Text style={{ marginLeft: 5, fontWeight: "700", color: textColor }}>{formatCoins(coins.balance)}</Text>
       </View>
@@ -185,8 +192,9 @@ export function InteriorBanner({
   blurb: string;
   accent?: string;
 }) {
+  const { isPaper, tokens } = useSkin();
   return (
-    <View style={{ marginHorizontal: 16, marginBottom: 12, borderRadius: 16, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: accent, padding: 14, flexDirection: "row", alignItems: "center" }}>
+    <View style={[{ marginHorizontal: 16, marginBottom: 12, borderRadius: 16, backgroundColor: isPaper ? (tokens.surface ?? "#FFFFFF") : "#FFFFFF", borderWidth: 1, borderColor: accent, padding: 14, flexDirection: "row", alignItems: "center" }, isPaper ? tokens.cardShadow : null]}>
       <MaterialIcons name={icon} size={26} color={iconColor} />
       <View style={{ marginLeft: 12, flex: 1 }}>
         <Text style={{ color: "#1C1917", fontWeight: "800", fontSize: 15 }}>{title}</Text>
@@ -212,13 +220,14 @@ export function InteriorActions({
   onUpgrade: () => void;
   upgradeLabel?: string;
 }) {
+  const { isPaper, tokens } = useSkin();
   return (
     <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: 16 }}>
-      <Pressable onPress={onPrimary} style={{ flex: 1, backgroundColor: primaryColor, borderRadius: 14, paddingVertical: 13, alignItems: "center", marginRight: 8 }}>
+      <Pressable onPress={onPrimary} style={[{ flex: 1, backgroundColor: primaryColor, borderRadius: 14, paddingVertical: 13, alignItems: "center", marginRight: 8 }, isPaper ? tokens.cardShadow : null]}>
         <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>{primaryLabel}</Text>
       </Pressable>
       {level < 3 && (
-        <Pressable onPress={onUpgrade} style={{ backgroundColor: "#FFFFFF", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16, alignItems: "center", borderWidth: 1, borderColor: primaryColor }}>
+        <Pressable onPress={onUpgrade} style={[{ backgroundColor: isPaper ? (tokens.surface ?? "#FFFFFF") : "#FFFFFF", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16, alignItems: "center", borderWidth: 1, borderColor: primaryColor }, isPaper ? tokens.cardShadow : null]}>
           <Text style={{ color: primaryColor, fontWeight: "800", fontSize: 14 }}>{upgradeLabel}</Text>
         </Pressable>
       )}

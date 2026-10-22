@@ -44,6 +44,8 @@ import ReAnimated, {
   Easing,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
+import { PaperRestSky, paperKeywordSceneFor } from "./paper-keyword-scenes";
 import { createTRPCClient } from "@/lib/trpc";
 import { FlameSparkIcon } from "./flame-spark-icon";
 import { DateTimePicker } from "./date-time-picker";
@@ -7096,6 +7098,14 @@ function detectRestaurantScene(location: string | undefined | null): React.React
 
 /** Picks the ambient animation for a keyword card. */
 function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" }: { label: string; title?: string; location?: string; notes?: string }) {
+  // Paper skin (v174): the highest-use keyword scenes have paper
+  // renditions — cut pieces with the kit's offset shadow, settling on
+  // sine. Everything else keeps its original artwork under every skin.
+  const { isPaper } = useSkin();
+  if (isPaper) {
+    const paperScene = paperKeywordSceneFor(label, title, location, notes);
+    if (paperScene) return paperScene;
+  }
   // Breakfast, lunch, and dinner each get their own illustrated scene.
   // A food named in the notes wins first (homecooked top-down view),
   // then a matching restaurant in the location swaps in its own food scene.
@@ -7430,6 +7440,7 @@ function EventCardInner({
   squareTop?: boolean;
 }) {
   const colors = useColors();
+  const { isPaper } = useSkin();
   const timeOffCardColor = getTimeOffEventColor(event);
   const timeOffTextColor = readableTextColor(timeOffCardColor);
   const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title, event.location, event.notes);
@@ -7604,30 +7615,36 @@ function EventCardInner({
           style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         >
           <View style={[eventStyles.illustratedCard, { backgroundColor: mc.bg, borderColor: mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
-            {mood === "night" && REST_STARS.map((s, i) => (
-              <TwinkleStar key={i} left={s.left} top={s.top} size={s.size} delay={s.delay} />
-            ))}
-            {mood === "sunrise" && (
+            {isPaper ? (
+              <PaperRestSky mood={mood} bg={mc.bg} />
+            ) : (
               <>
-                <DawnGlow />
-                <RisingMote left="18%" top={46} delay={0} duration={7000} />
-                <RisingMote left="34%" top={54} delay={1800} duration={8000} />
-                <RisingMote left="52%" top={48} delay={3200} duration={6500} />
-              </>
-            )}
-            {mood === "midday" && (
-              <>
-                <DriftingCloud top={10} size={46} duration={21000} delay={0} />
-                <DriftingCloud top={44} size={32} duration={16000} delay={6000} />
-              </>
-            )}
-            {mood === "sunset" && (
-              <>
-                <SettingSun />
-                <Firefly left="20%" top={18} delay={0} />
-                <Firefly left="42%" top={40} delay={1200} />
-                <Firefly left="58%" top={16} delay={2400} />
-                <Firefly left="70%" top={44} delay={800} />
+                {mood === "night" && REST_STARS.map((s, i) => (
+                  <TwinkleStar key={i} left={s.left} top={s.top} size={s.size} delay={s.delay} />
+                ))}
+                {mood === "sunrise" && (
+                  <>
+                    <DawnGlow />
+                    <RisingMote left="18%" top={46} delay={0} duration={7000} />
+                    <RisingMote left="34%" top={54} delay={1800} duration={8000} />
+                    <RisingMote left="52%" top={48} delay={3200} duration={6500} />
+                  </>
+                )}
+                {mood === "midday" && (
+                  <>
+                    <DriftingCloud top={10} size={46} duration={21000} delay={0} />
+                    <DriftingCloud top={44} size={32} duration={16000} delay={6000} />
+                  </>
+                )}
+                {mood === "sunset" && (
+                  <>
+                    <SettingSun />
+                    <Firefly left="20%" top={18} delay={0} />
+                    <Firefly left="42%" top={40} delay={1200} />
+                    <Firefly left="58%" top={16} delay={2400} />
+                    <Firefly left="70%" top={44} delay={800} />
+                  </>
+                )}
               </>
             )}
             <View style={eventStyles.illustratedContent}>
@@ -8907,6 +8924,7 @@ function RestSquare({
   onLongPress?: (e: any) => void;
 }) {
   const colors = useColors();
+  const { isPaper } = useSkin();
   const mood = getRestMood(event.startTime);
   const mc = REST_MOODS[mood];
   // Gentle breathing animation on the icon
@@ -8930,18 +8948,24 @@ function RestSquare({
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
       <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
-        {/* Animated sky background by time of day */}
-        {mood === "night" && REST_STARS.map((s, i) => (
-          <TwinkleStar key={i} left={s.left} top={s.top} size={s.size} delay={s.delay} />
-        ))}
-        {mood === "midday" && (
+        {/* Animated sky background by time of day — paper cutouts under the Paper skin */}
+        {isPaper ? (
+          <PaperRestSky mood={mood} bg={mc.bg} />
+        ) : (
           <>
-            <DriftingCloud top={18} size={36} duration={9000} delay={0} />
-            <DriftingCloud top={44} size={28} duration={12000} delay={3000} />
+            {mood === "night" && REST_STARS.map((s, i) => (
+              <TwinkleStar key={i} left={s.left} top={s.top} size={s.size} delay={s.delay} />
+            ))}
+            {mood === "midday" && (
+              <>
+                <DriftingCloud top={18} size={36} duration={9000} delay={0} />
+                <DriftingCloud top={44} size={28} duration={12000} delay={3000} />
+              </>
+            )}
+            {mood === "sunrise" && <DawnGlow />}
+            {mood === "sunset" && <SettingSun />}
           </>
         )}
-        {mood === "sunrise" && <DawnGlow />}
-        {mood === "sunset" && <SettingSun />}
         {/* Icon with no tinted background, gentle breathing animation */}
         <Animated.View style={{ transform: [{ scale: iconScale }], opacity: iconOpacity, marginBottom: 8 }}>
           <MaterialIcons name={mc.icon as any} size={40} color={mc.iconColor} />

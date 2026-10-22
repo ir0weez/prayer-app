@@ -15,6 +15,7 @@ import { COINS_STORAGE_KEY, SHOP_OWNED_KEY, parseCoins, parseOwnedItems, type Ho
   formatCoins, applyCoinsDelta,
 } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -149,6 +150,10 @@ function getFastDayButtonLabel(status?: FastDayStatus) {
 export default function ProfileScreen() {
   const router = useRouter();
   const colors = useColors();
+  // Paper skin (v174): the profile's cards sit on the page like sheets —
+  // the kit's offset shadow joins their style arrays; null under Classic.
+  const { isPaper, tokens: skinTokens } = useSkin();
+  const skinCardShadow = isPaper ? skinTokens.cardShadow : null;
   const today = getTodayISOString();
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
@@ -604,7 +609,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }]}>
+        <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }, skinCardShadow]}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
             <View>
               <Pressable onPress={() => setShowAvatarPicker(true)}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" profileLevel={profileLevel} photoUri={profile.photoUri} size={76} fallbackColor={PURPLE} /></Pressable>
@@ -651,15 +656,15 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, skinCardShadow]}>
             <Text style={dynamicStyles.statNumber}>{highestFastStreak}</Text>
             <Text style={styles.statLabel}>Highest Streak</Text>
           </View>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, skinCardShadow]}>
             <Text style={dynamicStyles.statNumber}>{completedFastCount}</Text>
             <Text style={styles.statLabel}>Completed Fasts</Text>
           </View>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, skinCardShadow]}>
             <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }]}>
               {lastCompletedFastProgress ? `${lastCompletedFastPercentage}%` : "Collecting Data"}
             </Text>
@@ -686,7 +691,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
         {lastCompletedFast && lastCompletedFastProgress ? (
-          <View style={styles.previousFastCard}>
+          <View style={[styles.previousFastCard, skinCardShadow]}>
             <View style={styles.previousFastHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.previousFastTitle}>{lastCompletedFast.name}</Text>
@@ -724,7 +729,7 @@ export default function ProfileScreen() {
                 </View>
               )}
             </View>
-            <View style={styles.fastCard}>
+            <View style={[styles.fastCard, skinCardShadow]}>
               <View style={[styles.fastIcon, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
                 <MaterialIcons name={iconName(selectedFastType?.icon ?? "local-fire-department")} size={28} color="#FFFFFF" />
               </View>
@@ -1073,7 +1078,7 @@ export default function ProfileScreen() {
                       <View style={[styles.timelineDot, { backgroundColor: typeInfo?.color ?? colors.primary }]} />
                       {index < fastHistory.length - 1 && <View style={styles.timelineLine} />}
                     </View>
-                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
+                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, skinCardShadow, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
                       <View style={styles.historyCardHeader}>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.historyTitle}>{fast.name}</Text>

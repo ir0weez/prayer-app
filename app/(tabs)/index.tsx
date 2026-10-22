@@ -132,6 +132,9 @@ import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/
 import { COINS_STORAGE_KEY, parseCoins, applyCoinsDelta } from "@/lib/hometown";
 import { awardXP, awardCustomXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
+import { SKIN_THEMES, getSkinThemeDefinition, normalizeSkinThemeId, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
+import { useSkin } from "@/hooks/use-skin";
+import { PaperGrainOverlay } from "@/components/paper-grain";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
@@ -190,6 +193,7 @@ function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactN
 type AppSettings = {
   demoMode: boolean;
   colorTheme: AccentThemeId;
+  skinTheme: SkinThemeId;
   whiteSpaceEnabled: boolean;
   holidaysEnabled: boolean;
   prayerRemindersEnabled: boolean;
@@ -224,6 +228,7 @@ const UNDO_COUNTDOWN_MS = 5000;
 const DEFAULT_SETTINGS: AppSettings = {
   demoMode: false,
   colorTheme: "default",
+  skinTheme: "classic",
   whiteSpaceEnabled: true,
   holidaysEnabled: true,
   prayerRemindersEnabled: true,
@@ -304,11 +309,13 @@ function parseStoredSettings(value: string | null): AppSettings {
   try {
     const parsed = JSON.parse(value) as Partial<AppSettings>;
     const colorTheme = normalizeAccentThemeId(parsed.colorTheme);
+    const skinTheme = normalizeSkinThemeId(parsed.skinTheme);
     const validAdvanceMinutes = [0, 5, 15, 30, 60];
     const defaultEventReminderMinutes = Number(parsed.defaultEventReminderMinutes);
     return {
       demoMode: Boolean(parsed.demoMode),
       colorTheme,
+      skinTheme,
       whiteSpaceEnabled: parsed.whiteSpaceEnabled !== false,
       holidaysEnabled: parsed.holidaysEnabled !== false,
       prayerRemindersEnabled: parsed.prayerRemindersEnabled !== false,
@@ -728,6 +735,7 @@ export default function HomeScreen() {
     return () => { active = false; };
   }, [fasts, hasHydratedPeople, people, streakRecord.streak]);
   const [showThemeSheet, setShowThemeSheet] = useState(false);
+  const [showSkinSheet, setShowSkinSheet] = useState(false);
   const [showAppIconSheet, setShowAppIconSheet] = useState(false);
   const [selectedAppIconId, setSelectedAppIconId] = useState("original");
   const [iconSwitchError, setIconSwitchError] = useState<string | null>(null);
@@ -852,7 +860,7 @@ export default function HomeScreen() {
   const pendingPrayerPositions = useRef<Record<string, XpGainPosition | undefined>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
   const xpShimmer = useRef(new Animated.Value(0)).current;
-  const { colorScheme, setAccentTheme } = useThemeContext();
+  const { colorScheme, setAccentTheme, setSkinTheme } = useThemeContext();
 
   const awardExperience = useCallback(async (action: XpAction, idempotencyKey: string, position?: XpGainPosition) => {
     try {
@@ -907,6 +915,10 @@ export default function HomeScreen() {
   useEffect(() => {
     if (hasHydratedPeople) setAccentTheme(settings.colorTheme);
   }, [hasHydratedPeople, setAccentTheme, settings.colorTheme]);
+
+  useEffect(() => {
+    if (hasHydratedPeople) setSkinTheme(settings.skinTheme);
+  }, [hasHydratedPeople, setSkinTheme, settings.skinTheme]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1093,7 +1105,8 @@ export default function HomeScreen() {
   }, [people]);
 
   const colors = useColors();
-  const styles = createStyles(colors);
+  const { tokens: skinTokens, motion: skinMotion } = useSkin();
+  const styles = createStyles(colors, skinTokens);
 
   // Emergency notification "Dismiss" button: clear the active emergency prayer.
   // Uses a ref so the listener always sees the latest people list.
@@ -2706,6 +2719,9 @@ export default function HomeScreen() {
         <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("palette", "Color Theme", getAccentThemeDefinition(settings.colorTheme).name)}
         </Pressable>
+        <Pressable onPress={() => setShowSkinSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("layers", "App Skin", getSkinThemeDefinition(settings.skinTheme).name)}
+        </Pressable>
         <Pressable onPress={() => { setIconSwitchError(null); setShowAppIconSheet(true); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("image", "App Icon", getAppIconDef(selectedAppIconId).name)}
         </Pressable>
@@ -3109,7 +3125,7 @@ export default function HomeScreen() {
     if (prevTabRef.current !== activeTab) {
       prevTabRef.current = activeTab;
       tabTransition.value = 0;
-      tabTransition.value = withTiming(1, { duration: 400, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
+      tabTransition.value = withTiming(1, skinMotion.slide);
     }
   }, [activeTab, tabTransition]);
   const tabContentStyle = useAnimatedStyle(() => ({
@@ -3125,7 +3141,7 @@ export default function HomeScreen() {
       navFirstLayout.current = false;
     } else {
       // M3 Expressive emphasized easing: liquid and smooth, no bounce.
-      tabPillX.value = withTiming(target, { duration: 400, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
+      tabPillX.value = withTiming(target, skinMotion.slide);
     }
   }, [activeTabIndex, navWidth, tabPillX]);
 
@@ -3336,14 +3352,16 @@ export default function HomeScreen() {
         onLayout={(event) => setNavWidth(event.nativeEvent.layout.width)}
         style={[styles.bottomNav, {
           borderColor: colors.border,
-          backgroundColor: colors.surface,
-          elevation: 3,
+          backgroundColor: skinTokens.surface ?? colors.surface,
+          elevation: skinTokens.cardShadow?.elevation ?? 3,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
+          shadowOpacity: skinTokens.cardShadow ? 0 : 0.1,
           shadowRadius: 4,
+          ...(skinTokens.cardShadow ?? {}),
         }]}
       >
+        {skinTokens.cardShadow ? <PaperGrainOverlay /> : null}
         {/* sliding expressive pill */}
         <ReAnimated.View
           style={[
@@ -3525,6 +3543,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowThemeSheet(false)} />
           <View style={styles.themeSheet}>
+            {skinTokens.cardShadow ? <PaperGrainOverlay /> : null}
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowThemeSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
               <Text style={styles.sheetTitle}>Color Theme</Text>
@@ -3554,6 +3573,48 @@ export default function HomeScreen() {
                     {!unlocked && <Text style={styles.themeOptionDescription}>Unlocks at Level {theme.unlockLevel}</Text>}
                   </View>
                   {settings.colorTheme === theme.id && <MaterialIcons name={iconName("check-circle")} size={24} color={theme.swatch} />}
+                </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      {/* App Skin picker — the material axis beside Color Theme (v174).
+          Classic is the app as it has always looked; Paper re-skins
+          the chrome into flat paper with the kit's one offset shadow. */}
+      <Modal transparent visible={showSkinSheet} animationType="slide" onRequestClose={() => setShowSkinSheet(false)}>
+        <View style={styles.sheetOverlay}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setShowSkinSheet(false)} />
+          <View style={styles.themeSheet}>
+            {skinTokens.cardShadow ? <PaperGrainOverlay /> : null}
+            <View style={styles.sheetHeader}>
+              <Pressable onPress={() => setShowSkinSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
+              <Text style={styles.sheetTitle}>App Skin</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            <ScrollView contentContainerStyle={styles.themeOptions}>
+              {SKIN_THEMES.map((theme) => {
+                const unlocked = xpProgress.level >= theme.unlockLevel;
+                return (
+                <Pressable
+                  key={theme.id}
+                  disabled={!unlocked}
+                  onPress={() => {
+                    if (!unlocked) return;
+                    setSettings((previous) => ({ ...previous, skinTheme: theme.id }));
+                    setSkinTheme(theme.id);
+                    setShowSkinSheet(false);
+                  }}
+                  style={({ pressed }) => [styles.themeOption, { borderColor: colors.border }, pressed && unlocked && { opacity: 0.75 }]}
+                >
+                  <View style={[styles.themeColorSwatch, { backgroundColor: theme.swatch }, theme.id === "paper" && { borderWidth: 1, borderColor: "#D8C391" }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.themeOptionName}>{theme.name}</Text>
+                    <Text style={styles.themeOptionDescription}>{theme.description}</Text>
+                    {!unlocked && <Text style={styles.themeOptionDescription}>Unlocks at Level {theme.unlockLevel}</Text>}
+                  </View>
+                  {settings.skinTheme === theme.id && <MaterialIcons name={iconName("check-circle")} size={24} color={theme.swatch} />}
                 </Pressable>
                 );
               })}
@@ -3701,7 +3762,14 @@ export default function HomeScreen() {
   );
 }
 
-function createStyles(colors: any) {
+function createStyles(colors: any, skin?: SkinTokens | null) {
+  // Paper skin (v174): chrome surfaces become paper — tinted surface,
+  // the kit's one offset shadow, rounder sheet corners. Every value
+  // falls back to the exact Classic style when the skin is off, because
+  // Classic tokens are null.
+  const paperSurface = skin?.surface ?? undefined;
+  const cardShadow = skin?.cardShadow ? { boxShadow: skin.cardShadow.boxShadow, elevation: skin.cardShadow.elevation } : {};
+  const sheetShadow = skin?.sheetShadow ? { boxShadow: skin.sheetShadow.boxShadow, elevation: skin.sheetShadow.elevation } : {};
   return StyleSheet.create({
   root: {
     flex: 1,
@@ -5055,7 +5123,8 @@ function createStyles(colors: any) {
     borderRadius: 20,
     borderWidth: 1,
     overflow: "hidden",
-    backgroundColor: colors.surface,
+    backgroundColor: paperSurface ?? colors.surface,
+    ...cardShadow,
   },
   settingsRow: {
     minHeight: 68,
@@ -5149,9 +5218,10 @@ function createStyles(colors: any) {
   themeSheet: {
     maxHeight: "72%",
     paddingBottom: 28,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    backgroundColor: colors.background,
+    borderTopLeftRadius: skin?.sheetRadius ?? 18,
+    borderTopRightRadius: skin?.sheetRadius ?? 18,
+    backgroundColor: paperSurface ?? colors.background,
+    ...sheetShadow,
   },
   avatarComposerCard: {
     width: "88%",
@@ -5239,6 +5309,7 @@ function createStyles(colors: any) {
     shadowColor: "#3E226B",
     shadowOpacity: 0.26,
     shadowRadius: 14,
+    ...cardShadow,
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
     zIndex: 12,
@@ -5256,7 +5327,7 @@ function createStyles(colors: any) {
     borderRadius: 22,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: paperSurface ?? colors.surface,
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
@@ -5264,6 +5335,7 @@ function createStyles(colors: any) {
     paddingHorizontal: 3,
     shadowColor: "#4D405F",
     shadowOpacity: 0.12,
+    ...cardShadow,
     shadowRadius: 15,
     shadowOffset: { width: 0, height: 8 },
     elevation: 4,

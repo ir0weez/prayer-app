@@ -1,6 +1,8 @@
 import { View, type ViewProps } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 
+import { PaperGrainOverlay } from "@/components/paper-grain";
+import { useSkin } from "@/hooks/use-skin";
 import { cn } from "@/lib/utils";
 
 export interface ScreenContainerProps extends ViewProps {
@@ -47,6 +49,10 @@ export function ScreenContainer({
   style,
   ...props
 }: ScreenContainerProps) {
+  // Paper skin (v174): the page itself becomes a sheet — paper-tinted
+  // background plus the grain overlay. Under Classic both are absent
+  // and this renders exactly as before.
+  const { isPaper, tokens } = useSkin();
   return (
     <View
       className={cn(
@@ -54,8 +60,10 @@ export function ScreenContainer({
         "bg-background",
         containerClassName
       )}
+      style={isPaper && tokens.background ? { backgroundColor: tokens.background } : undefined}
       {...props}
     >
+      {isPaper ? <PaperGrainOverlay /> : null}
       <SafeAreaView
         edges={edges}
         className={cn("flex-1", safeAreaClassName)}

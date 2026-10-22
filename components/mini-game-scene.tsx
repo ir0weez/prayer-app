@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { formatCoins } from "@/lib/hometown";
+import { useSkin } from "@/hooks/use-skin";
 import { LayoutChangeEvent, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
@@ -61,21 +62,25 @@ export function PlayCard({
   onPlay: () => void;
 }) {
   const soldOut = playsLeft !== null && playsLeft <= 0;
+  const { isPaper, tokens } = useSkin();
   return (
     <Pressable
       onPress={soldOut ? undefined : onPlay}
-      style={{
-        marginHorizontal: 16,
-        marginTop: 14,
-        borderRadius: 16,
-        backgroundColor: "#FFFFFF",
-        borderWidth: 1,
-        borderColor: accent,
-        padding: 14,
-        flexDirection: "row",
-        alignItems: "center",
-        opacity: soldOut ? 0.55 : 1,
-      }}
+      style={[
+        {
+          marginHorizontal: 16,
+          marginTop: 14,
+          borderRadius: 16,
+          backgroundColor: isPaper ? (tokens.surface ?? "#FFFFFF") : "#FFFFFF",
+          borderWidth: 1,
+          borderColor: accent,
+          padding: 14,
+          flexDirection: "row",
+          alignItems: "center",
+          opacity: soldOut ? 0.55 : 1,
+        },
+        isPaper ? tokens.cardShadow : null,
+      ]}
     >
       <MaterialIcons name={icon} size={26} color={accent} />
       <View style={{ marginLeft: 12, flex: 1 }}>
@@ -108,6 +113,7 @@ export function GameResults({
   accent: string;
   onDone: () => void;
 }) {
+  const { isPaper, tokens } = useSkin();
   return (
     <View style={{ alignItems: "center", paddingVertical: 18, paddingHorizontal: 20 }}>
       <MaterialIcons name="emoji-events" size={34} color={accent} />
@@ -138,7 +144,7 @@ export function GameResults({
       </View>
       <Pressable
         onPress={onDone}
-        style={{ marginTop: 16, backgroundColor: accent, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 34 }}
+        style={[{ marginTop: 16, backgroundColor: accent, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 34 }, isPaper ? tokens.cardShadow : null]}
       >
         <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>Done</Text>
       </Pressable>
@@ -158,18 +164,22 @@ export function GameCard({
   children: React.ReactNode;
   onLayout?: (e: LayoutChangeEvent) => void;
 }) {
+  const { isPaper, tokens } = useSkin();
   return (
     <View
       onLayout={onLayout}
-      style={{
-        marginHorizontal: 16,
-        marginTop: 14,
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: accent,
-        backgroundColor: "#FFFFFF",
-        overflow: "hidden",
-      }}
+      style={[
+        {
+          marginHorizontal: 16,
+          marginTop: 14,
+          borderRadius: 18,
+          borderWidth: 1,
+          borderColor: accent,
+          backgroundColor: isPaper ? (tokens.surface ?? "#FFFFFF") : "#FFFFFF",
+          overflow: "hidden",
+        },
+        isPaper ? tokens.cardShadow : null,
+      ]}
     >
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingTop: 12 }}>
         <MaterialIcons name="sports-esports" size={19} color={accent} />

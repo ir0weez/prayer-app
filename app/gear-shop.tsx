@@ -52,6 +52,8 @@ import { COINS_STORAGE_KEY,
 import { FASTS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { getActiveFast, getCurrentFastDay, type PersonalFast } from "@/lib/prayercircle-fasting";
 
+import { useSkin } from "@/hooks/use-skin";
+
 const BG = "#1E1B4B";
 const CARD = "rgba(255,255,255,0.08)";
 const LABEL = "#A78BFA";
@@ -117,6 +119,9 @@ function boostLabel(item: GearItem): string | null {
 
 export default function GearShopScreen() {
   const router = useRouter();
+  const { tokens: skinTokens } = useSkin();
+  const sceneBg = skinTokens.darkBackground ?? BG;
+  const sceneCard = skinTokens.darkSurface ?? CARD;
   const params = useLocalSearchParams<{ type?: string }>();
   const rawType = typeof params.type === "string" ? params.type : "clothes";
   const shopType: GearType = (["clothes", "armor", "weapon", "tool"] as GearType[]).includes(rawType as GearType)
@@ -284,14 +289,14 @@ export default function GearShopScreen() {
   };
 
   if (!loaded) {
-    return <View style={{ flex: 1, backgroundColor: BG }} />;
+    return <View style={{ flex: 1, backgroundColor: sceneBg }} />;
   }
 
   const items = GEAR_CATALOG.filter((g) => g.type === shopType);
   const equippedClothes = equipped.clothes ? GEAR_BY_ID[equipped.clothes] || null : null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: sceneBg }}>
       <View pointerEvents="none" style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: "rgba(124,92,255,0.18)" }} />
       <View pointerEvents="none" style={{ position: "absolute", bottom: 120, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: "rgba(76,29,149,0.35)" }} />
 
@@ -305,7 +310,7 @@ export default function GearShopScreen() {
           <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 24 }}>
             {meta.title}{shopLevel > 0 ? ` · Lv ${shopLevel}` : ""}
           </Text>
-          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: sceneCard, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 }}>
             <Text style={{ fontSize: 16 }}>🪙</Text>
             <Text style={{ color: "#FFFFFF", fontWeight: "700", marginLeft: 4 }}>{formatCoins(coins.balance)}</Text>
           </View>
@@ -315,7 +320,7 @@ export default function GearShopScreen() {
         </Text>
 
         {pawn && shopType === "clothes" && (
-          <View style={{ alignItems: "center", backgroundColor: CARD, borderRadius: 16, paddingVertical: 16, marginBottom: 16 }}>
+          <View style={{ alignItems: "center", backgroundColor: sceneCard, borderRadius: 16, paddingVertical: 16, marginBottom: 16 }}>
             <PawnPreview pawn={pawn} size={120} equippedGear={equippedClothes} />
             <Text style={{ color: LABEL, fontSize: 12, marginTop: 8 }}>Live preview</Text>
           </View>
@@ -345,7 +350,7 @@ export default function GearShopScreen() {
             item.type === "weapon" ? temperedNext.attack || 0 : temperedNext.defense || 0;
           const temperAffordable = coins.balance >= temperCostNext;
           return (
-            <View key={item.id} style={{ backgroundColor: CARD, borderRadius: 16, padding: 16, marginBottom: 12, opacity: blocked ? 0.6 : 1 }}>
+            <View key={item.id} style={{ backgroundColor: sceneCard, borderRadius: 16, padding: 16, marginBottom: 12, opacity: blocked ? 0.6 : 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(124,92,255,0.25)", alignItems: "center", justifyContent: "center" }}>
                   <MaterialIcons name={item.icon as any} size={26} color={blocked ? "#6B7280" : GOLD} />
@@ -477,7 +482,7 @@ export default function GearShopScreen() {
               const gateMet = pickGateMet(pick.tier, mineGates);
               const gated = pick.gate !== "none" && !gateMet;
               return (
-                <View key={pick.tier} style={{ backgroundColor: CARD, borderRadius: 16, padding: 16, marginBottom: 12, opacity: gated ? 0.6 : 1 }}>
+                <View key={pick.tier} style={{ backgroundColor: sceneCard, borderRadius: 16, padding: 16, marginBottom: 12, opacity: gated ? 0.6 : 1 }}>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(124,92,255,0.25)", alignItems: "center", justifyContent: "center" }}>
                       <PickGlyph color={gated ? "#6B7280" : pick.color} />

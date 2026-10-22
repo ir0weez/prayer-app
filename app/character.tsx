@@ -15,6 +15,8 @@ import {
 } from "@/lib/character-stats";
 import { loadXPState } from "@/lib/xp-engine";
 
+import { useSkin } from "@/hooks/use-skin";
+
 const BG = "#1E1B4B";
 const CARD = "rgba(255,255,255,0.08)";
 const LABEL = "#A78BFA";
@@ -32,9 +34,11 @@ function StatRow({
   onAllocate: () => void;
 }) {
   const def = STAT_DEFS.find((d) => d.id === statId)!;
+  const { tokens: skinTokens } = useSkin();
+  const sceneCard = skinTokens.darkSurface ?? CARD;
   const maxed = value >= MAX_STAT;
   return (
-    <View style={{ backgroundColor: CARD, borderRadius: 12, padding: 12, marginBottom: 10 }}>
+    <View style={{ backgroundColor: sceneCard, borderRadius: 12, padding: 12, marginBottom: 10 }}>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
         <View
           style={{
@@ -92,6 +96,9 @@ function StatRow({
 }
 
 export default function CharacterScreen() {
+  const { tokens: skinTokens } = useSkin();
+  const sceneBg = skinTokens.darkBackground ?? BG;
+  const sceneCard = skinTokens.darkSurface ?? CARD;
   const [stats, setStats] = useState<CharacterStats | null>(null);
   const [points, setPoints] = useState(0);
 
@@ -118,7 +125,7 @@ export default function CharacterScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: sceneBg }}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
           <Pressable onPress={() => router.back()} style={{ padding: 8, marginLeft: -8 }}>
@@ -187,7 +194,7 @@ export default function CharacterScreen() {
               <View
                 key={perk.id}
                 style={{
-                  backgroundColor: CARD,
+                  backgroundColor: sceneCard,
                   borderRadius: 12,
                   padding: 12,
                   marginBottom: 8,

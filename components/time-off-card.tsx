@@ -1,6 +1,7 @@
 import { View, Text, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
+import { useSkin } from '@/hooks/use-skin';
 import { useEffect, useState } from 'react';
 import type { TimeOff } from '@/lib/time-off';
 
@@ -11,6 +12,7 @@ interface TimeOffCardProps {
 
 export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
   const colors = useColors();
+  const { tokens: skinTokens } = useSkin();
   const [daysRemaining, setDaysRemaining] = useState(0);
 
   useEffect(() => {
@@ -86,7 +88,9 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
       style={({ pressed }) => [
         {
           marginBottom: 10,
-          marginHorizontal: 0,
+          // v185 (8-bit only): the card floats on the dusk like every
+          // other schedule row — inset, ink frame, hard block shadow.
+          marginHorizontal: skinTokens.isEightBit ? 12 : 0,
           opacity: pressed ? 0.75 : 1,
         },
       ]}
@@ -100,6 +104,7 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
           shadowOpacity: 0.08,
           shadowRadius: 3,
           elevation: 2,
+          ...(skinTokens.isEightBit ? { borderRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : {}),
         }}
       >
         <View

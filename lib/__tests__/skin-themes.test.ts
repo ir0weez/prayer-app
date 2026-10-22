@@ -671,6 +671,67 @@ describe("8-bit skin tokens (v183, rebuilt v184)", () => {
   });
 });
 
+// ─── v185: floating cards ─────────────────────────────────────────
+// v184's one compromise: the schedule list still rendered as ONE
+// continuous cream sheet on the dusk, because the list wrapper painted
+// the surface behind every row. Jonathan: "Well you can't just change
+// the background color or something?" — v185 removes the sheet under
+// 8-bit ONLY: the wrapper and footer go transparent, the rows that were
+// plain text on the sheet become cartridges of their own, and the
+// text-on-sheet rows (date header, empty state, "Reached today") wear
+// the on-dusk inks. Classic and Paper keep the sheet byte-for-byte —
+// the Paper wrapper with its frame side rails is pinned below too.
+describe("v185 floating cards: under 8-bit the sheet is gone and every row floats", () => {
+  const schedule = read("components/schedule-tab.tsx");
+
+  it("the list wrapper and footer are transparent under 8-bit — and the Paper sheet survives", () => {
+    // The 8-bit early return skips the sheet wrapper entirely.
+    expect(schedule).toContain("if (skinTokens.isEightBit) return element;");
+    // The footer branches to transparency under 8-bit.
+    expect(schedule).toContain('skinTokens.isEightBit ? { backgroundColor: "transparent" }');
+    // Paper/Classic keep the continuous sheet: surface wrapper + frame rails.
+    expect(schedule).toContain("borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth");
+  });
+
+  it("the date header sits on the dusk: transparent card, on-dusk inks, gold selected chip", () => {
+    const header = schedule.slice(schedule.indexOf("const renderDateHeaderCard"), schedule.indexOf("const renderItem"));
+    expect(header).toContain('skinTokens.isEightBit ? { backgroundColor: "transparent" }');
+    expect(header).toContain("skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground");
+    expect(header).toContain("backgroundColor: BIT_GOLD");
+    expect(header).toContain("BIT_ON_DUSK_SOFT");
+  });
+
+  it("plain and grouped-completed todos become cartridges under 8-bit", () => {
+    const todoItem = schedule.slice(schedule.indexOf("function TodoItem"), schedule.indexOf("function MinistryTicket"));
+    // Both formerly-plain rows gain the surface + frame + hard shadow,
+    // with the row's hairline bottom explicitly overridden by the frame width.
+    const cartridges = todoItem.split("borderBottomWidth: skinTokens.frame?.borderWidth ?? 3").length - 1;
+    expect(cartridges).toBe(2);
+    expect(todoItem).toContain("marginBottom: 12");
+  });
+
+  it("ministry cards and expandable sections carry their own float under 8-bit", () => {
+    expect(schedule).toContain("marginBottom: skinTokens.isEightBit ? 12 : 0");
+    expect(schedule).toContain("marginBottom: skinTokens.isEightBit ? 12 : 8");
+    const expandable = schedule.slice(schedule.indexOf("function ExpandableSection"), schedule.indexOf("export function ScheduleTab"));
+    expect(expandable).toContain("skinTokens.isEightBit ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12");
+  });
+
+  it("the todo-pair tiles and the empty state no longer paint the sheet under 8-bit", () => {
+    expect(schedule).toContain('backgroundColor: skinTokens.isEightBit ? "transparent" : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface');
+    expect(schedule).toContain("skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted");
+  });
+
+  it("the footer stamp row and time-off cards float with on-dusk inks under 8-bit", () => {
+    const stamps = read("components/reached-stamp-row.tsx");
+    expect(stamps).toContain("skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground");
+    expect(stamps).toContain("skinTokens.isEightBit ? BIT_GOLD : colors.primary");
+    const timeOff = read("components/time-off-card.tsx");
+    expect(timeOff).toContain("marginHorizontal: skinTokens.isEightBit ? 12 : 0");
+    expect(timeOff).toContain("skinTokens.cardShadow");
+  });
+});
+
 describe("8-bit keyword scenes (v183): every scene id has a bespoke pixel rendition", () => {
   const registry = read("components/pixel-keyword-scenes.tsx");
   const categoryFiles = [

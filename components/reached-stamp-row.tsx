@@ -6,6 +6,8 @@ import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, Path, Rect, Text as SvgT
 
 import { CoinStampArt, PostageStampArt } from "@/components/stamp-design-art";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
+import { BIT_GOLD, BIT_ON_DUSK, BIT_PANEL } from "@/lib/skin-themes";
 import { formatIsoDateForDisplay, relationshipColors, type Person } from "@/lib/prayercircle-data";
 import { getUnlockedReachedStampSkins, normalizeReachedStampSkin, REACHED_STAMP_SKIN_STORAGE_KEY, REACHED_STAMP_SKINS, removeReachedStamp, updateReachedStamp, type ReachedStamp, type ReachedStampSkin } from "@/lib/reached-stamps";
 import { loadXPState } from "@/lib/xp-engine";
@@ -419,6 +421,7 @@ export function ReachedStampRow({
   onChange?: (stamps: ReachedStamp[]) => void;
 }) {
   const colors = useColors();
+  const { tokens: skinTokens } = useSkin();
   const selectedDayStamps = useMemo(() => stamps.filter((stamp) => stamp.date === selectedDate), [stamps, selectedDate]);
   const [editingStamp, setEditingStamp] = useState<ReachedStamp | null>(null);
   const [note, setNote] = useState("");
@@ -457,15 +460,15 @@ export function ReachedStampRow({
   if (selectedDayStamps.length === 0) return null;
 
   return (
-    <View style={[styles.container, { borderTopColor: colors.border }]}>
+    <View style={[styles.container, { borderTopColor: skinTokens.isEightBit ? "#6E5BB5" : colors.border }]}>
       <View style={styles.headingRow}>
         <View style={styles.headingLabel}>
-          <MaterialIcons name="verified" size={17} color={colors.primary} />
-          <Text style={[styles.heading, { color: colors.foreground }]}>Reached today</Text>
+          <MaterialIcons name="verified" size={17} color={skinTokens.isEightBit ? BIT_GOLD : colors.primary} />
+          <Text style={[styles.heading, { color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground }]}>Reached today</Text>
         </View>
-        <Pressable onPress={() => setShowCollection(true)} style={({ pressed }) => [styles.collectionButton, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && { opacity: 0.7 }]}>
-          <MaterialIcons name="collections-bookmark" size={15} color={colors.primary} />
-          <Text style={[styles.collectionButtonText, { color: colors.primary }]}>Collection</Text>
+        <Pressable onPress={() => setShowCollection(true)} style={({ pressed }) => [styles.collectionButton, { borderColor: skinTokens.isEightBit ? (skinTokens.frame?.borderColor ?? colors.border) : colors.border, backgroundColor: skinTokens.isEightBit ? BIT_PANEL : colors.surface }, pressed && { opacity: 0.7 }]}>
+          <MaterialIcons name="collections-bookmark" size={15} color={skinTokens.isEightBit ? BIT_ON_DUSK : colors.primary} />
+          <Text style={[styles.collectionButtonText, { color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.primary }]}>Collection</Text>
         </Pressable>
       </View>
       <View style={styles.row}>

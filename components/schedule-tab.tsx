@@ -8091,7 +8091,7 @@ function TodoItem({
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
-          style={({ pressed }) => [todoStyles.row, { marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }]}
+          style={({ pressed }) => [todoStyles.row, { marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }, skinTokens.isEightBit ? { backgroundColor: skinTokens.surface ?? colors.surface, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(skinTokens.cardShadow ?? {}) } : null]}
         >
           <MaterialIcons name={iconName(iconNameStr)} size={20} color={colors.success} />
           <View style={{ flex: 1, gap: 1 }}>
@@ -8214,7 +8214,7 @@ function TodoItem({
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
-          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, skinTokens.isEightBit ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(skinTokens.cardShadow ?? {}) } : null, pressed && { opacity: 0.7 }]}
         >
           <ReAnimated.View
             key={`checkbox-${todo.isCompleted}`}
@@ -9346,6 +9346,10 @@ function MinistryCard({
             backgroundColor: ministry.isCompleted ? (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface) : (isSkinned ? paperStockFor(ministry.color || "#7C5CFF", skinTokens.surface) : (ministry.color || "#7C5CFF") + "14"),
             borderColor: ministry.color || "#7C5CFF",
             borderWidth: 1.5,
+            // v185 (8-bit only): ministry cards float on the dusk, so they
+            // carry the mockup's 12px gap themselves (the sheet used to
+            // butt them against the next row).
+            marginBottom: skinTokens.isEightBit ? 12 : 0,
             ...(skinTokens.frame ?? {}),
             ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
           }]}>
@@ -9545,7 +9549,7 @@ function ExpandableSection({
   }));
 
   return (
-    <View style={[expandStyles.container, { borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, ...(skinTokens.frame ? { borderRadius: skinTokens.frame.borderRadius, borderWidth: skinTokens.frame.borderWidth } : {}) }]}>
+    <View style={[expandStyles.container, { borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, ...(skinTokens.frame ? { borderRadius: skinTokens.frame.borderRadius, borderWidth: skinTokens.frame.borderWidth } : {}), ...(skinTokens.isEightBit ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, ...(skinTokens.cardShadow ?? {}) } : {}) }]}>
       <View style={[expandStyles.headerContainer, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }]}>
         <Pressable
           onPress={() => {
@@ -11780,10 +11784,12 @@ export function ScheduleTab({
 
   const renderDateHeaderCard = useCallback((cardStyle?: object) => (
     <>
-      {/* Date Header Card - sticky sheet header */}
-      <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
+      {/* Date Header Card - sticky sheet header. v185 (8-bit only): the
+          header is no longer a card — its text sits directly on the dusk
+          in the mockup's on-dusk inks, and the selected day is a gold chip. */}
+      <View style={[scheduleStyles.dateHeaderCard, skinTokens.isEightBit ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
   <View style={scheduleStyles.dayHeaderContent}>
-    <Text style={[scheduleStyles.dayName, { color: colors.foreground, ...bitDisplay(skinTokens, 13) }]}>
+    <Text style={[scheduleStyles.dayName, { color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...bitDisplay(skinTokens, 13) }]}>
       {dateHeader.dayName}
       {selectedDate === today && <Text style={{ color: colors.error }}>•</Text>}
     </Text>
@@ -11809,14 +11815,14 @@ export function ScheduleTab({
           onPress={() => setSelectedDate(date)}
           style={({ pressed }) => [
             scheduleStyles.dateItem,
-            isSelected && { backgroundColor: isSkinned ? skinTokens.background ?? colors.surface : colors.surface, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, borderWidth: skinTokens.borderWidth ?? 1.5, ...(skinTokens.frame ? { borderRadius: skinTokens.frame.borderRadius } : {}) },
+            isSelected && (skinTokens.isEightBit ? { backgroundColor: BIT_GOLD, borderColor: BIT_INK_HEX, borderWidth: 3, borderRadius: 2 } : { backgroundColor: isSkinned ? skinTokens.background ?? colors.surface : colors.surface, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, borderWidth: skinTokens.borderWidth ?? 1.5, ...(skinTokens.frame ? { borderRadius: skinTokens.frame.borderRadius } : {}) }),
             pressed && { opacity: 0.7 },
           ]}
         >
-          <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
+          <Text style={[scheduleStyles.dateNum, { color: skinTokens.isEightBit ? (isSelected ? "#241547" : isToday ? BIT_GOLD : BIT_ON_DUSK_SOFT) : (isSelected ? colors.foreground : colors.muted) }, !skinTokens.isEightBit && isToday && !isSelected && { color: colors.primary }]}>
             {getDayNumber(date)}
           </Text>
-          <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
+          <Text style={[scheduleStyles.dateDayName, { color: skinTokens.isEightBit ? (isSelected ? "#241547" : isToday ? BIT_GOLD : BIT_ON_DUSK_SOFT) : (isSelected ? colors.foreground : colors.muted) }, !skinTokens.isEightBit && isToday && !isSelected && { color: colors.primary }]}>
             {getShortDayName(date)}
           </Text>
           {isDateDuringTimeOff(timeOffList, date) && <View style={[scheduleStyles.timeOffDayMarker, { backgroundColor: colors.primary }]} />}
@@ -11840,12 +11846,13 @@ export function ScheduleTab({
         }
         case "schedule-empty": {
           return (
+            // v185 (8-bit only): text-on-dusk — on-dusk inks, not palette muted.
             <View style={scheduleStyles.emptyState}>
-              <MaterialIcons name="event-note" size={48} color={colors.muted} />
-              <Text style={[scheduleStyles.emptyText, { color: colors.muted }]}>
+              <MaterialIcons name="event-note" size={48} color={skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted} />
+              <Text style={[scheduleStyles.emptyText, { color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.muted }]}>
                 No items for this day
               </Text>
-              <Text style={[scheduleStyles.emptySubtext, { color: colors.muted }]}>
+              <Text style={[scheduleStyles.emptySubtext, { color: skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }]}>
                 Tap + to add an event, todo, or ministry
               </Text>
             </View>
@@ -12076,7 +12083,7 @@ export function ScheduleTab({
           return <BirthdayCard birthday={item.data} />;
         case "todo-pair":
           return (
-            <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 4, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }}>
+            <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 4, backgroundColor: skinTokens.isEightBit ? "transparent" : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }}>
               {item.data.todos.map((t: any) => {
                 const todoColor = t.color || colors.primary;
                 return (
@@ -12265,7 +12272,7 @@ export function ScheduleTab({
           const restEvent = item.data.restEvent;
           const totalSquares = groupMinistries.length + (restEvent ? 1 : 0);
           return (
-            <View style={{ flexDirection: "row", gap: 8, marginHorizontal: 12, marginBottom: 8 }}>
+            <View style={{ flexDirection: "row", gap: 8, marginHorizontal: 12, marginBottom: skinTokens.isEightBit ? 12 : 8 }}>
               {restEvent && !restEvent.isCompleted && (
                 <RestSquare
                   key={restEvent.id}
@@ -12688,11 +12695,19 @@ export function ScheduleTab({
                 // full-bleed surface wrapper so the sheet is one continuous card
                 // that cleanly slides over the fixed summary behind it.
                 if (info.item.type === "date-header") return element;
+                // v185 (8-bit only): NO sheet wrapper — the dusk shows
+                // through the whole list and every row floats as its own
+                // cartridge (each row component carries its own surface +
+                // frame + hard shadow under the skin). Classic and Paper
+                // keep the continuous sheet exactly as shipped.
+                if (skinTokens.isEightBit) return element;
                 return <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ? { borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth, borderLeftColor: skinTokens.frame.borderColor, borderRightColor: skinTokens.frame.borderColor } : {}) }}>{element}</View>;
               }}
               extraData={[selectedDate, listData, scheduleSheetData, colors, currentAlbum, isWorshipExpanded]}
             ListFooterComponent={
-              <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomLeftRadius: skinTokens.frame ? 2 : 24, borderBottomRightRadius: skinTokens.frame ? 2 : 24, overflow: "hidden", ...(skinTokens.frame ? { borderBottomWidth: skinTokens.frame.borderWidth, borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth, borderColor: skinTokens.frame.borderColor } : {}) }}>
+              // v185 (8-bit only): the footer floats on the dusk too — no
+              // sheet bottom, no rails; the stamp row wears on-dusk inks.
+              <View style={skinTokens.isEightBit ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomLeftRadius: skinTokens.frame ? 2 : 24, borderBottomRightRadius: skinTokens.frame ? 2 : 24, overflow: "hidden", ...(skinTokens.frame ? { borderBottomWidth: skinTokens.frame.borderWidth, borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth, borderColor: skinTokens.frame.borderColor } : {}) }}>
                 <ReachedStampRow stamps={reachedStamps} people={people} selectedDate={selectedDate} onChange={onReachedStampsChange} />
               </View>
             }

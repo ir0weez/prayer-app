@@ -1,5 +1,6 @@
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
+import { useSkin } from '@/hooks/use-skin';
 import { useCallback, useState, useEffect, useRef } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -86,6 +87,8 @@ const BIBLE_STATUS_STORAGE_KEY = 'bibleBookStatus';
 
 export default function BibleChaptersScreen() {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
+  const paperSurface = isPaper ? skinTokens.surface ?? colors.surface : colors.surface;
   const router = useRouter();
   const { openBookNav } = useLocalSearchParams<{ openBookNav?: string }>();
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set());
@@ -383,7 +386,7 @@ export default function BibleChaptersScreen() {
         {/* Header with close, title, and reset buttons */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <Pressable onPress={() => router.back()} style={[styles.closeButton, { backgroundColor: colors.surface }]}>
+            <Pressable onPress={() => router.back()} style={[styles.closeButton, { backgroundColor: paperSurface }]}>
               <MaterialIcons name="close" size={24} color={colors.foreground} />
             </Pressable>
             <View style={styles.headerCenter}>
@@ -391,10 +394,10 @@ export default function BibleChaptersScreen() {
               <Text style={[styles.counter, { color: colors.muted }]}>{readCount}/{totalChapters}</Text>
             </View>
             <View style={styles.headerRight}>
-              <Pressable onPress={() => setShowBookNav(true)} style={[styles.navButton, { backgroundColor: colors.surface }]}>
+              <Pressable onPress={() => setShowBookNav(true)} style={[styles.navButton, { backgroundColor: paperSurface }]}>
                 <MaterialIcons name="list" size={20} color={colors.foreground} />
               </Pressable>
-              <Pressable onPress={() => setShowOnlyBookmarks(!showOnlyBookmarks)} style={[styles.navButton, { backgroundColor: showOnlyBookmarks ? colors.primary : colors.surface }]}>
+              <Pressable onPress={() => setShowOnlyBookmarks(!showOnlyBookmarks)} style={[styles.navButton, { backgroundColor: showOnlyBookmarks ? colors.primary : paperSurface }]}>
                 <MaterialIcons name={showOnlyBookmarks ? 'bookmark' : 'bookmark-border'} size={20} color={showOnlyBookmarks ? '#FFFFFF' : colors.foreground} />
               </Pressable>
               <Pressable onPress={resetAllData} style={styles.resetButton}>
@@ -402,7 +405,7 @@ export default function BibleChaptersScreen() {
               </Pressable>
             </View>
           </View>
-          <View style={[styles.progressBar, { backgroundColor: colors.surface }]}>
+          <View style={[styles.progressBar, { backgroundColor: paperSurface }]}>
             <View style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: colors.primary }]} />
           </View>
           <Text style={[styles.progressText, { color: colors.muted }]}>{progressPercent}% complete</Text>
@@ -505,7 +508,7 @@ export default function BibleChaptersScreen() {
       <Modal visible={showBookNav} transparent animationType="slide" onRequestClose={() => setShowBookNav(false)}>
         <View style={styles.navModalOverlay}>
           <Pressable style={styles.navModalBackdrop} onPress={() => setShowBookNav(false)} />
-          <View style={[styles.navModalContent, { backgroundColor: colors.background }]}>
+          <View style={[styles.navModalContent, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
             <View style={styles.navModalHeader}>
               <Text style={[styles.navModalTitle, { color: colors.foreground }]}>Jump to Book</Text>
               <Pressable onPress={() => setShowBookNav(false)}>

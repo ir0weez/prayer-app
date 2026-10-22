@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
+import { useSkin } from '@/hooks/use-skin';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BOOK_IDS } from '@/lib/book-ids';
@@ -66,6 +67,7 @@ export function BibleChapterViewer({
   canGoNext,
 }: BibleChapterViewerProps) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const [verses, setVerses] = useState<Verse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -398,7 +400,7 @@ export function BibleChapterViewer({
         animationType="slide"
         onRequestClose={onClose}
       >
-        <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }}>
           {/* Header */}
           <View
             style={{
@@ -560,7 +562,7 @@ export function BibleChapterViewer({
               />
 
               {isBibleStudyMode && chapterIntroduction && chapterIntroduction.entries.length > 0 && (
-                <View style={{ marginHorizontal: 16, marginTop: 16, marginBottom: 4, padding: 16, borderRadius: 14, backgroundColor: colors.surface }}>
+                <View style={{ marginHorizontal: 16, marginTop: 16, marginBottom: 4, padding: 16, borderRadius: 14, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}>
                   <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 12 }}>
                     Introduction
                   </Text>

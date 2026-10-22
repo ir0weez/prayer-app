@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
 import { ScheduleEvent } from "@/lib/schedule-data";
 import { Person } from "@/lib/prayercircle-data";
 import { StackedAvatar } from "./stacked-avatar";
@@ -30,6 +31,7 @@ export function EventDetailCard({
   onEdit,
 }: EventDetailCardProps) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const [editFormVisible, setEditFormVisible] = useState(false);
 
   const linkedPeople = event.linkedPeopleIds
@@ -53,8 +55,9 @@ export function EventDetailCard({
           style={[
             styles.card,
             {
-              backgroundColor: event.color || colors.surface,
-              borderColor: event.color ? event.color + "40" : colors.border,
+              backgroundColor: event.color || (isPaper ? skinTokens.surface ?? colors.surface : colors.surface),
+              borderColor: event.color ? event.color + "40" : (isPaper ? skinTokens.border ?? colors.border : colors.border),
+              ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
             },
           ]}
           onPress={(e) => e.stopPropagation()}

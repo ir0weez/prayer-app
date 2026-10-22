@@ -10,6 +10,7 @@ import { Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSh
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage } from "@/components/avatar-system";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
 import {
   addPrayerItem,
   formatDaysSinceLastPrayer,
@@ -726,6 +727,12 @@ export default function PersonScreen() {
     setShowDateModal(false);
   };
 
+  const { isPaper, tokens: skinTokens } = useSkin();
+  // Paper (v179): the person screen's cards/modals were never converted.
+  // Tinted cards keep their tints and gain the kit offset shadow; the
+  // modal cards become warm paper sheets.
+  const paperCardShadow = isPaper ? skinTokens.cardShadow ?? {} : null;
+  const paperModalCard = isPaper ? { backgroundColor: skinTokens.surface ?? "#FFFFFF", borderColor: skinTokens.border ?? "#E7E1EF", ...(skinTokens.sheetShadow ?? {}) } : null;
   const themeColors = getThemeColors(colors);
   const styles = createStyles(themeColors);
   const getThemeColor = (lightColor: string) => getThemeAwareColor(lightColor, colors);
@@ -857,7 +864,7 @@ export default function PersonScreen() {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Family Group</Text>
             </View>
-            <View style={[styles.familyGroupCard, { backgroundColor: getThemeAwareColor("#F5F3F7", colors) }]}>
+            <View style={[styles.familyGroupCard, { backgroundColor: getThemeAwareColor("#F5F3F7", colors) }, paperCardShadow]}>
               <View style={styles.familyGroupInfo}>
                 <Text style={styles.familyGroupName}>{currentPerson.familyName || "Family"}</Text>
                 <Text style={styles.familyGroupMeta}>{familyMembers.length} {familyMembers.length === 1 ? "member" : "members"}</Text>
@@ -873,7 +880,7 @@ export default function PersonScreen() {
         </View>
 
         {currentPerson.isPraised && currentPerson.praiseExpiresAt && (
-          <View style={[styles.prayerItem, { backgroundColor: getThemeAwareColor("#DBEAFE", colors), borderColor: "#3B82F6", borderWidth: 1 }]}>
+          <View style={[styles.prayerItem, { backgroundColor: getThemeAwareColor("#DBEAFE", colors), borderColor: "#3B82F6", borderWidth: 1 }, paperCardShadow]}>
             <View style={[styles.prayerItemCheckbox, { backgroundColor: "transparent" }]} />
             <View style={{ flex: 1 }}>
               <Text numberOfLines={2} style={[styles.prayerItemTitle, { color: "#1E40AF" }]}>Praise</Text>
@@ -897,7 +904,7 @@ export default function PersonScreen() {
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
-              <View style={[styles.prayerItem, item.isUrgent && { ...styles.prayerItemUrgent, backgroundColor: getThemeAwareColor("#FFF7F8", colors) }, item.isEmergency && { backgroundColor: getThemeAwareColor("#FEE2E2", colors), borderColor: "#EF4444", borderWidth: 1 }]}>
+              <View style={[styles.prayerItem, item.isUrgent && { ...styles.prayerItemUrgent, backgroundColor: getThemeAwareColor("#FFF7F8", colors) }, item.isEmergency && { backgroundColor: getThemeAwareColor("#FEE2E2", colors), borderColor: "#EF4444", borderWidth: 1 }, paperCardShadow]}>
                 <Pressable
                   onPress={() => handleToggleDone(item.id)}
                   style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, pressed && styles.pressed]}
@@ -961,7 +968,7 @@ export default function PersonScreen() {
                 renderItem={({ item }) => {
                   const todoColor = item.color || "#8B5CF6";
                   return (
-                  <View style={[styles.prayerItem, item.isDone && { opacity: 0.5 }, { borderLeftColor: todoColor, borderLeftWidth: 4 }]}>
+                  <View style={[styles.prayerItem, item.isDone && { opacity: 0.5 }, { borderLeftColor: todoColor, borderLeftWidth: 4 }, paperCardShadow]}>
                     <Pressable
                       onPress={() => {
                         if (!currentPerson) return;
@@ -1051,7 +1058,7 @@ export default function PersonScreen() {
 
       <Modal transparent visible={showEditModal} animationType="slide" onRequestClose={() => setShowEditModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, paperModalCard]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Person</Text>
               <Pressable onPress={() => setShowEditModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
@@ -1157,7 +1164,7 @@ export default function PersonScreen() {
 
       <Modal transparent visible={showFamilyModal} animationType="slide" onRequestClose={() => setShowFamilyModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, paperModalCard]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add to Family</Text>
               <Pressable onPress={() => setShowFamilyModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
@@ -1220,7 +1227,7 @@ export default function PersonScreen() {
 
       <Modal transparent visible={showReminderModal} animationType="slide" onRequestClose={() => setShowReminderModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, paperModalCard]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Prayer Reminder</Text>
               <Pressable onPress={() => setShowReminderModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
@@ -1295,7 +1302,7 @@ export default function PersonScreen() {
 
       <Modal transparent visible={showDateModal} animationType="fade" onRequestClose={() => setShowDateModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, paperModalCard]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Last Reached</Text>
               <Pressable onPress={() => setShowDateModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
@@ -1343,7 +1350,7 @@ export default function PersonScreen() {
 
       <Modal transparent visible={showEmergencyPrayerModal} animationType="slide" onRequestClose={() => setShowEmergencyPrayerModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, paperModalCard]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Emergency Prayer ({emergencyPrayerDuration}h)</Text>
               <Pressable onPress={() => setShowEmergencyPrayerModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
@@ -1388,7 +1395,7 @@ export default function PersonScreen() {
 
       <Modal transparent visible={showPersonalTodoModal} animationType="slide" onRequestClose={() => setShowPersonalTodoModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, paperModalCard]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Set Time & Days</Text>
               <Pressable onPress={() => setShowPersonalTodoModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>

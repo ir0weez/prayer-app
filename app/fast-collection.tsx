@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
 import { FASTS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import {
   FAST_TYPES,
@@ -92,6 +93,7 @@ function FastTrophyCard({
   const meta = typeMeta(fast);
   const progress = getFastProgress(fast);
   const percentage = getFastCompletionPercentage(fast);
+  const { isPaper, tokens: skinTokens } = useSkin();
   const streak = calculateFastStreak(fast);
   const active = isActiveFast(fast);
   const fullyComplete = percentage === 100;
@@ -105,7 +107,8 @@ function FastTrophyCard({
   return (
     <View
       style={{
-        backgroundColor: colors.surface,
+        backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface,
+        ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
         borderRadius: 28,
         marginBottom: 12,
         borderWidth: fullyComplete ? 2 : 1,
@@ -310,7 +313,7 @@ function FastTrophyCard({
                   <View
                     key={item}
                     style={{
-                      backgroundColor: colors.background,
+                      backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background,
                       borderRadius: 10,
                       paddingHorizontal: 10,
                       paddingVertical: 5,
@@ -335,6 +338,7 @@ function FastTrophyCard({
 export default function FastCollectionScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -357,7 +361,7 @@ export default function FastCollectionScreen() {
   ).length;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingTop: 48 }}

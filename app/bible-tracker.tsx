@@ -1,5 +1,6 @@
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
+import { useSkin } from '@/hooks/use-skin';
 import { BibleChapterViewer } from '@/components/bible-chapter-viewer';
 import { BIBLE_BOOKS, CHAPTER_COUNTS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, getBookProgress, UnifiedBibleState } from '@/lib/bible-unified';
 import { useCallback, useEffect, useState } from 'react';
@@ -10,6 +11,7 @@ import { MenuView } from '@react-native-menu/menu';
 
 export default function BibleTrackerScreen() {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const [bibleState, setBibleState] = useState<UnifiedBibleState | null>(null);
   const [selectedBook, setSelectedBook] = useState<string>('1 Thessalonians');
   const [showChapters, setShowChapters] = useState(true);
@@ -82,7 +84,7 @@ export default function BibleTrackerScreen() {
           onPress={() => setShowChapters(!showChapters)}
           style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
         >
-          <View className="flex-row items-center justify-between bg-surface rounded-lg p-4">
+          <View className="flex-row items-center justify-between bg-surface rounded-lg p-4" style={isPaper ? { backgroundColor: skinTokens.surface ?? undefined, ...(skinTokens.cardShadow ?? {}) } : undefined}>
             <View>
               <Text className="text-lg font-bold text-foreground">{currentDisplay}</Text>
               <Text className="text-sm text-muted">{progress.read} of {progress.total} chapters read</Text>
@@ -107,6 +109,7 @@ export default function BibleTrackerScreen() {
                     className={`px-3 py-2 rounded-full mr-2 ${
                       selectedBook === book ? 'bg-primary' : 'bg-surface border border-border'
                     }`}
+                    style={isPaper && selectedBook !== book ? { backgroundColor: skinTokens.surface ?? undefined, borderColor: skinTokens.border ?? undefined } : undefined}
                   >
                     <Text className={selectedBook === book ? 'text-background font-semibold text-xs' : 'text-foreground text-xs'}>
                       {book}
@@ -144,6 +147,7 @@ export default function BibleTrackerScreen() {
                         className={`w-12 h-12 rounded-lg items-center justify-center mr-2 mb-2 ${
                           isRead ? 'bg-success' : 'bg-surface border border-border'
                         }`}
+                        style={isPaper && !isRead ? { backgroundColor: skinTokens.surface ?? undefined, borderColor: skinTokens.border ?? undefined } : undefined}
                       >
                         {isRead ? (
                           <MaterialIcons name="check" size={20} color={colors.background} />

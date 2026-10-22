@@ -1,5 +1,6 @@
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
+import { useSkin } from '@/hooks/use-skin';
 import { addDays, getWeekStart, formatDateLocal } from '@/lib/date-utils';
 import { useMemo } from 'react';
 
@@ -62,6 +63,7 @@ export function WeeklyCalendarView({
   onBlockPress,
 }: WeeklyCalendarViewProps) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   
   const weekDays = useMemo(() => {
     const weekStart = getWeekStart(selectedDate);
@@ -86,7 +88,7 @@ export function WeeklyCalendarView({
   }, [selectedDate, timeBlocks]);
   
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }}>
       {/* Day headers */}
       <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <View style={{ width: 60 }} />
@@ -121,7 +123,7 @@ export function WeeklyCalendarView({
                   flex: 1,
                   borderRightWidth: 1,
                   borderRightColor: colors.border,
-                  backgroundColor: colors.surface,
+                  backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface,
                   position: 'relative',
                 }}
               >

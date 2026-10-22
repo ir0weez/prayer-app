@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
+import { useSkin } from '@/hooks/use-skin';
 import { getWeeksInMonth, isSameDay, formatDateISO, formatDateLocal } from '@/lib/date-utils';
 
 interface EventBadge {
@@ -26,6 +27,7 @@ export function MonthlyCalendarView({
   onEventPress,
 }: MonthlyCalendarViewProps) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   
   const weeks = useMemo(() => {
     return getWeeksInMonth(selectedDate);
@@ -36,7 +38,7 @@ export function MonthlyCalendarView({
   };
   
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }}>
       {/* Day names header */}
       <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border }}>
         {DAY_NAMES.map((day) => (
@@ -79,7 +81,7 @@ export function MonthlyCalendarView({
                     borderBottomWidth: 1,
                     borderBottomColor: colors.border,
                     padding: 8,
-                    backgroundColor: isInCurrentMonth ? colors.surface : colors.background,
+                    backgroundColor: isInCurrentMonth ? (isPaper ? skinTokens.surface ?? colors.surface : colors.surface) : (isPaper ? skinTokens.background ?? colors.background : colors.background),
                     opacity: isInCurrentMonth ? 1 : 0.5,
                   }}
                 >

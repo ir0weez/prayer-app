@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
 import { format12HourTime } from "@/lib/utils";
 
 interface DateTimePickerProps {
@@ -27,6 +28,7 @@ export function DateTimePicker({
   compact = false,
 }: DateTimePickerProps) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const [showPicker, setShowPicker] = useState(false);
   const [draftValue, setDraftValue] = useState(value);
 
@@ -80,7 +82,7 @@ export function DateTimePicker({
     const years = Array.from({ length: currentYear + 10 - 1900 + 1 }, (_, i) => 1900 + i);
 
     return (
-      <View style={[pickerStyles.container, { backgroundColor: colors.surface }]}>
+      <View style={[pickerStyles.container, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
         <View style={[pickerStyles.header, { borderBottomColor: colors.border }]}>
           <Text style={[pickerStyles.headerText, { color: colors.foreground }]}>
             {label}
@@ -234,7 +236,7 @@ export function DateTimePicker({
     const minutes = Array.from({ length: 60 }, (_, i) => i);
 
     return (
-      <View style={[pickerStyles.container, { backgroundColor: colors.background }]}>
+      <View style={[pickerStyles.container, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
         <View style={[pickerStyles.header, { borderBottomColor: colors.border }]}>
           <Text style={[pickerStyles.headerText, { color: colors.foreground }]}>
             {label}
@@ -337,7 +339,7 @@ export function DateTimePicker({
           pickerStyles.input,
           compact
             ? { flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0, borderWidth: 0, borderColor: 'transparent', backgroundColor: 'transparent', marginBottom: 0, paddingHorizontal: 0, paddingVertical: 0, borderRadius: 0 }
-            : { borderColor: colors.border, backgroundColor: colors.surface },
+            : { borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface },
         ]}
       >
         {compact && mode === "date" ? (

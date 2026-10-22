@@ -23,6 +23,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { DateTimePicker } from "@/components/date-time-picker";
 import { AvatarImage } from "@/components/avatar-system";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
 import type { Person } from "@/lib/prayercircle-data";
 import {
   addPrayerJournalReply,
@@ -55,6 +56,13 @@ function TaggedAvatar({ person }: { person: PrayerJournalTaggedPerson }) {
 
 export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTabProps) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
+  // Paper (v179): the journal was never converted — cards were glossy
+  // color slabs / plain white. Under Paper an entry keeps its full-
+  // strength color as flat colored stock (or warm paper when it has
+  // no color), gains the kit's one offset shadow and the paper radius.
+  const paperSurface = isPaper ? skinTokens.surface ?? colors.surface : colors.surface;
+  const fieldBg = paperSurface;
   const headerVisible = useSharedValue(1);
   const lastScrollY = useRef(0);
   const headerAnimatedStyle = useAnimatedStyle(() => ({
@@ -255,7 +263,17 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       style={({ pressed }) => [
         styles.entryCard,
         {
-          backgroundColor: item.color ?? colors.surface,
+          backgroundColor: item.color ?? paperSurface,
+          ...(isPaper
+            ? {
+                borderRadius: skinTokens.cardRadius ?? 12,
+                shadowColor: "transparent",
+                shadowOpacity: 0,
+                shadowRadius: 0,
+                shadowOffset: { width: 0, height: 0 },
+                ...(skinTokens.cardShadow ?? {}),
+              }
+            : {}),
         },
         pressed && styles.longPressed,
       ]}
@@ -360,7 +378,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
               key={reply.id}
               delayLongPress={500}
               onLongPress={() => showReplyActions(item.id, reply.id, reply.body)}
-              style={({ pressed }) => [styles.replyCard, { backgroundColor: item.color ? "rgba(255, 255, 255, 0.18)" : colors.surface }, pressed && styles.longPressed]}
+              style={({ pressed }) => [styles.replyCard, { backgroundColor: item.color ? "rgba(255, 255, 255, 0.18)" : paperSurface }, pressed && styles.longPressed]}
             >
               <View style={styles.replyTopRow}>
                 <Text style={[styles.replyDate, { color: cardMuted }]}>
@@ -378,9 +396,9 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }]}>
       <ReAnimated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }, headerAnimatedStyle]}>
-        <View style={{ backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 }}>
+        <View style={{ backgroundColor: paperSurface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}>
           <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Journal</Text>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{entries.length} entries</Text>
         </View>
@@ -392,7 +410,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             style={({ pressed }) => [
               styles.headerCircle,
               {
-                backgroundColor: bookmarksOnly ? colors.primary : colors.background,
+                backgroundColor: bookmarksOnly ? colors.primary : (isPaper ? paperSurface : colors.background),
                 borderColor: bookmarksOnly ? colors.primary : colors.border,
               },
               pressed && styles.pressed,
@@ -416,7 +434,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.listContent, sections.length === 0 && styles.emptyListContent]}
         ListEmptyComponent={
-          <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.emptyCard, { backgroundColor: paperSurface, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
             <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "18" }]}>
               <MaterialIcons name={bookmarksOnly ? "bookmark-border" : "auto-stories"} size={30} color={colors.primary} />
             </View>
@@ -457,7 +475,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       <Modal transparent visible={showEntryComposer} animationType="slide" onRequestClose={closeEntryComposer}>
         <KeyboardAvoidingView style={styles.modalRoot} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <Pressable style={styles.modalBackdrop} onPress={closeEntryComposer} />
-          <SafeAreaView edges={["top", "bottom"]} style={[styles.composerSheet, { backgroundColor: colors.background }]}>
+          <SafeAreaView edges={["top", "bottom"]} style={[styles.composerSheet, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }]}>
             <View style={[styles.composerHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.composerTitle, { color: colors.foreground }]}>New Prayer Entry</Text>
               <Pressable onPress={handleSaveEntry} style={({ pressed }) => [pressed && styles.pressed]}>
@@ -477,7 +495,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                     onChangeText={setDraftTitle}
                     placeholder="Give it a title..."
                     placeholderTextColor={colors.muted}
-                    style={{ fontSize: 20, fontWeight: "800", color: colors.foreground, backgroundColor: colors.surface, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}
+                    style={{ fontSize: 20, fontWeight: "800", color: colors.foreground, backgroundColor: fieldBg, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}
                   />
                   <View style={{ flexDirection: "row", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
                     {[
@@ -490,7 +508,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                       <Pressable
                         key={i}
                         onPress={btn.action}
-                        style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" }}
+                        style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: fieldBg, alignItems: "center", justifyContent: "center" }}
                       >
                         <MaterialIcons name={btn.icon as any} size={20} color={colors.foreground} />
                       </Pressable>
@@ -505,7 +523,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                     placeholderTextColor={colors.muted}
                     multiline
                     textAlignVertical="top"
-                    style={[styles.prayerInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
+                    style={[styles.prayerInput, { color: colors.foreground, backgroundColor: fieldBg, borderBottomColor: colors.primary }]}
                   />
                   <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Entry Date</Text>
                   <DateTimePicker value={draftDate} onChange={setDraftDate} mode="date" label="Entry Date" />
@@ -546,7 +564,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                     })}
                   </View>
                   <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Location (optional)</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: fieldBg, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16 }}>
                     <MaterialIcons name="place" size={20} color={colors.muted} />
                     <TextInput
                       value={draftLocation}
@@ -561,7 +579,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                     <MoodPicker value={draftMood} onChange={setDraftMood} />
                   </View>
                   <Text style={[styles.fieldLabel, styles.peopleLabel, { color: colors.foreground }]}>Tag People</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomWidth: 1, borderBottomColor: colors.primary, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: fieldBg, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomWidth: 1, borderBottomColor: colors.primary, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}>
                     <MaterialIcons name="search" size={20} color={colors.muted} />
                     <TextInput
                       value={tagSearch}
@@ -668,7 +686,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             style={styles.modalBackdrop}
             onPress={closeReplyComposer}
           />
-          <SafeAreaView edges={["top", "bottom"]} style={[styles.replySheet, { backgroundColor: colors.background }]}>
+          <SafeAreaView edges={["top", "bottom"]} style={[styles.replySheet, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }]}>
             <View style={[styles.composerHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.composerTitle, { color: colors.foreground }]}>Reply to Entry</Text>
               <Pressable
@@ -687,7 +705,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 multiline
                 autoFocus
                 textAlignVertical="top"
-                style={[styles.replyInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]}
+                style={[styles.replyInput, { color: colors.foreground, backgroundColor: fieldBg, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border }]}
               />
               <Pressable
                 disabled={!draftReply.trim()}

@@ -1,63 +1,25 @@
-import { memo, useId } from "react";
-import { StyleSheet } from "react-native";
-import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
-
-import { useSkin } from "@/hooks/use-skin";
+import { memo } from "react";
 
 /**
- * The Paper skin's grain: a speckle tile laid over a surface.
+ * The Paper skin's grain overlay — REMOVED in v179.
  *
- * v176: the speckle is dense enough to read at phone size — v174's
- * whisper (a few flecks at 5% opacity) was invisible on Jonathan's
- * phone, which is part of why Paper read as Classic. Flat paper is
- * still the baseline look; the grain is what keeps large flat areas
- * from reading as plastic, and on saturated surfaces the light-fiber
- * tone (`tone="light"`) is what makes a purple card read as purple
- * construction paper instead of glossy plastic.
+ * v174–v176 laid a speckle tile over paper surfaces. Jonathan's ruling
+ * (2026-10-22): the speckles read as "little sprinkles" — they don't
+ * look good and they don't look like paper. Paper is now FLAT ONLY:
+ * full-strength color or warm neutral stock + the one offset shadow,
+ * no texture anywhere.
  *
- * Renders nothing at all under the Classic skin, so adopting it is
- * free for the default look. The parent must be positioned
- * (relative) — the overlay fills it absolutely and never intercepts
- * touches.
+ * This component stays as the single, isolated grain point so every
+ * existing call site (ScreenContainer, the tab screens, the paper
+ * keyword scenes, the profile) keeps its shape — but it renders
+ * nothing, under any skin. Classic never had the grain either. If a
+ * future texture is ever approved, it lands here and only here.
  */
 export const PaperGrainOverlay = memo(function PaperGrainOverlay({
-  tone = "ink",
+  tone: _tone = "ink",
 }: {
-  /** "ink" flecks for light stock; "light" fibers for colored/dark stock. */
+  /** Kept for call-site compatibility; the overlay renders nothing. */
   tone?: "ink" | "light";
 }) {
-  const { tokens } = useSkin();
-  const rawId = useId().replace(/[^a-zA-Z0-9]/g, "");
-  const patternId = `paperGrain${tone}${rawId}`;
-
-  if (!tokens.isPaper || tokens.grainOpacity <= 0) return null;
-
-  const light = tone === "light";
-  const fill = light ? "#FFFFFF" : tokens.grainColor;
-  const opacity = light ? tokens.grainLightOpacity : tokens.grainOpacity;
-  if (opacity <= 0) return null;
-
-  return (
-    <Svg
-      pointerEvents="none"
-      style={StyleSheet.absoluteFill}
-      width="100%"
-      height="100%"
-      aria-hidden
-    >
-      <Defs>
-        <Pattern id={patternId} width={24} height={24} patternUnits="userSpaceOnUse">
-          <Circle cx={3} cy={5} r={1} fill={fill} />
-          <Circle cx={14} cy={2.5} r={0.7} fill={fill} />
-          <Circle cx={20} cy={9} r={1.1} fill={fill} />
-          <Circle cx={8} cy={12} r={0.8} fill={fill} />
-          <Circle cx={17} cy={16} r={0.9} fill={fill} />
-          <Circle cx={5} cy={20} r={0.7} fill={fill} />
-          <Circle cx={12} cy={22} r={1} fill={fill} />
-          <Circle cx={22} cy={21} r={0.6} fill={fill} />
-        </Pattern>
-      </Defs>
-      <Rect x={0} y={0} width="100%" height="100%" fill={`url(#${patternId})`} opacity={opacity} />
-    </Svg>
-  );
+  return null;
 });

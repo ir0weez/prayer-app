@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, Text, View } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
 
 export interface QuickAddOption {
   label: string;
@@ -44,6 +45,7 @@ export function SlideQuickAddPicker({
   onRowLayout,
 }: SlideQuickAddPickerProps) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const scales = useRef(options.map(() => new Animated.Value(1))).current;
   const enters = useRef(options.map(() => new Animated.Value(0))).current;
   const rowOpacity = useRef(new Animated.Value(0)).current;
@@ -96,7 +98,8 @@ export function SlideQuickAddPicker({
           left,
           top,
           width: QA_ROW_WIDTH,
-          backgroundColor: colors.surface,
+          backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface,
+          ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
           borderRadius: 24,
           paddingHorizontal: QA_PAD,
           paddingTop: 10,

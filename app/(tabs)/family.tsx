@@ -7,6 +7,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage } from "@/components/avatar-system";
 import { sortFamilyMembers, type Person } from "@/lib/prayercircle-data";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
 import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { togglePrayerItemDone, ungroupFromFamily } from "@/lib/prayercircle-data";
 
@@ -20,6 +21,8 @@ export default function FamilyScreen() {
   const [showAddPrayerModal, setShowAddPrayerModal] = useState(false);
 
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
+  const paperSurface = isPaper ? skinTokens.surface ?? colors.surface : colors.surface;
 
   useEffect(() => {
     const loadFamily = async () => {
@@ -211,7 +214,7 @@ export default function FamilyScreen() {
         </View>
 
         {/* Hero Section */}
-        <View style={[styles.heroSection, { backgroundColor: colors.surface }]}>
+        <View style={[styles.heroSection, { backgroundColor: paperSurface, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
           <View style={styles.avatarContainer}>
             <AvatarImage id={selectedMember.id} name={selectedMember.name} gender={selectedMember.gender} avatarAsset={selectedMember.avatarAsset} photoUri={selectedMember.photoUri} size={96} fallbackColor={selectedMember.avatarColor} />
           </View>
@@ -313,9 +316,10 @@ export default function FamilyScreen() {
                   style={[
                     styles.prayerItem,
                     {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
+                      backgroundColor: paperSurface,
+                      borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border,
                       opacity: prayer.isDone ? 0.5 : 1,
+                      ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
                     },
                   ]}
                 >
@@ -369,10 +373,10 @@ export default function FamilyScreen() {
         </View>
 
         {/* Add Prayer Input */}
-        <View style={[styles.addPrayerContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.addPrayerContainer, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }]}>
           <Pressable
             onPress={() => setShowAddPrayerModal(true)}
-            style={[styles.addPrayerInput, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            style={[styles.addPrayerInput, { backgroundColor: paperSurface, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border }]}
           >
             <Text style={[styles.addPrayerPlaceholder, { color: colors.muted }]}>Add prayer item...</Text>
           </Pressable>
@@ -387,7 +391,7 @@ export default function FamilyScreen() {
         {/* Add Prayer Modal */}
         <Modal visible={showAddPrayerModal} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <View style={[styles.modalContent, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.foreground }]}>Add Prayer Item</Text>
                 <Pressable onPress={() => setShowAddPrayerModal(false)}>
@@ -400,14 +404,14 @@ export default function FamilyScreen() {
                 placeholderTextColor={colors.muted}
                 value={newPrayerTitle}
                 onChangeText={setNewPrayerTitle}
-                style={[styles.modalInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]}
+                style={[styles.modalInput, { color: colors.foreground, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, backgroundColor: paperSurface }]}
                 multiline
               />
 
               <View style={styles.modalButtons}>
                 <Pressable
                   onPress={() => setShowAddPrayerModal(false)}
-                  style={[styles.cancelButton, { backgroundColor: colors.surface }]}
+                  style={[styles.cancelButton, { backgroundColor: paperSurface }]}
                 >
                   <Text style={[styles.cancelButtonText, { color: colors.foreground }]}>Cancel</Text>
                 </Pressable>

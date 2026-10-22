@@ -1,18 +1,22 @@
-// The Paper skin (v174, rebuilt v176) — Jonathan, 2026-10-22: an
-// unlockable material SKIN axis beside the color themes. Classic is
-// the app as it has always looked and stays the default; Paper
-// (Level 10) turns the CHROME into flat paper — grain, tinted paper
-// surfaces, the paper kit's one offset shadow rgba(24,8,44,.28) —
-// with its own softer sheet-settle motion dialect (calm sine, no
-// bounce, no springs).
+// The Paper skin (v174, rebuilt v176, completed v179) — Jonathan,
+// 2026-10-22: an unlockable material SKIN axis beside the color
+// themes. Classic is the app as it has always looked and stays the
+// default; Paper (Level 10) turns the CHROME into flat paper —
+// tinted paper surfaces, the paper kit's one offset shadow
+// rgba(24,8,44,.28) — with its own softer sheet-settle motion
+// dialect (calm sine, no bounce, no springs).
 //
 // v176 is the rebuild after his phone verdict on v174 ("too subtle —
 // shadow on white reads as Classic"): paper is a MATERIAL, not a
 // color. Surfaces keep full-strength hues as colored construction
-// paper (matte, visible grain, cut edges, the one offset shadow);
-// cream/tan stock only where a surface was white/neutral. Grain is
-// strong enough to see at phone size, and EVERY keyword scene the
+// paper (matte, cut edges, the one offset shadow); cream/tan stock
+// only where a surface was white/neutral. EVERY keyword scene the
 // schedule can dispatch has a paper rendition — no remainder.
+//
+// v179 removes the grain entirely on his ruling ("little sprinkles"
+// — flat paper only, no texture) and sweeps the surfaces v176 never
+// reached: Journal, the schedule header/day/study cards, the list
+// sheet and rows, the ministry squares.
 //
 // His paper rules, pinned here: NO stitches anywhere, NO crease/fold
 // lines across content (flat paper is the baseline; folds only where
@@ -93,7 +97,7 @@ describe("skin tokens", () => {
     }
   });
 
-  it("Paper carries the kit's one offset shadow, paper radii, and grain", () => {
+  it("Paper carries the kit's one offset shadow and paper radii — and NO grain (flat only)", () => {
     const tokens = getSkinTokens("paper", "light", light);
     expect(tokens.cardShadow?.boxShadow).toContain("rgba(24,8,44,0.28)");
     // The mockup's exact card shadow: 3px near layer, 7px/8px kit layer.
@@ -104,11 +108,17 @@ describe("skin tokens", () => {
     expect(tokens.sheetShadow?.boxShadow.split("rgba(24,8,44,")).toHaveLength(3);
     expect(tokens.cardRadius).toBe(18);
     expect(tokens.sheetRadius).toBe(24);
-    // v176: grain you can SEE at phone size — v174's 0.05 was
-    // invisible on his phone and read as Classic.
-    expect(tokens.grainOpacity).toBeGreaterThanOrEqual(0.12);
-    expect(tokens.grainLightOpacity).toBeGreaterThan(0);
+    // v179 (Jonathan's ruling, 2026-10-22): the speckle grain is OUT —
+    // "little sprinkles... doesn't look good... or like paper." Paper
+    // is flat color/stock + the offset shadow, no texture, so both
+    // grain knobs are pinned to 0 under Paper too.
+    expect(tokens.grainOpacity).toBe(0);
+    expect(tokens.grainLightOpacity).toBe(0);
+    const paperDark = getSkinTokens("paper", "dark", dark);
+    expect(paperDark.grainOpacity).toBe(0);
+    expect(paperDark.grainLightOpacity).toBe(0);
     const classic = getSkinTokens("classic", "light", light);
+    expect(classic.grainOpacity).toBe(0);
     expect(classic.grainLightOpacity).toBe(0);
   });
 
@@ -332,17 +342,23 @@ describe("Jonathan's paper rules (source pins)", () => {
     });
   }
 
-  it("the paper grain is a speckle overlay, never a crease across content", () => {
+  it("the paper grain is GONE: the overlay renders nothing, no speckle tile anywhere (v179)", () => {
     const grain = read("components/paper-grain.tsx");
     expect(grain).toContain("PaperGrainOverlay");
-    expect(grain).toContain('pointerEvents="none"');
+    // The single isolated grain point renders null under every skin.
+    expect(grain).toContain("return null");
+    // No speckle machinery survives: no SVG pattern, no fleck circles.
+    expect(grain).not.toContain("Pattern");
+    expect(grain).not.toContain("Circle");
+    expect(grain).not.toContain("react-native-svg");
   });
 });
 
 describe("v176 chrome coverage (source pins)", () => {
-  it("People cards are paper stock: accent family cards grained, members on paper surface, no springs under Paper", () => {
+  it("People cards are paper stock: accent family cards, members on paper surface, no springs under Paper", () => {
     const index = read("app/(tabs)/index.tsx");
-    // Colored construction paper: light-fiber grain over the accent card.
+    // Colored construction paper: the (now texture-free) overlay call
+    // site still marks the accent card as a paper surface.
     expect(index).toContain('tone={(isExpanded || closingFamilyId === familyId) ? "ink" : "light"}');
     // Entrances branch to the sheet-settle dialect under Paper.
     expect(index).toContain("FadeInUp.duration(skinMotion.settle.duration)");

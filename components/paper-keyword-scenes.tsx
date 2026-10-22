@@ -25,7 +25,7 @@ const PAPER_SHADOW = "rgba(24,8,44,0.28)";
 const SHADOW_DX = 2.5;
 const SHADOW_DY = 3.5;
 
-/** Full-bleed paper scene root: the original scene's base hue as colored stock (grain over the art). */
+/** Full-bleed paper scene root: the original scene's base hue as flat colored stock. */
 function PaperSceneRoot({ base, children, tone = "light" }: { base: string; children: ReactNode; tone?: "ink" | "light" }) {
   return (
     <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", backgroundColor: base }}>

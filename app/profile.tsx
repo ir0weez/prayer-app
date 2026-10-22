@@ -568,7 +568,7 @@ export default function ProfileScreen() {
         }}
       >
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surface }, pressed && styles.pressed]}>
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface }, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("arrow-back")} size={26} color={colors.foreground} />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>My Profile</Text>
@@ -641,7 +641,7 @@ export default function ProfileScreen() {
             <View style={[styles.profileCopy, { marginLeft: 12 }]}>
               <Text style={dynamicStyles.profileName}>{profile.name}</Text>
               <Text style={dynamicStyles.profileSubtitle}>Personal prayers, fasts, and daily streak tracking</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' }}>
                 <Text style={{ fontSize: 13 }}>🪙</Text>
                 <Text style={{ marginLeft: 4, fontWeight: '700', fontSize: 12, color: colors.foreground }}>{formatCoins(coins.balance)}</Text>
               </View>
@@ -664,7 +664,7 @@ export default function ProfileScreen() {
                 <MaterialIcons name="menu-book" size={14} color={colors.primary} />
                 <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary, marginLeft: 4 }}>{currentBibleBook}</Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 }}>
                 <MaterialIcons name="schedule" size={14} color={colors.muted} />
                 <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginLeft: 4 }}>
                   {lastBibleReadDate ? `${Math.floor((Date.now() - new Date(lastBibleReadDate).getTime()) / (1000 * 60 * 60 * 24))}d ago` : 'No reads yet'}
@@ -799,7 +799,7 @@ export default function ProfileScreen() {
                 setNoteText(selectedFast?.dailyNotes?.[today] || "");
                 setShowNoteInput(true);
               }}
-              style={{ marginTop: 8, padding: 12, backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}
+              style={{ marginTop: 8, padding: 12, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 12, borderWidth: 1, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, alignItems: "center", ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <MaterialIcons name="edit-note" size={18} color={colors.primary} />
@@ -1133,7 +1133,7 @@ export default function ProfileScreen() {
 
       <Modal transparent visible={showNoteInput} animationType="slide" onRequestClose={() => setShowNoteInput(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
-          <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 20 }}>
+          <View style={{ backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 16, padding: 20, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }}>
             <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 8 }}>Daily Note</Text>
             <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 12 }}>
               Why did you {selectedFast?.dayStatuses?.[noteDate] === "completed" ? "complete" : "miss"} this day?

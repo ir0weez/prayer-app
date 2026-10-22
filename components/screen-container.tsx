@@ -50,8 +50,8 @@ export function ScreenContainer({
   ...props
 }: ScreenContainerProps) {
   // Paper skin (v174): the page itself becomes a sheet — paper-tinted
-  // background plus the grain overlay. Under Classic both are absent
-  // and this renders exactly as before.
+  // background (flat; the grain overlay renders nothing since v179).
+  // Under Classic this renders exactly as before.
   const { isPaper, tokens } = useSkin();
   return (
     <View

@@ -7,9 +7,11 @@
 // skin tokens renders exactly as before while Classic is selected.
 //
 // "Paper" re-skins the chrome in the paper language of the interiors:
-//   - FLAT paper is the baseline — subtle grain, paper-tinted surfaces
-//     that take the chosen color theme's hues, and the paper kit's ONE
-//     offset shadow (rgba(24,8,44,0.28), see components/paper-interior).
+//   - FLAT paper is the baseline — paper-tinted surfaces that take the
+//     chosen color theme's hues, and the paper kit's ONE offset shadow
+//     (rgba(24,8,44,0.28), see components/paper-interior). NO texture
+//     at all: the v174–v176 speckle grain was removed on Jonathan's
+//     ruling (2026-10-22) — flat paper only.
 //   - NO seam-dash treatments of any kind, and no fold/crease lines
 //     across content — Jonathan's rulings (2026-10-22). Folds live at
 //     edges or nowhere; v1 ships with none.
@@ -104,7 +106,7 @@ export type SkinTokens = {
   sheetShadow: SkinShadow | null;
   cardRadius: number | null;
   sheetRadius: number | null;
-  /** Paper grain overlay: 0 renders nothing. */
+  /** Legacy grain knobs — pinned to 0 forever (flat paper only, v179). */
   grainOpacity: number;
   grainColor: string;
   /** Grain flecks for saturated/colored paper stock (light fibers). */
@@ -180,11 +182,14 @@ export function getSkinTokens(
     },
     cardRadius: 18,
     sheetRadius: 24,
-    // Grain you can actually see at phone size (v174's 0.05 speckle
-    // was invisible on his phone — part of why Paper read as Classic).
-    grainOpacity: dark ? 0.13 : 0.15,
-    grainColor: dark ? "#FFFFFF" : PAPER_INK_HEX,
-    grainLightOpacity: dark ? 0.14 : 0.11,
+    // NO grain (Jonathan's ruling, 2026-10-22, after v176): the speckle
+    // read as "little sprinkles" — not good, and not like paper. Paper
+    // surfaces are flat color/stock + the one offset shadow, nothing
+    // else. These stay 0 under every skin; PaperGrainOverlay renders
+    // nothing.
+    grainOpacity: 0,
+    grainColor: PAPER_INK_HEX,
+    grainLightOpacity: 0,
     motion: PAPER_MOTION,
   };
 }

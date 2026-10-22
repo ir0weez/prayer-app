@@ -3,6 +3,7 @@ import { View, Text, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/use-colors';
+import { useSkin } from '@/hooks/use-skin';
 
 export interface AlbumCardProps {
   title: string;
@@ -46,6 +47,7 @@ export function AlbumCard({
   sectionIcon = 'music-note',
 }: AlbumCardProps) {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
   const [imageError, setImageError] = useState(false);
   const [internalExpanded, setInternalExpanded] = useState(false);
   const expanded = isExpanded ?? internalExpanded;
@@ -57,7 +59,7 @@ export function AlbumCard({
   };
 
   return (
-    <View style={{ backgroundColor: colors.surface, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, marginBottom: 12 }}>
+    <View style={{ backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isPaper ? skinTokens.cardRadius ?? 12 : 12, overflow: 'hidden', borderWidth: 1, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, marginBottom: 12, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}>
       {sectionTitle && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
           <MaterialIcons name={sectionIcon} size={20} color={colors.primary} />

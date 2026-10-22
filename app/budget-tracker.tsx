@@ -1,6 +1,7 @@
 'use client';
 
 import { ScreenContainer } from '@/components/screen-container';
+import { useSkin } from '@/hooks/use-skin';
 import { useColors } from '@/hooks/use-colors';
 import { useCallback, useState } from 'react';
 import { createRecurringExpense, deleteExpense as removeExpense, deleteRecurringSeries, materializeRecurringExpenses, normalizeRecurringExpenses, type MonthlyExpenseRecord } from '@/lib/budget-data';
@@ -16,6 +17,11 @@ type MonthlyExpense = MonthlyExpenseRecord;
 
 export default function BudgetTrackerScreen() {
   const colors = useColors();
+  const { isPaper, tokens: skinTokens } = useSkin();
+  // Paper (v179): every card/sheet surface in this screen's local
+  // stylesheet becomes warm paper stock; Classic keeps colors.surface.
+  const paperSurface = isPaper ? skinTokens.surface ?? colors.surface : colors.surface;
+  const paperCardShadow = isPaper ? skinTokens.cardShadow ?? {} : {};
   const router = useRouter();
   const [expenses, setExpenses] = useState<MonthlyExpense[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -195,12 +201,13 @@ export default function BudgetTrackerScreen() {
       width: 40,
       height: 40,
       borderRadius: 8,
-      backgroundColor: colors.surface,
+      backgroundColor: paperSurface,
       alignItems: 'center',
       justifyContent: 'center',
     },
     summaryContainer: {
-      backgroundColor: colors.surface,
+      backgroundColor: paperSurface,
+      ...paperCardShadow,
       borderRadius: 12,
       padding: 16,
       marginBottom: 20,
@@ -241,7 +248,7 @@ export default function BudgetTrackerScreen() {
       borderWidth: 2,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.surface,
+      backgroundColor: paperSurface,
     },
     dayNumber: {
       fontSize: 16,
@@ -261,7 +268,8 @@ export default function BudgetTrackerScreen() {
       marginBottom: 20,
     },
     expenseItem: {
-      backgroundColor: colors.surface,
+      backgroundColor: paperSurface,
+      ...paperCardShadow,
       borderRadius: 12,
       padding: 12,
       marginBottom: 8,
@@ -321,7 +329,8 @@ export default function BudgetTrackerScreen() {
       justifyContent: 'flex-end',
     },
     modalContent: {
-      backgroundColor: colors.background,
+      backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background,
+      ...(isPaper ? skinTokens.sheetShadow ?? {} : {}),
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       padding: 20,
@@ -334,7 +343,7 @@ export default function BudgetTrackerScreen() {
       marginBottom: 16,
     },
     input: {
-      backgroundColor: colors.surface,
+      backgroundColor: paperSurface,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.border,
@@ -382,7 +391,7 @@ export default function BudgetTrackerScreen() {
       borderRadius: 8,
       borderWidth: 2,
       alignItems: 'center',
-      backgroundColor: colors.surface,
+      backgroundColor: paperSurface,
       borderColor: colors.border,
     },
     daySelectorButtonSelected: {
@@ -409,7 +418,7 @@ export default function BudgetTrackerScreen() {
       justifyContent: 'center',
     },
     modalCancelButton: {
-      backgroundColor: colors.surface,
+      backgroundColor: paperSurface,
       borderWidth: 1,
       borderColor: colors.border,
     },
@@ -482,7 +491,7 @@ export default function BudgetTrackerScreen() {
                   styles.dayButton,
                   {
                     borderColor: totalCount > 0 ? colors.primary : colors.border,
-                    backgroundColor: totalCount > 0 ? colors.primary + '15' : colors.surface,
+                    backgroundColor: totalCount > 0 ? colors.primary + '15' : paperSurface,
                   },
                 ]}
               >

@@ -527,16 +527,9 @@ export function paperKeywordSceneFor(
 /* produce gets a cut-paper rendition below. Compact scenes are built  */
 /* from piece lists in the same idiom as the v174 originals above:    */
 /* flat pieces, the one kit shadow, a settle on mount, sine motion.   */
+/* v181 — the last shells retire: every scene below, films included,  */
+/* stands on the scene root as its own composition (wave 2).          */
 /* ================================================================== */
-
-/** Emblem scene shell: base stock + one settling group of pieces. */
-function EmblemScene({ base, children }: { base: string; children: ReactNode }) {
-  return (
-    <PaperSceneRoot base={base}>
-      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>{children}</SettleIn>
-    </PaperSceneRoot>
-  );
-}
 
 /** Piece list renderer for config-built scenes. */
 function Pieces({ items }: { items: ViewStyle[] }) {
@@ -604,30 +597,6 @@ function PFigure({
       <PaperPiece style={{ position: "absolute", left: 4 * s, bottom: 27 * s, width: 14 * s, height: 14 * s, borderRadius: 7 * s, backgroundColor: skin }} />
       <PaperPiece style={{ position: "absolute", left: 4 * s, bottom: 35 * s, width: 14 * s, height: 6 * s, borderRadius: 3 * s, backgroundColor: hair }} />
     </View>
-  );
-}
-
-/* v180: the shared TdEmblem/TvEmblem shells were retired — every
-   food and TV scene is now its own bespoke composition. */
-/** Cinema builder: wide screen, motif, seat backs; curtains for Theater. */
-function MovieEmblem({ base, screen, motif, curtains = false }: { base: string; screen: string; motif: ViewStyle[]; curtains?: boolean }) {
-  return (
-    <PaperSceneRoot base={base}>
-      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
-        <PaperPiece style={{ position: "absolute", left: "41%", bottom: 40, width: 208, height: 100, borderRadius: 6, backgroundColor: "#0E0E14" }} />
-        <PaperPiece style={{ position: "absolute", left: "43.5%", bottom: 45, width: 190, height: 90, borderRadius: 4, backgroundColor: screen }} />
-        <Pieces items={motif} />
-        {curtains ? (
-          <>
-            <PaperPiece style={{ position: "absolute", left: "38%", bottom: 30, width: 24, height: 118, borderRadius: 6, backgroundColor: "#8E2323" }} />
-            <PaperPiece style={{ position: "absolute", left: "95%", bottom: 30, width: 24, height: 118, borderRadius: 6, backgroundColor: "#8E2323" }} />
-          </>
-        ) : null}
-        {[0, 1, 2, 3].map((i) => (
-          <PaperPiece key={i} style={{ position: "absolute", left: `${43 + i * 15}%` as `${number}%`, bottom: 2, width: 42, height: 20, borderRadius: 8, backgroundColor: "#1D1B2E" }} />
-        ))}
-      </SettleIn>
-    </PaperSceneRoot>
   );
 }
 
@@ -884,72 +853,78 @@ export function PaperBBQScene() {
 
 export function PaperTherapyScene() {
   return (
-    <EmblemScene base="#A8C3A0">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "28%", backgroundColor: "#87A87D" }} />
-      {/* two chairs facing */}
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 18, width: 34, height: 40, borderRadius: 8, backgroundColor: "#7C4DFF" }} />
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 52, width: 34, height: 18, borderRadius: 7, backgroundColor: "#9575E8" }} />
-      <PaperPiece style={{ position: "absolute", left: "76%", bottom: 18, width: 34, height: 40, borderRadius: 8, backgroundColor: "#E8A94E", transform: [{ scaleX: -1 }] }} />
-      <PaperPiece style={{ position: "absolute", left: "76%", bottom: 52, width: 34, height: 18, borderRadius: 7, backgroundColor: "#F0BE6A" }} />
-      {/* plant between them */}
-      <PaperPiece style={{ position: "absolute", left: "66%", bottom: 12, width: 18, height: 14, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, backgroundColor: "#A93226" }} />
-      <PaperPiece style={{ position: "absolute", left: "65%", bottom: 24, width: 8, height: 8, borderRadius: 4, backgroundColor: "#3E7C43" }} />
-      <PaperPiece style={{ position: "absolute", left: "69%", bottom: 28, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#58A05C" }} />
-      {/* speech bubble */}
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 104, width: 52, height: 30, borderRadius: 12, backgroundColor: "#FFFFFF" }} />
-      <PaperPiece style={{ position: "absolute", left: "62%", bottom: 94, width: 12, height: 12, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "61%", bottom: 116, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#A8C3A0" }} />
-      <PaperPiece style={{ position: "absolute", left: "65%", bottom: 116, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#A8C3A0" }} />
-      <PaperPiece style={{ position: "absolute", left: "69%", bottom: 116, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#A8C3A0" }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#A8C3A0">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "28%", backgroundColor: "#87A87D" }} />
+        {/* two chairs facing */}
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 18, width: 34, height: 40, borderRadius: 8, backgroundColor: "#7C4DFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 52, width: 34, height: 18, borderRadius: 7, backgroundColor: "#9575E8" }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 18, width: 34, height: 40, borderRadius: 8, backgroundColor: "#E8A94E", transform: [{ scaleX: -1 }] }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 52, width: 34, height: 18, borderRadius: 7, backgroundColor: "#F0BE6A" }} />
+        {/* plant between them */}
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 12, width: 18, height: 14, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, backgroundColor: "#A93226" }} />
+        <PaperPiece style={{ position: "absolute", left: "65%", bottom: 24, width: 8, height: 8, borderRadius: 4, backgroundColor: "#3E7C43" }} />
+        <PaperPiece style={{ position: "absolute", left: "69%", bottom: 28, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#58A05C" }} />
+        {/* speech bubble */}
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 104, width: 52, height: 30, borderRadius: 12, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "62%", bottom: 94, width: 12, height: 12, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "61%", bottom: 116, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#A8C3A0" }} />
+        <PaperPiece style={{ position: "absolute", left: "65%", bottom: 116, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#A8C3A0" }} />
+        <PaperPiece style={{ position: "absolute", left: "69%", bottom: 116, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#A8C3A0" }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperDoctorScene() {
   return (
-    <EmblemScene base="#DCE9F2">
-      {/* clipboard */}
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 14, width: 76, height: 104, borderRadius: 8, backgroundColor: "#8A6D4B" }} />
-      <PaperPiece style={{ position: "absolute", left: "60%", bottom: 20, width: 64, height: 90, borderRadius: 4, backgroundColor: "#FFFFFF" }} />
-      <PaperPiece style={{ position: "absolute", left: "66%", bottom: 108, width: 28, height: 10, borderRadius: 5, backgroundColor: "#C0C6CE" }} />
-      {/* red cross */}
-      <PaperPiece style={{ position: "absolute", left: "68%", bottom: 66, width: 12, height: 36, borderRadius: 3, backgroundColor: "#D64545" }} />
-      <PaperPiece style={{ position: "absolute", left: "64.5%", bottom: 78, width: 36, height: 12, borderRadius: 3, backgroundColor: "#D64545" }} />
-      {/* chart lines */}
-      <PaperPiece style={{ position: "absolute", left: "63%", bottom: 52, width: 50, height: 5, borderRadius: 2.5, backgroundColor: "#B9CBD8" }} />
-      <PaperPiece style={{ position: "absolute", left: "63%", bottom: 40, width: 38, height: 5, borderRadius: 2.5, backgroundColor: "#B9CBD8" }} />
-      {/* heart */}
-      <PaperBob left="46%" bottom={86} width={22} height={20} distance={3} duration={2600}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 6, width: 12, height: 12, borderRadius: 6, backgroundColor: "#E86A92" }} />
-        <PaperPiece style={{ position: "absolute", left: 10, bottom: 6, width: 12, height: 12, borderRadius: 6, backgroundColor: "#E86A92" }} />
-        <PaperPiece style={{ position: "absolute", left: 5, bottom: 0, width: 12, height: 12, backgroundColor: "#E86A92", transform: [{ rotate: "45deg" }] }} />
-      </PaperBob>
-    </EmblemScene>
+    <PaperSceneRoot base="#DCE9F2">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* clipboard */}
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 14, width: 76, height: 104, borderRadius: 8, backgroundColor: "#8A6D4B" }} />
+        <PaperPiece style={{ position: "absolute", left: "60%", bottom: 20, width: 64, height: 90, borderRadius: 4, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 108, width: 28, height: 10, borderRadius: 5, backgroundColor: "#C0C6CE" }} />
+        {/* red cross */}
+        <PaperPiece style={{ position: "absolute", left: "68%", bottom: 66, width: 12, height: 36, borderRadius: 3, backgroundColor: "#D64545" }} />
+        <PaperPiece style={{ position: "absolute", left: "64.5%", bottom: 78, width: 36, height: 12, borderRadius: 3, backgroundColor: "#D64545" }} />
+        {/* chart lines */}
+        <PaperPiece style={{ position: "absolute", left: "63%", bottom: 52, width: 50, height: 5, borderRadius: 2.5, backgroundColor: "#B9CBD8" }} />
+        <PaperPiece style={{ position: "absolute", left: "63%", bottom: 40, width: 38, height: 5, borderRadius: 2.5, backgroundColor: "#B9CBD8" }} />
+        {/* heart */}
+        <PaperBob left="46%" bottom={86} width={22} height={20} distance={3} duration={2600}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 6, width: 12, height: 12, borderRadius: 6, backgroundColor: "#E86A92" }} />
+          <PaperPiece style={{ position: "absolute", left: 10, bottom: 6, width: 12, height: 12, borderRadius: 6, backgroundColor: "#E86A92" }} />
+          <PaperPiece style={{ position: "absolute", left: 5, bottom: 0, width: 12, height: 12, backgroundColor: "#E86A92", transform: [{ rotate: "45deg" }] }} />
+        </PaperBob>
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperHaircutScene() {
   return (
-    <EmblemScene base="#8EC9D8">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#6FAEC2" }} />
-      {/* mirror */}
-      <PaperPiece style={{ position: "absolute", left: "56%", bottom: 44, width: 74, height: 92, borderRadius: 12, backgroundColor: "#5B87A0" }} />
-      <PaperPiece style={{ position: "absolute", left: "58.5%", bottom: 50, width: 58, height: 80, borderRadius: 9, backgroundColor: "#DFF3F9" }} />
-      {/* head silhouette in the mirror, mid-trim */}
-      <PaperPiece style={{ position: "absolute", left: "63%", bottom: 66, width: 32, height: 32, borderRadius: 16, backgroundColor: "#F2C79B" }} />
-      <PaperPiece style={{ position: "absolute", left: "63%", bottom: 88, width: 32, height: 11, borderRadius: 5, backgroundColor: "#4A3220" }} />
-      {/* scissors */}
-      <PaperPiece style={{ position: "absolute", left: "82%", bottom: 108, width: 30, height: 6, borderRadius: 3, backgroundColor: "#5B6B7A", transform: [{ rotate: "28deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "82%", bottom: 94, width: 30, height: 6, borderRadius: 3, backgroundColor: "#43525F", transform: [{ rotate: "-18deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "93%", bottom: 106, width: 10, height: 10, borderRadius: 5, borderWidth: 3, borderColor: "#5B6B7A", backgroundColor: "#8EC9D8" }} />
-      <PaperPiece style={{ position: "absolute", left: "93%", bottom: 92, width: 10, height: 10, borderRadius: 5, borderWidth: 3, borderColor: "#43525F", backgroundColor: "#8EC9D8" }} />
-      {/* snipped hair on the floor */}
-      {[0, 1, 2].map((i) => (
-        <PaperPiece key={i} style={{ position: "absolute", left: `${58 + i * 9}%` as `${number}%`, bottom: 10 + (i % 2) * 6, width: 12, height: 5, borderRadius: 2.5, backgroundColor: "#4A3220", transform: [{ rotate: `${i * 41}deg` }] }} />
-      ))}
-      {/* cape */}
-      <PaperPiece style={{ position: "absolute", left: "60%", bottom: 18, width: 44, height: 26, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: "#7C4DFF" }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#8EC9D8">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#6FAEC2" }} />
+        {/* mirror */}
+        <PaperPiece style={{ position: "absolute", left: "56%", bottom: 44, width: 74, height: 92, borderRadius: 12, backgroundColor: "#5B87A0" }} />
+        <PaperPiece style={{ position: "absolute", left: "58.5%", bottom: 50, width: 58, height: 80, borderRadius: 9, backgroundColor: "#DFF3F9" }} />
+        {/* head silhouette in the mirror, mid-trim */}
+        <PaperPiece style={{ position: "absolute", left: "63%", bottom: 66, width: 32, height: 32, borderRadius: 16, backgroundColor: "#F2C79B" }} />
+        <PaperPiece style={{ position: "absolute", left: "63%", bottom: 88, width: 32, height: 11, borderRadius: 5, backgroundColor: "#4A3220" }} />
+        {/* scissors */}
+        <PaperPiece style={{ position: "absolute", left: "82%", bottom: 108, width: 30, height: 6, borderRadius: 3, backgroundColor: "#5B6B7A", transform: [{ rotate: "28deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "82%", bottom: 94, width: 30, height: 6, borderRadius: 3, backgroundColor: "#43525F", transform: [{ rotate: "-18deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "93%", bottom: 106, width: 10, height: 10, borderRadius: 5, borderWidth: 3, borderColor: "#5B6B7A", backgroundColor: "#8EC9D8" }} />
+        <PaperPiece style={{ position: "absolute", left: "93%", bottom: 92, width: 10, height: 10, borderRadius: 5, borderWidth: 3, borderColor: "#43525F", backgroundColor: "#8EC9D8" }} />
+        {/* snipped hair on the floor */}
+        {[0, 1, 2].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${58 + i * 9}%` as `${number}%`, bottom: 10 + (i % 2) * 6, width: 12, height: 5, borderRadius: 2.5, backgroundColor: "#4A3220", transform: [{ rotate: `${i * 41}deg` }] }} />
+        ))}
+        {/* cape */}
+        <PaperPiece style={{ position: "absolute", left: "60%", bottom: 18, width: 44, height: 26, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: "#7C4DFF" }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
@@ -978,53 +953,57 @@ export function PaperParkScene() {
 
 export function PaperPartyScene() {
   return (
-    <EmblemScene base="#7C4DFF">
-      {/* bunting */}
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <PaperPiece key={i} style={{ position: "absolute", left: `${44 + i * 9.5}%` as `${number}%`, bottom: 128 - (i % 2) * 5, width: 16, height: 14, backgroundColor: ["#FFC531", "#E86A92", "#7FB3D5", "#58A05C", "#FF8A5C", "#F6F0FF"][i], transform: [{ rotate: "45deg" }] }} />
-      ))}
-      <View style={{ position: "absolute", left: "42%", bottom: 140, width: "58%", height: 3, backgroundColor: "#5E35D6", transform: [{ rotate: "-2deg" }] }} />
-      {/* balloons */}
-      <PaperBob left="52%" bottom={44} width={30} height={44} distance={4} duration={3200}>
-        <PaperPiece style={{ position: "absolute", left: 2, bottom: 14, width: 26, height: 30, borderRadius: 13, backgroundColor: "#E86A92" }} />
-        <PaperPiece style={{ position: "absolute", left: 12, bottom: 8, width: 6, height: 6, backgroundColor: "#C94F6D", transform: [{ rotate: "45deg" }] }} />
-      </PaperBob>
-      <PaperBob left="66%" bottom={54} width={30} height={44} distance={5} duration={3600} delay={500}>
-        <PaperPiece style={{ position: "absolute", left: 2, bottom: 14, width: 26, height: 30, borderRadius: 13, backgroundColor: "#FFC531" }} />
-        <PaperPiece style={{ position: "absolute", left: 12, bottom: 8, width: 6, height: 6, backgroundColor: "#F5A623", transform: [{ rotate: "45deg" }] }} />
-      </PaperBob>
-      <PaperBob left="80%" bottom={44} width={30} height={44} distance={4} duration={3000} delay={900}>
-        <PaperPiece style={{ position: "absolute", left: 2, bottom: 14, width: 26, height: 30, borderRadius: 13, backgroundColor: "#7FB3D5" }} />
-        <PaperPiece style={{ position: "absolute", left: 12, bottom: 8, width: 6, height: 6, backgroundColor: "#5B9BD5", transform: [{ rotate: "45deg" }] }} />
-      </PaperBob>
-      {/* confetti */}
-      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-        <PaperPiece key={i} style={{ position: "absolute", left: `${48 + i * 7}%` as `${number}%`, bottom: 16 + (i % 3) * 9, width: 8, height: 4, borderRadius: 2, backgroundColor: ["#FFC531", "#E86A92", "#7FB3D5", "#58A05C"][i % 4], transform: [{ rotate: `${i * 29}deg` }] }} />
-      ))}
-    </EmblemScene>
+    <PaperSceneRoot base="#7C4DFF">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* bunting */}
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${44 + i * 9.5}%` as `${number}%`, bottom: 128 - (i % 2) * 5, width: 16, height: 14, backgroundColor: ["#FFC531", "#E86A92", "#7FB3D5", "#58A05C", "#FF8A5C", "#F6F0FF"][i], transform: [{ rotate: "45deg" }] }} />
+        ))}
+        <View style={{ position: "absolute", left: "42%", bottom: 140, width: "58%", height: 3, backgroundColor: "#5E35D6", transform: [{ rotate: "-2deg" }] }} />
+        {/* balloons */}
+        <PaperBob left="52%" bottom={44} width={30} height={44} distance={4} duration={3200}>
+          <PaperPiece style={{ position: "absolute", left: 2, bottom: 14, width: 26, height: 30, borderRadius: 13, backgroundColor: "#E86A92" }} />
+          <PaperPiece style={{ position: "absolute", left: 12, bottom: 8, width: 6, height: 6, backgroundColor: "#C94F6D", transform: [{ rotate: "45deg" }] }} />
+        </PaperBob>
+        <PaperBob left="66%" bottom={54} width={30} height={44} distance={5} duration={3600} delay={500}>
+          <PaperPiece style={{ position: "absolute", left: 2, bottom: 14, width: 26, height: 30, borderRadius: 13, backgroundColor: "#FFC531" }} />
+          <PaperPiece style={{ position: "absolute", left: 12, bottom: 8, width: 6, height: 6, backgroundColor: "#F5A623", transform: [{ rotate: "45deg" }] }} />
+        </PaperBob>
+        <PaperBob left="80%" bottom={44} width={30} height={44} distance={4} duration={3000} delay={900}>
+          <PaperPiece style={{ position: "absolute", left: 2, bottom: 14, width: 26, height: 30, borderRadius: 13, backgroundColor: "#7FB3D5" }} />
+          <PaperPiece style={{ position: "absolute", left: 12, bottom: 8, width: 6, height: 6, backgroundColor: "#5B9BD5", transform: [{ rotate: "45deg" }] }} />
+        </PaperBob>
+        {/* confetti */}
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${48 + i * 7}%` as `${number}%`, bottom: 16 + (i % 3) * 9, width: 8, height: 4, borderRadius: 2, backgroundColor: ["#FFC531", "#E86A92", "#7FB3D5", "#58A05C"][i % 4], transform: [{ rotate: `${i * 29}deg` }] }} />
+        ))}
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperSchoolScene() {
   return (
-    <EmblemScene base="#4A6FA5">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#38567F" }} />
-      {/* schoolhouse */}
-      <PaperPiece style={{ position: "absolute", left: "54%", bottom: 24, width: 110, height: 62, borderRadius: 4, backgroundColor: "#F2D8A7" }} />
-      <PaperPiece style={{ position: "absolute", left: "51%", bottom: 84, width: 126, height: 16, backgroundColor: "#A93226", transform: [{ rotate: "0deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "66%", bottom: 84, width: 34, height: 30, borderTopLeftRadius: 6, borderTopRightRadius: 6, backgroundColor: "#C9A86A" }} />
-      {/* flag */}
-      <PaperPiece style={{ position: "absolute", left: "72.5%", bottom: 108, width: 4, height: 26, backgroundColor: "#3A3A42" }} />
-      <PaperPiece style={{ position: "absolute", left: "74%", bottom: 122, width: 20, height: 12, borderRadius: 2, backgroundColor: "#D64545" }} />
-      {/* door + windows */}
-      <PaperPiece style={{ position: "absolute", left: "70%", bottom: 24, width: 20, height: 34, borderTopLeftRadius: 9, borderTopRightRadius: 9, backgroundColor: "#5D4037" }} />
-      <PaperPiece style={{ position: "absolute", left: "57%", bottom: 52, width: 16, height: 16, borderRadius: 3, backgroundColor: "#BFE6F5" }} />
-      <PaperPiece style={{ position: "absolute", left: "84%", bottom: 52, width: 16, height: 16, borderRadius: 3, backgroundColor: "#BFE6F5" }} />
-      {/* book stack */}
-      <PaperPiece style={{ position: "absolute", left: "45%", bottom: 12, width: 30, height: 8, borderRadius: 2, backgroundColor: "#3E7CB1" }} />
-      <PaperPiece style={{ position: "absolute", left: "46%", bottom: 20, width: 26, height: 8, borderRadius: 2, backgroundColor: "#C0392B" }} />
-      <PaperPiece style={{ position: "absolute", left: "47%", bottom: 28, width: 22, height: 8, borderRadius: 2, backgroundColor: "#58A05C" }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#4A6FA5">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#38567F" }} />
+        {/* schoolhouse */}
+        <PaperPiece style={{ position: "absolute", left: "54%", bottom: 24, width: 110, height: 62, borderRadius: 4, backgroundColor: "#F2D8A7" }} />
+        <PaperPiece style={{ position: "absolute", left: "51%", bottom: 84, width: 126, height: 16, backgroundColor: "#A93226", transform: [{ rotate: "0deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 84, width: 34, height: 30, borderTopLeftRadius: 6, borderTopRightRadius: 6, backgroundColor: "#C9A86A" }} />
+        {/* flag */}
+        <PaperPiece style={{ position: "absolute", left: "72.5%", bottom: 108, width: 4, height: 26, backgroundColor: "#3A3A42" }} />
+        <PaperPiece style={{ position: "absolute", left: "74%", bottom: 122, width: 20, height: 12, borderRadius: 2, backgroundColor: "#D64545" }} />
+        {/* door + windows */}
+        <PaperPiece style={{ position: "absolute", left: "70%", bottom: 24, width: 20, height: 34, borderTopLeftRadius: 9, borderTopRightRadius: 9, backgroundColor: "#5D4037" }} />
+        <PaperPiece style={{ position: "absolute", left: "57%", bottom: 52, width: 16, height: 16, borderRadius: 3, backgroundColor: "#BFE6F5" }} />
+        <PaperPiece style={{ position: "absolute", left: "84%", bottom: 52, width: 16, height: 16, borderRadius: 3, backgroundColor: "#BFE6F5" }} />
+        {/* book stack */}
+        <PaperPiece style={{ position: "absolute", left: "45%", bottom: 12, width: 30, height: 8, borderRadius: 2, backgroundColor: "#3E7CB1" }} />
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 20, width: 26, height: 8, borderRadius: 2, backgroundColor: "#C0392B" }} />
+        <PaperPiece style={{ position: "absolute", left: "47%", bottom: 28, width: 22, height: 8, borderRadius: 2, backgroundColor: "#58A05C" }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
@@ -1081,53 +1060,57 @@ export function PaperBeachScene() {
 
 export function PaperBabyShowerScene() {
   return (
-    <EmblemScene base="#F6C6D8">
-      {/* bunting */}
-      {[0, 1, 2, 3, 4].map((i) => (
-        <PaperPiece key={i} style={{ position: "absolute", left: `${46 + i * 11}%` as `${number}%`, bottom: 130 - (i % 2) * 4, width: 14, height: 12, backgroundColor: ["#FFFFFF", "#A8D8EA", "#FFE9A8", "#FFFFFF", "#A8D8EA"][i], transform: [{ rotate: "45deg" }] }} />
-      ))}
-      {/* onesie */}
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 30, width: 58, height: 62, borderRadius: 10, backgroundColor: "#FFFFFF" }} />
-      <PaperPiece style={{ position: "absolute", left: "53%", bottom: 74, width: 18, height: 20, borderRadius: 7, backgroundColor: "#FFFFFF", transform: [{ rotate: "24deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "73%", bottom: 74, width: 18, height: 20, borderRadius: 7, backgroundColor: "#FFFFFF", transform: [{ rotate: "-24deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "65%", bottom: 56, width: 14, height: 12, borderRadius: 6, backgroundColor: "#E86A92" }} />
-      <PaperPiece style={{ position: "absolute", left: "69.5%", bottom: 56, width: 14, height: 12, borderRadius: 6, backgroundColor: "#E86A92" }} />
-      <PaperPiece style={{ position: "absolute", left: "67.5%", bottom: 48, width: 13, height: 13, backgroundColor: "#E86A92", transform: [{ rotate: "45deg" }] }} />
-      {/* bottle */}
-      <PaperPiece style={{ position: "absolute", left: "84%", bottom: 22, width: 16, height: 34, borderRadius: 6, backgroundColor: "#DFF3F9" }} />
-      <PaperPiece style={{ position: "absolute", left: "85.5%", bottom: 56, width: 10, height: 9, borderRadius: 4, backgroundColor: "#FFC531" }} />
-      {/* gift */}
-      <PaperPiece style={{ position: "absolute", left: "44%", bottom: 12, width: 30, height: 24, borderRadius: 3, backgroundColor: "#A8D8EA" }} />
-      <PaperPiece style={{ position: "absolute", left: "47.5%", bottom: 12, width: 6, height: 24, backgroundColor: "#FFFFFF" }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#F6C6D8">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* bunting */}
+        {[0, 1, 2, 3, 4].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${46 + i * 11}%` as `${number}%`, bottom: 130 - (i % 2) * 4, width: 14, height: 12, backgroundColor: ["#FFFFFF", "#A8D8EA", "#FFE9A8", "#FFFFFF", "#A8D8EA"][i], transform: [{ rotate: "45deg" }] }} />
+        ))}
+        {/* onesie */}
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 30, width: 58, height: 62, borderRadius: 10, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "53%", bottom: 74, width: 18, height: 20, borderRadius: 7, backgroundColor: "#FFFFFF", transform: [{ rotate: "24deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "73%", bottom: 74, width: 18, height: 20, borderRadius: 7, backgroundColor: "#FFFFFF", transform: [{ rotate: "-24deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "65%", bottom: 56, width: 14, height: 12, borderRadius: 6, backgroundColor: "#E86A92" }} />
+        <PaperPiece style={{ position: "absolute", left: "69.5%", bottom: 56, width: 14, height: 12, borderRadius: 6, backgroundColor: "#E86A92" }} />
+        <PaperPiece style={{ position: "absolute", left: "67.5%", bottom: 48, width: 13, height: 13, backgroundColor: "#E86A92", transform: [{ rotate: "45deg" }] }} />
+        {/* bottle */}
+        <PaperPiece style={{ position: "absolute", left: "84%", bottom: 22, width: 16, height: 34, borderRadius: 6, backgroundColor: "#DFF3F9" }} />
+        <PaperPiece style={{ position: "absolute", left: "85.5%", bottom: 56, width: 10, height: 9, borderRadius: 4, backgroundColor: "#FFC531" }} />
+        {/* gift */}
+        <PaperPiece style={{ position: "absolute", left: "44%", bottom: 12, width: 30, height: 24, borderRadius: 3, backgroundColor: "#A8D8EA" }} />
+        <PaperPiece style={{ position: "absolute", left: "47.5%", bottom: 12, width: 6, height: 24, backgroundColor: "#FFFFFF" }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperBirthdayScene() {
   return (
-    <EmblemScene base="#FF8A5C">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#E06F3C" }} />
-      {/* cake */}
-      <PaperPiece style={{ position: "absolute", left: "54%", bottom: 16, width: 104, height: 26, borderRadius: 6, backgroundColor: "#7A4A2B" }} />
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 42, width: 84, height: 24, borderRadius: 6, backgroundColor: "#F6C6D8" }} />
-      <PaperPiece style={{ position: "absolute", left: "62%", bottom: 66, width: 64, height: 22, borderRadius: 6, backgroundColor: "#FFF3E0" }} />
-      {/* candles + flames */}
-      {[0, 1, 2].map((i) => (
-        <View key={i}>
-          <PaperPiece style={{ position: "absolute", left: `${66 + i * 7}%` as `${number}%`, bottom: 88, width: 5, height: 16, borderRadius: 2, backgroundColor: "#7FB3D5" }} />
-          <PaperPulse left={`${66.3 + i * 7}%` as `${number}%`} bottom={104} width={7} height={10} min={0.9} max={1.12} duration={1200}>
-            <PaperPiece style={{ width: 7, height: 10, borderRadius: 3.5, backgroundColor: "#FFC531" }} />
-          </PaperPulse>
-        </View>
-      ))}
-      {/* balloons at the sides */}
-      <PaperBob left="44%" bottom={70} width={26} height={38} distance={4} duration={3200}>
-        <PaperPiece style={{ position: "absolute", left: 1, bottom: 10, width: 24, height: 28, borderRadius: 12, backgroundColor: "#7C4DFF" }} />
-      </PaperBob>
-      <PaperBob left="88%" bottom={76} width={26} height={38} distance={5} duration={3400} delay={500}>
-        <PaperPiece style={{ position: "absolute", left: 1, bottom: 10, width: 24, height: 28, borderRadius: 12, backgroundColor: "#58A05C" }} />
-      </PaperBob>
-    </EmblemScene>
+    <PaperSceneRoot base="#FF8A5C">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#E06F3C" }} />
+        {/* cake */}
+        <PaperPiece style={{ position: "absolute", left: "54%", bottom: 16, width: 104, height: 26, borderRadius: 6, backgroundColor: "#7A4A2B" }} />
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 42, width: 84, height: 24, borderRadius: 6, backgroundColor: "#F6C6D8" }} />
+        <PaperPiece style={{ position: "absolute", left: "62%", bottom: 66, width: 64, height: 22, borderRadius: 6, backgroundColor: "#FFF3E0" }} />
+        {/* candles + flames */}
+        {[0, 1, 2].map((i) => (
+          <View key={i}>
+            <PaperPiece style={{ position: "absolute", left: `${66 + i * 7}%` as `${number}%`, bottom: 88, width: 5, height: 16, borderRadius: 2, backgroundColor: "#7FB3D5" }} />
+            <PaperPulse left={`${66.3 + i * 7}%` as `${number}%`} bottom={104} width={7} height={10} min={0.9} max={1.12} duration={1200}>
+              <PaperPiece style={{ width: 7, height: 10, borderRadius: 3.5, backgroundColor: "#FFC531" }} />
+            </PaperPulse>
+          </View>
+        ))}
+        {/* balloons at the sides */}
+        <PaperBob left="44%" bottom={70} width={26} height={38} distance={4} duration={3200}>
+          <PaperPiece style={{ position: "absolute", left: 1, bottom: 10, width: 24, height: 28, borderRadius: 12, backgroundColor: "#7C4DFF" }} />
+        </PaperBob>
+        <PaperBob left="88%" bottom={76} width={26} height={38} distance={5} duration={3400} delay={500}>
+          <PaperPiece style={{ position: "absolute", left: 1, bottom: 10, width: 24, height: 28, borderRadius: 12, backgroundColor: "#58A05C" }} />
+        </PaperBob>
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
@@ -1224,195 +1207,211 @@ export function PaperSunriseServiceScene() {
 
 export function PaperThanksgivingScene() {
   return (
-    <EmblemScene base="#B4622D">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#8A4A20" }} />
-      {/* turkey: feather fan + body */}
-      {[0, 1, 2, 3, 4].map((i) => (
-        <PaperPiece key={i} style={{ position: "absolute", left: `${58 + i * 6.5}%` as `${number}%`, bottom: 62, width: 14, height: 44, borderRadius: 7, backgroundColor: ["#8A5A2B", "#C97B2D", "#A93226", "#C97B2D", "#8A5A2B"][i], transform: [{ rotate: `${(i - 2) * 16}deg` }] }} />
-      ))}
-      <PaperPiece style={{ position: "absolute", left: "62%", bottom: 30, width: 52, height: 46, borderRadius: 23, backgroundColor: "#6B4423" }} />
-      <PaperPiece style={{ position: "absolute", left: "68%", bottom: 66, width: 20, height: 20, borderRadius: 10, backgroundColor: "#7A5230" }} />
-      <PaperPiece style={{ position: "absolute", left: "71%", bottom: 60, width: 10, height: 8, backgroundColor: "#F5A623", transform: [{ rotate: "45deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "70.5%", bottom: 52, width: 6, height: 10, borderRadius: 3, backgroundColor: "#D64545" }} />
-      {/* pumpkin + pie */}
-      <PaperPiece style={{ position: "absolute", left: "46%", bottom: 12, width: 30, height: 24, borderRadius: 12, backgroundColor: "#E8862D" }} />
-      <PaperPiece style={{ position: "absolute", left: "49.5%", bottom: 34, width: 6, height: 8, borderRadius: 3, backgroundColor: "#3E7C43" }} />
-      <PaperPiece style={{ position: "absolute", left: "84%", bottom: 12, width: 34, height: 14, borderRadius: 7, backgroundColor: "#E8C87A" }} />
-      <PaperPiece style={{ position: "absolute", left: "86%", bottom: 24, width: 30, height: 8, borderRadius: 4, backgroundColor: "#C98A2E" }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#B4622D">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#8A4A20" }} />
+        {/* turkey: feather fan + body */}
+        {[0, 1, 2, 3, 4].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${58 + i * 6.5}%` as `${number}%`, bottom: 62, width: 14, height: 44, borderRadius: 7, backgroundColor: ["#8A5A2B", "#C97B2D", "#A93226", "#C97B2D", "#8A5A2B"][i], transform: [{ rotate: `${(i - 2) * 16}deg` }] }} />
+        ))}
+        <PaperPiece style={{ position: "absolute", left: "62%", bottom: 30, width: 52, height: 46, borderRadius: 23, backgroundColor: "#6B4423" }} />
+        <PaperPiece style={{ position: "absolute", left: "68%", bottom: 66, width: 20, height: 20, borderRadius: 10, backgroundColor: "#7A5230" }} />
+        <PaperPiece style={{ position: "absolute", left: "71%", bottom: 60, width: 10, height: 8, backgroundColor: "#F5A623", transform: [{ rotate: "45deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "70.5%", bottom: 52, width: 6, height: 10, borderRadius: 3, backgroundColor: "#D64545" }} />
+        {/* pumpkin + pie */}
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 12, width: 30, height: 24, borderRadius: 12, backgroundColor: "#E8862D" }} />
+        <PaperPiece style={{ position: "absolute", left: "49.5%", bottom: 34, width: 6, height: 8, borderRadius: 3, backgroundColor: "#3E7C43" }} />
+        <PaperPiece style={{ position: "absolute", left: "84%", bottom: 12, width: 34, height: 14, borderRadius: 7, backgroundColor: "#E8C87A" }} />
+        <PaperPiece style={{ position: "absolute", left: "86%", bottom: 24, width: 30, height: 8, borderRadius: 4, backgroundColor: "#C98A2E" }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperWeddingScene() {
   return (
-    <EmblemScene base="#F3E9F5">
-      {/* arch */}
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 26, width: 130, height: 96, borderTopLeftRadius: 65, borderTopRightRadius: 65, borderWidth: 7, borderColor: "#C9A86A", backgroundColor: "#F3E9F5" }} />
-      {/* couple */}
-      <PFigure left="62%" bottom={14} body="#2C2C33" scale={0.95} />
-      <PFigure left="71%" bottom={14} body="#FFFFFF" skin="#F2C79B" hair="#8A5A2B" scale={0.95} />
-      {/* bouquet */}
-      <PaperPiece style={{ position: "absolute", left: "74%", bottom: 28, width: 12, height: 12, borderRadius: 6, backgroundColor: "#E86A92" }} />
-      <PaperPiece style={{ position: "absolute", left: "76%", bottom: 34, width: 10, height: 10, borderRadius: 5, backgroundColor: "#F6C6D8" }} />
-      {/* rings, floating */}
-      <PaperBob left="46%" bottom={96} width={20} height={20} distance={3} duration={3000}>
-        <PaperPiece style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 4, borderColor: "#FFC531", backgroundColor: "#F3E9F5" }} />
-      </PaperBob>
-      <PaperBob left="50%" bottom={84} width={20} height={20} distance={3} duration={3400} delay={400}>
-        <PaperPiece style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 4, borderColor: "#E8B34B", backgroundColor: "#F3E9F5" }} />
-      </PaperBob>
-      {/* petals */}
-      {[0, 1, 2, 3].map((i) => (
-        <PaperPiece key={i} style={{ position: "absolute", left: `${56 + i * 10}%` as `${number}%`, bottom: 8, width: 8, height: 6, borderRadius: 3, backgroundColor: "#F6C6D8", transform: [{ rotate: `${i * 33}deg` }] }} />
-      ))}
-    </EmblemScene>
+    <PaperSceneRoot base="#F3E9F5">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* arch */}
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 26, width: 130, height: 96, borderTopLeftRadius: 65, borderTopRightRadius: 65, borderWidth: 7, borderColor: "#C9A86A", backgroundColor: "#F3E9F5" }} />
+        {/* couple */}
+        <PFigure left="62%" bottom={14} body="#2C2C33" scale={0.95} />
+        <PFigure left="71%" bottom={14} body="#FFFFFF" skin="#F2C79B" hair="#8A5A2B" scale={0.95} />
+        {/* bouquet */}
+        <PaperPiece style={{ position: "absolute", left: "74%", bottom: 28, width: 12, height: 12, borderRadius: 6, backgroundColor: "#E86A92" }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 34, width: 10, height: 10, borderRadius: 5, backgroundColor: "#F6C6D8" }} />
+        {/* rings, floating */}
+        <PaperBob left="46%" bottom={96} width={20} height={20} distance={3} duration={3000}>
+          <PaperPiece style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 4, borderColor: "#FFC531", backgroundColor: "#F3E9F5" }} />
+        </PaperBob>
+        <PaperBob left="50%" bottom={84} width={20} height={20} distance={3} duration={3400} delay={400}>
+          <PaperPiece style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 4, borderColor: "#E8B34B", backgroundColor: "#F3E9F5" }} />
+        </PaperBob>
+        {/* petals */}
+        {[0, 1, 2, 3].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${56 + i * 10}%` as `${number}%`, bottom: 8, width: 8, height: 6, borderRadius: 3, backgroundColor: "#F6C6D8", transform: [{ rotate: `${i * 33}deg` }] }} />
+        ))}
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperMemorialScene() {
   return (
-    <EmblemScene base="#6B7A90">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "28%", backgroundColor: "#525F70" }} />
-      {/* wreath */}
-      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
-        const a = (i / 8) * Math.PI * 2;
-        return (
-          <PaperPiece
-            key={i}
-            style={{
-              position: "absolute",
-              left: `${64 + Math.cos(a) * 7}%` as `${number}%`,
-              bottom: 62 + Math.sin(a) * 30,
-              width: 13,
-              height: 13,
-              borderRadius: 6.5,
-              backgroundColor: i % 3 === 0 ? "#F4F1EA" : "#4C7A57",
-            }}
-          />
-        );
-      })}
-      {/* candle */}
-      <PaperPiece style={{ position: "absolute", left: "46%", bottom: 14, width: 14, height: 30, borderRadius: 3, backgroundColor: "#FFF8E1" }} />
-      <PaperPulse left="46.4%" bottom={44} width={10} height={14} min={0.9} max={1.1} duration={1500}>
-        <PaperPiece style={{ width: 10, height: 14, borderRadius: 5, backgroundColor: "#FFB300" }} />
-      </PaperPulse>
-      {/* folded flag */}
-      <PaperPiece style={{ position: "absolute", left: "84%", bottom: 14, width: 34, height: 20, backgroundColor: "#3E4A6B" }} />
-      <PaperPiece style={{ position: "absolute", left: "85.5%", bottom: 22, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFFFFF" }} />
-      <PaperPiece style={{ position: "absolute", left: "89%", bottom: 26, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFFFFF" }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#6B7A90">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "28%", backgroundColor: "#525F70" }} />
+        {/* wreath */}
+        {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+          const a = (i / 8) * Math.PI * 2;
+          return (
+            <PaperPiece
+              key={i}
+              style={{
+                position: "absolute",
+                left: `${64 + Math.cos(a) * 7}%` as `${number}%`,
+                bottom: 62 + Math.sin(a) * 30,
+                width: 13,
+                height: 13,
+                borderRadius: 6.5,
+                backgroundColor: i % 3 === 0 ? "#F4F1EA" : "#4C7A57",
+              }}
+            />
+          );
+        })}
+        {/* candle */}
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 14, width: 14, height: 30, borderRadius: 3, backgroundColor: "#FFF8E1" }} />
+        <PaperPulse left="46.4%" bottom={44} width={10} height={14} min={0.9} max={1.1} duration={1500}>
+          <PaperPiece style={{ width: 10, height: 14, borderRadius: 5, backgroundColor: "#FFB300" }} />
+        </PaperPulse>
+        {/* folded flag */}
+        <PaperPiece style={{ position: "absolute", left: "84%", bottom: 14, width: 34, height: 20, backgroundColor: "#3E4A6B" }} />
+        <PaperPiece style={{ position: "absolute", left: "85.5%", bottom: 22, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "89%", bottom: 26, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFFFFF" }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperMeetingScene() {
   return (
-    <EmblemScene base="#5B7C99">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#47637C" }} />
-      {/* clock */}
-      <PaperPiece style={{ position: "absolute", left: "86%", bottom: 108, width: 26, height: 26, borderRadius: 13, backgroundColor: "#FFFFFF" }} />
-      <PaperPiece style={{ position: "absolute", left: "89.5%", bottom: 120, width: 3, height: 9, borderRadius: 1.5, backgroundColor: "#2C2C33" }} />
-      <PaperPiece style={{ position: "absolute", left: "88.5%", bottom: 116, width: 8, height: 3, borderRadius: 1.5, backgroundColor: "#2C2C33", transform: [{ rotate: "30deg" }] }} />
-      {/* table + people around it */}
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 30, width: 140, height: 26, borderRadius: 8, backgroundColor: "#6B4423" }} />
-      <PFigure left="56%" bottom={52} body="#7C4DFF" scale={0.8} />
-      <PFigure left="70%" bottom={52} body="#3E7CB1" scale={0.8} />
-      <PFigure left="84%" bottom={52} body="#58A05C" scale={0.8} />
-      <PFigure left="63%" bottom={2} body="#C96A2B" scale={0.8} />
-      <PFigure left="77%" bottom={2} body="#8A6D3B" scale={0.8} />
-      {/* speech bubble */}
-      <PaperPiece style={{ position: "absolute", left: "47%", bottom: 108, width: 40, height: 24, borderRadius: 10, backgroundColor: "#FFFFFF" }} />
-      <PaperPiece style={{ position: "absolute", left: "50%", bottom: 100, width: 9, height: 9, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#5B7C99">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#47637C" }} />
+        {/* clock */}
+        <PaperPiece style={{ position: "absolute", left: "86%", bottom: 108, width: 26, height: 26, borderRadius: 13, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "89.5%", bottom: 120, width: 3, height: 9, borderRadius: 1.5, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: "88.5%", bottom: 116, width: 8, height: 3, borderRadius: 1.5, backgroundColor: "#2C2C33", transform: [{ rotate: "30deg" }] }} />
+        {/* table + people around it */}
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 30, width: 140, height: 26, borderRadius: 8, backgroundColor: "#6B4423" }} />
+        <PFigure left="56%" bottom={52} body="#7C4DFF" scale={0.8} />
+        <PFigure left="70%" bottom={52} body="#3E7CB1" scale={0.8} />
+        <PFigure left="84%" bottom={52} body="#58A05C" scale={0.8} />
+        <PFigure left="63%" bottom={2} body="#C96A2B" scale={0.8} />
+        <PFigure left="77%" bottom={2} body="#8A6D3B" scale={0.8} />
+        {/* speech bubble */}
+        <PaperPiece style={{ position: "absolute", left: "47%", bottom: 108, width: 40, height: 24, borderRadius: 10, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "50%", bottom: 100, width: 9, height: 9, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperWorkoutScene() {
   return (
-    <EmblemScene base="#455A75">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#33445A" }} />
-      {/* mat */}
-      <PaperPiece style={{ position: "absolute", left: "50%", bottom: 10, width: 150, height: 12, borderRadius: 6, backgroundColor: "#7C4DFF" }} />
-      {/* dumbbell */}
-      <PaperPiece style={{ position: "absolute", left: "56%", bottom: 44, width: 64, height: 8, borderRadius: 4, backgroundColor: "#C0C6CE" }} />
-      <PaperPiece style={{ position: "absolute", left: "54%", bottom: 32, width: 14, height: 32, borderRadius: 4, backgroundColor: "#2C2C33" }} />
-      <PaperPiece style={{ position: "absolute", left: "71%", bottom: 32, width: 14, height: 32, borderRadius: 4, backgroundColor: "#2C2C33" }} />
-      <PaperPiece style={{ position: "absolute", left: "52.5%", bottom: 38, width: 8, height: 20, borderRadius: 3, backgroundColor: "#3A3A42" }} />
-      <PaperPiece style={{ position: "absolute", left: "74.5%", bottom: 38, width: 8, height: 20, borderRadius: 3, backgroundColor: "#3A3A42" }} />
-      {/* kettlebell */}
-      <PaperPiece style={{ position: "absolute", left: "84%", bottom: 16, width: 30, height: 30, borderRadius: 15, backgroundColor: "#E8862D" }} />
-      <PaperPiece style={{ position: "absolute", left: "86%", bottom: 42, width: 18, height: 14, borderTopLeftRadius: 9, borderTopRightRadius: 9, borderWidth: 4, borderColor: "#E8862D", backgroundColor: "#455A75" }} />
-      {/* figure mid-stretch */}
-      <PFigure left="45%" bottom={20} body="#FFC531" scale={0.9} />
-      {/* sweat drops */}
-      <PaperPulse left="49%" bottom={74} width={6} height={9} min={0.4} max={1} duration={1300}>
-        <PaperPiece style={{ width: 6, height: 9, borderRadius: 3, backgroundColor: "#BFE6F5" }} />
-      </PaperPulse>
-    </EmblemScene>
+    <PaperSceneRoot base="#455A75">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#33445A" }} />
+        {/* mat */}
+        <PaperPiece style={{ position: "absolute", left: "50%", bottom: 10, width: 150, height: 12, borderRadius: 6, backgroundColor: "#7C4DFF" }} />
+        {/* dumbbell */}
+        <PaperPiece style={{ position: "absolute", left: "56%", bottom: 44, width: 64, height: 8, borderRadius: 4, backgroundColor: "#C0C6CE" }} />
+        <PaperPiece style={{ position: "absolute", left: "54%", bottom: 32, width: 14, height: 32, borderRadius: 4, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: "71%", bottom: 32, width: 14, height: 32, borderRadius: 4, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: "52.5%", bottom: 38, width: 8, height: 20, borderRadius: 3, backgroundColor: "#3A3A42" }} />
+        <PaperPiece style={{ position: "absolute", left: "74.5%", bottom: 38, width: 8, height: 20, borderRadius: 3, backgroundColor: "#3A3A42" }} />
+        {/* kettlebell */}
+        <PaperPiece style={{ position: "absolute", left: "84%", bottom: 16, width: 30, height: 30, borderRadius: 15, backgroundColor: "#E8862D" }} />
+        <PaperPiece style={{ position: "absolute", left: "86%", bottom: 42, width: 18, height: 14, borderTopLeftRadius: 9, borderTopRightRadius: 9, borderWidth: 4, borderColor: "#E8862D", backgroundColor: "#455A75" }} />
+        {/* figure mid-stretch */}
+        <PFigure left="45%" bottom={20} body="#FFC531" scale={0.9} />
+        {/* sweat drops */}
+        <PaperPulse left="49%" bottom={74} width={6} height={9} min={0.4} max={1} duration={1300}>
+          <PaperPiece style={{ width: 6, height: 9, borderRadius: 3, backgroundColor: "#BFE6F5" }} />
+        </PaperPulse>
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperBasketballScene() {
   return (
-    <EmblemScene base="#C96A2B">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#A8541F" }} />
-      <View style={{ position: "absolute", left: "40%", right: 0, bottom: 42, height: 3, backgroundColor: "#FFFFFF", opacity: 0.5 }} />
-      {/* backboard + hoop */}
-      <PaperPiece style={{ position: "absolute", left: "62%", bottom: 88, width: 72, height: 48, borderRadius: 4, borderWidth: 4, borderColor: "#FFFFFF", backgroundColor: "#E8E2D4" }} />
-      <PaperPiece style={{ position: "absolute", left: "68%", bottom: 100, width: 30, height: 24, borderRadius: 3, borderWidth: 3, borderColor: "#D64545", backgroundColor: "#E8E2D4" }} />
-      <PaperPiece style={{ position: "absolute", left: "69%", bottom: 82, width: 28, height: 7, borderRadius: 3.5, backgroundColor: "#D64545" }} />
-      <PaperPiece style={{ position: "absolute", left: "70.5%", bottom: 64, width: 3, height: 18, backgroundColor: "#FFFFFF" }} />
-      <PaperPiece style={{ position: "absolute", left: "74%", bottom: 64, width: 3, height: 18, backgroundColor: "#FFFFFF" }} />
-      <PaperPiece style={{ position: "absolute", left: "77.5%", bottom: 64, width: 3, height: 18, backgroundColor: "#FFFFFF" }} />
-      {/* ball, mid-arc */}
-      <PaperBob left="52%" bottom={86} width={30} height={30} distance={5} duration={2400}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: "#E8862D" }} />
-        <PaperPiece style={{ position: "absolute", left: 13, bottom: 0, width: 3, height: 30, backgroundColor: "#8A4A20" }} />
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 13, width: 30, height: 3, backgroundColor: "#8A4A20" }} />
-      </PaperBob>
-      <PFigure left="46%" bottom={8} body="#F6F0FF" armsUp scale={0.95} />
-    </EmblemScene>
+    <PaperSceneRoot base="#C96A2B">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#A8541F" }} />
+        <View style={{ position: "absolute", left: "40%", right: 0, bottom: 42, height: 3, backgroundColor: "#FFFFFF", opacity: 0.5 }} />
+        {/* backboard + hoop */}
+        <PaperPiece style={{ position: "absolute", left: "62%", bottom: 88, width: 72, height: 48, borderRadius: 4, borderWidth: 4, borderColor: "#FFFFFF", backgroundColor: "#E8E2D4" }} />
+        <PaperPiece style={{ position: "absolute", left: "68%", bottom: 100, width: 30, height: 24, borderRadius: 3, borderWidth: 3, borderColor: "#D64545", backgroundColor: "#E8E2D4" }} />
+        <PaperPiece style={{ position: "absolute", left: "69%", bottom: 82, width: 28, height: 7, borderRadius: 3.5, backgroundColor: "#D64545" }} />
+        <PaperPiece style={{ position: "absolute", left: "70.5%", bottom: 64, width: 3, height: 18, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "74%", bottom: 64, width: 3, height: 18, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "77.5%", bottom: 64, width: 3, height: 18, backgroundColor: "#FFFFFF" }} />
+        {/* ball, mid-arc */}
+        <PaperBob left="52%" bottom={86} width={30} height={30} distance={5} duration={2400}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: "#E8862D" }} />
+          <PaperPiece style={{ position: "absolute", left: 13, bottom: 0, width: 3, height: 30, backgroundColor: "#8A4A20" }} />
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 13, width: 30, height: 3, backgroundColor: "#8A4A20" }} />
+        </PaperBob>
+        <PFigure left="46%" bottom={8} body="#F6F0FF" armsUp scale={0.95} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperSoccerScene() {
   return (
-    <EmblemScene base="#4E9A51">
-      <View style={{ position: "absolute", left: "64%", top: 0, bottom: 0, width: 3, backgroundColor: "#FFFFFF", opacity: 0.45 }} />
-      {/* goal */}
-      <PaperPiece style={{ position: "absolute", left: "76%", bottom: 30, width: 8, height: 74, borderRadius: 3, backgroundColor: "#FFFFFF" }} />
-      <PaperPiece style={{ position: "absolute", left: "76%", bottom: 100, width: 62, height: 8, borderRadius: 3, backgroundColor: "#FFFFFF" }} />
-      <PaperPiece style={{ position: "absolute", left: "93%", bottom: 30, width: 8, height: 74, borderRadius: 3, backgroundColor: "#FFFFFF" }} />
-      <View style={{ position: "absolute", left: "77.5%", bottom: 34, width: 56, height: 62, borderWidth: 2, borderColor: "#FFFFFF", opacity: 0.35 }} />
-      {/* ball */}
-      <PaperBob left="56%" bottom={18} width={34} height={34} distance={4} duration={2200}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 34, height: 34, borderRadius: 17, backgroundColor: "#FFFFFF" }} />
-        <PaperPiece style={{ position: "absolute", left: 11, bottom: 11, width: 12, height: 12, backgroundColor: "#2C2C33", transform: [{ rotate: "45deg" }] }} />
-        <PaperPiece style={{ position: "absolute", left: 2, bottom: 22, width: 8, height: 8, backgroundColor: "#2C2C33", transform: [{ rotate: "20deg" }] }} />
-        <PaperPiece style={{ position: "absolute", left: 24, bottom: 4, width: 8, height: 8, backgroundColor: "#2C2C33", transform: [{ rotate: "60deg" }] }} />
-      </PaperBob>
-      <PFigure left="45%" bottom={10} body="#D64545" scale={0.95} />
-    </EmblemScene>
+    <PaperSceneRoot base="#4E9A51">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: "64%", top: 0, bottom: 0, width: 3, backgroundColor: "#FFFFFF", opacity: 0.45 }} />
+        {/* goal */}
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 30, width: 8, height: 74, borderRadius: 3, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 100, width: 62, height: 8, borderRadius: 3, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "93%", bottom: 30, width: 8, height: 74, borderRadius: 3, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: "77.5%", bottom: 34, width: 56, height: 62, borderWidth: 2, borderColor: "#FFFFFF", opacity: 0.35 }} />
+        {/* ball */}
+        <PaperBob left="56%" bottom={18} width={34} height={34} distance={4} duration={2200}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 34, height: 34, borderRadius: 17, backgroundColor: "#FFFFFF" }} />
+          <PaperPiece style={{ position: "absolute", left: 11, bottom: 11, width: 12, height: 12, backgroundColor: "#2C2C33", transform: [{ rotate: "45deg" }] }} />
+          <PaperPiece style={{ position: "absolute", left: 2, bottom: 22, width: 8, height: 8, backgroundColor: "#2C2C33", transform: [{ rotate: "20deg" }] }} />
+          <PaperPiece style={{ position: "absolute", left: 24, bottom: 4, width: 8, height: 8, backgroundColor: "#2C2C33", transform: [{ rotate: "60deg" }] }} />
+        </PaperBob>
+        <PFigure left="45%" bottom={10} body="#D64545" scale={0.95} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperGameScene() {
   return (
-    <EmblemScene base="#37415C">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "28%", backgroundColor: "#28304A" }} />
-      {/* controller */}
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 34, width: 130, height: 62, borderRadius: 28, backgroundColor: "#2C2C33" }} />
-      <PaperPiece style={{ position: "absolute", left: "57%", bottom: 62, width: 10, height: 26, borderRadius: 3, backgroundColor: "#F6F0FF" }} />
-      <PaperPiece style={{ position: "absolute", left: "54.5%", bottom: 70, width: 26, height: 10, borderRadius: 3, backgroundColor: "#F6F0FF" }} />
-      <PaperPiece style={{ position: "absolute", left: "79%", bottom: 74, width: 12, height: 12, borderRadius: 6, backgroundColor: "#D64545" }} />
-      <PaperPiece style={{ position: "absolute", left: "84%", bottom: 60, width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFC531" }} />
-      <PaperPiece style={{ position: "absolute", left: "74%", bottom: 58, width: 12, height: 12, borderRadius: 6, backgroundColor: "#58A05C" }} />
-      <PaperPiece style={{ position: "absolute", left: "81%", bottom: 46, width: 10, height: 10, borderRadius: 5, backgroundColor: "#7FB3D5" }} />
-      {/* screen glow above */}
-      <PaperPulse left="60%" bottom={112} width={70} height={16} min={0.5} max={0.9} duration={2600}>
-        <PaperPiece style={{ width: 70, height: 16, borderRadius: 8, backgroundColor: "#7FB3D5" }} />
-      </PaperPulse>
-      <PFigure left="44%" bottom={10} body="#5E35D6" scale={0.9} />
-    </EmblemScene>
+    <PaperSceneRoot base="#37415C">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "28%", backgroundColor: "#28304A" }} />
+        {/* controller */}
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 34, width: 130, height: 62, borderRadius: 28, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: "57%", bottom: 62, width: 10, height: 26, borderRadius: 3, backgroundColor: "#F6F0FF" }} />
+        <PaperPiece style={{ position: "absolute", left: "54.5%", bottom: 70, width: 26, height: 10, borderRadius: 3, backgroundColor: "#F6F0FF" }} />
+        <PaperPiece style={{ position: "absolute", left: "79%", bottom: 74, width: 12, height: 12, borderRadius: 6, backgroundColor: "#D64545" }} />
+        <PaperPiece style={{ position: "absolute", left: "84%", bottom: 60, width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFC531" }} />
+        <PaperPiece style={{ position: "absolute", left: "74%", bottom: 58, width: 12, height: 12, borderRadius: 6, backgroundColor: "#58A05C" }} />
+        <PaperPiece style={{ position: "absolute", left: "81%", bottom: 46, width: 10, height: 10, borderRadius: 5, backgroundColor: "#7FB3D5" }} />
+        {/* screen glow above */}
+        <PaperPulse left="60%" bottom={112} width={70} height={16} min={0.5} max={0.9} duration={2600}>
+          <PaperPiece style={{ width: 70, height: 16, borderRadius: 8, backgroundColor: "#7FB3D5" }} />
+        </PaperPulse>
+        <PFigure left="44%" bottom={10} body="#5E35D6" scale={0.9} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
@@ -1484,52 +1483,56 @@ export function PaperChristmasMovieScene() {
 
 export function PaperChristmasBreakfastScene() {
   return (
-    <EmblemScene base="#A63D2E">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "36%", backgroundColor: "#7E2D21" }} />
-      {/* pancake stack */}
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 22, width: 92, height: 16, borderRadius: 8, backgroundColor: "#FFF8E1" }} />
-      <PaperPiece style={{ position: "absolute", left: "55%", bottom: 34, width: 76, height: 13, borderRadius: 6.5, backgroundColor: "#EFC477" }} />
-      <PaperPiece style={{ position: "absolute", left: "56.5%", bottom: 46, width: 66, height: 13, borderRadius: 6.5, backgroundColor: "#F2C14E" }} />
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 58, width: 56, height: 12, borderRadius: 6, backgroundColor: "#EFC477" }} />
-      <PaperPiece style={{ position: "absolute", left: "64%", bottom: 68, width: 14, height: 10, borderRadius: 3, backgroundColor: "#FFE9A8" }} />
-      {/* holly */}
-      <PaperPiece style={{ position: "absolute", left: "80%", bottom: 30, width: 12, height: 12, borderRadius: 6, backgroundColor: "#3E7C43", transform: [{ rotate: "30deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "83%", bottom: 38, width: 12, height: 12, borderRadius: 6, backgroundColor: "#58A05C", transform: [{ rotate: "-24deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "81.5%", bottom: 32, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#D64545" }} />
-      {/* mug + window snow */}
-      <PaperPiece style={{ position: "absolute", left: "88%", bottom: 16, width: 20, height: 17, borderRadius: 4, backgroundColor: "#3E7C43" }} />
-      <PaperPiece style={{ position: "absolute", left: "46%", bottom: 104, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 118, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFFFFF", opacity: 0.7 }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#A63D2E">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "36%", backgroundColor: "#7E2D21" }} />
+        {/* pancake stack */}
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 22, width: 92, height: 16, borderRadius: 8, backgroundColor: "#FFF8E1" }} />
+        <PaperPiece style={{ position: "absolute", left: "55%", bottom: 34, width: 76, height: 13, borderRadius: 6.5, backgroundColor: "#EFC477" }} />
+        <PaperPiece style={{ position: "absolute", left: "56.5%", bottom: 46, width: 66, height: 13, borderRadius: 6.5, backgroundColor: "#F2C14E" }} />
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 58, width: 56, height: 12, borderRadius: 6, backgroundColor: "#EFC477" }} />
+        <PaperPiece style={{ position: "absolute", left: "64%", bottom: 68, width: 14, height: 10, borderRadius: 3, backgroundColor: "#FFE9A8" }} />
+        {/* holly */}
+        <PaperPiece style={{ position: "absolute", left: "80%", bottom: 30, width: 12, height: 12, borderRadius: 6, backgroundColor: "#3E7C43", transform: [{ rotate: "30deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "83%", bottom: 38, width: 12, height: 12, borderRadius: 6, backgroundColor: "#58A05C", transform: [{ rotate: "-24deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "81.5%", bottom: 32, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#D64545" }} />
+        {/* mug + window snow */}
+        <PaperPiece style={{ position: "absolute", left: "88%", bottom: 16, width: 20, height: 17, borderRadius: 4, backgroundColor: "#3E7C43" }} />
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 104, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 118, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFFFFF", opacity: 0.7 }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperChristmasDinnerScene() {
   return (
-    <EmblemScene base="#7A2E2E">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "34%", backgroundColor: "#5C2121" }} />
-      {/* garland */}
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <PaperPiece key={i} style={{ position: "absolute", left: `${45 + i * 9}%` as `${number}%`, bottom: 126 - (i % 2) * 6, width: 11, height: 11, borderRadius: 5.5, backgroundColor: i % 2 ? "#58A05C" : "#3E7C43" }} />
-      ))}
-      <PaperPiece style={{ position: "absolute", left: "66%", bottom: 130, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#D64545" }} />
-      {/* roast on a platter */}
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 20, width: 118, height: 18, borderRadius: 9, backgroundColor: "#EDE6D8" }} />
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 32, width: 76, height: 42, borderRadius: 21, backgroundColor: "#A85B2A" }} />
-      <PaperPiece style={{ position: "absolute", left: "57%", bottom: 58, width: 12, height: 10, borderRadius: 5, backgroundColor: "#FFF8E1", transform: [{ rotate: "-30deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "76%", bottom: 58, width: 12, height: 10, borderRadius: 5, backgroundColor: "#FFF8E1", transform: [{ rotate: "30deg" }] }} />
-      {/* candles */}
-      <PaperPiece style={{ position: "absolute", left: "47%", bottom: 20, width: 10, height: 26, borderRadius: 3, backgroundColor: "#FFF8E1" }} />
-      <PaperPulse left="47.3%" bottom={46} width={8} height={11} min={0.9} max={1.1} duration={1400}>
-        <PaperPiece style={{ width: 8, height: 11, borderRadius: 4, backgroundColor: "#FFB300" }} />
-      </PaperPulse>
-      <PaperPiece style={{ position: "absolute", left: "90%", bottom: 20, width: 10, height: 26, borderRadius: 3, backgroundColor: "#FFF8E1" }} />
-      <PaperPulse left="90.3%" bottom={46} width={8} height={11} min={0.9} max={1.1} duration={1600} delay={400}>
-        <PaperPiece style={{ width: 8, height: 11, borderRadius: 4, backgroundColor: "#FFB300" }} />
-      </PaperPulse>
-      {/* side bowls */}
-      <PaperPiece style={{ position: "absolute", left: "83%", bottom: 14, width: 26, height: 12, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, backgroundColor: "#3E7C43" }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#7A2E2E">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "34%", backgroundColor: "#5C2121" }} />
+        {/* garland */}
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${45 + i * 9}%` as `${number}%`, bottom: 126 - (i % 2) * 6, width: 11, height: 11, borderRadius: 5.5, backgroundColor: i % 2 ? "#58A05C" : "#3E7C43" }} />
+        ))}
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 130, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#D64545" }} />
+        {/* roast on a platter */}
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 20, width: 118, height: 18, borderRadius: 9, backgroundColor: "#EDE6D8" }} />
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 32, width: 76, height: 42, borderRadius: 21, backgroundColor: "#A85B2A" }} />
+        <PaperPiece style={{ position: "absolute", left: "57%", bottom: 58, width: 12, height: 10, borderRadius: 5, backgroundColor: "#FFF8E1", transform: [{ rotate: "-30deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 58, width: 12, height: 10, borderRadius: 5, backgroundColor: "#FFF8E1", transform: [{ rotate: "30deg" }] }} />
+        {/* candles */}
+        <PaperPiece style={{ position: "absolute", left: "47%", bottom: 20, width: 10, height: 26, borderRadius: 3, backgroundColor: "#FFF8E1" }} />
+        <PaperPulse left="47.3%" bottom={46} width={8} height={11} min={0.9} max={1.1} duration={1400}>
+          <PaperPiece style={{ width: 8, height: 11, borderRadius: 4, backgroundColor: "#FFB300" }} />
+        </PaperPulse>
+        <PaperPiece style={{ position: "absolute", left: "90%", bottom: 20, width: 10, height: 26, borderRadius: 3, backgroundColor: "#FFF8E1" }} />
+        <PaperPulse left="90.3%" bottom={46} width={8} height={11} min={0.9} max={1.1} duration={1600} delay={400}>
+          <PaperPiece style={{ width: 8, height: 11, borderRadius: 4, backgroundColor: "#FFB300" }} />
+        </PaperPulse>
+        {/* side bowls */}
+        <PaperPiece style={{ position: "absolute", left: "83%", bottom: 14, width: 26, height: 12, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, backgroundColor: "#3E7C43" }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
@@ -1562,23 +1565,25 @@ export function PaperFullMoonScene() {
 
 export function PaperOutreachScene() {
   return (
-    <EmblemScene base="#3E7CB1">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#2F6391" }} />
-      <PSun left="88%" bottom={112} size={25} />
-      {/* figures + the heart between them */}
-      <PFigure left="50%" bottom={12} body="#FFC531" scale={1} />
-      <PFigure left="82%" bottom={12} body="#F6F0FF" scale={1} />
-      <PaperBob left="64%" bottom={52} width={34} height={30} distance={3} duration={2800}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 8, width: 18, height: 18, borderRadius: 9, backgroundColor: "#E86A92" }} />
-        <PaperPiece style={{ position: "absolute", left: 16, bottom: 8, width: 18, height: 18, borderRadius: 9, backgroundColor: "#E86A92" }} />
-        <PaperPiece style={{ position: "absolute", left: 8, bottom: 0, width: 18, height: 18, backgroundColor: "#E86A92", transform: [{ rotate: "45deg" }] }} />
-      </PaperBob>
-      {/* box of goods being handed over */}
-      <PaperPiece style={{ position: "absolute", left: "60%", bottom: 12, width: 34, height: 24, borderRadius: 3, backgroundColor: "#B07D4F" }} />
-      <PaperPiece style={{ position: "absolute", left: "60%", bottom: 32, width: 34, height: 7, borderRadius: 3, backgroundColor: "#8A5A2B" }} />
-      <PaperPiece style={{ position: "absolute", left: "64%", bottom: 38, width: 10, height: 12, borderRadius: 3, backgroundColor: "#D64545" }} />
-      <PaperPiece style={{ position: "absolute", left: "68%", bottom: 38, width: 12, height: 10, borderRadius: 5, backgroundColor: "#58A05C" }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#3E7CB1">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#2F6391" }} />
+        <PSun left="88%" bottom={112} size={25} />
+        {/* figures + the heart between them */}
+        <PFigure left="50%" bottom={12} body="#FFC531" scale={1} />
+        <PFigure left="82%" bottom={12} body="#F6F0FF" scale={1} />
+        <PaperBob left="64%" bottom={52} width={34} height={30} distance={3} duration={2800}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 8, width: 18, height: 18, borderRadius: 9, backgroundColor: "#E86A92" }} />
+          <PaperPiece style={{ position: "absolute", left: 16, bottom: 8, width: 18, height: 18, borderRadius: 9, backgroundColor: "#E86A92" }} />
+          <PaperPiece style={{ position: "absolute", left: 8, bottom: 0, width: 18, height: 18, backgroundColor: "#E86A92", transform: [{ rotate: "45deg" }] }} />
+        </PaperBob>
+        {/* box of goods being handed over */}
+        <PaperPiece style={{ position: "absolute", left: "60%", bottom: 12, width: 34, height: 24, borderRadius: 3, backgroundColor: "#B07D4F" }} />
+        <PaperPiece style={{ position: "absolute", left: "60%", bottom: 32, width: 34, height: 7, borderRadius: 3, backgroundColor: "#8A5A2B" }} />
+        <PaperPiece style={{ position: "absolute", left: "64%", bottom: 38, width: 10, height: 12, borderRadius: 3, backgroundColor: "#D64545" }} />
+        <PaperPiece style={{ position: "absolute", left: "68%", bottom: 38, width: 12, height: 10, borderRadius: 5, backgroundColor: "#58A05C" }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
@@ -1672,189 +1677,205 @@ export function PaperShowerScene() {
 
 export function PaperStudyScene() {
   return (
-    <EmblemScene base="#6B4F2E">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "36%", backgroundColor: "#4E3820" }} />
-      {/* desk lamp */}
-      <PaperPiece style={{ position: "absolute", left: "86%", bottom: 24, width: 6, height: 52, borderRadius: 3, backgroundColor: "#2C2C33" }} />
-      <PaperPiece style={{ position: "absolute", left: "78%", bottom: 72, width: 26, height: 18, borderRadius: 5, backgroundColor: "#F5A623", transform: [{ rotate: "-18deg" }] }} />
-      <PaperPulse left="74%" bottom={52} width={40} height={40} min={0.8} max={0.95} duration={3200}>
-        <PaperPiece style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "#FFE9A8", opacity: 0.5 }} />
-      </PaperPulse>
-      {/* open book */}
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 26, width: 52, height: 36, borderRadius: 4, backgroundColor: "#FFF8E1", transform: [{ rotate: "-3deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "63%", bottom: 26, width: 52, height: 36, borderRadius: 4, backgroundColor: "#FBF3DE", transform: [{ rotate: "3deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "55%", bottom: 46, width: 36, height: 4, borderRadius: 2, backgroundColor: "#D8CBB2" }} />
-      <PaperPiece style={{ position: "absolute", left: "55%", bottom: 37, width: 36, height: 4, borderRadius: 2, backgroundColor: "#D8CBB2" }} />
-      <PaperPiece style={{ position: "absolute", left: "67%", bottom: 46, width: 36, height: 4, borderRadius: 2, backgroundColor: "#D8CBB2" }} />
-      {/* book stack + pencil */}
-      <PaperPiece style={{ position: "absolute", left: "44%", bottom: 16, width: 28, height: 8, borderRadius: 2, backgroundColor: "#3E7CB1" }} />
-      <PaperPiece style={{ position: "absolute", left: "45%", bottom: 24, width: 24, height: 8, borderRadius: 2, backgroundColor: "#A93226" }} />
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 14, width: 26, height: 5, borderRadius: 2.5, backgroundColor: "#FFC531", transform: [{ rotate: "-16deg" }] }} />
-      <PFigure left="42%" bottom={6} body="#5E35D6" scale={0.85} />
-    </EmblemScene>
+    <PaperSceneRoot base="#6B4F2E">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "36%", backgroundColor: "#4E3820" }} />
+        {/* desk lamp */}
+        <PaperPiece style={{ position: "absolute", left: "86%", bottom: 24, width: 6, height: 52, borderRadius: 3, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: "78%", bottom: 72, width: 26, height: 18, borderRadius: 5, backgroundColor: "#F5A623", transform: [{ rotate: "-18deg" }] }} />
+        <PaperPulse left="74%" bottom={52} width={40} height={40} min={0.8} max={0.95} duration={3200}>
+          <PaperPiece style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "#FFE9A8", opacity: 0.5 }} />
+        </PaperPulse>
+        {/* open book */}
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 26, width: 52, height: 36, borderRadius: 4, backgroundColor: "#FFF8E1", transform: [{ rotate: "-3deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "63%", bottom: 26, width: 52, height: 36, borderRadius: 4, backgroundColor: "#FBF3DE", transform: [{ rotate: "3deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "55%", bottom: 46, width: 36, height: 4, borderRadius: 2, backgroundColor: "#D8CBB2" }} />
+        <PaperPiece style={{ position: "absolute", left: "55%", bottom: 37, width: 36, height: 4, borderRadius: 2, backgroundColor: "#D8CBB2" }} />
+        <PaperPiece style={{ position: "absolute", left: "67%", bottom: 46, width: 36, height: 4, borderRadius: 2, backgroundColor: "#D8CBB2" }} />
+        {/* book stack + pencil */}
+        <PaperPiece style={{ position: "absolute", left: "44%", bottom: 16, width: 28, height: 8, borderRadius: 2, backgroundColor: "#3E7CB1" }} />
+        <PaperPiece style={{ position: "absolute", left: "45%", bottom: 24, width: 24, height: 8, borderRadius: 2, backgroundColor: "#A93226" }} />
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 14, width: 26, height: 5, borderRadius: 2.5, backgroundColor: "#FFC531", transform: [{ rotate: "-16deg" }] }} />
+        <PFigure left="42%" bottom={6} body="#5E35D6" scale={0.85} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperGraduationScene() {
   return (
-    <EmblemScene base="#2F3E5C">
-      {/* cap */}
-      <PaperPiece style={{ position: "absolute", left: "56%", bottom: 84, width: 84, height: 12, backgroundColor: "#1E1B26", transform: [{ rotate: "-4deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "62%", bottom: 66, width: 56, height: 22, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, backgroundColor: "#2A2735" }} />
-      {/* tassel */}
-      <PaperPiece style={{ position: "absolute", left: "76%", bottom: 84, width: 4, height: 26, borderRadius: 2, backgroundColor: "#FFC531" }} />
-      <PaperPulse left="75.5%" bottom={54} width={10} height={13} min={0.92} max={1.06} duration={2400}>
-        <PaperPiece style={{ width: 10, height: 13, borderRadius: 4, backgroundColor: "#FFC531" }} />
-      </PaperPulse>
-      {/* diploma scroll */}
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 24, width: 62, height: 16, borderRadius: 8, backgroundColor: "#FFF8E1", transform: [{ rotate: "-8deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "68%", bottom: 22, width: 8, height: 20, borderRadius: 3, backgroundColor: "#D64545", transform: [{ rotate: "-8deg" }] }} />
-      {/* confetti */}
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <PaperPiece key={i} style={{ position: "absolute", left: `${46 + i * 9}%` as `${number}%`, bottom: 112 - (i % 3) * 16, width: 8, height: 4, borderRadius: 2, backgroundColor: ["#FFC531", "#E86A92", "#7FB3D5", "#58A05C"][i % 4], transform: [{ rotate: `${i * 31}deg` }] }} />
-      ))}
-      <PFigure left="46%" bottom={8} body="#F6F0FF" scale={0.9} />
-    </EmblemScene>
+    <PaperSceneRoot base="#2F3E5C">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* cap */}
+        <PaperPiece style={{ position: "absolute", left: "56%", bottom: 84, width: 84, height: 12, backgroundColor: "#1E1B26", transform: [{ rotate: "-4deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "62%", bottom: 66, width: 56, height: 22, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, backgroundColor: "#2A2735" }} />
+        {/* tassel */}
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 84, width: 4, height: 26, borderRadius: 2, backgroundColor: "#FFC531" }} />
+        <PaperPulse left="75.5%" bottom={54} width={10} height={13} min={0.92} max={1.06} duration={2400}>
+          <PaperPiece style={{ width: 10, height: 13, borderRadius: 4, backgroundColor: "#FFC531" }} />
+        </PaperPulse>
+        {/* diploma scroll */}
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 24, width: 62, height: 16, borderRadius: 8, backgroundColor: "#FFF8E1", transform: [{ rotate: "-8deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "68%", bottom: 22, width: 8, height: 20, borderRadius: 3, backgroundColor: "#D64545", transform: [{ rotate: "-8deg" }] }} />
+        {/* confetti */}
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${46 + i * 9}%` as `${number}%`, bottom: 112 - (i % 3) * 16, width: 8, height: 4, borderRadius: 2, backgroundColor: ["#FFC531", "#E86A92", "#7FB3D5", "#58A05C"][i % 4], transform: [{ rotate: `${i * 31}deg` }] }} />
+        ))}
+        <PFigure left="46%" bottom={8} body="#F6F0FF" scale={0.9} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperVisitScene() {
   return (
-    <EmblemScene base="#7FB069">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#639551" }} />
-      <PSun left="46%" bottom={112} size={25} />
-      {/* house */}
-      <PaperPiece style={{ position: "absolute", left: "62%", bottom: 26, width: 76, height: 54, borderRadius: 4, backgroundColor: "#FFF3E0" }} />
-      <PaperPiece style={{ position: "absolute", left: "59%", bottom: 78, width: 88, height: 14, backgroundColor: "#A93226" }} />
-      <PaperPiece style={{ position: "absolute", left: "71%", bottom: 26, width: 18, height: 32, borderTopLeftRadius: 8, borderTopRightRadius: 8, backgroundColor: "#5D4037" }} />
-      <PaperPiece style={{ position: "absolute", left: "65%", bottom: 56, width: 13, height: 13, borderRadius: 3, backgroundColor: "#BFE6F5" }} />
-      {/* visitors at the door */}
-      <PFigure left="52%" bottom={10} body="#7C4DFF" scale={0.95} />
-      <PFigure left="84%" bottom={10} body="#3E7CB1" scale={0.95} />
-      {/* heart over the door */}
-      <PaperBob left="72.5%" bottom={92} width={18} height={16} distance={3} duration={2800}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 5, width: 10, height: 10, borderRadius: 5, backgroundColor: "#E86A92" }} />
-        <PaperPiece style={{ position: "absolute", left: 8, bottom: 5, width: 10, height: 10, borderRadius: 5, backgroundColor: "#E86A92" }} />
-        <PaperPiece style={{ position: "absolute", left: 4, bottom: 0, width: 10, height: 10, backgroundColor: "#E86A92", transform: [{ rotate: "45deg" }] }} />
-      </PaperBob>
-    </EmblemScene>
+    <PaperSceneRoot base="#7FB069">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#639551" }} />
+        <PSun left="46%" bottom={112} size={25} />
+        {/* house */}
+        <PaperPiece style={{ position: "absolute", left: "62%", bottom: 26, width: 76, height: 54, borderRadius: 4, backgroundColor: "#FFF3E0" }} />
+        <PaperPiece style={{ position: "absolute", left: "59%", bottom: 78, width: 88, height: 14, backgroundColor: "#A93226" }} />
+        <PaperPiece style={{ position: "absolute", left: "71%", bottom: 26, width: 18, height: 32, borderTopLeftRadius: 8, borderTopRightRadius: 8, backgroundColor: "#5D4037" }} />
+        <PaperPiece style={{ position: "absolute", left: "65%", bottom: 56, width: 13, height: 13, borderRadius: 3, backgroundColor: "#BFE6F5" }} />
+        {/* visitors at the door */}
+        <PFigure left="52%" bottom={10} body="#7C4DFF" scale={0.95} />
+        <PFigure left="84%" bottom={10} body="#3E7CB1" scale={0.95} />
+        {/* heart over the door */}
+        <PaperBob left="72.5%" bottom={92} width={18} height={16} distance={3} duration={2800}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 5, width: 10, height: 10, borderRadius: 5, backgroundColor: "#E86A92" }} />
+          <PaperPiece style={{ position: "absolute", left: 8, bottom: 5, width: 10, height: 10, borderRadius: 5, backgroundColor: "#E86A92" }} />
+          <PaperPiece style={{ position: "absolute", left: 4, bottom: 0, width: 10, height: 10, backgroundColor: "#E86A92", transform: [{ rotate: "45deg" }] }} />
+        </PaperBob>
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperReachOutScene() {
   return (
-    <EmblemScene base="#E8875B">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "28%", backgroundColor: "#C96A3B" }} />
-      <PFigure left="50%" bottom={12} body="#5E35D6" scale={1} />
-      <PFigure left="84%" bottom={12} body="#F6F0FF" scale={1} />
-      {/* chat bubble with a heart, mid-conversation */}
-      <PaperBob left="62%" bottom={76} width={64} height={44} distance={3} duration={3000}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 10, width: 64, height: 34, borderRadius: 13, backgroundColor: "#FFFFFF" }} />
-        <PaperPiece style={{ position: "absolute", left: 10, bottom: 2, width: 12, height: 12, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
-        <PaperPiece style={{ position: "absolute", left: 20, bottom: 24, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#E86A92" }} />
-        <PaperPiece style={{ position: "absolute", left: 29, bottom: 24, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#E86A92" }} />
-        <PaperPiece style={{ position: "absolute", left: 24, bottom: 17, width: 11, height: 11, backgroundColor: "#E86A92", transform: [{ rotate: "45deg" }] }} />
-      </PaperBob>
-      {/* phone in hand */}
-      <PaperPiece style={{ position: "absolute", left: "57%", bottom: 18, width: 10, height: 17, borderRadius: 3, backgroundColor: "#2C2C33", transform: [{ rotate: "-10deg" }] }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#E8875B">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "28%", backgroundColor: "#C96A3B" }} />
+        <PFigure left="50%" bottom={12} body="#5E35D6" scale={1} />
+        <PFigure left="84%" bottom={12} body="#F6F0FF" scale={1} />
+        {/* chat bubble with a heart, mid-conversation */}
+        <PaperBob left="62%" bottom={76} width={64} height={44} distance={3} duration={3000}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 10, width: 64, height: 34, borderRadius: 13, backgroundColor: "#FFFFFF" }} />
+          <PaperPiece style={{ position: "absolute", left: 10, bottom: 2, width: 12, height: 12, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
+          <PaperPiece style={{ position: "absolute", left: 20, bottom: 24, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#E86A92" }} />
+          <PaperPiece style={{ position: "absolute", left: 29, bottom: 24, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#E86A92" }} />
+          <PaperPiece style={{ position: "absolute", left: 24, bottom: 17, width: 11, height: 11, backgroundColor: "#E86A92", transform: [{ rotate: "45deg" }] }} />
+        </PaperBob>
+        {/* phone in hand */}
+        <PaperPiece style={{ position: "absolute", left: "57%", bottom: 18, width: 10, height: 17, borderRadius: 3, backgroundColor: "#2C2C33", transform: [{ rotate: "-10deg" }] }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperCleanScene() {
   return (
-    <EmblemScene base="#AEE1F0">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#8AC6DA" }} />
-      {/* bucket */}
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 12, width: 40, height: 32, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, backgroundColor: "#FFC531" }} />
-      <PaperPiece style={{ position: "absolute", left: "57%", bottom: 40, width: 46, height: 8, borderRadius: 4, backgroundColor: "#F5A623" }} />
-      {/* mop */}
-      <PaperPiece style={{ position: "absolute", left: "72%", bottom: 40, width: 6, height: 76, borderRadius: 3, backgroundColor: "#8A5A2B", transform: [{ rotate: "14deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "76%", bottom: 22, width: 20, height: 22, borderBottomLeftRadius: 9, borderBottomRightRadius: 9, backgroundColor: "#F4F1EA" }} />
-      {/* spray bottle */}
-      <PaperPiece style={{ position: "absolute", left: "86%", bottom: 12, width: 16, height: 28, borderRadius: 5, backgroundColor: "#58A05C" }} />
-      <PaperPiece style={{ position: "absolute", left: "87.5%", bottom: 40, width: 12, height: 8, borderRadius: 3, backgroundColor: "#3E7C43" }} />
-      {/* bubbles + sparkle */}
-      {[0, 1, 2].map((i) => (
-        <PaperBob key={i} left={`${52 + i * 8}%` as `${number}%`} bottom={72 + (i % 2) * 18} width={11 - i * 2} height={11 - i * 2} distance={4} duration={2800 + i * 300} delay={i * 300}>
-          <PaperPiece style={{ width: 11 - i * 2, height: 11 - i * 2, borderRadius: (11 - i * 2) / 2, borderWidth: 2, borderColor: "#FFFFFF", backgroundColor: "#AEE1F0", opacity: 0.9 }} />
-        </PaperBob>
-      ))}
-      <PaperPiece style={{ position: "absolute", left: "48%", bottom: 108, width: 9, height: 9, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#AEE1F0">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#8AC6DA" }} />
+        {/* bucket */}
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 12, width: 40, height: 32, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, backgroundColor: "#FFC531" }} />
+        <PaperPiece style={{ position: "absolute", left: "57%", bottom: 40, width: 46, height: 8, borderRadius: 4, backgroundColor: "#F5A623" }} />
+        {/* mop */}
+        <PaperPiece style={{ position: "absolute", left: "72%", bottom: 40, width: 6, height: 76, borderRadius: 3, backgroundColor: "#8A5A2B", transform: [{ rotate: "14deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 22, width: 20, height: 22, borderBottomLeftRadius: 9, borderBottomRightRadius: 9, backgroundColor: "#F4F1EA" }} />
+        {/* spray bottle */}
+        <PaperPiece style={{ position: "absolute", left: "86%", bottom: 12, width: 16, height: 28, borderRadius: 5, backgroundColor: "#58A05C" }} />
+        <PaperPiece style={{ position: "absolute", left: "87.5%", bottom: 40, width: 12, height: 8, borderRadius: 3, backgroundColor: "#3E7C43" }} />
+        {/* bubbles + sparkle */}
+        {[0, 1, 2].map((i) => (
+          <PaperBob key={i} left={`${52 + i * 8}%` as `${number}%`} bottom={72 + (i % 2) * 18} width={11 - i * 2} height={11 - i * 2} distance={4} duration={2800 + i * 300} delay={i * 300}>
+            <PaperPiece style={{ width: 11 - i * 2, height: 11 - i * 2, borderRadius: (11 - i * 2) / 2, borderWidth: 2, borderColor: "#FFFFFF", backgroundColor: "#AEE1F0", opacity: 0.9 }} />
+          </PaperBob>
+        ))}
+        <PaperPiece style={{ position: "absolute", left: "48%", bottom: 108, width: 9, height: 9, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperWashCarScene() {
   return (
-    <EmblemScene base="#5DA9C4">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#478BA3" }} />
-      {/* car */}
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 26, width: 130, height: 30, borderRadius: 12, backgroundColor: "#D64545" }} />
-      <PaperPiece style={{ position: "absolute", left: "60%", bottom: 50, width: 66, height: 26, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: "#C23B3B" }} />
-      <PaperPiece style={{ position: "absolute", left: "63%", bottom: 56, width: 24, height: 16, borderRadius: 4, backgroundColor: "#BFE6F5" }} />
-      <PaperPiece style={{ position: "absolute", left: "71%", bottom: 56, width: 22, height: 16, borderRadius: 4, backgroundColor: "#BFE6F5" }} />
-      <PaperPiece style={{ position: "absolute", left: "56%", bottom: 12, width: 20, height: 20, borderRadius: 10, backgroundColor: "#2C2C33" }} />
-      <PaperPiece style={{ position: "absolute", left: "80%", bottom: 12, width: 20, height: 20, borderRadius: 10, backgroundColor: "#2C2C33" }} />
-      {/* foam */}
-      {[0, 1, 2, 3].map((i) => (
-        <PaperPiece key={i} style={{ position: "absolute", left: `${58 + i * 10}%` as `${number}%`, bottom: 74 - (i % 2) * 8, width: 13, height: 13, borderRadius: 6.5, backgroundColor: "#FFFFFF", opacity: 0.95 }} />
-      ))}
-      <PaperPiece style={{ position: "absolute", left: "66%", bottom: 44, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
-      {/* hose arc */}
-      <PaperPiece style={{ position: "absolute", left: "44%", bottom: 10, width: 16, height: 16, borderRadius: 8, borderWidth: 4, borderColor: "#3E7C43", backgroundColor: "#5DA9C4" }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#5DA9C4">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#478BA3" }} />
+        {/* car */}
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 26, width: 130, height: 30, borderRadius: 12, backgroundColor: "#D64545" }} />
+        <PaperPiece style={{ position: "absolute", left: "60%", bottom: 50, width: 66, height: 26, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: "#C23B3B" }} />
+        <PaperPiece style={{ position: "absolute", left: "63%", bottom: 56, width: 24, height: 16, borderRadius: 4, backgroundColor: "#BFE6F5" }} />
+        <PaperPiece style={{ position: "absolute", left: "71%", bottom: 56, width: 22, height: 16, borderRadius: 4, backgroundColor: "#BFE6F5" }} />
+        <PaperPiece style={{ position: "absolute", left: "56%", bottom: 12, width: 20, height: 20, borderRadius: 10, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: "80%", bottom: 12, width: 20, height: 20, borderRadius: 10, backgroundColor: "#2C2C33" }} />
+        {/* foam */}
+        {[0, 1, 2, 3].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${58 + i * 10}%` as `${number}%`, bottom: 74 - (i % 2) * 8, width: 13, height: 13, borderRadius: 6.5, backgroundColor: "#FFFFFF", opacity: 0.95 }} />
+        ))}
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 44, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        {/* hose arc */}
+        <PaperPiece style={{ position: "absolute", left: "44%", bottom: 10, width: 16, height: 16, borderRadius: 8, borderWidth: 4, borderColor: "#3E7C43", backgroundColor: "#5DA9C4" }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperGetGasScene() {
   return (
-    <EmblemScene base="#8A6FA8">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#6E5689" }} />
-      {/* pump */}
-      <PaperPiece style={{ position: "absolute", left: "60%", bottom: 14, width: 54, height: 96, borderRadius: 8, backgroundColor: "#D64545" }} />
-      <PaperPiece style={{ position: "absolute", left: "63%", bottom: 78, width: 36, height: 24, borderRadius: 4, backgroundColor: "#DFF3F9" }} />
-      <PaperPiece style={{ position: "absolute", left: "65%", bottom: 88, width: 22, height: 5, borderRadius: 2.5, backgroundColor: "#5B87A0" }} />
-      <PaperPiece style={{ position: "absolute", left: "65%", bottom: 80, width: 16, height: 5, borderRadius: 2.5, backgroundColor: "#5B87A0" }} />
-      <PaperPiece style={{ position: "absolute", left: "64%", bottom: 40, width: 28, height: 28, borderRadius: 14, borderWidth: 4, borderColor: "#F6F0FF", backgroundColor: "#8A6FA8" }} />
-      {/* hose + nozzle */}
-      <PaperPiece style={{ position: "absolute", left: "73%", bottom: 30, width: 8, height: 52, borderRadius: 4, backgroundColor: "#2C2C33", transform: [{ rotate: "12deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "77%", bottom: 74, width: 14, height: 18, borderRadius: 4, backgroundColor: "#2C2C33", transform: [{ rotate: "18deg" }] }} />
-      {/* drop */}
-      <PaperBob left="46%" bottom={70} width={16} height={20} distance={4} duration={2600}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: "#FFC531" }} />
-        <PaperPiece style={{ position: "absolute", left: 4, bottom: 12, width: 8, height: 8, backgroundColor: "#FFC531", transform: [{ rotate: "45deg" }] }} />
-      </PaperBob>
-      {/* price sign */}
-      <PaperPiece style={{ position: "absolute", left: "84%", bottom: 96, width: 40, height: 26, borderRadius: 4, backgroundColor: "#F6F0FF" }} />
-      <PaperPiece style={{ position: "absolute", left: "86%", bottom: 106, width: 22, height: 6, borderRadius: 3, backgroundColor: "#D64545" }} />
-      <PaperPiece style={{ position: "absolute", left: "89%", bottom: 74, width: 5, height: 24, backgroundColor: "#2C2C33" }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#8A6FA8">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#6E5689" }} />
+        {/* pump */}
+        <PaperPiece style={{ position: "absolute", left: "60%", bottom: 14, width: 54, height: 96, borderRadius: 8, backgroundColor: "#D64545" }} />
+        <PaperPiece style={{ position: "absolute", left: "63%", bottom: 78, width: 36, height: 24, borderRadius: 4, backgroundColor: "#DFF3F9" }} />
+        <PaperPiece style={{ position: "absolute", left: "65%", bottom: 88, width: 22, height: 5, borderRadius: 2.5, backgroundColor: "#5B87A0" }} />
+        <PaperPiece style={{ position: "absolute", left: "65%", bottom: 80, width: 16, height: 5, borderRadius: 2.5, backgroundColor: "#5B87A0" }} />
+        <PaperPiece style={{ position: "absolute", left: "64%", bottom: 40, width: 28, height: 28, borderRadius: 14, borderWidth: 4, borderColor: "#F6F0FF", backgroundColor: "#8A6FA8" }} />
+        {/* hose + nozzle */}
+        <PaperPiece style={{ position: "absolute", left: "73%", bottom: 30, width: 8, height: 52, borderRadius: 4, backgroundColor: "#2C2C33", transform: [{ rotate: "12deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "77%", bottom: 74, width: 14, height: 18, borderRadius: 4, backgroundColor: "#2C2C33", transform: [{ rotate: "18deg" }] }} />
+        {/* drop */}
+        <PaperBob left="46%" bottom={70} width={16} height={20} distance={4} duration={2600}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: "#FFC531" }} />
+          <PaperPiece style={{ position: "absolute", left: 4, bottom: 12, width: 8, height: 8, backgroundColor: "#FFC531", transform: [{ rotate: "45deg" }] }} />
+        </PaperBob>
+        {/* price sign */}
+        <PaperPiece style={{ position: "absolute", left: "84%", bottom: 96, width: 40, height: 26, borderRadius: 4, backgroundColor: "#F6F0FF" }} />
+        <PaperPiece style={{ position: "absolute", left: "86%", bottom: 106, width: 22, height: 6, borderRadius: 3, backgroundColor: "#D64545" }} />
+        <PaperPiece style={{ position: "absolute", left: "89%", bottom: 74, width: 5, height: 24, backgroundColor: "#2C2C33" }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperGroceryScene() {
   return (
-    <EmblemScene base="#58A05C">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#47854B" }} />
-      {/* awning */}
-      {[0, 1, 2, 3, 4].map((i) => (
-        <PaperPiece key={i} style={{ position: "absolute", left: `${48 + i * 11}%` as `${number}%`, bottom: 122, width: 30, height: 14, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: i % 2 ? "#FFFFFF" : "#D64545" }} />
-      ))}
-      {/* cart */}
-      <PaperPiece style={{ position: "absolute", left: "56%", bottom: 34, width: 74, height: 40, borderRadius: 6, backgroundColor: "#C0C6CE" }} />
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 40, width: 62, height: 5, borderRadius: 2.5, backgroundColor: "#58A05C" }} />
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 52, width: 62, height: 5, borderRadius: 2.5, backgroundColor: "#58A05C" }} />
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 64, width: 62, height: 5, borderRadius: 2.5, backgroundColor: "#58A05C" }} />
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 62, width: 16, height: 6, borderRadius: 3, backgroundColor: "#9AA3AD", transform: [{ rotate: "-14deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 16, width: 13, height: 13, borderRadius: 6.5, backgroundColor: "#2C2C33" }} />
-      <PaperPiece style={{ position: "absolute", left: "76%", bottom: 16, width: 13, height: 13, borderRadius: 6.5, backgroundColor: "#2C2C33" }} />
-      {/* groceries peeking out */}
-      <PaperPiece style={{ position: "absolute", left: "60%", bottom: 74, width: 8, height: 26, borderRadius: 4, backgroundColor: "#EFC477", transform: [{ rotate: "-12deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "66%", bottom: 76, width: 15, height: 15, borderRadius: 7.5, backgroundColor: "#D64545" }} />
-      <PaperPiece style={{ position: "absolute", left: "72%", bottom: 74, width: 14, height: 14, borderRadius: 7, backgroundColor: "#7FB069" }} />
-      <PFigure left="45%" bottom={10} body="#FFC531" scale={0.95} />
-    </EmblemScene>
+    <PaperSceneRoot base="#58A05C">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#47854B" }} />
+        {/* awning */}
+        {[0, 1, 2, 3, 4].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${48 + i * 11}%` as `${number}%`, bottom: 122, width: 30, height: 14, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: i % 2 ? "#FFFFFF" : "#D64545" }} />
+        ))}
+        {/* cart */}
+        <PaperPiece style={{ position: "absolute", left: "56%", bottom: 34, width: 74, height: 40, borderRadius: 6, backgroundColor: "#C0C6CE" }} />
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 40, width: 62, height: 5, borderRadius: 2.5, backgroundColor: "#58A05C" }} />
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 52, width: 62, height: 5, borderRadius: 2.5, backgroundColor: "#58A05C" }} />
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 64, width: 62, height: 5, borderRadius: 2.5, backgroundColor: "#58A05C" }} />
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 62, width: 16, height: 6, borderRadius: 3, backgroundColor: "#9AA3AD", transform: [{ rotate: "-14deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 16, width: 13, height: 13, borderRadius: 6.5, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 16, width: 13, height: 13, borderRadius: 6.5, backgroundColor: "#2C2C33" }} />
+        {/* groceries peeking out */}
+        <PaperPiece style={{ position: "absolute", left: "60%", bottom: 74, width: 8, height: 26, borderRadius: 4, backgroundColor: "#EFC477", transform: [{ rotate: "-12deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 76, width: 15, height: 15, borderRadius: 7.5, backgroundColor: "#D64545" }} />
+        <PaperPiece style={{ position: "absolute", left: "72%", bottom: 74, width: 14, height: 14, borderRadius: 7, backgroundColor: "#7FB069" }} />
+        <PFigure left="45%" bottom={10} body="#FFC531" scale={0.95} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
@@ -1891,31 +1912,33 @@ export function PaperNewYearScene() {
 
 export function PaperValentinesScene() {
   return (
-    <EmblemScene base="#C94F6D">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#A83A56" }} />
-      {/* the big heart */}
-      <PaperBob left="58%" bottom={42} width={72} height={64} distance={3} duration={2600}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 18, width: 38, height: 38, borderRadius: 19, backgroundColor: "#E86A92" }} />
-        <PaperPiece style={{ position: "absolute", left: 34, bottom: 18, width: 38, height: 38, borderRadius: 19, backgroundColor: "#E86A92" }} />
-        <PaperPiece style={{ position: "absolute", left: 17, bottom: 2, width: 38, height: 38, backgroundColor: "#E86A92", transform: [{ rotate: "45deg" }] }} />
-        <PaperPiece style={{ position: "absolute", left: 10, bottom: 38, width: 12, height: 12, borderRadius: 6, backgroundColor: "#F6C6D8", opacity: 0.8 }} />
-      </PaperBob>
-      {/* envelope */}
-      <PaperPiece style={{ position: "absolute", left: "46%", bottom: 14, width: 44, height: 30, borderRadius: 4, backgroundColor: "#FFF8E1" }} />
-      <PaperPiece style={{ position: "absolute", left: "46%", bottom: 30, width: 44, height: 14, backgroundColor: "#F4E9CE", transform: [{ rotate: "0deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "54%", bottom: 22, width: 10, height: 9, borderRadius: 4.5, backgroundColor: "#D64545" }} />
-      {/* small hearts */}
-      <PaperBob left="86%" bottom={96} width={16} height={14} distance={4} duration={3000} delay={400}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 4, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#F6C6D8" }} />
-        <PaperPiece style={{ position: "absolute", left: 7, bottom: 4, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#F6C6D8" }} />
-        <PaperPiece style={{ position: "absolute", left: 3.5, bottom: 0, width: 9, height: 9, backgroundColor: "#F6C6D8", transform: [{ rotate: "45deg" }] }} />
-      </PaperBob>
-      <PaperBob left="50%" bottom={104} width={13} height={12} distance={4} duration={3400} delay={800}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 3, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#FFFFFF" }} />
-        <PaperPiece style={{ position: "absolute", left: 6, bottom: 3, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#FFFFFF" }} />
-        <PaperPiece style={{ position: "absolute", left: 3, bottom: 0, width: 7, height: 7, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
-      </PaperBob>
-    </EmblemScene>
+    <PaperSceneRoot base="#C94F6D">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#A83A56" }} />
+        {/* the big heart */}
+        <PaperBob left="58%" bottom={42} width={72} height={64} distance={3} duration={2600}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 18, width: 38, height: 38, borderRadius: 19, backgroundColor: "#E86A92" }} />
+          <PaperPiece style={{ position: "absolute", left: 34, bottom: 18, width: 38, height: 38, borderRadius: 19, backgroundColor: "#E86A92" }} />
+          <PaperPiece style={{ position: "absolute", left: 17, bottom: 2, width: 38, height: 38, backgroundColor: "#E86A92", transform: [{ rotate: "45deg" }] }} />
+          <PaperPiece style={{ position: "absolute", left: 10, bottom: 38, width: 12, height: 12, borderRadius: 6, backgroundColor: "#F6C6D8", opacity: 0.8 }} />
+        </PaperBob>
+        {/* envelope */}
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 14, width: 44, height: 30, borderRadius: 4, backgroundColor: "#FFF8E1" }} />
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 30, width: 44, height: 14, backgroundColor: "#F4E9CE", transform: [{ rotate: "0deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "54%", bottom: 22, width: 10, height: 9, borderRadius: 4.5, backgroundColor: "#D64545" }} />
+        {/* small hearts */}
+        <PaperBob left="86%" bottom={96} width={16} height={14} distance={4} duration={3000} delay={400}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 4, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#F6C6D8" }} />
+          <PaperPiece style={{ position: "absolute", left: 7, bottom: 4, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#F6C6D8" }} />
+          <PaperPiece style={{ position: "absolute", left: 3.5, bottom: 0, width: 9, height: 9, backgroundColor: "#F6C6D8", transform: [{ rotate: "45deg" }] }} />
+        </PaperBob>
+        <PaperBob left="50%" bottom={104} width={13} height={12} distance={4} duration={3400} delay={800}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 3, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#FFFFFF" }} />
+          <PaperPiece style={{ position: "absolute", left: 6, bottom: 3, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#FFFFFF" }} />
+          <PaperPiece style={{ position: "absolute", left: 3, bottom: 0, width: 7, height: 7, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
+        </PaperBob>
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
@@ -1958,28 +1981,30 @@ export function PaperHalloweenScene() {
 
 export function PaperStPatricksScene() {
   return (
-    <EmblemScene base="#2E7D46">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "28%", backgroundColor: "#256B3A" }} />
-      {/* rainbow arcs (stacked half-donuts via bordered circles, clipped by an overlay strip) */}
-      <View style={{ position: "absolute", left: "52%", bottom: 26, width: 150, height: 78, overflow: "hidden" }}>
-        <View style={{ position: "absolute", left: 0, bottom: -72, width: 150, height: 150, borderRadius: 75, borderWidth: 11, borderColor: "#D64545" }} />
-        <View style={{ position: "absolute", left: 12, bottom: -60, width: 126, height: 126, borderRadius: 63, borderWidth: 11, borderColor: "#F5A623" }} />
-        <View style={{ position: "absolute", left: 24, bottom: -48, width: 102, height: 102, borderRadius: 51, borderWidth: 11, borderColor: "#FFC531" }} />
-        <View style={{ position: "absolute", left: 36, bottom: -36, width: 78, height: 78, borderRadius: 39, borderWidth: 11, borderColor: "#58A05C" }} />
-      </View>
-      {/* pot of gold */}
-      <PaperPiece style={{ position: "absolute", left: "86%", bottom: 10, width: 34, height: 26, borderBottomLeftRadius: 13, borderBottomRightRadius: 13, backgroundColor: "#2C2C33" }} />
-      <PaperPiece style={{ position: "absolute", left: "85%", bottom: 32, width: 38, height: 8, borderRadius: 4, backgroundColor: "#FFC531" }} />
-      <PaperPiece style={{ position: "absolute", left: "88%", bottom: 38, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FFD54F" }} />
-      <PaperPiece style={{ position: "absolute", left: "91%", bottom: 36, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#F5A623" }} />
-      {/* shamrock */}
-      <PaperBob left="47%" bottom={30} width={36} height={40} distance={3} duration={3000}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 18, width: 17, height: 17, borderRadius: 8.5, backgroundColor: "#58A05C" }} />
-        <PaperPiece style={{ position: "absolute", left: 19, bottom: 18, width: 17, height: 17, borderRadius: 8.5, backgroundColor: "#58A05C" }} />
-        <PaperPiece style={{ position: "absolute", left: 9, bottom: 28, width: 17, height: 17, borderRadius: 8.5, backgroundColor: "#6FBF73" }} />
-        <PaperPiece style={{ position: "absolute", left: 16, bottom: 0, width: 5, height: 22, borderRadius: 2.5, backgroundColor: "#3E7C43", transform: [{ rotate: "10deg" }] }} />
-      </PaperBob>
-    </EmblemScene>
+    <PaperSceneRoot base="#2E7D46">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "28%", backgroundColor: "#256B3A" }} />
+        {/* rainbow arcs (stacked half-donuts via bordered circles, clipped by an overlay strip) */}
+        <View style={{ position: "absolute", left: "52%", bottom: 26, width: 150, height: 78, overflow: "hidden" }}>
+          <View style={{ position: "absolute", left: 0, bottom: -72, width: 150, height: 150, borderRadius: 75, borderWidth: 11, borderColor: "#D64545" }} />
+          <View style={{ position: "absolute", left: 12, bottom: -60, width: 126, height: 126, borderRadius: 63, borderWidth: 11, borderColor: "#F5A623" }} />
+          <View style={{ position: "absolute", left: 24, bottom: -48, width: 102, height: 102, borderRadius: 51, borderWidth: 11, borderColor: "#FFC531" }} />
+          <View style={{ position: "absolute", left: 36, bottom: -36, width: 78, height: 78, borderRadius: 39, borderWidth: 11, borderColor: "#58A05C" }} />
+        </View>
+        {/* pot of gold */}
+        <PaperPiece style={{ position: "absolute", left: "86%", bottom: 10, width: 34, height: 26, borderBottomLeftRadius: 13, borderBottomRightRadius: 13, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: "85%", bottom: 32, width: 38, height: 8, borderRadius: 4, backgroundColor: "#FFC531" }} />
+        <PaperPiece style={{ position: "absolute", left: "88%", bottom: 38, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FFD54F" }} />
+        <PaperPiece style={{ position: "absolute", left: "91%", bottom: 36, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#F5A623" }} />
+        {/* shamrock */}
+        <PaperBob left="47%" bottom={30} width={36} height={40} distance={3} duration={3000}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 18, width: 17, height: 17, borderRadius: 8.5, backgroundColor: "#58A05C" }} />
+          <PaperPiece style={{ position: "absolute", left: 19, bottom: 18, width: 17, height: 17, borderRadius: 8.5, backgroundColor: "#58A05C" }} />
+          <PaperPiece style={{ position: "absolute", left: 9, bottom: 28, width: 17, height: 17, borderRadius: 8.5, backgroundColor: "#6FBF73" }} />
+          <PaperPiece style={{ position: "absolute", left: 16, bottom: 0, width: 5, height: 22, borderRadius: 2.5, backgroundColor: "#3E7C43", transform: [{ rotate: "10deg" }] }} />
+        </PaperBob>
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
@@ -2035,122 +2060,132 @@ export function PaperParkGenericScene() {
 
 export function PaperParkDisneyScene() {
   return (
-    <EmblemScene base="#5B7FB8">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "22%", backgroundColor: "#47648F" }} />
-      {/* castle */}
-      <PaperPiece style={{ position: "absolute", left: "58%", bottom: 20, width: 84, height: 56, backgroundColor: "#DCE6F2" }} />
-      <PaperPiece style={{ position: "absolute", left: "55%", bottom: 20, width: 20, height: 76, backgroundColor: "#C9D8EA" }} />
-      <PaperPiece style={{ position: "absolute", left: "81%", bottom: 20, width: 20, height: 76, backgroundColor: "#C9D8EA" }} />
-      <PaperPiece style={{ position: "absolute", left: "66%", bottom: 20, width: 26, height: 92, backgroundColor: "#E8EFF7" }} />
-      {/* spires */}
-      <PaperPiece style={{ position: "absolute", left: "56.5%", bottom: 96, width: 16, height: 20, backgroundColor: "#3E5C8A", transform: [{ rotate: "45deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "82.5%", bottom: 96, width: 16, height: 20, backgroundColor: "#3E5C8A", transform: [{ rotate: "45deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "69.5%", bottom: 112, width: 18, height: 22, backgroundColor: "#3E5C8A", transform: [{ rotate: "45deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "70%", bottom: 20, width: 18, height: 30, borderTopLeftRadius: 9, borderTopRightRadius: 9, backgroundColor: "#47648F" }} />
-      <PaperPiece style={{ position: "absolute", left: "61%", bottom: 58, width: 10, height: 12, borderRadius: 3, backgroundColor: "#FFD98A" }} />
-      <PaperPiece style={{ position: "absolute", left: "76%", bottom: 58, width: 10, height: 12, borderRadius: 3, backgroundColor: "#FFD98A" }} />
-      {/* fireworks over the castle */}
-      <PaperPulse left="48%" bottom={118} width={9} height={9} min={0.8} max={1.1} duration={2200}>
-        <PaperPiece style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FFC531" }} />
-      </PaperPulse>
-      <PaperPulse left="90%" bottom={124} width={8} height={8} min={0.8} max={1.1} duration={2600} delay={500}>
-        <PaperPiece style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#E86A92" }} />
-      </PaperPulse>
-    </EmblemScene>
+    <PaperSceneRoot base="#5B7FB8">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "22%", backgroundColor: "#47648F" }} />
+        {/* castle */}
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 20, width: 84, height: 56, backgroundColor: "#DCE6F2" }} />
+        <PaperPiece style={{ position: "absolute", left: "55%", bottom: 20, width: 20, height: 76, backgroundColor: "#C9D8EA" }} />
+        <PaperPiece style={{ position: "absolute", left: "81%", bottom: 20, width: 20, height: 76, backgroundColor: "#C9D8EA" }} />
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 20, width: 26, height: 92, backgroundColor: "#E8EFF7" }} />
+        {/* spires */}
+        <PaperPiece style={{ position: "absolute", left: "56.5%", bottom: 96, width: 16, height: 20, backgroundColor: "#3E5C8A", transform: [{ rotate: "45deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "82.5%", bottom: 96, width: 16, height: 20, backgroundColor: "#3E5C8A", transform: [{ rotate: "45deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "69.5%", bottom: 112, width: 18, height: 22, backgroundColor: "#3E5C8A", transform: [{ rotate: "45deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "70%", bottom: 20, width: 18, height: 30, borderTopLeftRadius: 9, borderTopRightRadius: 9, backgroundColor: "#47648F" }} />
+        <PaperPiece style={{ position: "absolute", left: "61%", bottom: 58, width: 10, height: 12, borderRadius: 3, backgroundColor: "#FFD98A" }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 58, width: 10, height: 12, borderRadius: 3, backgroundColor: "#FFD98A" }} />
+        {/* fireworks over the castle */}
+        <PaperPulse left="48%" bottom={118} width={9} height={9} min={0.8} max={1.1} duration={2200}>
+          <PaperPiece style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FFC531" }} />
+        </PaperPulse>
+        <PaperPulse left="90%" bottom={124} width={8} height={8} min={0.8} max={1.1} duration={2600} delay={500}>
+          <PaperPiece style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#E86A92" }} />
+        </PaperPulse>
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperParkSixFlagsScene() {
   return (
-    <EmblemScene base="#E8862D">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "22%", backgroundColor: "#C96A1F" }} />
-      {/* coaster: lift hill, drop, loop */}
-      <PaperPiece style={{ position: "absolute", left: "48%", bottom: 24, width: 7, height: 92, borderRadius: 3, backgroundColor: "#5B3A1E", transform: [{ rotate: "18deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "56%", bottom: 108, width: 90, height: 7, borderRadius: 3.5, backgroundColor: "#3A3A42", transform: [{ rotate: "24deg" }] }} />
-      <View style={{ position: "absolute", left: "76%", bottom: 26, width: 52, height: 52, borderRadius: 26, borderWidth: 6, borderColor: "#3A3A42", backgroundColor: "#E8862D" }} />
-      <PaperPiece style={{ position: "absolute", left: "88%", bottom: 24, width: 7, height: 58, borderRadius: 3, backgroundColor: "#5B3A1E" }} />
-      {/* train cars on the drop */}
-      <PaperPiece style={{ position: "absolute", left: "63%", bottom: 104, width: 18, height: 12, borderRadius: 4, backgroundColor: "#D64545", transform: [{ rotate: "24deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "67.5%", bottom: 96, width: 18, height: 12, borderRadius: 4, backgroundColor: "#FFC531", transform: [{ rotate: "24deg" }] }} />
-      {/* flag */}
-      <PaperPiece style={{ position: "absolute", left: "49%", bottom: 112, width: 4, height: 22, backgroundColor: "#3A3A42" }} />
-      <PaperPiece style={{ position: "absolute", left: "50.5%", bottom: 124, width: 17, height: 10, borderRadius: 2, backgroundColor: "#D64545" }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#E8862D">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "22%", backgroundColor: "#C96A1F" }} />
+        {/* coaster: lift hill, drop, loop */}
+        <PaperPiece style={{ position: "absolute", left: "48%", bottom: 24, width: 7, height: 92, borderRadius: 3, backgroundColor: "#5B3A1E", transform: [{ rotate: "18deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "56%", bottom: 108, width: 90, height: 7, borderRadius: 3.5, backgroundColor: "#3A3A42", transform: [{ rotate: "24deg" }] }} />
+        <View style={{ position: "absolute", left: "76%", bottom: 26, width: 52, height: 52, borderRadius: 26, borderWidth: 6, borderColor: "#3A3A42", backgroundColor: "#E8862D" }} />
+        <PaperPiece style={{ position: "absolute", left: "88%", bottom: 24, width: 7, height: 58, borderRadius: 3, backgroundColor: "#5B3A1E" }} />
+        {/* train cars on the drop */}
+        <PaperPiece style={{ position: "absolute", left: "63%", bottom: 104, width: 18, height: 12, borderRadius: 4, backgroundColor: "#D64545", transform: [{ rotate: "24deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "67.5%", bottom: 96, width: 18, height: 12, borderRadius: 4, backgroundColor: "#FFC531", transform: [{ rotate: "24deg" }] }} />
+        {/* flag */}
+        <PaperPiece style={{ position: "absolute", left: "49%", bottom: 112, width: 4, height: 22, backgroundColor: "#3A3A42" }} />
+        <PaperPiece style={{ position: "absolute", left: "50.5%", bottom: 124, width: 17, height: 10, borderRadius: 2, backgroundColor: "#D64545" }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperParkKnottsScene() {
   return (
-    <EmblemScene base="#C98A4B">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#A8713A" }} />
-      {/* ghost-town storefront */}
-      <PaperPiece style={{ position: "absolute", left: "56%", bottom: 22, width: 92, height: 62, backgroundColor: "#8A5A2B" }} />
-      <PaperPiece style={{ position: "absolute", left: "54%", bottom: 84, width: 100, height: 12, backgroundColor: "#6B4423" }} />
-      <PaperPiece style={{ position: "absolute", left: "60%", bottom: 56, width: 30, height: 12, borderRadius: 2, backgroundColor: "#FFF3D6" }} />
-      <PaperPiece style={{ position: "absolute", left: "66%", bottom: 22, width: 18, height: 32, borderTopLeftRadius: 8, borderTopRightRadius: 8, backgroundColor: "#54382A" }} />
-      <PaperPiece style={{ position: "absolute", left: "80%", bottom: 48, width: 16, height: 16, borderRadius: 3, backgroundColor: "#FFE9A8" }} />
-      {/* water tower */}
-      <PaperPiece style={{ position: "absolute", left: "86%", bottom: 58, width: 30, height: 26, borderRadius: 5, backgroundColor: "#7A6A55" }} />
-      <PaperPiece style={{ position: "absolute", left: "87.5%", bottom: 30, width: 5, height: 30, backgroundColor: "#5D4E3A", transform: [{ rotate: "8deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "92%", bottom: 30, width: 5, height: 30, backgroundColor: "#5D4E3A", transform: [{ rotate: "-8deg" }] }} />
-      {/* cactus + berries */}
-      <PaperPiece style={{ position: "absolute", left: "47%", bottom: 12, width: 10, height: 34, borderRadius: 5, backgroundColor: "#4C8A50" }} />
-      <PaperPiece style={{ position: "absolute", left: "44.5%", bottom: 28, width: 8, height: 14, borderRadius: 4, backgroundColor: "#4C8A50" }} />
-      <PaperPiece style={{ position: "absolute", left: "50%", bottom: 34, width: 8, height: 12, borderRadius: 4, backgroundColor: "#4C8A50" }} />
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 10, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#5E35D6" }} />
-      <PaperPiece style={{ position: "absolute", left: "54.5%", bottom: 14, width: 8, height: 8, borderRadius: 4, backgroundColor: "#7C4DFF" }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#C98A4B">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#A8713A" }} />
+        {/* ghost-town storefront */}
+        <PaperPiece style={{ position: "absolute", left: "56%", bottom: 22, width: 92, height: 62, backgroundColor: "#8A5A2B" }} />
+        <PaperPiece style={{ position: "absolute", left: "54%", bottom: 84, width: 100, height: 12, backgroundColor: "#6B4423" }} />
+        <PaperPiece style={{ position: "absolute", left: "60%", bottom: 56, width: 30, height: 12, borderRadius: 2, backgroundColor: "#FFF3D6" }} />
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 22, width: 18, height: 32, borderTopLeftRadius: 8, borderTopRightRadius: 8, backgroundColor: "#54382A" }} />
+        <PaperPiece style={{ position: "absolute", left: "80%", bottom: 48, width: 16, height: 16, borderRadius: 3, backgroundColor: "#FFE9A8" }} />
+        {/* water tower */}
+        <PaperPiece style={{ position: "absolute", left: "86%", bottom: 58, width: 30, height: 26, borderRadius: 5, backgroundColor: "#7A6A55" }} />
+        <PaperPiece style={{ position: "absolute", left: "87.5%", bottom: 30, width: 5, height: 30, backgroundColor: "#5D4E3A", transform: [{ rotate: "8deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "92%", bottom: 30, width: 5, height: 30, backgroundColor: "#5D4E3A", transform: [{ rotate: "-8deg" }] }} />
+        {/* cactus + berries */}
+        <PaperPiece style={{ position: "absolute", left: "47%", bottom: 12, width: 10, height: 34, borderRadius: 5, backgroundColor: "#4C8A50" }} />
+        <PaperPiece style={{ position: "absolute", left: "44.5%", bottom: 28, width: 8, height: 14, borderRadius: 4, backgroundColor: "#4C8A50" }} />
+        <PaperPiece style={{ position: "absolute", left: "50%", bottom: 34, width: 8, height: 12, borderRadius: 4, backgroundColor: "#4C8A50" }} />
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 10, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#5E35D6" }} />
+        <PaperPiece style={{ position: "absolute", left: "54.5%", bottom: 14, width: 8, height: 8, borderRadius: 4, backgroundColor: "#7C4DFF" }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperParkUniversalScene() {
   return (
-    <EmblemScene base="#3E5C8A">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "22%", backgroundColor: "#2F476B" }} />
-      {/* the globe */}
-      <PaperBob left="58%" bottom={36} width={84} height={84} distance={3} duration={4200}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 84, height: 84, borderRadius: 42, backgroundColor: "#4E9AB5" }} />
-        <PaperPiece style={{ position: "absolute", left: 10, bottom: 52, width: 26, height: 18, borderRadius: 9, backgroundColor: "#58A05C" }} />
-        <PaperPiece style={{ position: "absolute", left: 44, bottom: 26, width: 30, height: 22, borderRadius: 11, backgroundColor: "#58A05C" }} />
-        <PaperPiece style={{ position: "absolute", left: 16, bottom: 16, width: 20, height: 14, borderRadius: 7, backgroundColor: "#6FBF73" }} />
-      </PaperBob>
-      <PaperPiece style={{ position: "absolute", left: "64%", bottom: 16, width: 44, height: 12, borderRadius: 6, backgroundColor: "#2C2C33" }} />
-      {/* film strip */}
-      <PaperPiece style={{ position: "absolute", left: "46%", bottom: 30, width: 22, height: 84, borderRadius: 4, backgroundColor: "#1E1B26", transform: [{ rotate: "8deg" }] }} />
-      {[0, 1, 2, 3].map((i) => (
-        <PaperPiece key={i} style={{ position: "absolute", left: "48.5%", bottom: 40 + i * 19, width: 12, height: 12, borderRadius: 2, backgroundColor: "#DCE6F2", transform: [{ rotate: "8deg" }] }} />
-      ))}
-      {/* stars */}
-      <PaperPiece style={{ position: "absolute", left: "88%", bottom: 122, width: 7, height: 7, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 128, width: 6, height: 6, backgroundColor: "#FFC531", transform: [{ rotate: "45deg" }] }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#3E5C8A">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "22%", backgroundColor: "#2F476B" }} />
+        {/* the globe */}
+        <PaperBob left="58%" bottom={36} width={84} height={84} distance={3} duration={4200}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 84, height: 84, borderRadius: 42, backgroundColor: "#4E9AB5" }} />
+          <PaperPiece style={{ position: "absolute", left: 10, bottom: 52, width: 26, height: 18, borderRadius: 9, backgroundColor: "#58A05C" }} />
+          <PaperPiece style={{ position: "absolute", left: 44, bottom: 26, width: 30, height: 22, borderRadius: 11, backgroundColor: "#58A05C" }} />
+          <PaperPiece style={{ position: "absolute", left: 16, bottom: 16, width: 20, height: 14, borderRadius: 7, backgroundColor: "#6FBF73" }} />
+        </PaperBob>
+        <PaperPiece style={{ position: "absolute", left: "64%", bottom: 16, width: 44, height: 12, borderRadius: 6, backgroundColor: "#2C2C33" }} />
+        {/* film strip */}
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 30, width: 22, height: 84, borderRadius: 4, backgroundColor: "#1E1B26", transform: [{ rotate: "8deg" }] }} />
+        {[0, 1, 2, 3].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: "48.5%", bottom: 40 + i * 19, width: 12, height: 12, borderRadius: 2, backgroundColor: "#DCE6F2", transform: [{ rotate: "8deg" }] }} />
+        ))}
+        {/* stars */}
+        <PaperPiece style={{ position: "absolute", left: "88%", bottom: 122, width: 7, height: 7, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 128, width: 6, height: 6, backgroundColor: "#FFC531", transform: [{ rotate: "45deg" }] }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperParkLegolandScene() {
   return (
-    <EmblemScene base="#F2C14E">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#D9A93B" }} />
-      {/* brick-built castle from blocks */}
-      <Pieces
-        items={[
-          { position: "absolute", left: "56%", bottom: 16, width: 34, height: 22, borderRadius: 3, backgroundColor: "#D64545" },
-          { position: "absolute", left: "66%", bottom: 16, width: 34, height: 22, borderRadius: 3, backgroundColor: "#3E7CB1" },
-          { position: "absolute", left: "61%", bottom: 38, width: 34, height: 22, borderRadius: 3, backgroundColor: "#58A05C" },
-          { position: "absolute", left: "56%", bottom: 60, width: 22, height: 20, borderRadius: 3, backgroundColor: "#FF8A5C" },
-          { position: "absolute", left: "72%", bottom: 60, width: 22, height: 20, borderRadius: 3, backgroundColor: "#7C4DFF" },
-          { position: "absolute", left: "64%", bottom: 80, width: 26, height: 20, borderRadius: 3, backgroundColor: "#D64545" },
-          // studs
-          { position: "absolute", left: "59%", bottom: 38, width: 8, height: 5, borderRadius: 2, backgroundColor: "#E86A7A" },
-          { position: "absolute", left: "69%", bottom: 38, width: 8, height: 5, borderRadius: 2, backgroundColor: "#5E97C4" },
-          { position: "absolute", left: "64%", bottom: 60, width: 8, height: 5, borderRadius: 2, backgroundColor: "#7FB069" },
-          { position: "absolute", left: "67%", bottom: 100, width: 8, height: 5, borderRadius: 2, backgroundColor: "#E86A7A" },
-        ]}
-      />
-      {/* loose bricks */}
-      <PaperPiece style={{ position: "absolute", left: "46%", bottom: 10, width: 24, height: 14, borderRadius: 3, backgroundColor: "#3E7CB1", transform: [{ rotate: "-8deg" }] }} />
-      <PaperPiece style={{ position: "absolute", left: "88%", bottom: 10, width: 24, height: 14, borderRadius: 3, backgroundColor: "#58A05C", transform: [{ rotate: "10deg" }] }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#F2C14E">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#D9A93B" }} />
+        {/* brick-built castle from blocks */}
+        <Pieces
+          items={[
+            { position: "absolute", left: "56%", bottom: 16, width: 34, height: 22, borderRadius: 3, backgroundColor: "#D64545" },
+            { position: "absolute", left: "66%", bottom: 16, width: 34, height: 22, borderRadius: 3, backgroundColor: "#3E7CB1" },
+            { position: "absolute", left: "61%", bottom: 38, width: 34, height: 22, borderRadius: 3, backgroundColor: "#58A05C" },
+            { position: "absolute", left: "56%", bottom: 60, width: 22, height: 20, borderRadius: 3, backgroundColor: "#FF8A5C" },
+            { position: "absolute", left: "72%", bottom: 60, width: 22, height: 20, borderRadius: 3, backgroundColor: "#7C4DFF" },
+            { position: "absolute", left: "64%", bottom: 80, width: 26, height: 20, borderRadius: 3, backgroundColor: "#D64545" },
+            // studs
+            { position: "absolute", left: "59%", bottom: 38, width: 8, height: 5, borderRadius: 2, backgroundColor: "#E86A7A" },
+            { position: "absolute", left: "69%", bottom: 38, width: 8, height: 5, borderRadius: 2, backgroundColor: "#5E97C4" },
+            { position: "absolute", left: "64%", bottom: 60, width: 8, height: 5, borderRadius: 2, backgroundColor: "#7FB069" },
+            { position: "absolute", left: "67%", bottom: 100, width: 8, height: 5, borderRadius: 2, backgroundColor: "#E86A7A" },
+          ]}
+        />
+        {/* loose bricks */}
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 10, width: 24, height: 14, borderRadius: 3, backgroundColor: "#3E7CB1", transform: [{ rotate: "-8deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "88%", bottom: 10, width: 24, height: 14, borderRadius: 3, backgroundColor: "#58A05C", transform: [{ rotate: "10deg" }] }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
@@ -2182,8 +2217,8 @@ export function PaperParkSeaworldScene() {
 
 /* ------------------------------------------------------------------ */
 /* Homecooked meals — v180: every dish is its OWN cut-paper           */
-/* composition on its own serving piece (the shared TdEmblem plate    */
-/* shell is retired): a TV tray, a comal, a wok, a sizzle platter…    */
+/* composition on its own serving piece (the shared plate shell is    */
+/* retired): a TV tray, a comal, a wok, a sizzle platter…             */
 /* ------------------------------------------------------------------ */
 
 const P = (left: string, bottom: number, width: number, height: number, backgroundColor: string, extra: ViewStyle = {}): ViewStyle => ({
@@ -2951,370 +2986,398 @@ export function PaperTdCerealScene() {
 
 export function PaperRestTacoScene() {
   return (
-    <EmblemScene base="#E4572E">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#C2451F" }} />
-      <Pieces
-        items={[
-          // big taco, front view
-          P("54%", 30, 120, 62, "#F2C14E", { borderTopLeftRadius: 60, borderTopRightRadius: 60 }),
-          P("56%", 78, 108, 16, "#E8B34B", { borderRadius: 8 }),
-          DISC("60%", 84, 16, "#7A4A2B"),
-          DISC("68%", 88, 15, "#58A05C"),
-          DISC("76%", 84, 14, "#D64545"),
-          DISC("64%", 94, 11, "#FFF8E1"),
-          DISC("72%", 96, 10, "#E86A5C"),
-          // lime + salsa bowl
-          DISC("46%", 16, 16, "#7FB069"),
-          DISC("88%", 14, 24, "#A93226"),
-          DISC("89.5%", 18, 16, "#C0392B"),
-        ]}
-      />
-      <PSun left="88%" bottom={112} size={24} />
-    </EmblemScene>
+    <PaperSceneRoot base="#E4572E">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#C2451F" }} />
+        <Pieces
+          items={[
+            // big taco, front view
+            P("54%", 30, 120, 62, "#F2C14E", { borderTopLeftRadius: 60, borderTopRightRadius: 60 }),
+            P("56%", 78, 108, 16, "#E8B34B", { borderRadius: 8 }),
+            DISC("60%", 84, 16, "#7A4A2B"),
+            DISC("68%", 88, 15, "#58A05C"),
+            DISC("76%", 84, 14, "#D64545"),
+            DISC("64%", 94, 11, "#FFF8E1"),
+            DISC("72%", 96, 10, "#E86A5C"),
+            // lime + salsa bowl
+            DISC("46%", 16, 16, "#7FB069"),
+            DISC("88%", 14, 24, "#A93226"),
+            DISC("89.5%", 18, 16, "#C0392B"),
+          ]}
+        />
+        <PSun left="88%" bottom={112} size={24} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestSandwichScene() {
   return (
-    <EmblemScene base="#3E7CB1">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#2F6391" }} />
-      <Pieces
-        items={[
-          P("52%", 22, 128, 18, "#FFF8E1", { borderRadius: 9 }),
-          // stacked sub
-          P("55%", 44, 116, 24, "#F2D8A7", { borderTopLeftRadius: 20, borderTopRightRadius: 20, transform: [{ rotate: "-2deg" }] }),
-          P("55%", 36, 118, 10, "#58A05C", { borderRadius: 5 }),
-          P("56%", 28, 112, 9, "#D64545", { borderRadius: 4 }),
-          P("57%", 20, 108, 10, "#EFC477", { borderBottomLeftRadius: 12, borderBottomRightRadius: 12 }),
-          // chips + pickle
-          DISC("48%", 52, 15, "#F2C14E"),
-          DISC("46%", 66, 14, "#E8B34B"),
-          DISC("90%", 48, 14, "#7FB069"),
-        ]}
-      />
-    </EmblemScene>
+    <PaperSceneRoot base="#3E7CB1">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#2F6391" }} />
+        <Pieces
+          items={[
+            P("52%", 22, 128, 18, "#FFF8E1", { borderRadius: 9 }),
+            // stacked sub
+            P("55%", 44, 116, 24, "#F2D8A7", { borderTopLeftRadius: 20, borderTopRightRadius: 20, transform: [{ rotate: "-2deg" }] }),
+            P("55%", 36, 118, 10, "#58A05C", { borderRadius: 5 }),
+            P("56%", 28, 112, 9, "#D64545", { borderRadius: 4 }),
+            P("57%", 20, 108, 10, "#EFC477", { borderBottomLeftRadius: 12, borderBottomRightRadius: 12 }),
+            // chips + pickle
+            DISC("48%", 52, 15, "#F2C14E"),
+            DISC("46%", 66, 14, "#E8B34B"),
+            DISC("90%", 48, 14, "#7FB069"),
+          ]}
+        />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestPizzaScene() {
   return (
-    <EmblemScene base="#A93226">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#86281D" }} />
-      <Pieces
-        items={[
-          DISC("52%", 12, 128, "#EDE6D8"),
-          // one big slice
-          P("60%", 34, 66, 78, "#F2B53A", { borderTopLeftRadius: 40, borderTopRightRadius: 40, transform: [{ rotate: "180deg" }] }),
-          P("58%", 100, 74, 16, "#E8A94E", { borderRadius: 8 }),
-          DISC("66%", 62, 15, "#B03A2E"),
-          DISC("70%", 82, 14, "#B03A2E"),
-          DISC("63%", 40, 13, "#B03A2E"),
-          P("68%", 50, 9, 9, "#3E7C43", { borderRadius: 4, transform: [{ rotate: "30deg" }] }),
-          // cheese pull
-          P("66%", 18, 7, 20, "#F5C86B", { borderRadius: 3 }),
-        ]}
-      />
-    </EmblemScene>
+    <PaperSceneRoot base="#A93226">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#86281D" }} />
+        <Pieces
+          items={[
+            DISC("52%", 12, 128, "#EDE6D8"),
+            // one big slice
+            P("60%", 34, 66, 78, "#F2B53A", { borderTopLeftRadius: 40, borderTopRightRadius: 40, transform: [{ rotate: "180deg" }] }),
+            P("58%", 100, 74, 16, "#E8A94E", { borderRadius: 8 }),
+            DISC("66%", 62, 15, "#B03A2E"),
+            DISC("70%", 82, 14, "#B03A2E"),
+            DISC("63%", 40, 13, "#B03A2E"),
+            P("68%", 50, 9, 9, "#3E7C43", { borderRadius: 4, transform: [{ rotate: "30deg" }] }),
+            // cheese pull
+            P("66%", 18, 7, 20, "#F5C86B", { borderRadius: 3 }),
+          ]}
+        />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestChickenScene() {
   return (
-    <EmblemScene base="#D98E32">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#B56F1F" }} />
-      <Pieces
-        items={[
-          // bucket
-          P("58%", 14, 74, 62, "#FFFFFF", { borderBottomLeftRadius: 12, borderBottomRightRadius: 12 }),
-          P("58%", 44, 74, 10, "#D64545"),
-          P("58%", 26, 74, 10, "#D64545"),
-          // drumsticks peeking out
-          P("60%", 72, 16, 26, "#B57F24", { borderRadius: 8, transform: [{ rotate: "-14deg" }] }),
-          P("68%", 76, 16, 26, "#C98A2E", { borderRadius: 8, transform: [{ rotate: "6deg" }] }),
-          P("76%", 72, 16, 26, "#A8711F", { borderRadius: 8, transform: [{ rotate: "18deg" }] }),
-          DISC("61.5%", 94, 9, "#FFF8E1"),
-          DISC("70%", 98, 9, "#FFF8E1"),
-          DISC("78%", 94, 9, "#FFF8E1"),
-          // side slaw
-          DISC("46%", 16, 26, "#FFFFFF"),
-          DISC("47.5%", 20, 18, "#A8C686"),
-          DISC("88%", 16, 24, "#FFF8E1"),
-        ]}
-      />
-    </EmblemScene>
+    <PaperSceneRoot base="#D98E32">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#B56F1F" }} />
+        <Pieces
+          items={[
+            // bucket
+            P("58%", 14, 74, 62, "#FFFFFF", { borderBottomLeftRadius: 12, borderBottomRightRadius: 12 }),
+            P("58%", 44, 74, 10, "#D64545"),
+            P("58%", 26, 74, 10, "#D64545"),
+            // drumsticks peeking out
+            P("60%", 72, 16, 26, "#B57F24", { borderRadius: 8, transform: [{ rotate: "-14deg" }] }),
+            P("68%", 76, 16, 26, "#C98A2E", { borderRadius: 8, transform: [{ rotate: "6deg" }] }),
+            P("76%", 72, 16, 26, "#A8711F", { borderRadius: 8, transform: [{ rotate: "18deg" }] }),
+            DISC("61.5%", 94, 9, "#FFF8E1"),
+            DISC("70%", 98, 9, "#FFF8E1"),
+            DISC("78%", 94, 9, "#FFF8E1"),
+            // side slaw
+            DISC("46%", 16, 26, "#FFFFFF"),
+            DISC("47.5%", 20, 18, "#A8C686"),
+            DISC("88%", 16, 24, "#FFF8E1"),
+          ]}
+        />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestDonutScene() {
   return (
-    <EmblemScene base="#F2A7C3">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#D982A6" }} />
-      <Pieces
-        items={[
-          // open box
-          P("50%", 14, 140, 44, "#FFFFFF", { borderRadius: 6 }),
-          P("50%", 52, 140, 12, "#F6C6D8", { borderRadius: 5 }),
-          // donuts
-          DISC("56%", 24, 34, "#E8A94E"),
-          DISC("58.5%", 29, 13, "#F2A7C3"),
-          DISC("68%", 24, 34, "#7A4A2B"),
-          DISC("70.5%", 29, 13, "#F2A7C3"),
-          DISC("80%", 24, 34, "#F6C6D8"),
-          DISC("82.5%", 29, 13, "#F2A7C3"),
-          // sprinkles on the middle one
-          P("70%", 44, 7, 3, "#FFC531", { borderRadius: 1.5, transform: [{ rotate: "24deg" }] }),
-          P("74%", 48, 7, 3, "#7FB3D5", { borderRadius: 1.5, transform: [{ rotate: "-18deg" }] }),
-          P("72%", 38, 7, 3, "#58A05C", { borderRadius: 1.5, transform: [{ rotate: "40deg" }] }),
-        ]}
-      />
-      {/* hero donut, floating */}
-      <PaperBob left="62%" bottom={86} width={44} height={44} distance={4} duration={3000}>
-        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 44, height: 44, borderRadius: 22, backgroundColor: "#E86A92" }} />
-        <PaperPiece style={{ position: "absolute", left: 15, bottom: 15, width: 14, height: 14, borderRadius: 7, backgroundColor: "#F2A7C3" }} />
-        <PaperPiece style={{ position: "absolute", left: 8, bottom: 30, width: 8, height: 3, borderRadius: 1.5, backgroundColor: "#FFFFFF", transform: [{ rotate: "20deg" }] }} />
-        <PaperPiece style={{ position: "absolute", left: 26, bottom: 10, width: 8, height: 3, borderRadius: 1.5, backgroundColor: "#FFC531", transform: [{ rotate: "-26deg" }] }} />
-      </PaperBob>
-    </EmblemScene>
+    <PaperSceneRoot base="#F2A7C3">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#D982A6" }} />
+        <Pieces
+          items={[
+            // open box
+            P("50%", 14, 140, 44, "#FFFFFF", { borderRadius: 6 }),
+            P("50%", 52, 140, 12, "#F6C6D8", { borderRadius: 5 }),
+            // donuts
+            DISC("56%", 24, 34, "#E8A94E"),
+            DISC("58.5%", 29, 13, "#F2A7C3"),
+            DISC("68%", 24, 34, "#7A4A2B"),
+            DISC("70.5%", 29, 13, "#F2A7C3"),
+            DISC("80%", 24, 34, "#F6C6D8"),
+            DISC("82.5%", 29, 13, "#F2A7C3"),
+            // sprinkles on the middle one
+            P("70%", 44, 7, 3, "#FFC531", { borderRadius: 1.5, transform: [{ rotate: "24deg" }] }),
+            P("74%", 48, 7, 3, "#7FB3D5", { borderRadius: 1.5, transform: [{ rotate: "-18deg" }] }),
+            P("72%", 38, 7, 3, "#58A05C", { borderRadius: 1.5, transform: [{ rotate: "40deg" }] }),
+          ]}
+        />
+        {/* hero donut, floating */}
+        <PaperBob left="62%" bottom={86} width={44} height={44} distance={4} duration={3000}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 44, height: 44, borderRadius: 22, backgroundColor: "#E86A92" }} />
+          <PaperPiece style={{ position: "absolute", left: 15, bottom: 15, width: 14, height: 14, borderRadius: 7, backgroundColor: "#F2A7C3" }} />
+          <PaperPiece style={{ position: "absolute", left: 8, bottom: 30, width: 8, height: 3, borderRadius: 1.5, backgroundColor: "#FFFFFF", transform: [{ rotate: "20deg" }] }} />
+          <PaperPiece style={{ position: "absolute", left: 26, bottom: 10, width: 8, height: 3, borderRadius: 1.5, backgroundColor: "#FFC531", transform: [{ rotate: "-26deg" }] }} />
+        </PaperBob>
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestCoffeeScene() {
   return (
-    <EmblemScene base="#6B4A3A">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#54382A" }} />
-      <Pieces
-        items={[
-          // takeaway cup
-          P("60%", 18, 48, 74, "#FFFFFF", { borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }),
-          P("58.5%", 88, 54, 12, "#3E7C43", { borderRadius: 5 }),
-          P("60%", 44, 48, 22, "#3E7C43"),
-          DISC("66%", 48, 14, "#FFFFFF"),
-          // beans
-          DISC("50%", 20, 13, "#4A3220"),
-          DISC("53%", 32, 12, "#5D4037"),
-          DISC("86%", 22, 13, "#4A3220"),
-        ]}
-      />
-      {/* steam */}
-      <PaperBob left="66%" bottom={106} width={10} height={14} distance={5} duration={3200}>
-        <PaperPiece style={{ width: 10, height: 14, borderRadius: 5, backgroundColor: "#FFFFFF", opacity: 0.6 }} />
-      </PaperBob>
-      <PaperBob left="71%" bottom={112} width={8} height={11} distance={5} duration={3600} delay={500}>
-        <PaperPiece style={{ width: 8, height: 11, borderRadius: 4, backgroundColor: "#FFFFFF", opacity: 0.45 }} />
-      </PaperBob>
-    </EmblemScene>
+    <PaperSceneRoot base="#6B4A3A">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#54382A" }} />
+        <Pieces
+          items={[
+            // takeaway cup
+            P("60%", 18, 48, 74, "#FFFFFF", { borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }),
+            P("58.5%", 88, 54, 12, "#3E7C43", { borderRadius: 5 }),
+            P("60%", 44, 48, 22, "#3E7C43"),
+            DISC("66%", 48, 14, "#FFFFFF"),
+            // beans
+            DISC("50%", 20, 13, "#4A3220"),
+            DISC("53%", 32, 12, "#5D4037"),
+            DISC("86%", 22, 13, "#4A3220"),
+          ]}
+        />
+        {/* steam */}
+        <PaperBob left="66%" bottom={106} width={10} height={14} distance={5} duration={3200}>
+          <PaperPiece style={{ width: 10, height: 14, borderRadius: 5, backgroundColor: "#FFFFFF", opacity: 0.6 }} />
+        </PaperBob>
+        <PaperBob left="71%" bottom={112} width={8} height={11} distance={5} duration={3600} delay={500}>
+          <PaperPiece style={{ width: 8, height: 11, borderRadius: 4, backgroundColor: "#FFFFFF", opacity: 0.45 }} />
+        </PaperBob>
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestSushiScene() {
   return (
-    <EmblemScene base="#37424E">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#28313A" }} />
-      <Pieces
-        items={[
-          // board
-          P("50%", 18, 140, 52, "#B07D4F", { borderRadius: 8 }),
-          P("50%", 64, 140, 8, "#96613A", { borderRadius: 4 }),
-          // maki rolls
-          ...[0, 1, 2].map((i) => DISC(`${57 + i * 11}%`, 34, 30, "#22301F")),
-          ...[0, 1, 2].map((i) => DISC(`${58.5 + i * 11}%`, 38, 20, "#FFFFFF")),
-          ...[0, 1, 2].map((i) => DISC(`${60.5 + i * 11}%`, 42, 9, i === 1 ? "#E8862D" : "#E86A5C")),
-          // nigiri
-          P("84%", 30, 34, 16, "#FFFFFF", { borderRadius: 8 }),
-          P("84%", 42, 34, 12, "#E8862D", { borderRadius: 6 }),
-          // chopsticks + ginger + wasabi
-          P("52%", 84, 74, 5, "#8A5A2B", { borderRadius: 2, transform: [{ rotate: "-8deg" }] }),
-          P("54%", 96, 74, 5, "#96613A", { borderRadius: 2, transform: [{ rotate: "-4deg" }] }),
-          DISC("90%", 76, 14, "#F6C6D8"),
-          DISC("46%", 26, 13, "#58A05C"),
-        ]}
-      />
-    </EmblemScene>
+    <PaperSceneRoot base="#37424E">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#28313A" }} />
+        <Pieces
+          items={[
+            // board
+            P("50%", 18, 140, 52, "#B07D4F", { borderRadius: 8 }),
+            P("50%", 64, 140, 8, "#96613A", { borderRadius: 4 }),
+            // maki rolls
+            ...[0, 1, 2].map((i) => DISC(`${57 + i * 11}%`, 34, 30, "#22301F")),
+            ...[0, 1, 2].map((i) => DISC(`${58.5 + i * 11}%`, 38, 20, "#FFFFFF")),
+            ...[0, 1, 2].map((i) => DISC(`${60.5 + i * 11}%`, 42, 9, i === 1 ? "#E8862D" : "#E86A5C")),
+            // nigiri
+            P("84%", 30, 34, 16, "#FFFFFF", { borderRadius: 8 }),
+            P("84%", 42, 34, 12, "#E8862D", { borderRadius: 6 }),
+            // chopsticks + ginger + wasabi
+            P("52%", 84, 74, 5, "#8A5A2B", { borderRadius: 2, transform: [{ rotate: "-8deg" }] }),
+            P("54%", 96, 74, 5, "#96613A", { borderRadius: 2, transform: [{ rotate: "-4deg" }] }),
+            DISC("90%", 76, 14, "#F6C6D8"),
+            DISC("46%", 26, 13, "#58A05C"),
+          ]}
+        />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestChineseScene() {
   return (
-    <EmblemScene base="#B03A2E">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#8E2A20" }} />
-      <Pieces
-        items={[
-          // takeout box
-          P("58%", 16, 66, 58, "#FFFFFF", { borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }),
-          P("56%", 68, 74, 14, "#F4E9CE", { borderRadius: 5 }),
-          P("62%", 34, 34, 22, "#D64545", { borderRadius: 5 }),
-          // noodles spilling + chopsticks
-          P("62%", 80, 10, 14, "#F7DC6F", { borderRadius: 5 }),
-          P("68%", 82, 10, 12, "#F2C14E", { borderRadius: 5 }),
-          P("64%", 88, 66, 5, "#8A5A2B", { borderRadius: 2, transform: [{ rotate: "-14deg" }] }),
-          P("66%", 98, 66, 5, "#96613A", { borderRadius: 2, transform: [{ rotate: "-8deg" }] }),
-          // fortune cookie + orange slices
-          P("46%", 18, 24, 14, "#EFC477", { borderRadius: 7 }),
-          DISC("88%", 18, 16, "#F5A623"),
-          DISC("90.5%", 22, 9, "#FFC98A"),
-        ]}
-      />
-      <PaperBob left="64%" bottom={104} width={9} height={12} distance={5} duration={3200}>
-        <PaperPiece style={{ width: 9, height: 12, borderRadius: 4.5, backgroundColor: "#FFFFFF", opacity: 0.55 }} />
-      </PaperBob>
-    </EmblemScene>
+    <PaperSceneRoot base="#B03A2E">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#8E2A20" }} />
+        <Pieces
+          items={[
+            // takeout box
+            P("58%", 16, 66, 58, "#FFFFFF", { borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }),
+            P("56%", 68, 74, 14, "#F4E9CE", { borderRadius: 5 }),
+            P("62%", 34, 34, 22, "#D64545", { borderRadius: 5 }),
+            // noodles spilling + chopsticks
+            P("62%", 80, 10, 14, "#F7DC6F", { borderRadius: 5 }),
+            P("68%", 82, 10, 12, "#F2C14E", { borderRadius: 5 }),
+            P("64%", 88, 66, 5, "#8A5A2B", { borderRadius: 2, transform: [{ rotate: "-14deg" }] }),
+            P("66%", 98, 66, 5, "#96613A", { borderRadius: 2, transform: [{ rotate: "-8deg" }] }),
+            // fortune cookie + orange slices
+            P("46%", 18, 24, 14, "#EFC477", { borderRadius: 7 }),
+            DISC("88%", 18, 16, "#F5A623"),
+            DISC("90.5%", 22, 9, "#FFC98A"),
+          ]}
+        />
+        <PaperBob left="64%" bottom={104} width={9} height={12} distance={5} duration={3200}>
+          <PaperPiece style={{ width: 9, height: 12, borderRadius: 4.5, backgroundColor: "#FFFFFF", opacity: 0.55 }} />
+        </PaperBob>
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestDinerScene() {
   return (
-    <EmblemScene base="#5B87A0">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#476B80" }} />
-      <Pieces
-        items={[
-          // retro sign
-          P("52%", 104, 120, 30, "#D64545", { borderRadius: 15 }),
-          P("55%", 112, 90, 6, "#FFFFFF", { borderRadius: 3, opacity: 0.85 }),
-          // plate with mini burger + shake
-          DISC("52%", 14, 96, "#EDE6D8"),
-          P("60%", 34, 44, 12, "#E8A94E", { borderRadius: 6 }),
-          P("61%", 44, 40, 8, "#6B4226", { borderRadius: 4 }),
-          P("60%", 52, 44, 14, "#F0BE6A", { borderTopLeftRadius: 14, borderTopRightRadius: 14 }),
-          P("80%", 20, 18, 34, "#F6C6D8", { borderRadius: 6 }),
-          P("80%", 52, 18, 8, "#FFFFFF", { borderRadius: 4 }),
-          P("83%", 58, 5, 18, "#D64545", { borderRadius: 2, transform: [{ rotate: "12deg" }] }),
-        ]}
-      />
-    </EmblemScene>
+    <PaperSceneRoot base="#5B87A0">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#476B80" }} />
+        <Pieces
+          items={[
+            // retro sign
+            P("52%", 104, 120, 30, "#D64545", { borderRadius: 15 }),
+            P("55%", 112, 90, 6, "#FFFFFF", { borderRadius: 3, opacity: 0.85 }),
+            // plate with mini burger + shake
+            DISC("52%", 14, 96, "#EDE6D8"),
+            P("60%", 34, 44, 12, "#E8A94E", { borderRadius: 6 }),
+            P("61%", 44, 40, 8, "#6B4226", { borderRadius: 4 }),
+            P("60%", 52, 44, 14, "#F0BE6A", { borderTopLeftRadius: 14, borderTopRightRadius: 14 }),
+            P("80%", 20, 18, 34, "#F6C6D8", { borderRadius: 6 }),
+            P("80%", 52, 18, 8, "#FFFFFF", { borderRadius: 4 }),
+            P("83%", 58, 5, 18, "#D64545", { borderRadius: 2, transform: [{ rotate: "12deg" }] }),
+          ]}
+        />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestDessertScene() {
   return (
-    <EmblemScene base="#B565A7">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#96568C" }} />
-      <Pieces
-        items={[
-          // sundae glass
-          P("60%", 34, 52, 34, "#DFF3F9", { borderBottomLeftRadius: 22, borderBottomRightRadius: 22 }),
-          P("66%", 12, 8, 24, "#DFF3F9", { borderRadius: 3 }),
-          P("58%", 6, 58, 8, "#C9D8EA", { borderRadius: 4 }),
-          // scoops
-          DISC("61%", 62, 30, "#F6C6D8"),
-          DISC("70%", 66, 30, "#FFF8E1"),
-          DISC("65%", 78, 28, "#7A4A2B"),
-          DISC("68.5%", 100, 11, "#D64545"),
-          P("69.5%", 108, 4, 8, "#3E7C43", { borderRadius: 2, transform: [{ rotate: "20deg" }] }),
-          // wafer + spoon
-          P("58%", 84, 8, 30, "#EFC477", { borderRadius: 3, transform: [{ rotate: "-14deg" }] }),
-          P("80%", 70, 5, 34, "#C0C6CE", { borderRadius: 2, transform: [{ rotate: "16deg" }] }),
-        ]}
-      />
-    </EmblemScene>
+    <PaperSceneRoot base="#B565A7">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#96568C" }} />
+        <Pieces
+          items={[
+            // sundae glass
+            P("60%", 34, 52, 34, "#DFF3F9", { borderBottomLeftRadius: 22, borderBottomRightRadius: 22 }),
+            P("66%", 12, 8, 24, "#DFF3F9", { borderRadius: 3 }),
+            P("58%", 6, 58, 8, "#C9D8EA", { borderRadius: 4 }),
+            // scoops
+            DISC("61%", 62, 30, "#F6C6D8"),
+            DISC("70%", 66, 30, "#FFF8E1"),
+            DISC("65%", 78, 28, "#7A4A2B"),
+            DISC("68.5%", 100, 11, "#D64545"),
+            P("69.5%", 108, 4, 8, "#3E7C43", { borderRadius: 2, transform: [{ rotate: "20deg" }] }),
+            // wafer + spoon
+            P("58%", 84, 8, 30, "#EFC477", { borderRadius: 3, transform: [{ rotate: "-14deg" }] }),
+            P("80%", 70, 5, 34, "#C0C6CE", { borderRadius: 2, transform: [{ rotate: "16deg" }] }),
+          ]}
+        />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestItalianScene() {
   return (
-    <EmblemScene base="#3E7C43">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#2F6335" }} />
-      <Pieces
-        items={[
-          // bowl of pasta
-          P("54%", 18, 110, 40, "#FFFFFF", { borderBottomLeftRadius: 50, borderBottomRightRadius: 50 }),
-          P("56%", 50, 100, 16, "#F7DC6F", { borderRadius: 8 }),
-          DISC("62%", 54, 22, "#F2C14E", { borderWidth: 4, borderColor: "#EFC95C" }),
-          DISC("72%", 56, 20, "#F7DC6F", { borderWidth: 4, borderColor: "#EFC95C" }),
-          DISC("67%", 62, 10, "#C0392B"),
-          P("76%", 64, 9, 9, "#2F6335", { borderRadius: 4, transform: [{ rotate: "20deg" }] }),
-          // fork twirl + breadstick + parmesan
-          P("50%", 66, 6, 30, "#C0C6CE", { borderRadius: 3, transform: [{ rotate: "-10deg" }] }),
-          P("86%", 20, 10, 44, "#EFC477", { borderRadius: 5, transform: [{ rotate: "10deg" }] }),
-          DISC("48%", 26, 9, "#FFF8E1"),
-          DISC("50%", 34, 7, "#FFF8E1"),
-        ]}
-      />
-    </EmblemScene>
+    <PaperSceneRoot base="#3E7C43">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#2F6335" }} />
+        <Pieces
+          items={[
+            // bowl of pasta
+            P("54%", 18, 110, 40, "#FFFFFF", { borderBottomLeftRadius: 50, borderBottomRightRadius: 50 }),
+            P("56%", 50, 100, 16, "#F7DC6F", { borderRadius: 8 }),
+            DISC("62%", 54, 22, "#F2C14E", { borderWidth: 4, borderColor: "#EFC95C" }),
+            DISC("72%", 56, 20, "#F7DC6F", { borderWidth: 4, borderColor: "#EFC95C" }),
+            DISC("67%", 62, 10, "#C0392B"),
+            P("76%", 64, 9, 9, "#2F6335", { borderRadius: 4, transform: [{ rotate: "20deg" }] }),
+            // fork twirl + breadstick + parmesan
+            P("50%", 66, 6, 30, "#C0C6CE", { borderRadius: 3, transform: [{ rotate: "-10deg" }] }),
+            P("86%", 20, 10, 44, "#EFC477", { borderRadius: 5, transform: [{ rotate: "10deg" }] }),
+            DISC("48%", 26, 9, "#FFF8E1"),
+            DISC("50%", 34, 7, "#FFF8E1"),
+          ]}
+        />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestSeafoodScene() {
   return (
-    <EmblemScene base="#3E7CB1">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#2F6391" }} />
-      <Pieces
-        items={[
-          // platter
-          P("50%", 16, 140, 22, "#EDE6D8", { borderRadius: 11 }),
-          // fish
-          P("56%", 34, 76, 30, "#7FB3D5", { borderRadius: 15 }),
-          P("76%", 38, 24, 22, "#5B9BD5", { transform: [{ rotate: "45deg" }] }),
-          DISC("59%", 48, 7, "#1E3A45"),
-          P("62%", 36, 40, 4, "#FFFFFF", { borderRadius: 2, opacity: 0.6 }),
-          // lemon + shrimp + herbs
-          DISC("86%", 30, 18, "#FFD54F"),
-          DISC("87.5%", 34, 10, "#FFE9A8"),
-          P("52%", 40, 16, 12, "#E86A5C", { borderRadius: 6, transform: [{ rotate: "20deg" }] }),
-          P("54%", 56, 14, 6, "#3E7C43", { borderRadius: 3, transform: [{ rotate: "-14deg" }] }),
-        ]}
-      />
-      {/* waves */}
-      <View style={{ position: "absolute", left: "42%", right: 0, bottom: 6, height: 4, backgroundColor: "#FFFFFF", opacity: 0.4, borderRadius: 2 }} />
-    </EmblemScene>
+    <PaperSceneRoot base="#3E7CB1">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#2F6391" }} />
+        <Pieces
+          items={[
+            // platter
+            P("50%", 16, 140, 22, "#EDE6D8", { borderRadius: 11 }),
+            // fish
+            P("56%", 34, 76, 30, "#7FB3D5", { borderRadius: 15 }),
+            P("76%", 38, 24, 22, "#5B9BD5", { transform: [{ rotate: "45deg" }] }),
+            DISC("59%", 48, 7, "#1E3A45"),
+            P("62%", 36, 40, 4, "#FFFFFF", { borderRadius: 2, opacity: 0.6 }),
+            // lemon + shrimp + herbs
+            DISC("86%", 30, 18, "#FFD54F"),
+            DISC("87.5%", 34, 10, "#FFE9A8"),
+            P("52%", 40, 16, 12, "#E86A5C", { borderRadius: 6, transform: [{ rotate: "20deg" }] }),
+            P("54%", 56, 14, 6, "#3E7C43", { borderRadius: 3, transform: [{ rotate: "-14deg" }] }),
+          ]}
+        />
+        {/* waves */}
+        <View style={{ position: "absolute", left: "42%", right: 0, bottom: 6, height: 4, backgroundColor: "#FFFFFF", opacity: 0.4, borderRadius: 2 }} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestHealthyScene() {
   return (
-    <EmblemScene base="#7FB069">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#639551" }} />
-      <Pieces
-        items={[
-          // salad bowl
-          P("52%", 18, 96, 36, "#FFFFFF", { borderBottomLeftRadius: 42, borderBottomRightRadius: 42 }),
-          P("55%", 48, 84, 14, "#58A05C", { borderRadius: 7 }),
-          DISC("60%", 52, 13, "#D64545"),
-          DISC("70%", 54, 12, "#E8862D"),
-          DISC("65%", 58, 11, "#F2F7E8", { borderWidth: 3, borderColor: "#A8C686" }),
-          // smoothie
-          P("84%", 16, 22, 40, "#F6C6D8", { borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }),
-          P("84%", 50, 22, 8, "#E86A92", { borderRadius: 3 }),
-          P("87%", 56, 5, 20, "#58A05C", { borderRadius: 2, transform: [{ rotate: "10deg" }] }),
-          DISC("46%", 22, 14, "#FFD54F"),
-        ]}
-      />
-      <PSun left="46%" bottom={104} size={24} />
-    </EmblemScene>
+    <PaperSceneRoot base="#7FB069">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#639551" }} />
+        <Pieces
+          items={[
+            // salad bowl
+            P("52%", 18, 96, 36, "#FFFFFF", { borderBottomLeftRadius: 42, borderBottomRightRadius: 42 }),
+            P("55%", 48, 84, 14, "#58A05C", { borderRadius: 7 }),
+            DISC("60%", 52, 13, "#D64545"),
+            DISC("70%", 54, 12, "#E8862D"),
+            DISC("65%", 58, 11, "#F2F7E8", { borderWidth: 3, borderColor: "#A8C686" }),
+            // smoothie
+            P("84%", 16, 22, 40, "#F6C6D8", { borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }),
+            P("84%", 50, 22, 8, "#E86A92", { borderRadius: 3 }),
+            P("87%", 56, 5, 20, "#58A05C", { borderRadius: 2, transform: [{ rotate: "10deg" }] }),
+            DISC("46%", 22, 14, "#FFD54F"),
+          ]}
+        />
+        <PSun left="46%" bottom={104} size={24} />
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 export function PaperRestIndianScene() {
   return (
-    <EmblemScene base="#C96A2B">
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#A8541F" }} />
-      <Pieces
-        items={[
-          // curry bowl
-          P("54%", 18, 92, 38, "#8A6D4B", { borderBottomLeftRadius: 40, borderBottomRightRadius: 40 }),
-          P("56%", 48, 82, 15, "#E8862D", { borderRadius: 7 }),
-          DISC("63%", 52, 12, "#D97B2E"),
-          DISC("72%", 54, 10, "#C96A2B"),
-          P("66%", 58, 9, 9, "#3E7C43", { borderRadius: 4 }),
-          // naan
-          P("80%", 22, 44, 30, "#F2D8A7", { borderRadius: 14, transform: [{ rotate: "-10deg" }] }),
-          P("83%", 30, 30, 16, "#EFC477", { borderRadius: 8, transform: [{ rotate: "-10deg" }] }),
-          // spice dots + rice
-          DISC("48%", 24, 9, "#D64545"),
-          DISC("50%", 36, 8, "#FFC531"),
-          DISC("47%", 46, 8, "#3E7C43"),
-          DISC("86%", 66, 20, "#FFF8E1"),
-        ]}
-      />
-      <PaperBob left="62%" bottom={72} width={8} height={11} distance={5} duration={3200}>
-        <PaperPiece style={{ width: 8, height: 11, borderRadius: 4, backgroundColor: "#FFFFFF", opacity: 0.5 }} />
-      </PaperBob>
-    </EmblemScene>
+    <PaperSceneRoot base="#C96A2B">
+      <SettleIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#A8541F" }} />
+        <Pieces
+          items={[
+            // curry bowl
+            P("54%", 18, 92, 38, "#8A6D4B", { borderBottomLeftRadius: 40, borderBottomRightRadius: 40 }),
+            P("56%", 48, 82, 15, "#E8862D", { borderRadius: 7 }),
+            DISC("63%", 52, 12, "#D97B2E"),
+            DISC("72%", 54, 10, "#C96A2B"),
+            P("66%", 58, 9, 9, "#3E7C43", { borderRadius: 4 }),
+            // naan
+            P("80%", 22, 44, 30, "#F2D8A7", { borderRadius: 14, transform: [{ rotate: "-10deg" }] }),
+            P("83%", 30, 30, 16, "#EFC477", { borderRadius: 8, transform: [{ rotate: "-10deg" }] }),
+            // spice dots + rice
+            DISC("48%", 24, 9, "#D64545"),
+            DISC("50%", 36, 8, "#FFC531"),
+            DISC("47%", 46, 8, "#3E7C43"),
+            DISC("86%", 66, 20, "#FFF8E1"),
+          ]}
+        />
+        <PaperBob left="62%" bottom={72} width={8} height={11} distance={5} duration={3200}>
+          <PaperPiece style={{ width: 8, height: 11, borderRadius: 4, backgroundColor: "#FFFFFF", opacity: 0.5 }} />
+        </PaperBob>
+      </SettleIn>
+    </PaperSceneRoot>
   );
 }
 
 /* ------------------------------------------------------------------ */
 /* TV shows — v180: every show is its OWN cut-paper composition,      */
-/* modeled on what its Classic scene depicts (the shared TvEmblem     */
+/* modeled on what its Classic scene depicts (the shared              */
 /* screen-and-couch shell is retired). The Sopranos leads: the        */
 /* backyard pool and its ducks, the house behind.                     */
 /* ------------------------------------------------------------------ */
@@ -4628,207 +4691,842 @@ export function PaperTvLegaciesScene() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Movies — a wide screen, the film's emblem, seat backs below.        */
-/* Motif space: screen spans left ~43–93%, bottom ~45–135.             */
+/* Movies — v181: the cinema factory is retired. Every film is its    */
+/* own cut-paper composition of the film's world (the paper twin of   */
+/* the classic scene), never a screen with a motif swapped in.        */
 /* ------------------------------------------------------------------ */
 
-const movieScene = (base: string, screen: string, motif: ViewStyle[], curtains = false) =>
-  function PaperMovieSceneVariant() {
-    return <MovieEmblem base={base} screen={screen} motif={motif} curtains={curtains} />;
-  };
+/** Generic Movie: cinema night — a paper sunset playing on the big screen, curtains, seat backs, popcorn. */
+export function PaperMovieGenericScene() {
+  return (
+    <PaperSceneRoot base="#1D1B2E">
+      {/* proscenium wall */}
+      <View style={{ position: "absolute", left: "40%", right: 0, top: 0, bottom: 0, backgroundColor: "#241F3A" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* screen frame + the film playing: a sunset over hills */}
+        <PaperPiece style={{ position: "absolute", left: "44%", bottom: 46, width: 196, height: 98, borderRadius: 6, backgroundColor: "#0E0E14" }} />
+        <PaperPiece style={{ position: "absolute", left: "46.5%", bottom: 51, width: 178, height: 88, borderRadius: 4, backgroundColor: "#37415C" }} />
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 51, width: 120, height: 34, borderTopLeftRadius: 60, borderTopRightRadius: 60, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 51, width: 90, height: 24, borderTopLeftRadius: 45, borderTopRightRadius: 45, backgroundColor: "#23232B" }} />
+        {/* curtains drawn to the sides + valance */}
+        <PaperPiece style={{ position: "absolute", left: "41%", bottom: 34, width: 20, height: 118, borderRadius: 6, backgroundColor: "#8E2323" }} />
+        <PaperPiece style={{ position: "absolute", left: "93.5%", bottom: 34, width: 20, height: 118, borderRadius: 6, backgroundColor: "#8E2323" }} />
+        <PaperPiece style={{ position: "absolute", left: "41%", bottom: 140, width: 230, height: 14, borderRadius: 6, backgroundColor: "#7A1D1D" }} />
+        {/* seat backs, two depths */}
+        {[0, 1, 2, 3].map((i) => (
+          <PaperPiece key={`b${i}`} style={{ position: "absolute", left: `${47 + i * 13}%` as `${number}%`, bottom: 0, width: 40, height: 17, borderRadius: 8, backgroundColor: "#14121F" }} />
+        ))}
+        {[0, 1, 2].map((i) => (
+          <PaperPiece key={`f${i}`} style={{ position: "absolute", left: `${54 + i * 15}%` as `${number}%`, bottom: 16, width: 36, height: 13, borderRadius: 7, backgroundColor: "#1A1729" }} />
+        ))}
+      </SettleIn>
+      {/* the sun inside the film, breathing */}
+      <PaperPulse left="64%" bottom={86} width={34} height={34} min={0.96} max={1.05} duration={3600}>
+        <PaperPiece style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "#F5A623" }} />
+      </PaperPulse>
+      {/* popcorn in the front row */}
+      <PaperBob left="47%" bottom={20} width={26} height={30} distance={2} duration={3400}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 26, height: 22, borderBottomLeftRadius: 7, borderBottomRightRadius: 7, backgroundColor: "#D64545" }} />
+        <PaperPiece style={{ position: "absolute", left: 1, bottom: 19, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFF3C9" }} />
+        <PaperPiece style={{ position: "absolute", left: 9, bottom: 22, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFF3C9" }} />
+        <PaperPiece style={{ position: "absolute", left: 16, bottom: 19, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFF3C9" }} />
+      </PaperBob>
+    </PaperSceneRoot>
+  );
+}
 
-export const PaperMovieGenericScene = movieScene("#1D1B2E", "#37415C", [
-  // popcorn + clapper
-  P("56%", 66, 30, 26, "#D64545", { borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }),
-  DISC("57%", 90, 11, "#FFF3C9"),
-  DISC("61%", 94, 11, "#FFF3C9"),
-  DISC("65%", 90, 11, "#FFF3C9"),
-  P("72%", 84, 36, 10, "#F4F1EA", { borderRadius: 3, transform: [{ rotate: "-8deg" }] }),
-  P("72%", 70, 36, 14, "#2C2C33", { borderRadius: 3 }),
-  P("74%", 88, 7, 8, "#2C2C33", { transform: [{ rotate: "-8deg" }] }),
-  P("79%", 89, 7, 8, "#2C2C33", { transform: [{ rotate: "-8deg" }] }),
-  P("84%", 90, 7, 8, "#2C2C33", { transform: [{ rotate: "-8deg" }] }),
-]);
-export const PaperTheaterGenericScene = movieScene("#241A2E", "#4A2E3F", [
-  // stage masks
-  P("58%", 66, 30, 40, "#F4F1EA", { borderRadius: 15 }),
-  DISC("62%", 88, 7, "#241A2E"),
-  DISC("68%", 88, 7, "#241A2E"),
-  P("61%", 72, 16, 6, "#241A2E", { borderRadius: 3, transform: [{ rotate: "-8deg" }] }),
-  P("74%", 66, 30, 40, "#E8D8C8", { borderRadius: 15 }),
-  DISC("78%", 88, 7, "#241A2E"),
-  DISC("84%", 88, 7, "#241A2E"),
-  P("77%", 74, 16, 6, "#241A2E", { borderRadius: 3, transform: [{ rotate: "14deg" }] }),
-], true);
-export const PaperMvResidentEvilScene = movieScene("#1E2226", "#54382A", [
-  DISC("62%", 66, 46, "#F4F1EA"),
-  P("64%", 66, 30, 30, "#D64545", { transform: [{ rotate: "45deg" }] }),
-  DISC("66.5%", 76, 18, "#F4F1EA"),
-  P("68%", 72, 12, 12, "#D64545", { transform: [{ rotate: "45deg" }] }),
-]);
-export const PaperMvBuddyScene = movieScene("#22261E", "#7A6A42", [
-  P("60%", 62, 30, 24, "#5D4037", { borderRadius: 12 }),
-  DISC("61%", 88, 11, "#5D4037"),
-  DISC("67%", 92, 11, "#5D4037"),
-  DISC("73%", 88, 11, "#5D4037"),
-  P("74%", 60, 26, 20, "#6E4A33", { borderRadius: 10 }),
-  DISC("75%", 82, 9, "#6E4A33"),
-  DISC("80%", 85, 9, "#6E4A33"),
-  DISC("85%", 82, 9, "#6E4A33"),
-]);
-export const PaperMvBlackPhoneScene = movieScene("#1A1A1E", "#3A3A42", [
-  DISC("60%", 84, 17, "#121216"),
-  DISC("74%", 84, 17, "#121216"),
-  P("61%", 92, 40, 9, "#121216", { borderRadius: 4, transform: [{ rotate: "-4deg" }] }),
-  P("70%", 56, 4, 30, "#121216", { borderRadius: 2, transform: [{ rotate: "12deg" }] }),
-  DISC("58%", 108, 7, "#D64545"),
-]);
-export const PaperMvBackroomsScene = movieScene("#26241A", "#C9B458", [
-  P("54%", 58, 40, 62, "#B8A44E", { borderRadius: 3 }),
-  P("66%", 58, 40, 62, "#A8943F", { borderRadius: 3 }),
-  P("78%", 58, 36, 62, "#B8A44E", { borderRadius: 3 }),
-  P("58%", 104, 76, 9, "#FFF8DC", { borderRadius: 4 }),
-  P("52%", 48, 120, 8, "#8A7A34", { borderRadius: 4 }),
-]);
-export const PaperMvExit8Scene = movieScene("#1E2426", "#DCE6F2", [
-  P("58%", 78, 62, 34, "#FFFFFF", { borderRadius: 5 }),
-  P("61%", 88, 34, 8, "#2C7A4B", { borderRadius: 4 }),
-  P("78%", 84, 10, 16, "#2C7A4B", { transform: [{ rotate: "45deg" }] }),
-  P("54%", 52, 100, 6, "#5B87A0", { borderRadius: 3, transform: [{ rotate: "-4deg" }] }),
-  P("56%", 62, 90, 5, "#7FA8B5", { borderRadius: 2, transform: [{ rotate: "-3deg" }] }),
-]);
-export const PaperMvDeadpoolScene = movieScene("#261A1E", "#7A1D1D", [
-  DISC("62%", 60, 48, "#C0272D"),
-  P("64%", 76, 15, 20, "#FFFFFF", { borderRadius: 7, transform: [{ rotate: "-12deg" }] }),
-  P("74%", 76, 15, 20, "#FFFFFF", { borderRadius: 7, transform: [{ rotate: "12deg" }] }),
-  DISC("66%", 82, 6, "#261A1E"),
-  DISC("76%", 82, 6, "#261A1E"),
-  P("56%", 108, 60, 6, "#C0C6CE", { borderRadius: 3, transform: [{ rotate: "28deg" }] }),
-  P("56%", 56, 60, 6, "#C0C6CE", { borderRadius: 3, transform: [{ rotate: "-28deg" }] }),
-]);
-export const PaperMvFnafScene = movieScene("#1E1A26", "#3A2A1E", [
-  DISC("63%", 62, 40, "#8A5A33"),
-  DISC("63%", 94, 13, "#8A5A33"),
-  DISC("75%", 94, 13, "#8A5A33"),
-  P("66%", 104, 26, 12, "#1E1A26", { borderRadius: 3 }),
-  P("65%", 100, 30, 6, "#1E1A26", { borderRadius: 3 }),
-  DISC("67%", 78, 7, "#F4F1EA"),
-  DISC("74%", 78, 7, "#F4F1EA"),
-  P("68%", 62, 12, 8, "#54382A", { borderRadius: 3 }),
-  DISC("56%", 110, 7, "#FFC531"),
-  DISC("86%", 110, 7, "#E86A92"),
-]);
-export const PaperMvIronLungScene = movieScene("#260F12", "#4A1216", [
-  DISC("62%", 60, 50, "transparent", { borderWidth: 7, borderColor: "#5B6B7A" }),
-  DISC("66%", 70, 30, "#33090D"),
-  P("69%", 66, 8, 22, "#D64545", { borderRadius: 3 }),
-  P("66%", 73, 18, 8, "#D64545", { borderRadius: 3 }),
-  DISC("58%", 108, 6, "#7FB3D5"),
-  DISC("84%", 104, 5, "#7FB3D5"),
-]);
-export const PaperMvNimrodsScene = movieScene("#161A2E", "#232946", [
-  P("65%", 66, 18, 36, "#DCE6F2", { borderTopLeftRadius: 9, borderTopRightRadius: 9 }),
-  DISC("67%", 86, 9, "#7FB3D5"),
-  P("62%", 62, 10, 16, "#D64545", { transform: [{ rotate: "24deg" }] }),
-  P("76%", 62, 10, 16, "#D64545", { transform: [{ rotate: "-24deg" }] }),
-  P("66%", 52, 12, 12, "#F5A623", { transform: [{ rotate: "45deg" }] }),
-  ...[0, 1, 2, 3].map((i) => DISC(`${56 + i * 10}%`, 108 - (i % 2) * 12, 5, "#FFFFFF")),
-]);
-export const PaperMvIdiotsScene = movieScene("#26221A", "#57492E", [
-  P("63%", 74, 30, 36, "#F2C14E", { transform: [{ rotate: "45deg" }] }),
-  P("65%", 62, 22, 10, "#E8B34B", { borderRadius: 4 }),
-  DISC("76%", 92, 18, "#6E6A5E"),
-  P("78%", 108, 6, 8, "#6E6A5E", { borderRadius: 3 }),
-  DISC("58%", 62, 8, "#FFD54F"),
-]);
-export const PaperMvNobodyScene = movieScene("#20242A", "#4A4232", [
-  P("56%", 62, 62, 30, "#C9A86A", { borderRadius: 6 }),
-  ...[0, 1, 2].map((i) => P(`${59 + i * 7}%`, 78, 14, 11, "#37424E", { borderRadius: 2 })),
-  DISC("60%", 56, 12, "#2C2C33"),
-  DISC("74%", 56, 12, "#2C2C33"),
-  DISC("82%", 84, 16, "#E8B48F"),
-  DISC("83.5%", 96, 9, "#E8B48F"),
-  DISC("86%", 96, 8, "#E8B48F"),
-]);
-export const PaperMvMarioScene = movieScene("#1E2A1E", "#3E7C43", [
-  P("60%", 74, 48, 24, "#D64545", { borderTopLeftRadius: 24, borderTopRightRadius: 24 }),
-  DISC("63%", 84, 9, "#FFFFFF"),
-  DISC("71%", 88, 8, "#FFFFFF"),
-  DISC("67%", 78, 7, "#FFFFFF"),
-  P("63%", 58, 30, 18, "#FFF3D6", { borderRadius: 6 }),
-  P("78%", 58, 30, 16, "#B57F24", { borderRadius: 4 }),
-  P("78%", 70, 30, 5, "#96613A"),
-  DISC("56%", 102, 12, "#58A05C"),
-]);
-export const PaperMvToyStoryScene = movieScene("#1E2630", "#7FB3D5", [
-  P("57%", 72, 40, 12, "#B57F24", { borderRadius: 6 }),
-  P("61%", 82, 26, 16, "#96613A", { borderTopLeftRadius: 12, borderTopRightRadius: 12 }),
-  DISC("74%", 62, 34, "transparent", { borderWidth: 4, borderColor: "#DCE6F2" }),
-  DISC("79%", 76, 8, "#DCE6F2"),
-  DISC("56%", 56, 9, "#FFC531"),
-  DISC("86%", 104, 7, "#FFFFFF"),
-]);
-export const PaperMvZootopiaScene = movieScene("#1E2A24", "#47854B", [
-  DISC("63%", 62, 34, "#E8862D"),
-  P("62%", 92, 12, 18, "#E8862D", { transform: [{ rotate: "-16deg" }] }),
-  P("74%", 92, 12, 18, "#E8862D", { transform: [{ rotate: "16deg" }] }),
-  DISC("66%", 76, 6, "#1E2A24"),
-  DISC("72%", 76, 6, "#1E2A24"),
-  P("67%", 62, 10, 8, "#F6C6D8", { borderRadius: 4 }),
-  P("82%", 58, 8, 20, "#E8862D", { borderRadius: 4, transform: [{ rotate: "18deg" }] }),
-  P("80%", 76, 12, 8, "#58A05C", { borderRadius: 4, transform: [{ rotate: "18deg" }] }),
-]);
-export const PaperMvSpidermanScene = movieScene("#220F16", "#7A1D2B", [
-  DISC("62%", 58, 48, "#C0272D"),
-  P("64%", 78, 16, 22, "#FFFFFF", { borderRadius: 8, transform: [{ rotate: "-14deg" }] }),
-  P("75%", 78, 16, 22, "#FFFFFF", { borderRadius: 8, transform: [{ rotate: "14deg" }] }),
-  DISC("56%", 104, 30, "transparent", { borderWidth: 3, borderColor: "#8E9AAF" }),
-  DISC("80%", 52, 22, "transparent", { borderWidth: 3, borderColor: "#8E9AAF" }),
-]);
-export const PaperMvAvengersDoomsdayScene = movieScene("#14201A", "#2E4A38", [
-  P("62%", 62, 40, 36, "#3E6B4F", { borderTopLeftRadius: 20, borderTopRightRadius: 20 }),
-  P("66%", 66, 24, 28, "#9AA3AD", { borderRadius: 8 }),
-  DISC("68%", 80, 6, "#14201A"),
-  DISC("74%", 80, 6, "#14201A"),
-  P("68%", 68, 12, 4, "#6E7A89", { borderRadius: 2 }),
-  DISC("56%", 104, 8, "#FFD54F"),
-]);
-export const PaperMvShrekScene = movieScene("#1E2A1A", "#3E5C33", [
-  DISC("62%", 60, 42, "#7FB069"),
-  P("60%", 96, 10, 16, "#7FB069", { transform: [{ rotate: "-30deg" }] }),
-  P("76%", 96, 10, 16, "#7FB069", { transform: [{ rotate: "30deg" }] }),
-  DISC("66%", 78, 7, "#1E2A1A"),
-  DISC("73%", 78, 7, "#1E2A1A"),
-  P("66%", 62, 14, 8, "#5D8A4A", { borderRadius: 4 }),
-  DISC("84%", 60, 14, "#B565A7"),
-  P("85.5%", 72, 4, 8, "#8A4A7A", { borderRadius: 2 }),
-]);
-export const PaperMvHungerGamesScene = movieScene("#261E14", "#54382A", [
-  DISC("60%", 58, 52, "transparent", { borderWidth: 5, borderColor: "#C9A86A" }),
-  P("58%", 82, 70, 5, "#D8D2C4", { borderRadius: 2, transform: [{ rotate: "-16deg" }] }),
-  P("82%", 96, 12, 10, "#D8D2C4", { transform: [{ rotate: "45deg" }] }),
-  P("64%", 66, 16, 20, "#E8862D", { borderRadius: 8 }),
-  DISC("66.5%", 72, 8, "#FFD54F"),
-]);
-export const PaperMvStreetFighterScene = movieScene("#26161E", "#7A2E4A", [
-  DISC("62%", 64, 30, "#E8B48F"),
-  DISC("64%", 56, 13, "#E8B48F"),
-  DISC("68%", 54, 13, "#E8B48F"),
-  DISC("72%", 56, 13, "#E8B48F"),
-  P("58%", 100, 52, 11, "#D64545", { borderRadius: 5 }),
-  P("80%", 88, 8, 18, "#D64545", { borderRadius: 4, transform: [{ rotate: "10deg" }] }),
-  DISC("82%", 64, 16, "#7FB3D5"),
-  DISC("83.5%", 67, 9, "#BFE6F5"),
-]);
-export const PaperMvWildwoodScene = movieScene("#16241C", "#24402E", [
-  P("56%", 56, 16, 44, "#3E7C43", { borderRadius: 8 }),
-  P("66%", 52, 20, 56, "#2F6335", { borderRadius: 10 }),
-  P("78%", 56, 15, 40, "#3E7C43", { borderRadius: 7 }),
-  DISC("84%", 100, 16, "#F5EFD8"),
-  DISC("58%", 84, 13, "#B07D4F"),
-  DISC("59.5%", 88, 4, "#16241C"),
-  DISC("62%", 88, 4, "#16241C"),
-]);
+/** Generic Theater: the stage — curtains open on the masks, footlights glowing. */
+export function PaperTheaterGenericScene() {
+  return (
+    <PaperSceneRoot base="#241A2E">
+      {/* stage floor */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#4A3220" }} />
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: "24%", height: 4, backgroundColor: "#6B4A2E" }} />
+      {/* spotlight cone */}
+      <View style={{ position: "absolute", left: "63%", top: -8, width: 30, height: 128, backgroundColor: "#FFE9A8", opacity: 0.13, transform: [{ rotate: "5deg" }] }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* grand curtains, drawn open + swag valance */}
+        <PaperPiece style={{ position: "absolute", left: "41%", bottom: 20, width: 30, height: 126, borderRadius: 8, backgroundColor: "#8E2323" }} />
+        <PaperPiece style={{ position: "absolute", left: "92%", bottom: 20, width: 30, height: 126, borderRadius: 8, backgroundColor: "#8E2323" }} />
+        {[0, 1, 2].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${47 + i * 17}%` as `${number}%`, bottom: 128, width: 56, height: 22, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, backgroundColor: "#7A1D1D" }} />
+        ))}
+        <PaperPiece style={{ position: "absolute", left: "44%", bottom: 46, width: 7, height: 12, backgroundColor: "#FFC531", transform: [{ rotate: "45deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "94%", bottom: 46, width: 7, height: 12, backgroundColor: "#FFC531", transform: [{ rotate: "45deg" }] }} />
+        {/* tragedy mask */}
+        <PaperPiece style={{ position: "absolute", left: "55%", bottom: 62, width: 34, height: 44, borderRadius: 17, backgroundColor: "#E8D8C8" }} />
+        <PaperPiece style={{ position: "absolute", left: "58.5%", bottom: 88, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#241A2E" }} />
+        <PaperPiece style={{ position: "absolute", left: "63.5%", bottom: 88, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#241A2E" }} />
+        <PaperPiece style={{ position: "absolute", left: "59.5%", bottom: 68, width: 15, height: 7, borderTopLeftRadius: 7, borderTopRightRadius: 7, backgroundColor: "#241A2E" }} />
+        {/* footlights */}
+        {[0, 1, 2, 3, 4].map((i) => (
+          <PaperPiece key={`fl${i}`} style={{ position: "absolute", left: `${50 + i * 11}%` as `${number}%`, bottom: 30, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FFD98A" }} />
+        ))}
+      </SettleIn>
+      {/* comedy mask, floating at the curtain's edge */}
+      <PaperBob left="76%" bottom={66} width={34} height={44} distance={3} duration={3200}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 34, height: 44, borderRadius: 17, backgroundColor: "#F4F1EA" }} />
+        <PaperPiece style={{ position: "absolute", left: 7, bottom: 26, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#241A2E" }} />
+        <PaperPiece style={{ position: "absolute", left: 20, bottom: 26, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#241A2E" }} />
+        <PaperPiece style={{ position: "absolute", left: 9, bottom: 8, width: 16, height: 8, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: "#241A2E" }} />
+      </PaperBob>
+    </PaperSceneRoot>
+  );
+}
+
+/** Resident Evil: a dark mansion hallway — candlelight, a door ajar, the green serum glowing. */
+export function PaperMvResidentEvilScene() {
+  return (
+    <PaperSceneRoot base="#1E2226">
+      {/* hallway walls receding */}
+      <View style={{ position: "absolute", left: "40%", top: 0, bottom: 0, width: "14%", backgroundColor: "#26262B", transform: [{ rotate: "4deg" }] }} />
+      <View style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "10%", backgroundColor: "#26262B", transform: [{ rotate: "-4deg" }] }} />
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "18%", backgroundColor: "#17191D" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* the door at the end, ajar with light behind it */}
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 26, width: 44, height: 92, borderRadius: 3, backgroundColor: "#3A3A42" }} />
+        <PaperPiece style={{ position: "absolute", left: "67.5%", bottom: 26, width: 34, height: 92, borderRadius: 3, backgroundColor: "#121216", transform: [{ rotate: "-3deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "72%", bottom: 26, width: 5, height: 92, backgroundColor: "#F5A623", opacity: 0.9 }} />
+        {/* tilted portrait on the wall */}
+        <PaperPiece style={{ position: "absolute", left: "47%", bottom: 84, width: 30, height: 38, borderRadius: 3, backgroundColor: "#54382A", transform: [{ rotate: "5deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "48.5%", bottom: 90, width: 20, height: 24, borderRadius: 2, backgroundColor: "#6E4A33" }} />
+        {/* side table with the serum vial */}
+        <PaperPiece style={{ position: "absolute", left: "84%", bottom: 34, width: 40, height: 7, borderRadius: 3, backgroundColor: "#3A2A1E" }} />
+        <PaperPiece style={{ position: "absolute", left: "85.5%", bottom: 12, width: 6, height: 22, backgroundColor: "#2C2016" }} />
+        <PaperPiece style={{ position: "absolute", left: "92%", bottom: 12, width: 6, height: 22, backgroundColor: "#2C2016" }} />
+        <PaperPiece style={{ position: "absolute", left: "89%", bottom: 41, width: 9, height: 18, borderRadius: 3, backgroundColor: "#58A05C" }} />
+        <PaperPiece style={{ position: "absolute", left: "89.7%", bottom: 59, width: 6, height: 5, borderRadius: 2, backgroundColor: "#C0C6CE" }} />
+        {/* candle on the floor */}
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 12, width: 11, height: 16, borderRadius: 3, backgroundColor: "#F4F1EA" }} />
+      </SettleIn>
+      <PaperPulse left="52.4%" bottom={28} width={8} height={12} min={0.85} max={1.1} duration={1300}>
+        <PaperPiece style={{ width: 8, height: 12, borderRadius: 4, backgroundColor: "#FFB300" }} />
+      </PaperPulse>
+      <PaperPulse left="87%" bottom={36} width={20} height={26} min={0.9} max={1.06} duration={2400}>
+        <PaperPiece style={{ width: 20, height: 26, borderRadius: 10, backgroundColor: "#7FB069", opacity: 0.25 }} />
+      </PaperPulse>
+    </PaperSceneRoot>
+  );
+}
+
+/** Buddy: two silhouettes walking the road into a big sunset. */
+export function PaperMvBuddyScene() {
+  return (
+    <PaperSceneRoot base="#7A6A42">
+      {/* dusk bands + the road */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#5D4E2E" }} />
+      <PaperPiece style={{ position: "absolute", left: "55%", bottom: 0, width: 130, height: 44, backgroundColor: "#3A3222", transform: [{ rotate: "0deg" }] }} />
+      <PaperPulse left="63%" bottom={34} width={64} height={64} min={0.97} max={1.04} duration={4600}>
+        <PaperPiece style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#F2C14E" }} />
+      </PaperPulse>
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* road dashes walking away */}
+        {[0, 1, 2].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${71 + i * 1.5}%` as `${number}%`, bottom: 4 + i * 11, width: 12 - i * 3, height: 4, borderRadius: 2, backgroundColor: "#E8D8A8", opacity: 0.85 }} />
+        ))}
+        {/* scrub at the roadside */}
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 8, width: 20, height: 12, borderRadius: 6, backgroundColor: "#4A3F24" }} />
+        <PaperPiece style={{ position: "absolute", left: "90%", bottom: 14, width: 24, height: 14, borderRadius: 7, backgroundColor: "#4A3F24" }} />
+      </SettleIn>
+      {/* the buddies, shoulder to shoulder */}
+      <PFigure left="63%" bottom={16} body="#2E2A1E" skin="#2E2A1E" hair="#2E2A1E" scale={1.05} />
+      <PFigure left="71%" bottom={14} body="#26221A" skin="#26221A" hair="#26221A" scale={0.92} />
+    </PaperSceneRoot>
+  );
+}
+
+/** Black Phone: a dark basement — the black phone on the wall under one hanging bulb. */
+export function PaperMvBlackPhoneScene() {
+  return (
+    <PaperSceneRoot base="#1A1A1E">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "20%", backgroundColor: "#121216" }} />
+      <View style={{ position: "absolute", left: "40%", right: 0, bottom: "58%", height: 3, backgroundColor: "#232329" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* the phone: wall box, handset, coiled cord */}
+        <PaperPiece style={{ position: "absolute", left: "62%", bottom: 62, width: 40, height: 52, borderRadius: 5, backgroundColor: "#232329" }} />
+        <PaperPiece style={{ position: "absolute", left: "61%", bottom: 106, width: 46, height: 12, borderRadius: 6, backgroundColor: "#0C0C0F" }} />
+        <PaperPiece style={{ position: "absolute", left: "60.5%", bottom: 104, width: 10, height: 16, borderRadius: 4, backgroundColor: "#0C0C0F" }} />
+        <PaperPiece style={{ position: "absolute", left: "71%", bottom: 104, width: 10, height: 16, borderRadius: 4, backgroundColor: "#0C0C0F" }} />
+        {[0, 1, 2].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${73 + (i % 2) * 2}%` as `${number}%`, bottom: 84 - i * 9, width: 11, height: 7, borderRadius: 3.5, borderWidth: 2, borderColor: "#0C0C0F", backgroundColor: "#1A1A1E" }} />
+        ))}
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 78, width: 8, height: 8, borderRadius: 4, backgroundColor: "#D64545" }} />
+        {/* a small grimy window, high up */}
+        <PaperPiece style={{ position: "absolute", left: "86%", bottom: 108, width: 30, height: 22, borderRadius: 3, backgroundColor: "#2C3038" }} />
+        <PaperPiece style={{ position: "absolute", left: "90.5%", bottom: 108, width: 3, height: 22, backgroundColor: "#1A1A1E" }} />
+        {/* mattress edge on the floor */}
+        <PaperPiece style={{ position: "absolute", left: "44%", bottom: 8, width: 64, height: 14, borderRadius: 5, backgroundColor: "#2A2A30" }} />
+      </SettleIn>
+      {/* the hanging bulb */}
+      <PaperPiece style={{ position: "absolute", left: "52%", bottom: 128, width: 3, height: 26, backgroundColor: "#0C0C0F" }} />
+      <PaperPulse left="50.5%" bottom={102} width={22} height={22} min={0.92} max={1.08} duration={2100}>
+        <PaperPiece style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: "#FFE9A8" }} />
+      </PaperPulse>
+    </PaperSceneRoot>
+  );
+}
+
+/** Backrooms: an endless yellow office — humming lights, damp carpet, no exit in sight. */
+export function PaperMvBackroomsScene() {
+  return (
+    <PaperSceneRoot base="#C9B458">
+      {/* ceiling + damp carpet */}
+      <View style={{ position: "absolute", left: 0, right: 0, top: 0, height: "16%", backgroundColor: "#D8C26A" }} />
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "22%", backgroundColor: "#8A7A34" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* fluorescent bars — one humming brighter than the other */}
+        <PaperPiece style={{ position: "absolute", left: "48%", bottom: 128, width: 62, height: 9, borderRadius: 4, backgroundColor: "#FFF8DC" }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 128, width: 62, height: 9, borderRadius: 4, backgroundColor: "#FFF8DC", opacity: 0.55 }} />
+        {/* wall panels receding, each a shade deeper */}
+        <PaperPiece style={{ position: "absolute", left: "44%", bottom: 30, width: 52, height: 92, borderRadius: 3, backgroundColor: "#BFA94E", transform: [{ rotate: "1deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 30, width: 52, height: 92, borderRadius: 3, backgroundColor: "#B8A44E" }} />
+        <PaperPiece style={{ position: "absolute", left: "72%", bottom: 30, width: 52, height: 92, borderRadius: 3, backgroundColor: "#B09F45" }} />
+        {/* one dark doorway, far along the wall */}
+        <PaperPiece style={{ position: "absolute", left: "87%", bottom: 30, width: 30, height: 66, borderRadius: 3, backgroundColor: "#6E5F27" }} />
+        <PaperPiece style={{ position: "absolute", left: "88.5%", bottom: 36, width: 20, height: 54, borderRadius: 2, backgroundColor: "#57491F" }} />
+        {/* baseboards + a lone outlet */}
+        <View style={{ position: "absolute", left: "40%", right: 0, bottom: 28, height: 4, backgroundColor: "#A8943F" }} />
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 38, width: 7, height: 10, borderRadius: 2, backgroundColor: "#E8D894" }} />
+        {/* damp stain creeping up one panel */}
+        <PaperPiece style={{ position: "absolute", left: "59%", bottom: 30, width: 30, height: 16, borderTopLeftRadius: 14, borderTopRightRadius: 10, backgroundColor: "#9A8638", opacity: 0.8 }} />
+      </SettleIn>
+    </PaperSceneRoot>
+  );
+}
+
+/** Exit 8: a white subway corridor — repeating doors under the glowing green sign. */
+export function PaperMvExit8Scene() {
+  return (
+    <PaperSceneRoot base="#DCE6F2">
+      {/* corridor floor + ceiling line */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "20%", backgroundColor: "#B9CBD8" }} />
+      <View style={{ position: "absolute", left: "40%", right: 0, top: 0, height: "12%", backgroundColor: "#C9D6E4" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* repeating door frames down the corridor */}
+        {[0, 1, 2].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${46 + i * 17}%` as `${number}%`, bottom: 28, width: 34 - i * 5, height: 74 - i * 8, borderRadius: 3, borderWidth: 4, borderColor: "#8FA6B8", backgroundColor: "#EDF2F8" }} />
+        ))}
+        {/* a blank poster, exactly like the last one */}
+        <PaperPiece style={{ position: "absolute", left: "90%", bottom: 74, width: 24, height: 32, borderRadius: 2, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "91.5%", bottom: 92, width: 16, height: 4, borderRadius: 2, backgroundColor: "#B9CBD8" }} />
+        <PaperPiece style={{ position: "absolute", left: "91.5%", bottom: 84, width: 16, height: 4, borderRadius: 2, backgroundColor: "#B9CBD8" }} />
+        {/* floor guide lines */}
+        <View style={{ position: "absolute", left: "42%", right: 0, bottom: 12, height: 3, backgroundColor: "#F2C14E", opacity: 0.8 }} />
+      </SettleIn>
+      {/* the green exit sign: plaque, arrow, and the 8 as two stacked rings */}
+      <SettleIn delay={160} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <PaperPiece style={{ position: "absolute", left: "60%", bottom: 112, width: 76, height: 30, borderRadius: 5, backgroundColor: "#2C7A4B" }} />
+        <PaperPiece style={{ position: "absolute", left: "62.5%", bottom: 122, width: 17, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 117, width: 10, height: 10, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "72%", bottom: 128, width: 13, height: 13, borderRadius: 6.5, borderWidth: 3.5, borderColor: "#FFFFFF", backgroundColor: "#2C7A4B" }} />
+        <PaperPiece style={{ position: "absolute", left: "72%", bottom: 116, width: 13, height: 13, borderRadius: 6.5, borderWidth: 3.5, borderColor: "#FFFFFF", backgroundColor: "#2C7A4B" }} />
+      </SettleIn>
+      <PaperPulse left="59%" bottom={108} width={84} height={38} min={0.94} max={1.03} duration={2800}>
+        <PaperPiece style={{ width: 84, height: 38, borderRadius: 8, backgroundColor: "#7FB069", opacity: 0.18 }} />
+      </PaperPulse>
+    </PaperSceneRoot>
+  );
+}
+
+/** Deadpool: the mask rising behind crossed katanas — and a burrito, obviously. */
+export function PaperMvDeadpoolScene() {
+  return (
+    <PaperSceneRoot base="#261A1E">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#7A1D1D" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* the mask, big behind everything */}
+        <PaperPiece style={{ position: "absolute", left: "59%", bottom: 44, width: 84, height: 84, borderRadius: 42, backgroundColor: "#C0272D" }} />
+        <PaperPiece style={{ position: "absolute", left: "62%", bottom: 82, width: 24, height: 30, borderRadius: 12, backgroundColor: "#FFFFFF", transform: [{ rotate: "-12deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "74%", bottom: 82, width: 24, height: 30, borderRadius: 12, backgroundColor: "#FFFFFF", transform: [{ rotate: "12deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "65.5%", bottom: 92, width: 8, height: 8, borderRadius: 4, backgroundColor: "#261A1E" }} />
+        <PaperPiece style={{ position: "absolute", left: "77.5%", bottom: 92, width: 8, height: 8, borderRadius: 4, backgroundColor: "#261A1E" }} />
+        {/* crossed katanas */}
+        <PaperPiece style={{ position: "absolute", left: "54%", bottom: 66, width: 92, height: 7, borderRadius: 3.5, backgroundColor: "#C0C6CE", transform: [{ rotate: "26deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "54%", bottom: 66, width: 92, height: 7, borderRadius: 3.5, backgroundColor: "#AEB6BF", transform: [{ rotate: "-26deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "53%", bottom: 34, width: 20, height: 9, borderRadius: 4, backgroundColor: "#1E1B26", transform: [{ rotate: "26deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "83%", bottom: 34, width: 20, height: 9, borderRadius: 4, backgroundColor: "#1E1B26", transform: [{ rotate: "-26deg" }] }} />
+        {/* the burrito, on a plate, front and center */}
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 10, width: 92, height: 15, borderRadius: 7.5, backgroundColor: "#EDE6D8" }} />
+        <PaperPiece style={{ position: "absolute", left: "62%", bottom: 20, width: 66, height: 26, borderRadius: 13, backgroundColor: "#E8C87A" }} />
+        <PaperPiece style={{ position: "absolute", left: "64%", bottom: 27, width: 20, height: 5, borderRadius: 2.5, backgroundColor: "#C9A24E", transform: [{ rotate: "-6deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "70%", bottom: 33, width: 20, height: 5, borderRadius: 2.5, backgroundColor: "#C9A24E", transform: [{ rotate: "5deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "60%", bottom: 22, width: 10, height: 20, borderRadius: 4, backgroundColor: "#D8D2C4" }} />
+      </SettleIn>
+    </PaperSceneRoot>
+  );
+}
+
+/** FNAF: the dark pizzeria — show stage, glowing eyes, arcade cabinets humming. */
+export function PaperMvFnafScene() {
+  return (
+    <PaperSceneRoot base="#1E1A26">
+      {/* checkered floor */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "18%", backgroundColor: "#262033" }} />
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <View key={i} style={{ position: "absolute", left: `${42 + i * 10}%` as `${number}%`, bottom: i % 2 ? 0 : 12, width: "10%", height: 12, backgroundColor: "#17131F" }} />
+      ))}
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* stage curtains */}
+        <PaperPiece style={{ position: "absolute", left: "56%", bottom: 26, width: 22, height: 96, borderRadius: 6, backgroundColor: "#4A2E4F" }} />
+        <PaperPiece style={{ position: "absolute", left: "82%", bottom: 26, width: 22, height: 96, borderRadius: 6, backgroundColor: "#4A2E4F" }} />
+        <PaperPiece style={{ position: "absolute", left: "54%", bottom: 116, width: 116, height: 16, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, backgroundColor: "#3E2742" }} />
+        <PaperPiece style={{ position: "absolute", left: "54%", bottom: 24, width: 116, height: 8, borderRadius: 4, backgroundColor: "#2C1E33" }} />
+        {/* Freddy between the curtains: ears, hat, snout */}
+        <PaperPiece style={{ position: "absolute", left: "64%", bottom: 96, width: 15, height: 15, borderRadius: 7.5, backgroundColor: "#8A5A33" }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 96, width: 15, height: 15, borderRadius: 7.5, backgroundColor: "#8A5A33" }} />
+        <PaperPiece style={{ position: "absolute", left: "63%", bottom: 58, width: 56, height: 52, borderRadius: 26, backgroundColor: "#96613A" }} />
+        <PaperPiece style={{ position: "absolute", left: "68%", bottom: 102, width: 28, height: 10, borderRadius: 3, backgroundColor: "#1E1A26" }} />
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 110, width: 34, height: 8, borderRadius: 3, backgroundColor: "#1E1A26" }} />
+        <PaperPiece style={{ position: "absolute", left: "68.5%", bottom: 62, width: 24, height: 16, borderRadius: 8, backgroundColor: "#C89B6A" }} />
+        <PaperPiece style={{ position: "absolute", left: "71.5%", bottom: 72, width: 9, height: 7, borderRadius: 3, backgroundColor: "#1E1A26" }} />
+        {/* arcade cabinets at the sides */}
+        <PaperPiece style={{ position: "absolute", left: "44%", bottom: 22, width: 26, height: 52, borderRadius: 4, backgroundColor: "#2C2440" }} />
+        <PaperPiece style={{ position: "absolute", left: "45.5%", bottom: 52, width: 18, height: 16, borderRadius: 3, backgroundColor: "#3E7CB1" }} />
+        <PaperPiece style={{ position: "absolute", left: "90%", bottom: 22, width: 26, height: 52, borderRadius: 4, backgroundColor: "#2C2440" }} />
+        <PaperPiece style={{ position: "absolute", left: "91.5%", bottom: 52, width: 18, height: 16, borderRadius: 3, backgroundColor: "#E86A92" }} />
+        {/* hanging stars */}
+        {[0, 1, 2].map((i) => (
+          <View key={i}>
+            <View style={{ position: "absolute", left: `${52 + i * 16}%` as `${number}%`, bottom: 132, width: 2, height: 12, backgroundColor: "#4A4266" }} />
+            <PaperPiece style={{ position: "absolute", left: `${51.4 + i * 16}%` as `${number}%`, bottom: 122, width: 10, height: 10, backgroundColor: "#FFC531", transform: [{ rotate: "45deg" }] }} />
+          </View>
+        ))}
+      </SettleIn>
+      {/* the eyes, glowing in the dark */}
+      <PaperPulse left="67.5%" bottom={84} width={8} height={8} min={0.8} max={1.1} duration={1900}>
+        <PaperPiece style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#F4F1EA" }} />
+      </PaperPulse>
+      <PaperPulse left="75.5%" bottom={84} width={8} height={8} min={0.8} max={1.1} duration={1900} delay={300}>
+        <PaperPiece style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#F4F1EA" }} />
+      </PaperPulse>
+    </PaperSceneRoot>
+  );
+}
+
+/** Iron Lung: inside the little sub — one porthole, dark water, the red light watching. */
+export function PaperMvIronLungScene() {
+  return (
+    <PaperSceneRoot base="#260F12">
+      {/* hull panels + rivet lines */}
+      <View style={{ position: "absolute", left: "56%", top: 0, bottom: 0, width: 3, backgroundColor: "#33090D" }} />
+      <View style={{ position: "absolute", left: "90%", top: 0, bottom: 0, width: 3, backgroundColor: "#33090D" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* pipes along the ceiling */}
+        <PaperPiece style={{ position: "absolute", left: "42%", bottom: 132, width: 190, height: 10, borderRadius: 5, backgroundColor: "#3D2A2E" }} />
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 116, width: 10, height: 18, borderRadius: 4, backgroundColor: "#332327" }} />
+        {/* the porthole: steel ring, bolts, black water */}
+        <PaperPiece style={{ position: "absolute", left: "60%", bottom: 42, width: 84, height: 84, borderRadius: 42, borderWidth: 8, borderColor: "#5B6B7A", backgroundColor: "#0D0507" }} />
+        {[0, 60, 120, 180, 240, 300].map((a) => {
+          const rad = (a * Math.PI) / 180;
+          return (
+            <PaperPiece
+              key={a}
+              style={{
+                position: "absolute",
+                left: `${72 + Math.cos(rad) * 11.5}%` as `${number}%`,
+                bottom: 81 + Math.sin(rad) * 38,
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: "#8E9AAF",
+              }}
+            />
+          );
+        })}
+        {/* something pale, out in the water */}
+        <PaperPiece style={{ position: "absolute", left: "70%", bottom: 66, width: 26, height: 34, borderRadius: 13, backgroundColor: "#4A1216", opacity: 0.9 }} />
+        {/* gauge + switch panel */}
+        <PaperPiece style={{ position: "absolute", left: "86%", bottom: 96, width: 26, height: 26, borderRadius: 13, borderWidth: 3, borderColor: "#5B6B7A", backgroundColor: "#E8D8C8" }} />
+        <PaperPiece style={{ position: "absolute", left: "89.5%", bottom: 106, width: 4, height: 12, borderRadius: 2, backgroundColor: "#D64545", transform: [{ rotate: "38deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 30, width: 34, height: 22, borderRadius: 4, backgroundColor: "#33090D" }} />
+        <PaperPiece style={{ position: "absolute", left: "47.5%", bottom: 42, width: 9, height: 6, borderRadius: 2, backgroundColor: "#7FB069" }} />
+        <PaperPiece style={{ position: "absolute", left: "51%", bottom: 42, width: 9, height: 6, borderRadius: 2, backgroundColor: "#5B6B7A" }} />
+      </SettleIn>
+      {/* bubbles rising past the glass */}
+      <PaperBob left="66%" bottom={52} width={7} height={7} distance={10} duration={2600}>
+        <PaperPiece style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#7FB3D5", opacity: 0.8 }} />
+      </PaperBob>
+      <PaperBob left="76%" bottom={46} width={5} height={5} distance={12} duration={3100} delay={700}>
+        <PaperPiece style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#7FB3D5", opacity: 0.6 }} />
+      </PaperBob>
+      {/* the warning light */}
+      <PaperPulse left="47%" bottom={118} width={13} height={13} min={0.8} max={1.12} duration={1100}>
+        <PaperPiece style={{ width: 13, height: 13, borderRadius: 6.5, backgroundColor: "#D64545" }} />
+      </PaperPulse>
+    </PaperSceneRoot>
+  );
+}
+
+/** Nimrods: a desert highway at dusk and one very quirky roadside sign. */
+export function PaperMvNimrodsScene() {
+  return (
+    <PaperSceneRoot base="#232946">
+      {/* dusk horizon + highway */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: "26%", height: 10, backgroundColor: "#C96A2B", opacity: 0.55 }} />
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#161A2E" }} />
+      <PaperPiece style={{ position: "absolute", left: "42%", bottom: 8, width: 210, height: 5, borderRadius: 2.5, backgroundColor: "#D8D2C4", opacity: 0.5, transform: [{ rotate: "-2deg" }] }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* the sign: two posts and a starburst plaque, tilted like it's proud of itself */}
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 30, width: 7, height: 62, borderRadius: 3, backgroundColor: "#5B4A33" }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 30, width: 7, height: 62, borderRadius: 3, backgroundColor: "#5B4A33" }} />
+        <PaperPiece style={{ position: "absolute", left: "61%", bottom: 88, width: 76, height: 40, borderRadius: 8, backgroundColor: "#DCE6F2", transform: [{ rotate: "-4deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "70%", bottom: 96, width: 26, height: 26, backgroundColor: "#D64545", transform: [{ rotate: "41deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "72.5%", bottom: 101, width: 16, height: 16, borderRadius: 8, backgroundColor: "#F5A623" }} />
+        <PaperPiece style={{ position: "absolute", left: "63.5%", bottom: 92, width: 22, height: 5, borderRadius: 2.5, backgroundColor: "#7A8AA0", transform: [{ rotate: "-4deg" }] }} />
+        {/* cactus + tumbleweed */}
+        <PaperPiece style={{ position: "absolute", left: "48%", bottom: 34, width: 10, height: 36, borderRadius: 5, backgroundColor: "#2F6335" }} />
+        <PaperPiece style={{ position: "absolute", left: "45.5%", bottom: 50, width: 8, height: 16, borderRadius: 4, backgroundColor: "#2F6335" }} />
+        <PaperPiece style={{ position: "absolute", left: "51%", bottom: 56, width: 8, height: 13, borderRadius: 4, backgroundColor: "#2F6335" }} />
+        <PaperPiece style={{ position: "absolute", left: "88%", bottom: 32, width: 18, height: 18, borderRadius: 9, borderWidth: 3, borderColor: "#8A6D3B", backgroundColor: "#232946" }} />
+        {/* first stars + a thin moon */}
+        {[0, 1, 2, 3].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${46 + i * 13}%` as `${number}%`, bottom: 122 - (i % 2) * 12, width: 5, height: 5, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }], opacity: 0.85 }} />
+        ))}
+        <View style={{ position: "absolute", left: "90%", bottom: 116, width: 22, height: 22 }}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 22, height: 22, borderRadius: 11, backgroundColor: "#F5EFD8" }} />
+          <View style={{ position: "absolute", left: 7, bottom: 2, width: 18, height: 18, borderRadius: 9, backgroundColor: "#232946" }} />
+        </View>
+      </SettleIn>
+    </PaperSceneRoot>
+  );
+}
+
+/** Idiots: a road trip — two goofy travellers and a car that has seen things. */
+export function PaperMvIdiotsScene() {
+  return (
+    <PaperSceneRoot base="#8A7A4A">
+      <PSun left="88%" bottom={112} size={28} />
+      <PaperCloud top={10} size={30} duration={26000} delay={800} />
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#57492E" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* the beat-up car: mustard body, one wrong door, a hopeful lean */}
+        <PaperPiece style={{ position: "absolute", left: "54%", bottom: 28, width: 128, height: 30, borderRadius: 11, backgroundColor: "#F2C14E", transform: [{ rotate: "-1.5deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "61%", bottom: 52, width: 62, height: 25, borderTopLeftRadius: 14, borderTopRightRadius: 14, backgroundColor: "#E8B34B", transform: [{ rotate: "-1.5deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "64%", bottom: 56, width: 22, height: 15, borderRadius: 4, backgroundColor: "#BFE6F5" }} />
+        <PaperPiece style={{ position: "absolute", left: "72%", bottom: 56, width: 20, height: 15, borderRadius: 4, backgroundColor: "#BFE6F5" }} />
+        <PaperPiece style={{ position: "absolute", left: "69%", bottom: 28, width: 26, height: 30, borderRadius: 4, backgroundColor: "#E8862D" }} />
+        <PaperPiece style={{ position: "absolute", left: "57%", bottom: 13, width: 21, height: 21, borderRadius: 10.5, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: "79%", bottom: 15, width: 16, height: 16, borderRadius: 8, backgroundColor: "#2C2C33" }} />
+        {/* luggage strapped to the roof, optimism included */}
+        <PaperPiece style={{ position: "absolute", left: "64%", bottom: 78, width: 30, height: 13, borderRadius: 4, backgroundColor: "#A93226", transform: [{ rotate: "-3deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "70%", bottom: 76, width: 5, height: 16, backgroundColor: "#5D4037", transform: [{ rotate: "10deg" }] }} />
+        {/* the map, upside down */}
+        <PaperPiece style={{ position: "absolute", left: "45%", bottom: 44, width: 24, height: 18, borderRadius: 3, backgroundColor: "#FFF8E1", transform: [{ rotate: "14deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "46.5%", bottom: 52, width: 14, height: 3, borderRadius: 1.5, backgroundColor: "#7FB3D5", transform: [{ rotate: "14deg" }] }} />
+      </SettleIn>
+      <PFigure left="43%" bottom={10} body="#D64545" scale={1.08} />
+      <PFigure left="88%" bottom={10} body="#3E7CB1" scale={0.78} />
+      {/* exhaust puff of determination */}
+      <PaperBob left="51%" bottom={16} width={12} height={12} distance={3} duration={2400}>
+        <PaperPiece style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFFFFF", opacity: 0.55 }} />
+      </PaperBob>
+    </PaperSceneRoot>
+  );
+}
+
+/** Nobody: a quiet suburban night — the house, the bus stop, the briefcase. */
+export function PaperMvNobodyScene() {
+  return (
+    <PaperSceneRoot base="#20242A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "22%", backgroundColor: "#171A1F" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* the house, asleep like everyone in it */}
+        <PaperPiece style={{ position: "absolute", left: "56%", bottom: 28, width: 96, height: 56, borderRadius: 3, backgroundColor: "#2C313A" }} />
+        <PaperPiece style={{ position: "absolute", left: "53%", bottom: 82, width: 108, height: 14, backgroundColor: "#22262E", transform: [{ rotate: "0deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "60%", bottom: 52, width: 15, height: 15, borderRadius: 2, backgroundColor: "#FFD98A" }} />
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 52, width: 15, height: 15, borderRadius: 2, backgroundColor: "#39404C" }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 52, width: 15, height: 15, borderRadius: 2, backgroundColor: "#39404C" }} />
+        <PaperPiece style={{ position: "absolute", left: "70%", bottom: 28, width: 16, height: 26, borderTopLeftRadius: 7, borderTopRightRadius: 7, backgroundColor: "#22262E" }} />
+        {/* bus stop: pole, sign, bench */}
+        <PaperPiece style={{ position: "absolute", left: "88%", bottom: 28, width: 5, height: 76, borderRadius: 2.5, backgroundColor: "#5B6B7A" }} />
+        <PaperPiece style={{ position: "absolute", left: "85.5%", bottom: 92, width: 26, height: 16, borderRadius: 4, backgroundColor: "#C9A86A" }} />
+        <PaperPiece style={{ position: "absolute", left: "82%", bottom: 30, width: 52, height: 8, borderRadius: 4, backgroundColor: "#4A4232" }} />
+        <PaperPiece style={{ position: "absolute", left: "83%", bottom: 14, width: 6, height: 16, backgroundColor: "#39404C" }} />
+        <PaperPiece style={{ position: "absolute", left: "93%", bottom: 14, width: 6, height: 16, backgroundColor: "#39404C" }} />
+        {/* the briefcase, waiting on the bench */}
+        <PaperPiece style={{ position: "absolute", left: "84%", bottom: 38, width: 24, height: 17, borderRadius: 3, backgroundColor: "#6E4A33" }} />
+        <PaperPiece style={{ position: "absolute", left: "86.5%", bottom: 55, width: 12, height: 6, borderRadius: 3, borderWidth: 2.5, borderColor: "#54382A", backgroundColor: "#20242A" }} />
+        {/* streetlamp */}
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 30, width: 5, height: 84, borderRadius: 2.5, backgroundColor: "#39404C" }} />
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 110, width: 20, height: 6, borderRadius: 3, backgroundColor: "#39404C" }} />
+      </SettleIn>
+      <PaperPulse left="47.5%" bottom={94} width={15} height={15} min={0.9} max={1.08} duration={2600}>
+        <PaperPiece style={{ width: 15, height: 15, borderRadius: 7.5, backgroundColor: "#FFD98A" }} />
+      </PaperPulse>
+      <PaperPulse left="59.5%" bottom={46} width={26} height={26} min={0.92} max={1.04} duration={3200}>
+        <PaperPiece style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: "#FFE9A8", opacity: 0.14 }} />
+      </PaperPulse>
+    </PaperSceneRoot>
+  );
+}
+
+/** Mario: the platformer world — floating blocks, a green pipe, one perfect mushroom. */
+export function PaperMvMarioScene() {
+  return (
+    <PaperSceneRoot base="#4E9AD8">
+      <PaperCloud top={12} size={34} duration={24000} delay={400} />
+      <PaperCloud top={30} size={24} duration={30000} delay={5000} />
+      {/* hills behind the brick platform */}
+      <PaperPiece style={{ position: "absolute", left: "44%", bottom: 24, width: 90, height: 40, borderTopLeftRadius: 45, borderTopRightRadius: 45, backgroundColor: "#58A05C" }} />
+      <PaperPiece style={{ position: "absolute", left: "86%", bottom: 24, width: 64, height: 28, borderTopLeftRadius: 32, borderTopRightRadius: 32, backgroundColor: "#4C8A50" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* brick platform */}
+        <PaperPiece style={{ position: "absolute", left: "40%", bottom: 0, width: "62%", height: 26, backgroundColor: "#C6692E" }} />
+        <PaperPiece style={{ position: "absolute", left: "40%", bottom: 24, width: "62%", height: 5, backgroundColor: "#58A05C" }} />
+        <View style={{ position: "absolute", left: "40%", right: 0, bottom: 8, height: 2, backgroundColor: "#A8551F" }} />
+        <View style={{ position: "absolute", left: "40%", right: 0, bottom: 17, height: 2, backgroundColor: "#A8551F" }} />
+        {/* green pipe */}
+        <PaperPiece style={{ position: "absolute", left: "86%", bottom: 26, width: 32, height: 46, backgroundColor: "#3E8A3E" }} />
+        <PaperPiece style={{ position: "absolute", left: "84.5%", bottom: 66, width: 40, height: 12, borderRadius: 3, backgroundColor: "#4CAF50" }} />
+        {/* the mushroom, waiting to be useful */}
+        <PaperPiece style={{ position: "absolute", left: "50%", bottom: 26, width: 30, height: 18, borderTopLeftRadius: 15, borderTopRightRadius: 15, backgroundColor: "#D64545" }} />
+        <PaperPiece style={{ position: "absolute", left: "51.5%", bottom: 36, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "55%", bottom: 38, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#FFFFFF" }} />
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 26, width: 16, height: 10, borderRadius: 3, backgroundColor: "#FFF3D6" }} />
+      </SettleIn>
+      {/* floating blocks, bobbing on sine */}
+      <PaperBob left="62%" bottom={72} width={24} height={24} distance={5} duration={2400}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderRadius: 4, backgroundColor: "#FFB300" }} />
+        <PaperPiece style={{ position: "absolute", left: 8, bottom: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFE082" }} />
+      </PaperBob>
+      <PaperBob left="76%" bottom={88} width={24} height={24} distance={5} duration={2600} delay={700}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderRadius: 4, backgroundColor: "#FFB300" }} />
+        <PaperPiece style={{ position: "absolute", left: 8, bottom: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFE082" }} />
+      </PaperBob>
+      {/* a coin, spinning in the sun */}
+      <PaperPulse left="69%" bottom={106} width={13} height={16} min={0.55} max={1} duration={1500}>
+        <PaperPiece style={{ width: 13, height: 16, borderRadius: 6.5, backgroundColor: "#FFD54F" }} />
+      </PaperPulse>
+    </PaperSceneRoot>
+  );
+}
+
+/** Toy Story: a kid's bedroom at night — the toys are awake, obviously. */
+export function PaperMvToyStoryScene() {
+  return (
+    <PaperSceneRoot base="#1E2A4E">
+      {/* window with the moon, Andy's-room blue */}
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <PaperPiece style={{ position: "absolute", left: "80%", bottom: 66, width: 52, height: 62, borderRadius: 4, borderWidth: 4, borderColor: "#3E4E7E", backgroundColor: "#27355C" }} />
+        <View style={{ position: "absolute", left: "87%", bottom: 66, width: 3, height: 62, backgroundColor: "#3E4E7E" }} />
+        <View style={{ position: "absolute", left: "80%", bottom: 94, width: 52, height: 3, backgroundColor: "#3E4E7E" }} />
+        <PaperPiece style={{ position: "absolute", left: "83%", bottom: 102, width: 20, height: 20, borderRadius: 10, backgroundColor: "#F5E6A8" }} />
+        {/* the bed */}
+        <PaperPiece style={{ position: "absolute", left: "42%", bottom: 0, width: 128, height: 32, borderRadius: 6, backgroundColor: "#3E5A9E" }} />
+        <PaperPiece style={{ position: "absolute", left: "43%", bottom: 26, width: 42, height: 16, borderRadius: 7, backgroundColor: "#E8EAF6" }} />
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 14, width: 66, height: 18, borderRadius: 5, backgroundColor: "#4E6FB5" }} />
+        {/* cowboy hat on the bedpost */}
+        <PaperPiece style={{ position: "absolute", left: "71%", bottom: 40, width: 30, height: 8, borderRadius: 4, backgroundColor: "#8D6E63" }} />
+        <PaperPiece style={{ position: "absolute", left: "73.5%", bottom: 46, width: 19, height: 11, borderRadius: 5, backgroundColor: "#A1887F" }} />
+        {/* toy blocks on the bedspread */}
+        <PaperPiece style={{ position: "absolute", left: "47%", bottom: 32, width: 19, height: 19, borderRadius: 3, backgroundColor: "#1E88E5", transform: [{ rotate: "12deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "52%", bottom: 32, width: 18, height: 18, borderRadius: 3, backgroundColor: "#58A05C" }} />
+        {/* stars on the wall */}
+        {[0, 1, 2].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${48 + i * 11}%` as `${number}%`, bottom: 116 - (i % 2) * 14, width: 6, height: 6, backgroundColor: "#FFE082", transform: [{ rotate: "45deg" }], opacity: 0.9 }} />
+        ))}
+      </SettleIn>
+      <PaperBob left="56%" bottom={32} width={20} height={20} distance={3} duration={3400}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 20, height: 20, borderRadius: 3, backgroundColor: "#E53935" }} />
+        <PaperPiece style={{ position: "absolute", left: 7, bottom: 5, width: 6, height: 10, borderRadius: 3, backgroundColor: "#FFEBEE", opacity: 0.85 }} />
+      </PaperBob>
+      {/* the rocket toy, ready when he is */}
+      <PaperBob left="86%" bottom={34} width={18} height={34} distance={5} duration={2800} delay={500}>
+        <PaperPiece style={{ position: "absolute", left: 4, bottom: 8, width: 10, height: 20, borderRadius: 5, backgroundColor: "#E0E0E0" }} />
+        <PaperPiece style={{ position: "absolute", left: 4, bottom: 24, width: 10, height: 8, borderRadius: 4, backgroundColor: "#E53935" }} />
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 6, height: 9, backgroundColor: "#FF8F00", transform: [{ rotate: "-18deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 12, bottom: 0, width: 6, height: 9, backgroundColor: "#FF8F00", transform: [{ rotate: "18deg" }] }} />
+      </PaperBob>
+    </PaperSceneRoot>
+  );
+}
+
+/** Zootopia: the animal city — canopy above, burrow doors below, traffic in between. */
+export function PaperMvZootopiaScene() {
+  return (
+    <PaperSceneRoot base="#6FB9D9">
+      <PSun left="46%" bottom={112} size={24} />
+      {/* jungle canopy over the top of the city */}
+      <View style={{ position: "absolute", left: "40%", right: 0, top: 0, height: 20, backgroundColor: "#2E7D32", opacity: 0.9 }} />
+      {[0, 1, 2, 3].map((i) => (
+        <PaperPiece key={i} style={{ position: "absolute", left: `${46 + i * 14}%` as `${number}%`, bottom: 122, width: 34, height: 18, borderRadius: 9, backgroundColor: "#388E3C" }} />
+      ))}
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* skyline, sized for everybody */}
+        <PaperPiece style={{ position: "absolute", left: "56%", bottom: 26, width: 30, height: 66, borderRadius: 3, backgroundColor: "#90A4AE" }} />
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 26, width: 24, height: 88, borderRadius: 3, backgroundColor: "#7E97A3" }} />
+        <PaperPiece style={{ position: "absolute", left: "75%", bottom: 26, width: 34, height: 54, borderRadius: 3, backgroundColor: "#9DB4BE" }} />
+        <PaperPiece style={{ position: "absolute", left: "85%", bottom: 26, width: 22, height: 74, borderRadius: 3, backgroundColor: "#7E97A3" }} />
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <PaperPiece key={`w${i}`} style={{ position: "absolute", left: `${59 + (i % 3) * 11}%` as `${number}%`, bottom: 44 + Math.floor(i / 3) * 22, width: 7, height: 9, borderRadius: 2, backgroundColor: "#FFE9A8" }} />
+        ))}
+        {/* burrow doors in the street-level mound */}
+        <PaperPiece style={{ position: "absolute", left: "42%", bottom: 0, width: 120, height: 26, borderTopLeftRadius: 30, borderTopRightRadius: 30, backgroundColor: "#58A05C" }} />
+        <PaperPiece style={{ position: "absolute", left: "47%", bottom: 0, width: 16, height: 15, borderTopLeftRadius: 8, borderTopRightRadius: 8, backgroundColor: "#5D4037" }} />
+        <PaperPiece style={{ position: "absolute", left: "54%", bottom: 0, width: 13, height: 12, borderTopLeftRadius: 6.5, borderTopRightRadius: 6.5, backgroundColor: "#6B4423" }} />
+        {/* a pawpsicle-red traffic light moment: two tiny cars */}
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 8, width: 26, height: 11, borderRadius: 5, backgroundColor: "#D64545" }} />
+        <PaperPiece style={{ position: "absolute", left: "78%", bottom: 3, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: "84%", bottom: 3, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#2C2C33" }} />
+      </SettleIn>
+      <PaperBob left="60%" bottom={6} width={30} height={18} distance={2} duration={3600}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 4, width: 30, height: 11, borderRadius: 5, backgroundColor: "#3E7CB1" }} />
+        <PaperPiece style={{ position: "absolute", left: 6, bottom: 12, width: 16, height: 8, borderTopLeftRadius: 6, borderTopRightRadius: 6, backgroundColor: "#5E97C4" }} />
+        <PaperPiece style={{ position: "absolute", left: 3, bottom: 0, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: 20, bottom: 0, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#2C2C33" }} />
+      </PaperBob>
+    </PaperSceneRoot>
+  );
+}
+
+/** Spider-Man: a night skyline, a web in the corner, and something small hanging by a thread. */
+export function PaperMvSpidermanScene() {
+  return (
+    <PaperSceneRoot base="#2A1220">
+      {/* rooftops */}
+      <View style={{ position: "absolute", left: "40%", bottom: 0, width: "18%", height: 58, backgroundColor: "#1C0D16" }} />
+      <View style={{ position: "absolute", left: "60%", bottom: 0, width: "15%", height: 84, backgroundColor: "#22101B" }} />
+      <View style={{ position: "absolute", left: "77%", bottom: 0, width: "20%", height: 66, backgroundColor: "#1C0D16" }} />
+      {[0, 1, 2, 3, 4].map((i) => (
+        <PaperPiece key={i} style={{ position: "absolute", left: `${63 + (i % 2) * 8}%` as `${number}%`, bottom: 20 + Math.floor(i / 2) * 20, width: 7, height: 9, borderRadius: 1.5, backgroundColor: i % 3 === 2 ? "#3A2430" : "#FFD98A" }} />
+      ))}
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* the web, spun into the corner */}
+        {[64, 46, 28].map((s, i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: "88%", bottom: 128 - s / 2, width: s, height: s, borderRadius: s / 2, borderWidth: 2.5, borderColor: "#8E9AAF", backgroundColor: "#2A1220", opacity: 0.9 }} />
+        ))}
+        {[0, 45, 90].map((a) => (
+          <View key={a} style={{ position: "absolute", left: "94.5%", bottom: 126, width: 2.5, height: 62, backgroundColor: "#8E9AAF", opacity: 0.8, transform: [{ rotate: `${a - 90}deg` }, { translateY: 28 }] }} />
+        ))}
+        {/* moon */}
+        <View style={{ position: "absolute", left: "46%", bottom: 108, width: 26, height: 26 }}>
+          <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: "#F5EFD8" }} />
+          <View style={{ position: "absolute", left: 9, bottom: 2, width: 21, height: 21, borderRadius: 10.5, backgroundColor: "#2A1220" }} />
+        </View>
+      </SettleIn>
+      {/* the spider, hanging by its thread */}
+      <PaperBob left="56%" bottom={64} width={16} height={52} distance={6} duration={3400}>
+        <View style={{ position: "absolute", left: 7, bottom: 14, width: 2, height: 38, backgroundColor: "#8E9AAF" }} />
+        <PaperPiece style={{ position: "absolute", left: 1, bottom: 0, width: 14, height: 14, borderRadius: 7, backgroundColor: "#1C0D16" }} />
+        <PaperPiece style={{ position: "absolute", left: 4.5, bottom: 5, width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#C0272D" }} />
+        <PaperPiece style={{ position: "absolute", left: 9.5, bottom: 5, width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#C0272D" }} />
+      </PaperBob>
+    </PaperSceneRoot>
+  );
+}
+
+/** Avengers: Doomsday — a skyline under a green doom sky, the ground cracking with energy. */
+export function PaperMvAvengersDoomsdayScene() {
+  return (
+    <PaperSceneRoot base="#14201A">
+      {/* the doom glow behind the city */}
+      <PaperPulse left="52%" bottom={52} width={150} height={110} min={0.94} max={1.05} duration={4200}>
+        <PaperPiece style={{ width: 150, height: 110, borderRadius: 55, backgroundColor: "#2E4A38", opacity: 0.75 }} />
+      </PaperPulse>
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* skyline silhouettes */}
+        <PaperPiece style={{ position: "absolute", left: "44%", bottom: 22, width: 34, height: 62, backgroundColor: "#0E1712" }} />
+        <PaperPiece style={{ position: "absolute", left: "56%", bottom: 22, width: 26, height: 88, backgroundColor: "#0C130F" }} />
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 22, width: 38, height: 70, backgroundColor: "#0E1712" }} />
+        <PaperPiece style={{ position: "absolute", left: "79%", bottom: 22, width: 28, height: 96, backgroundColor: "#0C130F" }} />
+        <PaperPiece style={{ position: "absolute", left: "89%", bottom: 22, width: 30, height: 56, backgroundColor: "#0E1712" }} />
+        {[0, 1, 2, 3].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${59 + (i % 2) * 23}%` as `${number}%`, bottom: 48 + Math.floor(i / 2) * 26, width: 7, height: 9, borderRadius: 1.5, backgroundColor: "#9BC49B", opacity: 0.85 }} />
+        ))}
+        {/* the hooded figure on the center roof */}
+        <PaperPiece style={{ position: "absolute", left: "67.5%", bottom: 110, width: 20, height: 26, borderTopLeftRadius: 10, borderTopRightRadius: 10, backgroundColor: "#1E3325" }} />
+        <PaperPiece style={{ position: "absolute", left: "69%", bottom: 118, width: 14, height: 13, borderRadius: 6.5, backgroundColor: "#060A07" }} />
+        <PaperPiece style={{ position: "absolute", left: "70%", bottom: 121, width: 10, height: 7, borderRadius: 3, backgroundColor: "#9AA3AD" }} />
+        {/* cracked ground, green energy in the seams */}
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 22, backgroundColor: "#0A0F0C" }} />
+        <PaperPiece style={{ position: "absolute", left: "48%", bottom: 8, width: 44, height: 4, borderRadius: 2, backgroundColor: "#58C96B", transform: [{ rotate: "-7deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "62%", bottom: 13, width: 30, height: 4, borderRadius: 2, backgroundColor: "#58C96B", transform: [{ rotate: "11deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 6, width: 40, height: 4, borderRadius: 2, backgroundColor: "#3E9A4F", transform: [{ rotate: "-5deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "57%", bottom: 2, width: 20, height: 3, borderRadius: 1.5, backgroundColor: "#3E9A4F", transform: [{ rotate: "16deg" }] }} />
+      </SettleIn>
+    </PaperSceneRoot>
+  );
+}
+
+/** Shrek: the swamp at sunset — pond, lily pads, and the finest outhouse in the land. */
+export function PaperMvShrekScene() {
+  return (
+    <PaperSceneRoot base="#C97B2D">
+      {/* low sun + tree line */}
+      <PaperPulse left="50%" bottom={58} width={44} height={44} min={0.96} max={1.05} duration={4000}>
+        <PaperPiece style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "#F2C14E" }} />
+      </PaperPulse>
+      <View style={{ position: "absolute", left: "40%", right: 0, bottom: "34%", height: 12, backgroundColor: "#3E5C33" }} />
+      {/* the pond */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "34%", backgroundColor: "#4C6B3C" }} />
+      <PaperPiece style={{ position: "absolute", left: "44%", bottom: 8, width: 150, height: 30, borderRadius: 15, backgroundColor: "#5D7A45" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* the outhouse, crescent moon and all */}
+        <PaperPiece style={{ position: "absolute", left: "80%", bottom: 34, width: 42, height: 62, borderRadius: 3, backgroundColor: "#6B4423" }} />
+        <PaperPiece style={{ position: "absolute", left: "78.5%", bottom: 94, width: 48, height: 8, borderRadius: 3, backgroundColor: "#54382A", transform: [{ rotate: "-3deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "83%", bottom: 40, width: 24, height: 50, borderRadius: 3, backgroundColor: "#7A5230" }} />
+        <PaperPiece style={{ position: "absolute", left: "85.5%", bottom: 72, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#C97B2D" }} />
+        {/* reeds at the pond's edge */}
+        {[0, 1, 2].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: `${46 + i * 4}%` as `${number}%`, bottom: 20, width: 4, height: 26 + (i % 2) * 8, borderRadius: 2, backgroundColor: "#3E7C43", transform: [{ rotate: `${(i - 1) * 6}deg` }] }} />
+        ))}
+        {/* lily pads + one brave flower */}
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 16, width: 24, height: 10, borderRadius: 5, backgroundColor: "#3E7C43" }} />
+        <PaperPiece style={{ position: "absolute", left: "72%", bottom: 10, width: 20, height: 9, borderRadius: 4.5, backgroundColor: "#4C8A50" }} />
+        <PaperPiece style={{ position: "absolute", left: "61%", bottom: 24, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#E86A92" }} />
+        {/* a stump with opinions */}
+        <PaperPiece style={{ position: "absolute", left: "90%", bottom: 12, width: 22, height: 14, borderRadius: 4, backgroundColor: "#5D4037" }} />
+        <PaperPiece style={{ position: "absolute", left: "90%", bottom: 24, width: 22, height: 5, borderRadius: 2.5, backgroundColor: "#8A6D4B" }} />
+      </SettleIn>
+      {/* fireflies, clocking in */}
+      <PaperPulse left="52%" bottom={66} width={6} height={6} min={0.5} max={1} duration={1800}>
+        <PaperPiece style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFE082" }} />
+      </PaperPulse>
+      <PaperPulse left="68%" bottom={84} width={5} height={5} min={0.5} max={1} duration={2200} delay={600}>
+        <PaperPiece style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFE082" }} />
+      </PaperPulse>
+      <PaperPulse left="84%" bottom={58} width={6} height={6} min={0.5} max={1} duration={2000} delay={1100}>
+        <PaperPiece style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFE082" }} />
+      </PaperPulse>
+    </PaperSceneRoot>
+  );
+}
+
+/** Hunger Games: the arena at dawn — pine forest, the cornucopia, a golden bird rising. */
+export function PaperMvHungerGamesScene() {
+  return (
+    <PaperSceneRoot base="#4A3423">
+      {/* dawn horizon */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: "30%", height: 14, backgroundColor: "#E8B48F", opacity: 0.5 }} />
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#2E2015" }} />
+      <PaperPulse left="84%" bottom={44} width={36} height={36} min={0.95} max={1.05} duration={4400}>
+        <PaperPiece style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: "#F2C14E" }} />
+      </PaperPulse>
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* pines, two depths */}
+        {[0, 1, 2].map((i) => (
+          <View key={`bp${i}`} style={{ position: "absolute", left: `${44 + i * 9}%` as `${number}%`, bottom: 40, width: 22, height: 52 }}>
+            <PaperPiece style={{ position: "absolute", left: 2, bottom: 22, width: 18, height: 18, borderRadius: 4, backgroundColor: "#22301F" }} />
+            <PaperPiece style={{ position: "absolute", left: 4, bottom: 34, width: 14, height: 16, borderRadius: 4, backgroundColor: "#22301F" }} />
+            <PaperPiece style={{ position: "absolute", left: 9, bottom: 0, width: 4, height: 24, backgroundColor: "#1A140E" }} />
+          </View>
+        ))}
+        {[0, 1].map((i) => (
+          <View key={`fp${i}`} style={{ position: "absolute", left: `${86 + i * 8}%` as `${number}%`, bottom: 34, width: 26, height: 64 }}>
+            <PaperPiece style={{ position: "absolute", left: 2, bottom: 28, width: 22, height: 22, borderRadius: 5, backgroundColor: "#2C3A26" }} />
+            <PaperPiece style={{ position: "absolute", left: 5, bottom: 42, width: 16, height: 20, borderRadius: 5, backgroundColor: "#2C3A26" }} />
+            <PaperPiece style={{ position: "absolute", left: 11, bottom: 0, width: 4, height: 30, backgroundColor: "#1A140E" }} />
+          </View>
+        ))}
+        {/* the hill + the cornucopia, its mouth open to the dawn */}
+        <PaperPiece style={{ position: "absolute", left: "54%", bottom: 18, width: 130, height: 34, borderTopLeftRadius: 65, borderTopRightRadius: 65, backgroundColor: "#3A2A1A" }} />
+        <PaperPiece style={{ position: "absolute", left: "64%", bottom: 44, width: 44, height: 30, borderRadius: 15, backgroundColor: "#C9A86A", transform: [{ rotate: "-14deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "71%", bottom: 47, width: 24, height: 24, borderRadius: 12, backgroundColor: "#2E2015" }} />
+        <PaperPiece style={{ position: "absolute", left: "61%", bottom: 40, width: 18, height: 8, borderRadius: 4, backgroundColor: "#A8894F", transform: [{ rotate: "24deg" }] }} />
+        {/* packs waiting at the mouth */}
+        <PaperPiece style={{ position: "absolute", left: "76%", bottom: 40, width: 12, height: 10, borderRadius: 3, backgroundColor: "#7A5230" }} />
+        <PaperPiece style={{ position: "absolute", left: "81%", bottom: 38, width: 10, height: 9, borderRadius: 3, backgroundColor: "#5D6B57" }} />
+      </SettleIn>
+      {/* the golden bird, rising over the trees */}
+      <PaperBob left="52%" bottom={104} width={30} height={16} distance={4} duration={3600}>
+        <PaperPiece style={{ position: "absolute", left: 10, bottom: 4, width: 11, height: 8, borderRadius: 4, backgroundColor: "#E8B34B" }} />
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 8, width: 12, height: 6, borderRadius: 3, backgroundColor: "#C9A24E", transform: [{ rotate: "-24deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 19, bottom: 8, width: 12, height: 6, borderRadius: 3, backgroundColor: "#C9A24E", transform: [{ rotate: "24deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 13, bottom: 0, width: 8, height: 5, backgroundColor: "#C9A24E", transform: [{ rotate: "45deg" }] }} />
+      </PaperBob>
+    </PaperSceneRoot>
+  );
+}
+
+/** Street Fighter: a dojo at sunset — lanterns swaying, health bars full, fight about to start. */
+export function PaperMvStreetFighterScene() {
+  return (
+    <PaperSceneRoot base="#7A2E4A">
+      {/* sunset band + dojo floor */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: "30%", height: 12, backgroundColor: "#E8862D", opacity: 0.6 }} />
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#4A1E30" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* dojo back wall + roof beam */}
+        <PaperPiece style={{ position: "absolute", left: "46%", bottom: 40, width: 170, height: 78, borderRadius: 4, backgroundColor: "#5C2438" }} />
+        <PaperPiece style={{ position: "absolute", left: "43%", bottom: 116, width: 190, height: 12, borderRadius: 5, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 66, width: 44, height: 52, borderRadius: 3, backgroundColor: "#6E2C44" }} />
+        {/* versus health bars, both full — for now */}
+        <PaperPiece style={{ position: "absolute", left: "44%", bottom: 136, width: 78, height: 10, borderRadius: 4, backgroundColor: "#FFD54F", transform: [{ rotate: "0deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "74%", bottom: 136, width: 78, height: 10, borderRadius: 4, backgroundColor: "#D64545" }} />
+        <PaperPiece style={{ position: "absolute", left: "65.5%", bottom: 133, width: 14, height: 14, backgroundColor: "#F4F1EA", transform: [{ rotate: "45deg" }] }} />
+        {/* the fighters, facing off */}
+        <PFigure left="54%" bottom={36} body="#1E1B26" skin="#1E1B26" hair="#1E1B26" scale={1.0} />
+        <PFigure left="80%" bottom={36} body="#1E1B26" skin="#1E1B26" hair="#1E1B26" scale={1.0} />
+      </SettleIn>
+      {/* paper lanterns, swaying over the stage */}
+      <PaperBob left="50%" bottom={92} width={16} height={26} distance={2} duration={3000}>
+        <View style={{ position: "absolute", left: 7, bottom: 16, width: 2, height: 10, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 16, height: 17, borderRadius: 7, backgroundColor: "#FFF3D6" }} />
+        <PaperPiece style={{ position: "absolute", left: 2, bottom: 6, width: 12, height: 3, borderRadius: 1.5, backgroundColor: "#D64545" }} />
+      </PaperBob>
+      <PaperBob left="88%" bottom={92} width={16} height={26} distance={2} duration={3400} delay={500}>
+        <View style={{ position: "absolute", left: 7, bottom: 16, width: 2, height: 10, backgroundColor: "#2C2C33" }} />
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 16, height: 17, borderRadius: 7, backgroundColor: "#FFF3D6" }} />
+        <PaperPiece style={{ position: "absolute", left: 2, bottom: 6, width: 12, height: 3, borderRadius: 1.5, backgroundColor: "#D64545" }} />
+      </PaperBob>
+      {/* the energy between them */}
+      <PaperPulse left="66%" bottom={64} width={18} height={18} min={0.85} max={1.12} duration={1500}>
+        <PaperPiece style={{ width: 18, height: 18, backgroundColor: "#7FB3D5", transform: [{ rotate: "45deg" }] }} />
+      </PaperPulse>
+    </PaperSceneRoot>
+  );
+}
+
+/** Wildwood: the deep forest — tall pines, a winding path, and the owl keeping watch. */
+export function PaperMvWildwoodScene() {
+  return (
+    <PaperSceneRoot base="#16241C">
+      {/* back pines, a shade lighter against the dark */}
+      {[0, 1, 2, 3].map((i) => (
+        <View key={`b${i}`} style={{ position: "absolute", left: `${42 + i * 15}%` as `${number}%`, bottom: 44, width: 30, height: 84 }}>
+          <PaperPiece style={{ position: "absolute", left: 3, bottom: 30, width: 24, height: 30, borderRadius: 6, backgroundColor: "#1E3325" }} />
+          <PaperPiece style={{ position: "absolute", left: 6, bottom: 52, width: 18, height: 26, borderRadius: 6, backgroundColor: "#1E3325" }} />
+          <PaperPiece style={{ position: "absolute", left: 13, bottom: 0, width: 4, height: 32, backgroundColor: "#101A13" }} />
+        </View>
+      ))}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#101A13" }} />
+      <SettleIn delay={60} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {/* front pines */}
+        {[0, 1].map((i) => (
+          <View key={`f${i}`} style={{ position: "absolute", left: `${47 + i * 44}%` as `${number}%`, bottom: 20, width: 36, height: 108 }}>
+            <PaperPiece style={{ position: "absolute", left: 3, bottom: 38, width: 30, height: 38, borderRadius: 7, backgroundColor: "#24402E" }} />
+            <PaperPiece style={{ position: "absolute", left: 7, bottom: 66, width: 22, height: 32, borderRadius: 7, backgroundColor: "#24402E" }} />
+            <PaperPiece style={{ position: "absolute", left: 10, bottom: 92, width: 16, height: 22, borderRadius: 6, backgroundColor: "#2A4A35" }} />
+            <PaperPiece style={{ position: "absolute", left: 16, bottom: 0, width: 5, height: 40, backgroundColor: "#0C120D" }} />
+          </View>
+        ))}
+        {/* the winding path */}
+        <PaperPiece style={{ position: "absolute", left: "62%", bottom: 0, width: 44, height: 22, borderRadius: 10, backgroundColor: "#3A4A38", transform: [{ rotate: "-8deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: "66%", bottom: 18, width: 30, height: 16, borderRadius: 8, backgroundColor: "#33452F", transform: [{ rotate: "10deg" }] }} />
+        {/* mushrooms at the path's edge */}
+        <PaperPiece style={{ position: "absolute", left: "58%", bottom: 8, width: 13, height: 8, borderTopLeftRadius: 6.5, borderTopRightRadius: 6.5, backgroundColor: "#B565A7" }} />
+        <PaperPiece style={{ position: "absolute", left: "59.5%", bottom: 2, width: 6, height: 7, backgroundColor: "#E8D8C8" }} />
+        <PaperPiece style={{ position: "absolute", left: "80%", bottom: 14, width: 10, height: 6, borderTopLeftRadius: 5, borderTopRightRadius: 5, backgroundColor: "#8A4A7A" }} />
+        {/* the branch the owl keeps */}
+        <PaperPiece style={{ position: "absolute", left: "68%", bottom: 96, width: 62, height: 6, borderRadius: 3, backgroundColor: "#0C120D", transform: [{ rotate: "-4deg" }] }} />
+      </SettleIn>
+      {/* the moon, full over the treetops */}
+      <PaperPulse left="86%" bottom={118} width={24} height={24} min={0.97} max={1.04} duration={5200}>
+        <PaperPiece style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: "#F5EFD8" }} />
+      </PaperPulse>
+      {/* the owl */}
+      <PaperBob left="74%" bottom={100} width={24} height={30} distance={2} duration={4600}>
+        <PaperPiece style={{ position: "absolute", left: 1, bottom: 0, width: 22, height: 24, borderRadius: 11, backgroundColor: "#B07D4F" }} />
+        <PaperPiece style={{ position: "absolute", left: 2, bottom: 21, width: 6, height: 8, borderRadius: 3, backgroundColor: "#96613A", transform: [{ rotate: "-14deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 16, bottom: 21, width: 6, height: 8, borderRadius: 3, backgroundColor: "#96613A", transform: [{ rotate: "14deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 4, bottom: 12, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#F5EFD8" }} />
+        <PaperPiece style={{ position: "absolute", left: 13, bottom: 12, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#F5EFD8" }} />
+        <PaperPiece style={{ position: "absolute", left: 6, bottom: 14, width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#16241C" }} />
+        <PaperPiece style={{ position: "absolute", left: 15, bottom: 14, width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#16241C" }} />
+      </PaperBob>
+    </PaperSceneRoot>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* The registry — every id lib/paper-keywords.ts can route to, mapped  */

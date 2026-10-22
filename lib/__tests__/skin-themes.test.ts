@@ -223,19 +223,25 @@ describe("paper keyword routing (theme-adaptive schedule art)", () => {
   });
 });
 
-describe("v180 bespoke scenes: the shared emblem shells are dead (source pins)", () => {
+describe("v180+v181 bespoke scenes: the shared emblem shells are dead (source pins)", () => {
   const scenes = read("components/paper-keyword-scenes.tsx");
 
-  it("the tvScene factory and the TdEmblem/TvEmblem shells no longer exist", () => {
+  it("no scene factory or emblem shell remains anywhere in the file", () => {
     expect(scenes).not.toContain("function TdEmblem");
     expect(scenes).not.toContain("function TvEmblem");
     expect(scenes).not.toContain("<TdEmblem");
     expect(scenes).not.toContain("<TvEmblem");
     expect(scenes).not.toContain("tvScene(");
     expect(scenes).not.toContain("const DROP");
+    // v181 wave 2: the cinema factory and the last two shells retire too.
+    expect(scenes).not.toContain("function MovieEmblem");
+    expect(scenes).not.toContain("<MovieEmblem");
+    expect(scenes).not.toContain("movieScene(");
+    expect(scenes).not.toContain("function EmblemScene");
+    expect(scenes).not.toContain("<EmblemScene");
   });
 
-  it("every TV and food scene id resolves to its own bespoke root composition", () => {
+  it("every paper scene id resolves to its own bespoke root composition", () => {
     const componentFor = (id: string) => {
       const m = scenes.match(new RegExp(`"${id}":\\s*(\\w+)`));
       expect(m, id).not.toBeNull();
@@ -247,8 +253,8 @@ describe("v180 bespoke scenes: the shared emblem shells are dead (source pins)",
       const next = scenes.indexOf("\nexport function", start + 10);
       return scenes.slice(start, next === -1 ? undefined : next);
     };
-    const ids = allPaperSceneIds().filter((id) => id.startsWith("tv-") || id.startsWith("td-"));
-    expect(ids.length).toBeGreaterThan(60);
+    const ids = allPaperSceneIds();
+    expect(ids.length).toBe(167);
     const seenComponents = new Set<string>();
     for (const id of ids) {
       const name = componentFor(id);
@@ -261,7 +267,11 @@ describe("v180 bespoke scenes: the shared emblem shells are dead (source pins)",
       // …and never leans on the retired shared shells.
       expect(body, `${id} → ${name}`).not.toContain("TdEmblem");
       expect(body, `${id} → ${name}`).not.toContain("TvEmblem");
+      expect(body, `${id} → ${name}`).not.toContain("MovieEmblem");
+      expect(body, `${id} → ${name}`).not.toContain("EmblemScene");
+      expect(body, `${id} → ${name}`).not.toContain("movieScene(");
     }
+    expect(seenComponents.size).toBe(167);
   });
 
   it("the Sopranos flagship is the pool with the ducks, house behind (source pin)", () => {

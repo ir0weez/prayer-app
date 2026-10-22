@@ -19,7 +19,7 @@ interface PrayerItem {
 }
 
 export default function PersonalPrayerScreen() {
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const router = useRouter();
   const [profile, setProfile] = useState<{ personalPrayerItems?: PrayerItem[] } | null>(null);
   const [prayerItems, setPrayerItems] = useState<PrayerItem[]>([]);
@@ -112,7 +112,7 @@ export default function PersonalPrayerScreen() {
                 keyExtractor={(item) => item.id}
                 scrollEnabled={false}
                 renderItem={({ item }) => (
-                  <View style={[styles.prayerItem, item.isDone && styles.prayerItemDone, isPaper ? { backgroundColor: skinTokens.surface ?? "#F9F9F9", borderColor: skinTokens.border ?? "#E5E7EB", ...(skinTokens.cardShadow ?? {}) } : null]}>
+                  <View style={[styles.prayerItem, item.isDone && styles.prayerItemDone, isSkinned ? { backgroundColor: skinTokens.surface ?? "#F9F9F9", borderColor: skinTokens.border ?? "#E5E7EB", ...(skinTokens.cardShadow ?? {}) } : null]}>
                     <Pressable onPress={() => handleToggleDone(item.id)} style={styles.checkbox}>
                       {item.isDone ? (
                         <MaterialIcons name="check-circle" size={24} color={PURPLE} />
@@ -148,7 +148,7 @@ export default function PersonalPrayerScreen() {
 
       <Modal transparent visible={showAddModal} animationType="fade" onRequestClose={() => setShowAddModal(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setShowAddModal(false)} />
-        <View style={[styles.modalContent, isPaper ? { backgroundColor: skinTokens.surface ?? "#FFFFFF", ...(skinTokens.sheetShadow ?? {}) } : null]}>
+        <View style={[styles.modalContent, isSkinned ? { backgroundColor: skinTokens.surface ?? "#FFFFFF", ...(skinTokens.sheetShadow ?? {}) } : null]}>
           <Text style={styles.modalTitle}>Add Prayer Item</Text>
           <TextInput
             style={styles.input}

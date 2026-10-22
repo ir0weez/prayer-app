@@ -190,7 +190,7 @@ function BreathingSeat({ children }: { children: ReactNode }) {
 export default function MineMouthScreen() {
   const router = useRouter();
   // Paper skin (v174): the Mouth's paper panels gain the kit shadow.
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const { width } = useWindowDimensions();
   const [mine, setMine] = useState<MineState | null>(null);
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
@@ -440,7 +440,7 @@ export default function MineMouthScreen() {
           <>
             {/* hero strength — the state he walks in with */}
             {hp != null && (
-              <View style={[{ marginHorizontal: 16, marginTop: 14, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }, isPaper ? skinTokens.cardShadow : null]}>
+              <View style={[{ marginHorizontal: 16, marginTop: 14, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }, isSkinned ? skinTokens.cardShadow : null]}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <MaterialIcons name="favorite" size={17} color="#F87171" />
                   <Text style={{ color: CREAM, fontWeight: "800", fontSize: 13, marginLeft: 7 }}>Hero HP</Text>
@@ -459,7 +459,7 @@ export default function MineMouthScreen() {
 
             {/* tool check — what he carries, and where the next rung lives */}
             {pick && (
-              <View style={[{ marginHorizontal: 16, marginTop: 12, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }, isPaper ? skinTokens.cardShadow : null]}>
+              <View style={[{ marginHorizontal: 16, marginTop: 12, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }, isSkinned ? skinTokens.cardShadow : null]}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <PickIcon color={pick.color} size={26} />
                   <View style={{ marginLeft: 10, flex: 1 }}>
@@ -495,7 +495,7 @@ export default function MineMouthScreen() {
             )}
 
             {/* the counter — the satchel, the haul, the bag */}
-            <View style={[{ marginHorizontal: 16, marginTop: 12, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }, isPaper ? skinTokens.cardShadow : null]}>
+            <View style={[{ marginHorizontal: 16, marginTop: 12, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }, isSkinned ? skinTokens.cardShadow : null]}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Text style={{ color: CREAM, fontWeight: "800", fontSize: 14 }}>Satchel</Text>
                 <Text style={{ color: DIM, fontSize: 12, marginLeft: 8 }}>{bagFor(mine.bagTier).name} · {count} / {cap}</Text>
@@ -553,7 +553,7 @@ export default function MineMouthScreen() {
 
             {/* strength and depth — the flames he walks in with, and
                 what his depth already pays the town (v175) */}
-            <View style={[{ marginHorizontal: 16, marginTop: 12, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }, isPaper ? skinTokens.cardShadow : null]}>
+            <View style={[{ marginHorizontal: 16, marginTop: 12, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }, isSkinned ? skinTokens.cardShadow : null]}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <MaterialIcons name="local-fire-department" size={18} color="#FB923C" />
                 <Text style={{ color: CREAM, fontWeight: "800", fontSize: 13.5, marginLeft: 7 }}>Flames today</Text>
@@ -590,7 +590,7 @@ export default function MineMouthScreen() {
 
             {/* the Mining Gear shelf — one-time pieces that bend the
                 cave's rules, sold at this same counter (v175) */}
-            <View style={[{ marginHorizontal: 16, marginTop: 12, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }, isPaper ? skinTokens.cardShadow : null]}>
+            <View style={[{ marginHorizontal: 16, marginTop: 12, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }, isSkinned ? skinTokens.cardShadow : null]}>
               <Text style={{ color: CREAM, fontWeight: "800", fontSize: 14 }}>Mining Gear</Text>
               <Text style={{ color: DIM, fontSize: 11.5, lineHeight: 16, marginTop: 4 }}>
                 Bought once, carried always — until you Begin Again.

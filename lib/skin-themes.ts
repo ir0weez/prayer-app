@@ -19,15 +19,30 @@
 //     marginally slower than the default chrome motion. No bounce,
 //     no springs — the house rule everywhere.
 //
+// "8-bit" (v183) is the Dark Forest's material brought indoors — the
+// approved mockup (schedule-mockups/8bit.html) translated to RN:
+//   - Stepped pixel corners become near-square radii (RN has no
+//     clip-path staircase); the chunky edge comes from a strong ink
+//     border token and ONE hard block shadow (6px 6px 0,
+//     rgba(13,5,32,0.55)) — solid offset, zero blur, no gradients.
+//   - The palette narrows to the retro handful: dusk-purple ground,
+//     cream card stock, gold/purple accents from the color theme.
+//   - Its motion dialect is STEPPED: entrances tick down in discrete
+//     frames (Easing.steps in the hook layer), never a smooth glide.
+//   - Every keyword scene gets a bespoke pixel rendition (see
+//     components/pixel-keyword-scenes.tsx), drawn chunky on a coarse
+//     grid — the same rule Paper lives by: no shared shells.
+//
 // The Dark Forest and the town/city/school maps never consume these
-// tokens: the forest stays pixel and the maps are already paper.
+// tokens: the forest stays pixel (its rendering is NOT re-skinned)
+// and the maps are already paper.
 
 import { mix, type ColorScheme } from "./color-themes";
 
 /** The themed palette (token name → hex), as produced by getThemedPalette. */
 export type SkinPalette = Record<string, string>;
 
-export type SkinThemeId = "classic" | "paper";
+export type SkinThemeId = "classic" | "paper" | "8bit";
 
 export type SkinThemeDefinition = {
   id: SkinThemeId;
@@ -51,6 +66,13 @@ export const SKIN_THEMES: SkinThemeDefinition[] = [
     description: "Flat paper surfaces and soft sheet shadows — the interiors' language, everywhere",
     unlockLevel: 10,
     swatch: "#F2ECDB",
+  },
+  {
+    id: "8bit",
+    name: "8-bit",
+    description: "Stepped pixel corners, hard block shadows, and frame-by-frame motion — the Dark Forest's material, indoors",
+    unlockLevel: 10,
+    swatch: "#2A1B4E",
   },
 ];
 
@@ -239,6 +261,7 @@ export type SkinMotionTokens = {
 export type SkinTokens = {
   id: SkinThemeId;
   isPaper: boolean;
+  isEightBit: boolean;
   /** Paper-tinted replacements for the palette's chrome colors; null = keep palette. */
   background: string | null;
   surface: string | null;
@@ -275,15 +298,31 @@ const PAPER_MOTION: SkinMotionTokens = {
   settleDistance: 10,
 };
 
+const BIT_MOTION: SkinMotionTokens = {
+  // The stepped dialect: the mockup's entrance drops 16 → 10 → 5 → 0
+  // in four chunky frames over half a second; the chrome slide ticks
+  // faster and shorter. The stepping itself is applied by the hook
+  // layer (Easing.steps) — these numbers only set the tempo.
+  slideDuration: 300,
+  settleDuration: 500,
+  settleDistance: 16,
+};
+
+/** The 8-bit kit's shadow ink (the mockup's --bit-shadow base). */
+export const BIT_SHADOW_HEX = "rgba(13,5,32,0.55)";
+/** The 8-bit kit's edge ink (the mockup's --bit-ink). */
+export const BIT_INK_HEX = "#150A2E";
+
 export function getSkinTokens(
   skinId: SkinThemeId,
   scheme: ColorScheme,
   palette: SkinPalette,
 ): SkinTokens {
-  if (skinId !== "paper") {
+  if (skinId === "classic") {
     return {
       id: "classic",
       isPaper: false,
+      isEightBit: false,
       background: null,
       surface: null,
       border: null,
@@ -301,9 +340,49 @@ export function getSkinTokens(
   }
 
   const dark = scheme === "dark";
+
+  if (skinId === "8bit") {
+    return {
+      id: "8bit",
+      isPaper: false,
+      isEightBit: true,
+      // The mockup's dusk ground: the page takes the dusk purple on
+      // strongly (Paper only whispered its material into the page;
+      // 8-bit's ground IS the material), while cards land as the
+      // mockup's flat cream stock over it in the light scheme and
+      // deep HUD panels in the dark scheme. Text still rides the
+      // palette on surfaces, exactly as under Paper.
+      background: dark ? mix(palette.background, "#1E1138", 0.45) : mix(palette.background, "#6E5BB5", 0.22),
+      surface: dark ? mix(palette.surface, "#2A1B4E", 0.45) : mix(palette.surface, "#FFF3D0", 0.5),
+      border: dark ? mix(palette.border, "#6E5BB5", 0.55) : mix(palette.border, BIT_INK_HEX, 0.5),
+      darkBackground: mix("#1E1138", palette.primary, 0.08),
+      darkSurface: mix("#2A1B4E", palette.primary, 0.08),
+      cardShadow: {
+        // The mockup's hard block shadow: one solid offset, no blur,
+        // no second layer — drop-shadow(6px 6px 0 rgba(13,5,32,.55)).
+        boxShadow: `6px 6px 0px ${BIT_SHADOW_HEX}`,
+        elevation: 6,
+      },
+      sheetShadow: {
+        boxShadow: `0px -6px 0px rgba(13,5,32,0.45)`,
+        elevation: 8,
+      },
+      // Stepped corners are a clip-path staircase in the mockup; RN
+      // view styles can't clip a staircase, so the corner goes
+      // near-square and the chunk comes from the border + shadow.
+      cardRadius: 4,
+      sheetRadius: 6,
+      grainOpacity: 0,
+      grainColor: BIT_INK_HEX,
+      grainLightOpacity: 0,
+      motion: BIT_MOTION,
+    };
+  }
+
   return {
     id: "paper",
     isPaper: true,
+    isEightBit: false,
     // Paper is a MATERIAL, not a color (Jonathan, v176): the page keeps
     // the palette's own hue — only a whisper of warm paper in it — and
     // the paper lives on the SURFACES: neutral cards become warm paper

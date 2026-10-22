@@ -54,7 +54,7 @@ function blockCardHeight(block: TimeBlock, nowMinutes?: number | null): number {
 
 export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, onPressOut }: TimeBlockIndicatorProps) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const isNow = blockContainsNow(block, nowMinutes);
 
   return (
@@ -70,12 +70,12 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
         {
           // Paper (mockup "Unified"): solid edge, paper-white stock,
           // the kit offset shadow — the dashed Classic edge is gone.
-          backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface,
-          borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border,
-          borderStyle: isPaper ? "solid" : "dashed",
+          backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
+          borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border,
+          borderStyle: isSkinned ? "solid" : "dashed",
           opacity: pressed ? 0.65 : 1,
           minHeight: blockCardHeight(block, nowMinutes),
-          ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
+          ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
         },
       ]}
     >
@@ -109,7 +109,7 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
  */
 export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPressOut }: TimeBlockGroupProps) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   if (blocks.length === 0) return null;
 
   return (
@@ -118,10 +118,10 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
       style={[
         styles.groupContainer,
         {
-          backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface,
-          borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border,
-          borderStyle: isPaper ? "solid" : "dashed",
-          ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
+          backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
+          borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border,
+          borderStyle: isSkinned ? "solid" : "dashed",
+          ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
         },
       ]}
     >

@@ -67,7 +67,7 @@ export function BibleChapterViewer({
   canGoNext,
 }: BibleChapterViewerProps) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const [verses, setVerses] = useState<Verse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -400,7 +400,7 @@ export function BibleChapterViewer({
         animationType="slide"
         onRequestClose={onClose}
       >
-        <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }}>
+        <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }}>
           {/* Header */}
           <View
             style={{
@@ -562,7 +562,7 @@ export function BibleChapterViewer({
               />
 
               {isBibleStudyMode && chapterIntroduction && chapterIntroduction.entries.length > 0 && (
-                <View style={{ marginHorizontal: 16, marginTop: 16, marginBottom: 4, padding: 16, borderRadius: 14, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}>
+                <View style={{ marginHorizontal: 16, marginTop: 16, marginBottom: 4, padding: 16, borderRadius: 14, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
                   <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 12 }}>
                     Introduction
                   </Text>

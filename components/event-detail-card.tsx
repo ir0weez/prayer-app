@@ -31,7 +31,7 @@ export function EventDetailCard({
   onEdit,
 }: EventDetailCardProps) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const [editFormVisible, setEditFormVisible] = useState(false);
 
   const linkedPeople = event.linkedPeopleIds
@@ -55,9 +55,9 @@ export function EventDetailCard({
           style={[
             styles.card,
             {
-              backgroundColor: event.color || (isPaper ? skinTokens.surface ?? colors.surface : colors.surface),
-              borderColor: event.color ? event.color + "40" : (isPaper ? skinTokens.border ?? colors.border : colors.border),
-              ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
+              backgroundColor: event.color || (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface),
+              borderColor: event.color ? event.color + "40" : (isSkinned ? skinTokens.border ?? colors.border : colors.border),
+              ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
             },
           ]}
           onPress={(e) => e.stopPropagation()}

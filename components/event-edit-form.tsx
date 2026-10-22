@@ -41,7 +41,7 @@ export function EventEditForm({
   isNew = false,
 }: EventEditFormProps) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const [formTitle, setFormTitle] = useState(event.title);
   const [formDate, setFormDate] = useState(event.date);
   const [formStartTime, setFormStartTime] = useState(event.startTime || "");
@@ -162,7 +162,7 @@ export function EventEditForm({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={[styles.overlay, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }]}>
+      <View style={[styles.overlay, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
         <View style={styles.header}>
           <Pressable onPress={onClose}>
             <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -197,7 +197,7 @@ export function EventEditForm({
             ]}
           />
           {titleSuggestions.length > 0 && (
-            <View style={[styles.suggestBox, { borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+            <View style={[styles.suggestBox, { borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
               {titleSuggestions.map((s) => (
                 <Pressable
                   key={s.label}
@@ -273,7 +273,7 @@ export function EventEditForm({
                   styles.reminderOption,
                   {
                     borderColor: formReminderMinutesBefore === minutes ? colors.primary : colors.border,
-                    backgroundColor: formReminderMinutesBefore === minutes ? `${colors.primary}18` : (isPaper ? skinTokens.surface ?? colors.surface : colors.surface),
+                    backgroundColor: formReminderMinutesBefore === minutes ? `${colors.primary}18` : (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface),
                   },
                 ]}
               >
@@ -408,7 +408,7 @@ export function EventEditForm({
               onPress={handleReset}
               style={[
                 styles.button,
-                { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border },
+                { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border },
               ]}
             >
               <Text style={[styles.buttonText, { color: colors.foreground }]}>

@@ -318,7 +318,7 @@ function DressingMiner({ person }: { person: PrayedPerson }) {
 export default function MineInteriorScreen() {
   const router = useRouter();
   // Paper skin (v174): chrome bars gain the kit shadow; cave art untouched.
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const [mine, setMine] = useState<MineState | null>(null);
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [gates, setGates] = useState<MineGates>({ totalPrestiges: 0, crowns: 0 });
@@ -593,7 +593,7 @@ export default function MineInteriorScreen() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <InteriorHeader icon="terrain" iconColor={GOLD} title={MINE_TITLE} coins={coins} bg={BG} textColor={CREAM} />
       {mine && (
-        <View style={[{ marginHorizontal: 16, marginBottom: 10, backgroundColor: "#3B2C14", borderColor: GOLD, borderWidth: 1, borderRadius: 12, paddingVertical: 7, paddingHorizontal: 12 }, isPaper ? skinTokens.cardShadow : null]}>
+        <View style={[{ marginHorizontal: 16, marginBottom: 10, backgroundColor: "#3B2C14", borderColor: GOLD, borderWidth: 1, borderRadius: 12, paddingVertical: 7, paddingHorizontal: 12 }, isSkinned ? skinTokens.cardShadow : null]}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <MaterialIcons name="trending-up" size={16} color="#FDE68A" />
             <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 13, marginLeft: 7 }}>
@@ -630,7 +630,7 @@ export default function MineInteriorScreen() {
         </Text>
 
         {toast && (
-          <View style={[{ marginHorizontal: 16, marginBottom: 10, backgroundColor: "#3B2C14", borderColor: GOLD, borderWidth: 1, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center" }, isPaper ? skinTokens.cardShadow : null]}>
+          <View style={[{ marginHorizontal: 16, marginBottom: 10, backgroundColor: "#3B2C14", borderColor: GOLD, borderWidth: 1, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center" }, isSkinned ? skinTokens.cardShadow : null]}>
             <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 14, textAlign: "center" }}>{toast}</Text>
           </View>
         )}

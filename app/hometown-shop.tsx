@@ -19,7 +19,7 @@ import { useSkin } from "@/hooks/use-skin";
 export default function HometownShopScreen() {
   const router = useRouter();
   // Paper skin (v174): the shop page + item cards become paper.
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [owned, setOwned] = useState<string[]>([]);
   const [tier] = useState(1); // TODO: derive from active fast day
@@ -79,7 +79,7 @@ export default function HometownShopScreen() {
   ];
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: isPaper ? (skinTokens.background ?? "#FFFBEB") : "#FFFBEB" }} contentContainerStyle={{ padding: 16, paddingTop: 48 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: isSkinned ? (skinTokens.background ?? "#FFFBEB") : "#FFFBEB" }} contentContainerStyle={{ padding: 16, paddingTop: 48 }}>
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
         <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
           <Text style={{ fontSize: 24 }}>←</Text>
@@ -110,13 +110,13 @@ export default function HometownShopScreen() {
                     {
                       flexDirection: "row",
                       alignItems: "center",
-                      backgroundColor: isPaper ? (skinTokens.surface ?? "#FFFFFF") : "#FFFFFF",
+                      backgroundColor: isSkinned ? (skinTokens.surface ?? "#FFFFFF") : "#FFFFFF",
                       borderRadius: 12,
                       padding: 12,
                       marginBottom: 8,
                       opacity: isOwned || locked ? 0.6 : 1,
                     },
-                    isPaper ? skinTokens.cardShadow : null,
+                    isSkinned ? skinTokens.cardShadow : null,
                   ]}
                 >
                   {item.type === "pawn-skin" ? (

@@ -31,6 +31,9 @@ export type SkinMotion = {
 export function useSkin(): {
   skin: SkinThemeId;
   isPaper: boolean;
+  isEightBit: boolean;
+  /** A material skin drives the surface kit (Paper or 8-bit). */
+  isSkinned: boolean;
   tokens: SkinTokens;
   motion: SkinMotion;
 } {
@@ -44,6 +47,16 @@ export function useSkin(): {
   );
 
   const motion = useMemo<SkinMotion>(() => {
+    if (tokens.isEightBit) {
+      // The stepped dialect: motion ticks in discrete frames, the way
+      // the mockup's entrances drop 16 → 10 → 5 → 0 and its checks
+      // stamp in. Easing.steps quantizes the whole curve — no glide.
+      return {
+        slide: { duration: tokens.motion.slideDuration, easing: Easing.steps(6) },
+        settle: { duration: tokens.motion.settleDuration, easing: Easing.steps(4) },
+        settleDistance: tokens.motion.settleDistance,
+      };
+    }
     if (tokens.isPaper) {
       // Sheet-settle dialect: sine easing (Easing.inOut(Easing.sin) is
       // cubic-bezier(0.37, 0, 0.63, 1)), a breath slower, shorter travel.
@@ -62,5 +75,12 @@ export function useSkin(): {
     };
   }, [tokens]);
 
-  return { skin: skinTheme, isPaper: tokens.isPaper, tokens, motion };
+  return {
+    skin: skinTheme,
+    isPaper: tokens.isPaper,
+    isEightBit: tokens.isEightBit,
+    isSkinned: tokens.isPaper || tokens.isEightBit,
+    tokens,
+    motion,
+  };
 }

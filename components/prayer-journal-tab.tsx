@@ -56,12 +56,12 @@ function TaggedAvatar({ person }: { person: PrayerJournalTaggedPerson }) {
 
 export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTabProps) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   // Paper (v179): the journal was never converted — cards were glossy
   // color slabs / plain white. Under Paper an entry keeps its full-
   // strength color as flat colored stock (or warm paper when it has
   // no color), gains the kit's one offset shadow and the paper radius.
-  const paperSurface = isPaper ? skinTokens.surface ?? colors.surface : colors.surface;
+  const paperSurface = isSkinned ? skinTokens.surface ?? colors.surface : colors.surface;
   const fieldBg = paperSurface;
   const headerVisible = useSharedValue(1);
   const lastScrollY = useRef(0);
@@ -264,7 +264,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         styles.entryCard,
         {
           backgroundColor: item.color ?? paperSurface,
-          ...(isPaper
+          ...(isSkinned
             ? {
                 borderRadius: skinTokens.cardRadius ?? 12,
                 shadowColor: "transparent",
@@ -396,9 +396,9 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }]}>
+    <View style={[styles.container, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
       <ReAnimated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }, headerAnimatedStyle]}>
-        <View style={{ backgroundColor: paperSurface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}>
+        <View style={{ backgroundColor: paperSurface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
           <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Journal</Text>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{entries.length} entries</Text>
         </View>
@@ -410,7 +410,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             style={({ pressed }) => [
               styles.headerCircle,
               {
-                backgroundColor: bookmarksOnly ? colors.primary : (isPaper ? paperSurface : colors.background),
+                backgroundColor: bookmarksOnly ? colors.primary : (isSkinned ? paperSurface : colors.background),
                 borderColor: bookmarksOnly ? colors.primary : colors.border,
               },
               pressed && styles.pressed,
@@ -434,7 +434,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.listContent, sections.length === 0 && styles.emptyListContent]}
         ListEmptyComponent={
-          <View style={[styles.emptyCard, { backgroundColor: paperSurface, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[styles.emptyCard, { backgroundColor: paperSurface, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
             <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "18" }]}>
               <MaterialIcons name={bookmarksOnly ? "bookmark-border" : "auto-stories"} size={30} color={colors.primary} />
             </View>
@@ -475,7 +475,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       <Modal transparent visible={showEntryComposer} animationType="slide" onRequestClose={closeEntryComposer}>
         <KeyboardAvoidingView style={styles.modalRoot} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <Pressable style={styles.modalBackdrop} onPress={closeEntryComposer} />
-          <SafeAreaView edges={["top", "bottom"]} style={[styles.composerSheet, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }]}>
+          <SafeAreaView edges={["top", "bottom"]} style={[styles.composerSheet, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
             <View style={[styles.composerHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.composerTitle, { color: colors.foreground }]}>New Prayer Entry</Text>
               <Pressable onPress={handleSaveEntry} style={({ pressed }) => [pressed && styles.pressed]}>
@@ -686,7 +686,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             style={styles.modalBackdrop}
             onPress={closeReplyComposer}
           />
-          <SafeAreaView edges={["top", "bottom"]} style={[styles.replySheet, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }]}>
+          <SafeAreaView edges={["top", "bottom"]} style={[styles.replySheet, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
             <View style={[styles.composerHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.composerTitle, { color: colors.foreground }]}>Reply to Entry</Text>
               <Pressable
@@ -705,7 +705,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 multiline
                 autoFocus
                 textAlignVertical="top"
-                style={[styles.replyInput, { color: colors.foreground, backgroundColor: fieldBg, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border }]}
+                style={[styles.replyInput, { color: colors.foreground, backgroundColor: fieldBg, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border }]}
               />
               <Pressable
                 disabled={!draftReply.trim()}

@@ -111,3 +111,46 @@ describe("v179 paper coverage — every named surface consumes the skin", () => 
     expect(read("components/dark-forest.tsx")).not.toContain("useSkin");
   });
 });
+
+describe("v183 8-bit coverage — every surface that wears Paper wears 8-bit", () => {
+  // The surface kit gates on isSkinned (Paper OR 8-bit) so the dusk
+  // tokens — cream stock, chunky ink borders, the hard block shadow —
+  // flow to exactly the surfaces v179 papered. A surface that only
+  // branches on strict isPaper would silently stay Classic under
+  // 8-bit; these pins keep the gate shared.
+  it("the named surfaces gate their kit on isSkinned, not Paper alone", () => {
+    for (const file of [
+      "components/schedule-tab.tsx",
+      "components/prayer-journal-tab.tsx",
+      "components/screen-container.tsx",
+      "components/status-modal.tsx",
+      "components/interior-shell.tsx",
+      "components/mini-game-scene.tsx",
+      "components/time-block-indicator.tsx",
+      "components/monthly-calendar-view.tsx",
+      "components/weekly-calendar-view.tsx",
+      "components/event-edit-form.tsx",
+      "components/event-detail-card.tsx",
+      "app/(tabs)/family.tsx",
+      "app/(tabs)/person.tsx",
+      "app/profile.tsx",
+      "app/bible-tracker.tsx",
+      "app/budget-tracker.tsx",
+      "app/fast-collection.tsx",
+      "app/personal-prayer.tsx",
+      "app/mine-mouth.tsx",
+      "app/mine-interior.tsx",
+    ]) {
+      expect(read(file), file).toContain("isSkinned");
+    }
+  });
+
+  it("the 8-bit texture is the dither: one static pattern in the shared chrome only", () => {
+    const dither = read("components/bit-dither.tsx");
+    expect(dither).toContain("<Pattern");
+    expect(dither).toContain("width={16}");
+    expect(read("components/screen-container.tsx")).toContain("isEightBit ? <BitDitherOverlay /> : null");
+    // The Dark Forest keeps its own rendering — no dither, no skin.
+    expect(read("components/dark-forest.tsx")).not.toContain("BitDitherOverlay");
+  });
+});

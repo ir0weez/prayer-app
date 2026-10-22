@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, View, Text, TextInput, Pressable, Image, ScrollView, StyleSheet } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
+import { BitDitherOverlay } from '@/components/bit-dither';
 import { PaperGrainOverlay } from '@/components/paper-grain';
 import { useSkin } from '@/hooks/use-skin';
 
@@ -28,7 +29,7 @@ export function StatusModal({
   const [draftPhotoUri, setDraftPhotoUri] = useState(statusPhotoUri);
   const [isHighlighted, setIsHighlighted] = useState(!!statusHighlight);
   // Paper skin (v174): the modal's page becomes a sheet of paper.
-  const { isPaper, tokens } = useSkin();
+  const { isPaper, isEightBit, isSkinned, tokens } = useSkin();
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -59,8 +60,9 @@ export function StatusModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={[styles.container, isPaper && tokens.surface ? { backgroundColor: tokens.surface } : null]}>
+      <View style={[styles.container, isSkinned && tokens.surface ? { backgroundColor: tokens.surface } : null]}>
         {isPaper ? <PaperGrainOverlay /> : null}
+        {isEightBit ? <BitDitherOverlay /> : null}
         <View style={styles.header}>
           <Pressable onPress={handleClose}>
             <MaterialIcons name="close" size={28} color="#000" />

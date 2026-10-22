@@ -153,11 +153,11 @@ export default function ProfileScreen() {
   const colors = useColors();
   // Paper skin (v174): the profile's cards sit on the page like sheets —
   // the kit's offset shadow joins their style arrays; null under Classic.
-  const { isPaper, tokens: skinTokens } = useSkin();
-  const skinCardShadow = isPaper ? skinTokens.cardShadow : null;
+  const { isPaper, isSkinned, tokens: skinTokens } = useSkin();
+  const skinCardShadow = isSkinned ? skinTokens.cardShadow : null;
   // Paper (v176): cards get an opaque paper-stock fill — v174 left the
   // fills translucent/white, so the shadow showed through as gray.
-  const paperSurfaceStyle = isPaper ? { backgroundColor: skinTokens.surface ?? "#FFFFFF" } : null;
+  const paperSurfaceStyle = isSkinned ? { backgroundColor: skinTokens.surface ?? "#FFFFFF" } : null;
   const today = getTodayISOString();
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
@@ -510,7 +510,7 @@ export default function ProfileScreen() {
       // Paper: opaque warm stock (the aura, when set, washes OVER the
       // paper as its own layer in the JSX — a translucent card over
       // the offset shadow is what read as a gray frame in v174).
-      backgroundColor: isPaper ? skinTokens.surface ?? "#FFFFFF" : auraWashColor(profileAura, "24") || `${colors.primary}15`,
+      backgroundColor: isSkinned ? skinTokens.surface ?? "#FFFFFF" : auraWashColor(profileAura, "24") || `${colors.primary}15`,
       borderColor: profileAura?.glowColor || `${colors.primary}30`,
     },
     profileName: {
@@ -568,7 +568,7 @@ export default function ProfileScreen() {
         }}
       >
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface }, pressed && styles.pressed]}>
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("arrow-back")} size={26} color={colors.foreground} />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>My Profile</Text>
@@ -623,15 +623,16 @@ export default function ProfileScreen() {
               stepped to the cleaner white-paper neutral (the old tan
               sheets were the beige family Jonathan asked to pull
               back). */}
-          {isPaper ? (
+          {isSkinned ? (
             <>
-              <View style={{ position: 'absolute', left: 7, right: -7, top: 9, bottom: -9, borderRadius: 28, backgroundColor: '#E6DCC2' }} />
-              <View style={{ position: 'absolute', left: 3.5, right: -3.5, top: 4.5, bottom: -4.5, borderRadius: 28, backgroundColor: '#EFE9DB' }} />
+              {/* 8-bit: the same stack in dusk layers with square corners. */}
+              <View style={{ position: 'absolute', left: 7, right: -7, top: 9, bottom: -9, borderRadius: isPaper ? 28 : 6, backgroundColor: isPaper ? '#E6DCC2' : '#1E1138' }} />
+              <View style={{ position: 'absolute', left: 3.5, right: -3.5, top: 4.5, bottom: -4.5, borderRadius: isPaper ? 28 : 6, backgroundColor: isPaper ? '#EFE9DB' : '#2A1B4E' }} />
             </>
           ) : null}
-        <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }, isPaper ? { overflow: 'hidden' } : null, skinCardShadow]}>
-          {isPaper && profileAura ? <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: auraWashColor(profileAura, "24") }} /> : null}
-          {isPaper ? <PaperGrainOverlay /> : null}
+        <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }, isSkinned ? { overflow: 'hidden' } : null, skinCardShadow]}>
+          {isSkinned && profileAura ? <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: auraWashColor(profileAura, "24") }} /> : null}
+          {isSkinned ? <PaperGrainOverlay /> : null}
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
             <View>
               <Pressable onPress={() => setShowAvatarPicker(true)}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" profileLevel={profileLevel} photoUri={profile.photoUri} size={76} fallbackColor={PURPLE} /></Pressable>
@@ -644,7 +645,7 @@ export default function ProfileScreen() {
             <View style={[styles.profileCopy, { marginLeft: 12 }]}>
               <Text style={dynamicStyles.profileName}>{profile.name}</Text>
               <Text style={dynamicStyles.profileSubtitle}>Personal prayers, fasts, and daily streak tracking</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' }}>
                 <Text style={{ fontSize: 13 }}>🪙</Text>
                 <Text style={{ marginLeft: 4, fontWeight: '700', fontSize: 12, color: colors.foreground }}>{formatCoins(coins.balance)}</Text>
               </View>
@@ -667,7 +668,7 @@ export default function ProfileScreen() {
                 <MaterialIcons name="menu-book" size={14} color={colors.primary} />
                 <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary, marginLeft: 4 }}>{currentBibleBook}</Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 }}>
                 <MaterialIcons name="schedule" size={14} color={colors.muted} />
                 <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginLeft: 4 }}>
                   {lastBibleReadDate ? `${Math.floor((Date.now() - new Date(lastBibleReadDate).getTime()) / (1000 * 60 * 60 * 24))}d ago` : 'No reads yet'}
@@ -680,17 +681,17 @@ export default function ProfileScreen() {
 
         <View style={styles.statsGrid}>
           <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle]}>
-            {isPaper ? <PaperGrainOverlay /> : null}
+            {isSkinned ? <PaperGrainOverlay /> : null}
             <Text style={dynamicStyles.statNumber}>{highestFastStreak}</Text>
             <Text style={styles.statLabel}>Highest Streak</Text>
           </View>
           <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle]}>
-            {isPaper ? <PaperGrainOverlay /> : null}
+            {isSkinned ? <PaperGrainOverlay /> : null}
             <Text style={dynamicStyles.statNumber}>{completedFastCount}</Text>
             <Text style={styles.statLabel}>Completed Fasts</Text>
           </View>
           <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle]}>
-            {isPaper ? <PaperGrainOverlay /> : null}
+            {isSkinned ? <PaperGrainOverlay /> : null}
             <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }]}>
               {lastCompletedFastProgress ? `${lastCompletedFastPercentage}%` : "Collecting Data"}
             </Text>
@@ -718,7 +719,7 @@ export default function ProfileScreen() {
         </View>
         {lastCompletedFast && lastCompletedFastProgress ? (
           <View style={[styles.previousFastCard, skinCardShadow, paperSurfaceStyle]}>
-            {isPaper ? <PaperGrainOverlay /> : null}
+            {isSkinned ? <PaperGrainOverlay /> : null}
             <View style={styles.previousFastHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.previousFastTitle}>{lastCompletedFast.name}</Text>
@@ -757,7 +758,7 @@ export default function ProfileScreen() {
               )}
             </View>
             <View style={[styles.fastCard, skinCardShadow, paperSurfaceStyle]}>
-              {isPaper ? <PaperGrainOverlay /> : null}
+              {isSkinned ? <PaperGrainOverlay /> : null}
               <View style={[styles.fastIcon, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
                 <MaterialIcons name={iconName(selectedFastType?.icon ?? "local-fire-department")} size={28} color="#FFFFFF" />
               </View>
@@ -802,7 +803,7 @@ export default function ProfileScreen() {
                 setNoteText(selectedFast?.dailyNotes?.[today] || "");
                 setShowNoteInput(true);
               }}
-              style={{ marginTop: 8, padding: 12, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 12, borderWidth: 1, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, alignItems: "center", ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}
+              style={{ marginTop: 8, padding: 12, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, alignItems: "center", ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <MaterialIcons name="edit-note" size={18} color={colors.primary} />
@@ -1107,7 +1108,7 @@ export default function ProfileScreen() {
                       {index < fastHistory.length - 1 && <View style={styles.timelineLine} />}
                     </View>
                     <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, skinCardShadow, paperSurfaceStyle, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
-                      {isPaper ? <PaperGrainOverlay /> : null}
+                      {isSkinned ? <PaperGrainOverlay /> : null}
                       <View style={styles.historyCardHeader}>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.historyTitle}>{fast.name}</Text>
@@ -1136,7 +1137,7 @@ export default function ProfileScreen() {
 
       <Modal transparent visible={showNoteInput} animationType="slide" onRequestClose={() => setShowNoteInput(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
-          <View style={{ backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 16, padding: 20, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }}>
+          <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 16, padding: 20, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }}>
             <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 8 }}>Daily Note</Text>
             <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 12 }}>
               Why did you {selectedFast?.dayStatuses?.[noteDate] === "completed" ? "complete" : "miss"} this day?

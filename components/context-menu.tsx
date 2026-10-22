@@ -36,7 +36,7 @@ export function ContextMenu({
   onDismiss,
 }: ContextMenuProps) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 
   // Adjust position to keep menu on screen
@@ -67,9 +67,9 @@ export function ContextMenu({
             {
               left: adjustedX,
               top: adjustedY,
-              backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface,
-              borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border,
-              ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
+              backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
+              borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border,
+              ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
             },
           ]}
         >

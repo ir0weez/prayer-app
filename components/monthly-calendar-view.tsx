@@ -27,7 +27,7 @@ export function MonthlyCalendarView({
   onEventPress,
 }: MonthlyCalendarViewProps) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   
   const weeks = useMemo(() => {
     return getWeeksInMonth(selectedDate);
@@ -38,7 +38,7 @@ export function MonthlyCalendarView({
   };
   
   return (
-    <View style={{ flex: 1, backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }}>
+    <View style={{ flex: 1, backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }}>
       {/* Day names header */}
       <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border }}>
         {DAY_NAMES.map((day) => (
@@ -81,7 +81,7 @@ export function MonthlyCalendarView({
                     borderBottomWidth: 1,
                     borderBottomColor: colors.border,
                     padding: 8,
-                    backgroundColor: isInCurrentMonth ? (isPaper ? skinTokens.surface ?? colors.surface : colors.surface) : (isPaper ? skinTokens.background ?? colors.background : colors.background),
+                    backgroundColor: isInCurrentMonth ? (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface) : (isSkinned ? skinTokens.background ?? colors.background : colors.background),
                     opacity: isInCurrentMonth ? 1 : 0.5,
                   }}
                 >

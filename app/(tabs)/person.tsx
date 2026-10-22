@@ -727,12 +727,12 @@ export default function PersonScreen() {
     setShowDateModal(false);
   };
 
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   // Paper (v179): the person screen's cards/modals were never converted.
   // Tinted cards keep their tints and gain the kit offset shadow; the
   // modal cards become warm paper sheets.
-  const paperCardShadow = isPaper ? skinTokens.cardShadow ?? {} : null;
-  const paperModalCard = isPaper ? { backgroundColor: skinTokens.surface ?? "#FFFFFF", borderColor: skinTokens.border ?? "#E7E1EF", ...(skinTokens.sheetShadow ?? {}) } : null;
+  const paperCardShadow = isSkinned ? skinTokens.cardShadow ?? {} : null;
+  const paperModalCard = isSkinned ? { backgroundColor: skinTokens.surface ?? "#FFFFFF", borderColor: skinTokens.border ?? "#E7E1EF", ...(skinTokens.sheetShadow ?? {}) } : null;
   const themeColors = getThemeColors(colors);
   const styles = createStyles(themeColors);
   const getThemeColor = (lightColor: string) => getThemeAwareColor(lightColor, colors);

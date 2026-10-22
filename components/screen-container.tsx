@@ -1,6 +1,7 @@
 import { View, type ViewProps } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 
+import { BitDitherOverlay } from "@/components/bit-dither";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 import { useSkin } from "@/hooks/use-skin";
 import { cn } from "@/lib/utils";
@@ -52,7 +53,7 @@ export function ScreenContainer({
   // Paper skin (v174): the page itself becomes a sheet — paper-tinted
   // background (flat; the grain overlay renders nothing since v179).
   // Under Classic this renders exactly as before.
-  const { isPaper, tokens } = useSkin();
+  const { isPaper, isEightBit, isSkinned, tokens } = useSkin();
   return (
     <View
       className={cn(
@@ -60,10 +61,11 @@ export function ScreenContainer({
         "bg-background",
         containerClassName
       )}
-      style={isPaper && tokens.background ? { backgroundColor: tokens.background } : undefined}
+      style={isSkinned && tokens.background ? { backgroundColor: tokens.background } : undefined}
       {...props}
     >
       {isPaper ? <PaperGrainOverlay /> : null}
+      {isEightBit ? <BitDitherOverlay /> : null}
       <SafeAreaView
         edges={edges}
         className={cn("flex-1", safeAreaClassName)}

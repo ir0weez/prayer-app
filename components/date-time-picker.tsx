@@ -28,7 +28,7 @@ export function DateTimePicker({
   compact = false,
 }: DateTimePickerProps) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const [showPicker, setShowPicker] = useState(false);
   const [draftValue, setDraftValue] = useState(value);
 
@@ -82,7 +82,7 @@ export function DateTimePicker({
     const years = Array.from({ length: currentYear + 10 - 1900 + 1 }, (_, i) => 1900 + i);
 
     return (
-      <View style={[pickerStyles.container, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
+      <View style={[pickerStyles.container, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
         <View style={[pickerStyles.header, { borderBottomColor: colors.border }]}>
           <Text style={[pickerStyles.headerText, { color: colors.foreground }]}>
             {label}
@@ -236,7 +236,7 @@ export function DateTimePicker({
     const minutes = Array.from({ length: 60 }, (_, i) => i);
 
     return (
-      <View style={[pickerStyles.container, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
+      <View style={[pickerStyles.container, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
         <View style={[pickerStyles.header, { borderBottomColor: colors.border }]}>
           <Text style={[pickerStyles.headerText, { color: colors.foreground }]}>
             {label}
@@ -339,7 +339,7 @@ export function DateTimePicker({
           pickerStyles.input,
           compact
             ? { flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0, borderWidth: 0, borderColor: 'transparent', backgroundColor: 'transparent', marginBottom: 0, paddingHorizontal: 0, paddingVertical: 0, borderRadius: 0 }
-            : { borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface },
+            : { borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface },
         ]}
       >
         {compact && mode === "date" ? (

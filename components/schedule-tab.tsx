@@ -47,6 +47,7 @@ import ReAnimated, {
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperRestSky, paperKeywordSceneFor } from "./paper-keyword-scenes";
+import { PixelRestSky, pixelKeywordSceneFor } from "./pixel-keyword-scenes";
 import { PaperGrainOverlay } from "./paper-grain";
 import { paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint } from "@/lib/skin-themes";
 
@@ -178,10 +179,14 @@ function iconName(name: string) {
 
 // ─── Travel Ticker Component (LED departure board style) ─────────────────────
 function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) {
-  const { isPaper } = useSkin();
+  const { isPaper, isEightBit } = useSkin();
   const [now, setNow] = useState(Date.now());
   const [weather, setWeather] = useState<{ tempF: number; icon: string; label: string } | null>(null);
   const eventColor = event.color || colors.primary;
+  // Under 8-bit the strip is the mockup's dark HUD panel: segments
+  // read in light lavender against the dusk ground, whatever the
+  // event's own color is.
+  const tickerInk = isEightBit ? "#EDE8FF" : eventColor;
   const translateX = useSharedValue(0);
   const [contentWidth, setContentWidth] = useState(0);
 
@@ -254,14 +259,14 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
   return (
     <ReAnimated.View
       entering={FadeIn.duration(250)}
-      style={{ height: tickerHeight, backgroundColor: isPaper ? "#FBF7EC" : "transparent", borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: "hidden" }}
+      style={{ height: tickerHeight, backgroundColor: isPaper ? "#FBF7EC" : isEightBit ? "#1D1233" : "transparent", borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: "hidden" }}
     >
       {/* Solid outline — under Paper the strip sits on warm paper stock
           with a soft lavender edge, exactly like the approved mockup. */}
       <View style={{
         position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
         borderTopWidth: 2, borderLeftWidth: 2, borderRightWidth: 2,
-        borderStyle: "solid", borderColor: isPaper ? "#D8CCF2" : eventColor,
+        borderStyle: "solid", borderColor: isPaper ? "#D8CCF2" : isEightBit ? "#FFC531" : eventColor,
         borderTopLeftRadius: 12, borderTopRightRadius: 12,
       }} />
       <View style={{ flex: 1, justifyContent: "center", overflow: "hidden" }}>
@@ -282,16 +287,16 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
             >
               {segments.map((seg, i) => (
                 <View key={i} style={{ flexDirection: "row", alignItems: "center", marginRight: i < segments.length - 1 ? 24 : 0 }}>
-                  <MaterialIcons name={iconName(seg.icon)} size={16} color={eventColor} />
-                  <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 6 }}>
+                  <MaterialIcons name={iconName(seg.icon)} size={16} color={tickerInk} />
+                  <Text numberOfLines={1} style={{ color: tickerInk, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 6 }}>
                     {seg.text}
                   </Text>
                   {i < segments.length - 1 && (
-                    <Text style={{ color: eventColor, fontSize: 13, marginLeft: 24 }}>•</Text>
+                    <Text style={{ color: tickerInk, fontSize: 13, marginLeft: 24 }}>•</Text>
                   )}
                 </View>
               ))}
-              <Text style={{ color: eventColor, fontSize: 13, marginLeft: 12 }}>•</Text>
+              <Text style={{ color: tickerInk, fontSize: 13, marginLeft: 12 }}>•</Text>
             </View>
           ))}
         </ReAnimated.View>
@@ -7121,11 +7126,17 @@ function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" 
   // Paper skin (v174, completed v176): EVERY keyword scene has a
   // paper rendition — cut pieces with the kit's offset shadow,
   // settling on sine — routed by lib/paper-keywords.ts to mirror this
-  // dispatch exactly. Under Classic this branch never runs.
-  const { isPaper } = useSkin();
+  // dispatch exactly. Under Classic neither branch runs.
+  // 8-bit skin (v183): the same routing ids resolve to bespoke pixel
+  // renditions (chunky squares, stepped motion) instead.
+  const { isPaper, isEightBit } = useSkin();
   if (isPaper) {
     const paperScene = paperKeywordSceneFor(label, title, location, notes);
     if (paperScene) return paperScene;
+  }
+  if (isEightBit) {
+    const pixelScene = pixelKeywordSceneFor(label, title, location, notes);
+    if (pixelScene) return pixelScene;
   }
   // Breakfast, lunch, and dinner each get their own illustrated scene.
   // A food named in the notes wins first (homecooked top-down view),
@@ -7461,7 +7472,7 @@ function EventCardInner({
   squareTop?: boolean;
 }) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isPaper, isEightBit, isSkinned, tokens: skinTokens } = useSkin();
   const timeOffCardColor = getTimeOffEventColor(event);
   const timeOffTextColor = readableTextColor(timeOffCardColor);
   const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title, event.location, event.notes);
@@ -7517,11 +7528,11 @@ function EventCardInner({
     // raw-color text (yellow on a yellow wash — Garden Prayer) was
     // unreadable. The "done" now comes from the check + the calmer
     // tint, not from draining the color. Classic keeps the wash.
-    const completedBarStyle = isPaper
+    const completedBarStyle = isSkinned
       ? { backgroundColor: paperCompletedTint(completedColor, skinTokens.surface), borderColor: paperStockEdge(completedColor) }
       : { backgroundColor: completedColor + "30", borderColor: completedColor + "50" };
-    const completedTitleColor = isPaper ? paperStockInk(completedColor, skinTokens.surface) : completedColor;
-    const completedTimeColor = isPaper ? paperStockInkSoft(completedColor, skinTokens.surface) : completedColor + "99";
+    const completedTitleColor = isSkinned ? paperStockInk(completedColor, skinTokens.surface) : completedColor;
+    const completedTimeColor = isSkinned ? paperStockInkSoft(completedColor, skinTokens.surface) : completedColor + "99";
     return (
       <>
         <Pressable
@@ -7533,7 +7544,7 @@ function EventCardInner({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >
-          <View style={[eventStyles.completedCard, { ...completedBarStyle, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[eventStyles.completedCard, { ...completedBarStyle, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
             <View style={[eventStyles.completedDot, { backgroundColor: completedColor }]} />
             <Text style={[eventStyles.completedTitle, { color: completedTitleColor }]} numberOfLines={1}>
               {event.title}
@@ -7573,7 +7584,7 @@ function EventCardInner({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         >
-          <View style={[eventStyles.defaultCard, { backgroundColor: timeOffCardColor, borderColor: timeOffCardColor, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : 96, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[eventStyles.defaultCard, { backgroundColor: timeOffCardColor, borderColor: timeOffCardColor, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : 96, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={[eventStyles.defaultTitle, { color: timeOffTextColor }]} numberOfLines={2}>{event.title}</Text>
               {event.notes && (
@@ -7647,9 +7658,11 @@ function EventCardInner({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         >
-          <View style={[eventStyles.illustratedCard, { backgroundColor: mc.bg, borderColor: mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[eventStyles.illustratedCard, { backgroundColor: mc.bg, borderColor: mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
             {isPaper ? (
               <PaperRestSky mood={mood} bg={mc.bg} />
+            ) : isEightBit ? (
+              <PixelRestSky mood={mood} bg={mc.bg} />
             ) : (
               <>
                 {mood === "night" && REST_STARS.map((s, i) => (
@@ -7738,7 +7751,7 @@ function EventCardInner({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isHolidayCard ? (isLiveScheduledBlock ? 155 : 140) : (isLiveScheduledBlock ? 112 : 80), overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isHolidayCard ? (isLiveScheduledBlock ? 155 : 140) : (isLiveScheduledBlock ? 112 : 80), overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
             {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
             {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} location={event.location} notes={event.notes} />}
             <View style={eventStyles.illustratedContent}>
@@ -7803,7 +7816,7 @@ function EventCardInner({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-          <View style={[eventStyles.defaultCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, borderColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined, ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: 0 } : {}), ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[eventStyles.defaultCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, borderColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined, ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: 0 } : {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
           {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
           {!event.isOffEvent && <View style={[eventStyles.defaultDot, { backgroundColor: '#FFFFFF' }]} />}
           <View style={{ flex: 1 }}>
@@ -7875,12 +7888,12 @@ function EventCard(props: {
   isNew?: boolean;
 }) {
   const colors = useColors();
-  const { isPaper, motion: skinMotion } = useSkin();
+  const { isSkinned, motion: skinMotion } = useSkin();
   const { event } = props;
   const now = props.liveNow || new Date();
   const showTicker = event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && !event.isCompleted && !isEventOver(event, now);
   // Paper dialect: a new card settles like a sheet, not a plain fade.
-  const popStyle = props.isNew ? { entering: isPaper ? FadeInUp.duration(skinMotion.settle.duration).easing(skinMotion.settle.easing) : FadeIn.duration(300) } : {};
+  const popStyle = props.isNew ? { entering: isSkinned ? FadeInUp.duration(skinMotion.settle.duration).easing(skinMotion.settle.easing) : FadeIn.duration(300) } : {};
   if (!showTicker) {
     return <ReAnimated.View {...popStyle}><EventCardInner {...props} /></ReAnimated.View>;
   }
@@ -7936,7 +7949,7 @@ function TodoItem({
   isNew?: boolean;
 }) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens, motion: skinMotion } = useSkin();
+  const { isSkinned, tokens: skinTokens, motion: skinMotion } = useSkin();
   const iconNameStr = getIconForTodo(todo.title);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
@@ -8047,7 +8060,7 @@ function TodoItem({
     <ReAnimated.View
       // Paper dialect: a new card settles like a sheet (fade + short
       // sine slide) instead of Classic's plain fade.
-      entering={isNew ? (isPaper ? FadeInUp.duration(skinMotion.settle.duration).easing(skinMotion.settle.easing) : FadeIn.duration(300)) : undefined}
+      entering={isNew ? (isSkinned ? FadeInUp.duration(skinMotion.settle.duration).easing(skinMotion.settle.easing) : FadeIn.duration(300)) : undefined}
     >
       <>
       {isGroupedTodo && todo.isCompleted ? (
@@ -8072,7 +8085,7 @@ function TodoItem({
         </Pressable>
       ) : isGroupedTodo ? (
         <View style={{ marginBottom: 12, marginHorizontal: 12 }}>
-          <View style={{ backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isPaper ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: groupBorderColor, overflow: 'hidden', ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}>
+          <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: groupBorderColor, overflow: 'hidden', ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${todo.isGroupExpanded ? 'Collapse' : 'Expand'} ${todo.title} subtasks`}
@@ -8135,7 +8148,7 @@ function TodoItem({
             </Pressable>
 
             {isGroupedTodo && !todo.isCompleted && todo.isGroupExpanded && (
-              <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 16, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, gap: 12 }}>
+              <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 16, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, gap: 12 }}>
                 <View style={{ height: 1, width: '100%', alignSelf: 'center', backgroundColor: colors.border, opacity: 0.8 }} />
                 {groupedSubtasks.map((subtask, index) => (
                   <Pressable
@@ -8229,7 +8242,7 @@ function TodoItem({
 
 // ─── Ministry Ticket Component (Mission Ticket style) ────────────────────────
 function MinistryTicket({ ministry, colors }: { ministry: ScheduleMinistry; colors: any }) {
-  const { isPaper } = useSkin();
+  const { isSkinned } = useSkin();
   const [now, setNow] = useState(Date.now());
   const [weather, setWeather] = useState<{ tempF: number; icon: string; label: string } | null>(null);
   const ministryColor = ministry.color || "#7C5CFF";
@@ -8277,7 +8290,7 @@ function MinistryTicket({ ministry, colors }: { ministry: ScheduleMinistry; colo
         borderBottomWidth: 1.5,
         borderBottomColor: ministryColor,
         // Paper has no perforated/dashed edges — the ticket edge goes solid.
-        borderStyle: isPaper ? "solid" : "dashed",
+        borderStyle: isSkinned ? "solid" : "dashed",
         borderTopLeftRadius: 14, borderTopRightRadius: 14,
         paddingVertical: 8, paddingHorizontal: 14,
         flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -8964,7 +8977,7 @@ function RestSquare({
   onLongPress?: (e: any) => void;
 }) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isPaper, isEightBit, isSkinned, tokens: skinTokens } = useSkin();
   const mood = getRestMood(event.startTime);
   const mc = REST_MOODS[mood];
   // Gentle breathing animation on the icon
@@ -8987,10 +9000,12 @@ function RestSquare({
       onLongPress={onLongPress}
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
-      <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center", ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}>
-        {/* Animated sky background by time of day — paper cutouts under the Paper skin */}
+      <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center", ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
+        {/* Animated sky background by time of day — paper cutouts under the Paper skin, pixels under 8-bit */}
         {isPaper ? (
           <PaperRestSky mood={mood} bg={mc.bg} />
+        ) : isEightBit ? (
+          <PixelRestSky mood={mood} bg={mc.bg} />
         ) : (
           <>
             {mood === "night" && REST_STARS.map((s, i) => (
@@ -9035,7 +9050,7 @@ function MinistrySquare({
   onDelete?: () => void;
 }) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const accent = ministry.color || "#7C5CFF";
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
@@ -9084,7 +9099,7 @@ function MinistrySquare({
           // Paper: the square becomes OPAQUE tinted paper stock + the
           // kit shadow (v179 — the v176 translucent wash let the shadow
           // read as a gray frame; see paperStockFor).
-          backgroundColor: isPaper ? paperStockFor(accent, skinTokens.surface) : accent + "14",
+          backgroundColor: isSkinned ? paperStockFor(accent, skinTokens.surface) : accent + "14",
           borderRadius: 12,
           borderWidth: 1.5,
           borderColor: accent,
@@ -9092,7 +9107,7 @@ function MinistrySquare({
           alignItems: "center",
           justifyContent: "center",
           padding: 8,
-          ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
+          ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
         }}
       >
         {/* Animated background art */}
@@ -9163,7 +9178,7 @@ function MinistryCard({
   people?: Person[];
 }) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const cardScale = useSharedValue(1);
   const swipeX = useSharedValue(0);
   const glowOpacity = useSharedValue(0);
@@ -9249,11 +9264,11 @@ function MinistryCard({
     // Paper (v182): same tinted-stock treatment as the completed event
     // bar — opaque own-color tint, solid paper edge, darkened ink
     // text. Classic keeps the translucent wash.
-    const completedBarStyle = isPaper
+    const completedBarStyle = isSkinned
       ? { backgroundColor: paperCompletedTint(completedColor, skinTokens.surface), borderColor: paperStockEdge(completedColor) }
       : { backgroundColor: completedColor + "30", borderColor: completedColor + "50" };
-    const completedTitleColor = isPaper ? paperStockInk(completedColor, skinTokens.surface) : completedColor;
-    const completedTimeColor = isPaper ? paperStockInkSoft(completedColor, skinTokens.surface) : completedColor + "99";
+    const completedTitleColor = isSkinned ? paperStockInk(completedColor, skinTokens.surface) : completedColor;
+    const completedTimeColor = isSkinned ? paperStockInkSoft(completedColor, skinTokens.surface) : completedColor + "99";
     return (
       <>
         <Pressable
@@ -9265,7 +9280,7 @@ function MinistryCard({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >
-          <View style={[ministryStyles.completedCard, { ...completedBarStyle, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[ministryStyles.completedCard, { ...completedBarStyle, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
             <View style={[ministryStyles.completedDot, { backgroundColor: completedColor }]} />
             <Text style={[ministryStyles.completedTitle, { color: completedTitleColor }]} numberOfLines={1}>
               {ministry.title}
@@ -9310,10 +9325,10 @@ function MinistryCard({
           <View style={[ministryStyles.card, {
             // Paper: OPAQUE tinted paper stock + the kit shadow (v179);
             // completed cards go paper-white.
-            backgroundColor: ministry.isCompleted ? (isPaper ? skinTokens.surface ?? colors.surface : colors.surface) : (isPaper ? paperStockFor(ministry.color || "#7C5CFF", skinTokens.surface) : (ministry.color || "#7C5CFF") + "14"),
+            backgroundColor: ministry.isCompleted ? (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface) : (isSkinned ? paperStockFor(ministry.color || "#7C5CFF", skinTokens.surface) : (ministry.color || "#7C5CFF") + "14"),
             borderColor: ministry.color || "#7C5CFF",
             borderWidth: 1.5,
-            ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
+            ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
           }]}>
             {/* Mission Ticket - travel info */}
             {ministry.travelTimeMinutes != null && ministry.travelTimeMinutes > 0 && ministry.startTime && (
@@ -9400,11 +9415,11 @@ function getBirthdayAge(birthday: BirthdayEvent): number | null {
 
 function BirthdayCard({ birthday }: { birthday: BirthdayEvent }) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const firstName = birthday.personName.trim().split(/\s+/).filter(Boolean)[0] ?? birthday.personName;
   const age = getBirthdayAge(birthday);
   return (
-    <View style={[birthdayStyles.card, { backgroundColor: "rgba(245, 158, 11, 0.10)", borderColor: "rgba(245, 158, 11, 0.35)", ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+    <View style={[birthdayStyles.card, { backgroundColor: "rgba(245, 158, 11, 0.10)", borderColor: "rgba(245, 158, 11, 0.35)", ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
       {BIRTHDAY_CONFETTI.map((c, i) => (
         <View
           key={i}
@@ -9502,7 +9517,7 @@ function ExpandableSection({
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const rotateAnim = useSharedValue(defaultExpanded ? 1 : 0);
 
   const chevronStyle = useAnimatedStyle(() => ({
@@ -9510,8 +9525,8 @@ function ExpandableSection({
   }));
 
   return (
-    <View style={[expandStyles.container, { borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border }]}>
-      <View style={[expandStyles.headerContainer, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface }]}>
+    <View style={[expandStyles.container, { borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border }]}>
+      <View style={[expandStyles.headerContainer, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }]}>
         <Pressable
           onPress={() => {
             const next = !expanded;
@@ -9592,7 +9607,7 @@ export function ScheduleTab({
   onScrollYChange?: (y: number) => void;
 }) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const today = getTodayISOString();
   // selectedDate is lifted to parent for lazy tab mounting.
   const [internalDate, setInternalDate] = useState(today);
@@ -11650,7 +11665,7 @@ export function ScheduleTab({
   const renderScheduleSummary = () => (
     <>
 {/* Summary Card - Sticky Header Index 0 */}
-<View style={[scheduleStyles.summaryContainer, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background, paddingBottom: 8 }]}>
+<View style={[scheduleStyles.summaryContainer, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background, paddingBottom: 8 }]}>
   {(() => {
     // The summary counts only time still left available: completed items free
     // up their time (it gets added back unless that time has already passed
@@ -11746,7 +11761,7 @@ export function ScheduleTab({
   const renderDateHeaderCard = useCallback((cardStyle?: object) => (
     <>
       {/* Date Header Card - sticky sheet header */}
-      <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
+      <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
   <View style={scheduleStyles.dayHeaderContent}>
     <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
       {dateHeader.dayName}
@@ -11774,7 +11789,7 @@ export function ScheduleTab({
           onPress={() => setSelectedDate(date)}
           style={({ pressed }) => [
             scheduleStyles.dateItem,
-            isSelected && { backgroundColor: isPaper ? skinTokens.background ?? colors.surface : colors.surface, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, borderWidth: 1.5 },
+            isSelected && { backgroundColor: isSkinned ? skinTokens.background ?? colors.surface : colors.surface, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, borderWidth: 1.5 },
             pressed && { opacity: 0.7 },
           ]}
         >
@@ -11792,7 +11807,7 @@ export function ScheduleTab({
   </View>
       </View>
     </>
-  ), [colors, dateHeader, weekDates, weekSlideDir, selectedDate, today, timeOffList, isPaper, skinTokens]);
+  ), [colors, dateHeader, weekDates, weekSlideDir, selectedDate, today, timeOffList, isSkinned, skinTokens]);
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {
@@ -11830,7 +11845,7 @@ export function ScheduleTab({
                 : router.push({ pathname: '/bible-chapters', params: { openBookNav: '1' } })}
               style={({ pressed }) => [{ marginBottom: 12, marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }]}
             >
-              <View style={{ backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isPaper ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}>
+              <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
                 <View style={{ padding: 16, gap: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -12041,13 +12056,13 @@ export function ScheduleTab({
           return <BirthdayCard birthday={item.data} />;
         case "todo-pair":
           return (
-            <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 4, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface }}>
+            <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 4, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }}>
               {item.data.todos.map((t: any) => {
                 const todoColor = t.color || colors.primary;
                 return (
                   <Pressable
                     key={t.id}
-                    style={{ flex: 1, backgroundColor: todoColor, borderRadius: 12, padding: 12, minHeight: 68, justifyContent: "center", ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}
+                    style={{ flex: 1, backgroundColor: todoColor, borderRadius: 12, padding: 12, minHeight: 68, justifyContent: "center", ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}
                     onPress={(e) => {
                       const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
                       if (!t.isCompleted) onAwardXP?.(xpActionForDate(t.date), t.id, position);
@@ -12366,11 +12381,11 @@ export function ScheduleTab({
                   onOpenLibrary={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }}
                 />
               ) : (
-                <View style={{ backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isPaper ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}>
+                <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
                     <MaterialIcons name="music-note" size={20} color={colors.primary} />
                     <Text style={{ marginLeft: 8, fontSize: 16, fontWeight: '600', color: colors.foreground }}>Worship</Text>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Open saved albums" onPress={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }} style={({ pressed }) => [{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background, borderWidth: 1, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, opacity: pressed ? 0.65 : 1 }]}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Open saved albums" onPress={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }} style={({ pressed }) => [{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, opacity: pressed ? 0.65 : 1 }]}>
                       <MaterialIcons name="collections-bookmark" size={17} color={colors.primary} />
                       <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Saved Albums</Text>
                     </Pressable>
@@ -12505,16 +12520,16 @@ export function ScheduleTab({
           return null;
       }
     },
-    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded, isWorshipExpanded, selectedWorshipDate, clockNow, renderDateHeaderCard, celebratedBook, bibleFullyComplete, isPaper, skinTokens]
+    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded, isWorshipExpanded, selectedWorshipDate, clockNow, renderDateHeaderCard, celebratedBook, bibleFullyComplete, isSkinned, skinTokens]
   );
 
   return (
-    <View ref={rootViewRef} {...rootPanResponder.panHandlers} style={[scheduleStyles.container, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }]}>
+    <View ref={rootViewRef} {...rootPanResponder.panHandlers} style={[scheduleStyles.container, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
       {/* The page itself is a sheet under Paper (flat — no texture since v179). */}
-      {isPaper ? <PaperGrainOverlay /> : null}
+      {isSkinned ? <PaperGrainOverlay /> : null}
       {/* Pill-style floating header (see-through, like People tab) */}
       <Animated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, opacity: scrollY.interpolate({ inputRange: [200, 320], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: scrollY.interpolate({ inputRange: [200, 320], outputRange: [0, -60], extrapolate: 'clamp' }) }] }]}>
-        <View style={{ backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }}>
+        <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
           <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Schedule</Text>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{(() => { const total = dayEvents.length; const remaining = dayEvents.filter((e) => !e.isCompleted).length; return remaining === total ? `${total} events today` : `${remaining} of ${total} events left`; })()}</Text>
         </View>
@@ -12577,18 +12592,18 @@ export function ScheduleTab({
               position: 'absolute',
               top: 36,
               right: 0,
-              backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface,
+              backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
               borderRadius: 8,
               borderWidth: 1,
-              borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border,
+              borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border,
               zIndex: 1000,
               minWidth: 100,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: isPaper ? 0 : 0.1,
+              shadowOpacity: isSkinned ? 0 : 0.1,
               shadowRadius: 4,
               elevation: 5,
-              ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
+              ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
             }}>
               {(['day', 'week', 'month'] as const).map((mode, index) => (
                 <Pressable
@@ -12649,11 +12664,11 @@ export function ScheduleTab({
                 // full-bleed surface wrapper so the sheet is one continuous card
                 // that cleanly slides over the fixed summary behind it.
                 if (info.item.type === "date-header") return element;
-                return <View style={{ backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface }}>{element}</View>;
+                return <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }}>{element}</View>;
               }}
               extraData={[selectedDate, listData, scheduleSheetData, colors, currentAlbum, isWorshipExpanded]}
             ListFooterComponent={
-              <View style={{ backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: "hidden" }}>
+              <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: "hidden" }}>
                 <ReachedStampRow stamps={reachedStamps} people={people} selectedDate={selectedDate} onChange={onReachedStampsChange} />
               </View>
             }
@@ -12773,7 +12788,7 @@ export function ScheduleTab({
           style={[scheduleStyles.missedTodosFloatingContainer, { top: 70 }]}
         >
           {isMissedTodosOpen && (
-            <View style={[scheduleStyles.missedTodosPanel, { backgroundColor: isPaper ? skinTokens.surface ?? colors.background : colors.background, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+            <View style={[scheduleStyles.missedTodosPanel, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.background : colors.background, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
               <View style={[scheduleStyles.missedTodosPanelHeader, { borderBottomColor: colors.border }]}>
                 <View style={scheduleStyles.missedTodosPanelTitleGroup}>
                   <View style={[scheduleStyles.missedTodosPanelIcon, { backgroundColor: colors.error + '18' }]}>
@@ -12825,7 +12840,7 @@ export function ScheduleTab({
                         <MaterialIcons name={isActive ? "keyboard-arrow-up" : "keyboard-arrow-right"} size={20} color={colors.muted} />
                       </Pressable>
                       {isActive && (
-                        <View style={[scheduleStyles.missedTodoActions, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface }]}>
+                        <View style={[scheduleStyles.missedTodoActions, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }]}>
                           <Pressable
                             onPress={(event) => { const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; if (!todo.isCompleted) onAwardXP?.(xpActionForDate(todo.date), todo.id, position); else revokeTodoXP(todo.id, position); setTodos((current) => toggleTodoCompleted(current, todo.id)); }}
                             style={({ pressed }) => [scheduleStyles.missedTodoActionButton, { backgroundColor: colors.success }, pressed && { opacity: 0.72 }]}
@@ -12908,7 +12923,7 @@ export function ScheduleTab({
           <Pressable style={scheduleStyles.fabOverlay} onPress={() => setShowAddModal(false)} />
           <ReAnimated.View
             entering={FadeIn.duration(180).easing(Easing.out(Easing.quad))}
-            style={[scheduleStyles.fabMenu, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}
+            style={[scheduleStyles.fabMenu, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}
           >
             <ReAnimated.View entering={FadeIn.duration(180).delay(30).easing(Easing.out(Easing.quad))}>
             <Pressable
@@ -12990,7 +13005,7 @@ export function ScheduleTab({
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center", zIndex: 101 }} pointerEvents="box-none">
           <ReAnimated.View
             entering={FadeIn.duration(180).easing(Easing.out(Easing.quad))}
-            style={{ backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 28, paddingHorizontal: 22, paddingVertical: 16, alignItems: "center", gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: isPaper ? 0 : 0.3, shadowRadius: 8, elevation: 8, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }}
+            style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 28, paddingHorizontal: 22, paddingVertical: 16, alignItems: "center", gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: isSkinned ? 0 : 0.3, shadowRadius: 8, elevation: 8, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }}
           >
             <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700", letterSpacing: 0.5 }}>
               {whiteBlockMenu ? `${format12HourTime(whiteBlockMenu.startTime)} → ${format12HourTime(whiteBlockMenu.endTime)}` : ""}
@@ -13043,7 +13058,7 @@ export function ScheduleTab({
       {/* Add Modal - Event Form */}
       <Modal transparent visible={addType === "event"} animationType="slide" onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
-          <View style={[scheduleStyles.formSheet, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
+          <View style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -13064,7 +13079,7 @@ export function ScheduleTab({
                     onChangeText={setFormTitle}
                     placeholder="e.g., Church Service, BBQ, Bible Study"
                     placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                   {formTitle.trim() && detectEventKeyword(formTitle) && (
@@ -13121,7 +13136,7 @@ export function ScheduleTab({
                     onChangeText={setFormLocation}
                     placeholder="Optional"
                     placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TIME TO LEAVE (MINUTES)</Text>
@@ -13131,7 +13146,7 @@ export function ScheduleTab({
                     placeholder="e.g. 15"
                     placeholderTextColor={colors.muted}
                     keyboardType="numeric"
-                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>NOTES</Text>
@@ -13140,7 +13155,7 @@ export function ScheduleTab({
                     onChangeText={setFormNotes}
                     placeholder="Optional"
                     placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary, minHeight: 80 }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary, minHeight: 80 }]}
                     multiline
                     returnKeyType="done"
                   />
@@ -13148,7 +13163,7 @@ export function ScheduleTab({
                     const detectedKeyword = detectEventKeyword(formTitle, formLocation, formNotes);
                     if (detectedKeyword) {
                       return (
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderWidth: 1, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border }}>
                           <MaterialIcons name="auto-awesome" size={20} color={colors.primary} />
                           <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600", flex: 1 }}>
                             Custom card: {detectedKeyword.label}
@@ -13187,7 +13202,7 @@ export function ScheduleTab({
       {/* Add Modal - Todo Form */}
       <Modal transparent visible={addType === "todo"} animationType="slide" onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
-          <View style={[scheduleStyles.formSheet, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
+          <View style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -13204,7 +13219,7 @@ export function ScheduleTab({
                 onChangeText={setFormTitle}
                 placeholder="e.g., Buy groceries, Call pastor"
                 placeholderTextColor={colors.muted}
-                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
+                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
                 returnKeyType="done"
                 onSubmitEditing={handleSaveTodo}
               />
@@ -13259,7 +13274,7 @@ export function ScheduleTab({
                 onChangeText={setFormTodoNotes}
                 placeholder="Add any notes or details for this todo"
                 placeholderTextColor={colors.muted}
-                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary, minHeight: 80, textAlignVertical: 'top' }]}
+                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary, minHeight: 80, textAlignVertical: 'top' }]}
                 multiline
                 numberOfLines={4}
               />
@@ -13295,13 +13310,13 @@ export function ScheduleTab({
                   onChangeText={setFormSubtaskDescription}
                   placeholder="Details for this step (optional)"
                   placeholderTextColor={colors.muted}
-                  style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary, marginTop: 8, marginBottom: 0, minHeight: 52 }]}
+                  style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary, marginTop: 8, marginBottom: 0, minHeight: 52 }]}
                   multiline
                   numberOfLines={2}
                   textAlignVertical="top"
                 />
                 {formSubtasks.map((subtask, index) => (
-                  <View key={subtask.id} style={{ marginTop: 10, padding: 12, borderRadius: 14, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderWidth: 1, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border }}>
+                  <View key={subtask.id} style={{ marginTop: 10, padding: 12, borderRadius: 14, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border }}>
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
                       <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: `${colors.primary}18`, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '800' }}>{index + 1}</Text>
@@ -13441,7 +13456,7 @@ export function ScheduleTab({
       {/* Add Modal - Ministry Form */}
       <Modal transparent visible={addType === "ministry"} animationType="slide" onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
-          <View style={[scheduleStyles.formSheet, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
+          <View style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -13462,7 +13477,7 @@ export function ScheduleTab({
                     onChangeText={setFormTitle}
                     placeholder="e.g., Youth Group, Prayer Meeting"
                     placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TYPE OF MINISTRY</Text>
@@ -13525,7 +13540,7 @@ export function ScheduleTab({
                     onChangeText={setFormLocation}
                     placeholder="e.g., Main Campus, Room 201"
                     placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TIME TO LEAVE (MINUTES)</Text>
@@ -13535,7 +13550,7 @@ export function ScheduleTab({
                     placeholder="e.g. 15"
                     placeholderTextColor={colors.muted}
                     keyboardType="numeric"
-                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>BIBLE BOOK & CHAPTER (optional)</Text>
@@ -13545,7 +13560,7 @@ export function ScheduleTab({
                       onChangeText={setFormBibleBook}
                       placeholder="e.g., Genesis"
                       placeholderTextColor={colors.muted}
-                      style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary, flex: 1 }]}
+                      style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary, flex: 1 }]}
                       returnKeyType="done"
                     />
                     <TextInput
@@ -13553,7 +13568,7 @@ export function ScheduleTab({
                       onChangeText={setFormBibleChapter}
                       placeholder="Ch."
                       placeholderTextColor={colors.muted}
-                      style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary, width: 60 }]}
+                      style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary, width: 60 }]}
                       keyboardType="number-pad"
                       returnKeyType="done"
                     />
@@ -13599,7 +13614,7 @@ export function ScheduleTab({
       {/* Add Modal - Bible Study Form */}
       <Modal transparent visible={addType === "bible-study"} animationType="slide" onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
-          <View style={[scheduleStyles.formSheet, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
+          <View style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -13633,7 +13648,7 @@ export function ScheduleTab({
                     placeholder="1"
                     placeholderTextColor={colors.muted}
                     keyboardType="number-pad"
-                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DATE</Text>
@@ -13670,7 +13685,7 @@ export function ScheduleTab({
                     onChangeText={setFormNotes}
                     placeholder="e.g., Focus on verses 1-10"
                     placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                 </View>
@@ -13684,7 +13699,7 @@ export function ScheduleTab({
       {/* Add/Edit Worship Album */}
       <Modal transparent visible={addType === "worship"} animationType="slide" onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
-          <View style={[scheduleStyles.formSheet, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
+          <View style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); setShowAddModal(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -13697,7 +13712,7 @@ export function ScheduleTab({
             <ScrollView style={scheduleStyles.formContent} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
               {/* Album Preview */}
               {(formTitle || formNotes || formAlbumCoverImage || formSongLink) && (
-                <View style={[{ backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, alignItems: 'center', gap: 12 }]}>
+                <View style={[{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, alignItems: 'center', gap: 12 }]}>
                   {formAlbumCoverImage ? (
                     <Image
                       source={{ uri: formAlbumCoverImage }}
@@ -13728,7 +13743,7 @@ export function ScheduleTab({
                 placeholderTextColor={colors.muted}
                 value={formTitle}
                 onChangeText={setFormTitle}
-                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
+                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
                 returnKeyType="done"
               />
 
@@ -13738,7 +13753,7 @@ export function ScheduleTab({
                 placeholderTextColor={colors.muted}
                 value={formNotes}
                 onChangeText={setFormNotes}
-                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
+                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
                 returnKeyType="done"
               />
 
@@ -13792,7 +13807,7 @@ export function ScheduleTab({
               {formTracks.length > 0 && (
                 <View style={{ gap: 8, marginTop: 4 }}>
                   {formTracks.map((track, index) => (
-                    <View key={`${track.title}-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background, borderWidth: 1, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border }}>
+                    <View key={`${track.title}-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border }}>
                       <Text style={{ width: 20, color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'right' }}>{index + 1}</Text>
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: colors.foreground, fontSize: 13 }} numberOfLines={1}>{track.title}</Text>
@@ -13814,7 +13829,7 @@ export function ScheduleTab({
               <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Album Cover</Text>
               <Pressable
                 onPress={pickAlbumCover}
-                style={({ pressed }) => [scheduleStyles.formInput, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background, borderColor: colors.primary, borderWidth: 2, justifyContent: 'center', alignItems: 'center', height: 100, opacity: pressed ? 0.7 : 1 }]}
+                style={({ pressed }) => [scheduleStyles.formInput, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background, borderColor: colors.primary, borderWidth: 2, justifyContent: 'center', alignItems: 'center', height: 100, opacity: pressed ? 0.7 : 1 }]}
               >
                 {formAlbumCoverImage ? (
                   <Image source={{ uri: formAlbumCoverImage }} style={{ width: '100%', height: '100%', borderRadius: 8 }} contentFit="cover" />
@@ -13859,7 +13874,7 @@ export function ScheduleTab({
                 placeholderTextColor={colors.muted}
                 value={formSongLink}
                 onChangeText={setFormSongLink}
-                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
+                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderBottomColor: colors.primary }]}
                 returnKeyType="done"
               />
 
@@ -13917,9 +13932,9 @@ export function ScheduleTab({
 
       {/* Saved Albums Library Page */}
       <Modal transparent visible={showAlbumLibrary} animationType="slide" onRequestClose={() => setShowAlbumLibrary(false)}>
-        <View style={[scheduleStyles.formOverlay, { backgroundColor: (isPaper ? skinTokens.background ?? colors.background : colors.background) + 'E6' }]}>
+        <View style={[scheduleStyles.formOverlay, { backgroundColor: (isSkinned ? skinTokens.background ?? colors.background : colors.background) + 'E6' }]}>
           <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-            <View style={[scheduleStyles.formSheet, { backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface, flex: 1, maxHeight: '100%', minHeight: '100%', borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingBottom: 0 }]}>
+            <View style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, flex: 1, maxHeight: '100%', minHeight: '100%', borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingBottom: 0 }]}>
               <View style={scheduleStyles.formHeader}>
                 <Pressable onPress={() => setShowAlbumLibrary(false)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                   <MaterialIcons name="close" size={28} color={colors.foreground} />

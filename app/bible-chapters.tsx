@@ -87,8 +87,8 @@ const BIBLE_STATUS_STORAGE_KEY = 'bibleBookStatus';
 
 export default function BibleChaptersScreen() {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
-  const paperSurface = isPaper ? skinTokens.surface ?? colors.surface : colors.surface;
+  const { isSkinned, tokens: skinTokens } = useSkin();
+  const paperSurface = isSkinned ? skinTokens.surface ?? colors.surface : colors.surface;
   const router = useRouter();
   const { openBookNav } = useLocalSearchParams<{ openBookNav?: string }>();
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set());
@@ -508,7 +508,7 @@ export default function BibleChaptersScreen() {
       <Modal visible={showBookNav} transparent animationType="slide" onRequestClose={() => setShowBookNav(false)}>
         <View style={styles.navModalOverlay}>
           <Pressable style={styles.navModalBackdrop} onPress={() => setShowBookNav(false)} />
-          <View style={[styles.navModalContent, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
+          <View style={[styles.navModalContent, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
             <View style={styles.navModalHeader}>
               <Text style={[styles.navModalTitle, { color: colors.foreground }]}>Jump to Book</Text>
               <Pressable onPress={() => setShowBookNav(false)}>

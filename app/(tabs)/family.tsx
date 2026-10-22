@@ -21,8 +21,8 @@ export default function FamilyScreen() {
   const [showAddPrayerModal, setShowAddPrayerModal] = useState(false);
 
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
-  const paperSurface = isPaper ? skinTokens.surface ?? colors.surface : colors.surface;
+  const { isSkinned, tokens: skinTokens } = useSkin();
+  const paperSurface = isSkinned ? skinTokens.surface ?? colors.surface : colors.surface;
 
   useEffect(() => {
     const loadFamily = async () => {
@@ -214,7 +214,7 @@ export default function FamilyScreen() {
         </View>
 
         {/* Hero Section */}
-        <View style={[styles.heroSection, { backgroundColor: paperSurface, ...(isPaper ? skinTokens.cardShadow ?? {} : {}) }]}>
+        <View style={[styles.heroSection, { backgroundColor: paperSurface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
           <View style={styles.avatarContainer}>
             <AvatarImage id={selectedMember.id} name={selectedMember.name} gender={selectedMember.gender} avatarAsset={selectedMember.avatarAsset} photoUri={selectedMember.photoUri} size={96} fallbackColor={selectedMember.avatarColor} />
           </View>
@@ -317,9 +317,9 @@ export default function FamilyScreen() {
                     styles.prayerItem,
                     {
                       backgroundColor: paperSurface,
-                      borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border,
+                      borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border,
                       opacity: prayer.isDone ? 0.5 : 1,
-                      ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
+                      ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
                     },
                   ]}
                 >
@@ -373,10 +373,10 @@ export default function FamilyScreen() {
         </View>
 
         {/* Add Prayer Input */}
-        <View style={[styles.addPrayerContainer, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }]}>
+        <View style={[styles.addPrayerContainer, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
           <Pressable
             onPress={() => setShowAddPrayerModal(true)}
-            style={[styles.addPrayerInput, { backgroundColor: paperSurface, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border }]}
+            style={[styles.addPrayerInput, { backgroundColor: paperSurface, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border }]}
           >
             <Text style={[styles.addPrayerPlaceholder, { color: colors.muted }]}>Add prayer item...</Text>
           </Pressable>
@@ -391,7 +391,7 @@ export default function FamilyScreen() {
         {/* Add Prayer Modal */}
         <Modal visible={showAddPrayerModal} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background, ...(isPaper ? skinTokens.sheetShadow ?? {} : {}) }]}>
+            <View style={[styles.modalContent, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.foreground }]}>Add Prayer Item</Text>
                 <Pressable onPress={() => setShowAddPrayerModal(false)}>
@@ -404,7 +404,7 @@ export default function FamilyScreen() {
                 placeholderTextColor={colors.muted}
                 value={newPrayerTitle}
                 onChangeText={setNewPrayerTitle}
-                style={[styles.modalInput, { color: colors.foreground, borderColor: isPaper ? skinTokens.border ?? colors.border : colors.border, backgroundColor: paperSurface }]}
+                style={[styles.modalInput, { color: colors.foreground, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, backgroundColor: paperSurface }]}
                 multiline
               />
 

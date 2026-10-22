@@ -63,7 +63,7 @@ export function WeeklyCalendarView({
   onBlockPress,
 }: WeeklyCalendarViewProps) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   
   const weekDays = useMemo(() => {
     const weekStart = getWeekStart(selectedDate);
@@ -88,7 +88,7 @@ export function WeeklyCalendarView({
   }, [selectedDate, timeBlocks]);
   
   return (
-    <View style={{ flex: 1, backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background }}>
+    <View style={{ flex: 1, backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }}>
       {/* Day headers */}
       <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <View style={{ width: 60 }} />
@@ -123,7 +123,7 @@ export function WeeklyCalendarView({
                   flex: 1,
                   borderRightWidth: 1,
                   borderRightColor: colors.border,
-                  backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface,
+                  backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
                   position: 'relative',
                 }}
               >

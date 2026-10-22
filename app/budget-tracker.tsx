@@ -17,11 +17,11 @@ type MonthlyExpense = MonthlyExpenseRecord;
 
 export default function BudgetTrackerScreen() {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   // Paper (v179): every card/sheet surface in this screen's local
   // stylesheet becomes warm paper stock; Classic keeps colors.surface.
-  const paperSurface = isPaper ? skinTokens.surface ?? colors.surface : colors.surface;
-  const paperCardShadow = isPaper ? skinTokens.cardShadow ?? {} : {};
+  const paperSurface = isSkinned ? skinTokens.surface ?? colors.surface : colors.surface;
+  const paperCardShadow = isSkinned ? skinTokens.cardShadow ?? {} : {};
   const router = useRouter();
   const [expenses, setExpenses] = useState<MonthlyExpense[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -329,8 +329,8 @@ export default function BudgetTrackerScreen() {
       justifyContent: 'flex-end',
     },
     modalContent: {
-      backgroundColor: isPaper ? skinTokens.background ?? colors.background : colors.background,
-      ...(isPaper ? skinTokens.sheetShadow ?? {} : {}),
+      backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background,
+      ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}),
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       padding: 20,

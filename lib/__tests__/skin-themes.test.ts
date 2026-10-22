@@ -52,8 +52,8 @@ import {
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
 describe("skin definitions + level gating", () => {
-  it("ships exactly Classic (default) and Paper", () => {
-    expect(SKIN_THEMES.map((t) => t.id)).toEqual(["classic", "paper"]);
+  it("ships exactly Classic (default), Paper and 8-bit", () => {
+    expect(SKIN_THEMES.map((t) => t.id)).toEqual(["classic", "paper", "8bit"]);
     expect(DEFAULT_SKIN_THEME).toBe("classic");
     expect(getSkinThemeDefinition("classic").unlockLevel).toBe(1);
   });
@@ -66,14 +66,21 @@ describe("skin definitions + level gating", () => {
     expect(isSkinUnlocked("classic", 1)).toBe(true);
   });
 
+  it("8-bit unlocks at Level 10, mirroring Paper's gate", () => {
+    expect(getSkinThemeDefinition("8bit").unlockLevel).toBe(10);
+    expect(isSkinUnlocked("8bit", 9)).toBe(false);
+    expect(isSkinUnlocked("8bit", 10)).toBe(true);
+  });
+
   it("the unlocked list follows the level", () => {
     expect(getUnlockedSkinThemeIds(1)).toEqual(["classic"]);
     expect(getUnlockedSkinThemeIds(9)).toEqual(["classic"]);
-    expect(getUnlockedSkinThemeIds(10)).toEqual(["classic", "paper"]);
+    expect(getUnlockedSkinThemeIds(10)).toEqual(["classic", "paper", "8bit"]);
   });
 
   it("unknown or missing skin ids normalize back to Classic", () => {
     expect(normalizeSkinThemeId("paper")).toBe("paper");
+    expect(normalizeSkinThemeId("8bit")).toBe("8bit");
     expect(normalizeSkinThemeId("classic")).toBe("classic");
     expect(normalizeSkinThemeId("watercolor")).toBe("classic");
     expect(normalizeSkinThemeId(undefined)).toBe("classic");
@@ -326,7 +333,7 @@ describe("Classic stays byte-for-byte (source pins)", () => {
     expect(shell).toContain('bg === "#FFFFFF"');
 
     const games = read("components/mini-game-scene.tsx");
-    expect(games).toContain("isPaper ? tokens.cardShadow : null");
+    expect(games).toContain("isSkinned ? tokens.cardShadow : null");
 
     const modal = read("components/status-modal.tsx");
     expect(modal).toContain("isPaper ? <PaperGrainOverlay /> : null");
@@ -352,6 +359,16 @@ describe("Classic stays byte-for-byte (source pins)", () => {
     expect(schedule).toContain("switch (label)");
     // Rest skies swap as one block: paper cutouts OR the originals.
     expect(schedule).toContain("<PaperRestSky mood={mood} bg={mc.bg} />");
+  });
+
+  it("the schedule dispatches pixel keyword art ONLY under the 8-bit skin (v183)", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    expect(schedule).toContain("pixelKeywordSceneFor");
+    expect(schedule).toContain("if (isEightBit)");
+    expect(schedule).toContain("<PixelRestSky mood={mood} bg={mc.bg} />");
+    // The 8-bit ticker is the mockup's dark HUD strip with a gold edge.
+    expect(schedule).toContain('"#1D1233"');
+    expect(schedule).toContain('"#FFC531"');
   });
 });
 
@@ -434,7 +451,7 @@ describe("v176 chrome coverage (source pins)", () => {
 
   it("the schedule's white blocks and ticker take the mockup's Unified treatment", () => {
     const blocks = read("components/time-block-indicator.tsx");
-    expect(blocks).toContain('borderStyle: isPaper ? "solid" : "dashed"');
+    expect(blocks).toContain('borderStyle: isSkinned ? "solid" : "dashed"');
     expect(blocks).toContain("skinTokens.cardShadow");
     const schedule = read("components/schedule-tab.tsx");
     // Live strip: warm paper stock + soft lavender edge, per the mockup.
@@ -535,5 +552,124 @@ describe("v182 paper polish — cleaner neutral, true tints, readable completed 
     // paperStockFor is the HSL tint now — the cream RGB mix is gone.
     expect(schedule).not.toContain("0.52");
     expect(schedule).toContain("paperStockTint(accent, surface)");
+  });
+});
+
+// ─── v183: the 8-bit skin ──────────────────────────────────────────
+// Jonathan approved the 8-bit mockup 2026-10-22 (schedule-mockups/
+// 8bit.html): the app as a dusk-purple game world — stepped pixel
+// corners, hard block shadows with zero blur, a dithered checker
+// ground, cream cartridge cards, chunky ink borders, gold accents,
+// and motion that runs in visible steps (never smooth, never a
+// spring). Same rules as Paper: EVERY keyword scene gets a bespoke
+// rendition in the dialect (pixel scenes, Sopranos flagship first),
+// every surface that wears Paper wears 8-bit through the shared
+// isSkinned kit gate, and Classic/Paper stay byte-for-byte.
+
+describe("8-bit skin tokens (v183)", () => {
+  const light = getThemedPalette("light", "default");
+  const dark = getThemedPalette("dark", "default");
+
+  it("carries the mockup's hard block shadow, near-square radii and stepped motion numbers", () => {
+    const tokens = getSkinTokens("8bit", "light", light);
+    expect(tokens.isEightBit).toBe(true);
+    expect(tokens.isPaper).toBe(false);
+    // The mockup's exact card shadow: 6px solid offset, zero blur.
+    expect(tokens.cardShadow?.boxShadow).toBe("6px 6px 0px rgba(13,5,32,0.55)");
+    expect(tokens.sheetShadow?.boxShadow).toContain("0px -6px 0px rgba(13,5,32,0.45)");
+    expect(tokens.cardRadius).toBe(4);
+    expect(tokens.sheetRadius).toBe(6);
+    // No grain under 8-bit either — the texture is the dither overlay.
+    expect(tokens.grainOpacity).toBe(0);
+    expect(tokens.motion).toEqual({ slideDuration: 300, settleDuration: 500, settleDistance: 16 });
+    // The dark HUD tokens exist so the shops' full-bleed dark screens
+    // take the dusk world instead of the palette's dark chrome.
+    expect(tokens.darkBackground).not.toBeNull();
+    expect(tokens.darkSurface).not.toBeNull();
+    const tokensDark = getSkinTokens("8bit", "dark", dark);
+    expect(tokensDark.isEightBit).toBe(true);
+    expect(tokensDark.cardShadow?.boxShadow).toBe("6px 6px 0px rgba(13,5,32,0.55)");
+  });
+
+  it("is a different material from Paper: different surfaces, different shadow, different radii", () => {
+    const bit = getSkinTokens("8bit", "light", light);
+    const paper = getSkinTokens("paper", "light", light);
+    expect(bit.surface).not.toBeNull();
+    expect(bit.background).not.toBeNull();
+    expect(bit.surface).not.toBe(paper.surface);
+    expect(bit.background).not.toBe(paper.background);
+    expect(bit.cardShadow?.boxShadow).not.toBe(paper.cardShadow?.boxShadow);
+    expect(bit.cardRadius).not.toBe(paper.cardRadius);
+  });
+
+  it("the motion dialect is stepped in the hook — Easing.steps, and still no spring/bounce anywhere", () => {
+    const hook = read("hooks/use-skin.ts");
+    expect(hook).toContain("tokens.isEightBit");
+    expect(hook).toContain("Easing.steps(6)");
+    expect(hook).toContain("Easing.steps(4)");
+    expect(hook.toLowerCase()).not.toContain("spring");
+    expect(hook.toLowerCase()).not.toContain("bounce");
+  });
+});
+
+describe("8-bit keyword scenes (v183): every scene id has a bespoke pixel rendition", () => {
+  const registry = read("components/pixel-keyword-scenes.tsx");
+  const categoryFiles = [
+    "components/pixel-scenes-labels.tsx",
+    "components/pixel-scenes-food.tsx",
+    "components/pixel-scenes-tv.tsx",
+    "components/pixel-scenes-screen.tsx",
+  ];
+  const bodies = categoryFiles.map(read).join("\n");
+
+  it("the registry maps every Paper scene id, each to a UNIQUE pixel component", () => {
+    const entries = [...registry.matchAll(/"([^"]+)":\s*(Pixel\w+)/g)].map(
+      (m) => [m[1], m[2]] as const,
+    );
+    const byId = new Map(entries);
+    for (const id of allPaperSceneIds()) {
+      expect(byId.has(id), id).toBe(true);
+    }
+    expect(byId.size).toBe(allPaperSceneIds().length);
+    expect(new Set(byId.values()).size).toBe(byId.size);
+  });
+
+  it("every pixel scene is its own composition rooted on PixelSceneRoot — no shared shells", () => {
+    const entries = [...registry.matchAll(/"([^"]+)":\s*(Pixel\w+)/g)].map((m) => m[2]);
+    const chunksByName = new Map<string, string>();
+    for (const chunk of bodies.split(/(?=export function Pixel)/)) {
+      const m = chunk.match(/^export function (Pixel\w+)/);
+      if (m) chunksByName.set(m[1], chunk);
+    }
+    for (const comp of entries) {
+      expect(chunksByName.has(comp), comp).toBe(true);
+      expect(chunksByName.get(comp), comp).toContain("PixelSceneRoot");
+    }
+    // Pixel scenes are drawn with the pixel kit only — never the
+    // paper kit, and never the forbidden words.
+    expect(bodies).not.toContain("paper-keyword-scenes");
+    expect(bodies.toLowerCase()).not.toContain("stitch");
+    expect(bodies.toLowerCase()).not.toContain("spring");
+    expect(bodies.toLowerCase()).not.toContain("bounce");
+  });
+
+  it("the Sopranos pixel scene leads: pool water, two ducks and a yellow duckling, all stepping", () => {
+    const tv = read("components/pixel-scenes-tv.tsx");
+    const start = tv.indexOf("export function PixelTvSopranosScene");
+    expect(start).toBeGreaterThanOrEqual(0);
+    const next = tv.indexOf("export function", start + 10);
+    const chunk = tv.slice(start, next === -1 ? undefined : next);
+    expect(chunk).toContain("PixelSceneRoot");
+    expect(chunk).toContain("#29B6F6");
+    expect(chunk).toContain("#FFF9C4");
+    // Ducks + duckling each ride their own stepped bob.
+    expect(chunk.split("StepBob").length - 1).toBeGreaterThanOrEqual(3);
+  });
+
+  it("pixel routing reuses the Paper routing ids exactly (one source of truth)", () => {
+    expect(registry).toContain("paperSceneIdFor");
+    expect(registry).toContain("PIXEL_SCENE_REGISTRY");
+    expect(registry).toContain("pixelKeywordSceneFor");
+    expect(registry).toContain("PixelRestSky");
   });
 });

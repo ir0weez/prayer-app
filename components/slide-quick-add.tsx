@@ -45,7 +45,7 @@ export function SlideQuickAddPicker({
   onRowLayout,
 }: SlideQuickAddPickerProps) {
   const colors = useColors();
-  const { isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const scales = useRef(options.map(() => new Animated.Value(1))).current;
   const enters = useRef(options.map(() => new Animated.Value(0))).current;
   const rowOpacity = useRef(new Animated.Value(0)).current;
@@ -98,8 +98,8 @@ export function SlideQuickAddPicker({
           left,
           top,
           width: QA_ROW_WIDTH,
-          backgroundColor: isPaper ? skinTokens.surface ?? colors.surface : colors.surface,
-          ...(isPaper ? skinTokens.cardShadow ?? {} : {}),
+          backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
+          ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
           borderRadius: 24,
           paddingHorizontal: QA_PAD,
           paddingTop: 10,

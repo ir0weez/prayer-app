@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, Animated, Easing, type GestureRespon
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { BIT_DUSK, BIT_GOLD, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
 import { TimeBlock, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { format12HourTime } from "@/lib/utils";
 import { NowPill } from "./now-indicator";
@@ -70,21 +71,25 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
         {
           // Paper (mockup "Unified"): solid edge, paper-white stock,
           // the kit offset shadow — the dashed Classic edge is gone.
-          backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
-          borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border,
+          // 8-bit (v184): the mockup's white block is a DUSK HUD panel
+          // — #2A1B4E fill, 3px #6E5BB5 edge, lavender text, gold
+          // keyword and duration pill — never a light card.
+          backgroundColor: skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
+          borderColor: skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : colors.border,
           borderStyle: isSkinned ? "solid" : "dashed",
           opacity: pressed ? 0.65 : 1,
           minHeight: blockCardHeight(block, nowMinutes),
+          ...(skinTokens.isEightBit ? { borderWidth: 3, borderRadius: 2 } : {}),
           ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
         },
       ]}
     >
       <View style={styles.left}>
-        <MaterialIcons name="add" size={18} color={colors.muted} />
-        <Text style={[styles.label, { color: colors.muted }]}>Add event?</Text>
+        <MaterialIcons name="add" size={18} color={skinTokens.isEightBit ? BIT_GOLD : colors.muted} />
+        <Text style={[styles.label, { color: skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted }]}>Add event?</Text>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Text style={[styles.time, { color: colors.muted }]}>
+        <Text style={[styles.time, { color: skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }]}>
           {isNow && nowMinutes != null ? format12HourTime(minutesToTime(nowMinutes)) : format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
         </Text>
         {(() => {
@@ -92,8 +97,8 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
           const mins = block.durationMinutes;
           const label = mins === 30 ? "30m" : mins === 60 ? "1h" : mins % 60 === 0 ? `${mins / 60}h` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
           return (
-            <View style={{ backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-              <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{label}</Text>
+            <View style={{ backgroundColor: skinTokens.isEightBit ? BIT_GOLD : colors.primary, borderRadius: skinTokens.isEightBit ? 2 : 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ color: skinTokens.isEightBit ? "#241547" : "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{label}</Text>
             </View>
           );
         })()}
@@ -118,9 +123,10 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
       style={[
         styles.groupContainer,
         {
-          backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
-          borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border,
+          backgroundColor: skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
+          borderColor: skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : colors.border,
           borderStyle: isSkinned ? "solid" : "dashed",
+          ...(skinTokens.isEightBit ? { borderWidth: 3, borderRadius: 2 } : {}),
           ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
         },
       ]}
@@ -137,8 +143,8 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
           style={({ pressed }) => [
             styles.groupRow,
             index > 0 && {
-              borderTopWidth: StyleSheet.hairlineWidth,
-              borderTopColor: colors.border,
+              borderTopWidth: skinTokens.isEightBit ? 2 : StyleSheet.hairlineWidth,
+              borderTopColor: skinTokens.isEightBit ? "#6E5BB5" : colors.border,
             },
             {
               opacity: pressed ? 0.65 : 1,
@@ -147,9 +153,9 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
             },
           ]}
         >
-          <CyclingAddLabel startIndex={index} mutedColor={colors.muted} accentColor={colors.primary} />
+          <CyclingAddLabel startIndex={index} mutedColor={skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted} accentColor={skinTokens.isEightBit ? BIT_GOLD : colors.primary} />
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text style={[styles.time, { color: colors.muted }]}>
+            <Text style={[styles.time, { color: skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }]}>
               {(() => {
                 const isNowBlock = blockContainsNow(block, nowMinutes);
                 const start = isNowBlock && nowMinutes != null ? minutesToTime(nowMinutes) : block.startTime;
@@ -163,8 +169,8 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
               const mins = block.durationMinutes;
               const label = mins === 30 ? "30m" : mins === 60 ? "1h" : mins % 60 === 0 ? `${mins / 60}h` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
               return (
-                <View style={{ backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-                  <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{label}</Text>
+                <View style={{ backgroundColor: skinTokens.isEightBit ? BIT_GOLD : colors.primary, borderRadius: skinTokens.isEightBit ? 2 : 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+                  <Text style={{ color: skinTokens.isEightBit ? "#241547" : "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{label}</Text>
                 </View>
               );
             })()}

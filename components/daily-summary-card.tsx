@@ -1,6 +1,8 @@
 import { Animated, View, Text, Pressable, ScrollView, Modal } from "react-native";
 import { formatCoins } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
+import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
 import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { getIconForTodo } from "@/lib/prayercircle-data";
@@ -83,6 +85,12 @@ export function DailySummaryCard({
 
 }: DailySummaryCardProps) {
   const colors = useColors();
+  const { tokens: skinTokens } = useSkin();
+  // 8-bit (v184): this card renders directly on the dusk page (the
+  // summary zone), so its inks flip to the mockup's on-dusk text —
+  // #EDE8FF body, #CFC6F2 soft — instead of the palette's dark inks.
+  const ink = skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground;
+  const inkSoft = skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted;
   const [showDayDropdown, setShowDayDropdown] = useState(false);
   
   // Format fasting status for display
@@ -186,7 +194,7 @@ export function DailySummaryCard({
       {/* Summary with greeting and profile badge */}
       <View style={{ marginBottom: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 18, color: colors.muted, fontWeight: "500" }}>
+          <Text style={{ fontSize: 18, color: inkSoft, fontWeight: "500" }}>
             {getTimeBasedGreeting()}, 
           </Text>
           
@@ -195,7 +203,7 @@ export function DailySummaryCard({
             style={{
               paddingHorizontal: 12,
               paddingVertical: 6,
-              borderRadius: 12,
+              borderRadius: skinTokens.isEightBit ? 2 : 12,
               backgroundColor: getBadgeColor(),
               flexDirection: 'row',
               alignItems: 'center',
@@ -225,14 +233,14 @@ export function DailySummaryCard({
               </View>
             )}
           </View>
-          <Text style={{ fontSize: 18, color: colors.muted, fontWeight: "500", marginLeft: 4 }}>.</Text>
+          <Text style={{ fontSize: 18, color: inkSoft, fontWeight: "500", marginLeft: 4 }}>.</Text>
         </View>
 
         {/* Summary text */}
-        <Text style={{ fontSize: 16, lineHeight: 24, color: colors.foreground, fontWeight: "400" }}>
+        <Text style={{ fontSize: 16, lineHeight: 24, color: ink, fontWeight: "400" }}>
           You have{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="task-alt" size={16} color={colors.foreground} /> {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}
+            <MaterialIcons name="task-alt" size={16} color={ink} /> {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}
           </Text>
           , last{' '}
           {bibleStudyDays.length > 0 ? (
@@ -240,7 +248,7 @@ export function DailySummaryCard({
               onPress={() => setShowDayDropdown(true)}
               style={{
                 fontWeight: "700",
-                color: colors.foreground,
+                color: ink,
                 textDecorationLine: "underline",
                 textDecorationStyle: "dashed",
                 textDecorationColor: colors.primary,
@@ -253,26 +261,26 @@ export function DailySummaryCard({
           )}
           {' '}bible study{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="school" size={16} color={colors.foreground} /> {currentBibleStudy || 'none'}
+            <MaterialIcons name="school" size={16} color={ink} /> {currentBibleStudy || 'none'}
           </Text>
           , have{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="favorite" size={16} color={colors.foreground} /> {remainingPrayers} prayer{remainingPrayers !== 1 ? "s" : ""}
+            <MaterialIcons name="favorite" size={16} color={ink} /> {remainingPrayers} prayer{remainingPrayers !== 1 ? "s" : ""}
           </Text>
           , <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="account-balance-wallet" size={16} color={colors.foreground} /> ${formatCoins(budgetAmount)}
+            <MaterialIcons name="account-balance-wallet" size={16} color={ink} /> ${formatCoins(budgetAmount)}
           </Text> to budget,{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="people" size={16} color={colors.foreground} /> {peopleToReach} people
+            <MaterialIcons name="people" size={16} color={ink} /> {peopleToReach} people
           </Text> to reach, {' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="event" size={16} color={colors.foreground} /> {eventCount} event{eventCount !== 1 ? "s" : ""}
+            <MaterialIcons name="event" size={16} color={ink} /> {eventCount} event{eventCount !== 1 ? "s" : ""}
           </Text>, and{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="volunteer-activism" size={16} color={colors.foreground} /> {ministryCount} ministries
+            <MaterialIcons name="volunteer-activism" size={16} color={ink} /> {ministryCount} ministries
           </Text> to lead. You have{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="schedule" size={16} color={colors.foreground} /> {availableTimeString}
+            <MaterialIcons name="schedule" size={16} color={ink} /> {availableTimeString}
           </Text>{' '}available.
         </Text>
       </View>

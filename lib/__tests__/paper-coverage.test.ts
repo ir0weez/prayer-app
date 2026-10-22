@@ -149,8 +149,14 @@ describe("v183 8-bit coverage — every surface that wears Paper wears 8-bit", (
     const dither = read("components/bit-dither.tsx");
     expect(dither).toContain("<Pattern");
     expect(dither).toContain("width={16}");
-    expect(read("components/screen-container.tsx")).toContain("isEightBit ? <BitDitherOverlay /> : null");
+    // v184: the shared chrome mounts the full dusk background (the
+    // mockup's gradient + this same dither pattern) under 8-bit; the
+    // standalone dither overlay remains for token-painted roots and
+    // the status modal's backdrop.
+    expect(read("components/bit-background.tsx")).toContain("width={16}");
+    expect(read("components/screen-container.tsx")).toContain("isEightBit ? <BitBackground /> : null");
     // The Dark Forest keeps its own rendering — no dither, no skin.
     expect(read("components/dark-forest.tsx")).not.toContain("BitDitherOverlay");
+    expect(read("components/dark-forest.tsx")).not.toContain("BitBackground");
   });
 });

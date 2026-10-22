@@ -90,17 +90,17 @@ export function MonthlyCalendarView({
                     style={{
                       width: 28,
                       height: 28,
-                      borderRadius: 14,
+                      borderRadius: skinTokens.isEightBit ? 2 : 14,
                       justifyContent: 'center',
                       alignItems: 'center',
-                      backgroundColor: isToday ? colors.primary : 'transparent',
+                      backgroundColor: isToday ? (skinTokens.isEightBit ? "#FFC531" : colors.primary) : 'transparent',
                     }}
                   >
                     <Text
                       style={{
                         fontSize: 14,
                         fontWeight: isToday ? '700' : '600',
-                        color: isToday ? '#fff' : colors.foreground,
+                        color: isToday ? (skinTokens.isEightBit ? '#241547' : '#fff') : colors.foreground,
                       }}
                     >
                       {date.getDate()}
@@ -120,7 +120,7 @@ export function MonthlyCalendarView({
                         style={{
                           width: 40,
                           height: 40,
-                          borderRadius: 20,
+                          borderRadius: skinTokens.isEightBit ? 2 : 20,
                           backgroundColor: colors.primary,
                           justifyContent: 'center',
                           alignItems: 'center',

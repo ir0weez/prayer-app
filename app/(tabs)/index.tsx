@@ -132,7 +132,7 @@ import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/
 import { COINS_STORAGE_KEY, parseCoins, applyCoinsDelta } from "@/lib/hometown";
 import { awardXP, awardCustomXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
-import { SKIN_THEMES, getSkinThemeDefinition, normalizeSkinThemeId, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
+import { BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, getSkinThemeDefinition, normalizeSkinThemeId, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 
@@ -1941,7 +1941,7 @@ export default function HomeScreen() {
 
     return (
       <ReAnimated.View key={familyId} entering={isSkinned ? FadeInUp.duration(skinMotion.settle.duration).delay(familyIndex * 50).easing(skinMotion.settle.easing) : FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: (isExpanded || closingFamilyId === familyId) ? (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface) : familyRelationship.accent, overflow: (isExpanded || closingFamilyId === familyId) ? "hidden" : "visible", borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: (isExpanded || closingFamilyId === familyId) ? (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface) : familyRelationship.accent, overflow: (isExpanded || closingFamilyId === familyId) ? "hidden" : "visible", borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, skinTokens.frame, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         {/* Paper: the family card is colored stock — full-strength
             accent, matte grain over it, never a tan wash. */}
         {isSkinned ? <PaperGrainOverlay tone={(isExpanded || closingFamilyId === familyId) ? "ink" : "light"} /> : null}
@@ -2013,13 +2013,13 @@ export default function HomeScreen() {
         <Pressable
           onLongPress={() => handleContactLongPress(person)}
           onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
-          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderColor: `${relationshipStyle.accent}65`, borderWidth: 1 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: colors.background }]}
+          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderColor: `${relationshipStyle.accent}65`, borderWidth: 1 }, skinTokens.frame, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: colors.background }]}
         >
           {isSkinned ? <PaperGrainOverlay /> : null}
           {renderAvatar(person, 48)}
           <View style={styles.personInfo}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text numberOfLines={1} style={[styles.personName, styles.singlePersonName]}>{person.name}</Text>
+              <Text numberOfLines={1} style={[styles.personName, styles.singlePersonName, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null]}>{person.name}</Text>
               {hasPersonCompletedPrayerToday(person, today) && <VerifiedBadge />}
             </View>
             <Text numberOfLines={1} style={[styles.personMeta, styles.singlePersonMeta]}>
@@ -2136,7 +2136,7 @@ export default function HomeScreen() {
   const renderExpandedFamily = (familyMembers: Person[], section: RelationshipSection, closing?: boolean) => {
     const accent = relationshipColors[section.title].accent;
     const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
-    return <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: isSkinned ? skinTokens.surface ?? colors.background : colors.background, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: `${accent}45` }}>
+    return <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: isSkinned ? skinTokens.surface ?? colors.background : colors.background, borderBottomLeftRadius: skinTokens.isEightBit ? 2 : 12, borderBottomRightRadius: skinTokens.isEightBit ? 2 : 12, borderWidth: skinTokens.isEightBit ? 3 : 1, borderTopWidth: 0, borderColor: skinTokens.isEightBit ? skinTokens.border : `${accent}45` }}>
       {isSkinned ? <PaperGrainOverlay /> : null}
       <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>{completedMembers} of {familyMembers.length} complete</Text><Text style={{ color: accent, fontSize: 12, fontWeight: "800" }}>{Math.round((completedMembers / familyMembers.length) * 100)}%</Text></View><View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${accent}18`, overflow: "hidden" }}><View style={{ width: `${Math.round((completedMembers / familyMembers.length) * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: accent }} /></View></View>
       {familyMembers.map((member, memberIdx) => {
@@ -2204,20 +2204,20 @@ export default function HomeScreen() {
 
 
   const renderPeopleScreen = () => (
-    <View style={[styles.peopleScreen, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
+    <View style={[styles.peopleScreen, { backgroundColor: skinTokens.isEightBit ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
       <ReAnimated.View style={[styles.floatingHeaderRow, pillAnimatedStyle]}>
-        <View style={[styles.floatingPill, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
+        <View style={[styles.floatingPill, { backgroundColor: skinTokens.isEightBit ? BIT_PANEL : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }]}>
           {isSkinned ? <PaperGrainOverlay /> : null}
-          <Text style={[styles.pillTitle, { color: colors.foreground }]}>PrayerCircle</Text>
-          <Text style={[styles.pillSubtitle, { color: colors.muted }]}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
+          <Text style={[styles.pillTitle, { color: skinTokens.isEightBit ? "#EDE8FF" : colors.foreground }, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 13, lineHeight: 20 } : null]}>PrayerCircle</Text>
+          <Text style={[styles.pillSubtitle, { color: skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }]}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
         <View style={styles.m3StatsContainer}>
           <ReAnimated.View style={[styles.m3StatsRow, pillsTransformStyle]}>
-            <View style={[styles.m3StatChip, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
+            <View style={[styles.m3StatChip, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }]}>
               <MaterialIcons name={iconName("local-fire-department")} size={16} color={colors.primary} />
               <Text style={[styles.m3StatText, { color: colors.foreground }]}>{streak}</Text>
             </View>
-            <View style={[styles.m3StatChip, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
+            <View style={[styles.m3StatChip, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }]}>
               <MaterialIcons name={iconName("chat-bubble")} size={14} color={colors.primary} />
               <Text style={[styles.m3StatText, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
             </View>
@@ -2563,8 +2563,8 @@ export default function HomeScreen() {
 
   const renderSettingsScreen = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
-      <Text style={styles.settingsTitle}>Settings</Text>
-      <View style={[styles.profileSettingsCard, { borderColor: profileAura?.glowColor || colors.border, backgroundColor: profileAura ? auraWashColor(profileAura, "20") : (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface) }]}>
+      <Text style={[styles.settingsTitle, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 16, lineHeight: 26 } : null, skinTokens.isEightBit ? { color: "#EDE8FF" } : null]}>Settings</Text>
+      <View style={[styles.profileSettingsCard, { borderColor: profileAura?.glowColor || colors.border, backgroundColor: profileAura ? auraWashColor(profileAura, "20") : (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface) }, skinTokens.frame]}>
         {isSkinned ? <PaperGrainOverlay /> : null}
         <View style={styles.profileCardTop}>
           <View style={styles.profileCardTopLeft}>
@@ -3172,8 +3172,8 @@ export default function HomeScreen() {
         }}
         style={({ pressed }) => [styles.tabItem, pressed && styles.pressed]}
       >
-        <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : "#5F6670"} />
-        <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{label}</Text>
+        <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : "#5F6670"} />
+        <Text style={[styles.tabLabel, isActive && styles.tabLabelActive, skinTokens.isEightBit ? { color: isActive ? "#FFFFFF" : BIT_ON_DUSK_FAINT } : null, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 8, lineHeight: 13 } : null]}>{label}</Text>
       </Pressable>
     );
   };
@@ -3352,7 +3352,7 @@ export default function HomeScreen() {
             setActiveTab("people");
             setShowAddPerson(true);
           }}
-          style={({ pressed }) => [styles.fab, { backgroundColor: colors.primary }, pressed && styles.fabPressed]}
+          style={({ pressed }) => [styles.fab, { backgroundColor: skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.frame, skinTokens.isEightBit ? skinTokens.cardShadow ?? {} : null, pressed && styles.fabPressed]}
         >
           <MaterialIcons name="add" size={44} color="#FFFFFF" />
         </Pressable>
@@ -3362,13 +3362,17 @@ export default function HomeScreen() {
         onLayout={(event) => setNavWidth(event.nativeEvent.layout.width)}
         style={[styles.bottomNav, {
           borderColor: colors.border,
-          backgroundColor: skinTokens.surface ?? colors.surface,
+          // 8-bit (v184): the tab bar is the mockup's cartridge panel —
+          // darkest HUD indigo, square corners, 3px ink edge, the one
+          // hard block shadow. Other skins keep their surface.
+          backgroundColor: skinTokens.isEightBit ? BIT_PANEL : skinTokens.surface ?? colors.surface,
           elevation: skinTokens.cardShadow?.elevation ?? 3,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: skinTokens.cardShadow ? 0 : 0.1,
           shadowRadius: 4,
           ...(skinTokens.cardShadow ?? {}),
+          ...(skinTokens.frame ?? {}),
         }]}
       >
         {skinTokens.cardShadow ? <PaperGrainOverlay /> : null}
@@ -3380,8 +3384,8 @@ export default function HomeScreen() {
               left: 9,
               top: 4,
               bottom: 4,
-              borderRadius: 18,
-              backgroundColor: colors.primary,
+              borderRadius: skinTokens.isEightBit ? 2 : 18,
+              backgroundColor: skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
             },
             tabPillAnimatedStyle,
           ]}
@@ -4274,7 +4278,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     marginBottom: 6,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: skin?.isPaper ? 14 : skin?.isEightBit ? 4 : 10,
+    borderRadius: skin?.isPaper ? 14 : skin?.isEightBit ? 2 : 10,
   },
   personInfo: {
     flex: 1,

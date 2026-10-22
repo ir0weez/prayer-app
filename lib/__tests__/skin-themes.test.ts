@@ -566,19 +566,22 @@ describe("v182 paper polish — cleaner neutral, true tints, readable completed 
 // every surface that wears Paper wears 8-bit through the shared
 // isSkinned kit gate, and Classic/Paper stay byte-for-byte.
 
-describe("8-bit skin tokens (v183)", () => {
+describe("8-bit skin tokens (v183, rebuilt v184)", () => {
   const light = getThemedPalette("light", "default");
   const dark = getThemedPalette("dark", "default");
 
-  it("carries the mockup's hard block shadow, near-square radii and stepped motion numbers", () => {
+  it("carries the mockup's hard block shadow, square radii and stepped motion numbers", () => {
     const tokens = getSkinTokens("8bit", "light", light);
     expect(tokens.isEightBit).toBe(true);
     expect(tokens.isPaper).toBe(false);
     // The mockup's exact card shadow: 6px solid offset, zero blur.
     expect(tokens.cardShadow?.boxShadow).toBe("6px 6px 0px rgba(13,5,32,0.55)");
     expect(tokens.sheetShadow?.boxShadow).toContain("0px -6px 0px rgba(13,5,32,0.45)");
-    expect(tokens.cardRadius).toBe(4);
-    expect(tokens.sheetRadius).toBe(6);
+    // v184: corners genuinely square — v183's 4/6 plus inherited
+    // component radii rendered ~16px round on his phone and he
+    // rejected the skin in one look. Radii above 2 fail this pin.
+    expect(tokens.cardRadius).toBe(2);
+    expect(tokens.sheetRadius).toBe(2);
     // No grain under 8-bit either — the texture is the dither overlay.
     expect(tokens.grainOpacity).toBe(0);
     expect(tokens.motion).toEqual({ slideDuration: 300, settleDuration: 500, settleDistance: 16 });
@@ -589,6 +592,62 @@ describe("8-bit skin tokens (v183)", () => {
     const tokensDark = getSkinTokens("8bit", "dark", dark);
     expect(tokensDark.isEightBit).toBe(true);
     expect(tokensDark.cardShadow?.boxShadow).toBe("6px 6px 0px rgba(13,5,32,0.55)");
+  });
+
+  it("the page IS the mockup's dusk and the cards its cartridge cream (v184)", () => {
+    // v183's fatal error: the background was a 22% mix toward dusk,
+    // so the whole screen stayed cream and read as Paper. The tokens
+    // now carry the mockup's flat values outright — any drift back
+    // toward a mix fails here loudly.
+    const bitLight = getSkinTokens("8bit", "light", light);
+    expect(bitLight.background).toBe("#2A1B4E");
+    expect(bitLight.surface).toBe("#FFF3D0");
+    expect(bitLight.border).toBe("#150A2E");
+    const bitDark = getSkinTokens("8bit", "dark", dark);
+    expect(bitDark.background).toBe("#1E1138");
+    expect(bitDark.surface).toBe("#2A1B4E");
+    expect(bitDark.border).toBe("#6E5BB5");
+  });
+
+  it("wears the mockup's chunky frame and pixel display face (v184)", () => {
+    const bit = getSkinTokens("8bit", "light", light);
+    // 3px ink edge, square corner, spreadable as one frame token.
+    expect(bit.borderWidth).toBe(3);
+    expect(bit.frame).toEqual({ borderRadius: 2, borderWidth: 3, borderColor: "#150A2E" });
+    // Headings speak Press Start 2P (bundled, OFL) under 8-bit only.
+    expect(bit.displayFont).toBe("PressStart2P");
+    const bitDark = getSkinTokens("8bit", "dark", dark);
+    expect(bitDark.frame).toEqual({ borderRadius: 2, borderWidth: 3, borderColor: "#6E5BB5" });
+    // Classic and Paper carry NO frame and NO display font — every
+    // spread of them is a no-op, which is what keeps those two skins
+    // byte-identical.
+    for (const id of ["classic", "paper"] as const) {
+      const other = getSkinTokens(id, "light", light);
+      expect(other.frame).toBeNull();
+      expect(other.borderWidth).toBeNull();
+      expect(other.displayFont).toBeNull();
+    }
+  });
+
+  it("the dusk background component and the bundled pixel font exist (v184)", () => {
+    const bg = read("components/bit-background.tsx");
+    // The mockup's three-stop gradient, drawn as one static SVG.
+    expect(bg).toContain("#3A2766");
+    expect(bg).toContain("#2A1B4E");
+    expect(bg).toContain("#1E1138");
+    const layout = read("app/_layout.tsx");
+    expect(layout).toContain("PressStart2P");
+    expect(layout).toContain("assets/fonts/PressStart2P-Regular.ttf");
+  });
+
+  it("the Rest pixel sky keeps every piece out of the card's text zone (v184)", () => {
+    const scenes = read("components/pixel-keyword-scenes.tsx");
+    const rest = scenes.slice(scenes.indexOf("export function PixelRestSky"));
+    // Jonathan's phone: a cloud at left 6% / top 10 sat square on the
+    // "Rest" title. No sky piece may start left of the text zone.
+    expect(rest).not.toContain('left="6%"');
+    expect(rest).not.toContain('left="10%"');
+    expect(rest).not.toContain('left="14%"');
   });
 
   it("is a different material from Paper: different surfaces, different shadow, different radii", () => {

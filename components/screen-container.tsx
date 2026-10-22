@@ -1,7 +1,7 @@
 import { View, type ViewProps } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 
-import { BitDitherOverlay } from "@/components/bit-dither";
+import { BitBackground } from "@/components/bit-background";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 import { useSkin } from "@/hooks/use-skin";
 import { cn } from "@/lib/utils";
@@ -65,7 +65,7 @@ export function ScreenContainer({
       {...props}
     >
       {isPaper ? <PaperGrainOverlay /> : null}
-      {isEightBit ? <BitDitherOverlay /> : null}
+      {isEightBit ? <BitBackground /> : null}
       <SafeAreaView
         edges={edges}
         className={cn("flex-1", safeAreaClassName)}

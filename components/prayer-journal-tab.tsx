@@ -24,6 +24,7 @@ import { DateTimePicker } from "@/components/date-time-picker";
 import { AvatarImage } from "@/components/avatar-system";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
+import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL } from "@/lib/skin-themes";
 import type { Person } from "@/lib/prayercircle-data";
 import {
   addPrayerJournalReply,
@@ -272,6 +273,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 shadowRadius: 0,
                 shadowOffset: { width: 0, height: 0 },
                 ...(skinTokens.cardShadow ?? {}),
+                ...(skinTokens.frame ?? {}),
               }
             : {}),
         },
@@ -396,11 +398,11 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
+    <View style={[styles.container, { backgroundColor: skinTokens.isEightBit ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
       <ReAnimated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }, headerAnimatedStyle]}>
-        <View style={{ backgroundColor: paperSurface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
-          <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Journal</Text>
-          <Text style={{ color: colors.muted, fontSize: 12 }}>{entries.length} entries</Text>
+        <View style={{ backgroundColor: skinTokens.isEightBit ? BIT_PANEL : paperSurface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }}>
+          <Text style={{ color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, fontSize: 20, fontWeight: "800", ...(skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 12, lineHeight: 19 } : {}) }}>Journal</Text>
+          <Text style={{ color: skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12 }}>{entries.length} entries</Text>
         </View>
         <View style={styles.headerActions}>
           <Pressable

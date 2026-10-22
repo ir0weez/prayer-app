@@ -385,19 +385,24 @@ export function pixelKeywordSceneFor(
 export type PixelRestMood = "sunrise" | "midday" | "sunset" | "night";
 
 export function PixelRestSky({ mood, bg }: { mood: PixelRestMood; bg: string }) {
+  // TEXT-SAFE LAYOUT (v184, from Jonathan's phone): the card's title,
+  // notes, and time all live in the left ~55% of the card — every sky
+  // piece stays right of that zone. v183 put a cloud at left 6% /
+  // top 10, square on the "Rest" title; the sun pieces rose on the
+  // left too, over the time text. Nothing here may cross left 55%.
   if (mood === "midday") {
     return (
       <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
         <PxSun left="76%" bottom={48} size={36} color="#FFE066" core="#FFF3B0" ray="#FFC531" />
-        <PxCloud left="6%" top={10} width={64} color="#FFFFFF" shade="#D8CCF2" />
-        <PxCloud left="50%" top={42} width={44} color="#FFFFFF" shade="#D8CCF2" />
+        <PxCloud left="58%" top={8} width={52} color="#FFFFFF" shade="#D8CCF2" />
+        <PxCloud left="80%" top={44} width={36} color="#FFFFFF" shade="#D8CCF2" />
       </View>
     );
   }
   if (mood === "sunrise") {
     return (
       <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
-        <StepBob left="14%" bottom={-16} width={56} height={56} distance={4} period={1500}>
+        <StepBob left="64%" bottom={-16} width={56} height={56} distance={4} period={1500}>
           <Px style={{ position: "absolute", left: 0, bottom: 0, width: 56, height: 56, backgroundColor: "#FFD9A0" }} />
           <Px style={{ position: "absolute", left: 12, bottom: 12, width: 32, height: 32, backgroundColor: "#FFE8C4" }} />
         </StepBob>
@@ -412,7 +417,7 @@ export function PixelRestSky({ mood, bg }: { mood: PixelRestMood; bg: string }) 
           <Px style={{ position: "absolute", left: 0, bottom: 0, width: 52, height: 52, backgroundColor: "#FF9E57" }} />
           <Px style={{ position: "absolute", left: 11, bottom: 11, width: 30, height: 30, backgroundColor: "#FFB27A" }} />
         </StepBob>
-        <PxCloud left="10%" top={16} width={36} color="#FFD9A0" shade="#D97B4F" />
+        <PxCloud left="58%" top={12} width={36} color="#FFD9A0" shade="#D97B4F" />
       </View>
     );
   }

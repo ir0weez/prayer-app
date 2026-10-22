@@ -11,6 +11,7 @@ import ReAnimated, {
 } from "react-native-reanimated";
 import { useEffect } from "react";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
 
 /**
  * NOW Indicator Component with pulsing red dot
@@ -18,6 +19,7 @@ import { useColors } from "@/hooks/use-colors";
  */
 export function NowPill() {
   const colors = useColors();
+  const { tokens: skinTokens } = useSkin();
   const pulseAnim = useSharedValue(0);
 
   useEffect(() => {
@@ -35,9 +37,9 @@ export function NowPill() {
   }));
 
   return (
-    <View style={{ width: 62, height: 24, paddingHorizontal: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#8B5CF6', borderWidth: 1, borderColor: '#A78BFA', alignSelf: 'flex-start' }}>
-      <Text style={{ color: '#FFFFFF', fontSize: 9, lineHeight: 11, fontWeight: '700' }}>NOW</Text>
-      <ReAnimated.View style={[{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#EF4444' }, pulseStyle]} />
+    <View style={{ width: 62, height: 24, paddingHorizontal: 4, borderRadius: skinTokens.isEightBit ? 2 : 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: skinTokens.isEightBit ? '#FFC531' : '#8B5CF6', borderWidth: skinTokens.isEightBit ? 2 : 1, borderColor: skinTokens.isEightBit ? '#150A2E' : '#A78BFA', alignSelf: 'flex-start' }}>
+      <Text style={{ color: skinTokens.isEightBit ? '#241547' : '#FFFFFF', fontSize: 9, lineHeight: 11, fontWeight: '700', ...(skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 8 } : {}) }}>NOW</Text>
+      <ReAnimated.View style={[{ width: 5, height: 5, borderRadius: skinTokens.isEightBit ? 0 : 2.5, backgroundColor: '#EF4444' }, pulseStyle]} />
     </View>
   );
 }

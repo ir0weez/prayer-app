@@ -13,6 +13,8 @@ import Animated, {
 } from "react-native-reanimated";
 import type { SharedValue } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
+import { BIT_GOLD, BIT_ON_DUSK, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
 
 interface ScheduleProgressBarProps {
   completed: number;
@@ -59,6 +61,7 @@ function BurstParticle({ burst, grow, x, y }: { burst: SharedValue<number>; grow
 
 export function ScheduleProgressBar({ completed, total, label = "Progress" }: ScheduleProgressBarProps) {
   const colors = useColors();
+  const { tokens: skinTokens } = useSkin();
   const percentage = total > 0 ? (completed / total) * 100 : 0;
   const isComplete = total > 0 && completed >= total;
   
@@ -193,10 +196,10 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
     <View style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}>
       {/* Label and count */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }}>
+        <Text style={{ fontSize: 14, fontWeight: "600", color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground }}>
           {label}
         </Text>
-        <Text style={{ fontSize: 13, color: colors.muted }}>
+        <Text style={{ fontSize: 13, color: skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted }}>
           {completed} of {total}
         </Text>
       </View>
@@ -208,8 +211,8 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
             {
               position: "relative",
               height: 6,
-              backgroundColor: colors.border,
-              borderRadius: 3,
+              backgroundColor: skinTokens.isEightBit ? "#6E5BB5" : colors.border,
+              borderRadius: skinTokens.isEightBit ? 0 : 3,
               overflow: "hidden",
             },
             isComplete && glowStyle,
@@ -224,8 +227,8 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
             style={{
               height: "100%",
               width: `${percentage}%`,
-              backgroundColor: isComplete ? "#10B981" : colors.primary,
-              borderRadius: 3,
+              backgroundColor: isComplete ? "#10B981" : skinTokens.isEightBit ? BIT_GOLD : colors.primary,
+              borderRadius: skinTokens.isEightBit ? 0 : 3,
             }}
           />
         </Animated.View>

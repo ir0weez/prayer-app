@@ -19,14 +19,21 @@
 //     marginally slower than the default chrome motion. No bounce,
 //     no springs — the house rule everywhere.
 //
-// "8-bit" (v183) is the Dark Forest's material brought indoors — the
-// approved mockup (schedule-mockups/8bit.html) translated to RN:
-//   - Stepped pixel corners become near-square radii (RN has no
-//     clip-path staircase); the chunky edge comes from a strong ink
-//     border token and ONE hard block shadow (6px 6px 0,
-//     rgba(13,5,32,0.55)) — solid offset, zero blur, no gradients.
-//   - The palette narrows to the retro handful: dusk-purple ground,
-//     cream card stock, gold/purple accents from the color theme.
+// "8-bit" (v183, rebuilt v184) is the Dark Forest's material brought
+// indoors — the approved mockup (schedule-mockups/8bit.html), matched
+// to its actual CSS values:
+//   - The PAGE is the mockup's deep dusk indigo (#3A2766 → #2A1B4E →
+//     #1E1138 gradient, flat token #2A1B4E) with the 16px white-5%
+//     checker dither over it. Cartridge-cream cards (#FFF3D0) sit ON
+//     the dusk world; dark HUD panels (#1D1233 / #2A1B4E) carry the
+//     white blocks, ticker, live strip, and tab bar. v183's fatal
+//     error was a cream page with token swaps — Paper in a costume.
+//   - Corners are genuinely square (radius 2 — the mockup's stepped
+//     clip-path staircase, faked at the corners where needed), edges
+//     are a chunky 3px ink border, and the shadow is ONE hard block
+//     (6px 6px 0, rgba(13,5,32,0.55)) — solid offset, zero blur.
+//   - Headings speak in Press Start 2P (bundled, OFL) — the mockup's
+//     monospace-uppercase display voice, in a real pixel face.
 //   - Its motion dialect is STEPPED: entrances tick down in discrete
 //     frames (Easing.steps in the hook layer), never a smooth glide.
 //   - Every keyword scene gets a bespoke pixel rendition (see
@@ -274,6 +281,17 @@ export type SkinTokens = {
   sheetShadow: SkinShadow | null;
   cardRadius: number | null;
   sheetRadius: number | null;
+  /** Chunky edge width for cards/tiles/buttons under this skin; null = leave component borders alone. */
+  borderWidth: number | null;
+  /**
+   * The full card frame (radius + width + ink) a surface kit consumer
+   * can spread over its base style in one move. Non-null ONLY under
+   * 8-bit: Classic and Paper must render byte-identically, so their
+   * frame stays null and every spread of it is a no-op for them.
+   */
+  frame: { borderRadius: number; borderWidth: number; borderColor: string } | null;
+  /** Display face for headings under this skin; null = the app's regular type. */
+  displayFont: string | null;
   /** Legacy grain knobs — pinned to 0 forever (flat paper only, v179). */
   grainOpacity: number;
   grainColor: string;
@@ -312,6 +330,24 @@ const BIT_MOTION: SkinMotionTokens = {
 export const BIT_SHADOW_HEX = "rgba(13,5,32,0.55)";
 /** The 8-bit kit's edge ink (the mockup's --bit-ink). */
 export const BIT_INK_HEX = "#150A2E";
+/** The mockup's dusk page: gradient stops and the flat token between them. */
+export const BIT_DUSK_TOP = "#3A2766";
+export const BIT_DUSK = "#2A1B4E";
+export const BIT_DUSK_DEEP = "#1E1138";
+/** The mockup's darkest HUD panel (tab bar, ticker, live strip). */
+export const BIT_PANEL = "#1D1233";
+/** The mockup's cartridge-cream card stock. */
+export const BIT_CREAM = "#FFF3D0";
+/** The mockup's gold (pills, complete button, live-strip edge, keywords). */
+export const BIT_GOLD = "#FFC531";
+/** The mockup's primary purple (active tab, FAB). */
+export const BIT_PURPLE = "#7C4DFF";
+/** Ink that reads on the dusk page (mockup status-bar / HUD text). */
+export const BIT_ON_DUSK = "#EDE8FF";
+export const BIT_ON_DUSK_SOFT = "#CFC6F2";
+export const BIT_ON_DUSK_FAINT = "#A99CDD";
+/** The bundled pixel display face (Press Start 2P, OFL — assets/fonts). */
+export const PIXEL_FONT_FAMILY = "PressStart2P";
 
 export function getSkinTokens(
   skinId: SkinThemeId,
@@ -332,6 +368,9 @@ export function getSkinTokens(
       sheetShadow: null,
       cardRadius: null,
       sheetRadius: null,
+      borderWidth: null,
+      frame: null,
+      displayFont: null,
       grainOpacity: 0,
       grainColor: PAPER_INK_HEX,
       grainLightOpacity: 0,
@@ -342,19 +381,20 @@ export function getSkinTokens(
   const dark = scheme === "dark";
 
   if (skinId === "8bit") {
+    // v184: the mockup's values, not a mix toward them. The page IS
+    // the dusk (flat #2A1B4E token; ScreenContainer lays the mockup's
+    // three-stop gradient + dither over it), in BOTH schemes — the
+    // mockup has one world, and it is dark. Cards are the mockup's
+    // flat cartridge cream in the light scheme; in the dark scheme
+    // they stay deep HUD panels so the palette's light text reads.
+    const bitBorder = dark ? "#6E5BB5" : BIT_INK_HEX;
     return {
       id: "8bit",
       isPaper: false,
       isEightBit: true,
-      // The mockup's dusk ground: the page takes the dusk purple on
-      // strongly (Paper only whispered its material into the page;
-      // 8-bit's ground IS the material), while cards land as the
-      // mockup's flat cream stock over it in the light scheme and
-      // deep HUD panels in the dark scheme. Text still rides the
-      // palette on surfaces, exactly as under Paper.
-      background: dark ? mix(palette.background, "#1E1138", 0.45) : mix(palette.background, "#6E5BB5", 0.22),
-      surface: dark ? mix(palette.surface, "#2A1B4E", 0.45) : mix(palette.surface, "#FFF3D0", 0.5),
-      border: dark ? mix(palette.border, "#6E5BB5", 0.55) : mix(palette.border, BIT_INK_HEX, 0.5),
+      background: dark ? BIT_DUSK_DEEP : BIT_DUSK,
+      surface: dark ? BIT_DUSK : BIT_CREAM,
+      border: bitBorder,
       darkBackground: mix("#1E1138", palette.primary, 0.08),
       darkSurface: mix("#2A1B4E", palette.primary, 0.08),
       cardShadow: {
@@ -367,11 +407,17 @@ export function getSkinTokens(
         boxShadow: `0px -6px 0px rgba(13,5,32,0.45)`,
         elevation: 8,
       },
-      // Stepped corners are a clip-path staircase in the mockup; RN
-      // view styles can't clip a staircase, so the corner goes
-      // near-square and the chunk comes from the border + shadow.
-      cardRadius: 4,
-      sheetRadius: 6,
+      // Genuinely square (the mockup's stepped clip-path staircase
+      // reads as square at display size; v183's 4/6 plus inherited
+      // component radii rendered ~16px round and failed the glance
+      // test). The frame token carries the whole edge — radius,
+      // 3px width, ink — so kit consumers override inherited
+      // roundness in one spread.
+      cardRadius: 2,
+      sheetRadius: 2,
+      borderWidth: 3,
+      frame: { borderRadius: 2, borderWidth: 3, borderColor: bitBorder },
+      displayFont: PIXEL_FONT_FAMILY,
       grainOpacity: 0,
       grainColor: BIT_INK_HEX,
       grainLightOpacity: 0,
@@ -412,6 +458,9 @@ export function getSkinTokens(
     },
     cardRadius: 18,
     sheetRadius: 24,
+    borderWidth: null,
+    frame: null,
+    displayFont: null,
     // NO grain (Jonathan's ruling, 2026-10-22, after v176): the speckle
     // read as "little sprinkles" — not good, and not like paper. Paper
     // surfaces are flat color/stock + the one offset shadow, nothing

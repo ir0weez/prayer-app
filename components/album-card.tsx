@@ -59,7 +59,7 @@ export function AlbumCard({
   };
 
   return (
-    <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, overflow: 'hidden', borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, marginBottom: 12, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
+    <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, overflow: 'hidden', borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, marginBottom: 12, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }}>
       {sectionTitle && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
           <MaterialIcons name={sectionIcon} size={20} color={colors.primary} />

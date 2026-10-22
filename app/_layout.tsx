@@ -1,5 +1,6 @@
 import "@/global.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useFonts } from "expo-font";
 import { Stack, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
@@ -227,6 +228,14 @@ function RootLayoutContent() {
 }
 
 export default function RootLayout() {
+  // 8-bit skin (v184): bundle Press Start 2P (SIL OFL 1.1, see
+  // assets/fonts/PressStart2P-OFL.txt) for the skin's display type.
+  // Loaded fire-and-forget — it is only referenced while the 8-bit
+  // skin is active, and font loading must never gate the splash
+  // handoff above, so the result is deliberately unused here.
+  useFonts({
+    PressStart2P: require("@/assets/fonts/PressStart2P-Regular.ttf"),
+  });
   return (
     <ThemeProvider>
       <RootLayoutContent />

@@ -56,26 +56,35 @@ import { combatStats, loadEquipped, refreshGearBoostCache } from "@/lib/gear";
 import { refreshBadgeCache } from "@/lib/badges";
 import { refreshStatBoostCache } from "@/lib/character-stats";
 import {
-  DAILY_FACE_CAP,
+  loadForestEnergy,
+  type ForestEnergy,
+} from "@/lib/forest-energy";
+import {
   MAX_BAG_TIER,
   MAX_PICK_TIER,
+  MINING_GEAR,
   MINE_TITLE,
   ORE_KINDS,
-  ORE_PRICES,
   PICKAXES,
   applySellAll,
   bagFor,
   bagPurchaseCheck,
+  depthBlessingBonus,
   formatHaulMultiplier,
+  gearPurchaseCheck,
+  hasMiningGear,
   haulValue,
   loadMineState,
   pickGateMet,
   pickaxeFor,
+  satchelByKind,
   satchelCapacity,
   satchelCount,
   saveMineState,
+  settleTinderboxBonus,
   type MineGates,
   type MineState,
+  type MiningGearId,
   type OreKind,
 } from "@/lib/mountain";
 
@@ -100,6 +109,16 @@ function PickIcon({ color, size = 22 }: { color: string; size?: number }) {
   );
 }
 
+const ORE_GLYPH_COLORS: Record<OreKind, [string, string]> = {
+  stone: ["#9A9AA5", "#B4B4BE"],
+  coal: ["#33333E", "#55555F"],
+  copper: ["#D97E4A", "#E8A05C"],
+  iron: ["#C96F3F", "#D97E4A"],
+  silver: ["#C7CCD6", "#E8EEF7"],
+  gold: ["#F2B33D", "#FBBF24"],
+  diamond: ["#9BE8F5", "#CFF7FF"],
+};
+
 /** An ore nugget / gem in the satchel's colors. */
 function OreGlyph({ kind, size = 16 }: { kind: OreKind; size?: number }) {
   if (kind === "diamond") {
@@ -110,10 +129,11 @@ function OreGlyph({ kind, size = 16 }: { kind: OreKind; size?: number }) {
       </Svg>
     );
   }
+  const [main, light] = ORE_GLYPH_COLORS[kind];
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Polygon points="7,5 15,3.4 20,8.6 18.4,16.6 10,20 4.4,14.6" fill={kind === "gold" ? "#F2B33D" : "#C96F3F"} />
-      <Polygon points="7,5 12,9 10,20 4.4,14.6" fill={kind === "gold" ? "#FBBF24" : "#D97E4A"} opacity={0.75} />
+      <Polygon points="7,5 15,3.4 20,8.6 18.4,16.6 10,20 4.4,14.6" fill={main} />
+      <Polygon points="7,5 12,9 10,20 4.4,14.6" fill={light} opacity={0.75} />
     </Svg>
   );
 }
@@ -177,6 +197,9 @@ export default function MineMouthScreen() {
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
   const [heroHealth, setHeroHealth] = useState<HeroHealthState | null>(null);
   const [effMax, setEffMax] = useState(0);
+  // Forest energy — the flames (v175): one shared daily pool with
+  // the Dark Forest; every block broken underground spends one.
+  const [flames, setFlames] = useState<ForestEnergy | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { relaxing, toggleRelax } = useRelax();
@@ -188,17 +211,22 @@ export default function MineMouthScreen() {
   }, []);
 
   const refresh = useCallback(async () => {
-    const [m, c, pState, crowns, pwn] = await Promise.all([
+    const [m0, c, pState, crowns, pwn] = await Promise.all([
       loadMineState(),
       loadCoinsRecord(),
       loadPrestigeState(),
       loadPrestigeLevel(),
       loadCustomPawn().catch(() => null),
     ]);
+    // The Tinderbox kindles its morning flames on the way in (v175).
+    const m = await settleTinderboxBonus(m0).catch(() => m0);
     setMine(m);
     setCoins(c);
     setGates({ totalPrestiges: pState.totalPrestiges, crowns });
     setPawn(pwn);
+    try {
+      setFlames(await loadForestEnergy());
+    } catch {}
     // Hero health, settled and maxed exactly as the cave, the
     // forest and the hospital compute it — one HP, every door.
     try {
@@ -261,7 +289,7 @@ export default function MineMouthScreen() {
       if (check.reason === "crown") {
         Alert.alert(
           "Crown work",
-          "The Crown Haul Bag belongs to the Crown. Earn a Crown — a 365-day fast, then Begin Again — and the biggest bag can be yours."
+          "The Crown Vault Hauler belongs to the Crown. Earn a Crown — a 365-day fast, then Begin Again — and the biggest hauler can be yours."
         );
       }
       return;
@@ -288,12 +316,62 @@ export default function MineMouthScreen() {
     ]);
   }, [mine, gates, coins.balance, showToast]);
 
+  /** Buy a Mining Gear piece from the shelf (v175): one-time,
+   *  permanent until prestige, through the same ledger as the bags. */
+  const handleBuyGear = useCallback(
+    (id: MiningGearId) => {
+      if (!mine) return;
+      const item = MINING_GEAR.find((g) => g.id === id);
+      if (!item) return;
+      const check = gearPurchaseCheck(mine, id, gates);
+      if (!check.ok) {
+        if (check.reason === "prestige") {
+          Alert.alert(
+            "Behind Begin Again",
+            "The Tinderbox waits behind prestige. Begin Again once — any fast — and the morning flames can be yours."
+          );
+        }
+        return;
+      }
+      if (coins.balance < check.cost) {
+        Alert.alert("Not enough coins", `${item.name} costs ${formatCoins(check.cost)} coins. You have ${formatCoins(coins.balance)}.`);
+        return;
+      }
+      Alert.alert(`Buy the ${item.name}?`, `${formatCoins(check.cost)} coins. ${item.blurb} Yours until you Begin Again.`, [
+        { text: "Not yet", style: "cancel" },
+        {
+          text: "Buy",
+          onPress: () => {
+            void (async () => {
+              const nextCoins = await applyCoinsDelta(-check.cost, "dime");
+              setCoins(nextCoins);
+              const nextMine: MineState = { ...mine, gear: [...mine.gear, id] };
+              await saveMineState(nextMine);
+              setMine(nextMine);
+              showToast(`${item.name} — yours`);
+              // A Tinderbox bought this morning kindles right away.
+              if (id === "tinderbox") {
+                const kindled = await settleTinderboxBonus(nextMine).catch(() => nextMine);
+                setMine(kindled);
+                try {
+                  setFlames(await loadForestEnergy());
+                } catch {}
+              }
+            })();
+          },
+        },
+      ]);
+    },
+    [mine, gates, coins.balance, showToast]
+  );
+
   const tod = getTimeOfDay();
   const night = tod === "night" || tod === "evening";
   const sceneW = Math.max(0, width - 32);
   const sceneH = sceneW * (46 / 100);
   const heroUnit = (sceneW / 100) * 1.05;
 
+  const kinds = mine ? satchelByKind(mine.satchel) : null;
   const count = mine ? satchelCount(mine.satchel) : 0;
   const cap = mine ? satchelCapacity(mine) : 0;
   const worth = mine ? haulValue(mine) : 0;
@@ -372,8 +450,8 @@ export default function MineMouthScreen() {
                   <View style={{ height: 7, borderRadius: 4, backgroundColor: hp / effMax > 0.35 ? "#4ADE80" : "#F87171", width: `${Math.max(0, Math.min(100, (hp / effMax) * 100))}%` }} />
                 </View>
                 <Text style={{ color: DIM, fontSize: 11, lineHeight: 15, marginTop: 7 }}>
-                  The deep rock can take it out of him — a cave-in costs a fifth of his strength. The still pool
-                  below and the hospital in town can mend him.
+                  The deep rock can take it out of him — a cave-in costs real strength (less with Cave Boots
+                  on). The still pool below and the hospital in town can mend him.
                 </Text>
               </View>
             )}
@@ -423,18 +501,19 @@ export default function MineMouthScreen() {
                 <View style={{ flex: 1 }} />
                 <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 13 }}>Haul ×{formatHaulMultiplier(mine.haulMultiplier)}</Text>
               </View>
-              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
-                {ORE_KINDS.map((k) => (
-                  <View key={k} style={{ flexDirection: "row", alignItems: "center", marginRight: 14 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
+                {ORE_KINDS.filter((k) => (kinds?.[k] ?? 0) > 0).map((k) => (
+                  <View key={k} style={{ flexDirection: "row", alignItems: "center", marginRight: 14, marginBottom: 4 }}>
                     <OreGlyph kind={k} size={18} />
-                    <Text style={{ color: CREAM, fontSize: 13.5, fontWeight: "700", marginLeft: 4 }}>× {mine.satchel[k]}</Text>
-                    <Text style={{ color: DIM, fontSize: 10.5, marginLeft: 3 }}>@{ORE_PRICES[k]}</Text>
+                    <Text style={{ color: CREAM, fontSize: 13.5, fontWeight: "700", marginLeft: 4 }}>× {kinds?.[k] ?? 0}</Text>
                   </View>
                 ))}
+                {count === 0 && <Text style={{ color: DIM, fontSize: 12.5 }}>Empty — the rock provides.</Text>}
               </View>
               <Text style={{ color: DIM, fontSize: 11.5, lineHeight: 16, marginTop: 8 }}>
-                The deeper the rock you've broken, the more the whole haul pays — the Deep triples it. Selling
-                banks the rate; a cave-in spends it. Ore sells here at the Mouth, and nowhere else.
+                The deeper the rock you've broken, the more the whole haul pays — the Deep triples it. Each
+                piece is priced at the depth it broke. Selling banks the rate; a cave-in spends it. Ore sells
+                here at the Mouth, and nowhere else.
               </Text>
               <Pressable
                 onPress={handleSellAll}
@@ -466,9 +545,80 @@ export default function MineMouthScreen() {
                 </View>
               ) : (
                 <Text style={{ color: DIM, fontSize: 11.5, marginTop: 10 }}>
-                  The Crown Haul Bag is the biggest there is — this one carries it all.
+                  The Crown Vault Hauler is the biggest there is — this one carries it all.
                 </Text>
               )}
+            </View>
+
+            {/* strength and depth — the flames he walks in with, and
+                what his depth already pays the town (v175) */}
+            <View style={[{ marginHorizontal: 16, marginTop: 12, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }, isPaper ? skinTokens.cardShadow : null]}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <MaterialIcons name="local-fire-department" size={18} color="#FB923C" />
+                <Text style={{ color: CREAM, fontWeight: "800", fontSize: 13.5, marginLeft: 7 }}>Flames today</Text>
+                <View style={{ flex: 1 }} />
+                <Text style={{ color: CREAM, fontWeight: "800", fontSize: 13.5 }}>
+                  {flames ? `${flames.energy} / ${flames.max}` : "–"}
+                </Text>
+              </View>
+              <Text style={{ color: DIM, fontSize: 11.5, lineHeight: 16, marginTop: 7 }}>
+                Every block broken underground spends one flame — the same pool the Dark Forest fights on.
+                Swings are free; only the break costs. They rekindle at midnight.
+                {hasMiningGear(mine, "tinderbox") ? " Your Tinderbox kindles three extra each morning." : ""}
+              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
+                <MaterialIcons name="terrain" size={17} color={GOLD} />
+                <Text style={{ color: CREAM, fontWeight: "800", fontSize: 13, marginLeft: 7 }}>Depth Blessing</Text>
+                <View style={{ flex: 1 }} />
+                <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 13 }}>
+                  +{Math.round(depthBlessingBonus(mine) * 10000) / 100}% town income
+                </Text>
+              </View>
+              <Text style={{ color: DIM, fontSize: 11.5, lineHeight: 16, marginTop: 7 }}>
+                Deepest opened: Level {mine.deepestLevel} of 80. Every level opened beneath the mountain
+                blesses everything the town earns — a quarter percent each, up to twenty.
+              </Text>
+            </View>
+
+            {/* the Mining Gear shelf — one-time pieces that bend the
+                cave's rules, sold at this same counter (v175) */}
+            <View style={[{ marginHorizontal: 16, marginTop: 12, backgroundColor: PANEL, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(24,8,44,.6)" }, isPaper ? skinTokens.cardShadow : null]}>
+              <Text style={{ color: CREAM, fontWeight: "800", fontSize: 14 }}>Mining Gear</Text>
+              <Text style={{ color: DIM, fontSize: 11.5, lineHeight: 16, marginTop: 4 }}>
+                Bought once, carried always — until you Begin Again.
+              </Text>
+              {MINING_GEAR.map((item) => {
+                const owned = hasMiningGear(mine, item.id);
+                const check = gearPurchaseCheck(mine, item.id, gates);
+                return (
+                  <View key={item.id} style={{ flexDirection: "row", alignItems: "center", marginTop: 10, backgroundColor: "rgba(255,255,255,.05)", borderRadius: 10, paddingVertical: 9, paddingHorizontal: 11 }}>
+                    <MaterialIcons
+                      name={item.id === "lantern" ? "lightbulb" : item.id === "gloves" ? "front-hand" : item.id === "boots" ? "hiking" : item.id === "charm" ? "auto-awesome" : "whatshot"}
+                      size={18}
+                      color={owned ? "#4ADE80" : DIM}
+                    />
+                    <View style={{ flex: 1, marginLeft: 9 }}>
+                      <Text style={{ color: CREAM, fontWeight: "700", fontSize: 12.5 }}>{item.name}</Text>
+                      <Text style={{ color: DIM, fontSize: 11, lineHeight: 14 }}>{item.blurb}</Text>
+                      {!owned && !check.ok && check.reason === "prestige" ? (
+                        <Text style={{ color: DIM, fontSize: 11 }}>It waits behind Begin Again.</Text>
+                      ) : !owned ? (
+                        <Text style={{ color: DIM, fontSize: 11 }}>{formatCoins(item.cost)} coins</Text>
+                      ) : null}
+                    </View>
+                    {owned ? (
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <MaterialIcons name="check" size={14} color="#4ADE80" />
+                        <Text style={{ color: "#4ADE80", fontWeight: "800", fontSize: 12, marginLeft: 3 }}>Owned</Text>
+                      </View>
+                    ) : check.ok ? (
+                      <Pressable onPress={() => handleBuyGear(item.id)} style={{ backgroundColor: "rgba(201,150,60,.25)", borderWidth: 1, borderColor: GOLD, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 }}>
+                        <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 12 }}>Buy</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                );
+              })}
             </View>
 
             {/* the door down */}
@@ -480,7 +630,7 @@ export default function MineMouthScreen() {
               <Text style={{ color: INK, fontWeight: "900", fontSize: 16, marginLeft: 7 }}>Enter the Cave</Text>
             </Pressable>
             <Text style={{ color: DIM, fontSize: 12, textAlign: "center", marginTop: 9 }}>
-              Faces mined today: {mine.minedToday} / {DAILY_FACE_CAP}
+              Faces broken today: {mine.minedToday} · Deepest opened: Level {mine.deepestLevel}
             </Text>
           </>
         )}

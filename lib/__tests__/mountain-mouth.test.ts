@@ -1,25 +1,26 @@
-// The Mouth and the haul (v172) — Jonathan, 2026-10-22: tapping the
-// peak should land at a setup area (relax, check tools, sell ore)
-// before the cave, and the cave itself should push its luck: no
-// selling underground, a multiplier on every depth, and a satchel
-// with a real size.
+// The Mouth and the mine's money (v172; the Descent v175).
+//
+// Jonathan's design: the cave mouth is the mine's porch — you relax
+// by the hearth, check your pick, and Sell comes home to the Mouth.
+// Ore is ONLY sold here. How much a load fetches depends on how deep
+// the trip went (the haul multiplier, raised by the deepest STRATUM
+// broken since the last sell — or the last cave-in).
+//
+// v175 made the satchel price-aware: every piece remembers the level
+// it broke at, so a deep haul is worth more piece for piece. And the
+// carrier ladder grew teeth: Pockets hold 5 — five — and it climbs
+// through backpacks and carts to a Crown Vault Hauler holding 240.
 //
 // These tests pin:
-//  - the haul multiplier ladder by deepest band broken, that it
-//    never steps back down, and that a mere crack doesn't raise it;
-//  - the sell: multiplier applied (whole coins), satchel emptied,
-//    multiplier banked back to ×1 — and the sell living at the
-//    Mouth only (source pins: the cave has no sell path at all);
-//  - a cave-in spending the multiplier along with v170's burial;
-//  - rich veins stacking UNDER the haul multiplier (vein doubles
-//    the face, the haul multiplies the satchel);
-//  - satchel capacity: a full bag refuses the swing and the face
-//    takes NO damage; a breaking face always pays in full; bigger
-//    bags bought one rung at a time, the top one behind the Crown;
-//  - legacy migration: v170 records gain bag ×1 defaults, and an
-//    over-cap legacy satchel is kept whole but cannot grow;
-//  - the peak → Mouth → cave routing, and Relax as pure scene
-//    state (it may not touch storage, the ledger, or health).
+//  - the haul ladder by stratum (×1 → ×3 cap) and its formatting;
+//  - sell math over priced stacks, rounding ONCE at ×multiplier;
+//  - the carry ladder, its order and gates, and the full-carrier
+//    refusal (a breaking face always pays in full, over the cap);
+//  - the gear shelf's purchase rules (Lantern/Gloves/Boots/Charm/
+//    Tinderbox) and the Tinderbox's morning flames;
+//  - migration: no legacy carrier owner ever ends up holding less;
+//  - the screen contracts: sell lives at the Mouth (through the coin
+//    ledger alone) and the cave only SENDS you there.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
@@ -41,346 +42,301 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
+import { loadForestEnergy } from "../forest-energy";
 import {
-  BAND_MULTIPLIERS,
-  FACES_PER_BAND,
   MAX_BAG_TIER,
-  ORE_PRICES,
   SATCHEL_BAGS,
+  STRATUM_MULTIPLIERS,
   applySellAll,
-  bagFor,
   bagPurchaseCheck,
-  bandMultiplier,
   defaultMineState,
+  faceIndexFor,
   formatHaulMultiplier,
-  haulValue,
+  gearPurchaseCheck,
+  hasMiningGear,
   isRichFace,
-  loadMineState,
   mineTap,
   mineTodayString,
   parseMineState,
-  resetMineForPrestige,
   satchelCapacity,
   satchelCount,
   satchelIsFull,
-  saveMineState,
-  yieldForFace,
+  satchelValue,
+  settleTinderboxBonus,
+  stratumMultiplier,
+  tinderboxDue,
+  type MineGates,
   type MineState,
 } from "../mountain";
 
-// A fixed "now": midday local, so day boundaries never wobble.
+const HOUR = 60 * 60 * 1000;
 const T0 = new Date(2026, 9, 21, 12, 0, 0).getTime();
 
+const NO_GATES: MineGates = { totalPrestiges: 0, crowns: 0 };
+const CROWNED: MineGates = { totalPrestiges: 2, crowns: 1 };
+
 function stateWith(pickTier: number, now: number = T0): MineState {
-  return { ...defaultMineState(now), pickTier };
+  return { ...defaultMineState(now), pickTier, bagTier: 8 };
 }
 
-/** Tap a face until it breaks (fixed rolls, no collapse, no pool). */
-function mineOut(
-  state: MineState,
-  faceIndex: number,
-  now: number,
-  roll = 0.1
-): { state: MineState; outcome: ReturnType<typeof mineTap>["outcome"] } {
+/** Break a face completely (fixed rolls); returns the end state. */
+function breakFace(state: MineState, faceIndex: number, now: number = T0, roll = 0.1): MineState {
   let s = state;
   for (let i = 0; i < 12; i++) {
-    const r = mineTap(s, faceIndex, now, roll, 1, 1);
+    const r = mineTap(s, faceIndex, now, roll);
     s = r.state;
-    if (r.outcome.kind === "broke") return { state: s, outcome: r.outcome };
+    if (r.outcome.kind === "broke") return s;
     if (r.outcome.kind !== "hit") throw new Error(`unexpected outcome ${r.outcome.kind}`);
   }
   throw new Error("face never broke");
 }
 
-/** Crack a face once (its first hit), collapse roll disabled. */
-function crack(state: MineState, faceIndex: number, now: number = T0): MineState {
-  const r = mineTap(state, faceIndex, now, 0.1, 1);
-  if (r.outcome.kind !== "hit") throw new Error(`expected a hit, got ${r.outcome.kind}`);
-  return r.state;
-}
-
-/** Find a day (from T0 forward) with a rich face in the band. */
-function findRich(bandIndex: number): { now: number; faceIndex: number } {
-  for (let k = 0; k < 90; k++) {
-    const now = new Date(2026, 9, 21 + k, 12, 0, 0).getTime();
-    const day = mineTodayString(now);
-    for (let slot = 0; slot < FACES_PER_BAND; slot++) {
-      const faceIndex = bandIndex * FACES_PER_BAND + slot;
-      if (isRichFace(faceIndex, day)) return { now, faceIndex };
+/** Find a rich face on a level of the given stratum (any near day). */
+function findRichFace(stratumIndex: number): { face: number; at: number } {
+  const first = faceIndexFor(stratumIndex * 10 + 1, 0);
+  for (let d = 0; d < 60; d++) {
+    const at = T0 + d * 24 * HOUR;
+    const day = mineTodayString(at);
+    for (let f = first; f < first + 30; f++) {
+      if (isRichFace(f, day)) return { face: f, at };
     }
   }
-  throw new Error("no rich face found in 90 days");
+  throw new Error("no rich face found");
 }
 
 beforeEach(() => {
   store.clear();
 });
 
-describe("the haul multiplier — the deepest band worked sets the rate", () => {
-  it("the ladder: Stone ×1, Iron ×1.5, Gold ×2, The Deep ×3", () => {
-    expect(BAND_MULTIPLIERS).toEqual([1, 1.5, 2, 3]);
-    expect([0, 1, 2, 3].map(bandMultiplier)).toEqual([1, 1.5, 2, 3]);
-    expect([1, 1.5, 2, 3].map(formatHaulMultiplier)).toEqual(["1", "1.5", "2", "3"]);
+describe("haul multiplier — depth pays, per stratum (v175)", () => {
+  it("the ladder runs ×1 at Stone to a ×3 cap in the Diamond country and the Deep", () => {
+    expect(STRATUM_MULTIPLIERS).toEqual([1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3]);
+    expect(stratumMultiplier(0)).toBe(1);
+    expect(stratumMultiplier(7)).toBe(3);
+    expect(stratumMultiplier(99)).toBe(3); // clamped at the cap
   });
 
-  it("breaking a face raises the haul to that band's rate, rung by rung", () => {
-    let s = stateWith(5);
-    expect(s.haulMultiplier).toBe(1);
-    s = mineOut(s, 0, T0).state; // a Stone face
-    expect(s.haulMultiplier).toBe(1);
-    s = mineOut(s, FACES_PER_BAND, T0).state; // an Iron face
-    expect(s.haulMultiplier).toBe(1.5);
-    s = mineOut(s, 2 * FACES_PER_BAND, T0).state; // a Gold face
-    expect(s.haulMultiplier).toBe(2);
-    s = mineOut(s, 3 * FACES_PER_BAND, T0).state; // a Deep face
-    expect(s.haulMultiplier).toBe(3);
-  });
-
-  it("it never steps back down: shallow work after deep work keeps the deep rate", () => {
-    let s = stateWith(5);
-    s = mineOut(s, 3 * FACES_PER_BAND, T0).state; // the Deep first
-    expect(s.haulMultiplier).toBe(3);
-    s = mineOut(s, 1, T0).state; // then a Stone face
-    expect(s.haulMultiplier).toBe(3);
-    s = mineOut(s, FACES_PER_BAND + 1, T0).state; // then Iron
-    expect(s.haulMultiplier).toBe(3);
-  });
-
-  it("a mere crack raises nothing — the face has to BREAK", () => {
-    const s = crack(stateWith(5), 3 * FACES_PER_BAND); // a Deep face, cracked
-    expect(s.haulMultiplier).toBe(1);
-  });
-});
-
-describe("selling at the Mouth — the multiplier banks, then resets", () => {
-  it("haulValue is face value at the multiplier, in whole coins", () => {
-    const loaded = { ...stateWith(0), satchel: { iron: 10, gold: 2, diamond: 1 } }; // 430 face
-    expect(haulValue({ ...loaded, haulMultiplier: 1 })).toBe(430);
-    expect(haulValue({ ...loaded, haulMultiplier: 2 })).toBe(860);
-    expect(haulValue({ ...loaded, haulMultiplier: 3 })).toBe(1290);
-    // Whole coins at ×1.5: one gold (45) pays 68, not 67.5.
-    const oneGold = { ...stateWith(0), satchel: { iron: 0, gold: 1, diamond: 0 }, haulMultiplier: 1.5 };
-    expect(haulValue(oneGold)).toBe(68);
-  });
-
-  it("applySellAll pays the multiplied total, empties the bag, resets to ×1", () => {
-    const s = { ...stateWith(0), satchel: { iron: 10, gold: 2, diamond: 1 }, haulMultiplier: 2 };
-    const { state, coins } = applySellAll(s);
-    expect(coins).toBe(860);
-    expect(state.satchel).toEqual({ iron: 0, gold: 0, diamond: 0 });
-    expect(state.haulMultiplier).toBe(1);
-    // Selling twice pays once, and an empty bag can't spend a rate.
-    expect(applySellAll(state).coins).toBe(0);
-  });
-
-  it("a mined-out Deep run sells its whole story at ×3", () => {
-    // A guaranteed-plain Deep face, worked with the Gold pick: the
-    // plain table pays exactly one diamond.
-    const plainDeep = [0, 1, 2]
-      .map((slot) => 3 * FACES_PER_BAND + slot)
-      .find((f) => !isRichFace(f, mineTodayString(T0)))!;
-    const s = mineOut(stateWith(3), plainDeep, T0, 0.1).state;
-    expect(s.satchel).toEqual({ iron: 0, gold: 0, diamond: 1 });
-    expect(s.haulMultiplier).toBe(3);
-    expect(applySellAll(s).coins).toBe(ORE_PRICES.diamond * 3);
-  });
-});
-
-describe("a cave-in spends the multiplier (on top of v170's burial)", () => {
-  it("the surviving satchel drops back to ×1", () => {
-    const loaded = {
-      ...crack(stateWith(3), 3 * FACES_PER_BAND),
-      satchel: { iron: 4, gold: 2, diamond: 1 },
-      haulMultiplier: 3,
-    };
-    const r = mineTap(loaded, 3 * FACES_PER_BAND, T0, 0.1, 0); // worst roll: it falls
-    expect(r.outcome.kind).toBe("collapse");
-    expect(r.state.haulMultiplier).toBe(1);
-    expect(haulValue(r.state)).toBe(
-      2 * ORE_PRICES.iron + 1 * ORE_PRICES.gold + 1 * ORE_PRICES.diamond // the kept half, at ×1
-    );
-  });
-});
-
-describe("rich veins stack under the haul multiplier", () => {
-  it("a rich Deep face: the vein clusters the diamonds, the haul triples the lot", () => {
-    const { now, faceIndex } = findRich(3);
-    const { state, outcome } = mineOut(stateWith(3, now), faceIndex, now, 0.1);
-    expect(outcome).toMatchObject({ kind: "broke", rich: true });
-    expect(state.satchel.diamond).toBe(2); // the rich cluster (v170)
-    expect(state.haulMultiplier).toBe(3); // the Deep's rate (v172)
-    expect(applySellAll(state).coins).toBe(2 * ORE_PRICES.diamond * 3);
-  });
-
-  it("a rich Stone face doubles its iron; the haul stays at face value", () => {
-    const { now, faceIndex } = findRich(0);
-    const { state } = mineOut(stateWith(0, now), faceIndex, now, 0.1);
-    expect(state.satchel.iron).toBe(2 * (yieldForFace(0, 0, 0.1).iron ?? 0));
-    expect(state.haulMultiplier).toBe(1);
-    expect(haulValue(state)).toBe(state.satchel.iron * ORE_PRICES.iron);
-  });
-});
-
-describe("satchel capacity — the bag is the trip's clock", () => {
-  it("the bag ladder: sizes, prices, and the Crown's claim on the top", () => {
-    expect(SATCHEL_BAGS.map((b) => b.name)).toEqual([
-      "Canvas Bag",
-      "Sturdy Bag",
-      "Miner's Pack",
-      "Deep Haul Satchel",
-      "Crown Haul Bag",
+  it("the label drops trailing zeros it doesn't need", () => {
+    expect(STRATUM_MULTIPLIERS.map(formatHaulMultiplier)).toEqual([
+      "1", "1.25", "1.5", "1.75", "2", "2.5", "3", "3",
     ]);
-    expect(SATCHEL_BAGS.map((b) => b.capacity)).toEqual([20, 30, 45, 70, 120]);
-    expect(SATCHEL_BAGS.map((b) => b.cost)).toEqual([0, 750, 3000, 12000, 50000]);
-    expect(SATCHEL_BAGS.map((b) => b.gate)).toEqual(["none", "none", "none", "none", "crown"]);
-    expect(MAX_BAG_TIER).toBe(4);
-    expect(satchelCount({ iron: 3, gold: 2, diamond: 1 })).toBe(6); // pieces, not value
+    expect(formatHaulMultiplier(1)).toBe("1");
+    expect(formatHaulMultiplier(3)).toBe("3");
   });
 
-  it("a full bag refuses the swing — and the face takes NO damage", () => {
-    const s = { ...stateWith(0), satchel: { iron: 20, gold: 0, diamond: 0 } }; // Canvas cap
-    expect(satchelIsFull(s)).toBe(true);
-    const r = mineTap(s, 0, T0, 0.1, 0); // even a collapse-begging roll
+  it("breaking a face raises the rate to ITS stratum — cracking does not", () => {
+    const cracked = mineTap(stateWith(0), faceIndexFor(11, 0), T0, 0.1).state; // Coal face, one hit (Wood pick: 2 hits)
+    expect(cracked.haulMultiplier).toBe(1);
+    const broken = breakFace(cracked, faceIndexFor(11, 0));
+    expect(broken.haulMultiplier).toBe(1.25); // Coal
+  });
+
+  it("each deeper stratum raises it further; shallow rock never steps it down", () => {
+    let s = stateWith(7);
+    s = breakFace(s, faceIndexFor(21, 0)); // Copper
+    expect(s.haulMultiplier).toBe(1.5);
+    s = breakFace(s, faceIndexFor(41, 0)); // Silver
+    expect(s.haulMultiplier).toBe(2);
+    s = breakFace(s, faceIndexFor(61, 0)); // Diamond
+    expect(s.haulMultiplier).toBe(3);
+    s = breakFace(s, faceIndexFor(71, 0)); // the Deep — already at the cap
+    expect(s.haulMultiplier).toBe(3);
+    s = breakFace(s, faceIndexFor(1, 0)); // back up top for stone
+    expect(s.haulMultiplier).toBe(3); // never steps down
+  });
+
+  it("selling spends the rate: a fresh trip starts again at ×1", () => {
+    const s = breakFace(stateWith(7), faceIndexFor(61, 0));
+    expect(s.haulMultiplier).toBe(3);
+    const sold = applySellAll(s);
+    expect(sold.coins).toBeGreaterThan(0);
+    expect(sold.state.haulMultiplier).toBe(1);
+    expect(sold.state.satchel).toEqual([]);
+  });
+});
+
+describe("sell math — priced stacks, rounded once (v175)", () => {
+  it("face value sums piece × the price where it broke", () => {
+    const s: MineState = {
+      ...defaultMineState(T0),
+      satchel: [
+        { ore: "iron", unit: 12, count: 10 }, // legacy-priced iron
+        { ore: "gold", unit: 45, count: 2 },
+        { ore: "diamond", unit: 220, count: 1 },
+      ],
+    };
+    expect(satchelValue(s.satchel)).toBe(120 + 90 + 220);
+    expect(applySellAll(s).coins).toBe(430); // at ×1
+  });
+
+  it("the multiplier applies to the whole load, rounded once at the till", () => {
+    const s: MineState = {
+      ...defaultMineState(T0),
+      satchel: [{ ore: "gold", unit: 45, count: 1 }],
+      haulMultiplier: 1.5,
+    };
+    expect(applySellAll(s).coins).toBe(68); // round(45 × 1.5) = round(67.5)
+  });
+
+  it("deep ore sells deep: a rich Deep cluster at the ×3 rate", () => {
+    const { face, at } = findRichFace(7);
+    let s = stateWith(6, at); // Diamond pick
+    s = breakFace(s, face, at);
+    expect(s.haulMultiplier).toBe(3);
+    // Rich Deep: a 2-diamond cluster, plus the Diamond pick's +1 bonus =
+    // 3 pieces, priced at the level where they broke (≥ the 220 base).
+    const diamonds = s.satchel.find((st) => st.ore === "diamond");
+    expect(diamonds?.count).toBe(3);
+    expect(diamonds?.unit).toBeGreaterThanOrEqual(220);
+    expect(applySellAll(s).coins).toBe(satchelValue(s.satchel) * 3);
+  });
+
+  it("an empty satchel sells for nothing and changes nothing", () => {
+    const s = defaultMineState(T0);
+    const sold = applySellAll(s);
+    expect(sold.coins).toBe(0);
+    expect(sold.state).toBe(s); // same object — no churn
+  });
+});
+
+describe("the carry ladder — Pockets hold five (v175 addendum)", () => {
+  it("nine rungs from Pockets to the Crown Vault Hauler", () => {
+    expect(SATCHEL_BAGS.map((b) => b.name)).toEqual([
+      "Pockets", "Canvas Satchel", "Sturdy Satchel", "Miner's Backpack",
+      "Framed Pack", "Hand Cart", "Rail Cart", "Deep Haul Wagon", "Crown Vault Hauler",
+    ]);
+    expect(SATCHEL_BAGS.map((b) => b.capacity)).toEqual([5, 10, 18, 30, 45, 70, 110, 160, 240]);
+    expect(SATCHEL_BAGS.map((b) => b.cost)).toEqual([0, 150, 500, 1500, 4000, 10000, 25000, 60000, 120000]);
+    expect(MAX_BAG_TIER).toBe(8);
+    expect(satchelCapacity(defaultMineState(T0))).toBe(5); // Pockets
+    expect(satchelCapacity({ ...defaultMineState(T0), bagTier: 8 })).toBe(240);
+  });
+
+  it("bought one rung at a time; the Vault Hauler waits for a Crown", () => {
+    expect(bagPurchaseCheck(0, 1, NO_GATES)).toEqual({ ok: true, cost: 150 });
+    expect(bagPurchaseCheck(0, 2, NO_GATES)).toEqual({ ok: false, reason: "order" });
+    expect(bagPurchaseCheck(1, 1, NO_GATES)).toEqual({ ok: false, reason: "owned" });
+    expect(bagPurchaseCheck(7, 8, NO_GATES)).toEqual({ ok: false, reason: "crown" });
+    expect(bagPurchaseCheck(7, 8, CROWNED)).toEqual({ ok: true, cost: 120000 });
+  });
+
+  it("a full carrier refuses the next swing entirely — the face is untouched", () => {
+    const pockets: MineState = {
+      ...defaultMineState(T0),
+      satchel: [{ ore: "stone", unit: 3, count: 5 }], // Pockets: full at five
+    };
+    expect(satchelIsFull(pockets)).toBe(true);
+    const r = mineTap(pockets, 0, T0, 0.1);
     expect(r.outcome).toEqual({ kind: "full" });
     expect(r.state.faces[0]).toEqual({ hitsLeft: null, minedAt: null });
-    expect(r.state.minedToday).toBe(s.minedToday);
-    expect(r.state.satchel).toEqual(s.satchel);
   });
 
-  it("one piece of room left still swings", () => {
-    const s = { ...stateWith(0), satchel: { iron: 19, gold: 0, diamond: 0 } };
-    const r = mineTap(s, 0, T0, 0.1);
-    expect(r.outcome.kind).toBe("hit");
-    expect(r.state.faces[0].hitsLeft).toBe(1);
-  });
-
-  it("a breaking face always pays in full — even past the cap — then the bag is full", () => {
-    const s = { ...stateWith(0), satchel: { iron: 19, gold: 0, diamond: 0 } };
-    const broken = mineOut(s, 0, T0, 0.9); // Stone pays at least 2 at this roll
-    expect(satchelCount(broken.state.satchel)).toBeGreaterThan(20); // over the Canvas cap, all kept
-    const next = mineTap(broken.state, 1, T0, 0.1);
-    expect(next.outcome).toEqual({ kind: "full" });
-  });
-
-  it("a bigger bag digs longer: 25 pieces is room to spare in a Sturdy Bag", () => {
-    const s = { ...stateWith(0), bagTier: 1, satchel: { iron: 25, gold: 0, diamond: 0 } };
-    expect(satchelCapacity(s)).toBe(30);
-    expect(satchelIsFull(s)).toBe(false);
-    expect(mineTap(s, 0, T0, 0.1).outcome.kind).toBe("hit");
-  });
-
-  it("bag purchases climb one rung at a time; the top rung reads the Crown gate", () => {
-    const noCrown = { totalPrestiges: 0, crowns: 0 };
-    const crowned = { totalPrestiges: 1, crowns: 1 };
-    expect(bagPurchaseCheck(0, 1, noCrown)).toEqual({ ok: true, cost: 750 });
-    expect(bagPurchaseCheck(1, 2, noCrown)).toEqual({ ok: true, cost: 3000 });
-    expect(bagPurchaseCheck(2, 3, noCrown)).toEqual({ ok: true, cost: 12000 });
-    expect(bagPurchaseCheck(0, 2, noCrown)).toEqual({ ok: false, reason: "order" });
-    expect(bagPurchaseCheck(1, 1, noCrown)).toEqual({ ok: false, reason: "owned" });
-    expect(bagPurchaseCheck(4, 4, crowned)).toEqual({ ok: false, reason: "owned" });
-    expect(bagPurchaseCheck(3, 4, noCrown)).toEqual({ ok: false, reason: "crown" });
-    expect(bagPurchaseCheck(3, 4, crowned)).toEqual({ ok: true, cost: 50000 });
-    expect(bagFor(4).name).toBe("Crown Haul Bag");
-  });
-});
-
-describe("legacy records — v170 saves walk into v172 whole", () => {
-  it("a v170 record (no bag, no multiplier) defaults to Canvas and ×1, ladder intact", () => {
-    const legacy = parseMineState(
-      { pickTier: 4, satchel: { iron: 2, gold: 1, diamond: 0 }, faces: [], day: "2026-10-21", minedToday: 3, poolFace: null },
-      T0
-    );
-    expect(legacy.pickTier).toBe(4); // the Diamond Pick bought in v170 stays bought
-    expect(legacy.bagTier).toBe(0);
-    expect(legacy.haulMultiplier).toBe(1);
-  });
-
-  it("an over-cap legacy satchel is KEPT whole — grandfathered — but cannot grow", () => {
-    const legacy = parseMineState({ satchel: { iron: 25, gold: 0, diamond: 0 } }, T0);
-    expect(satchelCount(legacy.satchel)).toBe(25); // nothing confiscated
-    expect(satchelIsFull(legacy)).toBe(true);
-    const r = mineTap({ ...legacy, pickTier: 0 }, 0, T0, 0.1);
-    expect(r.outcome).toEqual({ kind: "full" }); // blocked until sold down
-    // …and selling it pays every grandfathered piece.
-    expect(applySellAll({ ...legacy, pickTier: 0 }).coins).toBe(25 * ORE_PRICES.iron);
-  });
-
-  it("corrupt v172 fields fall back to the starter bag and ×1", () => {
-    const parsed = parseMineState({ bagTier: 99, haulMultiplier: 7 }, T0);
-    expect(parsed.bagTier).toBe(MAX_BAG_TIER); // clamped, like the pick ladder
-    expect(parsed.haulMultiplier).toBe(1); // 7 is not a rung on the ladder
-    expect(parseMineState({ bagTier: -2, haulMultiplier: 2.5 }, T0).bagTier).toBe(0);
-    expect(parseMineState({ haulMultiplier: 1.5 }, T0).haulMultiplier).toBe(1.5); // a real rung survives
-  });
-
-  it("bag and multiplier round-trip storage", async () => {
-    const s = { ...stateWith(2), bagTier: 2, haulMultiplier: 2 };
-    await saveMineState(s);
-    const loaded = await loadMineState(T0);
-    expect(loaded.bagTier).toBe(2);
-    expect(loaded.haulMultiplier).toBe(2);
-  });
-
-  it("Begin Again hands back the starter bag and a ×1 haul with the Wood pick", async () => {
-    const rich = {
-      ...stateWith(5),
-      bagTier: 3,
-      haulMultiplier: 3,
-      satchel: { iron: 40, gold: 9, diamond: 3 },
+  it("but a breaking face always pays in full, even past the cap", () => {
+    const nearly: MineState = {
+      ...defaultMineState(T0),
+      satchel: [{ ore: "stone", unit: 3, count: 4 }], // one pocket free
     };
-    await saveMineState(rich);
-    await resetMineForPrestige(T0);
-    const loaded = await loadMineState(T0);
-    expect(loaded.pickTier).toBe(0);
-    expect(loaded.bagTier).toBe(0);
-    expect(loaded.haulMultiplier).toBe(1);
+    // A generous Stone break pays 2 pieces (roll 0.9) — the load lands at
+    // 6 pieces in 5-capacity Pockets, because the rock never short-pays.
+    const s = breakFace(nearly, 0, T0, 0.9);
+    expect(satchelCount(s.satchel)).toBe(6);
+    expect(satchelIsFull(s)).toBe(true);
+    // …and NOW the next swing is refused.
+    expect(mineTap(s, 1, T0, 0.1).outcome).toEqual({ kind: "full" });
+  });
+
+  it("migration: no legacy owner ends up holding less than they could", () => {
+    // Old Canvas Satchel held 20 → the new Sturdy Satchel (18) would be a
+    // LOSS, so he lands on the Miner's Backpack (30).
+    expect(parseMineState({ pickTier: 0, bagTier: 0, satchel: {}, faces: [] }, T0).bagTier).toBe(3);
+    // Old Miner's Pack held 45 → the Framed Pack (45) matches it exactly.
+    expect(parseMineState({ pickTier: 0, bagTier: 2, satchel: {}, faces: [] }, T0).bagTier).toBe(4);
+    // Old Crown Haul held 120 → the Deep Haul Wagon (160).
+    expect(parseMineState({ pickTier: 0, bagTier: 4, satchel: {}, faces: [] }, T0).bagTier).toBe(7);
   });
 });
 
-describe("the Mouth — routing, the one till, and rest that touches nothing", () => {
-  it("the peak opens on the Mouth; the cave is entered from the Mouth", () => {
-    const town = readFileSync(join(process.cwd(), "app/hometown.tsx"), "utf8");
-    expect(town).toContain('router.push("/mine-mouth")');
-    expect(town).not.toContain('router.push("/mine-interior")');
-    const mouth = readFileSync(join(process.cwd(), "app/mine-mouth.tsx"), "utf8");
-    expect(mouth).toContain('router.push("/mine-interior")'); // Enter the Cave
-    expect(mouth).toContain('"/gear-shop?type=tool"'); // the tool check's jump
-    expect(mouth).toContain("GreatPeakArt"); // the peak's own entrance art
-    expect(mouth).toContain("MINE_TITLE");
+describe("the Mining Gear shelf (v175 addendum)", () => {
+  it("five one-time pieces; the Tinderbox waits for a prestige", () => {
+    const bare = defaultMineState(T0);
+    expect(gearPurchaseCheck(bare, "lantern", NO_GATES)).toEqual({ ok: true, cost: 2000 });
+    expect(gearPurchaseCheck(bare, "gloves", NO_GATES)).toEqual({ ok: true, cost: 3500 });
+    expect(gearPurchaseCheck(bare, "boots", NO_GATES)).toEqual({ ok: true, cost: 4500 });
+    expect(gearPurchaseCheck(bare, "charm", NO_GATES)).toEqual({ ok: true, cost: 6000 });
+    expect(gearPurchaseCheck(bare, "tinderbox", NO_GATES)).toEqual({ ok: false, reason: "prestige" });
+    expect(gearPurchaseCheck(bare, "tinderbox", { totalPrestiges: 1, crowns: 0 })).toEqual({ ok: true, cost: 15000 });
+    const withLantern: MineState = { ...bare, gear: ["lantern"] };
+    expect(gearPurchaseCheck(withLantern, "lantern", NO_GATES)).toEqual({ ok: false, reason: "owned" });
+    expect(hasMiningGear({ ...defaultMineState(T0), gear: ["boots"] }, "boots")).toBe(true);
+    expect(hasMiningGear(defaultMineState(T0), "boots")).toBe(false);
   });
 
-  it("the Mouth keeps the naming rule: the feeling is rendered, never spelled", () => {
-    const mouth = readFileSync(join(process.cwd(), "app/mine-mouth.tsx"), "utf8");
-    expect(mouth).not.toContain("Safety");
-    expect(mouth).toContain("PaperSeatedHero"); // rest has a figure, not a label
-    expect(mouth).toContain("PaperHeroFigure");
+  it("the Tinderbox kindles +3 bonus flames once a day, through the forest's own pool", async () => {
+    const today = mineTodayString(T0);
+    const withBox: MineState = { ...defaultMineState(T0), gear: ["tinderbox"] };
+    expect(tinderboxDue(withBox, today)).toBe(true);
+    const before = (await loadForestEnergy()).energy;
+    const stamped = await settleTinderboxBonus(withBox, today);
+    expect(stamped.tinderboxDay).toBe(today);
+    const after = (await loadForestEnergy()).energy;
+    expect(after - before).toBe(3); // exactly the box's three flames, in the shared pool
+    // Same day again: not due, and the settle is a no-op.
+    expect(tinderboxDue(stamped, today)).toBe(false);
+    expect(await settleTinderboxBonus(stamped, today)).toBe(stamped);
+    expect((await loadForestEnergy()).energy).toBe(after);
+    // No box, no kindling.
+    const plain = defaultMineState(T0);
+    expect(await settleTinderboxBonus(plain, today)).toBe(plain);
+  });
+});
+
+describe("screen contracts — the Mouth is where ore becomes coins", () => {
+  const cave = readFileSync(join(process.cwd(), "app/mine-interior.tsx"), "utf8");
+  const mouth = readFileSync(join(process.cwd(), "app/mine-mouth.tsx"), "utf8");
+  const hometown = readFileSync(join(process.cwd(), "app/hometown.tsx"), "utf8");
+
+  it("the peak routes to the Mouth; the Mouth is where the cave is entered", () => {
+    expect(hometown).toContain('router.push("/mine-mouth")');
+    expect(mouth).toContain('router.push("/mine-interior")');
   });
 
-  it("selling lives at the Mouth ONLY — the cave has no sell path at all", () => {
-    const cave = readFileSync(join(process.cwd(), "app/mine-interior.tsx"), "utf8");
+  it("selling happens at the Mouth, through the coin ledger alone", () => {
+    expect(mouth).toContain("applySellAll");
+    expect(mouth).toContain("applyCoinsDelta");
+    // The cave sells NOTHING anymore — it only sends you home to sell.
     expect(cave).not.toContain("applySellAll");
-    expect(cave).not.toContain("Sell all");
     expect(cave).not.toContain("applyCoinsDelta");
-    // …the cave points up the shaft instead, and shows its workings:
     expect(cave).toContain("Sell at the Mouth");
-    expect(cave).toContain("Haul ×");
-    expect(cave).toContain("bandMultiplier(bandIndex)"); // every band wears its rate
-    expect(cave).toContain("Your bag is full — haul it up to the Mouth.");
   });
 
-  it("RELAX is pure scene state: no storage, no ledger, no health", () => {
-    const mouth = readFileSync(join(process.cwd(), "app/mine-mouth.tsx"), "utf8");
-    const start = mouth.indexOf("function useRelax");
-    expect(start).toBeGreaterThan(-1);
-    const hook = mouth.slice(start, mouth.indexOf("BreathingSeat", start));
-    expect(hook).toContain("useState");
-    expect(hook).not.toContain("save");
-    expect(hook).not.toContain("applyCoinsDelta");
-    expect(hook).not.toContain("AsyncStorage");
-    expect(hook).not.toContain("setItem");
-    expect(hook).not.toContain("load");
-    // And the seated rest breathes on the kit's terms, in the screen:
-    expect(mouth).toContain("Easing.inOut(Easing.sin)");
-    expect(mouth).toContain("useNativeDriver: true");
+  it("the cave spends flames on the break and shows the trip's haul rate", () => {
+    expect(cave).toContain("spendForestEnergy");
+    expect(cave).toContain("noflames");
+    expect(cave).toContain("stratumMultiplier(");
+    expect(cave).toContain("Haul ×");
+  });
+
+  it("the Mouth shows flames today and the Depth Blessing, and sells the gear", () => {
+    expect(mouth).toContain("loadForestEnergy");
+    expect(mouth).toContain("Depth Blessing");
+    expect(mouth).toContain("gearPurchaseCheck");
+    expect(mouth).toContain("settleTinderboxBonus");
+  });
+
+  it("Relax stays pure pleasure: no storage, no ledger, no health writes in the relax path", () => {
+    const relaxAt = mouth.indexOf("useRelax");
+    expect(relaxAt).toBeGreaterThan(-1);
+    const relaxBlock = mouth.slice(relaxAt, mouth.indexOf("export default"));
+    expect(relaxBlock).not.toContain("AsyncStorage");
+    expect(relaxBlock).not.toContain("applyCoinsDelta");
+    expect(relaxBlock).not.toContain("applyCaveInDamage");
+    expect(relaxBlock).not.toContain("saveMineState");
+    // …and the button is wired to exactly that.
+    expect(mouth).toContain("Relax by the hearth");
+  });
+
+  it("the Mouth's panels carry no Safety name anywhere (v169 rule)", () => {
+    expect(mouth).not.toContain("Safety");
+    expect(cave).not.toContain("Safety");
   });
 });

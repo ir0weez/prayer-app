@@ -1,22 +1,27 @@
-// The mine, dangerous and generous (v170) — Jonathan's picks
-// (2026-10-22): cave-ins with a real HP hit, rich veins, the still
-// pool, and picks sold at the Tool Shop where tools belong.
+// The mine, dangerous and generous (v170; the Descent v175) —
+// Jonathan's picks: cave-ins with a real HP hit, rich veins, the
+// still pool, and picks sold at the Tool Shop where tools belong.
+//
+// v175 moved the danger down: cave-ins start at the Gold stratum
+// (12%), worsen through Diamond (16%) to the Deep (20%); the still
+// pool surfaces only in the Deep; and the Mining Gear shelf softens
+// the mountain — Braced Gloves bury a third instead of a half, Cave
+// Boots halve the HP bite, the Prospector's Charm sometimes finds
+// one more piece, the Miner's Lantern shows rich veins early.
 //
 // These tests pin:
-//  - collapse only ever threatens CRACKED faces in the unstable
-//    bands (Gold / The Deep) — never Stone, never Iron, never a
-//    face's first hit — at the shipped chances per band;
-//  - the burial math (half the unsold satchel, rounded down), the
-//    face's destruction and regrow, and the trip-ending outcome;
-//  - the hero HP hit through lib/hero-health: 20% of max, and a hit
-//    that would zero him waking him at home at the defeat floor;
-//  - rich veins: deterministic per face per day, revealed at the
-//    first crack, paying double — a 2–3 diamond cluster in the Deep;
-//  - the still pool: Deep breaks reveal it, one pool at a time, it
-//    stays until drunk, and the pool boon (forest blessing till
-//    midnight) reads through lib/hero-needs in the boon's own shape;
-//  - the Tool Shop shelf: picks are bought there (source pins) and
-//    the mine strip no longer sells — both read the one mine record.
+//  - cave-ins: cracked faces only, from the Gold stratum down, the
+//    first crack NEVER falls; a collapse spends the haul rate, buries
+//    half the satchel (a third with gloves), destroys the face, and
+//    counts as mined;
+//  - hero HP: the shared forest health record, 20% of max (10% with
+//    boots), 0 HP wakes at home on 10%; healing/pray/pool untouched;
+//  - rich veins: deterministic per face per day, ~15%, paying double
+//    — in the Deep, a 2–3 diamond cluster;
+//  - the still pool: Deep only, ~10% of Deep breaks, one at a time,
+//    survives the trip out, drink = full heal OR the pool boon;
+//  - the charm and lantern wiring;
+//  - the Tool Shop contract: picks (all eight) are BOUGHT there.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
@@ -39,377 +44,376 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 import {
-  FACES_PER_BAND,
-  MINE_BANDS,
+  BOOTS_CAVE_IN_DAMAGE_PCT,
+  POOL_REVEAL_CHANCE,
+  RICH_FACE_CHANCE,
   burySatchel,
   collapseChanceFor,
   defaultMineState,
-  faceReadyAt,
-  faceRumbles,
+  faceIndexFor,
   isRichFace,
-  isUnstableBand,
-  loadMineState,
+  isUnstableStratum,
   mineTap,
   mineTodayString,
   parseMineState,
   richYieldForFace,
-  saveMineState,
-  settleMineState,
+  satchelCount,
+  satchelValue,
   spendPool,
+  unitPriceFor,
   yieldForFace,
   type MineState,
 } from "../mountain";
 import {
-  CAVE_IN_DAMAGE_PCT,
+  HERO_HEALTH_KEY,
   applyCaveInDamage,
   defaultHeroHealthState,
   healToFull,
+  loadHeroHealthRaw,
+  saveHeroHealth,
+  settleHealth,
 } from "../hero-health";
 import {
   POOL_BOON_ATK_PCT,
   POOL_BOON_HP_PCT,
-  combineBoons,
   defaultNeedsState,
   grantPoolBoon,
   heroNeedsDayStr,
   poolBoonFor,
-  settleNeeds,
 } from "../hero-needs";
 
 const HOUR = 60 * 60 * 1000;
-// A fixed "now": midday local, so day boundaries never wobble.
 const T0 = new Date(2026, 9, 21, 12, 0, 0).getTime();
 
+const GOLD_FACE = faceIndexFor(51, 0); // Gold stratum, level 51
+const DIAMOND_FACE = faceIndexFor(61, 0); // Diamond stratum, level 61
+const DEEP_FACE = faceIndexFor(71, 0); // the Deep, level 71
+
 function stateWith(pickTier: number, now: number = T0): MineState {
-  return { ...defaultMineState(now), pickTier };
+  return { ...defaultMineState(now), pickTier, bagTier: 8 };
 }
 
-/** Tap a face until it breaks (fixed rolls); returns the end state. */
-function mineOut(
-  state: MineState,
-  faceIndex: number,
-  now: number,
-  roll = 0.1,
-  poolRoll = 1
-): { state: MineState; outcome: ReturnType<typeof mineTap>["outcome"] } {
-  let s = state;
-  for (let i = 0; i < 12; i++) {
-    const r = mineTap(s, faceIndex, now, roll, 1, poolRoll);
-    s = r.state;
-    if (r.outcome.kind === "broke") return { state: s, outcome: r.outcome };
-    if (r.outcome.kind !== "hit") throw new Error(`unexpected outcome ${r.outcome.kind}`);
-  }
-  throw new Error("face never broke");
-}
-
-/** Crack a face once (its first hit), collapse roll disabled. */
+/** Crack a face once (guaranteed no collapse: rock below Gold, or a
+ *  benign roll) and return the state with the face left cracked. */
 function crack(state: MineState, faceIndex: number, now: number = T0): MineState {
-  const r = mineTap(state, faceIndex, now, 0.1, 1);
-  if (r.outcome.kind !== "hit") throw new Error(`expected a hit, got ${r.outcome.kind}`);
+  const r = mineTap(state, faceIndex, now, 0.99);
+  if (r.outcome.kind !== "hit") throw new Error(`expected a crack, got ${r.outcome.kind}`);
   return r.state;
 }
 
-/** Find a day (from T0 forward) with a rich face in the band. */
-function findRich(bandIndex: number): { now: number; faceIndex: number } {
-  for (let k = 0; k < 90; k++) {
-    const now = new Date(2026, 9, 21 + k, 12, 0, 0).getTime();
-    const day = mineTodayString(now);
-    for (let slot = 0; slot < FACES_PER_BAND; slot++) {
-      const faceIndex = bandIndex * FACES_PER_BAND + slot;
-      if (isRichFace(faceIndex, day)) return { now, faceIndex };
-    }
+/** Work a face down to a single hit left, collapse rolls benign. */
+function workDown(state: MineState, faceIndex: number, now: number = T0): MineState {
+  let s = state;
+  for (let i = 0; i < 12; i++) {
+    if ((s.faces[faceIndex].hitsLeft ?? Infinity) <= 1) return s;
+    const r = mineTap(s, faceIndex, now, 0.99);
+    s = r.state;
+    if (r.outcome.kind !== "hit") throw new Error(`expected a hit, got ${r.outcome.kind}`);
   }
-  throw new Error("no rich face found in 90 days");
+  throw new Error("face never wore down");
 }
 
 beforeEach(() => {
   store.clear();
 });
 
-describe("cave-ins — only the deep bands, only cracked faces", () => {
-  it("the unstable bands are Gold and The Deep, at the shipped chances", () => {
-    expect(MINE_BANDS.map((_, i) => isUnstableBand(i))).toEqual([false, false, true, true]);
-    expect(collapseChanceFor(0)).toBe(0);
-    expect(collapseChanceFor(1)).toBe(0);
-    expect(collapseChanceFor(2)).toBe(0.12);
-    expect(collapseChanceFor(3)).toBe(0.2);
+describe("cave-ins — only the deep rock falls (v175)", () => {
+  it("the unstable strata are Gold and below, at 12 / 16 / 20 percent", () => {
+    expect([0, 1, 2, 3, 4, 5, 6, 7].map(isUnstableStratum)).toEqual([
+      false, false, false, false, false, true, true, true,
+    ]);
+    expect([0, 1, 2, 3, 4, 5, 6, 7].map(collapseChanceFor)).toEqual([0, 0, 0, 0, 0, 0.12, 0.16, 0.2]);
+    expect(collapseChanceFor(5)).toBe(0.12);
+    expect(collapseChanceFor(6)).toBe(0.16);
+    expect(collapseChanceFor(7)).toBe(0.2);
+    expect(collapseChanceFor(3)).toBe(0);
   });
 
-  it("Stone and Iron faces NEVER collapse, even cracked with the worst roll", () => {
-    for (const faceIndex of [0, FACES_PER_BAND]) {
-      const pick = faceIndex === 0 ? 0 : 1;
-      const crackedState = crack(stateWith(pick), faceIndex);
-      const r = mineTap(crackedState, faceIndex, T0, 0.1, 0);
-      // The tap lands or breaks the face — it never falls.
+  it("stable rock NEVER falls, whatever the roll — Stone through Silver are safe to crack", () => {
+    for (const face of [faceIndexFor(1, 0), faceIndexFor(21, 0), faceIndexFor(41, 0)]) {
+      const pick = face < 30 ? 0 : face < 90 ? 1 : 3;
+      const cracked = crack(stateWith(pick), face);
+      const r = mineTap(cracked, face, T0, 0.99, 0); // the worst collapse roll there is
       expect(r.outcome.kind).not.toBe("collapse");
     }
-    // Iron has hits to spare, so the tap is a plain hit.
-    const iron = mineTap(crack(stateWith(1), FACES_PER_BAND), FACES_PER_BAND, T0, 0.1, 0);
-    expect(iron.outcome.kind).toBe("hit");
   });
 
-  it("a face's FIRST hit can never bring it down — the crack is the warning", () => {
-    const r = mineTap(stateWith(3), 9, T0, 0.1, 0); // a Deep face, worst roll
+  it("the FIRST crack on a face never falls — the warning is always free", () => {
+    const r = mineTap(stateWith(6), DEEP_FACE, T0, 0.99, 0);
     expect(r.outcome.kind).toBe("hit");
     if (r.outcome.kind === "hit") expect(r.outcome.rumbling).toBe(true);
   });
 
-  it("a hit in a stable band reports no rumble", () => {
-    const r = mineTap(stateWith(0), 0, T0, 0.1, 0);
-    expect(r.outcome).toMatchObject({ kind: "hit", rumbling: false });
+  it("a cracked Gold face falls at its 12%: roll 0 falls, roll 0.15 holds", () => {
+    const cracked = crack(stateWith(4), GOLD_FACE);
+    expect(mineTap(cracked, GOLD_FACE, T0, 0.99, 0).outcome.kind).toBe("collapse");
+    expect(mineTap(cracked, GOLD_FACE, T0, 0.99, 0.15).outcome.kind).toBe("hit");
   });
 
-  it("the rumble warning reads on cracked unstable faces only", () => {
-    const gold = crack(stateWith(2), 6);
-    expect(faceRumbles(gold, 6)).toBe(true);
-    expect(faceRumbles(stateWith(2), 6)).toBe(false); // uncracked: quiet
-    const stone = crack(stateWith(0), 0);
-    expect(faceRumbles(stone, 0)).toBe(false); // cracked but stable rock
+  it("Diamond falls at 16% — a roll that spares Gold (0.14) brings Diamond down", () => {
+    const crackedD = crack(stateWith(5), DIAMOND_FACE);
+    expect(mineTap(crackedD, DIAMOND_FACE, T0, 0.99, 0.14).outcome.kind).toBe("collapse");
+    expect(mineTap(crackedD, DIAMOND_FACE, T0, 0.99, 0.18).outcome.kind).toBe("hit");
+    const crackedG = crack(stateWith(4), GOLD_FACE);
+    expect(mineTap(crackedG, GOLD_FACE, T0, 0.99, 0.14).outcome.kind).toBe("hit");
   });
 
-  it("a cracked Gold face falls at the Gold chance — and not above it", () => {
-    const crackedState = crack(stateWith(2), 6);
-    const falls = mineTap(crackedState, 6, T0, 0.1, 0);
-    expect(falls.outcome.kind).toBe("collapse");
-    const holds = mineTap(crackedState, 6, T0, 0.1, 0.15); // 0.15 ≥ 0.12
-    expect(holds.outcome.kind).toBe("hit");
+  it("the Deep falls at 20% — a roll that spares Diamond (0.18) brings the Deep down", () => {
+    const cracked = crack(stateWith(6), DEEP_FACE);
+    expect(mineTap(cracked, DEEP_FACE, T0, 0.99, 0.18).outcome.kind).toBe("collapse");
+    expect(mineTap(cracked, DEEP_FACE, T0, 0.99, 0.25).outcome.kind).toBe("hit");
   });
 
-  it("the Deep is shakier: a roll that spares Gold still drops the Deep", () => {
-    const crackedDeep = crack(stateWith(3), 9);
-    const r = mineTap(crackedDeep, 9, T0, 0.1, 0.15); // 0.15 < 0.20
+  it("the breaking hit can be the one that falls — and then the face pays nothing", () => {
+    const worn = workDown(stateWith(6), DEEP_FACE);
+    expect(worn.faces[DEEP_FACE].hitsLeft).toBe(1);
+    const r = mineTap(worn, DEEP_FACE, T0, 0.99, 0);
     expect(r.outcome.kind).toBe("collapse");
-    const holds = mineTap(crackedDeep, 9, T0, 0.1, 0.25);
-    expect(holds.outcome.kind).toBe("hit");
+    expect(r.state.satchel).toEqual([]);
+    expect(r.state.faces[DEEP_FACE].minedAt).toBe(T0); // destroyed, resting
+    expect(r.state.minedToday).toBe(worn.minedToday + 1); // counts as mined
   });
 
-  it("even the BREAKING hit can fall — no yield, the face is just gone", () => {
-    let s = stateWith(3);
-    // Gold pick on the Deep: 5 hits. Work it down to one hit left.
-    for (let i = 0; i < 4; i++) s = crack(s, 9);
-    expect(s.faces[9].hitsLeft).toBe(1);
-    const r = mineTap(s, 9, T0, 0.1, 0);
+  it("a collapse buries half of every kind, spends the haul rate, and regrows deep-slow", () => {
+    let s: MineState = {
+      ...stateWith(4),
+      satchel: [
+        { ore: "iron", unit: 14, count: 5 },
+        { ore: "gold", unit: 45, count: 3 },
+        { ore: "diamond", unit: 120, count: 1 },
+      ],
+      haulMultiplier: 3,
+    };
+    s = crack(s, GOLD_FACE);
+    const r = mineTap(s, GOLD_FACE, T0, 0.99, 0);
     expect(r.outcome.kind).toBe("collapse");
-    expect(r.state.satchel).toEqual({ iron: 0, gold: 0, diamond: 0 });
-    expect(r.state.faces[9].minedAt).toBe(T0);
-  });
-
-  it("a collapse buries half the unsold satchel (rounded down) and counts the face for the day", () => {
-    const loaded = { ...crack(stateWith(2), 6), satchel: { iron: 5, gold: 3, diamond: 1 } };
-    const r = mineTap(loaded, 6, T0, 0.1, 0);
-    expect(r.outcome).toEqual({
-      kind: "collapse",
-      buried: { iron: 2, gold: 1, diamond: 0 },
-      bandIndex: 2,
-    });
-    expect(r.state.satchel).toEqual({ iron: 3, gold: 2, diamond: 1 });
-    expect(r.state.minedToday).toBe(loaded.minedToday + 1);
-    // The destroyed face regrows on its band's normal clock (Gold: 4h).
-    expect(faceReadyAt(r.state.faces[6], 6)).toBe(T0 + MINE_BANDS[2].regrowHours * HOUR);
-    const back = settleMineState(r.state, T0 + 4 * HOUR);
-    expect(back.faces[6]).toEqual({ hitsLeft: null, minedAt: null });
-  });
-
-  it("burySatchel splits cleanly, and an empty satchel buries nothing", () => {
-    expect(burySatchel({ iron: 5, gold: 3, diamond: 1 })).toEqual({
-      kept: { iron: 3, gold: 2, diamond: 1 },
-      buried: { iron: 2, gold: 1, diamond: 0 },
-    });
-    expect(burySatchel({ iron: 0, gold: 0, diamond: 0 })).toEqual({
-      kept: { iron: 0, gold: 0, diamond: 0 },
-      buried: { iron: 0, gold: 0, diamond: 0 },
-    });
-  });
-});
-
-describe("the HP hit — through the one hero HP store", () => {
-  it("a cave-in costs 20% of max HP", () => {
-    expect(CAVE_IN_DAMAGE_PCT).toBe(0.2);
-    const s = { ...defaultHeroHealthState(T0), hp: 200 };
-    const hit = applyCaveInDamage(s, 200, T0);
-    expect(hit.damage).toBe(40);
-    expect(hit.wokeAtHome).toBe(false);
-    expect(hit.state.hp).toBe(160);
-  });
-
-  it("a hit that would zero him wakes him at home at the defeat floor instead", () => {
-    const s = { ...defaultHeroHealthState(T0), hp: 30 };
-    const hit = applyCaveInDamage(s, 200, T0); // 30 − 40 ≤ 0
-    expect(hit.wokeAtHome).toBe(true);
-    expect(hit.state.hp).toBe(20); // ceil(10% of 200) — wakeAfterDefeat's floor
-  });
-
-  it("a brand-new hero (hp null) is hit from full, like the forest treats him", () => {
-    const hit = applyCaveInDamage(defaultHeroHealthState(T0), 100, T0);
-    expect(hit.state.hp).toBe(80);
-    expect(hit.wokeAtHome).toBe(false);
-  });
-
-  it("the pool's full heal mends to max WITHOUT spending a hospital heal", () => {
-    const s = { ...defaultHeroHealthState(T0), hp: 30, hospitalHealsUsed: 1 };
-    const healed = healToFull(s, 200, T0);
-    expect(healed.hp).toBe(200);
-    expect(healed.hospitalHealsUsed).toBe(1); // the pool is not the hospital
-  });
-});
-
-describe("rich veins — deterministic, revealed at the crack, paying double", () => {
-  it("the same face on the same day is rich (or not) every time you ask", () => {
-    for (let f = 0; f < 12; f++) {
-      expect(isRichFace(f, "2026-10-21")).toBe(isRichFace(f, "2026-10-21"));
+    if (r.outcome.kind === "collapse") {
+      expect(r.outcome.buried.iron).toBe(2);
+      expect(r.outcome.buried.gold).toBe(1);
+      expect(r.outcome.buried.diamond).toBe(0); // a lone piece is never buried
+      expect(r.outcome.stratumIndex).toBe(5);
     }
-    // And across 90 days the rate is in a sane band around 15%.
+    expect(satchelCount(r.state.satchel)).toBe(3 + 2 + 1); // kept: 3 iron, 2 gold, 1 diamond
+    expect(satchelValue(r.state.satchel)).toBe(3 * 14 + 2 * 45 + 120);
+    expect(r.state.haulMultiplier).toBe(1); // the rate is spent
+    // Gold rock regrows at its stratum's pace: whole between 4 and 5 hours.
+    expect(r.state.faces[GOLD_FACE].minedAt).toBe(T0);
+  });
+
+  it("burySatchel rounds the burial DOWN per kind — a lone piece is never buried", () => {
+    const satchel = [
+      { ore: "iron" as const, unit: 14, count: 5 },
+      { ore: "diamond" as const, unit: 220, count: 1 },
+    ];
+    const { kept, buried } = burySatchel(satchel);
+    expect(buried).toMatchObject({ iron: 2, diamond: 0 });
+    expect(kept).toEqual([
+      { ore: "iron", unit: 14, count: 3 },
+      { ore: "diamond", unit: 220, count: 1 },
+    ]);
+  });
+});
+
+describe("Mining Gear at work — gloves and the charm (v175)", () => {
+  it("Braced Gloves bury a third instead of a half", () => {
+    const satchel = [{ ore: "iron" as const, unit: 14, count: 5 }];
+    expect(burySatchel(satchel, 1 / 3).buried).toMatchObject({ iron: 1 });
+    let s: MineState = { ...stateWith(4), gear: ["gloves"], satchel: [...satchel] };
+    s = crack(s, GOLD_FACE);
+    const r = mineTap(s, GOLD_FACE, T0, 0.99, 0);
+    expect(r.outcome.kind).toBe("collapse");
+    if (r.outcome.kind === "collapse") expect(r.outcome.buried.iron).toBe(1);
+    expect(satchelCount(r.state.satchel)).toBe(4);
+  });
+
+  it("the Prospector's Charm finds one more piece on a lucky break — only when owned", () => {
+    // Plain (non-rich) Stone faces for today, so the counts below are
+    // the plain yield — a rich face pays double and would muddy them.
+    const day = mineTodayString(T0);
+    const plain: number[] = [];
+    for (let f = 0; f < 30 && plain.length < 3; f++) {
+      if (!isRichFace(f, day)) plain.push(f);
+    }
+    expect(plain.length).toBe(3);
+    const withCharm: MineState = { ...stateWith(0), gear: ["charm"] };
+    const crackedCharm = mineTap(withCharm, plain[0], T0, 0.1).state; // crack
+    const r = mineTap(crackedCharm, plain[0], T0, 0.1, 1, 1, { charmRoll: 0 });
+    expect(r.outcome.kind).toBe("broke");
+    if (r.outcome.kind === "broke") expect(r.outcome.charmBonus).toBe(true);
+    expect(satchelCount(r.state.satchel)).toBe(2); // 1 stone + the charm's extra
+    // An unlucky charm roll finds nothing extra.
+    const cracked2 = mineTap(withCharm, plain[1], T0, 0.1).state;
+    const r2 = mineTap(cracked2, plain[1], T0, 0.1, 1, 1, { charmRoll: 0.5 });
+    expect(r2.outcome.kind).toBe("broke");
+    if (r2.outcome.kind === "broke") expect(r2.outcome.charmBonus).toBe(false);
+    expect(satchelCount(r2.state.satchel)).toBe(1);
+    // And without the charm, even a perfect roll adds nothing.
+    const cracked3 = mineTap(stateWith(0), plain[2], T0, 0.1).state;
+    const r3 = mineTap(cracked3, plain[2], T0, 0.1, 1, 1, { charmRoll: 0 });
+    expect(satchelCount(r3.state.satchel)).toBe(1);
+  });
+});
+
+describe("hero HP — the cave-in bite (v170 rules, boots added v175)", () => {
+  it("a cave-in takes 20% of MAX hp off the shared forest health", () => {
+    const s = { ...defaultHeroHealthState(T0), hp: 180 };
+    const hurt = applyCaveInDamage(s, 200, T0);
+    expect(hurt.damage).toBe(40);
+    expect(hurt.state.hp).toBe(140);
+    expect(hurt.wokeAtHome).toBe(false);
+  });
+
+  it("Cave Boots halve the bite to 10% of max", () => {
+    const s = { ...defaultHeroHealthState(T0), hp: 180 };
+    const hurt = applyCaveInDamage(s, 200, T0, BOOTS_CAVE_IN_DAMAGE_PCT);
+    expect(BOOTS_CAVE_IN_DAMAGE_PCT).toBe(0.1);
+    expect(hurt.damage).toBe(20);
+    expect(hurt.state.hp).toBe(160);
+  });
+
+  it("0 HP wakes at home on 10% — the run is over, nothing else is taken", () => {
+    const s = { ...defaultHeroHealthState(T0), hp: 15 };
+    const hurt = applyCaveInDamage(s, 200, T0);
+    expect(hurt.wokeAtHome).toBe(true);
+    expect(hurt.state.hp).toBe(20);
+  });
+
+  it("the bite persists in the stored record — no free heal an hour later", async () => {
+    await saveHeroHealth({ ...defaultHeroHealthState(T0), hp: 60 });
+    const raw = await loadHeroHealthRaw();
+    expect(raw.hp).toBe(60);
+    expect(JSON.parse(store.get(HERO_HEALTH_KEY)!).hp).toBe(60);
+    // The forest's own settle doesn't invent health either: an hour on,
+    // the trickle (5% per 4h) hasn't come round.
+    const settled = settleHealth({ ...defaultHeroHealthState(T0), hp: 60 }, T0 + HOUR, 200, 0);
+    expect(settled.state.hp).toBe(60);
+  });
+
+  it("healToFull still tops the hero off completely (the pool's drink)", () => {
+    const s = { ...defaultHeroHealthState(T0), hp: 3 };
+    expect(healToFull(s, 175, T0).hp).toBe(175);
+  });
+});
+
+describe("rich veins — hidden seams of double ore (v170, Deep cluster v175)", () => {
+  it("whether a face is rich is deterministic per face per day", () => {
+    const day = mineTodayString(T0);
+    for (let f = 0; f < 240; f++) {
+      expect(isRichFace(f, day)).toBe(isRichFace(f, day));
+    }
+    expect(RICH_FACE_CHANCE).toBe(0.15);
+  });
+
+  it("roughly one face in seven is rich across many days", () => {
     let rich = 0;
-    for (let k = 0; k < 90; k++) {
-      const day = mineTodayString(new Date(2026, 9, 21 + k, 12).getTime());
-      for (let f = 0; f < 12; f++) if (isRichFace(f, day)) rich++;
+    let total = 0;
+    for (let d = 0; d < 30; d++) {
+      const day = mineTodayString(T0 + d * 24 * HOUR);
+      for (let f = 0; f < 240; f++) {
+        total++;
+        if (isRichFace(f, day)) rich++;
+      }
     }
-    const rate = rich / (90 * 12);
+    const rate = rich / total;
     expect(rate).toBeGreaterThan(0.08);
     expect(rate).toBeLessThan(0.24);
   });
 
-  it("a rich face pays double the plain table", () => {
-    const { now, faceIndex } = findRich(0); // a rich Stone face
-    const { state, outcome } = mineOut(stateWith(0, now), faceIndex, now, 0.1);
-    expect(outcome).toMatchObject({ kind: "broke", rich: true });
-    expect(state.satchel.iron).toBe(2 * (yieldForFace(0, 0, 0.1).iron ?? 0));
+  it("a rich face pays exactly double, same ores", () => {
+    expect(richYieldForFace(1, 0, 0.1)).toEqual({ stone: 2 });
+    expect(richYieldForFace(31, 2, 0.1)).toEqual({ iron: 4 });
+    expect(richYieldForFace(51, 4, 0.1)).toEqual({ gold: 2 });
+    expect(yieldForFace(51, 4, 0.1)).toEqual({ gold: 1 }); // the plain seam, for scale
   });
 
-  it("a plain face pays the plain table and says so", () => {
-    const plain = [0, 1, 2].find((f) => !isRichFace(f, mineTodayString(T0)))!;
-    const { outcome } = mineOut(stateWith(0), plain, T0, 0.1);
-    expect(outcome).toMatchObject({ kind: "broke", rich: false });
+  it("a rich Deep face pays a diamond CLUSTER — two or three, before pick bonuses", () => {
+    expect(richYieldForFace(71, 6, 0.1)).toEqual({ diamond: 3 }); // 2 cluster + Diamond pick
+    expect(richYieldForFace(71, 6, 0.5)).toEqual({ diamond: 4 }); // 3 cluster + Diamond pick
+    expect(richYieldForFace(71, 6, 0.9)).toEqual({ gold: 6 }); // the gold seam doubles too
+    expect(unitPriceFor("diamond", 71)).toBe(220);
   });
 
-  it("a rich Deep face wakes a diamond cluster — 2 or 3 by the roll, prestige bonus on top", () => {
-    expect(richYieldForFace(3, 3, 0.1)).toEqual({ diamond: 2 });
-    expect(richYieldForFace(3, 3, 0.5)).toEqual({ diamond: 3 });
-    expect(richYieldForFace(3, 4, 0.1)).toEqual({ diamond: 3 }); // Diamond pick +1
-    expect(richYieldForFace(3, 3, 0.9)).toEqual({ gold: 4 }); // gold branch doubles too
-    const { now, faceIndex } = findRich(3);
-    const { state, outcome } = mineOut(stateWith(3, now), faceIndex, now, 0.1);
-    expect(outcome).toMatchObject({ kind: "broke", rich: true });
-    expect(state.satchel.diamond).toBe(2);
+  it("an ordinary (non-rich) crack does NOT announce itself — the lantern changes that, not the math", () => {
+    const r = mineTap(stateWith(0), 0, T0, 0.1);
+    expect(r.outcome.kind).toBe("hit");
+    if (r.outcome.kind === "hit") expect(r.outcome.rumbling).toBe(false); // Stone never rumbles
   });
 });
 
-describe("the still pool — the Deep's mercy", () => {
-  it("breaking a Deep face with the reveal roll shows the pool there", () => {
-    const { state, outcome } = mineOut(stateWith(3), 10, T0, 0.1, 0);
-    expect(outcome).toMatchObject({ kind: "broke", poolRevealed: true });
-    expect(state.poolFace).toBe(10);
+describe("the still pool — Deep water (v170, moved to the Deep v175)", () => {
+  it("a Deep break can reveal the pool; shallower breaks never do", () => {
+    expect(POOL_REVEAL_CHANCE).toBe(0.1);
+    const deep = mineTap(workDown(stateWith(6), DEEP_FACE), DEEP_FACE, T0, 0.99, 1, 0);
+    expect(deep.outcome.kind).toBe("broke");
+    if (deep.outcome.kind === "broke") expect(deep.outcome.poolRevealed).toBe(true);
+    expect(deep.state.poolFace).toBe(DEEP_FACE);
+    const gold = mineTap(workDown(stateWith(4), GOLD_FACE), GOLD_FACE, T0, 0.99, 1, 0);
+    expect(gold.state.poolFace).toBeNull();
   });
 
-  it("only the Deep reveals it — Gold breaks stay dry", () => {
-    const { outcome } = mineOut(stateWith(2), 6, T0, 0.1, 0);
-    expect(outcome).toMatchObject({ kind: "broke", poolRevealed: false });
+  it("only one pool at a time, and it stays until someone drinks", () => {
+    const first = mineTap(workDown(stateWith(6), DEEP_FACE), DEEP_FACE, T0, 0.99, 1, 0).state;
+    expect(first.poolFace).toBe(DEEP_FACE);
+    const secondFace = faceIndexFor(71, 1);
+    const second = mineTap(workDown({ ...first }, secondFace), secondFace, T0, 0.99, 1, 0).state;
+    expect(second.poolFace).toBe(DEEP_FACE); // still the first pool
   });
 
-  it("one pool at a time: while one shows, no second reveal", () => {
-    const first = mineOut(stateWith(3), 10, T0, 0.1, 0).state;
-    const second = mineOut(first, 11, T0, 0.1, 0);
-    expect(second.outcome).toMatchObject({ kind: "broke", poolRevealed: false });
-    expect(second.state.poolFace).toBe(10);
+  it("spending the pool clears it; a stored pool outside the Deep is rejected", () => {
+    const withPool: MineState = { ...stateWith(6), poolFace: DEEP_FACE };
+    expect(spendPool(withPool).poolFace).toBeNull();
+    expect(spendPool(spendPool(withPool)).poolFace).toBeNull(); // already spent — no-op
+    expect(parseMineState({ ...withPool, poolFace: faceIndexFor(41, 0) }, T0).poolFace).toBeNull();
+    expect(parseMineState({ ...withPool, poolFace: faceIndexFor(75, 2) }, T0).poolFace).toBe(faceIndexFor(75, 2));
   });
 
-  it("it stays until used — settle and a new day do not clear it", () => {
-    const revealed = mineOut(stateWith(3), 10, T0, 0.1, 0).state;
-    const later = settleMineState(revealed, T0 + 30 * HOUR);
-    expect(later.poolFace).toBe(10);
-  });
-
-  it("drinking spends it (spendPool), and a later break can reveal it again", () => {
-    const revealed = mineOut(stateWith(3), 10, T0, 0.1, 0).state;
-    const spent = spendPool(revealed);
-    expect(spent.poolFace).toBeNull();
-    expect(spendPool(spent)).toBe(spent); // no-op, same object
-    const again = mineOut(spent, 11, T0, 0.1, 0);
-    expect(again.state.poolFace).toBe(11);
-  });
-
-  it("the pool face round-trips storage; legacy and corrupt records read null", async () => {
-    const s = { ...stateWith(3), poolFace: 11 };
-    await saveMineState(s);
-    expect((await loadMineState(T0)).poolFace).toBe(11);
-    // A v168/v169 record has no poolFace key at all.
-    const legacy = parseMineState({ pickTier: 3, satchel: { iron: 1 }, faces: [], day: "2026-10-21", minedToday: 0 }, T0);
-    expect(legacy.poolFace).toBeNull();
-    expect(legacy.pickTier).toBe(3);
-    // A pool claimed outside the Deep is not a pool.
-    expect(parseMineState({ poolFace: 4 }, T0).poolFace).toBeNull();
-    expect(parseMineState({ poolFace: 99 }, T0).poolFace).toBeNull();
-  });
-
-  it("the blessing reads in the boon's own shape and stacks with Set for the Day", () => {
-    const day = heroNeedsDayStr(T0);
-    const idle = defaultNeedsState(day);
-    expect(poolBoonFor(idle)).toEqual({ active: false, hpPct: 0, atkPct: 0 });
-    const blessed = grantPoolBoon(idle, T0);
-    expect(blessed.poolBoonActive).toBe(true);
-    expect(poolBoonFor(blessed)).toEqual({
-      active: true,
-      hpPct: POOL_BOON_HP_PCT,
-      atkPct: POOL_BOON_ATK_PCT,
-    });
+  it("the pool boon: +15% HP and +10% attack for the rest of the day, from hero-needs", () => {
+    const needs = defaultNeedsState(heroNeedsDayStr(T0));
+    expect(poolBoonFor(needs)).toEqual({ active: false, hpPct: 0, atkPct: 0 });
+    const blessed = grantPoolBoon(needs, T0);
+    expect(poolBoonFor(blessed)).toEqual({ active: true, hpPct: POOL_BOON_HP_PCT, atkPct: POOL_BOON_ATK_PCT });
     expect(POOL_BOON_HP_PCT).toBe(0.15);
     expect(POOL_BOON_ATK_PCT).toBe(0.1);
-    const stacked = combineBoons(
-      { active: true, hpPct: 0.1, atkPct: 0.05 },
-      poolBoonFor(blessed)
-    );
-    expect(stacked.active).toBe(true);
-    expect(stacked.hpPct).toBeCloseTo(0.25);
-    expect(stacked.atkPct).toBeCloseTo(0.15);
-    // Midnight is the expiry: the next day's fresh record has no blessing.
-    const tomorrow = settleNeeds(blessed, T0 + 24 * HOUR);
-    expect(tomorrow.poolBoonActive).toBe(false);
-  });
-
-  it("the forest and the hospital read the stacked boon (source pins)", () => {
-    const forest = readFileSync(join(process.cwd(), "components/dark-forest.tsx"), "utf8");
-    expect(forest).toContain("boonFor(settledNeeds, house)");
-    expect(forest).toContain("poolBoonFor(settledNeeds)");
-    const hospital = readFileSync(join(process.cwd(), "app/hospital-interior.tsx"), "utf8");
-    expect(hospital).toContain("boonFor(needs, house)");
-    expect(hospital).toContain("poolBoonFor(needs)");
   });
 });
 
-describe("picks moved to the Tool Shop (v170)", () => {
-  it("the Tool Shop sells the ladder through the one mine record", () => {
-    const shop = readFileSync(join(process.cwd(), "app/gear-shop.tsx"), "utf8");
+describe("the Tool Shop — picks are bought where tools belong", () => {
+  const shop = readFileSync(join(process.cwd(), "app/gear-shop.tsx"), "utf8");
+  const cave = readFileSync(join(process.cwd(), "app/mine-interior.tsx"), "utf8");
+
+  it("the Tool Shop sells the whole ladder, Copper and Silver included", () => {
     expect(shop).toContain("Mountain Picks");
-    expect(shop).toContain('shopType === "tool"');
-    // One ladder state: the shop loads and saves lib/mountain's record.
-    expect(shop).toContain("loadMineState");
-    expect(shop).toContain("saveMineState");
+    expect(shop).toContain("PICKAXES");
     expect(shop).toContain("pickPurchaseCheck");
-    // One ledger: purchases deduct through applyCoinsDelta.
-    expect(shop).toContain("applyCoinsDelta");
-    // The town-coin tools stay in their own list, untouched above it:
-    // the picks section renders after the gear items.
-    expect(shop.indexOf("Mountain Picks", shop.indexOf("items.map"))).toBeGreaterThan(-1);
+    const lib = readFileSync(join(process.cwd(), "lib/mountain.ts"), "utf8");
+    expect(lib).toContain("Copper Pick");
+    expect(lib).toContain("Silver Pick");
   });
 
-  it("the mine strip is status only — no buying left in the mine", () => {
-    const screen = readFileSync(join(process.cwd(), "app/mine-interior.tsx"), "utf8");
-    expect(screen).not.toContain("pickPurchaseCheck");
-    expect(screen).not.toContain("handleBuyPick");
-    expect(screen).toContain("Sold at the Tool Shop");
-    expect(screen).toContain("Tool Shop");
-    // ...and the danger/reward wiring is on the screen.
-    expect(screen).toContain("applyCaveInDamage");
-    expect(screen).toContain("healToFull");
-    expect(screen).toContain("grantPoolBoon");
-    expect(screen).toContain("faceRumbles");
+  it("the cave sells no picks — it points at the shop and shows the worn pick's name", () => {
+    expect(cave).not.toContain("pickPurchaseCheck");
+    expect(cave).not.toContain("handleBuyPick");
+    expect(cave).toContain("sold at the Tool Shop");
+    expect(cave).toContain("pickaxeFor(mine.pickTier).name");
   });
 
-  it("a v169 save's ladder carries over — the shop and the mine read the same record", async () => {
-    const s = { ...stateWith(4), satchel: { iron: 2, gold: 1, diamond: 0 } };
-    await saveMineState(s);
-    const loaded = await loadMineState(T0);
-    expect(loaded.pickTier).toBe(4); // Diamond pick owned since v168 stays owned
-    expect(loaded.satchel).toEqual({ iron: 2, gold: 1, diamond: 0 });
+  it("the cave wires the danger in: damage, wake-up, the pool's two gifts, the lantern's glow", () => {
+    expect(cave).toContain("applyCaveInDamage");
+    expect(cave).toContain("healToFull");
+    expect(cave).toContain("grantPoolBoon");
+    expect(cave).toContain("faceRumbles");
+    expect(cave).toContain("richFaint"); // the Lantern shows rich veins before the crack
+  });
+
+  it("a v169 save walks into the new mine whole: Diamond Pick kept, ore kept at old prices", () => {
+    const parsed = parseMineState(
+      { pickTier: 4, satchel: { iron: 2, gold: 1, diamond: 0 }, faces: [], day: "2026-10-21", minedToday: 0, haulMultiplier: 1 },
+      T0
+    );
+    expect(parsed.pickTier).toBe(6); // old tier 4 = Diamond Pick = new tier 6
+    expect(parsed.satchel).toEqual([
+      { ore: "iron", unit: 12, count: 2 },
+      { ore: "gold", unit: 45, count: 1 },
+    ]);
   });
 });

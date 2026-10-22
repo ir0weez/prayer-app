@@ -99,14 +99,17 @@ function PickGlyph({ color, size = 26 }: { color: string; size?: number }) {
   );
 }
 
-/** One line per rung of the mountain ladder (Tool Shop, v170). */
+/** One line per rung of the mountain ladder (Tool Shop, v170;
+ *  Copper and Silver rungs added with the Deep Descent, v175). */
 const PICK_BLURBS: Record<number, string> = {
-  0: "Where every miner starts — the Stone band.",
-  1: "Opens the Iron band in the mine.",
-  2: "Opens the Gold band — where the rock starts to groan.",
-  3: "Opens the Deep, where diamonds sleep.",
-  4: "Prestige work — the Deep pays it back richer.",
-  5: "The Crown's own pick — the richest tool in the mountain.",
+  0: "Where every miner starts — the Stone levels.",
+  1: "Opens the Copper levels in the mine.",
+  2: "Opens the Iron levels.",
+  3: "Opens the Silver levels.",
+  4: "Opens the Gold levels — where the rock starts to groan.",
+  5: "Opens the Diamond levels.",
+  6: "Prestige work — opens the Deep, where the richest rock sleeps.",
+  7: "The Crown's own pick — the richest tool in the mountain.",
 };
 
 function boostLabel(item: GearItem): string | null {

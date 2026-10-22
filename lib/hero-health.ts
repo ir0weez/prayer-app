@@ -180,7 +180,8 @@ export const CAVE_IN_DAMAGE_PCT = 0.2;
 
 /**
  * Pure: a cave-in in the mine (lib/mountain) hits the hero for
- * CAVE_IN_DAMAGE_PCT of max HP through this same store — the mine
+ * `damagePct` of max HP (CAVE_IN_DAMAGE_PCT unless the mine passes
+ * its Cave Boots rate, v175) through this same store — the mine
  * never keeps a parallel health value. If the hit would take him
  * to/below zero he wakes at home at the defeat floor instead, by the
  * exact forest-defeat path (wakeAfterDefeat), and `wokeAtHome` says
@@ -191,9 +192,10 @@ export function applyCaveInDamage(
   state: HeroHealthState,
   maxHp: number,
   now: NowInput = Date.now(),
+  damagePct: number = CAVE_IN_DAMAGE_PCT,
 ): { state: HeroHealthState; damage: number; wokeAtHome: boolean } {
   const max = Math.max(0, maxHp);
-  const damage = Math.round(CAVE_IN_DAMAGE_PCT * max);
+  const damage = Math.round(damagePct * max);
   const current = state.hp ?? max;
   const next = current - damage;
   if (next <= 0) {

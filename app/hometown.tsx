@@ -228,6 +228,9 @@ import {
   bossGateVisibility, emptyPrestigeState, type PrestigeOffer, type PrestigeState,
 } from "@/lib/prestige";
 import {
+  depthBlessingBonusForLevels, depthBlessingMultiplierForLevels, loadMineState,
+} from "@/lib/mountain";
+import {
   BADGE_BY_ID, GILDED_INCOME_MULT, MIST_FOREST_COIN_MULT, BLOODMOON_COIN_MULT,
   bossGateFor, setCachedBadges, refreshBadgeCache, type BadgeId, type BossDef,
 } from "@/lib/badges";
@@ -4252,6 +4255,10 @@ export default function HometownScreen() {
   // the tier of the longest fast started since the last prestige.
   const [prestigeLevel, setPrestigeLevel] = useState(0);
   const [prestigeDevotion, setPrestigeDevotion] = useState(0);
+  /** The mine's Depth Blessing (v175): levels opened beneath the
+   *  mountain — every one blesses all town income by a quarter
+   *  percent (lib/mountain), folded into the accrual chain at mount. */
+  const [mineDepthLevels, setMineDepthLevels] = useState(0);
   const [prestigeOfferState, setPrestigeOfferState] = useState<PrestigeOffer | null>(null);
   const fastsRef = useRef<PersonalFast[]>([]);
   /** Last-loaded full prestige state — feeds the Boss Gate visibility
@@ -5285,7 +5292,8 @@ export default function HometownScreen() {
         // are consumed by the migration blocks right below, in their
         // original order.
         let pMult = 1;
-        const [, prestigeMultOut, mallRefundFlag, houseRefundFlag] = await Promise.all([
+        let depthMult = 1;
+        const [, prestigeMultOut, mallRefundFlag, houseRefundFlag, depthMultOut] = await Promise.all([
           (async () => {
             // Fast-length gating + economy scaling: Hometown unlocks on
             // 40+ day fasts; the economy scales with the active fast's
@@ -5331,8 +5339,22 @@ export default function HometownScreen() {
           })(),
           AsyncStorage.getItem(REMEMBRANCE_MALL_REFUND_KEY).catch(() => null),
           AsyncStorage.getItem(HOUSE_REMOVAL_REFUND_KEY).catch(() => null),
+          (async () => {
+            // The mine's Depth Blessing (v175): the deeper Jonathan
+            // has opened beneath the mountain, the more the whole
+            // town earns. Reads lib/mountain's one record; the
+            // multiplier joins the accrual chain below, and the
+            // level count feeds the income breakdown sheet.
+            try {
+              const mine = await loadMineState();
+              setMineDepthLevels(mine.deepestLevel);
+              return depthBlessingMultiplierForLevels(mine.deepestLevel);
+            } catch {}
+            return 1;
+          })(),
         ]);
         pMult = prestigeMultOut;
+        depthMult = depthMultOut;
         // One-time Mall → Garden of Remembrance migration: refund retired mall
         // buildings at FULL price (base cost + upgrades paid), then clear the map.
         try {
@@ -5682,6 +5704,7 @@ export default function HometownScreen() {
           houseCoinMult,
           milestoneMult: msMult,
           prestigeMult: pMult,
+          depthBlessingMult: depthMult,
           prayerMultValue: prMult,
           prayedCount,
           fellowshipBonus,
@@ -5710,6 +5733,7 @@ export default function HometownScreen() {
           remembranceBonus,
           gardenVisitBonus,
           prestigeMult: pMult,
+          depthBlessingMult: depthMult,
           nowMs: awayNow,
         });
         // The old chain folded lastIncomeDate to today UNCONDITIONALLY
@@ -7809,6 +7833,7 @@ export default function HometownScreen() {
             remembranceMult(remembrance.people.length) *
             gardenVisitMult(gardenVisits) *
             totalPrestigeMultiplier(prestigeLevel, prestigeDevotion) *
+            depthBlessingMultiplierForLevels(mineDepthLevels) *
             (ownedBadges.includes("gilded") ? GILDED_INCOME_MULT : 1);
           if (combined <= 1) return null;
           return (
@@ -9620,6 +9645,19 @@ export default function HometownScreen() {
                   </View>
                 );
               })()}
+              {/* Depth Blessing — the mine's depth blesses the town (v175) */}
+              {mineDepthLevels > 1 ? (
+                <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+                  <MaterialIcons name="terrain" size={20} color="#92400E" />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={{ fontSize: 15, color: "#1F2937" }}>Depth Blessing</Text>
+                    <Text style={{ fontSize: 12, color: "#6B7280" }}>{mineDepthLevels} levels opened beneath the mountain — a quarter percent each, up to +20%</Text>
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
+                    +{Math.round(depthBlessingBonusForLevels(mineDepthLevels) * 10000) / 100}%
+                  </Text>
+                </View>
+              ) : null}
               {/* Stock: Restock villagers carry boxes from the church;
                   a shop whose shelves reach 100% is stocked for the day
                   and earns +50% until midnight (per-building, not global). */}
@@ -9645,6 +9683,7 @@ export default function HometownScreen() {
                 remembranceMult(remembrance.people.length) *
                 gardenVisitMult(gardenVisits) *
                 totalPrestigeMultiplier(prestigeLevel, prestigeDevotion) *
+                depthBlessingMultiplierForLevels(mineDepthLevels) *
                 (ownedBadges.includes("gilded") ? GILDED_INCOME_MULT : 1);
               return (
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 14, borderTopWidth: 1, borderTopColor: "#F3F4F6", marginTop: 4 }}>

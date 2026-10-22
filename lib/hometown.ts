@@ -3342,7 +3342,7 @@ export const FRENZY_DURATION_MS = 10000;
 export const FRENZY_COOLDOWN_MS = 5 * 60 * 1000;
 export const FRENZY_MULT = 2;
 
-export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1, nowMs: number = Date.now()): number {
+export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1, nowMs: number = Date.now(), depthBlessingMult: number = 1): number {
   if (!mapHasPopulation(map, town)) return 0;
   const popMult = populationMult(prayedCount);
   return map.buildings.reduce((sum, b) => {
@@ -3364,7 +3364,7 @@ export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult
         stockMult = STOCKED_INCOME_MULT;
       }
     }
-    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * prestigeMult * stockMult;
+    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * prestigeMult * stockMult * depthBlessingMult;
     return sum + (base * multiplier);
   }, 0);
 }
@@ -3376,8 +3376,8 @@ export function dailyXPForMap(map: MapState, nowMs: number = Date.now()): number
   );
 }
 
-export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1, nowMs: number = Date.now()): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus, prestigeMult, nowMs), 0) * houseMult;
+export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1, nowMs: number = Date.now(), depthBlessingMult: number = 1): number {
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus, prestigeMult, nowMs, depthBlessingMult), 0) * houseMult;
 }
 
 export function dailyXPForTown(town: TownState, nowMs: number = Date.now()): number {
@@ -3455,6 +3455,10 @@ export interface AwayAccrualInputs {
   houseCoinMult: number;
   milestoneMult: number;
   prestigeMult: number;
+  /** The mine's Depth Blessing (v175): 1 + 0.25% per level opened
+   *  beneath the mountain, from lib/mountain. Optional — a caller
+   *  that doesn't know the mine accrues unblessed, as before. */
+  depthBlessingMult?: number;
   /** The value of prayerMult(prayedCount), precomputed by the caller. */
   prayerMultValue: number;
   prayedCount: number;
@@ -3499,6 +3503,7 @@ export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): Aw
     gardenVisitBonus, interiorBonuses, restInteriorMult, presenceCounts,
     economyScale, nowMs, nowIso,
   } = inputs;
+  const depthBlessingMult = inputs.depthBlessingMult ?? 1;
   const rates: Record<string, { coins: number; xp: number }> = {};
   const dripOps: { buildingId: string; minutes: number; basePerHour: number }[] = [];
   const newMaps = { ...town.maps };
@@ -3542,7 +3547,7 @@ export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): Aw
         const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
         const wMult = workerMult(b);
         const popMult = populationMult(prayedCount);
-        const basePerHour = 20.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * milestoneMult * prestigeMult * popMult * prayerMultValue * fellowshipBonus * remembranceBonus * gardenVisitBonus * (1 + houseCoinMult) * (restInteriorMult[b.id] ?? 1);
+        const basePerHour = 20.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * milestoneMult * prestigeMult * depthBlessingMult * popMult * prayerMultValue * fellowshipBonus * remembranceBonus * gardenVisitBonus * (1 + houseCoinMult) * (restInteriorMult[b.id] ?? 1);
         const churchPerMinute = b.type === "church" && earnsCoins
           ? (CHURCH_PRAYER_COINS_PER_HOUR * prayedCount) / 60
           : 0;
@@ -3615,6 +3620,8 @@ export interface MissedDaysIncomeOptions {
   gardenVisitBonus: number;
   prestigeMult: number;
   nowMs: number;
+  /** The mine's Depth Blessing (v175), from lib/mountain. */
+  depthBlessingMult?: number;
 }
 
 /**
@@ -3629,7 +3636,7 @@ export function missedDaysIncome(town: TownState, opts: MissedDaysIncomeOptions)
   const lastDate = town.lastIncomeDate;
   if (!lastDate || lastDate === opts.today) return null;
   const days = daysBetween(lastDate, opts.today);
-  const perDayCoins = dailyIncomeForTown(town, opts.milestoneMult, 1 + opts.houseCoinMult, opts.fellowshipBonus, opts.prayedCount, opts.remembranceBonus, opts.gardenVisitBonus, opts.prestigeMult, opts.nowMs);
+  const perDayCoins = dailyIncomeForTown(town, opts.milestoneMult, 1 + opts.houseCoinMult, opts.fellowshipBonus, opts.prayedCount, opts.remembranceBonus, opts.gardenVisitBonus, opts.prestigeMult, opts.nowMs, opts.depthBlessingMult ?? 1);
   const perDayXP = dailyXPForTown(town, opts.nowMs);
   if (!(days > 0 && (perDayCoins > 0 || perDayXP > 0))) return null;
   return { days, earnedCoins: Math.floor(days * perDayCoins), earnedXP: Math.round(days * perDayXP) };

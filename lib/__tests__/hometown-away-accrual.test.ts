@@ -340,3 +340,23 @@ describe("source pins — mount sequencing + fly overlay isolation", () => {
     expect(src).toContain("MAX_LIVE_FLYERS");
   });
 });
+
+describe("Depth Blessing (v175) — the mine's multiplier joins the income chain", () => {
+  it("away accrual scales the per-building rate by the blessing; the prayer coins are unscaled", () => {
+    const base = accrueAwayIncome(churchTown(), inputs());
+    const blessed = accrueAwayIncome(churchTown(), inputs({ depthBlessingMult: 1.2 }));
+    // Church fixture arithmetic: basePerHour = 20 × populationMult(8)
+    // = 23.2 → blessed 27.84; the +160/hr prayer-coin stream rides
+    // alongside UNSCALED (it is not building income).
+    expect(base.rates["church-1"].coins).toBeCloseTo(183.2 / 60, 8);
+    expect(blessed.rates["church-1"].coins).toBeCloseTo(187.84 / 60, 8);
+  });
+
+  it("daily income carries the same blessing factor end to end", () => {
+    const town = churchTown();
+    const plain = dailyIncomeForTown(town, 1, 1, 1, 8, 1, 1, 1, NOW);
+    const blessed = dailyIncomeForTown(town, 1, 1, 1, 8, 1, 1, 1, NOW, 1.2);
+    expect(plain).toBeGreaterThan(0);
+    expect(blessed).toBeCloseTo(plain * 1.2, 8);
+  });
+});

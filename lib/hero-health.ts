@@ -1,10 +1,11 @@
 // Hero health — Dark Forest HP that persists between runs
 // (Jonathan's design, 2026-10-21). Combat HP does NOT snap back to
 // full: it carries across forest runs in a day and comes back gently
-// on its own — a slow trickle (a little more every ~4 hours), an
-// overnight rest at home (the bed fixture sets how much), and the
-// hospital's free daily heals. Waking after a defeat starts the hero
-// at a small floor of health, never at zero, with nothing else taken.
+// on its own — an hourly mend (+10% of max HP per full hour, the
+// v177 rate; it was a slower ~4-hour tick before), an overnight rest
+// at home (the bed fixture sets how much), and the hospital's free
+// daily heals. Waking after a defeat starts the hero at a small floor
+// of health, never at zero, with nothing else taken.
 //
 // No background timers: everything settles from timestamps whenever a
 // caller who knows the hero's max HP reads the state. Storage is kept
@@ -19,10 +20,10 @@ export const HERO_HEALTH_KEY = "prayercircle.hero.health.v1";
 /** Free full heals at the hospital per day. Care, never the wallet. */
 export const HOSPITAL_HEALS_PER_DAY = 2;
 
-/** The slow heal tick: one tick every 4 hours. */
-export const TRICKLE_MS = 4 * 3600 * 1000;
-/** Each trickle tick restores this fraction of max HP. */
-export const TRICKLE_PCT = 0.05;
+/** The hourly mend: one tick every hour (v177; was ~4-hourly). */
+export const TRICKLE_MS = 3600 * 1000;
+/** Each hourly tick restores this fraction of max HP (v177; was 5%). */
+export const TRICKLE_PCT = 0.1;
 
 /** After a defeat the hero wakes at home with this fraction of max HP. */
 export const DEFEAT_WAKE_PCT = 0.1;
@@ -30,7 +31,7 @@ export const DEFEAT_WAKE_PCT = 0.1;
 export type HeroHealthState = {
   /** Current HP, or null for a brand-new hero (settles to full). */
   hp: number | null;
-  /** Epoch ms the trickle clock last advanced to. */
+  /** Epoch ms the hourly mend clock last advanced to. */
   updatedAt: number;
   /** Local date ("YYYY-MM-DD") the daily counters belong to. */
   day: string;

@@ -20,7 +20,10 @@
 // Forest's energy, one shared daily pool (lib/forest-energy).
 // Swings are free; at zero flames the breaking swing is refused and
 // the face keeps its cracks. There is no daily face cap anymore —
-// flames are the limiter, and they rekindle at midnight.
+// flames are the limiter. They trickle back one per hour and
+// rekindle fully at midnight (v177), and the header carries the
+// forest's own flame row so the pool is SEEN, not just counted:
+// a break snuffs one flame right there, bonus flames burn gold.
 //
 // The haul (v172): the cave SELLS NOTHING — ore converts to coins
 // only at the Mouth, up the shaft, where the satchel also banks its
@@ -91,6 +94,7 @@ import {
   spendForestEnergy,
   type ForestEnergy,
 } from "@/lib/forest-energy";
+import { EnergyFlames, type SnuffState } from "@/components/energy-flames";
 import {
   BOOTS_CAVE_IN_DAMAGE_PCT,
   FACES_PER_LEVEL,
@@ -326,6 +330,10 @@ export default function MineInteriorScreen() {
   // Forest energy — the flames (lib/forest-energy): the same daily
   // pool the Dark Forest fights on. One flame per block broken.
   const [flames, setFlames] = useState<ForestEnergy | null>(null);
+  // The flame a break just spent, caught mid-snuff in the header row
+  // (the forest's own mechanism, via components/energy-flames).
+  const [snuff, setSnuff] = useState<SnuffState | null>(null);
+  const clearSnuff = useCallback(() => setSnuff(null), []);
   // Hero health (lib/hero-health): the SAME persistent HP the Dark
   // Forest fights with — a cave-in hits it here, the still pool can
   // mend it here. effMax is computed exactly as the forest and the
@@ -465,7 +473,7 @@ export default function MineInteriorScreen() {
         if (outcome.kind === "full") {
           showToast("Your bag is full — haul it up to the Mouth.");
         } else if (outcome.kind === "noflames") {
-          showToast("No flames left — your strength returns at midnight.");
+          showToast("No flames left — one returns within the hour, all of them at midnight.");
         } else if (outcome.kind === "collapse") {
           // The hero takes the hit through the one HP store (v170):
           // a fifth of max — a tenth with Cave Boots (v175) — and a
@@ -495,10 +503,16 @@ export default function MineInteriorScreen() {
           scrollRef.current?.scrollTo({ y: 0, animated: true });
           Alert.alert("Cave-in!", msg);
         } else if (outcome.kind === "broke") {
-          // The break spends its flame from the shared pool (v175).
+          // The break spends its flame from the shared pool (v175) —
+          // and the spent flame snuffs in the header row (v177): the
+          // tap-start load is the "from", the reload the "to".
           try {
             if (await spendForestEnergy()) {
-              setFlames(await loadForestEnergy());
+              const after = await loadForestEnergy();
+              setFlames(after);
+              if (energy && after.energy < energy.energy) {
+                setSnuff({ from: energy.energy, to: after.energy, key: Date.now(), long: after.energy === 0 });
+              }
             }
           } catch {}
           const parts = ORE_KINDS.filter((k) => (outcome.yield[k] ?? 0) > 0).map(
@@ -558,21 +572,31 @@ export default function MineInteriorScreen() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <InteriorHeader icon="terrain" iconColor={GOLD} title={MINE_TITLE} coins={coins} bg={BG} textColor={CREAM} />
       {mine && (
-        <View style={[{ flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginBottom: 10, backgroundColor: "#3B2C14", borderColor: GOLD, borderWidth: 1, borderRadius: 12, paddingVertical: 7, paddingHorizontal: 12 }, isPaper ? skinTokens.cardShadow : null]}>
-          <MaterialIcons name="trending-up" size={16} color="#FDE68A" />
-          <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 13, marginLeft: 7 }}>
-            Haul ×{formatHaulMultiplier(mine.haulMultiplier)}
-          </Text>
-          <MaterialIcons name="local-fire-department" size={15} color={flames && flames.energy <= 0 ? "#FCA5A5" : "#FB923C"} style={{ marginLeft: 12 }} />
-          <Text style={{ color: flames && flames.energy <= 0 ? "#FCA5A5" : "#FDE68A", fontWeight: "800", fontSize: 13, marginLeft: 4 }}>
-            {flames ? flames.energy : "–"}
-          </Text>
-          <Text style={{ color: DIM, fontSize: 11.5, marginLeft: 8, flex: 1 }}>
-            flames — one per block broken, shared with the forest
-          </Text>
-          <Text style={{ color: bagCount >= bagCap ? "#FCA5A5" : DIM, fontWeight: "800", fontSize: 12 }}>
-            {bagCount}/{bagCap}
-          </Text>
+        <View style={[{ marginHorizontal: 16, marginBottom: 10, backgroundColor: "#3B2C14", borderColor: GOLD, borderWidth: 1, borderRadius: 12, paddingVertical: 7, paddingHorizontal: 12 }, isPaper ? skinTokens.cardShadow : null]}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <MaterialIcons name="trending-up" size={16} color="#FDE68A" />
+            <Text style={{ color: "#FDE68A", fontWeight: "800", fontSize: 13, marginLeft: 7 }}>
+              Haul ×{formatHaulMultiplier(mine.haulMultiplier)}
+            </Text>
+            <MaterialIcons name="local-fire-department" size={15} color={flames && flames.energy <= 0 ? "#FCA5A5" : "#FB923C"} style={{ marginLeft: 12 }} />
+            <Text style={{ color: flames && flames.energy <= 0 ? "#FCA5A5" : "#FDE68A", fontWeight: "800", fontSize: 13, marginLeft: 4 }}>
+              {flames ? flames.energy : "–"}
+            </Text>
+            <Text style={{ color: DIM, fontSize: 11.5, marginLeft: 8, flex: 1 }}>
+              flames — one per block broken, shared with the forest
+            </Text>
+            <Text style={{ color: bagCount >= bagCap ? "#FCA5A5" : DIM, fontWeight: "800", fontSize: 12 }}>
+              {bagCount}/{bagCap}
+            </Text>
+          </View>
+          {/* the flames themselves (v177): one living flame per point
+              of strength, the forest's row brought underground. A
+              break snuffs one; bonus flames burn pale gold. */}
+          {flames && (
+            <View style={{ marginTop: 7, alignItems: "center" }}>
+              <EnergyFlames energy={flames.energy} max={flames.max} cap={24} size={14} snuff={snuff} onSnuffDone={clearSnuff} bonusTint />
+            </View>
+          )}
         </View>
       )}
       <ScrollView ref={scrollRef} contentContainerStyle={{ paddingBottom: 40 }}>

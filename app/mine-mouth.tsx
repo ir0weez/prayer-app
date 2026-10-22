@@ -59,6 +59,7 @@ import {
   loadForestEnergy,
   type ForestEnergy,
 } from "@/lib/forest-energy";
+import { EnergyFlames } from "@/components/energy-flames";
 import {
   MAX_BAG_TIER,
   MAX_PICK_TIER,
@@ -561,9 +562,16 @@ export default function MineMouthScreen() {
                   {flames ? `${flames.energy} / ${flames.max}` : "–"}
                 </Text>
               </View>
+              {/* the flames themselves (v177): the forest's row, here
+                  at the counter — bonus flames burn pale gold. */}
+              {flames && (
+                <View style={{ marginTop: 9, alignItems: "center" }}>
+                  <EnergyFlames energy={flames.energy} max={flames.max} cap={24} size={17} snuff={null} onSnuffDone={() => undefined} bonusTint />
+                </View>
+              )}
               <Text style={{ color: DIM, fontSize: 11.5, lineHeight: 16, marginTop: 7 }}>
                 Every block broken underground spends one flame — the same pool the Dark Forest fights on.
-                Swings are free; only the break costs. They rekindle at midnight.
+                Swings are free; only the break costs. One returns every hour, and all of them rekindle at midnight.
                 {hasMiningGear(mine, "tinderbox") ? " Your Tinderbox kindles three extra each morning." : ""}
               </Text>
               <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>

@@ -316,6 +316,18 @@ describe("screen contracts — the Mouth is where ore becomes coins", () => {
     expect(cave).toContain("Haul ×");
   });
 
+  it("the flame row burns in the cave header and at the Mouth (v177 visualizer)", () => {
+    // The shared row (the forest's own flames) with the bonus tint,
+    // and the cave wires the break's snuff through it.
+    expect(cave).toContain("EnergyFlames");
+    expect(cave).toContain("bonusTint");
+    expect(cave).toContain("setSnuff");
+    expect(mouth).toContain("EnergyFlames");
+    expect(mouth).toContain("bonusTint");
+    const forest = readFileSync(join(process.cwd(), "components/dark-forest.tsx"), "utf8");
+    expect(forest).toContain('from "@/components/energy-flames"');
+  });
+
   it("the Mouth shows flames today and the Depth Blessing, and sells the gear", () => {
     expect(mouth).toContain("loadForestEnergy");
     expect(mouth).toContain("Depth Blessing");

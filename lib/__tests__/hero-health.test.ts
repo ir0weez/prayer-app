@@ -1,8 +1,9 @@
 // Hero health (v160 feature wave): Dark Forest HP persists across
-// runs and returns gently — a 4-hour trickle, an overnight rest scaled
-// by the bed, the hospital's two free daily heals, and a wake-up floor
-// after a defeat. No timers anywhere: all of it settles from stored
-// timestamps in these pure functions.
+// runs and returns gently — an hourly mend (+10% of max HP per full
+// hour; v177 quickened it from the original ~4-hour trickle), an
+// overnight rest scaled by the bed, the hospital's two free daily
+// heals, and a wake-up floor after a defeat. No timers anywhere: all
+// of it settles from stored timestamps in these pure functions.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -55,8 +56,8 @@ beforeEach(() => {
 describe("constants + bed rest rate", () => {
   it("the design constants are pinned", () => {
     expect(HOSPITAL_HEALS_PER_DAY).toBe(2);
-    expect(TRICKLE_MS).toBe(4 * HOUR);
-    expect(TRICKLE_PCT).toBe(0.05);
+    expect(TRICKLE_MS).toBe(HOUR);
+    expect(TRICKLE_PCT).toBe(0.1);
     expect(DEFEAT_WAKE_PCT).toBe(0.1);
   });
 
@@ -82,26 +83,26 @@ describe("settleHealth", () => {
 
   it("no elapsed trickle period means no change", () => {
     const s = stateAt({});
-    const { state, changed } = settleHealth(s, at(21, 3, 59), 100, 0.25);
+    const { state, changed } = settleHealth(s, at(21, 0, 59), 100, 0.25);
     expect(changed).toBe(false);
     expect(state).toBe(s);
   });
 
-  it("each full 4-hour period trickles +5% of max HP", () => {
+  it("each full hour mends +10% of max HP (v177 rate)", () => {
     const s = stateAt({ hp: 50, updatedAt: at(21, 0) });
-    const one = settleHealth(s, at(21, 4), 100, 0.25);
+    const one = settleHealth(s, at(21, 1), 100, 0.25);
     expect(one.changed).toBe(true);
-    expect(one.state.hp).toBeCloseTo(55);
-    expect(one.state.updatedAt).toBe(at(21, 4));
+    expect(one.state.hp).toBeCloseTo(60);
+    expect(one.state.updatedAt).toBe(at(21, 1));
 
-    const two = settleHealth(s, at(21, 9), 100, 0.25); // 9h = 2 periods + 1h spare
-    expect(two.state.hp).toBeCloseTo(60);
-    expect(two.state.updatedAt).toBe(at(21, 8)); // spare hour carries over
+    const two = settleHealth(s, at(21, 2, 30), 100, 0.25); // 2.5h = 2 periods + 30m spare
+    expect(two.state.hp).toBeCloseTo(70);
+    expect(two.state.updatedAt).toBe(at(21, 2)); // spare half hour carries over
   });
 
-  it("the trickle caps at max HP", () => {
+  it("the hourly mend caps at max HP", () => {
     const s = stateAt({ hp: 98, updatedAt: at(21, 0) });
-    const { state } = settleHealth(s, at(21, 12), 100, 0.25);
+    const { state } = settleHealth(s, at(21, 3), 100, 0.25);
     expect(state.hp).toBe(100);
   });
 

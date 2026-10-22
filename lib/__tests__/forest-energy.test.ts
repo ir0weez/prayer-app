@@ -124,7 +124,7 @@ describe("spending", () => {
     await expect(spendForestEnergy()).resolves.toBe(true);
     expect(getCachedForestEnergy()).toEqual({ energy: 14, max: 15 });
     const saved = JSON.parse(store.get(FOREST_ENERGY_KEY)!);
-    expect(saved).toEqual({ date: forestEnergyDateStr(), energy: 14 });
+    expect(saved).toEqual({ date: forestEnergyDateStr(), energy: 14, updatedAt: expect.any(Number) });
     // A reload sees the spent value — no double life.
     await expect(loadForestEnergy()).resolves.toEqual({ energy: 14, max: 15 });
   });
@@ -189,7 +189,7 @@ describe("granting bonus energy (diner coffee)", () => {
     await expect(grantForestEnergy(1)).resolves.toEqual({ energy: 16, max: 15 });
     expect(getCachedForestEnergy()).toEqual({ energy: 16, max: 15 });
     const saved = JSON.parse(store.get(FOREST_ENERGY_KEY)!);
-    expect(saved).toEqual({ date: forestEnergyDateStr(), energy: 15, bonus: 1 });
+    expect(saved).toEqual({ date: forestEnergyDateStr(), energy: 15, bonus: 1, updatedAt: expect.any(Number) });
     await expect(loadForestEnergy()).resolves.toEqual({ energy: 16, max: 15 });
   });
 
@@ -199,7 +199,7 @@ describe("granting bonus energy (diner coffee)", () => {
     await expect(spendForestEnergy()).resolves.toBe(true);
     await expect(loadForestEnergy()).resolves.toEqual({ energy: 16, max: 15 });
     const saved = JSON.parse(store.get(FOREST_ENERGY_KEY)!);
-    expect(saved).toEqual({ date: forestEnergyDateStr(), energy: 15, bonus: 1 });
+    expect(saved).toEqual({ date: forestEnergyDateStr(), energy: 15, bonus: 1, updatedAt: expect.any(Number) });
   });
 
   it("grant tops up a partly spent store", async () => {
@@ -207,12 +207,113 @@ describe("granting bonus energy (diner coffee)", () => {
     seedEnergy(forestEnergyDateStr(), 3);
     await expect(grantForestEnergy(1)).resolves.toEqual({ energy: 4, max: 15 });
     const saved = JSON.parse(store.get(FOREST_ENERGY_KEY)!);
-    expect(saved).toEqual({ date: forestEnergyDateStr(), energy: 4 });
+    expect(saved).toEqual({ date: forestEnergyDateStr(), energy: 4, updatedAt: expect.any(Number) });
   });
 
   it("grant of zero or negative is a no-op", async () => {
     seedLevel(15);
     await expect(grantForestEnergy(0)).resolves.toEqual({ energy: 15, max: 15 });
     await expect(grantForestEnergy(-3)).resolves.toEqual({ energy: 15, max: 15 });
+  });
+});
+
+describe("hourly trickle (v177)", () => {
+  const HOUR_MS = 3600 * 1000;
+  // A fixed local noon so "today" and the anchor math are unambiguous.
+  const T0 = new Date(2026, 9, 22, 12, 0, 0, 0).getTime();
+  const today = forestEnergyDateStr(new Date(T0));
+
+  it("pure: +1 base flame per full hour since the anchor, partial hours carry", () => {
+    const stored = { date: today, energy: 3, updatedAt: T0 };
+    expect(resolveForestEnergy(stored, 15, today, T0 + 59 * 60 * 1000)).toEqual({ energy: 3, max: 15 });
+    expect(resolveForestEnergy(stored, 15, today, T0 + HOUR_MS)).toEqual({ energy: 4, max: 15 });
+    expect(resolveForestEnergy(stored, 15, today, T0 + 3 * HOUR_MS + 30 * 60 * 1000)).toEqual({ energy: 6, max: 15 });
+  });
+
+  it("pure: the trickle caps at the level max", () => {
+    expect(resolveForestEnergy({ date: today, energy: 14, updatedAt: T0 }, 15, today, T0 + 9 * HOUR_MS)).toEqual({
+      energy: 15,
+      max: 15,
+    });
+    expect(resolveForestEnergy({ date: today, energy: 15, updatedAt: T0 }, 15, today, T0 + 9 * HOUR_MS)).toEqual({
+      energy: 15,
+      max: 15,
+    });
+  });
+
+  it("pure: bonus energy is untouched by the trickle; the whole store still dies at midnight", () => {
+    // Base trickles 3 → 6 over three hours; the 2 bonus ride unchanged.
+    expect(resolveForestEnergy({ date: today, energy: 3, bonus: 2, updatedAt: T0 }, 15, today, T0 + 3 * HOUR_MS)).toEqual({
+      energy: 8,
+      max: 15,
+    });
+    // A stale date rekindles to the cap and the bonus is gone, anchor or not.
+    expect(
+      resolveForestEnergy({ date: "2026-10-21", energy: 3, bonus: 2, updatedAt: T0 - 24 * HOUR_MS }, 15, today, T0)
+    ).toEqual({ energy: 15, max: 15 });
+  });
+
+  it("pure: a legacy store without an anchor gets no retroactive trickle", () => {
+    expect(resolveForestEnergy({ date: today, energy: 3 }, 15, today, T0 + 30 * HOUR_MS)).toEqual({
+      energy: 3,
+      max: 15,
+    });
+  });
+
+  it("load: a mid-day legacy save is stamped, not windfalled — then trickles from there", async () => {
+    seedLevel(15);
+    seedEnergy(forestEnergyDateStr(), 4);
+    await expect(loadForestEnergy()).resolves.toEqual({ energy: 4, max: 15 });
+    const saved = JSON.parse(store.get(FOREST_ENERGY_KEY)!);
+    expect(saved.energy).toBe(4);
+    expect(typeof saved.updatedAt).toBe("number");
+    // Reloading straight away changes nothing.
+    await expect(loadForestEnergy()).resolves.toEqual({ energy: 4, max: 15 });
+  });
+
+  it("load: hours-old anchors settle on load, the anchor advancing by whole hours only", async () => {
+    vi.useFakeTimers();
+    try {
+      const now = new Date(2026, 9, 22, 15, 30, 0, 0).getTime();
+      vi.setSystemTime(now);
+      seedLevel(15);
+      store.set(
+        FOREST_ENERGY_KEY,
+        JSON.stringify({ date: forestEnergyDateStr(new Date(now)), energy: 2, updatedAt: now - 3 * HOUR_MS - 10 * 60 * 1000 })
+      );
+      // 3 full hours elapsed → +3 flames; the anchor keeps the 10 spare minutes.
+      await expect(loadForestEnergy()).resolves.toEqual({ energy: 5, max: 15 });
+      const saved = JSON.parse(store.get(FOREST_ENERGY_KEY)!);
+      expect(saved.energy).toBe(5);
+      expect(saved.updatedAt).toBe(now - 10 * 60 * 1000);
+      // 20 minutes later: still inside the carried partial hour.
+      vi.setSystemTime(now + 20 * 60 * 1000);
+      await expect(loadForestEnergy()).resolves.toEqual({ energy: 5, max: 15 });
+      // Crossing the anchor's next full hour: +1 more.
+      vi.setSystemTime(now + 51 * 60 * 1000);
+      await expect(loadForestEnergy()).resolves.toEqual({ energy: 6, max: 15 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("load: the trickle and a spend compose — spent flames stay spent, the hourly one still arrives", async () => {
+    vi.useFakeTimers();
+    try {
+      const now = new Date(2026, 9, 22, 9, 0, 0, 0).getTime();
+      vi.setSystemTime(now);
+      seedLevel(15);
+      store.set(
+        FOREST_ENERGY_KEY,
+        JSON.stringify({ date: forestEnergyDateStr(new Date(now)), energy: 5, updatedAt: now })
+      );
+      await expect(spendForestEnergy()).resolves.toBe(true);
+      await expect(loadForestEnergy()).resolves.toEqual({ energy: 4, max: 15 });
+      // The spend did not reset the clock: one hour after the anchor, +1.
+      vi.setSystemTime(now + HOUR_MS);
+      await expect(loadForestEnergy()).resolves.toEqual({ energy: 5, max: 15 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -34,6 +34,20 @@ describe("v179 paper coverage — every named surface consumes the skin", () => 
     expect(journal).not.toContain("entry.color ?? paperSurface");
     // Sheets sit on the paper page background.
     expect(journal).toContain("skinTokens.background");
+    // v196: the v195 forced white Moments surface under Classic is
+    // reversed (his ruling: the mockup's layout, his app's surface)
+    // — the mockup's light literals are gone from the journal
+    // family and the skin's own tokens rule again.
+    expect(journal).not.toContain('"#9A92B5"');
+    expect(journal).not.toContain('"#ECE9F4"');
+    expect(journal).not.toContain("classicLight");
+    // v196: the composer rides the real keyboard height — the old
+    // KeyboardAvoidingView avoided on iOS only, and on Android the
+    // keyboard covered the composer whole ("I can't see what I'm
+    // typing…"). The screen pads by the keyboard's height instead.
+    expect(journal).toContain("useKeyboardHeight");
+    expect(journal).toContain("paddingBottom: keyboardHeight");
+    expect(journal).not.toContain('behavior={Platform.OS === "ios" ? "padding" : undefined}');
   });
 
   it("the schedule chrome is paper: summary zone, header pill, day card, study card, list sheet", () => {

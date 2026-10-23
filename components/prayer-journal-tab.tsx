@@ -4,12 +4,10 @@ import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,12 +25,15 @@ import { CalendarSheet, PersonSheet, TagSheet } from "@/components/journal-sheet
 import { MoodFace } from "@/components/mood-face";
 import { MOODS, MoodPicker, type JournalMood } from "@/components/mood-picker";
 import { useColors } from "@/hooks/use-colors";
+import { useKeyboardHeight } from "@/hooks/use-keyboard-height";
 import { useSkin } from "@/hooks/use-skin";
 import {
   addDaysToIso,
   dayCounts,
   formatClock,
   isoDateOf,
+  momentsFeedItems,
+  type MomentsFeedItem,
 } from "@/lib/journal-moments";
 import type { Person } from "@/lib/prayercircle-data";
 import {
@@ -41,7 +42,6 @@ import {
   formatPrayerJournalDate,
   removePrayerJournalEntry,
   removePrayerJournalReply,
-  sortPrayerJournalEntries,
   togglePrayerJournalBookmark,
   updatePrayerJournalEntry,
   updatePrayerJournalReply,
@@ -73,9 +73,10 @@ type PrayerJournalTabProps = {
   onChange: (entries: PrayerJournalEntry[]) => void;
 };
 
-type FeedItem =
-  | { kind: "separator"; key: string; date: string }
-  | { kind: "entry"; key: string; entry: PrayerJournalEntry };
+// v196: the feed item type + the filter/grouping itself live in
+// lib/journal-moments (momentsFeedItems) so the post → feed round
+// trip is covered by tests, not just by this component.
+type FeedItem = MomentsFeedItem;
 
 function parseDateKey(value: string): Date {
   const [year, month, day] = value.split("-").map(Number);
@@ -109,9 +110,23 @@ function createId(prefix: string): string {
 // sits IN the feed flow, the composer is an in-flow bar pinned
 // above the tab bar, and under Classic the whole Moments screen
 // wears the mockup's own light surface.
+// v196: three verdicts on v195. (1) "Holy bright!" — the forced
+// white surface is REVERSED: the mockup's layout stays, but the
+// Journal renders on the active skin's own surface again (dark
+// under his Classic), as v194 did. (2) "I can't see what I'm
+// typing…" — the composer sat under the keyboard (the old
+// KeyboardAvoidingView was iOS-only); the screen now pads by the
+// real keyboard height (useKeyboardHeight) so the composer rides
+// above it on both platforms. (3) A posted thought "didn't save" —
+// it had: the Moments-only search/bookmark filter (lib
+// momentsFeedItems) silently kept a leftover query applied after
+// the search bar closed, so the fresh post was filtered out of
+// Moments while Day, which reads raw entries, showed it. Posting
+// now clears every filter and scrolls the feed to the new post.
 export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTabProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
   const { isSkinned, tokens: skinTokens } = useSkin();
   // The 8-bit pixel face for small caps labels (was a local helper in
   // the old Journal too; the skin pins look for it here).
@@ -204,31 +219,29 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   const [editPhotos, setEditPhotos] = useState<string[]>([]);
   const [editPeople, setEditPeople] = useState<Person[]>([]);
 
-  const sortedEntries = useMemo(() => sortPrayerJournalEntries(entries), [entries]);
+  const feedListRef = useRef<FlatList<FeedItem>>(null);
 
-  const feedItems = useMemo<FeedItem[]>(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const filtered = sortedEntries.filter((entry) => {
-      if (bookmarksOnly && !entry.isBookmarked) return false;
-      if (!normalizedQuery) return true;
-      return (
-        (entry.title ?? "").toLowerCase().includes(normalizedQuery) ||
-        entry.body.toLowerCase().includes(normalizedQuery) ||
-        (entry.location?.toLowerCase().includes(normalizedQuery) ?? false) ||
-        entry.taggedPeople.some((person) => person.name.toLowerCase().includes(normalizedQuery))
-      );
+  // v196: the grouping/filter is lib/journal-moments'
+  // momentsFeedItems now (unit-tested round trip). The Day view and
+  // the sheets read the raw entries — this filtered list is the
+  // ONLY surface a leftover search query can hide a post from,
+  // which is why posting clears the filters (revealFreshPost).
+  const feedItems = useMemo<FeedItem[]>(
+    () => momentsFeedItems(entries, { query, bookmarksOnly }),
+    [entries, query, bookmarksOnly],
+  );
+
+  // v196: after a post lands, clear every Moments-only filter and
+  // bring the feed back to the top, so the fresh entry is visibly
+  // standing under today's separator — never "saved somewhere else".
+  const revealFreshPost = useCallback(() => {
+    setQuery("");
+    setSearchOpen(false);
+    setBookmarksOnly(false);
+    requestAnimationFrame(() => {
+      feedListRef.current?.scrollToOffset({ offset: 0, animated: true });
     });
-    const items: FeedItem[] = [];
-    let lastDate = "";
-    for (const entry of filtered) {
-      if (entry.date !== lastDate) {
-        items.push({ kind: "separator", key: `sep-${entry.date}`, date: entry.date });
-        lastDate = entry.date;
-      }
-      items.push({ kind: "entry", key: entry.id, entry });
-    }
-    return items;
-  }, [sortedEntries, query, bookmarksOnly]);
+  }, []);
 
   const todayCounts = useMemo(() => dayCounts(entries, scheduleEvents, todayIso), [entries, scheduleEvents, todayIso]);
   const yesterdayCounts = useMemo(
@@ -305,6 +318,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     setTagWord("");
     setTagRowOpen(false);
     setMoodRowOpen(false);
+    revealFreshPost();
   };
 
   const logMoodOnly = (moodId: string) => {
@@ -313,7 +327,10 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       { body: "", mood: { id: moodId, intensity: 2 } },
       createId("journal"),
     );
-    if (next !== entries) onChange(next);
+    if (next !== entries) {
+      onChange(next);
+      revealFreshPost();
+    }
   };
 
   const canPost = draft.trim().length > 0 || draftMood !== null || draftPhotos.length > 0 || tagWord.trim().length > 0;
@@ -373,6 +390,9 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       : createPrayerJournalEntry(entries, { ...shared, date: dateKey }, createId("journal"));
     if (next === entries) return; // nothing saveable (empty, no mood/photo)
     onChange(next);
+    // A brand-new entry gets the same reveal as a composer post;
+    // an edit keeps the reader where they were.
+    if (!editingEntry) revealFreshPost();
     setEditorOpen(false);
     setEditingEntry(null);
     setDraft("");
@@ -424,15 +444,17 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
 
   // ── Moments ──────────────────────────────────────────────────────────────
 
-  // v195: under Classic the Moments screen adopts the mockup's own
-  // light surface (white, ink #1D1830, faint #9A92B5, hairline
-  // #ECE9F4) instead of the app's dark chrome — the Zeitgeist
-  // composition is a light, flat feed. Skins keep their tokens.
-  const classicLight = !isSkinned;
-  const ink = skinTokens.isTerminal ? TERM_SOFT : classicLight ? "#1D1830" : colors.foreground;
-  const faint = skinTokens.isTerminal ? TERM_MID : classicLight ? "#9A92B5" : colors.muted;
-  const momentsSurface = classicLight ? "#FFFFFF" : colors.surface;
-  const momentsBorder = classicLight ? "#ECE9F4" : colors.border;
+  // v196: v195 painted the Moments screen with the mockup's own
+  // light surface under Classic (white, ink #1D1830, faint
+  // #9A92B5, hairline #ECE9F4) — against the rest of his dark app
+  // it glared ("Holy bright!"). His ruling: the mockup's layout,
+  // his app's surface. The palette is the active skin's own tokens
+  // again, exactly as v194 rendered; the flat v195 composition
+  // (hairline rows, in-flow day pill, pinned composer) is kept.
+  const ink = skinTokens.isTerminal ? TERM_SOFT : colors.foreground;
+  const faint = skinTokens.isTerminal ? TERM_MID : colors.muted;
+  const momentsSurface = colors.surface;
+  const momentsBorder = colors.border;
   // The day pill's count chips, as a bg/ink pair per skin (mirrors
   // journal-day's chipBg pattern, with readable ink on each ground).
   const pillChipBg = (pastel: string) => (skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : pastel);
@@ -443,13 +465,18 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       style={[
         styles.container,
         {
-          // v195: Classic paints the mockup's white — the Moments
-          // surface is the mockup's, not the dark chrome's.
-          backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : "#FFFFFF",
+          backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : skinTokens.background ?? colors.background,
+          // v196: while the keyboard is up the whole screen pads
+          // by its height, so the in-flow composer at the foot of
+          // the column lands directly above the keyboard instead
+          // of underneath it (and the feed's viewport shrinks
+          // rather than hiding rows behind composer + keyboard).
+          paddingBottom: keyboardHeight,
         },
       ]}
     >
       <FlatList
+        ref={feedListRef}
         data={feedItems}
         keyExtractor={(item) => item.key}
         keyboardShouldPersistTaps="handled"
@@ -470,7 +497,18 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 <Text style={[styles.journalTitle, { color: ink }, skinText(skinTokens, skinTokens.type.screenTitle)]}>Journal</Text>
               </View>
               <View style={[styles.headPill, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : momentsSurface, borderColor: momentsBorder }]}>
-                <Pressable accessibilityLabel="Search journal" onPress={() => setSearchOpen((current) => !current)} style={styles.headPillBtn}>
+                <Pressable
+                  accessibilityLabel="Search journal"
+                  onPress={() => {
+                    // v196: toggling the search bar resets the
+                    // query — a filter must never outlive the bar
+                    // that shows it (that invisible leftover is
+                    // what hid a fresh post from this feed).
+                    setSearchOpen((current) => !current);
+                    setQuery("");
+                  }}
+                  style={styles.headPillBtn}
+                >
                   <MaterialIcons name="search" size={20} color={ink} />
                 </Pressable>
                 <View style={[styles.headDivider, { backgroundColor: momentsBorder }]} />
@@ -589,11 +627,11 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                   style={[
                     styles.separatorText,
                     {
-                      // v195: under Classic the separator sits on the
-                      // mockup's white surface — the mockup's faint,
-                      // not the dark palette's muted. Paper keeps
-                      // colors.muted, as in v194.
-                      color: skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_MID : classicLight ? "#9A92B5" : colors.muted,
+                      // v196: the separator takes the palette's
+                      // muted again — the v195 mockup-faint only
+                      // existed for the forced white surface, which
+                      // is reversed (see the palette note above).
+                      color: skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_MID : colors.muted,
                     },
                     bitText(11),
                   ]}
@@ -606,15 +644,21 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
               </View>
             );
           }
-          return <JournalPost entry={item.entry} {...sheetCallbacks} lightSurface />;
+          return <JournalPost entry={item.entry} {...sheetCallbacks} />;
         }}
       />
 
       {/* "What's up?" composer — in flow at the foot of the screen,
           lifted clear of the floating tab bar by its bottom padding.
           v194 positioned it at the screen's very bottom, where the
-          tab bar covered it whole. */}
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.composerWrap, { paddingBottom: 96 + insets.bottom }]}>
+          tab bar covered it whole. v196: while the keyboard is up
+          the tab-bar clearance collapses — the screen's own
+          keyboard-height padding (on the container above) is what
+          lifts the composer then, so it sits directly above the
+          keyboard with just a breath of room. The old
+          KeyboardAvoidingView only avoided on iOS; on Android the
+          composer stayed under the keyboard and he typed blind. */}
+      <View style={[styles.composerWrap, { paddingBottom: keyboardHeight > 0 ? Math.max(insets.bottom, 10) : 96 + insets.bottom }]}>
         {moodRowOpen ? (
           <View style={[styles.composerRow, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : momentsSurface, borderColor: momentsBorder }]}>
             <Text style={[styles.composerRowLabel, { color: faint }]}>Feels like</Text>
@@ -672,7 +716,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           </View>
         ) : null}
 
-        <BlurView intensity={skinTokens.isTerminal || skinTokens.isEightBit ? 0 : 55} tint="light" style={[styles.composerBar, { borderColor: momentsBorder, backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? colors.surface : "rgba(255,255,255,0.72)" }]}>
+        <BlurView intensity={skinTokens.isTerminal || skinTokens.isEightBit ? 0 : 55} tint={isSkinned ? "light" : "dark"} style={[styles.composerBar, { borderColor: momentsBorder, backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? colors.surface : isSkinned ? "rgba(255,255,255,0.72)" : colors.surface }]}>
           <Pressable accessibilityLabel="Add a photo" onPress={() => void pickPhotos("quick")} style={[styles.composerBtn, { backgroundColor: colors.primary }]}>
             <MaterialIcons name="add" size={20} color="#FFFFFF" />
           </Pressable>
@@ -702,12 +746,12 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             accessibilityLabel="Post"
             onPress={postQuick}
             disabled={!canPost}
-            style={[styles.composerBtn, { backgroundColor: canPost ? colors.primary : classicLight ? "#E9E6F2" : colors.border }]}
+            style={[styles.composerBtn, { backgroundColor: canPost ? colors.primary : colors.border }]}
           >
             <MaterialIcons name="arrow-upward" size={19} color="#FFFFFF" />
           </Pressable>
         </BlurView>
-      </KeyboardAvoidingView>
+      </View>
 
       {renderOverlays()}
     </View>
@@ -838,9 +882,12 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           </View>
         </Modal>
 
-        {/* Reply composer */}
+        {/* Reply composer — v196: the sheet pads by the real
+            keyboard height (same hook as the Moments composer);
+            the old iOS-only KeyboardAvoidingView left it under the
+            keyboard on Android too. */}
         <Modal transparent visible={replyTarget !== null || editingReply !== null} animationType="slide" onRequestClose={() => { setReplyTarget(null); setEditingReply(null); }}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modalRoot}>
+          <View style={[styles.modalRoot, { paddingBottom: keyboardHeight }]}>
             <Pressable style={styles.backdrop} onPress={() => { setReplyTarget(null); setEditingReply(null); }} />
             <View style={[styles.replySheet, { backgroundColor: colors.surface, paddingBottom: Math.max(insets.bottom, 16) }]}>
               <Text style={[styles.replyTitle, { color: colors.foreground }]}>{editingReply ? "Edit reply" : "Reply to this moment"}</Text>
@@ -862,7 +909,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 </Pressable>
               </View>
             </View>
-          </KeyboardAvoidingView>
+          </View>
         </Modal>
 
         {/* Long-form editor */}
@@ -874,7 +921,10 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 <MaterialIcons name="close" size={24} color={colors.muted} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+            {/* v196: the extra bottom room grows by the keyboard
+                height so any editor field (and the Save button)
+                can be scrolled clear of the keyboard. */}
+            <ScrollView contentContainerStyle={{ paddingBottom: 40 + keyboardHeight }} keyboardShouldPersistTaps="handled">
               <TextInput
                 value={editTitle}
                 onChangeText={setEditTitle}

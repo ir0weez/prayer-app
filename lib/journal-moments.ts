@@ -1,4 +1,5 @@
 import type { Person } from "./prayercircle-data";
+import { sortPrayerJournalEntries } from "./prayer-journal";
 import type { PrayerJournalEntry, PrayerJournalTaggedPerson } from "./prayer-journal";
 import type { ScheduleEvent } from "./schedule-data";
 
@@ -207,6 +208,53 @@ export function dayCounts(entries: PrayerJournalEntry[], events: ScheduleEvent[]
     events: events.filter((event) => event.date === date).length,
     people: [...peopleById.values()],
   };
+}
+
+// ─── Moments feed ────────────────────────────────────────────────────────────
+// The feed the Moments tab renders: entries newest-first, grouped
+// under a separator per journal date, with the tab's search query
+// and bookmarks-only filter applied. Extracted from the tab (v196)
+// so the post → feed round trip is testable.
+//
+// This filter is a Moments-only gate: the Day assembler above reads
+// the raw entries, so a post that fails this filter still exists —
+// it shows in Day, on person/tag pages, everywhere except Moments.
+// v196 root cause: the tab kept the last search query applied after
+// the search bar closed (no indicator anywhere), so a fresh thought
+// that didn't contain the leftover query "didn't save" — it had; it
+// was filtered out of this list only. The tab now clears the query
+// when the search bar toggles and clears every filter when a post
+// lands, so a fresh post is always revealed here.
+
+export type MomentsFeedItem =
+  | { kind: "separator"; key: string; date: string }
+  | { kind: "entry"; key: string; entry: PrayerJournalEntry };
+
+export function momentsFeedItems(
+  entries: PrayerJournalEntry[],
+  options: { query?: string; bookmarksOnly?: boolean } = {},
+): MomentsFeedItem[] {
+  const normalizedQuery = (options.query ?? "").trim().toLowerCase();
+  const filtered = sortPrayerJournalEntries(entries).filter((entry) => {
+    if (options.bookmarksOnly && !entry.isBookmarked) return false;
+    if (!normalizedQuery) return true;
+    return (
+      (entry.title ?? "").toLowerCase().includes(normalizedQuery) ||
+      entry.body.toLowerCase().includes(normalizedQuery) ||
+      (entry.location?.toLowerCase().includes(normalizedQuery) ?? false) ||
+      entry.taggedPeople.some((person) => person.name.toLowerCase().includes(normalizedQuery))
+    );
+  });
+  const items: MomentsFeedItem[] = [];
+  let lastDate = "";
+  for (const entry of filtered) {
+    if (entry.date !== lastDate) {
+      items.push({ kind: "separator", key: `sep-${entry.date}`, date: entry.date });
+      lastDate = entry.date;
+    }
+    items.push({ kind: "entry", key: entry.id, entry });
+  }
+  return items;
 }
 
 export type DayTimelineItem =

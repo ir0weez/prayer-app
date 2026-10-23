@@ -32,10 +32,6 @@ type JournalPostProps = {
   onReplyLongPress: (entry: PrayerJournalEntry, reply: PrayerJournalReply) => void;
   hidePhotos?: boolean;
   avatarMode?: "author" | "mood";
-  // v195: the Moments feed renders posts on the mockup's own light
-  // surface under Classic (see the palette note in the component).
-  // Day and the sheets leave this off — they keep the v194 palette.
-  lightSurface?: boolean;
 };
 
 function capitalize(tag: string): string {
@@ -78,7 +74,6 @@ export function JournalPost({
   onReplyLongPress,
   hidePhotos = false,
   avatarMode = "author",
-  lightSurface = false,
 }: JournalPostProps) {
   const colors = useColors();
   const { isSkinned, tokens: skinTokens } = useSkin();
@@ -90,15 +85,16 @@ export function JournalPost({
   // with entry.color and flipped the text white; on his phone a
   // colored long entry became a full-screen orange block, nothing
   // like the mockup's flat rows on a plain surface.
-  // The Moments feed passes lightSurface: under Classic the post
-  // then sits on the mockup's own light surface (white / ink /
-  // faint / hairline) instead of the app's dark chrome. Skins keep
-  // their tokens either way.
-  const classicLight = lightSurface && !isSkinned;
-  const postSurface = isSkinned ? skinTokens.surface ?? colors.surface : classicLight ? "#FFFFFF" : colors.surface;
-  const ink = skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : classicLight ? "#1D1830" : colors.foreground;
-  const faint = skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : classicLight ? "#9A92B5" : colors.muted;
-  const hairline = skinTokens.isTerminal ? TERM_MID : classicLight ? "#ECE9F4" : colors.border;
+  // v196: v195 also forced the mockup's WHITE surface onto the post
+  // under Classic (the lightSurface treatment) — his app runs dark
+  // everywhere else and the white Journal glared ("Holy bright!").
+  // His ruling: the mockup's LAYOUT, his app's SURFACE. The post is
+  // back on the active skin's own surface/ink/faint/hairline tokens,
+  // exactly as v194 rendered; the flat composition is unchanged.
+  const postSurface = isSkinned ? skinTokens.surface ?? colors.surface : colors.surface;
+  const ink = skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground;
+  const faint = skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted;
+  const hairline = skinTokens.isTerminal ? TERM_MID : colors.border;
   // Chips are a bg/ink PAIR (the mockup's pale chip, dark ink).
   // v194 colored chip text with the surface ink — white on the pale
   // chip under dark Classic — so a tagged person's name rendered

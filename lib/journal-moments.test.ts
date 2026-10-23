@@ -9,7 +9,9 @@ import {
   entryDayPart,
   formatEventTimeRange,
   isMoodOnlyEntry,
+  isoDateOf,
   lastSharedEntry,
+  momentsFeedItems,
   paintedDays,
   peopleMentionedInBody,
   placesPathFor,
@@ -220,5 +222,77 @@ describe("v194 journal moments — people, tags and the assembled day", () => {
     expect(path.homeOnly).toBe(true);
     expect(path.nodes).toHaveLength(1);
     expect(path.nodes[0]).toMatchObject({ location: "Home", state: "now", iconHint: "home" });
+  });
+});
+
+describe("v196 journal — a composer post lands in Moments, not just Day", () => {
+  // Jonathan, on v195 (2026-10-22, 11:16 PM): "when I sent my
+  // thoughts, it didn't actually save... I mean it did, but not to
+  // the journal page..." The entry existed — it showed in the Day
+  // view — but never appeared in the Moments feed. The create →
+  // storage → grouping path below was sound all along (pinned by
+  // the first test); the divergence is the Moments-only filter:
+  // Day reads raw entries, Moments applies the search query +
+  // bookmarks filter, and the tab kept a leftover query applied
+  // after the search bar closed, invisibly. The tab now clears
+  // every filter and scrolls to the top when a post lands
+  // (revealFreshPost); the second test pins the gate itself so the
+  // two surfaces can never silently disagree again unnoticed.
+  const postedAt = new Date(2026, 9, 22, 23, 16); // 11:16 PM local
+  const todayIso = isoDateOf(postedAt);
+
+  function composerPost() {
+    // The exact shape the Moments composer's postQuick builds:
+    // body + today's date key, no mood, no photos, nothing else.
+    const seeded = [
+      entry({ id: "old", body: "An older note", date: "2026-10-08", createdAt: localIso(2026, 10, 8, 9, 0) }),
+    ];
+    const next = createPrayerJournalEntry(
+      seeded,
+      { body: "A thought typed into the composer", date: todayIso },
+      "journal-test-1",
+      postedAt,
+    );
+    // Through storage and back, the way the app persists it.
+    return normalizePrayerJournalEntries(JSON.parse(JSON.stringify(next)), postedAt);
+  }
+
+  it("post → storage → feed grouping puts it first, under today's separator, counted", () => {
+    const revived = composerPost();
+    const feed = momentsFeedItems(revived, {});
+    expect(feed[0]).toEqual({ kind: "separator", key: `sep-${todayIso}`, date: todayIso });
+    expect(feed[1].kind).toBe("entry");
+    if (feed[1].kind === "entry") {
+      expect(feed[1].entry.body).toBe("A thought typed into the composer");
+      expect(feed[1].entry.date).toBe(todayIso);
+    }
+    expect(dayCounts(revived, [], todayIso).entries).toBe(1);
+  });
+
+  it("the Moments filter is the only gate that can hide it — Day never filters", () => {
+    const revived = composerPost();
+    // A leftover search query (or bookmarks-only) drops the fresh
+    // post from Moments while Day's assembler still seats it —
+    // the exact v195 symptom.
+    expect(momentsFeedItems(revived, { query: "unrelated-term" }).some((item) => item.kind === "entry" && item.entry.id === "journal-test-1")).toBe(false);
+    expect(momentsFeedItems(revived, { bookmarksOnly: true }).some((item) => item.kind === "entry" && item.entry.id === "journal-test-1")).toBe(false);
+    expect(buildDayTimeline(revived, [], todayIso).some((item) => item.kind === "entry" && item.entry.id === "journal-test-1")).toBe(true);
+    // With the filters cleared (what posting now does), it stands
+    // in Moments too.
+    expect(momentsFeedItems(revived, { query: "", bookmarksOnly: false }).some((item) => item.kind === "entry" && item.entry.id === "journal-test-1")).toBe(true);
+  });
+
+  it("in Day the late-night post seats at its real time, after the day's events", () => {
+    const revived = composerPost();
+    const morning: ScheduleEvent = {
+      id: "ev1",
+      title: "Morning Meeting",
+      date: todayIso,
+      startTime: "08:00",
+      endTime: "08:30",
+      isCompleted: false,
+    };
+    const timeline = buildDayTimeline(revived, [morning], todayIso);
+    expect(timeline.map((item) => item.kind)).toEqual(["event", "entry"]);
   });
 });

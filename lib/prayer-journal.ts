@@ -26,6 +26,7 @@ export type PrayerJournalEntry = {
   location?: string;
   weather?: string;
   mood?: { id: string; intensity: 1 | 2 | 3 };
+  photos?: string[];
 };
 
 export type PrayerJournalGroup = {
@@ -132,14 +133,41 @@ export function sortPrayerJournalEntries(entries: PrayerJournalEntry[]): PrayerJ
   });
 }
 
+type PrayerJournalEntryInput = {
+  title?: string;
+  body: string;
+  date?: string;
+  taggedPeople?: Person[];
+  color?: string;
+  location?: string;
+  weather?: string;
+  mood?: { id: string; intensity: 1 | 2 | 3 };
+  photos?: string[];
+};
+
+function normalizePhotos(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const photos = value.filter((photo): photo is string => typeof photo === "string" && photo.trim().length > 0);
+  return photos.length > 0 ? photos : undefined;
+}
+
+// v194 (Journal, Zeitgeist): an entry may carry no words at all — a
+// mood logged on its own, or a photo moment. Body-less entries are
+// only valid when a mood or photos ride along; a truly empty entry
+// is still rejected.
+function hasStandaloneContent(input: { mood?: unknown; photos?: string[] }): boolean {
+  return Boolean(input.mood) || Boolean(input.photos && input.photos.length > 0);
+}
+
 export function createPrayerJournalEntry(
   entries: PrayerJournalEntry[],
-  input: { title?: string; body: string; date?: string; taggedPeople?: Person[]; color?: string; location?: string; weather?: string; mood?: { id: string; intensity: 1 | 2 | 3 } },
+  input: PrayerJournalEntryInput,
   entryId: string,
   now = new Date(),
 ): PrayerJournalEntry[] {
   const body = input.body.trim();
-  if (!body) return entries;
+  const photos = normalizePhotos(input.photos);
+  if (!body && !hasStandaloneContent({ mood: input.mood, photos })) return entries;
   const createdAt = now.toISOString();
   const fallbackDate = formatLocalIsoDate(now);
   const entry: PrayerJournalEntry = {
@@ -156,6 +184,7 @@ export function createPrayerJournalEntry(
     location: input.location,
     weather: input.weather,
     mood: input.mood,
+    photos,
   };
   return sortPrayerJournalEntries([entry, ...entries]);
 }
@@ -163,11 +192,12 @@ export function createPrayerJournalEntry(
 export function updatePrayerJournalEntry(
   entries: PrayerJournalEntry[],
   entryId: string,
-  input: { title?: string; body: string; date: string; taggedPeople?: Person[]; color?: string; location?: string; weather?: string; mood?: { id: string; intensity: 1 | 2 | 3 } },
+  input: PrayerJournalEntryInput & { date: string },
   now = new Date(),
 ): PrayerJournalEntry[] {
   const body = input.body.trim();
-  if (!body) return entries;
+  const photos = normalizePhotos(input.photos);
+  if (!body && !hasStandaloneContent({ mood: input.mood, photos })) return entries;
   const updatedAt = now.toISOString();
   return sortPrayerJournalEntries(
     entries.map((entry) =>
@@ -183,6 +213,7 @@ export function updatePrayerJournalEntry(
             location: input.location,
             weather: input.weather,
             mood: input.mood,
+            photos,
           }
         : entry,
     ),
@@ -310,7 +341,14 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
     const candidate = rawValue as Partial<PrayerJournalEntry> & LegacyJournalEntry;
     const bodySource = candidate.body ?? candidate.note;
     const body = typeof bodySource === "string" ? bodySource.trim() : "";
-    if (!body) return [];
+    const candidatePhotos = normalizePhotos(candidate.photos);
+    const candidateMood =
+      candidate.mood && typeof candidate.mood === "object" && typeof (candidate.mood as { id?: unknown }).id === "string"
+        ? candidate.mood
+        : undefined;
+    // v194: mood-only and photo-only entries (no words) are real
+    // entries now — they survive normalization alongside text ones.
+    if (!body && !candidateMood && !candidatePhotos) return [];
     const date = normalizeDate(candidate.date, fallbackDate);
     const createdAt =
       typeof candidate.createdAt === "string" && !Number.isNaN(new Date(candidate.createdAt).getTime())
@@ -371,6 +409,7 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
         ...(location ? { location } : {}),
         ...(weather ? { weather } : {}),
         ...(mood ? { mood } : {}),
+        ...(candidatePhotos ? { photos: candidatePhotos } : {}),
       } satisfies PrayerJournalEntry,
     ];
   });

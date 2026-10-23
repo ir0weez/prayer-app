@@ -18,10 +18,14 @@ const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
 describe("v179 paper coverage — every named surface consumes the skin", () => {
   it("the Journal renders on paper: paper page, paper entry cards, paper sheets", () => {
-    const journal = read("components/prayer-journal-tab.tsx");
+    // v194 (Journal, Zeitgeist): the Journal is a component family
+    // now — the tab shell plus the post renderer; the paper contract
+    // is checked across both.
+    const journal = [read("components/prayer-journal-tab.tsx"), read("components/journal-post.tsx")].join("\n");
     expect(journal).toContain("useSkin");
-    // Entry cards take the paper surface when they carry no color.
-    expect(journal).toContain("item.color ?? paperSurface");
+    // Entry rows take the paper surface when they carry no color.
+    // (v194: the post prop is named `entry` now, was `item`.)
+    expect(journal).toContain("entry.color ?? paperSurface");
     // Sheets sit on the paper page background.
     expect(journal).toContain("skinTokens.background");
   });

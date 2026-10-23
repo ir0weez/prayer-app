@@ -1487,10 +1487,18 @@ describe("v190 — Paper, Bigger", () => {
     // the label level is 13 in a ~90px cell, single line kept).
     expect(index).toContain("skinTokens.isPaper ? skinText(skinTokens, skinTokens.type.labelText, 16) : null");
     // Journal: header tile, entry titles, prose via MarkdownText's
-    // baseSize, dates and section headers.
-    const journal = read("components/prayer-journal-tab.tsx");
-    expect(journal).toContain("...skinText(skinTokens, skinTokens.type.screenTitle)");
-    expect(journal).toContain("...skinText(skinTokens, skinTokens.type.cardTitle)");
+    // baseSize, dates and section headers. (v194, Journal Zeitgeist:
+    // the Journal split into a component family — tab, post, day,
+    // sheets — and the type table is consumed across all four; the
+    // skinText calls ride in style arrays now rather than spreads.)
+    const journal = [
+      read("components/prayer-journal-tab.tsx"),
+      read("components/journal-post.tsx"),
+      read("components/journal-day.tsx"),
+      read("components/journal-sheets.tsx"),
+    ].join("\n");
+    expect(journal).toContain("skinText(skinTokens, skinTokens.type.screenTitle)");
+    expect(journal).toContain("skinText(skinTokens, skinTokens.type.cardTitle)");
     expect(journal).toContain("baseSize={skinTokens.type.proseBody ?? undefined}");
     expect(journal).toContain("skinText(skinTokens, skinTokens.type.barTitle, 22)");
     expect(journal).toContain("padding: 16 + skinTokens.type.padBoost");

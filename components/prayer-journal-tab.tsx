@@ -1,45 +1,70 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
-import { useMemo, useRef, useState } from "react";
-import ReAnimated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { MarkdownText, extractHashtags } from "@/components/markdown-text";
-import { MoodPicker, MoodChip, type JournalMood } from "@/components/mood-picker";
+import * as ImagePicker from "expo-image-picker";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
-  SectionList,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { DateTimePicker } from "@/components/date-time-picker";
 import { AvatarImage } from "@/components/avatar-system";
+import { DateTimePicker } from "@/components/date-time-picker";
+import { JournalDay } from "@/components/journal-day";
+import { JournalPost, type JournalAuthor } from "@/components/journal-post";
+import { CalendarSheet, PersonSheet, TagSheet } from "@/components/journal-sheets";
+import { MoodFace } from "@/components/mood-face";
+import { MOODS, MoodPicker, type JournalMood } from "@/components/mood-picker";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, skinText, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
+import {
+  addDaysToIso,
+  dayCounts,
+  formatClock,
+  isoDateOf,
+} from "@/lib/journal-moments";
 import type { Person } from "@/lib/prayercircle-data";
 import {
   addPrayerJournalReply,
   createPrayerJournalEntry,
-  filterPrayerJournalEntries,
   formatPrayerJournalDate,
-  groupPrayerJournalEntries,
   removePrayerJournalEntry,
   removePrayerJournalReply,
+  sortPrayerJournalEntries,
   togglePrayerJournalBookmark,
   updatePrayerJournalEntry,
   updatePrayerJournalReply,
   type PrayerJournalEntry,
-  type PrayerJournalTaggedPerson,
+  type PrayerJournalReply,
 } from "@/lib/prayer-journal";
+import type { PersonalFast } from "@/lib/prayercircle-fasting";
+import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { SCHEDULE_EVENTS_KEY, type ScheduleEvent } from "@/lib/schedule-data";
+import {
+  BIT_ON_DUSK,
+  TERM_MID,
+  TERM_PANEL,
+  TERM_PHOS,
+  TERM_SOFT,
+  bitButtonInk,
+  bitButtonStyle,
+  skinText,
+  termButtonInk,
+  termButtonStyle,
+} from "@/lib/skin-themes";
+
+const JOURNAL_COLORS = ["#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316", "#6366F1"];
 
 type PrayerJournalTabProps = {
   entries: PrayerJournalEntry[];
@@ -47,839 +72,1079 @@ type PrayerJournalTabProps = {
   onChange: (entries: PrayerJournalEntry[]) => void;
 };
 
+type FeedItem =
+  | { kind: "separator"; key: string; date: string }
+  | { kind: "entry"; key: string; entry: PrayerJournalEntry };
+
+function parseDateKey(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year || 1970, (month || 1) - 1, day || 1);
+}
+
+function toDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function createId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function TaggedAvatar({ person }: { person: PrayerJournalTaggedPerson }) {
-  return <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={38} fallbackColor={person.avatarColor} />;
-}
-
+// v194 (Journal, Zeitgeist): the Journal rebuilt to the approved
+// mockup — Moments, a flat hairline feed of posts (text, photos, and
+// mood-only logs), the floating day pill into an auto-assembled Day
+// overview, @mention person profiles, tag pages, and a painted mood
+// calendar. The PrayerCircle app icon stands where the mockup's ghost
+// stood (his one amendment). Existing entries keep everything they
+// had: text, hashtags (now tag chips), timestamps, bookmarks and
+// replies (under each post's ···), colors, locations and tagged
+// people.
 export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTabProps) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const { isSkinned, tokens: skinTokens } = useSkin();
-  // Paper (v179): the journal was never converted — cards were glossy
-  // color slabs / plain white. Under Paper an entry keeps its full-
-  // strength color as flat colored stock (or warm paper when it has
-  // no color), gains the kit's one offset shadow and the paper radius.
-  const paperSurface = isSkinned ? skinTokens.surface ?? colors.surface : colors.surface;
-  const fieldBg = paperSurface;
-  // v187 (8-bit only): titles and section headers speak the pixel face
-  // (Press Start 2P at ~60% size, the v184 rule) — the Journal's entry
-  // titles and date lines were still in the app's regular type.
+  // The 8-bit pixel face for small caps labels (was a local helper in
+  // the old Journal too; the skin pins look for it here).
   const bitText = (size: number) =>
     skinTokens.isEightBit && skinTokens.displayFont
       ? { fontFamily: skinTokens.displayFont, fontSize: size, lineHeight: Math.round(size * 1.6), textTransform: "uppercase" as const }
       : {};
-  const headerVisible = useSharedValue(1);
-  const lastScrollY = useRef(0);
-  const headerAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: headerVisible.value,
-    transform: [{ translateY: (1 - headerVisible.value) * -24 }],
-  }));
-  const handleJournalScroll = (event: any) => {
-    const y = event.nativeEvent.contentOffset.y;
-    const dy = y - lastScrollY.current;
-    lastScrollY.current = y;
-    if (dy > 8 && y > 60) {
-      headerVisible.value = withTiming(0, { duration: 200 });
-    } else if (dy < -8) {
-      headerVisible.value = withTiming(1, { duration: 200 });
-    }
-  };
-  const [bookmarksOnly, setBookmarksOnly] = useState(false);
-  const [showEntryComposer, setShowEntryComposer] = useState(false);
-  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
-  const [replyEntryId, setReplyEntryId] = useState<string | null>(null);
-  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
-  const [draftBody, setDraftBody] = useState("");
-  const [draftTitle, setDraftTitle] = useState("");
-  const [draftDate, setDraftDate] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  });
-  const [draftTaggedPersonIds, setDraftTaggedPersonIds] = useState<string[]>([]);
-  const [draftReply, setDraftReply] = useState("");
-  const [draftColor, setDraftColor] = useState<string | undefined>(undefined);
-  const [draftLocation, setDraftLocation] = useState("");
-  const [draftMood, setDraftMood] = useState<JournalMood | undefined>(undefined);
-  const [tagSearch, setTagSearch] = useState("");
-  const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
-  const bodyInputRef = useRef<any>(null);
-  const [selection, setSelection] = useState({ start: 0, end: 0 });
 
-  const wrapSelection = (before: string, after: string) => {
-    const { start, end } = selection;
-    const selected = draftBody.slice(start, end) || "text";
-    const newBody = draftBody.slice(0, start) + before + selected + after + draftBody.slice(end);
-    setDraftBody(newBody);
-  };
+  const todayIso = isoDateOf(new Date());
+  const yesterdayIso = addDaysToIso(todayIso, -1);
 
-  const prefixLines = (prefix: string) => {
-    const { start, end } = selection;
-    const beforeCursor = draftBody.slice(0, start);
-    const lineStart = beforeCursor.lastIndexOf("\n") + 1;
-    const afterCursor = draftBody.slice(end);
-    const selectedLines = draftBody.slice(lineStart, end).split("\n");
-    const prefixed = selectedLines.map((line) => (line.startsWith(prefix) ? line : prefix + line)).join("\n");
-    const newBody = draftBody.slice(0, lineStart) + prefixed + afterCursor;
-    setDraftBody(newBody);
-  };
-
-  const filteredEntries = useMemo(
-    () => filterPrayerJournalEntries(entries, bookmarksOnly),
-    [bookmarksOnly, entries],
-  );
-  const sections = useMemo(
-    () =>
-      groupPrayerJournalEntries(filteredEntries).map((group) => ({
-        title: group.label,
-        date: group.date,
-        data: group.entries,
-      })),
-    [filteredEntries],
-  );
-  const replyTarget = useMemo(
-    () => entries.find((entry) => entry.id === replyEntryId) ?? null,
-    [entries, replyEntryId],
-  );
-
-  const closeEntryComposer = () => {
-    setShowEntryComposer(false);
-    setEditingEntryId(null);
-    setDraftBody("");
-    setDraftTitle("");
-    setDraftTaggedPersonIds([]);
-    setDraftColor(undefined);
-    setDraftLocation("");
-    setDraftMood(undefined);
-    setTagSearch("");
-  };
-
-  const startEditEntry = (entry: PrayerJournalEntry) => {
-    setEditingEntryId(entry.id);
-    setDraftBody(entry.body);
-    setDraftTitle(entry.title ?? "");
-    setDraftDate(entry.date);
-    setDraftTaggedPersonIds(entry.taggedPeople.map((person) => person.id));
-    setDraftColor(entry.color);
-    setDraftLocation(entry.location ?? "");
-    setDraftMood(entry.mood as JournalMood | undefined);
-    setShowEntryComposer(true);
-  };
-
-  const handleSaveEntry = () => {
-    if (!draftBody.trim()) return;
-    const taggedPeople = people.filter((person) => draftTaggedPersonIds.includes(person.id));
-    onChange(
-      editingEntryId
-        ? updatePrayerJournalEntry(entries, editingEntryId, { title: draftTitle, body: draftBody, date: draftDate, taggedPeople, color: draftColor, location: draftLocation.trim() || undefined, mood: draftMood })
-        : createPrayerJournalEntry(entries, { title: draftTitle, body: draftBody, date: draftDate, taggedPeople, color: draftColor, location: draftLocation.trim() || undefined, mood: draftMood }, createId("journal")),
-    );
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
-    closeEntryComposer();
-  };
-
-  const startEditReply = (entryId: string, replyId: string, body: string) => {
-    setReplyEntryId(entryId);
-    setEditingReplyId(replyId);
-    setDraftReply(body);
-  };
-
-  const closeReplyComposer = () => {
-    setDraftReply("");
-    setReplyEntryId(null);
-    setEditingReplyId(null);
-  };
-
-  const handlePostReply = () => {
-    if (!replyTarget || !draftReply.trim()) return;
-    onChange(
-      editingReplyId
-        ? updatePrayerJournalReply(entries, replyTarget.id, editingReplyId, draftReply)
-        : addPrayerJournalReply(entries, replyTarget.id, draftReply, createId("reply")),
-    );
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
-    closeReplyComposer();
-  };
-
-  const confirmDeleteEntry = (entry: PrayerJournalEntry) => {
-    Alert.alert(
-      "Delete journal entry?",
-      "This will also delete every reply attached to this prayer entry.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => onChange(removePrayerJournalEntry(entries, entry.id)),
-        },
-      ],
-    );
-  };
-
-  const confirmDeleteReply = (entryId: string, replyId: string) => {
-    Alert.alert("Delete reply?", "This journal update will be permanently removed.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => onChange(removePrayerJournalReply(entries, entryId, replyId)),
-      },
-    ]);
-  };
-
-  const showEntryActions = (entry: PrayerJournalEntry) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
-    Alert.alert("Journal entry", "Choose an action", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Edit", onPress: () => startEditEntry(entry) },
-      { text: "Delete", style: "destructive", onPress: () => confirmDeleteEntry(entry) },
-    ]);
-  };
-
-  const showReplyActions = (entryId: string, replyId: string, body: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
-    Alert.alert("Journal reply", "Choose an action", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Edit", onPress: () => startEditReply(entryId, replyId, body) },
-      { text: "Delete", style: "destructive", onPress: () => confirmDeleteReply(entryId, replyId) },
-    ]);
-  };
-
-  const renderEntry = ({ item }: { item: PrayerJournalEntry }) => {
-    const isExpanded = expandedEntries.has(item.id);
-    const hashtags = extractHashtags(item.body);
-    const previewText = item.body.length > 150 && !isExpanded ? item.body.slice(0, 150) + "..." : item.body;
-    // Metadata (date, location, tagged names) needs to stay readable on the
-    // saturated card colors, where the theme's muted tone washes out.
-    const cardMuted = item.color ? "rgba(255, 255, 255, 0.8)" : skinTokens.isTerminal ? TERM_MID : colors.muted;
-    const cardText = item.color ? "#FFFFFF" : skinTokens.isTerminal ? TERM_SOFT : colors.foreground;
-    const cardFaint = item.color ? "rgba(255, 255, 255, 0.35)" : colors.border;
-    // v187 (8-bit only): the entry actions are the mockup's buttons —
-    // gold for the active Bookmark toggle, the dark HUD panel for the
-    // rest — never the rounded purple/outline pills. Other skins keep
-    // the outline-pill treatment exactly.
-    const bookmarkInk = skinTokens.isEightBit ? bitButtonInk(item.isBookmarked ? "primary" : "secondary") : skinTokens.isTerminal ? termButtonInk(item.isBookmarked ? "primary" : "secondary") : (item.isBookmarked ? "#FFFFFF" : item.color ? "#FFFFFF" : colors.primary);
-    const replyInk = skinTokens.isEightBit ? bitButtonInk("secondary") : skinTokens.isTerminal ? termButtonInk("secondary") : (item.color ? "#FFFFFF" : colors.primary);
-    return (
-    <Pressable
-      delayLongPress={500}
-      onLongPress={() => showEntryActions(item)}
-      onPress={() => {
-        setExpandedEntries((prev) => {
-          const next = new Set(prev);
-          if (next.has(item.id)) next.delete(item.id);
-          else next.add(item.id);
-          return next;
+  // Side data the Day overview needs, read from the app's own stores:
+  // the schedule (auto tiles + day counts + the Places Path) and the
+  // fasts (the day's fast state). Read-only — the Journal never
+  // writes either.
+  const [scheduleEvents, setScheduleEvents] = useState<ScheduleEvent[]>([]);
+  const [fasts, setFasts] = useState<PersonalFast[]>([]);
+  const [author, setAuthor] = useState<JournalAuthor>({ name: "You" });
+  const refreshSideData = useCallback(async () => {
+    try {
+      const [eventsRaw, fastsRaw, profileRaw] = await Promise.all([
+        AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
+        AsyncStorage.getItem(FASTS_STORAGE_KEY),
+        AsyncStorage.getItem(PROFILE_STORAGE_KEY),
+      ]);
+      if (eventsRaw) {
+        const parsed: unknown = JSON.parse(eventsRaw);
+        if (Array.isArray(parsed)) setScheduleEvents(parsed as ScheduleEvent[]);
+      }
+      if (fastsRaw) {
+        const parsed: unknown = JSON.parse(fastsRaw);
+        if (Array.isArray(parsed)) setFasts(parsed as PersonalFast[]);
+      }
+      if (profileRaw) {
+        const profile = JSON.parse(profileRaw) as { name?: string; photoUri?: string; avatarAsset?: string };
+        setAuthor({
+          name: profile.name?.trim() ? profile.name : "You",
+          photoUri: profile.photoUri,
+          avatarAsset: profile.avatarAsset,
         });
-      }}
-      style={({ pressed }) => [
-        styles.entryCard,
-        {
-          backgroundColor: item.color ?? paperSurface,
-          ...(isSkinned
-            ? {
-                borderRadius: skinTokens.cardRadius ?? 12,
-                shadowColor: "transparent",
-                shadowOpacity: 0,
-                shadowRadius: 0,
-                shadowOffset: { width: 0, height: 0 },
-                ...(skinTokens.cardShadow ?? {}),
-                ...(skinTokens.frame ?? {}),
-              }
-            : {}),
-          ...(skinTokens.isPaper
-            ? { padding: 16 + skinTokens.type.padBoost, marginBottom: 12 + skinTokens.type.gapBoost }
-            : {}),
-        },
-        pressed && styles.longPressed,
-      ]}
-    >
-      <View style={styles.entryTopRow}>
-        <Text style={[styles.entryDate, { color: cardMuted }, bitText(9), skinText(skinTokens, skinTokens.type.barTitle, 22)]}>{formatPrayerJournalDate(item.date)}</Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          {item.body.length > 150 && (
-            <MaterialIcons
-              name={isExpanded ? "expand-less" : "expand-more"}
-              size={20}
-              color={cardMuted}
-            />
-          )}
-          <Text style={[styles.holdHint, { color: cardMuted }]}>Hold for options</Text>
-        </View>
-      </View>
-
-      {item.title && (
-        <Text style={{ color: cardText, fontSize: 17, fontWeight: "800", marginBottom: 6, ...bitText(11), ...skinText(skinTokens, skinTokens.type.cardTitle) }}>
-          {item.title}
-        </Text>
-      )}
-
-      <MarkdownText text={previewText} baseColor={cardText} baseSize={skinTokens.type.proseBody ?? undefined} />
-
-      {hashtags.length > 0 && (
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-          {hashtags.map((tag) => (
-            <View
-              key={tag}
-              style={{ backgroundColor: item.color ? "rgba(255, 255, 255, 0.25)" : skinTokens.isTerminal ? TERM_PHOS + "20" : colors.primary + "20", borderRadius: skinTokens.isTerminal ? 2 : 12, paddingHorizontal: 10, paddingVertical: 4 }}
-            >
-              <Text style={{ color: item.color ? "#FFFFFF" : skinTokens.isTerminal ? TERM_PHOS : colors.primary, fontSize: 12, fontWeight: "600" }}>#{tag}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {item.location && (
-        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 4 }}>
-          <MaterialIcons name="place" size={14} color={cardMuted} />
-          <Text style={{ color: cardMuted, fontSize: 12 }}>{item.location}</Text>
-        </View>
-      )}
-
-      {item.mood && (
-        <View style={{ marginTop: 8, alignSelf: "flex-start" }}>
-          <MoodChip mood={item.mood as JournalMood} small onColoredCard={!!item.color} />
-        </View>
-      )}
-
-      {item.taggedPeople.length > 0 ? (
-        <View style={styles.taggedPeopleRow}>
-          {item.taggedPeople.slice(0, 6).map((person) => (
-            <View key={person.id} style={[styles.taggedAvatar, { borderColor: colors.background }]}>
-              <TaggedAvatar person={person} />
-            </View>
-          ))}
-          <Text numberOfLines={1} style={[styles.taggedNames, { color: cardMuted }]}>
-            {item.taggedPeople.map((person) => person.name).join(", ")}
-          </Text>
-        </View>
-      ) : null}
-
-      <View style={styles.entryActions}>
-        <Pressable
-          onPress={() => {
-            onChange(togglePrayerJournalBookmark(entries, item.id));
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
-          }}
-          style={({ pressed }) => [
-            styles.outlineAction,
-            skinTokens.isEightBit
-              ? (bitButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary") ?? {})
-              : skinTokens.isTerminal
-                ? (termButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary") ?? {})
-                : { borderColor: item.color ? "#FFFFFF" : colors.primary, backgroundColor: item.isBookmarked ? colors.primary : "transparent" },
-            pressed && styles.pressed,
-          ]}
-        >
-          <MaterialIcons name={item.isBookmarked ? "bookmark" : "bookmark-border"} size={18} color={bookmarkInk} />
-          <Text style={[styles.outlineActionText, { color: bookmarkInk }]}>
-            {item.isBookmarked ? "Bookmarked" : "Bookmark"}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            setDraftReply("");
-            setReplyEntryId(item.id);
-          }}
-          style={({ pressed }) => [styles.outlineAction, skinTokens.isEightBit ? (bitButtonStyle(skinTokens, "secondary") ?? {}) : skinTokens.isTerminal ? (termButtonStyle(skinTokens, "secondary") ?? {}) : { borderColor: item.color ? "#FFFFFF" : colors.primary }, pressed && styles.pressed]}
-        >
-          <MaterialIcons name="reply" size={18} color={replyInk} />
-          <Text style={[styles.outlineActionText, { color: replyInk }]}>Reply</Text>
-        </Pressable>
-      </View>
-
-      {item.replies.length > 0 ? (
-        <View style={[styles.repliesSection, { borderTopColor: cardFaint }]}>
-          <Text style={[styles.replyCount, { color: cardMuted }]}>
-            {item.replies.length} {item.replies.length === 1 ? "reply" : "replies"}
-          </Text>
-          {item.replies.map((reply) => (
-            <Pressable
-              key={reply.id}
-              delayLongPress={500}
-              onLongPress={() => showReplyActions(item.id, reply.id, reply.body)}
-              style={({ pressed }) => [styles.replyCard, { backgroundColor: item.color ? "rgba(255, 255, 255, 0.18)" : paperSurface }, pressed && styles.longPressed]}
-            >
-              <View style={styles.replyTopRow}>
-                <Text style={[styles.replyDate, { color: cardMuted }]}>
-                  {formatPrayerJournalDate(reply.date)}
-                </Text>
-                <Text style={[styles.holdHint, { color: cardMuted }]}>Hold</Text>
-              </View>
-              <Text style={[styles.replyBody, { color: cardText }, skinText(skinTokens, skinTokens.type.proseBody, skinTokens.type.proseLineHeight)]}>{reply.body}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-    </Pressable>
+      }
+    } catch {
+      // Quiet: the feed works without the side data.
+    }
+  }, []);
+  useEffect(() => {
+    void refreshSideData();
+  }, [refreshSideData]);
+  useFocusEffect(
+    useCallback(() => {
+      void refreshSideData();
+    }, [refreshSideData]),
   );
+
+  // View state
+  const [dayViewDate, setDayViewDate] = useState<string | null>(null);
+  const [personId, setPersonId] = useState<string | null>(null);
+  const [tagPage, setTagPage] = useState<string | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  // Feed filters (kept from the old Journal)
+  const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [bookmarksOnly, setBookmarksOnly] = useState(false);
+
+  // Composer state
+  const [draft, setDraft] = useState("");
+  const [draftMood, setDraftMood] = useState<JournalMood | null>(null);
+  const [draftPhotos, setDraftPhotos] = useState<string[]>([]);
+  const [moodRowOpen, setMoodRowOpen] = useState(false);
+  const [tagWord, setTagWord] = useState("");
+  const [tagRowOpen, setTagRowOpen] = useState(false);
+
+  // Action sheet + reply + long-form editor state
+  const [actionEntry, setActionEntry] = useState<PrayerJournalEntry | null>(null);
+  const [actionReply, setActionReply] = useState<PrayerJournalReply | null>(null);
+  const [replyTarget, setReplyTarget] = useState<PrayerJournalEntry | null>(null);
+  const [replyBody, setReplyBody] = useState("");
+  const [editingReply, setEditingReply] = useState<{ entry: PrayerJournalEntry; reply: PrayerJournalReply } | null>(null);
+
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<PrayerJournalEntry | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editDate, setEditDate] = useState(new Date());
+  const [editMood, setEditMood] = useState<JournalMood | undefined>(undefined);
+  const [editColor, setEditColor] = useState<string | undefined>(undefined);
+  const [editLocation, setEditLocation] = useState("");
+  const [editWeather, setEditWeather] = useState("");
+  const [editPhotos, setEditPhotos] = useState<string[]>([]);
+  const [editPeople, setEditPeople] = useState<Person[]>([]);
+
+  const sortedEntries = useMemo(() => sortPrayerJournalEntries(entries), [entries]);
+
+  const feedItems = useMemo<FeedItem[]>(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const filtered = sortedEntries.filter((entry) => {
+      if (bookmarksOnly && !entry.isBookmarked) return false;
+      if (!normalizedQuery) return true;
+      return (
+        (entry.title ?? "").toLowerCase().includes(normalizedQuery) ||
+        entry.body.toLowerCase().includes(normalizedQuery) ||
+        (entry.location?.toLowerCase().includes(normalizedQuery) ?? false) ||
+        entry.taggedPeople.some((person) => person.name.toLowerCase().includes(normalizedQuery))
+      );
+    });
+    const items: FeedItem[] = [];
+    let lastDate = "";
+    for (const entry of filtered) {
+      if (entry.date !== lastDate) {
+        items.push({ kind: "separator", key: `sep-${entry.date}`, date: entry.date });
+        lastDate = entry.date;
+      }
+      items.push({ kind: "entry", key: entry.id, entry });
+    }
+    return items;
+  }, [sortedEntries, query, bookmarksOnly]);
+
+  const todayCounts = useMemo(() => dayCounts(entries, scheduleEvents, todayIso), [entries, scheduleEvents, todayIso]);
+  const yesterdayCounts = useMemo(
+    () => dayCounts(entries, scheduleEvents, yesterdayIso),
+    [entries, scheduleEvents, yesterdayIso],
+  );
+  const showYesterdayPeek = todayCounts.entries === 0 && yesterdayCounts.entries > 0 && !query && !bookmarksOnly;
+
+  const activePerson = personId ? people.find((person) => person.id === personId) ?? null : null;
+
+  // ── Entry mutations ──────────────────────────────────────────────────────
+
+  const toggleBookmark = (entry: PrayerJournalEntry) => {
+    onChange(togglePrayerJournalBookmark(entries, entry.id));
   };
+
+  const deleteEntry = (entry: PrayerJournalEntry) => {
+    onChange(removePrayerJournalEntry(entries, entry.id));
+  };
+
+  const saveReply = () => {
+    const body = replyBody.trim();
+    if (!body) return;
+    if (editingReply) {
+      onChange(updatePrayerJournalReply(entries, editingReply.entry.id, editingReply.reply.id, body));
+    } else if (replyTarget) {
+      onChange(addPrayerJournalReply(entries, replyTarget.id, body, createId("reply")));
+    }
+    setReplyBody("");
+    setReplyTarget(null);
+    setEditingReply(null);
+  };
+
+  const deleteReply = (entry: PrayerJournalEntry, reply: PrayerJournalReply) => {
+    onChange(removePrayerJournalReply(entries, entry.id, reply.id));
+  };
+
+  // ── Composer ─────────────────────────────────────────────────────────────
+
+  const pickPhotos = async (target: "quick" | "editor") => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsMultipleSelection: true,
+      selectionLimit: 4,
+      quality: 0.85,
+    });
+    if (result.canceled) return;
+    const uris = result.assets.map((asset) => asset.uri);
+    if (target === "quick") setDraftPhotos((current) => [...current, ...uris].slice(0, 6));
+    else setEditPhotos((current) => [...current, ...uris].slice(0, 6));
+  };
+
+  const postQuick = () => {
+    let body = draft.trim();
+    const tag = tagWord.trim().replace(/^#/, "").toLowerCase();
+    if (tag) body = body ? `${body} #${tag}` : `#${tag}`;
+    const next = createPrayerJournalEntry(
+      entries,
+      {
+        body,
+        date: todayIso,
+        mood: draftMood ?? undefined,
+        photos: draftPhotos.length > 0 ? draftPhotos : undefined,
+      },
+      createId("journal"),
+    );
+    if (next === entries) return; // nothing postable (empty, no mood/photo)
+    onChange(next);
+    setDraft("");
+    setDraftMood(null);
+    setDraftPhotos([]);
+    setTagWord("");
+    setTagRowOpen(false);
+    setMoodRowOpen(false);
+  };
+
+  const logMoodOnly = (moodId: string) => {
+    const next = createPrayerJournalEntry(
+      entries,
+      { body: "", mood: { id: moodId, intensity: 2 } },
+      createId("journal"),
+    );
+    if (next !== entries) onChange(next);
+  };
+
+  const canPost = draft.trim().length > 0 || draftMood !== null || draftPhotos.length > 0 || tagWord.trim().length > 0;
+
+  // ── Long-form editor ─────────────────────────────────────────────────────
+
+  const openEditor = (entry?: PrayerJournalEntry) => {
+    if (entry) {
+      setEditingEntry(entry);
+      setEditTitle(entry.title ?? "");
+      setEditBody(entry.body);
+      setEditDate(parseDateKey(entry.date));
+      setEditMood(entry.mood ? { id: entry.mood.id as JournalMood["id"], intensity: entry.mood.intensity } : undefined);
+      setEditColor(entry.color);
+      setEditLocation(entry.location ?? "");
+      setEditWeather(entry.weather ?? "");
+      setEditPhotos(entry.photos ?? []);
+      // Seed the tag picker from the entry's snapshots: people still
+      // on the People list match by id; a snapshot whose person was
+      // since removed is carried through as a minimal Person shape
+      // (the entry writer only reads the snapshot fields from it).
+      setEditPeople(
+        entry.taggedPeople.map((tagged) => {
+          const match = people.find((person) => person.id === tagged.id);
+          return match ?? ({ ...tagged } as unknown as Person);
+        }),
+      );
+    } else {
+      setEditingEntry(null);
+      setEditTitle("");
+      setEditBody(draft);
+      setEditDate(new Date());
+      setEditMood(draftMood ?? undefined);
+      setEditColor(undefined);
+      setEditLocation("");
+      setEditWeather("");
+      setEditPhotos(draftPhotos);
+      setEditPeople([]);
+    }
+    setEditorOpen(true);
+  };
+
+  const saveEditor = () => {
+    const dateKey = toDateKey(editDate);
+    const shared = {
+      title: editTitle.trim(),
+      body: editBody.trim(),
+      mood: editMood,
+      color: editColor,
+      location: editLocation.trim() || undefined,
+      weather: editWeather.trim() || undefined,
+      photos: editPhotos.length > 0 ? editPhotos : undefined,
+      taggedPeople: editPeople,
+    };
+    const next = editingEntry
+      ? updatePrayerJournalEntry(entries, editingEntry.id, { ...shared, date: dateKey })
+      : createPrayerJournalEntry(entries, { ...shared, date: dateKey }, createId("journal"));
+    if (next === entries) return; // nothing saveable (empty, no mood/photo)
+    onChange(next);
+    setEditorOpen(false);
+    setEditingEntry(null);
+    setDraft("");
+    setDraftMood(null);
+    setDraftPhotos([]);
+  };
+
+  const toggleTaggedPerson = (person: Person) => {
+    setEditPeople((current) =>
+      current.some((tagged) => tagged.id === person.id)
+        ? current.filter((tagged) => tagged.id !== person.id)
+        : [...current, person],
+    );
+  };
+
+  const sheetCallbacks = {
+    author,
+    people,
+    onOpenPerson: (id: string) => setPersonId(id),
+    onOpenTag: (tag: string) => setTagPage(tag),
+    onShowActions: (entry: PrayerJournalEntry) => {
+      setActionReply(null);
+      setActionEntry(entry);
+    },
+    onReplyLongPress: (entry: PrayerJournalEntry, reply: PrayerJournalReply) => {
+      setActionEntry(entry);
+      setActionReply(reply);
+    },
+  };
+
+  // ── Day view ─────────────────────────────────────────────────────────────
+
+  if (dayViewDate) {
+    return (
+      <View style={[styles.container, { backgroundColor: isSkinned ? skinTokens.background ?? undefined : colors.background }]}>
+        <JournalDay
+          date={dayViewDate}
+          entries={entries}
+          events={scheduleEvents}
+          fasts={fasts}
+          onBack={() => setDayViewDate(null)}
+          onChangeDate={setDayViewDate}
+          {...sheetCallbacks}
+        />
+        {renderOverlays()}
+      </View>
+    );
+  }
+
+  // ── Moments ──────────────────────────────────────────────────────────────
+
+  const ink = skinTokens.isTerminal ? TERM_SOFT : colors.foreground;
+  const faint = skinTokens.isTerminal ? TERM_MID : colors.muted;
 
   return (
-    <View style={[styles.container, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
-      <ReAnimated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }, headerAnimatedStyle]}>
-        <View style={{ backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : paperSurface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}), ...(skinTokens.isPaper ? { paddingHorizontal: 16 + skinTokens.type.padBoost, paddingVertical: 10 + skinTokens.type.gapBoost } : {}) }}>
-          <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, fontSize: 20, fontWeight: "800", ...skinText(skinTokens, skinTokens.type.screenTitle), ...(skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 12, lineHeight: 19 } : {}) }}>Journal</Text>
-          <Text style={{ color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12, ...skinText(skinTokens, skinTokens.type.screenSubtitle) }}>{entries.length} entries</Text>
-        </View>
-        <View style={styles.headerActions}>
-          <Pressable
-            accessibilityLabel={bookmarksOnly ? "Show all journal entries" : "Show bookmarked journal entries"}
-            accessibilityState={{ selected: bookmarksOnly }}
-            onPress={() => setBookmarksOnly((current) => !current)}
-            style={({ pressed }) => [
-              styles.headerCircle,
-              {
-                backgroundColor: bookmarksOnly ? colors.primary : (isSkinned ? paperSurface : colors.background),
-                borderColor: bookmarksOnly ? colors.primary : colors.border,
-                ...(bitButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary") ?? {}),
-                ...(termButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary") ?? {}),
-              },
-              pressed && styles.pressed,
-            ]}
-          >
-            <MaterialIcons name={bookmarksOnly ? "bookmark" : "bookmark-border"} size={23} color={skinTokens.isEightBit ? bitButtonInk(bookmarksOnly ? "primary" : "secondary") : skinTokens.isTerminal ? termButtonInk(bookmarksOnly ? "primary" : "secondary") : bookmarksOnly ? "#FFFFFF" : colors.primary} />
-          </Pressable>
-        </View>
-      </ReAnimated.View>
-
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        renderItem={renderEntry}
-        onScroll={handleJournalScroll}
-        scrollEventThrottle={16}
-        renderSectionHeader={({ section }) => (
-          <Text style={[styles.sectionTitle, { color: skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_MID : colors.muted }, bitText(11), skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>{section.title}</Text>
-        )}
-        stickySectionHeadersEnabled={false}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.listContent, sections.length === 0 && styles.emptyListContent]}
-        ListEmptyComponent={
-          <View style={[styles.emptyCard, { backgroundColor: paperSurface, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
-            <View style={[styles.emptyIcon, { backgroundColor: skinTokens.isTerminal ? "rgba(61,255,110,0.10)" : colors.primary + "18" }]}>
-              <MaterialIcons name={bookmarksOnly ? "bookmark-border" : "auto-stories"} size={30} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: skinTokens.isTerminal ? TERM_SOFT : colors.foreground }]}>
-              {bookmarksOnly ? "No bookmarked prayers" : "Your prayer journal is ready"}
-            </Text>
-            <Text style={[styles.emptyDescription, { color: skinTokens.isTerminal ? TERM_MID : colors.muted }]}>
-              {bookmarksOnly
-                ? "Bookmark an entry to keep important prayers and answers close."
-                : "Write a prayer, tag the people it concerns, and add updates as replies over time."}
-            </Text>
-            {!bookmarksOnly ? (
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : skinTokens.background ?? colors.background,
+        },
+      ]}
+    >
+      <FlatList
+        data={feedItems}
+        keyExtractor={(item) => item.key}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 150 + insets.bottom }}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.header}>
               <Pressable
-                onPress={() => setShowEntryComposer(true)}
-                style={({ pressed }) => [styles.emptyButton, { backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, ...(bitButtonStyle(skinTokens, "primary") ?? {}) }, pressed && styles.primaryPressed]}
+                accessibilityLabel="Write a long entry"
+                onPress={() => openEditor()}
+                style={({ pressed }) => [styles.personBtn, { borderColor: colors.border }, pressed && styles.pressed]}
               >
-                <MaterialIcons name="edit" size={18} color={skinTokens.isEightBit ? bitButtonInk("primary") : skinTokens.isTerminal ? TERM_BG : "#FFFFFF"} />
-                <Text style={[styles.emptyButtonText, skinTokens.isTerminal ? { color: TERM_BG } : skinTokens.isEightBit ? { color: bitButtonInk("primary") } : null]}>Write your first entry</Text>
+                <AvatarImage id="journal-author" name={author.name} avatarAsset={author.avatarAsset} photoUri={author.photoUri} size={40} fallbackColor="#7C4DFF" />
+              </Pressable>
+              <View style={styles.wordmark}>
+                <Image source={require("../assets/images/icon.png")} style={styles.logoMark} contentFit="contain" />
+                <Text style={[styles.journalTitle, { color: ink }, skinText(skinTokens, skinTokens.type.screenTitle)]}>Journal</Text>
+              </View>
+              <View style={[styles.headPill, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.surface, borderColor: colors.border }]}>
+                <Pressable accessibilityLabel="Search journal" onPress={() => setSearchOpen((current) => !current)} style={styles.headPillBtn}>
+                  <MaterialIcons name="search" size={20} color={ink} />
+                </Pressable>
+                <View style={[styles.headDivider, { backgroundColor: colors.border }]} />
+                <Pressable accessibilityLabel="Open mood calendar" onPress={() => setCalendarOpen(true)} style={styles.headPillBtn}>
+                  <MaterialIcons name="calendar-month" size={20} color={ink} />
+                </Pressable>
+              </View>
+            </View>
+
+            {searchOpen ? (
+              <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <MaterialIcons name="search" size={18} color={faint} />
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder="Search moments, people, places…"
+                  placeholderTextColor={faint}
+                  style={[styles.searchInput, { color: ink }]}
+                  autoFocus
+                />
+                {query ? (
+                  <Pressable onPress={() => setQuery("")}>
+                    <MaterialIcons name="close" size={18} color={faint} />
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+
+            <View style={styles.filterRow}>
+              <Pressable
+                onPress={() => setBookmarksOnly((current) => !current)}
+                style={[
+                  styles.filterChip,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  bookmarksOnly && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  bookmarksOnly
+                    ? { ...bitButtonStyle(skinTokens, "primary"), ...termButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary") }
+                    : {},
+                ]}
+              >
+                <MaterialIcons name="bookmark" size={14} color={bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : faint} />
+                <Text style={[styles.filterChipText, { color: bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : faint }]}>Bookmarks</Text>
+              </Pressable>
+              <Pressable onPress={() => openEditor()} style={[styles.filterChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <MaterialIcons name="edit-note" size={15} color={faint} />
+                <Text style={[styles.filterChipText, { color: faint }]}>Long entry</Text>
+              </Pressable>
+            </View>
+
+            {showYesterdayPeek ? (
+              <Pressable
+                onPress={() => setDayViewDate(yesterdayIso)}
+                style={({ pressed }) => [styles.peek, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.surface, borderColor: colors.border }, pressed && styles.pressed]}
+              >
+                <Text style={[styles.peekKicker, { color: faint }]}>Yesterday</Text>
+                <Text style={[styles.peekText, { color: ink }]}>
+                  {yesterdayCounts.entries} {yesterdayCounts.entries === 1 ? "moment" : "moments"}
+                  {yesterdayCounts.events > 0 ? ` and ${yesterdayCounts.events} ${yesterdayCounts.events === 1 ? "event" : "events"}` : ""} — see the whole day
+                </Text>
+                <MaterialIcons name="chevron-right" size={20} color={faint} />
               </Pressable>
             ) : null}
           </View>
         }
+        ListEmptyComponent={
+          <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: skinTokens.cardRadius ?? 12 }]}>
+            <MaterialIcons name="auto-stories" size={30} color={colors.primary} />
+            <Text style={[styles.emptyTitle, { color: ink }]}>{bookmarksOnly ? "No bookmarks yet" : "No moments yet"}</Text>
+            <Text style={[styles.emptyText, { color: faint }]}>
+              {bookmarksOnly
+                ? "Bookmark a moment from its ··· menu and it will wait for you here."
+                : "Write the first one below — a sentence, a photo, or just how the day feels."}
+            </Text>
+          </View>
+        }
+        renderItem={({ item }) => {
+          if (item.kind === "separator") {
+            return (
+              <View style={styles.separator}>
+                <Text
+                  style={[
+                    styles.separatorText,
+                    {
+                      color: skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_MID : colors.muted,
+                    },
+                    bitText(11),
+                  ]}
+                >
+                  {formatPrayerJournalDate(item.date)}
+                </Text>
+                <Pressable onPress={() => setDayViewDate(item.date)} hitSlop={8}>
+                  <Text style={[styles.separatorLink, { color: colors.primary }]}>Open day</Text>
+                </Pressable>
+              </View>
+            );
+          }
+          return <JournalPost entry={item.entry} {...sheetCallbacks} />;
+        }}
       />
 
+      {/* Floating day pill — opens the Day overview */}
       <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Add prayer journal entry"
-        onPress={() => setShowEntryComposer(true)}
+        onPress={() => setDayViewDate(todayIso)}
         style={({ pressed }) => [
-          styles.fab,
-          { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.primary },
-          skinTokens.isTerminal ? { ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : null,
-          skinTokens.isEightBit ? { backgroundColor: BIT_PURPLE, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : null,
-          pressed && styles.primaryPressed,
+          styles.dayPill,
+          { bottom: 96 + insets.bottom, backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.surface, borderColor: colors.border },
+          pressed && styles.pressed,
         ]}
       >
-        <MaterialIcons name="add" size={32} color={skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF"} />
+        <MaterialIcons name="calendar-today" size={15} color={colors.primary} />
+        <Text style={[styles.dayPillText, { color: ink }]}>
+          Today · {todayCounts.entries} {todayCounts.entries === 1 ? "entry" : "entries"} · {todayCounts.photos} photos · {todayCounts.events} events
+        </Text>
+        <View style={styles.dayPillStack}>
+          {todayCounts.people.slice(0, 3).map((person, index) => (
+            <View key={person.id} style={[styles.dayPillAvatar, { marginLeft: index === 0 ? 0 : -8, zIndex: 3 - index }]}>
+              <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={22} fallbackColor={person.avatarColor} />
+            </View>
+          ))}
+        </View>
       </Pressable>
 
-      <Modal transparent visible={showEntryComposer} animationType="slide" onRequestClose={closeEntryComposer}>
-        <KeyboardAvoidingView style={styles.modalRoot} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <Pressable style={styles.modalBackdrop} onPress={closeEntryComposer} />
-          <SafeAreaView edges={["top", "bottom"]} style={[styles.composerSheet, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
-            <View style={[styles.composerHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.composerTitle, { color: colors.foreground }]}>New Prayer Entry</Text>
-              <Pressable onPress={handleSaveEntry} style={({ pressed }) => [pressed && styles.pressed]}>
-                <Text style={[styles.doneText, { color: colors.primary }]}>Save</Text>
+      {/* "What's up?" composer, pinned to the bottom */}
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.composerWrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+        {moodRowOpen ? (
+          <View style={[styles.composerRow, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.composerRowLabel, { color: faint }]}>Feels like</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: "center" }}>
+              {MOODS.map((mood) => {
+                const selected = draftMood?.id === mood.id;
+                return (
+                  <Pressable
+                    key={mood.id}
+                    onPress={() => setDraftMood(selected ? null : { id: mood.id, intensity: 2 })}
+                    style={[styles.moodPick, selected && { backgroundColor: colors.primary + "22", borderColor: colors.primary, borderWidth: 1 }]}
+                  >
+                    <MoodFace moodId={mood.id} size={24} />
+                    <Text style={[styles.moodPickText, { color: ink }]}>{mood.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {tagRowOpen ? (
+          <View style={[styles.composerRow, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.surface, borderColor: colors.border }]}>
+            <MaterialIcons name="sell" size={16} color={faint} />
+            <TextInput
+              value={tagWord}
+              onChangeText={(value) => setTagWord(value.replace(/\s+/g, ""))}
+              placeholder="tag — one word, like garden"
+              placeholderTextColor={faint}
+              autoCapitalize="none"
+              style={[styles.tagInput, { color: ink }]}
+            />
+            {tagWord ? (
+              <Pressable onPress={() => setTagWord("")}>
+                <MaterialIcons name="close" size={16} color={faint} />
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {draftPhotos.length > 0 ? (
+          <View style={styles.draftPhotos}>
+            {draftPhotos.map((uri) => (
+              <View key={uri}>
+                <Image source={{ uri }} style={styles.draftPhoto} contentFit="cover" />
+                <Pressable
+                  accessibilityLabel="Remove photo"
+                  onPress={() => setDraftPhotos((current) => current.filter((candidate) => candidate !== uri))}
+                  style={styles.draftPhotoRemove}
+                >
+                  <MaterialIcons name="close" size={13} color="#FFFFFF" />
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <BlurView intensity={skinTokens.isTerminal || skinTokens.isEightBit ? 0 : 55} tint="light" style={[styles.composerBar, { borderColor: colors.border, backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? colors.surface : "rgba(255,255,255,0.72)" }]}>
+          <Pressable accessibilityLabel="Add a photo" onPress={() => void pickPhotos("quick")} style={[styles.composerBtn, { backgroundColor: colors.primary }]}>
+            <MaterialIcons name="add" size={20} color="#FFFFFF" />
+          </Pressable>
+          <Pressable
+            accessibilityLabel="Add a mood"
+            onPress={() => setMoodRowOpen((current) => !current)}
+            style={[styles.composerBtn, { backgroundColor: draftMood || moodRowOpen ? colors.primary + "26" : colors.surface, borderColor: colors.border, borderWidth: draftMood || moodRowOpen ? 0 : 1 }]}
+          >
+            {draftMood ? <MoodFace moodId={draftMood.id} size={19} /> : <MaterialIcons name="sentiment-satisfied-alt" size={19} color={colors.primary} />}
+          </Pressable>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="What's up?"
+            placeholderTextColor={faint}
+            multiline
+            style={[styles.composerInput, { color: ink }]}
+          />
+          <Pressable
+            accessibilityLabel="Add a tag"
+            onPress={() => setTagRowOpen((current) => !current)}
+            style={[styles.composerBtn, { backgroundColor: tagRowOpen || tagWord ? colors.primary + "26" : colors.surface, borderColor: colors.border, borderWidth: tagRowOpen || tagWord ? 0 : 1 }]}
+          >
+            <MaterialIcons name="sell" size={17} color={colors.primary} />
+          </Pressable>
+          <Pressable
+            accessibilityLabel="Post"
+            onPress={postQuick}
+            disabled={!canPost}
+            style={[styles.composerBtn, { backgroundColor: canPost ? colors.primary : colors.border }]}
+          >
+            <MaterialIcons name="arrow-upward" size={19} color="#FFFFFF" />
+          </Pressable>
+        </BlurView>
+        <Text style={[styles.composerHint, { color: faint }]}>A mood or a photo posts on its own — no words needed.</Text>
+      </KeyboardAvoidingView>
+
+      {renderOverlays()}
+    </View>
+  );
+
+  function renderOverlays() {
+    const item = actionEntry;
+    return (
+      <>
+        {activePerson ? (
+          <PersonSheet person={activePerson} entries={entries} onClose={() => setPersonId(null)} {...sheetCallbacks} />
+        ) : null}
+        {tagPage ? <TagSheet tag={tagPage} entries={entries} onClose={() => setTagPage(null)} {...sheetCallbacks} /> : null}
+        <CalendarSheet
+          visible={calendarOpen}
+          entries={entries}
+          onClose={() => setCalendarOpen(false)}
+          onSelectDay={(date) => {
+            setCalendarOpen(false);
+            setDayViewDate(date);
+          }}
+          onLogMood={logMoodOnly}
+        />
+
+        {/* Entry / reply action sheet */}
+        <Modal transparent visible={item !== null} animationType="fade" onRequestClose={() => setActionEntry(null)}>
+          <View style={styles.modalRoot}>
+            <Pressable style={styles.backdrop} onPress={() => setActionEntry(null)} />
+            {item ? (
+              <View style={[styles.actionSheet, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.actionTitle, { color: colors.foreground }]} numberOfLines={1}>
+                  {item.title || formatPrayerJournalDate(item.date)}
+                </Text>
+                <Text style={[styles.actionSub, { color: colors.muted }]}>
+                  {formatClock(item.createdAt)}
+                  {item.isBookmarked ? " · Bookmarked" : ""}
+                </Text>
+                {actionReply ? (
+                  <>
+                    <Pressable
+                      style={styles.actionButton}
+                      onPress={() => {
+                        setEditingReply({ entry: item, reply: actionReply });
+                        setReplyBody(actionReply.body);
+                        setActionEntry(null);
+                        setActionReply(null);
+                      }}
+                    >
+                      <MaterialIcons name="edit" size={19} color={colors.primary} />
+                      <Text style={[styles.actionLabel, { color: colors.foreground }]}>Edit reply</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.actionButton}
+                      onPress={() => {
+                        deleteReply(item, actionReply);
+                        setActionEntry(null);
+                        setActionReply(null);
+                      }}
+                    >
+                      <MaterialIcons name="delete-outline" size={19} color={colors.error} />
+                      <Text style={[styles.actionLabel, { color: colors.error }]}>Delete reply</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <>
+                    <Pressable
+                      style={styles.actionButton}
+                      onPress={() => {
+                        setReplyTarget(item);
+                        setReplyBody("");
+                        setActionEntry(null);
+                      }}
+                    >
+                      <MaterialIcons name="reply" size={19} color={colors.primary} />
+                      <Text style={[styles.actionLabel, { color: colors.foreground }]}>Reply</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.actionButton}
+                      onPress={() => {
+                        openEditor(item);
+                        setActionEntry(null);
+                      }}
+                    >
+                      <MaterialIcons name="edit" size={19} color={colors.primary} />
+                      <Text style={[styles.actionLabel, { color: colors.foreground }]}>Edit entry</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[
+                        styles.actionButton,
+                        { ...bitButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary"), ...termButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary") },
+                      ]}
+                      onPress={() => {
+                        toggleBookmark(item);
+                        setActionEntry(null);
+                      }}
+                    >
+                      <MaterialIcons
+                        name={item.isBookmarked ? "bookmark" : "bookmark-border"}
+                        size={19}
+                        color={skinTokens.isEightBit ? bitButtonInk(item.isBookmarked ? "primary" : "secondary") : skinTokens.isTerminal ? termButtonInk(item.isBookmarked ? "primary" : "secondary") : colors.primary}
+                      />
+                      <Text
+                        style={[
+                          styles.actionLabel,
+                          { color: skinTokens.isEightBit ? bitButtonInk(item.isBookmarked ? "primary" : "secondary") : skinTokens.isTerminal ? termButtonInk(item.isBookmarked ? "primary" : "secondary") : colors.foreground },
+                        ]}
+                      >
+                        {item.isBookmarked ? "Remove bookmark" : "Bookmark"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.actionButton}
+                      onPress={() => {
+                        deleteEntry(item);
+                        setActionEntry(null);
+                      }}
+                    >
+                      <MaterialIcons name="delete-outline" size={19} color={colors.error} />
+                      <Text style={[styles.actionLabel, { color: colors.error }]}>Delete entry</Text>
+                    </Pressable>
+                  </>
+                )}
+                <Pressable style={[styles.actionButton, styles.actionCancel]} onPress={() => setActionEntry(null)}>
+                  <Text style={[styles.actionLabel, { color: colors.muted, textAlign: "center", flex: 1 }]}>Cancel</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+        </Modal>
+
+        {/* Reply composer */}
+        <Modal transparent visible={replyTarget !== null || editingReply !== null} animationType="slide" onRequestClose={() => { setReplyTarget(null); setEditingReply(null); }}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modalRoot}>
+            <Pressable style={styles.backdrop} onPress={() => { setReplyTarget(null); setEditingReply(null); }} />
+            <View style={[styles.replySheet, { backgroundColor: colors.surface, paddingBottom: Math.max(insets.bottom, 16) }]}>
+              <Text style={[styles.replyTitle, { color: colors.foreground }]}>{editingReply ? "Edit reply" : "Reply to this moment"}</Text>
+              <TextInput
+                value={replyBody}
+                onChangeText={setReplyBody}
+                placeholder="Write a reply…"
+                placeholderTextColor={colors.muted}
+                multiline
+                autoFocus
+                style={[styles.replyInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+              />
+              <View style={styles.replyActions}>
+                <Pressable onPress={() => { setReplyTarget(null); setEditingReply(null); setReplyBody(""); }} style={[styles.replyBtn, { borderColor: colors.border }]}>
+                  <Text style={{ color: colors.muted, fontWeight: "700" }}>Cancel</Text>
+                </Pressable>
+                <Pressable onPress={saveReply} style={[styles.replyBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                  <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Save reply</Text>
+                </Pressable>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* Long-form editor */}
+        <Modal visible={editorOpen} animationType="slide" onRequestClose={() => setEditorOpen(false)}>
+          <View style={[styles.editorRoot, { backgroundColor: colors.background, paddingTop: insets.top + 12 }]}>
+            <View style={styles.editorHead}>
+              <Text style={[styles.editorTitle, { color: colors.foreground }]}>{editingEntry ? "Edit entry" : "New entry"}</Text>
+              <Pressable onPress={() => setEditorOpen(false)} hitSlop={10}>
+                <MaterialIcons name="close" size={24} color={colors.muted} />
               </Pressable>
             </View>
-            <FlatList
-              data={people.filter((p) => p.name.toLowerCase().includes(tagSearch.toLowerCase()))}
-              keyExtractor={(person) => person.id}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.composerContent}
-              ListHeaderComponent={
-                <View>
-                  <TextInput
-                    value={draftTitle}
-                    onChangeText={setDraftTitle}
-                    placeholder="Give it a title..."
-                    placeholderTextColor={colors.muted}
-                    style={{ fontSize: 20, fontWeight: "800", color: colors.foreground, backgroundColor: fieldBg, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}
-                  />
-                  <View style={{ flexDirection: "row", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
-                    {[
-                      { icon: "format-bold", action: () => wrapSelection("**", "**") },
-                      { icon: "format-italic", action: () => wrapSelection("*", "*") },
-                      { icon: "title", action: () => prefixLines("# ") },
-                      { icon: "format-list-bulleted", action: () => prefixLines("- ") },
-                      { icon: "format-quote", action: () => prefixLines("> ") },
-                    ].map((btn, i) => (
-                      <Pressable
-                        key={i}
-                        onPress={btn.action}
-                        style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: fieldBg, alignItems: "center", justifyContent: "center" }}
-                      >
-                        <MaterialIcons name={btn.icon as any} size={20} color={colors.foreground} />
-                      </Pressable>
-                    ))}
+            <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+              <TextInput
+                value={editTitle}
+                onChangeText={setEditTitle}
+                placeholder="Title (optional)"
+                placeholderTextColor={colors.muted}
+                style={[styles.editorInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface, fontWeight: "700" }]}
+              />
+              <TextInput
+                value={editBody}
+                onChangeText={setEditBody}
+                placeholder="Write the moment… #tags and @mentions work here"
+                placeholderTextColor={colors.muted}
+                multiline
+                textAlignVertical="top"
+                style={[styles.editorInput, styles.editorBody, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]}
+              />
+
+              <Text style={[styles.editorLabel, { color: colors.muted }]}>Mood</Text>
+              <MoodPicker value={editMood} onChange={setEditMood} />
+              {editMood ? (
+                <Pressable onPress={() => setEditMood(undefined)}>
+                  <Text style={{ color: colors.error, fontWeight: "600", marginTop: 6 }}>Clear mood</Text>
+                </Pressable>
+              ) : null}
+
+              <Text style={[styles.editorLabel, { color: colors.muted }]}>Photos</Text>
+              <View style={styles.draftPhotos}>
+                {editPhotos.map((uri) => (
+                  <View key={uri}>
+                    <Image source={{ uri }} style={styles.draftPhoto} contentFit="cover" />
+                    <Pressable
+                      accessibilityLabel="Remove photo"
+                      onPress={() => setEditPhotos((current) => current.filter((candidate) => candidate !== uri))}
+                      style={styles.draftPhotoRemove}
+                    >
+                      <MaterialIcons name="close" size={13} color="#FFFFFF" />
+                    </Pressable>
                   </View>
-                  <TextInput
-                    ref={bodyInputRef}
-                    value={draftBody}
-                    onChangeText={setDraftBody}
-                    onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
-                    placeholder="Write your prayer... (supports **bold**, *italic*, # headers, - lists)"
-                    placeholderTextColor={colors.muted}
-                    multiline
-                    textAlignVertical="top"
-                    style={[styles.prayerInput, { color: colors.foreground, backgroundColor: fieldBg, borderBottomColor: colors.primary }]}
+                ))}
+                <Pressable onPress={() => void pickPhotos("editor")} style={[styles.addPhotoBtn, { borderColor: colors.border }]}>
+                  <MaterialIcons name="add-a-photo" size={20} color={colors.primary} />
+                </Pressable>
+              </View>
+
+              <DateTimePicker
+                value={toDateKey(editDate)}
+                onChange={(value) => setEditDate(parseDateKey(value))}
+                mode="date"
+                label="Date"
+              />
+
+              <Text style={[styles.editorLabel, { color: colors.muted }]}>Card color</Text>
+              <View style={styles.colorRow}>
+                <Pressable
+                  onPress={() => setEditColor(undefined)}
+                  style={[styles.colorSwatch, styles.colorNone, { borderColor: editColor === undefined ? colors.primary : colors.border }]}
+                >
+                  <MaterialIcons name="block" size={16} color={colors.muted} />
+                </Pressable>
+                {JOURNAL_COLORS.map((color) => (
+                  <Pressable
+                    key={color}
+                    onPress={() => setEditColor(color)}
+                    style={[styles.colorSwatch, { backgroundColor: color, borderColor: editColor === color ? colors.foreground : "transparent" }]}
                   />
-                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Entry Date</Text>
-                  <DateTimePicker value={draftDate} onChange={setDraftDate} mode="date" label="Entry Date" />
-                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Color</Text>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
-                    {[
-                      { name: "White", hex: "#FFFFFF" },
-                      { name: "Gray", hex: "#6B7280" },
-                      { name: "Red", hex: "#EF4444" },
-                      { name: "Orange", hex: "#F97316" },
-                      { name: "Yellow", hex: "#FBBF24" },
-                      { name: "Green", hex: "#10B981" },
-                      { name: "Blue", hex: "#3B82F6" },
-                      { name: "Purple", hex: "#A855F7" },
-                    ].map((color) => {
-                      const isSelected = (draftColor ?? "#FFFFFF") === color.hex;
+                ))}
+              </View>
+
+              <View style={styles.editorRow}>
+                <TextInput
+                  value={editLocation}
+                  onChangeText={setEditLocation}
+                  placeholder="Location"
+                  placeholderTextColor={colors.muted}
+                  style={[styles.editorInput, styles.editorHalf, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]}
+                />
+                <TextInput
+                  value={editWeather}
+                  onChangeText={setEditWeather}
+                  placeholder="Weather"
+                  placeholderTextColor={colors.muted}
+                  style={[styles.editorInput, styles.editorHalf, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]}
+                />
+              </View>
+
+              {people.length > 0 ? (
+                <>
+                  <Text style={[styles.editorLabel, { color: colors.muted }]}>Tag people</Text>
+                  <View style={styles.peopleChips}>
+                    {people.map((person) => {
+                      const selected = editPeople.some((tagged) => tagged.id === person.id);
                       return (
                         <Pressable
-                          key={color.hex}
-                          onPress={() => setDraftColor(color.hex === "#FFFFFF" ? undefined : color.hex)}
-                          style={{
-                            width: 40, height: 40, borderRadius: 20,
-                            backgroundColor: color.hex,
-                            borderWidth: isSelected ? 3 : 1,
-                            borderColor: isSelected ? colors.primary : colors.border,
-                            alignItems: "center", justifyContent: "center",
-                          }}
+                          key={person.id}
+                          onPress={() => toggleTaggedPerson(person)}
+                          style={[
+                            styles.personChip,
+                            { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary + "1A" : colors.surface },
+                          ]}
                         >
-                          {isSelected && (
-                            <MaterialIcons
-                              name="check"
-                              size={20}
-                              color={color.hex === "#FFFFFF" || color.hex === "#FBBF24" ? "#000000" : "#FFFFFF"}
-                            />
-                          )}
+                          <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={20} fallbackColor={person.avatarColor} />
+                          <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>{person.name}</Text>
                         </Pressable>
                       );
                     })}
                   </View>
-                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Location (optional)</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: fieldBg, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16 }}>
-                    <MaterialIcons name="place" size={20} color={colors.muted} />
-                    <TextInput
-                      value={draftLocation}
-                      onChangeText={setDraftLocation}
-                      placeholder="Where were you?"
-                      placeholderTextColor={colors.muted}
-                      style={{ flex: 1, marginLeft: 8, fontSize: 16, color: colors.foreground }}
-                    />
-                  </View>
-                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Mood</Text>
-                  <View style={{ marginBottom: 16 }}>
-                    <MoodPicker value={draftMood} onChange={setDraftMood} />
-                  </View>
-                  <Text style={[styles.fieldLabel, styles.peopleLabel, { color: colors.foreground }]}>Tag People</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: fieldBg, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomWidth: 1, borderBottomColor: colors.primary, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}>
-                    <MaterialIcons name="search" size={20} color={colors.muted} />
-                    <TextInput
-                      value={tagSearch}
-                      onChangeText={setTagSearch}
-                      placeholder="Search people..."
-                      placeholderTextColor={colors.muted}
-                      style={{ flex: 1, marginLeft: 8, fontSize: 16, color: colors.foreground }}
-                    />
-                    {tagSearch.length > 0 && (
-                      <Pressable onPress={() => setTagSearch("")}>
-                        <MaterialIcons name="close" size={20} color={colors.muted} />
-                      </Pressable>
-                    )}
-                  </View>
-                  {people.length === 0 ? (
-                    <Text style={[styles.noPeopleText, { color: colors.muted }]}>Add contacts from the People tab to tag them here.</Text>
-                  ) : null}
+                </>
+              ) : null}
 
-                </View>
-              }
-              renderItem={({ item }) => {
-                const isSelected = draftTaggedPersonIds.includes(item.id);
-                return (
-                  <Pressable
-                    onPress={() =>
-                      setDraftTaggedPersonIds((current) =>
-                        current.includes(item.id)
-                          ? current.filter((personId) => personId !== item.id)
-                          : [...current, item.id],
-                      )
-                    }
-                    style={({ pressed }) => [{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      borderRadius: 12,
-                      backgroundColor: isSelected ? `${colors.primary}14` : "transparent",
-                    }, pressed && { opacity: 0.7 }]}
-                  >
-                    <View style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 18,
-                      backgroundColor: item.avatarColor || colors.primary,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginRight: 12,
-                    }}>
-                      {item.photoUri ? (
-                        <Image source={{ uri: item.photoUri }} style={{ width: 36, height: 36, borderRadius: 18 }} />
-                      ) : (
-                        <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>{item.initials}</Text>
-                      )}
-                    </View>
-                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 16, color: colors.foreground }}>
-                      {item.name}
-                    </Text>
-                    <View style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      borderWidth: 2,
-                      borderColor: isSelected ? colors.primary : colors.muted,
-                      backgroundColor: isSelected ? colors.primary : "transparent",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}>
-                      {isSelected && <MaterialIcons name="check" size={16} color="#FFFFFF" />}
-                    </View>
-                  </Pressable>
-                );
-              }}
-              ListFooterComponent={
-                <View>
-                  <Pressable
-                    disabled={!draftBody.trim()}
-                    onPress={handleSaveEntry}
-                  style={({ pressed }) => [
-                    styles.saveEntryButton,
-                    { backgroundColor: colors.primary, opacity: draftBody.trim() ? (pressed ? 0.82 : 1) : 0.22, ...(bitButtonStyle(skinTokens, "primary") ?? {}) },
-                  ]}
-                >
-                  <Text style={[styles.saveEntryButtonText, skinTokens.isEightBit ? { color: bitButtonInk("primary") } : null]}>Save Entry</Text>
-                  </Pressable>
-                </View>
-              }
-            />
-          </SafeAreaView>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      <Modal
-        transparent
-        visible={Boolean(replyTarget)}
-        animationType="slide"
-        onRequestClose={() => {
-          setReplyEntryId(null);
-          setDraftReply("");
-        }}
-      >
-        <KeyboardAvoidingView style={styles.modalRoot} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={closeReplyComposer}
-          />
-          <SafeAreaView edges={["top", "bottom"]} style={[styles.replySheet, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
-            <View style={[styles.composerHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.composerTitle, { color: colors.foreground }]}>Reply to Entry</Text>
               <Pressable
-                onPress={closeReplyComposer}
-                style={({ pressed }) => [pressed && styles.pressed]}
+                onPress={saveEditor}
+                style={[styles.saveBtn, { backgroundColor: colors.primary }, bitButtonStyle(skinTokens, "primary")]}
               >
-                <Text style={[styles.doneText, { color: colors.primary }]}>Done</Text>
+                <Text style={[styles.saveBtnText, { color: skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF" }]}>
+                  {editingEntry ? "Save changes" : "Save entry"}
+                </Text>
               </Pressable>
-            </View>
-            <View style={styles.replyComposerContent}>
-              <TextInput
-                value={draftReply}
-                onChangeText={setDraftReply}
-                placeholder="Write your reply..."
-                placeholderTextColor={colors.muted}
-                multiline
-                autoFocus
-                textAlignVertical="top"
-                style={[styles.replyInput, { color: colors.foreground, backgroundColor: fieldBg, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border }]}
-              />
-              <Pressable
-                disabled={!draftReply.trim()}
-                onPress={handlePostReply}
-                style={({ pressed }) => [
-                  styles.saveEntryButton,
-                  { backgroundColor: colors.primary, opacity: draftReply.trim() ? (pressed ? 0.82 : 1) : 0.22, ...(bitButtonStyle(skinTokens, "primary") ?? {}) },
-                ]}
-              >
-                <Text style={[styles.saveEntryButtonText, skinTokens.isEightBit ? { color: bitButtonInk("primary") } : null]}>Post Reply</Text>
-              </Pressable>
-            </View>
-          </SafeAreaView>
-        </KeyboardAvoidingView>
-      </Modal>
-    </View>
-  );
+            </ScrollView>
+          </View>
+        </Modal>
+      </>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  pressed: { opacity: 0.7 },
   header: {
-    minHeight: 86,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-  headerTitle: { fontSize: 30, lineHeight: 36, fontWeight: "800", letterSpacing: -0.8 },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 10 },
-  headerCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fab: {
-    position: "absolute",
-    right: 15,
-    bottom: 60,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#3E226B",
-    shadowOpacity: 0.26,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-    zIndex: 12,
-  },
-  listContent: { paddingHorizontal: 16, paddingTop: 90, paddingBottom: 140 },
-  emptyListContent: { flexGrow: 1 },
-  sectionTitle: { fontSize: 17, lineHeight: 22, fontWeight: "700", marginTop: 18, marginBottom: 8, marginLeft: 4 },
-  entryCard: { borderRadius: 12, padding: 16, marginBottom: 12, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2 },
-  entryTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  entryDate: { fontSize: 14, lineHeight: 19, fontWeight: "700" },
-  holdHint: { fontSize: 11, lineHeight: 15, fontWeight: "600", opacity: 0.78 },
-  longPressed: { opacity: 0.78 },
-  entryBody: { fontSize: 17, lineHeight: 25, marginTop: 8 },
-  taggedPeopleRow: { marginTop: 14, minHeight: 38, flexDirection: "row", alignItems: "center" },
-  taggedAvatar: { width: 38, height: 38, borderRadius: 19, borderWidth: 2, overflow: "hidden", marginRight: -7 },
-  taggedAvatarImage: { width: "100%", height: "100%" },
-  taggedAvatarFallback: { flex: 1, alignItems: "center", justifyContent: "center" },
-  taggedAvatarInitials: { fontSize: 11, fontWeight: "800" },
-  taggedNames: { flex: 1, marginLeft: 14, fontSize: 12, lineHeight: 16 },
-  entryActions: { flexDirection: "row", gap: 10, marginTop: 16 },
-  outlineAction: {
-    minHeight: 42,
-    borderWidth: 1.5,
-    borderRadius: 21,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
     paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
-  outlineActionText: { fontSize: 14, lineHeight: 18, fontWeight: "700" },
-  repliesSection: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 16, paddingTop: 14, gap: 10 },
-  replyCount: { fontSize: 13, lineHeight: 18, fontWeight: "700" },
-  replyCard: { borderRadius: 14, padding: 13 },
-  replyTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 5 },
-  replyDate: { fontSize: 12, lineHeight: 16, fontWeight: "600" },
-  replyBody: { fontSize: 15, lineHeight: 22 },
-  emptyCard: {
-    marginTop: 44,
-    borderRadius: 22,
+  personBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     borderWidth: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 30,
-    alignItems: "center",
-  },
-  emptyIcon: { width: 58, height: 58, borderRadius: 29, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { marginTop: 14, fontSize: 19, lineHeight: 24, fontWeight: "800", textAlign: "center" },
-  emptyDescription: { marginTop: 7, fontSize: 14, lineHeight: 21, textAlign: "center" },
-  emptyButton: {
-    marginTop: 20,
-    minHeight: 46,
-    borderRadius: 23,
-    paddingHorizontal: 20,
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  wordmark: { flexDirection: "row", alignItems: "center", gap: 8 },
+  logoMark: { width: 30, height: 30 },
+  journalTitle: { fontSize: 21, fontWeight: "800", letterSpacing: -0.3 },
+  headPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 4,
+    shadowColor: "#1E1246",
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  headPillBtn: { padding: 7 },
+  headDivider: { width: 1, height: 18 },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  searchInput: { flex: 1, fontSize: 14.5 },
+  filterRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 10 },
+  filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  filterChipText: { fontSize: 12.5, fontWeight: "700" },
+  peek: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  peekKicker: { fontSize: 11, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" },
+  peekText: { flex: 1, fontSize: 14, fontWeight: "700" },
+  separator: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 2,
+  },
+  separatorText: { fontSize: 12.5, fontWeight: "700" },
+  separatorLink: { fontSize: 12.5, fontWeight: "700" },
+  emptyCard: {
+    margin: 16,
+    borderWidth: 1,
+    padding: 22,
+    alignItems: "center",
     gap: 8,
   },
-  emptyButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
-  modalRoot: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(21, 16, 29, 0.48)" },
-  composerSheet: { height: "92%", borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden" },
-  replySheet: { height: "78%", borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" },
-  composerHeader: {
-    minHeight: 66,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 18,
+  emptyTitle: { fontSize: 17, fontWeight: "800" },
+  emptyText: { fontSize: 14, lineHeight: 20, textAlign: "center" },
+  dayPill: {
+    position: "absolute",
+    alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-  },
-  composerTitle: { fontSize: 21, lineHeight: 27, fontWeight: "800" },
-  doneText: { fontSize: 16, lineHeight: 22, fontWeight: "800", paddingVertical: 10 },
-  composerContent: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 28 },
-  prayerInput: { minHeight: 150, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomWidth: 1, padding: 16, fontSize: 17, lineHeight: 24 },
-  fieldLabel: { marginTop: 20, marginBottom: 10, fontSize: 16, lineHeight: 21, fontWeight: "800" },
-  peopleLabel: { marginTop: 22 },
-  noPeopleText: { fontSize: 14, lineHeight: 20, marginBottom: 8 },
-  peopleColumn: { gap: 10 },
-  personChip: {
-    flex: 1,
-    minHeight: 46,
+    gap: 8,
     borderWidth: 1,
-    borderRadius: 13,
-    marginBottom: 10,
+    borderRadius: 999,
+    paddingHorizontal: 15,
+    paddingVertical: 9,
+    shadowColor: "#1E1246",
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 6,
+  },
+  dayPillText: { fontSize: 13.5, fontWeight: "700" },
+  dayPillStack: { flexDirection: "row", alignItems: "center" },
+  dayPillAvatar: { borderRadius: 999, borderWidth: 2, borderColor: "#FFFFFF", overflow: "hidden" },
+  composerWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     paddingHorizontal: 12,
+    paddingTop: 6,
+  },
+  composerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 6,
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
   },
-  personChipText: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: "600" },
-  saveEntryButton: { minHeight: 50, borderRadius: 14, marginTop: 20, alignItems: "center", justifyContent: "center" },
-  saveEntryButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
-  replyComposerContent: { padding: 18 },
-  replyInput: { minHeight: 170, borderWidth: 1, borderRadius: 18, padding: 16, fontSize: 17, lineHeight: 24 },
-  pressed: { opacity: 0.68 },
-  primaryPressed: { opacity: 0.86, transform: [{ scale: 0.97 }] },
+  composerRowLabel: { fontSize: 12.5, fontWeight: "700" },
+  moodPick: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
+  moodPickText: { fontSize: 12.5, fontWeight: "700" },
+  tagInput: { flex: 1, fontSize: 14 },
+  draftPhotos: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
+  draftPhoto: { width: 56, height: 56, borderRadius: 12 },
+  draftPhotoRemove: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#1D1830",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  composerBar: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 7,
+    borderWidth: 1,
+    borderRadius: 26,
+    paddingHorizontal: 9,
+    paddingVertical: 8,
+    overflow: "hidden",
+  },
+  composerBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  composerInput: { flex: 1, fontSize: 15.5, maxHeight: 110, paddingTop: 7, paddingBottom: 7 },
+  composerHint: { fontSize: 11, fontWeight: "600", textAlign: "center", marginTop: 6 },
+  modalRoot: { flex: 1, justifyContent: "flex-end" },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(24,12,50,0.35)" },
+  actionSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28, gap: 4 },
+  actionTitle: { fontSize: 16, fontWeight: "800" },
+  actionSub: { fontSize: 12.5, marginBottom: 8 },
+  actionButton: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 6, borderRadius: 10 },
+  actionLabel: { fontSize: 15, fontWeight: "600" },
+  actionCancel: { justifyContent: "center", marginTop: 6 },
+  replySheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, gap: 12 },
+  replyTitle: { fontSize: 16, fontWeight: "800" },
+  replyInput: { borderWidth: 1, borderRadius: 14, padding: 12, minHeight: 90, fontSize: 15, textAlignVertical: "top" },
+  replyActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10 },
+  replyBtn: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 },
+  editorRoot: { flex: 1, paddingHorizontal: 18 },
+  editorHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
+  editorTitle: { fontSize: 20, fontWeight: "800" },
+  editorInput: { borderWidth: 1, borderRadius: 14, padding: 13, fontSize: 15, marginBottom: 12 },
+  editorBody: { minHeight: 130 },
+  editorLabel: { fontSize: 12, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase", marginTop: 10, marginBottom: 8 },
+  dateButton: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, padding: 12, alignSelf: "flex-start" },
+  colorRow: { flexDirection: "row", gap: 9, flexWrap: "wrap" },
+  colorSwatch: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  colorNone: { backgroundColor: "transparent" },
+  editorRow: { flexDirection: "row", gap: 10, marginTop: 14 },
+  editorHalf: { flex: 1, marginBottom: 0 },
+  peopleChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  personChip: { flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  addPhotoBtn: { width: 56, height: 56, borderRadius: 12, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  saveBtn: { borderRadius: 14, paddingVertical: 15, alignItems: "center", marginTop: 22 },
+  saveBtnText: { fontSize: 15.5, fontWeight: "800" },
 });

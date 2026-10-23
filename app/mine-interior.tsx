@@ -1,6 +1,6 @@
 // The Mine — one cave (v168; warmth pass v169; danger v170;
 // the Mouth v172; the Deep Descent v175; switchback descent v178;
-// ONE CAVE v191).
+// ONE CAVE v191; the satchel heads-up v198).
 //
 // Through the cave mouth under the Great Peak — in out of the wild,
 // lantern light on warm stone (the entrance shaft glows, v169: the
@@ -37,6 +37,15 @@
 // top of the mountain, carts and wagons deeper in the purse. A
 // cave-in spends the multiplier along with the buried ore.
 // No emojis — SVG paper art and MaterialIcons only.
+//
+// The satchel heads-up (v198): a full carrier refused the swing in
+// silence — a toast at the top of the screen, gone in seconds,
+// while his eyes were on the wall. Now the load speaks where he
+// looks (lib/mountain's satchelLoad): the count readouts warm to
+// amber in the last stretch of room, and the moment the satchel is
+// full the faces sit quiet and a plain line under them says so —
+// sell at the Mouth to keep digging. A heads-up only: no button,
+// no shortcut; the selling still happens up the shaft, as ever.
 //
 // Danger and reward (v170): the Gold stratum, Diamond, and the Deep
 // are unstable — a cracked face there groans (dust, amber cracks)
@@ -129,6 +138,7 @@ import {
   satchelByKind,
   satchelCapacity,
   satchelCount,
+  satchelLoad,
   saveMineState,
   settleTinderboxBonus,
   spendPool,
@@ -590,6 +600,9 @@ export default function MineInteriorScreen() {
   const dressingMiner = pickPeople(people, "mine|dressing", 1)[0];
   const bagCount = mine ? satchelCount(mine.satchel) : 0;
   const bagCap = mine ? satchelCapacity(mine) : 0;
+  // The satchel's three states (v198): drives the readouts' warning
+  // ink, the faces' quiet, and the gallery's full line.
+  const bagLoad = mine ? satchelLoad(mine) : "room";
   const haulWorth = mine ? haulValue(mine) : 0;
   const kinds = mine ? satchelByKind(mine.satchel) : null;
   const view = mine ? Math.min(viewLevel ?? mine.deepestLevel, mine.deepestLevel) : 1;
@@ -685,7 +698,10 @@ export default function MineInteriorScreen() {
               const isPool = mine.poolFace === faceIndex;
               const richToday = isRichFace(faceIndex, mine.day);
               return (
-                <Pressable key={faceIndex} onPress={() => handleTapFace(faceIndex)} style={{ opacity: locked && !isPool ? 0.55 : 1 }}>
+                // A full satchel stops the wall (v198): the faces sit
+                // quieter than even a locked wall reads — stopped,
+                // not just gated. The pool is no dig face; it never dims.
+                <Pressable key={faceIndex} onPress={() => handleTapFace(faceIndex)} style={{ opacity: !isPool && bagLoad === "full" ? 0.4 : locked && !isPool ? 0.55 : 1 }}>
                   <View style={{ position: "relative", width: 62, height: 46 }}>
                     <View style={{ position: "absolute", left: 2.5, top: 3, width: 62, height: 46, borderRadius: 12, backgroundColor: "rgba(24,8,44,.3)" }} />
                     {isPool ? (
@@ -718,15 +734,24 @@ export default function MineInteriorScreen() {
             </View>
           )}
         </View>
-        {/* the way down, drawn where it opens (25) */}
+        {/* the way down, drawn where it opens (25) — while the
+            satchel is full the strip carries the heads-up instead
+            (v198): a plain line right under the faces, in the
+            cave-in's own rose, for exactly as long as it's true */}
         <View style={{ backgroundColor: "#17101F", height: 25, justifyContent: "center", alignItems: "center" }}>
-          <Text style={{ color: DIM, fontSize: 10.5, letterSpacing: 1.5 }}>
-            {view < mine.deepestLevel
-              ? `LEVEL ${view + 1} WAITS BELOW`
-              : mine.deepestLevel >= MAX_LEVEL
-                ? "THE BOTTOM OF THE MOUNTAIN"
-                : `LEVEL ${mine.deepestLevel + 1} — UNOPENED ROCK`}
-          </Text>
+          {bagLoad === "full" ? (
+            <Text numberOfLines={1} style={{ color: "#FCA5A5", fontSize: 11, fontWeight: "800", letterSpacing: 0.4, paddingHorizontal: 10 }}>
+              Satchel full — sell at the Mouth to keep digging.
+            </Text>
+          ) : (
+            <Text style={{ color: DIM, fontSize: 10.5, letterSpacing: 1.5 }}>
+              {view < mine.deepestLevel
+                ? `LEVEL ${view + 1} WAITS BELOW`
+                : mine.deepestLevel >= MAX_LEVEL
+                  ? "THE BOTTOM OF THE MOUNTAIN"
+                  : `LEVEL ${mine.deepestLevel + 1} — UNOPENED ROCK`}
+            </Text>
+          )}
         </View>
         {/* the pickaxe rail — STATUS ONLY (v170): picks are bought
             at the Tool Shop in town; the rail just shows what the
@@ -801,7 +826,7 @@ export default function MineInteriorScreen() {
             <Text style={{ color: DIM, fontSize: 11.5, marginLeft: 8, flex: 1 }}>
               flames — one per block broken, shared with the forest
             </Text>
-            <Text style={{ color: bagCount >= bagCap ? "#FCA5A5" : DIM, fontWeight: "800", fontSize: 12 }}>
+            <Text style={{ color: bagLoad === "full" ? "#FCA5A5" : bagLoad === "nearly" ? "#FB923C" : DIM, fontWeight: "800", fontSize: 12 }}>
               {bagCount}/{bagCap}
             </Text>
           </View>
@@ -925,9 +950,9 @@ export default function MineInteriorScreen() {
                 </Text>
               </Pressable>
             </View>
-            <Text style={{ color: bagCount >= bagCap ? "#FCA5A5" : DIM, fontSize: 12, textAlign: "center", marginTop: 10, fontWeight: bagCount >= bagCap ? "800" : "400" }}>
+            <Text style={{ color: bagLoad === "full" ? "#FCA5A5" : bagLoad === "nearly" ? "#FB923C" : DIM, fontSize: 12, textAlign: "center", marginTop: 10, fontWeight: bagLoad === "room" ? "400" : "800" }}>
               {bagFor(mine.bagTier).name}: {bagCount} / {bagCap} pieces
-              {bagCount >= bagCap ? " — full. Haul it up to the Mouth to sell." : ""}
+              {bagLoad === "full" ? " — full. Haul it up to the Mouth to sell." : bagLoad === "nearly" ? " — nearly full." : ""}
             </Text>
             <Text style={{ color: DIM, fontSize: 12, textAlign: "center", marginTop: 6 }}>
               Faces broken today: {mine.minedToday} · Your pick: {pickaxeFor(mine.pickTier).name}

@@ -61,6 +61,7 @@ import {
   satchelCapacity,
   satchelCount,
   satchelIsFull,
+  satchelLoad,
   satchelValue,
   settleTinderboxBonus,
   stratumMultiplier,
@@ -350,5 +351,66 @@ describe("screen contracts — the Mouth is where ore becomes coins", () => {
   it("the Mouth's panels carry no Safety name anywhere (v169 rule)", () => {
     expect(mouth).not.toContain("Safety");
     expect(cave).not.toContain("Safety");
+  });
+});
+
+describe("the satchel heads-up (v198) — the load speaks before it stops him", () => {
+  /** A mine state riding a given carrier with a given piece count. */
+  function loadState(bagTier: number, count: number): MineState {
+    return {
+      ...defaultMineState(T0),
+      bagTier,
+      satchel: count > 0 ? [{ ore: "stone", unit: 3, count }] : [],
+    };
+  }
+
+  it("three states, and 'full' is exactly the old gate — nothing moved", () => {
+    for (const tier of [0, 1, 2, 4, 8]) {
+      const cap = SATCHEL_BAGS[tier].capacity;
+      for (let n = 0; n <= cap + 2; n++) {
+        expect(satchelLoad(loadState(tier, n)) === "full").toBe(satchelIsFull(loadState(tier, n)));
+      }
+    }
+  });
+
+  it("Pockets (5): no wolf from the first stones — nearly only at three-fifths and the last slots", () => {
+    expect(satchelLoad(loadState(0, 0))).toBe("room");
+    expect(satchelLoad(loadState(0, 2))).toBe("room"); // 3 free, but not yet three-fifths full
+    expect(satchelLoad(loadState(0, 3))).toBe("nearly");
+    expect(satchelLoad(loadState(0, 4))).toBe("nearly");
+    expect(satchelLoad(loadState(0, 5))).toBe("full");
+    expect(satchelLoad(loadState(0, 6))).toBe("full"); // past the cap after a rich break
+  });
+
+  it("the warning band is the last three slots at every rung of the ladder", () => {
+    expect(satchelLoad(loadState(1, 6))).toBe("room"); // Canvas 10: three-fifths, but 4 free
+    expect(satchelLoad(loadState(1, 7))).toBe("nearly");
+    expect(satchelLoad(loadState(1, 10))).toBe("full");
+    expect(satchelLoad(loadState(2, 14))).toBe("room"); // Sturdy 18: 4 free
+    expect(satchelLoad(loadState(2, 15))).toBe("nearly");
+    expect(satchelLoad(loadState(8, 200))).toBe("room"); // Vault Hauler 240: deep in room
+    expect(satchelLoad(loadState(8, 236))).toBe("room"); // 4 free — still room
+    expect(satchelLoad(loadState(8, 237))).toBe("nearly");
+    expect(satchelLoad(loadState(8, 240))).toBe("full");
+  });
+
+  it("the cave screen renders the three states — and no shortcut with them", () => {
+    const cave = readFileSync(join(process.cwd(), "app/mine-interior.tsx"), "utf8");
+    // One load state, computed from the lib, drives every treatment.
+    expect(cave).toContain("satchelLoad(mine)");
+    // Near-full: both count readouts warm to the cave's amber.
+    expect(cave).toContain('bagLoad === "nearly" ? "#FB923C"');
+    expect(cave).toContain('bagLoad === "nearly" ? " — nearly full."');
+    // Full: the faces sit quiet — stopped, not merely gated — and
+    // the pool, no dig face, is never dimmed for it.
+    expect(cave).toContain('!isPool && bagLoad === "full" ? 0.4');
+    // Full: the plain line in the gallery, gated on full alone, in
+    // the cave-in rose — and it adds no button of any kind.
+    expect(cave).toContain('bagLoad === "full" ? (');
+    expect(cave).toContain("Satchel full — sell at the Mouth to keep digging.");
+    const stripAt = cave.indexOf("Satchel full — sell at the Mouth to keep digging.");
+    const strip = cave.slice(cave.lastIndexOf("{/*", stripAt), stripAt);
+    expect(strip).not.toContain("onPress");
+    expect(strip).not.toContain("router.");
   });
 });

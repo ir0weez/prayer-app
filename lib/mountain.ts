@@ -338,6 +338,25 @@ export function satchelIsFull(state: MineState): boolean {
   return satchelCount(state.satchel) >= satchelCapacity(state);
 }
 
+export type SatchelLoad = "room" | "nearly" | "full";
+
+/** How full the carrier rides, in the three states the cave speaks
+ *  for its heads-up (v198): "room" while there's space to spare;
+ *  "nearly" in the last stretch — three or fewer slots free AND at
+ *  least three-fifths full, so little Pockets (5) don't cry wolf
+ *  from the first stone and the Crown Vault Hauler (240) warns only
+ *  at the true end of its room; "full" at — or past — capacity,
+ *  where satchelIsFull refuses the next swing. A display state only:
+ *  the gate itself is satchelIsFull, untouched, and nothing here
+ *  moves a single piece of ore. */
+export function satchelLoad(state: MineState): SatchelLoad {
+  const count = satchelCount(state.satchel);
+  const cap = satchelCapacity(state);
+  if (count >= cap) return "full";
+  if (cap - count <= 3 && count * 5 >= cap * 3) return "nearly";
+  return "room";
+}
+
 export type BagPurchaseCheck =
   | { ok: true; cost: number }
   | { ok: false; reason: "owned" | "order" | "crown" };

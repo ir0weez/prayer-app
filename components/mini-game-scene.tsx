@@ -144,7 +144,7 @@ export function GameResults({
       </View>
       <Pressable
         onPress={onDone}
-        style={[{ marginTop: 16, backgroundColor: accent, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 34 }, isSkinned ? tokens.cardShadow : null]}
+        style={[{ marginTop: 16, backgroundColor: accent, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 34 }, isSkinned ? (tokens.isPaper ? tokens.buttonShadow : tokens.cardShadow) : null]}
       >
         <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>Done</Text>
       </Pressable>

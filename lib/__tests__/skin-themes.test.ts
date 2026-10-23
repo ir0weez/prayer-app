@@ -133,17 +133,28 @@ describe("skin tokens", () => {
     }
   });
 
-  it("Paper carries the kit's one offset shadow and paper radii — and NO grain (flat only)", () => {
+  it("Paper carries the sheet edge, the interactive-only offset shadow, cut radii — and NO grain (flat only)", () => {
     const tokens = getSkinTokens("paper", "light", light);
-    expect(tokens.cardShadow?.boxShadow).toContain("rgba(24,8,44,0.28)");
-    // The mockup's exact card shadow: 3px near layer, 7px/8px kit layer.
-    expect(tokens.cardShadow?.boxShadow).toContain("7px 8px 0px rgba(24,8,44,0.28)");
+    // v189 ("Paper, Not Buttons"): content surfaces wear the
+    // STACKED-SHEET edge — opaque stock shades at 2px/4px, no ink —
+    // landing on the fasting profile stack's shade family.
+    expect(tokens.cardShadow).toEqual({
+      boxShadow: "2px 2px 0px #F2E9D4, 4px 4px 0px #EADDBE",
+      elevation: 2,
+    });
+    expect(tokens.cardShadow?.boxShadow).not.toContain("rgba(24,8,44");
+    // The kit's offset shadow (the mockup's exact values: 3px near
+    // layer, 7px/8px kit layer) survives as the INTERACTIVE shadow.
+    expect(tokens.buttonShadow?.boxShadow).toContain("rgba(24,8,44,0.28)");
+    expect(tokens.buttonShadow?.boxShadow).toContain("7px 8px 0px rgba(24,8,44,0.28)");
+    expect(tokens.buttonShadow?.elevation).toBe(5);
     // The sheet shadow is the same ink, layered upward like stacked
     // sheet edges — two ink layers, never a different shadow color.
     expect(tokens.sheetShadow?.boxShadow).toContain("rgba(24,8,44,");
     expect(tokens.sheetShadow?.boxShadow.split("rgba(24,8,44,")).toHaveLength(3);
-    expect(tokens.cardRadius).toBe(18);
-    expect(tokens.sheetRadius).toBe(24);
+    // v189: cut-paper corners, down from the molded 18/24.
+    expect(tokens.cardRadius).toBe(6);
+    expect(tokens.sheetRadius).toBe(12);
     // v179 (Jonathan's ruling, 2026-10-22): the speckle grain is OUT —
     // "little sprinkles... doesn't look good... or like paper." Paper
     // is flat color/stock + the offset shadow, no texture, so both
@@ -744,8 +755,10 @@ describe("v185 floating cards: under 8-bit the sheet is gone and every row float
     expect(header).toContain("bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 8)");
     // And the list pins the header sticky under both skins, so the
     // date never scrolls out of sight (data[0] is child index 1,
-    // after the ListHeaderComponent spacer at index 0).
-    expect(schedule).toContain("stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal) ? [1] : undefined}");
+    // after the ListHeaderComponent spacer at index 0). v189: Paper
+    // joins the same sticky gate (its panel is pinned in the v189
+    // block below).
+    expect(schedule).toContain("stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal || skinTokens.isPaper) ? [1] : undefined}");
   });
 
   it("plain and grouped-completed todos become cartridges under 8-bit", () => {
@@ -1121,12 +1134,13 @@ describe("v187 — 8-bit, everywhere it claims to be", () => {
 
   it("item 7 — Settings is fully skinned: squared framed cards, pixel labels and titles, on-dusk section ink", () => {
     const index = read("app/(tabs)/index.tsx");
-    expect(index).toContain("borderRadius: skin?.isEightBit ? 2 : 20");
+    expect(index).toContain("borderRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 20");
     expect(index).toContain("borderWidth: skin?.isEightBit ? 3 : 1");
     expect(index).toContain('color: skin?.isEightBit ? BIT_ON_DUSK : "#5E6570"');
     // The profile header card's per-corner radii are squared too —
-    // they were why it stayed round through v184/v185.
-    expect(index).toContain("borderTopLeftRadius: skin?.isEightBit ? 2 : 20");
+    // they were why it stayed round through v184/v185 (v189: Paper
+    // cuts its corners to 6 as well).
+    expect(index).toContain("borderTopLeftRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 20");
     // Every settingsCard call site passes the ink border under 8-bit.
     expect(index.split("skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border").length - 1).toBe(6);
     // Journal titles + section headers speak the pixel face via bitText.
@@ -1193,8 +1207,9 @@ describe("v188 — Terminal, finished properly", () => {
     expect(schedule).not.toContain('skinTokens.isTerminal ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface');
     // The full-date line renders under Terminal too, in VT323 (size 15).
     expect(schedule).toContain("color: skinTokens.isTerminal ? TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 8)");
-    // The same sticky mechanism v187 gave 8-bit now covers Terminal.
-    expect(schedule).toContain("stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal) ? [1] : undefined}");
+    // The same sticky mechanism v187 gave 8-bit now covers Terminal
+    // (and, since v189, Paper — pinned in the v189 block below).
+    expect(schedule).toContain("stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal || skinTokens.isPaper) ? [1] : undefined}");
     // v187's 8-bit panel is byte-identical.
     expect(schedule).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");
   });
@@ -1233,5 +1248,112 @@ describe("v188 — Terminal, finished properly", () => {
     expect(journal).toContain('termButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary")');
     expect(journal).toContain('termButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary")');
     expect(journal).toContain('termButtonInk(item.isBookmarked ? "primary" : "secondary")');
+  });
+});
+
+describe("v189 — Paper, Not Buttons", () => {
+  // Jonathan's Paper verdict (2026-10-22): "I like what you did
+  // with the date header in 8-bit, do that same thing with paper
+  // please. Paper looks too much like 'button' in many areas."
+  // Every paper piece carried the same chunky offset shadow +
+  // saturated fill + rounded corners, interactive or not, so
+  // everything read as pressable. The material splits by role:
+  // the offset shadow becomes interactive-only, content paper gets
+  // a stacked-sheet edge and cut corners, and the date header gets
+  // the v187/v188 cure in the paper dialect.
+  const palette = getThemedPalette("light", "default");
+  const darkPalette = getThemedPalette("dark", "default");
+
+  it("the shadow split: content paper wears the stacked-sheet edge, buttons keep the offset shadow", () => {
+    const paper = getSkinTokens("paper", "light", palette);
+    // The sheet edge: two OPAQUE stock shades at 2px/4px — the
+    // fasting profile stack's shade family — with NO ink anywhere.
+    expect(paper.cardShadow).toEqual({
+      boxShadow: "2px 2px 0px #F2E9D4, 4px 4px 0px #EADDBE",
+      elevation: 2,
+    });
+    expect(paper.cardShadow?.boxShadow).not.toContain("rgba(24,8,44");
+    // The dark scheme's stack steps toward warm black instead.
+    expect(getSkinTokens("paper", "dark", darkPalette).cardShadow).toEqual({
+      boxShadow: "2px 2px 0px #20182D, 4px 4px 0px #171121",
+      elevation: 2,
+    });
+    // The offset shadow survives VERBATIM as the interactive shadow.
+    expect(paper.buttonShadow).toEqual({
+      boxShadow: "3px 3px 0px rgba(24,8,44,0.12), 7px 8px 0px rgba(24,8,44,0.28)",
+      elevation: 5,
+    });
+    // The split is Paper-only: no other skin gains a buttonShadow,
+    // and their card shadows are byte-identical to before.
+    expect(getSkinTokens("classic", "light", palette).buttonShadow).toBeNull();
+    expect(getSkinTokens("classic", "light", palette).cardShadow).toBeNull();
+    const bit = getSkinTokens("8bit", "light", palette);
+    expect(bit.buttonShadow).toBeNull();
+    expect(bit.cardShadow?.boxShadow).toBe("6px 6px 0px rgba(13,5,32,0.55)");
+    const term = getSkinTokens("terminal", "light", palette);
+    expect(term.buttonShadow).toBeNull();
+    expect(term.cardShadow?.boxShadow).toContain("inset 0px 0px 0px 3px rgba(29,158,75,0.85)");
+    // The v189 token refactor did not move the paper surface itself.
+    expect(paper.surface).toBe("#FDFAF3");
+    expect(getSkinTokens("paper", "dark", darkPalette).surface).toBe("#2A203B");
+  });
+
+  it("cut corners: paper radii drop to 6/12, every other skin's radii untouched", () => {
+    const paper = getSkinTokens("paper", "light", palette);
+    expect(paper.cardRadius).toBe(6);
+    expect(paper.sheetRadius).toBe(12);
+    expect(getSkinTokens("classic", "light", palette).cardRadius).toBeNull();
+    expect(getSkinTokens("8bit", "light", palette).cardRadius).toBe(2);
+    expect(getSkinTokens("terminal", "light", palette).cardRadius).toBe(2);
+    // The token-driven radii across the app pick the cut up: the
+    // People factory's person card + single card, the Settings
+    // cards + header corners, the Journal entry cards, the album.
+    const index = read("app/(tabs)/index.tsx");
+    expect(index).toContain("borderRadius: skin?.cardRadius ?? 14");
+    expect(index).toContain("borderRadius: skin?.isPaper ? 6 : skin?.isEightBit ? 2 : 10");
+    expect(index).toContain("borderBottomLeftRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 8");
+    expect(read("components/prayer-journal-tab.tsx")).toContain("borderRadius: skinTokens.cardRadius ?? 12");
+    expect(read("components/album-card.tsx")).toContain("borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12");
+  });
+
+  it("the date header is a solid paper panel with the full date, pinned sticky like 8-bit's", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    const header = schedule.slice(schedule.indexOf("const renderDateHeaderCard"), schedule.indexOf("const renderItem"));
+    // The Paper branch: stock fill, the sheet edge (cardShadow IS
+    // the edge under Paper now), cut corners, panel margins — in
+    // the same slot the 8-bit/Terminal panels occupy.
+    expect(header).toContain("skinTokens.isPaper ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 6, borderTopRightRadius: 6, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, ...(skinTokens.cardShadow ?? {}) }");
+    // The full date spelled out under the day name, in paper ink.
+    expect(header).toContain('color: colors.muted, marginBottom: 8, fontSize: 13, fontWeight: "600"');
+    // The sticky gate now covers Paper alongside 8-bit/Terminal.
+    expect(schedule).toContain("stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal || skinTokens.isPaper) ? [1] : undefined}");
+    // The 8-bit and Terminal panels are byte-identical to v187/v188.
+    expect(header).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");
+    expect(header).toContain("skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");
+  });
+
+  it("schedule cards take cut corners through the frame fallback — buttons and menus never spread it", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    expect(schedule).toContain("function paperCutFor(tokens: SkinTokens)");
+    expect(schedule).toContain("return tokens.isPaper ? { borderRadius: 6 } : {};");
+    // All 17 content-card frame spreads route through the fallback
+    // (event/ministry/completed cards, grouped + study + worship
+    // cards, todo tiles, the stamp row, the missed panel, the FAB
+    // menu panel). The floating Today button, the missed-action
+    // bar, the dropdown and the white-block dialog keep their
+    // shapes — none of them appears in this count.
+    expect(schedule.split("...(skinTokens.frame ?? paperCutFor(skinTokens))").length - 1).toBe(17);
+    // The expandable sections cut their corners under Paper too.
+    expect(schedule).toContain("skinTokens.isPaper ? { borderRadius: 6 } : {}), ...((skinTokens.isEightBit || skinTokens.isTerminal)");
+  });
+
+  it("actual buttons keep the offset shadow under Paper: interior actions + the mini-game Done button", () => {
+    const shell = read("components/interior-shell.tsx");
+    expect(shell.split("tokens.isPaper ? tokens.buttonShadow : tokens.cardShadow").length - 1).toBe(2);
+    const games = read("components/mini-game-scene.tsx");
+    expect(games.split("tokens.isPaper ? tokens.buttonShadow : tokens.cardShadow").length - 1).toBe(1);
+    // The game cards themselves are content — they keep the plain
+    // cardShadow spread (the sheet edge under Paper).
+    expect(games).toContain("isSkinned ? tokens.cardShadow : null");
   });
 });

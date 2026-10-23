@@ -4288,7 +4288,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     marginBottom: 6,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: skin?.isPaper ? 14 : skin?.isEightBit ? 2 : 10,
+    borderRadius: skin?.isPaper ? 6 : skin?.isEightBit ? 2 : 10,
   },
   personInfo: {
     flex: 1,
@@ -4429,10 +4429,10 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     // The per-corner radii are why this card stayed round through
     // v184/v185 — they override the frame's borderRadius shorthand
     // no matter where the frame lands in the style array.
-    borderTopLeftRadius: skin?.isEightBit ? 2 : 20,
-    borderTopRightRadius: skin?.isEightBit ? 2 : 20,
-    borderBottomLeftRadius: skin?.isEightBit ? 2 : 8,
-    borderBottomRightRadius: skin?.isEightBit ? 2 : 8,
+    borderTopLeftRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 20,
+    borderTopRightRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 20,
+    borderBottomLeftRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 8,
+    borderBottomRightRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 8,
     borderWidth: skin?.isEightBit ? 3 : 1,
     paddingHorizontal: 24,
     paddingVertical: 18,
@@ -5162,8 +5162,9 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     marginBottom: 30,
     // v187 (8-bit only): the Settings cards are cartridges — squared
     // corners and the 3px ink frame (the call sites pass the matching
-    // ink border color). Other skins keep the soft card exactly.
-    borderRadius: skin?.isEightBit ? 2 : 20,
+    // ink border color). v189: Paper cuts its corners to 6 (the
+    // de-button pass); Classic keeps the soft card exactly.
+    borderRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 20,
     borderWidth: skin?.isEightBit ? 3 : 1,
     overflow: "hidden",
     backgroundColor: paperSurface ?? colors.surface,

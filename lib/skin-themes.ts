@@ -78,6 +78,27 @@
 //     the theme provider resolves the DARK palette while Terminal is
 //     active so palette text stays legible on the panels.
 //
+// "Paper, Not Buttons" (v189, from Jonathan's Paper verdict,
+// 2026-10-22): "Paper looks too much like 'button' in many areas."
+// Every paper piece carried the same chunky offset shadow + saturated
+// fill + rounded corners, interactive or not, so everything read as
+// pressable. The material now splits by role:
+//   - The chunky offset shadow (rgba(24,8,44,0.28)) is an
+//     INTERACTIVE-ONLY signal — it survives as tokens.buttonShadow,
+//     worn by actual buttons/tappable controls.
+//   - Non-interactive paper (cards, headers, tiles, list rows,
+//     panels) loses the drop shadow and gets a STACKED-SHEET edge
+//     instead (tokens.cardShadow): two opaque stock shades peeking
+//     behind the surface at 2px/4px — sheets in a stack, the same
+//     language the fasting profile's sheet stack already spoke
+//     (#EFE9DB over #E6DCC2). No ink, no blur: an edge, not a shadow.
+//   - Corners follow the same split: non-interactive paper is cut
+//     nearer to square (cardRadius 6, sheetRadius 12); real buttons
+//     keep their shapes.
+//   - The schedule's date header gets the v187/v188 cure in the
+//     paper dialect: a solid paper panel with the full date spelled
+//     out, pinned sticky at the top of the list.
+//
 // The Dark Forest and the town/city/school maps never consume these
 // tokens: the forest stays pixel (its rendering is NOT re-skinned)
 // and the maps are already paper.
@@ -322,8 +343,22 @@ export type SkinTokens = {
   /** For the dark scene screens (shops, creators) that hardcode deep violet. */
   darkBackground: string | null;
   darkSurface: string | null;
-  /** The kit's one offset shadow, layered (a faint near layer + the shadow itself). */
+  /**
+   * The shadow a content surface wears. Under Paper (v189) this is
+   * the STACKED-SHEET edge — opaque stock shades at small offsets,
+   * no ink — because the chunky offset shadow became an
+   * interactive-only signal (see buttonShadow). Under 8-bit it is
+   * the hard block shadow; under Terminal the window shadow.
+   */
   cardShadow: SkinShadow | null;
+  /**
+   * The INTERACTIVE shadow (v189): the chunky offset shadow, kept
+   * for actual buttons/tappable controls only. Non-null ONLY under
+   * Paper — Classic never had it, and 8-bit/Terminal buttons have
+   * their own treatments (bitButtonStyle / termButtonStyle), so
+   * spreading this is a no-op for them.
+   */
+  buttonShadow: SkinShadow | null;
   sheetShadow: SkinShadow | null;
   /**
    * The routine-cartridge shadow (v187, 8-bit only): the hard offset
@@ -522,6 +557,7 @@ export function getSkinTokens(
       darkBackground: null,
       darkSurface: null,
       cardShadow: null,
+      buttonShadow: null,
       sheetShadow: null,
       accentShadow: null,
       cardRadius: null,
@@ -563,6 +599,7 @@ export function getSkinTokens(
         boxShadow: `6px 6px 0px ${BIT_SHADOW_HEX}`,
         elevation: 6,
       },
+      buttonShadow: null,
       sheetShadow: {
         boxShadow: `0px -6px 0px rgba(13,5,32,0.45)`,
         elevation: 8,
@@ -617,6 +654,7 @@ export function getSkinTokens(
         boxShadow: `inset 0px 0px 0px 2px ${TERM_BG}, inset 0px 0px 0px 3px rgba(29,158,75,0.85), 0px 0px 14px rgba(61,255,110,0.16)`,
         elevation: 2,
       },
+      buttonShadow: null,
       sheetShadow: {
         boxShadow: `0px -2px 0px rgba(29,158,75,0.7), 0px 0px 18px rgba(61,255,110,0.12)`,
         elevation: 4,
@@ -636,6 +674,16 @@ export function getSkinTokens(
     };
   }
 
+  // v189: the paper surface and its stacked-sheet edge shades. The
+  // edge is the surface's own stock stepped toward a deeper sheet
+  // tone — in the light scheme it lands on the fasting profile
+  // stack's established shades (#EFE9DB over #E6DCC2); in the dark
+  // scheme it steps toward warm black, so the stack reads as darker
+  // sheets beneath, never as ink.
+  const paperSurface = dark ? mix(palette.surface, "#332741", 0.38) : mix(palette.surface, "#FAF4E6", 0.5);
+  const sheetEdgeNear = mix(paperSurface, dark ? "#07040C" : "#E2D2A9", dark ? 0.3 : 0.42);
+  const sheetEdgeFar = mix(paperSurface, dark ? "#07040C" : "#E2D2A9", dark ? 0.55 : 0.72);
+
   return {
     id: "paper",
     isPaper: true,
@@ -645,7 +693,7 @@ export function getSkinTokens(
     // the palette's own hue — only a whisper of warm paper in it — and
     // the paper lives on the SURFACES: neutral cards become warm paper
     // stock, colored cards keep their full-strength hue and gain the
-    // one offset shadow as colored construction paper. v174 mixed
+    // sheet edge as colored construction paper. v174 mixed
     // the whole app halfway to tan and read as a wash; this doesn't.
     // v182: the neutral stock pulled toward a cleaner white-paper —
     // the v176–v181 cream (#FBF3DE at 0.6, surface landing #FDF8EB)
@@ -654,13 +702,24 @@ export function getSkinTokens(
     // lighter weight: the surface lands at #FDFAF3 (R−B ≈ 10, down
     // from 18) — still warm enough to not read as Classic white.
     background: dark ? mix(palette.background, "#2A1F3D", 0.22) : mix(palette.background, "#EFE9D8", 0.16),
-    surface: dark ? mix(palette.surface, "#332741", 0.38) : mix(palette.surface, "#FAF4E6", 0.5),
+    surface: paperSurface,
     border: dark ? mix(palette.border, "#000000", 0.25) : mix(palette.border, PAPER_INK_HEX, 0.1),
     darkBackground: mix(mix("#1E1B4B", palette.primary, 0.07), "#3A2A20", 0.16),
     darkSurface: mix("#2A2140", palette.primary, 0.08),
     cardShadow: {
-      // The mockup's exact shadow: a faint near layer + the kit shadow
-      // at 7px/8px — one shadow for every card, sheet, and button.
+      // v189: the STACKED-SHEET edge — two opaque stock shades
+      // peeking behind the surface at 2px and 4px, like the next
+      // sheets in the stack. No ink, no blur: an edge, not a shadow,
+      // so a card reads as paper lying on paper instead of a button
+      // floating over the page.
+      boxShadow: `2px 2px 0px ${sheetEdgeNear}, 4px 4px 0px ${sheetEdgeFar}`,
+      elevation: 2,
+    },
+    buttonShadow: {
+      // The kit's original offset shadow (the mockup's exact values:
+      // a faint near layer + the shadow itself at 7px/8px),
+      // interactive-only since v189 — actual buttons and tappable
+      // controls keep it; content surfaces wear the sheet edge.
       boxShadow: `3px 3px 0px rgba(24,8,44,0.12), 7px 8px 0px rgba(24,8,44,${PAPER_SHADOW_ALPHA})`,
       elevation: 5,
     },
@@ -669,16 +728,19 @@ export function getSkinTokens(
       elevation: 8,
     },
     accentShadow: null,
-    cardRadius: 18,
-    sheetRadius: 24,
+    // v189: cut-paper corners for non-interactive paper — nearer to
+    // square than the molded 18/24 of v174–v188. Real buttons keep
+    // their own shapes (their radii live in their own styles).
+    cardRadius: 6,
+    sheetRadius: 12,
     borderWidth: null,
     frame: null,
     displayFont: null,
     bodyFont: null,
     // NO grain (Jonathan's ruling, 2026-10-22, after v176): the speckle
     // read as "little sprinkles" — not good, and not like paper. Paper
-    // surfaces are flat color/stock + the one offset shadow, nothing
-    // else. These stay 0 under every skin; PaperGrainOverlay renders
+    // surfaces are flat color/stock + the sheet edge, nothing else.
+    // These stay 0 under every skin; PaperGrainOverlay renders
     // nothing.
     grainOpacity: 0,
     grainColor: PAPER_INK_HEX,

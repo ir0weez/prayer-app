@@ -79,6 +79,19 @@ function cartridgeShadowFor(tokens: SkinTokens) {
 }
 
 /**
+ * Cut-paper corners (v189): under Paper, non-interactive cards trade
+ * their molded StyleSheet radii for a near-square cut (6px) — spread
+ * where a card already spreads the skin frame, as the fallback when
+ * the frame itself is null (Paper's frame stays null by design).
+ * Returns an empty object under every other skin, so 8-bit/Terminal
+ * keep their frame and Classic renders exactly as before. Real
+ * buttons never spread this — buttons keep their shapes.
+ */
+function paperCutFor(tokens: SkinTokens) {
+  return tokens.isPaper ? { borderRadius: 6 } : {};
+}
+
+/**
  * Terminal checkbox (v186): the mockup's glyph box — a square
  * phosphor outline, an X stamped inside when checked, empty when
  * not. Controls stay controls (same Pressable, same a11y state);
@@ -7609,7 +7622,7 @@ function EventCardInner({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >
-          <View style={[eventStyles.completedCard, { ...completedBarStyle, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[eventStyles.completedCard, { ...completedBarStyle, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
             <View style={[eventStyles.completedDot, { backgroundColor: completedColor }]} />
             <Text style={[eventStyles.completedTitle, { color: completedTitleColor, ...bitDisplay(skinTokens, 10) }]} numberOfLines={1}>
               {event.title}
@@ -7649,7 +7662,7 @@ function EventCardInner({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         >
-          <View style={[eventStyles.defaultCard, { backgroundColor: timeOffCardColor, borderColor: timeOffCardColor, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : 96, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[eventStyles.defaultCard, { backgroundColor: timeOffCardColor, borderColor: timeOffCardColor, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : 96, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={[eventStyles.defaultTitle, { color: timeOffTextColor, ...bitDisplay(skinTokens, 12) }]} numberOfLines={2}>{event.title}</Text>
               {event.notes && (
@@ -7723,7 +7736,7 @@ function EventCardInner({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         >
-          <View style={[eventStyles.illustratedCard, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : mc.bg, borderColor: skinTokens.isTerminal ? TERM_MID : mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(skinTokens.frame ?? {}), ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[eventStyles.illustratedCard, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : mc.bg, borderColor: skinTokens.isTerminal ? TERM_MID : mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
             {isPaper ? (
               <PaperRestSky mood={mood} bg={mc.bg} />
             ) : isEightBit ? (
@@ -7818,7 +7831,7 @@ function EventCardInner({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isHolidayCard ? (isLiveScheduledBlock ? 155 : 140) : (isLiveScheduledBlock ? 112 : 80), overflow: "hidden", ...(skinTokens.frame ?? {}), ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
+        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isHolidayCard ? (isLiveScheduledBlock ? 155 : 140) : (isLiveScheduledBlock ? 112 : 80), overflow: "hidden", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
             {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
             {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} location={event.location} notes={event.notes} />}
             <View style={eventStyles.illustratedContent}>
@@ -7883,7 +7896,7 @@ function EventCardInner({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-          <View style={[eventStyles.defaultCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, borderColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined, ...(skinTokens.frame ?? {}), ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: 0 } : {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[eventStyles.defaultCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, borderColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: 0 } : {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
           {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
           {!event.isOffEvent && <View style={[eventStyles.defaultDot, { backgroundColor: '#FFFFFF' }]} />}
           <View style={{ flex: 1 }}>
@@ -8157,7 +8170,7 @@ function TodoItem({
         </Pressable>
       ) : isGroupedTodo ? (
         <View style={{ marginBottom: 12, marginHorizontal: 12 }}>
-          <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: groupBorderColor, overflow: 'hidden', ...(skinTokens.frame ?? {}), ...(isSkinned ? cartridgeShadow ?? {} : {}) }}>
+          <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: groupBorderColor, overflow: 'hidden', ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? cartridgeShadow ?? {} : {}) }}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${todo.isGroupExpanded ? 'Collapse' : 'Expand'} ${todo.title} subtasks`}
@@ -9089,7 +9102,7 @@ function RestSquare({
       onLongPress={onLongPress}
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
-      <View style={{ flex: 1, borderRadius: 16, backgroundColor: skinTokens.isTerminal ? TERM_PANEL : mc.bg, borderWidth: 1.5, borderColor: skinTokens.isTerminal ? TERM_MID : mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center", ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
+      <View style={{ flex: 1, borderRadius: 16, backgroundColor: skinTokens.isTerminal ? TERM_PANEL : mc.bg, borderWidth: 1.5, borderColor: skinTokens.isTerminal ? TERM_MID : mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
         {/* Animated sky background by time of day — paper cutouts under the Paper skin, pixels under 8-bit, phosphor line art under Terminal */}
         {isPaper ? (
           <PaperRestSky mood={mood} bg={mc.bg} />
@@ -9198,7 +9211,7 @@ function MinistrySquare({
           alignItems: "center",
           justifyContent: "center",
           padding: 8,
-          ...(skinTokens.frame ?? {}),
+          ...(skinTokens.frame ?? paperCutFor(skinTokens)),
           ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
         }}
       >
@@ -9372,7 +9385,7 @@ function MinistryCard({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >
-          <View style={[ministryStyles.completedCard, { ...completedBarStyle, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
+          <View style={[ministryStyles.completedCard, { ...completedBarStyle, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
             <View style={[ministryStyles.completedDot, { backgroundColor: completedColor }]} />
             <Text style={[ministryStyles.completedTitle, { color: completedTitleColor, ...bitDisplay(skinTokens, 10) }]} numberOfLines={1}>
               {ministry.title}
@@ -9425,7 +9438,7 @@ function MinistryCard({
             // butt them against the next row). Terminal floats the same
             // way on the tube (v186).
             marginBottom: (skinTokens.isEightBit || skinTokens.isTerminal) ? 12 : 0,
-            ...(skinTokens.frame ?? {}),
+            ...(skinTokens.frame ?? paperCutFor(skinTokens)),
             ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
           }]}>
             {/* Mission Ticket - travel info */}
@@ -9517,7 +9530,7 @@ function BirthdayCard({ birthday }: { birthday: BirthdayEvent }) {
   const firstName = birthday.personName.trim().split(/\s+/).filter(Boolean)[0] ?? birthday.personName;
   const age = getBirthdayAge(birthday);
   return (
-    <View style={[birthdayStyles.card, { backgroundColor: "rgba(245, 158, 11, 0.10)", borderColor: "rgba(245, 158, 11, 0.35)", ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
+    <View style={[birthdayStyles.card, { backgroundColor: "rgba(245, 158, 11, 0.10)", borderColor: "rgba(245, 158, 11, 0.35)", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
       {BIRTHDAY_CONFETTI.map((c, i) => (
         <View
           key={i}
@@ -9624,7 +9637,7 @@ function ExpandableSection({
   }));
 
   return (
-    <View style={[expandStyles.container, { borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, ...(skinTokens.frame ? { borderRadius: skinTokens.frame.borderRadius, borderWidth: skinTokens.frame.borderWidth } : {}), ...((skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, ...(skinTokens.cardShadow ?? {}) } : {}) }]}>
+    <View style={[expandStyles.container, { borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, ...(skinTokens.frame ? { borderRadius: skinTokens.frame.borderRadius, borderWidth: skinTokens.frame.borderWidth } : skinTokens.isPaper ? { borderRadius: 6 } : {}), ...((skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, ...(skinTokens.cardShadow ?? {}) } : {}) }]}>
       <View style={[expandStyles.headerContainer, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }]}>
         <Pressable
           onPress={() => {
@@ -11871,8 +11884,12 @@ export function ScheduleTab({
           transparent-on-tube header read as missing too, so the header
           is a solid terminal window (panel + frame + window shadow),
           the full date spelled out in VT323, pinned sticky by the same
-          list mechanism. Classic/Paper keep the sheet top. */}
-      <View style={[scheduleStyles.dateHeaderCard, skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
+          list mechanism. v189 (Paper): Jonathan asked for the same
+          thing in paper — a solid paper panel (stock fill + the sheet
+          edge, cut corners) carrying the full date under the day name,
+          pinned sticky by the same mechanism. Classic keeps the sheet
+          top. */}
+      <View style={[scheduleStyles.dateHeaderCard, skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : skinTokens.isPaper ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 6, borderTopRightRadius: 6, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, ...(skinTokens.cardShadow ?? {}) } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
   <View style={scheduleStyles.dayHeaderContent}>
     <Text style={[scheduleStyles.dayName, { color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...bitDisplay(skinTokens, 13) }]}>
       {dateHeader.dayName}
@@ -11889,6 +11906,11 @@ export function ScheduleTab({
   </View>
   {(skinTokens.isEightBit || skinTokens.isTerminal) ? (
     <Text style={{ color: skinTokens.isTerminal ? TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 8) }}>
+      {`${dateHeader.monthName} ${dateHeader.dayNum}, ${dateHeader.year}`}
+    </Text>
+  ) : null}
+  {skinTokens.isPaper ? (
+    <Text style={{ color: colors.muted, marginBottom: 8, fontSize: 13, fontWeight: "600" }}>
       {`${dateHeader.monthName} ${dateHeader.dayNum}, ${dateHeader.year}`}
     </Text>
   ) : null}
@@ -11962,7 +11984,7 @@ export function ScheduleTab({
                 : router.push({ pathname: '/bible-chapters', params: { openBookNav: '1' } })}
               style={({ pressed }) => [{ marginBottom: 12, marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }]}
             >
-              <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(skinTokens.frame ?? {}), ...(isSkinned ? cartridgeShadowFor(skinTokens) ?? {} : {}) }}>
+              <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? cartridgeShadowFor(skinTokens) ?? {} : {}) }}>
                 <View style={{ padding: 16, gap: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -12181,7 +12203,7 @@ export function ScheduleTab({
                 return (
                   <Pressable
                     key={t.id}
-                    style={{ flex: 1, backgroundColor: todoColor, borderRadius: 12, padding: 12, minHeight: 68, justifyContent: "center", ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}
+                    style={{ flex: 1, backgroundColor: todoColor, borderRadius: 12, padding: 12, minHeight: 68, justifyContent: "center", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}
                     onPress={(e) => {
                       const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
                       if (!t.isCompleted) onAwardXP?.(xpActionForDate(t.date), t.id, position);
@@ -12500,7 +12522,7 @@ export function ScheduleTab({
                   onOpenLibrary={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }}
                 />
               ) : (
-                <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
+                <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
                     <MaterialIcons name="music-note" size={20} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
                     <Text style={{ marginLeft: 8, fontSize: 16, fontWeight: '600', color: colors.foreground, ...bitDisplay(skinTokens, 11) }}>Worship</Text>
@@ -12650,7 +12672,7 @@ export function ScheduleTab({
       {skinTokens.isEightBit ? <BitBackground /> : skinTokens.isTerminal ? <TerminalBackground /> : isSkinned ? <PaperGrainOverlay /> : null}
       {/* Pill-style floating header (see-through, like People tab) */}
       <Animated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, opacity: scrollY.interpolate({ inputRange: [200, 320], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: scrollY.interpolate({ inputRange: [200, 320], outputRange: [0, -60], extrapolate: 'clamp' }) }] }]}>
-        <View style={{ backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
+        <View style={{ backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
           <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, fontSize: 20, fontWeight: "800", ...bitDisplay(skinTokens, 12) }}>Schedule</Text>
           <Text style={{ color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12 }}>{(() => { const total = dayEvents.length; const remaining = dayEvents.filter((e) => !e.isCompleted).length; return remaining === total ? `${total} events today` : `${remaining} of ${total} events left`; })()}</Text>
         </View>
@@ -12784,7 +12806,7 @@ export function ScheduleTab({
               ref={mainListRef}
               style={{ flex: 1, position: "relative", zIndex: 1 }}
               data={scheduleSheetData}
-              stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal) ? [1] : undefined}
+              stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal || skinTokens.isPaper) ? [1] : undefined}
               scrollEnabled={slidePicker == null}
               onMomentumScrollEnd={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
               onScrollEndDrag={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
@@ -12928,7 +12950,7 @@ export function ScheduleTab({
           style={[scheduleStyles.missedTodosFloatingContainer, { top: 70 }]}
         >
           {isMissedTodosOpen && (
-            <View style={[scheduleStyles.missedTodosPanel, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.background : colors.background, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
+            <View style={[scheduleStyles.missedTodosPanel, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.background : colors.background, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}>
               <View style={[scheduleStyles.missedTodosPanelHeader, { borderBottomColor: colors.border }]}>
                 <View style={scheduleStyles.missedTodosPanelTitleGroup}>
                   <View style={[scheduleStyles.missedTodosPanelIcon, { backgroundColor: colors.error + '18' }]}>
@@ -13064,7 +13086,7 @@ export function ScheduleTab({
           <Pressable style={scheduleStyles.fabOverlay} onPress={() => setShowAddModal(false)} />
           <ReAnimated.View
             entering={FadeIn.duration(180).easing(Easing.out(Easing.quad))}
-            style={[scheduleStyles.fabMenu, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}
+            style={[scheduleStyles.fabMenu, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}
           >
             <ReAnimated.View entering={FadeIn.duration(180).delay(30).easing(Easing.out(Easing.quad))}>
             <Pressable

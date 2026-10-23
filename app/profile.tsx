@@ -513,6 +513,9 @@ export default function ProfileScreen() {
       // the offset shadow is what read as a gray frame in v174).
       backgroundColor: isSkinned ? skinTokens.surface ?? "#FFFFFF" : auraWashColor(profileAura, "24") || `${colors.primary}15`,
       borderColor: profileAura?.glowColor || `${colors.primary}30`,
+      // v189: cut corners under Paper — the sheet stack beneath
+      // squares to match (its layers branch to 6 above).
+      ...(isPaper ? { borderRadius: 6 } : null),
     },
     profileName: {
       ...styles.profileName,
@@ -628,8 +631,8 @@ export default function ProfileScreen() {
             <>
               {/* 8-bit: the same stack in dusk layers with square corners.
                   Terminal (v186): deeper tube greens, 2px corners. */}
-              <View style={{ position: 'absolute', left: 7, right: -7, top: 9, bottom: -9, borderRadius: isPaper ? 28 : skinTokens.isTerminal ? 2 : 6, backgroundColor: isPaper ? '#E6DCC2' : skinTokens.isTerminal ? TERM_DEEP : '#1E1138' }} />
-              <View style={{ position: 'absolute', left: 3.5, right: -3.5, top: 4.5, bottom: -4.5, borderRadius: isPaper ? 28 : skinTokens.isTerminal ? 2 : 6, backgroundColor: isPaper ? '#EFE9DB' : skinTokens.isTerminal ? TERM_PANEL_2 : '#2A1B4E' }} />
+              <View style={{ position: 'absolute', left: 7, right: -7, top: 9, bottom: -9, borderRadius: isPaper ? 6 : skinTokens.isTerminal ? 2 : 6, backgroundColor: isPaper ? '#E6DCC2' : skinTokens.isTerminal ? TERM_DEEP : '#1E1138' }} />
+              <View style={{ position: 'absolute', left: 3.5, right: -3.5, top: 4.5, bottom: -4.5, borderRadius: isPaper ? 6 : skinTokens.isTerminal ? 2 : 6, backgroundColor: isPaper ? '#EFE9DB' : skinTokens.isTerminal ? TERM_PANEL_2 : '#2A1B4E' }} />
             </>
           ) : null}
         <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }, isSkinned ? { overflow: 'hidden' } : null, skinCardShadow]}>
@@ -682,17 +685,17 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.statsGrid}>
-          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle]}>
+          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <Text style={dynamicStyles.statNumber}>{highestFastStreak}</Text>
             <Text style={styles.statLabel}>Highest Streak</Text>
           </View>
-          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle]}>
+          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <Text style={dynamicStyles.statNumber}>{completedFastCount}</Text>
             <Text style={styles.statLabel}>Completed Fasts</Text>
           </View>
-          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle]}>
+          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }]}>
               {lastCompletedFastProgress ? `${lastCompletedFastPercentage}%` : "Collecting Data"}
@@ -720,7 +723,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
         {lastCompletedFast && lastCompletedFastProgress ? (
-          <View style={[styles.previousFastCard, skinCardShadow, paperSurfaceStyle]}>
+          <View style={[styles.previousFastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <View style={styles.previousFastHeader}>
               <View style={{ flex: 1 }}>
@@ -759,7 +762,7 @@ export default function ProfileScreen() {
                 </View>
               )}
             </View>
-            <View style={[styles.fastCard, skinCardShadow, paperSurfaceStyle]}>
+            <View style={[styles.fastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null]}>
               {isSkinned ? <PaperGrainOverlay /> : null}
               <View style={[styles.fastIcon, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
                 <MaterialIcons name={iconName(selectedFastType?.icon ?? "local-fire-department")} size={28} color="#FFFFFF" />
@@ -1109,7 +1112,7 @@ export default function ProfileScreen() {
                       <View style={[styles.timelineDot, { backgroundColor: typeInfo?.color ?? colors.primary }]} />
                       {index < fastHistory.length - 1 && <View style={styles.timelineLine} />}
                     </View>
-                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, skinCardShadow, paperSurfaceStyle, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
+                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
                       {isSkinned ? <PaperGrainOverlay /> : null}
                       <View style={styles.historyCardHeader}>
                         <View style={{ flex: 1 }}>

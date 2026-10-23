@@ -12,8 +12,10 @@
 // queue entries, and the grid offers a way back down from every state.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const store = new Map<string, string>();
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -33,6 +35,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 
 import { parseCommentaryTxt } from '../bible-v205/parse';
 import {
+  BARE_STORY_CHUNK,
   booksWithProgress,
   browseCategory,
   buildDisplaySections,
@@ -42,9 +45,13 @@ import {
   chapterCountFor,
   flattenEntries,
   getChapterData,
+  isBareChapter,
+  mergeVerseOnlyEntries,
   notesBooks,
   searchChapter,
 } from '../bible-v205/index';
+import { composePreview, previewFor } from '../bible-v205/preview';
+import { PREVIEWS } from '../bible-v205/previews';
 import { STUDY_SEED } from '../bible-v205/study-seed';
 import {
   chapterStatus,
@@ -356,7 +363,9 @@ describe('v206 — the Notion seed is cleared; only app progress counts', () => 
     expect(src).toContain('Last time: ');
     expect(src).toContain('This time: ');
     expect(src).toContain('getLastReadPosition');
-    expect(src).toContain('isPersonalStudyExpanded && (item.data.lastTime || item.data.thisTime)');
+    // v207: the expansion condition widened — it also opens for the
+    // baked preview and the Read target (see the v207 describe below).
+    expect(src).toContain('isPersonalStudyExpanded && (item.data.preview || item.data.lastTime || item.data.thisTime || item.data.readTarget)');
   });
 });
 
@@ -547,5 +556,212 @@ describe('for every user — labels and the fresh-profile shape', () => {
     }
     expect(covered.size).toBe(54);
     expect(chapterStatus(seedStudyState(), 'Numbers', 1)).toBe('none');
+  });
+});
+
+describe('v207 — the storyteller returns, baked in; bare chapters chunk; the top inset', () => {
+  const FIXTURE: Record<string, Record<number, { recap: string; preview: string; question: string }>> = {
+    Leviticus: {
+      19: {
+        recap: 'God claimed Israel as His own and began setting the terms of the covenant.',
+        preview: 'Moses lays out holiness for everyday life — fields, neighbors, and honest scales.',
+        question: 'Will Israel actually live set apart?',
+      },
+    },
+    Exodus: {
+      1: {
+        recap: 'Joseph and his brothers died in Egypt, but their families multiplied exceedingly.',
+        preview: 'A new Pharaoh who never knew Joseph turns to oppression and a deadly decree.',
+        question: 'Will Pharaoh crush Israel — or multiply it?',
+      },
+    },
+    Genesis: {
+      1: {
+        recap: 'There is nothing before this — no last time.',
+        preview: 'God speaks light, sky, land, and life into being, day by day.',
+        question: 'What will He make of the man He forms?',
+      },
+    },
+  };
+
+  it('composes the three storyteller sections with the labels built from the right chapters', () => {
+    const mid = composePreview('Leviticus', 19, FIXTURE);
+    expect(mid).not.toBeNull();
+    expect(mid!.lastLabel).toBe('Last time in Leviticus 18:');
+    expect(mid!.lastText).toBe(FIXTURE.Leviticus[19].recap);
+    expect(mid!.thisLabel).toBe('This time in Leviticus 19:');
+    expect(mid!.thisText).toBe(FIXTURE.Leviticus[19].preview);
+    expect(mid!.question).toBe(FIXTURE.Leviticus[19].question);
+
+    // Chapter 1: the "last time" crosses into the previous book's
+    // final chapter (canon order, full chapter count).
+    const first = composePreview('Exodus', 1, FIXTURE);
+    expect(first!.lastLabel).toBe('Last time in Genesis 50:');
+    expect(first!.thisLabel).toBe('This time in Exodus 1:');
+
+    // Genesis 1 has no last time at all.
+    const gen = composePreview('Genesis', 1, FIXTURE);
+    expect(gen!.lastLabel).toBeNull();
+    expect(gen!.lastText).toBeNull();
+    expect(gen!.thisLabel).toBe('This time in Genesis 1:');
+    expect(gen!.question).toBe(FIXTURE.Genesis[1].question);
+  });
+
+  it('graceful absence: a chapter with no baked preview composes to null', () => {
+    expect(composePreview('Leviticus', 20, FIXTURE)).toBeNull();
+    expect(composePreview('Judges', 1, FIXTURE)).toBeNull();
+    // The live module agrees with the shape: whatever has been baked
+    // so far composes well-formed or not at all.
+    expect(typeof PREVIEWS).toBe('object');
+    const any = previewFor('Leviticus', 19);
+    if (any) {
+      expect(any.thisLabel).toBe('This time in Leviticus 19:');
+      expect(any.lastLabel).toBe('Last time in Leviticus 18:');
+    } else {
+      expect(PREVIEWS['Leviticus']?.[19]).toBeUndefined();
+    }
+  });
+
+  it('the generator script embeds fixture books and skips malformed entries', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'v207-previews-'));
+    try {
+      writeFileSync(
+        join(dir, 'Leviticus.json'),
+        JSON.stringify({
+          '19': FIXTURE.Leviticus[19],
+          '20': { recap: '', preview: 'half-written', question: 'Skipped?' },
+        }),
+      );
+      const outFile = join(dir, 'previews.ts');
+      execFileSync('node', [join(process.cwd(), 'scripts', 'gen-previews.mjs')], {
+        env: { ...process.env, PREVIEWS_DIR: dir, PREVIEWS_OUT: outFile },
+        stdio: 'pipe',
+      });
+      const out = readFileSync(outFile, 'utf8');
+      expect(out).toContain('"Leviticus"');
+      expect(out).toContain('Will Israel actually live set apart?');
+      expect(out).not.toContain('half-written');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('the card reads the baked preview and its Read button targets the NEW chapter page', () => {
+    const src = readFileSync(join(process.cwd(), 'components', 'schedule-tab.tsx'), 'utf8');
+    // Baked data, composed locally for the card's read target.
+    expect(src).toContain("from \"@/lib/bible-v205/preview\"");
+    expect(src).toContain('previewFor(readTarget.book, readTarget.chapter)');
+    expect(src).toContain('item.data.preview.lastLabel');
+    expect(src).toContain('item.data.preview.thisLabel');
+    expect(src).toContain('item.data.preview.question');
+    // The Read Chapter button opens this-time's chapter in the v205
+    // chapter page route — not the retired viewer or tracker.
+    expect(src).toContain('Read Chapter');
+    expect(src).toContain("pathname: '/bible-chapter'");
+    expect(src).toContain('params: { book: item.data.readTarget.book, chapter: String(item.data.readTarget.chapter) }');
+    // The live server fetch is retired from the card for good.
+    expect(src).not.toContain('client.bible.getChapterSummary');
+    expect(src).not.toContain('createTRPCClient');
+    expect(src).not.toContain('chapter-summary-');
+  });
+
+  it('bare chapter (Judges 1 — no commentary data at all) chunks into ≤3-verse Stories slides', () => {
+    expect(getChapterData('Judges', 1)).toBeNull();
+    expect(isBareChapter(null)).toBe(true);
+    expect(isBareChapter(getChapterData('Judges', 1))).toBe(true);
+    const verseCount = 36; // Judges 1, KJV
+    const sections = buildDisplaySections(null, verseCount);
+    const entries = flattenEntries(sections).map((f) => f.entry);
+    expect(entries).toHaveLength(Math.ceil(verseCount / BARE_STORY_CHUNK));
+    expect(entries.every((e) => e.end - e.start + 1 <= BARE_STORY_CHUNK)).toBe(true);
+    // Every verse covered exactly once, in order.
+    const covered: number[] = [];
+    for (const e of entries) for (let v = e.start; v <= e.end; v++) covered.push(v);
+    expect(covered).toEqual(Array.from({ length: verseCount }, (_, i) => i + 1));
+    // And Stories paces by those chunks — no notes/highlight screens.
+    const screens = buildStoryScreens(sections);
+    expect(screens.filter((s) => s.t === 'verse')).toHaveLength(12);
+    expect(screens.some((s) => s.t === 'notes' || s.t === 'highlight')).toBe(false);
+  });
+
+  it('grouped-but-noteless chapters keep HIS groupings — no chunking (Ecclesiastes 3)', () => {
+    const ch = getChapterData('Ecclesiastes', 3);
+    expect(ch).not.toBeNull();
+    expect(isBareChapter(ch)).toBe(false);
+    const sections = buildDisplaySections(ch, 22);
+    expect(sections.map((s) => [s.start, s.end])).toEqual([[1, 15], [16, 22]]);
+    const screens = buildStoryScreens(sections);
+    const verseRanges = screens
+      .filter((s) => s.t === 'verse')
+      .map((s) => (s.t === 'verse' ? [s.entry.start, s.entry.end] : null));
+    expect(verseRanges).toEqual([[1, 15], [16, 22]]);
+    const sectionTitles = screens.filter((s) => s.t === 'section').map((s) => (s.t === 'section' ? s.title : null));
+    expect(sectionTitles).toEqual(['A Season For Everything', 'Everything Is The Same']);
+  });
+
+  it('with-notes chapters derive exactly as before — chunking never touches them (1 Corinthians 1)', () => {
+    const ch = getChapterData('1 Corinthians', 1);
+    expect(ch).not.toBeNull();
+    expect(isBareChapter(ch)).toBe(false);
+    const sections = buildDisplaySections(ch, 31);
+    const expectedNoted = ch!.sections.flatMap((s) => s.entries.map((e) => [e.start, e.end] as [number, number]));
+    const actualNoted = flattenEntries(sections)
+      .filter((f) => f.entry.blocks.length > 0)
+      .map((f) => [f.entry.start, f.entry.end] as [number, number]);
+    expect(actualNoted).toEqual(expectedNoted);
+    const screens = buildStoryScreens(sections);
+    expect(screens.filter((s) => s.t === 'section')).toHaveLength(6);
+    expect(screens.filter((s) => s.t === 'verse')).toHaveLength(18);
+  });
+
+  it('read-only Stories on a bare chapter chunks too — the reader itself stays per-verse', () => {
+    const ro = buildReadOnlySections(null, 36);
+    // The pinned read-only shape: one entry per verse.
+    expect(flattenEntries(ro)).toHaveLength(36);
+    const merged = mergeVerseOnlyEntries(ro);
+    const entries = flattenEntries(merged).map((f) => f.entry);
+    expect(entries).toHaveLength(12);
+    expect(entries.every((e) => e.end - e.start + 1 <= BARE_STORY_CHUNK)).toBe(true);
+    expect(buildStoryScreens(merged).filter((s) => s.t === 'verse')).toHaveLength(12);
+    // Merges never cross a section boundary.
+    const two = mergeVerseOnlyEntries([
+      { start: 1, end: 2, title: 'A', entries: [
+        { start: 1, end: 1, blocks: [], verseOnly: true },
+        { start: 2, end: 2, blocks: [], verseOnly: true },
+      ] },
+      { start: 3, end: 4, title: 'B', entries: [
+        { start: 3, end: 3, blocks: [], verseOnly: true },
+        { start: 4, end: 4, blocks: [], verseOnly: true },
+      ] },
+    ]);
+    expect(two.map((s) => s.entries.map((e) => [e.start, e.end]))).toEqual([[[1, 2]], [[3, 4]]]);
+    // The chapter page hands Stories the merged sections only in
+    // read-only mode on a bare chapter.
+    const pageSrc = readFileSync(join(process.cwd(), 'components', 'bible-v205', 'chapter-page.tsx'), 'utf8');
+    expect(pageSrc).toContain('readOnly && isBareChapter(chapterData) ? mergeVerseOnlyEntries(sections) : sections');
+    expect(pageSrc).toContain('sections={storySections}');
+  });
+
+  it('every Bible-section screen applies the top safe-area inset', () => {
+    const files = [
+      'app/bible-chapters.tsx',
+      'app/bible-book.tsx',
+      'app/bible-queue.tsx',
+      'components/bible-v205/chapter-page.tsx',
+      'components/bible-v205/stories-view.tsx',
+    ];
+    for (const f of files) {
+      const src = readFileSync(join(process.cwd(), f), 'utf8');
+      expect(src, f).toContain('useSafeAreaInsets');
+      expect(src, f).toContain('insets.top');
+    }
+    const chapters = readFileSync(join(process.cwd(), 'app', 'bible-chapters.tsx'), 'utf8');
+    expect(chapters).toContain('paddingTop: insets.top + 8');
+    const book = readFileSync(join(process.cwd(), 'app', 'bible-book.tsx'), 'utf8');
+    expect(book).toContain('paddingTop: insets.top + 8');
+    const page = readFileSync(join(process.cwd(), 'components', 'bible-v205', 'chapter-page.tsx'), 'utf8');
+    expect(page).toContain('paddingTop: insets.top + 8');
+    const stories = readFileSync(join(process.cwd(), 'components', 'bible-v205', 'stories-view.tsx'), 'utf8');
+    expect(stories).toContain('paddingTop: insets.top + 13');
   });
 });

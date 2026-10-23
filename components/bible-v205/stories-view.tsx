@@ -8,6 +8,7 @@
 
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   buildStoryScreens,
@@ -42,6 +43,10 @@ const screenTypeLabel = (s: StoryScreen): string =>
   s.t === 'cover' ? 'Cover' : s.t === 'section' ? 'Section' : s.t === 'verse' ? 'Verses' : s.t === 'notes' ? 'Notes' : s.t === 'highlight' ? 'Highlight' : 'End';
 
 export function StoriesView(props: StoriesViewProps) {
+  // v207: top safe-area inset on the Stories chrome, as the rest of
+  // the app applies — Stories replaces the chapter page on screen, so
+  // its chrome is the top chrome.
+  const insets = useSafeAreaInsets();
   const { palette, book, chapter, sections, verses } = props;
   const screens = useMemo(() => buildStoryScreens(sections), [sections]);
   const [idx, setIdx] = useState(0);
@@ -305,7 +310,7 @@ export function StoriesView(props: StoriesViewProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: palette.paper }]}>
-      <View style={[styles.chrome, { borderBottomColor: palette.line }]}>
+      <View style={[styles.chrome, { borderBottomColor: palette.line, paddingTop: insets.top + 13 }]}>
         <View style={styles.segs}>
           {screens.map((s, i) => (
             <View

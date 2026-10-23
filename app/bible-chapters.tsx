@@ -10,6 +10,7 @@
 
 import { useCallback, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSkin } from '@/hooks/use-skin';
@@ -44,6 +45,9 @@ const CANON = Object.keys(CHAPTER_COUNTS);
 
 export default function BibleBooksScreen() {
   const router = useRouter();
+  // v207: the top safe-area inset the rest of the app applies — without
+  // it the topbar slides up under the Android notification tray.
+  const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
   const { skin } = useSkin();
   const [studyState, setStudyState] = useState<StudyState | null>(null);
@@ -77,7 +81,7 @@ export default function BibleBooksScreen() {
 
   const content = (
     <View style={{ flex: 1, backgroundColor: palette.paper }}>
-      <View style={[styles.topbar, { borderBottomColor: palette.line }]}>
+      <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={{ padding: 2 }}>
           <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
         </Pressable>

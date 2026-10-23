@@ -9,6 +9,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSkin } from '@/hooks/use-skin';
@@ -45,6 +46,8 @@ function editorChipColors(palette: BiblePalette, s: StudyStatus) {
 
 export default function BibleBookScreen() {
   const router = useRouter();
+  // v207: top safe-area inset, as the rest of the app applies.
+  const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
   const { skin } = useSkin();
   const params = useLocalSearchParams<{ book?: string }>();
@@ -106,7 +109,7 @@ export default function BibleBookScreen() {
 
   const content = (
     <View style={{ flex: 1, backgroundColor: palette.paper }}>
-      <View style={[styles.topbar, { borderBottomColor: palette.line }]}>
+      <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={{ padding: 2 }}>
           <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
         </Pressable>

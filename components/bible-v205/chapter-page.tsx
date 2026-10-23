@@ -19,6 +19,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -28,6 +29,8 @@ import {
   flattenEntries,
   getBookData,
   getChapterData,
+  isBareChapter,
+  mergeVerseOnlyEntries,
   type DisplaySection,
 } from '@/lib/bible-v205/index';
 import { entryKey, type NoteCategory, type StudyStatus, type V205Entry } from '@/lib/bible-v205/types';
@@ -79,6 +82,8 @@ export const READ_MODE_KEY = 'prayercircle.bible.v205.readmode.v1';
 
 export function ChapterPageView(props: ChapterPageProps) {
   const { book, chapter } = props;
+  // v207: top safe-area inset, as the rest of the app applies.
+  const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
   const { skin } = useSkin();
   const chapterData = useMemo(() => getChapterData(book, chapter), [book, chapter]);
@@ -152,6 +157,15 @@ export function ChapterPageView(props: ChapterPageProps) {
   const sections: DisplaySection[] = useMemo(
     () => (readOnly ? buildReadOnlySections(chapterData, verseCount) : notesSections),
     [readOnly, chapterData, verseCount, notesSections],
+  );
+  // v207: Stories on a bare chapter (no notes, no groupings) paces by
+  // ≤3-verse slides in BOTH modes. With-notes gets them from
+  // buildDisplaySections' chunked fallback; read-only sections stay
+  // per-verse for the reader, so Stories alone receives the merged
+  // sections — same chunk boundaries, so kept marks agree across modes.
+  const storySections: DisplaySection[] = useMemo(
+    () => (readOnly && isBareChapter(chapterData) ? mergeVerseOnlyEntries(sections) : sections),
+    [readOnly, chapterData, sections],
   );
   const flat = useMemo(() => flattenEntries(sections), [sections]);
   const notesFlat = useMemo(() => flattenEntries(notesSections), [notesSections]);
@@ -283,7 +297,7 @@ export function ChapterPageView(props: ChapterPageProps) {
       display={book}
       chapter={chapter}
       chapterData={chapterData}
-      sections={sections}
+      sections={storySections}
       verses={verses}
       marks={marks}
       palette={palette}
@@ -297,7 +311,7 @@ export function ChapterPageView(props: ChapterPageProps) {
     <View style={{ flex: 1, backgroundColor: palette.paper }}>
       {/* ── topwrap ── */}
       <View style={[styles.topwrap, { backgroundColor: palette.paper, borderBottomColor: palette.line }]}>
-        <View style={[styles.topbar, { borderBottomColor: palette.line }]}>
+        <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
           <Pressable onPress={props.onBack} hitSlop={10} style={styles.topBtn}>
             <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
           </Pressable>

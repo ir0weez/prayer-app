@@ -135,7 +135,6 @@ function TermCheckbox({ checked, size = 20 }: { checked: boolean; size?: number 
 function paperStockFor(accent: string, surface: string | null): string {
   return paperStockTint(accent, surface);
 }
-import { createTRPCClient } from "@/lib/trpc";
 import { FlameSparkIcon } from "./flame-spark-icon";
 import { DateTimePicker } from "./date-time-picker";
 import { ScheduleProgressBar } from "./schedule-progress-bar";
@@ -232,6 +231,7 @@ import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display"
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, getLastReadPosition, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
 import { chapterStatus as v205ChapterStatus, loadStudyState as loadV205StudyState } from "@/lib/bible-v205/study";
 import { CHAPTER_COUNTS as V205_CHAPTER_COUNTS, chapterCountFor as v205ChapterCountFor } from "@/lib/bible-v205/index";
+import { previewFor } from "@/lib/bible-v205/preview";
 import { getBibleBookGenre } from "@/lib/bible-genres";
 import { BibleGenreMotif } from "@/components/bible-genre-motif";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
@@ -10042,8 +10042,9 @@ export function ScheduleTab({
   const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
   const [timeBlockColors, setTimeBlockColors] = useState<Record<string, string>>({}); // Map of time block ID to color
   const [selectedBibleStudyDay, setSelectedBibleStudyDay] = useState<string | null>(null); // Day name for multi-day Bible study tracker
-  const [chapterSummary, setChapterSummary] = useState<string>("");
-  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  // v207: the chapterSummary / isLoadingSummary state is gone with the
+  // live fetch it served — the storyteller preview is baked local data
+  // now (lib/bible-v205/preview), read synchronously in the items memo.
   const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(false); // Expandable Personal Study card state
   const [celebratedBook, setCelebratedBook] = useState<string | null>(null); // Book just completed — drives celebration UI
   const [bibleFullyComplete, setBibleFullyComplete] = useState(false); // All 66 books done
@@ -10733,61 +10734,18 @@ export function ScheduleTab({
     };
   }, [bibleState]);
 
-  // Sync currentBibleBook whenever bibleState changes
+  // Sync currentBibleBook whenever bibleState changes.
+  // v207: the pre-v205 card fetched its storyteller preview live from
+  // the bible.getChapterSummary tRPC route and cached it per chapter;
+  // v205 cut the display but left this fetch running unwatched. The
+  // fetch is now retired for good — the previews ship baked into the
+  // app as local data (lib/bible-v205/previews.ts, composed by
+  // lib/bible-v205/preview.ts) and the card reads them synchronously.
+  // The server route itself is untouched; the card no longer calls it.
   useEffect(() => {
     if (bibleState) {
       const display = getCurrentBibleDisplay(bibleState);
       setCurrentBibleBook(display || 'No book marked as current');
-
-      // Fetch chapter summary
-      const fetchSummary = async () => {
-        const book = Object.entries(bibleState.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-        if (book) {
-          const nextChapter = bibleState.chapters.find((c: any) => c.book === book && !c.isRead);
-          if (nextChapter) {
-            const cacheKey = `chapter-summary-${book}-${nextChapter.chapter}`;
-
-            // Try to load from cache first
-            try {
-              const cached = await AsyncStorage.getItem(cacheKey);
-              if (cached) {
-                setChapterSummary(cached);
-                return;
-              }
-            } catch (e) {
-              console.error('Error reading cache:', e);
-            }
-
-            // Fetch from server if not cached
-            setIsLoadingSummary(true);
-            try {
-              const client = createTRPCClient();
-              const result = await client.bible.getChapterSummary.mutate({
-                book,
-                chapter: String(nextChapter.chapter),
-              });
-              const summaryData = result?.summary;
-              const summary = typeof summaryData === 'string' ? summaryData : '';
-              setChapterSummary(summary);
-
-              // Cache the result
-              if (summary) {
-                try {
-                  await AsyncStorage.setItem(cacheKey, summary);
-                } catch (e) {
-                  console.error('Error caching summary:', e);
-                }
-              }
-            } catch (error) {
-              console.error('Error fetching summary:', error);
-              setChapterSummary('No summary available');
-            } finally {
-              setIsLoadingSummary(false);
-            }
-          }
-        }
-      };
-      fetchSummary();
     }
   }, [bibleState]);
 
@@ -11866,14 +11824,23 @@ export function ScheduleTab({
         ? `Last time: ${lastPos.book} ${lastPos.chapter}${lastPos.date ? ` · ${formatReadDate(lastPos.date)}` : ""}`
         : null;
       const thisTime = currentBibleDisplay ? `This time: ${currentBibleDisplay}` : null;
-      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: studyDoorway?.line ?? "Your Books", sub: studyDoorway?.sub ?? null, lastTime, thisTime } });
+      // v207: the card's storyteller preview + Read target. readTarget
+      // is the pre-v205 derivation (the 'current' book's next unread
+      // chapter — the same position the old fetch and the old Read
+      // Chapter button used); the preview for it is baked local data,
+      // null until that chapter's preview has been written and baked.
+      const currentBook = Object.entries(bibleState.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+      const nextUnread = currentBook ? bibleState.chapters.find((c: any) => c.book === currentBook && !c.isRead) : undefined;
+      const readTarget = currentBook && nextUnread ? { book: currentBook, chapter: nextUnread.chapter } : null;
+      const preview = readTarget ? previewFor(readTarget.book, readTarget.chapter) : null;
+      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: studyDoorway?.line ?? "Your Books", sub: studyDoorway?.sub ?? null, lastTime, thisTime, preview, readTarget } });
     }
 
     // Add worship section as a direct display (not expandable)
     items.push({ type: "worship-display", id: "worship-section", data: null });
 
     return items;
-  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, currentAlbum, clockNow, studyDoorway]);
+  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, currentAlbum, clockNow, studyDoorway]);
 
   // Joi-style sheet: the date header leads the sheet; an empty-state item
   // preserves the "no items" message now that data always carries the header.
@@ -12138,6 +12105,12 @@ export function ScheduleTab({
           // in place (whole-card tap still opens Books) and shows his
           // reading position from the unified store — Last time /
           // This time — the lines the v205 doorway dropped.
+          // v207: the expansion's real content is back — the baked
+          // storyteller preview ("Last time in… / This time in… /
+          // cliffhanger question", lib/bible-v205/preview) and the
+          // Read Chapter button, which opens this-time's chapter in
+          // the NEW chapter page. The position lines stay, subordinate;
+          // a chapter with no baked preview yet shows them alone.
           return (
             <Pressable
               onPress={() => router.push('/bible-chapters')}
@@ -12170,17 +12143,59 @@ export function ScheduleTab({
                       </Text>
                     ) : null}
                   </View>
-                  {isPersonalStudyExpanded && (item.data.lastTime || item.data.thisTime) ? (
-                    <View style={{ gap: 6, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
-                      {item.data.lastTime ? (
-                        <Text style={{ color: colors.muted, fontSize: 13, fontWeight: '500', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
-                          {item.data.lastTime}
-                        </Text>
+                  {isPersonalStudyExpanded && (item.data.preview || item.data.lastTime || item.data.thisTime || item.data.readTarget) ? (
+                    <View style={{ gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
+                      {item.data.preview ? (
+                        <View style={{ gap: 8 }}>
+                          {item.data.preview.lastLabel ? (
+                            <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 20, ...skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) }}>
+                              <Text style={{ color: colors.foreground, fontWeight: '700' }}>{item.data.preview.lastLabel}</Text>
+                              {' '}{item.data.preview.lastText}
+                            </Text>
+                          ) : null}
+                          <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 20, ...skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) }}>
+                            <Text style={{ color: colors.foreground, fontWeight: '700' }}>{item.data.preview.thisLabel}</Text>
+                            {' '}{item.data.preview.thisText}
+                          </Text>
+                          <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : colors.primary, fontSize: 13, fontWeight: '700', fontStyle: 'italic', lineHeight: 20, ...skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) }}>
+                            {item.data.preview.question}
+                          </Text>
+                        </View>
                       ) : null}
-                      {item.data.thisTime ? (
-                        <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '600', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
-                          {item.data.thisTime}
-                        </Text>
+                      {(item.data.lastTime || item.data.thisTime) ? (
+                        <View style={{ gap: 4 }}>
+                          {item.data.lastTime ? (
+                            <Text style={{ color: colors.muted, fontSize: item.data.preview ? 12 : 13, fontWeight: '500', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
+                              {item.data.lastTime}
+                            </Text>
+                          ) : null}
+                          {item.data.thisTime ? (
+                            <Text style={{ color: item.data.preview ? colors.muted : colors.foreground, fontSize: item.data.preview ? 12 : 13, fontWeight: item.data.preview ? '500' : '600', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
+                              {item.data.thisTime}
+                            </Text>
+                          ) : null}
+                        </View>
+                      ) : null}
+                      {item.data.readTarget ? (
+                        <Pressable
+                          onPress={() => router.push({ pathname: '/bible-chapter', params: { book: item.data.readTarget.book, chapter: String(item.data.readTarget.chapter) } })}
+                          style={({ pressed }) => [{
+                            alignSelf: 'flex-start',
+                            paddingHorizontal: 14,
+                            paddingVertical: 9,
+                            backgroundColor: colors.primary,
+                            borderRadius: 8,
+                            opacity: pressed ? 0.8 : 1,
+                            ...(bitButtonStyle(skinTokens, "primary") ?? {}),
+                            ...(termButtonStyle(skinTokens, "primary") ?? {}), ...(glassButtonStyle(skinTokens, "primary") ?? {}),
+                          }]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Read Chapter — ${item.data.readTarget.book} ${item.data.readTarget.chapter}`}
+                        >
+                          <Text style={{ color: skinTokens.isStainedGlass ? glassButtonInk("primary") : skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : colors.background, fontSize: 12, fontWeight: '700', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 14 : 8) : {}), ...skinText(skinTokens, skinTokens.type.labelText) }}>
+                            Read Chapter
+                          </Text>
+                        </Pressable>
                       ) : null}
                     </View>
                   ) : null}

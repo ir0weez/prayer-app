@@ -94,6 +94,30 @@ export interface DisplayEntry extends V205Entry {
   verseOnly: boolean;
 }
 
+/** v207: verses per Stories slide for a chapter with nothing to pace
+ * by — his ruling (2026-10-23): 3 verses each, the last slide takes
+ * the remainder. */
+export const BARE_STORY_CHUNK = 3;
+
+/**
+ * v207: a chapter with NEITHER commentary sections NOR his txt story
+ * groupings — nothing in it can pace Stories. Grouped-but-noteless
+ * chapters (Ecclesiastes 3–12: his groupings, zero comments) are NOT
+ * bare: his groupings win exactly as they always have, and chapters
+ * carrying his notes are never bare either.
+ */
+export function isBareChapter(chapter: V205ChapterData | null): boolean {
+  return !chapter || (chapter.sections.length === 0 && chapter.stories.length === 0);
+}
+
+function chunkRun(start: number, end: number, size: number): DisplayEntry[] {
+  const out: DisplayEntry[] = [];
+  for (let v = start; v <= end; v += size) {
+    out.push({ start: v, end: Math.min(v + size - 1, end), blocks: [], verseOnly: true });
+  }
+  return out;
+}
+
 export interface DisplaySection extends Omit<V205Section, 'entries'> {
   entries: DisplayEntry[];
 }
@@ -124,6 +148,11 @@ export function buildDisplaySections(
   }
   // Any verse not covered by a commentary section gets a plain section so
   // noteless chapters render whole.
+  // v207: on a BARE chapter (no notes, no groupings — isBareChapter)
+  // the plain run is chunked into ≤3-verse entries so Stories still
+  // paces it slide by slide; on any chapter with his notes or his
+  // groupings the run stays a single entry, exactly as before.
+  const bare = isBareChapter(chapter);
   if (verseCount > 0 && covered.size < verseCount) {
     let start: number | null = null;
     for (let v = 1; v <= verseCount + 1; v++) {
@@ -134,7 +163,9 @@ export function buildDisplaySections(
           start,
           end: v - 1,
           title: null,
-          entries: [{ start, end: v - 1, blocks: [], verseOnly: true }],
+          entries: bare
+            ? chunkRun(start, v - 1, BARE_STORY_CHUNK)
+            : [{ start, end: v - 1, blocks: [], verseOnly: true }],
         });
         start = null;
       }
@@ -180,6 +211,39 @@ export function buildReadOnlySections(
       verseOnly: true,
     })),
   }));
+}
+
+/**
+ * v207: merge consecutive verse-only entries inside each section into
+ * runs of at most `size` verses. Read-only sections stay per-verse by
+ * design (the reader's marking granularity — verse entries are the
+ * pinned shape); this merge is applied ONLY to the sections handed to
+ * Stories on a bare chapter in read-only mode, so Stories there walks
+ * the same ≤3-verse slides the with-notes fallback builds, instead of
+ * an unpaced run of single verses. Entries carrying blocks are never
+ * merged, and merges never cross a section boundary — his groupings
+ * keep their shape.
+ */
+export function mergeVerseOnlyEntries(
+  sections: DisplaySection[],
+  size: number = BARE_STORY_CHUNK,
+): DisplaySection[] {
+  return sections.map((s) => {
+    const entries: DisplayEntry[] = [];
+    for (const e of s.entries) {
+      const prev = entries[entries.length - 1];
+      const open = prev && prev.verseOnly && prev.blocks.length === 0;
+      const fits =
+        open &&
+        e.verseOnly &&
+        e.blocks.length === 0 &&
+        prev.end + 1 === e.start &&
+        prev.end - prev.start + 1 + (e.end - e.start + 1) <= size;
+      if (fits) entries[entries.length - 1] = { ...prev, end: e.end };
+      else entries.push({ ...e });
+    }
+    return { ...s, entries };
+  });
 }
 
 /** All entries of a chapter in order, with their section title attached. */

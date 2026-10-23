@@ -24,7 +24,7 @@ import { DateTimePicker } from "@/components/date-time-picker";
 import { AvatarImage } from "@/components/avatar-system";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle } from "@/lib/skin-themes";
+import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
 import type { Person } from "@/lib/prayercircle-data";
 import {
   addPrayerJournalReply,
@@ -260,8 +260,8 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     // gold for the active Bookmark toggle, the dark HUD panel for the
     // rest — never the rounded purple/outline pills. Other skins keep
     // the outline-pill treatment exactly.
-    const bookmarkInk = skinTokens.isEightBit ? bitButtonInk(item.isBookmarked ? "primary" : "secondary") : (item.isBookmarked ? "#FFFFFF" : item.color ? "#FFFFFF" : colors.primary);
-    const replyInk = skinTokens.isEightBit ? bitButtonInk("secondary") : (item.color ? "#FFFFFF" : colors.primary);
+    const bookmarkInk = skinTokens.isEightBit ? bitButtonInk(item.isBookmarked ? "primary" : "secondary") : skinTokens.isTerminal ? termButtonInk(item.isBookmarked ? "primary" : "secondary") : (item.isBookmarked ? "#FFFFFF" : item.color ? "#FFFFFF" : colors.primary);
+    const replyInk = skinTokens.isEightBit ? bitButtonInk("secondary") : skinTokens.isTerminal ? termButtonInk("secondary") : (item.color ? "#FFFFFF" : colors.primary);
     return (
     <Pressable
       delayLongPress={500}
@@ -320,9 +320,9 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           {hashtags.map((tag) => (
             <View
               key={tag}
-              style={{ backgroundColor: item.color ? "rgba(255, 255, 255, 0.25)" : colors.primary + "20", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}
+              style={{ backgroundColor: item.color ? "rgba(255, 255, 255, 0.25)" : skinTokens.isTerminal ? TERM_PHOS + "20" : colors.primary + "20", borderRadius: skinTokens.isTerminal ? 2 : 12, paddingHorizontal: 10, paddingVertical: 4 }}
             >
-              <Text style={{ color: item.color ? "#FFFFFF" : colors.primary, fontSize: 12, fontWeight: "600" }}>#{tag}</Text>
+              <Text style={{ color: item.color ? "#FFFFFF" : skinTokens.isTerminal ? TERM_PHOS : colors.primary, fontSize: 12, fontWeight: "600" }}>#{tag}</Text>
             </View>
           ))}
         </View>
@@ -364,7 +364,9 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             styles.outlineAction,
             skinTokens.isEightBit
               ? (bitButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary") ?? {})
-              : { borderColor: item.color ? "#FFFFFF" : colors.primary, backgroundColor: item.isBookmarked ? colors.primary : "transparent" },
+              : skinTokens.isTerminal
+                ? (termButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary") ?? {})
+                : { borderColor: item.color ? "#FFFFFF" : colors.primary, backgroundColor: item.isBookmarked ? colors.primary : "transparent" },
             pressed && styles.pressed,
           ]}
         >
@@ -378,7 +380,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             setDraftReply("");
             setReplyEntryId(item.id);
           }}
-          style={({ pressed }) => [styles.outlineAction, skinTokens.isEightBit ? (bitButtonStyle(skinTokens, "secondary") ?? {}) : { borderColor: item.color ? "#FFFFFF" : colors.primary }, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.outlineAction, skinTokens.isEightBit ? (bitButtonStyle(skinTokens, "secondary") ?? {}) : skinTokens.isTerminal ? (termButtonStyle(skinTokens, "secondary") ?? {}) : { borderColor: item.color ? "#FFFFFF" : colors.primary }, pressed && styles.pressed]}
         >
           <MaterialIcons name="reply" size={18} color={replyInk} />
           <Text style={[styles.outlineActionText, { color: replyInk }]}>Reply</Text>
@@ -430,11 +432,12 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 backgroundColor: bookmarksOnly ? colors.primary : (isSkinned ? paperSurface : colors.background),
                 borderColor: bookmarksOnly ? colors.primary : colors.border,
                 ...(bitButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary") ?? {}),
+                ...(termButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary") ?? {}),
               },
               pressed && styles.pressed,
             ]}
           >
-            <MaterialIcons name={bookmarksOnly ? "bookmark" : "bookmark-border"} size={23} color={skinTokens.isEightBit ? bitButtonInk(bookmarksOnly ? "primary" : "secondary") : bookmarksOnly ? "#FFFFFF" : colors.primary} />
+            <MaterialIcons name={bookmarksOnly ? "bookmark" : "bookmark-border"} size={23} color={skinTokens.isEightBit ? bitButtonInk(bookmarksOnly ? "primary" : "secondary") : skinTokens.isTerminal ? termButtonInk(bookmarksOnly ? "primary" : "secondary") : bookmarksOnly ? "#FFFFFF" : colors.primary} />
           </Pressable>
         </View>
       </ReAnimated.View>
@@ -446,7 +449,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         onScroll={handleJournalScroll}
         scrollEventThrottle={16}
         renderSectionHeader={({ section }) => (
-          <Text style={[styles.sectionTitle, { color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.muted }, bitText(11)]}>{section.title}</Text>
+          <Text style={[styles.sectionTitle, { color: skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_MID : colors.muted }, bitText(11)]}>{section.title}</Text>
         )}
         stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}

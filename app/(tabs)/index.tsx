@@ -132,7 +132,7 @@ import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/
 import { COINS_STORAGE_KEY, parseCoins, applyCoinsDelta } from "@/lib/hometown";
 import { awardXP, awardCustomXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
-import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, TERM_BG, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, getSkinThemeDefinition, normalizeSkinThemeId, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
+import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, TERM_BG, TERM_DIM, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, getSkinThemeDefinition, normalizeSkinThemeId, termButtonInk, termButtonStyle, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 
@@ -2152,7 +2152,7 @@ export default function HomeScreen() {
         </Pressable>
         </ReAnimated.View>;
       })}
-      <Pressable onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))} style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 6, marginBottom: 12, minHeight: 38, borderRadius: 8, backgroundColor: accent, alignItems: "center", justifyContent: "center", ...(bitButtonStyle(skinTokens, "primary") ?? {}) }, pressed && { opacity: 0.8 }]}><Text style={{ color: skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text></Pressable>
+      <Pressable onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))} style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 6, marginBottom: 12, minHeight: 38, borderRadius: 8, backgroundColor: accent, alignItems: "center", justifyContent: "center", ...(bitButtonStyle(skinTokens, "primary") ?? {}), ...(termButtonStyle(skinTokens, "primary") ?? {}) }, pressed && { opacity: 0.8 }]}><Text style={{ color: skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text></Pressable>
     </UnfurlPanel>;
   };
 
@@ -2640,8 +2640,8 @@ export default function HomeScreen() {
             </View>
             <Text numberOfLines={1} style={[styles.fastProgressType, { color: colors.muted }]}>{xpState.totalXP} XP · {xpProgress.requiredXP - xpProgress.currentXP} to Level {xpProgress.nextLevel}</Text>
           </View>
-          <View style={[styles.fastProgressBarContainer, { backgroundColor: colors.border }]}>
-            <View style={{ width: `${xpProgress.percentage}%`, height: "100%", overflow: "hidden", backgroundColor: colors.primary, borderRadius: 6 }}>
+          <View style={[styles.fastProgressBarContainer, { backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border, ...(skinTokens.isTerminal ? { borderRadius: 0 } : {}) }]}>
+            <View style={{ width: `${xpProgress.percentage}%`, height: "100%", overflow: "hidden", backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, borderRadius: skinTokens.isTerminal ? 0 : 6 }}>
               <Animated.View style={{ width: 70, height: "100%", backgroundColor: "rgba(255,255,255,0.42)", transform: [{ translateX: xpShimmer.interpolate({ inputRange: [0, 1], outputRange: [-70, 260] }) }] }} />
             </View>
           </View>
@@ -2701,12 +2701,12 @@ export default function HomeScreen() {
                 const elapsed = Math.min(activeFast.durationDays, Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86400000) + 1));
                 return (
                 <View style={{ marginTop: 4 }}>
-                  <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: "hidden" }}>
+                  <View style={{ height: 8, borderRadius: skinTokens.isTerminal ? 0 : 4, backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border, overflow: "hidden" }}>
                     <View
                       style={{
                         height: 8,
-                        borderRadius: 4,
-                        backgroundColor: colors.primary,
+                        borderRadius: skinTokens.isTerminal ? 0 : 4,
+                        backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary,
                         width: `${Math.min(100, (elapsed / activeFast.durationDays) * 100)}%`,
                       }}
                     />
@@ -3172,8 +3172,14 @@ export default function HomeScreen() {
         }}
         style={({ pressed }) => [styles.tabItem, pressed && styles.pressed]}
       >
-        <MaterialIcons name={iconName(icon)} size={28} color={skinTokens.isTerminal ? (isActive ? TERM_BG : TERM_MID) : isActive ? "#FFFFFF" : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : "#5F6670"} />
-        <Text style={[styles.tabLabel, isActive && styles.tabLabelActive, skinTokens.isTerminal ? { color: isActive ? TERM_BG : TERM_SOFT } : skinTokens.isEightBit ? { color: isActive ? "#FFFFFF" : BIT_ON_DUSK_FAINT } : null, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 8, lineHeight: 13 } : null, skinTokens.isTerminal ? { fontSize: 13, lineHeight: 15 } : null]}>{skinTokens.isTerminal ? `[ ${label.toUpperCase()} ]` : label}</Text>
+        {/* Terminal (v188): the mockup's tab bar is a TEXT menu — no
+            icons at all. v186 kept the icons AND bracketed every label,
+            which overflowed the ~72px tab cells and collided ("[ JOURNAL
+            ]" into "[ SETTINGS", a stray bracket under Settings). */}
+        {skinTokens.isTerminal ? null : (
+          <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : "#5F6670"} />
+        )}
+        <Text numberOfLines={skinTokens.isTerminal ? 1 : undefined} style={[styles.tabLabel, isActive && styles.tabLabelActive, skinTokens.isTerminal ? { color: isActive ? TERM_BG : TERM_MID } : skinTokens.isEightBit ? { color: isActive ? "#FFFFFF" : BIT_ON_DUSK_FAINT } : null, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 8, lineHeight: 13 } : null, skinTokens.isTerminal ? { fontSize: 13, lineHeight: 16 } : null]}>{skinTokens.isTerminal ? (isActive ? `[${label.toUpperCase()}]` : label.toUpperCase()) : label}</Text>
       </Pressable>
     );
   };

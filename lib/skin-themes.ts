@@ -66,6 +66,14 @@
 //     placeholder shorthand (Jonathan's correction, 2026-10-22).
 //   - Its motion dialect is STEPPED and hard: cursor blink, chunk
 //     entrances (Easing.steps), no sine, no springs.
+//   - v188 ("finished properly", from Jonathan's v186 phone verdict):
+//     the boot banner is GONE (it clipped behind the schedule header
+//     tile and he called it useless — the chrome carries the theme,
+//     not a text preamble); the list's date header is a solid terminal
+//     window with the full date, pinned sticky like 8-bit's; buttons
+//     are terminal windows (termButtonStyle); and the accent stragglers
+//     (summary name chip, study progress, week-strip markers, the tab
+//     menu) wear phosphor instead of the palette's purple.
 //   - The tube is one dark world in both schemes (like 8-bit's dusk);
 //     the theme provider resolves the DARK palette while Terminal is
 //     active so palette text stays legible on the panels.
@@ -445,6 +453,38 @@ export function bitButtonStyle(
 /** Text ink for a bitButtonStyle variant (gold ink / on-dusk). */
 export function bitButtonInk(variant: "primary" | "secondary"): string {
   return variant === "primary" ? BIT_GOLD_INK : BIT_ON_DUSK;
+}
+
+/**
+ * The Terminal button treatment (v188): a terminal WINDOW, not a
+ * pill — square corners, a green rule edge, a dark panel face, and
+ * phosphor text. PRIMARY actions get the panel-2 face and the mid
+ * rule; SECONDARY actions get the darker panel and the dim rule.
+ * Both wear the skin's window shadow (the faked double rule + halo,
+ * the same string as the terminal cardShadow). Returns null under
+ * every other skin — Classic, Paper and 8-bit buttons render exactly
+ * as they already do. (v186 left the study card's buttons as the
+ * palette's rounded purple pills; Jonathan's v186 phone verdict
+ * flagged them as stragglers.)
+ */
+export function termButtonStyle(
+  tokens: SkinTokens,
+  variant: "primary" | "secondary",
+): { backgroundColor: string; borderRadius: number; borderWidth: number; borderColor: string; boxShadow: string; elevation: number } | null {
+  if (!tokens.isTerminal) return null;
+  return {
+    backgroundColor: variant === "primary" ? TERM_PANEL_2 : TERM_PANEL,
+    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: variant === "primary" ? TERM_MID : TERM_DIM,
+    boxShadow: `inset 0px 0px 0px 2px ${TERM_BG}, inset 0px 0px 0px 3px rgba(29,158,75,0.85), 0px 0px 14px rgba(61,255,110,0.16)`,
+    elevation: 2,
+  };
+}
+
+/** Text ink for a termButtonStyle variant (bright / soft phosphor). */
+export function termButtonInk(variant: "primary" | "secondary"): string {
+  return variant === "primary" ? TERM_PHOS : TERM_SOFT;
 }
 
 /** The terminal tube: the mockup's near-black green page and its deep stop. */

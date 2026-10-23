@@ -51,9 +51,8 @@ import { PixelRestSky, pixelKeywordSceneFor } from "./pixel-keyword-scenes";
 import { PaperGrainOverlay } from "./paper-grain";
 import { BitBackground } from "./bit-background";
 import { TerminalBackground } from "./terminal-background";
-import { TermCursor } from "./terminal-kit";
 import { TerminalRestSky, terminalKeywordSceneFor } from "./terminal-keyword-scenes";
-import { BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint } from "@/lib/skin-themes";
+import { BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
 import type { SkinTokens } from "@/lib/skin-themes";
 
 /**
@@ -86,14 +85,6 @@ function cartridgeShadowFor(tokens: SkinTokens) {
  * only the rendering dialect changes. Renders nothing but the box:
  * callers keep their own layout.
  */
-/** The boot banner's user handle, mockup-style: "J. ROBERTS". */
-function termHandleFor(name: string): string {
-  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "USER";
-  if (parts.length === 1) return parts[0].toUpperCase();
-  return `${parts[0].charAt(0)}. ${parts.slice(1).join(" ")}`.toUpperCase();
-}
-
 function TermCheckbox({ checked, size = 20 }: { checked: boolean; size?: number }) {
   return (
     <View
@@ -11772,26 +11763,6 @@ export function ScheduleTab({
   // Joi-style sheet: summary sits fixed behind; the schedule card slides up over it.
   const renderScheduleSummary = () => (
     <>
-{/* Boot banner (Terminal only, v186): the mockup's RobCo header —
-    the schedule boots like a terminal before it lists the day. It
-    rides in the fixed summary zone, above the summary card. */}
-{skinTokens.isTerminal ? (
-  <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
-    <Text style={{ color: TERM_PHOS, ...bitDisplay(skinTokens, 12) }}>ROBCO INDUSTRIES (TM) TERMLINK</Text>
-    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3 }}>
-      <Text style={{ color: TERM_MID, ...bitDisplay(skinTokens, 11) }}>{"> "}</Text>
-      <Text style={{ color: TERM_SOFT, ...bitDisplay(skinTokens, 11) }}>PRAYERLINK v2.1 - DAILY SCHEDULE SUBROUTINE</Text>
-    </View>
-    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3 }}>
-      <Text style={{ color: TERM_MID, ...bitDisplay(skinTokens, 11) }}>{"> "}</Text>
-      <Text style={{ color: TERM_SOFT, ...bitDisplay(skinTokens, 11) }}>{`USER: ${termHandleFor(userName)} ......... ACCESS GRANTED`}</Text>
-      <View style={{ marginLeft: 6 }}>
-        <TermCursor size={12} />
-      </View>
-    </View>
-    <Text numberOfLines={1} style={{ color: TERM_DIM, ...bitDisplay(skinTokens, 11), marginTop: 3 }}>{"=================================================="}</Text>
-  </View>
-) : null}
 {/* Summary Card - Sticky Header Index 0 */}
 <View style={[scheduleStyles.summaryContainer, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background, paddingBottom: 8 }]}>
   {(() => {
@@ -11895,9 +11866,13 @@ export function ScheduleTab({
           ("the date is gone") — the header is a solid HUD panel again,
           a dark cartridge with the frame + hard shadow, the full date
           spelled out in the pixel face, and the list pins it sticky so
-          the date never scrolls out of sight. Terminal keeps v186's
-          transparent-on-tube treatment; Classic/Paper keep the sheet top. */}
-      <View style={[scheduleStyles.dateHeaderCard, skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : skinTokens.isTerminal ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
+          the date never scrolls out of sight. v188 (Terminal): the same
+          disease, the same cure in the terminal dialect — v186's
+          transparent-on-tube header read as missing too, so the header
+          is a solid terminal window (panel + frame + window shadow),
+          the full date spelled out in VT323, pinned sticky by the same
+          list mechanism. Classic/Paper keep the sheet top. */}
+      <View style={[scheduleStyles.dateHeaderCard, skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
   <View style={scheduleStyles.dayHeaderContent}>
     <Text style={[scheduleStyles.dayName, { color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...bitDisplay(skinTokens, 13) }]}>
       {dateHeader.dayName}
@@ -11912,8 +11887,8 @@ export function ScheduleTab({
       compact
     />
   </View>
-  {skinTokens.isEightBit ? (
-    <Text style={{ color: BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, 8) }}>
+  {(skinTokens.isEightBit || skinTokens.isTerminal) ? (
+    <Text style={{ color: skinTokens.isTerminal ? TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 8) }}>
       {`${dateHeader.monthName} ${dateHeader.dayNum}, ${dateHeader.year}`}
     </Text>
   ) : null}
@@ -11940,7 +11915,7 @@ export function ScheduleTab({
           <Text style={[scheduleStyles.dateDayName, { color: skinTokens.isTerminal ? (isSelected ? TERM_BG : isToday ? TERM_PHOS : TERM_SOFT) : skinTokens.isEightBit ? (isSelected ? "#241547" : isToday ? BIT_GOLD : BIT_ON_DUSK_SOFT) : (isSelected ? colors.foreground : colors.muted) }, !skinTokens.isEightBit && !skinTokens.isTerminal && isToday && !isSelected && { color: colors.primary }]}>
             {getShortDayName(date)}
           </Text>
-          {isDateDuringTimeOff(timeOffList, date) && <View style={[scheduleStyles.timeOffDayMarker, { backgroundColor: colors.primary }]} />}
+          {isDateDuringTimeOff(timeOffList, date) && <View style={[scheduleStyles.timeOffDayMarker, { backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary }]} />}
         </Pressable>
       );
     })}
@@ -11992,8 +11967,8 @@ export function ScheduleTab({
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       {bookGenre
-                        ? <BibleGenreMotif genre={bookGenre} color={colors.primary} size={20} />
-                        : <MaterialIcons name="book" size={20} color={colors.primary} />}
+                        ? <BibleGenreMotif genre={bookGenre} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} size={20} />
+                        : <MaterialIcons name="book" size={20} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />}
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600', ...bitDisplay(skinTokens, 10) }}>Personal Study</Text>
                       {hasCurrentBook && <Pressable
                         onPress={async () => {
@@ -12023,9 +11998,10 @@ export function ScheduleTab({
                           marginRight: 8,
                           opacity: pressed ? 0.8 : 1,
                           ...(bitButtonStyle(skinTokens, "primary") ?? {}),
+                          ...(termButtonStyle(skinTokens, "primary") ?? {}),
                         }]}
                       >
-                        <Text style={{ color: skinTokens.isEightBit ? bitButtonInk("primary") : colors.background, fontSize: 12, fontWeight: '700', ...(skinTokens.isEightBit ? bitDisplay(skinTokens, 8) : {}) }}>
+                        <Text style={{ color: skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : colors.background, fontSize: 12, fontWeight: '700', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 14 : 8) : {}) }}>
                           Read Chapter
                         </Text>
                       </Pressable>}
@@ -12048,12 +12024,12 @@ export function ScheduleTab({
                               <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500' }}>
                                 {progress.read} of {progress.total} chapters
                               </Text>
-                              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
+                              <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : colors.primary, fontSize: 12, fontWeight: '600' }}>
                                 {percentage}%
                               </Text>
                             </View>
-                            <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden' }}>
-                              <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: colors.primary, borderRadius: 3 }} />
+                            <View style={{ height: 6, backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border, borderRadius: skinTokens.isTerminal ? 0 : 3, overflow: 'hidden' }}>
+                              <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, borderRadius: skinTokens.isTerminal ? 0 : 3 }} />
                             </View>
                           </View>
                         );
@@ -12125,8 +12101,8 @@ export function ScheduleTab({
                         }}
                         style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                       >
-                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', ...(bitButtonStyle(skinTokens, "secondary") ?? {}) }}>
-                          <MaterialIcons name="arrow-back" size={18} color={skinTokens.isEightBit ? bitButtonInk("secondary") : colors.foreground} />
+                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', ...(bitButtonStyle(skinTokens, "secondary") ?? {}), ...(termButtonStyle(skinTokens, "secondary") ?? {}) }}>
+                          <MaterialIcons name="arrow-back" size={18} color={skinTokens.isTerminal ? termButtonInk("secondary") : skinTokens.isEightBit ? bitButtonInk("secondary") : colors.foreground} />
                         </View>
                       </Pressable>
 
@@ -12139,8 +12115,8 @@ export function ScheduleTab({
                         }}
                         style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                       >
-                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', ...(bitButtonStyle(skinTokens, "secondary") ?? {}) }}>
-                          <MaterialIcons name="list" size={19} color={skinTokens.isEightBit ? bitButtonInk("secondary") : colors.primary} />
+                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', ...(bitButtonStyle(skinTokens, "secondary") ?? {}), ...(termButtonStyle(skinTokens, "secondary") ?? {}) }}>
+                          <MaterialIcons name="list" size={19} color={skinTokens.isTerminal ? termButtonInk("secondary") : skinTokens.isEightBit ? bitButtonInk("secondary") : colors.primary} />
                         </View>
                       </Pressable>
 
@@ -12169,9 +12145,9 @@ export function ScheduleTab({
                         }}
                         style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.7 : 1 }]}
                       >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8, ...(bitButtonStyle(skinTokens, "primary") ?? {}) }}>
-                          <MaterialIcons name="check" size={18} color={skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF"} />
-                          <Text style={{ color: skinTokens.isEightBit ? bitButtonInk("primary") : '#FFFFFF', fontSize: 14, fontWeight: '600', ...(skinTokens.isEightBit ? bitDisplay(skinTokens, 9) : {}) }}>Mark as Read</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8, ...(bitButtonStyle(skinTokens, "primary") ?? {}), ...(termButtonStyle(skinTokens, "primary") ?? {}) }}>
+                          <MaterialIcons name="check" size={18} color={skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF"} />
+                          <Text style={{ color: skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : '#FFFFFF', fontSize: 14, fontWeight: '600', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 9) : {}) }}>Mark as Read</Text>
                         </View>
                       </Pressable>
                         </View>
@@ -12526,11 +12502,11 @@ export function ScheduleTab({
               ) : (
                 <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
-                    <MaterialIcons name="music-note" size={20} color={colors.primary} />
+                    <MaterialIcons name="music-note" size={20} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
                     <Text style={{ marginLeft: 8, fontSize: 16, fontWeight: '600', color: colors.foreground, ...bitDisplay(skinTokens, 11) }}>Worship</Text>
                     <Pressable accessibilityRole="button" accessibilityLabel="Open saved albums" onPress={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }} style={({ pressed }) => [{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: skinTokens.isEightBit ? 2 : 9, backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, opacity: pressed ? 0.65 : 1 }]}>
-                      <MaterialIcons name="collections-bookmark" size={17} color={colors.primary} />
-                      <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Saved Albums</Text>
+                      <MaterialIcons name="collections-bookmark" size={17} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
+                      <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : colors.primary, fontSize: 12, fontWeight: '700' }}>Saved Albums</Text>
                     </Pressable>
                   </View>
                   <Pressable accessibilityRole="button" accessibilityLabel="Add your first worship album" onPress={openNewWorshipAlbum} style={({ pressed }) => [{ alignItems: 'center', gap: 8, padding: 24, opacity: pressed ? 0.7 : 1 }]}>
@@ -12584,12 +12560,12 @@ export function ScheduleTab({
                               <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500' }}>
                                 {progress.read} of {progress.total} chapters
                               </Text>
-                              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
+                              <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : colors.primary, fontSize: 12, fontWeight: '600' }}>
                                 {percentage}%
                               </Text>
                             </View>
-                            <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden' }}>
-                              <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: colors.primary, borderRadius: 3 }} />
+                            <View style={{ height: 6, backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border, borderRadius: skinTokens.isTerminal ? 0 : 3, overflow: 'hidden' }}>
+                              <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, borderRadius: skinTokens.isTerminal ? 0 : 3 }} />
                             </View>
                           </View>
                         );
@@ -12624,9 +12600,9 @@ export function ScheduleTab({
                     }}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8, ...(bitButtonStyle(skinTokens, "primary") ?? {}) }}>
-                      <MaterialIcons name="check" size={20} color={skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF"} />
-                      <Text style={{ color: skinTokens.isEightBit ? bitButtonInk("primary") : '#FFFFFF', fontSize: 15, fontWeight: '600', ...(skinTokens.isEightBit ? bitDisplay(skinTokens, 10) : {}) }}>Mark as Read</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8, ...(bitButtonStyle(skinTokens, "primary") ?? {}), ...(termButtonStyle(skinTokens, "primary") ?? {}) }}>
+                      <MaterialIcons name="check" size={20} color={skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF"} />
+                      <Text style={{ color: skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : '#FFFFFF', fontSize: 15, fontWeight: '600', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 10) : {}) }}>Mark as Read</Text>
                     </View>
                   </Pressable>
                 </View>
@@ -12808,7 +12784,7 @@ export function ScheduleTab({
               ref={mainListRef}
               style={{ flex: 1, position: "relative", zIndex: 1 }}
               data={scheduleSheetData}
-              stickyHeaderIndices={skinTokens.isEightBit ? [1] : undefined}
+              stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal) ? [1] : undefined}
               scrollEnabled={slidePicker == null}
               onMomentumScrollEnd={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
               onScrollEndDrag={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}

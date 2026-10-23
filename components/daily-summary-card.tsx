@@ -2,7 +2,7 @@ import { Animated, View, Text, Pressable, ScrollView, Modal } from "react-native
 import { formatCoins } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_MID, TERM_SOFT } from "@/lib/skin-themes";
+import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_BG, TERM_MID, TERM_PHOS, TERM_SOFT } from "@/lib/skin-themes";
 import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { getIconForTodo } from "@/lib/prayercircle-data";
@@ -204,14 +204,18 @@ export function DailySummaryCard({
               paddingHorizontal: 12,
               paddingVertical: 6,
               borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 12,
-              backgroundColor: getBadgeColor(),
+              // Terminal (v188): the name chip is the mockup's inverted
+              // selection block — phosphor face, tube-dark text — not
+              // the palette's fasting-status badge color (which read as
+              // a purple straggler on the tube).
+              backgroundColor: skinTokens.isTerminal ? TERM_PHOS : getBadgeColor(),
               flexDirection: 'row',
               alignItems: 'center',
               gap: 6,
               marginLeft: 4,
             }}
           >
-            <Text style={{ fontWeight: "700", color: "#FFFFFF", fontSize: 16 }}>
+            <Text style={{ fontWeight: "700", color: skinTokens.isTerminal ? TERM_BG : "#FFFFFF", fontSize: 16 }}>
               {userName}
             </Text>
             {prayerStreak > 0 && (
@@ -251,7 +255,7 @@ export function DailySummaryCard({
                 color: ink,
                 textDecorationLine: "underline",
                 textDecorationStyle: "dashed",
-                textDecorationColor: colors.primary,
+                textDecorationColor: skinTokens.isTerminal ? TERM_MID : colors.primary,
               }}
             >
               {displayDay}
@@ -351,7 +355,7 @@ export function DailySummaryCard({
                       borderRadius: 12,
                       backgroundColor: colors.background,
                       borderWidth: 2,
-                      borderColor: displayDay === day.dayName ? colors.primary : colors.border,
+                      borderColor: displayDay === day.dayName ? (skinTokens.isTerminal ? TERM_PHOS : colors.primary) : colors.border,
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'space-between',
@@ -370,7 +374,7 @@ export function DailySummaryCard({
                           style={{
                             height: '100%',
                             width: `${(day.chapter / getChapterCount(day.book)) * 100}%`,
-                            backgroundColor: colors.primary,
+                            backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary,
                           }}
                         />
                       </View>

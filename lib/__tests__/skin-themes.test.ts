@@ -50,6 +50,8 @@ import {
   TERM_SOFT,
   bitButtonInk,
   bitButtonStyle,
+  termButtonInk,
+  termButtonStyle,
   getSkinThemeDefinition,
   getSkinTokens,
   getUnlockedSkinThemeIds,
@@ -717,7 +719,7 @@ describe("v185 floating cards: under 8-bit the sheet is gone and every row float
     expect(schedule).toContain("borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth");
   });
 
-  it("the date header is a solid HUD panel under 8-bit (v187) — Terminal keeps its transparent branch", () => {
+  it("the date header is a solid HUD panel under 8-bit (v187) — and a solid terminal window under Terminal (v188)", () => {
     const header = schedule.slice(schedule.indexOf("const renderDateHeaderCard"), schedule.indexOf("const renderItem"));
     // v185 made the header transparent on-dusk; on his phone that read
     // as NO date at all ("the date is gone", 2026-10-22). v187: under
@@ -725,21 +727,25 @@ describe("v185 floating cards: under 8-bit the sheet is gone and every row float
     // the kit frame + hard shadow, squared corners.
     expect(header).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL");
     expect(header).toContain("borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2");
-    // Terminal's v186 transparent-on-tube branch survives untouched.
-    expect(header).toContain('skinTokens.isTerminal ? { backgroundColor: "transparent" }');
+    // v188: Terminal's v186 transparent-on-tube branch had the same
+    // disease ("the dates missing again") — it is now the same cure
+    // in the terminal dialect: a solid TERM_PANEL window.
+    expect(header).toContain("skinTokens.isTerminal ? { backgroundColor: TERM_PANEL");
     // v186: the day name chains Terminal phosphor ahead of the 8-bit
     // on-dusk ink — both skins' branches survive in one expression.
     expect(header).toContain("skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground");
     expect(header).toContain("backgroundColor: BIT_GOLD");
     expect(header).toContain("BIT_ON_DUSK_SOFT");
-    // The full date is spelled out in the pixel face under 8-bit, so
-    // the date reads even where the week strip alone would not say it.
+    // The full date is spelled out in the display face under both
+    // skins (pixel face at 8 under 8-bit, VT323 at 15 under Terminal),
+    // so the date reads even where the week strip alone would not
+    // say it.
     expect(header).toContain("dateHeader.monthName} ${dateHeader.dayNum}, ${dateHeader.year}");
-    expect(header).toContain("bitDisplay(skinTokens, 8)");
-    // And the list pins the header sticky under 8-bit only, so the
+    expect(header).toContain("bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 8)");
+    // And the list pins the header sticky under both skins, so the
     // date never scrolls out of sight (data[0] is child index 1,
     // after the ListHeaderComponent spacer at index 0).
-    expect(schedule).toContain("stickyHeaderIndices={skinTokens.isEightBit ? [1] : undefined}");
+    expect(schedule).toContain("stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal) ? [1] : undefined}");
   });
 
   it("plain and grouped-completed todos become cartridges under 8-bit", () => {
@@ -1009,11 +1015,9 @@ describe("Terminal keyword scenes (v186): every scene id has a bespoke Pip-Boy l
     expect(schedule).toContain("terminalKeywordSceneFor");
     expect(schedule).toContain("if (isTerminal)");
     expect(schedule).toContain("<TerminalRestSky mood={mood} />");
-    // The boot banner, the mockup's termlink header, rides the summary.
-    expect(schedule).toContain("PRAYERLINK v2.1");
-    expect(schedule).toContain("ROBCO INDUSTRIES (TM) TERMLINK");
     expect(schedule).toContain("TermCheckbox");
-    expect(schedule).toContain("TermCursor");
+    // The boot banner that rode the summary in v186 is GONE in v188 —
+    // pinned absent in the v188 block below.
   });
 });
 
@@ -1128,7 +1132,7 @@ describe("v187 — 8-bit, everywhere it claims to be", () => {
     // Journal titles + section headers speak the pixel face via bitText.
     const journal = read("components/prayer-journal-tab.tsx");
     expect(journal).toContain("bitText(11)");
-    expect(journal).toContain("skinTokens.isEightBit ? BIT_ON_DUSK : colors.muted");
+    expect(journal).toContain("skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_MID : colors.muted");
   });
 
   it("item 3 — People names and headers speak the pixel face under 8-bit", () => {
@@ -1138,5 +1142,96 @@ describe("v187 — 8-bit, everywhere it claims to be", () => {
     // Family name, member names, section titles.
     expect(index).toContain("styles.personName, skinTokens.isEightBit && skinTokens.displayFont");
     expect(index).toContain("styles.relationshipTitle, { color: relationshipColors[item.section.title].accent }, skinTokens.isEightBit && skinTokens.displayFont");
+  });
+});
+
+describe("v188 — Terminal, finished properly", () => {
+  // Jonathan's verdict on v186 from his phone screenshot (2026-10-22):
+  // "That stuff at the top is useless, and the dates missing again,
+  // and there's still quite a bit that doesn't have the changes in
+  // it..." The boot banner clipped behind the schedule header tile;
+  // the list's date header was the transparent treatment that already
+  // read as missing under 8-bit; the summary name chip, the study
+  // card's button + progress bar, and the week-strip markers still
+  // wore the palette's purple; and the tab labels (icons + brackets
+  // on every tab) overflowed their cells and collided.
+  const palette = getThemedPalette("light", "default");
+
+  it("buttons resolve to terminal windows only under Terminal", () => {
+    const term = getSkinTokens("terminal", "light", palette);
+    expect(termButtonStyle(term, "primary")).toEqual({
+      backgroundColor: TERM_PANEL_2,
+      borderRadius: 2,
+      borderWidth: 1,
+      borderColor: TERM_MID,
+      boxShadow: `inset 0px 0px 0px 2px ${TERM_BG}, inset 0px 0px 0px 3px rgba(29,158,75,0.85), 0px 0px 14px rgba(61,255,110,0.16)`,
+      elevation: 2,
+    });
+    expect(termButtonStyle(term, "secondary")?.backgroundColor).toBe(TERM_PANEL);
+    expect(termButtonStyle(term, "secondary")?.borderColor).toBe(TERM_DIM);
+    expect(termButtonInk("primary")).toBe(TERM_PHOS);
+    expect(termButtonInk("secondary")).toBe(TERM_SOFT);
+    for (const id of ["classic", "paper", "8bit"] as const) {
+      expect(termButtonStyle(getSkinTokens(id, "light", palette), "primary")).toBeNull();
+      expect(termButtonStyle(getSkinTokens(id, "light", palette), "secondary")).toBeNull();
+    }
+  });
+
+  it("the boot banner is GONE — no termlink preamble, no cursor, no handle helper", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    expect(schedule).not.toContain("PRAYERLINK v2.1");
+    expect(schedule).not.toContain("ROBCO INDUSTRIES (TM) TERMLINK");
+    expect(schedule).not.toContain("ACCESS GRANTED");
+    expect(schedule).not.toContain("TermCursor");
+    expect(schedule).not.toContain("termHandleFor");
+  });
+
+  it("the date header is a solid terminal window with the full date, pinned sticky like 8-bit's", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    // The panel branch (v186's transparent branch is gone).
+    expect(schedule).toContain("skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");
+    expect(schedule).not.toContain('skinTokens.isTerminal ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface');
+    // The full-date line renders under Terminal too, in VT323 (size 15).
+    expect(schedule).toContain("color: skinTokens.isTerminal ? TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 8)");
+    // The same sticky mechanism v187 gave 8-bit now covers Terminal.
+    expect(schedule).toContain("stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal) ? [1] : undefined}");
+    // v187's 8-bit panel is byte-identical.
+    expect(schedule).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");
+  });
+
+  it("the accent stragglers wear phosphor: summary chip, study card, week markers", () => {
+    const summary = read("components/daily-summary-card.tsx");
+    // The name chip is the mockup's inverted selection block.
+    expect(summary).toContain("backgroundColor: skinTokens.isTerminal ? TERM_PHOS : getBadgeColor()");
+    expect(summary).toContain('color: skinTokens.isTerminal ? TERM_BG : "#FFFFFF", fontSize: 16');
+    const schedule = read("components/schedule-tab.tsx");
+    // Study buttons are terminal windows; the progress fill is
+    // phosphor on a dim track; the % wears phosphor too.
+    expect(schedule).toContain('...(termButtonStyle(skinTokens, "primary") ?? {})');
+    expect(schedule).toContain('...(termButtonStyle(skinTokens, "secondary") ?? {})');
+    expect(schedule).toContain("backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, borderRadius: skinTokens.isTerminal ? 0 : 3");
+    expect(schedule).toContain("backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border");
+    // The week strip's time-off markers stop wearing palette purple.
+    expect(schedule).toContain("scheduleStyles.timeOffDayMarker, { backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary }");
+  });
+
+  it("the tab bar is the mockup's text menu: no icons, brackets only on the active tab", () => {
+    const index = read("app/(tabs)/index.tsx");
+    expect(index).toContain("skinTokens.isTerminal ? null : (");
+    expect(index).toContain("isActive ? `[${label.toUpperCase()}]` : label.toUpperCase()");
+    expect(index).toContain("numberOfLines={skinTokens.isTerminal ? 1 : undefined}");
+    // The v186 every-tab bracket string that overflowed is gone.
+    expect(index).not.toContain("[ ${label.toUpperCase()} ]");
+    // People's primary button and the Settings progress bars converted.
+    expect(index).toContain('...(termButtonStyle(skinTokens, "primary") ?? {})');
+    expect(index).toContain("backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, borderRadius: skinTokens.isTerminal ? 0 : 6");
+    expect(index).toContain("backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border");
+  });
+
+  it("the journal's entry actions are terminal windows under Terminal", () => {
+    const journal = read("components/prayer-journal-tab.tsx");
+    expect(journal).toContain('termButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary")');
+    expect(journal).toContain('termButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary")');
+    expect(journal).toContain('termButtonInk(item.isBookmarked ? "primary" : "secondary")');
   });
 });

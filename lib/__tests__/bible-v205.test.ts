@@ -345,7 +345,7 @@ describe('v206 — the Notion seed is cleared; only app progress counts', () => 
     expect(src).not.toContain('databaseBooks');
   });
 
-  it('(e) the schedule card expansion carries last-time / this-time from the unified store', () => {
+  it('(e) the schedule card expansion carries his last-read record from the unified store', () => {
     const unified = {
       chapters: [
         { book: 'Genesis', chapter: 1, isRead: true, readDate: '2026-10-18' },
@@ -360,12 +360,19 @@ describe('v206 — the Notion seed is cleared; only app progress counts', () => 
     expect(getLastReadPosition(unified)).toEqual({ book: 'Genesis', chapter: 4, date: '2026-10-20' });
     expect(getCurrentBibleDisplay(unified)).toBe('Genesis 5');
     const src = readFileSync(join(process.cwd(), 'components', 'schedule-tab.tsx'), 'utf8');
-    expect(src).toContain('Last time: ');
-    expect(src).toContain('This time: ');
     expect(src).toContain('getLastReadPosition');
-    // v207: the expansion condition widened — it also opens for the
-    // baked preview and the Read target (see the v207 describe below).
-    expect(src).toContain('isPersonalStudyExpanded && (item.data.preview || item.data.lastTime || item.data.thisTime || item.data.readTarget)');
+    // v209: the v206 two-line "Last time: / This time:" position block
+    // is gone. In its place, ONE muted line built from the actual
+    // last-read record: "Last read <book> <chapter> · <date>".
+    expect(src).toContain('`Last read ${lastPos.book} ${lastPos.chapter}');
+    expect(src).not.toContain('`Last time: ${');
+    expect(src).not.toContain('`This time: ${');
+    expect(src).not.toContain('item.data.lastTime');
+    expect(src).not.toContain('item.data.thisTime');
+    // The last-read line renders only when a record exists, and the
+    // expansion still opens for it alone (no-preview fallback).
+    expect(src).toContain('item.data.lastRead ? (');
+    expect(src).toContain('isPersonalStudyExpanded && (item.data.preview || item.data.lastRead)');
   });
 });
 
@@ -666,6 +673,38 @@ describe('v207 — the storyteller returns, baked in; bare chapters chunk; the t
     expect(src).not.toContain('client.bible.getChapterSummary');
     expect(src).not.toContain('createTRPCClient');
     expect(src).not.toContain('chapter-summary-');
+  });
+
+  it('v209: Read Chapter lives in the card header (left of the chevron), not the expanded body', () => {
+    const src = readFileSync(join(process.cwd(), 'components', 'schedule-tab.tsx'), 'utf8');
+    const cardStart = src.indexOf('case "personal-study-card"');
+    const cardEnd = src.indexOf('case "time-off"', cardStart);
+    expect(cardStart).toBeGreaterThan(-1);
+    expect(cardEnd).toBeGreaterThan(cardStart);
+    const card = src.slice(cardStart, cardEnd);
+
+    // Exactly ONE Read Chapter control on the card.
+    const labelHits = card.match(/accessibilityLabel=\{`Read Chapter — /g) ?? [];
+    expect(labelHits).toHaveLength(1);
+
+    // It renders in the header: before the chevron toggle and before
+    // the expanded-body block — so it is visible whether the card is
+    // collapsed or expanded.
+    const readIdx = card.indexOf('Read Chapter — ');
+    const chevronIdx = card.indexOf('Collapse Personal Study');
+    const bodyIdx = card.indexOf('isPersonalStudyExpanded && (item.data.preview');
+    expect(readIdx).toBeGreaterThan(-1);
+    expect(chevronIdx).toBeGreaterThan(-1);
+    expect(bodyIdx).toBeGreaterThan(-1);
+    expect(readIdx).toBeLessThan(chevronIdx);
+    expect(readIdx).toBeLessThan(bodyIdx);
+
+    // The expanded body no longer carries the button.
+    expect(card.slice(bodyIdx)).not.toContain('Read Chapter');
+
+    // And it still navigates to this-time's chapter in the v205 page.
+    expect(card).toContain("pathname: '/bible-chapter'");
+    expect(card).toContain('params: { book: item.data.readTarget.book, chapter: String(item.data.readTarget.chapter) }');
   });
 
   it('bare chapter (Judges 1 — no commentary data at all) chunks into ≤3-verse Stories slides', () => {

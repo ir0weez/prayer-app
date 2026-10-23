@@ -11813,17 +11813,19 @@ export function ScheduleTab({
       .forEach((todo) => items.push({ type: "todo", id: todo.id, data: todo }));
 
     // Add Personal Study as a card item in the schedule flow (before time blocks)
-    const currentBibleDisplay = bibleState ? getCurrentBibleDisplay(bibleState) : 'No book marked as current';
     if (bibleState) {
       // v206: the restored expansion lines — his reading position from
       // the unified store: where he left off last time, and where he
       // is this time. (The v205 doorway dropped the old card's
       // drop-down; these ride the item so the card can expand again.)
+      // v209: the two-line position block is trimmed to ONE line —
+      // when he last read, from his actual last-read record (the
+      // storyteller sections already carry the "Last time in… /
+      // This time in…" labels; he still wants the date he read).
       const lastPos = getLastReadPosition(bibleState);
-      const lastTime = lastPos
-        ? `Last time: ${lastPos.book} ${lastPos.chapter}${lastPos.date ? ` · ${formatReadDate(lastPos.date)}` : ""}`
+      const lastRead = lastPos
+        ? `Last read ${lastPos.book} ${lastPos.chapter}${lastPos.date ? ` · ${formatReadDate(lastPos.date)}` : ""}`
         : null;
-      const thisTime = currentBibleDisplay ? `This time: ${currentBibleDisplay}` : null;
       // v207: the card's storyteller preview + Read target. readTarget
       // is the pre-v205 derivation (the 'current' book's next unread
       // chapter — the same position the old fetch and the old Read
@@ -11833,7 +11835,7 @@ export function ScheduleTab({
       const nextUnread = currentBook ? bibleState.chapters.find((c: any) => c.book === currentBook && !c.isRead) : undefined;
       const readTarget = currentBook && nextUnread ? { book: currentBook, chapter: nextUnread.chapter } : null;
       const preview = readTarget ? previewFor(readTarget.book, readTarget.chapter) : null;
-      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: studyDoorway?.line ?? "Your Books", sub: studyDoorway?.sub ?? null, lastTime, thisTime, preview, readTarget } });
+      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: studyDoorway?.line ?? "Your Books", sub: studyDoorway?.sub ?? null, lastRead, preview, readTarget } });
     }
 
     // Add worship section as a direct display (not expandable)
@@ -12111,6 +12113,14 @@ export function ScheduleTab({
           // Read Chapter button, which opens this-time's chapter in
           // the NEW chapter page. The position lines stay, subordinate;
           // a chapter with no baked preview yet shows them alone.
+          // v209: the Read Chapter button moved out of the expansion
+          // into the card header (top right, left of the chevron),
+          // restoring its pre-v205 placement — one control, visible
+          // whether the card is collapsed or expanded. The v206
+          // two-line position block is trimmed to a single muted
+          // "Last read <book chapter> · <date>" line under the
+          // question (his actual last-read record); a chapter with no
+          // baked preview shows that line alone.
           return (
             <Pressable
               onPress={() => router.push('/bible-chapters')}
@@ -12118,11 +12128,37 @@ export function ScheduleTab({
             >
               <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? cartridgeShadowFor(skinTokens) ?? {} : {}) }}>
                 <View style={{ padding: 16, gap: 12, ...(skinTokens.isPaper ? { padding: 16 + skinTokens.type.padBoost, gap: 12 + skinTokens.type.gapBoost } : {}) }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       <MaterialIcons name="menu-book" size={20} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600', ...bitDisplay(skinTokens, 10), ...skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) }}>Personal Study</Text>
                     </View>
+                    {/* v209: the Read Chapter button lives in the header,
+                        top right, left of the chevron — where it sat on
+                        the pre-v205 card — visible collapsed or expanded.
+                        It is a nested Pressable like the chevron, so its
+                        tap opens the chapter without triggering the
+                        card's doorway or the expand toggle. */}
+                    {item.data.readTarget ? (
+                      <Pressable
+                        onPress={() => router.push({ pathname: '/bible-chapter', params: { book: item.data.readTarget.book, chapter: String(item.data.readTarget.chapter) } })}
+                        style={({ pressed }) => [{
+                          paddingHorizontal: 14,
+                          paddingVertical: 9,
+                          backgroundColor: colors.primary,
+                          borderRadius: 8,
+                          opacity: pressed ? 0.8 : 1,
+                          ...(bitButtonStyle(skinTokens, "primary") ?? {}),
+                          ...(termButtonStyle(skinTokens, "primary") ?? {}), ...(glassButtonStyle(skinTokens, "primary") ?? {}),
+                        }]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Read Chapter — ${item.data.readTarget.book} ${item.data.readTarget.chapter}`}
+                      >
+                        <Text style={{ color: skinTokens.isStainedGlass ? glassButtonInk("primary") : skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : colors.background, fontSize: 12, fontWeight: '700', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 14 : 8) : {}), ...skinText(skinTokens, skinTokens.type.labelText) }}>
+                          Read Chapter
+                        </Text>
+                      </Pressable>
+                    ) : null}
                     <Pressable
                       onPress={() => togglePersonalStudyExpanded(!isPersonalStudyExpanded)}
                       hitSlop={10}
@@ -12143,7 +12179,7 @@ export function ScheduleTab({
                       </Text>
                     ) : null}
                   </View>
-                  {isPersonalStudyExpanded && (item.data.preview || item.data.lastTime || item.data.thisTime || item.data.readTarget) ? (
+                  {isPersonalStudyExpanded && (item.data.preview || item.data.lastRead) ? (
                     <View style={{ gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
                       {item.data.preview ? (
                         <View style={{ gap: 8 }}>
@@ -12162,40 +12198,14 @@ export function ScheduleTab({
                           </Text>
                         </View>
                       ) : null}
-                      {(item.data.lastTime || item.data.thisTime) ? (
-                        <View style={{ gap: 4 }}>
-                          {item.data.lastTime ? (
-                            <Text style={{ color: colors.muted, fontSize: item.data.preview ? 12 : 13, fontWeight: '500', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
-                              {item.data.lastTime}
-                            </Text>
-                          ) : null}
-                          {item.data.thisTime ? (
-                            <Text style={{ color: item.data.preview ? colors.muted : colors.foreground, fontSize: item.data.preview ? 12 : 13, fontWeight: item.data.preview ? '500' : '600', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
-                              {item.data.thisTime}
-                            </Text>
-                          ) : null}
-                        </View>
-                      ) : null}
-                      {item.data.readTarget ? (
-                        <Pressable
-                          onPress={() => router.push({ pathname: '/bible-chapter', params: { book: item.data.readTarget.book, chapter: String(item.data.readTarget.chapter) } })}
-                          style={({ pressed }) => [{
-                            alignSelf: 'flex-start',
-                            paddingHorizontal: 14,
-                            paddingVertical: 9,
-                            backgroundColor: colors.primary,
-                            borderRadius: 8,
-                            opacity: pressed ? 0.8 : 1,
-                            ...(bitButtonStyle(skinTokens, "primary") ?? {}),
-                            ...(termButtonStyle(skinTokens, "primary") ?? {}), ...(glassButtonStyle(skinTokens, "primary") ?? {}),
-                          }]}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Read Chapter — ${item.data.readTarget.book} ${item.data.readTarget.chapter}`}
-                        >
-                          <Text style={{ color: skinTokens.isStainedGlass ? glassButtonInk("primary") : skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : colors.background, fontSize: 12, fontWeight: '700', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 14 : 8) : {}), ...skinText(skinTokens, skinTokens.type.labelText) }}>
-                            Read Chapter
-                          </Text>
-                        </Pressable>
+                      {/* v209: one small muted line under the question —
+                          when he last read, from his actual last-read
+                          record. Shown whenever a record exists, with
+                          or without a baked preview. */}
+                      {item.data.lastRead ? (
+                        <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
+                          {item.data.lastRead}
+                        </Text>
                       ) : null}
                     </View>
                   ) : null}

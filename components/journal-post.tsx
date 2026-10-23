@@ -12,7 +12,7 @@ import { useSkin } from "@/hooks/use-skin";
 import { entryTags, formatClock, isMoodOnlyEntry, peopleMentionedInBody } from "@/lib/journal-moments";
 import type { Person } from "@/lib/prayercircle-data";
 import { formatPrayerJournalDate, type PrayerJournalEntry, type PrayerJournalReply } from "@/lib/prayer-journal";
-import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, TERM_MID, TERM_SOFT, skinText } from "@/lib/skin-themes";
+import { BIT_CREAM, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, TERM_MID, TERM_PHOS, TERM_SOFT, skinText } from "@/lib/skin-themes";
 
 // v194 (Journal, Zeitgeist): the mockup's post — a FLAT row on a
 // hairline, not a card. Avatar + name + time, the words, a photo when
@@ -32,6 +32,10 @@ type JournalPostProps = {
   onReplyLongPress: (entry: PrayerJournalEntry, reply: PrayerJournalReply) => void;
   hidePhotos?: boolean;
   avatarMode?: "author" | "mood";
+  // v195: the Moments feed renders posts on the mockup's own light
+  // surface under Classic (see the palette note in the component).
+  // Day and the sheets leave this off — they keep the v194 palette.
+  lightSurface?: boolean;
 };
 
 function capitalize(tag: string): string {
@@ -74,22 +78,40 @@ export function JournalPost({
   onReplyLongPress,
   hidePhotos = false,
   avatarMode = "author",
+  lightSurface = false,
 }: JournalPostProps) {
   const colors = useColors();
   const { isSkinned, tokens: skinTokens } = useSkin();
   const [expanded, setExpanded] = useState(false);
 
-  const paperSurface = isSkinned ? skinTokens.surface ?? colors.surface : colors.surface;
-  const onColored = Boolean(entry.color);
-  const ink = onColored ? "#FFFFFF" : skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground;
-  const faint = onColored ? "rgba(255,255,255,0.75)" : skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted;
-  const hairline = onColored ? "rgba(255,255,255,0.35)" : skinTokens.isTerminal ? TERM_MID : colors.border;
+  // v195 (Journal, Actually Zeitgeist): an entry's legacy color is
+  // an ACCENT now — a thin rule at the row's left edge (colorRule
+  // below) — never the row's surface. v194 filled the whole post
+  // with entry.color and flipped the text white; on his phone a
+  // colored long entry became a full-screen orange block, nothing
+  // like the mockup's flat rows on a plain surface.
+  // The Moments feed passes lightSurface: under Classic the post
+  // then sits on the mockup's own light surface (white / ink /
+  // faint / hairline) instead of the app's dark chrome. Skins keep
+  // their tokens either way.
+  const classicLight = lightSurface && !isSkinned;
+  const postSurface = isSkinned ? skinTokens.surface ?? colors.surface : classicLight ? "#FFFFFF" : colors.surface;
+  const ink = skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : classicLight ? "#1D1830" : colors.foreground;
+  const faint = skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : classicLight ? "#9A92B5" : colors.muted;
+  const hairline = skinTokens.isTerminal ? TERM_MID : classicLight ? "#ECE9F4" : colors.border;
+  // Chips are a bg/ink PAIR (the mockup's pale chip, dark ink).
+  // v194 colored chip text with the surface ink — white on the pale
+  // chip under dark Classic — so a tagged person's name rendered
+  // invisibly and the chip read as a stray empty white pill.
+  const chipBg = skinTokens.isTerminal ? "rgba(61,255,110,0.12)" : skinTokens.isEightBit ? BIT_CREAM : "#F4F2FA";
+  const chipInk = skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? "#150A2E" : "#1D1830";
 
   const moodOnly = isMoodOnlyEntry(entry);
   const tags = useMemo(() => entryTags(entry), [entry]);
   const mentionedInBody = useMemo(() => peopleMentionedInBody(entry.body, people), [entry.body, people]);
   const taggedNotMentioned = entry.taggedPeople.filter(
-    (tagged) => !mentionedInBody.some((person) => person.id === tagged.id),
+    (tagged) =>
+      tagged.name.trim().length > 0 && !mentionedInBody.some((person) => person.id === tagged.id),
   );
   const segments = useMemo(() => mentionSegments(entry.body, people), [entry.body, people]);
   const hasMentions = segments.some((segment) => "personId" in segment);
@@ -104,13 +126,14 @@ export function JournalPost({
       style={({ pressed }) => [
         styles.post,
         {
-          backgroundColor: entry.color ?? paperSurface,
+          backgroundColor: postSurface,
           borderBottomColor: hairline,
           ...(skinTokens.isPaper ? { padding: 16 + skinTokens.type.padBoost } : {}),
         },
         pressed && styles.pressed,
       ]}
     >
+      {entry.color ? <View pointerEvents="none" style={[styles.colorRule, { backgroundColor: entry.color }]} /> : null}
       <View style={styles.postHead}>
         {avatarMode === "mood" && entry.mood ? (
           <MoodFace moodId={entry.mood.id} size={30} />
@@ -148,7 +171,7 @@ export function JournalPost({
                 <Text
                   key={index}
                   onPress={() => onOpenPerson(segment.personId)}
-                  style={{ color: onColored ? "#FFFFFF" : "#5B4BD6", fontWeight: "700" }}
+                  style={{ color: skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_PHOS : "#5B4BD6", fontWeight: "700" }}
                 >
                   {segment.text}
                 </Text>
@@ -180,19 +203,19 @@ export function JournalPost({
 
       {(entry.mood && !moodOnly) || tags.length > 0 || taggedNotMentioned.length > 0 || (entry.location && hidePhotos) ? (
         <View style={styles.chips}>
-          {entry.mood && !moodOnly ? <MoodFaceChip mood={entry.mood as JournalMood} onDark={onColored} /> : null}
+          {entry.mood && !moodOnly ? <MoodFaceChip mood={entry.mood as JournalMood} /> : null}
           {tags.map((tag) => (
             <Pressable
               key={tag}
               onPress={() => onOpenTag(tag)}
               style={({ pressed }) => [
                 styles.chip,
-                { backgroundColor: onColored ? "rgba(255,255,255,0.22)" : skinTokens.isTerminal ? "rgba(61,255,110,0.12)" : "#F4F2FA" },
+                { backgroundColor: chipBg },
                 pressed && styles.pressed,
               ]}
             >
-              <MaterialIcons name="sell" size={13} color={ink} />
-              <Text style={[styles.chipText, { color: ink }]}>{capitalize(tag)}</Text>
+              <MaterialIcons name="sell" size={13} color={chipInk} />
+              <Text style={[styles.chipText, { color: chipInk }]}>{capitalize(tag)}</Text>
             </Pressable>
           ))}
           {taggedNotMentioned.map((person) => (
@@ -201,18 +224,18 @@ export function JournalPost({
               onPress={() => onOpenPerson(person.id)}
               style={({ pressed }) => [
                 styles.chip,
-                { backgroundColor: onColored ? "rgba(255,255,255,0.22)" : skinTokens.isTerminal ? "rgba(61,255,110,0.12)" : "#F4F2FA" },
+                { backgroundColor: chipBg },
                 pressed && styles.pressed,
               ]}
             >
               <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={16} fallbackColor={person.avatarColor} />
-              <Text style={[styles.chipText, { color: ink }]}>{person.name.split(/\s+/)[0]}</Text>
+              <Text style={[styles.chipText, { color: chipInk }]} numberOfLines={1}>{person.name.split(/\s+/)[0]}</Text>
             </Pressable>
           ))}
           {entry.location && hidePhotos ? (
-            <View style={[styles.chip, { backgroundColor: onColored ? "rgba(255,255,255,0.22)" : "#F4F2FA" }]}>
-              <MaterialIcons name="place" size={13} color={ink} />
-              <Text style={[styles.chipText, { color: ink }]}>{entry.location}</Text>
+            <View style={[styles.chip, { backgroundColor: chipBg }]}>
+              <MaterialIcons name="place" size={13} color={chipInk} />
+              <Text style={[styles.chipText, { color: chipInk }]}>{entry.location}</Text>
             </View>
           ) : null}
         </View>
@@ -248,6 +271,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   pressed: { opacity: 0.7 },
+  // v195: the legacy entry color as a thin accent rule at the row's
+  // left edge — the only place a color may appear on a post now.
+  colorRule: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
   postHead: { flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 6 },
   name: { fontSize: 15, fontWeight: "800" },
   time: { fontSize: 13, fontWeight: "600" },

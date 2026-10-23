@@ -1151,7 +1151,11 @@ describe("v187 — 8-bit, everywhere it claims to be", () => {
     // Journal titles + section headers speak the pixel face via bitText.
     const journal = read("components/prayer-journal-tab.tsx");
     expect(journal).toContain("bitText(11)");
-    expect(journal).toContain("skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_MID : colors.muted");
+    // v195: under Classic the separator sits on the mockup's white
+    // Moments surface, where the dark palette's muted is unreadable
+    // — it takes the mockup's faint (#9A92B5) instead. Paper keeps
+    // colors.muted, as in v194.
+    expect(journal).toContain('skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_MID : classicLight ? "#9A92B5" : colors.muted');
   });
 
   it("item 3 — People names and headers speak the pixel face under 8-bit", () => {

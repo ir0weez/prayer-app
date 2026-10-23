@@ -2,7 +2,6 @@ import Svg, { Circle, Path } from "react-native-svg";
 import { Text, View } from "react-native";
 
 import { moodById, type JournalMood } from "@/components/mood-picker";
-import { useColors } from "@/hooks/use-colors";
 
 // v194 (Journal, Zeitgeist): the mockup's mood smileys are DRAWN faces
 // (SVG, never emoji). The app already had eight moods; here each mood
@@ -95,7 +94,6 @@ export function MoodFace({ moodId, size = 20 }: { moodId?: string; size?: number
 
 // The mockup's quiet grey chip: drawn face + mood label.
 export function MoodFaceChip({ mood, onDark }: { mood: JournalMood; onDark?: boolean }) {
-  const colors = useColors();
   const def = moodById(mood.id);
   if (!def) return null;
   return (
@@ -111,7 +109,10 @@ export function MoodFaceChip({ mood, onDark }: { mood: JournalMood; onDark?: boo
       }}
     >
       <MoodFace moodId={mood.id} size={14} />
-      <Text style={{ color: onDark ? "#FFFFFF" : colors.foreground, fontSize: 12.5, fontWeight: "700" }}>{def.label}</Text>
+      {/* v195: the pale chip always carries the mockup's dark ink —
+          v194's palette foreground is white under dark Classic,
+          which made chip labels vanish on their own background. */}
+      <Text style={{ color: onDark ? "#FFFFFF" : "#1D1830", fontSize: 12.5, fontWeight: "700" }}>{def.label}</Text>
     </View>
   );
 }

@@ -53,6 +53,7 @@ import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-stora
 import { SCHEDULE_EVENTS_KEY, type ScheduleEvent } from "@/lib/schedule-data";
 import {
   BIT_ON_DUSK,
+  BIT_PANEL,
   TERM_MID,
   TERM_PANEL,
   TERM_PHOS,
@@ -94,13 +95,20 @@ function createId(prefix: string): string {
 
 // v194 (Journal, Zeitgeist): the Journal rebuilt to the approved
 // mockup — Moments, a flat hairline feed of posts (text, photos, and
-// mood-only logs), the floating day pill into an auto-assembled Day
+// mood-only logs), the day pill opening an auto-assembled Day
 // overview, @mention person profiles, tag pages, and a painted mood
 // calendar. The PrayerCircle app icon stands where the mockup's ghost
 // stood (his one amendment). Existing entries keep everything they
 // had: text, hashtags (now tag chips), timestamps, bookmarks and
 // replies (under each post's ···), colors, locations and tagged
 // people.
+// v195 (Journal, Actually Zeitgeist): composition repair — his
+// phone showed v194's feed as color-filled blocks, a day pill
+// floating over entries, and the composer buried under the tab
+// bar. Now: entry colors are a thin accent rule only, the day pill
+// sits IN the feed flow, the composer is an in-flow bar pinned
+// above the tab bar, and under Classic the whole Moments screen
+// wears the mockup's own light surface.
 export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTabProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -416,15 +424,28 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
 
   // ── Moments ──────────────────────────────────────────────────────────────
 
-  const ink = skinTokens.isTerminal ? TERM_SOFT : colors.foreground;
-  const faint = skinTokens.isTerminal ? TERM_MID : colors.muted;
+  // v195: under Classic the Moments screen adopts the mockup's own
+  // light surface (white, ink #1D1830, faint #9A92B5, hairline
+  // #ECE9F4) instead of the app's dark chrome — the Zeitgeist
+  // composition is a light, flat feed. Skins keep their tokens.
+  const classicLight = !isSkinned;
+  const ink = skinTokens.isTerminal ? TERM_SOFT : classicLight ? "#1D1830" : colors.foreground;
+  const faint = skinTokens.isTerminal ? TERM_MID : classicLight ? "#9A92B5" : colors.muted;
+  const momentsSurface = classicLight ? "#FFFFFF" : colors.surface;
+  const momentsBorder = classicLight ? "#ECE9F4" : colors.border;
+  // The day pill's count chips, as a bg/ink pair per skin (mirrors
+  // journal-day's chipBg pattern, with readable ink on each ground).
+  const pillChipBg = (pastel: string) => (skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : pastel);
+  const pillChipInk = skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : "#1D1830";
 
   return (
     <View
       style={[
         styles.container,
         {
-          backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : skinTokens.background ?? colors.background,
+          // v195: Classic paints the mockup's white — the Moments
+          // surface is the mockup's, not the dark chrome's.
+          backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : "#FFFFFF",
         },
       ]}
     >
@@ -432,14 +453,15 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         data={feedItems}
         keyExtractor={(item) => item.key}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 150 + insets.bottom }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 16 }}
         ListHeaderComponent={
           <View>
             <View style={styles.header}>
               <Pressable
                 accessibilityLabel="Write a long entry"
                 onPress={() => openEditor()}
-                style={({ pressed }) => [styles.personBtn, { borderColor: colors.border }, pressed && styles.pressed]}
+                style={({ pressed }) => [styles.personBtn, { borderColor: momentsBorder }, pressed && styles.pressed]}
               >
                 <AvatarImage id="journal-author" name={author.name} avatarAsset={author.avatarAsset} photoUri={author.photoUri} size={40} fallbackColor="#7C4DFF" />
               </Pressable>
@@ -447,11 +469,11 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 <Image source={require("../assets/images/icon.png")} style={styles.logoMark} contentFit="contain" />
                 <Text style={[styles.journalTitle, { color: ink }, skinText(skinTokens, skinTokens.type.screenTitle)]}>Journal</Text>
               </View>
-              <View style={[styles.headPill, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.headPill, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : momentsSurface, borderColor: momentsBorder }]}>
                 <Pressable accessibilityLabel="Search journal" onPress={() => setSearchOpen((current) => !current)} style={styles.headPillBtn}>
                   <MaterialIcons name="search" size={20} color={ink} />
                 </Pressable>
-                <View style={[styles.headDivider, { backgroundColor: colors.border }]} />
+                <View style={[styles.headDivider, { backgroundColor: momentsBorder }]} />
                 <Pressable accessibilityLabel="Open mood calendar" onPress={() => setCalendarOpen(true)} style={styles.headPillBtn}>
                   <MaterialIcons name="calendar-month" size={20} color={ink} />
                 </Pressable>
@@ -459,7 +481,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             </View>
 
             {searchOpen ? (
-              <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.searchBar, { backgroundColor: momentsSurface, borderColor: momentsBorder }]}>
                 <MaterialIcons name="search" size={18} color={faint} />
                 <TextInput
                   value={query}
@@ -482,7 +504,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 onPress={() => setBookmarksOnly((current) => !current)}
                 style={[
                   styles.filterChip,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  { backgroundColor: momentsSurface, borderColor: momentsBorder },
                   bookmarksOnly && { backgroundColor: colors.primary, borderColor: colors.primary },
                   bookmarksOnly
                     ? { ...bitButtonStyle(skinTokens, "primary"), ...termButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary") }
@@ -492,16 +514,51 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 <MaterialIcons name="bookmark" size={14} color={bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : faint} />
                 <Text style={[styles.filterChipText, { color: bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : faint }]}>Bookmarks</Text>
               </Pressable>
-              <Pressable onPress={() => openEditor()} style={[styles.filterChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Pressable onPress={() => openEditor()} style={[styles.filterChip, { backgroundColor: momentsSurface, borderColor: momentsBorder }]}>
                 <MaterialIcons name="edit-note" size={15} color={faint} />
                 <Text style={[styles.filterChipText, { color: faint }]}>Long entry</Text>
               </Pressable>
             </View>
 
+            {/* v195: the day pill lives IN the flow at the head of
+                the feed, as in the mockup — v194 floated it at a
+                fixed bottom offset, where it landed on top of
+                entries mid-scroll. */}
+            <Pressable
+              onPress={() => setDayViewDate(todayIso)}
+              style={({ pressed }) => [
+                styles.dayPill,
+                { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : momentsSurface, borderColor: momentsBorder },
+                pressed && styles.pressed,
+              ]}
+            >
+              <MaterialIcons name="calendar-month" size={16} color="#E4572E" />
+              <Text style={[styles.dayPillToday, { color: ink }]}>Today</Text>
+              <View style={[styles.dayPillChip, { backgroundColor: pillChipBg("#DFF3DF") }]}>
+                <Text style={[styles.dayPillChipText, { color: pillChipInk }]}>
+                  {todayCounts.entries} {todayCounts.entries === 1 ? "entry" : "entries"}
+                </Text>
+              </View>
+              <View style={[styles.dayPillChip, { backgroundColor: pillChipBg("#E1EDFB") }]}>
+                <Text style={[styles.dayPillChipText, { color: pillChipInk }]}>{todayCounts.photos} photos</Text>
+              </View>
+              <View style={[styles.dayPillChip, { backgroundColor: pillChipBg("#FBE3EC") }]}>
+                <Text style={[styles.dayPillChipText, { color: pillChipInk }]}>{todayCounts.events} events</Text>
+              </View>
+              <View style={styles.dayPillStack}>
+                {todayCounts.people.slice(0, 3).map((person, index) => (
+                  <View key={person.id} style={[styles.dayPillAvatar, { marginLeft: index === 0 ? 0 : -8, zIndex: 3 - index }]}>
+                    <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={22} fallbackColor={person.avatarColor} />
+                  </View>
+                ))}
+              </View>
+              <MaterialIcons name="chevron-right" size={18} color={faint} />
+            </Pressable>
+
             {showYesterdayPeek ? (
               <Pressable
                 onPress={() => setDayViewDate(yesterdayIso)}
-                style={({ pressed }) => [styles.peek, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.surface, borderColor: colors.border }, pressed && styles.pressed]}
+                style={({ pressed }) => [styles.peek, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : momentsSurface, borderColor: momentsBorder }, pressed && styles.pressed]}
               >
                 <Text style={[styles.peekKicker, { color: faint }]}>Yesterday</Text>
                 <Text style={[styles.peekText, { color: ink }]}>
@@ -514,7 +571,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           </View>
         }
         ListEmptyComponent={
-          <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: skinTokens.cardRadius ?? 12 }]}>
+          <View style={[styles.emptyCard, { backgroundColor: momentsSurface, borderColor: momentsBorder, borderRadius: skinTokens.cardRadius ?? 12 }]}>
             <MaterialIcons name="auto-stories" size={30} color={colors.primary} />
             <Text style={[styles.emptyTitle, { color: ink }]}>{bookmarksOnly ? "No bookmarks yet" : "No moments yet"}</Text>
             <Text style={[styles.emptyText, { color: faint }]}>
@@ -532,7 +589,11 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                   style={[
                     styles.separatorText,
                     {
-                      color: skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_MID : colors.muted,
+                      // v195: under Classic the separator sits on the
+                      // mockup's white surface — the mockup's faint,
+                      // not the dark palette's muted. Paper keeps
+                      // colors.muted, as in v194.
+                      color: skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_MID : classicLight ? "#9A92B5" : colors.muted,
                     },
                     bitText(11),
                   ]}
@@ -545,36 +606,17 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
               </View>
             );
           }
-          return <JournalPost entry={item.entry} {...sheetCallbacks} />;
+          return <JournalPost entry={item.entry} {...sheetCallbacks} lightSurface />;
         }}
       />
 
-      {/* Floating day pill — opens the Day overview */}
-      <Pressable
-        onPress={() => setDayViewDate(todayIso)}
-        style={({ pressed }) => [
-          styles.dayPill,
-          { bottom: 96 + insets.bottom, backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.surface, borderColor: colors.border },
-          pressed && styles.pressed,
-        ]}
-      >
-        <MaterialIcons name="calendar-today" size={15} color={colors.primary} />
-        <Text style={[styles.dayPillText, { color: ink }]}>
-          Today · {todayCounts.entries} {todayCounts.entries === 1 ? "entry" : "entries"} · {todayCounts.photos} photos · {todayCounts.events} events
-        </Text>
-        <View style={styles.dayPillStack}>
-          {todayCounts.people.slice(0, 3).map((person, index) => (
-            <View key={person.id} style={[styles.dayPillAvatar, { marginLeft: index === 0 ? 0 : -8, zIndex: 3 - index }]}>
-              <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={22} fallbackColor={person.avatarColor} />
-            </View>
-          ))}
-        </View>
-      </Pressable>
-
-      {/* "What's up?" composer, pinned to the bottom */}
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.composerWrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+      {/* "What's up?" composer — in flow at the foot of the screen,
+          lifted clear of the floating tab bar by its bottom padding.
+          v194 positioned it at the screen's very bottom, where the
+          tab bar covered it whole. */}
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.composerWrap, { paddingBottom: 96 + insets.bottom }]}>
         {moodRowOpen ? (
-          <View style={[styles.composerRow, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.composerRow, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : momentsSurface, borderColor: momentsBorder }]}>
             <Text style={[styles.composerRowLabel, { color: faint }]}>Feels like</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: "center" }}>
               {MOODS.map((mood) => {
@@ -595,7 +637,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         ) : null}
 
         {tagRowOpen ? (
-          <View style={[styles.composerRow, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.composerRow, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : momentsSurface, borderColor: momentsBorder }]}>
             <MaterialIcons name="sell" size={16} color={faint} />
             <TextInput
               value={tagWord}
@@ -630,14 +672,14 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           </View>
         ) : null}
 
-        <BlurView intensity={skinTokens.isTerminal || skinTokens.isEightBit ? 0 : 55} tint="light" style={[styles.composerBar, { borderColor: colors.border, backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? colors.surface : "rgba(255,255,255,0.72)" }]}>
+        <BlurView intensity={skinTokens.isTerminal || skinTokens.isEightBit ? 0 : 55} tint="light" style={[styles.composerBar, { borderColor: momentsBorder, backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? colors.surface : "rgba(255,255,255,0.72)" }]}>
           <Pressable accessibilityLabel="Add a photo" onPress={() => void pickPhotos("quick")} style={[styles.composerBtn, { backgroundColor: colors.primary }]}>
             <MaterialIcons name="add" size={20} color="#FFFFFF" />
           </Pressable>
           <Pressable
             accessibilityLabel="Add a mood"
             onPress={() => setMoodRowOpen((current) => !current)}
-            style={[styles.composerBtn, { backgroundColor: draftMood || moodRowOpen ? colors.primary + "26" : colors.surface, borderColor: colors.border, borderWidth: draftMood || moodRowOpen ? 0 : 1 }]}
+            style={[styles.composerBtn, { backgroundColor: draftMood || moodRowOpen ? colors.primary + "26" : momentsSurface, borderColor: momentsBorder, borderWidth: draftMood || moodRowOpen ? 0 : 1 }]}
           >
             {draftMood ? <MoodFace moodId={draftMood.id} size={19} /> : <MaterialIcons name="sentiment-satisfied-alt" size={19} color={colors.primary} />}
           </Pressable>
@@ -652,7 +694,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           <Pressable
             accessibilityLabel="Add a tag"
             onPress={() => setTagRowOpen((current) => !current)}
-            style={[styles.composerBtn, { backgroundColor: tagRowOpen || tagWord ? colors.primary + "26" : colors.surface, borderColor: colors.border, borderWidth: tagRowOpen || tagWord ? 0 : 1 }]}
+            style={[styles.composerBtn, { backgroundColor: tagRowOpen || tagWord ? colors.primary + "26" : momentsSurface, borderColor: momentsBorder, borderWidth: tagRowOpen || tagWord ? 0 : 1 }]}
           >
             <MaterialIcons name="sell" size={17} color={colors.primary} />
           </Pressable>
@@ -660,12 +702,11 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             accessibilityLabel="Post"
             onPress={postQuick}
             disabled={!canPost}
-            style={[styles.composerBtn, { backgroundColor: canPost ? colors.primary : colors.border }]}
+            style={[styles.composerBtn, { backgroundColor: canPost ? colors.primary : classicLight ? "#E9E6F2" : colors.border }]}
           >
             <MaterialIcons name="arrow-upward" size={19} color="#FFFFFF" />
           </Pressable>
         </BlurView>
-        <Text style={[styles.composerHint, { color: faint }]}>A mood or a photo posts on its own — no words needed.</Text>
       </KeyboardAvoidingView>
 
       {renderOverlays()}
@@ -1050,32 +1091,36 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 17, fontWeight: "800" },
   emptyText: { fontSize: 14, lineHeight: 20, textAlign: "center" },
+  // v195: in-flow day pill — a full-width row in the feed header
+  // with the mockup's pastel count chips and avatar stack, not a
+  // floating overlay.
   dayPill: {
-    position: "absolute",
-    alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 7,
+    marginHorizontal: 16,
+    marginTop: 12,
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 15,
-    paddingVertical: 9,
-    shadowColor: "#1E1246",
-    shadowOpacity: 0.14,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 6,
-  },
-  dayPillText: { fontSize: 13.5, fontWeight: "700" },
-  dayPillStack: { flexDirection: "row", alignItems: "center" },
-  dayPillAvatar: { borderRadius: 999, borderWidth: 2, borderColor: "#FFFFFF", overflow: "hidden" },
-  composerWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     paddingHorizontal: 12,
-    paddingTop: 6,
+    paddingVertical: 8,
+    shadowColor: "#1E1246",
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  dayPillToday: { fontSize: 14.5, fontWeight: "800", marginRight: 2 },
+  dayPillChip: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  dayPillChipText: { fontSize: 11.5, fontWeight: "800" },
+  dayPillStack: { flexDirection: "row", alignItems: "center", marginLeft: "auto" },
+  dayPillAvatar: { borderRadius: 999, borderWidth: 2, borderColor: "#FFFFFF", overflow: "hidden" },
+  // v195: the composer is the last in-flow child of the screen —
+  // the list flexes above it, and its bottom padding lifts it
+  // clear of the shell's floating tab bar.
+  composerWrap: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
   },
   composerRow: {
     flexDirection: "row",
@@ -1116,7 +1161,6 @@ const styles = StyleSheet.create({
   },
   composerBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   composerInput: { flex: 1, fontSize: 15.5, maxHeight: 110, paddingTop: 7, paddingBottom: 7 },
-  composerHint: { fontSize: 11, fontWeight: "600", textAlign: "center", marginTop: 6 },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(24,12,50,0.35)" },
   actionSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28, gap: 4 },

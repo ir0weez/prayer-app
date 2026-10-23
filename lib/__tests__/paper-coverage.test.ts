@@ -25,7 +25,13 @@ describe("v179 paper coverage — every named surface consumes the skin", () => 
     expect(journal).toContain("useSkin");
     // Entry rows take the paper surface when they carry no color.
     // (v194: the post prop is named `entry` now, was `item`.)
-    expect(journal).toContain("entry.color ?? paperSurface");
+    // v195 (Journal, Actually Zeitgeist): the entry color no longer
+    // paints the row at all — v194's full-bleed fill read on his
+    // phone as a giant colored block, nothing like the mockup's
+    // flat rows. The color survives only as the post's thin left
+    // accent rule (colorRule); the row's surface is the surface.
+    expect(journal).toContain("styles.colorRule");
+    expect(journal).not.toContain("entry.color ?? paperSurface");
     // Sheets sit on the paper page background.
     expect(journal).toContain("skinTokens.background");
   });

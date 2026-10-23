@@ -1146,7 +1146,11 @@ describe("v187 — 8-bit, everywhere it claims to be", () => {
   it("item 4 — the schedule's and journal's purple pills become gold/dark cartridges under 8-bit", () => {
     const schedule = read("components/schedule-tab.tsx");
     expect(schedule).toContain('bitButtonStyle(skinTokens, "primary")');
-    expect(schedule).toContain('bitButtonStyle(skinTokens, "secondary")');
+    // v205: the schedule's only "secondary" button sites were the
+    // Personal Study card's check-off buttons — retired when the card
+    // became the doorway into the new Bible system (one check-off list
+    // only). The doorway card itself stays skinned: surface, frame and
+    // cartridge shadow, pinned in item 3 above.
     const journal = read("components/prayer-journal-tab.tsx");
     expect(journal).toContain('bitButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary")');
     expect(journal).toContain('bitButtonStyle(skinTokens, "primary")');
@@ -1254,8 +1258,10 @@ describe("v188 — Terminal, finished properly", () => {
     const schedule = read("components/schedule-tab.tsx");
     // Study buttons are terminal windows; the progress fill is
     // phosphor on a dim track; the % wears phosphor too.
+    // (v205: the "secondary" spread lived on the retired Personal Study
+    // check-off buttons; the primary spread and the progress-bar
+    // strings below still stand on the remaining study surfaces.)
     expect(schedule).toContain('...(termButtonStyle(skinTokens, "primary") ?? {})');
-    expect(schedule).toContain('...(termButtonStyle(skinTokens, "secondary") ?? {})');
     expect(schedule).toContain("backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, borderRadius: skinTokens.isTerminal ? 0 : 3");
     expect(schedule).toContain("backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border");
     // The week strip's time-off markers stop wearing palette purple.

@@ -230,6 +230,8 @@ import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
+import { chapterStatus as v205ChapterStatus, loadStudyState as loadV205StudyState } from "@/lib/bible-v205/study";
+import { CHAPTER_COUNTS as V205_CHAPTER_COUNTS, chapterCountFor as v205ChapterCountFor } from "@/lib/bible-v205/index";
 import { getBibleBookGenre } from "@/lib/bible-genres";
 import { BibleGenreMotif } from "@/components/bible-genre-motif";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
@@ -10689,6 +10691,39 @@ export function ScheduleTab({
   const [currentBibleBook, setCurrentBibleBook] = useState<string | null>(null);
   const [bibleState, setBibleState] = useState<UnifiedBibleState | null>(null);
 
+  // v205: the Personal Study card's lines come from the NEW study store
+  // (the same store the Books view, chapter page and queue read). The
+  // first load also runs the one-time migration of his old check-offs.
+  const [studyDoorway, setStudyDoorway] = useState<{ line: string; sub: string | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadV205StudyState()
+      .then((state) => {
+        if (!live) return;
+        let complete = 0;
+        for (const book of Object.keys(V205_CHAPTER_COUNTS)) {
+          const total = v205ChapterCountFor(book);
+          for (let c = 1; c <= total; c++) {
+            if (v205ChapterStatus(state, book, c) === "complete") complete++;
+          }
+        }
+        const nextWrite = state.writeQueue[0];
+        const nextRestudy = state.restudyQueue[0];
+        setStudyDoorway({
+          line: complete > 0 ? `${complete} chapter${complete === 1 ? "" : "s"} complete` : "Your Books",
+          sub: nextWrite
+            ? `Next to write: ${nextWrite.book} ${nextWrite.chapter}`
+            : nextRestudy
+              ? `To re-study: ${nextRestudy.book} ${nextRestudy.chapter}`
+              : "Tap to open your Books",
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [bibleState]);
+
   // Sync currentBibleBook whenever bibleState changes
   useEffect(() => {
     if (bibleState) {
@@ -11813,14 +11848,14 @@ export function ScheduleTab({
     // Add Personal Study as a card item in the schedule flow (before time blocks)
     const currentBibleDisplay = bibleState ? getCurrentBibleDisplay(bibleState) : 'No book marked as current';
     if (bibleState) {
-      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: currentBibleDisplay, state: bibleState, chapterSummary: chapterSummary } });
+      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: studyDoorway?.line ?? "Your Books", sub: studyDoorway?.sub ?? null } });
     }
 
     // Add worship section as a direct display (not expandable)
     items.push({ type: "worship-display", id: "worship-section", data: null });
 
     return items;
-  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, currentAlbum, clockNow]);
+  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, currentAlbum, clockNow, studyDoorway]);
 
   // Joi-style sheet: the date header leads the sheet; an empty-state item
   // preserves the "no items" message now that data always carries the header.
@@ -12074,212 +12109,37 @@ export function ScheduleTab({
           );
         }
         case "personal-study-card": {
-          const hasCurrentBook = Object.values(item.data.state.bookStatuses).some((status) => status === 'current');
-          // Subtle genre motif for the current book (Law → tablets, Poetry → harp, …).
-          const currentBookName = hasCurrentBook
-            ? (Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0] as string | undefined)
-            : undefined;
-          const bookGenre = getBibleBookGenre(currentBookName);
+          // v205: the Personal Study box is the doorway into the new
+          // Bible system — His Books, the chapter page, Stories, the
+          // study states and queue all live behind it now. The old
+          // in-card check-offs (Mark as Read, back-a-chapter, the
+          // unified progress bar) are retired: there is exactly one
+          // chapter check-off list in the app, and it is the new one.
+          // The card's lines come from the NEW study store.
           return (
             <Pressable
-              onPress={() => hasCurrentBook
-                ? togglePersonalStudyExpanded(!isPersonalStudyExpanded)
-                : router.push({ pathname: '/bible-chapters', params: { openBookNav: '1' } })}
+              onPress={() => router.push('/bible-chapters')}
               style={({ pressed }) => [{ marginBottom: 12, marginHorizontal: 12, opacity: pressed ? 0.7 : 1, ...(skinTokens.isPaper ? { marginBottom: 12 + skinTokens.type.gapBoost } : {}) }]}
             >
               <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? cartridgeShadowFor(skinTokens) ?? {} : {}) }}>
                 <View style={{ padding: 16, gap: 12, ...(skinTokens.isPaper ? { padding: 16 + skinTokens.type.padBoost, gap: 12 + skinTokens.type.gapBoost } : {}) }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                      {bookGenre
-                        ? <BibleGenreMotif genre={bookGenre} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} size={20} />
-                        : <MaterialIcons name="book" size={20} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />}
+                      <MaterialIcons name="menu-book" size={20} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600', ...bitDisplay(skinTokens, 10), ...skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) }}>Personal Study</Text>
-                      {hasCurrentBook && <Pressable
-                        onPress={async () => {
-                          // Reload fresh state from storage to ensure we have latest chapter read status
-                          const { loadUnifiedBible } = await import('@/lib/bible-unified');
-                          const freshState = await loadUnifiedBible();
-                          if (freshState?.chapters && freshState.chapters.length > 0) {
-                            // Find the current book
-                            const currentBook = Object.entries(freshState.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-                            if (currentBook) {
-                              // Find the next unread chapter
-                              const nextChapter = freshState.chapters.find((c: any) => c.book === currentBook && !c.isRead);
-                              if (nextChapter) {
-                                setBibleBook(currentBook);
-                                setBibleChapter(nextChapter.chapter);
-                                setBibleViewerVisible(true);
-                              }
-                            }
-                          }
-                        }}
-                        style={({ pressed }) => [{
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          backgroundColor: colors.primary,
-                          borderRadius: 8,
-                          marginLeft: 'auto',
-                          marginRight: 8,
-                          opacity: pressed ? 0.8 : 1,
-                          ...(bitButtonStyle(skinTokens, "primary") ?? {}),
-                          ...(termButtonStyle(skinTokens, "primary") ?? {}), ...(glassButtonStyle(skinTokens, "primary") ?? {}),
-                          ...(skinTokens.isPaper ? { paddingHorizontal: 12 + skinTokens.type.gapBoost, paddingVertical: 8 + skinTokens.type.gapBoost } : {}),
-                        }]}
-                      >
-                        <Text style={{ color: skinTokens.isStainedGlass ? glassButtonInk("primary") : skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : colors.background, fontSize: 12, fontWeight: '700', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 14 : 8) : {}), ...skinText(skinTokens, skinTokens.type.labelText) }}>
-                          Read Chapter
-                        </Text>
-                      </Pressable>}
                     </View>
-                    <MaterialIcons name={isPersonalStudyExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
+                    <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
                   </View>
-
-                  {hasCurrentBook ? <View style={{ gap: 8 }}>
+                  <View style={{ gap: 4 }}>
                     <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700', ...(skinTokens.isEightBit ? bitDisplay(skinTokens, 11) : {}), ...skinText(skinTokens, skinTokens.type.cardTitle) }}>
                       {item.data.display}
                     </Text>
-                    {(() => {
-                      const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-                      if (book) {
-                        const progress = getBookProgress(item.data.state, book);
-                        const percentage = Math.round((progress.read / progress.total) * 100);
-                        return (
-                          <View style={{ gap: 6 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
-                                {progress.read} of {progress.total} chapters
-                              </Text>
-                              <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : colors.primary, fontSize: 12, fontWeight: '600', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
-                                {percentage}%
-                              </Text>
-                            </View>
-                            <View style={{ height: 6, backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border, borderRadius: skinTokens.isTerminal ? 0 : 3, overflow: 'hidden' }}>
-                              <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, borderRadius: skinTokens.isTerminal ? 0 : 3 }} />
-                            </View>
-                          </View>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </View> : (
-                    <View style={{ alignItems: 'center', gap: 8, paddingVertical: 10 }}>
-                      <MaterialIcons name="menu-book" size={34} color={colors.muted} />
-                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600', ...skinText(skinTokens, skinTokens.type.barTitle) }}>No book chosen yet</Text>
-                      <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'center', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>Tap here to choose a current book</Text>
-                    </View>
-                  )}
-
-                  {celebratedBook && (
-                    <BookCompleteCelebration
-                      book={celebratedBook}
-                      bibleComplete={bibleFullyComplete}
-                      onChooseNext={() => {
-                        setCelebratedBook(null);
-                        router.push({ pathname: '/bible-chapters', params: { openBookNav: '1' } });
-                      }}
-                      onDismiss={() => {
-                        setCelebratedBook(null);
-                        setBibleFullyComplete(false);
-                      }}
-                    />
-                  )}
-
-                  {isPersonalStudyExpanded && hasCurrentBook && (
-                    <>
-                      {isLoadingSummary || item.data.chapterSummary ? (
-                        <View style={{ gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
-                          <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 20, ...skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) }}>
-                            {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
-                          </Text>
-                        </View>
-                      ) : null}
-
-                      <View style={{ gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
-                        <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <Pressable
-                        onPress={async (event) => {
-                          if (item.data?.state) {
-                            const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-                            if (book) {
-                              // Find the last read chapter
-                              const lastReadChapter = item.data.state.chapters
-                                .filter((c: any) => c.book === book && c.isRead)
-                                .sort((a: any, b: any) => b.chapter - a.chapter)[0];
-
-                              // A first-chapter read is still a valid previous position when viewing chapter 2.
-                              if (lastReadChapter) {
-                                try {
-                                  // Mark the last read chapter as unread to go back
-                                  const updated = await markChapterAsUnread(book, lastReadChapter.chapter);
-                                  onRevokeXP?.("daily-reading", `${book}:${lastReadChapter.chapter}`, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
-                                  setBibleState(updated);
-                                  await syncUnifiedBibleToAllOldSystems(updated);
-                                  const newDisplay = getCurrentBibleDisplay(updated);
-                                  setCurrentBibleBook(newDisplay || 'No book marked as current');
-                                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                } catch (error) {
-                                  console.error('Error going back chapter:', error);
-                                }
-                              }
-                            }
-                          }
-                        }}
-                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                      >
-                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', ...(bitButtonStyle(skinTokens, "secondary") ?? {}), ...(termButtonStyle(skinTokens, "secondary") ?? {}), ...(glassButtonStyle(skinTokens, "secondary") ?? {}) }}>
-                          <MaterialIcons name="arrow-back" size={18} color={skinTokens.isStainedGlass ? glassButtonInk("secondary") : skinTokens.isTerminal ? termButtonInk("secondary") : skinTokens.isEightBit ? bitButtonInk("secondary") : colors.foreground} />
-                        </View>
-                      </Pressable>
-
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel="Choose Bible book"
-                        onPress={(event) => {
-                          event.stopPropagation?.();
-                          router.push({ pathname: '/bible-chapters', params: { openBookNav: '1' } });
-                        }}
-                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                      >
-                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', ...(bitButtonStyle(skinTokens, "secondary") ?? {}), ...(termButtonStyle(skinTokens, "secondary") ?? {}), ...(glassButtonStyle(skinTokens, "secondary") ?? {}) }}>
-                          <MaterialIcons name="list" size={19} color={skinTokens.isStainedGlass ? glassButtonInk("secondary") : skinTokens.isTerminal ? termButtonInk("secondary") : skinTokens.isEightBit ? bitButtonInk("secondary") : colors.primary} />
-                        </View>
-                      </Pressable>
-
-                      <Pressable
-                        onPress={async (event) => {
-                          if (item.data?.state) {
-                            const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-                            if (book) {
-                              const nextChapter = item.data.state.chapters.find((c: any) => c.book === book && !c.isRead);
-                              if (nextChapter) {
-                                try {
-                                  const updated = await markChapterAsRead(book, nextChapter.chapter, false);
-                                  onAwardXP?.("daily-reading", `${book}:${nextChapter.chapter}`, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
-                                  const finalState = await handleBookCompletionCheck(book, updated, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
-                                  setBibleState(finalState);
-                                  await syncUnifiedBibleToAllOldSystems(finalState);
-                                  const newDisplay = getCurrentBibleDisplay(finalState);
-                                  setCurrentBibleBook(newDisplay || 'No book marked as current');
-                                  if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                } catch (error) {
-                                  console.error('Error marking chapter as read:', error);
-                                }
-                              }
-                            }
-                          }
-                        }}
-                        style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.7 : 1 }]}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8, ...(bitButtonStyle(skinTokens, "primary") ?? {}), ...(termButtonStyle(skinTokens, "primary") ?? {}), ...(glassButtonStyle(skinTokens, "primary") ?? {}), ...(skinTokens.isPaper ? { paddingVertical: 10 + skinTokens.type.gapBoost, paddingHorizontal: 12 + skinTokens.type.padBoost } : {}) }}>
-                          <MaterialIcons name="check" size={18} color={skinTokens.isStainedGlass ? glassButtonInk("primary") : skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF"} />
-                          <Text style={{ color: skinTokens.isStainedGlass ? glassButtonInk("primary") : skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : '#FFFFFF', fontSize: 14, fontWeight: '600', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 9) : {}) }}>Mark as Read</Text>
-                        </View>
-                      </Pressable>
-                        </View>
-                      </View>
-                    </>
-                  )}
+                    {item.data.sub ? (
+                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
+                        {item.data.sub}
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
               </View>
             </Pressable>

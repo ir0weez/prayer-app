@@ -1,725 +1,321 @@
-import { ScreenContainer } from '@/components/screen-container';
-import { useColors } from '@/hooks/use-colors';
-import { useSkin } from '@/hooks/use-skin';
-import { useCallback, useState, useEffect, useRef } from 'react';
+// ─── v205 Books view ─────────────────────────────────────────────────────────
+// "His Books": every book his study databases know, in his own status
+// words — progress threads from the real chapter states, the notes-only
+// books, the handwritten-only row, and the quiet rest of the canon. This
+// route also serves the older bible navigation entry points (profile,
+// schedule tab) — it is the Bible home now.
+
+import { useCallback, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, View, Pressable, Text, StyleSheet, Alert, Modal, FlatList } from 'react-native';
-import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
-import { loadUnifiedBible, saveUnifiedBible, setCurrentBook, UNIFIED_BIBLE_KEY, type UnifiedBibleState } from '@/lib/bible-unified';
-import { awardXP, revokeXP } from '@/lib/xp-engine';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useSkin } from '@/hooks/use-skin';
+import { PaperSettle } from '@/components/paper-motion';
+import { BitSettle } from '@/components/bit-motion';
+import {
+  CHAPTER_COUNTS,
+  databaseBooks,
+  notesBooks,
+  notesChapterCount,
+} from '@/lib/bible-v205/index';
+import type { StudyStatus } from '@/lib/bible-v205/types';
+import {
+  chapterStatus,
+  loadStudyState,
+  type StudyState,
+} from '@/lib/bible-v205/study';
+import { Ornament, StatusChip } from '@/components/bible-v205/blocks';
+import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
+import {
+  handwrittenNoteFor,
+  loadHandwritten,
+  type HandwrittenEntry,
+} from '@/lib/bible-v205/handwritten';
+import {
+  loadUserLabels,
+  saveSourceLabel,
+  type UserLabels,
+} from '@/lib/bible-v205/user-labels';
 
-const BIBLE_BOOKS = [
-  { name: 'Genesis', chapters: 50 },
-  { name: 'Exodus', chapters: 40 },
-  { name: 'Leviticus', chapters: 27 },
-  { name: 'Numbers', chapters: 36 },
-  { name: 'Deuteronomy', chapters: 34 },
-  { name: 'Joshua', chapters: 24 },
-  { name: 'Judges', chapters: 21 },
-  { name: 'Ruth', chapters: 4 },
-  { name: '1 Samuel', chapters: 31 },
-  { name: '2 Samuel', chapters: 24 },
-  { name: '1 Kings', chapters: 22 },
-  { name: '2 Kings', chapters: 25 },
-  { name: '1 Chronicles', chapters: 29 },
-  { name: '2 Chronicles', chapters: 36 },
-  { name: 'Ezra', chapters: 10 },
-  { name: 'Nehemiah', chapters: 13 },
-  { name: 'Esther', chapters: 10 },
-  { name: 'Job', chapters: 42 },
-  { name: 'Psalms', chapters: 150 },
-  { name: 'Proverbs', chapters: 31 },
-  { name: 'Ecclesiastes', chapters: 12 },
-  { name: 'Song of Solomon', chapters: 8 },
-  { name: 'Isaiah', chapters: 66 },
-  { name: 'Jeremiah', chapters: 52 },
-  { name: 'Lamentations', chapters: 5 },
-  { name: 'Ezekiel', chapters: 48 },
-  { name: 'Daniel', chapters: 12 },
-  { name: 'Hosea', chapters: 14 },
-  { name: 'Joel', chapters: 3 },
-  { name: 'Amos', chapters: 9 },
-  { name: 'Obadiah', chapters: 1 },
-  { name: 'Jonah', chapters: 4 },
-  { name: 'Micah', chapters: 7 },
-  { name: 'Nahum', chapters: 3 },
-  { name: 'Habakkuk', chapters: 3 },
-  { name: 'Zephaniah', chapters: 3 },
-  { name: 'Haggai', chapters: 2 },
-  { name: 'Zechariah', chapters: 14 },
-  { name: 'Malachi', chapters: 4 },
-  { name: 'Matthew', chapters: 28 },
-  { name: 'Mark', chapters: 16 },
-  { name: 'Luke', chapters: 24 },
-  { name: 'John', chapters: 21 },
-  { name: 'Acts', chapters: 28 },
-  { name: 'Romans', chapters: 16 },
-  { name: '1 Corinthians', chapters: 16 },
-  { name: '2 Corinthians', chapters: 13 },
-  { name: 'Galatians', chapters: 6 },
-  { name: 'Ephesians', chapters: 6 },
-  { name: 'Philippians', chapters: 4 },
-  { name: 'Colossians', chapters: 4 },
-  { name: '1 Thessalonians', chapters: 5 },
-  { name: '2 Thessalonians', chapters: 3 },
-  { name: '1 Timothy', chapters: 6 },
-  { name: '2 Timothy', chapters: 4 },
-  { name: 'Titus', chapters: 3 },
-  { name: 'Philemon', chapters: 1 },
-  { name: 'Hebrews', chapters: 13 },
-  { name: 'James', chapters: 5 },
-  { name: '1 Peter', chapters: 5 },
-  { name: '2 Peter', chapters: 3 },
-  { name: '1 John', chapters: 5 },
-  { name: '2 John', chapters: 1 },
-  { name: '3 John', chapters: 1 },
-  { name: 'Jude', chapters: 1 },
-  { name: 'Revelation', chapters: 22 },
-];
+const CANON = Object.keys(CHAPTER_COUNTS);
 
-type BookStatus = 'not-started' | 'current' | 'complete';
-type BookStatusData = Record<string, BookStatus>;
-
-const BIBLE_STORAGE_KEY = 'bibleReadingProgress';
-const BIBLE_STATUS_STORAGE_KEY = 'bibleBookStatus';
-
-export default function BibleChaptersScreen() {
-  const colors = useColors();
-  const { isSkinned, tokens: skinTokens } = useSkin();
-  const paperSurface = isSkinned ? skinTokens.surface ?? colors.surface : colors.surface;
+export default function BibleBooksScreen() {
   const router = useRouter();
-  const { openBookNav } = useLocalSearchParams<{ openBookNav?: string }>();
-  const [readChapters, setReadChapters] = useState<Set<string>>(new Set());
-  const [bookStatuses, setBookStatuses] = useState<BookStatusData>({});
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [showBookNav, setShowBookNav] = useState(false);
-  const bookPositions = useRef<Record<string, number>>({});
-  const [hasScrolled, setHasScrolled] = useState(false);
-  const [justMarkedAsRead, setJustMarkedAsRead] = useState<Set<string>>(new Set());
-  const [showOnlyBookmarks, setShowOnlyBookmarks] = useState(false);
-  const [bookmarkedChapters, setBookmarkedChapters] = useState<Set<string>>(new Set());
-
-  const saveReadChapters = useCallback(async (chapters: Set<string>) => {
-    try {
-      // Save to legacy storage for backward compatibility
-      await AsyncStorage.setItem(BIBLE_STORAGE_KEY, JSON.stringify(Array.from(chapters)));
-      
-      // Also save to unified Bible storage so Schedule tab sees the updates
-      const unifiedState = await loadUnifiedBible();
-      const chapterArray = Array.from(chapters);
-      
-      // Update the chapters array in unified state
-      unifiedState.chapters = unifiedState.chapters.map(ch => ({
-        ...ch,
-        isRead: chapterArray.includes(`${ch.book}-${ch.chapter}`)
-      }));
-      
-      await saveUnifiedBible(unifiedState);
-    } catch (error) {
-      console.error('Error saving read chapters:', error);
-    }
-  }, []);
-
-  const saveBookStatuses = useCallback(async (statuses: BookStatusData) => {
-    try {
-      // Save to old storage for backward compatibility
-      await AsyncStorage.setItem(BIBLE_STATUS_STORAGE_KEY, JSON.stringify(statuses));
-      
-      // Also save to unified Bible storage so Schedule tab sees the update
-      const unifiedState = await loadUnifiedBible();
-      unifiedState.bookStatuses = statuses;
-      await saveUnifiedBible(unifiedState);
-    } catch (error) {
-      console.error('Error saving book statuses:', error);
-    }
-  }, []);
-
-  const loadData = useCallback(async () => {
-    try {
-      const [chaptersStored, statusesStored] = await Promise.all([
-        AsyncStorage.getItem(BIBLE_STORAGE_KEY),
-        AsyncStorage.getItem(BIBLE_STATUS_STORAGE_KEY),
-      ]);
-
-      if (chaptersStored) {
-        setReadChapters(new Set(JSON.parse(chaptersStored)));
-      }
-      if (statusesStored) {
-        setBookStatuses(JSON.parse(statusesStored));
-      }
-      
-      // Load bookmarks from unified Bible state
-      const unifiedState = await loadUnifiedBible();
-      const bookmarked = new Set<string>();
-      unifiedState.chapters.forEach(ch => {
-        if (ch.isBookmarked) {
-          bookmarked.add(`${ch.book}-${ch.chapter}`);
-        }
-      });
-      setBookmarkedChapters(bookmarked);
-    } catch (error) {
-      console.error('Error loading Bible data:', error);
-    }
-  }, []);
+  const palette = useBiblePalette();
+  const { skin } = useSkin();
+  const [studyState, setStudyState] = useState<StudyState | null>(null);
+  const [labels, setLabels] = useState<UserLabels | null>(null);
+  const [handwritten, setHandwritten] = useState<HandwrittenEntry[]>([]);
+  const [labelEditor, setLabelEditor] = useState(false);
+  const [labelDraft, setLabelDraft] = useState('');
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-      setHasScrolled(false);
-      if (openBookNav === '1') setShowBookNav(true);
-    }, [loadData, openBookNav])
+      let live = true;
+      loadStudyState().then((s) => live && setStudyState(s));
+      loadUserLabels().then((l) => live && setLabels(l));
+      loadHandwritten().then((h) => live && setHandwritten(h));
+      return () => {
+        live = false;
+      };
+    }, []),
   );
 
-  // Scroll to current book once positions are measured
-  useEffect(() => {
-    if (hasScrolled) return;
-    const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
-    if (!currentBook) return; // Don't scroll if no book is current
+  const dbBooks = databaseBooks(CANON);
+  const notesOnly = notesBooks(CANON).filter((b) => !dbBooks.includes(b));
+  const paperOnly = handwritten.filter((e) => e.only);
+  const covered = new Set([...dbBooks, ...notesOnly, ...paperOnly.map((e) => e.book)]);
+  const quiet = CANON.filter((b) => !covered.has(b));
+  const possessive = labels?.possessive ?? 'Your';
+  const possessiveLower = labels?.possessiveLower ?? 'your';
+  const sourceLabel = labels?.sourceLabel ?? 'Handwritten notes';
 
-    const targetPosition = bookPositions.current[currentBook[0]];
-    if (targetPosition !== undefined && targetPosition > 0) {
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: targetPosition - 10, animated: true });
-        setHasScrolled(true);
-      }, 400);
-    }
-  }, [bookStatuses, hasScrolled]);
+  const openBook = (book: string) => router.push({ pathname: '/bible-book', params: { book } });
 
-  const handleBookLayout = (bookName: string, y: number) => {
-    bookPositions.current[bookName] = y;
-    // Check if we need to scroll after this layout
-    if (!hasScrolled) {
-      const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
-      if (currentBook && currentBook[0] === bookName) {
-        setTimeout(() => {
-          scrollViewRef.current?.scrollTo({ y: y - 10, animated: true });
-          setHasScrolled(true);
-        }, 500);
-      }
-    }
-  };
+  const content = (
+    <View style={{ flex: 1, backgroundColor: palette.paper }}>
+      <View style={[styles.topbar, { borderBottomColor: palette.line }]}>
+        <Pressable onPress={() => router.back()} hitSlop={10} style={{ padding: 2 }}>
+          <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
+        </Pressable>
+        <Text style={[styles.topTitle, { color: palette.ink }]}>Bible</Text>
+        <Pressable
+          onPress={() => router.push('/bible-queue')}
+          style={[styles.queueBtn, { borderColor: palette.rasp }]}
+        >
+          <Text style={[styles.queueBtnText, { color: palette.raspDeep }]}>Study Queue</Text>
+        </Pressable>
+      </View>
 
-  const scrollToBook = (bookName: string) => {
-    const position = bookPositions.current[bookName];
-    if (position !== undefined) {
-      scrollViewRef.current?.scrollTo({ y: position - 10, animated: true });
-    }
-    setShowBookNav(false);
-  };
-
-  const getBookChapterCount = (bookName: string): number => {
-    const book = BIBLE_BOOKS.find(b => b.name === bookName);
-    return book ? book.chapters : 0;
-  };
-
-  const toggleChapter = (bookName: string, chapterNum: number, position?: { x: number; y: number }) => {
-    const chapterId = `${bookName}-${chapterNum}`;
-    const newChapters = new Set(readChapters);
-
-    if (newChapters.has(chapterId)) {
-      newChapters.delete(chapterId);
-    } else {
-      newChapters.add(chapterId);
-      AsyncStorage.setItem('bibleLastReadDate', new Date().toISOString()).catch(() => undefined);
-    }
-
-    setReadChapters(newChapters);
-    saveReadChapters(newChapters);
-
-    // Add animation trigger for newly marked chapters
-    if (!readChapters.has(chapterId)) {
-      void awardXP("daily-reading", chapterId, position).catch(() => undefined);
-      setJustMarkedAsRead(prev => new Set([...prev, chapterId]));
-      setTimeout(() => {
-        setJustMarkedAsRead(prev => {
-          const updated = new Set(prev);
-          updated.delete(chapterId);
-          return updated;
-        });
-      }, 600);
-    } else {
-      void revokeXP("daily-reading", chapterId, position).catch(() => undefined);
-    }
-
-    // Check if all chapters are now read and auto-complete the book
-    const bookChapters = getBookChapterCount(bookName);
-    const allRead = Array.from({ length: bookChapters }, (_, i) =>
-      newChapters.has(`${bookName}-${i + 1}`)
-    ).every(Boolean);
-
-    if (allRead && bookStatuses[bookName] !== 'complete') {
-      const newStatuses = { ...bookStatuses, [bookName]: 'complete' as BookStatus };
-      setBookStatuses(newStatuses);
-      saveBookStatuses(newStatuses);
-    }
-  };
-
-  const getStatusColor = (status: BookStatus): string => {
-    switch (status) {
-      case 'current':
-        return colors.primary;
-      case 'complete':
-        return '#22C55E';
-      default:
-        return colors.muted;
-    }
-  };
-
-  const getStatusLabel = (status: BookStatus): string => {
-    switch (status) {
-      case 'current':
-        return 'Current';
-      case 'complete':
-        return 'Complete';
-      default:
-        return 'Not Started';
-    }
-  };
-
-  const cycleBookStatus = (bookName: string) => {
-    const currentStatus = bookStatuses[bookName] || 'not-started';
-    let nextStatus: BookStatus;
-
-    if (currentStatus === 'not-started') {
-      nextStatus = 'current';
-    } else if (currentStatus === 'current') {
-      nextStatus = 'complete';
-    } else {
-      nextStatus = 'not-started';
-    }
-
-    const newStatuses: BookStatusData = { ...bookStatuses };
-
-    // If setting to 'current', unset any other current books
-    if (nextStatus === 'current') {
-      Object.keys(newStatuses).forEach(key => {
-        if (newStatuses[key] === 'current') {
-          newStatuses[key] = 'not-started';
-        }
-      });
-    }
-
-    // If setting to 'complete', mark all chapters as read
-    if (nextStatus === 'complete') {
-      const newChapters = new Set(readChapters);
-      const bookChapters = getBookChapterCount(bookName);
-      for (let i = 1; i <= bookChapters; i++) {
-        newChapters.add(`${bookName}-${i}`);
-      }
-      setReadChapters(newChapters);
-      saveReadChapters(newChapters);
-    }
-
-    // If setting to 'not-started', unmark all chapters
-    if (nextStatus === 'not-started') {
-      const newChapters = new Set(readChapters);
-      const bookChapters = getBookChapterCount(bookName);
-      for (let i = 1; i <= bookChapters; i++) {
-        newChapters.delete(`${bookName}-${i}`);
-      }
-      setReadChapters(newChapters);
-      saveReadChapters(newChapters);
-    }
-
-    newStatuses[bookName] = nextStatus;
-    setBookStatuses(newStatuses);
-    saveBookStatuses(newStatuses);
-    
-    // Sync to unified Bible state when marking as current
-    if (nextStatus === 'current') {
-      (async () => {
-        try {
-          const { setCurrentBook } = await import('@/lib/bible-unified');
-          await setCurrentBook(bookName);
-        } catch (error) {
-          console.error('Error syncing to unified Bible state:', error);
-        }
-      })();
-    }
-  };
-
-  const markBookCurrent = async (bookName: string) => {
-    if (bookStatuses[bookName] === 'complete') return;
-    const newStatuses: BookStatusData = { ...bookStatuses };
-    Object.keys(newStatuses).forEach((key) => {
-      if (newStatuses[key] === 'current') newStatuses[key] = 'not-started';
-    });
-    newStatuses[bookName] = 'current';
-    setBookStatuses(newStatuses);
-    await saveBookStatuses(newStatuses);
-    try {
-      await setCurrentBook(bookName);
-    } catch (error) {
-      console.error('Error syncing current Bible book:', error);
-    }
-  };
-
-  const resetAllData = () => {
-    Alert.alert(
-      'Reset Bible Progress',
-      'Are you sure you want to clear all Bible reading progress? This cannot be undone.',
-      [
-        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
-        {
-          text: 'Reset',
-          onPress: async () => {
-            setReadChapters(new Set());
-            setBookStatuses({});
-            await AsyncStorage.removeItem(BIBLE_STORAGE_KEY);
-            await AsyncStorage.removeItem(BIBLE_STATUS_STORAGE_KEY);
-          },
-          style: 'destructive',
-        },
-      ]
-    );
-  };
-
-  const totalChapters = BIBLE_BOOKS.reduce((sum, book) => sum + book.chapters, 0);
-  const readCount = readChapters.size;
-  const progressPercent = Math.round((readCount / totalChapters) * 100);
-
-  return (
-    <ScreenContainer className="p-0">
-      <ScrollView ref={scrollViewRef} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}>
-        {/* Header with close, title, and reset buttons */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <Pressable onPress={() => router.back()} style={[styles.closeButton, { backgroundColor: paperSurface }]}>
-              <MaterialIcons name="close" size={24} color={colors.foreground} />
-            </Pressable>
-            <View style={styles.headerCenter}>
-              <Text style={[styles.title, { color: colors.foreground }]}>Bible Reading</Text>
-              <Text style={[styles.counter, { color: colors.muted }]}>{readCount}/{totalChapters}</Text>
-            </View>
-            <View style={styles.headerRight}>
-              <Pressable onPress={() => setShowBookNav(true)} style={[styles.navButton, { backgroundColor: paperSurface }]}>
-                <MaterialIcons name="list" size={20} color={colors.foreground} />
-              </Pressable>
-              <Pressable onPress={() => setShowOnlyBookmarks(!showOnlyBookmarks)} style={[styles.navButton, { backgroundColor: showOnlyBookmarks ? colors.primary : paperSurface }]}>
-                <MaterialIcons name={showOnlyBookmarks ? 'bookmark' : 'bookmark-border'} size={20} color={showOnlyBookmarks ? '#FFFFFF' : colors.foreground} />
-              </Pressable>
-              <Pressable onPress={resetAllData} style={styles.resetButton}>
-                <Text style={styles.resetButtonText}>Reset</Text>
-              </Pressable>
-            </View>
-          </View>
-          <View style={[styles.progressBar, { backgroundColor: paperSurface }]}>
-            <View style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: colors.primary }]} />
-          </View>
-          <Text style={[styles.progressText, { color: colors.muted }]}>{progressPercent}% complete</Text>
+      <ScrollView contentContainerStyle={styles.page}>
+        <View style={styles.vhead}>
+          <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
+          <Text style={[styles.h2, { color: palette.ink }]}>{possessive} Books</Text>
+          <Ornament palette={palette} />
+          <Text style={[styles.vsub, { color: palette.inkSoft }]}>
+            Every book the study databases know — and the true state of its chapters, in the status words they were
+            recorded in. The ✎ marks books that also live in handwriting.
+          </Text>
         </View>
 
-        {/* Bible books and chapters grid */}
-        {BIBLE_BOOKS.map((book) => {
-          let bookChapters = Array.from({ length: book.chapters }, (_, i) => i + 1);
-          if (showOnlyBookmarks) {
-            bookChapters = bookChapters.filter(ch => bookmarkedChapters.has(`${book.name}-${ch}`));
-          }
-          if (bookChapters.length === 0 && showOnlyBookmarks) return null;
-          
-          const bookStatus = bookStatuses[book.name] || 'not-started';
-          const statusColor = getStatusColor(bookStatus);
+        <View style={styles.legend}>
+          {(['complete', 'in-progress', 'write', 'restudy', 'none'] as StudyStatus[]).map((s) => (
+            <StatusChip key={s} status={s} palette={palette} />
+          ))}
+          <View style={[styles.chip, { backgroundColor: palette.paper, borderColor: palette.lineDark }]}>
+            <Text style={[styles.chipText, { color: palette.inkSoft }]}>✎ On paper</Text>
+          </View>
+        </View>
 
+        {dbBooks.length ? (
+          <Text style={[styles.subhead, { color: palette.rasp }]}>In {possessiveLower} databases</Text>
+        ) : null}
+        {dbBooks.map((book) => (
+          <BookRow
+            key={book}
+            book={book}
+            studyState={studyState}
+            palette={palette}
+            paperNote={handwrittenNoteFor(handwritten, book)}
+            onPress={() => openBook(book)}
+          />
+        ))}
+
+        {notesOnly.length ? (
+          <Text style={[styles.subhead, { color: palette.rasp }]}>Chapter notes — no status list</Text>
+        ) : null}
+        {notesOnly.map((book) => {
+          const n = notesChapterCount(book);
           return (
-            <View
-              key={book.name}
-              style={styles.bookSection}
-              onLayout={(e) => handleBookLayout(book.name, e.nativeEvent.layout.y)}
-            >
-              <View style={styles.bookHeader}>
-                <Text style={[styles.bookTitle, { color: colors.foreground }]}>{book.name}</Text>
-                <Pressable
-                  onPress={() => cycleBookStatus(book.name)}
-                  style={[
-                    styles.statusPill,
-                    {
-                      borderColor: statusColor,
-                      backgroundColor: bookStatus === 'not-started' ? 'transparent' : statusColor + '20',
-                    },
-                  ]}
-                >
-                  <Text style={[styles.statusPillText, { color: statusColor }]}>
-                    {getStatusLabel(bookStatus)}
-                  </Text>
-                </Pressable>
+            <Pressable key={book} style={styles.bookrow} onPress={() => openBook(book)}>
+              <View style={styles.btop}>
+                <Text style={[styles.bname, { color: palette.ink }]}>
+                  {book} <Text style={{ color: palette.rasp }}>›</Text>
+                </Text>
+                <Text style={[styles.bcount, { color: palette.inkSoft }]}>
+                  Chapter notes · {n} {n === 1 ? 'chapter' : 'chapters'}
+                </Text>
               </View>
-              <View style={styles.chapterGrid}>
-                {bookChapters.map((chapterNum) => {
-                  const chapterId = `${book.name}-${chapterNum}`;
-                  const isRead = readChapters.has(chapterId);
-                  const isJustMarked = justMarkedAsRead.has(chapterId);
-                  const isBookmarked = bookmarkedChapters.has(chapterId);
-
-                  return (
-                    <Pressable
-                      key={chapterId}
-                      onLongPress={async () => {
-                        try {
-                          const { toggleChapterBookmark } = await import('@/lib/bible-unified');
-                          await toggleChapterBookmark(book.name, chapterNum);
-                          const newBookmarked = new Set(bookmarkedChapters);
-                          if (isBookmarked) {
-                            newBookmarked.delete(chapterId);
-                          } else {
-                            newBookmarked.add(chapterId);
-                          }
-                          setBookmarkedChapters(newBookmarked);
-                        } catch (error) {
-                          console.error('Error toggling bookmark:', error);
-                        }
-                      }}
-                      onPress={(event) => toggleChapter(book.name, chapterNum, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
-                      style={({ pressed }) => [
-                        styles.chapterButton,
-                        {
-                          borderColor: isRead ? '#22C55E' : isBookmarked ? colors.primary : colors.muted,
-                          backgroundColor: isRead ? '#22C55E' : isBookmarked ? colors.primary + '20' : 'transparent',
-                          opacity: pressed ? 0.8 : 1,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.chapterText, { color: isRead ? '#FFFFFF' : colors.foreground }]}>
-                        {chapterNum}
-                      </Text>
-                      {isBookmarked && !isRead && (
-                        <MaterialIcons name="bookmark" size={10} color={colors.primary} style={styles.checkmark} />
-                      )}
-                      {isRead && (
-                        isJustMarked ? (
-                          <Animated.View entering={ZoomIn.springify()}>
-                            <MaterialIcons name="check" size={12} color="#FFFFFF" style={styles.checkmark} />
-                          </Animated.View>
-                        ) : (
-                          <MaterialIcons name="check" size={12} color="#FFFFFF" style={styles.checkmark} />
-                        )
-                      )}
-                    </Pressable>
-                  );
-                })}
+              <View style={[styles.thread, { backgroundColor: palette.raspTint }]}>
+                <View style={[styles.threadFill, { backgroundColor: '#F3CFE0', width: '100%' }]} />
               </View>
-            </View>
+            </Pressable>
           );
         })}
-      </ScrollView>
 
-      {/* Book Navigation Modal */}
-      <Modal visible={showBookNav} transparent animationType="slide" onRequestClose={() => setShowBookNav(false)}>
-        <View style={styles.navModalOverlay}>
-          <Pressable style={styles.navModalBackdrop} onPress={() => setShowBookNav(false)} />
-          <View style={[styles.navModalContent, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
-            <View style={styles.navModalHeader}>
-              <Text style={[styles.navModalTitle, { color: colors.foreground }]}>Jump to Book</Text>
-              <Pressable onPress={() => setShowBookNav(false)}>
-                <MaterialIcons name="close" size={24} color={colors.foreground} />
+        {paperOnly.length ? (
+          <View style={styles.subheadRow}>
+            <Text style={[styles.subhead, { color: palette.rasp, paddingTop: 0 }]}>
+              Handwritten only — on {possessiveLower} {sourceLabel}
+            </Text>
+            <Pressable
+              hitSlop={8}
+              onPress={() => {
+                setLabelDraft(sourceLabel);
+                setLabelEditor(true);
+              }}
+            >
+              <MaterialIcons name="edit" size={14} color={palette.inkSoft} />
+            </Pressable>
+          </View>
+        ) : null}
+        {paperOnly.map((entry) => {
+          const total = CHAPTER_COUNTS[entry.book] ?? entry.to;
+          return (
+            <Pressable key={entry.book} style={styles.bookrow} onPress={() => openBook(entry.book)}>
+              <View style={styles.btop}>
+                <Text style={[styles.bname, { color: palette.ink }]}>
+                  {entry.book} <Text style={[styles.papermark, { color: palette.inkSoft }]}>✎ on paper</Text>
+                </Text>
+                <Text style={[styles.bcount, { color: palette.inkSoft }]}>
+                  Handwritten notes · chapters {entry.from}–{entry.to} of {total}
+                </Text>
+              </View>
+              <View style={[styles.thread, { backgroundColor: palette.raspTint }]}>
+                <View
+                  style={[styles.threadFill, { backgroundColor: '#F3CFE0', width: `${Math.round((100 * entry.to) / total)}%` }]}
+                />
+              </View>
+            </Pressable>
+          );
+        })}
+
+        <Modal visible={labelEditor} transparent animationType="fade" onRequestClose={() => setLabelEditor(false)}>
+          <Pressable style={styles.scrim} onPress={() => setLabelEditor(false)} />
+          <View style={[styles.editorCard, { backgroundColor: palette.paper }]}>
+            <Text style={[styles.editorTitle, { color: palette.ink }]}>Name your notes source</Text>
+            <Text style={[styles.editorSub, { color: palette.inkSoft }]}>
+              Where your handwritten notes live — a reMarkable, a notebook, anything. However you want to put it.
+            </Text>
+            <TextInput
+              style={[styles.editorInput, { borderColor: palette.lineDark, color: palette.ink, backgroundColor: palette.paper2 }]}
+              value={labelDraft}
+              onChangeText={setLabelDraft}
+              placeholder="Handwritten notes"
+              placeholderTextColor={palette.inkFaint}
+              autoFocus
+            />
+            <View style={styles.editorBtns}>
+              <Pressable onPress={() => setLabelEditor(false)}>
+                <Text style={{ color: palette.inkSoft, fontWeight: '600', fontSize: 13.5 }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.editorSave, { backgroundColor: palette.rasp }]}
+                onPress={async () => {
+                  const saved = await saveSourceLabel(labelDraft);
+                  setLabels((l) => (l ? { ...l, sourceLabel: saved } : l));
+                  setLabelEditor(false);
+                }}
+              >
+                <Text style={styles.editorSaveText}>Save</Text>
               </Pressable>
             </View>
-            <FlatList
-              data={BIBLE_BOOKS}
-              keyExtractor={(item) => item.name}
-              renderItem={({ item }) => {
-                const status = bookStatuses[item.name] || 'not-started';
-                const statusColor = getStatusColor(status);
-                return (
-                  <Pressable
-                    onPress={() => scrollToBook(item.name)}
-                    style={({ pressed }) => [styles.navItem, { borderBottomColor: colors.border }, pressed && { opacity: 0.7 }]}
-                  >
-                    <Text style={[styles.navItemText, { color: colors.foreground }]}>{item.name}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={[styles.navItemChapters, { color: colors.muted }]}>{item.chapters} ch.</Text>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Make ${item.name} current`}
-                        disabled={status === 'complete'}
-                        onPress={(event) => {
-                          event.stopPropagation?.();
-                          void markBookCurrent(item.name);
-                        }}
-                        style={({ pressed }) => [{
-                          minWidth: 66,
-                          paddingHorizontal: 9,
-                          paddingVertical: 5,
-                          borderRadius: 12,
-                          borderWidth: 1,
-                          borderColor: status === 'current' ? colors.primary : colors.border,
-                          backgroundColor: status === 'current' ? `${colors.primary}20` : 'transparent',
-                          opacity: status === 'complete' ? 0.55 : pressed ? 0.7 : 1,
-                        }]}
-                      >
-                        <Text style={{ color: status === 'current' ? colors.primary : colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'center' }}>
-                          {status === 'complete' ? 'Complete' : status === 'current' ? 'Current' : 'Current'}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  </Pressable>
-                );
-              }}
-            />
           </View>
-        </View>
-      </Modal>
-    </ScreenContainer>
+        </Modal>
+
+        <Text style={[styles.subhead, { color: palette.rasp }]}>The rest of the canon</Text>
+        <Text style={[styles.canonQuiet, { color: palette.inkFaint }]}>
+          {quiet.join(' · ')} — they read as plain chapters, with nothing marked, until your notes reach them.
+        </Text>
+        <View style={{ height: 30 }} />
+      </ScrollView>
+    </View>
+  );
+
+  if (skin === 'paper') return <PaperSettle>{content}</PaperSettle>;
+  if (skin === '8bit') return <BitSettle>{content}</BitSettle>;
+  return content;
+}
+
+function BookRow({
+  book,
+  studyState,
+  palette,
+  paperNote,
+  onPress,
+}: {
+  book: string;
+  studyState: StudyState | null;
+  palette: BiblePalette;
+  paperNote: string | null;
+  onPress: () => void;
+}) {
+  const total = CHAPTER_COUNTS[book] ?? 0;
+  const tracked = book === 'Psalms' ? 40 : total;
+  let complete = 0;
+  let prog = 0;
+  let write = 0;
+  let notStarted = 0;
+  if (studyState) {
+    for (let c = 1; c <= tracked; c++) {
+      const s = chapterStatus(studyState, book, c);
+      if (s === 'complete') complete++;
+      else if (s === 'in-progress') prog++;
+      else if (s === 'write') write++;
+      else if (s === 'not-started') notStarted++;
+    }
+  }
+  const pct = tracked ? Math.round((100 * complete) / tracked) : 0;
+  const ppct = tracked ? Math.round((100 * prog) / tracked) : 0;
+  const paper = paperNote ? `handwritten notes, ${paperNote}` : null;
+  const parts: string[] = [];
+  parts.push(`${complete} of ${tracked} complete`);
+  if (write) parts.push(`${write} to write`);
+  if (prog) parts.push(tracked === prog ? `all ${prog} in progress` : `${prog} in progress`);
+  if (notStarted && complete === 0 && !write && !prog) parts.push('not started');
+  if (book === 'Psalms') parts.push('of the 40 the list tracks');
+  if (paper) parts.push(paper);
+
+  return (
+    <Pressable style={styles.bookrow} onPress={onPress}>
+      <View style={styles.btop}>
+        <Text style={[styles.bname, { color: palette.ink }]}>
+          {book} <Text style={{ color: palette.rasp }}>›</Text>
+          {paperNote ? <Text style={[styles.papermark, { color: palette.inkSoft }]}>  ✎ on paper</Text> : null}
+        </Text>
+        <Text style={[styles.bcount, { color: palette.inkSoft }]}>{parts.join(' · ')}</Text>
+      </View>
+      <View style={[styles.thread, { backgroundColor: palette.raspTint }]}>
+        <View style={[styles.threadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />
+        {ppct ? (
+          <View
+            style={[styles.threadFill, { backgroundColor: '#EBD489', width: `${ppct}%`, marginLeft: `${pct}%`, position: 'absolute', left: 0 }]}
+          />
+        ) : null}
+      </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: 20,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  counter: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  navButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  resetButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#EF4444',
-  },
-  resetButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  progressBar: {
-    borderRadius: 12,
-    height: 12,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: '100%',
-  },
-  progressText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  bookSection: {
-    marginBottom: 16,
-  },
-  bookHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginBottom: 10,
-    gap: 10,
-  },
-  bookTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 16,
-    borderWidth: 1.5,
-  },
-  statusPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  chapterGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  chapterButton: {
-    width: '18%',
-    aspectRatio: 1,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chapterText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  checkmark: {
-    marginTop: 2,
-  },
-  navModalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  navModalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  navModalContent: {
-    maxHeight: '70%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 16,
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-  },
-  navModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(128,128,128,0.2)',
-  },
-  navModalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  navItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
-  },
-  navItemText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  navItemChapters: {
-    fontSize: 13,
-  },
-  navItemDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
+  topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 9, borderBottomWidth: 1 },
+  topTitle: { fontSize: 14.5, fontWeight: '800', flex: 1 },
+  queueBtn: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11 },
+  queueBtnText: { fontSize: 12, fontWeight: '800' },
+  page: { paddingHorizontal: 22, paddingBottom: 10 },
+  vhead: { alignItems: 'center', paddingTop: 26 },
+  kicker: { fontSize: 10.5, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '800', textAlign: 'center' },
+  h2: { fontSize: 32, fontWeight: '800', letterSpacing: -0.8, marginTop: 8, textAlign: 'center' },
+  vsub: { fontSize: 13.5, lineHeight: 21, textAlign: 'center', marginTop: 14, paddingHorizontal: 6 },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, justifyContent: 'center', marginTop: 18 },
+  chip: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
+  chipText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
+  subhead: { fontSize: 11, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '800', paddingTop: 24, paddingBottom: 4 },
+  bookrow: { paddingVertical: 11, gap: 7 },
+  btop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
+  bname: { fontSize: 16, fontWeight: '700' },
+  papermark: { fontSize: 11, fontWeight: '600' },
+  bcount: { fontSize: 12, flexShrink: 1, textAlign: 'right' },
+  thread: { height: 5, borderRadius: 3, overflow: 'hidden', position: 'relative' },
+  threadFill: { height: 5, borderRadius: 3 },
+  canonQuiet: { fontSize: 13, lineHeight: 22.5, paddingTop: 8 },
+  subheadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 24, paddingBottom: 4 },
+  scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,16,20,.45)' },
+  editorCard: { position: 'absolute', left: 20, right: 20, top: '30%', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  editorTitle: { fontSize: 16, fontWeight: '800' },
+  editorSub: { fontSize: 12.5, lineHeight: 18, marginTop: 5 },
+  editorInput: { borderWidth: 1.5, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, fontSize: 15, marginTop: 14 },
+  editorBtns: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, marginTop: 16 },
+  editorSave: { borderRadius: 999, paddingVertical: 8, paddingHorizontal: 18 },
+  editorSaveText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 },
 });

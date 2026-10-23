@@ -6,7 +6,7 @@ import { getCachedHouseBonuses } from "./pawn-house";
 import { ASHEN_XP_MULT, hasCachedBadge } from "./badges";
 
 export const XP_STORAGE_KEY = "prayercircle.xp.v1";
-const XP_AWARDS_STORAGE_KEY = "prayercircle.xp-awards.v1";
+export const XP_AWARDS_STORAGE_KEY = "prayercircle.xp-awards.v1";
 
 export type XpAction =
   | "scheduled-prayer"

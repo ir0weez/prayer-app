@@ -257,7 +257,10 @@ describe("Stained Glass coverage (v201): every surface of the app", () => {
     // The glass checkbox stands at the todo call sites.
     expect(schedule.split("<GlassCheckbox").length - 1).toBeGreaterThanOrEqual(4);
     // The button kit is spread at the schedule's button sites.
-    expect(schedule.split("glassButtonStyle(skinTokens").length - 1).toBeGreaterThanOrEqual(5);
+    // (v205: three of the sites were the Personal Study card's retired
+    // check-off buttons — the card is a doorway now; the remaining
+    // button sites still wear the kit.)
+    expect(schedule.split("glassButtonStyle(skinTokens").length - 1).toBeGreaterThanOrEqual(2);
     expect(schedule).toContain("glassButtonInk(");
     // Ministry art gets the jewel palette, not the classic one.
     expect(schedule).toContain("skinTokens.isStainedGlass");

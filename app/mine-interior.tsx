@@ -1,6 +1,6 @@
 // The Mine — one cave (v168; warmth pass v169; danger v170;
 // the Mouth v172; the Deep Descent v175; switchback descent v178;
-// ONE CAVE v191; the satchel heads-up v198).
+// ONE CAVE v191; the satchel heads-up v198; ores on the map v199).
 //
 // Through the cave mouth under the Great Peak — in out of the wild,
 // lantern light on warm stone (the entrance shaft glows, v169: the
@@ -9,9 +9,12 @@
 // Coal, Copper, Iron, Silver, Gold, Diamond, The Deep — eighty
 // levels down. The switchback shaft IS the cave (v191, his
 // correction: the mockup's ore screen and zigzag were always the
-// same screen): each landing is a gallery, and the level the hero
-// stands on opens its dig wall right there in the rock — faces
-// dug in place, no second screen, nothing to dismiss. Faces crack as you work them,
+// same screen) — and the mountain is its dig wall (v199, his
+// correction of the gallery: "the ores themselves would be on the
+// zigzag map, not just a little window that opens"): every opened
+// level wears its three faces set into the rock beside its
+// landing, dug right where they sit, no panel, no second screen,
+// nothing to dismiss. Faces crack as you work them,
 // break into ore for the satchel priced at the depth it broke, and
 // settle back over a few hours — by timestamp, never by timer
 // (lib/mountain settles on open). Breaking two faces on your deepest
@@ -19,7 +22,8 @@
 // starts at the deepest. The pickaxe ladder climbs Wood → Stone →
 // Copper → Iron → Silver → Gold with coins, then Diamond behind
 // prestige and the Crown Pick behind a Crown — bought at the Tool
-// Shop in town (v170); the strip here only shows what he carries.
+// Shop in town (v170); the rail here (in the header now, v199)
+// only shows what he carries.
 //
 // Flames (v175): every block BROKEN costs one flame — the Dark
 // Forest's energy, one shared daily pool (lib/forest-energy).
@@ -43,9 +47,11 @@
 // while his eyes were on the wall. Now the load speaks where he
 // looks (lib/mountain's satchelLoad): the count readouts warm to
 // amber in the last stretch of room, and the moment the satchel is
-// full the faces sit quiet and a plain line under them says so —
-// sell at the Mouth to keep digging. A heads-up only: no button,
-// no shortcut; the selling still happens up the shaft, as ever.
+// full the faces sit quiet and a plain line says so — in its new
+// home (v199) directly under the faces of the level he stands on,
+// in the shaft itself. Sell at the Mouth to keep digging. A
+// heads-up only: no button, no shortcut; the selling still
+// happens up the shaft, as ever.
 //
 // Danger and reward (v170): the Gold stratum, Diamond, and the Deep
 // are unstable — a cracked face there groans (dust, amber cracks)
@@ -66,20 +72,15 @@ import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Path, Polygon } from "react-native-svg";
 import { InteriorHeader } from "@/components/interior-shell";
-import { PaperGlowDisc, PaperPulse } from "@/components/paper-interior";
-import { pickPeople } from "@/components/activity-figures";
 import {
   formatCoins,
   loadCoinsRecord,
-  prayedTodayPeople,
   type HometownCoins,
-  type PrayedPerson,
 } from "@/lib/hometown";
 import { loadPrestigeLevel, loadPrestigeState } from "@/lib/prestige";
 import { formatCooldown } from "@/lib/gathering-places";
-import { paperDinerLookFor } from "@/lib/paper-interior";
 import { loadHouseState } from "@/lib/pawn-house";
 import {
   boonFor,
@@ -110,6 +111,7 @@ import {
 } from "@/lib/forest-energy";
 import { EnergyFlames, type SnuffState } from "@/components/energy-flames";
 import { MineDescent } from "@/components/mine-descent";
+import type { MineFaceView, MineLevelFaces } from "@/components/mine-faces";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import {
   BOOTS_CAVE_IN_DAMAGE_PCT,
@@ -124,6 +126,7 @@ import {
   canPickFace,
   effectiveHits,
   faceIndexFor,
+  faceReadyAt,
   faceRumbles,
   faceStatus,
   formatHaulMultiplier,
@@ -199,132 +202,9 @@ function OreGlyph({ kind, size = 16 }: { kind: OreKind; size?: number }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* One rock face                                                       */
-/* ------------------------------------------------------------------ */
-
-/** Deterministic fleck spots per stratum family, in a 62x46 face box
- *  (the mockup's own layouts, nudged per slot so no two faces match). */
-const FLECKS: Array<Array<[number, number]>> = [
-  [[18, 20], [42, 32]],
-  [[16, 12], [38, 30], [48, 14], [10, 34]],
-  [[18, 14], [40, 28], [50, 12]],
-  [[20, 12], [44, 30], [30, 36]],
-  [[18, 20], [42, 32], [30, 14]],
-  [[16, 12], [38, 30], [48, 14], [10, 34]],
-  [[20, 12], [44, 30], [30, 36]],
-  [[20, 12], [44, 30], [30, 36]],
-];
-
-function FaceArt({ stratumIndex, slot, status, hitsLeft, hitsMax, rich = false, richFaint = false, rumbling = false }: {
-  stratumIndex: number;
-  slot: number;
-  status: "ready" | "cracked" | "resting";
-  hitsLeft: number | null;
-  hitsMax: number;
-  /** A rich vein, revealed at the first crack: gold shimmer (v170). */
-  rich?: boolean;
-  /** The Miner's Lantern's tell: the vein glows BEFORE the crack —
-   *  the same gold, fainter, no sparkle yet (v175). */
-  richFaint?: boolean;
-  /** A cracked face in an unstable stratum: dust and amber cracks (v170). */
-  rumbling?: boolean;
-}) {
-  const stratum = MINE_STRATA[stratumIndex];
-  const fleckColor = stratum.fleckColor;
-  const gemFlecks = stratumIndex >= 6;
-  const flecks = (FLECKS[stratumIndex] ?? []).map(([x, y], i) => [
-    Math.min(56, Math.max(5, x + ((slot * 7 + i * 3) % 5) - 2)),
-    Math.min(40, Math.max(5, y + ((slot * 5 + i * 2) % 5) - 2)),
-  ] as [number, number]);
-  const crackDepth = status === "cracked" ? (hitsLeft != null && hitsLeft <= Math.ceil(hitsMax / 2) ? 2 : 1) : 0;
-  const crackColor = rumbling ? "#B45309" : "#4A3548";
-  return (
-    <Svg width={62} height={46} viewBox="0 0 62 46">
-      <Rect x={1} y={1} width={60} height={44} rx={11} fill={status === "resting" ? "#5F4E47" : stratum.faceColor} />
-      {(rich || richFaint) && status !== "resting" && (
-        <>
-          <Rect x={1} y={1} width={60} height={44} rx={11} fill="#F2B33D" opacity={richFaint ? 0.12 : 0.22} />
-          <Rect x={1} y={1} width={60} height={44} rx={11} fill="none" stroke="#FDE68A" strokeWidth={1.6} opacity={richFaint ? 0.55 : 1} />
-        </>
-      )}
-      {gemFlecks &&
-        flecks.map(([x, y], i) => (
-          <Path key={i} d={`M${x} ${y - 5} l3.4 4.6 -3.4 6 -3.4 -6 Z`} fill={fleckColor} opacity={status === "resting" ? 0.25 : 0.95} />
-        ))}
-      {!gemFlecks &&
-        flecks.map(([x, y], i) =>
-          stratumIndex <= 1 ? (
-            <Circle key={i} cx={x} cy={y} r={2.2} fill={fleckColor} opacity={status === "resting" ? 0.25 : 0.8} />
-          ) : (
-            <Polygon key={i} points={`${x - 4},${y + 2} ${x + 1},${y - 3} ${x + 5},${y + 1} ${x},${y + 4}`} fill={fleckColor} opacity={status === "resting" ? 0.25 : 0.95} />
-          )
-        )}
-      {stratumIndex === 5 && status !== "resting" && flecks.map(([x, y], i) => (
-        <Circle key={`s${i}`} cx={x} cy={y} r={1.4} fill="#FFE9A8" />
-      ))}
-      {rich && status === "cracked" && (
-        <>
-          <Circle cx={16} cy={12} r={1.7} fill="#FFF3C4" />
-          <Circle cx={47} cy={20} r={1.4} fill="#FFF3C4" />
-          <Circle cx={31} cy={36} r={1.5} fill="#FFF3C4" />
-          <Path d="M22 6 l1.2 2.6 L26 10 l-2.8 1.2 L22 14 l-1.2 -2.8 L18 10 l2.8 -1.4 Z" fill="#FDE68A" />
-        </>
-      )}
-      {crackDepth >= 1 && (
-        <Path d="M33 2 L27 13 L35 21 L29 33" fill="none" stroke={crackColor} strokeWidth={1.8} strokeLinecap="round" />
-      )}
-      {crackDepth >= 2 && (
-        <Path d="M14 4 L19 14 L13 24 M48 6 L43 16 L49 27" fill="none" stroke={crackColor} strokeWidth={1.5} strokeLinecap="round" />
-      )}
-      {rumbling && (
-        <>
-          {/* dust shaking loose at the base — the rock groans */}
-          <Circle cx={14} cy={41} r={2.4} fill="#D8C7A8" opacity={0.75} />
-          <Circle cx={24} cy={43} r={1.7} fill="#D8C7A8" opacity={0.6} />
-          <Circle cx={40} cy={42} r={2.1} fill="#D8C7A8" opacity={0.7} />
-          <Circle cx={50} cy={40} r={1.5} fill="#D8C7A8" opacity={0.55} />
-          <Circle cx={20} cy={16} r={1.3} fill="#D8C7A8" opacity={0.65} />
-          <Circle cx={45} cy={26} r={1.2} fill="#D8C7A8" opacity={0.6} />
-        </>
-      )}
-      {status === "resting" && (
-        <Rect x={1} y={1} width={60} height={44} rx={11} fill="none" stroke="#CBB8A5" strokeWidth={1.6} strokeDasharray="5 4" />
-      )}
-    </Svg>
-  );
-}
-
-/** The still pool, showing where a Deep face broke (v170): calm,
- *  glowing water — the mountain's mercy, deep down. */
-function PoolArt() {
-  return (
-    <Svg width={62} height={46} viewBox="0 0 62 46">
-      <Rect x={1} y={1} width={60} height={44} rx={11} fill="#1D2B47" />
-      <Circle cx={31} cy={23} r={17} fill="#7DD3FC" opacity={0.18} />
-      <Path d="M10 27 Q 20 20, 31 26 T 52 25 L 52 38 Q 41 43, 31 39 T 10 37 Z" fill="#38BDF8" opacity={0.75} />
-      <Path d="M14 29 Q 22 24, 31 28 T 48 27" fill="none" stroke="#E0F2FE" strokeWidth={1.6} strokeLinecap="round" opacity={0.9} />
-      <Path d="M20 34 Q 27 31, 34 34 T 46 33" fill="none" stroke="#BAE6FD" strokeWidth={1.2} strokeLinecap="round" opacity={0.7} />
-      <Circle cx={24} cy={14} r={1.5} fill="#E0F2FE" />
-      <Circle cx={40} cy={10} r={1.2} fill="#E0F2FE" opacity={0.8} />
-    </Svg>
-  );
-}
-
-/** The decorative villager at work in the iron stratum (mockup
- *  dressing — presence only; mining is the hero's own taps, no job
- *  system). */
-function DressingMiner({ person }: { person: PrayedPerson }) {
-  const look = paperDinerLookFor({ id: String(person.id), accentColor: person.accentColor });
-  return (
-    <Svg width={34} height={44} viewBox="0 0 34 44">
-      <Circle cx={13} cy={9} r={5.5} fill={look.skin} />
-      <Path d="M6 38 V24 a7 7 0 0 1 14 0 V38 Z" fill={look.shirt} />
-      <Path d="M19 20 L27 12" stroke="#9A6A3B" strokeWidth={2.6} strokeLinecap="round" />
-      <Path d="M27 12 L31 17" stroke="#9C93AC" strokeWidth={2.6} strokeLinecap="round" />
-    </Svg>
-  );
-}
+/* The faces themselves — their art, and the wall each opened level
+   wears in the shaft — live in components/mine-faces (v199): the
+   mountain is the dig wall now, and the shaft scene carries them. */
 
 /* ------------------------------------------------------------------ */
 /* The screen                                                          */
@@ -337,15 +217,14 @@ export default function MineInteriorScreen() {
   const [mine, setMine] = useState<MineState | null>(null);
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [gates, setGates] = useState<MineGates>({ totalPrestiges: 0, crowns: 0 });
-  const [people, setPeople] = useState<PrayedPerson[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The level the hero stands on: a trip starts at the deepest
   // opened level (null = not chosen yet, follow the mine); wandering
   // among opened levels is free — by walking the switchback shaft
   // itself (v178, merged into the one cave screen v191): a tap on a
-  // lit landing walks the hero there, and that landing's gallery —
-  // its dig wall — opens under him on arrival.
+  // lit landing walks the hero there, and he digs where he stands —
+  // every opened level's faces are in the wall beside him (v199).
   const [viewLevel, setViewLevel] = useState<number | null>(null);
   // When a level cracks open, the shaft walks him down to the new
   // landing unasked (v178) — in place now, no overlay (v191).
@@ -384,19 +263,17 @@ export default function MineInteriorScreen() {
   }, []);
 
   const refresh = useCallback(async () => {
-    const [m0, c, pState, crowns, ppl] = await Promise.all([
+    const [m0, c, pState, crowns] = await Promise.all([
       loadMineState(),
       loadCoinsRecord(),
       loadPrestigeState(),
       loadPrestigeLevel(),
-      prayedTodayPeople().catch(() => [] as PrayedPerson[]),
     ]);
     // The Tinderbox kindles its morning flames on the way in (v175).
     const m = await settleTinderboxBonus(m0).catch(() => m0);
     setMine(m);
     setCoins(c);
     setGates({ totalPrestiges: pState.totalPrestiges, crowns });
-    setPeople(ppl);
     try {
       setPawn(await loadCustomPawn());
     } catch {}
@@ -597,217 +474,85 @@ export default function MineInteriorScreen() {
     [mine, heroHealth, effMax, handleDrinkPool, showToast]
   );
 
-  const dressingMiner = pickPeople(people, "mine|dressing", 1)[0];
+  // The tap the shaft's walls call (v199): a stable dispatcher to
+  // the freshest handleTapFace, so a memoized wall that skipped a
+  // repaint still digs against the latest mine — never a stale one.
+  const tapFaceRef = useRef(handleTapFace);
+  tapFaceRef.current = handleTapFace;
+  const dispatchTapFace = useCallback((faceIndex: number) => {
+    tapFaceRef.current(faceIndex);
+  }, []);
+
+  // A walk finished: he stands at the new level (stable, so the
+  // shaft's bands can stay memoized across digs).
+  const handleArrive = useCallback((level: number) => {
+    setViewLevel(level);
+    setDescentAutoWalk(null);
+  }, []);
+
   const bagCount = mine ? satchelCount(mine.satchel) : 0;
   const bagCap = mine ? satchelCapacity(mine) : 0;
   // The satchel's three states (v198): drives the readouts' warning
-  // ink, the faces' quiet, and the gallery's full line.
+  // ink, the faces' quiet, and the full line under his faces (v199).
   const bagLoad = mine ? satchelLoad(mine) : "room";
   const haulWorth = mine ? haulValue(mine) : 0;
   const kinds = mine ? satchelByKind(mine.satchel) : null;
   const view = mine ? Math.min(viewLevel ?? mine.deepestLevel, mine.deepestLevel) : 1;
   const viewStratum = stratumForLevel(view);
   const viewStratumIndex = stratumIndexForLevel(view);
-  const isFrontier = mine != null && view === mine.deepestLevel && mine.deepestLevel < MAX_LEVEL;
   const frontierBroken = mine ? brokenSlotCount(mine, mine.deepestLevel) : 0;
   const hasLantern = mine ? hasMiningGear(mine, "lantern") : false;
   const poolLevel = mine && mine.poolFace != null ? levelForFace(mine.poolFace) : null;
 
-  /** The dig gallery (v191): the wall of the level the hero stands
-   *  on, opened in the shaft at his own landing — its header, the
-   *  way-down progress, the wall itself, and the pick rail. Built to
-   *  exactly GALLERY_H tall (lib/mine-descent) so the shaft's
-   *  geometry — every landing below it pushed down by that height —
-   *  holds true. The faces are dug HERE, in the descent's own
-   *  screen: the ore screen and the zigzag are one screen. */
-  const renderMineGallery = () => {
-    if (!mine) return null;
-    const locked = !canPickFace(mine, faceIndexFor(view, 0));
-    return (
-      <View style={{ height: "100%", backgroundColor: "#1B1027", borderRadius: 14, borderWidth: 1, borderColor: "rgba(201,150,60,.4)", overflow: "hidden" }}>
-        {/* the level header — where he stands (46) */}
-        <View style={{ height: 46, paddingHorizontal: 12, paddingTop: 9 }}>
-          <Text style={{ color: CREAM, fontWeight: "900", fontSize: 16, lineHeight: 20 }}>
-            Level {view} · {viewStratum.name}
-          </Text>
-          <Text style={{ color: DIM, fontSize: 11.5, lineHeight: 15, marginTop: 2 }}>
-            {mine.deepestLevel >= MAX_LEVEL
-              ? "The bottom of the mountain — every level stands open."
-              : `Deepest opened: Level ${mine.deepestLevel} of ${MAX_LEVEL}`}
-          </Text>
-        </View>
-        {/* the way down, counted in pips (26) */}
-        <View style={{ height: 26, paddingHorizontal: 12, justifyContent: "center" }}>
-          {isFrontier ? (
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              {[0, 1].map((pip) => (
-                <View
-                  key={pip}
-                  style={{ width: 10, height: 10, borderRadius: 5, marginRight: 6, backgroundColor: frontierBroken > pip ? GOLD : "rgba(255,255,255,.18)", borderWidth: 1, borderColor: GOLD }}
-                />
-              ))}
-              <Text style={{ color: DIM, fontSize: 12, flex: 1 }}>
-                {frontierBroken >= 2
-                  ? `Level ${mine.deepestLevel + 1} has opened below.`
-                  : `Break ${2 - frontierBroken} ${frontierBroken === 1 ? "more face" : "faces"} on this level to open Level ${mine.deepestLevel + 1}.`}
-              </Text>
-            </View>
-          ) : view < mine.deepestLevel ? (
-            <Text style={{ color: DIM, fontSize: 12 }}>
-              This level stands open — the frontier is Level {mine.deepestLevel}, deeper down.
-            </Text>
-          ) : (
-            <Text style={{ color: DIM, fontSize: 12 }}>Every level stands open — dig where you like.</Text>
-          )}
-        </View>
-        {/* surface strip — grass and the shaft you came down (20).
-            The shaft mouth carries the cave's welcome (v169): warm
-            light pooled where you step in, breathing on the kit's
-            sine — coming in out of the wild, not descending into a
-            dungeon. Shown on the first level, where the shaft lands. */}
-        {view === 1 ? (
-          <View style={{ height: 20, backgroundColor: "#7CB35C", position: "relative" }}>
-            <View style={{ position: "absolute", left: "42%", top: 8, width: 34, height: 12, backgroundColor: "#241430" }} />
-            <PaperPulse duration={2800} min={0.6} max={1} style={{ position: "absolute", left: "42%", marginLeft: -14, top: -16 }}>
-              <PaperGlowDisc size={62} color="#FFB84D" opacity={0.65} />
-            </PaperPulse>
-            {/* two lantern dots keeping the shaft mouth */}
-            <View style={{ position: "absolute", left: "42%", marginLeft: -5, top: 9, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFD98A" }} />
-            <View style={{ position: "absolute", left: "42%", marginLeft: 34, top: 9, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFD98A" }} />
-          </View>
-        ) : (
-          <View style={{ height: 20, backgroundColor: "#241430", position: "relative" }}>
-            <View style={{ position: "absolute", left: "42%", top: 0, width: 34, height: 20, backgroundColor: "#17101F" }} />
-            <View style={{ position: "absolute", left: "42%", marginLeft: -5, top: 7, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFD98A" }} />
-            <View style={{ position: "absolute", left: "42%", marginLeft: 34, top: 7, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFD98A" }} />
-          </View>
-        )}
-        {/* the faces (118) — this level's wall, dug in place */}
-        <View style={{ backgroundColor: viewStratum.color, height: 118, position: "relative", justifyContent: "center" }}>
-          {/* rotated stratum label — with the stratum's haul rate
-              (v172): this is what working this depth does to
-              everything in the bag */}
-          <View style={{ position: "absolute", left: -29, top: 50, width: 76, alignItems: "center", transform: [{ rotate: "-90deg" }] }}>
-            <Text style={{ color: CREAM, fontSize: 9, fontWeight: "bold", letterSpacing: 2.2, opacity: 0.92 }}>{viewStratum.name.toUpperCase()} ×{formatHaulMultiplier(stratumMultiplier(viewStratumIndex))}</Text>
-          </View>
-          <View style={{ flexDirection: "row", justifyContent: "space-evenly", marginLeft: 22, marginRight: viewStratumIndex === 3 && dressingMiner ? 30 : 4 }}>
-            {Array.from({ length: FACES_PER_LEVEL }).map((_, slot) => {
-              const faceIndex = faceIndexFor(view, slot);
-              const face = mine.faces[faceIndex];
-              const status = faceStatus(mine, faceIndex);
-              const isPool = mine.poolFace === faceIndex;
-              const richToday = isRichFace(faceIndex, mine.day);
-              return (
-                // A full satchel stops the wall (v198): the faces sit
-                // quieter than even a locked wall reads — stopped,
-                // not just gated. The pool is no dig face; it never dims.
-                <Pressable key={faceIndex} onPress={() => handleTapFace(faceIndex)} style={{ opacity: !isPool && bagLoad === "full" ? 0.4 : locked && !isPool ? 0.55 : 1 }}>
-                  <View style={{ position: "relative", width: 62, height: 46 }}>
-                    <View style={{ position: "absolute", left: 2.5, top: 3, width: 62, height: 46, borderRadius: 12, backgroundColor: "rgba(24,8,44,.3)" }} />
-                    {isPool ? (
-                      <PoolArt />
-                    ) : (
-                      <FaceArt
-                        stratumIndex={viewStratumIndex}
-                        slot={slot}
-                        status={status}
-                        hitsLeft={face.hitsLeft}
-                        hitsMax={effectiveHits(viewStratum, mine.pickTier)}
-                        rich={status === "cracked" && richToday}
-                        richFaint={hasLantern && status === "ready" && richToday}
-                        rumbling={faceRumbles(mine, faceIndex)}
-                      />
-                    )}
-                    {locked && !isPool && (
-                      <View style={{ position: "absolute", left: 0, top: 0, width: 62, height: 46, alignItems: "center", justifyContent: "center" }}>
-                        <MaterialIcons name="lock" size={18} color={CREAM} />
-                      </View>
-                    )}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-          {viewStratumIndex === 3 && dressingMiner && (
-            <View pointerEvents="none" style={{ position: "absolute", right: 2, bottom: 2 }}>
-              <DressingMiner person={dressingMiner} />
-            </View>
-          )}
-        </View>
-        {/* the way down, drawn where it opens (25) — while the
-            satchel is full the strip carries the heads-up instead
-            (v198): a plain line right under the faces, in the
-            cave-in's own rose, for exactly as long as it's true */}
-        <View style={{ backgroundColor: "#17101F", height: 25, justifyContent: "center", alignItems: "center" }}>
-          {bagLoad === "full" ? (
-            <Text numberOfLines={1} style={{ color: "#FCA5A5", fontSize: 11, fontWeight: "800", letterSpacing: 0.4, paddingHorizontal: 10 }}>
-              Satchel full — sell at the Mouth to keep digging.
-            </Text>
-          ) : (
-            <Text style={{ color: DIM, fontSize: 10.5, letterSpacing: 1.5 }}>
-              {view < mine.deepestLevel
-                ? `LEVEL ${view + 1} WAITS BELOW`
-                : mine.deepestLevel >= MAX_LEVEL
-                  ? "THE BOTTOM OF THE MOUNTAIN"
-                  : `LEVEL ${mine.deepestLevel + 1} — UNOPENED ROCK`}
-            </Text>
-          )}
-        </View>
-        {/* the pickaxe rail — STATUS ONLY (v170): picks are bought
-            at the Tool Shop in town; the rail just shows what the
-            hero carries (20 + 66) */}
-        <Text style={{ color: DIM, fontSize: 10, fontWeight: "800", letterSpacing: 1.5, height: 20, paddingHorizontal: 12, paddingTop: 6 }}>
-          PICKAXES — SOLD AT THE TOOL SHOP
-        </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ height: 66 }} contentContainerStyle={{ paddingHorizontal: 12, alignItems: "center", gap: 8 }}>
-          {PICKAXES.map((pick) => {
-            const owned = pick.tier <= mine.pickTier;
-            const current = pick.tier === mine.pickTier;
-            const isNext = pick.tier === mine.pickTier + 1;
-            const gateMet = pickGateMet(pick.tier, gates);
-            return (
-              <Pressable
-                key={pick.tier}
-                onPress={() => {
-                  if (!owned) {
-                    Alert.alert(
-                      "Sold at the Tool Shop",
-                      `Picks are tools, and tools are sold at the Tool Shop in town. The ${pick.name} waits there${pick.cost > 0 ? ` for ${formatCoins(pick.cost)} coins` : ""}. This rail only shows what you carry.`
-                    );
-                  }
-                }}
-                style={{
-                  width: 62,
-                  height: 60,
-                  borderRadius: 10,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: current ? "rgba(201,150,60,.22)" : "rgba(255,255,255,.05)",
-                  borderWidth: current ? 1 : 0,
-                  borderColor: GOLD,
-                  opacity: !owned && !isNext && !gateMet ? 0.65 : 1,
-                }}
-              >
-                <PickIcon color={pick.color} size={19} />
-                <Text style={{ color: CREAM, fontSize: 9.5, fontWeight: "700", marginTop: 3 }} numberOfLines={1}>
-                  {pick.name.replace(" Pick", "")}
-                </Text>
-                {current ? (
-                  <Text style={{ color: "#FDE68A", fontSize: 8.5, fontWeight: "800", marginTop: 1 }}>Yours</Text>
-                ) : owned ? (
-                  <Text style={{ color: DIM, fontSize: 8.5, marginTop: 1 }}>Owned</Text>
-                ) : pick.gate !== "none" && !gateMet ? (
-                  <Text style={{ color: DIM, fontSize: 8.5, marginTop: 1 }}>{pick.gate === "crown" ? "Crown" : "Prestige"}</Text>
-                ) : (
-                  <Text style={{ color: "#FDE68A", fontSize: 8.5, fontWeight: "700", marginTop: 1 }}>Tool Shop</Text>
-                )}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
-    );
-  };
+  /** Every opened level's faces, as the shaft wears them (v199):
+   *  the same readings the gallery's wall used to give for one
+   *  level — status, cracks, the rich vein's gold (revealed, or
+   *  lantern-faint), the rumble, the pool, and a resting face's
+   *  way back counted from its timestamp — now built for every
+   *  level he has opened, each with a key of its own states so the
+   *  shaft repaints only the wall that changed. Unopened levels
+   *  get no entry: dark rock shows no faces. */
+  const levelFaces: Array<{ data: MineLevelFaces; key: string }> = [];
+  if (mine) {
+    const nowMs = Date.now();
+    for (let level = 1; level <= mine.deepestLevel; level++) {
+      const stratum = stratumForLevel(level);
+      const lockedLevel = !canPickFace(mine, faceIndexFor(level, 0));
+      const faces: MineFaceView[] = [];
+      for (let slot = 0; slot < FACES_PER_LEVEL; slot++) {
+        const faceIndex = faceIndexFor(level, slot);
+        const status = faceStatus(mine, faceIndex);
+        const richToday = isRichFace(faceIndex, mine.day);
+        const readyAt = status === "resting" ? faceReadyAt(mine.faces[faceIndex], faceIndex) : null;
+        faces.push({
+          status,
+          hitsLeft: mine.faces[faceIndex].hitsLeft,
+          hitsMax: effectiveHits(stratum, mine.pickTier),
+          rich: status === "cracked" && richToday,
+          richFaint: hasLantern && status === "ready" && richToday,
+          rumbling: faceRumbles(mine, faceIndex),
+          isPool: mine.poolFace === faceIndex,
+          restMs: readyAt != null ? Math.max(0, readyAt - nowMs) : null,
+        });
+      }
+      const data: MineLevelFaces = {
+        level,
+        stratumIndex: stratumIndexForLevel(level),
+        locked: lockedLevel,
+        faces,
+      };
+      levelFaces.push({
+        data,
+        key: [
+          lockedLevel ? "locked" : "open",
+          ...faces.map(
+            (f) =>
+              `${f.status}:${f.hitsLeft ?? "-"}:${f.isPool ? "pool" : ""}${f.rich ? "rich" : ""}${f.richFaint ? "faint" : ""}${f.rumbling ? "rumble" : ""}:${f.restMs ?? "-"}`
+          ),
+        ].join("|"),
+      });
+    }
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -840,6 +585,83 @@ export default function MineInteriorScreen() {
           )}
         </View>
       )}
+      {mine && (
+        <View style={{ marginHorizontal: 16, marginBottom: 10 }}>
+          {/* where he stands (v199): the gallery's header, moved to
+              the screen's own header — the level he is looking at,
+              how deep the mountain stands open, and what working
+              this depth does to everything in the bag (the rate the
+              gallery's wall used to carry rotated at its edge) */}
+          <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" }}>
+            <Text style={{ color: CREAM, fontWeight: "900", fontSize: 15 }}>
+              Level {view} · {viewStratum.name}
+            </Text>
+            <Text style={{ color: DIM, fontSize: 11.5 }}>
+              {mine.deepestLevel >= MAX_LEVEL
+                ? "Every level stands open"
+                : `Deepest opened: Level ${mine.deepestLevel} of ${MAX_LEVEL}`}
+            </Text>
+          </View>
+          <Text style={{ color: DIM, fontSize: 11.5, marginTop: 2 }}>
+            Pieces broken here are priced ×{formatHaulMultiplier(stratumMultiplier(viewStratumIndex))} at the Mouth.
+            {view < mine.deepestLevel ? ` The frontier is Level ${mine.deepestLevel}, deeper down.` : ""}
+          </Text>
+          {/* the pickaxe rail — STATUS ONLY (v170): picks are bought
+              at the Tool Shop in town; the rail just shows what the
+              hero carries. In the header since v199: the gallery
+              panel that used to carry it is gone, and the rail
+              stays in reach while he digs, wherever he stands. */}
+          <Text style={{ color: DIM, fontSize: 10, fontWeight: "800", letterSpacing: 1.5, marginTop: 10, marginBottom: 5 }}>
+            PICKAXES — SOLD AT THE TOOL SHOP
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: "center", gap: 8 }}>
+            {PICKAXES.map((pick) => {
+              const owned = pick.tier <= mine.pickTier;
+              const current = pick.tier === mine.pickTier;
+              const isNext = pick.tier === mine.pickTier + 1;
+              const gateMet = pickGateMet(pick.tier, gates);
+              return (
+                <Pressable
+                  key={pick.tier}
+                  onPress={() => {
+                    if (!owned) {
+                      Alert.alert(
+                        "Sold at the Tool Shop",
+                        `Picks are tools, and tools are sold at the Tool Shop in town. The ${pick.name} waits there${pick.cost > 0 ? ` for ${formatCoins(pick.cost)} coins` : ""}. This rail only shows what you carry.`
+                      );
+                    }
+                  }}
+                  style={{
+                    width: 62,
+                    height: 60,
+                    borderRadius: 10,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: current ? "rgba(201,150,60,.22)" : "rgba(255,255,255,.05)",
+                    borderWidth: current ? 1 : 0,
+                    borderColor: GOLD,
+                    opacity: !owned && !isNext && !gateMet ? 0.65 : 1,
+                  }}
+                >
+                  <PickIcon color={pick.color} size={19} />
+                  <Text style={{ color: CREAM, fontSize: 9.5, fontWeight: "700", marginTop: 3 }} numberOfLines={1}>
+                    {pick.name.replace(" Pick", "")}
+                  </Text>
+                  {current ? (
+                    <Text style={{ color: "#FDE68A", fontSize: 8.5, fontWeight: "800", marginTop: 1 }}>Yours</Text>
+                  ) : owned ? (
+                    <Text style={{ color: DIM, fontSize: 8.5, marginTop: 1 }}>Owned</Text>
+                  ) : pick.gate !== "none" && !gateMet ? (
+                    <Text style={{ color: DIM, fontSize: 8.5, marginTop: 1 }}>{pick.gate === "crown" ? "Crown" : "Prestige"}</Text>
+                  ) : (
+                    <Text style={{ color: "#FDE68A", fontSize: 8.5, fontWeight: "700", marginTop: 1 }}>Tool Shop</Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
       <ScrollView ref={scrollRef} contentContainerStyle={{ paddingBottom: 40 }}>
         <Text style={{ color: DIM, fontSize: 13, lineHeight: 19, marginHorizontal: 16, marginBottom: 12 }}>
           Come in out of the wild — the lanterns are lit, the stone is warm, and the rock provides. Eight
@@ -866,16 +688,17 @@ export default function MineInteriorScreen() {
           <Text style={{ color: DIM, textAlign: "center", marginTop: 24 }}>Lighting the lanterns…</Text>
         ) : (
           <>
-            {/* ONE CAVE (v191): the shaft is the screen. Its heading,
-                then the switchbacks themselves — the dig gallery
-                open in the rock at the level the hero stands on.
-                There is no separate dig screen and no overlay: the
-                ore and the zigzag are the same screen, as the mockup
-                always showed. */}
+            {/* ONE CAVE (v191), ORES ON THE MAP (v199): the shaft is
+                the screen, and the mountain is its dig wall. Its
+                heading, then the switchbacks themselves — every
+                opened level's faces set in the rock beside its
+                landing. There is no separate dig screen, no overlay,
+                and no panel that opens: the ore and the zigzag are
+                the same screen, as the mockup always showed. */}
             <View style={{ marginHorizontal: 16, marginBottom: 8 }}>
               <Text style={{ color: CREAM, fontWeight: "900", fontSize: 17 }}>The Descent</Text>
               <Text style={{ color: DIM, fontSize: 11.5, marginTop: 1 }}>
-                Level {mine.deepestLevel} of {MAX_LEVEL} stands open · tap a lit landing to walk there — and dig where you land
+                Level {mine.deepestLevel} of {MAX_LEVEL} stands open · tap a lit landing to walk there — every opened level's faces are in the rock beside it
               </Text>
             </View>
             <View
@@ -888,12 +711,11 @@ export default function MineInteriorScreen() {
                 currentLevel={view}
                 pawn={pawn}
                 autoWalkTo={descentAutoWalk}
-                galleryLevel={view}
-                gallery={renderMineGallery()}
-                onArrive={(level) => {
-                  setViewLevel(level);
-                  setDescentAutoWalk(null);
-                }}
+                bagLoad={bagLoad}
+                levelFaces={levelFaces}
+                frontierBroken={frontierBroken}
+                onTapFace={dispatchTapFace}
+                onArrive={handleArrive}
                 onFollowHero={followHero}
               />
             </View>

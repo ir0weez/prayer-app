@@ -396,20 +396,29 @@ describe("the satchel heads-up (v198) — the load speaks before it stops him", 
 
   it("the cave screen renders the three states — and no shortcut with them", () => {
     const cave = readFileSync(join(process.cwd(), "app/mine-interior.tsx"), "utf8");
+    // v199: the treatments moved with the faces — the faces' quiet
+    // lives in the shaft's wall (components/mine-faces) and the
+    // plain line in the descent scene (components/mine-descent),
+    // under the faces of the level he stands on. The readouts and
+    // the one load state stayed in the cave screen.
+    const facesWall = readFileSync(join(process.cwd(), "components/mine-faces.tsx"), "utf8");
+    const scene = readFileSync(join(process.cwd(), "components/mine-descent.tsx"), "utf8");
     // One load state, computed from the lib, drives every treatment.
     expect(cave).toContain("satchelLoad(mine)");
+    expect(cave).toContain("bagLoad={bagLoad}");
     // Near-full: both count readouts warm to the cave's amber.
     expect(cave).toContain('bagLoad === "nearly" ? "#FB923C"');
     expect(cave).toContain('bagLoad === "nearly" ? " — nearly full."');
     // Full: the faces sit quiet — stopped, not merely gated — and
     // the pool, no dig face, is never dimmed for it.
-    expect(cave).toContain('!isPool && bagLoad === "full" ? 0.4');
-    // Full: the plain line in the gallery, gated on full alone, in
-    // the cave-in rose — and it adds no button of any kind.
-    expect(cave).toContain('bagLoad === "full" ? (');
-    expect(cave).toContain("Satchel full — sell at the Mouth to keep digging.");
-    const stripAt = cave.indexOf("Satchel full — sell at the Mouth to keep digging.");
-    const strip = cave.slice(cave.lastIndexOf("{/*", stripAt), stripAt);
+    expect(facesWall).toContain('!isPool && bagLoad === "full" ? 0.4');
+    // Full: the plain line under his faces in the shaft, gated on
+    // full alone, in the cave-in rose — and it adds no button of
+    // any kind.
+    expect(scene).toContain("satchelFull && (");
+    expect(scene).toContain("Satchel full — sell at the Mouth to keep digging.");
+    const stripAt = scene.indexOf("Satchel full — sell at the Mouth to keep digging.");
+    const strip = scene.slice(scene.lastIndexOf("{/*", stripAt), stripAt);
     expect(strip).not.toContain("onPress");
     expect(strip).not.toContain("router.");
   });

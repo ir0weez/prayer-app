@@ -586,8 +586,11 @@ describe("the mountain on the town map", () => {
     const screen = readFileSync(join(process.cwd(), "app/mine-interior.tsx"), "utf8");
     expect(screen).toContain("MINE_TITLE");
     expect(screen).not.toContain("Inside Safety");
-    // the entrance shaft carries the same warm welcome inside
-    expect(screen).toContain("PaperGlowDisc");
-    expect(screen).toContain("PaperPulse");
+    // the entrance shaft carries the same warm welcome inside —
+    // v199: the shaft scene (components/mine-descent) draws the
+    // surface strip now, and its mouth carries the glow
+    const scene = readFileSync(join(process.cwd(), "components/mine-descent.tsx"), "utf8");
+    expect(scene).toContain("PaperGlowDisc");
+    expect(scene).toContain("PaperPulse");
   });
 });

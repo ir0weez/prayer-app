@@ -118,57 +118,142 @@ export function walkDurationMs(stepCount: number): number {
 }
 
 /* ------------------------------------------------------------------ */
-/* One Cave (v191) — the gallery carved into the shaft                 */
+/* Ores on the Map (v199) — the shaft IS the dig wall                  */
 /* ------------------------------------------------------------------ */
 
-// Jonathan's correction (2026-10-22): "The cave doesn't look like
-// the mockup you sent me by the way. It has the ore screen, then it
-// shifts to the zigzag screen. The mockup shows that the ore screen
-// and the zig zag are the same screen. That was the point!"
+// Jonathan's first correction (2026-10-22, v191): the ore screen
+// and the zigzag are the same screen. His second (2026-10-23):
+// "I thought the ores themselves would be on the zigzag map, not
+// just a little window that opens..." — v191 still opened a dig
+// GALLERY at the hero's landing: a panel, however in-place, is a
+// window. So the panel is gone. The mountain itself is the dig
+// wall now:
 //
-// So the descent and the dig wall are ONE screen now: the shaft
-// above is the cave itself, and at the level the hero stands on, a
-// dig GALLERY opens in place — the level's three faces in the wall
-// of its own landing, dug right there, no second screen, no
-// overlay to dismiss. Exactly one gallery is open at a time (the
-// hero can only stand in one place), carved into the shaft at that
-// landing: every landing BELOW it sits GALLERY_H lower, and every
-// band below its band starts GALLERY_H lower. The geometry below
-// is that single rule, so the drawing, the hero, and the walk all
-// agree on where everything is.
+//  - every OPENED level's row is tall enough to hold its three
+//    faces, set into the rock beside its landing — ore showing in
+//    the stone, state readable at a glance, tapped in place;
+//  - unopened levels keep the compact dark rows they always had,
+//    with no faces in them;
+//  - two lines of room ride UNDER particular rows, never inside a
+//    panel: the frontier's way-down line under the deepest opened
+//    level (while it is the frontier), and the satchel-full line
+//    (v198) under the level the hero stands on, for exactly as
+//    long as the satchel is full.
+//
+// Opened levels are always a prefix of the mountain (1..deepest),
+// so the whole layout is a closed form: a level's top is the sum
+// of the row heights above it, and an extra line pushes down only
+// the levels BELOW its own row — never the row it belongs to. The
+// drawing, the hero, and the walk all read this one geometry.
 
-/** The height of the dig gallery that opens at the hero's landing:
- *  header, progress row, the wall itself (surface strip, faces,
- *  the way-down strip), and the pick rail. The gallery view in the
- *  cave screen is built to exactly this height. */
-export const GALLERY_H = 328;
+/** Everything the shaft's shape depends on. */
+export type ShaftLayout = {
+  /** Opened levels are 1..deepestLevel; the rest is dark rock. */
+  deepestLevel: number;
+  /** The level the hero stands on (held inside the opened prefix). */
+  currentLevel: number;
+  /** The satchel-full line (v198) rides under the hero's level. */
+  satchelFull: boolean;
+};
 
-/** A landing's center in the MERGED shaft: the plain landing point,
- *  pushed GALLERY_H down when it lies below the open gallery. With
- *  no gallery open (null), this is exactly landingPoint. */
+/** An opened level's row: room for the landing, the tunnel, and
+ *  the level's three faces set into the wall beside the path. */
+export const OPEN_LEVEL_H = 96;
+
+/** Where an opened landing's center sits inside its row. */
+export const LANDING_Y_OPEN = 38;
+
+/** The satchel-full line's height, riding under the hero's row. */
+export const FULL_LINE_H = 22;
+
+/** The frontier way-down line's height, under the deepest row. */
+export const FRONTIER_LINE_H = 24;
+
+/** The deepest opened level of a layout, held to the mountain. */
+function layoutDeepest(layout: ShaftLayout): number {
+  return Math.min(MAX_LEVEL, Math.max(1, Math.floor(layout.deepestLevel) || 1));
+}
+
+/** The hero's level of a layout, held inside what he has opened. */
+function layoutCurrent(layout: ShaftLayout): number {
+  return Math.min(clampLevel(layout.currentLevel), layoutDeepest(layout));
+}
+
+/** The extra room riding UNDER a level's own row: the frontier
+ *  line under the deepest opened level while the mountain still
+ *  has unopened rock below it, and the satchel-full line under
+ *  the hero's level while the satchel is full. Both lines belong
+ *  to their row but hang below it, so they move only what is
+ *  underneath — never their own landing, never their own faces. */
+export function rowExtraBelow(level: number, layout: ShaftLayout): number {
+  const deepest = layoutDeepest(layout);
+  let extra = 0;
+  if (level === deepest && deepest < MAX_LEVEL) extra += FRONTIER_LINE_H;
+  if (layout.satchelFull && level === layoutCurrent(layout)) extra += FULL_LINE_H;
+  return extra;
+}
+
+/** One level's row height in the merged shaft: tall and faced
+ *  where the mountain stands open, the compact dark row of the
+ *  old shaft where it does not. */
+export function levelRowHeight(level: number, layout: ShaftLayout): number {
+  if (level < 1 || level > layoutDeepest(layout)) return DESCENT_LEVEL_H;
+  return OPEN_LEVEL_H + rowExtraBelow(level, layout);
+}
+
+/** The top of a level's row in shaft coordinates (origin at the
+ *  top of Level 1's row). Also defined for the virtual neighbours
+ *  (0 above, 81 below) the tunnel path uses as entry/exit: above
+ *  the mountain the plain dark rows simply continue. */
+export function levelTopY(level: number, layout: ShaftLayout): number {
+  if (level <= 1) return (level - 1) * DESCENT_LEVEL_H;
+  const deepest = layoutDeepest(layout);
+  const above = level - 1;
+  const openedAbove = Math.min(above, deepest);
+  const closedAbove = Math.max(0, above - deepest);
+  let y = openedAbove * OPEN_LEVEL_H + closedAbove * DESCENT_LEVEL_H;
+  // The two extra lines hang below their own rows: each pushes
+  // down every level beneath it, and no level above it.
+  if (deepest < MAX_LEVEL && deepest < level) y += FRONTIER_LINE_H;
+  if (layout.satchelFull && layoutCurrent(layout) < level) y += FULL_LINE_H;
+  return y;
+}
+
+/** A landing's center in the merged shaft: the zigzag's x, at the
+ *  height its row gives it — the open rows' landing offset where
+ *  the mountain stands open, the plain row's center in the dark. */
 export function shaftLandingPoint(
   level: number,
   width: number,
-  galleryLevel: number | null
+  layout: ShaftLayout
 ): { x: number; y: number } {
-  const p = landingPoint(level, width);
-  if (galleryLevel != null && level > galleryLevel) return { x: p.x, y: p.y + GALLERY_H };
-  return p;
+  const x = (landingSide(level) === "left" ? DESCENT_LEFT_X : DESCENT_RIGHT_X) * width;
+  const opened = level >= 1 && level <= layoutDeepest(layout);
+  return { x, y: levelTopY(level, layout) + (opened ? LANDING_Y_OPEN : DESCENT_LEVEL_H / 2) };
 }
 
-/** The top of a stratum band in the merged shaft: bands that start
- *  below the gallery's level begin GALLERY_H lower; the gallery's
- *  own band starts where it always did (the gallery grows INSIDE
- *  it, under its landing). */
-export function shaftBandTopY(stratumIndex: number, galleryLevel: number | null): number {
-  const base = stratumIndex * LEVELS_PER_STRATUM * DESCENT_LEVEL_H;
-  if (galleryLevel == null) return base;
-  return firstLevelOfStratum(stratumIndex) > galleryLevel ? base + GALLERY_H : base;
+/** The top of a stratum band in the merged shaft. */
+export function shaftBandTopY(stratumIndex: number, layout: ShaftLayout): number {
+  return levelTopY(firstLevelOfStratum(stratumIndex), layout);
 }
 
-/** Is the open gallery carved into this band? */
-export function bandHasGallery(stratumIndex: number, galleryLevel: number | null): boolean {
-  if (galleryLevel == null) return false;
+/** A stratum band's height in the merged shaft: the sum of its
+ *  levels' rows, read off the same geometry. */
+export function shaftBandHeight(stratumIndex: number, layout: ShaftLayout): number {
   const first = firstLevelOfStratum(stratumIndex);
-  return galleryLevel >= first && galleryLevel <= first + LEVELS_PER_STRATUM - 1;
+  return levelTopY(first + LEVELS_PER_STRATUM, layout) - levelTopY(first, layout);
+}
+
+/** The shaft's whole height under a layout. */
+export function shaftTotalHeight(layout: ShaftLayout): number {
+  return levelTopY(MAX_LEVEL + 1, layout);
+}
+
+/** Does this level show its faces in the wall? Exactly the opened
+ *  levels do — the mountain itself is the dig wall only where it
+ *  stands open; unopened rock shows no faces, ever. */
+export function levelExposesFaces(level: number, deepestLevel: number): boolean {
+  if (!Number.isInteger(level)) return false;
+  const deepest = Math.min(MAX_LEVEL, Math.max(1, Math.floor(deepestLevel) || 1));
+  return level >= 1 && level <= deepest;
 }

@@ -1,33 +1,34 @@
-// The Cave — one screen (v178's switchback descent, merged v191).
+// The Cave — one screen (v178's switchback descent, merged v191,
+// ores on the map v199).
 //
-// Jonathan's correction (2026-10-22): "It has the ore screen, then
-// it shifts to the zigzag screen. The mockup shows that the ore
-// screen and the zig zag are the same screen. That was the point!"
+// Jonathan's corrections: first (2026-10-22) "the ore screen and
+// the zig zag are the same screen. That was the point!" — so the
+// descent stopped being an overlay. Then (2026-10-23): "I thought
+// the ores themselves would be on the zigzag map, not just a
+// little window that opens..." — v191's dig gallery, however
+// in-place, still read as a window. So there is no gallery now:
+// the tunnel descends through the eight strata with a landing at
+// every level, and every OPENED level wears its three dig faces
+// set into the rock beside its landing (components/mine-faces) —
+// ore in the stone, state on the map, tapped in place. Unopened
+// levels stay the compact dark rows they always were. Tapping a
+// lit landing walks him along the switchbacks (one calm
+// native-driven slide, as ever); cracking a new level open walks
+// him down to it. There is no second screen, no panel, and
+// nothing to dismiss — the mountain is the dig wall.
 //
-// So the zigzag shaft IS the cave now — not an overlay over a
-// separate dig wall. The tunnel descends through the eight strata
-// with a landing at every level, opened levels lit with lantern
-// glow, and at the landing where the paper hero stands, the dig
-// GALLERY opens in place: that level's wall and its three faces,
-// dug right there. Tapping a lit landing walks him along the
-// switchbacks (one calm native-driven slide, as ever), and the
-// gallery opens at the landing he arrives at. Cracking a new level
-// open walks him down to it. There is no second screen and nothing
-// to dismiss — the mockup's galleries were always the digging
-// places.
-//
-// Perf, per the standing worry: the shaft is eight memoized stratum
-// bands of static SVG paper art — drawn once, never animated. Only
-// the band holding the gallery re-renders as he digs (its faces
-// change); the only thing that MOVES is the hero, on a single
-// Animated.Value interpolated through the landing points of ONE
-// short stretch (lib/mine-descent stages long trips as a fade
-// through the dark plus a final ten-landing walk). No per-frame JS,
-// ever. The shaft lives inside the cave screen's own scroll view;
-// when a walk needs the view to follow, it asks the screen to
-// scroll via onFollowHero.
+// Perf, per the standing worry: the shaft is eight memoized
+// stratum bands of static SVG paper art — drawn once, never
+// animated; each level's faces are a memoized wall that repaints
+// only when its own faces change; the only thing that MOVES is
+// the hero, on a single Animated.Value interpolated through the
+// landing points of ONE short stretch (lib/mine-descent stages
+// long trips as a fade through the dark plus a final ten-landing
+// walk). No per-frame JS, ever. The shaft lives inside the cave
+// screen's own scroll view; when a walk needs the view to
+// follow, it asks the screen to scroll via onFollowHero.
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -42,19 +43,36 @@ import {
   MAX_LEVEL,
   MINE_STRATA,
   firstLevelOfStratum,
+  type SatchelLoad,
 } from "@/lib/mountain";
 import {
-  DESCENT_LEVEL_H,
-  GALLERY_H,
-  bandHasGallery,
+  FRONTIER_LINE_H,
+  FULL_LINE_H,
+  LANDING_Y_OPEN,
+  OPEN_LEVEL_H,
   canTravelTo,
   descentHeroStart,
+  levelExposesFaces,
+  levelTopY,
+  shaftBandHeight,
   shaftBandTopY,
   shaftLandingPoint,
   walkDurationMs,
   walkPlan,
+  type ShaftLayout,
 } from "@/lib/mine-descent";
-import { PAPER_HERO_H, PAPER_HERO_W, PaperHeroFigure } from "@/components/paper-interior";
+import {
+  FACES_WALL_H,
+  LevelFacesWall,
+  type MineLevelFaces,
+} from "@/components/mine-faces";
+import {
+  PAPER_HERO_H,
+  PAPER_HERO_W,
+  PaperGlowDisc,
+  PaperHeroFigure,
+  PaperPulse,
+} from "@/components/paper-interior";
 import type { CustomPawn } from "@/lib/pawn";
 
 const SHAFT_DARK = "#17101F";
@@ -65,10 +83,12 @@ const GOLD = "#C9963C";
 const GLOW = "#FFB84D";
 
 const STRIP_H = 16; // the grass strip at the surface, above Level 1
-const BAND_H = LEVELS_PER_STRATUM * DESCENT_LEVEL_H;
 const HERO_UNIT = 2.6;
 const HERO_W = PAPER_HERO_W * HERO_UNIT;
 const HERO_H = PAPER_HERO_H * HERO_UNIT;
+/** Where a level's faces wall sits inside its row: centered on the
+ *  landing's height, so the wall reads as the rock beside the path. */
+const WALL_TOP_OFF = LANDING_Y_OPEN - FACES_WALL_H / 2;
 
 /* ------------------------------------------------------------------ */
 /* One stratum band — static paper art, drawn once                     */
@@ -80,8 +100,7 @@ const StratumBand = memo(function StratumBand({
   deepestLevel,
   heroLevel,
   walking,
-  galleryLevel,
-  gallery,
+  layout,
   onTapLanding,
 }: {
   stratumIndex: number;
@@ -89,35 +108,33 @@ const StratumBand = memo(function StratumBand({
   deepestLevel: number;
   heroLevel: number;
   walking: boolean;
-  /** The level whose dig gallery is open (exactly one, shaft-wide). */
-  galleryLevel: number;
-  /** The gallery node — passed ONLY to the band that holds it. */
-  gallery: ReactNode;
+  /** The shaft's layout — which rows stand tall and faced, and
+   *  where the two hanging lines ride (lib/mine-descent). */
+  layout: ShaftLayout;
   onTapLanding: (level: number) => void;
 }) {
   const stratum = MINE_STRATA[stratumIndex];
   const firstLevel = firstLevelOfStratum(stratumIndex);
   const lastLevel = firstLevel + LEVELS_PER_STRATUM - 1;
-  const hasGallery = bandHasGallery(stratumIndex, galleryLevel);
-  const bandHeight = BAND_H + (hasGallery ? GALLERY_H : 0);
-  const bandTop = shaftBandTopY(stratumIndex, galleryLevel);
+  const bandHeight = shaftBandHeight(stratumIndex, layout);
+  const bandTop = shaftBandTopY(stratumIndex, layout);
 
   /** A landing's center in this band's own coordinates — the merged
    *  shaft's geometry (lib/mine-descent) already accounts for the
-   *  gallery carved in above or inside this band. */
+   *  tall faced rows and the lines hanging beneath them. */
   const localPoint = useCallback(
     (level: number) => {
-      const p = shaftLandingPoint(level, width, galleryLevel);
+      const p = shaftLandingPoint(level, width, layout);
       return { x: p.x, y: p.y - bandTop };
     },
-    [width, galleryLevel, bandTop]
+    [width, layout, bandTop]
   );
 
   // The tunnel path: in from the landing above, through every
-  // landing of the band, and out toward the landing below. Where
-  // the gallery is carved in, the path dips around it — the gallery
-  // chamber is opaque, so the stretch behind it simply reads as
-  // the tunnel passing through the chamber.
+  // landing of the band, and out toward the landing below. Where a
+  // level's faces are cut into the wall, the path passes behind
+  // the wall cut — the tunnel runs on, the digging is in the rock
+  // beside it.
   const path = useMemo(() => {
     const pts: Array<{ x: number; y: number }> = [];
     pts.push(localPoint(firstLevel - 1));
@@ -141,7 +158,9 @@ const StratumBand = memo(function StratumBand({
           const y = p.y;
           const opened = level <= deepestLevel;
           const isDeepest = level === deepestLevel;
-          const labelOnRight = p.x < width / 2;
+          // The number rides the OUTER side of its landing (v199):
+          // the inner side belongs to the level's faces in the wall.
+          const labelOnRight = p.x >= width / 2;
           return (
             <G key={level}>
               {opened && (
@@ -183,15 +202,12 @@ const StratumBand = memo(function StratumBand({
           );
         })}
       </Svg>
-      {/* the stratum's name, run down the wall — hidden while this
-          band holds the gallery: the gallery's own wall carries it */}
-      {!hasGallery && (
-        <View pointerEvents="none" style={{ position: "absolute", left: -31, top: bandHeight / 2 - 11, width: 84, alignItems: "center", transform: [{ rotate: "-90deg" }] }}>
-          <Text style={{ color: CREAM, fontSize: 10, fontWeight: "bold", letterSpacing: 2.4, opacity: 0.92 }}>
-            {stratum.name.toUpperCase()}
-          </Text>
-        </View>
-      )}
+      {/* the stratum's name, run down the wall beside its levels */}
+      <View pointerEvents="none" style={{ position: "absolute", left: -31, top: bandHeight / 2 - 11, width: 84, alignItems: "center", transform: [{ rotate: "-90deg" }] }}>
+        <Text style={{ color: CREAM, fontSize: 10, fontWeight: "bold", letterSpacing: 2.4, opacity: 0.92 }}>
+          {stratum.name.toUpperCase()}
+        </Text>
+      </View>
       <View pointerEvents="none" style={{ position: "absolute", right: 10, top: 8, backgroundColor: "rgba(23,16,31,0.5)", borderRadius: 7, paddingHorizontal: 7, paddingVertical: 3 }}>
         <Text style={{ color: DIM, fontSize: 9.5, fontWeight: "700", letterSpacing: 1 }}>
           LEVELS {firstLevel}–{lastLevel}
@@ -212,22 +228,6 @@ const StratumBand = memo(function StratumBand({
           />
         );
       })}
-      {/* THE GALLERY (v191): the dig wall of the hero's own level,
-          open in the rock right under his landing — the ore screen
-          and the zigzag, one and the same screen */}
-      {hasGallery && gallery != null && (
-        <View
-          style={{
-            position: "absolute",
-            left: 10,
-            right: 10,
-            top: localPoint(galleryLevel).y + DESCENT_LEVEL_H / 2,
-            height: GALLERY_H,
-          }}
-        >
-          {gallery}
-        </View>
-      )}
     </View>
   );
 });
@@ -241,8 +241,10 @@ export function MineDescent({
   currentLevel,
   pawn,
   autoWalkTo,
-  galleryLevel,
-  gallery,
+  bagLoad,
+  levelFaces,
+  frontierBroken,
+  onTapFace,
   onArrive,
   onFollowHero,
 }: {
@@ -252,12 +254,19 @@ export function MineDescent({
   pawn: CustomPawn | null;
   /** Set when a level just cracked open: walk down to it unasked. */
   autoWalkTo: number | null;
-  /** The level whose dig gallery is open — where he stands and digs. */
-  galleryLevel: number;
-  /** The gallery itself, built by the cave screen for galleryLevel:
-   *  that level's header, its wall of faces, its pick rail. */
-  gallery: ReactNode;
-  /** A walk finished — he stands at `level`, its gallery is open. */
+  /** The satchel's load (v198): at "full" the faces sit quiet,
+   *  its line rides under the hero's level, and the layout makes
+   *  room for it there. */
+  bagLoad: SatchelLoad;
+  /** Every opened level's faces, built by the cave screen and
+   *  keyed by their states — the walls of the shaft itself. */
+  levelFaces: Array<{ data: MineLevelFaces; key: string }>;
+  /** Distinct faces broken on the deepest level (0..3): two opens
+   *  the way down, and the frontier line under it counts them. */
+  frontierBroken: number;
+  /** A face in the wall was tapped — the cave screen digs it. */
+  onTapFace: (faceIndex: number) => void;
+  /** A walk finished — he stands at `level`. */
   onArrive: (level: number) => void;
   /** Ask the screen to scroll so this shaft offset (from the top of
    *  the surface strip) is in view — the shaft lives inside the
@@ -273,6 +282,16 @@ export function MineDescent({
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const alive = useRef(true);
 
+  const satchelFull = bagLoad === "full";
+  /** The shaft's shape: which rows stand tall with their faces,
+   *  and where the satchel-full line hangs (lib/mine-descent). */
+  const layout = useMemo<ShaftLayout>(
+    () => ({ deepestLevel, currentLevel, satchelFull }),
+    [deepestLevel, currentLevel, satchelFull]
+  );
+  /** The level he stands on, held inside what he has opened. */
+  const standingLevel = Math.min(Math.max(1, currentLevel), Math.max(1, deepestLevel));
+
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -286,23 +305,23 @@ export function MineDescent({
   }, []);
 
   /** A landing point in hero-render coordinates: the hero's feet
-   *  rest on the platform, so he hangs above his landing point. The
-   *  gallery is carved at the level he is leaving from, so every
-   *  point is read in the shaft as it stands when the walk begins. */
+   *  rest on the platform, so he hangs above his landing point.
+   *  Every point is read in the shaft as it stands when the walk
+   *  begins — the layout it was staged in. */
   const renderPoint = useCallback(
     (level: number) => {
-      const p = shaftLandingPoint(level, width, galleryLevel);
+      const p = shaftLandingPoint(level, width, layout);
       return { x: p.x - HERO_W / 2, y: STRIP_H + p.y - HERO_H + 9 };
     },
-    [width, galleryLevel]
+    [width, layout]
   );
 
   const scrollToShow = useCallback(
     (level: number, animated: boolean) => {
-      const p = shaftLandingPoint(level, width, galleryLevel);
+      const p = shaftLandingPoint(level, width, layout);
       onFollowHero?.(STRIP_H + p.y - 190, animated);
     },
-    [width, galleryLevel, onFollowHero]
+    [width, layout, onFollowHero]
   );
 
   const travelTo = useCallback(
@@ -378,9 +397,20 @@ export function MineDescent({
 
   return (
     <View style={{ position: "relative" }}>
-      {/* the surface — grass, and the shaft mouth he came down */}
+      {/* the surface — grass, and the shaft mouth he came down. The
+          mouth carries the cave's welcome (v169): warm light pooled
+          where you step in, breathing on the kit's sine — coming in
+          out of the wild, not descending into a dungeon. (The
+          gallery's first-level strip carried it until v199; the
+          shaft's own surface strip carries it now.) */}
       <View style={{ height: STRIP_H, backgroundColor: "#7CB35C", position: "relative" }}>
         <View style={{ position: "absolute", left: "42%", top: 6, width: 34, height: 10, backgroundColor: SHAFT_DARK }} />
+        <PaperPulse duration={2800} min={0.6} max={1} style={{ position: "absolute", left: "42%", marginLeft: -14, top: -16 }}>
+          <PaperGlowDisc size={62} color="#FFB84D" opacity={0.65} />
+        </PaperPulse>
+        {/* two lantern dots keeping the shaft mouth */}
+        <View style={{ position: "absolute", left: "42%", marginLeft: -5, top: 9, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFD98A" }} />
+        <View style={{ position: "absolute", left: "42%", marginLeft: 34, top: 9, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFD98A" }} />
       </View>
       {MINE_STRATA.map((s, i) => (
         <StratumBand
@@ -390,11 +420,84 @@ export function MineDescent({
           deepestLevel={deepestLevel}
           heroLevel={heroLevel}
           walking={walking}
-          galleryLevel={galleryLevel}
-          gallery={bandHasGallery(i, galleryLevel) ? gallery : null}
+          layout={layout}
           onTapLanding={travelTo}
         />
       ))}
+      {/* THE FACES, IN THE WALL (v199): every opened level's three
+          faces, set into the rock beside its landing — the ores
+          themselves on the zigzag map, scrolled past and dug
+          where they sit. No panel opens; nothing covers the map. */}
+      {levelFaces.map(({ data, key }) =>
+        levelExposesFaces(data.level, deepestLevel) ? (
+          <LevelFacesWall
+            key={data.level}
+            data={data}
+            dataKey={key}
+            top={STRIP_H + levelTopY(data.level, layout) + WALL_TOP_OFF}
+            width={width}
+            bagLoad={bagLoad}
+            onTapFace={onTapFace}
+          />
+        ) : null
+      )}
+      {/* the satchel-full line (v198), in its new home: directly
+          under the faces of the level he stands on, in the
+          cave-in's own rose, for exactly as long as it is true —
+          a plain line where his eyes already are, and nothing to tap */}
+      {satchelFull && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: STRIP_H + levelTopY(standingLevel, layout) + OPEN_LEVEL_H + 1,
+            height: FULL_LINE_H,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Text numberOfLines={1} style={{ color: "#FCA5A5", fontSize: 11, fontWeight: "800", letterSpacing: 0.4, paddingHorizontal: 10 }}>
+            Satchel full — sell at the Mouth to keep digging.
+          </Text>
+        </View>
+      )}
+      {/* the way down, counted where it opens: under the deepest
+          level's faces, the frontier line (v199) — two broken
+          faces crack the next level open */}
+      {deepestLevel < MAX_LEVEL && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top:
+              STRIP_H +
+              levelTopY(deepestLevel, layout) +
+              OPEN_LEVEL_H +
+              (satchelFull && standingLevel === deepestLevel ? FULL_LINE_H : 0) +
+              1,
+            height: FRONTIER_LINE_H,
+            justifyContent: "center",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16 }}>
+            {[0, 1].map((pip) => (
+              <View
+                key={pip}
+                style={{ width: 10, height: 10, borderRadius: 5, marginRight: 6, backgroundColor: frontierBroken > pip ? GOLD : "rgba(255,255,255,.18)", borderWidth: 1, borderColor: GOLD }}
+              />
+            ))}
+            <Text style={{ color: DIM, fontSize: 12, flex: 1 }}>
+              {frontierBroken >= 2
+                ? `Level ${deepestLevel + 1} has opened below.`
+                : `Break ${2 - frontierBroken} ${frontierBroken === 1 ? "more face" : "faces"} on this level to open Level ${deepestLevel + 1}.`}
+            </Text>
+          </View>
+        </View>
+      )}
       <Text style={{ color: DIM, fontSize: 12, textAlign: "center", marginTop: 22, paddingHorizontal: 44, lineHeight: 17 }}>
         Dark rock is unopened rock. Break two faces on your deepest level and the way down opens — the
         lantern light follows.

@@ -26,10 +26,18 @@
 // that the ore screen and the zig zag are the same screen. That was
 // the point!" The descent is no longer an overlay over a separate
 // dig wall: the shaft IS the cave screen, and the dig gallery opens
-// in the rock at the landing where the hero stands. These tests pin
-// the merged geometry (one gallery, carved in, everything below it
-// pushed down by exactly GALLERY_H) and the merged screen contract
-// (no overlay state, no dismissal, faces dug in the gallery).
+// in the rock at the landing where the hero stands.
+//
+// v199 — ORES ON THE MAP. His next correction (2026-10-23): "I
+// thought the ores themselves would be on the zigzag map, not just
+// a little window that opens..." The gallery — a panel, however
+// in-place — is retired. Every OPENED level's row stands tall with
+// its three faces set into the rock beside its landing; unopened
+// levels keep the compact dark rows. These tests pin the new
+// geometry (opened prefix tall and faced, dark rows compact, the
+// two hanging lines moving only what is below their own row) and
+// the new screen contract (no gallery, no panel geometry, faces
+// tapped in the wall, what the gallery carried relocated).
 
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -37,19 +45,28 @@ import { join } from "node:path";
 import { MAX_LEVEL, stratumIndexForLevel } from "../mountain";
 import {
   DESCENT_LEVEL_H,
-  GALLERY_H,
+  FRONTIER_LINE_H,
+  FULL_LINE_H,
+  LANDING_Y_OPEN,
+  OPEN_LEVEL_H,
   WALK_VISIBLE_LEVELS,
   bandForLevel,
-  bandHasGallery,
   canTravelTo,
   descentHeroStart,
   landingPoint,
   landingSide,
+  levelExposesFaces,
+  levelRowHeight,
+  levelTopY,
+  rowExtraBelow,
+  shaftBandHeight,
   shaftBandTopY,
   shaftLandingPoint,
+  shaftTotalHeight,
   travelLevels,
   walkDurationMs,
   walkPlan,
+  type ShaftLayout,
 } from "../mine-descent";
 
 const W = 390;
@@ -174,62 +191,98 @@ describe("the hero's start — the current-level marker follows state", () => {
   });
 });
 
-describe("one cave (v191) — the gallery carved into the shaft", () => {
-  it("with no gallery open, the merged geometry is the plain geometry", () => {
-    for (const l of [1, 2, 25, 79, 80]) {
-      expect(shaftLandingPoint(l, W, null)).toEqual(landingPoint(l, W));
+describe("ores on the map (v199) — the shaft is the dig wall", () => {
+  const layout = (deepestLevel: number, currentLevel = deepestLevel, satchelFull = false): ShaftLayout => ({
+    deepestLevel,
+    currentLevel,
+    satchelFull,
+  });
+
+  it("exactly the opened levels expose faces — a prefix of the mountain, no more", () => {
+    for (const deepest of [1, 25, 37, 80]) {
+      for (let l = 0; l <= MAX_LEVEL + 1; l++) {
+        expect(levelExposesFaces(l, deepest)).toBe(l >= 1 && l <= deepest);
+      }
     }
-    for (let s = 0; s < 8; s++) {
-      expect(shaftBandTopY(s, null)).toBe(s * 10 * DESCENT_LEVEL_H);
-      expect(bandHasGallery(s, null)).toBe(false);
+    expect(levelExposesFaces(2.5, 80)).toBe(false);
+  });
+
+  it("opened rows stand tall enough for their faces; dark rows keep the compact height", () => {
+    // the whole mountain open: no frontier line anywhere
+    expect(levelRowHeight(40, layout(80))).toBe(OPEN_LEVEL_H);
+    expect(levelRowHeight(1, layout(80))).toBe(OPEN_LEVEL_H);
+    // unopened rock: the old 40px rows, unchanged
+    expect(levelRowHeight(21, layout(20))).toBe(DESCENT_LEVEL_H);
+    expect(levelRowHeight(80, layout(20))).toBe(DESCENT_LEVEL_H);
+    // the deepest opened row also carries the frontier line below it
+    expect(levelRowHeight(20, layout(20))).toBe(OPEN_LEVEL_H + FRONTIER_LINE_H);
+  });
+
+  it("landings step by their own row heights — tall in the open, compact in the dark", () => {
+    const lay = layout(30); // current = deepest = 30, satchel has room
+    for (let l = 1; l < 30; l++) {
+      expect(shaftLandingPoint(l + 1, W, lay).y - shaftLandingPoint(l, W, lay).y).toBe(OPEN_LEVEL_H);
+    }
+    for (let l = 31; l < MAX_LEVEL; l++) {
+      expect(shaftLandingPoint(l + 1, W, lay).y - shaftLandingPoint(l, W, lay).y).toBe(DESCENT_LEVEL_H);
+    }
+    // crossing the frontier: the deepest row's height plus its line
+    expect(levelTopY(31, lay) - levelTopY(30, lay)).toBe(OPEN_LEVEL_H + FRONTIER_LINE_H);
+    // the zigzag never shifts sideways, whatever the layout
+    for (const l of [1, 2, 25, 80]) {
+      expect(shaftLandingPoint(l, W, lay).x).toBe(landingPoint(l, W).x);
     }
   });
 
-  it("the gallery pushes everything below its level down by exactly GALLERY_H — and nothing above it moves", () => {
-    const g = 25; // a Copper landing (stratum index 2, levels 21–30)
-    for (const l of [1, 10, 24, 25]) {
-      expect(shaftLandingPoint(l, W, g)).toEqual(landingPoint(l, W));
+  it("a hanging line moves only what is below its own row — never its own landing", () => {
+    const room = layout(30, 10, false);
+    const full = layout(30, 10, true);
+    // the satchel-full line's own level stands exactly where it stood
+    expect(shaftLandingPoint(10, W, full)).toEqual(shaftLandingPoint(10, W, room));
+    expect(levelTopY(10, full)).toBe(levelTopY(10, room));
+    // everything below it sits exactly FULL_LINE_H lower
+    for (const l of [11, 30, 31, 80]) {
+      expect(shaftLandingPoint(l, W, full).y - shaftLandingPoint(l, W, room).y).toBe(FULL_LINE_H);
     }
-    for (const l of [26, 40, 80]) {
-      const p = shaftLandingPoint(l, W, g);
-      expect(p.y).toBe(landingPoint(l, W).y + GALLERY_H);
-      expect(p.x).toBe(landingPoint(l, W).x); // the zigzag never shifts sideways
-    }
+    expect(rowExtraBelow(10, full)).toBe(FULL_LINE_H);
+    expect(rowExtraBelow(9, full)).toBe(0);
+    // the frontier line belongs to the deepest row alone — and the
+    // two lines stack when the hero stands at the frontier, full
+    expect(rowExtraBelow(30, layout(30))).toBe(FRONTIER_LINE_H);
+    expect(rowExtraBelow(29, layout(30))).toBe(0);
+    expect(rowExtraBelow(30, layout(30, 30, true))).toBe(FRONTIER_LINE_H + FULL_LINE_H);
   });
 
-  it("exactly one band holds the gallery, and it is the band of the hero's level", () => {
-    for (const g of [1, 10, 11, 25, 70, 71, 80]) {
-      const holders = [0, 1, 2, 3, 4, 5, 6, 7].filter((s) => bandHasGallery(s, g));
-      expect(holders).toEqual([stratumIndexForLevel(g)]);
-    }
-  });
-
-  it("band tops: the gallery's own band starts unshifted; every band below it starts GALLERY_H lower", () => {
-    const g = 25;
-    expect(shaftBandTopY(0, g)).toBe(0);
-    expect(shaftBandTopY(2, g)).toBe(2 * 10 * DESCENT_LEVEL_H);
-    expect(shaftBandTopY(3, g)).toBe(3 * 10 * DESCENT_LEVEL_H + GALLERY_H);
-    expect(shaftBandTopY(7, g)).toBe(7 * 10 * DESCENT_LEVEL_H + GALLERY_H);
-  });
-
-  it("the shaft's total height grows by exactly one gallery, wherever it opens", () => {
-    const BAND_H = 10 * DESCENT_LEVEL_H;
-    for (const g of [1, 25, 80]) {
-      const bottom =
-        shaftBandTopY(7, g) + BAND_H + (bandHasGallery(7, g) ? GALLERY_H : 0);
-      expect(bottom).toBe(8 * BAND_H + GALLERY_H);
+  it("band tops and heights tile the shaft with no gaps, under every layout", () => {
+    for (const lay of [layout(1), layout(25), layout(80), layout(30, 12, true), layout(79, 79, true)]) {
+      expect(shaftBandTopY(0, lay)).toBe(0);
+      for (let s = 0; s < 7; s++) {
+        expect(shaftBandTopY(s + 1, lay)).toBe(shaftBandTopY(s, lay) + shaftBandHeight(s, lay));
+      }
+      expect(shaftBandTopY(7, lay) + shaftBandHeight(7, lay)).toBe(shaftTotalHeight(lay));
     }
   });
 
-  it("the gallery fits under its landing, inside its band: the next landing clears its floor", () => {
-    const g = 25;
-    const band = bandForLevel(g);
-    const galleryTopLocal =
-      shaftLandingPoint(g, W, g).y - shaftBandTopY(band.stratumIndex, g) + DESCENT_LEVEL_H / 2;
-    const nextLocal =
-      shaftLandingPoint(g + 1, W, g).y - shaftBandTopY(band.stratumIndex, g);
-    // the next landing's row starts at or below the gallery's floor
-    expect(nextLocal - DESCENT_LEVEL_H / 2).toBeGreaterThanOrEqual(galleryTopLocal + GALLERY_H);
+  it("the shaft's total height is the closed form: faced rows, dark rows, the two lines", () => {
+    expect(shaftTotalHeight(layout(25))).toBe(
+      25 * OPEN_LEVEL_H + 55 * DESCENT_LEVEL_H + FRONTIER_LINE_H
+    );
+    expect(shaftTotalHeight(layout(25, 10, true))).toBe(
+      25 * OPEN_LEVEL_H + 55 * DESCENT_LEVEL_H + FRONTIER_LINE_H + FULL_LINE_H
+    );
+    expect(shaftTotalHeight(layout(80))).toBe(80 * OPEN_LEVEL_H);
+    expect(shaftTotalHeight(layout(1))).toBe(OPEN_LEVEL_H + FRONTIER_LINE_H + 79 * DESCENT_LEVEL_H);
+  });
+
+  it("the faces wall fits inside an opened row, centered on its landing", () => {
+    // the wall's height is the faces component's own constant —
+    // read it where it lives so the two files can never drift apart
+    const facesSrc = readFileSync(join(process.cwd(), "components/mine-faces.tsx"), "utf8");
+    const wallH = Number(/FACES_WALL_H = (\d+)/.exec(facesSrc)?.[1]);
+    expect(wallH).toBeGreaterThan(0);
+    const topOff = LANDING_Y_OPEN - wallH / 2;
+    expect(topOff).toBeGreaterThanOrEqual(0);
+    expect(topOff + wallH).toBeLessThanOrEqual(OPEN_LEVEL_H);
   });
 });
 
@@ -270,11 +323,12 @@ describe("screen contract — the descent replaces the picker", () => {
   });
 });
 
-describe("screen contract (v191) — one cave, no second screen", () => {
+describe("screen contract (v199) — ores on the map, no window", () => {
   const cave = readFileSync(join(process.cwd(), "app/mine-interior.tsx"), "utf8");
   const scene = readFileSync(join(process.cwd(), "components/mine-descent.tsx"), "utf8");
+  const facesWall = readFileSync(join(process.cwd(), "components/mine-faces.tsx"), "utf8");
 
-  it("the overlay is gone: nothing opens over the cave, nothing dismisses it", () => {
+  it("the overlay never came back: nothing opens over the cave, nothing dismisses it", () => {
     expect(cave).not.toContain("descentOpen");
     expect(cave).not.toContain("setDescentOpen");
     expect(scene).not.toContain("onClose");
@@ -283,32 +337,70 @@ describe("screen contract (v191) — one cave, no second screen", () => {
     expect(scene).not.toContain("zIndex: 20");
   });
 
-  it("the shaft mounts in the cave screen itself, gallery open at the level he stands on", () => {
-    expect(cave).toContain("galleryLevel={view}");
-    expect(cave).toContain("gallery={renderMineGallery()}");
+  it("the gallery is retired: no panel opens, no panel geometry remains", () => {
+    expect(cave).not.toContain("renderMineGallery");
+    expect(cave).not.toContain("galleryLevel");
+    expect(cave).not.toContain("GALLERY_H");
+    expect(scene).not.toContain("GALLERY_H");
+    expect(scene).not.toContain("bandHasGallery");
+    expect(scene).not.toContain("galleryLevel");
+    expect(scene).not.toContain("gallery=");
+  });
+
+  it("the shaft mounts in the cave screen itself, faces riding with it", () => {
+    expect(cave).toContain("levelFaces={levelFaces}");
+    expect(cave).toContain("bagLoad={bagLoad}");
     expect(cave).toContain("onFollowHero={followHero}");
-    expect(scene).toContain("bandHasGallery");
     expect(scene).toContain("shaftLandingPoint");
-    expect(scene).toContain("GALLERY_H");
+    // exactly the opened levels wear faces — the scene gates the
+    // walls on the lib's own rule
+    expect(scene).toContain("levelExposesFaces(data.level, deepestLevel)");
+    expect(scene).toContain("LevelFacesWall");
   });
 
-  it("the faces are dug in the gallery, in place — the tap handler never leaves the screen", () => {
-    expect(cave).toContain("renderMineGallery");
-    expect(cave).toContain("onPress={() => handleTapFace(faceIndex)}");
-    // the mechanics ride along untouched: flames on the break, the
-    // haul rate on the wall, the pool in its face
+  it("the faces are dug in the wall, in place — the tap never leaves the screen's handler", () => {
+    expect(cave).toContain("onTapFace={dispatchTapFace}");
+    expect(cave).toContain("mineTap(");
+    // the mechanics ride along untouched: flames on the break
     expect(cave).toContain("spendForestEnergy");
-    expect(cave).toContain("stratumMultiplier(viewStratumIndex)");
-    expect(cave).toContain("PoolArt");
+    // a wall's tap goes through the stable dispatcher, so a wall
+    // that skipped a repaint still digs the freshest mine state
+    expect(cave).toContain("tapFaceRef.current = handleTapFace");
+    expect(cave).toContain("tapFaceRef.current(faceIndex)");
+    expect(facesWall).toContain("onTapFace(faceIndex)");
   });
 
-  it("the walk still ends by moving the gallery: onArrive sets the viewed level", () => {
-    expect(cave).toContain("onArrive={(level) => {");
+  it("the wall carries the faces' whole reading: ore, state, the pool, the lock, the way back", () => {
+    expect(facesWall).toContain("FaceArt");
+    expect(facesWall).toContain("PoolArt");
+    expect(facesWall).toContain('name="lock"');
+    // a resting face's regrow is written on the map, not just in an alert
+    expect(facesWall).toContain("back in {formatCooldown(face.restMs)}");
+  });
+
+  it("what the gallery carried lives in the header now: the level line and the pick rail", () => {
+    expect(cave).toContain("Deepest opened: Level");
+    expect(cave).toContain("stratumMultiplier(viewStratumIndex)");
+    expect(cave).toContain("PICKAXES — SOLD AT THE TOOL SHOP");
+    // the rail sits in the header zone — before the shaft in the screen
+    expect(cave.indexOf("PICKAXES — SOLD AT THE TOOL SHOP")).toBeLessThan(cave.indexOf("<MineDescent"));
+    // and the flame count never left the header bar
+    expect(cave).toContain("EnergyFlames");
+  });
+
+  it("the way down is counted at the frontier's faces, in the shaft itself", () => {
+    expect(cave).toContain("frontierBroken={frontierBroken}");
+    expect(scene).toContain("frontierBroken");
+    expect(scene).toContain("to open Level");
+  });
+
+  it("the walk still ends by standing him at the new level", () => {
+    expect(cave).toContain("onArrive={handleArrive}");
     expect(cave).toContain("setViewLevel(level);");
     expect(cave).toContain("setDescentAutoWalk(null);");
   });
 
-  it("selling still happens only at the Mouth — the merged cave sells nothing", () => {
+  it("selling still happens only at the Mouth — the cave sells nothing", () => {
     expect(cave).not.toContain("applySellAll");
     expect(cave).toContain("Sell at the Mouth");
   });

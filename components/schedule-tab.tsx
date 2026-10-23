@@ -10265,6 +10265,24 @@ export function ScheduleTab({
   // sits directly below the summary with none of its text covered,
   // and the slide-over still happens in motion — the summary stays
   // fixed behind the list (zIndex 0) while the sheet scrolls over it.
+  // v197 (2026-10-23): his phone verdict on v193 — "Why is the
+  // spacing off from the slide and the summary there? There's so
+  // much more room all of the sudden?" / "There's a pretty big gap
+  // on all of them now." Root cause: the spacer was never the
+  // problem — the measurement is the summary wrapper's own onLayout
+  // height, which is its true painted height (DailySummaryCard +
+  // check-in notice + the Tasks & Events bar, inside the summary's
+  // own padding). The overshoot was the FlatList content container's
+  // legacy paddingTop: 90, a constant from the floating-header era
+  // that predates the measured spacer. While the spacer still
+  // subtracted the old 68px overlap the two roughly cancelled (net
+  // height + 22); v193 removed the subtraction but left the +90, so
+  // the sheet's head came to rest a guaranteed 90px BELOW the
+  // summary's bottom edge on every skin — the dead band in his
+  // screenshot. The padding is gone: net offset is exactly the
+  // measured height, flush at rest, no overlap returns (the spacer
+  // still carries the full height, so no summary text is covered),
+  // and the slide-over in motion is untouched.
   const [scheduleSummaryHeight, setScheduleSummaryHeight] = useState(360);
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, DAY_HEADER_HEIGHT / 2],
@@ -11913,7 +11931,26 @@ export function ScheduleTab({
           Paper panel's bottom edge is square so it meets the sheet;
           8-bit/Terminal keep their panel fills + frames but go
           full-bleed as the list's masthead. The full-date lines and
-          type scales are unchanged. */}
+          type scales are unchanged.
+          v197 (2026-10-23): and yet on his phone the date STILL did
+          not show under 8-bit or Terminal ("the 8-bit one isn't
+          showing the date still.." / "Same with the terminal one."),
+          while Paper's spelled-out line — same formatDateHeader
+          data, same card structure — reads plainly in his Paper
+          screenshot. Root cause: the line was never missing from
+          the tree; it was set in the display faces at sizes below
+          the readability floor — Press Start 2P at 8 under 8-bit
+          (the smallest type in the masthead, under a 13-point day
+          name), VT323 at 15 under Terminal. Present in source,
+          absent at display size — the lookalike failure class his
+          standing rule names. Three rounds of tests pinned the
+          string's presence and passed while the date went unseen.
+          The line now renders at 12 (8-bit) / 20 (Terminal), in
+          line with the mastheads' other display type, in the same
+          high-contrast inks (BIT_ON_DUSK_SOFT on BIT_PANEL,
+          TERM_SOFT on TERM_PANEL); the tests pin the size floors
+          and the ink/panel contrast so a presence-only regression
+          fails. */}
       <View style={[scheduleStyles.dateHeaderCard, skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}) } : skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}) } : skinTokens.isPaper ? { backgroundColor: skinTokens.surface ?? colors.surface, paddingBottom: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}) }, cardStyle]}>
   <View style={scheduleStyles.dayHeaderContent}>
     <Text style={[scheduleStyles.dayName, { color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...bitDisplay(skinTokens, 13), ...skinText(skinTokens, skinTokens.type.dayName, skinTokens.type.dayNameLineHeight) }]}>
@@ -11930,7 +11967,7 @@ export function ScheduleTab({
     />
   </View>
   {(skinTokens.isEightBit || skinTokens.isTerminal) ? (
-    <Text style={{ color: skinTokens.isTerminal ? TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 8) }}>
+    <Text style={{ color: skinTokens.isTerminal ? TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, skinTokens.isTerminal ? 20 : 12) }}>
       {`${dateHeader.monthName} ${dateHeader.dayNum}, ${dateHeader.year}`}
     </Text>
   ) : null}
@@ -12876,7 +12913,10 @@ export function ScheduleTab({
             contentContainerStyle={[
               scheduleStyles.listContent,
               {
-                paddingTop: 90,
+                // v197: NO paddingTop here — see the spacer note at
+                // scheduleSummaryHeight. The measured spacer alone
+                // sets the sheet's rest position, flush at the
+                // summary's true bottom edge.
                 paddingBottom: 120,
                 backgroundColor: "transparent",
               },

@@ -36,6 +36,7 @@ import { allPaperSceneIds, paperSceneIdFor } from "../paper-keywords";
 import {
   BIT_GOLD,
   BIT_ON_DUSK,
+  BIT_ON_DUSK_SOFT,
   BIT_PANEL,
   DEFAULT_SKIN_THEME,
   SKIN_THEMES,
@@ -752,11 +753,14 @@ describe("v185 floating cards: under 8-bit the sheet is gone and every row float
     expect(header).toContain("backgroundColor: BIT_GOLD");
     expect(header).toContain("BIT_ON_DUSK_SOFT");
     // The full date is spelled out in the display face under both
-    // skins (pixel face at 8 under 8-bit, VT323 at 15 under Terminal),
-    // so the date reads even where the week strip alone would not
-    // say it.
+    // skins, so the date reads even where the week strip alone
+    // would not say it. v197: the sizes are 12 under 8-bit / 20
+    // under Terminal — v187/v188's 8/15 were below the readability
+    // floor on his phone ("the date isn't showing… still"), the
+    // present-in-source/absent-at-size failure; the v197 block at
+    // the end of this file pins the floors + ink contrast.
     expect(header).toContain("dateHeader.monthName} ${dateHeader.dayNum}, ${dateHeader.year}");
-    expect(header).toContain("bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 8)");
+    expect(header).toContain("bitDisplay(skinTokens, skinTokens.isTerminal ? 20 : 12)");
     // v192: the sticky pin is GONE under every skin — Jonathan
     // reversed on it ("I don't like that the header card is fixed
     // in this mode. I change my mind."). The list passes no
@@ -1217,8 +1221,10 @@ describe("v188 — Terminal, finished properly", () => {
     // dropped the inset margins and the separate shadow).
     expect(schedule).toContain("skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}) }");
     expect(schedule).not.toContain('skinTokens.isTerminal ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface');
-    // The full-date line renders under Terminal too, in VT323 (size 15).
-    expect(schedule).toContain("color: skinTokens.isTerminal ? TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 8)");
+    // The full-date line renders under Terminal too, in VT323
+    // (v197: size 20 — v188's 15 was below the readability floor on
+    // his phone; see the v197 block at the end of this file).
+    expect(schedule).toContain("color: skinTokens.isTerminal ? TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, skinTokens.isTerminal ? 20 : 12)");
     // v192: the sticky mechanism v187/v188 shared is removed for
     // every skin — the header scrolls away with the list (see the
     // v187 block above for the full note).
@@ -1585,5 +1591,70 @@ describe("v193 — the header joins the slide", () => {
     expect(read("components/monthly-calendar-view.tsx")).not.toContain("dateHeaderCard");
     expect(read("components/weekly-calendar-view.tsx")).not.toContain("renderDateHeaderCard");
     expect(read("components/monthly-calendar-view.tsx")).not.toContain("renderDateHeaderCard");
+  });
+});
+
+describe("v197 — flush slide, dates back", () => {
+  // Jonathan's phone verdicts on v193+ (2026-10-23): (1) "Why is
+  // the spacing off from the slide and the summary there? There's
+  // so much more room all of the sudden?" / "There's a pretty big
+  // gap on all of them now." (2) "the 8-bit one isn't showing the
+  // date still.." / "Same with the terminal one."
+  const schedule = read("components/schedule-tab.tsx");
+  const header = schedule.slice(schedule.indexOf("const renderDateHeaderCard"), schedule.indexOf("const renderItem"));
+  // The day-view sheet construction: fixed summary + the FlatList
+  // whose ListHeaderComponent is the measured spacer.
+  const sheet = schedule.slice(schedule.indexOf("Fixed summary behind the sliding sheet"), schedule.indexOf("viewMode === 'week'"));
+
+  it("the sheet rests FLUSH at the summary's bottom: no legacy padding stacks on the measured spacer", () => {
+    // Root cause of the gap: the list's content container carried
+    // a paddingTop: 90 from the floating-header era, on top of the
+    // spacer's full measured summary height. While the spacer
+    // subtracted the old 68px overlap the two roughly cancelled;
+    // v193 removed the subtraction and left the +90, guaranteeing
+    // 90px of dead air below the summary on EVERY skin (the shared
+    // path). The spacer alone now sets the rest position.
+    expect(sheet).not.toContain("paddingTop: 90");
+    expect(sheet).not.toMatch(/paddingTop: [1-9]\d*/);
+    // The spacer still carries the summary's FULL measured height
+    // (no overlap returns — no summary text or the Tasks & Events
+    // bar can be covered at rest), and the bottom clearance the
+    // footer needs is untouched.
+    expect(sheet).toContain("style={{ height: scheduleSummaryHeight }}");
+    expect(sheet).toContain("paddingBottom: 120");
+    // The measurement itself still comes from the summary wrapper's
+    // own onLayout — the summary's rendered content height only,
+    // never the header's height or an inset added on top.
+    expect(sheet).toContain("onLayout={(event) => setScheduleSummaryHeight(event.nativeEvent.layout.height)}");
+    expect(schedule).not.toContain("SHEET_OVERLAP");
+  });
+
+  it("the 8-bit/Terminal full-date line renders at a readable display size (floors, not just presence)", () => {
+    // The v187/v188 failure class: the line existed in source at
+    // Press Start 2P 8 / VT323 15 and every presence pin passed
+    // while the date went unseen on his phone across three builds.
+    // v197 pins the SIZE FLOORS the fix stands on, extracted from
+    // the actual date-line expression in the rendered branch.
+    const m = header.match(/TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, \.\.\.bitDisplay\(skinTokens, skinTokens\.isTerminal \? (\d+) : (\d+)\)/);
+    expect(m).not.toBeNull();
+    const termSize = Number(m![1]);
+    const bitSize = Number(m![2]);
+    expect(bitSize).toBeGreaterThanOrEqual(11);
+    expect(termSize).toBeGreaterThanOrEqual(18);
+    // The line is still a direct child of the masthead card in the
+    // (8-bit || Terminal) branch, between the day-name row and the
+    // week strip — not dropped into a branch that never renders.
+    const branch = header.slice(header.indexOf("(skinTokens.isEightBit || skinTokens.isTerminal) ? ("), header.indexOf("scheduleStyles.dateStrip"));
+    expect(branch).toContain("dateHeader.monthName} ${dateHeader.dayNum}, ${dateHeader.year}");
+  });
+
+  it("the date line's inks read on their panels (contrast, not just presence)", () => {
+    // The other way a rendered date goes unseen: ink ≈ panel.
+    // Pin the pairs' WCAG contrast so a future palette tweak that
+    // sinks the line into its panel fails here first.
+    expect(BIT_ON_DUSK_SOFT).not.toBe(BIT_PANEL);
+    expect(TERM_SOFT).not.toBe(TERM_PANEL);
+    expect(hexContrast(BIT_ON_DUSK_SOFT, BIT_PANEL)).toBeGreaterThanOrEqual(4.5);
+    expect(hexContrast(TERM_SOFT, TERM_PANEL)).toBeGreaterThanOrEqual(4.5);
   });
 });

@@ -736,7 +736,10 @@ describe("v185 floating cards: under 8-bit the sheet is gone and every row float
     // v185 made the header transparent on-dusk; on his phone that read
     // as NO date at all ("the date is gone", 2026-10-22). v187: under
     // 8-bit the header is the dark HUD panel again — BIT_PANEL fill,
-    // the kit frame + hard shadow, squared corners.
+    // the kit frame + hard shadow, squared corners. (v193: the hard
+    // shadow and the inset margins are gone — the panel runs
+    // full-bleed as the list's masthead; the fill, frame, and squared
+    // corners asserted below are what survives.)
     expect(header).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL");
     expect(header).toContain("borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2");
     // v188: Terminal's v186 transparent-on-tube branch had the same
@@ -1202,10 +1205,11 @@ describe("v188 — Terminal, finished properly", () => {
     expect(schedule).not.toContain("termHandleFor");
   });
 
-  it("the date header is a solid terminal window with the full date (v192: no longer pinned)", () => {
+  it("the date header is a solid terminal window with the full date (v192: no longer pinned; v193: full-bleed masthead)", () => {
     const schedule = read("components/schedule-tab.tsx");
-    // The panel branch (v186's transparent branch is gone).
-    expect(schedule).toContain("skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");
+    // The panel branch (v186's transparent branch is gone; v193
+    // dropped the inset margins and the separate shadow).
+    expect(schedule).toContain("skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}) }");
     expect(schedule).not.toContain('skinTokens.isTerminal ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface');
     // The full-date line renders under Terminal too, in VT323 (size 15).
     expect(schedule).toContain("color: skinTokens.isTerminal ? TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 8)");
@@ -1213,8 +1217,8 @@ describe("v188 — Terminal, finished properly", () => {
     // every skin — the header scrolls away with the list (see the
     // v187 block above for the full note).
     expect(schedule).not.toContain("stickyHeaderIndices");
-    // v187's 8-bit panel is byte-identical.
-    expect(schedule).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");
+    // v187's 8-bit panel, in its v193 form (full-bleed, no shadow).
+    expect(schedule).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}) }");
   });
 
   it("the accent stragglers wear phosphor: summary chip, study card, week markers", () => {
@@ -1319,21 +1323,22 @@ describe("v189 — Paper, Not Buttons", () => {
     expect(read("components/album-card.tsx")).toContain("borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12");
   });
 
-  it("the date header is a solid paper panel with the full date (v192: no longer pinned)", () => {
+  it("the date header is a solid paper panel with the full date (v192: no longer pinned; v193: the sheet's head)", () => {
     const schedule = read("components/schedule-tab.tsx");
     const header = schedule.slice(schedule.indexOf("const renderDateHeaderCard"), schedule.indexOf("const renderItem"));
-    // The Paper branch: stock fill, the sheet edge (cardShadow IS
-    // the edge under Paper now), cut corners, panel margins — in
-    // the same slot the 8-bit/Terminal panels occupy.
-    expect(header).toContain("skinTokens.isPaper ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 6, borderTopRightRadius: 6, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, ...(skinTokens.cardShadow ?? {}) }");
+    // The Paper branch in its v193 form: stock fill, NO margins, NO
+    // sheet-edge shadow — the panel sits inside the sheet's surface
+    // wrapper, its top corners take the sheet radius (12) and its
+    // bottom corners are square where the sheet continues below it.
+    expect(header).toContain("skinTokens.isPaper ? { backgroundColor: skinTokens.surface ?? colors.surface, paddingBottom: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }");
     // The full date spelled out under the day name, in paper ink.
     expect(header).toContain('color: colors.muted, marginBottom: 8, fontSize: 13, fontWeight: "600"');
     // v192: Paper's pin is removed with the others — no skin's
     // date header is sticky anymore.
     expect(schedule).not.toContain("stickyHeaderIndices");
-    // The 8-bit and Terminal panels are byte-identical to v187/v188.
-    expect(header).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");
-    expect(header).toContain("skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");
+    // The 8-bit and Terminal panels, in their v193 masthead form.
+    expect(header).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}) }");
+    expect(header).toContain("skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}) }");
   });
 
   it("schedule cards take cut corners through the frame fallback — buttons and menus never spread it", () => {
@@ -1506,5 +1511,65 @@ describe("v190 — Paper, Bigger", () => {
     // And the other skins' fonts are exactly as v184–v188 left them.
     expect(getSkinTokens("8bit", "light", palette).displayFont).toBe("PressStart2P");
     expect(getSkinTokens("terminal", "light", palette).displayFont).toBe("VT323");
+  });
+});
+
+describe("v193 — the header joins the slide", () => {
+  // Jonathan, from a Classic-dark screenshot (2026-10-22): "Why
+  // isn't it a part of the slide? It's like its own little floating
+  // box and it looks out of place." The date header rendered as a
+  // standalone card — inset margins, its own shadow — hovering in
+  // the 68px overlap zone between the summary and the sliding
+  // sheet, with the summary's last line clipped behind it. v193
+  // makes the header the sheet's own head in the shared schedule
+  // architecture: no detached margins, no separate shadow under
+  // any skin; Classic/Paper render it inside the sheet's surface
+  // wrapper; the spacer gives the sheet the summary's full height
+  // so nothing is covered at rest.
+  const schedule = read("components/schedule-tab.tsx");
+  const header = schedule.slice(schedule.indexOf("const renderDateHeaderCard"), schedule.indexOf("const renderItem"));
+
+  it("the floating-card presentation is gone: no branch of the header carries margins or a shadow", () => {
+    expect(header).not.toContain("marginHorizontal");
+    expect(header).not.toContain("cardShadow");
+    // The identities survive inside the integration: 8-bit's HUD
+    // fill + frame, Terminal's window fill + frame, Paper's stock.
+    expect(header).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL");
+    expect(header).toContain("skinTokens.isTerminal ? { backgroundColor: TERM_PANEL");
+    expect(header).toContain("skinTokens.isPaper ? { backgroundColor: skinTokens.surface ?? colors.surface");
+    expect(header).toContain("...(skinTokens.frame ?? {})");
+  });
+
+  it("under Classic and Paper the header renders inside the sheet's surface wrapper, clipped to the sheet's top corners", () => {
+    // The old bare early return is gone — the header no longer
+    // bypasses the sheet.
+    expect(schedule).not.toContain('if (info.item.type === "date-header") return element;');
+    expect(schedule).toContain('if (info.item.type === "date-header") {');
+    // Its wrapper is the sheet surface with the sheet's rounded
+    // top (sheetRadius under Paper, 24 under Classic), clipped.
+    expect(schedule).toContain("borderTopLeftRadius: skinTokens.sheetRadius ?? 24, borderTopRightRadius: skinTokens.sheetRadius ?? 24, overflow: \"hidden\"");
+    // 8-bit/Terminal still skip the wrapper (v185's floating
+    // cartridges) — their headers are full-bleed masthead panels.
+    expect(schedule).toContain("if (skinTokens.isEightBit || skinTokens.isTerminal) return element;");
+  });
+
+  it("the summary is never clipped at rest: the spacer is the summary's full height", () => {
+    expect(schedule).not.toContain("SHEET_OVERLAP");
+    expect(schedule).toContain("style={{ height: scheduleSummaryHeight }}");
+    // The summary itself is still the fixed layer behind (zIndex 0)
+    // and the list still scrolls over it (zIndex 1) — the slide-over
+    // choreography in motion is unchanged.
+    expect(schedule).toContain('style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 0');
+    expect(schedule).toContain('style={{ flex: 1, position: "relative", zIndex: 1 }}');
+  });
+
+  it("the week and month views never had the floating header — audited, different structure", () => {
+    // Both are plain ScrollView grids with their own day headers:
+    // no summary-behind-sheet construction, no date-header card,
+    // nothing to integrate.
+    expect(read("components/weekly-calendar-view.tsx")).not.toContain("dateHeaderCard");
+    expect(read("components/monthly-calendar-view.tsx")).not.toContain("dateHeaderCard");
+    expect(read("components/weekly-calendar-view.tsx")).not.toContain("renderDateHeaderCard");
+    expect(read("components/monthly-calendar-view.tsx")).not.toContain("renderDateHeaderCard");
   });
 });

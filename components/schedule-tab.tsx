@@ -10256,7 +10256,15 @@ export function ScheduleTab({
     }
   }, []);
   // Joi-style sheet: the day-view schedule slides up as a card over the fixed summary.
-  const SHEET_OVERLAP = 68;
+  // v193: the sheet's head used to start 68px before the summary's
+  // bottom edge (a standing overlap), so at rest the date header sat
+  // ON the summary's tail — its last line clipped behind a box that
+  // read as floating between the summary and the sheet ("Why isn't
+  // it a part of the slide?", 2026-10-22). The list's header spacer
+  // now gives the sheet the summary's FULL height: at rest the head
+  // sits directly below the summary with none of its text covered,
+  // and the slide-over still happens in motion — the summary stays
+  // fixed behind the list (zIndex 0) while the sheet scrolls over it.
   const [scheduleSummaryHeight, setScheduleSummaryHeight] = useState(360);
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, DAY_HEADER_HEIGHT / 2],
@@ -11893,8 +11901,20 @@ export function ScheduleTab({
           itself — "I don't like that the header card is fixed in this
           mode. I change my mind." The panels and their full-date
           lines stay exactly as built; the list no longer pins the
-          header, so it scrolls away with the list under every skin. */}
-      <View style={[scheduleStyles.dateHeaderCard, skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : skinTokens.isPaper ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 6, borderTopRightRadius: 6, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, ...(skinTokens.cardShadow ?? {}) } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
+          header, so it scrolls away with the list under every skin.
+          v193 (all skins): the header still read as "its own little
+          floating box" (his words, with a Classic screenshot) — an
+          inset card with its own margins and shadow hovering in the
+          seam between the summary and the sheet, clipping the
+          summary's last line behind it. Now the header is the sheet's
+          own HEAD: no detached margins, no separate shadow under any
+          skin. Classic/Paper render it inside the sheet's surface
+          wrapper (the wrapper carries the sheet's rounded top); the
+          Paper panel's bottom edge is square so it meets the sheet;
+          8-bit/Terminal keep their panel fills + frames but go
+          full-bleed as the list's masthead. The full-date lines and
+          type scales are unchanged. */}
+      <View style={[scheduleStyles.dateHeaderCard, skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}) } : skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}) } : skinTokens.isPaper ? { backgroundColor: skinTokens.surface ?? colors.surface, paddingBottom: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}) }, cardStyle]}>
   <View style={scheduleStyles.dayHeaderContent}>
     <Text style={[scheduleStyles.dayName, { color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...bitDisplay(skinTokens, 13), ...skinText(skinTokens, skinTokens.type.dayName, skinTokens.type.dayNameLineHeight) }]}>
       {dateHeader.dayName}
@@ -12819,17 +12839,30 @@ export function ScheduleTab({
               keyExtractor={(item) => item.id === justAddedId ? `${item.id}-new` : item.id}
               renderItem={(info) => {
                 const element = renderItem(info);
-                // The date header is the sheet's own top (it carries the surface
-                // background + rounded top corners). Every other row gets a
-                // full-bleed surface wrapper so the sheet is one continuous card
-                // that cleanly slides over the fixed summary behind it.
-                if (info.item.type === "date-header") return element;
                 // v185 (8-bit only): NO sheet wrapper — the dusk shows
                 // through the whole list and every row floats as its own
                 // cartridge (each row component carries its own surface +
-                // frame + hard shadow under the skin). Classic and Paper
-                // keep the continuous sheet exactly as shipped.
+                // frame + hard shadow under the skin). Under 8-bit and
+                // Terminal the date header skips the wrapper too: since
+                // v193 it is the list's full-bleed masthead panel (its
+                // own branch in renderDateHeaderCard carries the panel
+                // fill + frame, no margins, no separate shadow).
                 if (skinTokens.isEightBit || skinTokens.isTerminal) return element;
+                // v193: the date header is the sheet's own HEAD — it
+                // renders inside the same full-bleed surface wrapper as
+                // every other row, and its wrapper carries the sheet's
+                // rounded top corners (clipped), so the header and the
+                // rows below it are one continuous surface that slides
+                // over the fixed summary — not a separate box floating
+                // in the seam. (The header's compact date picker opens
+                // a native Modal, so the clip cannot trap it.)
+                if (info.item.type === "date-header") {
+                  return (
+                    <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderTopLeftRadius: skinTokens.sheetRadius ?? 24, borderTopRightRadius: skinTokens.sheetRadius ?? 24, overflow: "hidden", ...(skinTokens.frame ? { borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth, borderLeftColor: skinTokens.frame.borderColor, borderRightColor: skinTokens.frame.borderColor } : {}) }}>
+                      {element}
+                    </View>
+                  );
+                }
                 return <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ? { borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth, borderLeftColor: skinTokens.frame.borderColor, borderRightColor: skinTokens.frame.borderColor } : {}) }}>{element}</View>;
               }}
               extraData={[selectedDate, listData, scheduleSheetData, colors, currentAlbum, isWorshipExpanded]}
@@ -12857,7 +12890,7 @@ export function ScheduleTab({
             ListHeaderComponent={
               <View
                 pointerEvents="none"
-                style={{ height: Math.max(0, scheduleSummaryHeight - SHEET_OVERLAP) }}
+                style={{ height: scheduleSummaryHeight }}
               />
             }
           />

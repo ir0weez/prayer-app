@@ -110,6 +110,21 @@
 // spelled-out full-date lines are unchanged: only fixed-vs-scrolling
 // changed.
 //
+// v193 ("The Header Joins the Slide", 2026-10-22): "Why isn't it a
+// part of the slide? It's like its own little floating box and it
+// looks out of place." The date header — under every skin — is now
+// the sheet's own head, not a card hovering in the seam: the inset
+// margins and the separate shadow are gone from all four branches.
+// Classic/Paper render it inside the sheet's surface wrapper (the
+// wrapper carries the sheet's rounded top, clipped); Paper's panel
+// bottom is square where it meets the sheet, its top corners take
+// the sheet radius (12); 8-bit/Terminal keep their panel fills and
+// frames but run full-bleed as the list's masthead. The list spacer
+// also gives the sheet the summary's full height now (the old 68px
+// overlap clipped the summary's last line behind the header at
+// rest); the slide-over in motion is unchanged. Full-date lines
+// and the v190 type scale are untouched.
+//
 // The Dark Forest and the town/city/school maps never consume these
 // tokens: the forest stays pixel (its rendering is NOT re-skinned)
 // and the maps are already paper.

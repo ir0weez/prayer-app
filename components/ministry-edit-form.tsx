@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
+import { PaperSettle } from "./paper-motion";
 import { ScheduleMinistry } from "@/lib/schedule-data";
 import { DateTimePicker } from "./date-time-picker";
 
@@ -27,6 +29,7 @@ export function MinistryEditForm({
   onSave,
 }: MinistryEditFormProps) {
   const colors = useColors();
+  const { isPaper } = useSkin();
   const [formTitle, setFormTitle] = useState(ministry.title);
   const [formType, setFormType] = useState(ministry.type);
   const [formDate, setFormDate] = useState(ministry.date);
@@ -78,10 +81,12 @@ export function MinistryEditForm({
     <Modal
       transparent
       visible={visible}
-      animationType="slide"
+      animationType={isPaper ? "fade" : "slide"}
       onRequestClose={onClose}
     >
-      <View style={[styles.overlay, { backgroundColor: colors.background }]}>
+      {/* v202: under Paper the editor is a page laid down (fade +
+          settle) instead of a slide-up. */}
+      <PaperSettle style={[styles.overlay, { backgroundColor: colors.background }]}>
         <View style={styles.header}>
           <Pressable onPress={onClose}>
             <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -285,7 +290,7 @@ export function MinistryEditForm({
             </Pressable>
           </View>
         </ScrollView>
-      </View>
+      </PaperSettle>
     </Modal>
   );
 }

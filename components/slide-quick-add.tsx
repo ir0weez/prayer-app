@@ -45,24 +45,30 @@ export function SlideQuickAddPicker({
   onRowLayout,
 }: SlideQuickAddPickerProps) {
   const colors = useColors();
-  const { isSkinned, tokens: skinTokens } = useSkin();
+  const { isSkinned, isPaper, tokens: skinTokens } = useSkin();
   const scales = useRef(options.map(() => new Animated.Value(1))).current;
   const enters = useRef(options.map(() => new Animated.Value(0))).current;
   const rowOpacity = useRef(new Animated.Value(0)).current;
   const rowTranslateY = useRef(new Animated.Value(10)).current;
 
   // Entrance: the row fades and rises in; buttons stagger in gently.
+  // v202: under Paper the row is a sheet laid down — the skin's own
+  // settle duration on a sine ease (the same curve as Paper's
+  // reanimated settle bezier); every other skin keeps the original
+  // 180ms quad fade, byte for byte.
+  const enterDuration = isPaper ? skinTokens.motion.settleDuration : 180;
+  const enterEasing = isPaper ? Easing.inOut(Easing.sin) : Easing.out(Easing.quad);
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(rowOpacity, { toValue: 1, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(rowTranslateY, { toValue: 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(rowOpacity, { toValue: 1, duration: enterDuration, easing: enterEasing, useNativeDriver: true }),
+      Animated.timing(rowTranslateY, { toValue: 0, duration: enterDuration, easing: enterEasing, useNativeDriver: true }),
     ]).start();
     enters.forEach((a, i) => {
       Animated.timing(a, {
         toValue: 1,
-        duration: 150,
+        duration: isPaper ? 300 : 150,
         delay: 30 + i * 40,
-        easing: Easing.out(Easing.quad),
+        easing: enterEasing,
         useNativeDriver: true,
       }).start();
     });

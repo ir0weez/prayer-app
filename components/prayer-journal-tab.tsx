@@ -23,6 +23,7 @@ import { JournalDay } from "@/components/journal-day";
 import { JournalPost, type JournalAuthor } from "@/components/journal-post";
 import { CalendarSheet, PersonSheet, TagSheet } from "@/components/journal-sheets";
 import { MoodFace } from "@/components/mood-face";
+import { PaperSettle } from "@/components/paper-motion";
 import { MOODS, MoodPicker, type JournalMood } from "@/components/mood-picker";
 import { useColors } from "@/hooks/use-colors";
 import { useKeyboardHeight } from "@/hooks/use-keyboard-height";
@@ -485,7 +486,10 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 16 }}
         ListHeaderComponent={
-          <View>
+          // v202: under Paper the whole masthead — header row, search,
+          // filter chips, the day pill — is one sheet laid at the head
+          // of the feed; other skins get the plain View as before.
+          <PaperSettle>
             <View style={styles.header}>
               <Pressable
                 accessibilityLabel="Write a long entry"
@@ -608,7 +612,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 <MaterialIcons name="chevron-right" size={20} color={faint} />
               </Pressable>
             ) : null}
-          </View>
+          </PaperSettle>
         }
         ListEmptyComponent={
           <View style={[styles.emptyCard, { backgroundColor: momentsSurface, borderColor: momentsBorder, borderRadius: skinTokens.cardRadius ?? 12 }]}>
@@ -621,10 +625,10 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             </Text>
           </View>
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           if (item.kind === "separator") {
             return (
-              <View style={styles.separator}>
+              <PaperSettle index={index} style={styles.separator}>
                 <Text
                   style={[
                     styles.separatorText,
@@ -643,10 +647,17 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 <Pressable onPress={() => setDayViewDate(item.date)} hitSlop={8}>
                   <Text style={[styles.separatorLink, { color: colors.primary }]}>Open day</Text>
                 </Pressable>
-              </View>
+              </PaperSettle>
             );
           }
-          return <JournalPost entry={item.entry} {...sheetCallbacks} />;
+          // v202: each Moment settles onto the feed as its own sheet
+          // under Paper (first mount only — FlatList keeps the
+          // instance, so scrolling never replays it).
+          return (
+            <PaperSettle index={index}>
+              <JournalPost entry={item.entry} {...sheetCallbacks} />
+            </PaperSettle>
+          );
         }}
       />
 
@@ -660,7 +671,8 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           keyboard with just a breath of room. The old
           KeyboardAvoidingView only avoided on iOS; on Android the
           composer stayed under the keyboard and he typed blind. */}
-      <View style={[styles.composerWrap, { paddingBottom: keyboardHeight > 0 ? Math.max(insets.bottom, 10) : 96 + insets.bottom }]}>
+      {/* v202: the composer rises as a sheet under Paper. */}
+      <PaperSettle style={[styles.composerWrap, { paddingBottom: keyboardHeight > 0 ? Math.max(insets.bottom, 10) : 96 + insets.bottom }]}>
         {moodRowOpen ? (
           <View style={[styles.composerRow, { backgroundColor: skinTokens.isStainedGlass ? "#241D33" : skinTokens.isTerminal ? TERM_PANEL : momentsSurface, borderColor: momentsBorder }]}>
             <Text style={[styles.composerRowLabel, { color: faint }]}>Feels like</Text>
@@ -753,7 +765,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             <MaterialIcons name="arrow-upward" size={19} color="#FFFFFF" />
           </Pressable>
         </BlurView>
-      </View>
+      </PaperSettle>
 
       {renderOverlays()}
     </View>

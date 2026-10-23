@@ -8,6 +8,7 @@ import { Alert, findNodeHandle, Image, Modal, Pressable, ScrollView, StyleSheet,
 
 import { ScreenContainer } from "@/components/screen-container";
 import { PaperGrainOverlay } from "@/components/paper-grain";
+import { PaperSettle } from "@/components/paper-motion";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { FastBoard, FastPawnPicker, PawnCompanion, getSpecialSpace, getSpecialSpaceXP, type FastBoardColors } from "@/components/fast-board";
 import { PrestigePrompt } from "@/components/prestige-prompt";
@@ -626,7 +627,9 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={{ position: 'relative' }}>
+        {/* v202: the profile card + its paper stack settle as one
+            sheet under Paper. */}
+        <PaperSettle index={0} style={{ position: 'relative' }}>
           {/* Paper: a warm stack of sheets under the profile card —
               the v174 build's single gray offset read as a picture
               frame; stacked warm stock reads as paper. v182: the stack
@@ -688,9 +691,9 @@ export default function ProfileScreen() {
             </View>
           )}
         </View>
-        </View>
+        </PaperSettle>
 
-        <View style={styles.statsGrid}>
+        <PaperSettle index={1} style={styles.statsGrid}>
           <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <Text style={dynamicStyles.statNumber}>{highestFastStreak}</Text>
@@ -708,7 +711,7 @@ export default function ProfileScreen() {
             </Text>
             <Text style={[styles.statLabel, skinText(skinTokens, skinTokens.type.labelText)]}>Last {selectedFast?.type ?? "Fast"}</Text>
           </View>
-        </View>
+        </PaperSettle>
 
         {/* Boss badges — won at the Dark Forest's Boss Gate. Permanent. */}
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
@@ -729,7 +732,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
         {lastCompletedFast && lastCompletedFastProgress ? (
-          <View style={[styles.previousFastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, padding: 16 + skinTokens.type.padBoost } : null]}>
+          <PaperSettle index={2} style={[styles.previousFastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, padding: 16 + skinTokens.type.padBoost } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <View style={styles.previousFastHeader}>
               <View style={{ flex: 1 }}>
@@ -750,7 +753,7 @@ export default function ProfileScreen() {
                 </View>
               ))}
             </View>
-          </View>
+          </PaperSettle>
         ) : (
           <View style={styles.previousFastEmpty}>
             <MaterialIcons name={iconName("history")} size={22} color={colors.muted} />
@@ -768,7 +771,7 @@ export default function ProfileScreen() {
                 </View>
               )}
             </View>
-            <View style={[styles.fastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, padding: 16 + skinTokens.type.padBoost } : null]}>
+            <PaperSettle index={3} style={[styles.fastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, padding: 16 + skinTokens.type.padBoost } : null]}>
               {isSkinned ? <PaperGrainOverlay /> : null}
               <View style={[styles.fastIcon, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
                 <MaterialIcons name={iconName(selectedFastType?.icon ?? "local-fire-department")} size={28} color="#FFFFFF" />
@@ -777,7 +780,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.fastTitle, skinText(skinTokens, skinTokens.type.cardTitle, 25)]}>{selectedFast.name}</Text>
                 <Text style={[styles.fastMeta, skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight)]}>{selectedFast.type} • {selectedFast.durationDays} days • starts {formatIsoToMmDdYyyy(selectedFast.startDate)}</Text>
               </View>
-            </View>
+            </PaperSettle>
 
             <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>FASTING FOCUS</Text>
             <View style={styles.focusWrap}>
@@ -1146,9 +1149,9 @@ export default function ProfileScreen() {
       </ScrollView>
       <AvatarPicker visible={showAvatarPicker} initialAvatarAsset={profile.avatarAsset} unlockedBookIds={unlockedBookIds} onClose={() => setShowAvatarPicker(false)} onUpload={handleUploadProfileAvatar} onSelect={handleSelectProfileAvatar} />
 
-      <Modal transparent visible={showNoteInput} animationType="slide" onRequestClose={() => setShowNoteInput(false)}>
+      <Modal transparent visible={showNoteInput} animationType={isPaper ? "fade" : "slide"} onRequestClose={() => setShowNoteInput(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
-          <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 16, padding: 20, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }}>
+          <PaperSettle style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 16, padding: 20, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }}>
             <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 8 }}>Daily Note</Text>
             <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 12 }}>
               Why did you {selectedFast?.dayStatuses?.[noteDate] === "completed" ? "complete" : "miss"} this day?
@@ -1168,11 +1171,11 @@ export default function ProfileScreen() {
                 <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Save</Text>
               </Pressable>
             </View>
-          </View>
+          </PaperSettle>
         </View>
       </Modal>
 
-      <Modal transparent visible={showFastCreator} animationType="slide" onRequestClose={() => {
+      <Modal transparent visible={showFastCreator} animationType={isPaper ? "fade" : "slide"} onRequestClose={() => {
         setShowFastCreator(false);
         setIsEditingFast(false);
         resetFastCreator();
@@ -1183,7 +1186,7 @@ export default function ProfileScreen() {
             setIsEditingFast(false);
             resetFastCreator();
           }} />
-          <View style={styles.sheet}>
+          <PaperSettle style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => {
                 setShowFastCreator(false);
@@ -1242,7 +1245,7 @@ export default function ProfileScreen() {
                 <Text style={styles.sheetCreateButtonText}>{isEditingFast ? "Save Fast" : "Create Fast"}</Text>
               </Pressable>
             </ScrollView>
-          </View>
+          </PaperSettle>
         </View>
       </Modal>
 

@@ -17,6 +17,7 @@ import { useSkin } from "@/hooks/use-skin";
 import { ScheduleEvent, EVENT_KEYWORD_MAP, detectEventKeyword } from "@/lib/schedule-data";
 import { extractPosterColor } from "@/lib/poster-color";
 import { DateTimePicker } from "./date-time-picker";
+import { PaperSettle } from "./paper-motion";
 
 function addHourToTime(value: string) {
   const [hours, minutes] = value.split(":").map(Number);
@@ -159,10 +160,12 @@ export function EventEditForm({
     <Modal
       transparent
       visible={visible}
-      animationType="slide"
+      animationType={skinTokens.isPaper ? "fade" : "slide"}
       onRequestClose={onClose}
     >
-      <View style={[styles.overlay, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
+      {/* v202: under Paper the editor is a page laid down (fade +
+          settle) instead of a slide-up. */}
+      <PaperSettle style={[styles.overlay, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
         <View style={styles.header}>
           <Pressable onPress={onClose}>
             <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -425,7 +428,7 @@ export function EventEditForm({
             </Pressable>
           </View>
         </ScrollView>
-      </View>
+      </PaperSettle>
     </Modal>
   );
 }

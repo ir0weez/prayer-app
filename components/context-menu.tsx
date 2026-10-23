@@ -11,6 +11,7 @@ import {
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useColors } from '@/hooks/use-colors';
 import { useSkin } from '@/hooks/use-skin';
+import { PaperSettle } from './paper-motion';
 
 export interface ContextMenuAction {
   label: string;
@@ -61,7 +62,10 @@ export function ContextMenu({
         style={styles.overlay}
         onPress={onDismiss}
       >
-        <View
+        {/* v202: under Paper the menu is a small sheet laid at the
+            tap point (fade + settle); other skins keep the plain
+            View inside the Modal's own fade. */}
+        <PaperSettle
           style={[
             styles.menu,
             {
@@ -103,7 +107,7 @@ export function ContextMenu({
               </Text>
             </Pressable>
           ))}
-        </View>
+        </PaperSettle>
       </Pressable>
     </Modal>
   );

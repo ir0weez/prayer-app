@@ -184,3 +184,170 @@ describe("v183 8-bit coverage — every surface that wears Paper wears 8-bit", (
     expect(read("components/dark-forest.tsx")).not.toContain("BitBackground");
   });
 });
+
+// v202 — the Paper ANIMATION pass. Jonathan, Oct 23: "There needs to
+// be a lot more paper animations in the paper theme." The scene art
+// already settled (v176/v179); this pass moves the CHROME — rows,
+// sheets, modals, fills, press states — in the paper dialect, through
+// one kit (components/paper-motion.tsx) whose every export is a
+// passthrough/no-op under any other skin.
+describe("Paper coverage — v202 animation pass", () => {
+  const count = (src: string, needle: string) => src.split(needle).length - 1;
+
+  it("the paper motion kit exists and speaks ONLY timing + sine, transforms/opacity only", () => {
+    const kit = read("components/paper-motion.tsx");
+    // The settle is driven by the skin's own motion config (Paper's
+    // is the sine bezier, pinned in skin-themes.test.ts).
+    expect(kit).toContain("withTiming(1, motion.settle)");
+    expect(kit).toContain("withDelay");
+    expect(kit).toContain("paperSettleDelay");
+    // Transforms + opacity only — never a layout property.
+    expect(kit).toContain("transform: [{ translateY: translateY.value }]");
+    expect(kit).toContain("transform: [{ scaleX: scale.value }]");
+    expect(kit).not.toContain("maxHeight");
+    expect(kit).not.toContain("useNativeDriver: false");
+    // NO springs, no bounce — anywhere in the kit.
+    expect(kit).not.toContain("withSpring");
+    expect(kit).not.toContain("springify");
+    expect(kit).not.toContain("Easing.bounce");
+    // Every other skin gets a plain View: byte-identical layout.
+    expect(kit).toContain("if (!isPaper)");
+    expect(kit).toContain("return <View style={style}>{children}</View>");
+    // The lift grows FROM the skin's own button shadow: the kit's
+    // rest string and the Paper token's buttonShadow are one string
+    // (the token composes it with PAPER_SHADOW_ALPHA = 0.28).
+    const rest = "3px 3px 0px rgba(24,8,44,0.12), 7px 8px 0px rgba(24,8,44,0.28)";
+    expect(kit).toContain(rest);
+    const themes = read("lib/skin-themes.ts");
+    expect(themes).toContain("`3px 3px 0px rgba(24,8,44,0.12), 7px 8px 0px rgba(24,8,44,${PAPER_SHADOW_ALPHA})`");
+    expect(themes).toContain("PAPER_SHADOW_ALPHA = 0.28");
+    expect(kit).toContain("PAPER_BUTTON_SHADOW_LIFT");
+    expect(kit).toContain("paperPressedLift");
+    // The fill hook animates value changes on the settle timing.
+    expect(kit).toContain("usePaperFill");
+    expect(kit).toContain("withTiming(clamped, motion.settle)");
+  });
+
+  it("schedule: every row settles as a sheet, the masthead re-settles per day", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    expect(schedule).toContain('import { PaperSettle, paperPressedLift } from "./paper-motion";');
+    // The sheet wrapper every row rides in on (events, todos, white
+    // blocks, study + scene cards) is PaperSettle now.
+    expect(schedule).toContain("<PaperSettle index={info.index} settle={info.item.id !== justAddedId}");
+    // The date masthead is a sheet laid at the head of the slide,
+    // re-laid when the day changes.
+    expect(schedule).toContain("<PaperSettle replayKey={selectedDate}");
+    // The summary behind the slide is one settled sheet.
+    expect(schedule).toContain("<PaperSettle style={[scheduleStyles.summaryContainer,");
+  });
+
+  it("schedule: menus settle as paper, forms are pages laid down, the FAB lifts", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    // FAB + white-block menu entrances route through one helper whose
+    // Paper branch is the skin's settle (FadeInUp + settle tokens);
+    // no menu keeps the bare 180ms entering any more.
+    expect(schedule).toContain("menuEntering");
+    expect(schedule).toContain("FadeInUp.duration(skinMotion.settle.duration).delay(delay).easing(skinMotion.settle.easing)");
+    expect(schedule).not.toContain("entering={FadeIn.duration(180)");
+    expect(schedule).toContain("menuEntering(0)");
+    expect(schedule).toContain("menuEntering(150)");
+    // All six slide-over forms (event/todo/ministry/bible-study/
+    // worship/album library) fade under Paper and their sheets are
+    // PaperSettle sheets.
+    expect(count(schedule, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(6);
+    expect(schedule).toContain("<PaperSettle style={[scheduleStyles.formSheet,");
+    // The schedule FAB lifts as paper while pressed.
+    expect(schedule).toContain("paperPressedLift(skinTokens, pressed, [{ scale: 0.95 }])");
+  });
+
+  it("schedule progress fill soaks across the sheet — A46 sprout springs untouched", () => {
+    const bar = read("components/schedule-progress-bar.tsx");
+    expect(bar).toContain("usePaperFill(percentage / 100)");
+    expect(bar).toContain('transformOrigin: "left center"');
+    // The held A46 item: the sprout's spring configs are EXACTLY as
+    // they were — this pass did not touch the celebration.
+    expect(bar).toContain("withSpring(1, { damping: 12, stiffness: 110 })");
+    expect(bar).toContain("withSpring(1, { damping: 7, stiffness: 200 })");
+  });
+
+  it("the quick-add picker rises as a sheet under Paper", () => {
+    const picker = read("components/slide-quick-add.tsx");
+    expect(picker).toContain("isPaper ? skinTokens.motion.settleDuration : 180");
+    expect(picker).toContain("Easing.inOut(Easing.sin)");
+  });
+
+  it("journal: masthead + day pill, rows, and the composer all settle", () => {
+    const journal = read("components/prayer-journal-tab.tsx");
+    expect(journal).toContain('import { PaperSettle } from "@/components/paper-motion";');
+    // Rows and separators settle on first mount (index-staggered).
+    expect(journal).toContain("<PaperSettle index={index} style={styles.separator}>");
+    expect(journal).toContain("<PaperSettle index={index}>");
+    // The composer rises as a sheet.
+    expect(journal).toContain("<PaperSettle style={[styles.composerWrap,");
+    // The sheets (day/person/tag/calendar) share one shell: fade +
+    // settle under Paper.
+    const sheets = read("components/journal-sheets.tsx");
+    expect(sheets).toContain('animationType={skinTokens.isPaper ? "fade" : "slide"}');
+    expect(sheets).toContain("<PaperSettle style={[styles.sheet,");
+  });
+
+  it("shell: settings cards settle in a stack, sheets are laid down, the FAB lifts", () => {
+    const shell = read("app/(tabs)/index.tsx");
+    expect(shell).toContain('import { PaperSettle, paperPressedLift } from "@/components/paper-motion";');
+    // Profile card + all seven settings section cards.
+    expect(shell).toContain("<PaperSettle index={0} style={[styles.profileSettingsCard,");
+    expect((shell.match(/<PaperSettle index=\{\d+\} style=\{\[styles\.settingsCard,/g) ?? []).length).toBe(7);
+    // The five slide-up sheets fade under Paper.
+    expect(count(shell, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(5);
+    expect(shell).toContain("<PaperSettle style={styles.themeSheet}>");
+    expect(shell).toContain("<PaperSettle style={styles.avatarComposerCard}>");
+    // The people FAB lifts as paper while pressed (its own scale
+    // rides along inside the lift's transform).
+    expect(shell).toContain("paperPressedLift(skinTokens, pressed, [{ scale: 0.96 }])");
+  });
+
+  it("people: the person header settles; their modals are pages laid down", () => {
+    const person = read("app/(tabs)/person.tsx");
+    expect(person).toContain("<PaperSettle style={styles.profileSection}>");
+    expect(count(person, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(5);
+    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard]}>")).toBe(6);
+  });
+
+  it("fasting profile: the above-fold sheets settle; its two modals fade as pages", () => {
+    const profile = read("app/profile.tsx");
+    expect(profile).toContain("<PaperSettle index={0} style={{ position: 'relative' }}>");
+    expect(profile).toContain("<PaperSettle index={1} style={styles.statsGrid}>");
+    expect(profile).toContain("<PaperSettle index={2} style={[styles.previousFastCard,");
+    expect(profile).toContain("<PaperSettle index={3} style={[styles.fastCard,");
+    expect(count(profile, 'animationType={isPaper ? "fade" : "slide"}')).toBe(2);
+    expect(profile).toContain("<PaperSettle style={styles.sheet}>");
+  });
+
+  it("shared forms and menus settle as pages under Paper", () => {
+    const status = read("components/status-modal.tsx");
+    expect(status).toContain('animationType={isPaper ? "fade" : "slide"}');
+    expect(status).toContain("<PaperSettle style={[styles.container,");
+    const menu = read("components/context-menu.tsx");
+    expect(menu).toContain("<PaperSettle");
+    expect(menu).toContain("styles.menu,");
+    const timeOff = read("components/time-off-modal.tsx");
+    expect(timeOff).toContain('animationType={isPaper ? "fade" : "slide"}');
+    expect(timeOff).toContain("<PaperSettle style={{ flex: 1 }}>");
+    for (const file of [
+      "components/event-edit-form.tsx",
+      "components/ministry-edit-form.tsx",
+      "components/ministry-detail-card.tsx",
+    ]) {
+      const src = read(file);
+      expect(src, file).toContain("PaperSettle");
+      expect(src, file).toContain('? "fade" : "slide"');
+    }
+  });
+
+  it("tappable paper lifts in the shared game chrome", () => {
+    const interior = read("components/interior-shell.tsx");
+    expect(count(interior, "paperPressedLift(tokens, pressed)")).toBe(2);
+    const games = read("components/mini-game-scene.tsx");
+    expect(count(games, "paperPressedLift(tokens, pressed)")).toBe(2);
+  });
+});

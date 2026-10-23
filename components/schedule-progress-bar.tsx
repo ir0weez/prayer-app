@@ -14,6 +14,7 @@ import Animated, {
 import type { SharedValue } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
+import { usePaperFill } from "./paper-motion";
 import { BIT_GOLD, BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_DIM, TERM_MID, TERM_PHOS, TERM_SOFT, skinText } from "@/lib/skin-themes";
 
 interface ScheduleProgressBarProps {
@@ -69,6 +70,9 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
   const isTerminal = skinTokens.isTerminal;
   const percentage = total > 0 ? (completed / total) * 100 : 0;
   const isComplete = total > 0 && completed >= total;
+  // v202: Paper's fill soaks across the sheet (scaleX, below). The
+  // sprout celebration further down is the held A46 item — untouched.
+  const paperFillStyle = usePaperFill(percentage / 100);
   
   const glowAnimation = useSharedValue(0);
   // Celebration: a seedling planted at the end of the bar when it fills.
@@ -227,15 +231,33 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
             },
           ]}
         >
-          {/* Regular progress bar fill */}
-          <View
-            style={{
-              height: "100%",
-              width: `${percentage}%`,
-              backgroundColor: skinTokens.isStainedGlass ? (isComplete ? "#2E7D5B" : "#E8A33D") : isTerminal ? TERM_PHOS : isComplete ? "#10B981" : skinTokens.isEightBit ? BIT_GOLD : colors.primary,
-              borderRadius: (skinTokens.isEightBit || isTerminal) ? 0 : 3,
-            }}
-          />
+          {/* Regular progress bar fill — v202: under Paper the fill
+              soaks across the sheet by scaleX from the left edge
+              (transform only, skin settle timing); every other skin
+              keeps the width-% fill exactly as it was. */}
+          {paperFillStyle ? (
+            <Animated.View
+              style={[
+                {
+                  height: "100%",
+                  width: "100%",
+                  backgroundColor: skinTokens.isStainedGlass ? (isComplete ? "#2E7D5B" : "#E8A33D") : isTerminal ? TERM_PHOS : isComplete ? "#10B981" : skinTokens.isEightBit ? BIT_GOLD : colors.primary,
+                  borderRadius: (skinTokens.isEightBit || isTerminal) ? 0 : 3,
+                  transformOrigin: "left center",
+                },
+                paperFillStyle,
+              ]}
+            />
+          ) : (
+            <View
+              style={{
+                height: "100%",
+                width: `${percentage}%`,
+                backgroundColor: skinTokens.isStainedGlass ? (isComplete ? "#2E7D5B" : "#E8A33D") : isTerminal ? TERM_PHOS : isComplete ? "#10B981" : skinTokens.isEightBit ? BIT_GOLD : colors.primary,
+                borderRadius: (skinTokens.isEightBit || isTerminal) ? 0 : 3,
+              }}
+            />
+          )}
         </Animated.View>
 
         {/* Celebration seedling: planted at the end of a completed bar */}

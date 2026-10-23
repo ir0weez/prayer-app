@@ -6,6 +6,7 @@ import Svg, { Circle, Rect } from "react-native-svg";
 
 import { AvatarImage } from "@/components/avatar-system";
 import { JournalPost, type JournalAuthor } from "@/components/journal-post";
+import { PaperSettle } from "@/components/paper-motion";
 import { MoodFace, moodFaceColor } from "@/components/mood-face";
 import { MOODS } from "@/components/mood-picker";
 import { useColors } from "@/hooks/use-colors";
@@ -58,12 +59,15 @@ function SheetShell({
   const colors = useColors();
   const { isSkinned, tokens: skinTokens } = useSkin();
   return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal transparent visible={visible} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={onClose}>
       <View style={styles.modalRoot}>
         <Pressable style={styles.backdrop} onPress={onClose} />
+        {/* v202: under Paper the sheet is a page laid down over the
+            feed (fade + settle); other skins keep the slide. */}
+        <PaperSettle style={[styles.sheet, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
         <SafeAreaView
           edges={["top", "bottom"]}
-          style={[styles.sheet, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}
+          style={{ flex: 1 }}
         >
           <View style={styles.sheetHead}>
             <View style={[styles.grab, { backgroundColor: colors.border }]} />
@@ -74,6 +78,7 @@ function SheetShell({
           </View>
           {children}
         </SafeAreaView>
+        </PaperSettle>
       </View>
     </Modal>
   );

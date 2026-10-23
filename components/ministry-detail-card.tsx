@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
+import { PaperSettle } from "./paper-motion";
 import { ScheduleMinistry } from "@/lib/schedule-data";
 import { Person } from "@/lib/prayercircle-data";
 import { MinistryEditForm } from "./ministry-edit-form";
@@ -43,6 +45,7 @@ export function MinistryDetailCard({
   onToggle,
 }: MinistryDetailCardProps) {
   const colors = useColors();
+  const { isPaper } = useSkin();
   const [editFormVisible, setEditFormVisible] = useState(false);
 
   const linkedPeople = ministry.linkedPeopleIds
@@ -58,13 +61,16 @@ export function MinistryDetailCard({
     <Modal
       transparent
       visible={visible}
-      animationType="slide"
+      animationType={isPaper ? "fade" : "slide"}
       onRequestClose={onClose}
     >
       <Pressable
         style={[styles.overlay, { backgroundColor: "rgba(0,0,0,0.4)" }]}
         onPress={onClose}
       >
+        {/* v202: under Paper the detail sheet is laid down over the
+            dimmed schedule (fade + settle) instead of sliding up. */}
+        <PaperSettle>
         <Pressable
           style={[
             styles.sheet,
@@ -224,6 +230,7 @@ export function MinistryDetailCard({
             />
           )}
         </Pressable>
+        </PaperSettle>
       </Pressable>
     </Modal>
   );

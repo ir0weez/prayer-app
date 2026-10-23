@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useColors } from '@/hooks/use-colors';
+import { useSkin } from '@/hooks/use-skin';
+import { PaperSettle } from './paper-motion';
 import { DateTimePicker } from './date-time-picker';
 import {
   TimeOff,
@@ -41,6 +43,7 @@ const TIME_OFF_TYPES: TimeOffType[] = ['vacation', 'sick', 'personal', 'sabbatic
 
 export function TimeOffModal({ visible, onClose, onTimeOffUpdated, initialEditId = null }: TimeOffModalProps) {
   const colors = useColors();
+  const { isPaper } = useSkin();
   const [timeOffList, setTimeOffList] = useState<TimeOff[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -155,7 +158,10 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated, initialEditId
   const activeTimeOff = getActiveTimeOff(timeOffList);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={isPaper ? "fade" : "slide"} onRequestClose={onClose}>
+      {/* v202: under Paper the page is laid down (fade + settle)
+          instead of sliding up like the default theme. */}
+      <PaperSettle style={{ flex: 1 }}>
       <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
         {/* Header */}
         <View
@@ -437,6 +443,7 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated, initialEditId
         timeOffList={timeOffList}
       />
     </SafeAreaView>
+      </PaperSettle>
     </Modal>
   );
 }

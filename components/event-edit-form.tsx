@@ -18,6 +18,7 @@ import { ScheduleEvent, EVENT_KEYWORD_MAP, detectEventKeyword } from "@/lib/sche
 import { extractPosterColor } from "@/lib/poster-color";
 import { DateTimePicker } from "./date-time-picker";
 import { PaperSettle } from "./paper-motion";
+import { BitSettle } from "./bit-motion";
 
 function addHourToTime(value: string) {
   const [hours, minutes] = value.split(":").map(Number);
@@ -166,6 +167,7 @@ export function EventEditForm({
       {/* v202: under Paper the editor is a page laid down (fade +
           settle) instead of a slide-up. */}
       <PaperSettle style={[styles.overlay, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
+<BitSettle style={{ flex: 1 }}>
         <View style={styles.header}>
           <Pressable onPress={onClose}>
             <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -428,7 +430,8 @@ export function EventEditForm({
             </Pressable>
           </View>
         </ScrollView>
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
     </Modal>
   );
 }

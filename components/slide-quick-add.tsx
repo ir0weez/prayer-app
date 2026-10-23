@@ -45,7 +45,7 @@ export function SlideQuickAddPicker({
   onRowLayout,
 }: SlideQuickAddPickerProps) {
   const colors = useColors();
-  const { isSkinned, isPaper, tokens: skinTokens } = useSkin();
+  const { isSkinned, isPaper, isEightBit, tokens: skinTokens } = useSkin();
   const scales = useRef(options.map(() => new Animated.Value(1))).current;
   const enters = useRef(options.map(() => new Animated.Value(0))).current;
   const rowOpacity = useRef(new Animated.Value(0)).current;
@@ -58,17 +58,22 @@ export function SlideQuickAddPicker({
   // 180ms quad fade, byte for byte.
   const enterDuration = isPaper ? skinTokens.motion.settleDuration : 180;
   const enterEasing = isPaper ? Easing.inOut(Easing.sin) : Easing.out(Easing.quad);
+  // v203: under 8-bit the picker does not fade — it POPS in, one
+  // hard step per element (RN Animated's step easing): the row
+  // snaps in fast, then the buttons pop in their stagger order.
+  const rowDuration = isEightBit ? 90 : enterDuration;
+  const rowEasing = isEightBit ? Easing.step1 : enterEasing;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(rowOpacity, { toValue: 1, duration: enterDuration, easing: enterEasing, useNativeDriver: true }),
-      Animated.timing(rowTranslateY, { toValue: 0, duration: enterDuration, easing: enterEasing, useNativeDriver: true }),
+      Animated.timing(rowOpacity, { toValue: 1, duration: rowDuration, easing: rowEasing, useNativeDriver: true }),
+      Animated.timing(rowTranslateY, { toValue: 0, duration: rowDuration, easing: rowEasing, useNativeDriver: true }),
     ]).start();
     enters.forEach((a, i) => {
       Animated.timing(a, {
         toValue: 1,
-        duration: isPaper ? 300 : 150,
+        duration: isEightBit ? 120 : isPaper ? 300 : 150,
         delay: 30 + i * 40,
-        easing: enterEasing,
+        easing: rowEasing,
         useNativeDriver: true,
       }).start();
     });

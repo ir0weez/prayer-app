@@ -10,6 +10,7 @@ import { Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSh
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage } from "@/components/avatar-system";
 import { PaperSettle } from "@/components/paper-motion";
+import { BitSettle } from "@/components/bit-motion";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
@@ -781,6 +782,7 @@ export default function PersonScreen() {
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
         {/* v202: the person's header sheet settles in under Paper. */}
         <PaperSettle style={styles.profileSection}>
+<BitSettle style={{ alignItems: "center" }}>
           <AvatarImage id={currentPerson.id} name={currentPerson.name} gender={currentPerson.gender} avatarAsset={currentPerson.avatarAsset} photoUri={currentPerson.photoUri} size={96} fallbackColor={currentPerson.avatarColor} style={{ borderWidth: 3, borderColor: currentPerson.accentColor, borderRadius: 48, backgroundColor: "transparent" }} />
           <Text style={[styles.personName, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, skinTokens.isStainedGlass ? { color: "#F3EAD2" } : null]}>{currentPerson.name}</Text>
           <Text style={[styles.personRelationship, { color: currentPerson.accentColor }]}>{currentPerson.relationship}</Text>
@@ -797,7 +799,8 @@ export default function PersonScreen() {
           {currentPerson.lastMeetingLocation ? (
             <Text style={styles.personBirthday}>Last met at {currentPerson.lastMeetingLocation}</Text>
           ) : null}
-        </PaperSettle>
+        </BitSettle>
+</PaperSettle>
 
         <Pressable
           onPress={handleMarkAsPrayed}
@@ -1062,6 +1065,7 @@ export default function PersonScreen() {
       <Modal transparent visible={showEditModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowEditModal(false)}>
         <View style={styles.modalOverlay}>
           <PaperSettle style={[styles.modalCard, paperModalCard]}>
+<BitSettle>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Person</Text>
               <Pressable onPress={() => setShowEditModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
@@ -1161,13 +1165,15 @@ export default function PersonScreen() {
                 <Text style={styles.modalPrimaryButtonText}>Save Person</Text>
               </Pressable>
             </View>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
       <Modal transparent visible={showFamilyModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowFamilyModal(false)}>
         <View style={styles.modalOverlay}>
           <PaperSettle style={[styles.modalCard, paperModalCard]}>
+<BitSettle>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add to Family</Text>
               <Pressable onPress={() => setShowFamilyModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
@@ -1224,13 +1230,15 @@ export default function PersonScreen() {
                 );
               })}
             </View>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
       <Modal transparent visible={showReminderModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowReminderModal(false)}>
         <View style={styles.modalOverlay}>
           <PaperSettle style={[styles.modalCard, paperModalCard]}>
+<BitSettle>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Prayer Reminder</Text>
               <Pressable onPress={() => setShowReminderModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
@@ -1299,13 +1307,15 @@ export default function PersonScreen() {
             <Pressable onPress={handleSaveReminder} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Save Reminder</Text>
             </Pressable>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
       <Modal transparent visible={showDateModal} animationType="fade" onRequestClose={() => setShowDateModal(false)}>
         <View style={styles.modalOverlay}>
           <PaperSettle style={[styles.modalCard, paperModalCard]}>
+<BitSettle>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Last Reached</Text>
               <Pressable onPress={() => setShowDateModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
@@ -1347,13 +1357,15 @@ export default function PersonScreen() {
             <Pressable onPress={handleDeleteLastReachedDate} style={({ pressed }) => [{ ...styles.modalSecondaryButton, backgroundColor: getThemeAwareColor("#EFE8FB", colors) }, pressed && styles.pressed]}>
               <Text style={styles.modalSecondaryButtonText}>Delete Date</Text>
             </Pressable>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
       <Modal transparent visible={showEmergencyPrayerModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowEmergencyPrayerModal(false)}>
         <View style={styles.modalOverlay}>
           <PaperSettle style={[styles.modalCard, paperModalCard]}>
+<BitSettle>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Emergency Prayer ({emergencyPrayerDuration}h)</Text>
               <Pressable onPress={() => setShowEmergencyPrayerModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
@@ -1392,13 +1404,15 @@ export default function PersonScreen() {
             <Pressable onPress={handleAddEmergencyPrayer} style={({ pressed }) => [styles.modalPrimaryButton, { backgroundColor: "#EF4444" }, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Add Emergency Prayer</Text>
             </Pressable>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
       <Modal transparent visible={showPersonalTodoModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowPersonalTodoModal(false)}>
         <View style={styles.modalOverlay}>
           <PaperSettle style={[styles.modalCard, paperModalCard]}>
+<BitSettle>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Set Time & Days</Text>
               <Pressable onPress={() => setShowPersonalTodoModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
@@ -1472,7 +1486,8 @@ export default function PersonScreen() {
             }} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Save</Text>
             </Pressable>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
     </ScreenContainer>

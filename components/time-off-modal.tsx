@@ -14,6 +14,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useColors } from '@/hooks/use-colors';
 import { useSkin } from '@/hooks/use-skin';
 import { PaperSettle } from './paper-motion';
+import { BitSettle } from './bit-motion';
 import { DateTimePicker } from './date-time-picker';
 import {
   TimeOff,
@@ -162,6 +163,7 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated, initialEditId
       {/* v202: under Paper the page is laid down (fade + settle)
           instead of sliding up like the default theme. */}
       <PaperSettle style={{ flex: 1 }}>
+<BitSettle style={{ flex: 1 }}>
       <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
         {/* Header */}
         <View
@@ -443,7 +445,8 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated, initialEditId
         timeOffList={timeOffList}
       />
     </SafeAreaView>
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
     </Modal>
   );
 }

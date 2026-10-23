@@ -140,6 +140,7 @@ import { FlameSparkIcon } from "./flame-spark-icon";
 import { DateTimePicker } from "./date-time-picker";
 import { ScheduleProgressBar } from "./schedule-progress-bar";
 import { PaperSettle, paperPressedLift } from "./paper-motion";
+import { BitSettle, bitPressedSnap } from "./bit-motion";
 import { TimeBlockCard } from "./time-block-card";
 import { TimeBlockIndicator, TimeBlockGroup } from "./time-block-indicator";
 import { NowIndicator, NowPill } from "./now-indicator";
@@ -9740,12 +9741,14 @@ export function ScheduleTab({
 }) {
   const colors = useColors();
   const { isSkinned, tokens: skinTokens, motion: skinMotion } = useSkin();
-  // v202: the FAB / white-block popup menus settle as paper under the
-  // Paper skin (small sheets laid over the schedule, sine settle from
-  // the skin's motion tokens); every other skin keeps the original
-  // 180ms quad fade, byte for byte.
+  // v202: the FAB / white-block popup menus settle as paper under
+  // the Paper skin (small sheets laid over the schedule, sine settle
+  // from the skin's motion tokens); every other skin keeps the
+  // original 180ms quad fade, byte for byte. v203: the same helper
+  // carries the 8-bit dialect — under 8-bit the skin's settle
+  // config is the stepped one, so the menus drop in chunky frames.
   const menuEntering = (delay: number) =>
-    skinTokens.isPaper
+    skinTokens.isPaper || skinTokens.isEightBit
       ? FadeInUp.duration(skinMotion.settle.duration).delay(delay).easing(skinMotion.settle.easing)
       : FadeIn.duration(180).delay(delay).easing(Easing.out(Easing.quad));
   const today = getTodayISOString();
@@ -11835,6 +11838,7 @@ export function ScheduleTab({
     the sliding schedule (PaperSettle); other skins render the same
     plain View they always have. */}
 <PaperSettle style={[scheduleStyles.summaryContainer, { backgroundColor: skinTokens.isStainedGlass || (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background, paddingBottom: 8 }]}>
+<BitSettle>
   {(() => {
     // The summary counts only time still left available: completed items free
     // up their time (it gets added back unless that time has already passed
@@ -11923,6 +11927,7 @@ export function ScheduleTab({
     total={getTodoSummaryCounts(getTodosForDate(todos, selectedDate)).total + getEventsForDate(events, selectedDate).length}
     label="Tasks & Events"
   />
+</BitSettle>
 </PaperSettle>
     </>
   );
@@ -12937,8 +12942,10 @@ export function ScheduleTab({
                     // the head of the slide — it settles on arrival and
                     // re-settles when the day changes (replayKey).
                     <PaperSettle replayKey={selectedDate} style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderTopLeftRadius: skinTokens.sheetRadius ?? 24, borderTopRightRadius: skinTokens.sheetRadius ?? 24, overflow: "hidden", ...(skinTokens.frame ? { borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth, borderLeftColor: skinTokens.frame.borderColor, borderRightColor: skinTokens.frame.borderColor } : {}) }}>
+<BitSettle replayKey={selectedDate}>
                       {element}
-                    </PaperSettle>
+                    </BitSettle>
+</PaperSettle>
                   );
                 }
                 // v202: every row rides in on the same wrapper — under
@@ -12947,7 +12954,9 @@ export function ScheduleTab({
                 // on first mount; a just-added row skips it because it
                 // already carries its own isNew entrance. Other skins
                 // get PaperSettle's plain-View passthrough.
-                return <PaperSettle index={info.index} settle={info.item.id !== justAddedId} style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ? { borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth, borderLeftColor: skinTokens.frame.borderColor, borderRightColor: skinTokens.frame.borderColor } : {}) }}>{element}</PaperSettle>;
+                return <PaperSettle index={info.index} settle={info.item.id !== justAddedId} style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ? { borderLeftWidth: skinTokens.frame.borderWidth, borderRightWidth: skinTokens.frame.borderWidth, borderLeftColor: skinTokens.frame.borderColor, borderRightColor: skinTokens.frame.borderColor } : {}) }}>
+<BitSettle index={info.index} settle={info.item.id !== justAddedId}>{element}</BitSettle>
+</PaperSettle>;
               }}
               extraData={[selectedDate, listData, scheduleSheetData, colors, currentAlbum, isWorshipExpanded]}
             ListFooterComponent={
@@ -13177,7 +13186,7 @@ export function ScheduleTab({
       {/* FAB Button with Google Calendar-style popup menu */}
       <Pressable
         onPress={() => setShowAddModal(!showAddModal)}
-        style={({ pressed }) => [scheduleStyles.fab, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.frame, (skinTokens.isEightBit || skinTokens.isTerminal) ? skinTokens.cardShadow ?? {} : null, pressed && { transform: [{ scale: 0.95 }], opacity: 0.9 }, paperPressedLift(skinTokens, pressed, [{ scale: 0.95 }])]}
+        style={({ pressed }) => [scheduleStyles.fab, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.frame, (skinTokens.isEightBit || skinTokens.isTerminal) ? skinTokens.cardShadow ?? {} : null, pressed && { transform: [{ scale: 0.95 }], opacity: 0.9 }, paperPressedLift(skinTokens, pressed, [{ scale: 0.95 }]), bitPressedSnap(skinTokens, pressed, [{ scale: 0.95 }])]}
       >
         <ReAnimated.View
           style={useAnimatedStyle(() => ({
@@ -13348,6 +13357,7 @@ export function ScheduleTab({
       <Modal transparent visible={addType === "event"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
+<BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -13484,7 +13494,8 @@ export function ScheduleTab({
               )}
               showsVerticalScrollIndicator={false}
             />
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
@@ -13492,6 +13503,7 @@ export function ScheduleTab({
       <Modal transparent visible={addType === "todo"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
+<BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -13738,7 +13750,8 @@ export function ScheduleTab({
                 })()}
               </View>
             </ScrollView>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
@@ -13746,6 +13759,7 @@ export function ScheduleTab({
       <Modal transparent visible={addType === "ministry"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
+<BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -13896,7 +13910,8 @@ export function ScheduleTab({
               )}
               showsVerticalScrollIndicator={false}
             />
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
@@ -13904,6 +13919,7 @@ export function ScheduleTab({
       <Modal transparent visible={addType === "bible-study"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
+<BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -13981,7 +13997,8 @@ export function ScheduleTab({
               )}
               showsVerticalScrollIndicator={false}
             />
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
@@ -13989,6 +14006,7 @@ export function ScheduleTab({
       <Modal transparent visible={addType === "worship"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
+<BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); setShowAddModal(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -14194,7 +14212,8 @@ export function ScheduleTab({
                 Import fills the title and cover when Spotify provides them. You can always enter or correct the details manually.
               </Text>
             </ScrollView>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
@@ -14224,6 +14243,7 @@ export function ScheduleTab({
         <View style={[scheduleStyles.formOverlay, { backgroundColor: (isSkinned ? skinTokens.background ?? colors.background : colors.background) + 'E6' }]}>
           <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
             <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, flex: 1, maxHeight: '100%', minHeight: '100%', borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingBottom: 0 }]}>
+<BitSettle style={{ flex: 1 }}>
               <View style={scheduleStyles.formHeader}>
                 <Pressable onPress={() => setShowAlbumLibrary(false)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                   <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -14319,7 +14339,8 @@ export function ScheduleTab({
                 })
                 )}
               </ScrollView>
-            </PaperSettle>
+            </BitSettle>
+</PaperSettle>
           </SafeAreaView>
         </View>
       </Modal>

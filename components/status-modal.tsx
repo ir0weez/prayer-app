@@ -8,6 +8,7 @@ import { GlassOverlay } from '@/components/glass-background';
 import { TermScanlineOverlay } from '@/components/terminal-background';
 import { useSkin } from '@/hooks/use-skin';
 import { PaperSettle } from './paper-motion';
+import { BitSettle } from './bit-motion';
 
 interface StatusModalProps {
   visible: boolean;
@@ -66,6 +67,7 @@ export function StatusModal({
       {/* v202: under Paper the status page is laid down as one sheet
           (fade + settle) instead of sliding up like the default. */}
       <PaperSettle style={[styles.container, isSkinned && tokens.surface ? { backgroundColor: tokens.surface } : null]}>
+<BitSettle style={{ flex: 1 }}>
         {isPaper ? <PaperGrainOverlay /> : null}
         {isEightBit ? <BitDitherOverlay /> : null}
         {isStainedGlass ? <GlassOverlay /> : null}
@@ -138,7 +140,8 @@ export function StatusModal({
             </Pressable>
           </View>
         </ScrollView>
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
     </Modal>
   );
 }

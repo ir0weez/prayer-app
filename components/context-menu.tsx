@@ -12,6 +12,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useColors } from '@/hooks/use-colors';
 import { useSkin } from '@/hooks/use-skin';
 import { PaperSettle } from './paper-motion';
+import { BitSettle } from './bit-motion';
 
 export interface ContextMenuAction {
   label: string;
@@ -77,6 +78,7 @@ export function ContextMenu({
             },
           ]}
         >
+<BitSettle>
           {actions.map((action, index) => (
             <Pressable
               key={index}
@@ -107,7 +109,8 @@ export function ContextMenu({
               </Text>
             </Pressable>
           ))}
-        </PaperSettle>
+        </BitSettle>
+</PaperSettle>
       </Pressable>
     </Modal>
   );

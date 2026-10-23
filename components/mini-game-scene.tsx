@@ -10,6 +10,7 @@ import type { MiniGameId } from "@/lib/mini-games";
 import { useSkin } from "@/hooks/use-skin";
 import { useSetProgress } from "@/hooks/use-set-progress";
 import { paperPressedLift } from "./paper-motion";
+import { bitPressedSnap } from "./bit-motion";
 import { LayoutChangeEvent, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
@@ -91,7 +92,7 @@ export function PlayCard({
         // v202: under Paper the card lifts while held — it rises off
         // the stack and its offset shadow grows (paperPressedLift is
         // null under every other skin and when not pressed).
-        paperPressedLift(tokens, pressed),
+        paperPressedLift(tokens, pressed), bitPressedSnap(tokens, pressed),
       ]}
     >
       <MaterialIcons name={icon} size={26} color={accent} />
@@ -163,7 +164,7 @@ export function GameResults({
       </View>
       <Pressable
         onPress={onDone}
-        style={({ pressed }) => [{ marginTop: 16, backgroundColor: accent, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 34 }, isSkinned ? (tokens.isPaper ? tokens.buttonShadow : tokens.cardShadow) : null, paperPressedLift(tokens, pressed)]}
+        style={({ pressed }) => [{ marginTop: 16, backgroundColor: accent, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 34 }, isSkinned ? (tokens.isPaper ? tokens.buttonShadow : tokens.cardShadow) : null, paperPressedLift(tokens, pressed), bitPressedSnap(tokens, pressed)]}
       >
         <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>Done</Text>
       </Pressable>

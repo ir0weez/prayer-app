@@ -7,6 +7,7 @@ import Svg, { Circle, Rect } from "react-native-svg";
 import { AvatarImage } from "@/components/avatar-system";
 import { JournalPost, type JournalAuthor } from "@/components/journal-post";
 import { PaperSettle } from "@/components/paper-motion";
+import { BitSettle } from "@/components/bit-motion";
 import { MoodFace, moodFaceColor } from "@/components/mood-face";
 import { MOODS } from "@/components/mood-picker";
 import { useColors } from "@/hooks/use-colors";
@@ -65,6 +66,7 @@ function SheetShell({
         {/* v202: under Paper the sheet is a page laid down over the
             feed (fade + settle); other skins keep the slide. */}
         <PaperSettle style={[styles.sheet, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
+<BitSettle style={{ flex: 1 }}>
         <SafeAreaView
           edges={["top", "bottom"]}
           style={{ flex: 1 }}
@@ -78,7 +80,8 @@ function SheetShell({
           </View>
           {children}
         </SafeAreaView>
-        </PaperSettle>
+        </BitSettle>
+</PaperSettle>
       </View>
     </Modal>
   );

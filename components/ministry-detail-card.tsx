@@ -14,6 +14,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperSettle } from "./paper-motion";
+import { BitSettle } from "./bit-motion";
 import { ScheduleMinistry } from "@/lib/schedule-data";
 import { Person } from "@/lib/prayercircle-data";
 import { MinistryEditForm } from "./ministry-edit-form";
@@ -71,6 +72,7 @@ export function MinistryDetailCard({
         {/* v202: under Paper the detail sheet is laid down over the
             dimmed schedule (fade + settle) instead of sliding up. */}
         <PaperSettle>
+<BitSettle>
         <Pressable
           style={[
             styles.sheet,
@@ -230,7 +232,8 @@ export function MinistryDetailCard({
             />
           )}
         </Pressable>
-        </PaperSettle>
+        </BitSettle>
+</PaperSettle>
       </Pressable>
     </Modal>
   );

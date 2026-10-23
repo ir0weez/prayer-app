@@ -29,6 +29,7 @@ import {
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { useSkin } from "@/hooks/use-skin";
 import { paperPressedLift } from "./paper-motion";
+import { bitPressedSnap } from "./bit-motion";
 
 export type InteriorData = {
   coins: HometownCoins;
@@ -224,11 +225,11 @@ export function InteriorActions({
   const { isSkinned, tokens } = useSkin();
   return (
     <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: 16 }}>
-      <Pressable onPress={onPrimary} style={({ pressed }) => [{ flex: 1, backgroundColor: primaryColor, borderRadius: 14, paddingVertical: 13, alignItems: "center", marginRight: 8 }, isSkinned ? (tokens.isPaper ? tokens.buttonShadow : tokens.cardShadow) : null, paperPressedLift(tokens, pressed)]}>
+      <Pressable onPress={onPrimary} style={({ pressed }) => [{ flex: 1, backgroundColor: primaryColor, borderRadius: 14, paddingVertical: 13, alignItems: "center", marginRight: 8 }, isSkinned ? (tokens.isPaper ? tokens.buttonShadow : tokens.cardShadow) : null, paperPressedLift(tokens, pressed), bitPressedSnap(tokens, pressed)]}>
         <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>{primaryLabel}</Text>
       </Pressable>
       {level < 3 && (
-        <Pressable onPress={onUpgrade} style={({ pressed }) => [{ backgroundColor: isSkinned ? (tokens.surface ?? "#FFFFFF") : "#FFFFFF", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16, alignItems: "center", borderWidth: 1, borderColor: primaryColor }, isSkinned ? (tokens.isPaper ? tokens.buttonShadow : tokens.cardShadow) : null, paperPressedLift(tokens, pressed)]}>
+        <Pressable onPress={onUpgrade} style={({ pressed }) => [{ backgroundColor: isSkinned ? (tokens.surface ?? "#FFFFFF") : "#FFFFFF", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16, alignItems: "center", borderWidth: 1, borderColor: primaryColor }, isSkinned ? (tokens.isPaper ? tokens.buttonShadow : tokens.cardShadow) : null, paperPressedLift(tokens, pressed), bitPressedSnap(tokens, pressed)]}>
           <Text style={{ color: primaryColor, fontWeight: "800", fontSize: 14 }}>{upgradeLabel}</Text>
         </Pressable>
       )}

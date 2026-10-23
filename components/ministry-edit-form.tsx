@@ -12,6 +12,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperSettle } from "./paper-motion";
+import { BitSettle } from "./bit-motion";
 import { ScheduleMinistry } from "@/lib/schedule-data";
 import { DateTimePicker } from "./date-time-picker";
 
@@ -87,6 +88,7 @@ export function MinistryEditForm({
       {/* v202: under Paper the editor is a page laid down (fade +
           settle) instead of a slide-up. */}
       <PaperSettle style={[styles.overlay, { backgroundColor: colors.background }]}>
+<BitSettle style={{ flex: 1 }}>
         <View style={styles.header}>
           <Pressable onPress={onClose}>
             <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -290,7 +292,8 @@ export function MinistryEditForm({
             </Pressable>
           </View>
         </ScrollView>
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
     </Modal>
   );
 }

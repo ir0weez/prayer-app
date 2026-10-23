@@ -42,6 +42,7 @@ import {
 import { PulsingGlow } from "@/components/pulsing-glow";
 import { EntranceAnimation } from "@/components/entrance-animation";
 import { PaperSettle, paperPressedLift } from "@/components/paper-motion";
+import { BitSettle, bitPressedSnap } from "@/components/bit-motion";
 import { PrayerCompletionAnimation } from "@/components/prayer-completion-animation";
 import { HapticTab } from "@/components/haptic-tab";
 import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
@@ -482,6 +483,7 @@ function M3Dialog({
             the middle of the screen (PaperSettle); other skins keep
             the bare Pressable card inside the Modal's own fade. */}
         <PaperSettle style={{ width: "100%", maxWidth: 400 }}>
+<BitSettle>
         <Pressable
           onPress={(e) => e.stopPropagation()}
           style={{
@@ -523,7 +525,8 @@ function M3Dialog({
             </Pressable>
           </View>
         </Pressable>
-        </PaperSettle>
+        </BitSettle>
+</PaperSettle>
       </Pressable>
     </Modal>
   );
@@ -2572,6 +2575,7 @@ export default function HomeScreen() {
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
       <Text style={[styles.settingsTitle, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 16, lineHeight: 26 } : null, skinTokens.isTerminal ? { color: TERM_PHOS } : skinTokens.isEightBit ? { color: "#EDE8FF" } : null]}>Settings</Text>
       <PaperSettle index={0} style={[styles.profileSettingsCard, { borderColor: profileAura?.glowColor || colors.border, backgroundColor: profileAura ? auraWashColor(profileAura, "20") : (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface) }, skinTokens.frame]}>
+<BitSettle index={0}>
         {isSkinned ? <PaperGrainOverlay /> : null}
         <View style={styles.profileCardTop}>
           <View style={styles.profileCardTopLeft}>
@@ -2675,10 +2679,12 @@ export default function HomeScreen() {
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#EF4444" }]}>{activeFastProgress?.missed ?? 0}</Text><Text style={styles.settingsStatLabel}>Missed</Text></View>
         </View>
 
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
 
       <Text style={styles.settingsSectionLabel}>FASTING</Text>
       <PaperSettle index={1} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border, padding: 16 + skinTokens.type.padBoost }]}>
+<BitSettle index={1}>
         {activeFast ? (
           isActiveFastEnded ? (
             <FastSummaryCard fast={activeFast} colors={colors} />
@@ -2729,10 +2735,12 @@ export default function HomeScreen() {
         ) : (
           <Text style={{ color: colors.muted, fontSize: 13 }}>No active fast. Start one from your profile.</Text>
         )}
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
       <PaperSettle index={2} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
+<BitSettle index={2}>
         <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("palette", "Color Theme", getAccentThemeDefinition(settings.colorTheme).name)}
         </Pressable>
@@ -2743,17 +2751,21 @@ export default function HomeScreen() {
           {renderSettingsRow("image", "App Icon", getAppIconDef(selectedAppIconId).name)}
         </Pressable>
         {renderSettingsRow("visibility-off", "Demo Mode", "Blur names & photos for screenshots", "normal", <M3Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} />)}
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
 
 
       <Text style={styles.settingsSectionLabel}>SCHEDULE</Text>
       <PaperSettle index={3} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
+<BitSettle index={3}>
         {renderSettingsRow("hourglass-empty", "White Space", "Show tappable free-hour blocks on the schedule", "normal", <M3Switch value={settings.whiteSpaceEnabled} onValueChange={(whiteSpaceEnabled) => setSettings((previous) => ({ ...previous, whiteSpaceEnabled }))} />)}
         {renderSettingsRow("event", "Holidays", "Show US holidays on the schedule", "normal", <M3Switch value={settings.holidaysEnabled} onValueChange={(holidaysEnabled) => setSettings((previous) => ({ ...previous, holidaysEnabled }))} />)}
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
 
       <Text style={styles.settingsSectionLabel}>NOTIFICATIONS</Text>
       <PaperSettle index={4} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
+<BitSettle index={4}>
         {renderSettingsRow("notifications-active", "Prayer reminders", "Notify me when scheduled prayers are due", "normal", <M3Switch value={settings.prayerRemindersEnabled} onValueChange={(prayerRemindersEnabled) => setSettings((previous) => ({ ...previous, prayerRemindersEnabled }))} />)}
         {renderSettingsRow("event", "Scheduled event reminders", "Notify me about events on my schedule", "normal", <M3Switch value={settings.eventRemindersEnabled} onValueChange={(eventRemindersEnabled) => setSettings((previous) => ({ ...previous, eventRemindersEnabled }))} />)}
         {renderSettingsRow("attach-money", "Budget due reminders", "Notify me one day before unpaid bills are due", "normal", <M3Switch value={settings.budgetRemindersEnabled} onValueChange={(budgetRemindersEnabled) => setSettings((previous) => ({ ...previous, budgetRemindersEnabled }))} />)}
@@ -2791,10 +2803,12 @@ export default function HomeScreen() {
             })}
           </View>
         </View>
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
 
       <Text style={styles.settingsSectionLabel}>DATA</Text>
-      <PaperSettle index={5} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}> 
+      <PaperSettle index={5} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
+<BitSettle index={5}> 
         <Pressable onPress={() => setShowStampCollection(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
           {renderSettingsRow("collections-bookmark", "Stamp Collection", "View your stamps grouped by month and personal bests")}
         </Pressable>
@@ -2808,10 +2822,12 @@ export default function HomeScreen() {
 
 
 
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
 
       <Text style={[styles.settingsSectionLabel, { color: "#EF4444" }]}>DANGER ZONE</Text>
       <PaperSettle index={6} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? "#EF444440") : "#EF444440" }]}>
+<BitSettle index={6}>
         <Pressable onPress={() => setDangerDialog("reset")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("cancel", "Reset Today's Prayers", "Uncheck all items for today", "danger")}
         </Pressable>
@@ -2821,12 +2837,15 @@ export default function HomeScreen() {
         <Pressable onPress={() => setDangerDialog("clear")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("delete-forever", "Clear All Data", "Delete all people, families, and prayer items", "danger")}
         </Pressable>
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
 
       <Text style={styles.settingsSectionLabel}>ABOUT</Text>
       <PaperSettle index={7} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
+<BitSettle index={7}>
         {renderSettingsRow("favorite", "PrayerCircle", "Version 1.0.0 · Pray for the people you love")}
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
       <M3Dialog
         visible={dangerDialog === "reset"}
         title="Reset Today's Prayers"
@@ -3348,6 +3367,7 @@ export default function HomeScreen() {
       <Modal transparent visible={levelUpNumber !== null} animationType="fade" onRequestClose={() => setLevelUpNumber(null)}>
         <View style={{ flex: 1, backgroundColor: "rgba(10,8,24,0.68)", alignItems: "center", justifyContent: "center", padding: 24 }}>
           <PaperSettle style={{ width: "100%", maxWidth: 360, borderRadius: 24, padding: 26, alignItems: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary }}>
+<BitSettle style={{ alignItems: "center" }}>
             <Animated.View style={{ width: 92, height: 92, borderRadius: 46, alignItems: "center", justifyContent: "center", backgroundColor: `${colors.primary}22`, borderWidth: 3, borderColor: colors.primary, shadowColor: colors.primary, shadowOpacity: 0.75, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }, elevation: 10 }}>
               <Text style={{ color: colors.primary, fontSize: 28, fontWeight: "900" }}>{levelUpNumber}</Text>
             </Animated.View>
@@ -3356,7 +3376,8 @@ export default function HomeScreen() {
             <Pressable onPress={() => setLevelUpNumber(null)} style={({ pressed }) => [{ marginTop: 22, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 20, backgroundColor: colors.primary }, pressed && { opacity: 0.75 }]}>
               <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>Continue</Text>
             </Pressable>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
       {activeTab === "people" || activeTab === "home" ? (
@@ -3365,7 +3386,7 @@ export default function HomeScreen() {
             setActiveTab("people");
             setShowAddPerson(true);
           }}
-          style={({ pressed }) => [styles.fab, { backgroundColor: skinTokens.isStainedGlass ? "#1E1811" : skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.frame, (skinTokens.isEightBit || skinTokens.isTerminal || skinTokens.isStainedGlass) ? skinTokens.cardShadow ?? {} : null, pressed && (skinTokens.isPaper ? [paperPressedLift(skinTokens, pressed, [{ scale: 0.96 }]), { opacity: 0.92 }] : styles.fabPressed)]}
+          style={({ pressed }) => [styles.fab, { backgroundColor: skinTokens.isStainedGlass ? "#1E1811" : skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.frame, (skinTokens.isEightBit || skinTokens.isTerminal || skinTokens.isStainedGlass) ? skinTokens.cardShadow ?? {} : null, pressed && (skinTokens.isPaper ? [paperPressedLift(skinTokens, pressed, [{ scale: 0.96 }]), { opacity: 0.92 }] : skinTokens.isEightBit ? bitPressedSnap(skinTokens, pressed, [{ scale: 0.96 }]) : styles.fabPressed)]}
         >
           {skinTokens.isStainedGlass ? <GlassRoseFab size={44} /> : <MaterialIcons name="add" size={44} color={skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF"} />}
         </Pressable>
@@ -3419,6 +3440,7 @@ export default function HomeScreen() {
         <View style={styles.avatarComposerOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => { setAvatarComposer(null); setAvatarComposerText(""); }} />
           <PaperSettle style={styles.avatarComposerCard}>
+<BitSettle>
             <View style={[styles.sheetHeader, styles.avatarComposerHeader]}>
               <Pressable onPress={() => { setAvatarComposer(null); setAvatarComposerText(""); }}>
                 <Text style={styles.sheetDone}>Cancel</Text>
@@ -3440,7 +3462,8 @@ export default function HomeScreen() {
               style={[styles.textInput, { minHeight: 88, textAlignVertical: "top" }]}
             />
             <Text style={styles.fieldHint}>You can leave this blank and use the default label.</Text>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
@@ -3448,6 +3471,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowProfileEditor(false)} />
           <PaperSettle style={styles.themeSheet}>
+<BitSettle style={{ flex: 1 }}>
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowProfileEditor(false)}><Text style={styles.sheetDone}>Cancel</Text></Pressable>
               <Text style={styles.sheetTitle}>Edit Profile</Text>
@@ -3463,7 +3487,8 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.fieldLabel}>NAME</Text>
             <TextInput value={draftProfileName} onChangeText={setDraftProfileName} placeholder="Your name" placeholderTextColor="#73808B" returnKeyType="done" style={styles.textInput} />
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
       <AvatarPicker visible={showProfileAvatarPicker} initialAvatarAsset={draftProfileAvatarAsset} initialTab={profilePickerInitialTab} unlockedShinyIds={[...achievementState.unlockedAvatarIds, ...getLevelUnlockedCharacterShinyIds(xpState.level)]} unlockedHeroIds={achievementState.unlockedAvatarIds} unlockedBookIds={unlockedBookIds} onClose={() => { setShowProfileAvatarPicker(false); setProfilePickerInitialTab("90s"); }} onSelect={(asset) => { setDraftProfileAvatarAsset(asset); setDraftProfilePhotoUri(undefined); }} />
@@ -3472,6 +3497,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }} />
           <PaperSettle style={[styles.themeSheet, styles.fastCreatorSheet]}>
+<BitSettle style={{ flex: 1 }}>
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }}><MaterialIcons name={iconName("close")} size={30} color={colors.foreground} /></Pressable>
               <Text style={styles.sheetTitle}>{editingFastId ? "Edit Fast" : "Start a New Fast"}</Text>
@@ -3517,7 +3543,8 @@ export default function HomeScreen() {
                 <Text style={styles.createFastButtonText}>{editingFastId ? "Save Changes" : "Create Fast"}</Text>
               </Pressable>
             </ScrollView>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
@@ -3525,6 +3552,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setFamilyActionMembers(null)} />
           <PaperSettle style={[styles.themeSheet, { paddingBottom: 24 }]}>
+<BitSettle style={{ flex: 1 }}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{familyActionMembers?.[0]?.familyName || "Family"}</Text>
               <Pressable onPress={() => setFamilyActionMembers(null)}><MaterialIcons name={iconName("close")} size={26} color={colors.foreground} /></Pressable>
@@ -3547,7 +3575,8 @@ export default function HomeScreen() {
             <Pressable onPress={() => setFamilyActionMembers(null)} style={({ pressed }) => [{ marginTop: 10, minHeight: 42, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface }, pressed && styles.pressed]}>
               <Text style={{ color: colors.primary, fontWeight: "800", fontSize: 15 }}>Cancel</Text>
             </Pressable>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
 
@@ -3570,6 +3599,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowThemeSheet(false)} />
           <PaperSettle style={styles.themeSheet}>
+<BitSettle style={{ flex: 1 }}>
             {skinTokens.cardShadow ? <PaperGrainOverlay /> : null}
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowThemeSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
@@ -3604,7 +3634,8 @@ export default function HomeScreen() {
                 );
               })}
             </ScrollView>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
       {/* App Skin picker — the material axis beside Color Theme (v174).
@@ -3614,6 +3645,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowSkinSheet(false)} />
           <PaperSettle style={styles.themeSheet}>
+<BitSettle style={{ flex: 1 }}>
             {skinTokens.cardShadow ? <PaperGrainOverlay /> : null}
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowSkinSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
@@ -3646,7 +3678,8 @@ export default function HomeScreen() {
                 );
               })}
             </ScrollView>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
       {/* App Icon picker — 10 level-unlocked dots icons, swaps the launcher icon */}
@@ -3654,6 +3687,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowAppIconSheet(false)} />
           <PaperSettle style={styles.themeSheet}>
+<BitSettle style={{ flex: 1 }}>
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowAppIconSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
               <Text style={styles.sheetTitle}>App Icon</Text>
@@ -3725,7 +3759,8 @@ export default function HomeScreen() {
             <Text style={{ color: colors.muted, fontSize: 11, textAlign: "center", paddingBottom: 20, paddingHorizontal: 24 }}>
               Unlock more icon styles as you level up. Your home-screen icon changes instantly.
             </Text>
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         </View>
       </Modal>
       {/* App icon change toast — fades in/out, no bounce */}

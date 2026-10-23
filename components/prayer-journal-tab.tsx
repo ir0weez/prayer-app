@@ -24,6 +24,7 @@ import { JournalPost, type JournalAuthor } from "@/components/journal-post";
 import { CalendarSheet, PersonSheet, TagSheet } from "@/components/journal-sheets";
 import { MoodFace } from "@/components/mood-face";
 import { PaperSettle } from "@/components/paper-motion";
+import { BitSettle } from "@/components/bit-motion";
 import { MOODS, MoodPicker, type JournalMood } from "@/components/mood-picker";
 import { useColors } from "@/hooks/use-colors";
 import { useKeyboardHeight } from "@/hooks/use-keyboard-height";
@@ -490,6 +491,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           // filter chips, the day pill — is one sheet laid at the head
           // of the feed; other skins get the plain View as before.
           <PaperSettle>
+<BitSettle>
             <View style={styles.header}>
               <Pressable
                 accessibilityLabel="Write a long entry"
@@ -612,7 +614,8 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 <MaterialIcons name="chevron-right" size={20} color={faint} />
               </Pressable>
             ) : null}
-          </PaperSettle>
+          </BitSettle>
+</PaperSettle>
         }
         ListEmptyComponent={
           <View style={[styles.emptyCard, { backgroundColor: momentsSurface, borderColor: momentsBorder, borderRadius: skinTokens.cardRadius ?? 12 }]}>
@@ -629,6 +632,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           if (item.kind === "separator") {
             return (
               <PaperSettle index={index} style={styles.separator}>
+<BitSettle index={index}>
                 <Text
                   style={[
                     styles.separatorText,
@@ -647,7 +651,8 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 <Pressable onPress={() => setDayViewDate(item.date)} hitSlop={8}>
                   <Text style={[styles.separatorLink, { color: colors.primary }]}>Open day</Text>
                 </Pressable>
-              </PaperSettle>
+              </BitSettle>
+</PaperSettle>
             );
           }
           // v202: each Moment settles onto the feed as its own sheet
@@ -655,8 +660,10 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           // instance, so scrolling never replays it).
           return (
             <PaperSettle index={index}>
+<BitSettle index={index}>
               <JournalPost entry={item.entry} {...sheetCallbacks} />
-            </PaperSettle>
+            </BitSettle>
+</PaperSettle>
           );
         }}
       />
@@ -673,6 +680,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           composer stayed under the keyboard and he typed blind. */}
       {/* v202: the composer rises as a sheet under Paper. */}
       <PaperSettle style={[styles.composerWrap, { paddingBottom: keyboardHeight > 0 ? Math.max(insets.bottom, 10) : 96 + insets.bottom }]}>
+<BitSettle>
         {moodRowOpen ? (
           <View style={[styles.composerRow, { backgroundColor: skinTokens.isStainedGlass ? "#241D33" : skinTokens.isTerminal ? TERM_PANEL : momentsSurface, borderColor: momentsBorder }]}>
             <Text style={[styles.composerRowLabel, { color: faint }]}>Feels like</Text>
@@ -765,7 +773,8 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             <MaterialIcons name="arrow-upward" size={19} color="#FFFFFF" />
           </Pressable>
         </BlurView>
-      </PaperSettle>
+      </BitSettle>
+</PaperSettle>
 
       {renderOverlays()}
     </View>

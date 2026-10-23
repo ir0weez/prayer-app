@@ -15,6 +15,7 @@ import type { SharedValue } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { usePaperFill } from "./paper-motion";
+import { useBitFill } from "./bit-motion";
 import { BIT_GOLD, BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_DIM, TERM_MID, TERM_PHOS, TERM_SOFT, skinText } from "@/lib/skin-themes";
 
 interface ScheduleProgressBarProps {
@@ -73,6 +74,10 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
   // v202: Paper's fill soaks across the sheet (scaleX, below). The
   // sprout celebration further down is the held A46 item — untouched.
   const paperFillStyle = usePaperFill(percentage / 100);
+  // v203: under 8-bit the fill advances in stepped chunks
+  // (scaleX from the left edge, the bit kit's stepped timing);
+  // every other skin keeps its fill exactly as it was.
+  const bitFillStyle = useBitFill(percentage / 100);
   
   const glowAnimation = useSharedValue(0);
   // Celebration: a seedling planted at the end of the bar when it fills.
@@ -235,7 +240,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
               soaks across the sheet by scaleX from the left edge
               (transform only, skin settle timing); every other skin
               keeps the width-% fill exactly as it was. */}
-          {paperFillStyle ? (
+          {(paperFillStyle ?? bitFillStyle) ? (
             <Animated.View
               style={[
                 {
@@ -245,7 +250,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
                   borderRadius: (skinTokens.isEightBit || isTerminal) ? 0 : 3,
                   transformOrigin: "left center",
                 },
-                paperFillStyle,
+                paperFillStyle ?? bitFillStyle,
               ]}
             />
           ) : (

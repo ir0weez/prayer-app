@@ -201,10 +201,10 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
     <View style={{ paddingHorizontal: 16 + skinTokens.type.padBoost, paddingVertical: 12 + skinTokens.type.gapBoost, gap: 8 }}>
       {/* Label and count */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={{ fontSize: 14, fontWeight: "600", color: isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...skinText(skinTokens, skinTokens.type.barTitle), ...(skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 9, lineHeight: 14, textTransform: "uppercase" } : {}) }}>
+        <Text style={{ fontSize: 14, fontWeight: "600", color: skinTokens.isStainedGlass ? "#F3EAD2" : isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...skinText(skinTokens, skinTokens.type.barTitle), ...(skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 9, lineHeight: 14, textTransform: "uppercase" } : {}) }}>
           {label}
         </Text>
-        <Text style={{ fontSize: 13, color: isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted, ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
+        <Text style={{ fontSize: 13, color: skinTokens.isStainedGlass ? "#CBBFA3" : isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted, ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
           {completed} of {total}
         </Text>
       </View>
@@ -216,13 +216,13 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
             {
               position: "relative",
               height: 6,
-              backgroundColor: isTerminal ? TERM_DIM : skinTokens.isEightBit ? "#6E5BB5" : colors.border,
+              backgroundColor: skinTokens.isStainedGlass ? "#57486E" : isTerminal ? TERM_DIM : skinTokens.isEightBit ? "#6E5BB5" : colors.border,
               borderRadius: (skinTokens.isEightBit || isTerminal) ? 0 : 3,
               overflow: "hidden",
             },
             isComplete && glowStyle,
             isComplete && {
-              shadowColor: isTerminal ? TERM_PHOS : "#10B981",
+              shadowColor: skinTokens.isStainedGlass ? "#E8A33D" : isTerminal ? TERM_PHOS : "#10B981",
               shadowOffset: { width: 0, height: 0 },
             },
           ]}
@@ -232,7 +232,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
             style={{
               height: "100%",
               width: `${percentage}%`,
-              backgroundColor: isTerminal ? TERM_PHOS : isComplete ? "#10B981" : skinTokens.isEightBit ? BIT_GOLD : colors.primary,
+              backgroundColor: skinTokens.isStainedGlass ? (isComplete ? "#2E7D5B" : "#E8A33D") : isTerminal ? TERM_PHOS : isComplete ? "#10B981" : skinTokens.isEightBit ? BIT_GOLD : colors.primary,
               borderRadius: (skinTokens.isEightBit || isTerminal) ? 0 : 3,
             }}
           />

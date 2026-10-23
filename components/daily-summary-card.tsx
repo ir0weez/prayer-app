@@ -89,8 +89,8 @@ export function DailySummaryCard({
   // 8-bit (v184): this card renders directly on the dusk page (the
   // summary zone), so its inks flip to the mockup's on-dusk text —
   // #EDE8FF body, #CFC6F2 soft — instead of the palette's dark inks.
-  const ink = skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground;
-  const inkSoft = skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted;
+  const ink = skinTokens.isStainedGlass ? "#F3EAD2" : skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground;
+  const inkSoft = skinTokens.isStainedGlass ? "#CBBFA3" : skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted;
   // v190 (Paper only): the summary's inline icons ride inside the
   // paragraph text, so they grow with it — 16 to match the old body,
   // the summaryBody size (18) under Paper.
@@ -204,10 +204,10 @@ export function DailySummaryCard({
           
           {/* Profile Badge */}
           <View
-            style={{
+            style={[{
               paddingHorizontal: 12,
               paddingVertical: 6,
-              borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 12,
+              borderRadius: skinTokens.isStainedGlass ? 10 : (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 12,
               // Terminal (v188): the name chip is the mockup's inverted
               // selection block — phosphor face, tube-dark text — not
               // the palette's fasting-status badge color (which read as
@@ -217,9 +217,9 @@ export function DailySummaryCard({
               alignItems: 'center',
               gap: 6,
               marginLeft: 4,
-            }}
+            }, skinTokens.isStainedGlass ? { backgroundColor: "#E8A33D" } : null]}
           >
-            <Text style={{ fontWeight: "700", color: skinTokens.isTerminal ? TERM_BG : "#FFFFFF", fontSize: 16, ...skinText(skinTokens, skinTokens.type.summaryName) }}>
+            <Text style={[{ fontWeight: "700", color: skinTokens.isTerminal ? TERM_BG : "#FFFFFF", fontSize: 16, ...skinText(skinTokens, skinTokens.type.summaryName) }, skinTokens.isStainedGlass ? { color: "#2A1E05" } : null]}>
               {userName}
             </Text>
             {prayerStreak > 0 && (

@@ -70,8 +70,10 @@ import {
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
 describe("skin definitions + level gating", () => {
-  it("ships exactly Classic (default), Paper, 8-bit and Terminal", () => {
-    expect(SKIN_THEMES.map((t) => t.id)).toEqual(["classic", "paper", "8bit", "terminal"]);
+  it("ships exactly Classic (default), Paper, 8-bit, Terminal and Stained Glass", () => {
+    // v201: the fifth skin joins the lineup — the deliberate update
+    // to this pin is the new skin's arrival, nothing else moved.
+    expect(SKIN_THEMES.map((t) => t.id)).toEqual(["classic", "paper", "8bit", "terminal", "stainedglass"]);
     expect(DEFAULT_SKIN_THEME).toBe("classic");
     expect(getSkinThemeDefinition("classic").unlockLevel).toBe(1);
   });
@@ -96,16 +98,23 @@ describe("skin definitions + level gating", () => {
     expect(isSkinUnlocked("terminal", 10)).toBe(true);
   });
 
+  it("Stained Glass unlocks at Level 10, mirroring the illustrated skins' gate (v201)", () => {
+    expect(getSkinThemeDefinition("stainedglass").unlockLevel).toBe(10);
+    expect(isSkinUnlocked("stainedglass", 9)).toBe(false);
+    expect(isSkinUnlocked("stainedglass", 10)).toBe(true);
+  });
+
   it("the unlocked list follows the level", () => {
     expect(getUnlockedSkinThemeIds(1)).toEqual(["classic"]);
     expect(getUnlockedSkinThemeIds(9)).toEqual(["classic"]);
-    expect(getUnlockedSkinThemeIds(10)).toEqual(["classic", "paper", "8bit", "terminal"]);
+    expect(getUnlockedSkinThemeIds(10)).toEqual(["classic", "paper", "8bit", "terminal", "stainedglass"]);
   });
 
   it("unknown or missing skin ids normalize back to Classic", () => {
     expect(normalizeSkinThemeId("paper")).toBe("paper");
     expect(normalizeSkinThemeId("8bit")).toBe("8bit");
     expect(normalizeSkinThemeId("terminal")).toBe("terminal");
+    expect(normalizeSkinThemeId("stainedglass")).toBe("stainedglass");
     expect(normalizeSkinThemeId("classic")).toBe("classic");
     expect(normalizeSkinThemeId("watercolor")).toBe("classic");
     expect(normalizeSkinThemeId(undefined)).toBe("classic");
@@ -1092,7 +1101,9 @@ describe("v187 — 8-bit, everywhere it claims to be", () => {
     // in v186; v187 adds 8-bit to the same gate.
     expect(index).toContain('backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : colors.background');
     // The add-person shell had the same paint-over, unconditionally.
-    expect(index).toContain('style={[styles.addScreenRoot, { backgroundColor: skinTokens.isEightBit ? "transparent" : colors.background }]}');
+    // v201: Stained Glass joins this gate (its field must show
+    // through the add-person shell too) — the deliberate update.
+    expect(index).toContain('style={[styles.addScreenRoot, { backgroundColor: (skinTokens.isEightBit || skinTokens.isStainedGlass) ? "transparent" : colors.background }]}');
     // Per-screen roots that paint through their own props:
     // Journal (inside the shell, already transparent-gated),
     const journal = read("components/prayer-journal-tab.tsx");
@@ -1101,10 +1112,12 @@ describe("v187 — 8-bit, everywhere it claims to be", () => {
     const person = read("app/(tabs)/person.tsx");
     expect(person.split('skinTokens.isEightBit ? { backgroundColor: "transparent" } : null').length - 1).toBe(3);
     // Personal Prayers + Family list (content className bg-background),
-    expect(read("app/personal-prayer.tsx")).toContain('className={skinTokens.isEightBit ? undefined : "bg-background"}');
-    expect(read("app/(tabs)/family.tsx")).toContain('className={skinTokens.isEightBit ? undefined : "bg-background"}');
+    // v201: Stained Glass joins these className gates too (its field
+    // shows through) — the deliberate update, same as addScreenRoot.
+    expect(read("app/personal-prayer.tsx")).toContain('className={(skinTokens.isEightBit || skinTokens.isStainedGlass) ? undefined : "bg-background"}');
+    expect(read("app/(tabs)/family.tsx")).toContain('className={(skinTokens.isEightBit || skinTokens.isStainedGlass) ? undefined : "bg-background"}');
     // Fasting profile.
-    expect(read("app/profile.tsx")).toContain('className={skinTokens.isEightBit ? "flex-1" : "flex-1 bg-background"}');
+    expect(read("app/profile.tsx")).toContain('className={skinTokens.isEightBit || skinTokens.isStainedGlass ? "flex-1" : "flex-1 bg-background"}');
   });
 
   it("item 6 — the fixed summary fades out as the 8-bit list scrolls over it, so its text never ghosts through the rows", () => {

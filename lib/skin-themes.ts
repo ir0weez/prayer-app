@@ -125,6 +125,35 @@
 // rest); the slide-over in motion is unchanged. Full-date lines
 // and the v190 type scale are untouched.
 //
+// "Stained Glass" (v201) is the cathedral window — the approved
+// mockup (schedule-mockups/stained-glass.html), matched to its actual
+// CSS values, and built FULL in one pass under the standing rule
+// (every part of it, animations included — no coverage rounds):
+//   - Jewel-tone panes (sapphire #2B4C9B, ruby #A62B3A, amber
+//     #E8A33D, emerald #2E7D5B, violet #5B3E99) divided by dark lead
+//     came lines (#17130E, 3px) over a deep muted glass field
+//     (#2B2438 → #221D2E → #1B1726). Every card is a small window:
+//     a lead frame, radius 14, and the mockup's pane shadow.
+//   - TEXT ALWAYS SITS ON CREAM: the mockup's words never touch
+//     saturated glass — everyday surfaces are the pale cream pane
+//     (#F7EFDC) in the light scheme, and the deep violet panel
+//     (#241D33) with cream ink in the dark scheme, the same
+//     light/dark split 8-bit's cartridge cream uses. Body-text
+//     pairs are pinned at WCAG ≥ 4.5 in the tests.
+//   - Gold glows like light through amber: the primary button is
+//     the amber pane with a halo, the tab bar's active pane is
+//     violet glass with a glow, the FAB is a rose window.
+//   - Its motion dialect is LIGHT THROUGH GLASS: a slow luminous
+//     shimmer drifting across panes (components/glass-kit.tsx),
+//     cards kindling as they settle (brightness settling on a calm
+//     sine), never a bounce, never a spring.
+//   - EVERY keyword scene is a bespoke leaded-glass rendition
+//     (components/glass-scenes-*.tsx) — panes of jewel glass in
+//     lead, a cream label pane under the card's words, the Sopranos
+//     flagship first among them (the pool, the house, the ducks).
+//   - No display face: the mockup speaks in the app's own sans at
+//     heavy weights — displayFont stays null, like Paper.
+//
 // The Dark Forest and the town/city/school maps never consume these
 // tokens: the forest stays pixel (its rendering is NOT re-skinned)
 // and the maps are already paper.
@@ -134,7 +163,7 @@ import { mix, type ColorScheme } from "./color-themes";
 /** The themed palette (token name → hex), as produced by getThemedPalette. */
 export type SkinPalette = Record<string, string>;
 
-export type SkinThemeId = "classic" | "paper" | "8bit" | "terminal";
+export type SkinThemeId = "classic" | "paper" | "8bit" | "terminal" | "stainedglass";
 
 export type SkinThemeDefinition = {
   id: SkinThemeId;
@@ -172,6 +201,13 @@ export const SKIN_THEMES: SkinThemeDefinition[] = [
     description: "A RobCo terminal: phosphor-green line art, bracketed menus, and type that blinks — the whole app on one tube",
     unlockLevel: 10,
     swatch: "#041207",
+  },
+  {
+    id: "stainedglass",
+    name: "Stained Glass",
+    description: "A cathedral window: jewel-tone panes in dark lead, gold glowing like light through amber, words always on cream glass",
+    unlockLevel: 10,
+    swatch: "#5B3E99",
   },
 ];
 
@@ -536,6 +572,7 @@ export type SkinTokens = {
   isPaper: boolean;
   isEightBit: boolean;
   isTerminal: boolean;
+  isStainedGlass: boolean;
   /** Paper-tinted replacements for the palette's chrome colors; null = keep palette. */
   background: string | null;
   surface: string | null;
@@ -639,6 +676,17 @@ const TERM_MOTION: SkinMotionTokens = {
   slideDuration: 240,
   settleDuration: 280,
   settleDistance: 6,
+};
+
+const GLASS_MOTION: SkinMotionTokens = {
+  // The glass dialect: light does not hurry. Entrances kindle —
+  // the mockup's cards brighten from 1.45× to rest over ~0.95s on
+  // the calm sine — so the settle runs longer than Paper's, with
+  // a short rise; the chrome slide keeps the sine at Paper's pace.
+  // The easing itself is applied by the hook layer (the sine).
+  slideDuration: 460,
+  settleDuration: 680,
+  settleDistance: 12,
 };
 
 /** The 8-bit kit's shadow ink (the mockup's --bit-shadow base). */
@@ -746,6 +794,78 @@ export const TERM_GLOW = "rgba(61,255,110,0.38)";
 /** The bundled terminal display face (VT323, OFL — assets/fonts). */
 export const TERM_FONT_FAMILY = "VT323";
 
+/** The mockup's lead came ink — the dark leading holding every pane. */
+export const GLASS_LEAD = "#17130E";
+/** The mockup's deepest lead (the tab bar's outer frame). */
+export const GLASS_LEAD_DEEP = "#0F0C08";
+/** The deep glass field the windows hang in: gradient stops + flat token. */
+export const GLASS_FIELD_TOP = "#2B2438";
+export const GLASS_FIELD = "#221D2E";
+export const GLASS_FIELD_DEEP = "#1B1726";
+/** The cream panes the words sit on (mockup --cream / --cream-lt). */
+export const GLASS_CREAM = "#F7EFDC";
+export const GLASS_CREAM_LT = "#FBF3DF";
+/** Inks on the cream panes: body, secondary, faint (mockup --ink family). */
+export const GLASS_INK = "#241547";
+export const GLASS_INK_SOFT = "#4A4232";
+export const GLASS_INK_FAINT = "#7A6C4F";
+/** Inks on the deep field (the mockup's status-bar cream). */
+export const GLASS_ON_FIELD = "#F3EAD2";
+export const GLASS_ON_FIELD_SOFT = "#CBBFA3";
+/** The jewel panes (mockup palette): amber, sapphire, ruby, emerald, violet. */
+export const GLASS_AMBER = "#E8A33D";
+export const GLASS_AMBER_LT = "#F2B544";
+export const GLASS_AMBER_PALE = "#F7C65C";
+/** Ink that reads on the amber pane (the mockup's button ink). */
+export const GLASS_AMBER_INK = "#2A1E05";
+export const GLASS_SAPPHIRE = "#2B4C9B";
+export const GLASS_SAPPHIRE_LT = "#BFD3EE";
+export const GLASS_RUBY = "#A62B3A";
+export const GLASS_EMERALD = "#2E7D5B";
+export const GLASS_VIOLET = "#5B3E99";
+export const GLASS_VIOLET_LT = "#6A4BA8";
+/** The violet keyword ink on cream (the mockup's white-block keyword). */
+export const GLASS_KEYWORD = "#5B3E99";
+/** Deep violet glass panels: the dark-scheme surface and the masthead. */
+export const GLASS_PANEL = "#241D33";
+export const GLASS_PANEL_2 = "#2E2442";
+/** The dark transom bar (tab bar, live strip — the mockup's #1E1811 / #221A10). */
+export const GLASS_BAR = "#1E1811";
+export const GLASS_TRANSOM = "#221A10";
+
+/**
+ * The Stained Glass button treatment (v201): a lead-framed pane,
+ * never a pill — the frame token's radius (14) squared down to the
+ * mockup's button radius (10), the 3px lead edge, and a GLOW for a
+ * shadow: gold light through the amber primary, violet light
+ * through the secondary. PRIMARY is the mockup's Mark as Complete
+ * (amber pane, near-black ink); SECONDARY is violet glass with
+ * cream ink. Returns null under every other skin, so spreading the
+ * result beside bitButtonStyle/termButtonStyle is a no-op for them.
+ */
+export function glassButtonStyle(
+  tokens: SkinTokens,
+  variant: "primary" | "secondary",
+): { backgroundColor: string; borderRadius: number; borderWidth: number; borderColor: string; boxShadow: string; elevation: number } | null {
+  if (!tokens.isStainedGlass) return null;
+  return {
+    backgroundColor: variant === "primary" ? GLASS_AMBER : GLASS_VIOLET,
+    borderRadius: 10,
+    borderWidth: 3,
+    borderColor: GLASS_LEAD,
+    boxShadow:
+      variant === "primary"
+        ? `0px 0px 16px rgba(232,163,61,0.45), 0px 4px 10px rgba(20,12,2,0.35)`
+        : `0px 0px 14px rgba(106,75,168,0.55), 0px 4px 10px rgba(20,12,2,0.35)`,
+    elevation: 4,
+  };
+}
+
+/** Text ink for a glassButtonStyle variant (amber ink / cream). */
+export function glassButtonInk(variant: "primary" | "secondary"): string {
+  return variant === "primary" ? GLASS_AMBER_INK : GLASS_CREAM;
+}
+
 export function getSkinTokens(
   skinId: SkinThemeId,
   scheme: ColorScheme,
@@ -757,6 +877,7 @@ export function getSkinTokens(
       isPaper: false,
       isEightBit: false,
       isTerminal: false,
+      isStainedGlass: false,
       background: null,
       surface: null,
       border: null,
@@ -795,6 +916,7 @@ export function getSkinTokens(
       isPaper: false,
       isEightBit: true,
       isTerminal: false,
+      isStainedGlass: false,
       background: dark ? BIT_DUSK_DEEP : BIT_DUSK,
       surface: dark ? BIT_DUSK : BIT_CREAM,
       border: bitBorder,
@@ -853,6 +975,7 @@ export function getSkinTokens(
       isPaper: false,
       isEightBit: false,
       isTerminal: true,
+      isStainedGlass: false,
       background: TERM_BG,
       surface: TERM_PANEL,
       border: TERM_MID,
@@ -883,6 +1006,66 @@ export function getSkinTokens(
     };
   }
 
+  if (skinId === "stainedglass") {
+    // v201: the mockup's values, in the 8-bit scheme split — the
+    // PAGE is the deep glass field in both schemes (the flat token
+    // here; GlassBackground lays the mockup's gradient + lead grid
+    // + jewel glows over it), and the everyday surface is the
+    // mockup's CREAM pane in the light scheme, where the palette's
+    // dark inks read on it exactly as the mockup's do. In the dark
+    // scheme the surface steps to the deep violet panel so the
+    // palette's light inks read instead — cream in the light, deep
+    // glass in the dark, lead around both. The frame carries the
+    // whole came edge — 3px lead at the mockup's card radius (14) —
+    // the way 8-bit's frame carries its ink.
+    const glassBorder = dark ? "#57486E" : GLASS_LEAD;
+    return {
+      id: "stainedglass",
+      isPaper: false,
+      isEightBit: false,
+      isTerminal: false,
+      isStainedGlass: true,
+      background: GLASS_FIELD,
+      surface: dark ? GLASS_PANEL : GLASS_CREAM,
+      border: glassBorder,
+      darkBackground: GLASS_FIELD_DEEP,
+      darkSurface: GLASS_PANEL_2,
+      cardShadow: {
+        // The mockup's pane shadow: a deep soft drop (the window
+        // hangs IN the dark field) plus the 1px cream hairline the
+        // glass catches at its edge.
+        boxShadow: `0px 6px 18px rgba(8,5,2,0.45), inset 0px 0px 0px 1px rgba(247,239,220,0.14)`,
+        elevation: 6,
+      },
+      buttonShadow: null,
+      sheetShadow: {
+        boxShadow: `0px -3px 0px ${GLASS_LEAD}, 0px 0px 18px rgba(232,163,61,0.12)`,
+        elevation: 8,
+      },
+      accentShadow: {
+        // The routine window's cap: the pane shadow, plus the
+        // mockup's amber header pane drawn as a 5px inset band at
+        // the card's top (its gradient cap: amber pane, lead rule,
+        // then the cream below).
+        boxShadow: `0px 6px 18px rgba(8,5,2,0.45), inset 0px 0px 0px 1px rgba(247,239,220,0.14), inset 0px 5px 0px ${GLASS_AMBER}`,
+        elevation: 6,
+      },
+      // The mockup's card radius (14) and its sheet/tab radius (16).
+      cardRadius: 14,
+      sheetRadius: 16,
+      borderWidth: 3,
+      frame: { borderRadius: 14, borderWidth: 3, borderColor: glassBorder },
+      // The mockup speaks in the app's own sans — no display face.
+      displayFont: null,
+      bodyFont: null,
+      grainOpacity: 0,
+      grainColor: GLASS_LEAD,
+      grainLightOpacity: 0,
+      motion: GLASS_MOTION,
+      type: NO_TYPE_SCALE,
+    };
+  }
+
   // v189: the paper surface and its stacked-sheet edge shades. The
   // edge is the surface's own stock stepped toward a deeper sheet
   // tone — in the light scheme it lands on the fasting profile
@@ -898,6 +1081,7 @@ export function getSkinTokens(
     isPaper: true,
     isEightBit: false,
     isTerminal: false,
+    isStainedGlass: false,
     // Paper is a MATERIAL, not a color (Jonathan, v176): the page keeps
     // the palette's own hue — only a whisper of warm paper in it — and
     // the paper lives on the SURFACES: neutral cards become warm paper

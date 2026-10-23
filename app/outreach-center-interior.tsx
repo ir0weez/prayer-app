@@ -140,6 +140,7 @@ export default function OutreachCenterInteriorScreen() {
           cap={MINI_GAME_CAPS.packing}
           accent={ACCENT}
           onPlay={() => setPlayingPacking(true)}
+          gameId="packing"
         />
         {playingPacking && (
           <PackingGame accent={ACCENT} onComplete={handlePackingComplete} onExit={() => setPlayingPacking(false)} />

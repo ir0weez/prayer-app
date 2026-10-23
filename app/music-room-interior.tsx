@@ -130,6 +130,7 @@ export default function MusicRoomInteriorScreen() {
           cap={rhythm.cap}
           accent={ACCENT}
           onPlay={() => rhythm.setPlaying(true)}
+          gameId="rhythm"
         />
         {rhythm.playing && (
           <RhythmGame accent={ACCENT} onComplete={rhythm.handleComplete} onExit={() => rhythm.setPlaying(false)} />

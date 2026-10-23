@@ -47,6 +47,7 @@ import {
 } from "./hometown";
 import { GEAR_EQUIPPED_KEY, GEAR_INVENTORY_KEY, defaultEquipped } from "./gear";
 import { resetMineForPrestige } from "./mountain";
+import { resetSetBonusForPrestige } from "./mini-games";
 import { sanitizeBadgeIds, type BadgeId } from "./badges";
 
 export const PRESTIGE_LEVEL_KEY = "prayercircle.hometown.prestige.v1";
@@ -356,8 +357,9 @@ export type PerformPrestigeResult = {
  * unlock (bought again at the post-prestige price), and ALL owned +
  * equipped gear (weapons, armor, purchased clothing) — the gear resets
  * too. The mine follows the gear: the pickaxe ladder restarts at Wood
- * and the ore satchel empties. Crown-gated hairstyles and beards are
- * NOT gear: they belong to the Crown and stay.
+ * and the ore satchel empties. The day's-set record (v200) clears too —
+ * its completed days belonged to the old town. Crown-gated hairstyles
+ * and beards are NOT gear: they belong to the Crown and stay.
  * KEPT: lifetime earnings (milestones), prayer streak, XP/level,
  * collections, Garden of Remembrance, prayer villagers, villager data,
  * barbershop styles, the other map unlocks, fast progress — and BADGES,
@@ -421,6 +423,13 @@ export async function performPrestige(fasts: PersonalFast[]): Promise<PerformPre
   // ore before you Begin Again.
   try {
     await resetMineForPrestige();
+  } catch {}
+
+  // The day's-set record follows the same precedent (v200): the
+  // completed-days history belongs to the old town's settlement, so
+  // Begin Again clears it rather than letting it pay into the new one.
+  try {
+    await resetSetBonusForPrestige();
   } catch {}
 
   let unlockedMaps: TownMapId[] = ["town"];

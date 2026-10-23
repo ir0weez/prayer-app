@@ -304,6 +304,7 @@ export default function TheaterInteriorScreen() {
               cap={rhythm.cap}
               accent={GOLD}
               onPlay={() => rhythm.setPlaying(true)}
+              gameId="rhythm"
             />
             {rhythm.playing && (
               <RhythmGame accent={GOLD} onComplete={rhythm.handleComplete} onExit={() => rhythm.setPlaying(false)} />
@@ -319,6 +320,7 @@ export default function TheaterInteriorScreen() {
               cap={MINI_GAME_CAPS.popcorn}
               accent={GOLD}
               onPlay={() => setPlayingPopcorn(true)}
+              gameId="popcorn"
             />
             {playingPopcorn && (
               <PopcornGame accent={GOLD} onComplete={handlePopcornComplete} onExit={() => setPlayingPopcorn(false)} />

@@ -140,6 +140,7 @@ export default function ChapelInteriorScreen() {
           cap={candle.cap}
           accent={ACCENT}
           onPlay={() => candle.setPlaying(true)}
+          gameId="candle"
         />
         {candle.playing && (
           <CandleGame accent={ACCENT} onComplete={candle.handleComplete} onExit={() => candle.setPlaying(false)} />

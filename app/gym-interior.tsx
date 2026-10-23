@@ -141,6 +141,7 @@ export default function GymInteriorScreen() {
           cap={trainingGame.cap}
           accent={ACCENT}
           onPlay={() => trainingGame.setPlaying(true)}
+          gameId="training"
         />
         {trainingGame.playing && (
           <TrainingGame accent={ACCENT} onComplete={trainingGame.handleComplete} onExit={() => trainingGame.setPlaying(false)} />

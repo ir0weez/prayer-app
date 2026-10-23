@@ -211,7 +211,7 @@ import { maybeGrantRestitution, RESTITUTION_MESSAGE } from "@/lib/restitution";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, BASE_CRIT_CHANCE, type CombatStats } from "@/lib/gear";
-import { MINI_GAME_CAPS, TRAINING_BONUS_MULT, loadTrainingBonus, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
+import { MINI_GAME_CAPS, TRAINING_BONUS_MULT, SET_BONUS_RATE, loadSetCompletedDates, loadTodaySetStatus, loadTrainingBonus, playsLeftToday, recordPlay, scaleMiniGamePayout, type TodaySetStatus } from "@/lib/mini-games";
 import {
   cacheSchoolPerks,
   getCachedSchoolPerks,
@@ -4259,6 +4259,11 @@ export default function HometownScreen() {
    *  mountain — every one blesses all town income by a quarter
    *  percent (lib/mountain), folded into the accrual chain at mount. */
   const [mineDepthLevels, setMineDepthLevels] = useState(0);
+  /** The day's game set (v200): today's progress toward all twelve
+   *  games — a completed set blesses town income by +10% for the
+   *  day (lib/mini-games), loaded beside the mine state at mount and
+   *  refreshed when the map's own two games complete. */
+  const [setToday, setSetToday] = useState<TodaySetStatus>({ progress: 0, total: 12, complete: false });
   const [prestigeOfferState, setPrestigeOfferState] = useState<PrestigeOffer | null>(null);
   const fastsRef = useRef<PersonalFast[]>([]);
   /** Last-loaded full prestige state — feeds the Boss Gate visibility
@@ -5293,7 +5298,7 @@ export default function HometownScreen() {
         // original order.
         let pMult = 1;
         let depthMult = 1;
-        const [, prestigeMultOut, mallRefundFlag, houseRefundFlag, depthMultOut] = await Promise.all([
+        const [, prestigeMultOut, mallRefundFlag, houseRefundFlag, depthMultOut, setOut] = await Promise.all([
           (async () => {
             // Fast-length gating + economy scaling: Hometown unlocks on
             // 40+ day fasts; the economy scales with the active fast's
@@ -5352,9 +5357,28 @@ export default function HometownScreen() {
             } catch {}
             return 1;
           })(),
+          (async () => {
+            // The day's game set (v200): today's progress rides the
+            // breakdown sheet, a completed set joins the accrual's
+            // blessing slot below, and the completion history prices
+            // each finished day's bonus in the missed-days award.
+            try {
+              const [status, dates] = await Promise.all([
+                loadTodaySetStatus(),
+                loadSetCompletedDates(),
+              ]);
+              setSetToday(status);
+              return { status, dates };
+            } catch {}
+            return { status: { progress: 0, total: 12, complete: false } as TodaySetStatus, dates: new Set<string>() };
+          })(),
         ]);
         pMult = prestigeMultOut;
         depthMult = depthMultOut;
+        // The set bonus joins the Depth Blessing in the accrual's one
+        // blessing slot, ADDED on the same base (1 + depth + set) so
+        // the two blessings never compound (v200).
+        const setMultToday = setOut.status.complete ? SET_BONUS_RATE : 0;
         // One-time Mall → Garden of Remembrance migration: refund retired mall
         // buildings at FULL price (base cost + upgrades paid), then clear the map.
         try {
@@ -5704,7 +5728,9 @@ export default function HometownScreen() {
           houseCoinMult,
           milestoneMult: msMult,
           prestigeMult: pMult,
-          depthBlessingMult: depthMult,
+          // The blessings slot: Depth Blessing + today's set bonus,
+          // added on the same base (v200) — see setMultToday above.
+          depthBlessingMult: depthMult + setMultToday,
           prayerMultValue: prMult,
           prayedCount,
           fellowshipBonus,
@@ -5734,6 +5760,12 @@ export default function HometownScreen() {
           gardenVisitBonus,
           prestigeMult: pMult,
           depthBlessingMult: depthMult,
+          // The day's-set bonus (v200): past days price their own
+          // completions per date inside the award — today's set rides
+          // the accrual slot above, never this one, so no day is
+          // bonused twice by the same channel.
+          setBonusDates: setOut.dates,
+          setBonusRate: SET_BONUS_RATE,
           nowMs: awayNow,
         });
         // The old chain folded lastIncomeDate to today UNCONDITIONALLY
@@ -6695,6 +6727,7 @@ export default function HometownScreen() {
     if (c > 0) addCoins(c);
     if (xp > 0) awardCustomXP(xp, `minigame-garden-${Date.now()}`).catch(() => undefined);
     recordPlay("garden").then(setGardenPlaysLeft).catch(() => undefined);
+    loadTodaySetStatus().then(setSetToday).catch(() => undefined);
     // Science Lab (School Campus): a completed tending session that opened
     // at least one bloom records ONE extra flower in the book — the lab's
     // greenhouse notes follow the garden home.
@@ -6733,6 +6766,7 @@ export default function HometownScreen() {
     if (c > 0) addCoins(c);
     if (xp > 0) awardCustomXP(xp, `minigame-tide-${Date.now()}`).catch(() => undefined);
     recordPlay("tide").then(setTidePlaysLeft).catch(() => undefined);
+    loadTodaySetStatus().then(setSetToday).catch(() => undefined);
     return { coins: c, xp };
   }, [addCoins]);
 
@@ -7833,7 +7867,7 @@ export default function HometownScreen() {
             remembranceMult(remembrance.people.length) *
             gardenVisitMult(gardenVisits) *
             totalPrestigeMultiplier(prestigeLevel, prestigeDevotion) *
-            depthBlessingMultiplierForLevels(mineDepthLevels) *
+            (depthBlessingMultiplierForLevels(mineDepthLevels) + (setToday.complete ? SET_BONUS_RATE : 0)) *
             (ownedBadges.includes("gilded") ? GILDED_INCOME_MULT : 1);
           if (combined <= 1) return null;
           return (
@@ -8773,6 +8807,7 @@ export default function HometownScreen() {
             cap={MINI_GAME_CAPS.garden}
             accent="#65A30D"
             onPlay={() => { gardenBloomKindsRef.current = []; setPlayingGarden(true); }}
+            gameId="garden"
           />
           {playingGarden && (
             <GardenGame accent="#65A30D" onComplete={handleGardenGameComplete} onExit={() => setPlayingGarden(false)} onBloom={handleGardenBloom} />
@@ -8785,6 +8820,7 @@ export default function HometownScreen() {
             cap={MINI_GAME_CAPS.tide}
             accent="#0284C7"
             onPlay={() => setPlayingTide(true)}
+            gameId="tide"
           />
           {playingTide && (
             <TideGame accent="#0284C7" onComplete={handleTideGameComplete} onExit={() => setPlayingTide(false)} onShellUpdate={handleTideShellUpdate} />
@@ -9658,6 +9694,24 @@ export default function HometownScreen() {
                   </Text>
                 </View>
               ) : null}
+              {/* Game set — all twelve of today's games played blesses
+                  the town +10% for the day (v200) */}
+              {setToday.progress > 0 ? (
+                <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+                  <MaterialIcons name="sports-esports" size={20} color="#92400E" />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={{ fontSize: 15, color: "#1F2937" }}>Game Set</Text>
+                    <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                      {setToday.complete
+                        ? "All twelve of today's games played — the town earns +10% today"
+                        : `${setToday.progress} of ${setToday.total} of today's games played — finish the set for +10%`}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
+                    {setToday.complete ? "+10%" : `${setToday.progress}/${setToday.total}`}
+                  </Text>
+                </View>
+              ) : null}
               {/* Stock: Restock villagers carry boxes from the church;
                   a shop whose shelves reach 100% is stocked for the day
                   and earns +50% until midnight (per-building, not global). */}
@@ -9683,7 +9737,7 @@ export default function HometownScreen() {
                 remembranceMult(remembrance.people.length) *
                 gardenVisitMult(gardenVisits) *
                 totalPrestigeMultiplier(prestigeLevel, prestigeDevotion) *
-                depthBlessingMultiplierForLevels(mineDepthLevels) *
+                (depthBlessingMultiplierForLevels(mineDepthLevels) + (setToday.complete ? SET_BONUS_RATE : 0)) *
                 (ownedBadges.includes("gilded") ? GILDED_INCOME_MULT : 1);
               return (
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 14, borderTopWidth: 1, borderTopColor: "#F3F4F6", marginTop: 4 }}>

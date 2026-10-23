@@ -6,7 +6,9 @@
 
 import { useState } from "react";
 import { formatCoins } from "@/lib/hometown";
+import type { MiniGameId } from "@/lib/mini-games";
 import { useSkin } from "@/hooks/use-skin";
+import { useSetProgress } from "@/hooks/use-set-progress";
 import { LayoutChangeEvent, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
@@ -52,6 +54,7 @@ export function PlayCard({
   cap,
   accent,
   onPlay,
+  gameId,
 }: {
   icon: keyof typeof MaterialIcons.glyphMap;
   title: string;
@@ -60,9 +63,13 @@ export function PlayCard({
   cap: number;
   accent: string;
   onPlay: () => void;
+  /** The game's registry id (v200): set games also carry the day's
+   *  set progress line — play all twelve for +10% town income. */
+  gameId?: MiniGameId;
 }) {
   const soldOut = playsLeft !== null && playsLeft <= 0;
   const { isSkinned, tokens } = useSkin();
+  const setProgress = useSetProgress(gameId, playsLeft);
   return (
     <Pressable
       onPress={soldOut ? undefined : onPlay}
@@ -93,6 +100,13 @@ export function PlayCard({
               ? "Played out for today — more tomorrow."
               : `Plays left today: ${playsLeft} of ${cap}`}
         </Text>
+        {setProgress ? (
+          <Text style={{ color: "#78716C", fontSize: 12, fontWeight: "600", marginTop: 2 }}>
+            {setProgress.complete
+              ? "Today's set complete — town income +10% today"
+              : `Today's set: ${setProgress.progress} of ${setProgress.total} — play all twelve for +10% town income`}
+          </Text>
+        ) : null}
       </View>
       <MaterialIcons name={soldOut ? "event-available" : "play-circle-filled"} size={30} color={accent} />
     </Pressable>

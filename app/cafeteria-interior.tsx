@@ -206,6 +206,7 @@ export default function CafeteriaInteriorScreen() {
           cap={serve.cap}
           accent={ACCENT}
           onPlay={() => serve.setPlaying(true)}
+          gameId="serve"
         />
         {serve.playing && (
           <ServeGame accent={ACCENT} onComplete={serve.handleComplete} onExit={() => serve.setPlaying(false)} cuisine="cafeteria" />

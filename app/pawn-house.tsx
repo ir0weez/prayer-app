@@ -1757,6 +1757,7 @@ export default function PawnHouseScreen() {
               cap={MINI_GAME_CAPS.grill}
               accent="#EA580C"
               onPlay={() => setPlayingGrill(true)}
+              gameId="grill"
             />
             {playingGrill && (
               <GrillGame accent="#EA580C" onComplete={handleGrillComplete} onExit={() => setPlayingGrill(false)} />

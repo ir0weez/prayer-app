@@ -3406,6 +3406,13 @@ export function daysBetween(a: string, b: string): number {
   return Math.floor((db - da) / 86400000);
 }
 
+/** The YYYY-MM-DD date n days after a date string (UTC, like daysBetween). */
+export function addDaysStr(dateStr: string, n: number): string {
+  const ms = new Date(dateStr + "T00:00:00Z").getTime();
+  if (isNaN(ms)) return dateStr;
+  return new Date(ms + n * 86400000).toISOString().slice(0, 10);
+}
+
 /**
  * Presence-gated income multiplier: a building only earns when villagers
  * are actually there. This drives the prayer loop — pray → villagers appear
@@ -3455,9 +3462,13 @@ export interface AwayAccrualInputs {
   houseCoinMult: number;
   milestoneMult: number;
   prestigeMult: number;
-  /** The mine's Depth Blessing (v175): 1 + 0.25% per level opened
-   *  beneath the mountain, from lib/mountain. Optional — a caller
-   *  that doesn't know the mine accrues unblessed, as before. */
+  /** The blessings multiplier slot: the mine's Depth Blessing (v175)
+   *  — 1 + 0.25% per level opened beneath the mountain, from
+   *  lib/mountain. Since v200 the caller folds the day's-set bonus
+   *  into this same slot ADDITIVELY (1 + depth bonus + set bonus),
+   *  so the two blessings share one base and never compound.
+   *  Optional — a caller that doesn't know either blessing accrues
+   *  unblessed, as before. */
   depthBlessingMult?: number;
   /** The value of prayerMult(prayedCount), precomputed by the caller. */
   prayerMultValue: number;
@@ -3622,6 +3633,14 @@ export interface MissedDaysIncomeOptions {
   nowMs: number;
   /** The mine's Depth Blessing (v175), from lib/mountain. */
   depthBlessingMult?: number;
+  /** The day's-set bonus (v200, lib/mini-games): local dates whose
+   *  twelve-game set was completed. Each completed date inside the
+   *  missed window earns `setBonusRate` × that day's base on top.
+   *  Optional — a caller that doesn't know the games settles
+   *  unbonused, as before. */
+  setBonusDates?: ReadonlySet<string>;
+  /** The set bonus rate (0.10), from lib/mini-games. */
+  setBonusRate?: number;
 }
 
 /**
@@ -3639,7 +3658,26 @@ export function missedDaysIncome(town: TownState, opts: MissedDaysIncomeOptions)
   const perDayCoins = dailyIncomeForTown(town, opts.milestoneMult, 1 + opts.houseCoinMult, opts.fellowshipBonus, opts.prayedCount, opts.remembranceBonus, opts.gardenVisitBonus, opts.prestigeMult, opts.nowMs, opts.depthBlessingMult ?? 1);
   const perDayXP = dailyXPForTown(town, opts.nowMs);
   if (!(days > 0 && (perDayCoins > 0 || perDayXP > 0))) return null;
-  return { days, earnedCoins: Math.floor(days * perDayCoins), earnedXP: Math.round(days * perDayXP) };
+  let earnedCoins = days * perDayCoins;
+  // The day's-set bonus (v200): the missed window is the `days` dates
+  // [lastDate, today) — the very dates this award settles, and the
+  // caller's lastIncomeDate fold means each is settled exactly once,
+  // so a completed date is paid its bonus here and never again,
+  // whenever during its day the set was finished. The bonus is priced
+  // on the day's base WITHOUT the Depth Blessing, so the two
+  // blessings add on the same base instead of compounding.
+  const setRate = opts.setBonusRate ?? 0;
+  if (setRate > 0 && opts.setBonusDates && opts.setBonusDates.size > 0 && perDayCoins > 0) {
+    let bonusDays = 0;
+    for (let i = 0; i < days; i++) {
+      if (opts.setBonusDates.has(addDaysStr(lastDate, i))) bonusDays++;
+    }
+    if (bonusDays > 0) {
+      const perDayBase = dailyIncomeForTown(town, opts.milestoneMult, 1 + opts.houseCoinMult, opts.fellowshipBonus, opts.prayedCount, opts.remembranceBonus, opts.gardenVisitBonus, opts.prestigeMult, opts.nowMs, 1);
+      earnedCoins += setRate * perDayBase * bonusDays;
+    }
+  }
+  return { days, earnedCoins: Math.floor(earnedCoins), earnedXP: Math.round(days * perDayXP) };
 }
 
 // ---- Collect All coin-fly budget ----

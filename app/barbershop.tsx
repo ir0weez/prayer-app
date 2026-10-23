@@ -684,6 +684,7 @@ export default function BarbershopScreen() {
               cap={MINI_GAME_CAPS.trim}
               accent={ACCENT}
               onPlay={() => setPlayingTrim(true)}
+              gameId="trim"
             />
             {playingTrim && (
               <TrimGame

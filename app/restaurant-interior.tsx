@@ -810,6 +810,7 @@ export default function RestaurantInteriorScreen() {
                 cap={arcade.cap}
                 accent={pal.accent}
                 onPlay={() => arcade.setPlaying(true)}
+                gameId="arcade"
               />
               {arcade.playing && (
                 <TokenTossGame accent={pal.accent} onComplete={arcade.handleComplete} onExit={() => arcade.setPlaying(false)} />
@@ -848,6 +849,7 @@ export default function RestaurantInteriorScreen() {
           cap={serve.cap}
           accent={pal.accent}
           onPlay={() => serve.setPlaying(true)}
+          gameId="serve"
         />
         {serve.playing && (
           <ServeGame accent={pal.accent} onComplete={serve.handleComplete} onExit={() => serve.setPlaying(false)} cuisine={cuisine} />

@@ -17,6 +17,15 @@
 // and defense until midnight (non-stacking), applied where hometown
 // computes the hero's combat stats.
 //
+// THE DAY'S SET (v200, Jonathan's design): the original twelve games
+// form a daily SET. Play all twelve in one day and the town earns
+// +10% income for that day — one bonus, once a day, never stacking
+// (each game counts once, at its first play; the thirteen building
+// games are not in the set). Completion is recorded here, in the one
+// counter every game already flows through; the Hometown settlement
+// (lib/hometown's missed-days award + the accrual blessing slot)
+// reads the record and pays each completed date exactly once.
+//
 // TIMING STANDARD (Jonathan's standing rule — it applies to ALL
 // games in this registry, timed or not): capture input on onPressIn
 // (finger DOWN — onPress waits for release and adds 60–120 ms of
@@ -166,7 +175,159 @@ export async function recordPlay(id: MiniGameId): Promise<number> {
   } catch {
     // Losing a count is unfortunate but never fatal.
   }
+  // The day's set (v200): the play that completes the twelve records
+  // the completion — once per date, here in the one counter every
+  // completion flows through, so no host screen can miss it or record
+  // it twice. The record is what the Hometown settlement reads; the
+  // event is what the announcer speaks. A failed set write never
+  // costs the play its count.
+  if (isSetGame(id) && setCompleteForCounts(state.counts)) {
+    try {
+      const bonus = await loadSetBonusState();
+      if (!bonus.days[state.day]) {
+        bonus.days[state.day] = true;
+        await saveSetBonusState(bonus);
+        emitSetCompleted(state.day);
+      }
+    } catch {}
+  }
   return Math.max(0, MINI_GAME_CAPS[id] - state.counts[id]);
+}
+
+// ---------------------------------------------------------------------------
+// The day's set (v200) — all twelve daily games played in one day pays
+// a city bonus: +10% Hometown income for that day. Settled by
+// lib/hometown from the completion records kept here.
+// ---------------------------------------------------------------------------
+
+/**
+ * The twelve games of the day's set, in the order Jonathan named
+ * them: Verse, Training Reps, Pack the Boxes, Candle, Popcorn Catch,
+ * Garden Tending, Serve the Table, Rhythm of Worship, Steady Trim,
+ * Tide Pools, Grill Master, Token Toss. The thirteen building games
+ * (bell…hearth) are NOT in the set and never count toward it.
+ */
+export const MINI_GAME_SET_IDS: readonly MiniGameId[] = [
+  "verse", "training", "packing", "candle", "popcorn", "garden",
+  "serve", "rhythm", "trim", "tide", "grill", "arcade",
+];
+
+/** The set bonus rate: +10% Hometown income for the completed day. */
+export const SET_BONUS_RATE = 0.1;
+
+const SET_BONUS_KEY = "prayercircle.minigames.set-bonus.v1";
+
+/** Completion records kept as settlement history (older ones pruned
+ *  on write; a record only matters until its date settles). */
+const SET_BONUS_KEEP_DAYS = 30;
+
+export function isSetGame(id: MiniGameId): boolean {
+  return MINI_GAME_SET_IDS.includes(id);
+}
+
+/** Distinct set games played at least once in a plays-count record.
+ *  Replays never raise this — a game counts once per day, at its
+ *  first recorded play. */
+export function setProgressForCounts(counts: Record<MiniGameId, number>): number {
+  return MINI_GAME_SET_IDS.reduce((n, id) => n + ((counts[id] ?? 0) >= 1 ? 1 : 0), 0);
+}
+
+/** The set is complete when all twelve have been played today. */
+export function setCompleteForCounts(counts: Record<MiniGameId, number>): boolean {
+  return setProgressForCounts(counts) === MINI_GAME_SET_IDS.length;
+}
+
+type SetBonusState = {
+  /** Local dates (YYYY-MM-DD) whose set was completed. */
+  days: Record<string, true>;
+};
+
+function emptySetBonus(): SetBonusState {
+  return { days: {} };
+}
+
+async function loadSetBonusState(): Promise<SetBonusState> {
+  try {
+    const raw = await AsyncStorage.getItem(SET_BONUS_KEY);
+    if (!raw) return emptySetBonus();
+    const parsed = JSON.parse(raw) as Partial<SetBonusState>;
+    const days: Record<string, true> = {};
+    if (parsed.days && typeof parsed.days === "object") {
+      for (const d of Object.keys(parsed.days)) {
+        if (parsed.days[d]) days[d] = true;
+      }
+    }
+    return { days };
+  } catch {
+    return emptySetBonus();
+  }
+}
+
+async function saveSetBonusState(state: SetBonusState): Promise<void> {
+  // Keep only the most recent SET_BONUS_KEEP_DAYS records (date
+  // strings sort chronologically). A completed date settles on the
+  // next Hometown visit, so a month of history is generous.
+  const dates = Object.keys(state.days).sort();
+  const days: Record<string, true> = {};
+  for (const d of dates.slice(-SET_BONUS_KEEP_DAYS)) days[d] = true;
+  try {
+    await AsyncStorage.setItem(SET_BONUS_KEY, JSON.stringify({ days }));
+  } catch {}
+}
+
+/** Local dates whose set was completed — the settlement's source of
+ *  truth for which days earn the bonus. */
+export async function loadSetCompletedDates(): Promise<Set<string>> {
+  const state = await loadSetBonusState();
+  return new Set(Object.keys(state.days));
+}
+
+export type TodaySetStatus = {
+  /** Distinct set games played today (0..12). */
+  progress: number;
+  total: number;
+  complete: boolean;
+};
+
+/** Today's set progress, from the same plays state the games read —
+ *  a new day dawns with a fresh count, like the plays themselves. */
+export async function loadTodaySetStatus(): Promise<TodaySetStatus> {
+  const state = await loadPlaysState();
+  const progress = setProgressForCounts(state.counts);
+  return {
+    progress,
+    total: MINI_GAME_SET_IDS.length,
+    complete: progress === MINI_GAME_SET_IDS.length,
+  };
+}
+
+/**
+ * The prestige reset (mirroring the mine precedent in
+ * performPrestige): Begin Again starts the town over, and the set
+ * record — yesterday's included — goes with the old town.
+ */
+export async function resetSetBonusForPrestige(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(SET_BONUS_KEY);
+  } catch {}
+}
+
+// -- Set-completion events (the xp-engine listener pattern) ---------
+
+/** Fired once per date, at the moment the twelfth game lands. */
+export type SetCompletedListener = (date: string) => void;
+
+const setCompletedListeners = new Set<SetCompletedListener>();
+
+export function subscribeSetCompleted(listener: SetCompletedListener): () => void {
+  setCompletedListeners.add(listener);
+  return () => {
+    setCompletedListeners.delete(listener);
+  };
+}
+
+function emitSetCompleted(date: string): void {
+  setCompletedListeners.forEach((listener) => listener(date));
 }
 
 // ---------------------------------------------------------------------------

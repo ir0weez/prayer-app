@@ -129,6 +129,7 @@ export default function ClassroomInteriorScreen() {
           cap={verse.cap}
           accent={ACCENT}
           onPlay={() => verse.setPlaying(true)}
+          gameId="verse"
         />
         {verse.playing && (
           <VerseGame accent={ACCENT} onComplete={verse.handleComplete} onExit={() => verse.setPlaying(false)} />

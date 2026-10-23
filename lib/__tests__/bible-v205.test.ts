@@ -608,18 +608,21 @@ describe('v207 — the storyteller returns, baked in; bare chapters chunk; the t
   });
 
   it('graceful absence: a chapter with no baked preview composes to null', () => {
+    // Against the fixture the shape is unchanged: a missing entry
+    // composes to null.
     expect(composePreview('Leviticus', 20, FIXTURE)).toBeNull();
     expect(composePreview('Judges', 1, FIXTURE)).toBeNull();
-    // The live module agrees with the shape: whatever has been baked
-    // so far composes well-formed or not at all.
+    // v208 completed the bake (see the v208 describe below): the live
+    // module now carries every chapter, so graceful absence applies
+    // only to a hypothetical missing entry — an out-of-canon chapter
+    // or an unknown book still composes to null, never a crash.
     expect(typeof PREVIEWS).toBe('object');
     const any = previewFor('Leviticus', 19);
-    if (any) {
-      expect(any.thisLabel).toBe('This time in Leviticus 19:');
-      expect(any.lastLabel).toBe('Last time in Leviticus 18:');
-    } else {
-      expect(PREVIEWS['Leviticus']?.[19]).toBeUndefined();
-    }
+    expect(any).not.toBeNull();
+    expect(any!.thisLabel).toBe('This time in Leviticus 19:');
+    expect(any!.lastLabel).toBe('Last time in Leviticus 18:');
+    expect(previewFor('Leviticus', 99)).toBeNull();
+    expect(previewFor('Not A Book', 1)).toBeNull();
   });
 
   it('the generator script embeds fixture books and skips malformed entries', () => {
@@ -763,5 +766,80 @@ describe('v207 — the storyteller returns, baked in; bare chapters chunk; the t
     expect(page).toContain('paddingTop: insets.top + 8');
     const stories = readFileSync(join(process.cwd(), 'components', 'bible-v205', 'stories-view.tsx'), 'utf8');
     expect(stories).toContain('paddingTop: insets.top + 13');
+  });
+});
+
+describe('v208 — the full bake: every book, every chapter', () => {
+  it('PREVIEWS covers the whole canon — 66 books, 1,189 chapters, none missing', () => {
+    const books = Object.keys(CHAPTER_COUNTS);
+    expect(books).toHaveLength(66);
+    expect(Object.keys(PREVIEWS).sort()).toEqual([...books].sort());
+    let total = 0;
+    for (const book of books) {
+      const count = CHAPTER_COUNTS[book];
+      const chapters = PREVIEWS[book];
+      expect(chapters, book).toBeDefined();
+      expect(Object.keys(chapters), book).toHaveLength(count);
+      for (let c = 1; c <= count; c++) {
+        const entry = chapters[c];
+        expect(entry, `${book} ${c}`).toBeDefined();
+        expect(typeof entry.preview, `${book} ${c} preview`).toBe('string');
+        expect(entry.preview.trim(), `${book} ${c} preview`).not.toBe('');
+        expect(typeof entry.question, `${book} ${c} question`).toBe('string');
+        expect(entry.question.trim(), `${book} ${c} question`).not.toBe('');
+        expect(typeof entry.recap, `${book} ${c} recap`).toBe('string');
+        // Genesis 1 is the one designed empty recap; every other
+        // chapter carries all three beats.
+        if (!(book === 'Genesis' && c === 1)) {
+          expect(entry.recap.trim(), `${book} ${c} recap`).not.toBe('');
+        }
+        total++;
+      }
+    }
+    expect(total).toBe(1189);
+  });
+
+  it('every chapter of the canon composes to a well-formed preview', () => {
+    for (const book of Object.keys(CHAPTER_COUNTS)) {
+      for (let c = 1; c <= CHAPTER_COUNTS[book]; c++) {
+        const composed = previewFor(book, c);
+        expect(composed, `${book} ${c}`).not.toBeNull();
+        expect(composed!.thisLabel).toBe(`This time in ${book} ${c}:`);
+        expect(composed!.thisText).toBe(PREVIEWS[book][c].preview);
+        expect(composed!.question).toBe(PREVIEWS[book][c].question);
+        // The "last time" exists for everything except Genesis 1.
+        if (book === 'Genesis' && c === 1) {
+          expect(composed!.lastLabel).toBeNull();
+          expect(composed!.lastText).toBeNull();
+        } else {
+          expect(composed!.lastLabel, `${book} ${c}`).not.toBeNull();
+          expect(composed!.lastText).toBe(PREVIEWS[book][c].recap);
+        }
+      }
+    }
+  });
+
+  it('spot compositions: Leviticus 19 unchanged, Exodus 1 crosses books, Revelation 22 closes the canon', () => {
+    // The chapter he is reading now — byte-identical text to the
+    // v207 bake, composed onto the same labels.
+    const lev = previewFor('Leviticus', 19);
+    expect(lev!.lastLabel).toBe('Last time in Leviticus 18:');
+    expect(lev!.thisLabel).toBe('This time in Leviticus 19:');
+    expect(lev!.thisText).toContain('love thy neighbour as thyself');
+    expect(lev!.thisText).toBe(PREVIEWS['Leviticus'][19].preview);
+
+    // A newly-baked book's chapter 1: the recap reaches back across
+    // the book boundary to Genesis 50.
+    const exo = previewFor('Exodus', 1);
+    expect(exo!.lastLabel).toBe('Last time in Genesis 50:');
+    expect(exo!.lastText).toBe(PREVIEWS['Exodus'][1].recap);
+    expect(exo!.lastText).toContain('Joseph');
+    expect(exo!.thisLabel).toBe('This time in Exodus 1:');
+
+    // The canon's final chapter composes like any other.
+    const rev = previewFor('Revelation', 22);
+    expect(rev!.lastLabel).toBe('Last time in Revelation 21:');
+    expect(rev!.thisLabel).toBe('This time in Revelation 22:');
+    expect(rev!.question.endsWith('?')).toBe(true);
   });
 });

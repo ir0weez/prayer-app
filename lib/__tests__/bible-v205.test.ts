@@ -1,11 +1,15 @@
 // ─── v205 Bible build — pins ─────────────────────────────────────────────────
-// Fixtures are REAL: the canonical commentary txt files, the generated
-// data they produce, and his Studies CSV seed. The pins that matter
-// most: 1 Corinthians 1 renders exactly the mockup's structure with his
+// Fixtures are REAL: the canonical commentary txt files and the
+// generated data they produce. The pins that matter most: 1
+// Corinthians 1 renders exactly the mockup's structure with his
 // verbatim Highlights; noteless chapters are full readers, never dead
 // ends; his pre-v205 check-offs migrate Complete-wins and can never
 // re-pay their XP; marking a chapter Complete in the new system pays
 // exactly once, under the existing award keys.
+// v206: the study-seed describe was rewritten — his ruling cleared the
+// Notion import ("only my app progress counts"), so the pins now prove
+// the seed asserts nothing, the cleanup strips exactly the imported
+// queue entries, and the grid offers a way back down from every state.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -29,23 +33,35 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 
 import { parseCommentaryTxt } from '../bible-v205/parse';
 import {
+  booksWithProgress,
   browseCategory,
   buildDisplaySections,
   buildReadOnlySections,
   buildStoryScreens,
+  CHAPTER_COUNTS,
   chapterCountFor,
   flattenEntries,
   getChapterData,
+  notesBooks,
   searchChapter,
 } from '../bible-v205/index';
 import { STUDY_SEED } from '../bible-v205/study-seed';
 import {
   chapterStatus,
+  loadStudyState,
   mergeUnifiedReads,
   parseLegacyReadIds,
   seedStudyState,
   setChapterStatus,
+  stripNotionSeedQueues,
+  STUDY_KEY,
+  type StudyState,
 } from '../bible-v205/study';
+import {
+  getCurrentBibleDisplay,
+  getLastReadPosition,
+  type UnifiedBibleState,
+} from '../bible-unified';
 import { transitionChapterStatus } from '../bible-v205/rewards';
 import {
   addKeeperLine,
@@ -174,33 +190,46 @@ describe('Stories derivation — 1 Corinthians 1', () => {
   });
 });
 
-describe('study seed — his CSVs, deduped', () => {
-  it('carries the mockup tallies and the Current/Next queues', () => {
-    const gen = STUDY_SEED.statuses['Genesis'];
-    expect(Object.values(gen).filter((s) => s === 'complete').length).toBe(28);
-    const exo = STUDY_SEED.statuses['Exodus'];
-    expect(Object.keys(exo).length).toBe(40); // double-listed rows deduped
-    expect(Object.values(exo).every((s) => s === 'write')).toBe(true);
-    expect(STUDY_SEED.trackedChapters['Psalms']).toBe(40);
-    expect(STUDY_SEED.writeQueue).toHaveLength(7);
-    expect(STUDY_SEED.restudyQueue).toHaveLength(7);
+describe('v206 — the Notion seed is cleared; only app progress counts', () => {
+  it('(a) the shipped seed is inert and a fresh store claims nothing', () => {
+    // v205 pinned the CSV tallies here (Genesis 28 complete, Exodus all
+    // Write, Psalms tracked 40, both queues 7). His ruling cleared the
+    // import wholesale — the seed now ships empty and can assert
+    // nothing, for any book.
+    expect(STUDY_SEED.statuses).toEqual({});
+    expect(STUDY_SEED.trackedChapters).toEqual({});
+    expect(STUDY_SEED.writeQueue).toEqual([]);
+    expect(STUDY_SEED.restudyQueue).toEqual([]);
+    const state = seedStudyState();
+    expect(state.writeQueue).toEqual([]);
+    expect(state.restudyQueue).toEqual([]);
+    // A sample across the canon — including the chapters the v205 seed
+    // spoke loudest about — every one reports no status at all.
+    for (const [book, chapter] of [
+      ['Genesis', 1], // seed said Complete
+      ['Exodus', 1], // seed said Write
+      ['1 John', 1], // both seeded queues named it
+      ['Psalms', 23],
+      ['Numbers', 1],
+    ] as const) {
+      expect(chapterStatus(state, book, chapter)).toBe('none');
+    }
   });
 
-  it('queue membership speaks when a book has no status list (1 John, in both his queues)', () => {
-    const state = seedStudyState();
-    // His Current and Next databases name the SAME Johannine chapters:
-    // the dual listing is his data, and both queues keep it. The single
-    // status word resolves ReStudy-first (the letters' notes exist —
-    // they are queued to teach again), while the Write list still
-    // carries them on the queue screen.
+  it('queue membership speaks only when HE queued it in the app', () => {
+    let state = seedStudyState();
+    expect(chapterStatus(state, '1 John', 1)).toBe('none');
+    state = setChapterStatus(state, '1 John', 1, 'write');
+    expect(chapterStatus(state, '1 John', 1)).toBe('write');
+    state = setChapterStatus(state, '1 John', 1, 'restudy');
     expect(chapterStatus(state, '1 John', 1)).toBe('restudy');
-    expect(state.writeQueue.some((q) => q.book === '1 John' && q.chapter === 1)).toBe(true);
-    expect(state.restudyQueue.some((q) => q.book === '1 John' && q.chapter === 1)).toBe(true);
-    expect(chapterStatus(state, 'Numbers', 1)).toBe('none');
+    expect(state.writeQueue.some((q) => q.book === '1 John' && q.chapter === 1)).toBe(false);
   });
 
   it('in-app transitions move chapters through the pipeline and the queues follow', () => {
     let state = seedStudyState();
+    state = setChapterStatus(state, '1 John', 1, 'write');
+    expect(state.writeQueue.some((q) => q.book === '1 John' && q.chapter === 1)).toBe(true);
     state = setChapterStatus(state, '1 John', 1, 'complete');
     expect(chapterStatus(state, '1 John', 1)).toBe('complete');
     expect(state.writeQueue.some((q) => q.book === '1 John' && q.chapter === 1)).toBe(false);
@@ -209,23 +238,147 @@ describe('study seed — his CSVs, deduped', () => {
     state = setChapterStatus(state, 'Genesis', 30, 'write');
     expect(state.writeQueue.some((q) => q.book === 'Genesis' && q.chapter === 30)).toBe(true);
   });
+
+  it('(b) the cleanup strips exactly the seeded queue entries and preserves his own', () => {
+    // A v205-era stored state: both queues hold the seven imported
+    // Johannine entries; he has since queued Genesis 30 himself and
+    // his migrated completes live in overrides.
+    const seeded = [
+      { book: '3 John', chapter: 1 },
+      { book: '2 John', chapter: 1 },
+      { book: '1 John', chapter: 5 },
+      { book: '1 John', chapter: 4 },
+      { book: '1 John', chapter: 3 },
+      { book: '1 John', chapter: 2 },
+      { book: '1 John', chapter: 1 },
+    ];
+    const dirty = {
+      overrides: { 'Genesis|1': 'complete' as const, 'Exodus|2': 'complete' as const },
+      writeQueue: [...seeded, { book: 'Genesis', chapter: 30 }],
+      restudyQueue: [...seeded],
+      migratedUnified: true,
+    };
+    const cleaned = stripNotionSeedQueues(dirty);
+    expect(cleaned.writeQueue).toEqual([{ book: 'Genesis', chapter: 30 }]);
+    expect(cleaned.restudyQueue).toEqual([]);
+    expect(cleaned.overrides).toEqual(dirty.overrides);
+    expect(cleaned.clearedNotionSeed).toBe(true);
+    expect(chapterStatus(cleaned, 'Genesis', 1)).toBe('complete');
+    expect(chapterStatus(cleaned, '1 John', 1)).toBe('none');
+  });
+
+  it('(b) loadStudyState runs the cleanup once on a stored v205 state and persists it', async () => {
+    const seeded = [
+      { book: '3 John', chapter: 1 },
+      { book: '2 John', chapter: 1 },
+      { book: '1 John', chapter: 5 },
+      { book: '1 John', chapter: 4 },
+      { book: '1 John', chapter: 3 },
+      { book: '1 John', chapter: 2 },
+      { book: '1 John', chapter: 1 },
+    ];
+    store.set(STUDY_KEY, JSON.stringify({
+      overrides: { 'Genesis|30': 'complete' },
+      writeQueue: seeded,
+      restudyQueue: seeded,
+      migratedUnified: true,
+    }));
+    const state = await loadStudyState();
+    expect(state.writeQueue).toEqual([]);
+    expect(state.restudyQueue).toEqual([]);
+    expect(chapterStatus(state, 'Genesis', 30)).toBe('complete');
+    const persisted = JSON.parse(store.get(STUDY_KEY)!) as { clearedNotionSeed?: boolean };
+    expect(persisted.clearedNotionSeed).toBe(true);
+  });
+
+  it('(c) setting none on a seeded-era chapter clears it — the grid undo', () => {
+    // Simulate the pre-cleanup store: 1 John 1 sits in both queues (its
+    // v205 "status" came from queue membership alone).
+    let state: StudyState = {
+      overrides: {},
+      writeQueue: [{ book: '1 John', chapter: 1 }],
+      restudyQueue: [{ book: '1 John', chapter: 1 }],
+      migratedUnified: true,
+      clearedNotionSeed: true,
+    };
+    expect(chapterStatus(state, '1 John', 1)).toBe('restudy');
+    state = setChapterStatus(state, '1 John', 1, 'none');
+    expect(chapterStatus(state, '1 John', 1)).toBe('none');
+    expect(state.writeQueue).toEqual([]);
+    expect(state.restudyQueue).toEqual([]);
+  });
+
+  it('(c) the book grid detail strip offers all six statuses, none included', () => {
+    const src = readFileSync(join(process.cwd(), 'app', 'bible-book.tsx'), 'utf8');
+    expect(src).toContain('STATUS_EDITOR_ORDER');
+    for (const s of ['write', 'in-progress', 'complete', 'restudy', 'not-started', 'none']) {
+      expect(src).toContain(`'${s}'`);
+    }
+    expect(src).toContain('applyStatus(s)');
+    // The v205 "database tracks" note died with the seed it described.
+    expect(src).not.toContain('database tracks');
+    expect(src).not.toContain('STUDY_SEED');
+  });
+
+  it('(d) Books grouping: notes-bearing books are not progress until he marks them', () => {
+    const canon = Object.keys(CHAPTER_COUNTS);
+    const fresh = seedStudyState();
+    // 1 John carries his finished notes — visible under Chapter notes,
+    // never under progress while he has set nothing.
+    expect(notesBooks(canon)).toContain('1 John');
+    expect(booksWithProgress(fresh, canon)).toEqual([]);
+    const marked = setChapterStatus(fresh, '1 John', 1, 'complete');
+    expect(booksWithProgress(marked, canon)).toEqual(['1 John']);
+    const src = readFileSync(join(process.cwd(), 'app', 'bible-chapters.tsx'), 'utf8');
+    expect(src).toContain('Study progress');
+    expect(src).toContain('booksWithProgress');
+    expect(src).not.toContain('databases');
+    expect(src).not.toContain('of the 40 the list tracks');
+    expect(src).not.toContain('no status list');
+    expect(src).not.toContain('databaseBooks');
+  });
+
+  it('(e) the schedule card expansion carries last-time / this-time from the unified store', () => {
+    const unified = {
+      chapters: [
+        { book: 'Genesis', chapter: 1, isRead: true, readDate: '2026-10-18' },
+        { book: 'Genesis', chapter: 2, isRead: true, readDate: '2026-10-19' },
+        { book: 'Genesis', chapter: 3, isRead: true, readDate: '2026-10-20' },
+        { book: 'Genesis', chapter: 4, isRead: true, readDate: '2026-10-20' },
+        { book: 'Genesis', chapter: 5, isRead: false },
+      ],
+      bookStatuses: { Genesis: 'current' },
+      lastReadDate: '2026-10-20',
+    } as unknown as UnifiedBibleState;
+    expect(getLastReadPosition(unified)).toEqual({ book: 'Genesis', chapter: 4, date: '2026-10-20' });
+    expect(getCurrentBibleDisplay(unified)).toBe('Genesis 5');
+    const src = readFileSync(join(process.cwd(), 'components', 'schedule-tab.tsx'), 'utf8');
+    expect(src).toContain('Last time: ');
+    expect(src).toContain('This time: ');
+    expect(src).toContain('getLastReadPosition');
+    expect(src).toContain('isPersonalStudyExpanded && (item.data.lastTime || item.data.thisTime)');
+  });
 });
 
 describe('migration — pre-v205 check-offs, Complete wins', () => {
-  it('merges unified reads over the Notion seed and records the conflicts', () => {
+  it('merges unified reads into the states; nothing imported is left to conflict with', () => {
+    // v206: the merge is unchanged (his in-app check-offs are exactly
+    // what counts), but the v205 conflict log compared reads against
+    // the Notion seed — seed cleared, conflicts are empty by shape.
     const { state, migrated, conflicts } = mergeUnifiedReads(seedStudyState(), [
-      { book: 'Exodus', chapter: 1 }, // seed says Write — a true conflict
-      { book: 'Genesis', chapter: 1 }, // seed already Complete — no-op
-      { book: '1 John', chapter: 2 }, // queue-driven Write
-    ]);
-    expect(chapterStatus(state, 'Exodus', 1)).toBe('complete');
-    expect(chapterStatus(state, '1 John', 2)).toBe('complete');
-    expect(state.writeQueue.some((q) => q.book === '1 John' && q.chapter === 2)).toBe(false);
-    expect(migrated).toEqual([
       { book: 'Exodus', chapter: 1 },
+      { book: 'Genesis', chapter: 1 },
       { book: '1 John', chapter: 2 },
     ]);
-    expect(conflicts).toEqual([{ book: 'Exodus', chapter: 1, seedStatus: 'write' }]);
+    expect(chapterStatus(state, 'Exodus', 1)).toBe('complete');
+    expect(chapterStatus(state, 'Genesis', 1)).toBe('complete');
+    expect(chapterStatus(state, '1 John', 2)).toBe('complete');
+    expect(migrated).toEqual([
+      { book: 'Exodus', chapter: 1 },
+      { book: 'Genesis', chapter: 1 },
+      { book: '1 John', chapter: 2 },
+    ]);
+    expect(conflicts).toEqual([]);
     expect(state.migratedUnified).toBe(true);
   });
 
@@ -240,9 +393,8 @@ describe('migration — pre-v205 check-offs, Complete wins', () => {
 
 describe('rewards — the existing schedule pays through the new states', () => {
   it('(a) a chapter completed before v205 does NOT re-pay its +25 XP', async () => {
-    // The old check-off page paid Exodus 1 under the DASH key, while his
-    // Notion seed still calls the chapter Write — the exact case where a
-    // naive new system would pay it a second time.
+    // The old check-off page paid Exodus 1 under the DASH key — the
+    // exact case where a naive new system would pay it a second time.
     store.set(XP_AWARDS_STORAGE_KEY, JSON.stringify(['daily-reading:Exodus-1']));
     const result = await transitionChapterStatus(seedStudyState(), 'Exodus', 1, 'complete');
     expect(result.chapterXpAwarded).toBe(false);

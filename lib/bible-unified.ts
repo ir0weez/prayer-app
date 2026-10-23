@@ -213,6 +213,34 @@ export function getCurrentBibleDisplay(state: UnifiedBibleState): string {
   return lastChapter ? `${book} ${lastChapter.chapter}` : '';
 }
 
+export interface LastReadPosition {
+  book: string;
+  chapter: number;
+  /** ISO date (YYYY-MM-DD) the chapter was read, when recorded. */
+  date: string | null;
+}
+
+// The last position he actually read — the schedule card's "Last time"
+// line (v206 restored expansion). The most recently dated read wins;
+// undated reads fall back to the current book's furthest read chapter,
+// then to the latest book with any read chapter at all.
+export function getLastReadPosition(state: UnifiedBibleState): LastReadPosition | null {
+  const read = state.chapters.filter((c) => c.isRead);
+  if (read.length === 0) return null;
+  const dated = read.filter((c) => c.readDate);
+  if (dated.length > 0) {
+    let best = dated[0];
+    for (const c of dated) {
+      if ((c.readDate as string) >= (best.readDate as string)) best = c;
+    }
+    return { book: best.book, chapter: best.chapter, date: best.readDate ?? state.lastReadDate ?? null };
+  }
+  const current = getCurrentBook(state);
+  const pool = current ? read.filter((c) => c.book === current) : [];
+  const fallback = (pool.length > 0 ? pool : read).reduce((a, b) => (b.chapter >= a.chapter ? b : a));
+  return { book: fallback.book, chapter: fallback.chapter, date: state.lastReadDate ?? null };
+}
+
 // Get progress for a book (e.g., "5 of 50 chapters read")
 export function getBookProgress(state: UnifiedBibleState, book: string): { read: number; total: number } {
   const bookChapters = state.chapters.filter((c) => c.book === book);

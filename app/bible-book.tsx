@@ -1,7 +1,11 @@
 // ─── v205 Book view ──────────────────────────────────────────────────────────
-// One book: the chapter grid in his real statuses, a honest sumline, and
-// a detail strip whose actions fit the selected chapter's state — Read,
-// Read as Stories, and the queue move that state calls for.
+// One book: the chapter grid in the states HE set in the app, an honest
+// sumline, and a detail strip for the selected chapter — Read, Read as
+// Stories, the quick queue move, and (v206) the FULL status editor:
+// all six states as chips, so any chapter can be set — or set back to
+// None — right here. v205 offered no way down from the grid ("I can't
+// seem to undo them"); v206's editor is the fix. The v205 tracked-
+// subset note is gone with the seed it described.
 
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -12,7 +16,6 @@ import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import { chapterCountFor } from '@/lib/bible-v205/index';
 import type { StudyStatus } from '@/lib/bible-v205/types';
-import { STUDY_SEED } from '@/lib/bible-v205/study-seed';
 import {
   chapterStatus,
   loadStudyState,
@@ -23,6 +26,23 @@ import { Ornament, StatusChip, STATUS_LABEL } from '@/components/bible-v205/bloc
 import { BookCompleteCelebration } from '@/components/bible-v205/celebration';
 import { chapterLabel, useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 
+/** v206: the detail strip's full status editor — every state a chapter
+ * can wear, in pipeline order, None last (the way back down). */
+const STATUS_EDITOR_ORDER: StudyStatus[] = ['write', 'in-progress', 'complete', 'restudy', 'not-started', 'none'];
+
+/** Chip colors mirror the StatusChip in components/bible-v205/blocks. */
+function editorChipColors(palette: BiblePalette, s: StudyStatus) {
+  return s === 'complete'
+    ? { backgroundColor: palette.rasp, borderColor: palette.rasp, color: '#FFFFFF' }
+    : s === 'in-progress'
+      ? { backgroundColor: palette.yellowBg, borderColor: palette.yellowBorder, color: palette.yellowInk }
+      : s === 'write'
+        ? { backgroundColor: palette.paper, borderColor: palette.rasp, color: palette.raspDeep }
+        : s === 'restudy'
+          ? { backgroundColor: palette.band, borderColor: '#EFC3D6', color: palette.bandInk }
+          : { backgroundColor: palette.greyBg, borderColor: palette.greyBorder, color: palette.greyLabel };
+}
+
 export default function BibleBookScreen() {
   const router = useRouter();
   const palette = useBiblePalette();
@@ -30,7 +50,6 @@ export default function BibleBookScreen() {
   const params = useLocalSearchParams<{ book?: string }>();
   const book = typeof params.book === 'string' && params.book ? params.book : 'Genesis';
   const total = chapterCountFor(book);
-  const tracked = STUDY_SEED.trackedChapters[book] ?? null;
 
   const [studyState, setStudyState] = useState<StudyState | null>(null);
   const [selected, setSelected] = useState(1);
@@ -122,12 +141,6 @@ export default function BibleBookScreen() {
             </Text>
           </View>
         </View>
-        {tracked !== null && tracked < total ? (
-          <Text style={[styles.trackNote, { color: palette.inkSoft }]}>
-            The database tracks {book} 1–{tracked}; the rest are here to read as plain chapters.
-          </Text>
-        ) : null}
-
         <View style={styles.grid}>
           {Array.from({ length: total }, (_, i) => i + 1).map((c) => {
             const s = statusOf(c);
@@ -208,6 +221,28 @@ export default function BibleBookScreen() {
               </Pressable>
             )}
           </View>
+          <Text style={[styles.editorLabel, { color: palette.inkSoft }]}>Set state — any state, including back to none</Text>
+          <View style={styles.editorRow}>
+            {STATUS_EDITOR_ORDER.map((s) => {
+              const cs = editorChipColors(palette, s);
+              const isCurrent = s === selStatus;
+              return (
+                <Pressable
+                  key={s}
+                  onPress={() => applyStatus(s)}
+                  style={[
+                    styles.editorChip,
+                    { backgroundColor: cs.backgroundColor, borderColor: isCurrent ? palette.ink : cs.borderColor },
+                    isCurrent ? styles.editorChipCurrent : null,
+                  ]}
+                >
+                  <Text style={[styles.editorChipText, { color: cs.color }]}>
+                    {isCurrent ? '● ' : ''}{STATUS_LABEL[s]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
             Recorded state: {STATUS_LABEL[selStatus]} — it changes only when you change it.
           </Text>
@@ -234,7 +269,6 @@ const styles = StyleSheet.create({
   sumline: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, justifyContent: 'center', marginTop: 18 },
   sumChip: { flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
   sumN: { fontSize: 12.5, fontWeight: '800' },
-  trackNote: { fontSize: 12.5, lineHeight: 18, textAlign: 'center', marginTop: 12, paddingHorizontal: 10 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 20 },
   cell: { width: '17.9%', aspectRatio: 1.15, borderWidth: 1.5, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   cellN: { fontSize: 16, fontWeight: '800' },
@@ -248,4 +282,9 @@ const styles = StyleSheet.create({
   btnPrimaryText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 },
   btnText: { fontWeight: '700', fontSize: 13.5 },
   detailHint: { fontSize: 11.5, marginTop: 12 },
+  editorLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 16 },
+  editorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 9 },
+  editorChip: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 11 },
+  editorChipCurrent: { borderWidth: 2.5 },
+  editorChipText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase' },
 });

@@ -1,9 +1,12 @@
 // ─── v205 Books view ─────────────────────────────────────────────────────────
-// "His Books": every book his study databases know, in his own status
-// words — progress threads from the real chapter states, the notes-only
-// books, the handwritten-only row, and the quiet rest of the canon. This
-// route also serves the older bible navigation entry points (profile,
-// schedule tab) — it is the Bible home now.
+// v206 reframe (his ruling — only app progress counts): the groups are
+// now (a) books with any state he set in the app, progress threads from
+// the study store alone; (b) "Chapter notes" — books his commentary
+// lives in, INDEPENDENT of any status (his finished notes and
+// Highlights show even where nothing is marked read); (c) the
+// handwritten-only rows (coverage metadata); (d) the quiet rest of the
+// canon. v205 grouped by the imported Notion lists and asserted the
+// imported states as his progress — that framing is gone.
 
 import { useCallback, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -13,8 +16,8 @@ import { useSkin } from '@/hooks/use-skin';
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import {
+  booksWithProgress,
   CHAPTER_COUNTS,
-  databaseBooks,
   notesBooks,
   notesChapterCount,
 } from '@/lib/bible-v205/index';
@@ -61,10 +64,10 @@ export default function BibleBooksScreen() {
     }, []),
   );
 
-  const dbBooks = databaseBooks(CANON);
-  const notesOnly = notesBooks(CANON).filter((b) => !dbBooks.includes(b));
+  const progressBooks = studyState ? booksWithProgress(studyState, CANON) : [];
+  const notesOnly = notesBooks(CANON).filter((b) => !progressBooks.includes(b));
   const paperOnly = handwritten.filter((e) => e.only);
-  const covered = new Set([...dbBooks, ...notesOnly, ...paperOnly.map((e) => e.book)]);
+  const covered = new Set([...progressBooks, ...notesOnly, ...paperOnly.map((e) => e.book)]);
   const quiet = CANON.filter((b) => !covered.has(b));
   const possessive = labels?.possessive ?? 'Your';
   const possessiveLower = labels?.possessiveLower ?? 'your';
@@ -93,8 +96,8 @@ export default function BibleBooksScreen() {
           <Text style={[styles.h2, { color: palette.ink }]}>{possessive} Books</Text>
           <Ornament palette={palette} />
           <Text style={[styles.vsub, { color: palette.inkSoft }]}>
-            Every book the study databases know — and the true state of its chapters, in the status words they were
-            recorded in. The ✎ marks books that also live in handwriting.
+            The states you set in the app, and the books your notes live in — nothing here is marked for you.
+            The ✎ marks books that also live in handwriting.
           </Text>
         </View>
 
@@ -107,10 +110,10 @@ export default function BibleBooksScreen() {
           </View>
         </View>
 
-        {dbBooks.length ? (
-          <Text style={[styles.subhead, { color: palette.rasp }]}>In {possessiveLower} databases</Text>
+        {progressBooks.length ? (
+          <Text style={[styles.subhead, { color: palette.rasp }]}>Study progress</Text>
         ) : null}
-        {dbBooks.map((book) => (
+        {progressBooks.map((book) => (
           <BookRow
             key={book}
             book={book}
@@ -122,7 +125,7 @@ export default function BibleBooksScreen() {
         ))}
 
         {notesOnly.length ? (
-          <Text style={[styles.subhead, { color: palette.rasp }]}>Chapter notes — no status list</Text>
+          <Text style={[styles.subhead, { color: palette.rasp }]}>Chapter notes</Text>
         ) : null}
         {notesOnly.map((book) => {
           const n = notesChapterCount(book);
@@ -240,14 +243,15 @@ function BookRow({
   paperNote: string | null;
   onPress: () => void;
 }) {
+  // v206: counts run over the book's full chapter count, from app
+  // states only — the v205 CSV "tracked subset" (Psalms 40) is gone.
   const total = CHAPTER_COUNTS[book] ?? 0;
-  const tracked = book === 'Psalms' ? 40 : total;
   let complete = 0;
   let prog = 0;
   let write = 0;
   let notStarted = 0;
   if (studyState) {
-    for (let c = 1; c <= tracked; c++) {
+    for (let c = 1; c <= total; c++) {
       const s = chapterStatus(studyState, book, c);
       if (s === 'complete') complete++;
       else if (s === 'in-progress') prog++;
@@ -255,15 +259,14 @@ function BookRow({
       else if (s === 'not-started') notStarted++;
     }
   }
-  const pct = tracked ? Math.round((100 * complete) / tracked) : 0;
-  const ppct = tracked ? Math.round((100 * prog) / tracked) : 0;
+  const pct = total ? Math.round((100 * complete) / total) : 0;
+  const ppct = total ? Math.round((100 * prog) / total) : 0;
   const paper = paperNote ? `handwritten notes, ${paperNote}` : null;
   const parts: string[] = [];
-  parts.push(`${complete} of ${tracked} complete`);
+  parts.push(`${complete} of ${total} complete`);
   if (write) parts.push(`${write} to write`);
-  if (prog) parts.push(tracked === prog ? `all ${prog} in progress` : `${prog} in progress`);
+  if (prog) parts.push(total === prog ? `all ${prog} in progress` : `${prog} in progress`);
   if (notStarted && complete === 0 && !write && !prog) parts.push('not started');
-  if (book === 'Psalms') parts.push('of the 40 the list tracks');
   if (paper) parts.push(paper);
 
   return (

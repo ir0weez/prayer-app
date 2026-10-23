@@ -1,41 +1,90 @@
 // ─── v205 study states — his Write → Complete → ReStudy pipeline ────────────
-// Seeded from his Studies databases (STUDY_SEED) and then his own: every
-// change he makes in the app is stored as an override, and the seed never
-// overwrites him on a later import. Reading a chapter changes nothing —
-// states move only when he moves them.
+// v206 — HIS RULING: "Clear them — only my app progress counts." The
+// v205 build seeded this store from his Notion Studies databases and
+// asserted the imported states as his progress (the Books view even
+// called them "the true state of its chapters"). They were not the
+// chapters he counts as studied. From v206 a chapter's state comes
+// ONLY from what he did in the app: his overrides (every in-app status
+// change is one) and the queues he builds himself. The Notion seed is
+// empty (study-seed.ts ships inert) and chapterStatus never consults
+// it. Reading a chapter changes nothing — states move only when he
+// moves them.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadUnifiedBible } from '../bible-unified';
-import { STUDY_SEED } from './study-seed';
 import type { QueueItem, StudyStatus } from './types';
 
 export const STUDY_KEY = 'prayercircle.bible.v205.study.v1';
 
 export interface StudyState {
-  /** "Book|chapter" -> status override (absent = use the seed). */
+  /** "Book|chapter" -> status override — every state he has set in-app. */
   overrides: Record<string, StudyStatus>;
-  /** Chapters he has queued to write (seeded from his Next database). */
+  /** Chapters he has queued to write, in the app. */
   writeQueue: QueueItem[];
-  /** Chapters he has queued to re-study (seeded from his Current database). */
+  /** Chapters he has queued to re-study, in the app. */
   restudyQueue: QueueItem[];
   /** True once his pre-v205 in-app check-offs have been merged in. */
   migratedUnified?: boolean;
+  /** v206: true once the one-time cleanup has stripped any v205-era
+   * Notion-seeded queue entries out of a stored state. */
+  clearedNotionSeed?: boolean;
 }
 
 export function chapterKey(book: string, chapter: number): string {
   return `${book}|${chapter}`;
 }
 
+// ─── The v206 cleanup ────────────────────────────────────────────────────────
+// An install that ran v205 already persisted the imported Current/Next
+// queues under STUDY_KEY. These snapshots are the EXACT lists v205
+// seeded (his Next and Current databases named the same seven Johannine
+// chapters) — kept here for one purpose only: recognizing the imported
+// entries in a stored v205 state so the cleanup can strip them. They
+// are never read as state, never shown, and once a state carries
+// clearedNotionSeed this list is never consulted again. An entry he
+// re-added by hand in v205 that is identical to an imported one is
+// indistinguishable from the import — the ruling clears it with the
+// rest, and he can re-add it in-app in one tap.
+const V205_NOTION_QUEUE_SNAPSHOT: QueueItem[] = [
+  { book: '3 John', chapter: 1 },
+  { book: '2 John', chapter: 1 },
+  { book: '1 John', chapter: 5 },
+  { book: '1 John', chapter: 4 },
+  { book: '1 John', chapter: 3 },
+  { book: '1 John', chapter: 2 },
+  { book: '1 John', chapter: 1 },
+];
+
+function isNotionSeedEntry(item: QueueItem): boolean {
+  return V205_NOTION_QUEUE_SNAPSHOT.some((s) => s.book === item.book && s.chapter === item.chapter);
+}
+
+/** Pure: remove the v205 Notion-seeded queue entries from a state and
+ * stamp it cleaned. Overrides and migrated completes are untouched —
+ * they are his app progress. */
+export function stripNotionSeedQueues(state: StudyState): StudyState {
+  return {
+    ...state,
+    writeQueue: state.writeQueue.filter((q) => !isNotionSeedEntry(q)),
+    restudyQueue: state.restudyQueue.filter((q) => !isNotionSeedEntry(q)),
+    clearedNotionSeed: true,
+  };
+}
+
 export function seedStudyState(): StudyState {
+  // Born clean: no imported statuses, no imported queues — nothing to
+  // strip, so the cleanup flag starts set.
   return {
     overrides: {},
-    writeQueue: [...STUDY_SEED.writeQueue],
-    restudyQueue: [...STUDY_SEED.restudyQueue],
+    writeQueue: [],
+    restudyQueue: [],
+    clearedNotionSeed: true,
   };
 }
 
 export async function loadStudyState(): Promise<StudyState> {
   let state: StudyState;
+  let dirty = false;
   try {
     const raw = await AsyncStorage.getItem(STUDY_KEY);
     if (!raw) state = seedStudyState();
@@ -45,20 +94,28 @@ export async function loadStudyState(): Promise<StudyState> {
       else {
         state = {
           overrides: parsed.overrides ?? {},
-          writeQueue: Array.isArray(parsed.writeQueue) ? parsed.writeQueue : [...STUDY_SEED.writeQueue],
-          restudyQueue: Array.isArray(parsed.restudyQueue) ? parsed.restudyQueue : [...STUDY_SEED.restudyQueue],
+          writeQueue: Array.isArray(parsed.writeQueue) ? parsed.writeQueue : [],
+          restudyQueue: Array.isArray(parsed.restudyQueue) ? parsed.restudyQueue : [],
           migratedUnified: parsed.migratedUnified === true,
+          clearedNotionSeed: parsed.clearedNotionSeed === true,
         };
       }
     }
   } catch {
     state = seedStudyState();
   }
+  // v206 one-time cleanup: a stored v205 state still carries the
+  // imported queues — strip exactly those entries, keep the rest.
+  if (!state.clearedNotionSeed) {
+    state = stripNotionSeedQueues(state);
+    dirty = true;
+  }
   if (!state.migratedUnified) {
     const merged = await migrateUnifiedProgress(state);
-    await saveStudyState(merged.state);
-    return merged.state;
+    state = merged.state;
+    dirty = true;
   }
+  if (dirty) await saveStudyState(state);
   return state;
 }
 
@@ -70,16 +127,15 @@ export async function saveStudyState(state: StudyState): Promise<void> {
   }
 }
 
-/** The chapter's true current state: his override, else the seed, else —
- * for the Johannine letters in his queues — the queue's word, else none. */
+/** The chapter's true current state: his in-app override, else the
+ * word of a queue HE built in the app, else none. (v206: the Notion
+ * seed is never consulted — there is nothing imported left to say.) */
 export function chapterStatus(state: StudyState, book: string, chapter: number): StudyStatus {
   const override = state.overrides[chapterKey(book, chapter)];
   if (override) return override;
-  const seed = STUDY_SEED.statuses[book]?.[chapter];
-  if (seed && seed !== 'none') return seed;
   if (state.restudyQueue.some((q) => q.book === book && q.chapter === chapter)) return 'restudy';
   if (state.writeQueue.some((q) => q.book === book && q.chapter === chapter)) return 'write';
-  return seed ?? 'none';
+  return 'none';
 }
 
 export function setChapterStatus(state: StudyState, book: string, chapter: number, status: StudyStatus): StudyState {
@@ -100,16 +156,19 @@ export function queueContains(queue: QueueItem[], book: string, chapter: number)
 
 // ─── Migration: his pre-v205 check-offs ──────────────────────────────────────
 // The old Personal Study kept its progress in the unified Bible store
-// (and, behind it, the older bibleReadingProgress id list). His ruling:
-// a chapter is Complete if EITHER his in-app progress OR the imported
-// Notion status says so — the import never wipes in-app progress. Runs
-// once, the first time the new study store loads; everything it changes
-// is recorded so the merge is auditable.
+// (and, behind it, the older bibleReadingProgress id list). Those are
+// HIS in-app check-offs — under the v206 ruling they are exactly what
+// counts, so the merge is unchanged: every read chapter becomes
+// Complete in the new states. Runs once, the first time the new study
+// store loads; everything it changes is recorded so the merge is
+// auditable. (v205 also recorded "conflicts" against the Notion seed;
+// with the seed cleared there is nothing left to conflict with — the
+// field stays in the result shape, always empty.)
 
 export interface MigrationConflict {
   book: string;
   chapter: number;
-  /** What the Notion seed said before the merge. */
+  /** v205 only: what the Notion seed said. Never populated in v206. */
   seedStatus: StudyStatus;
 }
 
@@ -117,7 +176,7 @@ export interface MigrationResult {
   state: StudyState;
   /** Chapters his in-app check-offs newly marked Complete. */
   migrated: QueueItem[];
-  /** Chapters where the two sources disagreed (resolved: Complete wins). */
+  /** Always empty since v206 — kept for the v205 result shape. */
   conflicts: MigrationConflict[];
 }
 
@@ -133,8 +192,6 @@ export function mergeUnifiedReads(state: StudyState, readChapters: QueueItem[]):
     seen.add(id);
     const before = chapterStatus(next, book, chapter);
     if (before === 'complete') continue;
-    const seed = STUDY_SEED.statuses[book]?.[chapter];
-    if (seed && seed !== 'none') conflicts.push({ book, chapter, seedStatus: seed });
     next = setChapterStatus(next, book, chapter, 'complete');
     migrated.push({ book, chapter });
   }

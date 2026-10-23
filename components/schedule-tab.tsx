@@ -229,7 +229,7 @@ import { syncScheduledEventNotifications } from '@/lib/notification-scheduler';
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
-import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
+import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, getLastReadPosition, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
 import { chapterStatus as v205ChapterStatus, loadStudyState as loadV205StudyState } from "@/lib/bible-v205/study";
 import { CHAPTER_COUNTS as V205_CHAPTER_COUNTS, chapterCountFor as v205ChapterCountFor } from "@/lib/bible-v205/index";
 import { getBibleBookGenre } from "@/lib/bible-genres";
@@ -238,6 +238,15 @@ import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bibl
 import type { XpAction, XpGainPosition } from "@/lib/xp-engine";
 
 const LEGACY_BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus'; // Legacy storage key for book statuses
+
+/** v206: "Oct 20, 2026" from the unified store's ISO read date (YYYY-MM-DD). */
+const READ_DATE_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function formatReadDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return iso;
+  const month = READ_DATE_MONTHS[parseInt(m[2], 10) - 1] ?? m[2];
+  return `${month} ${parseInt(m[3], 10)}, ${m[1]}`;
+}
 const WORSHIP_EXPANSION_STATE_KEY = 'prayercircle.schedule.worship.expansion.v1';
 const WORSHIP_TRACK_COMPLETION_STATE_KEY = 'prayercircle.schedule.worship.track-completions.v1';
 
@@ -11848,7 +11857,16 @@ export function ScheduleTab({
     // Add Personal Study as a card item in the schedule flow (before time blocks)
     const currentBibleDisplay = bibleState ? getCurrentBibleDisplay(bibleState) : 'No book marked as current';
     if (bibleState) {
-      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: studyDoorway?.line ?? "Your Books", sub: studyDoorway?.sub ?? null } });
+      // v206: the restored expansion lines — his reading position from
+      // the unified store: where he left off last time, and where he
+      // is this time. (The v205 doorway dropped the old card's
+      // drop-down; these ride the item so the card can expand again.)
+      const lastPos = getLastReadPosition(bibleState);
+      const lastTime = lastPos
+        ? `Last time: ${lastPos.book} ${lastPos.chapter}${lastPos.date ? ` · ${formatReadDate(lastPos.date)}` : ""}`
+        : null;
+      const thisTime = currentBibleDisplay ? `This time: ${currentBibleDisplay}` : null;
+      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: studyDoorway?.line ?? "Your Books", sub: studyDoorway?.sub ?? null, lastTime, thisTime } });
     }
 
     // Add worship section as a direct display (not expandable)
@@ -12116,6 +12134,10 @@ export function ScheduleTab({
           // unified progress bar) are retired: there is exactly one
           // chapter check-off list in the app, and it is the new one.
           // The card's lines come from the NEW study store.
+          // v206: the drop-down is back. The chevron expands the card
+          // in place (whole-card tap still opens Books) and shows his
+          // reading position from the unified store — Last time /
+          // This time — the lines the v205 doorway dropped.
           return (
             <Pressable
               onPress={() => router.push('/bible-chapters')}
@@ -12128,7 +12150,15 @@ export function ScheduleTab({
                       <MaterialIcons name="menu-book" size={20} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600', ...bitDisplay(skinTokens, 10), ...skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) }}>Personal Study</Text>
                     </View>
-                    <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+                    <Pressable
+                      onPress={() => togglePersonalStudyExpanded(!isPersonalStudyExpanded)}
+                      hitSlop={10}
+                      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 2 }]}
+                      accessibilityRole="button"
+                      accessibilityLabel={isPersonalStudyExpanded ? "Collapse Personal Study" : "Expand Personal Study"}
+                    >
+                      <MaterialIcons name={isPersonalStudyExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
+                    </Pressable>
                   </View>
                   <View style={{ gap: 4 }}>
                     <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700', ...(skinTokens.isEightBit ? bitDisplay(skinTokens, 11) : {}), ...skinText(skinTokens, skinTokens.type.cardTitle) }}>
@@ -12140,6 +12170,20 @@ export function ScheduleTab({
                       </Text>
                     ) : null}
                   </View>
+                  {isPersonalStudyExpanded && (item.data.lastTime || item.data.thisTime) ? (
+                    <View style={{ gap: 6, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
+                      {item.data.lastTime ? (
+                        <Text style={{ color: colors.muted, fontSize: 13, fontWeight: '500', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
+                          {item.data.lastTime}
+                        </Text>
+                      ) : null}
+                      {item.data.thisTime ? (
+                        <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '600', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
+                          {item.data.thisTime}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ) : null}
                 </View>
               </View>
             </Pressable>

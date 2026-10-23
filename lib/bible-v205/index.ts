@@ -5,7 +5,7 @@
 // the screens render.
 
 import { COMMENTARY_DATA } from './data/index';
-import { STUDY_SEED } from './study-seed';
+import { chapterStatus, type StudyState } from './study';
 import { entrySourceCategory } from './categories';
 import {
   entryKey,
@@ -18,7 +18,7 @@ import {
   type V205Section,
 } from './types';
 
-export { COMMENTARY_DATA, STUDY_SEED };
+export { COMMENTARY_DATA };
 export * from './types';
 
 export function getBookData(book: string): V205BookData | null {
@@ -68,28 +68,19 @@ export function notesBooks(canon: string[]): string[] {
   return canon.filter((b) => b in COMMENTARY_DATA);
 }
 
-/** Books his Studies databases track (chapter states), canon order. */
-export function databaseBooks(canon: string[]): string[] {
-  return canon.filter((b) => b in STUDY_SEED.statuses);
-}
-
-export interface BookStudySummary {
-  tracked: number;
-  counts: Partial<Record<StudyStatus, number>>;
-}
-
-export function bookStudySummary(book: string): BookStudySummary | null {
-  const map = STUDY_SEED.statuses[book];
-  if (!map) return null;
-  const counts: Partial<Record<StudyStatus, number>> = {};
-  for (const s of Object.values(map)) {
-    if (s) counts[s] = (counts[s] ?? 0) + 1;
-  }
-  return { tracked: STUDY_SEED.trackedChapters[book] ?? Object.keys(map).length, counts };
-}
-
-export function seedStatus(book: string, chapter: number): StudyStatus {
-  return STUDY_SEED.statuses[book]?.[chapter] ?? 'none';
+/** v206: books carrying any state HE set in the app (an override or a
+ * queue he built), canon order. This is the Books view's progress
+ * group — computed from the study store alone. (v205 grouped by his
+ * Notion databases via databaseBooks/bookStudySummary/seedStatus;
+ * those helpers are gone with the seed they read.) */
+export function booksWithProgress(state: StudyState, canon: string[]): string[] {
+  return canon.filter((book) => {
+    const total = chapterCountFor(book);
+    for (let c = 1; c <= total; c++) {
+      if (chapterStatus(state, book, c) !== 'none') return true;
+    }
+    return false;
+  });
 }
 
 // ─── Display model ───────────────────────────────────────────────────────────

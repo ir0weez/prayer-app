@@ -262,9 +262,11 @@ export function ChapterPageView(props: ChapterPageProps) {
     Array.from({ length: totalChapters }, (_, i) => i + 1).every(
       (c) => chapterStatus(studyState, book, c) === 'complete',
     );
+  // v206: the strip's state words come from the app alone — the v205
+  // strings that credited "the database" are gone with the seed.
   const stripText =
     status === 'complete'
-      ? `Chapter ${chapter} — notes finished${allComplete ? `, all ${totalChapters} chapters of ${book} are Complete in the database.` : ' in the database.'}`
+      ? `Chapter ${chapter} — notes finished${allComplete ? `; all ${totalChapters} chapters of ${book} are Complete.` : '.'}`
       : status === 'in-progress'
         ? `Chapter ${chapter} — notes in progress.`
         : status === 'write'
@@ -272,7 +274,7 @@ export function ChapterPageView(props: ChapterPageProps) {
           : status === 'restudy'
             ? `Chapter ${chapter} — on the Current list, waiting to be re-studied.`
             : status === 'not-started'
-              ? `Chapter ${chapter} — tracked in the database, not started yet.`
+              ? `Chapter ${chapter} — marked not started yet.`
               : `Chapter ${chapter} — no study status recorded yet. Tap to set one.`;
 
   const content = stories ? (

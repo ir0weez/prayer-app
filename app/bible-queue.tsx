@@ -1,8 +1,8 @@
 // ─── v205 Study Queue ────────────────────────────────────────────────────────
-// His pipeline, as it stands: Write (his Next database) → Complete →
-// ReStudy (his Current database). The lists are seeded from his own
-// Current/Next exports and stay editable from any chapter's status menu —
-// reading alone never moves a chapter.
+// His pipeline, as it stands: Write (his Next list) → Complete →
+// ReStudy (his Current list). v206: the lists are built in the app
+// (the v205 Notion seeding was cleared by his ruling) and stay editable
+// from any chapter's status menu — reading alone never moves a chapter.
 
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -112,10 +112,10 @@ export default function BibleQueueScreen() {
           ]}
         >
           <Text style={[styles.qnoteText, { color: palette.greyInk }]}>
-            Both lists are the <Text style={{ fontWeight: '800' }}>Next</Text> and{' '}
-            <Text style={{ fontWeight: '800' }}>Current</Text> databases, shown as they stand — the notes to write,
-            and the finished chapters queued to read again. Chapters move only when you move them — from a
-            chapter's status strip or its book page.
+            Both lists are yours, kept here in the app — the <Text style={{ fontWeight: '800' }}>Next</Text> list
+            (the notes to write) and the <Text style={{ fontWeight: '800' }}>Current</Text> list (the finished
+            chapters queued to read again). Chapters move only when you move them — from a chapter's status
+            strip or its book page.
           </Text>
         </View>
         <View style={{ height: 30 }} />

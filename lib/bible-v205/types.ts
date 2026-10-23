@@ -96,13 +96,12 @@ export interface QueueItem {
 }
 
 export interface StudySeed {
-  /** book -> chapter -> status, exactly as his Studies CSVs record it (deduped). */
+  /** v206: kept for shape only — the shipped seed is EMPTY (his ruling:
+   * only in-app progress counts). In v205 these fields carried his
+   * Studies CSVs; nothing may populate them again. */
   statuses: Record<string, Partial<Record<number, StudyStatus>>>;
-  /** book -> number of chapters his database tracks (Psalms tracks 40, not 150). */
   trackedChapters: Record<string, number>;
-  /** His "Next" database — chapters queued to write. */
   writeQueue: QueueItem[];
-  /** His "Current" database — chapters queued to re-study. */
   restudyQueue: QueueItem[];
 }
 

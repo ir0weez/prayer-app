@@ -38,26 +38,44 @@ function capitalize(tag: string): string {
   return tag.length > 0 ? tag[0].toUpperCase() + tag.slice(1) : tag;
 }
 
-// Splits a body into plain segments and @mention segments for the
-// people it actually mentions (full name or first name).
-function mentionSegments(body: string, people: Person[]): ({ text: string } | { text: string; personId: string })[] {
-  const mentioned = peopleMentionedInBody(body, people);
-  if (mentioned.length === 0) return [{ text: body }];
-  const names = mentioned
+type BodySegment =
+  | { text: string }
+  | { text: string; personId: string }
+  | { text: string; tag: string };
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Splits a body into plain segments, @mention links, and #tag
+// links. Mention candidates are the People list PLUS the entry's
+// own structural snapshots (taggedPeople): a mention picked in the
+// v204 composer is stored on the entry, so its link survives even
+// if the person later leaves the People list — the text alone no
+// longer carries the whole link. Matching stays Zeitgeist's rule:
+// full name or first name after the @.
+function bodySegments(body: string, candidates: { id: string; name: string }[]): BodySegment[] {
+  if (!body) return [{ text: body }];
+  const names = candidates
     .flatMap((person) => [person.name, person.name.split(/\s+/)[0]])
     .filter((name, index, all) => name && all.indexOf(name) === index)
     .sort((a, b) => b.length - a.length);
-  const pattern = new RegExp(`@(${names.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?![\\w])`, "gi");
-  const segments: ({ text: string } | { text: string; personId: string })[] = [];
+  const mentionAlt = names.length > 0 ? `@(${names.map(escapeRegExp).join("|")})(?![\\w])` : `@(?!)`;
+  const pattern = new RegExp(`${mentionAlt}|#(\\w+)`, "gi");
+  const segments: BodySegment[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(body)) !== null) {
     if (match.index > lastIndex) segments.push({ text: body.slice(lastIndex, match.index) });
-    const matchedName = match[1].toLowerCase();
-    const person = mentioned.find(
-      (candidate) => candidate.name.toLowerCase() === matchedName || candidate.name.split(/\s+/)[0].toLowerCase() === matchedName,
-    );
-    segments.push(person ? { text: match[0], personId: person.id } : { text: match[0] });
+    if (match[1]) {
+      const matchedName = match[1].toLowerCase();
+      const person = candidates.find(
+        (candidate) => candidate.name.toLowerCase() === matchedName || candidate.name.split(/\s+/)[0].toLowerCase() === matchedName,
+      );
+      segments.push(person ? { text: match[0], personId: person.id } : { text: match[0] });
+    } else if (match[2]) {
+      segments.push({ text: match[0], tag: match[2].toLowerCase() });
+    }
     lastIndex = match.index + match[0].length;
   }
   if (lastIndex < body.length) segments.push({ text: body.slice(lastIndex) });
@@ -76,7 +94,7 @@ export function JournalPost({
   avatarMode = "author",
 }: JournalPostProps) {
   const colors = useColors();
-  const { isSkinned, tokens: skinTokens } = useSkin();
+  const { tokens: skinTokens } = useSkin();
   const [expanded, setExpanded] = useState(false);
 
   // v195 (Journal, Actually Zeitgeist): an entry's legacy color is
@@ -91,7 +109,10 @@ export function JournalPost({
   // His ruling: the mockup's LAYOUT, his app's SURFACE. The post is
   // back on the active skin's own surface/ink/faint/hairline tokens,
   // exactly as v194 rendered; the flat composition is unchanged.
-  const postSurface = isSkinned ? skinTokens.surface ?? colors.surface : colors.surface;
+  // v204: one step further, per his screenshot — the row paints NO
+  // background at all (see the Pressable below), so feed and screen
+  // are literally one surface; only ink/faint/hairline tokens ride
+  // on the row now.
   const ink = skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground;
   const faint = skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted;
   const hairline = skinTokens.isTerminal ? TERM_MID : colors.border;
@@ -109,8 +130,22 @@ export function JournalPost({
     (tagged) =>
       tagged.name.trim().length > 0 && !mentionedInBody.some((person) => person.id === tagged.id),
   );
-  const segments = useMemo(() => mentionSegments(entry.body, people), [entry.body, people]);
-  const hasMentions = segments.some((segment) => "personId" in segment);
+  // v204: segment candidates are the People list plus this entry's
+  // own tagged snapshots, so a structurally stored mention keeps
+  // rendering as a link even after the person leaves the list.
+  const segmentCandidates = useMemo(() => {
+    const byId = new Map<string, { id: string; name: string }>();
+    for (const person of people) byId.set(person.id, { id: person.id, name: person.name });
+    for (const tagged of entry.taggedPeople) {
+      if (!byId.has(tagged.id)) byId.set(tagged.id, { id: tagged.id, name: tagged.name });
+    }
+    return [...byId.values()];
+  }, [people, entry.taggedPeople]);
+  const segments = useMemo(() => bodySegments(entry.body, segmentCandidates), [entry.body, segmentCandidates]);
+  const hasLinks = segments.some((segment) => "personId" in segment || "tag" in segment);
+  const mentionColor = skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_PHOS : "#5B4BD6";
+  const tagColor = skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_PHOS : "#7C5CFF";
+  const placeForTag = (tag: string) => (entry.places ?? []).find((place) => place.tag.toLowerCase() === tag);
   const bodyText = expanded || entry.body.length <= 240 ? entry.body : `${entry.body.slice(0, 240)}…`;
   const photos = entry.photos ?? [];
 
@@ -122,7 +157,15 @@ export function JournalPost({
       style={({ pressed }) => [
         styles.post,
         {
-          backgroundColor: postSurface,
+          // v204: NO background of the row's own — the post sits
+          // directly on the screen's one surface, divided from the
+          // next row by the hairline alone. v195/v196 painted the
+          // row with the surface token while the screen behind it
+          // wore the background token, so on his phone every entry
+          // read as a separate pale slab (card) floating on the
+          // lavender field. The mockup's rows and its screen are
+          // one color; now ours are too — both are the surface
+          // beneath, showing through.
           borderBottomColor: hairline,
           ...(skinTokens.isPaper ? { padding: 16 + skinTokens.type.padBoost } : {}),
         },
@@ -160,14 +203,22 @@ export function JournalPost({
           </View>
         </View>
       ) : entry.body ? (
-        hasMentions ? (
+        hasLinks ? (
           <Text style={[styles.body, { color: ink }]}>
-            {mentionSegments(bodyText, people).map((segment, index) =>
+            {bodySegments(bodyText, segmentCandidates).map((segment, index) =>
               "personId" in segment ? (
                 <Text
                   key={index}
                   onPress={() => onOpenPerson(segment.personId)}
-                  style={{ color: skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_PHOS : "#5B4BD6", fontWeight: "700" }}
+                  style={{ color: mentionColor, fontWeight: "700" }}
+                >
+                  {segment.text}
+                </Text>
+              ) : "tag" in segment ? (
+                <Text
+                  key={index}
+                  onPress={() => onOpenTag(segment.tag)}
+                  style={{ color: tagColor, fontWeight: "600" }}
                 >
                   {segment.text}
                 </Text>
@@ -200,20 +251,25 @@ export function JournalPost({
       {(entry.mood && !moodOnly) || tags.length > 0 || taggedNotMentioned.length > 0 || (entry.location && hidePhotos) ? (
         <View style={styles.chips}>
           {entry.mood && !moodOnly ? <MoodFaceChip mood={entry.mood as JournalMood} /> : null}
-          {tags.map((tag) => (
-            <Pressable
-              key={tag}
-              onPress={() => onOpenTag(tag)}
-              style={({ pressed }) => [
-                styles.chip,
-                { backgroundColor: chipBg },
-                pressed && styles.pressed,
-              ]}
-            >
-              <MaterialIcons name="sell" size={13} color={chipInk} />
-              <Text style={[styles.chipText, { color: chipInk }]}>{capitalize(tag)}</Text>
-            </Pressable>
-          ))}
+          {tags.map((tag) => {
+            // v204: a tag that is a picked place wears the place's
+            // real name (and a place pin), not its squeezed token.
+            const place = placeForTag(tag);
+            return (
+              <Pressable
+                key={tag}
+                onPress={() => onOpenTag(tag)}
+                style={({ pressed }) => [
+                  styles.chip,
+                  { backgroundColor: chipBg },
+                  pressed && styles.pressed,
+                ]}
+              >
+                <MaterialIcons name={place ? "place" : "sell"} size={13} color={chipInk} />
+                <Text style={[styles.chipText, { color: chipInk }]}>{place ? place.name : capitalize(tag)}</Text>
+              </Pressable>
+            );
+          })}
           {taggedNotMentioned.map((person) => (
             <Pressable
               key={person.id}

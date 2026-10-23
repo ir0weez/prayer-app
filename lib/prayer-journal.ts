@@ -5,6 +5,16 @@ export type PrayerJournalTaggedPerson = Pick<
   "id" | "name" | "initials" | "avatarColor" | "accentColor" | "photoUri" | "avatarAsset" | "gender"
 >;
 
+// v204: a place picked from the composer's # suggestions is stored
+// structurally, the same way a @mention stores its person: the real
+// display name plus the hashtag token the body carries (#MomsHouse).
+// The body text alone can't hold a multi-word name in one #token,
+// and an edit that rewords the text must not lose the place link.
+export type PrayerJournalTaggedPlace = {
+  name: string;
+  tag: string;
+};
+
 export type PrayerJournalReply = {
   id: string;
   body: string;
@@ -18,6 +28,7 @@ export type PrayerJournalEntry = {
   body: string;
   date: string;
   taggedPeople: PrayerJournalTaggedPerson[];
+  places?: PrayerJournalTaggedPlace[];
   isBookmarked: boolean;
   replies: PrayerJournalReply[];
   createdAt: string;
@@ -138,12 +149,34 @@ type PrayerJournalEntryInput = {
   body: string;
   date?: string;
   taggedPeople?: Person[];
+  places?: PrayerJournalTaggedPlace[];
   color?: string;
   location?: string;
   weather?: string;
   mood?: { id: string; intensity: 1 | 2 | 3 };
   photos?: string[];
 };
+
+function normalizeTaggedPlace(value: unknown): PrayerJournalTaggedPlace | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<PrayerJournalTaggedPlace>;
+  const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
+  const tag = typeof candidate.tag === "string" ? candidate.tag.trim().replace(/^#/, "") : "";
+  if (!name || !tag) return null;
+  return { name, tag };
+}
+
+function normalizeTaggedPlaces(value: unknown): PrayerJournalTaggedPlace[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const places: PrayerJournalTaggedPlace[] = [];
+  for (const raw of value) {
+    const place = normalizeTaggedPlace(raw);
+    if (place && !places.some((kept) => kept.tag.toLowerCase() === place.tag.toLowerCase())) {
+      places.push(place);
+    }
+  }
+  return places.length > 0 ? places : undefined;
+}
 
 function normalizePhotos(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
@@ -176,6 +209,7 @@ export function createPrayerJournalEntry(
     body,
     date: normalizeDate(input.date, fallbackDate),
     taggedPeople: (input.taggedPeople ?? []).map(snapshotPerson),
+    places: normalizeTaggedPlaces(input.places),
     isBookmarked: false,
     replies: [],
     createdAt,
@@ -208,6 +242,10 @@ export function updatePrayerJournalEntry(
             body,
             date: normalizeDate(input.date, entry.date),
             taggedPeople: input.taggedPeople ? input.taggedPeople.map(snapshotPerson) : entry.taggedPeople,
+            // v204: an edit that doesn't touch places keeps the
+            // entry's structural place links — rewording the body
+            // in the editor must not strip them.
+            places: input.places !== undefined ? normalizeTaggedPlaces(input.places) : entry.places,
             updatedAt,
             color: input.color,
             location: input.location,
@@ -398,6 +436,7 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
         body,
         date,
         taggedPeople,
+        ...(normalizeTaggedPlaces(candidate.places) ? { places: normalizeTaggedPlaces(candidate.places) } : {}),
         isBookmarked: candidate.isBookmarked === true,
         replies,
         createdAt,

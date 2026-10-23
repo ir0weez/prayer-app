@@ -22,6 +22,7 @@ import {
   lastSharedEntry,
   monthLabelsForGrid,
   paintedDays,
+  placeNameForTag,
   parseIsoDate,
   sharedDatesFor,
   tagIndex,
@@ -251,7 +252,9 @@ export function TagSheet({
   if (!tag) return null;
   const ink = skinTokens.isTerminal ? TERM_SOFT : colors.foreground;
   const faint = skinTokens.isTerminal ? TERM_MID : colors.muted;
-  const title = tag.length > 0 ? tag[0].toUpperCase() + tag.slice(1) : tag;
+  // v204: a place's page wears the place's real name — the token
+  // (#WestParkElementary) is just the key the page is filed under.
+  const title = placeNameForTag(entries, tag) ?? (tag.length > 0 ? tag[0].toUpperCase() + tag.slice(1) : tag);
   const isGarden = tag === "garden";
 
   return (

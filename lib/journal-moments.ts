@@ -161,7 +161,144 @@ export function extractEntryHashtags(text: string): string[] {
 }
 
 export function entryTags(entry: PrayerJournalEntry): string[] {
-  return extractEntryHashtags(entry.body).map((tag) => tag.toLowerCase());
+  // v204: a picked place rides structurally on the entry (entry
+  // .places) as well as in the body text — its tag counts even if
+  // an edit later rewords the body, so the place's page never loses
+  // a moment it was linked into.
+  const fromBody = extractEntryHashtags(entry.body).map((tag) => tag.toLowerCase());
+  const fromPlaces = (entry.places ?? []).map((place) => place.tag.toLowerCase());
+  return [...new Set([...fromBody, ...fromPlaces])];
+}
+
+export function placeNameForTag(entries: PrayerJournalEntry[], tag: string): string | null {
+  const wanted = tag.toLowerCase();
+  for (const entry of entries) {
+    for (const place of entry.places ?? []) {
+      if (place.tag.toLowerCase() === wanted) return place.name;
+    }
+  }
+  return null;
+}
+
+// ─── Composer @ / # autocomplete (v204) ─────────────────────────────────────
+// v204 diagnosis: the composer never had an insertion path at all —
+// the TextInput was a plain controlled input, posting wrote NO
+// taggedPeople, and the only @ support anywhere was a render-time
+// regex (peopleMentionedInBody / journal-post's segmenter) that can
+// link a name only when it was already typed perfectly, in full.
+// Typing "@Ev…" completed nothing, stored nothing, linked nothing.
+// These pure helpers are the missing half: find the token being
+// typed, suggest people/places for it, splice a pick back in.
+
+export type ActiveToken = {
+  trigger: "@" | "#";
+  query: string;
+  /** Index of the trigger character in the text. */
+  start: number;
+  /** Cursor position — the query runs from start + 1 to here. */
+  end: number;
+};
+
+// A mention query is name-shaped: letters (accents included),
+// apostrophes, hyphens, dots, and single spaces between words —
+// "@Eva R" is a name being typed, "@Eva went home today" is a
+// sentence (the filter below finds no match for it and the strip
+// simply stays closed).
+const MENTION_QUERY = /^[A-Za-zÀ-ÖØ-öø-ÿ'’.-]*(?: [A-Za-zÀ-ÖØ-öø-ÿ'’.-]+){0,2}$/;
+const PLACE_QUERY = /^\w*$/;
+const MAX_TOKEN_SPAN = 48;
+
+export function activeTokenAt(text: string, cursor: number): ActiveToken | null {
+  const end = Math.max(0, Math.min(cursor, text.length));
+  for (let start = end - 1; start >= 0 && end - start <= MAX_TOKEN_SPAN; start -= 1) {
+    const char = text[start];
+    if (char === "\n") return null;
+    if (char !== "@" && char !== "#") continue;
+    // The nearest trigger decides: if its query is malformed (or
+    // the trigger is glued to a word, as in an email address), no
+    // older token is being typed either.
+    const query = text.slice(start + 1, end);
+    const valid = char === "@" ? MENTION_QUERY.test(query) : PLACE_QUERY.test(query);
+    if (!valid) return null;
+    if (start > 0 && !/[\s(\[{]/.test(text[start - 1])) return null;
+    return { trigger: char, query, start, end };
+  }
+  return null;
+}
+
+export function peopleSuggestions(people: Person[], query: string, limit = 5): Person[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return people.slice(0, limit);
+  const scored: { person: Person; rank: number }[] = [];
+  for (const person of people) {
+    const name = person.name.toLowerCase();
+    let rank = -1;
+    if (name.startsWith(needle)) rank = 0;
+    else if (name.split(/\s+/).some((word) => word.startsWith(needle))) rank = 1;
+    else if (name.includes(needle)) rank = 2;
+    if (rank >= 0) scored.push({ person, rank });
+  }
+  return scored
+    .sort((a, b) => a.rank - b.rank || a.person.name.localeCompare(b.person.name))
+    .slice(0, limit)
+    .map((scored) => scored.person);
+}
+
+// The hashtag token a place name travels under: one word, the
+// name's own words joined ("Mom's House" → "MomsHouse", "West Park
+// Elementary" → "WestParkElementary"). entryTags lowercases it,
+// like every hashtag in the Journal.
+export function placeTagFor(name: string): string {
+  const words = name
+    .replace(/[’']/g, "")
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean);
+  return words
+    .map((word, index) => (index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)))
+    .join("");
+}
+
+export function placeSuggestions(places: string[], query: string, limit = 5): string[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return places.slice(0, limit);
+  return places
+    .filter((place) => place.toLowerCase().includes(needle) || placeTagFor(place).toLowerCase().startsWith(needle))
+    .slice(0, limit);
+}
+
+// Splices a pick over the active token: the trigger + partial query
+// is replaced by the full insertion and one trailing space, and the
+// cursor lands right after that space.
+export function applySuggestion(
+  text: string,
+  token: ActiveToken,
+  replacement: string,
+): { text: string; cursor: number } {
+  const inserted = `${replacement} `;
+  return {
+    text: text.slice(0, token.start) + inserted + text.slice(token.end),
+    cursor: token.start + inserted.length,
+  };
+}
+
+// Every place the # strip may suggest: the schedule's locations
+// (the same strings the Places Path walks) first-hand, plus any
+// place his entries already carry — their location field or a
+// structurally picked place. Deduped by case, sorted by name.
+export function knownPlaces(events: ScheduleEvent[], entries: PrayerJournalEntry[]): string[] {
+  const seen = new Map<string, string>();
+  const add = (raw?: string) => {
+    const name = (raw ?? "").trim().replace(/\s+/g, " ");
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (!seen.has(key)) seen.set(key, name);
+  };
+  for (const event of events) add(event.location);
+  for (const entry of entries) {
+    add(entry.location);
+    for (const place of entry.places ?? []) add(place.name);
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }
 
 export function tagIndex(entries: PrayerJournalEntry[]): Map<string, TagStats> {

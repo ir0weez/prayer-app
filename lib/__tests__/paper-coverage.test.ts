@@ -278,7 +278,9 @@ describe("Paper coverage — v202 animation pass", () => {
 
   it("journal: masthead + day pill, rows, and the composer all settle", () => {
     const journal = read("components/prayer-journal-tab.tsx");
-    expect(journal).toContain('import { PaperSettle } from "@/components/paper-motion";');
+    // v204: the import also brings paperPressedLift — the morphing
+    // composer's FAB face lifts like tappable paper while pressed.
+    expect(journal).toContain('import { PaperSettle, paperPressedLift } from "@/components/paper-motion";');
     // Rows and separators settle on first mount (index-staggered).
     expect(journal).toContain("<PaperSettle index={index} style={styles.separator}>");
     expect(journal).toContain("<PaperSettle index={index}>");

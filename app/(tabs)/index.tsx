@@ -687,6 +687,13 @@ export default function HomeScreen() {
   const [familyRolesByPersonId, setFamilyRolesByPersonId] = useState<Record<string, FamilyType | undefined>>({});
   const [showCustomRelationshipInput, setShowCustomRelationshipInput] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
+  // v204: while the Journal's composer morph is open, its box
+  // takes the tab bar's place — the bar hides (opacity + no touch)
+  // for exactly that span, on that tab only.
+  const [journalComposing, setJournalComposing] = useState(false);
+  useEffect(() => {
+    if (activeTab !== "journal") setJournalComposing(false);
+  }, [activeTab]);
   const tabTransition = useSharedValue(1);
   // Preserve Schedule UI state across lazy tab mounts.
   const [scheduleSelectedDate, setScheduleSelectedDate] = useState(() => {
@@ -3138,7 +3145,7 @@ export default function HomeScreen() {
         )}
         {activeTab === "journal" && (
           <View style={{ flex: 1 }}>
-            <PrayerJournalTab entries={journal} people={people} onChange={setJournal} />
+            <PrayerJournalTab entries={journal} people={people} onChange={setJournal} onComposeChange={setJournalComposing} />
           </View>
         )}
         {activeTab === "settings" && (
@@ -3394,7 +3401,11 @@ export default function HomeScreen() {
 
       <View
         onLayout={(event) => setNavWidth(event.nativeEvent.layout.width)}
+        pointerEvents={journalComposing && activeTab === "journal" ? "none" : "auto"}
         style={[styles.bottomNav, {
+          // v204: hidden while the Journal composer morph is open —
+          // the morphing box stands in the bar's place.
+          opacity: journalComposing && activeTab === "journal" ? 0 : 1,
           borderColor: colors.border,
           // 8-bit (v184): the tab bar is the mockup's cartridge panel —
           // darkest HUD indigo, square corners, 3px ink edge, the one

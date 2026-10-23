@@ -98,7 +98,9 @@ describe("8-bit coverage — v203 animation pass", () => {
 
   it("journal: masthead, rows, separators, and the composer all snap in", () => {
     const journal = read("components/prayer-journal-tab.tsx");
-    expect(journal).toContain('import { BitSettle } from "@/components/bit-motion";');
+    // v204: the import also brings bitPressedSnap — the morphing
+    // composer's FAB face depresses like bit chrome while pressed.
+    expect(journal).toContain('import { BitSettle, bitPressedSnap } from "@/components/bit-motion";');
     // Separators and Moment rows carry the indexed bit entrance.
     expect(count(journal, "<BitSettle index={index}>")).toBe(2);
     expect(count(journal, "<BitSettle>")).toBe(2);

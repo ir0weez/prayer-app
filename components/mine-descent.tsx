@@ -1,30 +1,41 @@
-// The Switchback Descent (v178) — the cave's level navigation drawn
-// as the thing itself: a zigzag tunnel cut down through the eight
-// strata, a landing at every level, opened levels lit with lantern
-// glow and unopened ones left as dark rock. The paper hero stands
-// at the level he is on; tapping a lit landing walks him down (or
-// up) the switchbacks on one calm native-driven slide, and then he
-// is at that level's dig wall. Cracking a new level open routes
-// through here too, so the walk down to fresh rock is SEEN.
+// The Cave — one screen (v178's switchback descent, merged v191).
+//
+// Jonathan's correction (2026-10-22): "It has the ore screen, then
+// it shifts to the zigzag screen. The mockup shows that the ore
+// screen and the zig zag are the same screen. That was the point!"
+//
+// So the zigzag shaft IS the cave now — not an overlay over a
+// separate dig wall. The tunnel descends through the eight strata
+// with a landing at every level, opened levels lit with lantern
+// glow, and at the landing where the paper hero stands, the dig
+// GALLERY opens in place: that level's wall and its three faces,
+// dug right there. Tapping a lit landing walks him along the
+// switchbacks (one calm native-driven slide, as ever), and the
+// gallery opens at the landing he arrives at. Cracking a new level
+// open walks him down to it. There is no second screen and nothing
+// to dismiss — the mockup's galleries were always the digging
+// places.
 //
 // Perf, per the standing worry: the shaft is eight memoized stratum
-// bands of static SVG paper art — drawn once, never animated. The
-// only thing that moves is the hero, on a single Animated.Value
-// interpolated through the landing points of ONE short stretch
-// (lib/mine-descent stages long trips as a fade through the dark
-// plus a final ten-landing walk). No per-frame JS, ever.
+// bands of static SVG paper art — drawn once, never animated. Only
+// the band holding the gallery re-renders as he digs (its faces
+// change); the only thing that MOVES is the hero, on a single
+// Animated.Value interpolated through the landing points of ONE
+// short stretch (lib/mine-descent stages long trips as a fade
+// through the dark plus a final ten-landing walk). No per-frame JS,
+// ever. The shaft lives inside the cave screen's own scroll view;
+// when a walk needs the view to follow, it asks the screen to
+// scroll via onFollowHero.
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Animated,
   Easing,
   Pressable,
-  ScrollView,
   Text,
   View,
   useWindowDimensions,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 import Svg, { Circle, G, Path, Rect, Text as SvgText } from "react-native-svg";
 import {
   LEVELS_PER_STRATUM,
@@ -34,17 +45,18 @@ import {
 } from "@/lib/mountain";
 import {
   DESCENT_LEVEL_H,
+  GALLERY_H,
+  bandHasGallery,
   canTravelTo,
   descentHeroStart,
-  landingPoint,
+  shaftBandTopY,
+  shaftLandingPoint,
   walkDurationMs,
   walkPlan,
 } from "@/lib/mine-descent";
 import { PAPER_HERO_H, PAPER_HERO_W, PaperHeroFigure } from "@/components/paper-interior";
 import type { CustomPawn } from "@/lib/pawn";
 
-const BG = "#20142E";
-const PANEL = "#2E2140";
 const SHAFT_DARK = "#17101F";
 const TUNNEL = "#241430";
 const CREAM = "#F7F0DE";
@@ -68,6 +80,8 @@ const StratumBand = memo(function StratumBand({
   deepestLevel,
   heroLevel,
   walking,
+  galleryLevel,
+  gallery,
   onTapLanding,
 }: {
   stratumIndex: number;
@@ -75,41 +89,56 @@ const StratumBand = memo(function StratumBand({
   deepestLevel: number;
   heroLevel: number;
   walking: boolean;
+  /** The level whose dig gallery is open (exactly one, shaft-wide). */
+  galleryLevel: number;
+  /** The gallery node — passed ONLY to the band that holds it. */
+  gallery: ReactNode;
   onTapLanding: (level: number) => void;
 }) {
   const stratum = MINE_STRATA[stratumIndex];
   const firstLevel = firstLevelOfStratum(stratumIndex);
   const lastLevel = firstLevel + LEVELS_PER_STRATUM - 1;
-  const topY = (firstLevel - 1) * DESCENT_LEVEL_H;
+  const hasGallery = bandHasGallery(stratumIndex, galleryLevel);
+  const bandHeight = BAND_H + (hasGallery ? GALLERY_H : 0);
+  const bandTop = shaftBandTopY(stratumIndex, galleryLevel);
+
+  /** A landing's center in this band's own coordinates — the merged
+   *  shaft's geometry (lib/mine-descent) already accounts for the
+   *  gallery carved in above or inside this band. */
+  const localPoint = useCallback(
+    (level: number) => {
+      const p = shaftLandingPoint(level, width, galleryLevel);
+      return { x: p.x, y: p.y - bandTop };
+    },
+    [width, galleryLevel, bandTop]
+  );
 
   // The tunnel path: in from the landing above, through every
-  // landing of the band, and out toward the landing below.
+  // landing of the band, and out toward the landing below. Where
+  // the gallery is carved in, the path dips around it — the gallery
+  // chamber is opaque, so the stretch behind it simply reads as
+  // the tunnel passing through the chamber.
   const path = useMemo(() => {
     const pts: Array<{ x: number; y: number }> = [];
-    const entry = landingPoint(firstLevel - 1, width);
-    pts.push({ x: entry.x, y: entry.y - topY });
-    for (let l = firstLevel; l <= lastLevel; l++) {
-      const p = landingPoint(l, width);
-      pts.push({ x: p.x, y: p.y - topY });
-    }
-    const exit = landingPoint(lastLevel + 1, width);
-    pts.push({ x: exit.x, y: exit.y - topY });
+    pts.push(localPoint(firstLevel - 1));
+    for (let l = firstLevel; l <= lastLevel; l++) pts.push(localPoint(l));
+    pts.push(localPoint(lastLevel + 1));
     return pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-  }, [firstLevel, lastLevel, topY, width]);
+  }, [firstLevel, lastLevel, localPoint]);
 
   return (
-    <View style={{ width, height: BAND_H, position: "relative", backgroundColor: stratum.color }}>
-      <Svg width={width} height={BAND_H}>
+    <View style={{ width, height: bandHeight, position: "relative", backgroundColor: stratum.color }}>
+      <Svg width={width} height={bandHeight}>
         {/* a breath of shaft-dark over the rock, for depth */}
-        <Rect x={0} y={0} width={width} height={BAND_H} fill={SHAFT_DARK} opacity={0.16} />
+        <Rect x={0} y={0} width={width} height={bandHeight} fill={SHAFT_DARK} opacity={0.16} />
         <Rect x={0} y={0} width={width} height={2} fill={SHAFT_DARK} opacity={0.5} />
         {/* the tunnel: a dark cut edge, then the warm dark bore */}
         <Path d={path} fill="none" stroke={SHAFT_DARK} strokeWidth={31} strokeLinejoin="round" strokeLinecap="round" opacity={0.55} />
         <Path d={path} fill="none" stroke={TUNNEL} strokeWidth={22} strokeLinejoin="round" strokeLinecap="round" />
         {Array.from({ length: LEVELS_PER_STRATUM }).map((_, i) => {
           const level = firstLevel + i;
-          const p = landingPoint(level, width);
-          const y = p.y - topY;
+          const p = localPoint(level);
+          const y = p.y;
           const opened = level <= deepestLevel;
           const isDeepest = level === deepestLevel;
           const labelOnRight = p.x < width / 2;
@@ -154,12 +183,15 @@ const StratumBand = memo(function StratumBand({
           );
         })}
       </Svg>
-      {/* the stratum's name, run down the wall like the dig wall's */}
-      <View pointerEvents="none" style={{ position: "absolute", left: -31, top: BAND_H / 2 - 11, width: 84, alignItems: "center", transform: [{ rotate: "-90deg" }] }}>
-        <Text style={{ color: CREAM, fontSize: 10, fontWeight: "bold", letterSpacing: 2.4, opacity: 0.92 }}>
-          {stratum.name.toUpperCase()}
-        </Text>
-      </View>
+      {/* the stratum's name, run down the wall — hidden while this
+          band holds the gallery: the gallery's own wall carries it */}
+      {!hasGallery && (
+        <View pointerEvents="none" style={{ position: "absolute", left: -31, top: bandHeight / 2 - 11, width: 84, alignItems: "center", transform: [{ rotate: "-90deg" }] }}>
+          <Text style={{ color: CREAM, fontSize: 10, fontWeight: "bold", letterSpacing: 2.4, opacity: 0.92 }}>
+            {stratum.name.toUpperCase()}
+          </Text>
+        </View>
+      )}
       <View pointerEvents="none" style={{ position: "absolute", right: 10, top: 8, backgroundColor: "rgba(23,16,31,0.5)", borderRadius: 7, paddingHorizontal: 7, paddingVertical: 3 }}>
         <Text style={{ color: DIM, fontSize: 9.5, fontWeight: "700", letterSpacing: 1 }}>
           LEVELS {firstLevel}–{lastLevel}
@@ -169,23 +201,39 @@ const StratumBand = memo(function StratumBand({
       {Array.from({ length: LEVELS_PER_STRATUM }).map((_, i) => {
         const level = firstLevel + i;
         if (level > deepestLevel) return null;
-        const p = landingPoint(level, width);
+        const p = localPoint(level);
         return (
           <Pressable
             key={level}
             disabled={walking}
             onPress={() => onTapLanding(level)}
             accessibilityLabel={`Walk to Level ${level}`}
-            style={{ position: "absolute", left: p.x - 30, top: p.y - topY - 20, width: 60, height: 40 }}
+            style={{ position: "absolute", left: p.x - 30, top: p.y - 20, width: 60, height: 40 }}
           />
         );
       })}
+      {/* THE GALLERY (v191): the dig wall of the hero's own level,
+          open in the rock right under his landing — the ore screen
+          and the zigzag, one and the same screen */}
+      {hasGallery && gallery != null && (
+        <View
+          style={{
+            position: "absolute",
+            left: 10,
+            right: 10,
+            top: localPoint(galleryLevel).y + DESCENT_LEVEL_H / 2,
+            height: GALLERY_H,
+          }}
+        >
+          {gallery}
+        </View>
+      )}
     </View>
   );
 });
 
 /* ------------------------------------------------------------------ */
-/* The descent itself                                                  */
+/* The cave itself                                                     */
 /* ------------------------------------------------------------------ */
 
 export function MineDescent({
@@ -193,18 +241,28 @@ export function MineDescent({
   currentLevel,
   pawn,
   autoWalkTo,
+  galleryLevel,
+  gallery,
   onArrive,
-  onClose,
+  onFollowHero,
 }: {
   deepestLevel: number;
-  /** The level whose dig wall he was looking at when this opened. */
+  /** The level the hero stands at when the cave is entered. */
   currentLevel: number;
   pawn: CustomPawn | null;
   /** Set when a level just cracked open: walk down to it unasked. */
   autoWalkTo: number | null;
-  /** A walk finished — he stands at `level`; show him its wall. */
+  /** The level whose dig gallery is open — where he stands and digs. */
+  galleryLevel: number;
+  /** The gallery itself, built by the cave screen for galleryLevel:
+   *  that level's header, its wall of faces, its pick rail. */
+  gallery: ReactNode;
+  /** A walk finished — he stands at `level`, its gallery is open. */
   onArrive: (level: number) => void;
-  onClose: () => void;
+  /** Ask the screen to scroll so this shaft offset (from the top of
+   *  the surface strip) is in view — the shaft lives inside the
+   *  screen's own scroll view now. */
+  onFollowHero?: (shaftY: number, animated: boolean) => void;
 }) {
   const { width } = useWindowDimensions();
   const [heroLevel, setHeroLevel] = useState(() => descentHeroStart(currentLevel, deepestLevel));
@@ -212,7 +270,6 @@ export function MineDescent({
   const [waypoints, setWaypoints] = useState<Array<{ x: number; y: number }> | null>(null);
   const progress = useRef(new Animated.Value(0)).current;
   const heroOpacity = useRef(new Animated.Value(1)).current;
-  const scrollRef = useRef<ScrollView | null>(null);
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const alive = useRef(true);
 
@@ -229,21 +286,23 @@ export function MineDescent({
   }, []);
 
   /** A landing point in hero-render coordinates: the hero's feet
-   *  rest on the platform, so he hangs above his landing point. */
+   *  rest on the platform, so he hangs above his landing point. The
+   *  gallery is carved at the level he is leaving from, so every
+   *  point is read in the shaft as it stands when the walk begins. */
   const renderPoint = useCallback(
     (level: number) => {
-      const p = landingPoint(level, width);
+      const p = shaftLandingPoint(level, width, galleryLevel);
       return { x: p.x - HERO_W / 2, y: STRIP_H + p.y - HERO_H + 9 };
     },
-    [width]
+    [width, galleryLevel]
   );
 
   const scrollToShow = useCallback(
     (level: number, animated: boolean) => {
-      const p = landingPoint(level, width);
-      scrollRef.current?.scrollTo({ y: Math.max(0, STRIP_H + p.y - 190), animated });
+      const p = shaftLandingPoint(level, width, galleryLevel);
+      onFollowHero?.(STRIP_H + p.y - 190, animated);
     },
-    [width]
+    [width, galleryLevel, onFollowHero]
   );
 
   const travelTo = useCallback(
@@ -289,7 +348,7 @@ export function MineDescent({
         beginWalk();
       }
     },
-    [walking, deepestLevel, heroLevel, walkPlan, renderPoint, progress, heroOpacity, scrollToShow, later, onArrive]
+    [walking, deepestLevel, heroLevel, renderPoint, progress, heroOpacity, scrollToShow, later, onArrive]
   );
 
   // Open on the hero: the shaft starts scrolled to where he stands.
@@ -318,65 +377,48 @@ export function MineDescent({
   const heroHome = renderPoint(heroLevel);
 
   return (
-    <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: BG, zIndex: 20, elevation: 20 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: CREAM, fontWeight: "900", fontSize: 18 }}>The Descent</Text>
-          <Text style={{ color: DIM, fontSize: 11.5, marginTop: 2 }}>
-            Level {deepestLevel} of {MAX_LEVEL} stands open · tap a lit landing to walk there
-          </Text>
-        </View>
-        <Pressable
-          onPress={onClose}
-          disabled={walking}
-          style={{ backgroundColor: PANEL, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: "rgba(201,150,60,.45)", opacity: walking ? 0.4 : 1 }}
-        >
-          <MaterialIcons name="close" size={17} color="#FDE68A" />
-        </Pressable>
+    <View style={{ position: "relative" }}>
+      {/* the surface — grass, and the shaft mouth he came down */}
+      <View style={{ height: STRIP_H, backgroundColor: "#7CB35C", position: "relative" }}>
+        <View style={{ position: "absolute", left: "42%", top: 6, width: 34, height: 10, backgroundColor: SHAFT_DARK }} />
       </View>
-      <ScrollView ref={scrollRef} contentContainerStyle={{ paddingBottom: 90 }}>
-        <View style={{ position: "relative" }}>
-          {/* the surface — grass, and the shaft mouth he came down */}
-          <View style={{ height: STRIP_H, backgroundColor: "#7CB35C", position: "relative" }}>
-            <View style={{ position: "absolute", left: "42%", top: 6, width: 34, height: 10, backgroundColor: SHAFT_DARK }} />
-          </View>
-          {MINE_STRATA.map((s, i) => (
-            <StratumBand
-              key={s.id}
-              stratumIndex={i}
-              width={width}
-              deepestLevel={deepestLevel}
-              heroLevel={heroLevel}
-              walking={walking}
-              onTapLanding={travelTo}
-            />
-          ))}
-          <Text style={{ color: DIM, fontSize: 12, textAlign: "center", marginTop: 22, paddingHorizontal: 44, lineHeight: 17 }}>
-            Dark rock is unopened rock. Break two faces on your deepest level and the way down opens — the
-            lantern light follows.
-          </Text>
-          {/* the hero — the only thing in the shaft that moves */}
-          <Animated.View
-            pointerEvents="none"
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              zIndex: 5,
-              opacity: heroOpacity,
-              transform: heroTransform
-                ? [{ translateX: heroTransform.translateX }, { translateY: heroTransform.translateY }]
-                : [{ translateX: heroHome.x }, { translateY: heroHome.y }],
-            }}
-          >
-            {pawn ? (
-              <PaperHeroFigure pawn={pawn} unit={HERO_UNIT} />
-            ) : (
-              <View style={{ width: 18, height: 18, marginLeft: (HERO_W - 18) / 2, marginTop: HERO_H - 14, borderRadius: 9, borderWidth: 2, borderColor: GOLD, backgroundColor: "rgba(255,184,77,0.35)" }} />
-            )}
-          </Animated.View>
-        </View>
-      </ScrollView>
+      {MINE_STRATA.map((s, i) => (
+        <StratumBand
+          key={s.id}
+          stratumIndex={i}
+          width={width}
+          deepestLevel={deepestLevel}
+          heroLevel={heroLevel}
+          walking={walking}
+          galleryLevel={galleryLevel}
+          gallery={bandHasGallery(i, galleryLevel) ? gallery : null}
+          onTapLanding={travelTo}
+        />
+      ))}
+      <Text style={{ color: DIM, fontSize: 12, textAlign: "center", marginTop: 22, paddingHorizontal: 44, lineHeight: 17 }}>
+        Dark rock is unopened rock. Break two faces on your deepest level and the way down opens — the
+        lantern light follows.
+      </Text>
+      {/* the hero — the only thing in the shaft that moves */}
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          zIndex: 5,
+          opacity: heroOpacity,
+          transform: heroTransform
+            ? [{ translateX: heroTransform.translateX }, { translateY: heroTransform.translateY }]
+            : [{ translateX: heroHome.x }, { translateY: heroHome.y }],
+        }}
+      >
+        {pawn ? (
+          <PaperHeroFigure pawn={pawn} unit={HERO_UNIT} />
+        ) : (
+          <View style={{ width: 18, height: 18, marginLeft: (HERO_W - 18) / 2, marginTop: HERO_H - 14, borderRadius: 9, borderWidth: 2, borderColor: GOLD, backgroundColor: "rgba(255,184,77,0.35)" }} />
+        )}
+      </Animated.View>
     </View>
   );
 }

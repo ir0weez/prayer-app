@@ -14,7 +14,7 @@
 // middle and walk only the final stretch, the way a lantern light
 // goes ahead of you and waits.
 
-import { MAX_LEVEL, clampLevel, firstLevelOfStratum, stratumIndexForLevel } from "./mountain";
+import { LEVELS_PER_STRATUM, MAX_LEVEL, clampLevel, firstLevelOfStratum, stratumIndexForLevel } from "./mountain";
 
 /** Vertical room each level gets in the shaft (px). */
 export const DESCENT_LEVEL_H = 40;
@@ -115,4 +115,60 @@ export function walkPlan(from: number, to: number): WalkPlan {
 export function walkDurationMs(stepCount: number): number {
   const steps = Math.max(1, Math.floor(stepCount) || 1);
   return Math.min(2600, Math.max(400, steps * 260));
+}
+
+/* ------------------------------------------------------------------ */
+/* One Cave (v191) — the gallery carved into the shaft                 */
+/* ------------------------------------------------------------------ */
+
+// Jonathan's correction (2026-10-22): "The cave doesn't look like
+// the mockup you sent me by the way. It has the ore screen, then it
+// shifts to the zigzag screen. The mockup shows that the ore screen
+// and the zig zag are the same screen. That was the point!"
+//
+// So the descent and the dig wall are ONE screen now: the shaft
+// above is the cave itself, and at the level the hero stands on, a
+// dig GALLERY opens in place — the level's three faces in the wall
+// of its own landing, dug right there, no second screen, no
+// overlay to dismiss. Exactly one gallery is open at a time (the
+// hero can only stand in one place), carved into the shaft at that
+// landing: every landing BELOW it sits GALLERY_H lower, and every
+// band below its band starts GALLERY_H lower. The geometry below
+// is that single rule, so the drawing, the hero, and the walk all
+// agree on where everything is.
+
+/** The height of the dig gallery that opens at the hero's landing:
+ *  header, progress row, the wall itself (surface strip, faces,
+ *  the way-down strip), and the pick rail. The gallery view in the
+ *  cave screen is built to exactly this height. */
+export const GALLERY_H = 328;
+
+/** A landing's center in the MERGED shaft: the plain landing point,
+ *  pushed GALLERY_H down when it lies below the open gallery. With
+ *  no gallery open (null), this is exactly landingPoint. */
+export function shaftLandingPoint(
+  level: number,
+  width: number,
+  galleryLevel: number | null
+): { x: number; y: number } {
+  const p = landingPoint(level, width);
+  if (galleryLevel != null && level > galleryLevel) return { x: p.x, y: p.y + GALLERY_H };
+  return p;
+}
+
+/** The top of a stratum band in the merged shaft: bands that start
+ *  below the gallery's level begin GALLERY_H lower; the gallery's
+ *  own band starts where it always did (the gallery grows INSIDE
+ *  it, under its landing). */
+export function shaftBandTopY(stratumIndex: number, galleryLevel: number | null): number {
+  const base = stratumIndex * LEVELS_PER_STRATUM * DESCENT_LEVEL_H;
+  if (galleryLevel == null) return base;
+  return firstLevelOfStratum(stratumIndex) > galleryLevel ? base + GALLERY_H : base;
+}
+
+/** Is the open gallery carved into this band? */
+export function bandHasGallery(stratumIndex: number, galleryLevel: number | null): boolean {
+  if (galleryLevel == null) return false;
+  const first = firstLevelOfStratum(stratumIndex);
+  return galleryLevel >= first && galleryLevel <= first + LEVELS_PER_STRATUM - 1;
 }

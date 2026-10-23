@@ -20,6 +20,16 @@
 //    has opened;
 //  - the screen contract: the descent replaces the arrow steppers,
 //    and opening a new level routes through it.
+//
+// v191 — ONE CAVE. Jonathan's correction (2026-10-22): "It has the
+// ore screen, then it shifts to the zigzag screen. The mockup shows
+// that the ore screen and the zig zag are the same screen. That was
+// the point!" The descent is no longer an overlay over a separate
+// dig wall: the shaft IS the cave screen, and the dig gallery opens
+// in the rock at the landing where the hero stands. These tests pin
+// the merged geometry (one gallery, carved in, everything below it
+// pushed down by exactly GALLERY_H) and the merged screen contract
+// (no overlay state, no dismissal, faces dug in the gallery).
 
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -27,12 +37,16 @@ import { join } from "node:path";
 import { MAX_LEVEL, stratumIndexForLevel } from "../mountain";
 import {
   DESCENT_LEVEL_H,
+  GALLERY_H,
   WALK_VISIBLE_LEVELS,
   bandForLevel,
+  bandHasGallery,
   canTravelTo,
   descentHeroStart,
   landingPoint,
   landingSide,
+  shaftBandTopY,
+  shaftLandingPoint,
   travelLevels,
   walkDurationMs,
   walkPlan,
@@ -160,6 +174,65 @@ describe("the hero's start — the current-level marker follows state", () => {
   });
 });
 
+describe("one cave (v191) — the gallery carved into the shaft", () => {
+  it("with no gallery open, the merged geometry is the plain geometry", () => {
+    for (const l of [1, 2, 25, 79, 80]) {
+      expect(shaftLandingPoint(l, W, null)).toEqual(landingPoint(l, W));
+    }
+    for (let s = 0; s < 8; s++) {
+      expect(shaftBandTopY(s, null)).toBe(s * 10 * DESCENT_LEVEL_H);
+      expect(bandHasGallery(s, null)).toBe(false);
+    }
+  });
+
+  it("the gallery pushes everything below its level down by exactly GALLERY_H — and nothing above it moves", () => {
+    const g = 25; // a Copper landing (stratum index 2, levels 21–30)
+    for (const l of [1, 10, 24, 25]) {
+      expect(shaftLandingPoint(l, W, g)).toEqual(landingPoint(l, W));
+    }
+    for (const l of [26, 40, 80]) {
+      const p = shaftLandingPoint(l, W, g);
+      expect(p.y).toBe(landingPoint(l, W).y + GALLERY_H);
+      expect(p.x).toBe(landingPoint(l, W).x); // the zigzag never shifts sideways
+    }
+  });
+
+  it("exactly one band holds the gallery, and it is the band of the hero's level", () => {
+    for (const g of [1, 10, 11, 25, 70, 71, 80]) {
+      const holders = [0, 1, 2, 3, 4, 5, 6, 7].filter((s) => bandHasGallery(s, g));
+      expect(holders).toEqual([stratumIndexForLevel(g)]);
+    }
+  });
+
+  it("band tops: the gallery's own band starts unshifted; every band below it starts GALLERY_H lower", () => {
+    const g = 25;
+    expect(shaftBandTopY(0, g)).toBe(0);
+    expect(shaftBandTopY(2, g)).toBe(2 * 10 * DESCENT_LEVEL_H);
+    expect(shaftBandTopY(3, g)).toBe(3 * 10 * DESCENT_LEVEL_H + GALLERY_H);
+    expect(shaftBandTopY(7, g)).toBe(7 * 10 * DESCENT_LEVEL_H + GALLERY_H);
+  });
+
+  it("the shaft's total height grows by exactly one gallery, wherever it opens", () => {
+    const BAND_H = 10 * DESCENT_LEVEL_H;
+    for (const g of [1, 25, 80]) {
+      const bottom =
+        shaftBandTopY(7, g) + BAND_H + (bandHasGallery(7, g) ? GALLERY_H : 0);
+      expect(bottom).toBe(8 * BAND_H + GALLERY_H);
+    }
+  });
+
+  it("the gallery fits under its landing, inside its band: the next landing clears its floor", () => {
+    const g = 25;
+    const band = bandForLevel(g);
+    const galleryTopLocal =
+      shaftLandingPoint(g, W, g).y - shaftBandTopY(band.stratumIndex, g) + DESCENT_LEVEL_H / 2;
+    const nextLocal =
+      shaftLandingPoint(g + 1, W, g).y - shaftBandTopY(band.stratumIndex, g);
+    // the next landing's row starts at or below the gallery's floor
+    expect(nextLocal - DESCENT_LEVEL_H / 2).toBeGreaterThanOrEqual(galleryTopLocal + GALLERY_H);
+  });
+});
+
 describe("screen contract — the descent replaces the picker", () => {
   const cave = readFileSync(join(process.cwd(), "app/mine-interior.tsx"), "utf8");
   const scene = readFileSync(join(process.cwd(), "components/mine-descent.tsx"), "utf8");
@@ -194,5 +267,49 @@ describe("screen contract — the descent replaces the picker", () => {
   it("the feeling may be warm; the prohibited word stays out of the scene", () => {
     expect(scene).not.toContain('"Safety"');
     expect(cave).not.toContain("Inside Safety");
+  });
+});
+
+describe("screen contract (v191) — one cave, no second screen", () => {
+  const cave = readFileSync(join(process.cwd(), "app/mine-interior.tsx"), "utf8");
+  const scene = readFileSync(join(process.cwd(), "components/mine-descent.tsx"), "utf8");
+
+  it("the overlay is gone: nothing opens over the cave, nothing dismisses it", () => {
+    expect(cave).not.toContain("descentOpen");
+    expect(cave).not.toContain("setDescentOpen");
+    expect(scene).not.toContain("onClose");
+    // the shaft is not a floating layer over another screen
+    expect(scene).not.toContain("elevation: 20");
+    expect(scene).not.toContain("zIndex: 20");
+  });
+
+  it("the shaft mounts in the cave screen itself, gallery open at the level he stands on", () => {
+    expect(cave).toContain("galleryLevel={view}");
+    expect(cave).toContain("gallery={renderMineGallery()}");
+    expect(cave).toContain("onFollowHero={followHero}");
+    expect(scene).toContain("bandHasGallery");
+    expect(scene).toContain("shaftLandingPoint");
+    expect(scene).toContain("GALLERY_H");
+  });
+
+  it("the faces are dug in the gallery, in place — the tap handler never leaves the screen", () => {
+    expect(cave).toContain("renderMineGallery");
+    expect(cave).toContain("onPress={() => handleTapFace(faceIndex)}");
+    // the mechanics ride along untouched: flames on the break, the
+    // haul rate on the wall, the pool in its face
+    expect(cave).toContain("spendForestEnergy");
+    expect(cave).toContain("stratumMultiplier(viewStratumIndex)");
+    expect(cave).toContain("PoolArt");
+  });
+
+  it("the walk still ends by moving the gallery: onArrive sets the viewed level", () => {
+    expect(cave).toContain("onArrive={(level) => {");
+    expect(cave).toContain("setViewLevel(level);");
+    expect(cave).toContain("setDescentAutoWalk(null);");
+  });
+
+  it("selling still happens only at the Mouth — the merged cave sells nothing", () => {
+    expect(cave).not.toContain("applySellAll");
+    expect(cave).toContain("Sell at the Mouth");
   });
 });

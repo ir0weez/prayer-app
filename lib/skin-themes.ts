@@ -331,6 +331,180 @@ export type SkinMotionTokens = {
   settleDistance: number;
 };
 
+/**
+ * The skin's type scale (v190, "Paper, Bigger"). Jonathan declined
+ * the Newspaper serif conversion but kept pointing at the mockup:
+ * "It's not just the titles though, it's the cards themselves too.
+ * Everything just looks bigger and better." What he wants is the
+ * mockup's SCALE inside the existing Paper skin — larger type at
+ * every level, same font family. Every field is an absolute size
+ * for one named level; null means "the component's own size", so
+ * under Classic, 8-bit and Terminal the whole table is null and
+ * every consumer spread is a no-op (their type is byte-preserved).
+ * Only Paper carries values. padBoost/gapBoost are the roominess
+ * half of the same ruling: extra px consumers add to themed card
+ * padding / inter-card gaps (0 under every other skin).
+ */
+export type SkinTypeTokens = {
+  /** Floating header tiles: the Schedule tile, the People pill, the Journal header (base 20). */
+  screenTitle: number | null;
+  /** Full-page titles (base ~31): the fasting profile's "My Profile". */
+  pageTitle: number | null;
+  /** Header-tile subtitles (base 12). */
+  screenSubtitle: number | null;
+  /** The summary greeting line (base 18). */
+  greeting: number | null;
+  /** The summary's name chip (base 16). */
+  summaryName: number | null;
+  /** The summary paragraph (base 16). */
+  summaryBody: number | null;
+  summaryLineHeight: number | null;
+  /** The date panel's big day name (base 48). */
+  dayName: number | null;
+  dayNameLineHeight: number | null;
+  /** The date panel's full-date line (base 13). */
+  dateLine: number | null;
+  /** Week-strip numerals (base 18). */
+  weekNum: number | null;
+  weekNumLineHeight: number | null;
+  /** Week-strip day names (base 10). */
+  weekDay: number | null;
+  /** Card titles: events, todos, ministries, the study book, journal entries (bases 15–18). */
+  cardTitle: number | null;
+  /** The illustrated cards' scene headline (base 20). */
+  cardLead: number | null;
+  cardLeadLineHeight: number | null;
+  /** Card descriptions (base 16). */
+  cardBody: number | null;
+  cardBodyLineHeight: number | null;
+  /** Times, locations and other card meta (bases 12–13). */
+  cardMeta: number | null;
+  /** Completed-bar titles and slim headings (bases 13–14). */
+  barTitle: number | null;
+  /** Section headers / kickers (bases 14–17). */
+  sectionTitle: number | null;
+  sectionLineHeight: number | null;
+  /** List-row titles: People names, Settings rows (bases 17–18). */
+  rowTitle: number | null;
+  rowTitleLineHeight: number | null;
+  /** List-row subtitles / meta (base 13). */
+  rowBody: number | null;
+  rowBodyLineHeight: number | null;
+  /** Journal entry prose (base 15). */
+  proseBody: number | null;
+  proseLineHeight: number | null;
+  /** Small button / chip / stat labels (bases 11–12). */
+  labelText: number | null;
+  /** The fasting profile's name (base 24). */
+  displayName: number | null;
+  displayNameLineHeight: number | null;
+  /** Big stat numerals (bases 28–31). */
+  statValue: number | null;
+  /** Extra px of padding themed cards gain under this skin. */
+  padBoost: number;
+  /** Extra px of gap themed cards gain under this skin. */
+  gapBoost: number;
+};
+
+/** The identity type table: no level overridden, no boost. */
+const NO_TYPE_SCALE: SkinTypeTokens = {
+  screenTitle: null,
+  pageTitle: null,
+  screenSubtitle: null,
+  greeting: null,
+  summaryName: null,
+  summaryBody: null,
+  summaryLineHeight: null,
+  dayName: null,
+  dayNameLineHeight: null,
+  dateLine: null,
+  weekNum: null,
+  weekNumLineHeight: null,
+  weekDay: null,
+  cardTitle: null,
+  cardLead: null,
+  cardLeadLineHeight: null,
+  cardBody: null,
+  cardBodyLineHeight: null,
+  cardMeta: null,
+  barTitle: null,
+  sectionTitle: null,
+  sectionLineHeight: null,
+  rowTitle: null,
+  rowTitleLineHeight: null,
+  rowBody: null,
+  rowBodyLineHeight: null,
+  proseBody: null,
+  proseLineHeight: null,
+  labelText: null,
+  displayName: null,
+  displayNameLineHeight: null,
+  statValue: null,
+  padBoost: 0,
+  gapBoost: 0,
+};
+
+/**
+ * Paper's bigger scale (v190). Display levels grow the most (the
+ * header tile 20 → 28 is the mockup masthead's ~1.4×), card titles
+ * step ~1.25–1.35×, body and meta a clear step less — the way the
+ * mockup's hierarchy stretches. Scheme-independent: paper reads
+ * the same size in light and dark.
+ */
+const PAPER_TYPE_SCALE: SkinTypeTokens = {
+  screenTitle: 28,
+  pageTitle: 34,
+  screenSubtitle: 14,
+  greeting: 21,
+  summaryName: 18,
+  summaryBody: 18,
+  summaryLineHeight: 27,
+  dayName: 56,
+  dayNameLineHeight: 58,
+  dateLine: 15,
+  weekNum: 21,
+  weekNumLineHeight: 25,
+  weekDay: 11,
+  cardTitle: 20,
+  cardLead: 22,
+  cardLeadLineHeight: 27,
+  cardBody: 18,
+  cardBodyLineHeight: 24,
+  cardMeta: 14,
+  barTitle: 17,
+  sectionTitle: 18,
+  sectionLineHeight: 23,
+  rowTitle: 20,
+  rowTitleLineHeight: 25,
+  rowBody: 15,
+  rowBodyLineHeight: 21,
+  proseBody: 17,
+  proseLineHeight: 24,
+  labelText: 13,
+  displayName: 28,
+  displayNameLineHeight: 34,
+  statValue: 32,
+  padBoost: 4,
+  gapBoost: 2,
+};
+
+/**
+ * A text-style override from the skin's type table (v190): the
+ * level's size (and line height, when the caller passes one).
+ * Returns an empty object when the level is unset — under Classic,
+ * 8-bit and Terminal every level is unset, so spreading the result
+ * into a text style is a no-op and those skins render exactly as
+ * before. Mirrors how bitDisplay/termButtonStyle gate on the skin.
+ */
+export function skinText(
+  tokens: SkinTokens,
+  size: number | null,
+  lineHeight?: number | null,
+): { fontSize?: number; lineHeight?: number } {
+  if (size == null) return {};
+  return lineHeight == null ? { fontSize: size } : { fontSize: size, lineHeight };
+}
+
 export type SkinTokens = {
   id: SkinThemeId;
   isPaper: boolean;
@@ -397,6 +571,12 @@ export type SkinTokens = {
   /** Grain flecks for saturated/colored paper stock (light fibers). */
   grainLightOpacity: number;
   motion: SkinMotionTokens;
+  /**
+   * The type scale (v190): named text levels + card padding/gap
+   * boosts. Paper-only values; the identity table (all null, zero
+   * boosts) under Classic, 8-bit and Terminal.
+   */
+  type: SkinTypeTokens;
 };
 
 const CLASSIC_MOTION: SkinMotionTokens = {
@@ -570,6 +750,7 @@ export function getSkinTokens(
       grainColor: PAPER_INK_HEX,
       grainLightOpacity: 0,
       motion: CLASSIC_MOTION,
+      type: NO_TYPE_SCALE,
     };
   }
 
@@ -626,6 +807,7 @@ export function getSkinTokens(
       grainColor: BIT_INK_HEX,
       grainLightOpacity: 0,
       motion: BIT_MOTION,
+      type: NO_TYPE_SCALE,
     };
   }
 
@@ -671,6 +853,7 @@ export function getSkinTokens(
       grainColor: TERM_DIM,
       grainLightOpacity: 0,
       motion: TERM_MOTION,
+      type: NO_TYPE_SCALE,
     };
   }
 
@@ -746,5 +929,8 @@ export function getSkinTokens(
     grainColor: PAPER_INK_HEX,
     grainLightOpacity: 0,
     motion: PAPER_MOTION,
+    // v190: the bigger scale — the mockup's proportions inside the
+    // existing paper material (see PAPER_TYPE_SCALE above).
+    type: PAPER_TYPE_SCALE,
   };
 }

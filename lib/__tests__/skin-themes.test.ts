@@ -63,6 +63,7 @@ import {
   paperStockInk,
   paperStockInkSoft,
   paperStockTint,
+  skinText,
 } from "../skin-themes";
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
@@ -1355,5 +1356,152 @@ describe("v189 — Paper, Not Buttons", () => {
     // The game cards themselves are content — they keep the plain
     // cardShadow spread (the sheet edge under Paper).
     expect(games).toContain("isSkinned ? tokens.cardShadow : null");
+  });
+});
+
+describe("v190 — Paper, Bigger", () => {
+  // Jonathan declined the Newspaper serif conversion ("I'm going
+  // to leave paper as it is") but the mockup's SCALE stayed with
+  // him: "It's not just the titles though, it's the cards
+  // themselves too. Everything just looks bigger and better."
+  // v190 brings the mockup's proportions into the existing Paper
+  // skin — a type table on the tokens (named levels, absolute
+  // sizes) plus padding/gap boosts — with the same font family,
+  // colors, stock, edges and scenes. Paper-only: the table is the
+  // identity (all null, zero boosts) under every other skin.
+  const palette = getThemedPalette("light", "default");
+  const darkPalette = getThemedPalette("dark", "default");
+
+  it("the type table exists only under Paper — identity under Classic, 8-bit and Terminal", () => {
+    const paper = getSkinTokens("paper", "light", palette);
+    // The headline steps: header tiles 20 → 28 (the mockup
+    // masthead's ~1.4×), the date panel's day name 48 → 56, card
+    // titles to 20 (≈1.25–1.35× their 15–16 bases).
+    expect(paper.type.screenTitle).toBe(28);
+    expect(paper.type.pageTitle).toBe(34);
+    expect(paper.type.dayName).toBe(56);
+    expect(paper.type.dayNameLineHeight).toBe(58);
+    expect(paper.type.cardTitle).toBe(20);
+    expect(paper.type.cardLead).toBe(22);
+    expect(paper.type.greeting).toBe(21);
+    expect(paper.type.summaryBody).toBe(18);
+    expect(paper.type.summaryLineHeight).toBe(27);
+    expect(paper.type.weekNum).toBe(21);
+    expect(paper.type.dateLine).toBe(15);
+    expect(paper.type.sectionTitle).toBe(18);
+    expect(paper.type.rowTitle).toBe(20);
+    expect(paper.type.proseBody).toBe(17);
+    expect(paper.type.displayName).toBe(28);
+    expect(paper.type.statValue).toBe(32);
+    expect(paper.type.padBoost).toBe(4);
+    expect(paper.type.gapBoost).toBe(2);
+    // Scheme-independent: paper reads the same size in the dark.
+    expect(getSkinTokens("paper", "dark", darkPalette).type).toEqual(paper.type);
+    // Every other skin: all-null levels, zero boosts — the whole
+    // table is identical to the identity, so no consumer moves.
+    for (const id of ["classic", "8bit", "terminal"] as const) {
+      const other = getSkinTokens(id, "light", palette);
+      expect(other.type.screenTitle).toBeNull();
+      expect(other.type.cardTitle).toBeNull();
+      expect(other.type.dayName).toBeNull();
+      expect(other.type.padBoost).toBe(0);
+      expect(other.type.gapBoost).toBe(0);
+      expect(Object.values(other.type).every((v) => v === null || v === 0)).toBe(true);
+    }
+    // The v190 table did not move any older token.
+    expect(paper.cardRadius).toBe(6);
+    expect(paper.cardShadow?.boxShadow).toBe("2px 2px 0px #F2E9D4, 4px 4px 0px #EADDBE");
+    expect(getSkinTokens("8bit", "light", palette).cardRadius).toBe(2);
+  });
+
+  it("skinText resolves a level to a style override — and to nothing under the other skins", () => {
+    const paper = getSkinTokens("paper", "light", palette);
+    expect(skinText(paper, paper.type.cardTitle)).toEqual({ fontSize: 20 });
+    expect(skinText(paper, paper.type.dayName, paper.type.dayNameLineHeight)).toEqual({ fontSize: 56, lineHeight: 58 });
+    expect(skinText(paper, null)).toEqual({});
+    expect(skinText(paper, null, 24)).toEqual({});
+    for (const id of ["classic", "8bit", "terminal"] as const) {
+      const other = getSkinTokens(id, "light", palette);
+      expect(skinText(other, other.type.cardTitle)).toEqual({});
+      expect(skinText(other, other.type.screenTitle)).toEqual({});
+    }
+  });
+
+  it("the schedule consumes the scale: header tile, summary, date panel, cards", () => {
+    const schedule = read("components/schedule-tab.tsx");
+    // The floating header tile: title + subtitle + roomier tile.
+    expect(schedule).toContain("...skinText(skinTokens, skinTokens.type.screenTitle)");
+    expect(schedule).toContain("...skinText(skinTokens, skinTokens.type.screenSubtitle)");
+    // The date panel: day name, full-date line, week strip.
+    expect(schedule).toContain("...skinText(skinTokens, skinTokens.type.dayName, skinTokens.type.dayNameLineHeight)");
+    expect(schedule).toContain("...skinText(skinTokens, skinTokens.type.dateLine)");
+    expect(schedule).toContain("...skinText(skinTokens, skinTokens.type.weekNum, skinTokens.type.weekNumLineHeight)");
+    expect(schedule).toContain("...skinText(skinTokens, skinTokens.type.weekDay)");
+    // Card titles across events, todos, ministries and the study
+    // card; descriptions and meta ride their own levels.
+    expect(schedule.split("skinTokens.type.cardTitle").length - 1).toBeGreaterThanOrEqual(8);
+    expect(schedule.split("skinTokens.type.cardMeta").length - 1).toBeGreaterThanOrEqual(8);
+    expect(schedule).toContain("...skinText(skinTokens, skinTokens.type.cardLead, skinTokens.type.cardLeadLineHeight)");
+    expect(schedule).toContain("...skinText(skinTokens, skinTokens.type.barTitle)");
+    expect(schedule).toContain("...skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)");
+    // Roominess comes from the boosts, computed — not literals.
+    expect(schedule).toContain("16 + skinTokens.type.padBoost");
+    expect(schedule).toContain("12 + skinTokens.type.gapBoost");
+    // The summary card: greeting, name chip, paragraph, and its
+    // inline icons grow with the paragraph.
+    const summary = read("components/daily-summary-card.tsx");
+    expect(summary).toContain("...skinText(skinTokens, skinTokens.type.greeting)");
+    expect(summary).toContain("...skinText(skinTokens, skinTokens.type.summaryName)");
+    expect(summary).toContain("...skinText(skinTokens, skinTokens.type.summaryBody, skinTokens.type.summaryLineHeight)");
+    expect(summary).toContain("const summaryIconSize = skinTokens.type.summaryBody ?? 16;");
+    expect(summary).toContain("paddingHorizontal: 24 + skinTokens.type.padBoost");
+    // The "Tasks & Events" progress bar wears the bar levels.
+    const progress = read("components/schedule-progress-bar.tsx");
+    expect(progress).toContain("...skinText(skinTokens, skinTokens.type.barTitle)");
+    // The worship album card consumes the scale too.
+    const album = read("components/album-card.tsx");
+    expect(album).toContain("...skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)");
+    expect(album).toContain("...skinText(skinTokens, skinTokens.type.cardTitle)");
+  });
+
+  it("People, Journal, Settings and the fasting profile consume the same table", () => {
+    const index = read("app/(tabs)/index.tsx");
+    // The createStyles factory resolves levels through one helper
+    // fed by the tokens — People names/rows, Settings rows/labels.
+    expect(index).toContain("const paperText = (size: number | null, lineHeight?: number | null) => (skin && typeScale ? skinText(skin, size, lineHeight) : {});");
+    expect(index).toContain("...paperText(typeScale?.rowTitle ?? null, typeScale?.rowTitleLineHeight ?? null)");
+    expect(index).toContain("...paperText(typeScale?.rowBody ?? null, typeScale?.rowBodyLineHeight ?? null)");
+    expect(index).toContain("...paperText(typeScale?.sectionTitle ?? null, typeScale?.sectionLineHeight ?? null)");
+    expect(index).toContain("...paperText(typeScale?.screenTitle ?? null)");
+    expect(index).toContain("paddingHorizontal: 14 + padBoost");
+    expect(index).toContain("minHeight: 68 + padBoost * 2");
+    // The tab bar labels step up under Paper (audit: no clipping —
+    // the label level is 13 in a ~90px cell, single line kept).
+    expect(index).toContain("skinTokens.isPaper ? skinText(skinTokens, skinTokens.type.labelText, 16) : null");
+    // Journal: header tile, entry titles, prose via MarkdownText's
+    // baseSize, dates and section headers.
+    const journal = read("components/prayer-journal-tab.tsx");
+    expect(journal).toContain("...skinText(skinTokens, skinTokens.type.screenTitle)");
+    expect(journal).toContain("...skinText(skinTokens, skinTokens.type.cardTitle)");
+    expect(journal).toContain("baseSize={skinTokens.type.proseBody ?? undefined}");
+    expect(journal).toContain("skinText(skinTokens, skinTokens.type.barTitle, 22)");
+    expect(journal).toContain("padding: 16 + skinTokens.type.padBoost");
+    // Fasting profile: page title, display name, stat numerals,
+    // section labels, previous/current/history cards.
+    const profile = read("app/profile.tsx");
+    expect(profile).toContain("skinText(skinTokens, skinTokens.type.pageTitle)");
+    expect(profile).toContain("...skinText(skinTokens, skinTokens.type.displayName, skinTokens.type.displayNameLineHeight)");
+    expect(profile).toContain("...skinText(skinTokens, skinTokens.type.statValue)");
+    expect(profile.split("skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)").length - 1).toBe(8);
+    expect(profile).toContain("padding: 16 + skinTokens.type.padBoost");
+  });
+
+  it("no serif, no new family: Paper's display/body fonts stay null — scale only", () => {
+    const paper = getSkinTokens("paper", "light", palette);
+    expect(paper.displayFont).toBeNull();
+    expect(paper.bodyFont).toBeNull();
+    // And the other skins' fonts are exactly as v184–v188 left them.
+    expect(getSkinTokens("8bit", "light", palette).displayFont).toBe("PressStart2P");
+    expect(getSkinTokens("terminal", "light", palette).displayFont).toBe("VT323");
   });
 });

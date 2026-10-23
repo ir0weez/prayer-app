@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/use-colors';
 import { useSkin } from '@/hooks/use-skin';
+import { skinText } from '@/lib/skin-themes';
 
 export interface AlbumCardProps {
   title: string;
@@ -59,20 +60,20 @@ export function AlbumCard({
   };
 
   return (
-    <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, overflow: 'hidden', borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, marginBottom: 12, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }}>
+    <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, overflow: 'hidden', borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, marginBottom: 12 + skinTokens.type.gapBoost, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }}>
       {sectionTitle && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 + skinTokens.type.padBoost, paddingTop: 14 + skinTokens.type.padBoost, paddingBottom: 4 }}>
           <MaterialIcons name={sectionIcon} size={20} color={colors.primary} />
-          <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '600' }}>{sectionTitle}</Text>
+          <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '600', ...skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) }}>{sectionTitle}</Text>
           {onOpenLibrary && (
             <Pressable accessibilityRole="button" accessibilityLabel="Open saved albums" onPress={onOpenLibrary} style={({ pressed }) => [{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}>
               <MaterialIcons name="collections-bookmark" size={17} color={colors.primary} />
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Saved Albums</Text>
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700', ...skinText(skinTokens, skinTokens.type.labelText) }}>Saved Albums</Text>
             </Pressable>
           )}
         </View>
       )}
-      <Pressable accessibilityRole="button" accessibilityLabel={`${title}${tracks.length ? ', show tracks' : ''}`} onPress={() => onOpenDetails ? onOpenDetails() : hasActions && toggleExpanded()} style={{ flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${title}${tracks.length ? ', show tracks' : ''}`} onPress={() => onOpenDetails ? onOpenDetails() : hasActions && toggleExpanded()} style={{ flexDirection: 'row', alignItems: 'center', padding: 12 + skinTokens.type.padBoost, gap: 10 }}>
         <Pressable
           accessibilityRole={onCoverPress ? "button" : undefined}
           accessibilityLabel={onCoverPress ? `Open ${title} album` : undefined}
@@ -89,8 +90,8 @@ export function AlbumCard({
           )}
         </Pressable>
         <View style={{ flex: 1, gap: 3 }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }} numberOfLines={2}>{title}</Text>
-          <Text style={{ fontSize: 18, lineHeight: 23, fontWeight: '700', color: colors.muted }} numberOfLines={2}>{artist}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, ...skinText(skinTokens, skinTokens.type.barTitle) }} numberOfLines={2}>{title}</Text>
+          <Text style={{ fontSize: 18, lineHeight: 23, fontWeight: '700', color: colors.muted, ...skinText(skinTokens, skinTokens.type.cardTitle) }} numberOfLines={2}>{artist}</Text>
         </View>
         {hasActions && <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={22} color={colors.muted} />}
       </Pressable>
@@ -103,8 +104,8 @@ export function AlbumCard({
               <>
                 <Text style={{ width: 20, color: isCompleted ? colors.primary : colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>{index + 1}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: isCompleted ? colors.muted : colors.foreground, fontSize: 14, fontWeight: '500', textDecorationLine: isCompleted ? 'line-through' : 'none' }} numberOfLines={1}>{track.title}</Text>
-                  {track.key && <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2, textDecorationLine: isCompleted ? 'line-through' : 'none' }}>Key of {track.key}</Text>}
+                  <Text style={{ color: isCompleted ? colors.muted : colors.foreground, fontSize: 14, fontWeight: '500', textDecorationLine: isCompleted ? 'line-through' : 'none', ...skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) }} numberOfLines={1}>{track.title}</Text>
+                  {track.key && <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2, textDecorationLine: isCompleted ? 'line-through' : 'none', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>Key of {track.key}</Text>}
                 </View>
               </>
             );

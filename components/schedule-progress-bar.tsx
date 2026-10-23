@@ -14,7 +14,7 @@ import Animated, {
 import type { SharedValue } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { BIT_GOLD, BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_DIM, TERM_MID, TERM_PHOS, TERM_SOFT } from "@/lib/skin-themes";
+import { BIT_GOLD, BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_DIM, TERM_MID, TERM_PHOS, TERM_SOFT, skinText } from "@/lib/skin-themes";
 
 interface ScheduleProgressBarProps {
   completed: number;
@@ -198,13 +198,13 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
   }));
 
   return (
-    <View style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}>
+    <View style={{ paddingHorizontal: 16 + skinTokens.type.padBoost, paddingVertical: 12 + skinTokens.type.gapBoost, gap: 8 }}>
       {/* Label and count */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={{ fontSize: 14, fontWeight: "600", color: isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...(skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 9, lineHeight: 14, textTransform: "uppercase" } : {}) }}>
+        <Text style={{ fontSize: 14, fontWeight: "600", color: isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...skinText(skinTokens, skinTokens.type.barTitle), ...(skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 9, lineHeight: 14, textTransform: "uppercase" } : {}) }}>
           {label}
         </Text>
-        <Text style={{ fontSize: 13, color: isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted }}>
+        <Text style={{ fontSize: 13, color: isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted, ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
           {completed} of {total}
         </Text>
       </View>

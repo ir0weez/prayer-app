@@ -2,7 +2,7 @@ import { Animated, View, Text, Pressable, ScrollView, Modal } from "react-native
 import { formatCoins } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_BG, TERM_MID, TERM_PHOS, TERM_SOFT } from "@/lib/skin-themes";
+import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_BG, TERM_MID, TERM_PHOS, TERM_SOFT, skinText } from "@/lib/skin-themes";
 import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { getIconForTodo } from "@/lib/prayercircle-data";
@@ -91,6 +91,10 @@ export function DailySummaryCard({
   // #EDE8FF body, #CFC6F2 soft — instead of the palette's dark inks.
   const ink = skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground;
   const inkSoft = skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted;
+  // v190 (Paper only): the summary's inline icons ride inside the
+  // paragraph text, so they grow with it — 16 to match the old body,
+  // the summaryBody size (18) under Paper.
+  const summaryIconSize = skinTokens.type.summaryBody ?? 16;
   const [showDayDropdown, setShowDayDropdown] = useState(false);
   
   // Format fasting status for display
@@ -184,8 +188,8 @@ export function DailySummaryCard({
   return (
     <Animated.View
       style={{
-        paddingHorizontal: 24,
-        paddingTop: 16,
+        paddingHorizontal: 24 + skinTokens.type.padBoost,
+        paddingTop: 16 + skinTokens.type.gapBoost,
         paddingBottom: bottomPadding,
         transform: [{ translateY: slideAnim }],
         opacity: opacityAnim,
@@ -194,7 +198,7 @@ export function DailySummaryCard({
       {/* Summary with greeting and profile badge */}
       <View style={{ marginBottom: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 18, color: inkSoft, fontWeight: "500" }}>
+          <Text style={{ fontSize: 18, color: inkSoft, fontWeight: "500", ...skinText(skinTokens, skinTokens.type.greeting) }}>
             {getTimeBasedGreeting()}, 
           </Text>
           
@@ -215,7 +219,7 @@ export function DailySummaryCard({
               marginLeft: 4,
             }}
           >
-            <Text style={{ fontWeight: "700", color: skinTokens.isTerminal ? TERM_BG : "#FFFFFF", fontSize: 16 }}>
+            <Text style={{ fontWeight: "700", color: skinTokens.isTerminal ? TERM_BG : "#FFFFFF", fontSize: 16, ...skinText(skinTokens, skinTokens.type.summaryName) }}>
               {userName}
             </Text>
             {prayerStreak > 0 && (
@@ -237,14 +241,14 @@ export function DailySummaryCard({
               </View>
             )}
           </View>
-          <Text style={{ fontSize: 18, color: inkSoft, fontWeight: "500", marginLeft: 4 }}>.</Text>
+          <Text style={{ fontSize: 18, color: inkSoft, fontWeight: "500", marginLeft: 4, ...skinText(skinTokens, skinTokens.type.greeting) }}>.</Text>
         </View>
 
         {/* Summary text */}
-        <Text style={{ fontSize: 16, lineHeight: 24, color: ink, fontWeight: "400" }}>
+        <Text style={{ fontSize: 16, lineHeight: 24, color: ink, fontWeight: "400", ...skinText(skinTokens, skinTokens.type.summaryBody, skinTokens.type.summaryLineHeight) }}>
           You have{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="task-alt" size={16} color={ink} /> {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}
+            <MaterialIcons name="task-alt" size={summaryIconSize} color={ink} /> {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}
           </Text>
           , last{' '}
           {bibleStudyDays.length > 0 ? (
@@ -265,26 +269,26 @@ export function DailySummaryCard({
           )}
           {' '}bible study{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="school" size={16} color={ink} /> {currentBibleStudy || 'none'}
+            <MaterialIcons name="school" size={summaryIconSize} color={ink} /> {currentBibleStudy || 'none'}
           </Text>
           , have{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="favorite" size={16} color={ink} /> {remainingPrayers} prayer{remainingPrayers !== 1 ? "s" : ""}
+            <MaterialIcons name="favorite" size={summaryIconSize} color={ink} /> {remainingPrayers} prayer{remainingPrayers !== 1 ? "s" : ""}
           </Text>
           , <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="account-balance-wallet" size={16} color={ink} /> ${formatCoins(budgetAmount)}
+            <MaterialIcons name="account-balance-wallet" size={summaryIconSize} color={ink} /> ${formatCoins(budgetAmount)}
           </Text> to budget,{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="people" size={16} color={ink} /> {peopleToReach} people
+            <MaterialIcons name="people" size={summaryIconSize} color={ink} /> {peopleToReach} people
           </Text> to reach, {' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="event" size={16} color={ink} /> {eventCount} event{eventCount !== 1 ? "s" : ""}
+            <MaterialIcons name="event" size={summaryIconSize} color={ink} /> {eventCount} event{eventCount !== 1 ? "s" : ""}
           </Text>, and{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="volunteer-activism" size={16} color={ink} /> {ministryCount} ministries
+            <MaterialIcons name="volunteer-activism" size={summaryIconSize} color={ink} /> {ministryCount} ministries
           </Text> to lead. You have{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="schedule" size={16} color={ink} /> {availableTimeString}
+            <MaterialIcons name="schedule" size={summaryIconSize} color={ink} /> {availableTimeString}
           </Text>{' '}available.
         </Text>
       </View>

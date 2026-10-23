@@ -24,7 +24,7 @@ import { DateTimePicker } from "@/components/date-time-picker";
 import { AvatarImage } from "@/components/avatar-system";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
+import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, skinText, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
 import type { Person } from "@/lib/prayercircle-data";
 import {
   addPrayerJournalReply,
@@ -289,12 +289,15 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 ...(skinTokens.frame ?? {}),
               }
             : {}),
+          ...(skinTokens.isPaper
+            ? { padding: 16 + skinTokens.type.padBoost, marginBottom: 12 + skinTokens.type.gapBoost }
+            : {}),
         },
         pressed && styles.longPressed,
       ]}
     >
       <View style={styles.entryTopRow}>
-        <Text style={[styles.entryDate, { color: cardMuted }, bitText(9)]}>{formatPrayerJournalDate(item.date)}</Text>
+        <Text style={[styles.entryDate, { color: cardMuted }, bitText(9), skinText(skinTokens, skinTokens.type.barTitle, 22)]}>{formatPrayerJournalDate(item.date)}</Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           {item.body.length > 150 && (
             <MaterialIcons
@@ -308,12 +311,12 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       </View>
 
       {item.title && (
-        <Text style={{ color: cardText, fontSize: 17, fontWeight: "800", marginBottom: 6, ...bitText(11) }}>
+        <Text style={{ color: cardText, fontSize: 17, fontWeight: "800", marginBottom: 6, ...bitText(11), ...skinText(skinTokens, skinTokens.type.cardTitle) }}>
           {item.title}
         </Text>
       )}
 
-      <MarkdownText text={previewText} baseColor={cardText} />
+      <MarkdownText text={previewText} baseColor={cardText} baseSize={skinTokens.type.proseBody ?? undefined} />
 
       {hashtags.length > 0 && (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
@@ -405,7 +408,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 </Text>
                 <Text style={[styles.holdHint, { color: cardMuted }]}>Hold</Text>
               </View>
-              <Text style={[styles.replyBody, { color: cardText }]}>{reply.body}</Text>
+              <Text style={[styles.replyBody, { color: cardText }, skinText(skinTokens, skinTokens.type.proseBody, skinTokens.type.proseLineHeight)]}>{reply.body}</Text>
             </Pressable>
           ))}
         </View>
@@ -417,9 +420,9 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   return (
     <View style={[styles.container, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
       <ReAnimated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }, headerAnimatedStyle]}>
-        <View style={{ backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : paperSurface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }}>
-          <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, fontSize: 20, fontWeight: "800", ...(skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 12, lineHeight: 19 } : {}) }}>Journal</Text>
-          <Text style={{ color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12 }}>{entries.length} entries</Text>
+        <View style={{ backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : paperSurface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}), ...(skinTokens.isPaper ? { paddingHorizontal: 16 + skinTokens.type.padBoost, paddingVertical: 10 + skinTokens.type.gapBoost } : {}) }}>
+          <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, fontSize: 20, fontWeight: "800", ...skinText(skinTokens, skinTokens.type.screenTitle), ...(skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 12, lineHeight: 19 } : {}) }}>Journal</Text>
+          <Text style={{ color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12, ...skinText(skinTokens, skinTokens.type.screenSubtitle) }}>{entries.length} entries</Text>
         </View>
         <View style={styles.headerActions}>
           <Pressable
@@ -449,7 +452,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         onScroll={handleJournalScroll}
         scrollEventThrottle={16}
         renderSectionHeader={({ section }) => (
-          <Text style={[styles.sectionTitle, { color: skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_MID : colors.muted }, bitText(11)]}>{section.title}</Text>
+          <Text style={[styles.sectionTitle, { color: skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_MID : colors.muted }, bitText(11), skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>{section.title}</Text>
         )}
         stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}

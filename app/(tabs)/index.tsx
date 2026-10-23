@@ -132,7 +132,7 @@ import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/
 import { COINS_STORAGE_KEY, parseCoins, applyCoinsDelta } from "@/lib/hometown";
 import { awardXP, awardCustomXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
-import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, TERM_BG, TERM_DIM, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, getSkinThemeDefinition, normalizeSkinThemeId, termButtonInk, termButtonStyle, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
+import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, TERM_BG, TERM_DIM, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, getSkinThemeDefinition, normalizeSkinThemeId, skinText, termButtonInk, termButtonStyle, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 
@@ -2671,7 +2671,7 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.settingsSectionLabel}>FASTING</Text>
-      <View style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border, padding: 16 }]}>
+      <View style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border, padding: 16 + skinTokens.type.padBoost }]}>
         {activeFast ? (
           isActiveFastEnded ? (
             <FastSummaryCard fast={activeFast} colors={colors} />
@@ -3179,7 +3179,7 @@ export default function HomeScreen() {
         {skinTokens.isTerminal ? null : (
           <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : "#5F6670"} />
         )}
-        <Text numberOfLines={skinTokens.isTerminal ? 1 : undefined} style={[styles.tabLabel, isActive && styles.tabLabelActive, skinTokens.isTerminal ? { color: isActive ? TERM_BG : TERM_MID } : skinTokens.isEightBit ? { color: isActive ? "#FFFFFF" : BIT_ON_DUSK_FAINT } : null, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 8, lineHeight: 13 } : null, skinTokens.isTerminal ? { fontSize: 13, lineHeight: 16 } : null]}>{skinTokens.isTerminal ? (isActive ? `[${label.toUpperCase()}]` : label.toUpperCase()) : label}</Text>
+        <Text numberOfLines={skinTokens.isTerminal ? 1 : undefined} style={[styles.tabLabel, isActive && styles.tabLabelActive, skinTokens.isTerminal ? { color: isActive ? TERM_BG : TERM_MID } : skinTokens.isEightBit ? { color: isActive ? "#FFFFFF" : BIT_ON_DUSK_FAINT } : null, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 8, lineHeight: 13 } : null, skinTokens.isTerminal ? { fontSize: 13, lineHeight: 16 } : null, skinTokens.isPaper ? skinText(skinTokens, skinTokens.type.labelText, 16) : null]}>{skinTokens.isTerminal ? (isActive ? `[${label.toUpperCase()}]` : label.toUpperCase()) : label}</Text>
       </Pressable>
     );
   };
@@ -3790,6 +3790,14 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
   const paperSurface = skin?.surface ?? undefined;
   const cardShadow = skin?.cardShadow ? { boxShadow: skin.cardShadow.boxShadow, elevation: skin.cardShadow.elevation } : {};
   const sheetShadow = skin?.sheetShadow ? { boxShadow: skin.sheetShadow.boxShadow, elevation: skin.sheetShadow.elevation } : {};
+  // v190 ("Paper, Bigger"): the skin's type scale + roominess boosts.
+  // Every level is null and both boosts are 0 under Classic, 8-bit
+  // and Terminal, so each use below resolves to the pre-v190 value
+  // for those skins; only Paper's styles grow.
+  const typeScale = skin?.type ?? null;
+  const padBoost = typeScale?.padBoost ?? 0;
+  const gapBoost = typeScale?.gapBoost ?? 0;
+  const paperText = (size: number | null, lineHeight?: number | null) => (skin && typeScale ? skinText(skin, size, lineHeight) : {});
   return StyleSheet.create({
   root: {
     flex: 1,
@@ -3811,8 +3819,8 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     zIndex: 10,
   },
   floatingPill: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: 18 + padBoost,
+    paddingVertical: 10 + gapBoost,
     borderRadius: 16,
   },
   m3StatsContainer: {
@@ -3901,11 +3909,13 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     fontSize: 20,
     fontWeight: "900",
     letterSpacing: 0.3,
+    ...paperText(typeScale?.screenTitle ?? null),
   },
   pillSubtitle: {
     fontSize: 12,
     fontWeight: "600",
     marginTop: 1,
+    ...paperText(typeScale?.screenSubtitle ?? null),
   },
   pillStats: {
     flexDirection: "row",
@@ -3994,6 +4004,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     fontWeight: "800",
     letterSpacing: 0.7,
     lineHeight: 16,
+    ...paperText(typeScale?.labelText ?? null, 17),
     ...(skin?.isEightBit && skin?.displayFont ? { fontFamily: skin?.displayFont, fontSize: 10, lineHeight: 16 } : {}),
   },
   storyScroller: {
@@ -4258,13 +4269,14 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     fontWeight: "900",
     letterSpacing: 0.15,
     lineHeight: 18,
+    ...paperText(typeScale?.sectionTitle ?? null, typeScale?.sectionLineHeight ?? null),
   },
   personCard: {
-    minHeight: 84,
+    minHeight: 84 + padBoost * 2,
     marginHorizontal: 12,
-    marginBottom: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    marginBottom: 8 + gapBoost,
+    paddingHorizontal: 14 + padBoost,
+    paddingVertical: 13 + gapBoost,
     borderRadius: skin?.cardRadius ?? 14,
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -4283,11 +4295,11 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     ...(skin?.isPaper || skin?.isEightBit ? { shadowOpacity: 0, shadowRadius: 0 } : null),
   },
   singlePersonCard: {
-    minHeight: 62,
+    minHeight: 62 + padBoost * 2,
     marginHorizontal: 16,
-    marginBottom: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    marginBottom: 6 + gapBoost,
+    paddingHorizontal: 10 + padBoost,
+    paddingVertical: 8 + gapBoost,
     borderRadius: skin?.isPaper ? 6 : skin?.isEightBit ? 2 : 10,
   },
   personInfo: {
@@ -4303,6 +4315,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     fontWeight: "800",
     letterSpacing: -0.2,
     lineHeight: 22,
+    ...paperText(typeScale?.rowTitle ?? null, typeScale?.rowTitleLineHeight ?? null),
   },
   personMeta: {
     marginTop: 2,
@@ -4310,6 +4323,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     fontSize: 13,
     fontWeight: "600",
     lineHeight: 18,
+    ...paperText(typeScale?.rowBody ?? null, typeScale?.rowBodyLineHeight ?? null),
   },
   personCardDivider: {
     height: 1,
@@ -4319,10 +4333,14 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
   singlePersonName: {
     fontSize: 15,
     lineHeight: 19,
+    // The compact card takes a tempered step (barTitle 17, not the
+    // full rowTitle 20): it sits beside a fixed action column.
+    ...paperText(typeScale?.barTitle ?? null, 21),
   },
   singlePersonMeta: {
     fontSize: 11,
     lineHeight: 15,
+    ...paperText(typeScale?.labelText ?? null, 16),
   },
   personActions: {
     alignItems: "center",
@@ -4411,8 +4429,8 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     lineHeight: 23,
   },
   settingsContent: {
-    paddingHorizontal: 24,
-    paddingTop: 26,
+    paddingHorizontal: 24 + padBoost,
+    paddingTop: 26 + gapBoost,
     paddingBottom: 132,
   },
   settingsTitle: {
@@ -4434,8 +4452,8 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     borderBottomLeftRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 8,
     borderBottomRightRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 8,
     borderWidth: skin?.isEightBit ? 3 : 1,
-    paddingHorizontal: 24,
-    paddingVertical: 18,
+    paddingHorizontal: 24 + padBoost,
+    paddingVertical: 18 + padBoost,
     flexDirection: "column",
     marginHorizontal: 0,
     marginBottom: 24,
@@ -4861,6 +4879,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     fontSize: 18,
     fontWeight: "900",
     lineHeight: 23,
+    ...paperText(typeScale?.rowTitle ?? null, typeScale?.rowTitleLineHeight ?? null),
     // v187 (8-bit only): the profile name speaks the pixel face.
     ...(skin?.isEightBit && skin?.displayFont ? { fontFamily: skin?.displayFont, fontSize: 11, lineHeight: 18 } : {}),
   },
@@ -5134,12 +5153,14 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     fontSize: 31,
     fontWeight: "900",
     lineHeight: 38,
+    ...paperText(typeScale?.statValue ?? null),
   },
   settingsStatLabel: {
     color: colors.muted,
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 17,
+    ...paperText(typeScale?.cardMeta ?? null),
   },
   settingsStatDivider: {
     width: 1,
@@ -5156,6 +5177,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     fontWeight: "900",
     letterSpacing: 1.7,
     lineHeight: 19,
+    ...paperText(typeScale?.sectionTitle ?? null, typeScale?.sectionLineHeight ?? null),
     ...(skin?.isEightBit && skin?.displayFont ? { fontFamily: skin?.displayFont, fontSize: 10, lineHeight: 16 } : {}),
   },
   settingsCard: {
@@ -5171,9 +5193,9 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     ...cardShadow,
   },
   settingsRow: {
-    minHeight: 68,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    minHeight: 68 + padBoost * 2,
+    paddingHorizontal: 18 + padBoost,
+    paddingVertical: 10 + gapBoost,
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
@@ -5195,6 +5217,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     fontSize: 18,
     fontWeight: "900",
     lineHeight: 23,
+    ...paperText(typeScale?.rowTitle ?? null, typeScale?.rowTitleLineHeight ?? null),
     // v187 (8-bit only): row titles speak the pixel face (~60% rule).
     ...(skin?.isEightBit && skin?.displayFont ? { fontFamily: skin?.displayFont, fontSize: 11, lineHeight: 18 } : {}),
   },
@@ -5207,6 +5230,7 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     fontSize: 13,
     fontWeight: "600",
     lineHeight: 18,
+    ...paperText(typeScale?.rowBody ?? null, typeScale?.rowBodyLineHeight ?? null),
   },
   colorSwatch: {
     width: 42,

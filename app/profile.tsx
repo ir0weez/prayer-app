@@ -17,7 +17,7 @@ import { COINS_STORAGE_KEY, SHOP_OWNED_KEY, parseCoins, parseOwnedItems, type Ho
 } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { TERM_DEEP, TERM_PANEL_2 } from "@/lib/skin-themes";
+import { TERM_DEEP, TERM_PANEL_2, skinText } from "@/lib/skin-themes";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -516,10 +516,14 @@ export default function ProfileScreen() {
       // v189: cut corners under Paper — the sheet stack beneath
       // squares to match (its layers branch to 6 above).
       ...(isPaper ? { borderRadius: 6 } : null),
+      // v190: roomier under Paper — the card grows with its type.
+      ...(isPaper ? { padding: 18 + skinTokens.type.padBoost } : null),
     },
     profileName: {
       ...styles.profileName,
       color: colors.foreground,
+      // v190: the name takes the displayName step under Paper.
+      ...skinText(skinTokens, skinTokens.type.displayName, skinTokens.type.displayNameLineHeight),
     },
     profileSubtitle: {
       ...styles.profileSubtitle,
@@ -532,6 +536,8 @@ export default function ProfileScreen() {
     statNumber: {
       ...styles.statNumber,
       color: colors.primary,
+      // v190: stat numerals take the statValue step under Paper.
+      ...skinText(skinTokens, skinTokens.type.statValue),
     },
     secondaryButtonText: {
       ...styles.secondaryButtonText,
@@ -575,7 +581,7 @@ export default function ProfileScreen() {
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("arrow-back")} size={26} color={colors.foreground} />
           </Pressable>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>My Profile</Text>
+          <Text style={[styles.headerTitle, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.pageTitle)]}>My Profile</Text>
           <View style={styles.headerRightButtons}>
             {selectedFast && (
               <Pressable onPress={() => {
@@ -685,28 +691,28 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.statsGrid}>
-          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null]}>
+          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <Text style={dynamicStyles.statNumber}>{highestFastStreak}</Text>
-            <Text style={styles.statLabel}>Highest Streak</Text>
+            <Text style={[styles.statLabel, skinText(skinTokens, skinTokens.type.labelText)]}>Highest Streak</Text>
           </View>
-          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null]}>
+          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <Text style={dynamicStyles.statNumber}>{completedFastCount}</Text>
-            <Text style={styles.statLabel}>Completed Fasts</Text>
+            <Text style={[styles.statLabel, skinText(skinTokens, skinTokens.type.labelText)]}>Completed Fasts</Text>
           </View>
-          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null]}>
+          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
-            <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }]}>
+            <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }, skinText(skinTokens, skinTokens.type.rowTitle, skinTokens.type.rowTitleLineHeight)]}>
               {lastCompletedFastProgress ? `${lastCompletedFastPercentage}%` : "Collecting Data"}
             </Text>
-            <Text style={styles.statLabel}>Last {selectedFast?.type ?? "Fast"}</Text>
+            <Text style={[styles.statLabel, skinText(skinTokens, skinTokens.type.labelText)]}>Last {selectedFast?.type ?? "Fast"}</Text>
           </View>
         </View>
 
         {/* Boss badges — won at the Dark Forest's Boss Gate. Permanent. */}
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>BOSS BADGES</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>BOSS BADGES</Text>
           <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted }}>{ownedBadges.length}/10</Text>
         </View>
         <Text style={{ fontSize: 12.5, color: colors.muted, lineHeight: 17, marginBottom: 12 }}>
@@ -717,20 +723,20 @@ export default function ProfileScreen() {
         </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>PREVIOUS FAST</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>PREVIOUS FAST</Text>
           <Pressable onPress={() => router.push("/fast-collection")} style={{ padding: 6 }}>
             <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 13 }}>View Collection →</Text>
           </Pressable>
         </View>
         {lastCompletedFast && lastCompletedFastProgress ? (
-          <View style={[styles.previousFastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null]}>
+          <View style={[styles.previousFastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, padding: 16 + skinTokens.type.padBoost } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <View style={styles.previousFastHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.previousFastTitle}>{lastCompletedFast.name}</Text>
+                <Text style={[styles.previousFastTitle, skinText(skinTokens, skinTokens.type.cardTitle)]}>{lastCompletedFast.name}</Text>
                 <Text style={styles.previousFastMeta}>{lastCompletedFast.type} • {getFastDateRangeLabel(lastCompletedFast)}</Text>
               </View>
-              <Text style={[styles.previousFastPercentage, { color: colors.primary }]}>{lastCompletedFastPercentage}%</Text>
+              <Text style={[styles.previousFastPercentage, { color: colors.primary }, skinText(skinTokens, skinTokens.type.displayName)]}>{lastCompletedFastPercentage}%</Text>
             </View>
             <View style={styles.previousFastProgressTrack}>
               <View style={[styles.previousFastProgressFill, { width: `${lastCompletedFastPercentage}%`, backgroundColor: profileAura?.glowColor || colors.primary }]} />
@@ -755,25 +761,25 @@ export default function ProfileScreen() {
         {selectedFast ? (
           <>
             <View style={styles.currentFastHeader}>
-              <Text style={[styles.sectionLabel, { color: colors.foreground }]}>CURRENT FAST</Text>
+              <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>CURRENT FAST</Text>
               {selectedFastStreak > 0 && (
                 <View style={[styles.currentFastBadge, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
                   <Text style={styles.currentFastBadgeText}>🔥 {selectedFastStreak}</Text>
                 </View>
               )}
             </View>
-            <View style={[styles.fastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null]}>
+            <View style={[styles.fastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, padding: 16 + skinTokens.type.padBoost } : null]}>
               {isSkinned ? <PaperGrainOverlay /> : null}
               <View style={[styles.fastIcon, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
                 <MaterialIcons name={iconName(selectedFastType?.icon ?? "local-fire-department")} size={28} color="#FFFFFF" />
               </View>
               <View style={styles.fastCardText}>
-                <Text style={styles.fastTitle}>{selectedFast.name}</Text>
-                <Text style={styles.fastMeta}>{selectedFast.type} • {selectedFast.durationDays} days • starts {formatIsoToMmDdYyyy(selectedFast.startDate)}</Text>
+                <Text style={[styles.fastTitle, skinText(skinTokens, skinTokens.type.cardTitle, 25)]}>{selectedFast.name}</Text>
+                <Text style={[styles.fastMeta, skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight)]}>{selectedFast.type} • {selectedFast.durationDays} days • starts {formatIsoToMmDdYyyy(selectedFast.startDate)}</Text>
               </View>
             </View>
 
-            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>FASTING FOCUS</Text>
+            <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>FASTING FOCUS</Text>
             <View style={styles.focusWrap}>
               {(selectedFast.focusItems.length ? selectedFast.focusItems : ["Add a focus when you create your next fast"]).map((item) => {
                 const focusStatus = getTodayFocusItemStatus(selectedFast.focusItemDailyStatuses, item, today);
@@ -792,7 +798,7 @@ export default function ProfileScreen() {
               })}
             </View>
 
-            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>TODAY</Text>
+            <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>TODAY</Text>
             <View style={styles.todayActions}>
               <Pressable onPress={(event) => setFastStatus(today, "completed", { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })} onLongPress={() => chooseStatusForDate(today)} delayLongPress={420} style={({ pressed }) => [styles.todayButton, { backgroundColor: getStatusColor(selectedFast.dayStatuses[today]) }, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName(getStatusIcon(selectedFast.dayStatuses[today]))} size={24} color="#FFFFFF" />
@@ -883,7 +889,7 @@ export default function ProfileScreen() {
             })()}
             {selectedFast && selectedFast.durationDays >= 80 && (
               <>
-              <Text style={[styles.sectionLabel, { color: colors.foreground, marginBottom: 8 }]}>SEASONS — TAP TO SWITCH</Text>
+              <Text style={[styles.sectionLabel, { color: colors.foreground, marginBottom: 8 }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>SEASONS — TAP TO SWITCH</Text>
               <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
                 {[0, 1, 2, 3].map((q) => {
                   const quarterSize = Math.ceil(selectedFast.durationDays / 4);
@@ -934,7 +940,7 @@ export default function ProfileScreen() {
               </View>
               </>
             )}
-            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>BOARD</Text>
+            <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>BOARD</Text>
             <View
               ref={fastBoardContainerRef}
               collapsable={false}
@@ -1099,7 +1105,7 @@ export default function ProfileScreen() {
 
         {fastHistory.length > 0 ? (
           <>
-            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>FAST HISTORY</Text>
+            <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>FAST HISTORY</Text>
             <View style={styles.historyTimeline}>
               {fastHistory.map((fast, index) => {
                 const progress = getFastProgress(fast);
@@ -1112,12 +1118,12 @@ export default function ProfileScreen() {
                       <View style={[styles.timelineDot, { backgroundColor: typeInfo?.color ?? colors.primary }]} />
                       {index < fastHistory.length - 1 && <View style={styles.timelineLine} />}
                     </View>
-                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
+                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, padding: 14 + skinTokens.type.padBoost, marginBottom: 10 + skinTokens.type.gapBoost } : null, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
                       {isSkinned ? <PaperGrainOverlay /> : null}
                       <View style={styles.historyCardHeader}>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.historyTitle}>{fast.name}</Text>
-                          <Text style={styles.historyMeta}>{fast.type} • {getFastDateRangeLabel(fast)}</Text>
+                          <Text style={[styles.historyTitle, skinText(skinTokens, skinTokens.type.barTitle)]}>{fast.name}</Text>
+                          <Text style={[styles.historyMeta, skinText(skinTokens, skinTokens.type.labelText)]}>{fast.type} • {getFastDateRangeLabel(fast)}</Text>
                         </View>
                         <View style={[styles.historyStatusPill, { backgroundColor: isCompleted ? "#DDF8ED" : `${typeInfo?.color ?? colors.primary}18` }]}>
                           <Text style={[styles.historyStatusText, { color: isCompleted ? "#16845A" : typeInfo?.color ?? colors.primary }]}>{isCompleted ? "Complete" : `${percentage}%`}</Text>
@@ -1126,9 +1132,9 @@ export default function ProfileScreen() {
                       <View style={styles.historyProgressTrack}>
                         <View style={[styles.historyProgressFill, { width: `${percentage}%`, backgroundColor: typeInfo?.color ?? colors.primary }]} />
                       </View>
-                      <Text style={styles.historyDays}>{progress.completed}/{progress.total} completed • {progress.missed} missed • {progress.skipped} skipped</Text>
+                      <Text style={[styles.historyDays, skinText(skinTokens, skinTokens.type.labelText)]}>{progress.completed}/{progress.total} completed • {progress.missed} missed • {progress.skipped} skipped</Text>
                       {fast.focusItems.length > 0 && (
-                        <Text numberOfLines={1} style={styles.historyFocus}>Focus: {fast.focusItems.join(" • ")}</Text>
+                        <Text numberOfLines={1} style={[styles.historyFocus, skinText(skinTokens, skinTokens.type.labelText)]}>Focus: {fast.focusItems.join(" • ")}</Text>
                       )}
                     </Pressable>
                   </View>

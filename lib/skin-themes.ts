@@ -99,6 +99,17 @@
 //     paper dialect: a solid paper panel with the full date spelled
 //     out, pinned sticky at the top of the list.
 //
+// v192 ("Unpin the Date Header", Jonathan's reversal, 2026-10-22):
+// "I don't like that the header card is fixed in this mode. I change
+// my mind." The sticky pin the v187/v188 cures and v189's parity
+// carried is GONE under all three skins — the schedule list passes
+// no stickyHeaderIndices at all, so the date header is a normal
+// in-flow card that scrolls away with the list, exactly as Classic's
+// always did. The panels themselves (8-bit's BIT_PANEL HUD,
+// Terminal's TERM_PANEL window, Paper's stock panel) and their
+// spelled-out full-date lines are unchanged: only fixed-vs-scrolling
+// changed.
+//
 // The Dark Forest and the town/city/school maps never consume these
 // tokens: the forest stays pixel (its rendering is NOT re-skinned)
 // and the maps are already paper.

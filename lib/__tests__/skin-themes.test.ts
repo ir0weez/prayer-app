@@ -754,12 +754,13 @@ describe("v185 floating cards: under 8-bit the sheet is gone and every row float
     // say it.
     expect(header).toContain("dateHeader.monthName} ${dateHeader.dayNum}, ${dateHeader.year}");
     expect(header).toContain("bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 8)");
-    // And the list pins the header sticky under both skins, so the
-    // date never scrolls out of sight (data[0] is child index 1,
-    // after the ListHeaderComponent spacer at index 0). v189: Paper
-    // joins the same sticky gate (its panel is pinned in the v189
-    // block below).
-    expect(schedule).toContain("stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal || skinTokens.isPaper) ? [1] : undefined}");
+    // v192: the sticky pin is GONE under every skin — Jonathan
+    // reversed on it ("I don't like that the header card is fixed
+    // in this mode. I change my mind."). The list passes no
+    // stickyHeaderIndices at all, so the header is a normal in-flow
+    // card that scrolls away with the list; the panels and the
+    // full-date lines asserted above stay exactly as built.
+    expect(schedule).not.toContain("stickyHeaderIndices");
   });
 
   it("plain and grouped-completed todos become cartridges under 8-bit", () => {
@@ -1201,16 +1202,17 @@ describe("v188 — Terminal, finished properly", () => {
     expect(schedule).not.toContain("termHandleFor");
   });
 
-  it("the date header is a solid terminal window with the full date, pinned sticky like 8-bit's", () => {
+  it("the date header is a solid terminal window with the full date (v192: no longer pinned)", () => {
     const schedule = read("components/schedule-tab.tsx");
     // The panel branch (v186's transparent branch is gone).
     expect(schedule).toContain("skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");
     expect(schedule).not.toContain('skinTokens.isTerminal ? { backgroundColor: "transparent" } : { backgroundColor: isSkinned ? skinTokens.surface');
     // The full-date line renders under Terminal too, in VT323 (size 15).
     expect(schedule).toContain("color: skinTokens.isTerminal ? TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 8)");
-    // The same sticky mechanism v187 gave 8-bit now covers Terminal
-    // (and, since v189, Paper — pinned in the v189 block below).
-    expect(schedule).toContain("stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal || skinTokens.isPaper) ? [1] : undefined}");
+    // v192: the sticky mechanism v187/v188 shared is removed for
+    // every skin — the header scrolls away with the list (see the
+    // v187 block above for the full note).
+    expect(schedule).not.toContain("stickyHeaderIndices");
     // v187's 8-bit panel is byte-identical.
     expect(schedule).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");
   });
@@ -1317,7 +1319,7 @@ describe("v189 — Paper, Not Buttons", () => {
     expect(read("components/album-card.tsx")).toContain("borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12");
   });
 
-  it("the date header is a solid paper panel with the full date, pinned sticky like 8-bit's", () => {
+  it("the date header is a solid paper panel with the full date (v192: no longer pinned)", () => {
     const schedule = read("components/schedule-tab.tsx");
     const header = schedule.slice(schedule.indexOf("const renderDateHeaderCard"), schedule.indexOf("const renderItem"));
     // The Paper branch: stock fill, the sheet edge (cardShadow IS
@@ -1326,8 +1328,9 @@ describe("v189 — Paper, Not Buttons", () => {
     expect(header).toContain("skinTokens.isPaper ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 6, borderTopRightRadius: 6, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, ...(skinTokens.cardShadow ?? {}) }");
     // The full date spelled out under the day name, in paper ink.
     expect(header).toContain('color: colors.muted, marginBottom: 8, fontSize: 13, fontWeight: "600"');
-    // The sticky gate now covers Paper alongside 8-bit/Terminal.
-    expect(schedule).toContain("stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal || skinTokens.isPaper) ? [1] : undefined}");
+    // v192: Paper's pin is removed with the others — no skin's
+    // date header is sticky anymore.
+    expect(schedule).not.toContain("stickyHeaderIndices");
     // The 8-bit and Terminal panels are byte-identical to v187/v188.
     expect(header).toContain("skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");
     expect(header).toContain("skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) }");

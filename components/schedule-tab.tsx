@@ -11766,7 +11766,7 @@ export function ScheduleTab({
     return items;
   }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, currentAlbum, clockNow]);
 
-  // Joi-style sheet: the sticky date header leads the sheet; an empty-state item
+  // Joi-style sheet: the date header leads the sheet; an empty-state item
   // preserves the "no items" message now that data always carries the header.
   const scheduleSheetData = useMemo(() => {
     const headerItem = { type: "date-header", id: "schedule-date-header", data: null };
@@ -11873,7 +11873,7 @@ export function ScheduleTab({
 
   const renderDateHeaderCard = useCallback((cardStyle?: object) => (
     <>
-      {/* Date Header Card - sticky sheet header. v185 (8-bit only): the
+      {/* Date Header Card - the sheet's leading card. v185 (8-bit only): the
           header is no longer a card — its text sits directly on the dusk
           in the mockup's on-dusk inks, and the selected day is a gold chip.
           v187 (8-bit only): that read as NO date at all on his phone
@@ -11889,7 +11889,11 @@ export function ScheduleTab({
           thing in paper — a solid paper panel (stock fill + the sheet
           edge, cut corners) carrying the full date under the day name,
           pinned sticky by the same mechanism. Classic keeps the sheet
-          top. */}
+          top. v192 (all three skins): Jonathan reversed on the pin
+          itself — "I don't like that the header card is fixed in this
+          mode. I change my mind." The panels and their full-date
+          lines stay exactly as built; the list no longer pins the
+          header, so it scrolls away with the list under every skin. */}
       <View style={[scheduleStyles.dateHeaderCard, skinTokens.isEightBit ? { backgroundColor: BIT_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : skinTokens.isTerminal ? { backgroundColor: TERM_PANEL, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, ...(skinTokens.frame ?? {}), ...(skinTokens.cardShadow ?? {}) } : skinTokens.isPaper ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 6, paddingBottom: 12, borderTopLeftRadius: 6, borderTopRightRadius: 6, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, ...(skinTokens.cardShadow ?? {}) } : { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }, cardStyle]}>
   <View style={scheduleStyles.dayHeaderContent}>
     <Text style={[scheduleStyles.dayName, { color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, ...bitDisplay(skinTokens, 13), ...skinText(skinTokens, skinTokens.type.dayName, skinTokens.type.dayNameLineHeight) }]}>
@@ -12809,7 +12813,6 @@ export function ScheduleTab({
               ref={mainListRef}
               style={{ flex: 1, position: "relative", zIndex: 1 }}
               data={scheduleSheetData}
-              stickyHeaderIndices={(skinTokens.isEightBit || skinTokens.isTerminal || skinTokens.isPaper) ? [1] : undefined}
               scrollEnabled={slidePicker == null}
               onMomentumScrollEnd={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
               onScrollEndDrag={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}

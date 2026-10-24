@@ -3,8 +3,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BackHandler,
   FlatList,
   Keyboard,
   Modal,
@@ -307,6 +309,26 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
     composerInputRef.current?.blur();
     Keyboard.dismiss();
   }, []);
+
+  // v215: Android back while the composer is open folds the morph
+  // FIRST (his ask — the ordered back chain: Modal → composer →
+  // tab → exit). This handler is the composer's own link in that
+  // chain: it exists only while composing AND only while this
+  // screen is the focused route, so it can never fire from under a
+  // pushed screen (the same defect class the shell's handler had).
+  // Registered when the composer opens — after the shell's handler
+  // — so in BackHandler's LIFO order it is consulted first, and
+  // closeCompose here is the very same dismiss the keyboard-hide
+  // button and the tap-out backdrop call.
+  const journalScreenFocused = useIsFocused();
+  useEffect(() => {
+    if (!composing || !journalScreenFocused) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      closeCompose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [composing, journalScreenFocused, closeCompose]);
 
   // Action sheet + reply + long-form editor state
   const [actionEntry, setActionEntry] = useState<PrayerJournalEntry | null>(null);
@@ -931,12 +953,22 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
           phone as a grey slab with the feed ghosting through.
           v202/v203's entrance kits
           still wrap the mount (PaperSettle/BitSettle), so under
-          Paper the whole thing settles in, under 8-bit it snaps. */}
+          Paper the whole thing settles in, under 8-bit it snaps.
+          v215: the wrap and its inner settle are "box-none" now.
+          Neither wrapper used to take a pointerEvents prop, so
+          the full-screen anchor layer was hit-testable end to
+          end: feed pans died inside its subtree before reaching
+          the list (his "can't scroll up"), and this tap-out
+          backdrop — sitting beneath the layer at zIndex 20 —
+          never received a tap either (his tap-out report). With
+          box-none, the wrappers' frames are transparent to
+          touches while the morph and FAB inside stay tappable:
+          pans reach the FlatList, taps-out reach the backdrop. */}
       {composing ? (
         <Pressable accessibilityLabel="Close composer" onPress={closeCompose} style={styles.composeBackdrop} />
       ) : null}
-      <PaperSettle style={[styles.composerWrap, { zIndex: 30 }]}>
-<BitSettle>
+      <PaperSettle style={[styles.composerWrap, { zIndex: 30 }]} pointerEvents="box-none">
+<BitSettle pointerEvents="box-none">
         <ReAnimated.View style={[styles.morph, morphStyle, { borderColor: momentsBorder, backgroundColor: composerBackground }]}>
           <ReAnimated.View
             pointerEvents={composing ? "auto" : "none"}

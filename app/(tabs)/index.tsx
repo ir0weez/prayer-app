@@ -7,6 +7,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext } from "@/lib/theme-provider";
 import { APP_ICONS, getAppIconDef, isIconUnlocked, loadSelectedAppIconId, saveSelectedAppIconId } from "@/lib/app-icons";
@@ -711,8 +712,22 @@ export default function HomeScreen() {
   const [xpState, setXpState] = useState<XpState>(DEFAULT_XP_STATE);
   const [levelUpNumber, setLevelUpNumber] = useState<number | null>(null);
 
-  // Handle back gesture/button: go to People tab if on another tab
+  // Handle back gesture/button: go to People tab if on another tab.
+  // v215 (his report, Oct 23): this handler used to be registered
+  // unconditionally — and this screen STAYS MOUNTED under every
+  // pushed root-stack screen (chapter page, profile, hometown…),
+  // so the first swipe on those screens silently flipped the hidden
+  // tab here to People, and the second swipe popped the screen onto
+  // People instead of where he came from. It is now registered ONLY
+  // while this screen is the focused route: under a pushed screen
+  // it does not exist, and back belongs to that screen alone (the
+  // chapter page's own bubble handler, v214, included). While
+  // focused, the chain runs: Modal dismissal (native, automatic) →
+  // Journal composer (its own handler in prayer-journal-tab, which
+  // registers later and so fires first) → People → Android default.
+  const tabsFocused = useIsFocused();
   useEffect(() => {
+    if (!tabsFocused) return;
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (activeTab !== 'people' && activeTab !== 'home') {
         setActiveTab('people');
@@ -721,7 +736,7 @@ export default function HomeScreen() {
       return false; // Let default behavior happen (exit app from People tab)
     });
     return () => backHandler.remove();
-  }, [activeTab]);
+  }, [tabsFocused, activeTab]);
   const [hasHydratedPeople, setHasHydratedPeople] = useState(false);
   const [streakRecord, setStreakRecord] = useState<PrayerStreakRecord>({ streak: 0, lastCompletedDate: null });
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);

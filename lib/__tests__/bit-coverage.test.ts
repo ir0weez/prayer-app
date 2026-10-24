@@ -36,8 +36,11 @@ describe("8-bit coverage — v203 animation pass", () => {
     expect(kit).not.toContain("Easing.sin");
     expect(kit).not.toContain("Easing.bezier");
     // Every other skin gets a plain View: byte-identical layout.
+    // (v215: same pointerEvents forwarding as the Paper kit —
+    // optional, unset at every pre-v215 call site.)
     expect(kit).toContain("if (!isEightBit)");
-    expect(kit).toContain("return <View style={style}>{children}</View>");
+    expect(kit).toContain("return <View style={style} pointerEvents={pointerEvents}>{children}</View>");
+    expect(kit).toContain("return <Animated.View style={[style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>");
     // The snap shrinks FROM the skin's own button shadow: the
     // kit's rest string and the bit button style's shadow are one
     // string (4px hard block in BIT_SHADOW_HEX).
@@ -103,7 +106,11 @@ describe("8-bit coverage — v203 animation pass", () => {
     expect(journal).toContain('import { BitSettle, bitPressedSnap } from "@/components/bit-motion";');
     // Separators and Moment rows carry the indexed bit entrance.
     expect(count(journal, "<BitSettle index={index}>")).toBe(2);
-    expect(count(journal, "<BitSettle>")).toBe(2);
+    // v215: one of the two bare BitSettles is the composer's inner
+    // wrap, which now carries pointerEvents="box-none" (its frame
+    // must not eat the feed's touches — see journal-v204.test.ts).
+    expect(count(journal, "<BitSettle>")).toBe(1);
+    expect(count(journal, '<BitSettle pointerEvents="box-none">')).toBe(1);
     const sheets = read("components/journal-sheets.tsx");
     expect(sheets).toContain("<BitSettle style={{ flex: 1 }}>");
   });

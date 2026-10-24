@@ -87,7 +87,9 @@ const config: ExpoConfig = {
       monochromeImage: "./assets/images/android-icon-monochrome.png",
     },
     edgeToEdgeEnabled: true,
-    predictiveBackGestureEnabled: false,
+    // v215: the edge swipe previews where it lands, so a consumed
+    // press is never again indistinguishable from an ignored swipe.
+    predictiveBackGestureEnabled: true,
     package: androidPackage,
     permissions: ["POST_NOTIFICATIONS"],
     intentFilters: [

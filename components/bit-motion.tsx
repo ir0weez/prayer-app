@@ -76,6 +76,12 @@ interface BitSettleProps {
   /** Render at rest with no snap — for rows that already carry
    *  their own entrance (a just-added schedule card, say). */
   settle?: boolean;
+  /** Hit-testing for the wrapper's own frame — the mirror of
+   *  PaperSettle's prop (v215): "box-none" lets touches pass
+   *  through the frame while children stay tappable (the
+   *  Journal's composer wrap needs it under every skin). Unset
+   *  keeps the default hit behavior at every other call site. */
+  pointerEvents?: "auto" | "none" | "box-none" | "box-only";
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
 }
@@ -92,6 +98,7 @@ export function BitSettle({
   index = 0,
   replayKey,
   settle = true,
+  pointerEvents,
   style,
   children,
 }: BitSettleProps) {
@@ -139,9 +146,9 @@ export function BitSettle({
   }));
 
   if (!isEightBit) {
-    return <View style={style}>{children}</View>;
+    return <View style={style} pointerEvents={pointerEvents}>{children}</View>;
   }
-  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
+  return <Animated.View style={[style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>;
 }
 
 /**

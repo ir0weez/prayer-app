@@ -67,6 +67,13 @@ interface PaperSettleProps {
   /** Render at rest with no settle — for rows that already carry
    *  their own entrance (a just-added schedule card, say). */
   settle?: boolean;
+  /** Hit-testing for the wrapper's own frame. "box-none" lets
+   *  touches pass THROUGH the frame to whatever is beneath while
+   *  children stay tappable — a full-screen anchor layer needs it
+   *  (the Journal's composer wrap, v215: without it the layer
+   *  swallowed every feed pan and the tap-out backdrop). Optional:
+   *  unset keeps the default hit behavior at every other call site. */
+  pointerEvents?: "auto" | "none" | "box-none" | "box-only";
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
 }
@@ -83,6 +90,7 @@ export function PaperSettle({
   index = 0,
   replayKey,
   settle = true,
+  pointerEvents,
   style,
   children,
 }: PaperSettleProps) {
@@ -125,9 +133,9 @@ export function PaperSettle({
   }));
 
   if (!isPaper) {
-    return <View style={style}>{children}</View>;
+    return <View style={style} pointerEvents={pointerEvents}>{children}</View>;
   }
-  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
+  return <Animated.View style={[style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>;
 }
 
 /**

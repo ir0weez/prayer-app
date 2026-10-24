@@ -248,6 +248,12 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   const [timerPos, setTimerPos] = useState<{ x: number; y: number } | null>(null);
   // Time-of-day backdrop bucket, locked in when the session opens.
   const [skyBucket, setSkyBucket] = useState<PrayerSkyBucket>("night");
+  // v215: the back-block below is deliberate and stays — but its
+  // first blocked press per session also SHOWS why, once, instead
+  // of reading as a dead swipe (haptic-only before).
+  const [backHintVisible, setBackHintVisible] = useState(false);
+  const backHintShownRef = useRef(false);
+  const backHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Always call the latest onClose from native notification callbacks.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -280,6 +286,9 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
       setSessionPeople([...people]);
       // Lock in the time-of-day backdrop once per session (no live switching).
       setSkyBucket(getPrayerSkyBucket(new Date()));
+      // v215: each new session earns its one visible back hint.
+      backHintShownRef.current = false;
+      setBackHintVisible(false);
       lastBonusMinute.current = 0;
       sessionStartRef.current = Date.now();
       // Start timer
@@ -315,13 +324,24 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
           syncElapsedFromClock();
         }
       });
-      // Block Android back button during prayer session
+      // Block Android back button during prayer session.
+      // v215: keep the block; the FIRST blocked press of the
+      // session also raises the visible hint ("End the session to
+      // leave") for a few seconds. Later presses stay haptic-only —
+      // the hint explains once, it does not nag.
       const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        if (!backHintShownRef.current) {
+          backHintShownRef.current = true;
+          setBackHintVisible(true);
+          if (backHintTimerRef.current) clearTimeout(backHintTimerRef.current);
+          backHintTimerRef.current = setTimeout(() => setBackHintVisible(false), 2600);
+        }
         return true; // Prevent default back behavior
       });
       return () => {
         backHandler.remove();
+        if (backHintTimerRef.current) clearTimeout(backHintTimerRef.current);
         appStateSub.remove();
         if (timerRef.current) clearInterval(timerRef.current);
         sessionStartRef.current = 0;
@@ -546,6 +566,15 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
             </Pressable>
           </View>
         )}
+        {/* v215: the visible word on a blocked back press — once
+            per session, along the bottom, gone on its own. */}
+        {backHintVisible ? (
+          <View pointerEvents="none" style={{ position: "absolute", bottom: 48, left: 24, right: 24, alignItems: "center" }}>
+            <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 }}>
+              <Text style={{ color: colors.foreground, fontSize: 13.5, fontWeight: "700" }}>End the session to leave</Text>
+            </View>
+          </View>
+        ) : null}
       </View>
       <XpGainIndicator />
     </Modal>

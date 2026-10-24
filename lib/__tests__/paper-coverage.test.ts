@@ -211,8 +211,12 @@ describe("Paper coverage — v202 animation pass", () => {
     expect(kit).not.toContain("springify");
     expect(kit).not.toContain("Easing.bounce");
     // Every other skin gets a plain View: byte-identical layout.
+    // (v215: the passthrough forwards the optional pointerEvents
+    // prop — unset at every pre-v215 call site, so the default hit
+    // behavior is byte-identical there too.)
     expect(kit).toContain("if (!isPaper)");
-    expect(kit).toContain("return <View style={style}>{children}</View>");
+    expect(kit).toContain("return <View style={style} pointerEvents={pointerEvents}>{children}</View>");
+    expect(kit).toContain("return <Animated.View style={[style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>");
     // The lift grows FROM the skin's own button shadow: the kit's
     // rest string and the Paper token's buttonShadow are one string
     // (the token composes it with PAPER_SHADOW_ALPHA = 0.28).

@@ -8,6 +8,10 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      // v215: back from the person route follows the actual visit
+      // history instead of jumping to the first route (the old
+      // TabRouter default, 'firstRoute').
+      backBehavior="history"
       screenOptions={{
         tabBarActiveTintColor: colors.tint,
         headerShown: false,

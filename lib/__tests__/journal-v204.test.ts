@@ -387,3 +387,50 @@ describe("v213 — the composer is solid, no frost (source pins)", () => {
     expect(tab).toContain("morphKeyboardLift");
   });
 });
+
+// v215 — the composer's anchor layer is touch-transparent. The
+// v204 morph sits in a full-screen anchor layer (composerWrap)
+// rendered through PaperSettle + BitSettle, and NEITHER wrapper
+// took a pointerEvents prop: the layer was hit-testable end to
+// end, so feed pans died inside its subtree ("can't scroll up")
+// and the tap-out backdrop beneath it never received a tap.
+// Both wrappers are "box-none" now — frames transparent, the
+// morph and FAB inside still tappable — via an optional
+// pointerEvents prop both settle kits forward on both branches.
+describe("v215 — the composer wrap is box-none; the feed and the backdrop are reachable", () => {
+  it("the wrap call site and its inner settle both carry box-none", () => {
+    const tab = read("components/prayer-journal-tab.tsx");
+    expect(tab).toContain('<PaperSettle style={[styles.composerWrap, { zIndex: 30 }]} pointerEvents="box-none">');
+    expect(tab).toContain('<BitSettle pointerEvents="box-none">');
+    // The anchor layer itself is unchanged (v213/v204 contract).
+    const wrap = tab.slice(tab.indexOf("composerWrap: {"), tab.indexOf("composeBackdrop:"));
+    expect(wrap).toContain('position: "absolute"');
+    expect(wrap).toContain("bottom: 0");
+  });
+
+  it("both settle kits forward pointerEvents on BOTH render branches", () => {
+    for (const kitPath of ["components/paper-motion.tsx", "components/bit-motion.tsx"]) {
+      const kit = read(kitPath);
+      expect(kit).toContain('pointerEvents?: "auto" | "none" | "box-none" | "box-only";');
+      expect(kit).toContain("return <View style={style} pointerEvents={pointerEvents}>{children}</View>");
+      expect(kit).toContain("return <Animated.View style={[style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>");
+    }
+  });
+
+  it("tap-outside is the pre-existing backdrop, wired to the same dismiss as the keyboard-hide button", () => {
+    const tab = read("components/prayer-journal-tab.tsx");
+    // The backdrop exists only while composing and calls closeCompose.
+    expect(tab).toContain("onPress={closeCompose} style={styles.composeBackdrop}");
+    // The keyboard-hide button calls the very same function —
+    // exactly two onPress={closeCompose} sites (backdrop + button),
+    // so draft behavior is identical by construction: closeCompose
+    // never touches the draft state.
+    expect(tab.split("onPress={closeCompose}").length - 1).toBe(2);
+    const close = tab.slice(tab.indexOf("const closeCompose"), tab.indexOf("v215: Android back"));
+    expect(close).toContain("setComposing(false);");
+    expect(close).toContain("Keyboard.dismiss();");
+    expect(close).not.toContain("setDraft");
+    // The list and its props are untouched by the fix.
+    expect(tab).toContain('keyboardShouldPersistTaps="handled"');
+  });
+});

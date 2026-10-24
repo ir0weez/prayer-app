@@ -13,7 +13,10 @@ export type V205BlockKind =
   | 'scripture' // grey cross-reference callout: italic quote + bold reference
   | 'highlight' // yellow Highlight callout (his keeper line)
   | 'thought' // grey Main Thought callout
-  | 'conversation'; // green Conversation callout from his Notion (rendered in the grey family)
+  | 'conversation' // green Conversation callout from his Notion (rendered in the grey family)
+  | 'note'; // v210: VIEW-LAYER ONLY — his plain personal note from the marks
+  // layer, rendered as inset body text with no box. The parser and the
+  // shipped commentary data never emit this kind.
 
 /**
  * His Notion color code — the colors are MEANINGS, not decoration

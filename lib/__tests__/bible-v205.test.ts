@@ -48,7 +48,11 @@ import {
   isBareChapter,
   mergeVerseOnlyEntries,
   notesBooks,
+  parseHashVerseRef,
   searchChapter,
+  splitEntryByHashNotes,
+  splitSectionsByHashNotes,
+  type DisplayEntry,
 } from '../bible-v205/index';
 import { composePreview, previewFor } from '../bible-v205/preview';
 import { PREVIEWS } from '../bible-v205/previews';
@@ -72,12 +76,15 @@ import {
 import { transitionChapterStatus } from '../bible-v205/rewards';
 import {
   addKeeperLine,
+  emptyMarks,
   isKept,
   loadMarks,
   marksFor,
+  normalizeMarks,
   saveMarks,
   toggleKept,
   withMarks,
+  type EntryMarks,
   type MarksMap,
 } from '../bible-v205/marks';
 import { blockCategory, NOTE_CATEGORIES } from '../bible-v205/categories';
@@ -880,5 +887,248 @@ describe('v208 — the full bake: every book, every chapter', () => {
     expect(rev!.lastLabel).toBe('Last time in Revelation 21:');
     expect(rev!.thisLabel).toBe('This time in Revelation 22:');
     expect(rev!.question.endsWith('?')).toBe(true);
+  });
+});
+
+describe("v210 — '#' verse splitting: a note's leading #N / #N-M sets those verses apart", () => {
+  // His real note, written on the Leviticus 19 entry spanning 10–12
+  // (Leviticus has no data file — its entries are the renderer's
+  // 3-verse chunks, so the fixture runs the real pipeline).
+  const LEV_NOTE = '#11-12 Interesting... Some Pastors fit this description far too well.';
+  const levMarks = (highlights: string[]): MarksMap => ({
+    'Leviticus|19|10-12': { ...emptyMarks(), highlights },
+  });
+  const bare = (start: number, end: number): DisplayEntry => ({ start, end, blocks: [], verseOnly: true });
+
+  it('parser: strict shapes only', () => {
+    expect(parseHashVerseRef('#11-12 Interesting...')).toEqual({ start: 11, end: 12 });
+    expect(parseHashVerseRef('#11–12 Interesting...')).toEqual({ start: 11, end: 12 }); // en dash
+    expect(parseHashVerseRef('#11 Interesting...')).toEqual({ start: 11, end: 11 });
+    expect(parseHashVerseRef('#11-12')).toEqual({ start: 11, end: 12 }); // end-of-string
+    expect(parseHashVerseRef('## Previously: the story so far')).toBeNull(); // markdown heading
+    expect(parseHashVerseRef('The #1 thing is prayer')).toBeNull(); // "number one", mid-text
+    expect(parseHashVerseRef('#11-12Interesting')).toBeNull(); // no whitespace after the ref
+    expect(parseHashVerseRef('#12-11 backwards')).toBeNull(); // reversed range
+    expect(parseHashVerseRef(' #11-12 leading space')).toBeNull(); // not start-anchored
+    expect(parseHashVerseRef('')).toBeNull();
+  });
+
+  it('(a) Lev 19 shape: entry 10–12 + "#11-12 …" → [10] and [11–12 with the note]', () => {
+    const sections = buildDisplaySections(null, 37);
+    const stored = levMarks([LEV_NOTE]);
+    const { sections: split, marks: display } = splitSectionsByHashNotes(sections, stored, 'Leviticus', 19);
+    const spans = split[0].entries.map((e) => [e.start, e.end]);
+    expect(spans).toContainEqual([10, 10]);
+    expect(spans).toContainEqual([11, 12]);
+    expect(spans).not.toContainEqual([10, 12]);
+    // The note rides the 11–12 piece, verbatim, prefix included.
+    expect(display['Leviticus|19|11-12'].highlights).toEqual([LEV_NOTE]);
+    expect(display['Leviticus|19|10-10'].highlights).toEqual([]);
+    // The stored map is untouched: render-time only, no migration.
+    expect(Object.keys(stored)).toEqual(['Leviticus|19|10-12']);
+    expect(stored['Leviticus|19|10-12'].highlights).toEqual([LEV_NOTE]);
+  });
+
+  it('(b) a single-verse "#11" splits v.11 out alone', () => {
+    const pieces = splitEntryByHashNotes(bare(10, 12), { ...emptyMarks(), highlights: ['#11 Just this verse.'] });
+    expect(pieces.map((p) => [p.entry.start, p.entry.end])).toEqual([[10, 10], [11, 11], [12, 12]]);
+    expect(pieces[1].marks.highlights).toEqual(['#11 Just this verse.']);
+  });
+
+  it('(c) a range equal to the whole span changes nothing', () => {
+    const entry = bare(10, 12);
+    const m: EntryMarks = { ...emptyMarks(), highlights: ['#10-12 The whole stretch.'] };
+    const pieces = splitEntryByHashNotes(entry, m);
+    expect(pieces).toHaveLength(1);
+    expect(pieces[0].entry).toBe(entry);
+    expect(pieces[0].marks).toBe(m);
+  });
+
+  it('(d) an out-of-span range changes nothing', () => {
+    const entry = bare(10, 12);
+    for (const text of ['#13-14 Beyond the entry.', '#9 Before the entry.', '#9-11 Straddling in.']) {
+      const m: EntryMarks = { ...emptyMarks(), highlights: [text] };
+      const pieces = splitEntryByHashNotes(entry, m);
+      expect(pieces).toHaveLength(1);
+      expect(pieces[0].entry).toBe(entry);
+      expect(pieces[0].marks).toBe(m);
+    }
+  });
+
+  it('(e) "## …" heading text never splits', () => {
+    const entry = bare(10, 12);
+    const m: EntryMarks = { ...emptyMarks(), highlights: ['## Previously in this chapter'] };
+    const pieces = splitEntryByHashNotes(entry, m);
+    expect(pieces).toHaveLength(1);
+    expect(pieces[0].entry).toBe(entry);
+  });
+
+  it('(f) a note merely CONTAINING "#1 thing" mid-text never splits', () => {
+    const entry = bare(10, 12);
+    const m: EntryMarks = {
+      ...emptyMarks(),
+      highlights: ['The #1 thing a pastor must not do.'],
+      thoughts: ['Remember the #1 rule here.'],
+    };
+    const pieces = splitEntryByHashNotes(entry, m);
+    expect(pieces).toHaveLength(1);
+    expect(pieces[0].marks).toBe(m);
+  });
+
+  it('(g) two non-overlapping #-notes → pieces in verse order, each note on its piece', () => {
+    const entry = bare(1, 9);
+    const m: EntryMarks = {
+      ...emptyMarks(),
+      highlights: ['#2-3 First note.'],
+      thoughts: ['#7-8 Second note.'],
+    };
+    const pieces = splitEntryByHashNotes(entry, m);
+    expect(pieces.map((p) => [p.entry.start, p.entry.end])).toEqual([
+      [1, 1], [2, 3], [4, 6], [7, 8], [9, 9],
+    ]);
+    expect(pieces[1].marks.highlights).toEqual(['#2-3 First note.']);
+    expect(pieces[3].marks.thoughts).toEqual(['#7-8 Second note.']);
+  });
+
+  it('(h) non-# marks (kept, tint, category, plain lines) land on the first-verse piece', () => {
+    const entry = bare(10, 12);
+    const m: EntryMarks = {
+      kept: true,
+      highlights: ['#11-12 The set-apart note.', 'A plain keeper line.'],
+      thoughts: ['A plain thought.'],
+      notes: [],
+      tint: 'rose',
+      category: 'quote',
+    };
+    const pieces = splitEntryByHashNotes(entry, m);
+    expect(pieces.map((p) => [p.entry.start, p.entry.end])).toEqual([[10, 10], [11, 12]]);
+    expect(pieces[0].marks.kept).toBe(true);
+    expect(pieces[0].marks.tint).toBe('rose');
+    expect(pieces[0].marks.category).toBe('quote');
+    expect(pieces[0].marks.highlights).toEqual(['A plain keeper line.']);
+    expect(pieces[0].marks.thoughts).toEqual(['A plain thought.']);
+    expect(pieces[1].marks.kept).toBe(false);
+    expect(pieces[1].marks.tint).toBeNull();
+    expect(pieces[1].marks.highlights).toEqual(['#11-12 The set-apart note.']);
+  });
+
+  it('an overlapping second #-note rides the piece containing its start verse', () => {
+    const pieces = splitEntryByHashNotes(bare(1, 9), {
+      ...emptyMarks(),
+      highlights: ['#2-5 The claim.', '#4-6 The overlap.'],
+    });
+    expect(pieces.map((p) => [p.entry.start, p.entry.end])).toEqual([[1, 1], [2, 5], [6, 9]]);
+    expect(pieces[1].marks.highlights).toEqual(['#2-5 The claim.', '#4-6 The overlap.']);
+  });
+
+  it("the entry's own blocks stay with the first-verse piece", () => {
+    const entry: DisplayEntry = {
+      start: 10,
+      end: 12,
+      blocks: [{ kind: 'para', text: 'His commentary on the stretch.' }],
+      verseOnly: false,
+    };
+    const pieces = splitEntryByHashNotes(entry, { ...emptyMarks(), highlights: ['#11-12 Set apart.'] });
+    expect(pieces[0].entry.blocks).toEqual([{ kind: 'para', text: 'His commentary on the stretch.' }]);
+    expect(pieces[0].entry.verseOnly).toBe(false);
+    expect(pieces[1].entry.blocks).toEqual([]);
+    expect(pieces[1].entry.verseOnly).toBe(true);
+  });
+
+  it('a record stored directly at a piece key wins scalars; its lines append', () => {
+    const sections = buildDisplaySections(null, 37);
+    const stored: MarksMap = {
+      'Leviticus|19|10-12': { ...emptyMarks(), highlights: [LEV_NOTE] },
+      'Leviticus|19|11-12': { ...emptyMarks(), kept: true, highlights: ['Added while reading the piece.'] },
+    };
+    const { marks: display } = splitSectionsByHashNotes(sections, stored, 'Leviticus', 19);
+    expect(display['Leviticus|19|11-12'].kept).toBe(true);
+    expect(display['Leviticus|19|11-12'].highlights).toEqual([LEV_NOTE, 'Added while reading the piece.']);
+  });
+
+  it('removing the "#" re-merges: no reference → the inputs come back by reference', () => {
+    const sections = buildDisplaySections(null, 37);
+    const stored = levMarks(['Interesting... Some Pastors fit this description far too well.']);
+    const result = splitSectionsByHashNotes(sections, stored, 'Leviticus', 19);
+    expect(result.sections).toBe(sections);
+    expect(result.marks).toBe(stored);
+  });
+
+  it('(i) Stories derivation consumes the split entries — no re-merge', () => {
+    const sections = buildDisplaySections(null, 37);
+    const { sections: split } = splitSectionsByHashNotes(sections, levMarks([LEV_NOTE]), 'Leviticus', 19);
+    const screens = buildStoryScreens(split);
+    const verseSpans = screens
+      .filter((s) => s.t === 'verse')
+      .map((s) => (s.t === 'verse' ? [s.entry.start, s.entry.end] : null));
+    const at = verseSpans.findIndex((sp) => sp![0] === 10 && sp![1] === 10);
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(verseSpans[at + 1]).toEqual([11, 12]);
+    expect(verseSpans).not.toContainEqual([10, 12]);
+  });
+});
+
+describe("v210 — the plain personal Note: no box, just inset text", () => {
+  const bareEntry = (start: number, end: number): DisplayEntry => ({ start, end, blocks: [], verseOnly: true });
+
+  it('storage: notes round-trip; records stored before v210 read notes as []', async () => {
+    let m = addKeeperLine({}, 'Leviticus', 19, 10, 12, 'note', 'A plain note.');
+    m = addKeeperLine(m, 'Leviticus', 19, 10, 12, 'highlight', 'A keeper line.');
+    await saveMarks(m);
+    const loaded = await loadMarks();
+    expect(marksFor(loaded, 'Leviticus', 19, 10, 12).notes).toEqual(['A plain note.']);
+    expect(marksFor(loaded, 'Leviticus', 19, 10, 12).highlights).toEqual(['A keeper line.']);
+    // A record written before the notes field existed.
+    const legacy = { kept: true, highlights: ['x'], thoughts: [], tint: null, category: null } as unknown as EntryMarks;
+    expect(normalizeMarks(legacy).notes).toEqual([]);
+    // …and adding its first note works rather than spreading undefined.
+    const grown = addKeeperLine({ 'Leviticus|19|10-12': legacy }, 'Leviticus', 19, 10, 12, 'note', 'First note.');
+    expect(grown['Leviticus|19|10-12'].notes).toEqual(['First note.']);
+    expect(grown['Leviticus|19|10-12'].highlights).toEqual(['x']);
+    expect(grown['Leviticus|19|10-12'].kept).toBe(true);
+  });
+
+  it('a "#"-prefixed note splits its entry exactly like the other kinds', () => {
+    const pieces = splitEntryByHashNotes(bareEntry(10, 12), {
+      ...emptyMarks(),
+      notes: ['#11-12 A plain note on these two.'],
+    });
+    expect(pieces.map((p) => [p.entry.start, p.entry.end])).toEqual([[10, 10], [11, 12]]);
+    expect(pieces[1].marks.notes).toEqual(['#11-12 A plain note on these two.']);
+    expect(pieces[0].marks.notes).toEqual([]);
+    // Sections level, the real Lev 19 pipeline: the note reaches the
+    // piece key every consumer (page, Stories, index) looks up.
+    const sections = buildDisplaySections(null, 37);
+    const stored: MarksMap = {
+      'Leviticus|19|10-12': { ...emptyMarks(), notes: ['#11-12 A plain note.'] },
+    };
+    const { sections: split, marks: display } = splitSectionsByHashNotes(sections, stored, 'Leviticus', 19);
+    expect(split[0].entries.map((e) => [e.start, e.end])).toContainEqual([11, 12]);
+    expect(split[0].entries.map((e) => [e.start, e.end])).not.toContainEqual([10, 12]);
+    expect(display['Leviticus|19|11-12'].notes).toEqual(['#11-12 A plain note.']);
+  });
+
+  it('render: BlockView draws a note as inset para text — no box styling at all', () => {
+    const src = readFileSync(join(process.cwd(), 'components/bible-v205/blocks.tsx'), 'utf8');
+    const start = src.indexOf("block.kind === 'note'");
+    expect(start).toBeGreaterThanOrEqual(0);
+    const branch = src.slice(start, src.indexOf("block.kind === 'scripture'"));
+    expect(branch).toContain('styles.para');
+    expect(branch).not.toContain('backgroundColor');
+    expect(branch).not.toContain('borderColor');
+    expect(branch).not.toContain('callout');
+  });
+
+  it('render: the markbar offers Note, his lines lead with notes, Stories shows them plainly', () => {
+    const page = readFileSync(join(process.cwd(), 'components/bible-v205/chapter-page.tsx'), 'utf8');
+    expect(page).toContain("setComposer('note')");
+    const notePush = page.indexOf("blocks.push({ kind: 'note', text })");
+    const hlPush = page.indexOf("blocks.push({ kind: 'highlight', text })");
+    expect(notePush).toBeGreaterThanOrEqual(0);
+    expect(notePush).toBeLessThan(hlPush); // notes render before the callout boxes
+    const stories = readFileSync(join(process.cwd(), 'components/bible-v205/stories-view.tsx'), 'utf8');
+    const rub = stories.slice(stories.indexOf('const renderUserBlocks'));
+    expect(rub.indexOf("kind: 'note'")).toBeGreaterThanOrEqual(0);
+    expect(rub.indexOf("kind: 'note'")).toBeLessThan(rub.indexOf("kind: 'highlight'"));
   });
 });

@@ -298,6 +298,9 @@ export function StoriesView(props: StoriesViewProps) {
     if (!m) return null;
     return (
       <>
+        {(m.notes ?? []).map((text, i) => (
+          <BlockView key={`un${i}`} block={{ kind: 'note', text }} palette={palette} />
+        ))}
         {m.highlights.map((text, i) => (
           <BlockView key={`uh${i}`} block={{ kind: 'highlight', text }} palette={palette} />
         ))}

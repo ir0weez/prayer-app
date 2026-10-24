@@ -81,6 +81,11 @@ export function BlockView({
       </Text>
     );
   }
+  if (block.kind === 'note') {
+    // v210: his plain personal note — inset body text like a commentary
+    // paragraph, with NO box: no background, no border, no label.
+    return <Text style={[styles.para, styles.notePara, { color: palette.ink }]}>{block.text}</Text>;
+  }
   if (block.kind === 'scripture') {
     return (
       <View
@@ -150,6 +155,7 @@ const styles = StyleSheet.create({
   bandDot: { color: '#DE8FB4', fontWeight: '700' },
   bandTitle: { fontWeight: '700', fontSize: 16.5, flexShrink: 1 },
   para: { fontSize: 15, lineHeight: 25.5, marginBottom: 12, paddingHorizontal: 5, marginLeft: -5 },
+  notePara: { marginLeft: 8 },
   callout: { borderRadius: 6, paddingVertical: 15, paddingHorizontal: 17, marginVertical: 14, borderWidth: 1 },
   scripture: { borderLeftWidth: 3, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
   scriptureQuote: { fontStyle: 'italic', fontSize: 14, lineHeight: 23 },

@@ -7,6 +7,7 @@
 import { COMMENTARY_DATA } from './data/index';
 import { chapterStatus, type StudyState } from './study';
 import { entrySourceCategory } from './categories';
+import { marksFor, normalizeMarks, type EntryMarks, type MarksMap } from './marks';
 import {
   entryKey,
   type NoteCategory,
@@ -244,6 +245,174 @@ export function mergeVerseOnlyEntries(
     }
     return { ...s, entries };
   });
+}
+
+// ─── v210: '#' verse splitting ───────────────────────────────────────────────
+// His notation, from his own notes: a user note (marks layer) that STARTS
+// with "#N" or "#N-M" belongs to exactly those verses. The display honors
+// it by splitting the entry it was written on: the referenced verses
+// stand as their own entry carrying the note, the rest keep theirs.
+// RENDER-TIME ONLY — marks storage and entry keys never change, the note
+// text stays verbatim (prefix included), and editing the "#" away
+// re-merges the display on the next render. Both the chapter page and
+// Stories consume sections that passed through here, so they split
+// identically.
+
+const HASH_REF_RE = /^#(?!#)(\d{1,3})(?:[-–](\d{1,3}))?(?=\s|$)/;
+
+/**
+ * Parse a note's leading verse reference. STRICT by design, pinned
+ * against his real notes: start-anchored only ("#1 thing" mid-sentence
+ * means "number one" and never fires), a single "#" only ("##…" opens
+ * his markdown headings and never fires), the reference must be followed
+ * by whitespace or end-of-string, and a reversed range is not a
+ * reference. Returns null when the text carries no reference.
+ */
+export function parseHashVerseRef(text: string): { start: number; end: number } | null {
+  const m = HASH_REF_RE.exec(text);
+  if (!m) return null;
+  const start = parseInt(m[1], 10);
+  const end = m[2] !== undefined ? parseInt(m[2], 10) : start;
+  if (end < start) return null;
+  return { start, end };
+}
+
+export interface SplitPiece {
+  entry: DisplayEntry;
+  marks: EntryMarks;
+}
+
+/**
+ * Split one display entry by the '#' references in its user marks.
+ * Returns a single piece — the entry and marks objects untouched — when
+ * nothing splits (no reference, out-of-span reference, or a reference
+ * covering the whole span). Otherwise the pieces tile the entry's span
+ * in verse order:
+ *  - each claimed range becomes a piece carrying its note;
+ *  - a note whose range overlaps an already-claimed range does not split
+ *    further — it rides the piece containing its range's start verse;
+ *  - everything else in the marks (kept, tint, category, non-'#' lines)
+ *    and the entry's own blocks stay with the piece containing the
+ *    entry's FIRST verse.
+ * His lines are processed in stored order within each kind, kinds in
+ * the order the page renders them under the verses: plain notes first,
+ * then Highlights, then Main Thoughts. Plain notes (v210) split by
+ * exactly the same rules.
+ */
+export function splitEntryByHashNotes(entry: DisplayEntry, entryMarks: EntryMarks): SplitPiece[] {
+  const notes: { field: 'notes' | 'highlights' | 'thoughts'; text: string }[] = [
+    ...(entryMarks.notes ?? []).map((text) => ({ field: 'notes' as const, text })),
+    ...(entryMarks.highlights ?? []).map((text) => ({ field: 'highlights' as const, text })),
+    ...(entryMarks.thoughts ?? []).map((text) => ({ field: 'thoughts' as const, text })),
+  ];
+  const claims: { start: number; end: number }[] = [];
+  const roles = notes.map((n) => {
+    const ref = parseHashVerseRef(n.text);
+    if (!ref || ref.start < entry.start || ref.end > entry.end) return { type: 'plain' as const };
+    if (claims.some((c) => ref.start <= c.end && ref.end >= c.start)) {
+      return { type: 'ride' as const, verse: ref.start };
+    }
+    claims.push({ start: ref.start, end: ref.end });
+    return { type: 'claim' as const, claim: claims.length - 1 };
+  });
+
+  if (claims.length === 0) return [{ entry, marks: entryMarks }];
+  // A lone claim over the whole span changes nothing on screen.
+  if (claims.length === 1 && claims[0].start === entry.start && claims[0].end === entry.end) {
+    return [{ entry, marks: entryMarks }];
+  }
+
+  const sorted = [...claims].sort((a, b) => a.start - b.start);
+  const segs: { start: number; end: number; claimIdx: number | null }[] = [];
+  let cursor = entry.start;
+  for (const c of sorted) {
+    if (c.start > cursor) segs.push({ start: cursor, end: c.start - 1, claimIdx: null });
+    segs.push({ start: c.start, end: c.end, claimIdx: claims.indexOf(c) });
+    cursor = c.end + 1;
+  }
+  if (cursor <= entry.end) segs.push({ start: cursor, end: entry.end, claimIdx: null });
+
+  const segForVerse = (v: number) => segs.findIndex((s) => v >= s.start && v <= s.end);
+  const firstSeg = segForVerse(entry.start);
+
+  const pieceMarks: EntryMarks[] = segs.map((_, i) => ({
+    kept: i === firstSeg ? entryMarks.kept : false,
+    highlights: [],
+    thoughts: [],
+    notes: [],
+    tint: i === firstSeg ? entryMarks.tint : null,
+    category: i === firstSeg ? entryMarks.category : null,
+  }));
+  notes.forEach((n, i) => {
+    const role = roles[i];
+    let target = firstSeg;
+    if (role.type === 'claim') target = segs.findIndex((s) => s.claimIdx === role.claim);
+    else if (role.type === 'ride') target = segForVerse(role.verse);
+    if (target < 0) target = firstSeg;
+    pieceMarks[target][n.field].push(n.text);
+  });
+
+  return segs.map((s, i) => {
+    const blocks = i === firstSeg ? entry.blocks : [];
+    return {
+      entry: { ...entry, start: s.start, end: s.end, blocks, verseOnly: blocks.length === 0 },
+      marks: pieceMarks[i],
+    };
+  });
+}
+
+export interface SplitSectionsResult {
+  sections: DisplaySection[];
+  /** The stored map plus one derived record per split piece, keyed by
+   * the piece's own entry key so every existing marks join (page,
+   * Stories, index) resolves pieces unchanged. A record he stored
+   * directly at a piece key (an edit made on the piece) wins the scalar
+   * fields; its lines append after the derived ones. The stored map
+   * itself is never mutated. When nothing splits, both halves of the
+   * result are the inputs, by reference. */
+  marks: MarksMap;
+}
+
+export function splitSectionsByHashNotes(
+  sections: DisplaySection[],
+  marks: MarksMap,
+  book: string,
+  chapter: number,
+): SplitSectionsResult {
+  let changed = false;
+  const augmented: MarksMap = { ...marks };
+  const outSections = sections.map((section) => {
+    let sectionChanged = false;
+    const entries: DisplayEntry[] = [];
+    for (const entry of section.entries) {
+      const pieces = splitEntryByHashNotes(entry, marksFor(marks, book, chapter, entry.start, entry.end));
+      if (pieces.length === 1 && pieces[0].entry === entry) {
+        entries.push(entry);
+        continue;
+      }
+      sectionChanged = true;
+      for (const piece of pieces) {
+        entries.push(piece.entry);
+        const key = entryKey(book, chapter, piece.entry.start, piece.entry.end);
+        const atKey = marks[key] ? normalizeMarks(marks[key]) : null;
+        augmented[key] = atKey
+          ? {
+              kept: atKey.kept,
+              highlights: [...piece.marks.highlights, ...atKey.highlights],
+              thoughts: [...piece.marks.thoughts, ...atKey.thoughts],
+              notes: [...piece.marks.notes, ...atKey.notes],
+              tint: atKey.tint,
+              category: atKey.category,
+            }
+          : piece.marks;
+      }
+    }
+    if (!sectionChanged) return section;
+    changed = true;
+    return { ...section, entries };
+  });
+  if (!changed) return { sections, marks };
+  return { sections: outSections, marks: augmented };
 }
 
 /** All entries of a chapter in order, with their section title attached. */

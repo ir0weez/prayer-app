@@ -31,6 +31,7 @@ import {
   getChapterData,
   isBareChapter,
   mergeVerseOnlyEntries,
+  splitSectionsByHashNotes,
   type DisplaySection,
 } from '@/lib/bible-v205/index';
 import { entryKey, type NoteCategory, type StudyStatus, type V205Entry } from '@/lib/bible-v205/types';
@@ -150,30 +151,54 @@ export function ChapterPageView(props: ChapterPageProps) {
   };
 
   const verseCount = verses.length ? verses[verses.length - 1].verse : 0;
-  const notesSections: DisplaySection[] = useMemo(
+  const rawNotesSections: DisplaySection[] = useMemo(
     () => buildDisplaySections(chapterData, verseCount),
     [chapterData, verseCount],
   );
+  // v210: '#' verse splitting — render-time only. His marks stay stored
+  // on the parent entry key; the split sections carry derived records at
+  // the piece keys, and displayMarks is the map every render lookup
+  // below resolves against. The stored map is never written from here.
+  const notesSplit = useMemo(
+    () => splitSectionsByHashNotes(rawNotesSections, marks, book, chapter),
+    [rawNotesSections, marks, book, chapter],
+  );
+  const notesSections = notesSplit.sections;
   const sections: DisplaySection[] = useMemo(
     () => (readOnly ? buildReadOnlySections(chapterData, verseCount) : notesSections),
     [readOnly, chapterData, verseCount, notesSections],
   );
+  const displayMarks: MarksMap = readOnly ? marks : notesSplit.marks;
   // v207: Stories on a bare chapter (no notes, no groupings) paces by
   // ≤3-verse slides in BOTH modes. With-notes gets them from
   // buildDisplaySections' chunked fallback; read-only sections stay
   // per-verse for the reader, so Stories alone receives the merged
   // sections — same chunk boundaries, so kept marks agree across modes.
-  const storySections: DisplaySection[] = useMemo(
+  const storyBase: DisplaySection[] = useMemo(
     () => (readOnly && isBareChapter(chapterData) ? mergeVerseOnlyEntries(sections) : sections),
     [readOnly, chapterData, sections],
   );
+  // v210: Stories consumes the same splits as the page. With-notes
+  // sections arrive already split; read-only Stories re-chunks first
+  // (mergeVerseOnlyEntries above), so its split runs AFTER that step.
+  const storySplit = useMemo(
+    () =>
+      readOnly
+        ? splitSectionsByHashNotes(storyBase, marks, book, chapter)
+        : { sections: storyBase, marks: notesSplit.marks },
+    [readOnly, storyBase, marks, book, chapter, notesSplit],
+  );
+  const storySections = storySplit.sections;
   const flat = useMemo(() => flattenEntries(sections), [sections]);
-  const notesFlat = useMemo(() => flattenEntries(notesSections), [notesSections]);
+  // The read-only kept fallback walks COVERING with-notes entries; it
+  // reads the unsplit sections so a verse's covering entry is the one
+  // its marks were actually stored on.
+  const notesFlat = useMemo(() => flattenEntries(rawNotesSections), [rawNotesSections]);
   const verseText = useMemo(() => new Map(verses.map((v) => [v.verse, v.text])), [verses]);
   const status: StudyStatus = studyState ? chapterStatus(studyState, book, chapter) : 'none';
 
   const keptTotal = flat.filter((f) =>
-    isKept(marks, book, chapter, f.entry.start, f.entry.end, f.entry.blocks.some((b) => b.kind === 'highlight')),
+    isKept(displayMarks, book, chapter, f.entry.start, f.entry.end, f.entry.blocks.some((b) => b.kind === 'highlight')),
   ).length;
 
   const isOpen = (e: V205Entry) => {
@@ -191,14 +216,14 @@ export function ChapterPageView(props: ChapterPageProps) {
     const map = new Map<string, { kept: boolean; hasHighlight: boolean; hasScripture: boolean; category: NoteCategory | null }>();
     for (const f of flat) {
       const key = entryKey(book, chapter, f.entry.start, f.entry.end);
-      const m = marks[key];
-      let kept = isKept(marks, book, chapter, f.entry.start, f.entry.end, f.entry.blocks.some((b) => b.kind === 'highlight'));
+      const m = displayMarks[key];
+      let kept = isKept(displayMarks, book, chapter, f.entry.start, f.entry.end, f.entry.blocks.some((b) => b.kind === 'highlight'));
       if (readOnly && !kept) {
         // A kept grouped entry in With-notes mode keeps its verses in
         // Read-only too — the marks layer is one layer in both modes.
         const covering = notesFlat.find((nf) => f.entry.start >= nf.entry.start && f.entry.start <= nf.entry.end);
         if (covering) {
-          kept = isKept(marks, book, chapter, covering.entry.start, covering.entry.end, covering.entry.blocks.some((b) => b.kind === 'highlight'));
+          kept = isKept(displayMarks, book, chapter, covering.entry.start, covering.entry.end, covering.entry.blocks.some((b) => b.kind === 'highlight'));
         }
       }
       map.set(key, {
@@ -209,13 +234,13 @@ export function ChapterPageView(props: ChapterPageProps) {
       });
     }
     return map;
-  }, [flat, notesFlat, marks, book, chapter, readOnly]);
+  }, [flat, notesFlat, displayMarks, book, chapter, readOnly]);
 
   const userCategories = useMemo(() => {
     const map = new Map<string, NoteCategory | null>();
-    for (const [key, m] of Object.entries(marks)) map.set(key, m.category ?? null);
+    for (const [key, m] of Object.entries(displayMarks)) map.set(key, m.category ?? null);
     return map;
-  }, [marks]);
+  }, [displayMarks]);
 
   const scrollToY = (y: number) => {
     scrollRef.current?.scrollTo({ y: Math.max(0, y - 128), animated: true });
@@ -241,11 +266,20 @@ export function ChapterPageView(props: ChapterPageProps) {
   };
 
   const handleToggleKept = async (start: number, end: number, sourceHasHighlight: boolean) => {
-    const next = toggleKept(marks, book, chapter, start, end, sourceHasHighlight);
+    // v210: on a split piece (no record stored at the piece key yet) the
+    // toggle flips the RESOLVED kept the reader sees — which may have
+    // been inherited from the parent entry's record — and stores the
+    // flip at the piece key, where the display merge lets it win.
+    const key = entryKey(book, chapter, start, end);
+    const next = marks[key]
+      ? toggleKept(marks, book, chapter, start, end, sourceHasHighlight)
+      : withMarks(marks, book, chapter, start, end, {
+          kept: !(entryStatus.get(key)?.kept ?? sourceHasHighlight),
+        });
     setMarks(next);
     await saveMarks(next);
   };
-  const handleAddLine = async (start: number, end: number, kind: 'highlight' | 'thought', text: string) => {
+  const handleAddLine = async (start: number, end: number, kind: 'highlight' | 'thought' | 'note', text: string) => {
     const next = addKeeperLine(marks, book, chapter, start, end, kind, text);
     setMarks(next);
     await saveMarks(next);
@@ -299,7 +333,7 @@ export function ChapterPageView(props: ChapterPageProps) {
       chapterData={chapterData}
       sections={storySections}
       verses={verses}
-      marks={marks}
+      marks={storySplit.marks}
       palette={palette}
       onToggleKept={handleToggleKept}
       possessive={labels?.possessive ?? 'Your'}
@@ -529,7 +563,7 @@ export function ChapterPageView(props: ChapterPageProps) {
                 book={book}
                 chapter={chapter}
                 verseText={verseText}
-                marksEntry={marksFor(marks, book, chapter, entry.start, entry.end)}
+                marksEntry={marksFor(displayMarks, book, chapter, entry.start, entry.end)}
                 kept={entryStatus.get(entryKey(book, chapter, entry.start, entry.end))?.kept ?? false}
                 open={isOpen(entry)}
                 flash={flashKey === entryKey(book, chapter, entry.start, entry.end)}
@@ -661,13 +695,13 @@ function EntryView(props: {
   palette: BiblePalette;
   onToggleOpen: () => void;
   onToggleKept: () => void;
-  onAddLine: (kind: 'highlight' | 'thought', text: string) => void;
+  onAddLine: (kind: 'highlight' | 'thought' | 'note', text: string) => void;
   onTint: (tint: TintColor | null) => void;
   onCategory: (category: NoteCategory | null) => void;
   registerY: (y: number) => void;
 }) {
   const { entry, palette } = props;
-  const [composer, setComposer] = useState<null | 'highlight' | 'thought'>(null);
+  const [composer, setComposer] = useState<null | 'highlight' | 'thought' | 'note'>(null);
   const [draft, setDraft] = useState('');
   const single = entry.start === entry.end;
   const tintColor =
@@ -680,6 +714,9 @@ function EntryView(props: {
     : 'transparent';
 
   const blocks = [...entry.blocks];
+  // v210: his plain notes lead his own lines under the verses — inset
+  // body text, no box — ahead of the Highlight / Main Thought callouts.
+  for (const text of props.marksEntry?.notes ?? []) blocks.push({ kind: 'note', text });
   for (const text of props.marksEntry?.highlights ?? []) blocks.push({ kind: 'highlight', text });
   for (const text of props.marksEntry?.thoughts ?? []) blocks.push({ kind: 'thought', text });
   const firstParaIdx = blocks.findIndex((b) => b.kind === 'para' || b.kind === 'conversation');
@@ -746,6 +783,9 @@ function EntryView(props: {
             <Pressable style={styles.markBtn} onPress={() => { setComposer('thought'); setDraft(''); }}>
               <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Main Thought</Text>
             </Pressable>
+            <Pressable style={styles.markBtn} onPress={() => { setComposer('note'); setDraft(''); }}>
+              <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Note</Text>
+            </Pressable>
             <View style={styles.swatches}>
               {(['yellow', 'rose', 'green'] as TintColor[]).map((t) => (
                 <Pressable
@@ -787,17 +827,20 @@ function EntryView(props: {
           {composer ? (
             <View style={[styles.composer, { borderColor: palette.lineDark, backgroundColor: palette.paper }]}>
               <Text style={[styles.composerLabel, { color: composer === 'highlight' ? palette.yellowLabel : palette.greyLabel }]}>
-                {composer === 'highlight' ? '✦ Your Highlight' : 'Main Thought'}
+                {composer === 'highlight' ? '✦ Your Highlight' : composer === 'note' ? 'Your Note' : 'Main Thought'}
               </Text>
               <TextInput
                 style={[styles.composerInput, { color: palette.ink }]}
-                placeholder={composer === 'highlight' ? 'The line that stays with you…' : 'The one thought to carry…'}
+                placeholder={composer === 'highlight' ? 'The line that stays with you…' : composer === 'note' ? 'A plain note, in your own words…' : 'The one thought to carry…'}
                 placeholderTextColor={palette.inkFaint}
                 value={draft}
                 onChangeText={setDraft}
                 multiline
                 autoFocus
               />
+              <Text style={[styles.composerHint, { color: palette.inkFaint }]}>
+                Tip: start a note with #11-12 to set those verses apart with it.
+              </Text>
               <View style={styles.composerBtns}>
                 <Pressable onPress={() => setComposer(null)}>
                   <Text style={{ color: palette.inkSoft, fontWeight: '600', fontSize: 13 }}>Cancel</Text>
@@ -893,6 +936,7 @@ const styles = StyleSheet.create({
   composer: { borderWidth: 1, borderRadius: 10, padding: 12, marginTop: 12 },
   composerLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 8 },
   composerInput: { fontSize: 14.5, lineHeight: 21, minHeight: 44, textAlignVertical: 'top' },
+  composerHint: { fontSize: 11.5, lineHeight: 16, marginTop: 8 },
   composerBtns: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 14, marginTop: 8 },
   addBtn: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 16 },
   addBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },

@@ -17,6 +17,12 @@ export interface EntryMarks {
   highlights: string[];
   /** His own Main Thought lines (grey callouts). */
   thoughts: string[];
+  /**
+   * v210: his plain personal notes — no callout box, rendered as inset
+   * body text like a commentary paragraph. Not everything he writes
+   * down is a Highlight or a Main Thought (his words, 2026-10-23).
+   */
+  notes: string[];
   /** Tint applied to the entry's first commentary paragraph. */
   tint: TintColor | null;
   /**
@@ -30,10 +36,10 @@ export interface EntryMarks {
 
 export type MarksMap = Record<string, EntryMarks>;
 
-const EMPTY: EntryMarks = { kept: false, highlights: [], thoughts: [], tint: null, category: null };
+const EMPTY: EntryMarks = { kept: false, highlights: [], thoughts: [], notes: [], tint: null, category: null };
 
 export function emptyMarks(): EntryMarks {
-  return { ...EMPTY, highlights: [], thoughts: [] };
+  return { ...EMPTY, highlights: [], thoughts: [], notes: [] };
 }
 
 /** Stored marks from before a field existed read as that field's empty value. */
@@ -43,6 +49,7 @@ export function normalizeMarks(m: Partial<EntryMarks> | undefined): EntryMarks {
     kept: !!m.kept,
     highlights: Array.isArray(m.highlights) ? m.highlights : [],
     thoughts: Array.isArray(m.thoughts) ? m.thoughts : [],
+    notes: Array.isArray(m.notes) ? m.notes : [],
     tint: m.tint ?? null,
     category: m.category ?? null,
   };
@@ -118,12 +125,14 @@ export function addKeeperLine(
   chapter: number,
   start: number,
   end: number,
-  kind: 'highlight' | 'thought',
+  kind: 'highlight' | 'thought' | 'note',
   text: string,
 ): MarksMap {
   const key = entryKey(book, chapter, start, end);
-  const current = marks[key] ?? emptyMarks();
-  const field = kind === 'highlight' ? 'highlights' : 'thoughts';
+  // Normalize first: records stored before a field existed (e.g. notes,
+  // added in v210) read with that field empty rather than undefined.
+  const current = normalizeMarks(marks[key]);
+  const field = kind === 'highlight' ? 'highlights' : kind === 'thought' ? 'thoughts' : 'notes';
   return { ...marks, [key]: { ...current, [field]: [...current[field], text] } };
 }
 

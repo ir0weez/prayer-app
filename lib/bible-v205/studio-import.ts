@@ -9,6 +9,15 @@
 //   prayercircle-schedule.json → schedule events/todos for one week
 //   prayercircle-people.json   → prayer people + needs + journal notes
 //                                (validated here; applied by studio-people.ts)
+//   prayercircle-ministries.json → ministry records (v229): upsert by
+//                                id + explicit deletedIds tombstones
+//                                (validated/applied by studio-ministries.ts).
+//                                The same pack shape rides a backup's
+//                                studioMinistries section, and schedule
+//                                packs may carry type 'Ministry' rows —
+//                                the studio-facing projection: a known
+//                                type that applies nothing here (the
+//                                records travel by their own pack).
 //   a backup's studioStates    → the two chapter marks (v228): notesState
 //     section                     walks transitionChapterStatus like any
 //                                chapterState; readDate lands on the read
@@ -55,6 +64,10 @@ import type {
 } from './types';
 import type { RelationshipType, ReminderFrequency } from '../prayercircle-data';
 import { validateStudioStates, type StudioStatesSection } from './studio-states';
+import {
+  validateStudioMinistriesPack,
+  type StudioMinistriesPack,
+} from './studio-ministries';
 
 // ── Studio pack shapes (exactly what studio.js exports) ─────────────────────
 
@@ -98,7 +111,10 @@ export interface StudioScheduleEventInput {
   date: string;
   start: string;
   minutes: number;
-  type: 'Event' | 'Todo';
+  /** 'Ministry' rows (v229) are the studio-facing projection of the
+   *  app's ministry records — a known, valid type that applies nothing
+   *  on this side; the records themselves travel by the ministries pack. */
+  type: 'Event' | 'Todo' | 'Ministry';
   online: boolean;
   recur: string;
   /** Additive studio keys (v224): the event's notes and location, carried
@@ -117,7 +133,10 @@ export type StudioPack =
   | { kind: 'notes'; chapters: StudioChapterPayload[] }
   | { kind: 'schedule'; schedule: StudioSchedulePayload }
   | { kind: 'people'; people: StudioPeoplePack }
+  | { kind: 'ministries'; ministries: StudioMinistriesPack }
   | { kind: 'states'; states: StudioStatesSection };
+
+export type { StudioMinistriesPack };
 
 // ── People pack shapes (v225 "People, Through the Door") ────────────────────
 // prayercircle-people.json: the studio's People page exports his prayer
@@ -326,14 +345,16 @@ function validateSchedule(raw: unknown): StudioSchedulePayload {
       fail(`${where}: event has no valid start time`);
     }
     if (!isInt(e.minutes) || e.minutes < 0) fail(`${where}: event has invalid minutes`);
-    if (e.type !== 'Event' && e.type !== 'Todo') fail(`${where}: event type must be Event or Todo`);
+    if (e.type !== 'Event' && e.type !== 'Todo' && e.type !== 'Ministry') {
+      fail(`${where}: event type must be Event, Todo, or Ministry`);
+    }
     return {
       title: e.title as string,
       day: typeof e.day === 'string' ? e.day : '',
       date: e.date as string,
       start: e.start as string,
       minutes: e.minutes,
-      type: e.type as 'Event' | 'Todo',
+      type: e.type as 'Event' | 'Todo' | 'Ministry',
       online: e.online === true,
       recur: typeof e.recur === 'string' ? e.recur : 'none',
       // Additive keys (v224): accepted when present, never a reason to
@@ -503,6 +524,13 @@ export function parseStudioFile(parsed: unknown): StudioPack {
   if (isRecord(parsed.studioStates)) {
     return { kind: 'states', states: { chapters: validateStudioStates(parsed.studioStates) } };
   }
+  // v229: a standalone ministries pack (prayercircle-ministries.json).
+  // A full backup never carries a top-level ministries list — its
+  // records ride the studioMinistries section below — so this branch
+  // can never shadow the states road a backup takes above.
+  if ('ministries' in parsed) {
+    return { kind: 'ministries', ministries: validateStudioMinistriesPack(parsed) };
+  }
   if (Array.isArray(parsed.chapters)) {
     const chapters = parsed.chapters.map((c, i) => validateChapter(c, `chapter ${i}`));
     if (chapters.length === 0) fail('Library pack has no chapters.');
@@ -517,9 +545,17 @@ export function parseStudioFile(parsed: unknown): StudioPack {
   if (Array.isArray(parsed.people)) {
     return { kind: 'people', people: validatePeoplePack(parsed) };
   }
+  // v229: the studioMinistries section of a full export, offered on its
+  // own. (A complete backup takes the states road above; its ministries
+  // section is applied by the dedicated Import Ministries Pack row,
+  // which reads the section directly.)
+  if (isRecord(parsed.studioMinistries)) {
+    return { kind: 'ministries', ministries: validateStudioMinistriesPack(parsed.studioMinistries) };
+  }
   fail(
     'That file is not a studio pack — expected prayercircle-notes.json, ' +
-      'prayercircle-library.json, prayercircle-schedule.json, or prayercircle-people.json.',
+      'prayercircle-library.json, prayercircle-schedule.json, prayercircle-people.json, ' +
+      'or prayercircle-ministries.json.',
   );
 }
 
@@ -692,6 +728,10 @@ export function mergeStudioSchedule(
   const seenTodos = new Set(todos.map((t) => `${t.date}|${t.startTime ?? ''}|${t.title}`));
   let added = 0;
   for (const ev of pack.events) {
+    // v229: Ministry rows are the studio-facing projection of ministry
+    // records. They validate (a known type) but apply NOTHING here —
+    // the records travel by the ministries pack, never as events.
+    if (ev.type === 'Ministry') continue;
     const start = ev.start === 'All day' ? undefined : ev.start;
     const dedupe = `${ev.date}|${start ?? ''}|${ev.title}`;
     if (ev.type === 'Todo') {

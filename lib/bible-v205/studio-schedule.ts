@@ -21,7 +21,12 @@
 //            (schedule-tab's defaults; the todos' 30 is also his house
 //            rule). 'All day' carries 0, as the studio's own all-day
 //            pack entries do.
-//   type     'Event' for a ScheduleEvent, 'Todo' for a ScheduleTodo.
+//   type     'Event' for a ScheduleEvent, 'Todo' for a ScheduleTodo,
+//            'Ministry' for a ScheduleMinistry (v229) — ministries are
+//            DATED records (date is required in their store), so they
+//            project exactly like the others; a ministry's location
+//            rides like an event's, and a start with no stored end
+//            reads as an event's 60 minutes.
 //   online   an event whose location is exactly 'Online' travels as
 //            online:true with location '' — the importer's rule puts the
 //            'Online' marker back on merge, so it round-trips.
@@ -33,7 +38,7 @@
 // expressed in pack shape at all; they are excluded and COUNTED on the
 // section (undatedExcluded) so the omission is never silent.
 
-import type { ScheduleEvent, ScheduleTodo } from '../schedule-data';
+import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from '../schedule-data';
 import type { StudioScheduleEventInput } from './studio-import';
 
 export interface StudioScheduleSection {
@@ -85,7 +90,7 @@ interface PackItemSource {
   notes?: string;
 }
 
-function toPackEvent(source: PackItemSource, type: 'Event' | 'Todo'): StudioScheduleEventInput {
+function toPackEvent(source: PackItemSource, type: 'Event' | 'Todo' | 'Ministry'): StudioScheduleEventInput {
   const startMinutes = timeToMinutes(source.startTime);
   const endMinutes = timeToMinutes(source.endTime);
   let start: string;
@@ -112,7 +117,8 @@ function toPackEvent(source: PackItemSource, type: 'Event' | 'Todo'): StudioSche
   }
   // The Online marker rule (the importer's, mirrored): a location of
   // exactly 'Online' becomes the online flag and an empty location.
-  const rawLocation = type === 'Event' ? (source.location ?? '') : '';
+  // Todos carry no location in their store; events and ministries do.
+  const rawLocation = type === 'Todo' ? '' : (source.location ?? '');
   const online = rawLocation === 'Online';
   return {
     title: source.title,
@@ -129,15 +135,18 @@ function toPackEvent(source: PackItemSource, type: 'Event' | 'Todo'): StudioSche
 }
 
 /**
- * Every dated event and todo in the stores, in pack shape, sorted the
- * way the studio sorts its own pack (by date, all-day first, then
- * title) so the section is stable to read and diff. Nothing is
- * window-trimmed — the studio groups by week and dedupes on its side.
+ * Every dated event, todo, and ministry in the stores, in pack shape,
+ * sorted the way the studio sorts its own pack (by date, all-day
+ * first, then title) so the section is stable to read and diff.
+ * Nothing is window-trimmed — the studio groups by week and dedupes
+ * on its side. (Ministries ride last in the signature only because
+ * the parameter list grew in v229; v227 callers' positions are kept.)
  */
 export function collectStudioSchedule(
   events: ScheduleEvent[],
   todos: ScheduleTodo[],
   now: Date = new Date(),
+  ministries: ScheduleMinistry[] = [],
 ): StudioScheduleSection {
   const out: StudioScheduleEventInput[] = [];
   let undatedExcluded = 0;
@@ -154,6 +163,13 @@ export function collectStudioSchedule(
       continue;
     }
     out.push(toPackEvent(todo, 'Todo'));
+  }
+  for (const ministry of ministries) {
+    if (!isUsableDate(ministry?.date)) {
+      undatedExcluded += 1;
+      continue;
+    }
+    out.push(toPackEvent(ministry, 'Ministry'));
   }
   const startKey = (e: StudioScheduleEventInput) => (e.start === 'All day' ? -1 : timeToMinutes(e.start) ?? -1);
   out.sort(

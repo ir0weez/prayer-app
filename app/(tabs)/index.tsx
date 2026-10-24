@@ -151,6 +151,13 @@ import {
 } from "@/lib/bible-v205/studio-people";
 import { collectStudioSchedule } from "@/lib/bible-v205/studio-schedule";
 import {
+  applyStudioMinistriesPack,
+  collectStudioMinistries,
+  loadStoredMinistries,
+  validateStudioMinistriesPack,
+  type StudioMinistriesPack,
+} from "@/lib/bible-v205/studio-ministries";
+import {
   applyHeldItem,
   checkDriveFolder,
   dismissHeldItem,
@@ -164,7 +171,7 @@ import {
   type DriveLink,
   type HeldItem,
 } from "@/lib/bible-v205/drive-folder";
-import type { ScheduleEvent, ScheduleTodo } from "@/lib/schedule-data";
+import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from "@/lib/schedule-data";
 import { getReadingPosition, readingPositionDisplay } from "@/lib/bible-v205/position";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
@@ -2554,12 +2561,22 @@ export default function HomeScreen() {
       const exportTodos = parseStoredItems(storage[SCHEDULE_TODOS_KEY]).filter(
         (item): item is ScheduleTodo => !!item && typeof item === "object" && typeof (item as ScheduleTodo).title === "string",
       );
-      const studioSchedule = collectStudioSchedule(exportEvents, exportTodos);
+      // v229: ministries live in their own store of DATED records, so
+      // they join the schedule projection as type 'Ministry' rows —
+      // and, below, ride whole as the studioMinistries section.
+      const exportMinistries = parseStoredItems(storage[SCHEDULE_MINISTRIES_KEY]).filter(
+        (item): item is ScheduleMinistry => !!item && typeof item === "object" && typeof (item as ScheduleMinistry).id === "string" && typeof (item as ScheduleMinistry).title === "string",
+      );
+      const studioSchedule = collectStudioSchedule(exportEvents, exportTodos, new Date(), exportMinistries);
       // v228: both chapter marks ride the backup as studioStates —
       // the notes-written status and the read date, per chapter — so
       // the studio can see (and send back) the two honest tracks.
       const studioStates = collectStudioStates(await loadStudyState());
-      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles, studioPeople, studioJournal, studioSchedule, studioStates }, null, 2);
+      // v229: the complete ministry records ride the backup as
+      // studioMinistries — the section the studio's Ministries manager
+      // mirrors, and the records' way home through the door.
+      const studioMinistries = collectStudioMinistries(exportMinistries);
+      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles, studioPeople, studioJournal, studioSchedule, studioStates, studioMinistries }, null, 2);
       const filename = `prayercircle-backup-${getTodayISOString()}.json`;
       const uri = `${FileSystem.cacheDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(uri, payload, { encoding: FileSystem.EncodingType.UTF8 });
@@ -2749,6 +2766,20 @@ export default function HomeScreen() {
     notifyAlert("People pack imported", `People updated: ${result.summary.peopleUpdated} · Needs: ${result.summary.needs} · Journal entries: ${result.summary.journalEntries}`);
   };
 
+  // v229 — ministries packs (prayercircle-ministries.json, or the
+  // studioMinistries section of a full export) land here. The pack
+  // upserts ministries by id and applies the deletedIds tombstones it
+  // explicitly names — that is the one authorized deletion channel on
+  // the bridge, and it reaches ministries only. Validation happened
+  // whole in parseStudioFile / validateStudioMinistriesPack before
+  // anything reaches this apply, so a malformed file changes nothing.
+  const applyMinistriesPack = async (ministriesPack: StudioMinistriesPack): Promise<void> => {
+    const storedMinistries = await loadStoredMinistries();
+    const result = applyStudioMinistriesPack(storedMinistries, ministriesPack);
+    await AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(result.ministries));
+    notifyAlert("Ministries pack imported", `Added: ${result.summary.added} · Updated: ${result.summary.updated} · Deleted: ${result.summary.deleted}`);
+  };
+
   const handleImportStudioPack = async () => {
     try {
       const raw = await pickStudioPackText();
@@ -2784,6 +2815,10 @@ export default function HomeScreen() {
       }
       if (pack.kind === "people") {
         await applyPeoplePack(pack.people);
+        return;
+      }
+      if (pack.kind === "ministries") {
+        await applyMinistriesPack(pack.ministries);
         return;
       }
       if (pack.kind === "states") {
@@ -2859,6 +2894,56 @@ export default function HomeScreen() {
     } catch (error) {
       console.error("PrayerCircle people import failed", error);
       notifyAlert("Import failed", "PrayerCircle could not read that people pack file.");
+    }
+  };
+
+  // v229 — the dedicated Ministries Pack row: same picker; the file
+  // must be a ministries pack. Accepts the standalone file AND a full
+  // PrayerCircle export — a backup takes the states road in
+  // parseStudioFile, so this row reads its studioMinistries section
+  // directly (validated whole before anything is applied, like every
+  // door). A pack meant for another row gets a plain pointer to it.
+  const handleImportMinistriesPack = async () => {
+    try {
+      const raw = await pickStudioPackText();
+      if (raw === null) return;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        notifyAlert("Import failed", "That file is not valid JSON.");
+        return;
+      }
+      let pack: StudioPack | null = null;
+      try {
+        pack = parseStudioFile(parsed);
+      } catch {
+        pack = null;
+      }
+      if (pack?.kind === "ministries") {
+        await applyMinistriesPack(pack.ministries);
+        return;
+      }
+      const section =
+        parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? (parsed as Record<string, unknown>).studioMinistries
+          : undefined;
+      if (section && typeof section === "object") {
+        try {
+          await applyMinistriesPack(validateStudioMinistriesPack(section));
+        } catch (error) {
+          notifyAlert("Ministries pack not applied", error instanceof Error ? error.message : "That ministries section could not be read.");
+        }
+        return;
+      }
+      if (pack) {
+        notifyAlert("Not a ministries pack", "That is a studio pack, but not a ministries pack — expected prayercircle-ministries.json. Notes and schedules go through Import Studio Pack.");
+        return;
+      }
+      notifyAlert("Not a ministries pack", "That file is not a Commentary Studio ministries pack — expected prayercircle-ministries.json or a PrayerCircle export carrying ministries.");
+    } catch (error) {
+      console.error("PrayerCircle ministries import failed", error);
+      notifyAlert("Import failed", "PrayerCircle could not read that ministries pack file.");
     }
   };
 
@@ -3238,10 +3323,13 @@ export default function HomeScreen() {
           {renderSettingsRow("file-upload", "Import Data", "Restore a PrayerCircle backup from a JSON file")}
         </Pressable>
         <Pressable onPress={handleImportStudioPack} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("note-add", "Import Studio Pack", "Bring in notes, chapter states, or a schedule from the Commentary Studio")}
+          {renderSettingsRow("note-add", "Import Studio Pack", "Bring in notes, chapter states, a schedule, or ministries from the Commentary Studio")}
         </Pressable>
         <Pressable onPress={handleImportPeoplePack} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("people", "Import People Pack", "Bring in your prayer people, their needs, and journal notes from the Commentary Studio")}
+        </Pressable>
+        <Pressable onPress={handleImportMinistriesPack} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("church", "Import Ministries Pack", "Bring in your ministries from the Commentary Studio — additions, updates, and removals")}
         </Pressable>
         <Pressable onPress={handleDriveRowPress} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("folder-shared", "Drive Folder", driveLink ? `Linked: ${driveLink.name} · read-only, checked on launch` : Platform.OS === "android" ? "Link a Drive folder once — PrayerCircle checks it on its own" : "Drive folders need the Android app")}

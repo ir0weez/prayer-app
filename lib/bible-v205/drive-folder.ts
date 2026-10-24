@@ -27,7 +27,13 @@
 //     into the people + journal stores through studio-people.ts —
 //     upsert-only, never a deletion, dates forward-only — so there is
 //     nothing in them that needs holding under Rule 5; the journal
-//     line for the file says so ("merge only").
+//     line for the file says so ("merge only"). v229 adds the
+//     ministries exception, with the same explicit-only discipline:
+//     ministries packs upsert by id and apply tombstone deletes — a
+//     ministry is removed ONLY when the file names its id in
+//     deletedIds; nothing unlisted is ever removed, and no other store
+//     is in a tombstone's reach. Nothing is held under Rule 5 either:
+//     an upsert is the desk's word, a delete is explicit or absent.
 //  5. REVIEW-HOLD FOR REGRESSIONS. A pack item that would move a
 //     chapter state BACKWARD (rank: none/not-started 0, write 1,
 //     in-progress 2, complete 3, restudy 4) is NOT auto-applied — it
@@ -58,6 +64,11 @@ import {
   loadStoredJournal,
   loadStoredPeople,
 } from './studio-people';
+import {
+  applyStudioMinistriesPack,
+  loadStoredMinistries,
+  type StudioMinistriesPack,
+} from './studio-ministries';
 import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY } from '../prayercircle-storage';
 import { chapterStatus, loadStudyState, saveStudyState } from './study';
 import { applyStudioStatesReads, type StudioStateEntry } from './studio-states';
@@ -65,6 +76,7 @@ import { transitionChapterStatus } from './rewards';
 import type { StudyStatus } from './types';
 import {
   SCHEDULE_EVENTS_KEY,
+  SCHEDULE_MINISTRIES_KEY,
   SCHEDULE_TODOS_KEY,
   type ScheduleEvent,
   type ScheduleTodo,
@@ -212,6 +224,15 @@ export interface DrivePlan {
    *  earlier lastReached, a need the pack no longer lists) simply
    *  cannot be expressed by the merge and is never applied. */
   peoplePack: StudioPeoplePack | null;
+  /** v229: a ministries pack rides whole too (see studio-ministries.ts):
+   *  upserts by id plus EXPLICIT tombstone deletes — a delete is in the
+   *  file or it doesn't happen, so there is no regression to hold. */
+  ministriesPack: StudioMinistriesPack | null;
+  /** v229: type 'Ministry' rows inside a schedule pack — the projection
+   *  of the ministry records. Counted here so the journal can note them;
+   *  they apply nothing (the records travel by their own pack) and
+   *  never enter the slot-conflict logic below. */
+  ministryRows: number;
   /** v228: a states pack's read marks — they ride whole too (the read
    *  merge is forward-only: a stale export can never un-read a
    *  chapter), while its notes states split into auto/held above by
@@ -233,10 +254,16 @@ export function planDrivePack(
     heldSchedule: [],
     skippedSchedule: 0,
     peoplePack: null,
+    ministriesPack: null,
+    ministryRows: 0,
     statesReads: [],
   };
   if (pack.kind === 'people') {
     plan.peoplePack = pack.people;
+    return plan;
+  }
+  if (pack.kind === 'ministries') {
+    plan.ministriesPack = pack.ministries;
     return plan;
   }
   if (pack.kind === 'states') {
@@ -288,6 +315,12 @@ export function planDrivePack(
   for (const e of existingEvents) occupied.set(`${e.date}|${e.startTime ?? ''}`, e.title);
   for (const t of existingTodos) occupied.set(`${t.date}|${t.startTime ?? ''}`, t.title);
   for (const ev of pack.schedule.events) {
+    if (ev.type === 'Ministry') {
+      // The projection of a ministry record: noted, never slotted —
+      // it must not hold a time slot, clash, or land as an event.
+      plan.ministryRows += 1;
+      continue;
+    }
     const start = ev.start === 'All day' ? '' : ev.start;
     const slot = `${ev.date}|${start}`;
     const clash = occupied.get(slot);
@@ -370,6 +403,9 @@ export interface DriveCheckSummary {
    *  journal moments) — the caller refreshes its people/journal state
    *  when this is above zero. */
   peopleApplied: number;
+  /** v229: ministry records applied this check (added + updated +
+   *  tombstone-deleted) from ministries packs. */
+  ministriesApplied: number;
 }
 
 /**
@@ -388,6 +424,7 @@ export async function checkDriveFolder(): Promise<
     errors: [],
     notice: null,
     peopleApplied: 0,
+    ministriesApplied: 0,
     permissionLost: false,
     linked: false,
   };
@@ -433,6 +470,9 @@ export async function checkDriveFolder(): Promise<
   // a people pack merges against the app's real list, not a UI cache).
   let existingPeople = await loadStoredPeople();
   let existingJournal = await loadStoredJournal();
+  // v229: the ministries store rides the same check, loaded fresh for
+  // the same reason — a ministries pack upserts against the real list.
+  let existingMinistries = await loadStoredMinistries();
   const newHeld: HeldItem[] = [];
   for (const childUri of jsonFiles) {
     const name = safDisplayName(childUri);
@@ -499,6 +539,21 @@ export async function checkDriveFolder(): Promise<
         fileError = reason;
         summary.errors.push(`${name}: ${reason}`);
       }
+    }
+    if (plan.ministriesPack) {
+      // Upserts + explicit tombstones only (see studio-ministries.ts):
+      // applyStudioMinistriesPack is pure, so the write below is the
+      // whole change. Nothing is ever held from a ministries pack.
+      const result = applyStudioMinistriesPack(existingMinistries, plan.ministriesPack);
+      existingMinistries = result.ministries;
+      await AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(result.ministries));
+      const items = result.summary.added + result.summary.updated + result.summary.deleted;
+      appliedHere += items;
+      summary.ministriesApplied += items;
+      fileNote = 'Ministries pack — upserts and explicit deletes only';
+    }
+    if (plan.ministryRows > 0 && !fileNote) {
+      fileNote = `${plan.ministryRows} ministry row${plan.ministryRows === 1 ? '' : 's'} noted — ministry records travel by their own pack`;
     }
     if (plan.notesChapters.length > 0) {
       const current = await loadStudioImports();

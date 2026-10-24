@@ -55,13 +55,15 @@ export interface StudioNoteBlock {
   ref?: string;
 }
 
-export type StudioNoteKind = 'note' | 'highlight' | 'main-thought' | 'imported';
+export type StudioNoteKind = 'note' | 'highlight' | 'main-thought' | 'imported' | 'quote';
 
 export interface StudioNote {
   start: number;
   end: number;
   kind: StudioNoteKind;
   category?: NoteCategory | null;
+  /** v223: quote notes only — the person whose words these are (studio "Quote this"). */
+  author?: string;
   blocks: V205Block[];
 }
 
@@ -111,7 +113,7 @@ const STUDY_STATUSES: StudyStatus[] = [
   'none',
 ];
 
-const NOTE_KINDS: StudioNoteKind[] = ['note', 'highlight', 'main-thought', 'imported'];
+const NOTE_KINDS: StudioNoteKind[] = ['note', 'highlight', 'main-thought', 'imported', 'quote'];
 
 const NOTE_CATEGORIES: NoteCategory[] = [
   'definition',
@@ -121,7 +123,7 @@ const NOTE_CATEGORIES: NoteCategory[] = [
   'personal-story',
 ];
 
-const BLOCK_KINDS = ['para', 'scripture', 'highlight', 'thought', 'conversation', 'note'];
+const BLOCK_KINDS = ['para', 'scripture', 'highlight', 'thought', 'conversation', 'note', 'quote'];
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -175,6 +177,7 @@ function validateNote(raw: unknown, where: string): StudioNote {
     kind: raw.kind as StudioNoteKind,
     blocks,
   };
+  if (typeof raw.author === 'string') note.author = raw.author;
   if (raw.category === null || NOTE_CATEGORIES.includes(raw.category as NoteCategory)) {
     note.category = (raw.category as NoteCategory | null) ?? null;
   } else if (raw.category !== undefined) {
@@ -303,7 +306,9 @@ export function parseStudioFile(parsed: unknown): StudioPack {
  * A note's kind carries its callout meaning; the blocks carry the words.
  * note → blocks verbatim (category re-attached to the first block, where
  * the app's category lane expects it); highlight → a highlight block;
- * main-thought → a thought block; imported → blocks verbatim.
+ * main-thought → a thought block; imported → blocks verbatim;
+ * quote → quote blocks carrying the author's name, so the page renders
+ * them attributed, never as plain notes (v223).
  */
 function noteToBlocks(note: StudioNote): V205Block[] {
   if (note.kind === 'highlight') {
@@ -311,6 +316,14 @@ function noteToBlocks(note: StudioNote): V205Block[] {
   }
   if (note.kind === 'main-thought') {
     return note.blocks.map((b) => ({ ...b, kind: 'thought' as const }));
+  }
+  if (note.kind === 'quote') {
+    const authorName = (note.author ?? '').trim();
+    return note.blocks.map((b) => ({
+      ...b,
+      kind: 'quote' as const,
+      ...(authorName ? { authorName } : {}),
+    }));
   }
   const blocks = note.blocks.map((b) => ({ ...b }));
   if (note.kind === 'note' && note.category && blocks.length > 0 && !blocks[0].category) {

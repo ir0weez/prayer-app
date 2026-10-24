@@ -140,6 +140,20 @@ import {
   saveStudioImports,
   type StudioPack,
 } from "@/lib/bible-v205/studio-import";
+import {
+  applyHeldItem,
+  checkDriveFolder,
+  dismissHeldItem,
+  heldItemLabel,
+  linkDriveFolder,
+  loadDriveJournal,
+  loadDriveLink,
+  loadHeldItems,
+  saveDriveLink,
+  type DriveJournal,
+  type DriveLink,
+  type HeldItem,
+} from "@/lib/bible-v205/drive-folder";
 import type { ScheduleEvent, ScheduleTodo } from "@/lib/schedule-data";
 import { getReadingPosition, readingPositionDisplay } from "@/lib/bible-v205/position";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
@@ -820,6 +834,20 @@ export default function HomeScreen() {
       }, 2200);
     });
   }, [iconToastOpacity]);
+  // v223: the same quiet fade for Drive checks — a notice, never a
+  // blocking alert on launch.
+  const [driveToast, setDriveToast] = useState<string | null>(null);
+  const driveToastOpacity = useRef(new Animated.Value(0)).current;
+  const showDriveToast = useCallback((message: string) => {
+    setDriveToast(message);
+    Animated.timing(driveToastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start(() => {
+      setTimeout(() => {
+        Animated.timing(driveToastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+          setDriveToast(null);
+        });
+      }, 2600);
+    });
+  }, [driveToastOpacity]);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [draftProfileName, setDraftProfileName] = useState(DEFAULT_PROFILE.name);
   const [draftProfilePhotoUri, setDraftProfilePhotoUri] = useState<string | undefined>(undefined);
@@ -2710,6 +2738,126 @@ export default function HomeScreen() {
     }
   };
 
+  // v223 — "Drive, On Its Own": the app reads the linked folder itself.
+  // Android-first via the Storage Access Framework (no Drive API, no
+  // OAuth, no server): the Drive app syncs the folder locally, SAF
+  // reads the local copies. The folder is READ-ONLY to this app — the
+  // Drive module lists and reads, never writes, renames, or deletes.
+  // Checks run at launch (silent) and on demand. Applied items walk
+  // the same v222 door; regressions wait in the held list for an
+  // explicit Apply / Dismiss; the journal records every check.
+  const [driveLink, setDriveLink] = useState<DriveLink | null>(null);
+  const [driveJournal, setDriveJournal] = useState<DriveJournal>({ lastCheckAt: null, files: {} });
+  const [driveHeld, setDriveHeld] = useState<HeldItem[]>([]);
+  const [driveChecking, setDriveChecking] = useState(false);
+  const [driveHeldExpanded, setDriveHeldExpanded] = useState(false);
+  const [driveJournalExpanded, setDriveJournalExpanded] = useState(false);
+
+  const refreshDriveState = useCallback(async () => {
+    const [link, journal, held] = await Promise.all([loadDriveLink(), loadDriveJournal(), loadHeldItems()]);
+    setDriveLink(link);
+    setDriveJournal(journal);
+    setDriveHeld(held);
+  }, []);
+
+  const runDriveCheck = useCallback(async (silent: boolean) => {
+    if (Platform.OS !== "android") {
+      if (!silent) notifyAlert("Drive folders", "Drive folders need the Android app — the folder picker lives there.");
+      return;
+    }
+    if (driveChecking) return;
+    setDriveChecking(true);
+    try {
+      const summary = await checkDriveFolder();
+      await refreshDriveState();
+      if (!summary.linked) {
+        if (!silent) notifyAlert("Drive folders", "No Drive folder is linked yet. Link one first, then check again.");
+        return;
+      }
+      if (summary.permissionLost) {
+        if (!silent) notifyAlert("Drive folders", "PrayerCircle lost access to the linked folder. Tap the Drive row and choose Reconnect.");
+        else showDriveToast("Drive: folder access lost — reconnect in Settings → DATA");
+        return;
+      }
+      if (summary.errors.length > 0 && !silent) {
+        notifyAlert("Drive check", [...summary.errors, `Applied: ${summary.applied} · Held: ${summary.held} · Skipped: ${summary.skipped}`].join("\n"));
+        return;
+      }
+      if (summary.notice && silent) showDriveToast(summary.notice);
+      if (!silent) {
+        notifyAlert("Drive check", `Applied: ${summary.applied} · Held: ${summary.held} · Skipped: ${summary.skipped}${summary.errors.length > 0 ? `\n${summary.errors.join("\n")}` : ""}`);
+      }
+    } catch (error) {
+      console.error("PrayerCircle drive check failed", error);
+      if (!silent) notifyAlert("Drive check failed", "PrayerCircle could not read the linked folder.");
+    } finally {
+      setDriveChecking(false);
+    }
+  }, [driveChecking, refreshDriveState, showDriveToast]);
+
+  // Launch check: once, silent, never a blocking alert. The check loads
+  // its stores fresh, so it is correct regardless of UI load order.
+  const driveLaunchChecked = useRef(false);
+  useEffect(() => {
+    if (driveLaunchChecked.current) return;
+    driveLaunchChecked.current = true;
+    void (async () => {
+      await refreshDriveState();
+      await runDriveCheck(true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleDriveRowPress = async () => {
+    if (Platform.OS !== "android") {
+      notifyAlert("Drive folders", "Drive folders need the Android app — the folder picker lives there.");
+      return;
+    }
+    if (!driveLink) {
+      const link = await linkDriveFolder().catch(() => null);
+      if (!link) return;
+      setDriveLink(link);
+      notifyAlert("Drive folder linked", `PrayerCircle will check "${link.name}" on launch and whenever you tap Check Drive now. The folder is read-only to this app — nothing in it is ever changed.`);
+      return;
+    }
+    Alert.alert("Drive folder", `Linked: ${driveLink.name}\nPrayerCircle checks this folder on launch. It never changes anything inside it.`, [
+      { text: "Check now", onPress: () => { void runDriveCheck(false); } },
+      {
+        text: "Unlink",
+        style: "destructive",
+        onPress: async () => {
+          await saveDriveLink(null);
+          setDriveLink(null);
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const handleApplyHeld = async (item: HeldItem) => {
+    try {
+      await applyHeldItem(item);
+      await refreshDriveState();
+    } catch (error) {
+      console.error("PrayerCircle held apply failed", error);
+      notifyAlert("Could not apply", "That update could not be applied right now.");
+    }
+  };
+
+  const handleDismissHeld = async (id: string) => {
+    await dismissHeldItem(id);
+    await refreshDriveState();
+  };
+
+  const driveJournalSummary = () => {
+    const files = Object.values(driveJournal.files);
+    const applied = files.reduce((sum, f) => sum + f.applied, 0);
+    const held = files.reduce((sum, f) => sum + f.held, 0);
+    const skipped = files.filter((f) => f.skipped).length;
+    const when = driveJournal.lastCheckAt ? new Date(driveJournal.lastCheckAt).toLocaleString() : "never";
+    return `Last check: ${when} · Applied ${applied} · Held ${held} · Skipped ${skipped}`;
+  };
+
   const renderSettingsScreen = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
       <Text style={[styles.settingsTitle, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 16, lineHeight: 26 } : null, skinTokens.isTerminal ? { color: TERM_PHOS } : skinTokens.isEightBit ? { color: "#EDE8FF" } : null]}>Settings</Text>
@@ -2960,6 +3108,40 @@ export default function HomeScreen() {
         <Pressable onPress={handleImportStudioPack} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("note-add", "Import Studio Pack", "Bring in notes, chapter states, or a schedule from the Commentary Studio")}
         </Pressable>
+        <Pressable onPress={handleDriveRowPress} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("folder-shared", "Drive Folder", driveLink ? `Linked: ${driveLink.name} · read-only, checked on launch` : Platform.OS === "android" ? "Link a Drive folder once — PrayerCircle checks it on its own" : "Drive folders need the Android app")}
+        </Pressable>
+        <Pressable onPress={() => { void runDriveCheck(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("sync", "Check Drive now", driveChecking ? "Checking…" : driveLink ? "Read the linked folder now" : "Link a folder first, then check it")}
+        </Pressable>
+        {driveHeld.length > 0 ? (
+          <Pressable onPress={() => setDriveHeldExpanded((prev) => !prev)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+            {renderSettingsRow("hourglass-top", `Drive updates waiting (${driveHeld.length})`, "These would move things backward or double-book — your call, not automatic")}
+          </Pressable>
+        ) : null}
+        {driveHeldExpanded && driveHeld.map((item) => (
+          <View key={item.id} style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+            <Text style={[styles.settingsRowSubtitle, { marginBottom: 6 }]}>{heldItemLabel(item)}</Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Pressable onPress={() => { void handleApplyHeld(item); }} style={({ pressed }) => [pressed && { opacity: 0.7 }, { backgroundColor: colors.primary, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6 }]}>
+                <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 13 }}>Apply</Text>
+              </Pressable>
+              <Pressable onPress={() => { void handleDismissHeld(item.id); }} style={({ pressed }) => [pressed && { opacity: 0.7 }, { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: colors.border }]}>
+                <Text style={{ color: colors.foreground, fontWeight: "700", fontSize: 13 }}>Dismiss</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+        <Pressable onPress={() => setDriveJournalExpanded((prev) => !prev)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("history", "Drive journal", driveJournalSummary())}
+        </Pressable>
+        {driveJournalExpanded && Object.entries(driveJournal.files).map(([name, record]) => (
+          <View key={name} style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+            <Text style={styles.settingsRowSubtitle}>
+              {name} · Applied {record.applied} · Held {record.held}{record.skipped ? " · Skipped (unchanged)" : ""}{record.error ? ` · ${record.error}` : ""}
+            </Text>
+          </View>
+        ))}
 
 
 
@@ -3928,6 +4110,25 @@ export default function HomeScreen() {
           }}
         >
           <Text style={{ color: colors.background, fontSize: 13, fontWeight: "700" }}>{iconToast}</Text>
+        </Animated.View>
+      )}
+      {/* Drive check toast — same quiet fade, never a blocking alert */}
+      {driveToast && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            bottom: 110,
+            alignSelf: "center",
+            backgroundColor: colors.foreground,
+            borderRadius: 24,
+            paddingHorizontal: 18,
+            paddingVertical: 10,
+            opacity: driveToastOpacity,
+            zIndex: 50,
+          }}
+        >
+          <Text style={{ color: colors.background, fontSize: 13, fontWeight: "700" }}>{driveToast}</Text>
         </Animated.View>
       )}
       {/* Floating Prayer Time button — only on People tab, hides when Pray Today is complete */}

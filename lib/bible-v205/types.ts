@@ -14,6 +14,7 @@ export type V205BlockKind =
   | 'highlight' // yellow Highlight callout (his keeper line)
   | 'thought' // grey Main Thought callout
   | 'conversation' // green Conversation callout from his Notion (rendered in the grey family)
+  | 'quote' // v223: someone else's words, quoted WITH attribution (studio "Quote this")
   | 'note'; // v210: VIEW-LAYER ONLY — his plain personal note from the marks
   // layer, rendered as inset body text with no box. The parser and the
   // shipped commentary data never emit this kind.
@@ -37,6 +38,8 @@ export interface V205Block {
   text: string;
   /** Scripture blocks only: the reference label, e.g. "Acts 18:12-17". */
   ref?: string;
+  /** v223: quote blocks only — the person whose words these are. */
+  authorName?: string;
   /**
    * His color-code category for this block. The Markdown Notion export
    * strips text colors, so imported blocks leave this unset (null) —

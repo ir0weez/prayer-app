@@ -105,6 +105,16 @@ export function BlockView({
       </View>
     );
   }
+  // v223: a quote is someone else's words, shown WITH the author's name —
+  // never rendered as a plain note, never dropped.
+  if (block.kind === 'quote') {
+    return (
+      <View style={[styles.callout, { backgroundColor: palette.greyBg, borderColor: palette.greyBorder }]}>
+        <Text style={[styles.calloutLabel, { color: palette.greyLabel }]}>❝ Quote — {block.authorName || 'Someone'}</Text>
+        <Text style={[styles.calloutText, { color: palette.greyInk }]}>{block.text}</Text>
+      </View>
+    );
+  }
   // thought
   return (
     <View style={[styles.callout, { backgroundColor: palette.greyBg, borderColor: palette.greyBorder }]}>

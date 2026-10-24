@@ -1,7 +1,4 @@
 import { Tabs } from "expo-router";
-import { View } from "react-native";
-
-import { BellHeader } from "@/components/bell-header";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -10,13 +7,7 @@ export default function TabLayout() {
   const colors = useColors();
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* v226: the prayer-and-day header (due faces, Now line, bell)
-          rides every tab screen. It renders nothing when nothing is
-          due. Full-screen game surfaces live outside (tabs) and keep
-          their own chrome. */}
-      <BellHeader />
-      <Tabs
+    <Tabs
       // v215: back from the person route follows the actual visit
       // history instead of jumping to the first route (the old
       // TabRouter default, 'firstRoute').
@@ -44,7 +35,6 @@ export default function TabLayout() {
           href: null,
         }}
       />
-      </Tabs>
-    </View>
+    </Tabs>
   );
 }

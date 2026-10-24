@@ -8,9 +8,16 @@
 //
 // SAFETY RULES (Jonathan's own asks, Oct 23 23:25 — each pinned in
 // lib/__tests__/bible-v223-drive.test.ts):
-//  1. READ-ONLY ON THE FOLDER. This module only ever lists a folder and
-//     reads files from it. It never creates, renames, moves, or deletes
-//     anything there. The folder is a mailbox, not a workspace.
+//  1. READ-ONLY ON THE FOLDER — for THIS module, still absolute: it
+//     only ever lists a folder and reads files from it; it never
+//     creates, renames, moves, or deletes anything there. v235 (Oct 24,
+//     Jonathan's option A) added the app's ONE authorized folder write,
+//     and it deliberately lives in drive-export.ts, not here: Export
+//     Data overwrites a single fixed-name export file in the folder,
+//     only on his explicit tap, only when the link carries his
+//     writeEnabled opt-in. Nothing else in the app writes to the folder,
+//     and nothing anywhere deletes from it. The folder is a mailbox
+//     with exactly one outgoing slot, not a workspace.
 //  2. VALIDATE BEFORE APPLYING. A malformed pack is rejected WHOLE —
 //     nothing applied, a quiet journal note, no partial state. (The
 //     v222 parser throws before any write; this module never catches
@@ -100,6 +107,14 @@ export const DRIVE_HELD_KEY = 'prayercircle.bible.v205.drive-held.v1';
 export interface DriveLink {
   uri: string;
   name: string;
+  /** v235: Jonathan's export-writing opt-in for this link. Set true
+   *  when the folder pick runs under v235 or later (a fresh link, or
+   *  the "Enable export writing" re-pick that upgrades an older link).
+   *  Records saved by earlier versions lack the flag — those links stay
+   *  read-only until he upgrades them. When true, Export Data may
+   *  overwrite the one export file in this folder (drive-export.ts) —
+   *  and nothing else, ever. */
+  writeEnabled?: boolean;
 }
 
 export interface DriveFileRecord {
@@ -364,7 +379,8 @@ export function planDriveFile(
 // test never touches native code. Only three folder operations are ever
 // called here: asking the system picker for a folder, listing a folder,
 // and reading a file. Nothing in this file creates, renames, moves, or
-// deletes anything in the linked folder — ever.
+// deletes anything in the linked folder — ever. (The app's single
+// authorized write lives in drive-export.ts by design.)
 
 function safModule(): {
   requestDirectoryPermissionsAsync: (initial?: string | null) => Promise<{ granted: boolean; directoryUri: string }>;
@@ -388,7 +404,9 @@ function isAndroid(): boolean {
   }
 }
 
-function safDisplayName(uri: string): string {
+/** The display name at the tail of a SAF uri (also used by
+ *  drive-export.ts to find the one export file in a listing). */
+export function safFolderDisplayName(uri: string): string {
   const tail = uri.split('/').pop() ?? uri;
   try {
     return decodeURIComponent(tail);
@@ -397,14 +415,25 @@ function safDisplayName(uri: string): string {
   }
 }
 
-/** Open the system folder picker once; persist the link. Non-Android
- *  returns null — folder linking needs the Android app. */
+const safDisplayName = safFolderDisplayName;
+
+/** Open the system folder picker once; persist the link. The tree
+ *  grant the picker returns is persistable and carries write access,
+ *  and since v235 the saved link records that with writeEnabled: true —
+ *  Jonathan's opt-in for Export Data to overwrite the one export file
+ *  there (drive-export.ts). Re-running this pick on an older read-only
+ *  link IS the grant upgrade ("Enable export writing" in Settings).
+ *  Non-Android returns null — folder linking needs the Android app. */
 export async function linkDriveFolder(): Promise<DriveLink | null> {
   if (!isAndroid()) return null;
   const saf = safModule();
   const result = await saf.requestDirectoryPermissionsAsync();
   if (!result.granted || !result.directoryUri) return null;
-  const link: DriveLink = { uri: result.directoryUri, name: safDisplayName(result.directoryUri) };
+  const link: DriveLink = {
+    uri: result.directoryUri,
+    name: safDisplayName(result.directoryUri),
+    writeEnabled: true,
+  };
   await saveDriveLink(link);
   return link;
 }

@@ -172,6 +172,11 @@ import {
   type DriveLink,
   type HeldItem,
 } from "@/lib/bible-v205/drive-folder";
+import {
+  DRIVE_EXPORT_FILENAME,
+  driveFolderCanWrite,
+  writeExportToDriveFolder,
+} from "@/lib/bible-v205/drive-export";
 import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from "@/lib/schedule-data";
 import { getReadingPosition, readingPositionDisplay } from "@/lib/bible-v205/position";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
@@ -2578,6 +2583,19 @@ export default function HomeScreen() {
       // mirrors, and the records' way home through the door.
       const studioMinistries = collectStudioMinistries(exportMinistries);
       const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles, studioPeople, studioJournal, studioSchedule, studioStates, studioMinistries }, null, 2);
+      // v235 — "One Export, Overwritten": when the Drive folder is
+      // linked with export writing enabled, the export overwrites the
+      // ONE fixed file there (prayercircle-export.json) instead of the
+      // share flow producing a new dated copy every time. The payload
+      // above is byte-for-byte the same backup as always — only the
+      // destination changed. Anything short of a written outcome falls
+      // back to the share/save flow below, unchanged, with a one-line
+      // hint about the folder after it completes.
+      const driveExport = await writeExportToDriveFolder(payload);
+      if (driveExport.status === "written") {
+        notifyAlert("Export saved", `Export saved to ${driveExport.folderName} — ${DRIVE_EXPORT_FILENAME}, overwritten in place. The same file is replaced every time you export.`);
+        return;
+      }
       const filename = `prayercircle-backup-${getTodayISOString()}.json`;
       const uri = `${FileSystem.cacheDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(uri, payload, { encoding: FileSystem.EncodingType.UTF8 });
@@ -2585,6 +2603,13 @@ export default function HomeScreen() {
         await Sharing.shareAsync(uri, { mimeType: "application/json", dialogTitle: "Export PrayerCircle backup" });
       } else {
         await Share.share({ title: filename, message: payload });
+      }
+      if (driveExport.status === "unlinked") {
+        notifyAlert("Export shared", `Tip: link your Drive folder under Drive Folder in DATA and Export overwrites one file there (${DRIVE_EXPORT_FILENAME}) instead of making a new file each time.`);
+      } else if (driveExport.status === "not-enabled") {
+        notifyAlert("Export shared", `Tip: tap "Enable export writing" under Drive Folder in DATA and Export overwrites one file there (${DRIVE_EXPORT_FILENAME}) instead of making a new file each time.`);
+      } else if (driveExport.status === "failed") {
+        notifyAlert("Export shared", "PrayerCircle could not write to the linked folder, so this export was shared instead. The folder link in DATA may need a refresh.");
       }
     } catch (error) {
       console.error("PrayerCircle export failed", error);
@@ -2885,11 +2910,16 @@ export default function HomeScreen() {
   // v223 — "Drive, On Its Own": the app reads the linked folder itself.
   // Android-first via the Storage Access Framework (no Drive API, no
   // OAuth, no server): the Drive app syncs the folder locally, SAF
-  // reads the local copies. The folder is READ-ONLY to this app — the
-  // Drive module lists and reads, never writes, renames, or deletes.
-  // Checks run at launch (silent) and on demand. Applied items walk
-  // the same v222 door; regressions wait in the held list for an
-  // explicit Apply / Dismiss; the journal records every check.
+  // reads the local copies. The Drive module lists and reads, never
+  // writes, renames, or deletes — checks run at launch (silent) and on
+  // demand. Applied items walk the same v222 door; regressions wait in
+  // the held list for an explicit Apply / Dismiss; the journal records
+  // every check.
+  // v235 — the ONE exception to read-only, and it lives outside the
+  // Drive module on purpose (lib/bible-v205/drive-export.ts): when the
+  // link carries his export-writing opt-in, Export Data overwrites the
+  // single fixed export file in the folder. Nothing else is written,
+  // and nothing is ever deleted.
   const [driveLink, setDriveLink] = useState<DriveLink | null>(null);
   const [driveJournal, setDriveJournal] = useState<DriveJournal>({ lastCheckAt: null, files: {} });
   const [driveHeld, setDriveHeld] = useState<HeldItem[]>([]);
@@ -2969,10 +2999,10 @@ export default function HomeScreen() {
       const link = await linkDriveFolder().catch(() => null);
       if (!link) return;
       setDriveLink(link);
-      notifyAlert("Drive folder linked", `PrayerCircle will check "${link.name}" on launch and whenever you tap Check Drive now. The folder is read-only to this app — nothing in it is ever changed.`);
+      notifyAlert("Drive folder linked", `PrayerCircle will check "${link.name}" on launch and whenever you tap Check Drive now. The only thing it ever writes there is ${DRIVE_EXPORT_FILENAME}, when you tap Export Data — nothing else in the folder is written, changed, or deleted.`);
       return;
     }
-    Alert.alert("Drive folder", `Linked: ${driveLink.name}\nPrayerCircle checks this folder on launch. It never changes anything inside it.`, [
+    Alert.alert("Drive folder", `Linked: ${driveLink.name}\nPrayerCircle checks this folder on launch.${driveFolderCanWrite(driveLink) ? ` Export Data overwrites ${DRIVE_EXPORT_FILENAME} in it — one file, replaced every time.` : " Export writing is off — the folder is read-only to this app."}`, [
       { text: "Check now", onPress: () => { void runDriveCheck(false); } },
       {
         text: "Unlink",
@@ -2984,6 +3014,17 @@ export default function HomeScreen() {
       },
       { text: "Cancel", style: "cancel" },
     ]);
+  };
+
+  // v235 — the grant upgrade for a pre-v235 (read-only) link: re-run the
+  // folder pick so the link comes back with export writing enabled.
+  // Picking the same folder keeps everything else identical; cancelling
+  // changes nothing.
+  const handleEnableExportWriting = async () => {
+    const link = await linkDriveFolder().catch(() => null);
+    if (!link) return;
+    setDriveLink(link);
+    notifyAlert("Export writing on", `Export Data now overwrites ${DRIVE_EXPORT_FILENAME} in "${link.name}" — the same file every time, no new copies. That is the only file PrayerCircle ever writes in the folder, and it never deletes anything there.`);
   };
 
   const handleApplyHeld = async (item: HeldItem) => {
@@ -3261,8 +3302,13 @@ export default function HomeScreen() {
           {renderSettingsRow("note-add", "Import Studio Pack", "Bring in notes, states, schedule, people, or ministries from the Commentary Studio — one file can carry them all")}
         </Pressable>
         <Pressable onPress={handleDriveRowPress} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("folder-shared", "Drive Folder", driveLink ? `Linked: ${driveLink.name} · read-only, checked on launch` : Platform.OS === "android" ? "Link a Drive folder once — PrayerCircle checks it on its own" : "Drive folders need the Android app")}
+          {renderSettingsRow("folder-shared", "Drive Folder", driveLink ? driveFolderCanWrite(driveLink) ? `Linked: ${driveLink.name} · exports overwrite one file here` : `Linked: ${driveLink.name} · read-only, checked on launch` : Platform.OS === "android" ? "Link a Drive folder once — PrayerCircle checks it on its own" : "Drive folders need the Android app")}
         </Pressable>
+        {driveLink && !driveFolderCanWrite(driveLink) && Platform.OS === "android" ? (
+          <Pressable onPress={() => { void handleEnableExportWriting(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+            {renderSettingsRow("edit", "Enable export writing", `Let Export Data overwrite ${DRIVE_EXPORT_FILENAME} in this folder — one file, no new copies`)}
+          </Pressable>
+        ) : null}
         <Pressable onPress={() => { void runDriveCheck(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("sync", "Check Drive now", driveChecking ? "Checking…" : driveLink ? "Read the linked folder now" : "Link a folder first, then check it")}
         </Pressable>

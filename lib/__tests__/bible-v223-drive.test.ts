@@ -1,7 +1,12 @@
 // ─── v223 "Drive, On Its Own" — pins ─────────────────────────────────────────
 // The SAF folder reader (Android-first, no Drive API/OAuth/server) plus
 // Jonathan's six safety rules and the studio quote-kind mapping:
-//  1. READ-ONLY on the folder (source pin: no mutating folder calls).
+//  1. READ-ONLY on the folder — re-scoped by v235 (Oct 24, his option
+//     A): the READ module (this file) still contains no mutating folder
+//     call at all, and the app's single authorized write — the fixed
+//     export file, explicit Export tap only — lives behind
+//     drive-export.ts's own pinned boundary (bible-v235-export.test.ts).
+//     Nothing anywhere deletes from the folder.
 //  2. VALIDATE BEFORE APPLYING (v222's door, reused — malformed rejected).
 //  3. SIGNATURE DEDUPE (name + content hash).
 //  4. ADDITIVE-ONLY auto-apply (marks/prayer/streak/game never touched).
@@ -186,7 +191,7 @@ describe('v224 — a Drive check maps notes + location through the same shared d
   });
 });
 
-describe('Rule 1 — the folder module never mutates the folder', () => {
+describe('Rule 1 (v235 re-scope) — the read module never mutates the folder', () => {
   it('contains no folder-mutating folder calls, only list/read/ask calls', () => {
     const src = readFileSync(join(ROOT, 'bible-v205', 'drive-folder.ts'), 'utf8');
     for (const forbidden of [
@@ -202,6 +207,18 @@ describe('Rule 1 — the folder module never mutates the folder', () => {
     expect(src).toContain('requestDirectoryPermissionsAsync');
     expect(src).toContain('readDirectoryAsync');
     expect(src).toContain('readAsStringAsync');
+  });
+
+  it('never names the export file — the one write lives in drive-export.ts', () => {
+    const src = readFileSync(join(ROOT, 'bible-v205', 'drive-folder.ts'), 'utf8');
+    expect(src).not.toContain('prayercircle-export');
+    expect(src).not.toContain('writeExportToDriveFolder');
+  });
+
+  it('records the write opt-in on the link, set at pick time', () => {
+    const src = readFileSync(join(ROOT, 'bible-v205', 'drive-folder.ts'), 'utf8');
+    expect(src).toContain('writeEnabled?: boolean');
+    expect(src).toContain('writeEnabled: true');
   });
 });
 

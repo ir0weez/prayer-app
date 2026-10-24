@@ -11,6 +11,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  BackHandler,
+  Dimensions,
   Modal,
   Pressable,
   ScrollView,
@@ -22,6 +24,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Easing } from 'react-native-reanimated';
+import type { Person } from '@/lib/prayercircle-data';
 import {
   buildDisplaySections,
   buildReadOnlySections,
@@ -43,16 +47,27 @@ import {
   isKept,
   loadMarks,
   marksFor,
+  removeKeeperLineAt,
   resolveTintFields,
   saveMarks,
   scrubVerseTints,
   toggleKept,
   toggleVerseInSelection,
+  updateKeeperLineAt,
   withMarks,
   type EntryMarks,
+  type LineAuthor,
   type MarksMap,
   type TintColor,
 } from '@/lib/bible-v205/marks';
+import {
+  buildBubblePieces,
+  loadPeopleList,
+  loadProfileIdentity,
+  type BubblePiece,
+  type LineStorageTarget,
+  type ProfileIdentity,
+} from '@/lib/bible-v205/bubbles';
 import {
   chapterStatus,
   loadStudyState,
@@ -64,6 +79,7 @@ import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import { useSkin } from '@/hooks/use-skin';
 import { BlockView, CategoryTag, Ornament, SectionBand, StatusChip, STATUS_LABEL } from './blocks';
+import { AuthorPicker, LivingBubbles, kindLabelFor, type BloomTiming } from './bubbles';
 import { BookCompleteCelebration } from './celebration';
 import { IndexSheet } from './index-sheet';
 import { StoriesView } from './stories-view';
@@ -90,7 +106,7 @@ export function ChapterPageView(props: ChapterPageProps) {
   // v207: top safe-area inset, as the rest of the app applies.
   const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
-  const { skin } = useSkin();
+  const { skin, motion: skinMotion, isSkinned } = useSkin();
   const chapterData = useMemo(() => getChapterData(book, chapter), [book, chapter]);
   const totalChapters = chapterCountFor(book);
 
@@ -107,6 +123,14 @@ export function ChapterPageView(props: ChapterPageProps) {
   // entry key, split pieces included), the verses he has tapped and
   // not yet tinted. Pure UI state; only the applied tints persist.
   const [verseSelection, setVerseSelection] = useState<Record<string, number[]>>({});
+  // v214: the Living Bubble layer — the People list (the same stored
+  // list the Journal's @mentions read, so author ids mean the same
+  // person in both places), his profile identity for his own face,
+  // and the one entry whose bubbles are open (mutual exclusion).
+  const [people, setPeople] = useState<Person[]>([]);
+  const [profile, setProfile] = useState<ProfileIdentity>({ name: '' });
+  const [openBubblesKey, setOpenBubblesKey] = useState<string | null>(null);
+  const scrollYRef = useRef(0);
   const [stories, setStories] = useState(!!props.initialStories);
   const [statusMenu, setStatusMenu] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -136,6 +160,8 @@ export function ChapterPageView(props: ChapterPageProps) {
       });
     loadMarks().then((m) => live && setMarks(m));
     loadStudyState().then((s) => live && setStudyState(s));
+    loadPeopleList().then((p) => live && setPeople(p));
+    loadProfileIdentity().then((p) => live && setProfile(p));
     return () => {
       live = false;
     };
@@ -193,10 +219,51 @@ export function ChapterPageView(props: ChapterPageProps) {
     () =>
       readOnly
         ? splitSectionsByHashNotes(storyBase, marks, book, chapter)
-        : { sections: storyBase, marks: notesSplit.marks },
+        : // With-notes Stories walks the very sections + split the
+          // page renders (storyBase === notesSections in this mode).
+          notesSplit,
     [readOnly, storyBase, marks, book, chapter, notesSplit],
   );
+
+  // v214: the bubble pieces of this chapter — derived from the
+  // WITH-notes split in both modes. With-notes renders each piece on
+  // its own entry; Read-only (per-verse entries) anchors a piece's
+  // faces on the verse where the piece starts.
+  const bubblePieces = useMemo(
+    () => buildBubblePieces(notesSplit, book, chapter),
+    [notesSplit, book, chapter],
+  );
+  const bubbleByStart = useMemo(() => {
+    const map = new Map<number, BubblePiece>();
+    for (const piece of bubblePieces.values()) map.set(piece.start, piece);
+    return map;
+  }, [bubblePieces]);
+  // The bloom's timing: the locked mockup numbers in the default
+  // skin (380ms, cubic-bezier(0.22, 1, 0.36, 1)); material skins
+  // speak their own settle dialect for the same morph, the way the
+  // Journal's composer morph does (v213).
+  const bloom: BloomTiming = useMemo(
+    () =>
+      isSkinned
+        ? skinMotion.settle
+        : { duration: 380, easing: Easing.bezier(0.22, 1, 0.36, 1) },
+    [isSkinned, skinMotion],
+  );
   const storySections = storySplit.sections;
+
+  // v214 (his ask, 2026-10-23 18:04): while any bubbles are open, the
+  // Android back action — button or edge-swipe gesture — folds them
+  // shut and is consumed; it never leaves the chapter. With nothing
+  // open, back behaves exactly as before (no listener registered).
+  useEffect(() => {
+    if (!openBubblesKey || stories || sheet || statusMenu) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setOpenBubblesKey(null);
+      return true;
+    });
+    return () => sub.remove();
+  }, [openBubblesKey, stories, sheet, statusMenu]);
+
   const flat = useMemo(() => flattenEntries(sections), [sections]);
   // The read-only kept fallback walks COVERING with-notes entries; it
   // reads the unsplit sections so a verse's covering entry is the one
@@ -287,8 +354,27 @@ export function ChapterPageView(props: ChapterPageProps) {
     setMarks(next);
     await saveMarks(next);
   };
-  const handleAddLine = async (start: number, end: number, kind: 'highlight' | 'thought' | 'note', text: string) => {
-    const next = addKeeperLine(marks, book, chapter, start, end, kind, text);
+  const handleAddLine = async (
+    start: number,
+    end: number,
+    kind: 'highlight' | 'thought' | 'note',
+    text: string,
+    author?: LineAuthor | null,
+  ) => {
+    const next = addKeeperLine(marks, book, chapter, start, end, kind, text, author ?? null);
+    setMarks(next);
+    await saveMarks(next);
+  };
+  // v214: bubble edits write through the line's STORAGE target (a
+  // line displayed on a split piece may live on the parent entry's
+  // record — see resolveLineStorage).
+  const handleUpdateLine = async (target: LineStorageTarget, patch: { text?: string; author?: LineAuthor | null }) => {
+    const next = updateKeeperLineAt(marks, book, chapter, target.start, target.end, target.field, target.index, patch);
+    setMarks(next);
+    await saveMarks(next);
+  };
+  const handleRemoveLine = async (target: LineStorageTarget) => {
+    const next = removeKeeperLineAt(marks, book, chapter, target.start, target.end, target.field, target.index);
     setMarks(next);
     await saveMarks(next);
   };
@@ -381,6 +467,8 @@ export function ChapterPageView(props: ChapterPageProps) {
       verses={verses}
       marks={storySplit.marks}
       palette={palette}
+      people={people}
+      profile={profile}
       onToggleKept={handleToggleKept}
       possessive={labels?.possessive ?? 'Your'}
       possessiveLower={labels?.possessiveLower ?? 'your'}
@@ -440,6 +528,7 @@ export function ChapterPageView(props: ChapterPageProps) {
           const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
           viewHeight.current = layoutMeasurement.height;
           contentHeight.current = contentSize.height;
+          scrollYRef.current = contentOffset.y;
           const max = contentSize.height - layoutMeasurement.height;
           setProgress(max > 0 ? Math.min(1, contentOffset.y / max) : 0);
         }}
@@ -508,7 +597,13 @@ export function ChapterPageView(props: ChapterPageProps) {
           <Text style={[styles.doorNote, { color: palette.inkSoft }]}>
             The chapter page stays exactly as it is. Stories is simply a way <Text style={{ fontStyle: 'italic' }}>through</Text> it — for personal study, at reading pace.
           </Text>
-          <Pressable style={[styles.readBtn, { backgroundColor: palette.rasp }]} onPress={() => setStories(true)}>
+          <Pressable
+            style={[styles.readBtn, { backgroundColor: palette.rasp }]}
+            onPress={() => {
+              setOpenBubblesKey(null);
+              setStories(true);
+            }}
+          >
             <Text style={styles.readBtnText}>▶  Read as Stories</Text>
           </Pressable>
           <Text style={[styles.readSub, { color: palette.inkFaint }]}>
@@ -602,7 +697,16 @@ export function ChapterPageView(props: ChapterPageProps) {
             onLayout={(e) => yByKey.current.set(`secwrap-${section.start}`, e.nativeEvent.layout.y)}
           >
             <SectionBand start={section.start} end={section.end} title={section.title} palette={palette} />
-            {section.entries.map((entry) => (
+            {section.entries.map((entry) => {
+              // v214: the bubble piece riding on this rendered entry —
+              // in With-notes the entry IS the piece; in Read-only the
+              // piece whose span starts at this verse anchors here.
+              const piece = readOnly
+                ? bubbleByStart.get(entry.start)
+                : bubblePieces.get(entryKey(book, chapter, entry.start, entry.end));
+              const pieceKey = piece ? entryKey(book, chapter, piece.start, piece.end) : null;
+              const entryY = yByKey.current.get(entryKey(book, chapter, entry.start, entry.end));
+              return (
               <EntryView
                 key={entry.start}
                 entry={entry}
@@ -618,9 +722,21 @@ export function ChapterPageView(props: ChapterPageProps) {
                 flash={flashKey === entryKey(book, chapter, entry.start, entry.end)}
                 flashAnim={flashAnim}
                 palette={palette}
+                bubblePiece={piece}
+                people={people}
+                profile={profile}
+                bubbleOpen={pieceKey !== null && openBubblesKey === pieceKey}
+                bloom={bloom}
+                viewportHeight={viewHeight.current > 0 ? viewHeight.current : Dimensions.get('window').height}
+                topChrome={insets.top + 118}
+                bottomReserve={112}
+                entryScreenTop={entryY !== undefined ? entryY - scrollYRef.current : null}
+                onBubbleToggle={(next) => setOpenBubblesKey(next && pieceKey ? pieceKey : null)}
                 onToggleOpen={() => toggleOpen(entry)}
                 onToggleKept={() => handleToggleKept(entry.start, entry.end, entry.blocks.some((b) => b.kind === 'highlight'))}
-                onAddLine={(kind, text) => handleAddLine(entry.start, entry.end, kind, text)}
+                onAddLine={(kind, text, author) => handleAddLine(entry.start, entry.end, kind, text, author)}
+                onUpdateLine={handleUpdateLine}
+                onRemoveLine={handleRemoveLine}
                 onTint={(tint) => handleTint(entry.start, entry.end, tint)}
                 onToggleVerse={(verse) => handleToggleVerse(entry.start, entry.end, verse)}
                 onApplyVerseTint={(hue) => handleVerseTintApply(entry.start, entry.end, hue)}
@@ -632,7 +748,8 @@ export function ChapterPageView(props: ChapterPageProps) {
                   )
                 }
               />
-            ))}
+              );
+            })}
           </View>
         ))}
 
@@ -751,9 +868,23 @@ function EntryView(props: {
   flash: boolean;
   flashAnim: Animated.Value;
   palette: BiblePalette;
+  /** v214: the bubble piece riding on this entry (undefined = the
+   * entry carries none of his lines). */
+  bubblePiece?: BubblePiece;
+  people: Person[];
+  profile: ProfileIdentity;
+  bubbleOpen: boolean;
+  bloom: BloomTiming;
+  viewportHeight: number;
+  topChrome: number;
+  bottomReserve: number;
+  entryScreenTop: number | null;
+  onBubbleToggle: (open: boolean) => void;
   onToggleOpen: () => void;
   onToggleKept: () => void;
-  onAddLine: (kind: 'highlight' | 'thought' | 'note', text: string) => void;
+  onAddLine: (kind: 'highlight' | 'thought' | 'note', text: string, author: LineAuthor | null) => void;
+  onUpdateLine: (target: LineStorageTarget, patch: { text?: string; author?: LineAuthor | null }) => void;
+  onRemoveLine: (target: LineStorageTarget) => void;
   onTint: (tint: TintColor | null) => void;
   onToggleVerse: (verse: number) => void;
   onApplyVerseTint: (hue: TintColor) => void;
@@ -763,6 +894,43 @@ function EntryView(props: {
   const { entry, palette } = props;
   const [composer, setComposer] = useState<null | 'highlight' | 'thought' | 'note'>(null);
   const [draft, setDraft] = useState('');
+  // v214: the composer's "Who said this?" pick (null = Me) and, when
+  // the composer was opened from an open bubble's pencil, the storage
+  // target of the line being edited.
+  const [composerAuthor, setComposerAuthor] = useState<LineAuthor | null>(null);
+  const [editingTarget, setEditingTarget] = useState<LineStorageTarget | null>(null);
+  const openComposer = (kind: 'highlight' | 'thought' | 'note') => {
+    setComposer(kind);
+    setDraft('');
+    setComposerAuthor(null);
+    setEditingTarget(null);
+  };
+  const closeComposer = () => {
+    setComposer(null);
+    setEditingTarget(null);
+    setComposerAuthor(null);
+  };
+  const editBubbleLine = (lineIndex: number) => {
+    const piece = props.bubblePiece;
+    if (!piece) return;
+    const line = piece.lines[lineIndex];
+    const target = piece.targets[lineIndex];
+    if (!line || !target) return;
+    setComposer(line.kind);
+    setDraft(line.text);
+    setComposerAuthor(line.author);
+    setEditingTarget(target);
+    props.onBubbleToggle(false);
+    if (!props.open) props.onToggleOpen();
+  };
+  const removeBubbleLine = (lineIndex: number) => {
+    const piece = props.bubblePiece;
+    if (!piece) return;
+    const target = piece.targets[lineIndex];
+    if (!target) return;
+    props.onRemoveLine(target);
+    if (piece.lines.length <= 1) props.onBubbleToggle(false);
+  };
   const single = entry.start === entry.end;
   // v212: the entry tint washes the whole entry container — head and
   // body, open or closed. (The jump-flash still wins while it runs.)
@@ -772,19 +940,21 @@ function EntryView(props: {
     : (wash ?? 'transparent');
   const hasSelection = props.selectedVerses.length > 0;
 
+  // v214: his own lines no longer render in this flow at all — they
+  // live in the margin as Living Bubbles (below). The body keeps the
+  // commentary blocks only; imported blocks are untouched.
   const blocks = [...entry.blocks];
-  // v210: his plain notes lead his own lines under the verses — inset
-  // body text, no box — ahead of the Highlight / Main Thought callouts.
-  for (const text of props.marksEntry?.notes ?? []) blocks.push({ kind: 'note', text });
-  for (const text of props.marksEntry?.highlights ?? []) blocks.push({ kind: 'highlight', text });
-  for (const text of props.marksEntry?.thoughts ?? []) blocks.push({ kind: 'thought', text });
+  const hasBubbles = !!props.bubblePiece && props.bubblePiece.lines.length > 0;
 
   return (
     <Animated.View
-      style={[styles.entry, { backgroundColor: flashBg }]}
+      style={[styles.entry, { backgroundColor: flashBg }, props.bubbleOpen ? styles.entryOpen : null]}
       onLayout={(e) => props.registerY(e.nativeEvent.layout.y)}
     >
-      <Pressable style={styles.entryHead} onPress={props.onToggleOpen}>
+      <Pressable
+        style={[styles.entryHead, hasBubbles ? styles.entryHeadBubbled : null]}
+        onPress={props.onToggleOpen}
+      >
         <View style={styles.heartSlot}>
           {props.kept ? <Text style={{ color: palette.rose, fontSize: 14 }}>♥</Text> : null}
         </View>
@@ -856,7 +1026,7 @@ function EntryView(props: {
               </View>
             ) : null;
           })()}
-          {blocks.length === 0 ? (
+          {blocks.length === 0 && !hasBubbles ? (
             <Text style={[styles.noNotes, { color: palette.inkFaint }]}>
               No notes on this verse — it stands on its own here.
             </Text>
@@ -871,14 +1041,14 @@ function EntryView(props: {
               <Text style={{ color: props.kept ? palette.rose : palette.inkSoft, fontSize: 13 }}>♥</Text>
               <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>{props.kept ? 'Kept' : 'Keep'}</Text>
             </Pressable>
-            <Pressable style={styles.markBtn} onPress={() => { setComposer('highlight'); setDraft(''); }}>
+            <Pressable style={styles.markBtn} onPress={() => openComposer('highlight')}>
               <Text style={{ color: palette.hlMark, fontSize: 12 }}>✦</Text>
               <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Highlight</Text>
             </Pressable>
-            <Pressable style={styles.markBtn} onPress={() => { setComposer('thought'); setDraft(''); }}>
+            <Pressable style={styles.markBtn} onPress={() => openComposer('thought')}>
               <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Main Thought</Text>
             </Pressable>
-            <Pressable style={styles.markBtn} onPress={() => { setComposer('note'); setDraft(''); }}>
+            <Pressable style={styles.markBtn} onPress={() => openComposer('note')}>
               <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Note</Text>
             </Pressable>
             <View style={styles.swatches}>
@@ -934,7 +1104,9 @@ function EntryView(props: {
           {composer ? (
             <View style={[styles.composer, { borderColor: palette.lineDark, backgroundColor: palette.paper }]}>
               <Text style={[styles.composerLabel, { color: composer === 'highlight' ? palette.yellowLabel : palette.greyLabel }]}>
-                {composer === 'highlight' ? '✦ Your Highlight' : composer === 'note' ? 'Your Note' : 'Main Thought'}
+                {editingTarget
+                  ? `Editing ${kindLabelFor(composer)}`
+                  : composer === 'highlight' ? '✦ Your Highlight' : composer === 'note' ? 'Your Note' : 'Main Thought'}
               </Text>
               <TextInput
                 style={[styles.composerInput, { color: palette.ink }]}
@@ -948,23 +1120,63 @@ function EntryView(props: {
               <Text style={[styles.composerHint, { color: palette.inkFaint }]}>
                 Tip: start a note with #11-12 to set those verses apart with it.
               </Text>
+              {/* v214: every line can wear a face — his own by
+                  default, or anyone from his People when they said
+                  the thing worth keeping. Re-picking here re-faces
+                  an existing line just as it faces a new one. */}
+              <AuthorPicker
+                people={props.people}
+                profile={props.profile}
+                value={composerAuthor}
+                palette={palette}
+                onChange={setComposerAuthor}
+              />
               <View style={styles.composerBtns}>
-                <Pressable onPress={() => setComposer(null)}>
+                <Pressable onPress={closeComposer}>
                   <Text style={{ color: palette.inkSoft, fontWeight: '600', fontSize: 13 }}>Cancel</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.addBtn, { backgroundColor: palette.rasp }]}
                   onPress={() => {
-                    if (draft.trim()) props.onAddLine(composer, draft.trim());
-                    setComposer(null);
+                    const text = draft.trim();
+                    if (text) {
+                      if (editingTarget) props.onUpdateLine(editingTarget, { text, author: composerAuthor });
+                      else props.onAddLine(composer, text, composerAuthor);
+                    } else if (editingTarget) {
+                      // An author-only change (re-face) still saves
+                      // with the text untouched.
+                      props.onUpdateLine(editingTarget, { author: composerAuthor });
+                    }
+                    closeComposer();
                   }}
                 >
-                  <Text style={styles.addBtnText}>Add</Text>
+                  <Text style={styles.addBtnText}>{editingTarget ? 'Save' : 'Add'}</Text>
                 </Pressable>
               </View>
             </View>
           ) : null}
         </View>
+      ) : null}
+
+      {/* v214: the Living Bubble layer — faces in the right margin,
+          blooming over the verses. Rendered in both modes and
+          whether the entry body is open or closed. */}
+      {hasBubbles && props.bubblePiece ? (
+        <LivingBubbles
+          piece={props.bubblePiece}
+          people={props.people}
+          profile={props.profile}
+          palette={palette}
+          open={props.bubbleOpen}
+          bloom={props.bloom}
+          viewportHeight={props.viewportHeight}
+          topChrome={props.topChrome}
+          bottomReserve={props.bottomReserve}
+          entryScreenTop={props.entryScreenTop}
+          onToggle={props.onBubbleToggle}
+          onEditLine={editBubbleLine}
+          onRemoveLine={removeBubbleLine}
+        />
       ) : null}
     </Animated.View>
   );
@@ -1021,7 +1233,13 @@ const styles = StyleSheet.create({
   tocRange: { fontSize: 11.5 },
   sectionWrap: { marginTop: 34 },
   entry: { borderRadius: 10 },
+  // v214: an entry whose bubbles are open lifts above its neighbours
+  // so the bloomed cards paint over the verses below, mockup-style.
+  entryOpen: { zIndex: 30, elevation: 30 },
   entryHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 13, paddingHorizontal: 2 },
+  // v214: entries carrying bubbles indent their verses to clear the
+  // margin faces (the mockup's 44px entry inset).
+  entryHeadBubbled: { paddingRight: 48 },
   heartSlot: { width: 20, alignItems: 'center', paddingTop: 5 },
   vnumBig: { fontSize: 28, fontWeight: '300', width: 40, lineHeight: 32, textAlign: 'center' },
   vnumRange: { fontSize: 15.5, fontWeight: '700', width: 40, lineHeight: 32, textAlign: 'center' },

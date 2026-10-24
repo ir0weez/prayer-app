@@ -1,0 +1,274 @@
+// ─── v214 "Living Bubble" — the model behind the margin faces ───────────────
+// His personal lines (the marks layer) no longer sit in the text flow:
+// each entry piece that carries his words wears its authors' faces in
+// the right margin, and a press blooms them into note cards over the
+// verses — a conversation when there are two or more. This module is
+// the pure half: which lines an entry shows, in which order, on which
+// side, who each line belongs to, and where each displayed line is
+// actually STORED (a line shown on a '#' split piece may live on the
+// parent entry's record — writes must land where the line lives).
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { Person } from '../prayercircle-data';
+import { PEOPLE_STORAGE_KEY, PROFILE_STORAGE_KEY } from '../prayercircle-storage';
+import {
+  lineAuthor,
+  lineText,
+  marksFor,
+  type EntryMarks,
+  type KeeperField,
+  type KeeperLine,
+  type LineAuthor,
+} from './marks';
+import type { SplitProvenance, SplitSectionsResult } from './index';
+import { entryKey } from './types';
+
+export type BubbleKind = 'note' | 'highlight' | 'thought';
+
+/** Render order of his own lines under an entry — the order his lines
+ * have always read in: plain notes first, then Highlights, then Main
+ * Thoughts (v210's in-flow order, carried into the bubbles). */
+export const BUBBLE_KIND_ORDER: { kind: BubbleKind; field: KeeperField }[] = [
+  { kind: 'note', field: 'notes' },
+  { kind: 'highlight', field: 'highlights' },
+  { kind: 'thought', field: 'thoughts' },
+];
+
+export interface BubbleLine {
+  kind: BubbleKind;
+  text: string;
+  /** The line's stored authorship; null = the user themself. */
+  author: LineAuthor | null;
+  /**
+   * Conversation side: a lone line is 'solo' (its card grows from the
+   * face at the right margin); with 2+ lines the cards alternate —
+   * the first settles left, the next right, then left again.
+   */
+  side: 'solo' | 'left' | 'right';
+  /** Index of this line within its own field's displayed array. */
+  fieldIndex: number;
+}
+
+/** An entry's user lines as bubbles: render order, sides assigned. */
+export function bubbleLinesFor(marks: EntryMarks | undefined): BubbleLine[] {
+  if (!marks) return [];
+  const flat: Omit<BubbleLine, 'side'>[] = [];
+  for (const { kind, field } of BUBBLE_KIND_ORDER) {
+    (marks[field] ?? []).forEach((line: KeeperLine, fieldIndex: number) => {
+      flat.push({ kind, text: lineText(line), author: lineAuthor(line), fieldIndex });
+    });
+  }
+  return flat.map((l, i) => ({
+    ...l,
+    side: flat.length <= 1 ? ('solo' as const) : i % 2 === 0 ? ('left' as const) : ('right' as const),
+  }));
+}
+
+// ─── Storage resolution — where a displayed line actually lives ─────────────
+
+export interface LineStorageTarget {
+  start: number;
+  end: number;
+  field: KeeperField;
+  index: number;
+}
+
+/**
+ * Resolve a displayed line (its piece span + field + index within the
+ * piece's displayed array for that field) to the stored record and
+ * index a write must touch:
+ *  - no provenance (the entry never split): the piece's own record,
+ *    index for index;
+ *  - a derived line: the PARENT entry's record, at the parent index
+ *    the split recorded for it;
+ *  - a line past the derived ones: the piece's own record, offset by
+ *    the derived count.
+ */
+export function resolveLineStorage(
+  provenance: SplitProvenance | undefined,
+  pieceStart: number,
+  pieceEnd: number,
+  field: KeeperField,
+  displayIndex: number,
+): LineStorageTarget {
+  if (!provenance) return { start: pieceStart, end: pieceEnd, field, index: displayIndex };
+  const origins = provenance.origins[field] ?? [];
+  if (displayIndex < origins.length) {
+    return { start: provenance.parentStart, end: provenance.parentEnd, field, index: origins[displayIndex] };
+  }
+  return { start: pieceStart, end: pieceEnd, field, index: displayIndex - origins.length };
+}
+
+// ─── Piece assembly — everything the chapter page renders per entry ─────────
+
+export interface BubblePiece {
+  /** The rendered piece's span (a split piece, or the entry itself). */
+  start: number;
+  end: number;
+  /** The unsplit entry the piece came from; equals the piece's own
+   * span when nothing split. A piece whose span is a proper subset
+   * of its parent's labels its cards "on vv. X–Y". */
+  parentStart: number;
+  parentEnd: number;
+  lines: BubbleLine[];
+  /** Write targets, aligned with `lines` index for index. */
+  targets: LineStorageTarget[];
+}
+
+/**
+ * Every piece of a split chapter result that carries user lines,
+ * keyed by the piece's entry key. Drives both chapter-page modes:
+ * With-notes renders pieces directly; Read-only (per-verse entries)
+ * anchors each piece's faces on the verse where the piece starts.
+ */
+export function buildBubblePieces(
+  split: SplitSectionsResult,
+  book: string,
+  chapter: number,
+): Map<string, BubblePiece> {
+  const out = new Map<string, BubblePiece>();
+  for (const section of split.sections) {
+    for (const entry of section.entries) {
+      const key = entryKey(book, chapter, entry.start, entry.end);
+      const lines = bubbleLinesFor(marksFor(split.marks, book, chapter, entry.start, entry.end));
+      if (!lines.length) continue;
+      const prov = split.provenance[key];
+      const targets = lines.map((l) => {
+        const field = BUBBLE_KIND_ORDER.find((k) => k.kind === l.kind)!.field;
+        return resolveLineStorage(prov, entry.start, entry.end, field, l.fieldIndex);
+      });
+      out.set(key, {
+        start: entry.start,
+        end: entry.end,
+        parentStart: prov ? prov.parentStart : entry.start,
+        parentEnd: prov ? prov.parentEnd : entry.end,
+        lines,
+        targets,
+      });
+    }
+  }
+  return out;
+}
+
+// ─── Scroll cap — the open conversation never outgrows the screen ───────────
+
+/**
+ * The open thread's height: its natural stacked height, capped at
+ * the visible area the overlay may use (viewport minus the chapter
+ * chrome above and the FAB/nav allowance below). At or under the cap
+ * the thread sits at natural height and never scrolls.
+ */
+export function conversationViewport(input: {
+  naturalHeight: number;
+  viewportHeight: number;
+  topChrome: number;
+  bottomReserve: number;
+}): { regionHeight: number; scrollable: boolean } {
+  const available = Math.max(120, input.viewportHeight - input.topChrome - input.bottomReserve);
+  const regionHeight = Math.min(input.naturalHeight, available);
+  return { regionHeight, scrollable: input.naturalHeight > available };
+}
+
+/**
+ * How far the open region must shift UP from the face's anchor so
+ * the whole region stays on screen when the entry sits low: only as
+ * far as the visible bottom demands, and never so far that the
+ * region's top leaves the usable area under the chrome.
+ */
+export function conversationShiftUp(input: {
+  /** The face anchor's distance below the entry container's top. */
+  anchorTop: number;
+  /** The entry container's top edge, in viewport coordinates. */
+  entryScreenTop: number;
+  regionHeight: number;
+  viewportHeight: number;
+  topChrome: number;
+  bottomReserve: number;
+}): number {
+  const regionScreenTop = input.entryScreenTop + input.anchorTop;
+  const overflow = regionScreenTop + input.regionHeight - (input.viewportHeight - input.bottomReserve);
+  if (overflow <= 0) return 0;
+  const maxShift = Math.max(0, regionScreenTop - input.topChrome);
+  return Math.min(overflow, maxShift);
+}
+
+// ─── Authorship ──────────────────────────────────────────────────────────────
+
+/** The signed-in user's identity card (their profile), for faces. */
+export interface ProfileIdentity {
+  name: string;
+  photoUri?: string;
+  avatarAsset?: string;
+}
+
+export interface ResolvedAuthor {
+  /** Display name: current People name, profile name, snapshot, or "You". */
+  name: string;
+  /** The People record when the author resolves to one. */
+  person: Person | null;
+  /** True when the author is the user themself (profile face). */
+  isSelf: boolean;
+  /** True when the author id no longer resolves — the face falls
+   * back to the stored name snapshot's initial disc. */
+  isSnapshot: boolean;
+  /** The profile's own face, set when isSelf. */
+  photoUri?: string;
+  avatarAsset?: string;
+}
+
+/**
+ * Who a bubble wears: no author (or the profile's own line) → the
+ * user; an authorId that still resolves → that person's CURRENT
+ * record (name/photo follow the People list, not the snapshot); an
+ * authorId that is gone → the snapshot name the line was stored
+ * with.
+ */
+export function resolveBubbleAuthor(
+  author: LineAuthor | null,
+  people: Person[],
+  profile: ProfileIdentity,
+): ResolvedAuthor {
+  if (!author || !author.authorId) {
+    return {
+      name: profile.name || 'You',
+      person: null,
+      isSelf: true,
+      isSnapshot: false,
+      photoUri: profile.photoUri,
+      avatarAsset: profile.avatarAsset,
+    };
+  }
+  const person = people.find((p) => p.id === author.authorId) ?? null;
+  if (person) return { name: person.name, person, isSelf: false, isSnapshot: false };
+  return { name: author.authorName || 'Someone', person: null, isSelf: false, isSnapshot: true };
+}
+
+/** The People list for author resolution + the picker — the same
+ * stored list the Journal's @mentions read, so a person id means
+ * the same person in both places. */
+export async function loadPeopleList(): Promise<Person[]> {
+  try {
+    const raw = await AsyncStorage.getItem(PEOPLE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Person[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** The profile identity (name + face) from the profile store. */
+export async function loadProfileIdentity(): Promise<ProfileIdentity> {
+  try {
+    const raw = await AsyncStorage.getItem(PROFILE_STORAGE_KEY);
+    if (!raw) return { name: '' };
+    const parsed = JSON.parse(raw) as { name?: unknown; photoUri?: unknown; avatarAsset?: unknown };
+    return {
+      name: typeof parsed?.name === 'string' ? parsed.name.trim() : '',
+      photoUri: typeof parsed?.photoUri === 'string' && parsed.photoUri ? parsed.photoUri : undefined,
+      avatarAsset: typeof parsed?.avatarAsset === 'string' && parsed.avatarAsset ? parsed.avatarAsset : undefined,
+    };
+  } catch {
+    return { name: '' };
+  }
+}

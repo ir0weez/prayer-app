@@ -7,7 +7,7 @@
 import { COMMENTARY_DATA } from './data/index';
 import { chapterStatus, type StudyState } from './study';
 import { entrySourceCategory } from './categories';
-import { marksFor, normalizeMarks, type EntryMarks, type MarksMap, type TintColor } from './marks';
+import { lineText, marksFor, normalizeMarks, type EntryMarks, type KeeperField, type MarksMap, type TintColor } from './marks';
 import {
   entryKey,
   type NoteCategory,
@@ -280,6 +280,15 @@ export function parseHashVerseRef(text: string): { start: number; end: number } 
 export interface SplitPiece {
   entry: DisplayEntry;
   marks: EntryMarks;
+  /**
+   * v214: for each marks field, the index into the PARENT entry's
+   * stored array of every line this piece carries, in piece order.
+   * The bubble layer writes through these coordinates: a line shown
+   * on a piece may live on the parent record (derived here) or on a
+   * record stored at the piece's own key (appended after these).
+   * Identity (every line, in order) when the entry did not split.
+   */
+  origins: Record<KeeperField, number[]>;
 }
 
 /**
@@ -300,10 +309,13 @@ export interface SplitPiece {
  * exactly the same rules.
  */
 export function splitEntryByHashNotes(entry: DisplayEntry, entryMarks: EntryMarks): SplitPiece[] {
-  const notes: { field: 'notes' | 'highlights' | 'thoughts'; text: string }[] = [
-    ...(entryMarks.notes ?? []).map((text) => ({ field: 'notes' as const, text })),
-    ...(entryMarks.highlights ?? []).map((text) => ({ field: 'highlights' as const, text })),
-    ...(entryMarks.thoughts ?? []).map((text) => ({ field: 'thoughts' as const, text })),
+  // v214: lines travel as their stored values — an authored line
+  // (v214 object form) keeps its author through the split untouched;
+  // only the '#' reference reads the words.
+  const notes: { field: KeeperField; line: EntryMarks['notes'][number]; fieldIndex: number; text: string }[] = [
+    ...(entryMarks.notes ?? []).map((line, fieldIndex) => ({ field: 'notes' as const, line, fieldIndex, text: lineText(line) })),
+    ...(entryMarks.highlights ?? []).map((line, fieldIndex) => ({ field: 'highlights' as const, line, fieldIndex, text: lineText(line) })),
+    ...(entryMarks.thoughts ?? []).map((line, fieldIndex) => ({ field: 'thoughts' as const, line, fieldIndex, text: lineText(line) })),
   ];
   const claims: { start: number; end: number }[] = [];
   const roles = notes.map((n) => {
@@ -316,10 +328,15 @@ export function splitEntryByHashNotes(entry: DisplayEntry, entryMarks: EntryMark
     return { type: 'claim' as const, claim: claims.length - 1 };
   });
 
-  if (claims.length === 0) return [{ entry, marks: entryMarks }];
+  const identityOrigins: Record<KeeperField, number[]> = {
+    notes: (entryMarks.notes ?? []).map((_, i) => i),
+    highlights: (entryMarks.highlights ?? []).map((_, i) => i),
+    thoughts: (entryMarks.thoughts ?? []).map((_, i) => i),
+  };
+  if (claims.length === 0) return [{ entry, marks: entryMarks, origins: identityOrigins }];
   // A lone claim over the whole span changes nothing on screen.
   if (claims.length === 1 && claims[0].start === entry.start && claims[0].end === entry.end) {
-    return [{ entry, marks: entryMarks }];
+    return [{ entry, marks: entryMarks, origins: identityOrigins }];
   }
 
   const sorted = [...claims].sort((a, b) => a.start - b.start);
@@ -357,13 +374,19 @@ export function splitEntryByHashNotes(entry: DisplayEntry, entryMarks: EntryMark
     verseTints: verseTintsWithin(s.start, s.end),
     category: i === firstSeg ? entryMarks.category : null,
   }));
+  const pieceOrigins: Record<KeeperField, number[]>[] = segs.map(() => ({
+    notes: [],
+    highlights: [],
+    thoughts: [],
+  }));
   notes.forEach((n, i) => {
     const role = roles[i];
     let target = firstSeg;
     if (role.type === 'claim') target = segs.findIndex((s) => s.claimIdx === role.claim);
     else if (role.type === 'ride') target = segForVerse(role.verse);
     if (target < 0) target = firstSeg;
-    pieceMarks[target][n.field].push(n.text);
+    pieceMarks[target][n.field].push(n.line);
+    pieceOrigins[target][n.field].push(n.fieldIndex);
   });
 
   return segs.map((s, i) => {
@@ -371,8 +394,22 @@ export function splitEntryByHashNotes(entry: DisplayEntry, entryMarks: EntryMark
     return {
       entry: { ...entry, start: s.start, end: s.end, blocks, verseOnly: blocks.length === 0 },
       marks: pieceMarks[i],
+      origins: pieceOrigins[i],
     };
   });
+}
+
+/** v214: where a split piece's displayed lines actually live. */
+export interface SplitProvenance {
+  /** The unsplit entry this piece was derived from. */
+  parentStart: number;
+  parentEnd: number;
+  /** Per field, the parent record's array index of each derived line
+   * this piece displays, in display order. */
+  origins: Record<KeeperField, number[]>;
+  /** Per field, how many lines displayed after the derived ones come
+   * from a record stored directly at the piece's own key. */
+  appended: Record<KeeperField, number>;
 }
 
 export interface SplitSectionsResult {
@@ -385,6 +422,11 @@ export interface SplitSectionsResult {
    * itself is never mutated. When nothing splits, both halves of the
    * result are the inputs, by reference. */
   marks: MarksMap;
+  /** v214: per split piece (keyed by the piece's entry key), the
+   * storage provenance of its lines — see SplitProvenance. Entries
+   * that did not split have no record here: their displayed lines
+   * are their stored lines, index for index. */
+  provenance: Record<string, SplitProvenance>;
 }
 
 export function splitSectionsByHashNotes(
@@ -395,6 +437,7 @@ export function splitSectionsByHashNotes(
 ): SplitSectionsResult {
   let changed = false;
   const augmented: MarksMap = { ...marks };
+  const provenance: Record<string, SplitProvenance> = {};
   const outSections = sections.map((section) => {
     let sectionChanged = false;
     const entries: DisplayEntry[] = [];
@@ -409,6 +452,16 @@ export function splitSectionsByHashNotes(
         entries.push(piece.entry);
         const key = entryKey(book, chapter, piece.entry.start, piece.entry.end);
         const atKey = marks[key] ? normalizeMarks(marks[key]) : null;
+        provenance[key] = {
+          parentStart: entry.start,
+          parentEnd: entry.end,
+          origins: piece.origins,
+          appended: {
+            notes: atKey ? atKey.notes.length : 0,
+            highlights: atKey ? atKey.highlights.length : 0,
+            thoughts: atKey ? atKey.thoughts.length : 0,
+          },
+        };
         augmented[key] = atKey
           ? {
               kept: atKey.kept,
@@ -428,8 +481,8 @@ export function splitSectionsByHashNotes(
     changed = true;
     return { ...section, entries };
   });
-  if (!changed) return { sections, marks };
-  return { sections: outSections, marks: augmented };
+  if (!changed) return { sections, marks, provenance };
+  return { sections: outSections, marks: augmented, provenance };
 }
 
 /** All entries of a chapter in order, with their section title attached. */

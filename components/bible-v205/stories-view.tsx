@@ -18,7 +18,14 @@ import {
 } from '@/lib/bible-v205/index';
 import { entryKey, type V205ChapterData } from '@/lib/bible-v205/types';
 import { isKept, resolveTintFields, type MarksMap } from '@/lib/bible-v205/marks';
+import {
+  bubbleLinesFor,
+  resolveBubbleAuthor,
+  type ProfileIdentity,
+} from '@/lib/bible-v205/bubbles';
+import type { Person } from '@/lib/prayercircle-data';
 import { BlockView, CategoryTag, Ornament, SectionBand } from './blocks';
+import { BubbleChatRow } from './bubbles';
 import { entrySourceCategory } from '@/lib/bible-v205/categories';
 import { chapterLabel, rangeLabel, tintWashFor, verseTintFor, type BiblePalette } from './palette';
 
@@ -31,6 +38,10 @@ export interface StoriesViewProps {
   verses: { verse: number; text: string }[];
   marks: MarksMap;
   palette: BiblePalette;
+  /** v214: author resolution for the bubble rows — the People list
+   * and his profile identity, same sources as the chapter page. */
+  people: Person[];
+  profile: ProfileIdentity;
   /** Profile-driven possessives — labels name the signed-in user. */
   possessive: string;
   possessiveLower: string;
@@ -305,19 +316,24 @@ export function StoriesView(props: StoriesViewProps) {
     );
   };
 
+  // v214: his own lines read as chat-style bubble rows in Stories —
+  // avatar + name on the bubble, the kind's tint on its fill, and
+  // when a screen holds two or more they alternate sides like a
+  // conversation. (No bloom overlay here — Stories paces by taps.)
   const renderUserBlocks = (start: number, end: number) => {
     const m = props.marks[entryKey(book, chapter, start, end)];
-    if (!m) return null;
+    const lines = bubbleLinesFor(m);
+    if (!lines.length) return null;
     return (
       <>
-        {(m.notes ?? []).map((text, i) => (
-          <BlockView key={`un${i}`} block={{ kind: 'note', text }} palette={palette} />
-        ))}
-        {m.highlights.map((text, i) => (
-          <BlockView key={`uh${i}`} block={{ kind: 'highlight', text }} palette={palette} />
-        ))}
-        {m.thoughts.map((text, i) => (
-          <BlockView key={`ut${i}`} block={{ kind: 'thought', text }} palette={palette} />
+        {lines.map((line, i) => (
+          <BubbleChatRow
+            key={`${line.kind}-${line.fieldIndex}-${i}`}
+            line={line}
+            author={resolveBubbleAuthor(line.author, props.people, props.profile)}
+            palette={palette}
+            flip={lines.length > 1 && i % 2 === 1}
+          />
         ))}
       </>
     );

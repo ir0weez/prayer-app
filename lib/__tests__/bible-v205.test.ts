@@ -1143,17 +1143,22 @@ describe("v210 — the plain personal Note: no box, just inset text", () => {
     expect(branch).not.toContain('callout');
   });
 
-  it('render: the markbar offers Note, his lines lead with notes, Stories shows them plainly', () => {
+  it('render: the markbar offers Note; his lines render as Living Bubbles, never in-flow (v214)', () => {
     const page = readFileSync(join(process.cwd(), 'components/bible-v205/chapter-page.tsx'), 'utf8');
-    expect(page).toContain("setComposer('note')");
-    const notePush = page.indexOf("blocks.push({ kind: 'note', text })");
-    const hlPush = page.indexOf("blocks.push({ kind: 'highlight', text })");
-    expect(notePush).toBeGreaterThanOrEqual(0);
-    expect(notePush).toBeLessThan(hlPush); // notes render before the callout boxes
+    expect(page).toContain("openComposer('note')");
+    // v214 reversed the v210 in-flow rendering: user lines are NOT
+    // pushed into the entry's blocks anymore — they live in the
+    // margin bubble layer. (The notes-first ordering the old pin
+    // guarded now lives in bubbleLinesFor, pinned in
+    // bible-v205-bubbles.test.ts.)
+    expect(page).not.toContain("blocks.push({ kind: 'note'");
+    expect(page).not.toContain("blocks.push({ kind: 'highlight'");
+    expect(page).not.toContain("blocks.push({ kind: 'thought'");
+    expect(page).toContain('<LivingBubbles');
     const stories = readFileSync(join(process.cwd(), 'components/bible-v205/stories-view.tsx'), 'utf8');
     const rub = stories.slice(stories.indexOf('const renderUserBlocks'));
-    expect(rub.indexOf("kind: 'note'")).toBeGreaterThanOrEqual(0);
-    expect(rub.indexOf("kind: 'note'")).toBeLessThan(rub.indexOf("kind: 'highlight'"));
+    expect(rub).toContain('BubbleChatRow');
+    expect(rub).toContain('bubbleLinesFor');
   });
 });
 

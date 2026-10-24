@@ -11,18 +11,84 @@ export const MARKS_KEY = 'prayercircle.bible.v205.marks.v1';
 
 export type TintColor = 'yellow' | 'rose' | 'green';
 
+/**
+ * v214: one user line, with the person who SAID it. A line he wrote
+ * himself is stored as a plain string — no author means HIM (the
+ * profile), which is also what every line stored before v214 reads
+ * as. A line credited to someone in his People carries that person's
+ * id (so their CURRENT photo/name resolve at render) plus a snapshot
+ * of their name, which survives the person being deleted.
+ */
+export interface AuthoredLine {
+  text: string;
+  /** People person id; absent = the user themself. */
+  authorId?: string;
+  /** Name snapshot taken when the author was picked. */
+  authorName?: string;
+}
+
+export type KeeperLine = string | AuthoredLine;
+
+/** The authorship a composer pick stores on a line (null = Me). */
+export interface LineAuthor {
+  authorId: string;
+  authorName: string;
+}
+
+/** A line's words, whether it is stored plain or authored. */
+export function lineText(line: KeeperLine): string {
+  return typeof line === 'string' ? line : line.text;
+}
+
+/** A line's authorship; null when the line is his own (or legacy). */
+export function lineAuthor(line: KeeperLine): LineAuthor | null {
+  if (typeof line === 'string') return null;
+  if (!line.authorId) return null;
+  return { authorId: line.authorId, authorName: line.authorName ?? '' };
+}
+
+/** Re-face (or un-face) a line: same words, new author. Credit
+ * removed returns the line to its plain-string form. */
+export function withLineAuthor(line: KeeperLine, author: LineAuthor | null): KeeperLine {
+  const text = lineText(line);
+  if (!author) return text;
+  return { text, authorId: author.authorId, authorName: author.authorName };
+}
+
+/**
+ * Stored lines read back clean: strings pass through (legacy = no
+ * author), authored objects keep only their known fields, anything
+ * else is dropped rather than rendered.
+ */
+export function normalizeLines(raw: unknown): KeeperLine[] {
+  if (!Array.isArray(raw)) return [];
+  const out: KeeperLine[] = [];
+  for (const item of raw) {
+    if (typeof item === 'string') {
+      out.push(item);
+    } else if (item && typeof item === 'object' && typeof (item as AuthoredLine).text === 'string') {
+      const o = item as AuthoredLine;
+      const line: AuthoredLine = { text: o.text };
+      if (typeof o.authorId === 'string' && o.authorId) line.authorId = o.authorId;
+      if (typeof o.authorName === 'string' && o.authorName) line.authorName = o.authorName;
+      out.push(line);
+    }
+  }
+  return out;
+}
+
 export interface EntryMarks {
   kept: boolean;
   /** His own Highlight lines (yellow callouts), in the order he added them. */
-  highlights: string[];
+  highlights: KeeperLine[];
   /** His own Main Thought lines (grey callouts). */
-  thoughts: string[];
+  thoughts: KeeperLine[];
   /**
    * v210: his plain personal notes — no callout box, rendered as inset
    * body text like a commentary paragraph. Not everything he writes
    * down is a Highlight or a Main Thought (his words, 2026-10-23).
    */
-  notes: string[];
+  notes: KeeperLine[];
   /**
    * Tint washed over the WHOLE entry — verses and body together
    * (v212; before that it painted only the first commentary paragraph
@@ -81,9 +147,9 @@ export function normalizeMarks(m: Partial<EntryMarks> | undefined): EntryMarks {
   if (!m) return emptyMarks();
   return {
     kept: !!m.kept,
-    highlights: Array.isArray(m.highlights) ? m.highlights : [],
-    thoughts: Array.isArray(m.thoughts) ? m.thoughts : [],
-    notes: Array.isArray(m.notes) ? m.notes : [],
+    highlights: normalizeLines(m.highlights),
+    thoughts: normalizeLines(m.thoughts),
+    notes: normalizeLines(m.notes),
     tint: m.tint ?? null,
     verseTints: sanitizeVerseTints(m.verseTints),
     category: m.category ?? null,
@@ -162,13 +228,68 @@ export function addKeeperLine(
   end: number,
   kind: 'highlight' | 'thought' | 'note',
   text: string,
+  author?: LineAuthor | null,
 ): MarksMap {
   const key = entryKey(book, chapter, start, end);
   // Normalize first: records stored before a field existed (e.g. notes,
   // added in v210) read with that field empty rather than undefined.
   const current = normalizeMarks(marks[key]);
   const field = kind === 'highlight' ? 'highlights' : kind === 'thought' ? 'thoughts' : 'notes';
-  return { ...marks, [key]: { ...current, [field]: [...current[field], text] } };
+  // v214: his own line stays a plain string; a credited line stores
+  // the author object.
+  const line: KeeperLine = author ? { text, authorId: author.authorId, authorName: author.authorName } : text;
+  return { ...marks, [key]: { ...current, [field]: [...current[field], line] } };
+}
+
+export type KeeperField = 'notes' | 'highlights' | 'thoughts';
+
+/**
+ * v214: rewrite one stored line in place — new words and/or a new
+ * author (the open bubble's edit + re-face path). The target is a
+ * STORAGE coordinate (see resolveLineStorage in bubbles.ts: a line
+ * displayed on a split piece may live on the parent entry's record).
+ * Out-of-range targets change nothing.
+ */
+export function updateKeeperLineAt(
+  marks: MarksMap,
+  book: string,
+  chapter: number,
+  start: number,
+  end: number,
+  field: KeeperField,
+  index: number,
+  patch: { text?: string; author?: LineAuthor | null },
+): MarksMap {
+  const key = entryKey(book, chapter, start, end);
+  const current = normalizeMarks(marks[key]);
+  if (index < 0 || index >= current[field].length) return marks;
+  const lines = [...current[field]];
+  let line = lines[index];
+  if (patch.text !== undefined) {
+    line = typeof line === 'string' ? patch.text : { ...line, text: patch.text };
+  }
+  if (patch.author !== undefined) {
+    line = withLineAuthor(line, patch.author);
+  }
+  lines[index] = line;
+  return { ...marks, [key]: { ...current, [field]: lines } };
+}
+
+/** v214: remove one stored line (the open bubble's trash). */
+export function removeKeeperLineAt(
+  marks: MarksMap,
+  book: string,
+  chapter: number,
+  start: number,
+  end: number,
+  field: KeeperField,
+  index: number,
+): MarksMap {
+  const key = entryKey(book, chapter, start, end);
+  const current = normalizeMarks(marks[key]);
+  if (index < 0 || index >= current[field].length) return marks;
+  const lines = current[field].filter((_, i) => i !== index);
+  return { ...marks, [key]: { ...current, [field]: lines } };
 }
 
 /** Count of kept entries in one chapter — the ♥ N kept pill. */

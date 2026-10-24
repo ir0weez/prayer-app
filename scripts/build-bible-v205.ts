@@ -22,6 +22,7 @@ import {
   parseStatusCsv,
   type MergeStats,
 } from '../lib/bible-v205/parse';
+import { applyRecoveryFill, chapterBlockCount, type RecoveredMap } from '../lib/bible-v205/recovery';
 import type { StudyStatus, V205BookData, V205ChapterData } from '../lib/bible-v205/types';
 
 const HOME = process.env.HOME ?? '';
@@ -135,6 +136,34 @@ log(
   `callouts: ${stats.calloutsPlaced} placed (${stats.calloutsSplitFromText} split out of txt paragraphs, ` +
     `${stats.calloutsInsertedUnmatched} inserted unmatched, ${stats.calloutsDeduped} deduped)`,
 );
+
+// ── 2b. Full_Commentary recovery fill ───────────────────────────────────────
+// Genesis 6–10 live in full in his combined manuscript but never
+// reached the per-book txts above, so they generate with zero blocks.
+// The recovery parsed them into recovered.json (the same file the
+// studio converter fills from); applyRecoveryFill restores them here,
+// filling ONLY zero-block chapters — without this stage a regeneration
+// silently drops the chapters v233 shipped. Missing file = loud log,
+// never a silent skip.
+const RECOVERY_PATH =
+  process.env.RECOVERY_JSON ??
+  join(HOME, 'workspace/commentary-studio-build/recovery/recovered.json');
+if (existsSync(RECOVERY_PATH)) {
+  const recovered = JSON.parse(readFileSync(RECOVERY_PATH, 'utf8')) as RecoveredMap;
+  for (const bookData of books.values()) {
+    const result = applyRecoveryFill(bookData, recovered);
+    books.set(bookData.book, result.data);
+    for (const label of result.filled) {
+      const ch = result.data.chapters[parseInt(label.split(' ').pop() ?? '0', 10)];
+      log(`recovery: filled ${label} (${ch ? chapterBlockCount(ch) : 0} blocks)`);
+    }
+    for (const label of result.skipped) {
+      log(`recovery: skipped ${label} (generated data already carries blocks)`);
+    }
+  }
+} else {
+  log(`recovery: recovered.json NOT FOUND at ${RECOVERY_PATH} — recovered chapters (Genesis 6–10) would be LOST in this regeneration`);
+}
 
 // ── 3. Studies CSVs → study seed ────────────────────────────────────────────
 const fullList = join(NOTION_DIR, 'a', 'Studies', 'Full List');

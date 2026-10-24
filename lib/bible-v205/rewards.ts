@@ -18,6 +18,15 @@
 // before v228 can never pay twice, whichever screen paid it first.
 // Un-reading never revokes; re-reading never re-grants. Notes states
 // (Write / ReStudy / Complete) pay no chapter XP, ever.
+// v233 — HIS MODEL ("Read means Read"): "Complete" is a claim about
+// notes, so a book with NO noted chapters at all cannot finish by the
+// notes track — it finishes by READING: every chapter Read pays the
+// same +100 under the same idempotent key, and the +1000 follows the
+// same per-book rule. A book with even one noted chapter still
+// finishes only by notes-Complete, all chapters. The studio-import
+// overrides count toward "noted" exactly as shipped data does. The
+// stored states/reads are never reinterpreted — only the finish test
+// knows the two rules.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { awardXP, XP_AWARDS_STORAGE_KEY, type XpGainPosition } from '../xp-engine';
@@ -31,6 +40,7 @@ import {
   setChapterStatus,
   type StudyState,
 } from './study';
+import { bookHasNotedChapters, type StudioImportsMap } from './studio-import';
 import type { StudyStatus } from './types';
 
 export interface StatusTransitionResult {
@@ -48,6 +58,12 @@ export interface ReadMarkResult {
   /** True when the chapter already carried a read mark — the mark
    * (and its original date) stand untouched, and nothing re-pays. */
   alreadyRead: boolean;
+  /** v233: the book this read finished, if any — a noteless book
+   * finishes by reading (bookFinishedByReading). Drives the same
+   * celebration the notes door drives. Null for noted books. */
+  bookCompleted: string | null;
+  /** v233: true when this read finished the whole Bible. */
+  bibleCompleted: boolean;
 }
 
 export function bookIsComplete(state: StudyState, book: string): boolean {
@@ -59,13 +75,56 @@ export function bookIsComplete(state: StudyState, book: string): boolean {
   return true;
 }
 
+/** v233: every chapter of the book carries a read mark. */
+export function bookAllRead(state: StudyState, book: string): boolean {
+  const total = chapterCountFor(book);
+  if (!total) return false;
+  for (let c = 1; c <= total; c++) {
+    if (chapterReadDate(state, book, c) === null) return false;
+  }
+  return true;
+}
+
+/**
+ * v233: the READ track's finish — a book with NO noted chapters at
+ * all (shipped data and studio imports both consulted) whose every
+ * chapter is Read. The moment a book gains even one noted chapter it
+ * leaves this rule forever and finishes by notes-Complete alone.
+ */
+export function bookFinishedByReading(
+  state: StudyState,
+  book: string,
+  imports: StudioImportsMap = {},
+): boolean {
+  if (bookHasNotedChapters(book, imports)) return false;
+  return bookAllRead(state, book);
+}
+
+/** v233: a book is FINISHED by whichever rule applies to it — the
+ * notes track (every chapter Complete) or, for a book with no noted
+ * chapters at all, the reading track (every chapter Read). */
+export function bookIsFinished(
+  state: StudyState,
+  book: string,
+  imports: StudioImportsMap = {},
+): boolean {
+  return bookIsComplete(state, book) || bookFinishedByReading(state, book, imports);
+}
+
+/** v233: the whole Bible, every book finished by its applicable rule. */
+export function bibleIsFinished(state: StudyState, imports: StudioImportsMap = {}): boolean {
+  return Object.keys(CHAPTER_COUNTS).every((book) => bookIsFinished(state, book, imports));
+}
+
 /**
  * v222 — the Books view's three sections, as one pure function so the
  * grouping is pin-able without rendering:
  *   Current    — the study store's currentBook first (unless finished),
  *                then every other book with ≥1 chapter carrying any
  *                state, not finished, in canonical Bible order.
- *   Finished   — every chapter Complete, in canonical order.
+ *   Finished   — every book finished by its applicable rule (v233:
+ *                notes-Complete, or all-Read for a book with no noted
+ *                chapters), in canonical order.
  *   Not Started — no chapter states at all, in canonical order.
  * Every book in canon lands in exactly one section. A book carrying only
  * a 'not-started' override counts as having a state (it was deliberately
@@ -74,12 +133,13 @@ export function bookIsComplete(state: StudyState, book: string): boolean {
 export function groupBooksByStudy(
   state: StudyState,
   canon: string[],
+  imports: StudioImportsMap = {},
 ): { current: string[]; finished: string[]; notStarted: string[] } {
   const finished: string[] = [];
   const progressed: string[] = [];
   const notStarted: string[] = [];
   for (const book of canon) {
-    if (bookIsComplete(state, book)) {
+    if (bookIsFinished(state, book, imports)) {
       finished.push(book);
       continue;
     }
@@ -141,6 +201,7 @@ export async function transitionChapterStatus(
   chapter: number,
   status: StudyStatus,
   position?: XpGainPosition,
+  imports: StudioImportsMap = {},
 ): Promise<StatusTransitionResult> {
   const prev = chapterStatus(state, book, chapter);
   let next = setChapterStatus(state, book, chapter, status);
@@ -161,12 +222,16 @@ export async function transitionChapterStatus(
   };
   if (status !== 'complete' || prev === 'complete') return result;
 
-  // Book +100 and Bible +1000 — the NOTES-WRITTEN track's bonuses;
-  // awardXP's own ledger keeps them one-time.
-  if (bookIsComplete(next, book)) {
+  // Book +100 and Bible +1000 — awardXP's own ledger keeps them
+  // one-time. v233: "finished" is bookIsFinished — this door's own
+  // notes track, plus the all-Read rule for a book with no noted
+  // chapters (normally settled by the read door; checked here too so
+  // a studio state import landing on an already-read noteless book
+  // still pays what the reading earned).
+  if (bookIsFinished(next, book, imports)) {
     result.bookCompleted = book;
     await awardXP('book-complete', `book:${book}`, position);
-    if (bibleIsComplete(next)) {
+    if (bibleIsFinished(next, imports)) {
       result.bibleCompleted = true;
       await awardXP('bible-complete', 'bible', position);
     }
@@ -186,30 +251,54 @@ export async function markChapterRead(
   book: string,
   chapter: number,
   position?: XpGainPosition,
+  imports: StudioImportsMap = {},
 ): Promise<ReadMarkResult> {
-  if (chapterReadDate(state, book, chapter) !== null) {
-    return { state, chapterXpAwarded: false, alreadyRead: true };
-  }
-  const today = new Date().toISOString().split('T')[0];
-  const next = setChapterRead(state, book, chapter, today);
-  await saveStudyState(next);
-
-  // Chapter +25 — guarded against BOTH historical key spellings.
-  const colonKey = `daily-reading:${book}:${chapter}`;
-  const dashKey = `daily-reading:${book}-${chapter}`;
-  const ledger = await readLedger();
+  const alreadyRead = chapterReadDate(state, book, chapter) !== null;
+  let next = state;
   let awarded = false;
-  if (!ledger.includes(colonKey) && !ledger.includes(dashKey)) {
-    const award = await awardXP('daily-reading', `${book}:${chapter}`, position);
-    awarded = award.awarded;
-    if (award.awarded) await stampLedgerKey(dashKey);
-  } else {
-    // Already paid under one spelling — stamp the other, so whichever
-    // door a future flow checks, this chapter can never pay twice.
-    if (!ledger.includes(colonKey)) await stampLedgerKey(colonKey);
-    if (!ledger.includes(dashKey)) await stampLedgerKey(dashKey);
+  if (!alreadyRead) {
+    const today = new Date().toISOString().split('T')[0];
+    next = setChapterRead(state, book, chapter, today);
+    await saveStudyState(next);
+
+    // Chapter +25 — guarded against BOTH historical key spellings.
+    const colonKey = `daily-reading:${book}:${chapter}`;
+    const dashKey = `daily-reading:${book}-${chapter}`;
+    const ledger = await readLedger();
+    if (!ledger.includes(colonKey) && !ledger.includes(dashKey)) {
+      const award = await awardXP('daily-reading', `${book}:${chapter}`, position);
+      awarded = award.awarded;
+      if (award.awarded) await stampLedgerKey(dashKey);
+    } else {
+      // Already paid under one spelling — stamp the other, so whichever
+      // door a future flow checks, this chapter can never pay twice.
+      if (!ledger.includes(colonKey)) await stampLedgerKey(colonKey);
+      if (!ledger.includes(dashKey)) await stampLedgerKey(dashKey);
+    }
   }
-  return { state: next, chapterXpAwarded: awarded, alreadyRead: false };
+  const result: ReadMarkResult = {
+    state: next,
+    chapterXpAwarded: awarded,
+    alreadyRead,
+    bookCompleted: null,
+    bibleCompleted: false,
+  };
+  // v233: this door is also where a NOTELESS book finishes — every
+  // chapter Read pays the book's +100 under the SAME idempotent key
+  // the notes track uses, and the Bible's +1000 follows the same
+  // per-book rule. Checked even when this chapter was already read:
+  // a book he finished reading before v233 settles the first time he
+  // touches any of its chapters again. awardXP's ledger has the last
+  // word — nothing here can double-pay.
+  if (bookFinishedByReading(next, book, imports)) {
+    result.bookCompleted = book;
+    await awardXP('book-complete', `book:${book}`, position);
+    if (bibleIsFinished(next, imports)) {
+      result.bibleCompleted = true;
+      await awardXP('bible-complete', 'bible', position);
+    }
+  }
+  return result;
 }
 
 /** v228 — clear the read mark. The XP it paid is never revoked, and

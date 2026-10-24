@@ -67,6 +67,7 @@ import {
   type ProfileIdentity,
 } from '@/lib/bible-v205/bubbles';
 import {
+  chapterDisplayMarks,
   chapterReadDate,
   chapterStatus,
   formatReadDate,
@@ -75,6 +76,7 @@ import {
 } from '@/lib/bible-v205/study';
 import { markChapterRead, unmarkChapterRead } from '@/lib/bible-v205/rewards';
 import {
+  chapterHasNotes,
   loadStudioImports,
   resolveChapterData,
   type StudioImportsMap,
@@ -83,7 +85,7 @@ import { loadChapterVerses, type VerseText } from '@/lib/bible-v205/verses';
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import { useSkin } from '@/hooks/use-skin';
-import { BlockView, CategoryTag, Ornament, SectionBand, SelfLineBlock, StatusChip } from './blocks';
+import { BlockView, CategoryTag, Ornament, ReadChip, SectionBand, SelfLineBlock, StatusChip } from './blocks';
 import { AuthorPicker, LivingBubbles, kindLabelFor, type BloomTiming } from './bubbles';
 import { IndexSheet } from './index-sheet';
 import { StoriesView } from './stories-view';
@@ -290,6 +292,11 @@ export function ChapterPageView(props: ChapterPageProps) {
   // v228: the READ track, displayed on this page but never derived
   // from the notes status above — the two marks are independent.
   const readDate: string | null = studyState ? chapterReadDate(studyState, book, chapter) : null;
+  // v233: the display model — on a chapter with NO notes the strip
+  // headlines READ, not a notes state (chapterDisplayMarks in study.ts).
+  const display = studyState
+    ? chapterDisplayMarks(studyState, book, chapter, chapterHasNotes(book, chapter, studioImports))
+    : null;
 
   const keptTotal = flat.filter((f) =>
     isKept(displayMarks, book, chapter, f.entry.start, f.entry.end, f.entry.blocks.some((b) => b.kind === 'highlight')),
@@ -446,7 +453,7 @@ export function ChapterPageView(props: ChapterPageProps) {
   // is exactly where the two marks got confused.
   const handleMarkRead = async () => {
     if (!studyState) return;
-    const result = await markChapterRead(studyState, book, chapter);
+    const result = await markChapterRead(studyState, book, chapter, undefined, studioImports);
     setStudyState(result.state);
   };
   const handleClearRead = async () => {
@@ -576,13 +583,26 @@ export function ChapterPageView(props: ChapterPageProps) {
             this strip changes a state any more — the Queue link only
             navigates. ── */}
         <View style={[styles.strip, { backgroundColor: palette.raspTint }]}>
-          <StatusChip status={status} palette={palette} />
-          <Text style={[styles.stripText, { color: palette.ink }]}>
-            {stripText}
-            {readDate ? (
-              <Text style={{ color: palette.inkSoft, fontWeight: '700' }}>{`  ·  ✓ Read ${formatReadDate(readDate)}`}</Text>
-            ) : null}
-          </Text>
+          {display?.headline === 'read' ? (
+            <>
+              <ReadChip palette={palette} />
+              <Text style={[styles.stripText, { color: palette.ink }]}>
+                {readDate
+                  ? `Chapter ${chapter} — read ${formatReadDate(readDate)}. No notes for this chapter — reading is the whole mark.`
+                  : `Chapter ${chapter} — read. No notes for this chapter, so a Complete here counts as Read.`}
+              </Text>
+            </>
+          ) : (
+            <>
+              <StatusChip status={status} palette={palette} />
+              <Text style={[styles.stripText, { color: palette.ink }]}>
+                {stripText}
+                {readDate ? (
+                  <Text style={{ color: palette.inkSoft, fontWeight: '700' }}>{`  ·  ✓ Read ${formatReadDate(readDate)}`}</Text>
+                ) : null}
+              </Text>
+            </>
+          )}
           <Pressable onPress={props.onOpenQueue} hitSlop={8}>
             <Text style={[styles.stripLink, { color: palette.raspDeep }]}>Queue ›</Text>
           </Pressable>

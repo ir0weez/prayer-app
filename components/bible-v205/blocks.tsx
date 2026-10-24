@@ -164,6 +164,17 @@ export const STATUS_LABEL: Record<StudyStatus, string> = {
   none: 'None',
 };
 
+/** v233: the READ headline chip — a noteless chapter's finished
+ * state ("Read means Read"). Dressed exactly like the Complete chip:
+ * on a noteless chapter, Read IS the finished mark. */
+export function ReadChip({ palette }: { palette: BiblePalette }) {
+  return (
+    <View style={[styles.chip, { backgroundColor: palette.rasp, borderColor: palette.rasp }]}>
+      <Text style={[styles.chipText, { color: '#FFFFFF' }]}>✓ Read</Text>
+    </View>
+  );
+}
+
 export function StatusChip({ status, palette }: { status: StudyStatus; palette: BiblePalette }) {
   const style =
     status === 'complete'

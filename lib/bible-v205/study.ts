@@ -261,6 +261,57 @@ export function chapterMarks(
   return { status: chapterStatus(state, book, chapter), readDate: chapterReadDate(state, book, chapter) };
 }
 
+// ─── v233: the display model — "Read means Read" ─────────────────────────────
+// HIS RULING (2026-10-24): "Instead of 'Complete' it should say 'Read'
+// unless there's notes for it, then it should mark both." Complete is
+// a claim about NOTES, so on a chapter with NO notes the headline
+// state is the READ state: the notes-state editor does not render,
+// and a stored notes-state of Complete — set in the studio, where the
+// pipeline is bookkeeping — DISPLAYS as Read and lights the read
+// affordance. The stored state itself is never deleted or rewritten
+// by the display: the interpretation lives here, in the display layer
+// only, and if notes ever arrive for the chapter (they flip `noted`),
+// the stored Complete becomes the headline again, meaningful as
+// itself. `noted` is computed by the caller from the data layer
+// (chapterHasNotes in studio-import.ts) so this module stays a pure
+// function of the study store plus that one fact.
+
+export interface ChapterDisplayMarks {
+  /** The stored notes-written status, verbatim. */
+  status: StudyStatus;
+  /** The stored read date, verbatim. */
+  readDate: string | null;
+  /** True when the chapter carries notes (shipped or imported). */
+  noted: boolean;
+  /** True when the chapter should present as READ: it carries a read
+   * mark, or it is noteless with a stored Complete. */
+  displayRead: boolean;
+  /** What the headline pill says: 'read' on a noteless chapter that
+   * presents as read; otherwise the stored notes status rules. */
+  headline: 'read' | 'status';
+  /** The notes-state editor renders only where notes exist. */
+  showNotesEditor: boolean;
+}
+
+export function chapterDisplayMarks(
+  state: StudyState,
+  book: string,
+  chapter: number,
+  noted: boolean,
+): ChapterDisplayMarks {
+  const status = chapterStatus(state, book, chapter);
+  const readDate = chapterReadDate(state, book, chapter);
+  const displayRead = readDate !== null || (!noted && status === 'complete');
+  return {
+    status,
+    readDate,
+    noted,
+    displayRead,
+    headline: !noted && displayRead ? 'read' : 'status',
+    showNotesEditor: noted,
+  };
+}
+
 const READ_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** "2026-10-24" -> "Oct 24, 2026" for the ✓ Read lines; '' when the

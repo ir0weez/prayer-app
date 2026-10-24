@@ -18,14 +18,21 @@ import { BitSettle } from '@/components/bit-motion';
 import { chapterCountFor } from '@/lib/bible-v205/index';
 import type { StudyStatus } from '@/lib/bible-v205/types';
 import {
+  chapterDisplayMarks,
   chapterMarks,
   chapterStatus,
   formatReadDate,
   loadStudyState,
+  type ChapterDisplayMarks,
   type StudyState,
 } from '@/lib/bible-v205/study';
+import {
+  chapterHasNotes,
+  loadStudioImports,
+  type StudioImportsMap,
+} from '@/lib/bible-v205/studio-import';
 import { markChapterRead, transitionChapterStatus, unmarkChapterRead } from '@/lib/bible-v205/rewards';
-import { Ornament, StatusChip, STATUS_LABEL } from '@/components/bible-v205/blocks';
+import { Ornament, ReadChip, StatusChip, STATUS_LABEL } from '@/components/bible-v205/blocks';
 import { BookCompleteCelebration } from '@/components/bible-v205/celebration';
 import { chapterLabel, useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 
@@ -57,6 +64,7 @@ export default function BibleBookScreen() {
   const total = chapterCountFor(book);
 
   const [studyState, setStudyState] = useState<StudyState | null>(null);
+  const [studioImports, setStudioImports] = useState<StudioImportsMap>({});
   const [selected, setSelected] = useState(1);
   const [celebration, setCelebration] = useState<{ book: string; bibleComplete: boolean } | null>(null);
 
@@ -64,6 +72,7 @@ export default function BibleBookScreen() {
     useCallback(() => {
       let live = true;
       loadStudyState().then((s) => live && setStudyState(s));
+      loadStudioImports().then((m) => live && setStudioImports(m));
       return () => {
         live = false;
       };
@@ -78,29 +87,51 @@ export default function BibleBookScreen() {
   // editor below names the read date outright.
   const readDateOf = (c: number): string | null =>
     studyState ? chapterMarks(studyState, book, c).readDate : null;
+
+  // v233: the display model — a chapter with no notes (shipped or
+  // imported) headlines as READ, never Complete (chapterDisplayMarks).
+  const displayOf = (c: number): ChapterDisplayMarks =>
+    studyState
+      ? chapterDisplayMarks(studyState, book, c, chapterHasNotes(book, c, studioImports))
+      : {
+          status: 'none',
+          readDate: null,
+          noted: chapterHasNotes(book, c, studioImports),
+          displayRead: false,
+          headline: 'status',
+          showNotesEditor: false,
+        };
+
   const readCount = useMemo(() => {
     let n = 0;
-    for (let c = 1; c <= total; c++) if (readDateOf(c)) n += 1;
+    for (let c = 1; c <= total; c++) if (displayOf(c).displayRead) n += 1;
     return n;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studyState, book, total]);
+  }, [studyState, studioImports, book, total]);
 
   const counts = useMemo(() => {
     const m = new Map<StudyStatus, number>();
     for (let c = 1; c <= total; c++) {
-      const s = statusOf(c);
-      m.set(s, (m.get(s) ?? 0) + 1);
+      const d = displayOf(c);
+      // A noteless chapter presenting as Read is counted as read
+      // (readCount above), not as a notes-Complete it never claimed.
+      if (!d.noted && d.status === 'complete') continue;
+      m.set(d.status, (m.get(d.status) ?? 0) + 1);
     }
     return m;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studyState, book, total]);
+  }, [studyState, studioImports, book, total]);
 
   const selStatus = statusOf(selected);
   const selReadDate = readDateOf(selected);
+  const selDisplay = displayOf(selected);
   const applyRead = async () => {
     if (!studyState) return;
-    const result = await markChapterRead(studyState, book, selected);
+    const result = await markChapterRead(studyState, book, selected, undefined, studioImports);
     setStudyState(result.state);
+    if (result.bookCompleted) {
+      setCelebration({ book: result.bookCompleted, bibleComplete: result.bibleCompleted });
+    }
   };
   const clearRead = async () => {
     if (!studyState) return;
@@ -177,7 +208,10 @@ export default function BibleBookScreen() {
         <View style={styles.grid}>
           {Array.from({ length: total }, (_, i) => i + 1).map((c) => {
             const s = statusOf(c);
-            const st = cellStyle(s);
+            const d = displayOf(c);
+            // v233: a noteless chapter's cell follows its READ state;
+            // a noted chapter's cell wears its notes state, as before.
+            const st = cellStyle(!d.noted && d.displayRead ? 'complete' : s);
             const isSel = c === selected;
             return (
               <Pressable
@@ -190,7 +224,7 @@ export default function BibleBookScreen() {
                 onPress={() => setSelected(c)}
               >
                 <Text style={[styles.cellN, { color: st.color }]}>{c}</Text>
-                {readDateOf(c) ? (
+                {d.displayRead ? (
                   <View style={[styles.cellReadDot, { backgroundColor: palette.rasp }]} />
                 ) : null}
               </Pressable>
@@ -215,18 +249,26 @@ export default function BibleBookScreen() {
         <View style={[styles.detail, { borderColor: palette.line, backgroundColor: palette.paper2 }]}>
           <View style={styles.detailHead}>
             <Text style={[styles.detailTitle, { color: palette.ink }]}>{chapterLabel(selected)}</Text>
-            <StatusChip status={selStatus} palette={palette} />
+            {selDisplay.headline === 'read' ? (
+              <ReadChip palette={palette} />
+            ) : (
+              <StatusChip status={selStatus} palette={palette} />
+            )}
           </View>
           <Text style={[styles.detailSub, { color: palette.inkSoft }]}>
-            {selStatus === 'complete'
-              ? 'Notes finished — read it, walk it as Stories, or queue it for another pass.'
-              : selStatus === 'restudy'
-                ? 'In your Current list — due another read.'
-                : selStatus === 'write'
-                  ? 'In your Next list — waiting to be written.'
-                  : selStatus === 'in-progress'
-                    ? 'Notes under way.'
-                    : 'No recorded state — it reads as a plain chapter.'}
+            {!selDisplay.noted
+              ? selDisplay.displayRead
+                ? 'Read — this chapter has no notes, so reading is the whole mark here.'
+                : 'No notes for this chapter — Mark as Read is the mark for it.'
+              : selStatus === 'complete'
+                ? 'Notes finished — read it, walk it as Stories, or queue it for another pass.'
+                : selStatus === 'restudy'
+                  ? 'In your Current list — due another read.'
+                  : selStatus === 'write'
+                    ? 'In your Next list — waiting to be written.'
+                    : selStatus === 'in-progress'
+                      ? 'Notes under way.'
+                      : 'No recorded state — it reads as a plain chapter.'}
           </Text>
           <View style={styles.detailBtns}>
             <Pressable style={[styles.btn, styles.btnPrimary, { backgroundColor: palette.rasp }]} onPress={() => openChapter(false)}>
@@ -273,31 +315,42 @@ export default function BibleBookScreen() {
               </Pressable>
             )}
           </View>
-          <Text style={[styles.editorLabel, { color: palette.inkSoft }]}>Notes state — the notes-written mark; any state, including back to none</Text>
-          <View style={styles.editorRow}>
-            {STATUS_EDITOR_ORDER.map((s) => {
-              const cs = editorChipColors(palette, s);
-              const isCurrent = s === selStatus;
-              return (
-                <Pressable
-                  key={s}
-                  onPress={() => applyStatus(s)}
-                  style={[
-                    styles.editorChip,
-                    { backgroundColor: cs.backgroundColor, borderColor: isCurrent ? palette.ink : cs.borderColor },
-                    isCurrent ? styles.editorChipCurrent : null,
-                  ]}
-                >
-                  <Text style={[styles.editorChipText, { color: cs.color }]}>
-                    {isCurrent ? '● ' : ''}{STATUS_LABEL[s]}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
-            Notes: {STATUS_LABEL[selStatus]} — it changes only when you change it.
-          </Text>
+          {selDisplay.showNotesEditor ? (
+            <>
+              <Text style={[styles.editorLabel, { color: palette.inkSoft }]}>Notes state — the notes-written mark; any state, including back to none</Text>
+              <View style={styles.editorRow}>
+                {STATUS_EDITOR_ORDER.map((s) => {
+                  const cs = editorChipColors(palette, s);
+                  const isCurrent = s === selStatus;
+                  return (
+                    <Pressable
+                      key={s}
+                      onPress={() => applyStatus(s)}
+                      style={[
+                        styles.editorChip,
+                        { backgroundColor: cs.backgroundColor, borderColor: isCurrent ? palette.ink : cs.borderColor },
+                        isCurrent ? styles.editorChipCurrent : null,
+                      ]}
+                    >
+                      <Text style={[styles.editorChipText, { color: cs.color }]}>
+                        {isCurrent ? '● ' : ''}{STATUS_LABEL[s]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
+                Notes: {STATUS_LABEL[selStatus]} — it changes only when you change it.
+              </Text>
+            </>
+          ) : selStatus !== 'none' ? (
+            // v233: noteless chapter — no notes editor, but a stored
+            // notes state is never hidden from him: it stays on file
+            // and counts again the day notes exist for this chapter.
+            <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
+              Notes state on file: {STATUS_LABEL[selStatus]} — it counts again if notes arrive for this chapter.
+            </Text>
+          ) : null}
         </View>
         <View style={{ height: 30 }} />
       </ScrollView>

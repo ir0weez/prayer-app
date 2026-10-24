@@ -48,7 +48,7 @@
 //    layer into a distinct backup section the studio can read later.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CHAPTER_COUNTS, getChapterData } from './index';
+import { CHAPTER_COUNTS, chapterCountFor, getChapterData } from './index';
 import {
   createScheduleEvent,
   createScheduleTodo,
@@ -872,6 +872,41 @@ export function resolveChapterData(
   const override = imports[studioImportKey(book, chapter)];
   if (override) return override;
   return getChapterData(book, chapter);
+}
+
+/** Does this chapter data carry any of his notes? An entry counts
+ * only when it carries blocks — a span-only entry is a placeholder
+ * the page fills with verses, not a note. */
+export function chapterDataHasNotes(data: V205ChapterData | null): boolean {
+  if (!data) return false;
+  return data.sections.some((s) => s.entries.some((e) => e.blocks.length > 0));
+}
+
+/**
+ * v233 — HIS MODEL: "Complete" is a claim about NOTES. A chapter HAS
+ * notes when the shipped commentary data carries entries for it, or
+ * the studio-import overrides add entries for it (the override is the
+ * resolved chapter, so the first imported note flips this too).
+ * Computed from the data layer every time — never hard-coded per book.
+ */
+export function chapterHasNotes(
+  book: string,
+  chapter: number,
+  imports: StudioImportsMap,
+): boolean {
+  return chapterDataHasNotes(resolveChapterData(book, chapter, imports));
+}
+
+/** True when ANY chapter of the book carries notes (shipped or
+ * imported). A book with no noted chapters at all finishes by
+ * READING; a book with even one noted chapter finishes by the
+ * notes-Complete track (rewards.ts). */
+export function bookHasNotedChapters(book: string, imports: StudioImportsMap): boolean {
+  const total = chapterCountFor(book);
+  for (let c = 1; c <= total; c++) {
+    if (chapterHasNotes(book, c, imports)) return true;
+  }
+  return false;
 }
 
 /** A book counts as "imported" when any chapter override exists for it. */

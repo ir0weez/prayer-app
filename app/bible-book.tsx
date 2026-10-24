@@ -18,11 +18,13 @@ import { BitSettle } from '@/components/bit-motion';
 import { chapterCountFor } from '@/lib/bible-v205/index';
 import type { StudyStatus } from '@/lib/bible-v205/types';
 import {
+  chapterMarks,
   chapterStatus,
+  formatReadDate,
   loadStudyState,
   type StudyState,
 } from '@/lib/bible-v205/study';
-import { transitionChapterStatus } from '@/lib/bible-v205/rewards';
+import { markChapterRead, transitionChapterStatus, unmarkChapterRead } from '@/lib/bible-v205/rewards';
 import { Ornament, StatusChip, STATUS_LABEL } from '@/components/bible-v205/blocks';
 import { BookCompleteCelebration } from '@/components/bible-v205/celebration';
 import { chapterLabel, useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
@@ -71,6 +73,18 @@ export default function BibleBookScreen() {
   const statusOf = (c: number): StudyStatus =>
     studyState ? chapterStatus(studyState, book, c) : 'none';
 
+  // v228: the second mark. The grid shows both — the notes state in
+  // the cell's dress (above) and a quiet dot for a read chapter; the
+  // editor below names the read date outright.
+  const readDateOf = (c: number): string | null =>
+    studyState ? chapterMarks(studyState, book, c).readDate : null;
+  const readCount = useMemo(() => {
+    let n = 0;
+    for (let c = 1; c <= total; c++) if (readDateOf(c)) n += 1;
+    return n;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studyState, book, total]);
+
   const counts = useMemo(() => {
     const m = new Map<StudyStatus, number>();
     for (let c = 1; c <= total; c++) {
@@ -82,6 +96,16 @@ export default function BibleBookScreen() {
   }, [studyState, book, total]);
 
   const selStatus = statusOf(selected);
+  const selReadDate = readDateOf(selected);
+  const applyRead = async () => {
+    if (!studyState) return;
+    const result = await markChapterRead(studyState, book, selected);
+    setStudyState(result.state);
+  };
+  const clearRead = async () => {
+    if (!studyState) return;
+    setStudyState(await unmarkChapterRead(studyState, book, selected));
+  };
   const openChapter = (stories: boolean) =>
     router.push({
       pathname: '/bible-chapter',
@@ -143,6 +167,12 @@ export default function BibleBookScreen() {
               {total} {total === 1 ? 'chapter' : 'chapters'}
             </Text>
           </View>
+          {readCount > 0 ? (
+            <View style={[styles.sumChip, { borderColor: palette.line, backgroundColor: palette.paper2 }]}>
+              <View style={[styles.readDot, { backgroundColor: palette.rasp }]} />
+              <Text style={[styles.sumN, { color: palette.ink }]}>{readCount} read</Text>
+            </View>
+          ) : null}
         </View>
         <View style={styles.grid}>
           {Array.from({ length: total }, (_, i) => i + 1).map((c) => {
@@ -160,6 +190,9 @@ export default function BibleBookScreen() {
                 onPress={() => setSelected(c)}
               >
                 <Text style={[styles.cellN, { color: st.color }]}>{c}</Text>
+                {readDateOf(c) ? (
+                  <View style={[styles.cellReadDot, { backgroundColor: palette.rasp }]} />
+                ) : null}
               </Pressable>
             );
           })}
@@ -224,7 +257,23 @@ export default function BibleBookScreen() {
               </Pressable>
             )}
           </View>
-          <Text style={[styles.editorLabel, { color: palette.inkSoft }]}>Set state — any state, including back to none</Text>
+          {/* v228: the READ mark, beside the notes editor — set and
+              cleared here and in the reader, nowhere else. */}
+          <View style={styles.readRow}>
+            {selReadDate ? (
+              <>
+                <Text style={[styles.readLine, { color: palette.ink }]}>✓ Read · {formatReadDate(selReadDate)}</Text>
+                <Pressable onPress={clearRead} hitSlop={8} accessibilityLabel={`Clear the read mark for ${book} ${selected}`}>
+                  <Text style={[styles.readAction, { color: palette.inkFaint, textDecorationLine: 'underline' }]}>Clear</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable onPress={applyRead} hitSlop={8} accessibilityLabel={`Mark ${book} ${selected} as read`}>
+                <Text style={[styles.readAction, { color: palette.raspDeep }]}>Mark as Read</Text>
+              </Pressable>
+            )}
+          </View>
+          <Text style={[styles.editorLabel, { color: palette.inkSoft }]}>Notes state — the notes-written mark; any state, including back to none</Text>
           <View style={styles.editorRow}>
             {STATUS_EDITOR_ORDER.map((s) => {
               const cs = editorChipColors(palette, s);
@@ -247,7 +296,7 @@ export default function BibleBookScreen() {
             })}
           </View>
           <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
-            Recorded state: {STATUS_LABEL[selStatus]} — it changes only when you change it.
+            Notes: {STATUS_LABEL[selStatus]} — it changes only when you change it.
           </Text>
         </View>
         <View style={{ height: 30 }} />
@@ -275,6 +324,11 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 20 },
   cell: { width: '17.9%', aspectRatio: 1.15, borderWidth: 1.5, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   cellN: { fontSize: 16, fontWeight: '800' },
+  cellReadDot: { position: 'absolute', bottom: 4, width: 5, height: 5, borderRadius: 3 },
+  readDot: { width: 7, height: 7, borderRadius: 4 },
+  readRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14 },
+  readLine: { fontSize: 13.5, fontWeight: '800' },
+  readAction: { fontSize: 13.5, fontWeight: '800' },
   detail: { borderWidth: 1, borderRadius: 14, padding: 16, marginTop: 20 },
   detailHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   detailTitle: { fontSize: 19, fontWeight: '800' },

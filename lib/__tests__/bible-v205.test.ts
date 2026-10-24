@@ -58,6 +58,7 @@ import { composePreview, previewFor } from '../bible-v205/preview';
 import { PREVIEWS } from '../bible-v205/previews';
 import { STUDY_SEED } from '../bible-v205/study-seed';
 import {
+  chapterReadDate,
   chapterStatus,
   deriveSeedPosition,
   loadStudyState,
@@ -78,7 +79,7 @@ import {
   UNIFIED_BIBLE_KEY,
   type UnifiedBibleState,
 } from '../bible-unified';
-import { transitionChapterStatus } from '../bible-v205/rewards';
+import { markChapterRead, transitionChapterStatus, unmarkChapterRead } from '../bible-v205/rewards';
 import {
   addKeeperLine,
   applyTintToSelection,
@@ -280,6 +281,7 @@ describe('v206 — the Notion seed is cleared; only app progress counts', () => 
     ];
     const dirty = {
       overrides: { 'Genesis|1': 'complete' as const, 'Exodus|2': 'complete' as const },
+      reads: {},
       writeQueue: [...seeded, { book: 'Genesis', chapter: 30 }],
       restudyQueue: [...seeded],
       currentBook: null,
@@ -324,6 +326,7 @@ describe('v206 — the Notion seed is cleared; only app progress counts', () => 
     // v205 "status" came from queue membership alone).
     let state: StudyState = {
       overrides: {},
+      reads: {},
       writeQueue: [{ book: '1 John', chapter: 1 }],
       restudyQueue: [{ book: '1 John', chapter: 1 }],
       currentBook: null,
@@ -442,30 +445,48 @@ describe('migration — pre-v205 check-offs, Complete wins', () => {
 });
 
 describe('rewards — the existing schedule pays through the new states', () => {
-  it('(a) a chapter completed before v205 does NOT re-pay its +25 XP', async () => {
+  it('(a) a chapter read before v205 does NOT re-pay its +25 XP (v228: the award lives on the READ door)', async () => {
     // The old check-off page paid Exodus 1 under the DASH key — the
     // exact case where a naive new system would pay it a second time.
     store.set(XP_AWARDS_STORAGE_KEY, JSON.stringify(['daily-reading:Exodus-1']));
-    const result = await transitionChapterStatus(seedStudyState(), 'Exodus', 1, 'complete');
+    const result = await markChapterRead(seedStudyState(), 'Exodus', 1);
     expect(result.chapterXpAwarded).toBe(false);
     expect((await loadXPState()).totalXP).toBe(0);
+    // The read mark itself still lands — only the money is spent.
+    expect(chapterReadDate(result.state, 'Exodus', 1)).not.toBeNull();
     // The colon spelling is stamped too, so no future path can pay it either.
     const ledger = JSON.parse(store.get(XP_AWARDS_STORAGE_KEY)!) as string[];
     expect(ledger).toContain('daily-reading:Exodus:1');
   });
 
-  it('(b) completing a chapter in the new UI pays exactly once', async () => {
-    const first = await transitionChapterStatus(seedStudyState(), 'Genesis', 30, 'complete');
+  it('(b) marking a chapter read in the new UI pays exactly once', async () => {
+    const first = await markChapterRead(seedStudyState(), 'Genesis', 30);
     expect(first.chapterXpAwarded).toBe(true);
+    expect(first.alreadyRead).toBe(false);
     const afterFirst = (await loadXPState()).totalXP;
     expect(afterFirst).toBeGreaterThanOrEqual(25);
     const ledger = JSON.parse(store.get(XP_AWARDS_STORAGE_KEY)!) as string[];
     expect(ledger).toContain('daily-reading:Genesis:30');
-    // Move it away and back — the ledger, not the state, has the last word.
-    const away = await transitionChapterStatus(first.state, 'Genesis', 30, 'write');
-    const back = await transitionChapterStatus(away.state, 'Genesis', 30, 'complete');
-    expect(back.chapterXpAwarded).toBe(false);
+    // Marking again while read: no-op, the original date stands.
+    const again = await markChapterRead(first.state, 'Genesis', 30);
+    expect(again.alreadyRead).toBe(true);
+    expect(again.chapterXpAwarded).toBe(false);
+    // Un-reading never revokes; re-reading never re-grants — the
+    // ledger, not the mark, has the last word.
+    const cleared = await unmarkChapterRead(again.state, 'Genesis', 30);
+    expect(chapterReadDate(cleared, 'Genesis', 30)).toBeNull();
+    const remarked = await markChapterRead(cleared, 'Genesis', 30);
+    expect(remarked.chapterXpAwarded).toBe(false);
     expect((await loadXPState()).totalXP).toBe(afterFirst);
+  });
+
+  it('(c) v228 re-key: completing a chapter (notes written) pays NO reading XP and sets no read mark', async () => {
+    const result = await transitionChapterStatus(seedStudyState(), 'Genesis', 30, 'complete');
+    expect(chapterStatus(result.state, 'Genesis', 30)).toBe('complete');
+    expect(chapterReadDate(result.state, 'Genesis', 30)).toBeNull();
+    expect((await loadXPState()).totalXP).toBe(0);
+    const ledger = JSON.parse(store.get(XP_AWARDS_STORAGE_KEY) ?? '[]') as string[];
+    expect(ledger.some((k) => k.startsWith('daily-reading'))).toBe(false);
   });
 
   it('finishing a book pays the +100 book bonus once and reports the celebration', async () => {
@@ -474,14 +495,14 @@ describe('rewards — the existing schedule pays through the new states', () => 
     expect(result.bibleCompleted).toBe(false);
     const ledger = JSON.parse(store.get(XP_AWARDS_STORAGE_KEY)!) as string[];
     expect(ledger).toContain('book-complete:book:Obadiah');
-    expect((await loadXPState()).totalXP).toBeGreaterThanOrEqual(125);
+    // v228: the book bonus stands alone — no +25 rides along any more.
+    expect(ledger.some((k) => k.startsWith('daily-reading'))).toBe(false);
+    expect((await loadXPState()).totalXP).toBeGreaterThanOrEqual(100);
   });
 
   it('Write and ReStudy transitions pay nothing', async () => {
-    const w = await transitionChapterStatus(seedStudyState(), 'Genesis', 7, 'write');
-    expect(w.chapterXpAwarded).toBe(false);
-    const r = await transitionChapterStatus(seedStudyState(), 'Genesis', 7, 'restudy');
-    expect(r.chapterXpAwarded).toBe(false);
+    await transitionChapterStatus(seedStudyState(), 'Genesis', 7, 'write');
+    await transitionChapterStatus(seedStudyState(), 'Genesis', 7, 'restudy');
     expect((await loadXPState()).totalXP).toBe(0);
   });
 });
@@ -1231,8 +1252,12 @@ describe('v211 — the box gets its buttons back; position lives in the new stor
     expect(position.lastRead).toEqual({ book: 'Leviticus', chapter: 18, date: today });
     expect(position.target).toEqual({ book: 'Leviticus', chapter: 19 });
     expect(readingPositionDisplay(position)).toBe('Leviticus 19');
-    // XP paid exactly as before — the position write changes nothing.
-    expect(done.chapterXpAwarded).toBe(true);
+    // v228: the position stamp is a position marker ONLY — completing
+    // the chapter set no read mark and paid no reading XP (both moved
+    // to the Mark as Read door).
+    expect(chapterReadDate(done.state, 'Leviticus', 18)).toBeNull();
+    const ledger = JSON.parse(store.get(XP_AWARDS_STORAGE_KEY) ?? '[]') as string[];
+    expect(ledger.some((k) => k.startsWith('daily-reading'))).toBe(false);
     expect(store.get(UNIFIED_BIBLE_KEY)).toBe('{"sentinel":true}');
   });
 

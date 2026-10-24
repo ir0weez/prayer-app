@@ -59,7 +59,8 @@ import {
   loadStoredPeople,
 } from './studio-people';
 import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY } from '../prayercircle-storage';
-import { chapterStatus, loadStudyState } from './study';
+import { chapterStatus, loadStudyState, saveStudyState } from './study';
+import { applyStudioStatesReads, type StudioStateEntry } from './studio-states';
 import { transitionChapterStatus } from './rewards';
 import type { StudyStatus } from './types';
 import {
@@ -211,6 +212,11 @@ export interface DrivePlan {
    *  earlier lastReached, a need the pack no longer lists) simply
    *  cannot be expressed by the merge and is never applied. */
   peoplePack: StudioPeoplePack | null;
+  /** v228: a states pack's read marks — they ride whole too (the read
+   *  merge is forward-only: a stale export can never un-read a
+   *  chapter), while its notes states split into auto/held above by
+   *  the same backward-move rule as chapterState. */
+  statesReads: StudioStateEntry[];
 }
 
 export function planDrivePack(
@@ -227,9 +233,34 @@ export function planDrivePack(
     heldSchedule: [],
     skippedSchedule: 0,
     peoplePack: null,
+    statesReads: [],
   };
   if (pack.kind === 'people') {
     plan.peoplePack = pack.people;
+    return plan;
+  }
+  if (pack.kind === 'states') {
+    // v228: notes states classify exactly like a notes pack's
+    // chapterState (backward moves wait for his tap); read marks are
+    // collected whole — applyStudioStatesReads is forward-only.
+    for (const entry of pack.states.chapters) {
+      if (entry.readDate !== null) plan.statesReads.push(entry);
+      if (entry.notesState === null) continue;
+      const from = currentStatus(entry.book, entry.chapter);
+      const to = entry.notesState;
+      if (isBackwardMove(from, to)) {
+        plan.heldStates.push({
+          id: `state|${entry.book}|${entry.chapter}|${to}`,
+          kind: 'state',
+          book: entry.book,
+          chapter: entry.chapter,
+          from,
+          to,
+        });
+      } else {
+        plan.autoStates.push({ book: entry.book, chapter: entry.chapter, to });
+      }
+    }
     return plan;
   }
   if (pack.kind === 'notes') {
@@ -479,6 +510,16 @@ export async function checkDriveFolder(): Promise<
       const result = await transitionChapterStatus(studyState, auto.book, auto.chapter, auto.to);
       studyState = result.state;
       appliedHere += 1;
+    }
+    if (plan.statesReads.length > 0) {
+      // v228: read marks from a states pack — forward-only merge, so
+      // an older export can never un-read or re-date a chapter.
+      const reads = applyStudioStatesReads(studyState, plan.statesReads);
+      if (reads.applied > 0) {
+        studyState = reads.state;
+        await saveStudyState(studyState);
+        appliedHere += reads.applied;
+      }
     }
     if (plan.autoSchedule.length > 0) {
       const merged = mergeStudioSchedule(existingEvents, existingTodos, {

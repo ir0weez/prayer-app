@@ -9,6 +9,11 @@
 //   prayercircle-schedule.json → schedule events/todos for one week
 //   prayercircle-people.json   → prayer people + needs + journal notes
 //                                (validated here; applied by studio-people.ts)
+//   a backup's studioStates    → the two chapter marks (v228): notesState
+//     section                     walks transitionChapterStatus like any
+//                                chapterState; readDate lands on the read
+//                                track, later date wins, null never clears
+//                                (validated/applied by studio-states.ts)
 //
 // Rules the import obeys, from Jonathan's own asks:
 //  · NOTES REPLACE that chapter's imported commentary entries only. The
@@ -49,6 +54,7 @@ import type {
   V205Section,
 } from './types';
 import type { RelationshipType, ReminderFrequency } from '../prayercircle-data';
+import { validateStudioStates, type StudioStatesSection } from './studio-states';
 
 // ── Studio pack shapes (exactly what studio.js exports) ─────────────────────
 
@@ -110,7 +116,8 @@ export interface StudioSchedulePayload {
 export type StudioPack =
   | { kind: 'notes'; chapters: StudioChapterPayload[] }
   | { kind: 'schedule'; schedule: StudioSchedulePayload }
-  | { kind: 'people'; people: StudioPeoplePack };
+  | { kind: 'people'; people: StudioPeoplePack }
+  | { kind: 'states'; states: StudioStatesSection };
 
 // ── People pack shapes (v225 "People, Through the Door") ────────────────────
 // prayercircle-people.json: the studio's People page exports his prayer
@@ -489,6 +496,13 @@ function validatePeoplePack(raw: Record<string, unknown>): StudioPeoplePack {
  */
 export function parseStudioFile(parsed: unknown): StudioPack {
   if (!isRecord(parsed)) fail('That file is not a studio pack (expected a JSON object).');
+  // v228: a backup-shaped file carrying a studioStates section is a
+  // states pack — the two-marks bridge coming back. Checked first: a
+  // full backup also carries other sections, and this is the one the
+  // door applies from it.
+  if (isRecord(parsed.studioStates)) {
+    return { kind: 'states', states: { chapters: validateStudioStates(parsed.studioStates) } };
+  }
   if (Array.isArray(parsed.chapters)) {
     const chapters = parsed.chapters.map((c, i) => validateChapter(c, `chapter ${i}`));
     if (chapters.length === 0) fail('Library pack has no chapters.');

@@ -1,11 +1,13 @@
 // ─── v222 "The Door" — pins ─────────────────────────────────────────────────
-// WS1: Mark Complete at the foot of the chapter page, through the same
-// transitionChapterStatus door as the strip menu. WS2: the DATA import
-// door — studio packs validated before anything is applied, notes
-// replacing only the imported entries, marks never touched, chapter
-// states through the transition path, schedule packs deduped by
-// (date, start, title). WS3: the Books view's three sections over all
-// 66 books.
+// WS1 (v228 SUPERSEDED): the foot of the chapter page carried a Mark
+// Complete button; Jonathan's two-marks ruling removed every
+// notes-state control from the reader — the WS1 pins below now assert
+// the Mark as Read foot and the absence of the old controls. WS2: the
+// DATA import door — studio packs validated before anything is
+// applied, notes replacing only the imported entries, marks never
+// touched, chapter states through the transition path, schedule packs
+// deduped by (date, start, title). WS3: the Books view's three
+// sections over all 66 books.
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,8 +30,9 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 import { CHAPTER_COUNTS, getChapterData } from '../bible-v205/index';
-import { chapterStatus, seedStudyState, setChapterStatus, setCurrentBook } from '../bible-v205/study';
-import { groupBooksByStudy, transitionChapterStatus } from '../bible-v205/rewards';
+import { chapterReadDate, chapterStatus, seedStudyState, setChapterStatus, setCurrentBook } from '../bible-v205/study';
+import { groupBooksByStudy, markChapterRead, transitionChapterStatus } from '../bible-v205/rewards';
+import { loadXPState } from '../xp-engine';
 import {
   MARKS_KEY,
   emptyMarks,
@@ -113,39 +116,45 @@ const SCHEDULE_PACK: StudioSchedulePayload = {
   ],
 };
 
-describe('v222 WS1 — Mark Complete at the foot of the chapter page', () => {
-  it('the foot carries a Mark Complete button before the chapter nav, and a completed-state line', () => {
+describe('v222 WS1 — the foot of the chapter page (v228: Mark as Read only)', () => {
+  it('v228 supersedes the v222 foot: no Mark Complete, no notes-state control — Mark as Read stands before the chapter nav', () => {
     const src = readFileSync(join(process.cwd(), 'components', 'bible-v205', 'chapter-page.tsx'), 'utf8');
-    expect(src).toContain('Mark Complete');
-    expect(src).toContain("accessibilityLabel={`Mark ${book} ${chapter} complete`}");
-    expect(src).toContain("handleSetStatus('complete')");
-    expect(src).toContain('footComplete');
-    expect(src).toContain('✓ Complete');
-    // After the last entry (footNote) and before the prev/next nav.
+    // His ruling: the reader is for reading. The v222 Mark Complete
+    // button, the completed-state line, and the status picker that
+    // called handleSetStatus are ALL gone from this surface.
+    expect(src).not.toContain('Mark Complete');
+    expect(src).not.toContain('handleSetStatus');
+    expect(src).not.toContain('transitionChapterStatus');
+    expect(src).not.toContain('footComplete');
+    expect(src).toContain('Mark as Read');
+    expect(src).toContain('markChapterRead');
+    expect(src).toContain('✓ Read ·');
+    // After the last entry (footNote) and before the prev/next nav —
+    // measured on the foot button's own style hook, since the words
+    // "Mark as Read" also appear in the page's handler comments.
     const foot = src.indexOf('styles.footNote');
-    const button = src.indexOf('Mark Complete');
+    const button = src.indexOf('styles.markReadBtn');
     const nav = src.indexOf('styles.chapterNav');
     expect(foot).toBeGreaterThan(-1);
     expect(button).toBeGreaterThan(foot);
     expect(nav).toBeGreaterThan(button);
   });
 
-  it('the foot state derives from the same store the editor writes: complete shows the line, anything else the button', async () => {
-    const completed = await transitionChapterStatus(seedStudyState(), 'Colossians', 1, 'complete');
-    expect(chapterStatus(completed.state, 'Colossians', 1)).toBe('complete');
-    // A chapter completed via the editor path reads the same way.
-    const viaEditor = setChapterStatus(seedStudyState(), 'Colossians', 1, 'complete');
-    expect(chapterStatus(viaEditor, 'Colossians', 1)).toBe('complete');
-    // Moving it back re-arms the button.
-    const moved = setChapterStatus(viaEditor, 'Colossians', 1, 'write');
-    expect(chapterStatus(moved, 'Colossians', 1)).toBe('write');
+  it('the read mark derives from the same store the grid editor writes', async () => {
+    const marked = await markChapterRead(seedStudyState(), 'Colossians', 1);
+    expect(chapterReadDate(marked.state, 'Colossians', 1)).not.toBeNull();
+    // Marking read never moved the notes state — the two marks are
+    // independent in both directions.
+    expect(chapterStatus(marked.state, 'Colossians', 1)).toBe('none');
+    const completed = setChapterStatus(seedStudyState(), 'Colossians', 1, 'complete');
+    expect(chapterReadDate(completed, 'Colossians', 1)).toBeNull();
   });
 
-  it('re-importing the same Complete state never double-pays the +25 XP', async () => {
+  it('importing a Complete state pays no reading XP at all (v228 re-key)', async () => {
     const first = await transitionChapterStatus(seedStudyState(), 'Colossians', 1, 'complete');
-    expect(first.chapterXpAwarded).toBe(true);
     const again = await transitionChapterStatus(first.state, 'Colossians', 1, 'complete');
-    expect(again.chapterXpAwarded).toBe(false);
+    expect(chapterStatus(again.state, 'Colossians', 1)).toBe('complete');
+    expect((await loadXPState()).totalXP).toBe(0);
   });
 });
 
@@ -253,15 +262,18 @@ describe('v222 WS2 — the studio pack door', () => {
     expect(await loadMarks()).toEqual(marks);
   });
 
-  it('chapterState applies through the transition path — XP idempotent, backward moves allowed, no revoke', async () => {
+  it('chapterState applies through the transition path — backward moves allowed, no revoke, no reading XP (v228)', async () => {
     let state = seedStudyState();
     const first = await transitionChapterStatus(state, 'Colossians', 1, 'write');
     state = first.state;
     expect(chapterStatus(state, 'Colossians', 1)).toBe('write');
     const completed = await transitionChapterStatus(state, 'Colossians', 1, 'complete');
-    expect(completed.chapterXpAwarded).toBe(true);
+    expect(chapterStatus(completed.state, 'Colossians', 1)).toBe('complete');
+    // v228: a notes state is notes — it pays no reading XP and sets
+    // no read mark, however often it is re-imported.
+    expect(chapterReadDate(completed.state, 'Colossians', 1)).toBeNull();
     const reimported = await transitionChapterStatus(completed.state, 'Colossians', 1, 'complete');
-    expect(reimported.chapterXpAwarded).toBe(false);
+    expect((await loadXPState()).totalXP).toBe(0);
     const backward = await transitionChapterStatus(reimported.state, 'Colossians', 1, 'write');
     expect(chapterStatus(backward.state, 'Colossians', 1)).toBe('write');
   });

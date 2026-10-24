@@ -13,7 +13,6 @@ import {
   Animated,
   BackHandler,
   Dimensions,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -68,11 +67,13 @@ import {
   type ProfileIdentity,
 } from '@/lib/bible-v205/bubbles';
 import {
+  chapterReadDate,
   chapterStatus,
+  formatReadDate,
   loadStudyState,
   type StudyState,
 } from '@/lib/bible-v205/study';
-import { transitionChapterStatus } from '@/lib/bible-v205/rewards';
+import { markChapterRead, unmarkChapterRead } from '@/lib/bible-v205/rewards';
 import {
   loadStudioImports,
   resolveChapterData,
@@ -82,9 +83,8 @@ import { loadChapterVerses, type VerseText } from '@/lib/bible-v205/verses';
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import { useSkin } from '@/hooks/use-skin';
-import { BlockView, CategoryTag, Ornament, SectionBand, SelfLineBlock, StatusChip, STATUS_LABEL } from './blocks';
+import { BlockView, CategoryTag, Ornament, SectionBand, SelfLineBlock, StatusChip } from './blocks';
 import { AuthorPicker, LivingBubbles, kindLabelFor, type BloomTiming } from './bubbles';
-import { BookCompleteCelebration } from './celebration';
 import { IndexSheet } from './index-sheet';
 import { StoriesView } from './stories-view';
 import { chapterLabel, rangeLabel, tintWashFor, useBiblePalette, verseTintFor, type BiblePalette } from './palette';
@@ -99,8 +99,6 @@ export interface ChapterPageProps {
   onOpenQueue: () => void;
   onNavigateChapter: (chapter: number) => void;
 }
-
-const STATUS_MENU: StudyStatus[] = ['write', 'in-progress', 'complete', 'restudy', 'not-started', 'none'];
 
 /** App-level read-mode preference ("With notes" is the default). */
 export const READ_MODE_KEY = 'prayercircle.bible.v205.readmode.v1';
@@ -127,7 +125,6 @@ export function ChapterPageView(props: ChapterPageProps) {
   const [studyState, setStudyState] = useState<StudyState | null>(null);
   const [readOnly, setReadOnly] = useState(false);
   const [labels, setLabels] = useState<UserLabels | null>(null);
-  const [celebration, setCelebration] = useState<{ book: string; bibleComplete: boolean } | null>(null);
   const [openMap, setOpenMap] = useState<Record<string, boolean> | null>(null);
   const [sheet, setSheet] = useState<null | 'verses' | 'search'>(null);
   // v212: verse-tint selection — per rendered entry (keyed by its
@@ -143,7 +140,6 @@ export function ChapterPageView(props: ChapterPageProps) {
   const [openBubblesKey, setOpenBubblesKey] = useState<string | null>(null);
   const scrollYRef = useRef(0);
   const [stories, setStories] = useState(!!props.initialStories);
-  const [statusMenu, setStatusMenu] = useState(false);
   const [progress, setProgress] = useState(0);
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const flashAnim = useRef(new Animated.Value(0)).current;
@@ -270,13 +266,13 @@ export function ChapterPageView(props: ChapterPageProps) {
   // shut and is consumed; it never leaves the chapter. With nothing
   // open, back behaves exactly as before (no listener registered).
   useEffect(() => {
-    if (!openBubblesKey || stories || sheet || statusMenu) return;
+    if (!openBubblesKey || stories || sheet) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       setOpenBubblesKey(null);
       return true;
     });
     return () => sub.remove();
-  }, [openBubblesKey, stories, sheet, statusMenu]);
+  }, [openBubblesKey, stories, sheet]);
 
   const flat = useMemo(() => flattenEntries(sections), [sections]);
   // The read-only kept fallback walks COVERING with-notes entries; it
@@ -285,6 +281,9 @@ export function ChapterPageView(props: ChapterPageProps) {
   const notesFlat = useMemo(() => flattenEntries(rawNotesSections), [rawNotesSections]);
   const verseText = useMemo(() => new Map(verses.map((v) => [v.verse, v.text])), [verses]);
   const status: StudyStatus = studyState ? chapterStatus(studyState, book, chapter) : 'none';
+  // v228: the READ track, displayed on this page but never derived
+  // from the notes status above — the two marks are independent.
+  const readDate: string | null = studyState ? chapterReadDate(studyState, book, chapter) : null;
 
   const keptTotal = flat.filter((f) =>
     isKept(displayMarks, book, chapter, f.entry.start, f.entry.end, f.entry.blocks.some((b) => b.kind === 'highlight')),
@@ -435,14 +434,18 @@ export function ChapterPageView(props: ChapterPageProps) {
     const key = entryKey(book, chapter, start, end);
     setVerseSelection((prev) => ({ ...prev, [key]: toggleVerseInSelection(prev[key] ?? [], verse) }));
   };
-  const handleSetStatus = async (s: StudyStatus) => {
+  // v228 — the reader's ONLY mark control (his ruling): Mark as Read.
+  // The notes-written state is set from the book grid's editor and
+  // the studio, never here — a Complete button on the reading surface
+  // is exactly where the two marks got confused.
+  const handleMarkRead = async () => {
     if (!studyState) return;
-    setStatusMenu(false);
-    const result = await transitionChapterStatus(studyState, book, chapter, s);
+    const result = await markChapterRead(studyState, book, chapter);
     setStudyState(result.state);
-    if (result.bookCompleted) {
-      setCelebration({ book: result.bookCompleted, bibleComplete: result.bibleCompleted });
-    }
+  };
+  const handleClearRead = async () => {
+    if (!studyState) return;
+    setStudyState(await unmarkChapterRead(studyState, book, chapter));
   };
   const handleCategory = async (start: number, end: number, category: NoteCategory | null) => {
     const next = withMarks(marks, book, chapter, start, end, { category });
@@ -469,7 +472,7 @@ export function ChapterPageView(props: ChapterPageProps) {
             ? `Chapter ${chapter} — on the Current list, waiting to be re-studied.`
             : status === 'not-started'
               ? `Chapter ${chapter} — marked not started yet.`
-              : `Chapter ${chapter} — no study status recorded yet. Tap to set one.`;
+              : `Chapter ${chapter} — no notes state recorded yet. It is set from the book grid, not here.`;
 
   const content = stories ? (
     <StoriesView
@@ -548,26 +551,23 @@ export function ChapterPageView(props: ChapterPageProps) {
         }}
         scrollEventThrottle={32}
       >
-        {/* ── slim status strip ── */}
-        <Pressable style={[styles.strip, { backgroundColor: palette.raspTint }]} onPress={() => setStatusMenu(true)}>
+        {/* ── slim status strip — v228: passive display only. The
+            notes chip and words describe the notes-written track;
+            the read mark rides beside them when present. Nothing on
+            this strip changes a state any more — the Queue link only
+            navigates. ── */}
+        <View style={[styles.strip, { backgroundColor: palette.raspTint }]}>
           <StatusChip status={status} palette={palette} />
-          <Text style={[styles.stripText, { color: palette.ink }]}>{stripText}</Text>
-          <Text style={[styles.stripLink, { color: palette.raspDeep }]}>Queue ›</Text>
-        </Pressable>
-
-        {celebration ? (
-          <View style={{ marginTop: 14 }}>
-            <BookCompleteCelebration
-              book={celebration.book}
-              bibleComplete={celebration.bibleComplete}
-              onChooseNext={() => {
-                setCelebration(null);
-                props.onOpenBook();
-              }}
-              onDismiss={() => setCelebration(null)}
-            />
-          </View>
-        ) : null}
+          <Text style={[styles.stripText, { color: palette.ink }]}>
+            {stripText}
+            {readDate ? (
+              <Text style={{ color: palette.inkSoft, fontWeight: '700' }}>{`  ·  ✓ Read ${formatReadDate(readDate)}`}</Text>
+            ) : null}
+          </Text>
+          <Pressable onPress={props.onOpenQueue} hitSlop={8}>
+            <Text style={[styles.stripLink, { color: palette.raspDeep }]}>Queue ›</Text>
+          </Pressable>
+        </View>
 
         {/* ── cover ── */}
         <View style={styles.cover}>
@@ -777,26 +777,30 @@ export function ChapterPageView(props: ChapterPageProps) {
             : `End of ${book} ${chapter} — the next chapter's outline sits at the top of its own page.`}
         </Text>
 
-        {/* v222 — Mark Complete at the foot of the page, after the last
-            entry. It walks the same transitionChapterStatus door as the
-            strip menu (XP idempotent, celebration included). A chapter
-            already Complete shows its state instead of the button; it
-            stays changeable through the book grid's six-state editor. */}
-        {studyState !== null && status !== 'complete' ? (
+        {/* v228 — the foot carries the READ mark only (his ruling:
+            the reader is for reading; the v222 complete-button that
+            stood here is gone, with every other notes-state control
+            on this surface — the notes-written state is set from the
+            book grid's editor and the studio). Unread shows the
+            button; read shows its date with an undo, mirroring the
+            old line's honesty pattern. */}
+        {studyState !== null && readDate === null ? (
           <Pressable
-            style={[styles.markCompleteBtn, { backgroundColor: palette.rasp }]}
-            accessibilityLabel={`Mark ${book} ${chapter} complete`}
-            onPress={() => handleSetStatus('complete')}
+            style={[styles.markReadBtn, { borderColor: palette.rasp }]}
+            accessibilityLabel={`Mark ${book} ${chapter} as read`}
+            onPress={handleMarkRead}
           >
-            <Text style={styles.markCompleteText}>Mark Complete</Text>
+            <Text style={[styles.markReadText, { color: palette.raspDeep }]}>Mark as Read</Text>
           </Pressable>
         ) : null}
-        {studyState !== null && status === 'complete' ? (
-          <View style={styles.footComplete}>
-            <Text style={[styles.footCompleteLine, { color: palette.inkSoft }]}>✓ Complete</Text>
-            <Text style={[styles.footCompleteSub, { color: palette.inkFaint }]}>
-              Change it any time from the book grid.
-            </Text>
+        {studyState !== null && readDate !== null ? (
+          <View style={styles.footRead}>
+            <Text style={[styles.footReadLine, { color: palette.inkSoft }]}>✓ Read · {formatReadDate(readDate)}</Text>
+            <Pressable onPress={handleClearRead} hitSlop={8} accessibilityLabel={`Clear the read mark for ${book} ${chapter}`}>
+              <Text style={[styles.footReadSub, { color: palette.inkFaint, textDecorationLine: 'underline' }]}>
+                Clear the read mark
+              </Text>
+            </Pressable>
           </View>
         ) : null}
 
@@ -841,41 +845,6 @@ export function ChapterPageView(props: ChapterPageProps) {
         onLand={landOnVerse}
       />
 
-      {/* ── Status menu ── */}
-      <Modal visible={statusMenu} transparent animationType="fade" onRequestClose={() => setStatusMenu(false)}>
-        <Pressable style={styles.scrim} onPress={() => setStatusMenu(false)} />
-        <View style={[styles.menu, { backgroundColor: palette.paper }]}>
-          <Text style={[styles.menuTitle, { color: palette.ink }]}>
-            {book} {chapter} — study status
-          </Text>
-          <Text style={[styles.menuSub, { color: palette.inkSoft }]}>
-            Recorded state: {STATUS_LABEL[status]}. Changing it here moves the chapter through your own pipeline — reading alone never does.
-          </Text>
-          {STATUS_MENU.map((s) => (
-            <Pressable
-              key={s}
-              style={[styles.menuRow, s === status ? { backgroundColor: palette.raspTint } : null]}
-              onPress={() => handleSetStatus(s)}
-            >
-              <StatusChip status={s} palette={palette} />
-              <Text style={{ color: palette.ink, fontSize: 13.5, flex: 1 }}>
-                {s === 'write' ? 'Add to Write queue (Next)'
-                  : s === 'restudy' ? 'Add to ReStudy queue (Current)'
-                    : s === 'complete' ? 'Mark notes complete'
-                      : s === 'in-progress' ? 'Mark in progress'
-                        : s === 'not-started' ? 'Mark not started'
-                          : 'Clear status'}
-              </Text>
-              {s === status ? <MaterialIcons name="check" size={17} color={palette.rasp} /> : null}
-            </Pressable>
-          ))}
-          <View style={[styles.menuDivider, { backgroundColor: palette.line }]} />
-          <Pressable style={styles.menuRow} onPress={() => { setStatusMenu(false); props.onOpenQueue(); }}>
-            <MaterialIcons name="queue" size={18} color={palette.rasp} />
-            <Text style={{ color: palette.ink, fontSize: 13.5 }}>Open the Study Queue</Text>
-          </Pressable>
-        </View>
-      </Modal>
     </View>
   );
 
@@ -1378,26 +1347,21 @@ const styles = StyleSheet.create({
   addBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
   loading: { textAlign: 'center', fontSize: 13.5, marginTop: 26 },
   footNote: { fontSize: 12, lineHeight: 18, marginTop: 34, textAlign: 'center' },
-  markCompleteBtn: {
+  markReadBtn: {
     marginTop: 20,
     alignSelf: 'center',
     paddingHorizontal: 26,
     paddingVertical: 12,
     borderRadius: 999,
+    borderWidth: 1.5,
   },
-  markCompleteText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
-  footComplete: { marginTop: 20, alignItems: 'center' },
-  footCompleteLine: { fontWeight: '800', fontSize: 15 },
-  footCompleteSub: { fontSize: 12, lineHeight: 18, marginTop: 2 },
+  markReadText: { fontWeight: '800', fontSize: 15 },
+  footRead: { marginTop: 20, alignItems: 'center' },
+  footReadLine: { fontWeight: '800', fontSize: 15 },
+  footReadSub: { fontSize: 12, lineHeight: 18, marginTop: 2 },
   chapterNav: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 18, gap: 10 },
   navBtn: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16 },
   navOff: { opacity: 0.35 },
   fab: { position: 'absolute', right: 18, bottom: 24, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingVertical: 11, paddingHorizontal: 17, shadowColor: '#9C1B49', shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 6 },
   fabText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 },
-  scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,16,20,.45)' },
-  menu: { position: 'absolute', left: 16, right: 16, bottom: 24, borderRadius: 16, padding: 18, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
-  menuTitle: { fontSize: 16, fontWeight: '800' },
-  menuSub: { fontSize: 12.5, lineHeight: 18, marginTop: 5, marginBottom: 10 },
-  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 9, paddingHorizontal: 8, borderRadius: 10 },
-  menuDivider: { height: 1, marginVertical: 8 },
 });

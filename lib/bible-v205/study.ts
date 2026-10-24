@@ -9,6 +9,12 @@
 // empty (study-seed.ts ships inert) and chapterStatus never consults
 // it. Reading a chapter changes nothing — states move only when he
 // moves them.
+// v228 — HIS RULING: TWO honest marks. The status pipeline above is,
+// and always secretly was, the NOTES-WRITTEN track ("Complete" = the
+// commentary notes for the chapter are finished; shared with the
+// studio). READING is a separate track of its own — `reads` below, a
+// per-chapter read date — set only by Mark as Read, never implied by
+// a notes state, and implying nothing back.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCurrentBook, getLastReadPosition, loadUnifiedBible, type UnifiedBibleState } from '../bible-unified';
@@ -29,8 +35,13 @@ export interface LastReadMark {
 }
 
 export interface StudyState {
-  /** "Book|chapter" -> status override — every state he has set in-app. */
+  /** "Book|chapter" -> status override — every state he has set in-app.
+   * v228: this is the NOTES-WRITTEN track, nothing else. */
   overrides: Record<string, StudyStatus>;
+  /** v228: "Book|chapter" -> ISO date (YYYY-MM-DD) he marked the
+   * chapter READ. The reading track — independent of `overrides` in
+   * both directions. Absent key = not read. */
+  reads: Record<string, string>;
   /** Chapters he has queued to write, in the app. */
   writeQueue: QueueItem[];
   /** Chapters he has queued to re-study, in the app. */
@@ -100,6 +111,7 @@ export function seedStudyState(): StudyState {
   // nothing — the unified store has no current book and no reads).
   return {
     overrides: {},
+    reads: {},
     writeQueue: [],
     restudyQueue: [],
     currentBook: null,
@@ -108,9 +120,21 @@ export function seedStudyState(): StudyState {
   };
 }
 
+/** v228: normalize the stored read track — "Book|chapter" -> ISO date.
+ * Anything malformed (non-record, non-string or non-date values) is
+ * dropped entry by entry; a pre-v228 record has no field at all and
+ * loads as an empty track. */
+export function normalizeReads(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) out[key] = value;
+  }
+  return out;
+}
+
 /** Normalize a stored lastRead mark; anything malformed becomes null. */
-function normalizeLastRead(raw: unknown): LastReadMark | null {
-  if (!raw || typeof raw !== 'object') return null;
+function normalizeLastRead(raw: unknown): LastReadMark | null {  if (!raw || typeof raw !== 'object') return null;
   const mark = raw as { book?: unknown; chapter?: unknown; date?: unknown };
   if (typeof mark.book !== 'string' || typeof mark.chapter !== 'number' || !Number.isFinite(mark.chapter)) return null;
   return { book: mark.book, chapter: mark.chapter, date: typeof mark.date === 'string' ? mark.date : '' };
@@ -128,6 +152,8 @@ export async function loadStudyState(): Promise<StudyState> {
       else {
         state = {
           overrides: parsed.overrides ?? {},
+          // v228: pre-v228 records have no read track — it loads empty.
+          reads: normalizeReads(parsed.reads),
           writeQueue: Array.isArray(parsed.writeQueue) ? parsed.writeQueue : [],
           restudyQueue: Array.isArray(parsed.restudyQueue) ? parsed.restudyQueue : [],
           // v211: pre-v211 records have no position fields — they
@@ -197,6 +223,54 @@ export function setChapterStatus(state: StudyState, book: string, chapter: numbe
 
 export function queueContains(queue: QueueItem[], book: string, chapter: number): boolean {
   return queue.some((q) => q.book === book && q.chapter === chapter);
+}
+
+// ─── v228: the READ track — independent of the notes states ─────────────────
+// A chapter is "read" when he marked it read (reader foot, book grid,
+// or a studioStates import) — the date is the mark. Setting a notes
+// state never creates a read mark; a read mark never moves a notes
+// state. The two tracks share a store and nothing else.
+
+/** The chapter's read date (ISO, YYYY-MM-DD), or null when unread. */
+export function chapterReadDate(state: StudyState, book: string, chapter: number): string | null {
+  return state.reads[chapterKey(book, chapter)] ?? null;
+}
+
+/** Pure: stamp the chapter read on the given ISO date. */
+export function setChapterRead(state: StudyState, book: string, chapter: number, dateISO: string): StudyState {
+  return { ...state, reads: { ...state.reads, [chapterKey(book, chapter)]: dateISO } };
+}
+
+/** Pure: remove the chapter's read mark. XP is never revoked — that
+ * discipline lives in rewards.ts; this is only the mark. */
+export function clearChapterRead(state: StudyState, book: string, chapter: number): StudyState {
+  if (!(chapterKey(book, chapter) in state.reads)) return state;
+  const reads = { ...state.reads };
+  delete reads[chapterKey(book, chapter)];
+  return { ...state, reads };
+}
+
+/** Both marks for one chapter — the book grid's data in one call:
+ * the notes-written status and the read date, side by side, neither
+ * derived from the other. */
+export function chapterMarks(
+  state: StudyState,
+  book: string,
+  chapter: number,
+): { status: StudyStatus; readDate: string | null } {
+  return { status: chapterStatus(state, book, chapter), readDate: chapterReadDate(state, book, chapter) };
+}
+
+const READ_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "2026-10-24" -> "Oct 24, 2026" for the ✓ Read lines; '' when the
+ * string is not an ISO date. Pure string work — no timezone drift. */
+export function formatReadDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return '';
+  const month = READ_MONTHS[Number(m[2]) - 1];
+  if (!month) return '';
+  return `${month} ${Number(m[3])}, ${m[1]}`;
 }
 
 // ─── Migration: his pre-v205 check-offs ──────────────────────────────────────

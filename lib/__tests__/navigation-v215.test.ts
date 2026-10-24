@@ -37,8 +37,11 @@ describe("v215 — the home back handler can never fire under a pushed screen", 
   it("the v214 chapter-page bubble handler is untouched and unopposed", () => {
     const chapter = read("components/bible-v205/chapter-page.tsx");
     // It still registers only while bubbles are open (and no sheet
-    // or menu outranks it), folds them, and consumes the press.
-    expect(chapter).toContain("if (!openBubblesKey || stories || sheet || statusMenu) return;");
+    // outranks it), folds them, and consumes the press. v228: the
+    // statusMenu guard is gone because the reader's status menu
+    // itself was removed by the two-marks ruling — one less rival,
+    // same discipline.
+    expect(chapter).toContain("if (!openBubblesKey || stories || sheet) return;");
     expect(chapter).toContain("setOpenBubblesKey(null);");
     expect(chapter).toContain("BackHandler.addEventListener('hardwareBackPress'");
     // And the shell handler — its only possible rival — is inert

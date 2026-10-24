@@ -128,7 +128,8 @@ import {
 } from "@/lib/prayercircle-fasting";
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
-import { loadStudyState } from "@/lib/bible-v205/study";
+import { loadStudyState, saveStudyState } from "@/lib/bible-v205/study";
+import { applyStudioStatesReads, collectStudioStates } from "@/lib/bible-v205/studio-states";
 import { loadMarks } from "@/lib/bible-v205/marks";
 import { transitionChapterStatus } from "@/lib/bible-v205/rewards";
 import {
@@ -2554,7 +2555,11 @@ export default function HomeScreen() {
         (item): item is ScheduleTodo => !!item && typeof item === "object" && typeof (item as ScheduleTodo).title === "string",
       );
       const studioSchedule = collectStudioSchedule(exportEvents, exportTodos);
-      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles, studioPeople, studioJournal, studioSchedule }, null, 2);
+      // v228: both chapter marks ride the backup as studioStates —
+      // the notes-written status and the read date, per chapter — so
+      // the studio can see (and send back) the two honest tracks.
+      const studioStates = collectStudioStates(await loadStudyState());
+      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles, studioPeople, studioJournal, studioSchedule, studioStates }, null, 2);
       const filename = `prayercircle-backup-${getTodayISOString()}.json`;
       const uri = `${FileSystem.cacheDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(uri, payload, { encoding: FileSystem.EncodingType.UTF8 });
@@ -2779,6 +2784,26 @@ export default function HomeScreen() {
       }
       if (pack.kind === "people") {
         await applyPeoplePack(pack.people);
+        return;
+      }
+      if (pack.kind === "states") {
+        // v228 — the two marks come home: notes states walk the same
+        // transition door as any chapterState; read marks merge
+        // forward-only (a stale export never un-reads a chapter).
+        let state = await loadStudyState();
+        let statesSet = 0;
+        for (const entry of pack.states.chapters) {
+          if (entry.notesState === null) continue;
+          const result = await transitionChapterStatus(state, entry.book, entry.chapter, entry.notesState);
+          state = result.state;
+          statesSet += 1;
+        }
+        const reads = applyStudioStatesReads(state, pack.states.chapters);
+        if (reads.applied > 0) {
+          state = reads.state;
+          await saveStudyState(state);
+        }
+        notifyAlert("Studio states imported", `Notes states set: ${statesSet} · Read marks: ${reads.applied}`);
         return;
       }
       const readStoredArray = async (key: string): Promise<unknown[]> => {

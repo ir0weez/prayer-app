@@ -114,6 +114,14 @@ export interface StudioChapterPayload {
   chapterState?: StudyStatus;
 }
 
+/** One step of a grouped todo (v236): the wire shape shared with the
+ *  studio — the store's optional per-step description does not travel. */
+export interface StudioSubtaskInput {
+  id: string;
+  title: string;
+  isCompleted: boolean;
+}
+
 export interface StudioScheduleEventInput {
   title: string;
   day: string;
@@ -130,6 +138,10 @@ export interface StudioScheduleEventInput {
    *  straight through to the created schedule item. '' when unset. */
   notes?: string;
   location?: string;
+  /** A grouped todo's steps (v236, Todo items only). ABSENT means the
+   *  pack says nothing about steps — an existing todo's steps are left
+   *  untouched; PRESENT (even empty) replaces the todo's list whole. */
+  subtasks?: StudioSubtaskInput[];
 }
 
 export interface StudioSchedulePayload {
@@ -365,7 +377,27 @@ function validateScheduleEvents(rawEvents: unknown[]): StudioScheduleEventInput[
       // reject the pack; anything not a string reads as unset.
       notes: typeof e.notes === 'string' ? e.notes : '',
       location: typeof e.location === 'string' ? e.location : '',
+      // Grouped-todo steps (v236): unlike notes, a PRESENT subtasks key
+      // is a payload the merge acts on, so a malformed one rejects the
+      // pack under the door's validate-first discipline. Entries are
+      // normalized to exactly the wire fields; the key stays ABSENT
+      // when the pack omits it (absence is not an empty list).
+      ...(e.subtasks !== undefined ? { subtasks: validateSubtasks(e.subtasks, where) } : {}),
     };
+  });
+}
+
+/** The v236 subtask list: an array of {id, title, isCompleted} — a
+ *  string id/title and a real boolean, nothing looser rides. */
+function validateSubtasks(raw: unknown, where: string): StudioSubtaskInput[] {
+  if (!Array.isArray(raw)) fail(`${where}: subtasks is not an array`);
+  return raw.map((s, j) => {
+    const at = `${where}: subtask ${j}`;
+    if (!isRecord(s)) fail(`${at} is not an object`);
+    if (!isNonEmptyString(s.id)) fail(`${at} has no id`);
+    if (typeof s.title !== 'string') fail(`${at} has no title`);
+    if (typeof s.isCompleted !== 'boolean') fail(`${at} has no completion state`);
+    return { id: s.id as string, title: s.title as string, isCompleted: s.isCompleted as boolean };
   });
 }
 
@@ -939,6 +971,13 @@ function endTimeOf(start: string, minutes: number): string {
  * location when the pack leaves it empty. Recur labels do not expand:
  * the pack carries one dated instance, and that is what lands.
  * whiteSpace is never read here — it is advisory payload only.
+ *
+ * Grouped todos (v236): a Todo item's steps are the one field an
+ * import UPDATES on a todo that is already there. A pack item that
+ * carries `subtasks` replaces the matched todo's list whole (an
+ * explicit empty list clears it); an item that OMITS the key leaves
+ * the existing steps untouched — absence is not deletion. A created
+ * todo is born with its steps. Step updates never count in `added`.
  */
 export function mergeStudioSchedule(
   existingEvents: ScheduleEvent[],
@@ -948,7 +987,11 @@ export function mergeStudioSchedule(
   const events = [...existingEvents];
   const todos = [...existingTodos];
   const seenEvents = new Set(events.map((e) => `${e.date}|${e.startTime ?? ''}|${e.title}`));
-  const seenTodos = new Set(todos.map((t) => `${t.date}|${t.startTime ?? ''}|${t.title}`));
+  const todoIndexByKey = new Map<string, number>();
+  todos.forEach((t, i) => {
+    const key = `${t.date}|${t.startTime ?? ''}|${t.title}`;
+    if (!todoIndexByKey.has(key)) todoIndexByKey.set(key, i);
+  });
   let added = 0;
   for (const ev of pack.events) {
     // v229: Ministry rows are the studio-facing projection of ministry
@@ -958,7 +1001,20 @@ export function mergeStudioSchedule(
     const start = ev.start === 'All day' ? undefined : ev.start;
     const dedupe = `${ev.date}|${start ?? ''}|${ev.title}`;
     if (ev.type === 'Todo') {
-      if (seenTodos.has(dedupe)) continue;
+      const existingIndex = todoIndexByKey.get(dedupe);
+      if (existingIndex !== undefined) {
+        // Already there: only the steps can change, and only when the
+        // pack speaks about them. The stored todo object is replaced,
+        // never mutated.
+        if (ev.subtasks !== undefined) {
+          todos[existingIndex] = {
+            ...todos[existingIndex],
+            subtasks:
+              ev.subtasks.length > 0 ? ev.subtasks.map((s) => ({ ...s })) : undefined,
+          };
+        }
+        continue;
+      }
       const todo = createScheduleTodo(
         {
           title: ev.title,
@@ -966,11 +1022,14 @@ export function mergeStudioSchedule(
           startTime: start,
           endTime: start ? endTimeOf(start, ev.minutes) : undefined,
           notes: ev.notes ? ev.notes : undefined,
+          ...(ev.subtasks && ev.subtasks.length > 0
+            ? { subtasks: ev.subtasks.map((s) => ({ ...s })) }
+            : {}),
         },
         todos.length,
       );
+      todoIndexByKey.set(dedupe, todos.length);
       todos.push(todo);
-      seenTodos.add(dedupe);
       added += 1;
     } else {
       if (seenEvents.has(dedupe)) continue;

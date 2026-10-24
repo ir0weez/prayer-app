@@ -33,6 +33,10 @@
 //   recur    'none' — the app stores individual dated entries with no
 //            recurrence of their own, and the pack's labels never expand.
 //   notes / location ride straight through ('' when unset), as in v224.
+//   subtasks (v236): a grouped todo's steps ride as [{id, title,
+//            isCompleted}] — the wire carries no description — and the
+//            key is OMITTED entirely when the todo has no steps, so a
+//            plain item's pack shape is byte-identical to before.
 //
 // Items whose date is missing or not a real calendar date cannot be
 // expressed in pack shape at all; they are excluded and COUNTED on the
@@ -88,6 +92,25 @@ interface PackItemSource {
   endTime?: string;
   location?: string;
   notes?: string;
+  subtasks?: ScheduleTodo['subtasks'];
+}
+
+/** A stored subtask in wire shape: exactly {id, title, isCompleted}.
+ *  Only well-formed steps ride (a record with a non-empty string id
+ *  and a string title) — anything else could never pass the door's own
+ *  validation on the way home, so it is left behind here instead. */
+function wireSubtasks(
+  subtasks: ScheduleTodo['subtasks'],
+): { id: string; title: string; isCompleted: boolean }[] {
+  if (!Array.isArray(subtasks)) return [];
+  const out: { id: string; title: string; isCompleted: boolean }[] = [];
+  for (const s of subtasks) {
+    if (!s || typeof s !== 'object') continue;
+    if (typeof s.id !== 'string' || s.id.length === 0) continue;
+    if (typeof s.title !== 'string') continue;
+    out.push({ id: s.id, title: s.title, isCompleted: s.isCompleted === true });
+  }
+  return out;
 }
 
 function toPackEvent(source: PackItemSource, type: 'Event' | 'Todo' | 'Ministry'): StudioScheduleEventInput {
@@ -120,6 +143,10 @@ function toPackEvent(source: PackItemSource, type: 'Event' | 'Todo' | 'Ministry'
   // Todos carry no location in their store; events and ministries do.
   const rawLocation = type === 'Todo' ? '' : (source.location ?? '');
   const online = rawLocation === 'Online';
+  // v236: a grouped todo's steps ride along; the key exists only when
+  // at least one well-formed step does, so plain items keep the exact
+  // pack shape they have always had.
+  const subtasks = type === 'Todo' ? wireSubtasks(source.subtasks) : [];
   return {
     title: source.title,
     day: dayShortOf(source.date),
@@ -131,6 +158,7 @@ function toPackEvent(source: PackItemSource, type: 'Event' | 'Todo' | 'Ministry'
     recur: 'none',
     notes: source.notes ?? '',
     location: online ? '' : rawLocation,
+    ...(subtasks.length > 0 ? { subtasks } : {}),
   };
 }
 

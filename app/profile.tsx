@@ -1206,7 +1206,7 @@ export default function ProfileScreen() {
             resetFastCreator();
           }} />
           <PaperSettle style={styles.sheet}>
-<BitSettle style={{ flex: 1 }}>
+<BitSettle>
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => {
                 setShowFastCreator(false);
@@ -1216,7 +1216,7 @@ export default function ProfileScreen() {
               <Text style={styles.sheetTitle}>{isEditingFast ? "Edit Fast" : "Start a New Fast"}</Text>
               <View style={{ width: 34 }} />
             </View>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.fieldLabel}>FAST NAME</Text>
               <TextInput value={draftFastName} onChangeText={setDraftFastName} placeholder="e.g., 40-Day Prayer Fast" placeholderTextColor="#73808B" returnKeyType="done" style={styles.textInput} />
               <Text style={styles.fieldLabel}>START DATE</Text>
@@ -1787,6 +1787,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(20,19,38,0.34)",
   },
   sheet: {
+    // v216: definite height, not just a cap — same fix as the
+    // shell's themeSheet. This sheet carried the identical
+    // indefinite-height chain (content-measured box, flex:1
+    // settle wrapper, ScrollView) and would sink the same way.
+    height: "92%",
     maxHeight: "92%",
     paddingHorizontal: 22,
     paddingTop: 16,

@@ -3500,7 +3500,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowProfileEditor(false)} />
           <PaperSettle style={styles.themeSheet}>
-<BitSettle style={{ flex: 1 }}>
+<BitSettle>
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowProfileEditor(false)}><Text style={styles.sheetDone}>Cancel</Text></Pressable>
               <Text style={styles.sheetTitle}>Edit Profile</Text>
@@ -3526,14 +3526,14 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }} />
           <PaperSettle style={[styles.themeSheet, styles.fastCreatorSheet]}>
-<BitSettle style={{ flex: 1 }}>
+<BitSettle>
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }}><MaterialIcons name={iconName("close")} size={30} color={colors.foreground} /></Pressable>
               <Text style={styles.sheetTitle}>{editingFastId ? "Edit Fast" : "Start a New Fast"}</Text>
               {editingFastId && <Pressable onPress={() => confirmDeleteFast(editingFastId)} style={({ pressed }) => [pressed && styles.pressed]}><MaterialIcons name={iconName("trash")} size={24} color="#C75265" /></Pressable>}
               {!editingFastId && <View style={{ width: 42 }} />}
             </View>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.fieldLabel}>FAST NAME</Text>
               <TextInput value={draftFastName} onChangeText={setDraftFastName} placeholder="e.g., 40-Day Prayer Fast" placeholderTextColor="#73808B" returnKeyType="done" style={styles.textInput} />
               <Text style={styles.fieldLabel}>START DATE</Text>
@@ -3581,7 +3581,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setFamilyActionMembers(null)} />
           <PaperSettle style={[styles.themeSheet, { paddingBottom: 24 }]}>
-<BitSettle style={{ flex: 1 }}>
+<BitSettle>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{familyActionMembers?.[0]?.familyName || "Family"}</Text>
               <Pressable onPress={() => setFamilyActionMembers(null)}><MaterialIcons name={iconName("close")} size={26} color={colors.foreground} /></Pressable>
@@ -3628,14 +3628,14 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowThemeSheet(false)} />
           <PaperSettle style={styles.themeSheet}>
-<BitSettle style={{ flex: 1 }}>
+<BitSettle>
             {skinTokens.cardShadow ? <PaperGrainOverlay /> : null}
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowThemeSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
               <Text style={styles.sheetTitle}>Color Theme</Text>
               <View style={{ width: 50 }} />
             </View>
-            <ScrollView contentContainerStyle={styles.themeOptions}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.themeOptions}>
               {ACCENT_THEMES.map((theme) => {
                 const unlocked = xpProgress.level >= theme.unlockLevel;
                 return (
@@ -3674,14 +3674,14 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowSkinSheet(false)} />
           <PaperSettle style={styles.themeSheet}>
-<BitSettle style={{ flex: 1 }}>
+<BitSettle>
             {skinTokens.cardShadow ? <PaperGrainOverlay /> : null}
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowSkinSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
               <Text style={styles.sheetTitle}>App Skin</Text>
               <View style={{ width: 50 }} />
             </View>
-            <ScrollView contentContainerStyle={styles.themeOptions}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.themeOptions}>
               {SKIN_THEMES.map((theme) => {
                 const unlocked = xpProgress.level >= theme.unlockLevel;
                 return (
@@ -3716,13 +3716,13 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowAppIconSheet(false)} />
           <PaperSettle style={styles.themeSheet}>
-<BitSettle style={{ flex: 1 }}>
+<BitSettle>
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowAppIconSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
               <Text style={styles.sheetTitle}>App Icon</Text>
               <View style={{ width: 50 }} />
             </View>
-            <ScrollView contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap", padding: 16, gap: 12 }}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap", padding: 16, gap: 12 }}>
               {APP_ICONS.map((icon) => {
                 const unlocked = isIconUnlocked(icon, xpProgress.level);
                 const selected = selectedAppIconId === icon.id;
@@ -5076,6 +5076,9 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     justifyContent: "center",
   },
   fastCreatorSheet: {
+    // v216: the fast sheet is themeSheet's taller variant — its
+    // definite box is 92%, matching its cap.
+    height: "92%",
     maxHeight: "92%",
   },
   fastDurationGrid: {
@@ -5357,6 +5360,15 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     backgroundColor: "rgba(0,0,0,0.46)",
   },
   themeSheet: {
+    // v216: a definite height, not just a cap. The box used to be
+    // content-measured through the settle wrappers plus a flex:1
+    // inner view around a ScrollView — an indefinite-height chain
+    // that resolved wrong at the modal's first layout and parked
+    // every sheet off-screen at the bottom ("It never rises at
+    // all"). Now the sheet resolves at 72% against sheetOverlay,
+    // the header takes its natural height, and the ScrollView is
+    // the flex child that absorbs the rest.
+    height: "72%",
     maxHeight: "72%",
     paddingBottom: 28,
     borderTopLeftRadius: skin?.sheetRadius ?? 18,

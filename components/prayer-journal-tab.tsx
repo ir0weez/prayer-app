@@ -81,8 +81,6 @@ import {
   TERM_SOFT,
   bitButtonInk,
   bitButtonStyle,
-  glassButtonInk,
-  glassButtonStyle,
   skinText,
   termButtonInk,
   termButtonStyle,
@@ -708,8 +706,8 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
   const momentsBorder = colors.border;
   // The day pill's count chips, as a bg/ink pair per skin (mirrors
   // journal-day's chipBg pattern, with readable ink on each ground).
-  const pillChipBg = (pastel: string) => (skinTokens.isStainedGlass ? "#F7EFDC" : skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : pastel);
-  const pillChipInk = skinTokens.isStainedGlass ? "#241547" : skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : "#1D1830";
+  const pillChipBg = (pastel: string) => (skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : pastel);
+  const pillChipInk = skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : "#1D1830";
   // v213: the morphing composer's ground — SOLID, in every skin.
   // v204's frost (Classic's surface at 90% over a blur layer;
   // translucent white under Paper) rendered on his phone as a
@@ -717,19 +715,17 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
   // verdict, Oct 23: "the grey doesn't really work here in the
   // status update..." The box now wears the Journal's own surface
   // language at full opacity — the same ladder the head pill
-  // above uses (glass panel, terminal panel, then the surface
+  // above uses (terminal panel, then the surface
   // token) — so in light it is the Journal's white, in dark the
   // dark surface, and nothing behind it ever shows through. The
   // morph's own shadow (styles.morph) lifts it off the feed.
   // (8-bit folded into the surface branch: momentsSurface IS
   // colors.surface, its v204 value, unchanged.)
-  const composerBackground = skinTokens.isStainedGlass
-    ? "#241D33"
-    : skinTokens.isTerminal
+  const composerBackground = skinTokens.isTerminal
       ? TERM_PANEL
       : momentsSurface;
   // The resting FAB wears the shell FAB's own colors per skin.
-  const fabBackground = skinTokens.isStainedGlass ? "#1E1811" : skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary;
+  const fabBackground = skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary;
   const fabInk = skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF";
 
   return (
@@ -737,7 +733,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
       style={[
         styles.container,
         {
-          backgroundColor: skinTokens.isStainedGlass || (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : skinTokens.background ?? colors.background,
+          backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : skinTokens.background ?? colors.background,
           // v204: the screen no longer pads for the keyboard — the
           // composer is an overlay now, and its own morph lifts by
           // the keyboard height (morphKeyboardLift), so the box
@@ -771,7 +767,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
                 <Image source={require("../assets/images/icon.png")} style={styles.logoMark} contentFit="contain" />
                 <Text style={[styles.journalTitle, { color: ink }, skinText(skinTokens, skinTokens.type.screenTitle)]}>Journal</Text>
               </View>
-              <View style={[styles.headPill, { backgroundColor: skinTokens.isStainedGlass ? "#241D33" : skinTokens.isTerminal ? TERM_PANEL : momentsSurface, borderColor: momentsBorder }]}>
+              <View style={[styles.headPill, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : momentsSurface, borderColor: momentsBorder }]}>
                 <Pressable
                   accessibilityLabel="Search journal"
                   onPress={() => {
@@ -820,12 +816,12 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
                   { backgroundColor: momentsSurface, borderColor: momentsBorder },
                   bookmarksOnly && { backgroundColor: colors.primary, borderColor: colors.primary },
                   bookmarksOnly
-                    ? { ...bitButtonStyle(skinTokens, "primary"), ...termButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary"), ...glassButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary") }
+                    ? { ...bitButtonStyle(skinTokens, "primary"), ...termButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary") }
                     : {},
                 ]}
               >
-                <MaterialIcons name="bookmark" size={14} color={bookmarksOnly ? (skinTokens.isStainedGlass ? glassButtonInk("primary") : skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : faint} />
-                <Text style={[styles.filterChipText, { color: bookmarksOnly ? (skinTokens.isStainedGlass ? glassButtonInk("primary") : skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : faint }]}>Bookmarks</Text>
+                <MaterialIcons name="bookmark" size={14} color={bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : faint} />
+                <Text style={[styles.filterChipText, { color: bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : faint }]}>Bookmarks</Text>
               </Pressable>
               <Pressable onPress={() => openEditor()} style={[styles.filterChip, { backgroundColor: momentsSurface, borderColor: momentsBorder }]}>
                 <MaterialIcons name="edit-note" size={15} color={faint} />
@@ -1216,7 +1212,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
                     <Pressable
                       style={[
                         styles.actionButton,
-                        { ...bitButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary"), ...termButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary"), ...glassButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary") },
+                        { ...bitButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary"), ...termButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary") },
                       ]}
                       onPress={() => {
                         toggleBookmark(item);
@@ -1226,12 +1222,12 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
                       <MaterialIcons
                         name={item.isBookmarked ? "bookmark" : "bookmark-border"}
                         size={19}
-                        color={skinTokens.isStainedGlass ? glassButtonInk(item.isBookmarked ? "primary" : "secondary") : skinTokens.isEightBit ? bitButtonInk(item.isBookmarked ? "primary" : "secondary") : skinTokens.isTerminal ? termButtonInk(item.isBookmarked ? "primary" : "secondary") : colors.primary}
+                        color={skinTokens.isEightBit ? bitButtonInk(item.isBookmarked ? "primary" : "secondary") : skinTokens.isTerminal ? termButtonInk(item.isBookmarked ? "primary" : "secondary") : colors.primary}
                       />
                       <Text
                         style={[
                           styles.actionLabel,
-                          { color: skinTokens.isStainedGlass ? glassButtonInk(item.isBookmarked ? "primary" : "secondary") : skinTokens.isEightBit ? bitButtonInk(item.isBookmarked ? "primary" : "secondary") : skinTokens.isTerminal ? termButtonInk(item.isBookmarked ? "primary" : "secondary") : colors.foreground },
+                          { color: skinTokens.isEightBit ? bitButtonInk(item.isBookmarked ? "primary" : "secondary") : skinTokens.isTerminal ? termButtonInk(item.isBookmarked ? "primary" : "secondary") : colors.foreground },
                         ]}
                       >
                         {item.isBookmarked ? "Remove bookmark" : "Bookmark"}
@@ -1443,9 +1439,9 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
 
               <Pressable
                 onPress={saveEditor}
-                style={[styles.saveBtn, { backgroundColor: colors.primary }, bitButtonStyle(skinTokens, "primary"), glassButtonStyle(skinTokens, "primary")]}
+                style={[styles.saveBtn, { backgroundColor: colors.primary }, bitButtonStyle(skinTokens, "primary")]}
               >
-                <Text style={[styles.saveBtnText, { color: skinTokens.isStainedGlass ? glassButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF" }]}>
+                <Text style={[styles.saveBtnText, { color: skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF" }]}>
                   {editingEntry ? "Save changes" : "Save entry"}
                 </Text>
               </Pressable>

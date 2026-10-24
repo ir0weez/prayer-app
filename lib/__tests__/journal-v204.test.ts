@@ -360,11 +360,12 @@ describe("v213 — the composer is solid, no frost (source pins)", () => {
     expect(ground).not.toContain("rgba");
     expect(ground).not.toContain("E6");
     // The ladder is the Journal's own chrome ladder (the head
-    // pill's): glass panel, terminal panel, then the surface
+    // pill's): terminal panel, then the surface
     // token — momentsSurface, i.e. colors.surface, which is the
     // light Journal white in light mode and the dark surface
-    // in dark mode.
-    expect(ground).toContain('"#241D33"');
+    // in dark mode. (v221: the ladder's glass rung, "#241D33",
+    // left with the Stained Glass skin itself.)
+    expect(ground).not.toContain('"#241D33"');
     expect(ground).toContain("TERM_PANEL");
     expect(ground).toContain("momentsSurface");
     expect(tab).toContain("const momentsSurface = colors.surface;");

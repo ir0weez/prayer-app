@@ -136,8 +136,7 @@ import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/
 import { COINS_STORAGE_KEY, parseCoins, applyCoinsDelta } from "@/lib/hometown";
 import { awardXP, awardCustomXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
-import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, TERM_BG, TERM_DIM, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, getSkinThemeDefinition, glassButtonInk, glassButtonStyle, normalizeSkinThemeId, skinText, termButtonInk, termButtonStyle, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
-import { GlassRoseFab } from "@/components/glass-kit";
+import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, TERM_BG, TERM_DIM, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, getSkinThemeDefinition, normalizeSkinThemeId, skinText, termButtonInk, termButtonStyle, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 
@@ -2185,7 +2184,7 @@ export default function HomeScreen() {
         </Pressable>
         </ReAnimated.View>;
       })}
-      <Pressable onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))} style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 6, marginBottom: 12, minHeight: 38, borderRadius: 8, backgroundColor: accent, alignItems: "center", justifyContent: "center", ...(bitButtonStyle(skinTokens, "primary") ?? {}), ...(termButtonStyle(skinTokens, "primary") ?? {}), ...(glassButtonStyle(skinTokens, "primary") ?? {}) }, pressed && { opacity: 0.8 }]}><Text style={{ color: skinTokens.isStainedGlass ? glassButtonInk("primary") : skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text></Pressable>
+      <Pressable onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))} style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 6, marginBottom: 12, minHeight: 38, borderRadius: 8, backgroundColor: accent, alignItems: "center", justifyContent: "center", ...(bitButtonStyle(skinTokens, "primary") ?? {}), ...(termButtonStyle(skinTokens, "primary") ?? {}) }, pressed && { opacity: 0.8 }]}><Text style={{ color: skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text></Pressable>
     </UnfurlPanel>;
   };
 
@@ -2237,12 +2236,12 @@ export default function HomeScreen() {
 
 
   const renderPeopleScreen = () => (
-    <View style={[styles.peopleScreen, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background }, skinTokens.isStainedGlass ? { backgroundColor: "transparent" } : null]}>
+    <View style={[styles.peopleScreen, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background }, null]}>
       <ReAnimated.View style={[styles.floatingHeaderRow, pillAnimatedStyle]}>
-        <View style={[styles.floatingPill, { backgroundColor: skinTokens.isStainedGlass ? "#241D33" : skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned || skinTokens.isStainedGlass ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }]}>
+        <View style={[styles.floatingPill, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }]}>
           {isSkinned ? <PaperGrainOverlay /> : null}
-          <Text style={[styles.pillTitle, { color: skinTokens.isStainedGlass ? "#F3EAD2" : skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? "#EDE8FF" : colors.foreground }, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 13, lineHeight: 20 } : null]}>PrayerCircle</Text>
-          <Text style={[styles.pillSubtitle, { color: skinTokens.isStainedGlass ? "#CBBFA3" : skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }]}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
+          <Text style={[styles.pillTitle, { color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? "#EDE8FF" : colors.foreground }, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 13, lineHeight: 20 } : null]}>PrayerCircle</Text>
+          <Text style={[styles.pillSubtitle, { color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }]}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
         <View style={styles.m3StatsContainer}>
           <ReAnimated.View style={[styles.m3StatsRow, pillsTransformStyle]}>
@@ -3228,16 +3227,16 @@ export default function HomeScreen() {
             which overflowed the ~72px tab cells and collided ("[ JOURNAL
             ]" into "[ SETTINGS", a stray bracket under Settings). */}
         {skinTokens.isTerminal ? null : (
-          <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : skinTokens.isStainedGlass ? "#CBBFA3" : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : "#5F6670"} />
+          <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : "#5F6670"} />
         )}
-        <Text numberOfLines={skinTokens.isTerminal ? 1 : undefined} style={[styles.tabLabel, isActive && styles.tabLabelActive, skinTokens.isTerminal ? { color: isActive ? TERM_BG : TERM_MID } : skinTokens.isEightBit ? { color: isActive ? "#FFFFFF" : BIT_ON_DUSK_FAINT } : null, skinTokens.isStainedGlass ? { color: isActive ? "#F7EFDC" : "#CBBFA3" } : null, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 8, lineHeight: 13 } : null, skinTokens.isTerminal ? { fontSize: 13, lineHeight: 16 } : null, skinTokens.isPaper ? skinText(skinTokens, skinTokens.type.labelText, 16) : null]}>{skinTokens.isTerminal ? (isActive ? `[${label.toUpperCase()}]` : label.toUpperCase()) : label}</Text>
+        <Text numberOfLines={skinTokens.isTerminal ? 1 : undefined} style={[styles.tabLabel, isActive && styles.tabLabelActive, skinTokens.isTerminal ? { color: isActive ? TERM_BG : TERM_MID } : skinTokens.isEightBit ? { color: isActive ? "#FFFFFF" : BIT_ON_DUSK_FAINT } : null, null, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 8, lineHeight: 13 } : null, skinTokens.isTerminal ? { fontSize: 13, lineHeight: 16 } : null, skinTokens.isPaper ? skinText(skinTokens, skinTokens.type.labelText, 16) : null]}>{skinTokens.isTerminal ? (isActive ? `[${label.toUpperCase()}]` : label.toUpperCase()) : label}</Text>
       </Pressable>
     );
   };
 
   if (showAddPerson) {
     return (
-      <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.addScreenRoot, { backgroundColor: (skinTokens.isEightBit || skinTokens.isStainedGlass) ? "transparent" : colors.background }]}>
+      <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.addScreenRoot, { backgroundColor: (skinTokens.isEightBit) ? "transparent" : colors.background }]}>
         <View style={styles.addTopBar}>
           <Pressable onPress={() => setShowAddPerson(false)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("close")} size={30} color="#46525D" />
@@ -3382,7 +3381,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : colors.background }, skinTokens.isStainedGlass ? { backgroundColor: "transparent" } : null]}>
+    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : colors.background }, null]}>
       <ReAnimated.View style={[{ flex: 1 }, tabContentStyle]}>
         {renderContent()}
       </ReAnimated.View>
@@ -3411,9 +3410,9 @@ export default function HomeScreen() {
             setActiveTab("people");
             setShowAddPerson(true);
           }}
-          style={({ pressed }) => [styles.fab, { backgroundColor: skinTokens.isStainedGlass ? "#1E1811" : skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.frame, (skinTokens.isEightBit || skinTokens.isTerminal || skinTokens.isStainedGlass) ? skinTokens.cardShadow ?? {} : null, pressed && (skinTokens.isPaper ? [paperPressedLift(skinTokens, pressed, [{ scale: 0.96 }]), { opacity: 0.92 }] : skinTokens.isEightBit ? bitPressedSnap(skinTokens, pressed, [{ scale: 0.96 }]) : styles.fabPressed)]}
+          style={({ pressed }) => [styles.fab, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.frame, (skinTokens.isEightBit || skinTokens.isTerminal) ? skinTokens.cardShadow ?? {} : null, pressed && (skinTokens.isPaper ? [paperPressedLift(skinTokens, pressed, [{ scale: 0.96 }]), { opacity: 0.92 }] : skinTokens.isEightBit ? bitPressedSnap(skinTokens, pressed, [{ scale: 0.96 }]) : styles.fabPressed)]}
         >
-          {skinTokens.isStainedGlass ? <GlassRoseFab size={44} /> : <MaterialIcons name="add" size={44} color={skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF"} />}
+          {<MaterialIcons name="add" size={44} color={skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF"} />}
         </Pressable>
       ) : null}
 
@@ -3428,7 +3427,7 @@ export default function HomeScreen() {
           // 8-bit (v184): the tab bar is the mockup's cartridge panel —
           // darkest HUD indigo, square corners, 3px ink edge, the one
           // hard block shadow. Other skins keep their surface.
-          backgroundColor: skinTokens.isStainedGlass ? "#1E1811" : skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : skinTokens.surface ?? colors.surface,
+          backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : skinTokens.surface ?? colors.surface,
           elevation: skinTokens.cardShadow?.elevation ?? 3,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
@@ -3447,8 +3446,8 @@ export default function HomeScreen() {
               left: 9,
               top: 4,
               bottom: 4,
-              borderRadius: skinTokens.isStainedGlass ? 12 : (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 18,
-              backgroundColor: skinTokens.isStainedGlass ? "#5B3E99" : skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
+              borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 18,
+              backgroundColor: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
             },
             tabPillAnimatedStyle,
           ]}
@@ -3696,7 +3695,7 @@ export default function HomeScreen() {
                   }}
                   style={({ pressed }) => [styles.themeOption, { borderColor: colors.border }, pressed && unlocked && { opacity: 0.75 }]}
                 >
-                  <View style={[styles.themeColorSwatch, { backgroundColor: theme.swatch }, theme.id === "paper" && { borderWidth: 1, borderColor: "#D8C391" }, theme.id === "8bit" && { borderWidth: 1, borderColor: "#FFC531" }, theme.id === "terminal" && { borderWidth: 1, borderColor: "#3DFF6E" }, theme.id === "stainedglass" && { borderWidth: 2, borderColor: "#E8A33D" }]} />
+                  <View style={[styles.themeColorSwatch, { backgroundColor: theme.swatch }, theme.id === "paper" && { borderWidth: 1, borderColor: "#D8C391" }, theme.id === "8bit" && { borderWidth: 1, borderColor: "#FFC531" }, theme.id === "terminal" && { borderWidth: 1, borderColor: "#3DFF6E" }]} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.themeOptionName}>{theme.name}</Text>
                     <Text style={styles.themeOptionDescription}>{theme.description}</Text>

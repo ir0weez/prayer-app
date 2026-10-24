@@ -120,8 +120,8 @@ export function JournalPost({
   // v194 colored chip text with the surface ink — white on the pale
   // chip under dark Classic — so a tagged person's name rendered
   // invisibly and the chip read as a stray empty white pill.
-  const chipBg = skinTokens.isStainedGlass ? "#5B3E99" : skinTokens.isTerminal ? "rgba(61,255,110,0.12)" : skinTokens.isEightBit ? BIT_CREAM : "#F4F2FA";
-  const chipInk = skinTokens.isStainedGlass ? "#F7EFDC" : skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? "#150A2E" : "#1D1830";
+  const chipBg = skinTokens.isTerminal ? "rgba(61,255,110,0.12)" : skinTokens.isEightBit ? BIT_CREAM : "#F4F2FA";
+  const chipInk = skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? "#150A2E" : "#1D1830";
 
   const moodOnly = isMoodOnlyEntry(entry);
   const tags = useMemo(() => entryTags(entry), [entry]);

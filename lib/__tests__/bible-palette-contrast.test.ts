@@ -26,7 +26,10 @@ import { ACCENT_THEMES, getThemedPalette, type ColorScheme } from '../color-them
 import { getSkinTokens, hexContrast, TERM_PANEL, type SkinThemeId } from '../skin-themes';
 import { BIBLE_DARK_SCHEME_INK, resolveBibleInk } from '../bible-v205/palette-ink';
 
-const SKINS: SkinThemeId[] = ['classic', 'paper', '8bit', 'terminal', 'stainedglass'];
+// v221: 'stainedglass' leaves the matrix with the skin itself
+// (removed at Jonathan's call); the remaining four skins keep their
+// ≥4.5 pins, Terminal-light fallback included.
+const SKINS: SkinThemeId[] = ['classic', 'paper', '8bit', 'terminal'];
 const SCHEMES: ColorScheme[] = ['light', 'dark'];
 
 /** The chapter paper exactly as useBiblePalette resolves it. */

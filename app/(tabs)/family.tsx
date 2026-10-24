@@ -196,14 +196,14 @@ export default function FamilyScreen() {
   }
 
   return (
-    <ScreenContainer className={(skinTokens.isEightBit || skinTokens.isStainedGlass) ? undefined : "bg-background"}>
+    <ScreenContainer className={(skinTokens.isEightBit) ? undefined : "bg-background"}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
             <MaterialIcons name="chevron-left" size={28} color={colors.primary} />
           </Pressable>
-          <Text style={[styles.headerTitle, { color: skinTokens.isStainedGlass ? "#F3EAD2" : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground }]}>Prayer List</Text>
+          <Text style={[styles.headerTitle, { color: skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground }]}>Prayer List</Text>
           <View style={styles.headerRightActions}>
             <Pressable onPress={handleUngroupFamily} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
               <MaterialIcons name="link-off" size={24} color={colors.primary} />

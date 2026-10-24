@@ -85,7 +85,7 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
           minHeight: blockCardHeight(block, nowMinutes),
           ...(skinTokens.isEightBit ? { borderWidth: 3, borderRadius: 2 } : {}),
           ...(isTerminal ? { borderWidth: 1.5, borderRadius: 2 } : {}),
-          ...(skinTokens.isStainedGlass ? { borderWidth: 3, borderRadius: 10 } : {}),
+          ...({}),
           ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
         },
       ]}
@@ -110,13 +110,6 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
             return (
               <View style={{ backgroundColor: "transparent", borderWidth: 1.5, borderColor: TERM_PHOS, borderRadius: 2, paddingHorizontal: 6, paddingVertical: 2 }}>
                 <Text style={{ color: TERM_PHOS, fontSize: 11, fontFamily: TERM_FONT_FAMILY }}>{`[ ${label} ]`}</Text>
-              </View>
-            );
-          }
-          if (skinTokens.isStainedGlass) {
-            return (
-              <View style={{ backgroundColor: "#E8A33D", borderWidth: 2, borderColor: "#17130E", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-                <Text style={{ color: "#2A1E05", fontSize: 10, fontWeight: "800" }}>{label}</Text>
               </View>
             );
           }
@@ -153,7 +146,7 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
           borderStyle: isTerminal ? "dashed" : isSkinned ? "solid" : "dashed",
           ...(skinTokens.isEightBit ? { borderWidth: 3, borderRadius: 2 } : {}),
           ...(isTerminal ? { borderWidth: 1.5, borderRadius: 2 } : {}),
-          ...(skinTokens.isStainedGlass ? { borderWidth: 3, borderRadius: 10 } : {}),
+          ...({}),
           ...(isSkinned ? skinTokens.cardShadow ?? {} : {}),
         },
       ]}
@@ -203,13 +196,6 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
                 return (
                   <View style={{ backgroundColor: "transparent", borderWidth: 1.5, borderColor: TERM_PHOS, borderRadius: 2, paddingHorizontal: 6, paddingVertical: 2 }}>
                     <Text style={{ color: TERM_PHOS, fontSize: 11, fontFamily: TERM_FONT_FAMILY }}>{`[ ${label} ]`}</Text>
-                  </View>
-                );
-              }
-              if (skinTokens.isStainedGlass) {
-                return (
-                  <View style={{ backgroundColor: "#E8A33D", borderWidth: 2, borderColor: "#17130E", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-                    <Text style={{ color: "#2A1E05", fontSize: 10, fontWeight: "800" }}>{label}</Text>
                   </View>
                 );
               }

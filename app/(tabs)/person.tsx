@@ -742,7 +742,7 @@ export default function PersonScreen() {
 
   if (!hasHydratedPeople) {
     return (
-      <ScreenContainer containerClassName="bg-background" style={[styles.container, skinTokens.isEightBit ? { backgroundColor: "transparent" } : null, skinTokens.isStainedGlass ? { backgroundColor: "transparent" } : null]}>
+      <ScreenContainer containerClassName="bg-background" style={[styles.container, skinTokens.isEightBit ? { backgroundColor: "transparent" } : null, null]}>
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateText}>Loading prayer list…</Text>
         </View>
@@ -752,12 +752,12 @@ export default function PersonScreen() {
 
   if (!currentPerson) {
     return (
-      <ScreenContainer containerClassName="bg-background" style={[styles.container, skinTokens.isEightBit ? { backgroundColor: "transparent" } : null, skinTokens.isStainedGlass ? { backgroundColor: "transparent" } : null]}>
+      <ScreenContainer containerClassName="bg-background" style={[styles.container, skinTokens.isEightBit ? { backgroundColor: "transparent" } : null, null]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("chevron-left")} size={34} color={colors.primary} />
           </Pressable>
-          <Text style={[styles.headerTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, skinTokens.isStainedGlass ? { color: "#F3EAD2" } : null]}>Prayer</Text>
+          <Text style={[styles.headerTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, null]}>Prayer</Text>
           <View style={styles.headerIconButton} />
         </View>
         <View style={styles.emptyState}>
@@ -768,12 +768,12 @@ export default function PersonScreen() {
   }
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.container, skinTokens.isEightBit ? { backgroundColor: "transparent" } : null, skinTokens.isStainedGlass ? { backgroundColor: "transparent" } : null]}>
+    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.container, skinTokens.isEightBit ? { backgroundColor: "transparent" } : null, null]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}>
           <MaterialIcons name={iconName("chevron-left")} size={34} color={colors.primary} />
         </Pressable>
-        <Text style={[styles.headerTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, skinTokens.isStainedGlass ? { color: "#F3EAD2" } : null]}>Prayer List</Text>
+        <Text style={[styles.headerTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, null]}>Prayer List</Text>
         <Pressable onPress={openEditModal} style={({ pressed }) => [styles.headerEditButton, pressed && styles.pressed]}>
           <Text style={styles.headerEditButtonText}>Edit</Text>
         </Pressable>
@@ -784,10 +784,10 @@ export default function PersonScreen() {
         <PaperSettle style={styles.profileSection}>
 <BitSettle style={{ alignItems: "center" }}>
           <AvatarImage id={currentPerson.id} name={currentPerson.name} gender={currentPerson.gender} avatarAsset={currentPerson.avatarAsset} photoUri={currentPerson.photoUri} size={96} fallbackColor={currentPerson.avatarColor} style={{ borderWidth: 3, borderColor: currentPerson.accentColor, borderRadius: 48, backgroundColor: "transparent" }} />
-          <Text style={[styles.personName, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, skinTokens.isStainedGlass ? { color: "#F3EAD2" } : null]}>{currentPerson.name}</Text>
+          <Text style={[styles.personName, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, null]}>{currentPerson.name}</Text>
           <Text style={[styles.personRelationship, { color: currentPerson.accentColor }]}>{currentPerson.relationship}</Text>
           {currentPerson.birthday && (
-            <Text style={[styles.personBirthday, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null, skinTokens.isStainedGlass ? { color: "#CBBFA3" } : null]}>Birthday: {currentPerson.birthday}</Text>
+            <Text style={[styles.personBirthday, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null, null]}>Birthday: {currentPerson.birthday}</Text>
           )}
           <Pressable onPress={openReminderModal} style={({ pressed }) => [styles.reminderChip, pressed && styles.pressed]}>
              <MaterialIcons name={iconName("notifications")} size={17} color={colors.primary} />
@@ -795,7 +795,7 @@ export default function PersonScreen() {
               {getReminderScheduleText(currentPerson)}
             </Text>
           </Pressable>
-          <Text style={[styles.statusText, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null, skinTokens.isStainedGlass ? { color: "#CBBFA3" } : null]}>{getStatusText(currentPerson)}</Text>
+          <Text style={[styles.statusText, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null, null]}>{getStatusText(currentPerson)}</Text>
           {currentPerson.lastMeetingLocation ? (
             <Text style={styles.personBirthday}>Last met at {currentPerson.lastMeetingLocation}</Text>
           ) : null}

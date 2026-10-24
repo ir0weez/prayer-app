@@ -560,7 +560,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScreenContainer className={skinTokens.isEightBit || skinTokens.isStainedGlass ? "flex-1" : "flex-1 bg-background"}>
+    <ScreenContainer className={skinTokens.isEightBit ? "flex-1" : "flex-1 bg-background"}>
       <ScrollView
         ref={profileScrollRef}
         contentContainerStyle={styles.content}
@@ -650,8 +650,8 @@ export default function ProfileScreen() {
             <>
               {/* 8-bit: the same stack in dusk layers with square corners.
                   Terminal (v186): deeper tube greens, 2px corners. */}
-              <View style={{ position: 'absolute', left: 7, right: -7, top: 9, bottom: -9, borderRadius: isPaper ? 6 : skinTokens.isStainedGlass ? 14 : skinTokens.isTerminal ? 2 : 6, backgroundColor: isPaper ? '#E6DCC2' : skinTokens.isStainedGlass ? '#1B1726' : skinTokens.isTerminal ? TERM_DEEP : '#1E1138' }} />
-              <View style={{ position: 'absolute', left: 3.5, right: -3.5, top: 4.5, bottom: -4.5, borderRadius: isPaper ? 6 : skinTokens.isStainedGlass ? 14 : skinTokens.isTerminal ? 2 : 6, backgroundColor: isPaper ? '#EFE9DB' : skinTokens.isStainedGlass ? '#2E2442' : skinTokens.isTerminal ? TERM_PANEL_2 : '#2A1B4E' }} />
+              <View style={{ position: 'absolute', left: 7, right: -7, top: 9, bottom: -9, borderRadius: isPaper ? 6 : skinTokens.isTerminal ? 2 : 6, backgroundColor: isPaper ? '#E6DCC2' : skinTokens.isTerminal ? TERM_DEEP : '#1E1138' }} />
+              <View style={{ position: 'absolute', left: 3.5, right: -3.5, top: 4.5, bottom: -4.5, borderRadius: isPaper ? 6 : skinTokens.isTerminal ? 2 : 6, backgroundColor: isPaper ? '#EFE9DB' : skinTokens.isTerminal ? TERM_PANEL_2 : '#2A1B4E' }} />
             </>
           ) : null}
         <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }, isSkinned ? { overflow: 'hidden' } : null, skinCardShadow]}>

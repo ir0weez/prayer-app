@@ -4,7 +4,6 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { BitDitherOverlay } from '@/components/bit-dither';
 import { PaperGrainOverlay } from '@/components/paper-grain';
-import { GlassOverlay } from '@/components/glass-background';
 import { TermScanlineOverlay } from '@/components/terminal-background';
 import { useSkin } from '@/hooks/use-skin';
 import { PaperSettle } from './paper-motion';
@@ -33,7 +32,7 @@ export function StatusModal({
   const [draftPhotoUri, setDraftPhotoUri] = useState(statusPhotoUri);
   const [isHighlighted, setIsHighlighted] = useState(!!statusHighlight);
   // Paper skin (v174): the modal's page becomes a sheet of paper.
-  const { isPaper, isEightBit, isTerminal, isStainedGlass, isSkinned, tokens } = useSkin();
+  const { isPaper, isEightBit, isTerminal, isSkinned, tokens } = useSkin();
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -70,7 +69,6 @@ export function StatusModal({
 <BitSettle style={{ flex: 1 }}>
         {isPaper ? <PaperGrainOverlay /> : null}
         {isEightBit ? <BitDitherOverlay /> : null}
-        {isStainedGlass ? <GlassOverlay /> : null}
         {isTerminal ? <TermScanlineOverlay /> : null}
         {isTerminal ? <TermScanlineOverlay /> : null}
         <View style={styles.header}>

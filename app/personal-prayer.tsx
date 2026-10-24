@@ -84,12 +84,12 @@ export default function PersonalPrayerScreen() {
   };
 
   return (
-    <ScreenContainer className={(skinTokens.isEightBit || skinTokens.isStainedGlass) ? undefined : "bg-background"}>
+    <ScreenContainer className={(skinTokens.isEightBit) ? undefined : "bg-background"}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <MaterialIcons name="arrow-back" size={24} color={skinTokens.isStainedGlass ? "#F3EAD2" : skinTokens.isEightBit ? BIT_ON_DUSK : DEEP_TEXT} />
+          <MaterialIcons name="arrow-back" size={24} color={skinTokens.isEightBit ? BIT_ON_DUSK : DEEP_TEXT} />
         </Pressable>
-        <Text style={[styles.headerTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, skinTokens.isStainedGlass ? { color: "#F3EAD2" } : null]}>My Prayers</Text>
+        <Text style={[styles.headerTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, null]}>My Prayers</Text>
         <View style={{ width: 34 }} />
       </View>
 
@@ -97,8 +97,8 @@ export default function PersonalPrayerScreen() {
         <View style={styles.content}>
           {prayerItems.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={[styles.emptyTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, skinTokens.isStainedGlass ? { color: "#F3EAD2" } : null]}>No prayer items yet</Text>
-              <Text style={[styles.emptyText, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null, skinTokens.isStainedGlass ? { color: "#CBBFA3" } : null]}>Add personal prayer items to track what you're praying about.</Text>
+              <Text style={[styles.emptyTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, null]}>No prayer items yet</Text>
+              <Text style={[styles.emptyText, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null, null]}>Add personal prayer items to track what you're praying about.</Text>
             </View>
           ) : (
             <>

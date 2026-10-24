@@ -34,8 +34,7 @@ export function useSkin(): {
   isPaper: boolean;
   isEightBit: boolean;
   isTerminal: boolean;
-  isStainedGlass: boolean;
-  /** A material skin drives the surface kit (Paper, 8-bit, Terminal or Stained Glass). */
+  /** A material skin drives the surface kit (Paper, 8-bit or Terminal). */
   isSkinned: boolean;
   /**
    * The platform's clean monospace family while Terminal is active
@@ -56,19 +55,6 @@ export function useSkin(): {
   );
 
   const motion = useMemo<SkinMotion>(() => {
-    if (tokens.isStainedGlass) {
-      // The glass dialect: light shifting behind panes — the same
-      // calm sine family as Paper (bezier(0.37, 0, 0.63, 1)), at
-      // the glass tempo from the tokens: a longer, kindling settle.
-      // No steps, no elastic easing — light does not tick, it
-      // drifts, the way light through a window does.
-      const sine = Easing.bezier(0.37, 0, 0.63, 1);
-      return {
-        slide: { duration: tokens.motion.slideDuration, easing: sine },
-        settle: { duration: tokens.motion.settleDuration, easing: sine },
-        settleDistance: tokens.motion.settleDistance,
-      };
-    }
     if (tokens.isTerminal) {
       // The terminal dialect: harder steps than 8-bit — the mockup's
       // entrances are three opacity chunks (steps(3)) and everything
@@ -112,8 +98,7 @@ export function useSkin(): {
     isPaper: tokens.isPaper,
     isEightBit: tokens.isEightBit,
     isTerminal: tokens.isTerminal,
-    isStainedGlass: tokens.isStainedGlass,
-    isSkinned: tokens.isPaper || tokens.isEightBit || tokens.isTerminal || tokens.isStainedGlass,
+    isSkinned: tokens.isPaper || tokens.isEightBit || tokens.isTerminal,
     monoFont: tokens.isTerminal
       ? Platform.select({ ios: "Courier New", android: "monospace", default: "monospace" })
       : undefined,

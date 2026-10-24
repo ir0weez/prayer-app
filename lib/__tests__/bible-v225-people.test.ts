@@ -505,11 +505,18 @@ describe('v225 — export: studioPeople + studioJournal', () => {
 describe('v225 — the DATA screen wiring (source pins)', () => {
   const src = readFileSync(join(process.cwd(), 'app', '(tabs)', 'index.tsx'), 'utf8');
 
-  it('has an Import People Pack row with its own handler and the plain summary', () => {
-    expect(src).toContain('Import People Pack');
-    expect(src).toContain('handleImportPeoplePack');
+  // v231 "One Door" superseded the dedicated row this test originally
+  // pinned: people ride the single Import Studio Pack row now, through
+  // the same applyStudioPeoplePack merge. (Updated in v231 — the row
+  // and its handler are gone by design; bible-v231-onedoor.test.ts
+  // pins the one-door wiring in full.)
+  it('people ride the one door: no dedicated row, the merge still wired', () => {
+    expect(src).not.toContain('Import People Pack');
+    expect(src).not.toContain('handleImportPeoplePack');
+    expect(src).toContain('handleImportStudioPack');
+    expect(src).toContain('parseStudioFileFull');
     expect(src).toContain('applyStudioPeoplePack');
-    expect(src).toContain('People updated: ${result.summary.peopleUpdated} · Needs: ${result.summary.needs} · Journal entries: ${result.summary.journalEntries}');
+    expect(src).toContain('counts.peopleUpdated = peopleResult.summary.peopleUpdated');
   });
 
   it('the backup payload carries studioPeople and studioJournal sections', () => {

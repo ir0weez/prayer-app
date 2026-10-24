@@ -289,10 +289,17 @@ describe('surfaces — the backup and the DATA rows carry ministries', () => {
     expect(src).toContain('collectStudioSchedule(exportEvents, exportTodos, new Date(), exportMinistries)');
   });
 
-  it('the door applies ministries packs and the DATA rows name them', () => {
+  // v231 "One Door" superseded the dedicated Ministries row and its
+  // per-pack alert this test originally pinned: ministries ride the
+  // single Import Studio Pack row now, and the counts land in the one
+  // combined summary. (Updated in v231 — bible-v231-onedoor.test.ts
+  // pins the one-door wiring in full.)
+  it('the one door applies ministries and names them in its subtitle', () => {
     expect(src).toContain('applyStudioMinistriesPack');
-    expect(src).toContain('Added: ${result.summary.added} · Updated: ${result.summary.updated} · Deleted: ${result.summary.deleted}');
-    expect(src).toContain('Import Ministries Pack');
-    expect(src).toContain('Import Studio Pack", "Bring in notes, chapter states, a schedule, or ministries from the Commentary Studio');
+    expect(src).toContain('counts.ministriesAdded = result.summary.added');
+    expect(src).not.toContain('Import Ministries Pack');
+    expect(src).not.toContain('handleImportMinistriesPack');
+    expect(src).toContain('Import Studio Pack", "Bring in notes, states, schedule, people, or ministries from the Commentary Studio — one file can carry them all');
+    expect(src).toContain('formatStudioImportSummary');
   });
 });

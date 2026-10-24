@@ -46,15 +46,24 @@
 //     and deletion simply never happens.
 //  6. VISIBLE JOURNAL. Every check records when it ran and per-file
 //     applied / held / skipped counts, viewable from the DATA screen.
+//
+// v231 "One Door": a file in the folder is planned WHOLE — the planner
+// consumes the same full-file plan as the Settings door
+// (parseStudioFileFull), so a backup carrying five sections applies
+// all five, each under its own rule above: states regressions and
+// schedule conflicts still wait for review per section, everything
+// else applies. The journal note names each section that rode.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   applyStudioChapters,
   loadStudioImports,
   mergeStudioSchedule,
-  parseStudioFile,
+  parseStudioFileFull,
   saveStudioImports,
+  studioFilePlanFromPack,
   type StudioChapterPayload,
+  type StudioFilePlan,
   type StudioPack,
   type StudioPeoplePack,
   type StudioScheduleEventInput,
@@ -240,8 +249,29 @@ export interface DrivePlan {
   statesReads: StudioStateEntry[];
 }
 
+/** The single-kind planner kept for its original callers: a pack IS a
+ *  one-section file plan, so this is planDriveFile over that plan. */
 export function planDrivePack(
   pack: StudioPack,
+  currentStatus: (book: string, chapter: number) => string,
+  existingEvents: ScheduleEvent[],
+  existingTodos: ScheduleTodo[],
+): DrivePlan {
+  return planDriveFile(studioFilePlanFromPack(pack), currentStatus, existingEvents, existingTodos);
+}
+
+/**
+ * v231: plan a WHOLE file — every section it carries, each under its
+ * own safety rule. Sections are independent (they write disjoint
+ * stores), so a backup applies all of itself in one check: people and
+ * ministries ride whole, notes always apply, states and schedule
+ * items split into auto vs held exactly as single-kind packs did.
+ * When a notes payload's chapterState and a states section name the
+ * same chapter, both classify against the CURRENT status; at apply
+ * time the notes states land first, then the states section's.
+ */
+export function planDriveFile(
+  file: StudioFilePlan,
   currentStatus: (book: string, chapter: number) => string,
   existingEvents: ScheduleEvent[],
   existingTodos: ScheduleTodo[],
@@ -258,63 +288,49 @@ export function planDrivePack(
     ministryRows: 0,
     statesReads: [],
   };
-  if (pack.kind === 'people') {
-    plan.peoplePack = pack.people;
-    return plan;
+  const classifyState = (book: string, chapter: number, to: StudyStatus) => {
+    const from = currentStatus(book, chapter);
+    if (isBackwardMove(from, to)) {
+      plan.heldStates.push({
+        id: `state|${book}|${chapter}|${to}`,
+        kind: 'state',
+        book,
+        chapter,
+        from,
+        to,
+      });
+    } else {
+      plan.autoStates.push({ book, chapter, to });
+    }
+  };
+  if (file.people) {
+    plan.peoplePack = file.people;
   }
-  if (pack.kind === 'ministries') {
-    plan.ministriesPack = pack.ministries;
-    return plan;
+  if (file.ministries) {
+    plan.ministriesPack = file.ministries;
   }
-  if (pack.kind === 'states') {
+  if (file.notes) {
+    plan.notesChapters = file.notes;
+    for (const chapter of file.notes) {
+      if (chapter.chapterState === undefined) continue;
+      classifyState(chapter.book, chapter.chapter, chapter.chapterState);
+    }
+  }
+  if (file.states) {
     // v228: notes states classify exactly like a notes pack's
     // chapterState (backward moves wait for his tap); read marks are
     // collected whole — applyStudioStatesReads is forward-only.
-    for (const entry of pack.states.chapters) {
+    for (const entry of file.states.chapters) {
       if (entry.readDate !== null) plan.statesReads.push(entry);
       if (entry.notesState === null) continue;
-      const from = currentStatus(entry.book, entry.chapter);
-      const to = entry.notesState;
-      if (isBackwardMove(from, to)) {
-        plan.heldStates.push({
-          id: `state|${entry.book}|${entry.chapter}|${to}`,
-          kind: 'state',
-          book: entry.book,
-          chapter: entry.chapter,
-          from,
-          to,
-        });
-      } else {
-        plan.autoStates.push({ book: entry.book, chapter: entry.chapter, to });
-      }
+      classifyState(entry.book, entry.chapter, entry.notesState);
     }
-    return plan;
   }
-  if (pack.kind === 'notes') {
-    plan.notesChapters = pack.chapters;
-    for (const chapter of pack.chapters) {
-      if (chapter.chapterState === undefined) continue;
-      const from = currentStatus(chapter.book, chapter.chapter);
-      const to = chapter.chapterState;
-      if (isBackwardMove(from, to)) {
-        plan.heldStates.push({
-          id: `state|${chapter.book}|${chapter.chapter}|${to}`,
-          kind: 'state',
-          book: chapter.book,
-          chapter: chapter.chapter,
-          from,
-          to,
-        });
-      } else {
-        plan.autoStates.push({ book: chapter.book, chapter: chapter.chapter, to });
-      }
-    }
-    return plan;
-  }
+  if (!file.schedule) return plan;
   const occupied = new Map<string, string>();
   for (const e of existingEvents) occupied.set(`${e.date}|${e.startTime ?? ''}`, e.title);
   for (const t of existingTodos) occupied.set(`${t.date}|${t.startTime ?? ''}`, t.title);
-  for (const ev of pack.schedule.events) {
+  for (const ev of file.schedule.events) {
     if (ev.type === 'Ministry') {
       // The projection of a ministry record: noted, never slotted —
       // it must not hold a time slot, clash, or land as an event.
@@ -499,26 +515,27 @@ export async function checkDriveFolder(): Promise<
       journal.files[name] = { signature, applied: 0, held: 0, skipped: false, error: 'not valid JSON', checkedAt: new Date().toISOString() };
       continue;
     }
-    let pack: StudioPack;
+    let filePlan: StudioFilePlan;
     try {
-      // v222's door validates EVERYTHING before anything is applied —
-      // a malformed pack changes nothing (Rule 2).
-      pack = parseStudioFile(parsed);
+      // The door validates EVERYTHING before anything is applied —
+      // a malformed section anywhere rejects the whole file (Rule 2).
+      filePlan = parseStudioFileFull(parsed);
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'not a studio pack';
       summary.errors.push(`${name}: ${reason} — nothing applied`);
       journal.files[name] = { signature, applied: 0, held: 0, skipped: false, error: reason, checkedAt: new Date().toISOString() };
       continue;
     }
-    const plan = planDrivePack(
-      pack,
+    const plan = planDriveFile(
+      filePlan,
       (book, chapter) => chapterStatus(studyState, book, chapter),
       existingEvents,
       existingTodos,
     );
     let appliedHere = 0;
-    let fileNote: string | undefined;
     let fileError: string | undefined;
+    // v231: the journal note names every section this file carried.
+    const noteParts: string[] = [];
     if (plan.peoplePack) {
       // Merge-only by design: applyStudioPeoplePack is pure and throws
       // before anything is written when a journal entry matches nobody,
@@ -533,7 +550,7 @@ export async function checkDriveFolder(): Promise<
           result.summary.peopleUpdated + result.summary.needs + result.summary.journalEntries;
         appliedHere += items;
         summary.peopleApplied += items;
-        fileNote = 'People pack — merge only: nothing deleted, dates move forward only';
+        noteParts.push('People pack — merge only: nothing deleted, dates move forward only');
       } catch (error) {
         const reason = error instanceof Error ? error.message : 'people pack could not be applied';
         fileError = reason;
@@ -550,21 +567,27 @@ export async function checkDriveFolder(): Promise<
       const items = result.summary.added + result.summary.updated + result.summary.deleted;
       appliedHere += items;
       summary.ministriesApplied += items;
-      fileNote = 'Ministries pack — upserts and explicit deletes only';
+      noteParts.push('Ministries pack — upserts and explicit deletes only');
     }
-    if (plan.ministryRows > 0 && !fileNote) {
-      fileNote = `${plan.ministryRows} ministry row${plan.ministryRows === 1 ? '' : 's'} noted — ministry records travel by their own pack`;
+    if (plan.ministryRows > 0) {
+      noteParts.push(
+        `${plan.ministryRows} ministry row${plan.ministryRows === 1 ? '' : 's'} noted — ministry records travel by their own pack`,
+      );
     }
     if (plan.notesChapters.length > 0) {
       const current = await loadStudioImports();
       const { next, chaptersUpdated } = applyStudioChapters(current, plan.notesChapters);
       await saveStudioImports(next);
       appliedHere += chaptersUpdated;
+      noteParts.push(`Notes: ${chaptersUpdated} chapter${chaptersUpdated === 1 ? '' : 's'}`);
     }
     for (const auto of plan.autoStates) {
       const result = await transitionChapterStatus(studyState, auto.book, auto.chapter, auto.to);
       studyState = result.state;
       appliedHere += 1;
+    }
+    if (plan.autoStates.length > 0 || plan.heldStates.length > 0 || plan.statesReads.length > 0) {
+      noteParts.push('Chapter states + read marks');
     }
     if (plan.statesReads.length > 0) {
       // v228: read marks from a states pack — forward-only merge, so
@@ -576,9 +599,12 @@ export async function checkDriveFolder(): Promise<
         appliedHere += reads.applied;
       }
     }
+    if (filePlan.schedule) {
+      noteParts.push('Schedule');
+    }
     if (plan.autoSchedule.length > 0) {
       const merged = mergeStudioSchedule(existingEvents, existingTodos, {
-        weekOf: pack.kind === 'schedule' ? pack.schedule.weekOf : '',
+        weekOf: filePlan.schedule?.weekOf ?? '',
         events: plan.autoSchedule,
       });
       existingEvents = merged.events;
@@ -596,6 +622,7 @@ export async function checkDriveFolder(): Promise<
     const heldHere = plan.heldStates.length + plan.heldSchedule.length;
     summary.applied += appliedHere;
     summary.held += heldHere;
+    const fileNote = noteParts.length > 0 ? noteParts.join(' · ') : undefined;
     journal.files[name] = {
       signature,
       applied: appliedHere,

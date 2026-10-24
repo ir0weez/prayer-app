@@ -24,6 +24,15 @@
 //                                track, later date wins, null never clears
 //                                (validated/applied by studio-states.ts)
 //
+// v231 "One Door": the Settings screen used to grow a dedicated import
+// row per pack kind (Studio / People / Ministries) because parseStudioFile
+// returns ONE kind per file. Nobody should have to know which file holds
+// what. parseStudioFileFull (below) reads a WHOLE file — every section
+// it carries, standalone pack or full backup — validates EVERYTHING
+// first, and hands the caller one plan to apply through the same
+// per-section appliers. parseStudioFile stays for callers that truly
+// hold a single-kind pack; the door and the Drive check use the plan.
+//
 // Rules the import obeys, from Jonathan's own asks:
 //  · NOTES REPLACE that chapter's imported commentary entries only. The
 //    marks layer (EntryMarks: hearts, tints, bubble lines in marks.ts) is
@@ -330,13 +339,8 @@ function validateChapter(raw: unknown, where: string): StudioChapterPayload {
   return payload;
 }
 
-function validateSchedule(raw: unknown): StudioSchedulePayload {
-  if (!isRecord(raw)) fail('Schedule pack is not an object');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(raw.weekOf))) {
-    fail('Schedule pack has no valid weekOf date');
-  }
-  if (!Array.isArray(raw.events)) fail('Schedule pack has no events array');
-  const events = raw.events.map((e, i) => {
+function validateScheduleEvents(rawEvents: unknown[]): StudioScheduleEventInput[] {
+  return rawEvents.map((e, i) => {
     const where = `schedule event ${i}`;
     if (!isRecord(e)) fail(`${where}: event is not an object`);
     if (!isNonEmptyString(e.title)) fail(`${where}: event has no title`);
@@ -363,7 +367,26 @@ function validateSchedule(raw: unknown): StudioSchedulePayload {
       location: typeof e.location === 'string' ? e.location : '',
     };
   });
-  return { weekOf: raw.weekOf as string, events };
+}
+
+function validateSchedule(raw: unknown): StudioSchedulePayload {
+  if (!isRecord(raw)) fail('Schedule pack is not an object');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(raw.weekOf))) {
+    fail('Schedule pack has no valid weekOf date');
+  }
+  if (!Array.isArray(raw.events)) fail('Schedule pack has no events array');
+  return { weekOf: raw.weekOf as string, events: validateScheduleEvents(raw.events) };
+}
+
+/**
+ * The backup's studioSchedule section (v227): same event shape, but the
+ * section stamps exportedAt instead of a weekOf — the events are the
+ * payload, validated exactly like a pack's. weekOf normalizes to ''.
+ */
+function validateScheduleSection(raw: unknown): StudioSchedulePayload {
+  if (!isRecord(raw)) fail('Schedule section is not an object');
+  if (!Array.isArray(raw.events)) fail('Schedule section has no events array');
+  return { weekOf: '', events: validateScheduleEvents(raw.events) };
 }
 
 const RELATIONSHIP_TYPES: RelationshipType[] = [
@@ -557,6 +580,171 @@ export function parseStudioFile(parsed: unknown): StudioPack {
       'prayercircle-library.json, prayercircle-schedule.json, prayercircle-people.json, ' +
       'or prayercircle-ministries.json.',
   );
+}
+
+// ── v231 "One Door" — the whole file, every section ─────────────────────────
+// A studio file is a bundle, not a kind. Standalone packs carry their
+// payload at the top level; a full PrayerCircle backup carries the same
+// payloads as named sections (studioStates / studioSchedule /
+// studioPeople / studioMinistries). This parser detects every section
+// present — in either placement — and validates ALL of it before
+// returning: one malformed section rejects the whole file, so nothing
+// ever half-applies. The export-only sections (studioBubbles,
+// studioJournal) are the studio's reading feed, not import payloads,
+// and are ignored here by design.
+
+export interface StudioFilePlan {
+  /** Notes payloads (single-chapter pack or library `chapters`). */
+  notes: StudioChapterPayload[] | null;
+  /** The two chapter marks (backup `studioStates` section). */
+  states: StudioStatesSection | null;
+  /** Schedule events, normalized to pack shape (weekOf '' when the
+   *  payload rode a backup's studioSchedule section). */
+  schedule: StudioSchedulePayload | null;
+  /** People + journal (standalone pack or backup `studioPeople`). */
+  people: StudioPeoplePack | null;
+  /** Ministry records + tombstones (standalone pack or backup
+   *  `studioMinistries`). */
+  ministries: StudioMinistriesPack | null;
+}
+
+export function emptyStudioFilePlan(): StudioFilePlan {
+  return { notes: null, states: null, schedule: null, people: null, ministries: null };
+}
+
+export function studioFileHasSections(plan: StudioFilePlan): boolean {
+  return (
+    plan.notes !== null ||
+    plan.states !== null ||
+    plan.schedule !== null ||
+    plan.people !== null ||
+    plan.ministries !== null
+  );
+}
+
+/**
+ * Parse and FULLY validate a whole studio file — any mix of sections.
+ * Throws a plain Error with a human-readable reason on anything
+ * malformed, before the caller applies a single section.
+ */
+export function parseStudioFileFull(parsed: unknown): StudioFilePlan {
+  if (!isRecord(parsed)) fail('That file is not a studio pack (expected a JSON object).');
+  const plan = emptyStudioFilePlan();
+  // The two marks (v228): the studioStates section, wherever it rides.
+  if (parsed.studioStates !== undefined) {
+    plan.states = { chapters: validateStudioStates(parsed.studioStates) };
+  }
+  // Ministries (v229): the standalone file's top-level list wins; the
+  // backup section carries the identical shape.
+  if ('ministries' in parsed) {
+    plan.ministries = validateStudioMinistriesPack(parsed);
+  } else if (parsed.studioMinistries !== undefined) {
+    plan.ministries = validateStudioMinistriesPack(parsed.studioMinistries);
+  }
+  // People (v225): standalone pack keys at the top; a backup's
+  // studioPeople section is the same { people, journal } shape.
+  if (Array.isArray(parsed.people)) {
+    plan.people = validatePeoplePack(parsed);
+  } else if (isRecord(parsed.studioPeople)) {
+    plan.people = validatePeoplePack(parsed.studioPeople);
+  }
+  // Schedule (v222 pack / v227 backup section): same events either way.
+  if (typeof parsed.weekOf === 'string' && Array.isArray(parsed.events)) {
+    plan.schedule = validateSchedule(parsed);
+  } else if (parsed.studioSchedule !== undefined) {
+    plan.schedule = validateScheduleSection(parsed.studioSchedule);
+  }
+  // Notes (v222): a library's chapters list, or one chapter's payload.
+  if (Array.isArray(parsed.chapters)) {
+    const chapters = parsed.chapters.map((c, i) => validateChapter(c, `chapter ${i}`));
+    if (chapters.length === 0) fail('Library pack has no chapters.');
+    plan.notes = chapters;
+  } else if (typeof parsed.book === 'string' && isInt(parsed.chapter)) {
+    plan.notes = [validateChapter(parsed, `${parsed.book} ${parsed.chapter}`)];
+  }
+  if (!studioFileHasSections(plan)) {
+    fail(
+      'That file is not a studio pack — expected prayercircle-notes.json, ' +
+        'prayercircle-library.json, prayercircle-schedule.json, prayercircle-people.json, ' +
+        'prayercircle-ministries.json, or a PrayerCircle backup carrying studio sections.',
+    );
+  }
+  return plan;
+}
+
+/** A single-kind pack as the one-section plan it always was — the
+ *  Drive planner's bridge from parseStudioFile's world to the plan. */
+export function studioFilePlanFromPack(pack: StudioPack): StudioFilePlan {
+  const plan = emptyStudioFilePlan();
+  switch (pack.kind) {
+    case 'notes':
+      plan.notes = pack.chapters;
+      break;
+    case 'schedule':
+      plan.schedule = pack.schedule;
+      break;
+    case 'people':
+      plan.people = pack.people;
+      break;
+    case 'ministries':
+      plan.ministries = pack.ministries;
+      break;
+    case 'states':
+      plan.states = pack.states;
+      break;
+  }
+  return plan;
+}
+
+// ── The one summary the door speaks (v231) ──────────────────────────────────
+
+export interface StudioApplyCounts {
+  chaptersUpdated: number;
+  statesSet: number;
+  readMarks: number;
+  eventsAdded: number;
+  peopleUpdated: number;
+  needs: number;
+  journalEntries: number;
+  ministriesAdded: number;
+  ministriesUpdated: number;
+  ministriesDeleted: number;
+}
+
+export function emptyStudioApplyCounts(): StudioApplyCounts {
+  return {
+    chaptersUpdated: 0,
+    statesSet: 0,
+    readMarks: 0,
+    eventsAdded: 0,
+    peopleUpdated: 0,
+    needs: 0,
+    journalEntries: 0,
+    ministriesAdded: 0,
+    ministriesUpdated: 0,
+    ministriesDeleted: 0,
+  };
+}
+
+/**
+ * One line naming what a whole file did, section by section — only the
+ * sections the file actually carried get a segment:
+ * "Notes: N chapters · States: M · Events added: K · People updated: P
+ *  · Ministries: A added / U updated / D deleted".
+ */
+export function formatStudioImportSummary(plan: StudioFilePlan, counts: StudioApplyCounts): string {
+  const parts: string[] = [];
+  if (plan.notes) parts.push(`Notes: ${counts.chaptersUpdated} chapters`);
+  if (plan.states || counts.statesSet > 0) parts.push(`States: ${counts.statesSet}`);
+  if (plan.states && counts.readMarks > 0) parts.push(`Read marks: ${counts.readMarks}`);
+  if (plan.schedule) parts.push(`Events added: ${counts.eventsAdded}`);
+  if (plan.people) parts.push(`People updated: ${counts.peopleUpdated}`);
+  if (plan.ministries) {
+    parts.push(
+      `Ministries: ${counts.ministriesAdded} added / ${counts.ministriesUpdated} updated / ${counts.ministriesDeleted} deleted`,
+    );
+  }
+  return parts.join(' · ');
 }
 
 // ── Notes conversion: studio payload → the chapter data the page renders ────

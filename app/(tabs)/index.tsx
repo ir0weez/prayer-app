@@ -135,12 +135,14 @@ import { transitionChapterStatus } from "@/lib/bible-v205/rewards";
 import {
   applyStudioChapters,
   collectBubbleLinesForExport,
+  emptyStudioApplyCounts,
+  formatStudioImportSummary,
   loadStudioImports,
   mergeStudioSchedule,
-  parseStudioFile,
+  parseStudioFileFull,
   saveStudioImports,
-  type StudioPack,
-  type StudioPeoplePack,
+  type StudioApplyCounts,
+  type StudioFilePlan,
 } from "@/lib/bible-v205/studio-import";
 import {
   applyStudioPeoplePack,
@@ -154,9 +156,8 @@ import {
   applyStudioMinistriesPack,
   collectStudioMinistries,
   loadStoredMinistries,
-  validateStudioMinistriesPack,
-  type StudioMinistriesPack,
 } from "@/lib/bible-v205/studio-ministries";
+import type { StudyStatus } from "@/lib/bible-v205/types";
 import {
   applyHeldItem,
   checkDriveFolder,
@@ -2699,14 +2700,14 @@ export default function HomeScreen() {
 
   // v222 — the DATA import door for the Commentary Studio. Mirrors the
   // backup import's file handling (web file input / native document
-  // picker), then applies a validated studio pack. parseStudioFile
-  // validates EVERYTHING first, so a malformed file changes nothing:
-  // no partial application, ever. Notes replace that chapter's imported
-  // commentary entries only — the marks layer is a different store and
-  // is never touched. Chapter states walk transitionChapterStatus, the
-  // same door as tapping in the app. Schedule events land as planned
-  // items, deduped by (date, start, title); whiteSpace is advisory and
-  // is never stored.
+  // picker), then applies a validated studio file. The parse (v231:
+  // parseStudioFileFull) validates EVERYTHING first, so a malformed
+  // file changes nothing: no partial application, ever. Notes replace
+  // that chapter's imported commentary entries only — the marks layer
+  // is a different store and is never touched. Chapter states walk
+  // transitionChapterStatus, the same door as tapping in the app.
+  // Schedule events land as planned items, deduped by
+  // (date, start, title); whiteSpace is advisory and is never stored.
   const pickStudioPackText = async (): Promise<string | null> => {
     if (Platform.OS === "web") {
       return new Promise<string | null>((resolve, reject) => {
@@ -2742,44 +2743,26 @@ export default function HomeScreen() {
     return FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
   };
 
-  // v225 — people packs (prayercircle-people.json) land here. The merge
-  // is upsert-only: people and needs the pack doesn't mention are never
-  // deleted, and the reached/prayed dates move forward only, so a stale
-  // pack can't rewind his record. A need's longer words become a
-  // Journal moment tagged to the person, updated — never duplicated —
-  // on re-import. applyStudioPeoplePack is pure and throws before
-  // anything is written when a journal entry matches nobody, so a bad
-  // pack changes nothing.
-  const applyPeoplePack = async (peoplePack: StudioPeoplePack): Promise<void> => {
-    const [storedPeople, storedJournal] = await Promise.all([loadStoredPeople(), loadStoredJournal()]);
-    let result: ReturnType<typeof applyStudioPeoplePack>;
-    try {
-      result = applyStudioPeoplePack(storedPeople, storedJournal, peoplePack);
-    } catch (error) {
-      notifyAlert("People pack not applied", error instanceof Error ? error.message : "That people pack could not be applied.");
-      return;
-    }
-    await AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(result.people));
-    await AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(result.journal));
-    setPeople(resetDailyPrayerCompletionsIfNeeded(result.people, today));
-    setJournal(result.journal);
-    notifyAlert("People pack imported", `People updated: ${result.summary.peopleUpdated} · Needs: ${result.summary.needs} · Journal entries: ${result.summary.journalEntries}`);
-  };
-
-  // v229 — ministries packs (prayercircle-ministries.json, or the
-  // studioMinistries section of a full export) land here. The pack
-  // upserts ministries by id and applies the deletedIds tombstones it
-  // explicitly names — that is the one authorized deletion channel on
-  // the bridge, and it reaches ministries only. Validation happened
-  // whole in parseStudioFile / validateStudioMinistriesPack before
-  // anything reaches this apply, so a malformed file changes nothing.
-  const applyMinistriesPack = async (ministriesPack: StudioMinistriesPack): Promise<void> => {
-    const storedMinistries = await loadStoredMinistries();
-    const result = applyStudioMinistriesPack(storedMinistries, ministriesPack);
-    await AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(result.ministries));
-    notifyAlert("Ministries pack imported", `Added: ${result.summary.added} · Updated: ${result.summary.updated} · Deleted: ${result.summary.deleted}`);
-  };
-
+  // v231 — "One Door": this single row takes ANY studio file. Earlier
+  // builds grew a dedicated row per pack kind (Studio / People /
+  // Ministries) because parseStudioFile returns one kind per file;
+  // parseStudioFileFull reads the whole file instead — every section
+  // it carries, standalone pack or full backup — validates EVERYTHING
+  // first (one bad section rejects the whole file), then applies each
+  // section through the applier it always had:
+  //   notes     → chapter overrides (marks layer untouched) + each
+  //               payload's chapterState through transitionChapterStatus
+  //   states    → notes states through the same transition door; read
+  //               marks merge forward-only (v228)
+  //   schedule  → mergeStudioSchedule, deduped by (date, start, title);
+  //               whiteSpace is advisory and never stored
+  //   people    → applyStudioPeoplePack: upsert-only merge, dates
+  //               forward-only, a need's longer words become a Journal
+  //               moment (updated, never duplicated, on re-import)
+  //   ministries → applyStudioMinistriesPack: upsert by id plus the
+  //               deletedIds tombstones the file explicitly names —
+  //               the one authorized deletion channel, ministries only
+  // One combined summary names what the whole file did.
   const handleImportStudioPack = async () => {
     try {
       const raw = await pickStudioPackText();
@@ -2791,159 +2774,111 @@ export default function HomeScreen() {
         notifyAlert("Import failed", "That file is not valid JSON.");
         return;
       }
-      let pack: StudioPack;
+      let plan: StudioFilePlan;
       try {
-        pack = parseStudioFile(parsed);
+        plan = parseStudioFileFull(parsed);
       } catch (error) {
         notifyAlert("Not a studio pack", error instanceof Error ? error.message : "That file is not a Commentary Studio pack.");
         return;
       }
-      if (pack.kind === "notes") {
+
+      // Pre-flight: the people merge is pure and can refuse (a journal
+      // entry matching nobody in the app). Compute it BEFORE any store
+      // is written, so a refused file changes nothing at all — the
+      // same validate-first discipline as the parse above.
+      let peopleResult: ReturnType<typeof applyStudioPeoplePack> | null = null;
+      if (plan.people) {
+        const [storedPeople, storedJournal] = await Promise.all([loadStoredPeople(), loadStoredJournal()]);
+        try {
+          peopleResult = applyStudioPeoplePack(storedPeople, storedJournal, plan.people);
+        } catch (error) {
+          notifyAlert("Studio pack not applied", error instanceof Error ? error.message : "That studio pack could not be applied.");
+          return;
+        }
+      }
+
+      const counts: StudioApplyCounts = emptyStudioApplyCounts();
+
+      if (plan.notes) {
         const current = await loadStudioImports();
-        const { next, chaptersUpdated } = applyStudioChapters(current, pack.chapters);
+        const { next, chaptersUpdated } = applyStudioChapters(current, plan.notes);
         await saveStudioImports(next);
-        let state = await loadStudyState();
-        let statesSet = 0;
-        for (const chapter of pack.chapters) {
+        counts.chaptersUpdated = chaptersUpdated;
+      }
+
+      // Chapter states from BOTH sources walk the same transition
+      // door: a notes payload's chapterState, then a states section's
+      // notesState. transitionChapterStatus saves as it goes.
+      let state = await loadStudyState();
+      const walkState = async (book: string, chapter: number, to: StudyStatus) => {
+        const result = await transitionChapterStatus(state, book, chapter, to);
+        state = result.state;
+        counts.statesSet += 1;
+      };
+      if (plan.notes) {
+        for (const chapter of plan.notes) {
           if (chapter.chapterState === undefined) continue;
-          const result = await transitionChapterStatus(state, chapter.book, chapter.chapter, chapter.chapterState);
-          state = result.state;
-          statesSet += 1;
+          await walkState(chapter.book, chapter.chapter, chapter.chapterState);
         }
-        notifyAlert("Studio pack imported", `Chapters updated: ${chaptersUpdated} · States set: ${statesSet} · Events added: 0`);
-        return;
       }
-      if (pack.kind === "people") {
-        await applyPeoplePack(pack.people);
-        return;
-      }
-      if (pack.kind === "ministries") {
-        await applyMinistriesPack(pack.ministries);
-        return;
-      }
-      if (pack.kind === "states") {
-        // v228 — the two marks come home: notes states walk the same
-        // transition door as any chapterState; read marks merge
-        // forward-only (a stale export never un-reads a chapter).
-        let state = await loadStudyState();
-        let statesSet = 0;
-        for (const entry of pack.states.chapters) {
+      if (plan.states) {
+        for (const entry of plan.states.chapters) {
           if (entry.notesState === null) continue;
-          const result = await transitionChapterStatus(state, entry.book, entry.chapter, entry.notesState);
-          state = result.state;
-          statesSet += 1;
+          await walkState(entry.book, entry.chapter, entry.notesState);
         }
-        const reads = applyStudioStatesReads(state, pack.states.chapters);
+        // Read marks merge forward-only: a stale export never
+        // un-reads a chapter or re-dates one backwards (v228).
+        const reads = applyStudioStatesReads(state, plan.states.chapters);
+        counts.readMarks = reads.applied;
         if (reads.applied > 0) {
           state = reads.state;
           await saveStudyState(state);
         }
-        notifyAlert("Studio states imported", `Notes states set: ${statesSet} · Read marks: ${reads.applied}`);
-        return;
       }
-      const readStoredArray = async (key: string): Promise<unknown[]> => {
-        try {
-          const stored = await AsyncStorage.getItem(key);
-          const value = stored ? JSON.parse(stored) : [];
-          return Array.isArray(value) ? value : [];
-        } catch {
-          return [];
-        }
-      };
-      const existingEvents = (await readStoredArray(SCHEDULE_EVENTS_KEY))
-        .filter((item): item is ScheduleEvent => !!item && typeof item === "object" && typeof (item as ScheduleEvent).title === "string" && typeof (item as ScheduleEvent).date === "string");
-      const existingTodos = (await readStoredArray(SCHEDULE_TODOS_KEY))
-        .filter((item): item is ScheduleTodo => !!item && typeof item === "object" && typeof (item as ScheduleTodo).title === "string" && typeof (item as ScheduleTodo).date === "string");
-      const merged = mergeStudioSchedule(existingEvents, existingTodos, pack.schedule);
-      await AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(merged.events));
-      await AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(merged.todos));
-      notifyAlert("Studio pack imported", `Chapters updated: 0 · States set: 0 · Events added: ${merged.added}`);
+
+      if (plan.schedule) {
+        const readStoredArray = async (key: string): Promise<unknown[]> => {
+          try {
+            const stored = await AsyncStorage.getItem(key);
+            const value = stored ? JSON.parse(stored) : [];
+            return Array.isArray(value) ? value : [];
+          } catch {
+            return [];
+          }
+        };
+        const existingEvents = (await readStoredArray(SCHEDULE_EVENTS_KEY))
+          .filter((item): item is ScheduleEvent => !!item && typeof item === "object" && typeof (item as ScheduleEvent).title === "string" && typeof (item as ScheduleEvent).date === "string");
+        const existingTodos = (await readStoredArray(SCHEDULE_TODOS_KEY))
+          .filter((item): item is ScheduleTodo => !!item && typeof item === "object" && typeof (item as ScheduleTodo).title === "string" && typeof (item as ScheduleTodo).date === "string");
+        const merged = mergeStudioSchedule(existingEvents, existingTodos, plan.schedule);
+        await AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(merged.events));
+        await AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(merged.todos));
+        counts.eventsAdded = merged.added;
+      }
+
+      if (peopleResult) {
+        await AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(peopleResult.people));
+        await AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(peopleResult.journal));
+        setPeople(resetDailyPrayerCompletionsIfNeeded(peopleResult.people, today));
+        setJournal(peopleResult.journal);
+        counts.peopleUpdated = peopleResult.summary.peopleUpdated;
+        counts.needs = peopleResult.summary.needs;
+        counts.journalEntries = peopleResult.summary.journalEntries;
+      }
+
+      if (plan.ministries) {
+        const storedMinistries = await loadStoredMinistries();
+        const result = applyStudioMinistriesPack(storedMinistries, plan.ministries);
+        await AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(result.ministries));
+        counts.ministriesAdded = result.summary.added;
+        counts.ministriesUpdated = result.summary.updated;
+        counts.ministriesDeleted = result.summary.deleted;
+      }
+
+      notifyAlert("Studio pack imported", formatStudioImportSummary(plan, counts));
     } catch (error) {
       console.error("PrayerCircle studio import failed", error);
       notifyAlert("Import failed", "PrayerCircle could not read that studio pack file.");
-    }
-  };
-
-  // v225 — the dedicated People Pack row: same picker, but the file
-  // must be a people pack; a notes/schedule pack picked here gets a
-  // plain pointer to the right row instead of a silent wrong-door
-  // import.
-  const handleImportPeoplePack = async () => {
-    try {
-      const raw = await pickStudioPackText();
-      if (raw === null) return;
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        notifyAlert("Import failed", "That file is not valid JSON.");
-        return;
-      }
-      let pack: StudioPack;
-      try {
-        pack = parseStudioFile(parsed);
-      } catch (error) {
-        notifyAlert("Not a people pack", error instanceof Error ? error.message : "That file is not a Commentary Studio people pack.");
-        return;
-      }
-      if (pack.kind !== "people") {
-        notifyAlert("Not a people pack", "That is a studio pack, but not a people pack — expected prayercircle-people.json. Notes and schedules go through Import Studio Pack.");
-        return;
-      }
-      await applyPeoplePack(pack.people);
-    } catch (error) {
-      console.error("PrayerCircle people import failed", error);
-      notifyAlert("Import failed", "PrayerCircle could not read that people pack file.");
-    }
-  };
-
-  // v229 — the dedicated Ministries Pack row: same picker; the file
-  // must be a ministries pack. Accepts the standalone file AND a full
-  // PrayerCircle export — a backup takes the states road in
-  // parseStudioFile, so this row reads its studioMinistries section
-  // directly (validated whole before anything is applied, like every
-  // door). A pack meant for another row gets a plain pointer to it.
-  const handleImportMinistriesPack = async () => {
-    try {
-      const raw = await pickStudioPackText();
-      if (raw === null) return;
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        notifyAlert("Import failed", "That file is not valid JSON.");
-        return;
-      }
-      let pack: StudioPack | null = null;
-      try {
-        pack = parseStudioFile(parsed);
-      } catch {
-        pack = null;
-      }
-      if (pack?.kind === "ministries") {
-        await applyMinistriesPack(pack.ministries);
-        return;
-      }
-      const section =
-        parsed && typeof parsed === "object" && !Array.isArray(parsed)
-          ? (parsed as Record<string, unknown>).studioMinistries
-          : undefined;
-      if (section && typeof section === "object") {
-        try {
-          await applyMinistriesPack(validateStudioMinistriesPack(section));
-        } catch (error) {
-          notifyAlert("Ministries pack not applied", error instanceof Error ? error.message : "That ministries section could not be read.");
-        }
-        return;
-      }
-      if (pack) {
-        notifyAlert("Not a ministries pack", "That is a studio pack, but not a ministries pack — expected prayercircle-ministries.json. Notes and schedules go through Import Studio Pack.");
-        return;
-      }
-      notifyAlert("Not a ministries pack", "That file is not a Commentary Studio ministries pack — expected prayercircle-ministries.json or a PrayerCircle export carrying ministries.");
-    } catch (error) {
-      console.error("PrayerCircle ministries import failed", error);
-      notifyAlert("Import failed", "PrayerCircle could not read that ministries pack file.");
     }
   };
 
@@ -3323,13 +3258,7 @@ export default function HomeScreen() {
           {renderSettingsRow("file-upload", "Import Data", "Restore a PrayerCircle backup from a JSON file")}
         </Pressable>
         <Pressable onPress={handleImportStudioPack} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("note-add", "Import Studio Pack", "Bring in notes, chapter states, a schedule, or ministries from the Commentary Studio")}
-        </Pressable>
-        <Pressable onPress={handleImportPeoplePack} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("people", "Import People Pack", "Bring in your prayer people, their needs, and journal notes from the Commentary Studio")}
-        </Pressable>
-        <Pressable onPress={handleImportMinistriesPack} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("church", "Import Ministries Pack", "Bring in your ministries from the Commentary Studio — additions, updates, and removals")}
+          {renderSettingsRow("note-add", "Import Studio Pack", "Bring in notes, states, schedule, people, or ministries from the Commentary Studio — one file can carry them all")}
         </Pressable>
         <Pressable onPress={handleDriveRowPress} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("folder-shared", "Drive Folder", driveLink ? `Linked: ${driveLink.name} · read-only, checked on launch` : Platform.OS === "android" ? "Link a Drive folder once — PrayerCircle checks it on its own" : "Drive folders need the Android app")}

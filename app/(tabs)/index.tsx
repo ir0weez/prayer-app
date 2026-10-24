@@ -148,6 +148,7 @@ import {
   loadStoredJournal,
   loadStoredPeople,
 } from "@/lib/bible-v205/studio-people";
+import { collectStudioSchedule } from "@/lib/bible-v205/studio-schedule";
 import {
   applyHeldItem,
   checkDriveFolder,
@@ -2532,7 +2533,28 @@ export default function HomeScreen() {
       const exportJournal = await loadStoredJournal();
       const studioPeople = collectStudioPeople(exportPeople, exportJournal);
       const studioJournal = collectStudioJournal(exportJournal);
-      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles, studioPeople, studioJournal }, null, 2);
+      // v227: his schedule answers back — every dated event/todo in the
+      // stores, in the studio's own pack shape, so the studio can see
+      // the phone-side week too. Export-only, like the sections above.
+      // Only the title is demanded of a stored row here: a row with no
+      // usable date must still REACH the collector so it gets counted
+      // (undatedExcluded), never silently dropped at this door.
+      const parseStoredItems = (raw: string | null | undefined): unknown[] => {
+        try {
+          const value = raw ? JSON.parse(raw) : [];
+          return Array.isArray(value) ? value : [];
+        } catch {
+          return [];
+        }
+      };
+      const exportEvents = parseStoredItems(storage[SCHEDULE_EVENTS_KEY]).filter(
+        (item): item is ScheduleEvent => !!item && typeof item === "object" && typeof (item as ScheduleEvent).title === "string",
+      );
+      const exportTodos = parseStoredItems(storage[SCHEDULE_TODOS_KEY]).filter(
+        (item): item is ScheduleTodo => !!item && typeof item === "object" && typeof (item as ScheduleTodo).title === "string",
+      );
+      const studioSchedule = collectStudioSchedule(exportEvents, exportTodos);
+      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles, studioPeople, studioJournal, studioSchedule }, null, 2);
       const filename = `prayercircle-backup-${getTodayISOString()}.json`;
       const uri = `${FileSystem.cacheDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(uri, payload, { encoding: FileSystem.EncodingType.UTF8 });

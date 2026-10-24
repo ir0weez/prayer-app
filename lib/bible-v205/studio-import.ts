@@ -7,6 +7,8 @@
 //   prayercircle-notes.json    → per-chapter commentary overrides
 //   prayercircle-library.json  → { chapters: [ ...same payloads ] }
 //   prayercircle-schedule.json → schedule events/todos for one week
+//   prayercircle-people.json   → prayer people + needs + journal notes
+//                                (validated here; applied by studio-people.ts)
 //
 // Rules the import obeys, from Jonathan's own asks:
 //  · NOTES REPLACE that chapter's imported commentary entries only. The
@@ -46,6 +48,7 @@ import type {
   V205Entry,
   V205Section,
 } from './types';
+import type { RelationshipType, ReminderFrequency } from '../prayercircle-data';
 
 // ── Studio pack shapes (exactly what studio.js exports) ─────────────────────
 
@@ -106,7 +109,58 @@ export interface StudioSchedulePayload {
 
 export type StudioPack =
   | { kind: 'notes'; chapters: StudioChapterPayload[] }
-  | { kind: 'schedule'; schedule: StudioSchedulePayload };
+  | { kind: 'schedule'; schedule: StudioSchedulePayload }
+  | { kind: 'people'; people: StudioPeoplePack };
+
+// ── People pack shapes (v225 "People, Through the Door") ────────────────────
+// prayercircle-people.json: the studio's People page exports his prayer
+// list so the desk can maintain it. The apply/merge half lives in
+// studio-people.ts; this module only validates, with the same
+// validate-EVERYTHING-first discipline as the other packs.
+
+export type StudioNeedKind = 'Regular' | 'Praise' | 'Emergency';
+
+export interface StudioPersonNeedInput {
+  id: string;
+  title: string;
+  /** The need's longer words. In the app they live as a Journal moment
+   *  (PrayerItem has no body field), linked by (personId, needId). */
+  more: string;
+  kind: StudioNeedKind;
+  isDone: boolean;
+  isEmergency: boolean;
+  emergencyExpiresAt?: string;
+  isPraised: boolean;
+  praiseExpiresAt?: string;
+}
+
+export interface StudioPersonInput {
+  id: string;
+  name: string;
+  relationship: RelationshipType;
+  reminderFrequency?: ReminderFrequency;
+  reminderDaysOfWeek?: number[];
+  /** ISO date (YYYY-MM-DD) the person was last prayed for, or null. */
+  lastPrayerCompletedDate?: string | null;
+  /** ISO date the person was last REACHED (maps to Person.lastPrayedDate,
+   *  the app's holdover field name), or null when never reached. */
+  lastReached?: string | null;
+  lastMeetingLocation?: string;
+  needs: StudioPersonNeedInput[];
+}
+
+export interface StudioPeopleJournalInput {
+  personId: string;
+  personName?: string;
+  needId: string;
+  text: string;
+  kind: StudioNeedKind;
+}
+
+export interface StudioPeoplePack {
+  people: StudioPersonInput[];
+  journal: StudioPeopleJournalInput[];
+}
 
 const STUDY_STATUSES: StudyStatus[] = [
   'complete',
@@ -284,10 +338,154 @@ function validateSchedule(raw: unknown): StudioSchedulePayload {
   return { weekOf: raw.weekOf as string, events };
 }
 
+const RELATIONSHIP_TYPES: RelationshipType[] = [
+  'Family',
+  'Friends',
+  'Ministry',
+  'Unministry',
+  'Prospect',
+];
+
+const REMINDER_FREQUENCIES: ReminderFrequency[] = ['none', 'daily', 'weekly', 'monthly'];
+
+const NEED_KINDS: StudioNeedKind[] = ['Regular', 'Praise', 'Emergency'];
+
+/** A real YYYY-MM-DD calendar date (2026-13-40 is not one). */
+function isValidIsoDate(v: unknown): v is string {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const [y, m, d] = v.split('-').map(Number);
+  const parsed = new Date(y, m - 1, d);
+  return parsed.getFullYear() === y && parsed.getMonth() === m - 1 && parsed.getDate() === d;
+}
+
+function isValidIsoDateTime(v: unknown): v is string {
+  return typeof v === 'string' && v.length > 0 && !Number.isNaN(new Date(v).getTime());
+}
+
+function optionalFlag(raw: Record<string, unknown>, key: string, where: string): boolean {
+  if (raw[key] === undefined) return false;
+  if (typeof raw[key] !== 'boolean') fail(`${where}: ${key} must be true or false`);
+  return raw[key] as boolean;
+}
+
+function validatePersonNeed(raw: unknown, where: string): StudioPersonNeedInput {
+  if (!isRecord(raw)) fail(`${where}: need is not an object`);
+  if (!isNonEmptyString(raw.id)) fail(`${where}: need has no id`);
+  if (!isNonEmptyString(raw.title)) fail(`${where}: need has no title`);
+  if (!NEED_KINDS.includes(raw.kind as StudioNeedKind)) {
+    fail(`${where}: need kind must be Regular, Praise, or Emergency`);
+  }
+  if (raw.more !== undefined && typeof raw.more !== 'string') fail(`${where}: need "more" must be text`);
+  if (raw.emergencyExpiresAt !== undefined && !isValidIsoDateTime(raw.emergencyExpiresAt)) {
+    fail(`${where}: need has a bad emergencyExpiresAt date`);
+  }
+  if (raw.praiseExpiresAt !== undefined && !isValidIsoDateTime(raw.praiseExpiresAt)) {
+    fail(`${where}: need has a bad praiseExpiresAt date`);
+  }
+  const need: StudioPersonNeedInput = {
+    id: raw.id as string,
+    title: raw.title as string,
+    more: typeof raw.more === 'string' ? raw.more : '',
+    kind: raw.kind as StudioNeedKind,
+    isDone: optionalFlag(raw, 'isDone', where),
+    isEmergency: optionalFlag(raw, 'isEmergency', where),
+    isPraised: optionalFlag(raw, 'isPraised', where),
+  };
+  if (typeof raw.emergencyExpiresAt === 'string') need.emergencyExpiresAt = raw.emergencyExpiresAt;
+  if (typeof raw.praiseExpiresAt === 'string') need.praiseExpiresAt = raw.praiseExpiresAt;
+  return need;
+}
+
+function validatePerson(raw: unknown, where: string): StudioPersonInput {
+  if (!isRecord(raw)) fail(`${where}: person is not an object`);
+  if (!isNonEmptyString(raw.id)) fail(`${where}: person has no id`);
+  if (!isNonEmptyString(raw.name)) fail(`${where}: person has no name`);
+  if (!RELATIONSHIP_TYPES.includes(raw.relationship as RelationshipType)) {
+    fail(`${where}: unknown relationship type "${String(raw.relationship)}"`);
+  }
+  if (
+    raw.reminderFrequency !== undefined &&
+    !REMINDER_FREQUENCIES.includes(raw.reminderFrequency as ReminderFrequency)
+  ) {
+    fail(`${where}: unknown reminderFrequency "${String(raw.reminderFrequency)}"`);
+  }
+  if (raw.reminderDaysOfWeek !== undefined) {
+    if (
+      !Array.isArray(raw.reminderDaysOfWeek) ||
+      !raw.reminderDaysOfWeek.every((d) => isInt(d) && d >= 0 && d <= 6)
+    ) {
+      fail(`${where}: reminderDaysOfWeek must be day numbers 0–6`);
+    }
+  }
+  for (const key of ['lastPrayerCompletedDate', 'lastReached'] as const) {
+    if (raw[key] !== undefined && raw[key] !== null && !isValidIsoDate(raw[key])) {
+      fail(`${where}: ${key} is not a valid date`);
+    }
+  }
+  if (raw.lastMeetingLocation !== undefined && typeof raw.lastMeetingLocation !== 'string') {
+    fail(`${where}: lastMeetingLocation must be text`);
+  }
+  if (!Array.isArray(raw.needs)) fail(`${where}: person has no needs array`);
+  const needs = raw.needs.map((n, i) => validatePersonNeed(n, `${where} need ${i}`));
+  const needIds = new Set<string>();
+  for (const need of needs) {
+    if (needIds.has(need.id)) fail(`${where}: duplicate need id "${need.id}"`);
+    needIds.add(need.id);
+  }
+  const person: StudioPersonInput = {
+    id: raw.id as string,
+    name: raw.name as string,
+    relationship: raw.relationship as RelationshipType,
+    needs,
+  };
+  if (raw.reminderFrequency !== undefined) person.reminderFrequency = raw.reminderFrequency as ReminderFrequency;
+  if (raw.reminderDaysOfWeek !== undefined) person.reminderDaysOfWeek = [...(raw.reminderDaysOfWeek as number[])];
+  if (raw.lastPrayerCompletedDate !== undefined) {
+    person.lastPrayerCompletedDate = raw.lastPrayerCompletedDate as string | null;
+  }
+  if (raw.lastReached !== undefined) person.lastReached = raw.lastReached as string | null;
+  if (typeof raw.lastMeetingLocation === 'string') person.lastMeetingLocation = raw.lastMeetingLocation;
+  return person;
+}
+
+function validatePeoplePack(raw: Record<string, unknown>): StudioPeoplePack {
+  if (!Array.isArray(raw.people)) fail('People pack has no people array');
+  const people = raw.people.map((p, i) => validatePerson(p, `person ${i}`));
+  const personIds = new Set<string>();
+  for (const person of people) {
+    if (personIds.has(person.id)) fail(`People pack lists person id "${person.id}" twice`);
+    personIds.add(person.id);
+  }
+  if (raw.journal !== undefined && !Array.isArray(raw.journal)) fail('People pack journal is not a list');
+  const journal = ((raw.journal as unknown[] | undefined) ?? []).map((j, i) => {
+    const where = `journal entry ${i}`;
+    if (!isRecord(j)) fail(`${where}: entry is not an object`);
+    if (!isNonEmptyString(j.personId)) fail(`${where}: entry has no personId`);
+    if (!isNonEmptyString(j.needId)) fail(`${where}: entry has no needId`);
+    if (!isNonEmptyString(j.text)) fail(`${where}: entry has no text`);
+    if (!NEED_KINDS.includes(j.kind as StudioNeedKind)) {
+      fail(`${where}: entry kind must be Regular, Praise, or Emergency`);
+    }
+    if (j.personName !== undefined && typeof j.personName !== 'string') {
+      fail(`${where}: personName must be text`);
+    }
+    const entry: StudioPeopleJournalInput = {
+      personId: j.personId as string,
+      needId: j.needId as string,
+      text: j.text as string,
+      kind: j.kind as StudioNeedKind,
+    };
+    if (typeof j.personName === 'string') entry.personName = j.personName;
+    return entry;
+  });
+  return { people, journal };
+}
+
 /**
  * Parse and FULLY validate a studio file before anything is applied.
- * Accepts a single-chapter notes pack, a library pack, or a schedule pack.
- * Throws a plain Error with a human-readable reason on anything malformed.
+ * Accepts a single-chapter notes pack, a library pack, a schedule pack,
+ * or a people pack. Throws a plain Error with a human-readable reason
+ * on anything malformed.
  */
 export function parseStudioFile(parsed: unknown): StudioPack {
   if (!isRecord(parsed)) fail('That file is not a studio pack (expected a JSON object).');
@@ -302,9 +500,12 @@ export function parseStudioFile(parsed: unknown): StudioPack {
   if (typeof parsed.weekOf === 'string' && Array.isArray(parsed.events)) {
     return { kind: 'schedule', schedule: validateSchedule(parsed) };
   }
+  if (Array.isArray(parsed.people)) {
+    return { kind: 'people', people: validatePeoplePack(parsed) };
+  }
   fail(
     'That file is not a studio pack — expected prayercircle-notes.json, ' +
-      'prayercircle-library.json, or prayercircle-schedule.json.',
+      'prayercircle-library.json, prayercircle-schedule.json, or prayercircle-people.json.',
   );
 }
 

@@ -139,7 +139,15 @@ import {
   parseStudioFile,
   saveStudioImports,
   type StudioPack,
+  type StudioPeoplePack,
 } from "@/lib/bible-v205/studio-import";
+import {
+  applyStudioPeoplePack,
+  collectStudioJournal,
+  collectStudioPeople,
+  loadStoredJournal,
+  loadStoredPeople,
+} from "@/lib/bible-v205/studio-people";
 import {
   applyHeldItem,
   checkDriveFolder,
@@ -2516,7 +2524,15 @@ export default function HomeScreen() {
       // section, so the studio can later read them into its "From the
       // app" inbox. Export-only — nothing else about the backup changes.
       const studioBubbles = collectBubbleLinesForExport(await loadMarks());
-      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles }, null, 2);
+      // v225: his people ride the backup as the studioPeople pack (the
+      // studio's People page loads his real list from it on unlock), and
+      // the Journal moments ride as studioJournal — the read feed for
+      // the studio's News tab. Both sections are export-only.
+      const exportPeople = await loadStoredPeople();
+      const exportJournal = await loadStoredJournal();
+      const studioPeople = collectStudioPeople(exportPeople, exportJournal);
+      const studioJournal = collectStudioJournal(exportJournal);
+      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles, studioPeople, studioJournal }, null, 2);
       const filename = `prayercircle-backup-${getTodayISOString()}.json`;
       const uri = `${FileSystem.cacheDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(uri, payload, { encoding: FileSystem.EncodingType.UTF8 });
@@ -2682,6 +2698,30 @@ export default function HomeScreen() {
     return FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
   };
 
+  // v225 — people packs (prayercircle-people.json) land here. The merge
+  // is upsert-only: people and needs the pack doesn't mention are never
+  // deleted, and the reached/prayed dates move forward only, so a stale
+  // pack can't rewind his record. A need's longer words become a
+  // Journal moment tagged to the person, updated — never duplicated —
+  // on re-import. applyStudioPeoplePack is pure and throws before
+  // anything is written when a journal entry matches nobody, so a bad
+  // pack changes nothing.
+  const applyPeoplePack = async (peoplePack: StudioPeoplePack): Promise<void> => {
+    const [storedPeople, storedJournal] = await Promise.all([loadStoredPeople(), loadStoredJournal()]);
+    let result: ReturnType<typeof applyStudioPeoplePack>;
+    try {
+      result = applyStudioPeoplePack(storedPeople, storedJournal, peoplePack);
+    } catch (error) {
+      notifyAlert("People pack not applied", error instanceof Error ? error.message : "That people pack could not be applied.");
+      return;
+    }
+    await AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(result.people));
+    await AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(result.journal));
+    setPeople(resetDailyPrayerCompletionsIfNeeded(result.people, today));
+    setJournal(result.journal);
+    notifyAlert("People pack imported", `People updated: ${result.summary.peopleUpdated} · Needs: ${result.summary.needs} · Journal entries: ${result.summary.journalEntries}`);
+  };
+
   const handleImportStudioPack = async () => {
     try {
       const raw = await pickStudioPackText();
@@ -2715,6 +2755,10 @@ export default function HomeScreen() {
         notifyAlert("Studio pack imported", `Chapters updated: ${chaptersUpdated} · States set: ${statesSet} · Events added: 0`);
         return;
       }
+      if (pack.kind === "people") {
+        await applyPeoplePack(pack.people);
+        return;
+      }
       const readStoredArray = async (key: string): Promise<unknown[]> => {
         try {
           const stored = await AsyncStorage.getItem(key);
@@ -2735,6 +2779,39 @@ export default function HomeScreen() {
     } catch (error) {
       console.error("PrayerCircle studio import failed", error);
       notifyAlert("Import failed", "PrayerCircle could not read that studio pack file.");
+    }
+  };
+
+  // v225 — the dedicated People Pack row: same picker, but the file
+  // must be a people pack; a notes/schedule pack picked here gets a
+  // plain pointer to the right row instead of a silent wrong-door
+  // import.
+  const handleImportPeoplePack = async () => {
+    try {
+      const raw = await pickStudioPackText();
+      if (raw === null) return;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        notifyAlert("Import failed", "That file is not valid JSON.");
+        return;
+      }
+      let pack: StudioPack;
+      try {
+        pack = parseStudioFile(parsed);
+      } catch (error) {
+        notifyAlert("Not a people pack", error instanceof Error ? error.message : "That file is not a Commentary Studio people pack.");
+        return;
+      }
+      if (pack.kind !== "people") {
+        notifyAlert("Not a people pack", "That is a studio pack, but not a people pack — expected prayercircle-people.json. Notes and schedules go through Import Studio Pack.");
+        return;
+      }
+      await applyPeoplePack(pack.people);
+    } catch (error) {
+      console.error("PrayerCircle people import failed", error);
+      notifyAlert("Import failed", "PrayerCircle could not read that people pack file.");
     }
   };
 
@@ -2770,6 +2847,14 @@ export default function HomeScreen() {
     try {
       const summary = await checkDriveFolder();
       await refreshDriveState();
+      if (summary.peopleApplied > 0) {
+        // A people pack merged into the stores during the check —
+        // refresh this screen's people/journal so the desk's work is
+        // visible without a restart.
+        const [freshPeople, freshJournal] = await Promise.all([loadStoredPeople(), loadStoredJournal()]);
+        setPeople(resetDailyPrayerCompletionsIfNeeded(freshPeople, today));
+        setJournal(freshJournal);
+      }
       if (!summary.linked) {
         if (!silent) notifyAlert("Drive folders", "No Drive folder is linked yet. Link one first, then check again.");
         return;
@@ -3108,6 +3193,9 @@ export default function HomeScreen() {
         <Pressable onPress={handleImportStudioPack} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("note-add", "Import Studio Pack", "Bring in notes, chapter states, or a schedule from the Commentary Studio")}
         </Pressable>
+        <Pressable onPress={handleImportPeoplePack} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("people", "Import People Pack", "Bring in your prayer people, their needs, and journal notes from the Commentary Studio")}
+        </Pressable>
         <Pressable onPress={handleDriveRowPress} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("folder-shared", "Drive Folder", driveLink ? `Linked: ${driveLink.name} · read-only, checked on launch` : Platform.OS === "android" ? "Link a Drive folder once — PrayerCircle checks it on its own" : "Drive folders need the Android app")}
         </Pressable>
@@ -3138,7 +3226,7 @@ export default function HomeScreen() {
         {driveJournalExpanded && Object.entries(driveJournal.files).map(([name, record]) => (
           <View key={name} style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
             <Text style={styles.settingsRowSubtitle}>
-              {name} · Applied {record.applied} · Held {record.held}{record.skipped ? " · Skipped (unchanged)" : ""}{record.error ? ` · ${record.error}` : ""}
+              {name} · Applied {record.applied} · Held {record.held}{record.skipped ? " · Skipped (unchanged)" : ""}{record.error ? ` · ${record.error}` : ""}{record.note ? ` · ${record.note}` : ""}
             </Text>
           </View>
         ))}

@@ -22,7 +22,12 @@
 //     imported entries; states walk transitionChapterStatus (XP
 //     idempotent, no revoke); schedule merges dedupe by
 //     (date, start, title). Auto-import NEVER touches the marks layer,
-//     prayer/streak/game data, or any other store.
+//     streak/game data, or any other store. v225 adds ONE authorized
+//     exception, with the same additive discipline: people packs merge
+//     into the people + journal stores through studio-people.ts —
+//     upsert-only, never a deletion, dates forward-only — so there is
+//     nothing in them that needs holding under Rule 5; the journal
+//     line for the file says so ("merge only").
 //  5. REVIEW-HOLD FOR REGRESSIONS. A pack item that would move a
 //     chapter state BACKWARD (rank: none/not-started 0, write 1,
 //     in-progress 2, complete 3, restudy 4) is NOT auto-applied — it
@@ -45,8 +50,15 @@ import {
   saveStudioImports,
   type StudioChapterPayload,
   type StudioPack,
+  type StudioPeoplePack,
   type StudioScheduleEventInput,
 } from './studio-import';
+import {
+  applyStudioPeoplePack,
+  loadStoredJournal,
+  loadStoredPeople,
+} from './studio-people';
+import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY } from '../prayercircle-storage';
 import { chapterStatus, loadStudyState } from './study';
 import { transitionChapterStatus } from './rewards';
 import type { StudyStatus } from './types';
@@ -74,6 +86,9 @@ export interface DriveFileRecord {
   held: number;
   skipped: boolean; // true when the signature matched and nothing was done
   error?: string;
+  /** v225: a plain-language line about how the file was handled (people
+   *  packs record their merge-only rule here). */
+  note?: string;
   checkedAt: string;
 }
 
@@ -191,6 +206,11 @@ export interface DrivePlan {
   heldSchedule: HeldScheduleItem[];
   /** Pack events already in the app (same date + start + title) — skipped. */
   skippedSchedule: number;
+  /** v225: a people pack rides whole — it is merge-only by design (see
+   *  studio-people.ts), so there is nothing to hold: a regression (an
+   *  earlier lastReached, a need the pack no longer lists) simply
+   *  cannot be expressed by the merge and is never applied. */
+  peoplePack: StudioPeoplePack | null;
 }
 
 export function planDrivePack(
@@ -206,7 +226,12 @@ export function planDrivePack(
     autoSchedule: [],
     heldSchedule: [],
     skippedSchedule: 0,
+    peoplePack: null,
   };
+  if (pack.kind === 'people') {
+    plan.peoplePack = pack.people;
+    return plan;
+  }
   if (pack.kind === 'notes') {
     plan.notesChapters = pack.chapters;
     for (const chapter of pack.chapters) {
@@ -310,6 +335,10 @@ export interface DriveCheckSummary {
   skipped: number;
   errors: string[];
   notice: string | null;
+  /** v225: people-pack items merged this check (people + needs +
+   *  journal moments) — the caller refreshes its people/journal state
+   *  when this is above zero. */
+  peopleApplied: number;
 }
 
 /**
@@ -327,6 +356,7 @@ export async function checkDriveFolder(): Promise<
     skipped: 0,
     errors: [],
     notice: null,
+    peopleApplied: 0,
     permissionLost: false,
     linked: false,
   };
@@ -368,6 +398,10 @@ export async function checkDriveFolder(): Promise<
     (item): item is ScheduleTodo =>
       !!item && typeof item === 'object' && typeof (item as ScheduleTodo).title === 'string' && typeof (item as ScheduleTodo).date === 'string',
   );
+  // v225: people + journal stores ride the same check (fresh loads, so
+  // a people pack merges against the app's real list, not a UI cache).
+  let existingPeople = await loadStoredPeople();
+  let existingJournal = await loadStoredJournal();
   const newHeld: HeldItem[] = [];
   for (const childUri of jsonFiles) {
     const name = safDisplayName(childUri);
@@ -412,6 +446,29 @@ export async function checkDriveFolder(): Promise<
       existingTodos,
     );
     let appliedHere = 0;
+    let fileNote: string | undefined;
+    let fileError: string | undefined;
+    if (plan.peoplePack) {
+      // Merge-only by design: applyStudioPeoplePack is pure and throws
+      // before anything is written when a journal entry matches nobody,
+      // so a bad people pack changes nothing (Rule 2 holds here too).
+      try {
+        const result = applyStudioPeoplePack(existingPeople, existingJournal, plan.peoplePack);
+        existingPeople = result.people;
+        existingJournal = result.journal;
+        await AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(result.people));
+        await AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(result.journal));
+        const items =
+          result.summary.peopleUpdated + result.summary.needs + result.summary.journalEntries;
+        appliedHere += items;
+        summary.peopleApplied += items;
+        fileNote = 'People pack — merge only: nothing deleted, dates move forward only';
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : 'people pack could not be applied';
+        fileError = reason;
+        summary.errors.push(`${name}: ${reason}`);
+      }
+    }
     if (plan.notesChapters.length > 0) {
       const current = await loadStudioImports();
       const { next, chaptersUpdated } = applyStudioChapters(current, plan.notesChapters);
@@ -443,7 +500,15 @@ export async function checkDriveFolder(): Promise<
     const heldHere = plan.heldStates.length + plan.heldSchedule.length;
     summary.applied += appliedHere;
     summary.held += heldHere;
-    journal.files[name] = { signature, applied: appliedHere, held: heldHere, skipped: false, checkedAt: new Date().toISOString() };
+    journal.files[name] = {
+      signature,
+      applied: appliedHere,
+      held: heldHere,
+      skipped: false,
+      ...(fileError ? { error: fileError } : {}),
+      ...(fileNote ? { note: fileNote } : {}),
+      checkedAt: new Date().toISOString(),
+    };
   }
   if (newHeld.length > 0) await saveHeldItems([...held, ...newHeld]);
   journal.lastCheckAt = new Date().toISOString();

@@ -66,6 +66,7 @@ import {
   applyStudioChapters,
   loadStudioImports,
   mergeStudioSchedule,
+  mergeStudioScheduleMinistries,
   parseStudioFileFull,
   saveStudioImports,
   studioFilePlanFromPack,
@@ -257,6 +258,11 @@ export interface DrivePlan {
    *  they apply nothing (the records travel by their own pack) and
    *  never enter the slot-conflict logic below. */
   ministryRows: number;
+  /** v237: Ministry rows carrying a bibleBook/bibleChapter pair — the
+   *  pair DOES land (mergeStudioScheduleMinistries), after any
+   *  ministries pack in the same file, exactly like the door. The
+   *  rows themselves still never slot, clash, or become events. */
+  ministryLinks: StudioScheduleEventInput[];
   /** v228: a states pack's read marks — they ride whole too (the read
    *  merge is forward-only: a stale export can never un-read a
    *  chapter), while its notes states split into auto/held above by
@@ -301,6 +307,7 @@ export function planDriveFile(
     peoplePack: null,
     ministriesPack: null,
     ministryRows: 0,
+    ministryLinks: [],
     statesReads: [],
   };
   const classifyState = (book: string, chapter: number, to: StudyStatus) => {
@@ -349,7 +356,11 @@ export function planDriveFile(
     if (ev.type === 'Ministry') {
       // The projection of a ministry record: noted, never slotted —
       // it must not hold a time slot, clash, or land as an event.
+      // A carried book/chapter pair is collected for the link merge.
       plan.ministryRows += 1;
+      if (ev.bibleBook !== undefined || ev.bibleChapter !== undefined) {
+        plan.ministryLinks.push(ev);
+      }
       continue;
     }
     const start = ev.start === 'All day' ? '' : ev.start;
@@ -597,6 +608,25 @@ export async function checkDriveFolder(): Promise<
       appliedHere += items;
       summary.ministriesApplied += items;
       noteParts.push('Ministries pack — upserts and explicit deletes only');
+    }
+    if (plan.ministryLinks.length > 0) {
+      // v237: a schedule pack's Ministry rows can carry the session's
+      // book/chapter — the pair lands on the ministry records, AFTER
+      // the ministries pack above (the pack stays the authority; its
+      // records are matched, never duplicated).
+      const linked = mergeStudioScheduleMinistries(existingMinistries, {
+        weekOf: '',
+        events: plan.ministryLinks,
+      });
+      existingMinistries = linked.ministries;
+      if (linked.linked > 0) {
+        await AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(linked.ministries));
+        appliedHere += linked.linked;
+        summary.ministriesApplied += linked.linked;
+        noteParts.push(
+          `Ministry chapters: ${linked.linked} session${linked.linked === 1 ? '' : 's'} tied to their book/chapter`,
+        );
+      }
     }
     if (plan.ministryRows > 0) {
       noteParts.push(

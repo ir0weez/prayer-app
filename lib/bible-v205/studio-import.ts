@@ -16,8 +16,11 @@
 //                                studioMinistries section, and schedule
 //                                packs may carry type 'Ministry' rows —
 //                                the studio-facing projection: a known
-//                                type that applies nothing here (the
-//                                records travel by their own pack).
+//                                type that never lands as an event (the
+//                                records travel by their own pack), but
+//                                whose bibleBook/bibleChapter pair, when
+//                                carried, lands on the ministry record
+//                                (v237, mergeStudioScheduleMinistries).
 //   a backup's studioStates    → the two chapter marks (v228): notesState
 //     section                     walks transitionChapterStatus like any
 //                                chapterState; readDate lands on the read
@@ -51,8 +54,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CHAPTER_COUNTS, chapterCountFor, getChapterData } from './index';
 import {
   createScheduleEvent,
+  createScheduleMinistry,
   createScheduleTodo,
   type ScheduleEvent,
+  type ScheduleMinistry,
   type ScheduleTodo,
 } from '../schedule-data';
 import {
@@ -129,8 +134,11 @@ export interface StudioScheduleEventInput {
   start: string;
   minutes: number;
   /** 'Ministry' rows (v229) are the studio-facing projection of the
-   *  app's ministry records — a known, valid type that applies nothing
-   *  on this side; the records themselves travel by the ministries pack. */
+   *  app's ministry records — a known, valid type that never lands as
+   *  an event or todo on this side; the records themselves travel by
+   *  the ministries pack. Since v237 a row may still carry the
+   *  session's bibleBook/bibleChapter (below), and THAT pair lands —
+   *  on the ministry record, never as a schedule item. */
   type: 'Event' | 'Todo' | 'Ministry';
   online: boolean;
   recur: string;
@@ -142,6 +150,16 @@ export interface StudioScheduleEventInput {
    *  pack says nothing about steps — an existing todo's steps are left
    *  untouched; PRESENT (even empty) replaces the todo's list whole. */
   subtasks?: StudioSubtaskInput[];
+  /** The Bible book/chapter a Ministry session is for (v237, Ministry
+   *  items only): the studio's schedule editor asks for the pair when
+   *  a line's kind is Ministry ("Commentary writing — Colossians 1").
+   *  They land on the matching ScheduleMinistry record — the store the
+   *  ministry cards and the schedule tab's reading surfaces read —
+   *  through mergeStudioScheduleMinistries. ABSENT says nothing; a
+   *  PRESENT key names the value, and the ministries pack (v229) stays
+   *  the full-record authority whenever a file carries both. */
+  bibleBook?: string;
+  bibleChapter?: string;
 }
 
 export interface StudioSchedulePayload {
@@ -383,8 +401,34 @@ function validateScheduleEvents(rawEvents: unknown[]): StudioScheduleEventInput[
       // normalized to exactly the wire fields; the key stays ABSENT
       // when the pack omits it (absence is not an empty list).
       ...(e.subtasks !== undefined ? { subtasks: validateSubtasks(e.subtasks, where) } : {}),
+      // The session's book/chapter (v237): Ministry rows only — the
+      // keys mean nothing on an Event or Todo and are dropped there,
+      // like every key the shape doesn't carry. On a Ministry row a
+      // PRESENT key is a payload the ministry merge acts on, so a
+      // malformed one rejects the pack, exactly like subtasks.
+      ...(e.type === 'Ministry' ? validateBiblePair(e, where) : {}),
     };
   });
+}
+
+/** The v237 book/chapter pair on a Ministry schedule row: each key,
+ *  when present, must be a non-empty string ("Colossians", "1") —
+ *  either may ride alone (every consumer renders the chapter only
+ *  alongside a book, so a lone chapter is inert, never an error). */
+function validateBiblePair(
+  e: Record<string, unknown>,
+  where: string,
+): { bibleBook?: string; bibleChapter?: string } {
+  const pair: { bibleBook?: string; bibleChapter?: string } = {};
+  if (e.bibleBook !== undefined) {
+    if (!isNonEmptyString(e.bibleBook)) fail(`${where}: bibleBook must be a non-empty string when present`);
+    pair.bibleBook = e.bibleBook;
+  }
+  if (e.bibleChapter !== undefined) {
+    if (!isNonEmptyString(e.bibleChapter)) fail(`${where}: bibleChapter must be a non-empty string when present`);
+    pair.bibleChapter = e.bibleChapter;
+  }
+  return pair;
 }
 
 /** The v236 subtask list: an array of {id, title, isCompleted} — a
@@ -741,6 +785,9 @@ export interface StudioApplyCounts {
   ministriesAdded: number;
   ministriesUpdated: number;
   ministriesDeleted: number;
+  /** Ministry sessions a schedule pack's rows tied to a book/chapter
+   *  (v237, mergeStudioScheduleMinistries). */
+  ministriesLinked: number;
 }
 
 export function emptyStudioApplyCounts(): StudioApplyCounts {
@@ -755,6 +802,7 @@ export function emptyStudioApplyCounts(): StudioApplyCounts {
     ministriesAdded: 0,
     ministriesUpdated: 0,
     ministriesDeleted: 0,
+    ministriesLinked: 0,
   };
 }
 
@@ -770,6 +818,11 @@ export function formatStudioImportSummary(plan: StudioFilePlan, counts: StudioAp
   if (plan.states || counts.statesSet > 0) parts.push(`States: ${counts.statesSet}`);
   if (plan.states && counts.readMarks > 0) parts.push(`Read marks: ${counts.readMarks}`);
   if (plan.schedule) parts.push(`Events added: ${counts.eventsAdded}`);
+  if (counts.ministriesLinked > 0) {
+    parts.push(
+      `Ministry chapters: ${counts.ministriesLinked} tied`,
+    );
+  }
   if (plan.people) parts.push(`People updated: ${counts.peopleUpdated}`);
   if (plan.ministries) {
     parts.push(
@@ -997,6 +1050,8 @@ export function mergeStudioSchedule(
     // v229: Ministry rows are the studio-facing projection of ministry
     // records. They validate (a known type) but apply NOTHING here —
     // the records travel by the ministries pack, never as events.
+    // (v237: a row's bibleBook/bibleChapter land separately, through
+    // mergeStudioScheduleMinistries below — never as events either.)
     if (ev.type === 'Ministry') continue;
     const start = ev.start === 'All day' ? undefined : ev.start;
     const dedupe = `${ev.date}|${start ?? ''}|${ev.title}`;
@@ -1049,6 +1104,88 @@ export function mergeStudioSchedule(
     }
   }
   return { events, todos, added };
+}
+
+/**
+ * Land the Bible book/chapter pairs a schedule pack's Ministry rows
+ * carry (v237) on the ministry records the app's surfaces read.
+ *
+ * Why this exists: the studio's SCHEDULE editor (not its Ministries
+ * manager) is where he shapes a ministry session's day, and since
+ * v237 it asks for the book/chapter when a line's kind is Ministry.
+ * Such a line has no ministries-pack record of its own — without this
+ * merge the pair would evaporate at the door, and "Commentary writing
+ * — Colossians 1" would reach the phone tied to nothing.
+ *
+ * Matching follows the schedule door's own convention — (date, start,
+ * title), the projection's exact image of the record (the collector
+ * derives all three from the record itself) — with one fallback: a
+ * unique (date, title) match when the start disagrees. A matched
+ * record is REPLACED with the pair applied (a present key wins, an
+ * absent key leaves the stored value — the subtasks discipline); an
+ * unmatched row CREATES the record (type 'Bible Study' — the app's
+ * word for a session spent in a chapter; the Ministries manager stays
+ * where full type fidelity is edited), born with its times, place,
+ * notes, and the pair. Records are never mutated in place, rows
+ * without a pair change nothing, and non-Ministry rows are ignored.
+ *
+ * Precedence: callers run this AFTER any ministries pack in the same
+ * file (the v229 pack upserts by id, whole record — it stays the
+ * authority), so a backup's projection row finds the record its own
+ * pack just landed and no duplicate is born.
+ */
+export function mergeStudioScheduleMinistries(
+  existingMinistries: ScheduleMinistry[],
+  pack: StudioSchedulePayload,
+): { ministries: ScheduleMinistry[]; linked: number } {
+  const ministries = existingMinistries.map((m) => ({ ...m }));
+  const indexByKey = new Map<string, number>();
+  const indicesByDateTitle = new Map<string, number[]>();
+  const register = (m: ScheduleMinistry, i: number) => {
+    indexByKey.set(`${m.date}|${m.startTime ?? ''}|${m.title}`, i);
+    const dt = `${m.date}|${m.title}`;
+    const list = indicesByDateTitle.get(dt);
+    if (list) list.push(i);
+    else indicesByDateTitle.set(dt, [i]);
+  };
+  ministries.forEach(register);
+  let linked = 0;
+  for (const ev of pack.events) {
+    if (ev.type !== 'Ministry') continue;
+    if (ev.bibleBook === undefined && ev.bibleChapter === undefined) continue;
+    const start = ev.start === 'All day' ? undefined : ev.start;
+    let index = indexByKey.get(`${ev.date}|${start ?? ''}|${ev.title}`);
+    if (index === undefined) {
+      const candidates = indicesByDateTitle.get(`${ev.date}|${ev.title}`) ?? [];
+      if (candidates.length === 1) index = candidates[0];
+    }
+    if (index !== undefined) {
+      ministries[index] = {
+        ...ministries[index],
+        ...(ev.bibleBook !== undefined ? { bibleBook: ev.bibleBook } : {}),
+        ...(ev.bibleChapter !== undefined ? { bibleChapter: ev.bibleChapter } : {}),
+      };
+      linked += 1;
+      continue;
+    }
+    const created = createScheduleMinistry({
+      title: ev.title,
+      type: 'Bible Study',
+      date: ev.date,
+      startTime: start,
+      endTime: start ? endTimeOf(start, ev.minutes) : undefined,
+      // Same Online rule as events: the pack's location wins, the
+      // marker only fills an empty one (v224).
+      location: ev.location ? ev.location : ev.online ? 'Online' : undefined,
+      notes: ev.notes ? ev.notes : undefined,
+      bibleBook: ev.bibleBook,
+      bibleChapter: ev.bibleChapter,
+    });
+    register(created, ministries.length);
+    ministries.push(created);
+    linked += 1;
+  }
+  return { ministries, linked };
 }
 
 // ── Export side (WS2c): bubble lines out, for the studio's later inbox ──────

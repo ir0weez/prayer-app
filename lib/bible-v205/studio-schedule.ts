@@ -37,6 +37,10 @@
 //            isCompleted}] — the wire carries no description — and the
 //            key is OMITTED entirely when the todo has no steps, so a
 //            plain item's pack shape is byte-identical to before.
+//   bibleBook / bibleChapter (v237): a ministry's pair rides on its
+//            'Ministry' row — the studio's schedule editor asks for it
+//            there — and the keys are OMITTED when the record carries
+//            neither, so an unpaired ministry's row is unchanged.
 //
 // Items whose date is missing or not a real calendar date cannot be
 // expressed in pack shape at all; they are excluded and COUNTED on the
@@ -93,6 +97,8 @@ interface PackItemSource {
   location?: string;
   notes?: string;
   subtasks?: ScheduleTodo['subtasks'];
+  bibleBook?: string;
+  bibleChapter?: string;
 }
 
 /** A stored subtask in wire shape: exactly {id, title, isCompleted}.
@@ -159,6 +165,10 @@ function toPackEvent(source: PackItemSource, type: 'Event' | 'Todo' | 'Ministry'
     notes: source.notes ?? '',
     location: online ? '' : rawLocation,
     ...(subtasks.length > 0 ? { subtasks } : {}),
+    // v237: the ministry's book/chapter ride its projection row, each
+    // key only when the record actually carries a value.
+    ...(type === 'Ministry' && source.bibleBook ? { bibleBook: source.bibleBook } : {}),
+    ...(type === 'Ministry' && source.bibleChapter ? { bibleChapter: source.bibleChapter } : {}),
   };
 }
 

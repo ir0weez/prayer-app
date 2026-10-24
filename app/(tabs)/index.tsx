@@ -139,6 +139,7 @@ import {
   formatStudioImportSummary,
   loadStudioImports,
   mergeStudioSchedule,
+  mergeStudioScheduleMinistries,
   parseStudioFileFull,
   saveStudioImports,
   type StudioApplyCounts,
@@ -2787,6 +2788,10 @@ export default function HomeScreen() {
   //   ministries → applyStudioMinistriesPack: upsert by id plus the
   //               deletedIds tombstones the file explicitly names —
   //               the one authorized deletion channel, ministries only
+  //   schedule Ministry rows (v237) → mergeStudioScheduleMinistries,
+  //               run last: a Ministry row's bibleBook/bibleChapter
+  //               lands on the matching ministry record (created when
+  //               the desk's Schedule tab is its only source)
   // One combined summary names what the whole file did.
   const handleImportStudioPack = async () => {
     try {
@@ -2898,6 +2903,29 @@ export default function HomeScreen() {
         counts.ministriesAdded = result.summary.added;
         counts.ministriesUpdated = result.summary.updated;
         counts.ministriesDeleted = result.summary.deleted;
+      }
+
+      // v237: a schedule pack's Ministry rows may carry the session's
+      // Bible book/chapter (the studio's schedule editor asks for them
+      // there). The pair lands on the ministry records — AFTER the
+      // ministries pack above, so a file carrying both finds the
+      // pack's records already in place (matched, never duplicated)
+      // and the full-records pack stays the authority.
+      if (plan.schedule) {
+        const linkRows = plan.schedule.events.filter(
+          (ev) => ev.type === 'Ministry' && (ev.bibleBook !== undefined || ev.bibleChapter !== undefined),
+        );
+        if (linkRows.length > 0) {
+          const storedMinistries = await loadStoredMinistries();
+          const linked = mergeStudioScheduleMinistries(storedMinistries, {
+            weekOf: plan.schedule.weekOf,
+            events: linkRows,
+          });
+          if (linked.linked > 0) {
+            await AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(linked.ministries));
+            counts.ministriesLinked = linked.linked;
+          }
+        }
       }
 
       notifyAlert("Studio pack imported", formatStudioImportSummary(plan, counts));

@@ -19,12 +19,12 @@ import {
 import { entryKey, type V205ChapterData } from '@/lib/bible-v205/types';
 import { isKept, resolveTintFields, type MarksMap } from '@/lib/bible-v205/marks';
 import {
-  bubbleLinesFor,
+  partitionBubbleLines,
   resolveBubbleAuthor,
   type ProfileIdentity,
 } from '@/lib/bible-v205/bubbles';
 import type { Person } from '@/lib/prayercircle-data';
-import { BlockView, CategoryTag, Ornament, SectionBand } from './blocks';
+import { BlockView, CategoryTag, Ornament, SectionBand, SelfLineBlock } from './blocks';
 import { BubbleChatRow } from './bubbles';
 import { entrySourceCategory } from '@/lib/bible-v205/categories';
 import { chapterLabel, rangeLabel, tintWashFor, verseTintFor, type BiblePalette } from './palette';
@@ -316,23 +316,34 @@ export function StoriesView(props: StoriesViewProps) {
     );
   };
 
-  // v214: his own lines read as chat-style bubble rows in Stories —
-  // avatar + name on the bubble, the kind's tint on its fill, and
-  // when a screen holds two or more they alternate sides like a
-  // conversation. (No bloom overlay here — Stories paces by taps.)
+  // v214/v217: the author split holds in Stories too. HIS OWN lines
+  // read as ordinary in-flow blocks — the same kind styling as the
+  // chapter page, no face, no chat row. OTHER PEOPLE's lines read as
+  // chat-style bubble rows — avatar + name on the bubble, the kind's
+  // tint on its fill, alternating sides among themselves when a
+  // screen holds two or more. (No bloom overlay here — Stories
+  // paces by taps.)
   const renderUserBlocks = (start: number, end: number) => {
     const m = props.marks[entryKey(book, chapter, start, end)];
-    const lines = bubbleLinesFor(m);
-    if (!lines.length) return null;
+    const { selfLines, bubbleLines } = partitionBubbleLines(m);
+    if (!selfLines.length && !bubbleLines.length) return null;
     return (
       <>
-        {lines.map((line, i) => (
+        {selfLines.map((line, i) => (
+          <SelfLineBlock
+            key={`self-${line.kind}-${line.fieldIndex}-${i}`}
+            kind={line.kind}
+            text={line.text}
+            palette={palette}
+          />
+        ))}
+        {bubbleLines.map((line, i) => (
           <BubbleChatRow
             key={`${line.kind}-${line.fieldIndex}-${i}`}
             line={line}
             author={resolveBubbleAuthor(line.author, props.people, props.profile)}
             palette={palette}
-            flip={lines.length > 1 && i % 2 === 1}
+            flip={bubbleLines.length > 1 && i % 2 === 1}
           />
         ))}
       </>

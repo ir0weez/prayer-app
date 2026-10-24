@@ -1143,22 +1143,63 @@ describe("v210 — the plain personal Note: no box, just inset text", () => {
     expect(branch).not.toContain('callout');
   });
 
-  it('render: the markbar offers Note; his lines render as Living Bubbles, never in-flow (v214)', () => {
+  it('render: the markbar offers Note; the author split renders his lines in-flow, others as bubbles (v217)', () => {
     const page = readFileSync(join(process.cwd(), 'components/bible-v205/chapter-page.tsx'), 'utf8');
     expect(page).toContain("openComposer('note')");
-    // v214 reversed the v210 in-flow rendering: user lines are NOT
-    // pushed into the entry's blocks anymore — they live in the
-    // margin bubble layer. (The notes-first ordering the old pin
-    // guarded now lives in bubbleLinesFor, pinned in
-    // bible-v205-bubbles.test.ts.)
+    // v217 (his ruling) splits v214's all-bubbles rule by authorship:
+    // his own lines render IN FLOW through SelfLineBlock (never
+    // pushed into the commentary blocks array — imported blocks stay
+    // untouched), and other people's lines keep the Living Bubbles.
+    // (The notes-first ordering lives in the line partition, pinned
+    // in bible-v205-bubbles.test.ts.)
     expect(page).not.toContain("blocks.push({ kind: 'note'");
     expect(page).not.toContain("blocks.push({ kind: 'highlight'");
     expect(page).not.toContain("blocks.push({ kind: 'thought'");
     expect(page).toContain('<LivingBubbles');
+    expect(page).toContain('SelfLineBlock');
+    expect(page).toContain('selfLines');
+    expect(page).toContain('editSelfLine');
+    // Tapping an in-flow line opens the same composer: it is gated
+    // on the same editing machinery as a bubble line's pencil.
+    expect(page).toContain('deleteEditingLine');
+    // (e) Stories holds the same split: his lines are in-flow blocks
+    // (SelfLineBlock), never chat rows; others keep BubbleChatRow.
     const stories = readFileSync(join(process.cwd(), 'components/bible-v205/stories-view.tsx'), 'utf8');
     const rub = stories.slice(stories.indexOf('const renderUserBlocks'));
+    expect(rub).toContain('partitionBubbleLines');
+    expect(rub).toContain('SelfLineBlock');
     expect(rub).toContain('BubbleChatRow');
-    expect(rub).toContain('bubbleLinesFor');
+    expect(rub).not.toContain('bubbleLinesFor');
+  });
+
+  it('render: the bubble inset follows OTHER people\'s lines only (v217)', () => {
+    const page = readFileSync(join(process.cwd(), 'components/bible-v205/chapter-page.tsx'), 'utf8');
+    const entryView = page.slice(page.indexOf('function EntryView'));
+    // The piece's `lines` are other-authored only since v217, so the
+    // head's 48dp face inset keys off them alone — a self-only entry
+    // keeps its full text width.
+    expect(entryView).toContain('const hasBubbles = !!props.bubblePiece && props.bubblePiece.lines.length > 0;');
+    expect(entryView).toContain('hasBubbles ? styles.entryHeadBubbled : null');
+    expect(entryView).toContain('entryHeadBubbled: { paddingRight: 48 }');
+  });
+
+  it('render: no white slab — the open entry lifts by zIndex alone (v217)', () => {
+    const page = readFileSync(join(process.cwd(), 'components/bible-v205/chapter-page.tsx'), 'utf8');
+    // The v214 elevation: 30 made Android paint a hard shadow
+    // silhouette of the transparent entry — a white box on his phone.
+    expect(page).toContain('entryOpen: { zIndex: 30 }');
+    expect(page).not.toContain('zIndex: 30, elevation');
+  });
+
+  it('render: multi-verse text starts at the single-verse x — inline sup, no rail (v217)', () => {
+    const page = readFileSync(join(process.cwd(), 'components/bible-v205/chapter-page.tsx'), 'utf8');
+    // The v212-era verse rail (verseRow + a fixed-width supTap
+    // Pressable) pushed multi-verse text ~25dp right of single-verse
+    // text. The number is now an inline superscript span.
+    expect(page).not.toContain('styles.verseRow');
+    expect(page).not.toContain('minWidth: 17');
+    expect(page).toContain('styles.supTap');
+    expect(page).toContain('onPress={() => props.onToggleVerse(v)}');
   });
 });
 

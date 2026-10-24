@@ -1,11 +1,12 @@
-// ─── v214 "Living Bubble" — pins ─────────────────────────────────────────────
-// The feature in one sentence: his personal lines stop rendering in
-// the text flow and live as author faces in the entry margin that
-// bloom into note cards. These pins cover the pure half: authored
-// line storage (legacy strings = him, forever), authorship surviving
-// the '#' split, storage resolution for writes made on split pieces,
-// the bubble grouping/side rules, author resolution, and the
-// scroll-cap math behind the scrollable conversation.
+// ─── v214 "Living Bubble" — pins (v217: the author split) ───────────────────
+// The feature in one sentence (v217): HIS OWN lines render in the
+// text flow; OTHER PEOPLE's lines live as author faces in the entry
+// margin that bloom into note cards. These pins cover the pure half:
+// authored line storage (legacy strings = him, forever), authorship
+// surviving the '#' split, storage resolution for writes made on
+// split pieces, the bubble grouping/side rules, the v217 partition,
+// author resolution, and the scroll-cap math behind the scrollable
+// conversation.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -46,6 +47,8 @@ import {
   buildBubblePieces,
   conversationShiftUp,
   conversationViewport,
+  isSelfLine,
+  partitionBubbleLines,
   resolveBubbleAuthor,
   resolveLineStorage,
   type ProfileIdentity,
@@ -225,12 +228,16 @@ describe('v214 storage resolution for writes made on pieces', () => {
     const pieces = buildBubblePieces(split, 'Leviticus', 19);
     const piece = pieces.get('Leviticus|19|11-12');
     expect(piece).toBeTruthy();
-    expect(piece!.lines.map((l) => l.text)).toEqual(['#11-12 His line.', 'Added on the piece.']);
+    // v217 split: Cody's line is the piece's only BUBBLE line; the
+    // line he added on the piece himself rides selfLines instead.
+    expect(piece!.lines.map((l) => l.text)).toEqual(['#11-12 His line.']);
+    expect(piece!.selfLines.map((l) => l.text)).toEqual(['Added on the piece.']);
     expect(piece!.parentStart).toBe(10);
     expect(piece!.parentEnd).toBe(12);
-    // Line 0 is derived → parent record; line 1 was stored on the piece.
+    // The bubble line is derived → parent record; the self line was
+    // stored on the piece itself.
     expect(piece!.targets[0]).toEqual({ start: 10, end: 12, field: 'highlights', index: 0 });
-    expect(piece!.targets[1]).toEqual({ start: 11, end: 12, field: 'highlights', index: 0 });
+    expect(piece!.selfTargets[0]).toEqual({ start: 11, end: 12, field: 'highlights', index: 0 });
     const t = piece!.targets[0];
     const next = updateKeeperLineAt(marks, 'Leviticus', 19, t.start, t.end, t.field, t.index, {
       author: null,
@@ -264,6 +271,98 @@ describe('v214 bubble grouping + sides', () => {
   it('an entry with no lines grows no bubbles', () => {
     expect(bubbleLinesFor(emptyMarks())).toEqual([]);
     expect(bubbleLinesFor(undefined)).toEqual([]);
+  });
+});
+
+describe('v217 author split — his words in the text, theirs as bubbles', () => {
+  it('isSelfLine: plain strings and author-less objects are his; a person id is not', () => {
+    expect(isSelfLine({ author: null })).toBe(true);
+    expect(isSelfLine({ author: CODY_AUTHOR })).toBe(false);
+  });
+
+  it('partition: groups split by author, render order kept inside each group', () => {
+    const { selfLines, bubbleLines } = partitionBubbleLines({
+      ...emptyMarks(),
+      notes: ['My plain note.', { text: 'Randee said this.', authorId: 'p-randee', authorName: 'Randee' }],
+      highlights: [{ text: 'Cody saw it.', authorId: 'p-cody', authorName: 'Cody' }],
+      thoughts: ['My main thought.'],
+    });
+    expect(selfLines.map((l) => l.text)).toEqual(['My plain note.', 'My main thought.']);
+    expect(selfLines.map((l) => l.kind)).toEqual(['note', 'thought']);
+    // Render order across kinds is notes → highlights → thoughts, so
+    // Randee's note precedes Cody's highlight in the bubble group.
+    expect(bubbleLines.map((l) => l.text)).toEqual(['Randee said this.', 'Cody saw it.']);
+    expect(bubbleLines.map((l) => l.author)).toEqual([
+      { authorId: 'p-randee', authorName: 'Randee' },
+      CODY_AUTHOR,
+    ]);
+  });
+
+  it('partition: conversation sides alternate WITHIN the bubble group alone', () => {
+    const { bubbleLines } = partitionBubbleLines({
+      ...emptyMarks(),
+      notes: [
+        'Mine first.',
+        { text: 'Theirs one.', authorId: 'p-cody', authorName: 'Cody' },
+        'Mine again.',
+        { text: 'Theirs two.', authorId: 'p-randee', authorName: 'Randee' },
+        { text: 'Theirs three.', authorId: 'p-cody', authorName: 'Cody' },
+      ],
+    });
+    expect(bubbleLines.map((l) => l.side)).toEqual(['left', 'right', 'left']);
+    // A lone other-authored line is solo even beside his own lines.
+    const solo = partitionBubbleLines({
+      ...emptyMarks(),
+      notes: ['Mine.', { text: 'Theirs.', authorId: 'p-cody', authorName: 'Cody' }],
+    });
+    expect(solo.bubbleLines[0].side).toBe('solo');
+    expect(solo.selfLines).toHaveLength(1);
+  });
+
+  it('(a)+(b) Lev 19 fixture: his "#11-12" Highlight is in-flow (no bubble); a credited line on the piece still bubbles', () => {
+    // His real note shape (v210 fixture): written on the 10–12
+    // chunk, '#' splits it onto the 11–12 piece.
+    const LEV_NOTE = '#11-12 Interesting... Some Pastors fit this description far too well.';
+    const marks: MarksMap = {
+      'Leviticus|19|10-12': { ...emptyMarks(), highlights: [LEV_NOTE] },
+      'Leviticus|19|11-12': {
+        ...emptyMarks(),
+        notes: [{ text: 'Cody: leave the corners be.', authorId: 'p-cody', authorName: 'Cody' }],
+      },
+    };
+    const sections = buildDisplaySections(getChapterData('Leviticus', 19), 36);
+    const split = splitSectionsByHashNotes(sections, marks, 'Leviticus', 19);
+    const pieces = buildBubblePieces(split, 'Leviticus', 19);
+    const piece = pieces.get('Leviticus|19|11-12');
+    expect(piece).toBeTruthy();
+    // (a) His Highlight resolves to the in-flow group, text verbatim,
+    // prefix included — and produces NO bubble line.
+    expect(piece!.selfLines).toHaveLength(1);
+    expect(piece!.selfLines[0].kind).toBe('highlight');
+    expect(piece!.selfLines[0].text).toBe(LEV_NOTE);
+    expect(piece!.selfLines[0].author).toBeNull();
+    expect(piece!.lines.map((l) => l.text)).not.toContain(LEV_NOTE);
+    // Its write target is the parent record it was split from.
+    expect(piece!.selfTargets[0]).toEqual({ start: 10, end: 12, field: 'highlights', index: 0 });
+    // (b) The other-authored line on the same piece still bubbles,
+    // targeted at the piece record it was stored on.
+    expect(piece!.lines).toHaveLength(1);
+    expect(piece!.lines[0].kind).toBe('note');
+    expect(piece!.lines[0].author).toEqual(CODY_AUTHOR);
+    expect(piece!.targets[0]).toEqual({ start: 11, end: 12, field: 'notes', index: 0 });
+  });
+
+  it('(c, lib half) a self-only piece exists with zero bubble lines — the head takes no inset for it', () => {
+    const marks: MarksMap = {
+      'Leviticus|19|10-12': { ...emptyMarks(), thoughts: ['Only mine here.'] },
+    };
+    const sections = buildDisplaySections(getChapterData('Leviticus', 19), 36);
+    const split = splitSectionsByHashNotes(sections, marks, 'Leviticus', 19);
+    const pieces = buildBubblePieces(split, 'Leviticus', 19);
+    const piece = pieces.get('Leviticus|19|10-12');
+    expect(piece).toBeTruthy();
+    expect(piece!.lines).toEqual([]);
+    expect(piece!.selfLines.map((l) => l.text)).toEqual(['Only mine here.']);
   });
 });
 

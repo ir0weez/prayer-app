@@ -78,7 +78,7 @@ import { loadChapterVerses, type VerseText } from '@/lib/bible-v205/verses';
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import { useSkin } from '@/hooks/use-skin';
-import { BlockView, CategoryTag, Ornament, SectionBand, StatusChip, STATUS_LABEL } from './blocks';
+import { BlockView, CategoryTag, Ornament, SectionBand, SelfLineBlock, StatusChip, STATUS_LABEL } from './blocks';
 import { AuthorPicker, LivingBubbles, kindLabelFor, type BloomTiming } from './bubbles';
 import { BookCompleteCelebration } from './celebration';
 import { IndexSheet } from './index-sheet';
@@ -225,10 +225,12 @@ export function ChapterPageView(props: ChapterPageProps) {
     [readOnly, storyBase, marks, book, chapter, notesSplit],
   );
 
-  // v214: the bubble pieces of this chapter — derived from the
-  // WITH-notes split in both modes. With-notes renders each piece on
-  // its own entry; Read-only (per-verse entries) anchors a piece's
-  // faces on the verse where the piece starts.
+  // v214/v217: the line pieces of this chapter — derived from the
+  // WITH-notes split in both modes, partitioned by authorship (his
+  // own lines render in flow; other people's anchor as margin
+  // faces). With-notes renders each piece on its own entry;
+  // Read-only (per-verse entries) anchors a piece's lines on the
+  // verse where the piece starts.
   const bubblePieces = useMemo(
     () => buildBubblePieces(notesSplit, book, chapter),
     [notesSplit, book, chapter],
@@ -868,8 +870,8 @@ function EntryView(props: {
   flash: boolean;
   flashAnim: Animated.Value;
   palette: BiblePalette;
-  /** v214: the bubble piece riding on this entry (undefined = the
-   * entry carries none of his lines). */
+  /** v214/v217: the line piece riding on this entry, partitioned by
+   * authorship (undefined = the entry carries no user lines). */
   bubblePiece?: BubblePiece;
   people: Person[];
   profile: ProfileIdentity;
@@ -923,6 +925,30 @@ function EntryView(props: {
     props.onBubbleToggle(false);
     if (!props.open) props.onToggleOpen();
   };
+  // v217: tapping one of his in-flow lines opens the SAME composer,
+  // prefilled with its words and its face pick — saving an edit, a
+  // re-face (to someone else it becomes a bubble; a bubble line
+  // re-faced to Me lands here), or the composer's Delete all write
+  // through the line's storage target, '#' provenance included.
+  const editSelfLine = (lineIndex: number) => {
+    const piece = props.bubblePiece;
+    if (!piece) return;
+    const line = piece.selfLines[lineIndex];
+    const target = piece.selfTargets[lineIndex];
+    if (!line || !target) return;
+    setComposer(line.kind);
+    setDraft(line.text);
+    setComposerAuthor(line.author);
+    setEditingTarget(target);
+    props.onBubbleToggle(false);
+    if (!props.open) props.onToggleOpen();
+  };
+  const deleteEditingLine = () => {
+    if (!editingTarget) return;
+    props.onRemoveLine(editingTarget);
+    props.onBubbleToggle(false);
+    closeComposer();
+  };
   const removeBubbleLine = (lineIndex: number) => {
     const piece = props.bubblePiece;
     if (!piece) return;
@@ -940,10 +966,15 @@ function EntryView(props: {
     : (wash ?? 'transparent');
   const hasSelection = props.selectedVerses.length > 0;
 
-  // v214: his own lines no longer render in this flow at all — they
-  // live in the margin as Living Bubbles (below). The body keeps the
-  // commentary blocks only; imported blocks are untouched.
+  // v217 (his ruling): authorship splits the rendering. HIS OWN
+  // lines render in this flow, directly under the entry's verses —
+  // always visible, in both modes; OTHER PEOPLE's lines live in the
+  // margin as Living Bubbles (below). The body keeps the commentary
+  // blocks only; imported blocks are untouched.
   const blocks = [...entry.blocks];
+  const selfLines = props.bubblePiece?.selfLines ?? [];
+  // `lines` on the piece is other people's lines only (v217), so an
+  // entry carrying solely his own words gets NO bubble inset.
   const hasBubbles = !!props.bubblePiece && props.bubblePiece.lines.length > 0;
 
   return (
@@ -981,30 +1012,39 @@ function EntryView(props: {
             const selected = props.selectedVerses.includes(v);
             const verseBg = verseTintFor(palette, props.verseTints[v]);
             return (
-              <View key={v} style={styles.verseRow}>
+              <Text
+                key={v}
+                style={[
+                  styles.entryVerse,
+                  { color: palette.ink },
+                  verseBg ? { backgroundColor: verseBg } : null,
+                  selected
+                    ? { textDecorationLine: 'underline', textDecorationStyle: 'dashed', textDecorationColor: palette.rasp }
+                    : null,
+                ]}
+              >
                 {!single ? (
-                  <Pressable
+                  // v217 squeeze fix: the verse number is an INLINE
+                  // superscript in the text (the approved mockup's
+                  // rendering), not a rail beside it — a multi-verse
+                  // entry's text now starts at the same x as a
+                  // single-verse entry's. It stays the v212 tint
+                  // handle: a tap selects the verse; selected, it
+                  // fills raspberry with white glyphs over the
+                  // verse's dashed underline.
+                  <Text
                     onPress={() => props.onToggleVerse(v)}
-                    hitSlop={7}
-                    style={[styles.supTap, selected ? { backgroundColor: palette.rasp } : null]}
+                    style={[
+                      styles.supTap,
+                      { color: selected ? '#FFFFFF' : palette.rasp },
+                      selected ? { backgroundColor: palette.rasp } : null,
+                    ]}
                   >
-                    <Text style={[styles.sup, { color: selected ? '#FFFFFF' : palette.rasp }]}>{v}</Text>
-                  </Pressable>
+                    {v}{' '}
+                  </Text>
                 ) : null}
-                <Text
-                  style={[
-                    styles.entryVerse,
-                    styles.verseTextFlex,
-                    { color: palette.ink },
-                    verseBg ? { backgroundColor: verseBg } : null,
-                    selected
-                      ? { textDecorationLine: 'underline', textDecorationStyle: 'dashed', textDecorationColor: palette.rasp }
-                      : null,
-                  ]}
-                >
-                  {props.verseText.get(v) ?? ''}
-                </Text>
-              </View>
+                {props.verseText.get(v) ?? ''}
+              </Text>
             );
           })}
         </View>
@@ -1016,6 +1056,24 @@ function EntryView(props: {
         />
       </Pressable>
 
+      {/* v217: HIS OWN lines, in the flow directly under the verses
+          — rendered whether the entry body is open or closed, in
+          With-notes and Read-only alike (his words are part of the
+          text). A tap opens his composer on that line. */}
+      {selfLines.length ? (
+        <View style={styles.selfLines}>
+          {selfLines.map((line, i) => (
+            <Pressable
+              key={`${line.kind}-${line.fieldIndex}-${i}`}
+              onPress={() => editSelfLine(i)}
+              hitSlop={4}
+            >
+              <SelfLineBlock kind={line.kind} text={line.text} palette={palette} />
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       {props.open ? (
         <View style={styles.entryBody}>
           {(() => {
@@ -1026,7 +1084,7 @@ function EntryView(props: {
               </View>
             ) : null;
           })()}
-          {blocks.length === 0 && !hasBubbles ? (
+          {blocks.length === 0 && !hasBubbles && selfLines.length === 0 ? (
             <Text style={[styles.noNotes, { color: palette.inkFaint }]}>
               No notes on this verse — it stands on its own here.
             </Text>
@@ -1132,6 +1190,13 @@ function EntryView(props: {
                 onChange={setComposerAuthor}
               />
               <View style={styles.composerBtns}>
+                {editingTarget ? (
+                  // v217: a line opened for editing — from a bubble
+                  // OR from the flow — can be deleted right here.
+                  <Pressable onPress={deleteEditingLine} style={styles.composerDelete}>
+                    <Text style={{ color: palette.raspDeep, fontWeight: '700', fontSize: 13 }}>Delete</Text>
+                  </Pressable>
+                ) : null}
                 <Pressable onPress={closeComposer}>
                   <Text style={{ color: palette.inkSoft, fontWeight: '600', fontSize: 13 }}>Cancel</Text>
                 </Pressable>
@@ -1158,9 +1223,9 @@ function EntryView(props: {
         </View>
       ) : null}
 
-      {/* v214: the Living Bubble layer — faces in the right margin,
-          blooming over the verses. Rendered in both modes and
-          whether the entry body is open or closed. */}
+      {/* v214/v217: the Living Bubble layer — OTHER PEOPLE's faces
+          in the right margin, blooming over the verses. Rendered in
+          both modes and whether the entry body is open or closed. */}
       {hasBubbles && props.bubblePiece ? (
         <LivingBubbles
           piece={props.bubblePiece}
@@ -1235,7 +1300,10 @@ const styles = StyleSheet.create({
   entry: { borderRadius: 10 },
   // v214: an entry whose bubbles are open lifts above its neighbours
   // so the bloomed cards paint over the verses below, mockup-style.
-  entryOpen: { zIndex: 30, elevation: 30 },
+  // v217: zIndex only — the v214 elevation: 30 made Android paint a
+  // hard-edged shadow silhouette of the whole (transparent) entry,
+  // which read on his phone as a white slab behind the open card.
+  entryOpen: { zIndex: 30 },
   entryHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 13, paddingHorizontal: 2 },
   // v214: entries carrying bubbles indent their verses to clear the
   // margin faces (the mockup's 44px entry inset).
@@ -1245,11 +1313,14 @@ const styles = StyleSheet.create({
   vnumRange: { fontSize: 15.5, fontWeight: '700', width: 40, lineHeight: 32, textAlign: 'center' },
   entryVerses: { flex: 1, gap: 3 },
   entryVerse: { fontSize: 15.5, fontWeight: '700', lineHeight: 24 },
-  sup: { fontSize: 10.5, fontWeight: '800' },
   vnumTap: { borderRadius: 9 },
-  verseRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
-  supTap: { borderRadius: 999, minWidth: 17, alignItems: 'center', paddingHorizontal: 3, paddingVertical: 1, marginTop: 3 },
-  verseTextFlex: { flex: 1 },
+  // v217: the tint-selection handle is now an inline superscript
+  // span inside the verse text (see the head render) — a text style,
+  // no longer an in-flow rail with width of its own.
+  supTap: { fontSize: 10.5, fontWeight: '800' },
+  // v217: his own lines' in-flow column — the same measure as the
+  // entry body, at the full text width (no bubble inset, ever).
+  selfLines: { marginLeft: 72, paddingRight: 4, paddingBottom: 6 },
   entryBody: { marginLeft: 72, paddingRight: 4, paddingBottom: 14 },
   noNotes: { fontSize: 13.5, fontStyle: 'italic', marginBottom: 10 },
   markbar: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', borderTopWidth: 1, paddingTop: 11, marginTop: 4 },
@@ -1267,6 +1338,7 @@ const styles = StyleSheet.create({
   composerInput: { fontSize: 14.5, lineHeight: 21, minHeight: 44, textAlignVertical: 'top' },
   composerHint: { fontSize: 11.5, lineHeight: 16, marginTop: 8 },
   composerBtns: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 14, marginTop: 8 },
+  composerDelete: { marginRight: 'auto', paddingVertical: 4 },
   addBtn: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 16 },
   addBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
   loading: { textAlign: 'center', fontSize: 13.5, marginTop: 26 },

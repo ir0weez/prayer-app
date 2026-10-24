@@ -1,12 +1,16 @@
 // ─── v214 "Living Bubble" — the model behind the margin faces ───────────────
-// His personal lines (the marks layer) no longer sit in the text flow:
-// each entry piece that carries his words wears its authors' faces in
-// the right margin, and a press blooms them into note cards over the
-// verses — a conversation when there are two or more. This module is
-// the pure half: which lines an entry shows, in which order, on which
-// side, who each line belongs to, and where each displayed line is
-// actually STORED (a line shown on a '#' split piece may live on the
-// parent entry's record — writes must land where the line lives).
+// v217 "Your Words in the Text" (his ruling, from his hands-on v214
+// verdict + approved mockup): AUTHORSHIP decides how a marks line
+// renders. HIS OWN lines (no author — plain string, or an authored
+// object with no authorId) sit IN THE TEXT FLOW under their verses,
+// always visible. OTHER PEOPLE's lines live as faces in the entry's
+// right margin, and a press blooms them into note cards over the
+// verses — a conversation when there are two or more of them. This
+// module is the pure half: which lines an entry shows, in which
+// order, on which side, who each line belongs to, and where each
+// displayed line is actually STORED (a line shown on a '#' split
+// piece may live on the parent entry's record — writes must land
+// where the line lives).
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Person } from '../prayercircle-data';
@@ -49,8 +53,9 @@ export interface BubbleLine {
   fieldIndex: number;
 }
 
-/** An entry's user lines as bubbles: render order, sides assigned. */
-export function bubbleLinesFor(marks: EntryMarks | undefined): BubbleLine[] {
+/** Every user line of an entry, flattened in render order (plain
+ * notes, then Highlights, then Main Thoughts), sides unassigned. */
+function flatLinesFor(marks: EntryMarks | undefined): Omit<BubbleLine, 'side'>[] {
   if (!marks) return [];
   const flat: Omit<BubbleLine, 'side'>[] = [];
   for (const { kind, field } of BUBBLE_KIND_ORDER) {
@@ -58,10 +63,47 @@ export function bubbleLinesFor(marks: EntryMarks | undefined): BubbleLine[] {
       flat.push({ kind, text: lineText(line), author: lineAuthor(line), fieldIndex });
     });
   }
+  return flat;
+}
+
+function withSides(flat: Omit<BubbleLine, 'side'>[]): BubbleLine[] {
   return flat.map((l, i) => ({
     ...l,
     side: flat.length <= 1 ? ('solo' as const) : i % 2 === 0 ? ('left' as const) : ('right' as const),
   }));
+}
+
+/** An entry's user lines as bubbles: render order, sides assigned. */
+export function bubbleLinesFor(marks: EntryMarks | undefined): BubbleLine[] {
+  return withSides(flatLinesFor(marks));
+}
+
+/**
+ * v217: is this line HIS OWN? A line is his when it carries no
+ * author — a plain string, or an authored object with no authorId
+ * (lineAuthor already normalizes both to null, the same test
+ * resolveBubbleAuthor uses to hand a line to the profile).
+ */
+export function isSelfLine(line: Pick<BubbleLine, 'author'>): boolean {
+  return !line.author || !line.author.authorId;
+}
+
+export interface PartitionedLines {
+  /** His own lines — rendered in the text flow. */
+  selfLines: BubbleLine[];
+  /** Other people's lines — rendered as margin bubbles. Sides are
+   * assigned WITHIN this group: a conversation forms among other
+   * people's lines alone, alternating from the left as in v214. */
+  bubbleLines: BubbleLine[];
+}
+
+/** An entry's user lines split by authorship (the v217 rule). */
+export function partitionBubbleLines(marks: EntryMarks | undefined): PartitionedLines {
+  const flat = flatLinesFor(marks);
+  return {
+    selfLines: withSides(flat.filter((l) => isSelfLine(l))),
+    bubbleLines: withSides(flat.filter((l) => !isSelfLine(l))),
+  };
 }
 
 // ─── Storage resolution — where a displayed line actually lives ─────────────
@@ -110,16 +152,23 @@ export interface BubblePiece {
    * of its parent's labels its cards "on vv. X–Y". */
   parentStart: number;
   parentEnd: number;
+  /** v217: OTHER PEOPLE's lines only — the margin bubbles. (In v214
+   * this carried every line; his own lines moved to `selfLines`.) */
   lines: BubbleLine[];
   /** Write targets, aligned with `lines` index for index. */
   targets: LineStorageTarget[];
+  /** v217: HIS OWN lines — rendered in the text flow. */
+  selfLines: BubbleLine[];
+  /** Write targets, aligned with `selfLines` index for index. */
+  selfTargets: LineStorageTarget[];
 }
 
 /**
  * Every piece of a split chapter result that carries user lines,
- * keyed by the piece's entry key. Drives both chapter-page modes:
- * With-notes renders pieces directly; Read-only (per-verse entries)
- * anchors each piece's faces on the verse where the piece starts.
+ * keyed by the piece's entry key, partitioned by authorship (v217).
+ * Drives both chapter-page modes: With-notes renders pieces
+ * directly; Read-only (per-verse entries) anchors each piece's lines
+ * on the verse where the piece starts.
  */
 export function buildBubblePieces(
   split: SplitSectionsResult,
@@ -130,20 +179,25 @@ export function buildBubblePieces(
   for (const section of split.sections) {
     for (const entry of section.entries) {
       const key = entryKey(book, chapter, entry.start, entry.end);
-      const lines = bubbleLinesFor(marksFor(split.marks, book, chapter, entry.start, entry.end));
-      if (!lines.length) continue;
+      const { selfLines, bubbleLines } = partitionBubbleLines(
+        marksFor(split.marks, book, chapter, entry.start, entry.end),
+      );
+      if (!selfLines.length && !bubbleLines.length) continue;
       const prov = split.provenance[key];
-      const targets = lines.map((l) => {
-        const field = BUBBLE_KIND_ORDER.find((k) => k.kind === l.kind)!.field;
-        return resolveLineStorage(prov, entry.start, entry.end, field, l.fieldIndex);
-      });
+      const targetsFor = (group: BubbleLine[]) =>
+        group.map((l) => {
+          const field = BUBBLE_KIND_ORDER.find((k) => k.kind === l.kind)!.field;
+          return resolveLineStorage(prov, entry.start, entry.end, field, l.fieldIndex);
+        });
       out.set(key, {
         start: entry.start,
         end: entry.end,
         parentStart: prov ? prov.parentStart : entry.start,
         parentEnd: prov ? prov.parentEnd : entry.end,
-        lines,
-        targets,
+        lines: bubbleLines,
+        targets: targetsFor(bubbleLines),
+        selfLines,
+        selfTargets: targetsFor(selfLines),
       });
     }
   }

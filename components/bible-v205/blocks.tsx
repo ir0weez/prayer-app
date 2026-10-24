@@ -114,6 +114,35 @@ export function BlockView({
   );
 }
 
+/**
+ * v217: one of HIS OWN marks lines, rendered in the text flow (the
+ * author split: his words live in the text; other people's words are
+ * bubbles). Kind styling: a plain Note is the v210 bare inset text
+ * and a Main Thought the pre-v214 grey callout — both exactly the
+ * BlockView branches — while the Highlight wears the approved
+ * in-flow mockup's block: pale yellow, radius 10, no border, the
+ * small ✦ HIGHLIGHT label over 15.5px words.
+ */
+export function SelfLineBlock({
+  kind,
+  text,
+  palette,
+}: {
+  kind: 'note' | 'highlight' | 'thought';
+  text: string;
+  palette: BiblePalette;
+}) {
+  if (kind === 'highlight') {
+    return (
+      <View style={[styles.selfHighlight, { backgroundColor: palette.yellowBg }]}>
+        <Text style={[styles.selfHighlightLabel, { color: palette.yellowLabel }]}>✦ Highlight</Text>
+        <Text style={[styles.selfHighlightText, { color: palette.yellowInk }]}>{text}</Text>
+      </View>
+    );
+  }
+  return <BlockView block={{ kind, text }} palette={palette} />;
+}
+
 // ─── Study status chips (his Notion words, the study-system mockup) ─────────
 
 export const STATUS_LABEL: Record<StudyStatus, string> = {
@@ -160,6 +189,11 @@ const styles = StyleSheet.create({
   calloutLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 6 },
   calloutText: { fontSize: 14.5, lineHeight: 23, fontWeight: '600' },
   calloutTextBig: { fontSize: 20.5, lineHeight: 31, fontWeight: '700' },
+  // v217 in-flow Highlight (approved mockup numbers): pale-yellow
+  // inset, radius 10, NO border, label over the words.
+  selfHighlight: { borderRadius: 10, paddingTop: 11, paddingHorizontal: 13, paddingBottom: 12, marginTop: 12, marginBottom: 12 },
+  selfHighlightLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 5 },
+  selfHighlightText: { fontSize: 15.5, lineHeight: 23, fontWeight: '600' },
   chip: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9, alignSelf: 'flex-start' },
   chipText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
   catTag: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9, alignSelf: 'flex-start' },

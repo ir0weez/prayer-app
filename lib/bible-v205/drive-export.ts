@@ -49,6 +49,10 @@ export interface DriveExportSaf {
   readDirectoryAsync: (dirUri: string) => Promise<string[]>;
   createFileAsync: (dirUri: string, fileName: string, mimeType: string) => Promise<string>;
   writeAsStringAsync: (fileUri: string, contents: string, opts?: { encoding?: string }) => Promise<void>;
+  /** Read-back, used ONLY as the advisory check after a rejected
+   * write (see writeOrVerifyLanded). Optional so test fakes that
+   * predate the rescue simply skip it. */
+  readAsStringAsync?: (fileUri: string, opts?: { encoding?: string }) => Promise<string>;
 }
 
 function safWriterModule(): DriveExportSaf {
@@ -78,31 +82,64 @@ export function findExportFile(children: string[]): string | null {
 }
 
 /**
+ * One write, with the Drive-provider rescue. Google Drive's SAF
+ * provider stages the bytes and can still reject the write call at
+ * flush/close, AFTER the payload has fully landed — the file sits in
+ * the folder, correct, while the promise says failure (Jonathan's
+ * live report, Oct 24 15:16: the export landed AND the app announced
+ * it could not write). So a rejected write is not the last word: the
+ * read-back decides. If the file now holds exactly the payload, the
+ * write DID succeed and this returns true (rescued). The check is
+ * advisory only — it can rescue a landed write, never condemn one:
+ * a clean write never triggers it, and a mismatch or an unreadable
+ * file rethrows the write's own error, keeping the caller's share
+ * fallback for genuine failures exactly as it was. Do not "tidy"
+ * this wrap away; without it every Drive export double-reports.
+ */
+async function writeOrVerifyLanded(
+  saf: DriveExportSaf,
+  fileUri: string,
+  payload: string,
+): Promise<boolean> {
+  try {
+    await saf.writeAsStringAsync(fileUri, payload, { encoding: 'utf8' });
+    return false;
+  } catch (writeError) {
+    if (saf.readAsStringAsync) {
+      const landed = await saf.readAsStringAsync(fileUri, { encoding: 'utf8' }).catch(() => null);
+      if (landed === payload) return true;
+    }
+    throw writeError;
+  }
+}
+
+/**
  * The write itself, against an injected SAF surface (fakeable in
  * tests): if the export file already exists, overwrite it in place —
  * same URI, contents replaced, so the folder still holds exactly one
  * export. Otherwise create it under its fixed name and write. Returns
- * whether this call created the file.
+ * whether this call created the file, and whether a rejected write
+ * was rescued by its landed bytes (writeOrVerifyLanded).
  */
 export async function writeExportWithSaf(
   saf: DriveExportSaf,
   dirUri: string,
   payload: string,
-): Promise<{ created: boolean }> {
+): Promise<{ created: boolean; rescuedAfterWriteError?: boolean }> {
   const children = await saf.readDirectoryAsync(dirUri);
   const existing = findExportFile(children);
   if (existing) {
-    await saf.writeAsStringAsync(existing, payload, { encoding: 'utf8' });
-    return { created: false };
+    const rescued = await writeOrVerifyLanded(saf, existing, payload);
+    return { created: false, ...(rescued ? { rescuedAfterWriteError: true } : {}) };
   }
   const baseName = DRIVE_EXPORT_FILENAME.slice(0, -5); // drop the 5-char extension
   const createdUri = await saf.createFileAsync(dirUri, baseName, 'application/json');
-  await saf.writeAsStringAsync(createdUri, payload, { encoding: 'utf8' });
-  return { created: true };
+  const rescued = await writeOrVerifyLanded(saf, createdUri, payload);
+  return { created: true, ...(rescued ? { rescuedAfterWriteError: true } : {}) };
 }
 
 export type DriveExportOutcome =
-  | { status: 'written'; folderName: string; created: boolean }
+  | { status: 'written'; folderName: string; created: boolean; rescuedAfterWriteError?: boolean }
   | { status: 'unlinked' }
   | { status: 'not-enabled' }
   | { status: 'failed'; reason: string };
@@ -119,8 +156,8 @@ export async function writeExportToDriveFolder(payload: string): Promise<DriveEx
   if (!driveFolderCanWrite(link)) return { status: 'not-enabled' };
   if (!isAndroid()) return { status: 'failed', reason: 'Drive folders need the Android app' };
   try {
-    const { created } = await writeExportWithSaf(safWriterModule(), link.uri, payload);
-    return { status: 'written', folderName: link.name, created };
+    const { created, rescuedAfterWriteError } = await writeExportWithSaf(safWriterModule(), link.uri, payload);
+    return { status: 'written', folderName: link.name, created, ...(rescuedAfterWriteError ? { rescuedAfterWriteError } : {}) };
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'the folder would not accept the write';
     return { status: 'failed', reason };

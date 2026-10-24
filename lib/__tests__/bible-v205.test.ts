@@ -174,13 +174,24 @@ describe('generated data — the reconciled model the screens render', () => {
 
 describe('noteless chapters — full reader, no dead end', () => {
   it('Exodus 1 has no commentary data, yet the display model covers every verse', () => {
-    expect(getChapterData('Exodus', 1)).toBeNull();
-    const sections = buildDisplaySections(null, 22);
+    // RE-BASED in v238 ("The Notebooks Come Home"): the reMarkable
+    // transcription landed Exodus 1–3 as his blank SETUPS — chapter
+    // data now exists (section cuts, zero entries), so the premise
+    // moved from "no data" to "data without notes". The guarantee is
+    // unchanged: the display model covers every verse. A still-absent
+    // chapter (Exodus 4) keeps the null-data path pinned below.
+    expect(getChapterData('Exodus', 4)).toBeNull();
+    const ch = getChapterData('Exodus', 1);
+    expect(ch).not.toBeNull();
+    expect(ch!.sections.reduce((n, s) => n + s.entries.length, 0)).toBe(0);
+    const sections = buildDisplaySections(ch, 22);
     const flat = flattenEntries(sections);
     expect(flat.every((f) => f.entry.verseOnly)).toBe(true);
     const covered = new Set<number>();
     for (const f of flat) for (let v = f.entry.start; v <= f.entry.end; v++) covered.add(v);
     expect(covered.size).toBe(22);
+    const nullFlat = flattenEntries(buildDisplaySections(null, 22));
+    expect(nullFlat.every((f) => f.entry.verseOnly)).toBe(true);
   });
 
   it('Stories on a noteless chapter inserts no notes or highlight screens', () => {

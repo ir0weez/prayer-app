@@ -15,6 +15,8 @@ import { DATA as acts } from './acts';
 import { DATA as deuteronomy } from './deuteronomy';
 import { DATA as ecclesiastes } from './ecclesiastes';
 import { DATA as ephesians } from './ephesians';
+import { DATA as exodus } from './exodus';
+import { DATA as ezekiel } from './ezekiel';
 import { DATA as genesis } from './genesis';
 import { DATA as hebrews } from './hebrews';
 import { DATA as isaiah } from './isaiah';
@@ -23,9 +25,11 @@ import { DATA as jonah } from './jonah';
 import { DATA as joshua } from './joshua';
 import { DATA as jude } from './jude';
 import { DATA as mark } from './mark';
+import { DATA as matthew } from './matthew';
 import { DATA as obadiah } from './obadiah';
 import { DATA as philippians } from './philippians';
 import { DATA as proverbs } from './proverbs';
+import { DATA as psalms } from './psalms';
 import { DATA as revelation } from './revelation';
 import { DATA as ruth } from './ruth';
 import { DATA as songOfSolomon } from './song-of-solomon';
@@ -46,6 +50,8 @@ export const COMMENTARY_DATA: Record<string, V205BookData> = {
   "Deuteronomy": deuteronomy,
   "Ecclesiastes": ecclesiastes,
   "Ephesians": ephesians,
+  "Exodus": exodus,
+  "Ezekiel": ezekiel,
   "Genesis": genesis,
   "Hebrews": hebrews,
   "Isaiah": isaiah,
@@ -54,9 +60,11 @@ export const COMMENTARY_DATA: Record<string, V205BookData> = {
   "Joshua": joshua,
   "Jude": jude,
   "Mark": mark,
+  "Matthew": matthew,
   "Obadiah": obadiah,
   "Philippians": philippians,
   "Proverbs": proverbs,
+  "Psalms": psalms,
   "Revelation": revelation,
   "Ruth": ruth,
   "Song of Solomon": songOfSolomon,

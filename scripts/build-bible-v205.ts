@@ -23,6 +23,7 @@ import {
   type MergeStats,
 } from '../lib/bible-v205/parse';
 import { applyRecoveryFill, chapterBlockCount, type RecoveredMap } from '../lib/bible-v205/recovery';
+import { applyTranscriptionFill, type TranscribedMap } from '../lib/bible-v205/transcription';
 import type { StudyStatus, V205BookData, V205ChapterData } from '../lib/bible-v205/types';
 
 const HOME = process.env.HOME ?? '';
@@ -163,6 +164,62 @@ if (existsSync(RECOVERY_PATH)) {
   }
 } else {
   log(`recovery: recovered.json NOT FOUND at ${RECOVERY_PATH} — recovered chapters (Genesis 6–10) would be LOST in this regeneration`);
+}
+
+// ── 2c. reMarkable transcription fill ───────────────────────────────────────
+// Psalms 1–28, Matthew 1–2, Exodus 1–3 and Ezekiel 1 were never typed
+// into the txts above — they lived only as PDF exports of his
+// reMarkable notebooks. The transcription staged them as full chapter
+// objects (spelling fixes applied); applyTranscriptionFill lands them
+// here — creating the four books the txt set never carried — so a
+// regeneration can never silently drop them. A staged chapter whose
+// generated twin already carries blocks is a CONFLICT and aborts the
+// run: the generator never chooses between two of his texts.
+const TRANSCRIPTION_DIR =
+  process.env.TRANSCRIPTION_DIR ??
+  join(HOME, 'workspace/goals/prayercircle-apk-build/hidden_files/pdf-transcription');
+const TRANSCRIPTION_SOURCES: { book: string; file: string; exportName: string }[] = [
+  { book: 'Psalms', file: 'psalms-chapters-1-28.ts', exportName: 'PSALMS_CHAPTERS_1_28' },
+  { book: 'Matthew', file: 'matthew-chapters-1-2.ts', exportName: 'MATTHEW_CHAPTERS_1_2' },
+  { book: 'Exodus', file: 'exodus-chapters-1-3.ts', exportName: 'EXODUS_CHAPTERS_1_3' },
+  { book: 'Ezekiel', file: 'ezekiel-chapter-1.ts', exportName: 'EZEKIEL_CHAPTER_1' },
+];
+{
+  const transcribed: TranscribedMap = {};
+  for (const src of TRANSCRIPTION_SOURCES) {
+    const path = join(TRANSCRIPTION_DIR, src.file);
+    if (!existsSync(path)) {
+      throw new Error(
+        `transcription: staging file NOT FOUND at ${path} — transcribed chapters (${src.book}) would be LOST in this regeneration`,
+      );
+    }
+    // The staging modules are pure data: a header comment, one typed
+    // export whose body is JSON.stringify output (stage_transcription
+    // .mjs writes them that way). Read the JSON body synchronously —
+    // this script runs as CJS under tsx, so no top-level await.
+    const text = readFileSync(path, 'utf8');
+    const start = text.indexOf('{', text.indexOf(src.exportName));
+    const end = text.lastIndexOf('}');
+    if (start < 0 || end <= start) {
+      throw new Error(`transcription: ${src.file} does not carry a readable ${src.exportName} object`);
+    }
+    transcribed[src.book] = JSON.parse(text.slice(start, end + 1)) as TranscribedMap[string];
+  }
+  const conflicts: string[] = [];
+  for (const src of TRANSCRIPTION_SOURCES) {
+    const result = applyTranscriptionFill(books.get(src.book), src.book, transcribed);
+    if (!result) continue;
+    books.set(src.book, result.data);
+    if (result.created) log(`transcription: created book ${src.book} (not in the txt set)`);
+    for (const label of result.filled) log(`transcription: filled ${label}`);
+    conflicts.push(...result.conflicts);
+  }
+  if (conflicts.length) {
+    throw new Error(
+      `transcription: CONFLICT — these chapters already carry blocks in the generated data and were NOT overwritten: ${conflicts.join(', ')}. ` +
+        'Resolve by hand: the txt canon and the transcription disagree, and the generator never chooses.',
+    );
+  }
 }
 
 // ── 3. Studies CSVs → study seed ────────────────────────────────────────────

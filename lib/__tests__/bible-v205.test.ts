@@ -350,18 +350,22 @@ describe('v206 — the Notion seed is cleared; only app progress counts', () => 
     expect(src).not.toContain('STUDY_SEED');
   });
 
-  it('(d) Books grouping: notes-bearing books are not progress until he marks them', () => {
+  it('(d) Books grouping: v222 — all 66 books in Current / Finished / Not Started, from the study store alone', () => {
     const canon = Object.keys(CHAPTER_COUNTS);
     const fresh = seedStudyState();
-    // 1 John carries his finished notes — visible under Chapter notes,
-    // never under progress while he has set nothing.
+    // A book with finished notes but no states is Not Started, never
+    // "progress" — the v206 rule survives the v222 regrouping.
     expect(notesBooks(canon)).toContain('1 John');
     expect(booksWithProgress(fresh, canon)).toEqual([]);
     const marked = setChapterStatus(fresh, '1 John', 1, 'complete');
     expect(booksWithProgress(marked, canon)).toEqual(['1 John']);
     const src = readFileSync(join(process.cwd(), 'app', 'bible-chapters.tsx'), 'utf8');
-    expect(src).toContain('Study progress');
-    expect(src).toContain('booksWithProgress');
+    expect(src).toContain('groupBooksByStudy');
+    expect(src).toContain('>Current<');
+    expect(src).toContain('>Finished<');
+    expect(src).toContain('>Not Started<');
+    expect(src).not.toContain('Study progress');
+    expect(src).not.toContain('The rest of the canon');
     expect(src).not.toContain('databases');
     expect(src).not.toContain('of the 40 the list tracks');
     expect(src).not.toContain('no status list');

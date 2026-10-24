@@ -129,6 +129,18 @@ import {
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { loadStudyState } from "@/lib/bible-v205/study";
+import { loadMarks } from "@/lib/bible-v205/marks";
+import { transitionChapterStatus } from "@/lib/bible-v205/rewards";
+import {
+  applyStudioChapters,
+  collectBubbleLinesForExport,
+  loadStudioImports,
+  mergeStudioSchedule,
+  parseStudioFile,
+  saveStudioImports,
+  type StudioPack,
+} from "@/lib/bible-v205/studio-import";
+import type { ScheduleEvent, ScheduleTodo } from "@/lib/schedule-data";
 import { getReadingPosition, readingPositionDisplay } from "@/lib/bible-v205/position";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
@@ -2472,7 +2484,11 @@ export default function HomeScreen() {
       const storage: Record<string, string | null> = {};
       entries.forEach(([key, value]) => { storage[key] = value; });
       const photos = await createPhotoBackup(storage);
-      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos) }, null, 2);
+      // v222 (WS2c): the app's bubble lines ride the backup as their own
+      // section, so the studio can later read them into its "From the
+      // app" inbox. Export-only — nothing else about the backup changes.
+      const studioBubbles = collectBubbleLinesForExport(await loadMarks());
+      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles }, null, 2);
       const filename = `prayercircle-backup-${getTodayISOString()}.json`;
       const uri = `${FileSystem.cacheDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(uri, payload, { encoding: FileSystem.EncodingType.UTF8 });
@@ -2590,6 +2606,107 @@ export default function HomeScreen() {
     } catch (error) {
       console.error("PrayerCircle import failed", error);
       notifyAlert("Import failed", "PrayerCircle could not read that backup file.");
+    }
+  };
+
+  // v222 — the DATA import door for the Commentary Studio. Mirrors the
+  // backup import's file handling (web file input / native document
+  // picker), then applies a validated studio pack. parseStudioFile
+  // validates EVERYTHING first, so a malformed file changes nothing:
+  // no partial application, ever. Notes replace that chapter's imported
+  // commentary entries only — the marks layer is a different store and
+  // is never touched. Chapter states walk transitionChapterStatus, the
+  // same door as tapping in the app. Schedule events land as planned
+  // items, deduped by (date, start, title); whiteSpace is advisory and
+  // is never stored.
+  const pickStudioPackText = async (): Promise<string | null> => {
+    if (Platform.OS === "web") {
+      return new Promise<string | null>((resolve, reject) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".json,application/json";
+        input.style.display = "none";
+        input.onchange = () => {
+          const file = input.files?.[0];
+          input.remove();
+          if (!file) {
+            resolve(null);
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === "string") resolve(reader.result);
+            else reject(new Error("The selected studio pack could not be read as text."));
+          };
+          reader.onerror = () => reject(reader.error ?? new Error("The selected studio pack could not be read."));
+          reader.readAsText(file);
+        };
+        input.onerror = () => {
+          input.remove();
+          reject(new Error("The browser could not open the file picker."));
+        };
+        document.body.appendChild(input);
+        input.click();
+      });
+    }
+    const result = await DocumentPicker.getDocumentAsync({ type: "application/json", copyToCacheDirectory: true, multiple: false });
+    if (result.canceled || !result.assets?.[0]?.uri) return null;
+    return FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
+  };
+
+  const handleImportStudioPack = async () => {
+    try {
+      const raw = await pickStudioPackText();
+      if (raw === null) return;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        notifyAlert("Import failed", "That file is not valid JSON.");
+        return;
+      }
+      let pack: StudioPack;
+      try {
+        pack = parseStudioFile(parsed);
+      } catch (error) {
+        notifyAlert("Not a studio pack", error instanceof Error ? error.message : "That file is not a Commentary Studio pack.");
+        return;
+      }
+      if (pack.kind === "notes") {
+        const current = await loadStudioImports();
+        const { next, chaptersUpdated } = applyStudioChapters(current, pack.chapters);
+        await saveStudioImports(next);
+        let state = await loadStudyState();
+        let statesSet = 0;
+        for (const chapter of pack.chapters) {
+          if (chapter.chapterState === undefined) continue;
+          const result = await transitionChapterStatus(state, chapter.book, chapter.chapter, chapter.chapterState);
+          state = result.state;
+          statesSet += 1;
+        }
+        notifyAlert("Studio pack imported", `Chapters updated: ${chaptersUpdated} · States set: ${statesSet} · Events added: 0`);
+        return;
+      }
+      const readStoredArray = async (key: string): Promise<unknown[]> => {
+        try {
+          const stored = await AsyncStorage.getItem(key);
+          const value = stored ? JSON.parse(stored) : [];
+          return Array.isArray(value) ? value : [];
+        } catch {
+          return [];
+        }
+      };
+      const existingEvents = (await readStoredArray(SCHEDULE_EVENTS_KEY))
+        .filter((item): item is ScheduleEvent => !!item && typeof item === "object" && typeof (item as ScheduleEvent).title === "string" && typeof (item as ScheduleEvent).date === "string");
+      const existingTodos = (await readStoredArray(SCHEDULE_TODOS_KEY))
+        .filter((item): item is ScheduleTodo => !!item && typeof item === "object" && typeof (item as ScheduleTodo).title === "string" && typeof (item as ScheduleTodo).date === "string");
+      const merged = mergeStudioSchedule(existingEvents, existingTodos, pack.schedule);
+      await AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(merged.events));
+      await AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(merged.todos));
+      notifyAlert("Studio pack imported", `Chapters updated: 0 · States set: 0 · Events added: ${merged.added}`);
+    } catch (error) {
+      console.error("PrayerCircle studio import failed", error);
+      notifyAlert("Import failed", "PrayerCircle could not read that studio pack file.");
     }
   };
 
@@ -2839,6 +2956,9 @@ export default function HomeScreen() {
         </Pressable>
         <Pressable onPress={handleImportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("file-upload", "Import Data", "Restore a PrayerCircle backup from a JSON file")}
+        </Pressable>
+        <Pressable onPress={handleImportStudioPack} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("note-add", "Import Studio Pack", "Bring in notes, chapter states, or a schedule from the Commentary Studio")}
         </Pressable>
 
 

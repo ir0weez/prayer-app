@@ -32,7 +32,6 @@ import {
   chapterCountFor,
   flattenEntries,
   getBookData,
-  getChapterData,
   isBareChapter,
   mergeVerseOnlyEntries,
   splitSectionsByHashNotes,
@@ -74,6 +73,11 @@ import {
   type StudyState,
 } from '@/lib/bible-v205/study';
 import { transitionChapterStatus } from '@/lib/bible-v205/rewards';
+import {
+  loadStudioImports,
+  resolveChapterData,
+  type StudioImportsMap,
+} from '@/lib/bible-v205/studio-import';
 import { loadChapterVerses, type VerseText } from '@/lib/bible-v205/verses';
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
@@ -107,7 +111,14 @@ export function ChapterPageView(props: ChapterPageProps) {
   const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
   const { skin, motion: skinMotion, isSkinned } = useSkin();
-  const chapterData = useMemo(() => getChapterData(book, chapter), [book, chapter]);
+  // v222: studio-imported chapter data (Settings → DATA → Import studio
+  // pack), when one exists for this chapter; the shipped chapter stands
+  // otherwise. Declared before chapterData, which resolves through it.
+  const [studioImports, setStudioImports] = useState<StudioImportsMap>({});
+  const chapterData = useMemo(
+    () => resolveChapterData(book, chapter, studioImports),
+    [book, chapter, studioImports],
+  );
   const totalChapters = chapterCountFor(book);
 
   const [verses, setVerses] = useState<VerseText[]>([]);
@@ -160,6 +171,7 @@ export function ChapterPageView(props: ChapterPageProps) {
       });
     loadMarks().then((m) => live && setMarks(m));
     loadStudyState().then((s) => live && setStudyState(s));
+    loadStudioImports().then((m) => live && setStudioImports(m));
     loadPeopleList().then((p) => live && setPeople(p));
     loadProfileIdentity().then((p) => live && setProfile(p));
     return () => {
@@ -765,6 +777,29 @@ export function ChapterPageView(props: ChapterPageProps) {
             : `End of ${book} ${chapter} — the next chapter's outline sits at the top of its own page.`}
         </Text>
 
+        {/* v222 — Mark Complete at the foot of the page, after the last
+            entry. It walks the same transitionChapterStatus door as the
+            strip menu (XP idempotent, celebration included). A chapter
+            already Complete shows its state instead of the button; it
+            stays changeable through the book grid's six-state editor. */}
+        {studyState !== null && status !== 'complete' ? (
+          <Pressable
+            style={[styles.markCompleteBtn, { backgroundColor: palette.rasp }]}
+            accessibilityLabel={`Mark ${book} ${chapter} complete`}
+            onPress={() => handleSetStatus('complete')}
+          >
+            <Text style={styles.markCompleteText}>Mark Complete</Text>
+          </Pressable>
+        ) : null}
+        {studyState !== null && status === 'complete' ? (
+          <View style={styles.footComplete}>
+            <Text style={[styles.footCompleteLine, { color: palette.inkSoft }]}>✓ Complete</Text>
+            <Text style={[styles.footCompleteSub, { color: palette.inkFaint }]}>
+              Change it any time from the book grid.
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.chapterNav}>
           <Pressable
             style={[styles.navBtn, { borderColor: palette.lineDark }, chapter <= 1 ? styles.navOff : null]}
@@ -1343,6 +1378,17 @@ const styles = StyleSheet.create({
   addBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
   loading: { textAlign: 'center', fontSize: 13.5, marginTop: 26 },
   footNote: { fontSize: 12, lineHeight: 18, marginTop: 34, textAlign: 'center' },
+  markCompleteBtn: {
+    marginTop: 20,
+    alignSelf: 'center',
+    paddingHorizontal: 26,
+    paddingVertical: 12,
+    borderRadius: 999,
+  },
+  markCompleteText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+  footComplete: { marginTop: 20, alignItems: 'center' },
+  footCompleteLine: { fontWeight: '800', fontSize: 15 },
+  footCompleteSub: { fontSize: 12, lineHeight: 18, marginTop: 2 },
   chapterNav: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 18, gap: 10 },
   navBtn: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16 },
   navOff: { opacity: 0.35 },

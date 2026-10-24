@@ -37,6 +37,50 @@ export function bookIsComplete(state: StudyState, book: string): boolean {
   return true;
 }
 
+/**
+ * v222 — the Books view's three sections, as one pure function so the
+ * grouping is pin-able without rendering:
+ *   Current    — the study store's currentBook first (unless finished),
+ *                then every other book with ≥1 chapter carrying any
+ *                state, not finished, in canonical Bible order.
+ *   Finished   — every chapter Complete, in canonical order.
+ *   Not Started — no chapter states at all, in canonical order.
+ * Every book in canon lands in exactly one section. A book carrying only
+ * a 'not-started' override counts as having a state (it was deliberately
+ * marked), so it lands in Current, not Not Started.
+ */
+export function groupBooksByStudy(
+  state: StudyState,
+  canon: string[],
+): { current: string[]; finished: string[]; notStarted: string[] } {
+  const finished: string[] = [];
+  const progressed: string[] = [];
+  const notStarted: string[] = [];
+  for (const book of canon) {
+    if (bookIsComplete(state, book)) {
+      finished.push(book);
+      continue;
+    }
+    const total = chapterCountFor(book);
+    let hasState = false;
+    for (let c = 1; c <= total; c++) {
+      if (chapterStatus(state, book, c) !== 'none') {
+        hasState = true;
+        break;
+      }
+    }
+    (hasState ? progressed : notStarted).push(book);
+  }
+  const current: string[] = [];
+  if (state.currentBook && !finished.includes(state.currentBook)) {
+    current.push(state.currentBook);
+  }
+  for (const book of progressed) {
+    if (book !== state.currentBook) current.push(book);
+  }
+  return { current, finished, notStarted };
+}
+
 export function bibleIsComplete(state: StudyState): boolean {
   return Object.keys(CHAPTER_COUNTS).every((book) => bookIsComplete(state, book));
 }

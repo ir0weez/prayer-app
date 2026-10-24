@@ -1,12 +1,12 @@
 // ─── v205 Books view ─────────────────────────────────────────────────────────
-// v206 reframe (his ruling — only app progress counts): the groups are
-// now (a) books with any state he set in the app, progress threads from
-// the study store alone; (b) "Chapter notes" — books his commentary
-// lives in, INDEPENDENT of any status (his finished notes and
-// Highlights show even where nothing is marked read); (c) the
-// handwritten-only rows (coverage metadata); (d) the quiet rest of the
-// canon. v205 grouped by the imported Notion lists and asserted the
-// imported states as his progress — that framing is gone.
+// v206 reframe (his ruling — only app progress counts): the groups were
+// progress books, "Chapter notes", handwritten-only rows, and the quiet
+// rest of the canon. v222 replaces all four with THREE sections over
+// ALL 66 books, from the study store alone: Current (his currentBook
+// first, then every other book with any state, not finished), Finished
+// (every chapter Complete), Not Started (no chapter states). A book
+// with notes but no states lands in Not Started with its notes count on
+// the row — notes no longer earn a book its own section.
 
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -17,9 +17,7 @@ import { useSkin } from '@/hooks/use-skin';
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import {
-  booksWithProgress,
   CHAPTER_COUNTS,
-  notesBooks,
   notesChapterCount,
 } from '@/lib/bible-v205/index';
 import type { StudyStatus } from '@/lib/bible-v205/types';
@@ -27,10 +25,11 @@ import {
   chapterStatus,
   loadStudyState,
   saveStudyState,
+  seedStudyState,
   setCurrentBook as setStudyCurrentBook,
   type StudyState,
 } from '@/lib/bible-v205/study';
-import { bookIsComplete } from '@/lib/bible-v205/rewards';
+import { bookIsComplete, groupBooksByStudy } from '@/lib/bible-v205/rewards';
 import { Ornament, StatusChip } from '@/components/bible-v205/blocks';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 import {
@@ -79,14 +78,35 @@ export default function BibleBooksScreen() {
     }, []),
   );
 
-  const progressBooks = studyState ? booksWithProgress(studyState, CANON) : [];
-  const notesOnly = notesBooks(CANON).filter((b) => !progressBooks.includes(b));
-  const paperOnly = handwritten.filter((e) => e.only);
-  const covered = new Set([...progressBooks, ...notesOnly, ...paperOnly.map((e) => e.book)]);
-  const quiet = CANON.filter((b) => !covered.has(b));
+  // v222: all 66 books, three sections, from the study store alone.
+  // Before the store loads, the seed state puts every book in Not
+  // Started, so the list is complete from the first paint.
+  const effectiveState = studyState ?? seedStudyState();
+  const groups = groupBooksByStudy(effectiveState, CANON);
   const possessive = labels?.possessive ?? 'Your';
-  const possessiveLower = labels?.possessiveLower ?? 'your';
   const sourceLabel = labels?.sourceLabel ?? 'Handwritten notes';
+
+  // The ✎ on-paper marker for a row: the shipped handwritten coverage
+  // (non-only entries) or, for a handwritten-only book, its range.
+  const paperNoteFor = (book: string): string | null => {
+    const note = handwrittenNoteFor(handwritten, book);
+    if (note) return note;
+    const only = handwritten.find((e) => e.book === book && e.only);
+    return only ? `${only.from}–${only.to}` : null;
+  };
+
+  const renderBookRow = (book: string) => (
+    <BookRow
+      key={book}
+      book={book}
+      studyState={effectiveState}
+      palette={palette}
+      paperNote={paperNoteFor(book)}
+      notesCount={notesChapterCount(book)}
+      onPress={() => openBook(book)}
+      onMakeCurrent={makeCurrent}
+    />
+  );
 
   const openBook = (book: string) => router.push({ pathname: '/bible-book', params: { book } });
 
@@ -139,84 +159,35 @@ export default function BibleBooksScreen() {
           {(['complete', 'in-progress', 'write', 'restudy', 'none'] as StudyStatus[]).map((s) => (
             <StatusChip key={s} status={s} palette={palette} />
           ))}
-          <View style={[styles.chip, { backgroundColor: palette.paper, borderColor: palette.lineDark }]}>
+          {/* v222: the notes-source label editor lost its old home (the
+              Handwritten-only header) when the sections merged — it
+              lives on the ✎ chip now. */}
+          <Pressable
+            style={[styles.chip, { backgroundColor: palette.paper, borderColor: palette.lineDark }]}
+            accessibilityLabel="Name your notes source"
+            onPress={() => {
+              setLabelDraft(sourceLabel);
+              setLabelEditor(true);
+            }}
+          >
             <Text style={[styles.chipText, { color: palette.inkSoft }]}>✎ On paper</Text>
-          </View>
+          </Pressable>
         </View>
 
-        {progressBooks.length ? (
-          <Text style={[styles.subhead, { color: palette.rasp }]}>Study progress</Text>
+        {groups.current.length ? (
+          <Text style={[styles.subhead, { color: palette.rasp }]}>Current</Text>
         ) : null}
-        {progressBooks.map((book) => (
-          <BookRow
-            key={book}
-            book={book}
-            studyState={studyState}
-            palette={palette}
-            paperNote={handwrittenNoteFor(handwritten, book)}
-            onPress={() => openBook(book)}
-            onMakeCurrent={makeCurrent}
-          />
-        ))}
+        {groups.current.map(renderBookRow)}
 
-        {notesOnly.length ? (
-          <Text style={[styles.subhead, { color: palette.rasp }]}>Chapter notes</Text>
+        {groups.finished.length ? (
+          <Text style={[styles.subhead, { color: palette.rasp }]}>Finished</Text>
         ) : null}
-        {notesOnly.map((book) => {
-          const n = notesChapterCount(book);
-          return (
-            <Pressable key={book} style={styles.bookrow} onPress={() => openBook(book)}>
-              <View style={styles.btop}>
-                <Text style={[styles.bname, { color: palette.ink }]}>
-                  {book} <Text style={{ color: palette.rasp }}>›</Text>
-                </Text>
-                <Text style={[styles.bcount, { color: palette.inkSoft }]}>
-                  Chapter notes · {n} {n === 1 ? 'chapter' : 'chapters'}
-                </Text>
-              </View>
-              <View style={[styles.thread, { backgroundColor: palette.raspTint }]}>
-                <View style={[styles.threadFill, { backgroundColor: '#F3CFE0', width: '100%' }]} />
-              </View>
-            </Pressable>
-          );
-        })}
+        {groups.finished.map(renderBookRow)}
 
-        {paperOnly.length ? (
-          <View style={styles.subheadRow}>
-            <Text style={[styles.subhead, { color: palette.rasp, paddingTop: 0 }]}>
-              Handwritten only — on {possessiveLower} {sourceLabel}
-            </Text>
-            <Pressable
-              hitSlop={8}
-              onPress={() => {
-                setLabelDraft(sourceLabel);
-                setLabelEditor(true);
-              }}
-            >
-              <MaterialIcons name="edit" size={14} color={palette.inkSoft} />
-            </Pressable>
-          </View>
+        {groups.notStarted.length ? (
+          <Text style={[styles.subhead, { color: palette.rasp }]}>Not Started</Text>
         ) : null}
-        {paperOnly.map((entry) => {
-          const total = CHAPTER_COUNTS[entry.book] ?? entry.to;
-          return (
-            <Pressable key={entry.book} style={styles.bookrow} onPress={() => openBook(entry.book)}>
-              <View style={styles.btop}>
-                <Text style={[styles.bname, { color: palette.ink }]}>
-                  {entry.book} <Text style={[styles.papermark, { color: palette.inkSoft }]}>✎ on paper</Text>
-                </Text>
-                <Text style={[styles.bcount, { color: palette.inkSoft }]}>
-                  Handwritten notes · chapters {entry.from}–{entry.to} of {total}
-                </Text>
-              </View>
-              <View style={[styles.thread, { backgroundColor: palette.raspTint }]}>
-                <View
-                  style={[styles.threadFill, { backgroundColor: '#F3CFE0', width: `${Math.round((100 * entry.to) / total)}%` }]}
-                />
-              </View>
-            </Pressable>
-          );
-        })}
+        {groups.notStarted.map(renderBookRow)}
 
         <Modal visible={labelEditor} transparent animationType="fade" onRequestClose={() => setLabelEditor(false)}>
           <Pressable style={styles.scrim} onPress={() => setLabelEditor(false)} />
@@ -285,10 +256,6 @@ export default function BibleBooksScreen() {
           </View>
         </Modal>
 
-        <Text style={[styles.subhead, { color: palette.rasp }]}>The rest of the canon</Text>
-        <Text style={[styles.canonQuiet, { color: palette.inkFaint }]}>
-          {quiet.join(' · ')} — they read as plain chapters, with nothing marked, until your notes reach them.
-        </Text>
         <View style={{ height: 30 }} />
       </ScrollView>
     </View>
@@ -342,6 +309,7 @@ function BookRow({
   studyState,
   palette,
   paperNote,
+  notesCount,
   onPress,
   onMakeCurrent,
 }: {
@@ -349,6 +317,9 @@ function BookRow({
   studyState: StudyState | null;
   palette: BiblePalette;
   paperNote: string | null;
+  /** Chapters carrying his commentary — the signal the old "Chapter
+   * notes" section used to carry, now on the row itself. */
+  notesCount: number;
   onPress: () => void;
   onMakeCurrent: (book: string) => void;
 }) {
@@ -376,6 +347,7 @@ function BookRow({
   if (write) parts.push(`${write} to write`);
   if (prog) parts.push(total === prog ? `all ${prog} in progress` : `${prog} in progress`);
   if (notStarted && complete === 0 && !write && !prog) parts.push('not started');
+  if (notesCount) parts.push(`notes in ${notesCount} ${notesCount === 1 ? 'chapter' : 'chapters'}`);
   if (paper) parts.push(paper);
 
   return (
@@ -423,8 +395,6 @@ const styles = StyleSheet.create({
   bcount: { fontSize: 12, flexShrink: 1, textAlign: 'right' },
   thread: { height: 5, borderRadius: 3, overflow: 'hidden', position: 'relative' },
   threadFill: { height: 5, borderRadius: 3 },
-  canonQuiet: { fontSize: 13, lineHeight: 22.5, paddingTop: 8 },
-  subheadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 24, paddingBottom: 4 },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,16,20,.45)' },
   editorCard: { position: 'absolute', left: 20, right: 20, top: '30%', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   editorTitle: { fontSize: 16, fontWeight: '800' },

@@ -8,7 +8,10 @@
 import { useColors } from '@/hooks/use-colors';
 import { useSkin } from '@/hooks/use-skin';
 import { hexLuminance } from '@/lib/skin-themes';
+import { resolveBibleInk } from '@/lib/bible-v205/palette-ink';
 import type { TintColor } from '@/lib/bible-v205/marks';
+
+export { resolveBibleInk } from '@/lib/bible-v205/palette-ink';
 
 export interface BiblePalette {
   paper: string;
@@ -54,7 +57,12 @@ export function useBiblePalette(): BiblePalette {
   return {
     paper,
     paper2: isDark ? colors.surface : '#FAFAF8',
-    ink: colors.text,
+    // v220: the runtime palette's ink key is `foreground` — `text`
+    // does not exist on it, so this read was undefined and the verse
+    // text rendered black on every dark page. The ink also resolves
+    // against the resolved paper (Terminal's panel is dark in BOTH
+    // schemes, so a light-scheme foreground needs the guard too).
+    ink: resolveBibleInk(colors.foreground, paper),
     inkSoft: colors.muted,
     inkFaint: isDark ? '#8A857C' : '#ABA69C',
     line: colors.border,

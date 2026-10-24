@@ -127,7 +127,8 @@ import {
 } from "@/lib/prayercircle-fasting";
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
-import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
+import { loadStudyState } from "@/lib/bible-v205/study";
+import { getReadingPosition, readingPositionDisplay } from "@/lib/bible-v205/position";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
 import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/monuments";
@@ -2968,10 +2969,12 @@ export default function HomeScreen() {
       if (bookStatusData) setBookStatuses(JSON.parse(bookStatusData));
       if (lastReadData) setBibleLastReadDate(lastReadData);
 
-      // Load unified Bible state to get the next unread chapter
+      // v211: the summary's Bible line reads the NEW study store's
+      // reading position — the same derivation the Personal Study
+      // card uses. The legacy unified store no longer feeds it.
       try {
-        const bibleState = await loadUnifiedBible();
-        setCurrentBibleDisplay(getCurrentBibleDisplay(bibleState));
+        const study = await loadStudyState();
+        setCurrentBibleDisplay(readingPositionDisplay(getReadingPosition(study)) ?? 'Genesis 1');
       } catch (e) {
         // Fallback: use the old logic
         setCurrentBibleDisplay('Genesis 1');
@@ -3046,7 +3049,7 @@ export default function HomeScreen() {
     const totalSpent = budgetTransactions.reduce((sum: number, trans: any) => sum + trans.amount, 0);
     const budgetAmount = totalBudgeted - totalSpent;
 
-    // Use the currentBibleDisplay from state (loaded from unified Bible state)
+    // Use the currentBibleDisplay from state (the study store's reading position)
     const currentBibleStudy = currentBibleDisplay;
 
     return (

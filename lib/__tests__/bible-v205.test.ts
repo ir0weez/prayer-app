@@ -59,18 +59,23 @@ import { PREVIEWS } from '../bible-v205/previews';
 import { STUDY_SEED } from '../bible-v205/study-seed';
 import {
   chapterStatus,
+  deriveSeedPosition,
   loadStudyState,
   mergeUnifiedReads,
   parseLegacyReadIds,
+  saveStudyState,
   seedStudyState,
   setChapterStatus,
+  setCurrentBook as setStudyCurrentBook,
   stripNotionSeedQueues,
   STUDY_KEY,
   type StudyState,
 } from '../bible-v205/study';
+import { getReadingPosition, readingPositionDisplay } from '../bible-v205/position';
 import {
   getCurrentBibleDisplay,
   getLastReadPosition,
+  UNIFIED_BIBLE_KEY,
   type UnifiedBibleState,
 } from '../bible-unified';
 import { transitionChapterStatus } from '../bible-v205/rewards';
@@ -270,6 +275,8 @@ describe('v206 — the Notion seed is cleared; only app progress counts', () => 
       overrides: { 'Genesis|1': 'complete' as const, 'Exodus|2': 'complete' as const },
       writeQueue: [...seeded, { book: 'Genesis', chapter: 30 }],
       restudyQueue: [...seeded],
+      currentBook: null,
+      lastRead: null,
       migratedUnified: true,
     };
     const cleaned = stripNotionSeedQueues(dirty);
@@ -312,6 +319,8 @@ describe('v206 — the Notion seed is cleared; only app progress counts', () => 
       overrides: {},
       writeQueue: [{ book: '1 John', chapter: 1 }],
       restudyQueue: [{ book: '1 John', chapter: 1 }],
+      currentBook: null,
+      lastRead: null,
       migratedUnified: true,
       clearedNotionSeed: true,
     };
@@ -352,7 +361,10 @@ describe('v206 — the Notion seed is cleared; only app progress counts', () => 
     expect(src).not.toContain('databaseBooks');
   });
 
-  it('(e) the schedule card expansion carries his last-read record from the unified store', () => {
+  it('(e) the last-read computation the v211 seed imports; the card itself reads the study store', () => {
+    // v211: getLastReadPosition survives in exactly one role — it is
+    // what the one-time position seed reads out of the legacy unified
+    // store. The fixture behavior is unchanged.
     const unified = {
       chapters: [
         { book: 'Genesis', chapter: 1, isRead: true, readDate: '2026-10-18' },
@@ -367,19 +379,23 @@ describe('v206 — the Notion seed is cleared; only app progress counts', () => 
     expect(getLastReadPosition(unified)).toEqual({ book: 'Genesis', chapter: 4, date: '2026-10-20' });
     expect(getCurrentBibleDisplay(unified)).toBe('Genesis 5');
     const src = readFileSync(join(process.cwd(), 'components', 'schedule-tab.tsx'), 'utf8');
-    expect(src).toContain('getLastReadPosition');
+    // The card no longer touches the unified position helpers at all —
+    // its position derives from the study store via getReadingPosition.
+    expect(src).not.toContain('getLastReadPosition');
+    expect(src).toContain('getReadingPosition(studySnap)');
     // v209: the v206 two-line "Last time: / This time:" position block
     // is gone. In its place, ONE muted line built from the actual
     // last-read record: "Last read <book> <chapter> · <date>".
-    expect(src).toContain('`Last read ${lastPos.book} ${lastPos.chapter}');
+    expect(src).toContain('`Last read ${position.lastRead.book} ${position.lastRead.chapter}');
     expect(src).not.toContain('`Last time: ${');
     expect(src).not.toContain('`This time: ${');
     expect(src).not.toContain('item.data.lastTime');
     expect(src).not.toContain('item.data.thisTime');
     // The last-read line renders only when a record exists, and the
-    // expansion still opens for it alone (no-preview fallback).
+    // expansion opens for it alone (no-preview fallback) — v211 adds
+    // the button row's target as a third reason to open.
     expect(src).toContain('item.data.lastRead ? (');
-    expect(src).toContain('isPersonalStudyExpanded && (item.data.preview || item.data.lastRead)');
+    expect(src).toContain('isPersonalStudyExpanded && (item.data.preview || item.data.lastRead || item.data.readTarget)');
   });
 });
 
@@ -1130,5 +1146,187 @@ describe("v210 — the plain personal Note: no box, just inset text", () => {
     const rub = stories.slice(stories.indexOf('const renderUserBlocks'));
     expect(rub.indexOf("kind: 'note'")).toBeGreaterThanOrEqual(0);
     expect(rub.indexOf("kind: 'note'")).toBeLessThan(rub.indexOf("kind: 'highlight'"));
+  });
+});
+
+describe('v211 — the box gets its buttons back; position lives in the new store', () => {
+  const today = new Date().toISOString().split('T')[0];
+
+  it('frozen-position regression: completing a chapter in the new UI advances the position', async () => {
+    // The unified store is never written by a new-UI transition —
+    // sentinel proof that the bridge to the old system is gone.
+    store.set(UNIFIED_BIBLE_KEY, '{"sentinel":true}');
+    // His exact spot: Leviticus current, chapters 1–17 already done.
+    let state = seedStudyState();
+    state = setStudyCurrentBook(state, 'Leviticus');
+    for (let c = 1; c <= 17; c++) state = setChapterStatus(state, 'Leviticus', c, 'complete');
+    expect(getReadingPosition(state).target).toEqual({ book: 'Leviticus', chapter: 18 });
+
+    const done = await transitionChapterStatus(state, 'Leviticus', 18, 'complete');
+    // The completion stamped lastRead in the STUDY store…
+    expect(done.state.lastRead).toEqual({ book: 'Leviticus', chapter: 18, date: today });
+    // …and the derived position moved on to 19. (Pre-v211 the card
+    // read the unified store, which this transition never wrote —
+    // the position froze wherever the old system had left it.)
+    const position = getReadingPosition(done.state);
+    expect(position.currentBook).toBe('Leviticus');
+    expect(position.lastRead).toEqual({ book: 'Leviticus', chapter: 18, date: today });
+    expect(position.target).toEqual({ book: 'Leviticus', chapter: 19 });
+    expect(readingPositionDisplay(position)).toBe('Leviticus 19');
+    // XP paid exactly as before — the position write changes nothing.
+    expect(done.chapterXpAwarded).toBe(true);
+    expect(store.get(UNIFIED_BIBLE_KEY)).toBe('{"sentinel":true}');
+  });
+
+  it('un-completing (Back semantics) moves the target back without moving lastRead', async () => {
+    let state = seedStudyState();
+    state = setStudyCurrentBook(state, 'Leviticus');
+    for (let c = 1; c <= 18; c++) state = setChapterStatus(state, 'Leviticus', c, 'complete');
+    state = { ...state, lastRead: { book: 'Leviticus', chapter: 18, date: '2026-10-22' } };
+    // The card's Back: the current book's highest Complete chapter
+    // steps back to None, through the same one door.
+    const back = await transitionChapterStatus(state, 'Leviticus', 18, 'none');
+    expect(chapterStatus(back.state, 'Leviticus', 18)).toBe('none');
+    // lastRead does NOT retreat…
+    expect(back.state.lastRead).toEqual({ book: 'Leviticus', chapter: 18, date: '2026-10-22' });
+    // …but the target re-derives to the chapter stepped back from.
+    expect(getReadingPosition(back.state).target).toEqual({ book: 'Leviticus', chapter: 18 });
+    // And no XP moved in either direction (no award, no revoke).
+    expect((await loadXPState()).totalXP).toBe(0);
+  });
+
+  it('getReadingPosition: no current book — the target chains from lastRead across a book boundary', () => {
+    const genesisDone: StudyState = {
+      ...seedStudyState(),
+      lastRead: { book: 'Genesis', chapter: 50, date: '2026-10-01' },
+    };
+    expect(getReadingPosition(genesisDone).target).toEqual({ book: 'Exodus', chapter: 1 });
+    const midBook: StudyState = { ...seedStudyState(), lastRead: { book: 'Genesis', chapter: 7, date: '2026-10-01' } };
+    expect(getReadingPosition(midBook).target).toEqual({ book: 'Genesis', chapter: 8 });
+    const canonEnd: StudyState = { ...seedStudyState(), lastRead: { book: 'Revelation', chapter: 22, date: '2026-10-01' } };
+    expect(getReadingPosition(canonEnd).target).toBeNull();
+    expect(getReadingPosition(seedStudyState())).toEqual({ currentBook: null, lastRead: null, target: null });
+  });
+
+  it("getReadingPosition: current book — target is its first chapter not yet Complete", () => {
+    let state = setStudyCurrentBook(seedStudyState(), 'Ruth');
+    state = setChapterStatus(state, 'Ruth', 1, 'complete');
+    state = setChapterStatus(state, 'Ruth', 2, 'complete');
+    state = setChapterStatus(state, 'Ruth', 4, 'complete'); // the gap at 3 is next
+    expect(getReadingPosition(state).target).toEqual({ book: 'Ruth', chapter: 3 });
+    state = setChapterStatus(state, 'Ruth', 3, 'complete');
+    expect(getReadingPosition(state).target).toBeNull(); // Ruth is finished
+  });
+
+  it('deriveSeedPosition: the unified current book + its latest dated read', () => {
+    const unified = {
+      chapters: [
+        { book: 'Genesis', chapter: 4, isRead: true, readDate: '2026-10-20' },
+        { book: 'Genesis', chapter: 3, isRead: true, readDate: '2026-10-19' },
+        { book: 'Genesis', chapter: 5, isRead: false },
+      ],
+      bookStatuses: { Genesis: 'current' },
+      lastReadDate: '2026-10-20',
+    } as unknown as UnifiedBibleState;
+    expect(deriveSeedPosition(unified)).toEqual({
+      currentBook: 'Genesis',
+      lastRead: { book: 'Genesis', chapter: 4, date: '2026-10-20' },
+    });
+  });
+
+  it('one-time seed: his exact spot imports from the unified store once — and only once', async () => {
+    // The unified store as his phone holds it: the full Leviticus
+    // catalog, read through ch. 18 — ch. 18 read Oct 22, 2026
+    // (ch. 17 the day before), Leviticus the current book.
+    const levChapters = Array.from({ length: 27 }, (_, i) => {
+      const chapter = i + 1;
+      return {
+        book: 'Leviticus',
+        chapter,
+        isRead: chapter <= 18,
+        ...(chapter === 18 ? { readDate: '2026-10-22' } : chapter === 17 ? { readDate: '2026-10-21' } : {}),
+      };
+    });
+    store.set(UNIFIED_BIBLE_KEY, JSON.stringify({
+      chapters: levChapters,
+      bookStatuses: { Leviticus: 'current' },
+      lastReadDate: '2026-10-22',
+    }));
+    const loaded = await loadStudyState();
+    expect(loaded.positionSeeded).toBe(true);
+    expect(loaded.currentBook).toBe('Leviticus');
+    expect(loaded.lastRead).toEqual({ book: 'Leviticus', chapter: 18, date: '2026-10-22' });
+    // The pre-v205 migration made those reads Complete in the study
+    // store, so the seeded position derives his real target: 19.
+    expect(getReadingPosition(loaded).target).toEqual({ book: 'Leviticus', chapter: 19 });
+
+    // The unified data changes afterwards — the position must NOT
+    // re-import. The flag has the last word.
+    store.set(UNIFIED_BIBLE_KEY, JSON.stringify({
+      chapters: [{ book: 'Mark', chapter: 3, isRead: true, readDate: '2026-10-23' }],
+      bookStatuses: { Mark: 'current' },
+      lastReadDate: '2026-10-23',
+    }));
+    const again = await loadStudyState();
+    expect(again.currentBook).toBe('Leviticus');
+    expect(again.lastRead).toEqual({ book: 'Leviticus', chapter: 18, date: '2026-10-22' });
+  });
+
+  it('the Current pill writes the study store — and the card target follows', async () => {
+    let state = seedStudyState();
+    state = setStudyCurrentBook(state, 'Mark');
+    expect(state.currentBook).toBe('Mark');
+    expect(getReadingPosition(state).target).toEqual({ book: 'Mark', chapter: 1 });
+    await saveStudyState(state);
+    const loaded = await loadStudyState();
+    expect(loaded.currentBook).toBe('Mark');
+    // Source pins: the pill + sheet live in the Books view, write THIS
+    // store, and the sheet opens on the openBookNav param.
+    const src = readFileSync(join(process.cwd(), 'app', 'bible-chapters.tsx'), 'utf8');
+    expect(src).toContain('openBookNav');
+    expect(src).toContain('accessibilityLabel={`Make ${book} current`}');
+    expect(src).toContain('setStudyCurrentBook');
+    expect(src).toContain('Jump to Book');
+    expect(src).not.toContain("from '@/lib/bible-unified'");
+  });
+
+  it('card source: tap toggles only, doorway gone, the button row is back', () => {
+    const src = readFileSync(join(process.cwd(), 'components', 'schedule-tab.tsx'), 'utf8');
+    const cardStart = src.indexOf('case "personal-study-card"');
+    const cardEnd = src.indexOf('case "time-off"', cardStart);
+    expect(cardStart).toBeGreaterThan(-1);
+    expect(cardEnd).toBeGreaterThan(cardStart);
+    const card = src.slice(cardStart, cardEnd);
+    // The root tap ONLY toggles expansion: it is the FIRST press
+    // handler in the case. The old root doorway push is gone — the
+    // plain Books-view push survives exactly once, as the Bible
+    // button inside the expanded body.
+    const rootPress = card.indexOf('onPress={() => togglePersonalStudyExpanded(!isPersonalStudyExpanded)}');
+    expect(rootPress).toBeGreaterThan(-1);
+    expect(card.indexOf('onPress')).toBe(rootPress);
+    const bodyIdx = card.indexOf('isPersonalStudyExpanded && (item.data.preview');
+    expect(card.split("router.push('/bible-chapters')")).toHaveLength(2);
+    expect(card.indexOf("router.push('/bible-chapters')")).toBeGreaterThan(bodyIdx);
+    // The doorway sub-line is gone from the whole tab.
+    expect(src).not.toContain('Tap to open your Books');
+    // The row — Back / Books / Bible — sits in the expanded body,
+    // below the storyteller box, gated on a current target.
+    expect(card).toContain('accessibilityLabel="Back one chapter"');
+    expect(card).toContain('accessibilityLabel="Choose Bible book"');
+    expect(card).toContain("params: { openBookNav: '1' }");
+    expect(card.indexOf('accessibilityLabel="Back one chapter"')).toBeGreaterThan(bodyIdx);
+    expect(card).toContain('disabled={!item.data.backChapter}');
+    // Back walks the one door with the fresh study state.
+    expect(src).toContain('const handlePersonalStudyBack');
+    expect(src).toContain('transitionChapterStatus(study, book, target, "none")');
+  });
+
+  it('home tab + profile read the same study position (source pins)', () => {
+    const home = readFileSync(join(process.cwd(), 'app', '(tabs)', 'index.tsx'), 'utf8');
+    expect(home).toContain('getReadingPosition');
+    expect(home).not.toContain('getCurrentBibleDisplay');
+    const profile = readFileSync(join(process.cwd(), 'app', 'profile.tsx'), 'utf8');
+    expect(profile).toContain('getReadingPosition');
+    expect(profile).toContain('position.currentBook');
   });
 });

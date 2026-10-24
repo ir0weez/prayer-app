@@ -51,6 +51,8 @@ import {
 import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
+import { loadStudyState } from "@/lib/bible-v205/study";
+import { getReadingPosition } from "@/lib/bible-v205/position";
 import { awardXP, awardCustomXP, loadXPState, loseHeart, restoreHeart, revokeXP, type XpGainPosition } from "@/lib/xp-engine";
 import { generateFastSummary } from "@/lib/prayercircle-fasting";
 import { useFastPawn, usePawnName, usePawnPetUnlocked } from "@/lib/fast-pawns";
@@ -241,9 +243,8 @@ export default function ProfileScreen() {
         AsyncStorage.getItem(PROFILE_STORAGE_KEY),
         AsyncStorage.getItem(FASTS_STORAGE_KEY),
         AsyncStorage.getItem('bibleBookStatus'),
-        AsyncStorage.getItem('bibleLastReadDate'),
       ])
-        .then(([storedProfile, storedFasts, storedBibleStatus, storedLastRead]) => {
+        .then(([storedProfile, storedFasts, storedBibleStatus]) => {
           if (!isActive) return;
           let nextFasts = storedFasts ? normalizeFastsForStorage(JSON.parse(storedFasts)) : [];
            nextFasts = nextFasts.map((fast) => ({
@@ -254,16 +255,23 @@ export default function ProfileScreen() {
           setFasts(nextFasts);
           setSelectedFastId((current) => current ?? getActiveFast(nextFasts, today)?.id ?? nextFasts[0]?.id ?? null);
 
-          // Load Bible reading info
+          // Book statuses still feed the avatar-unlock grid below.
           if (storedBibleStatus) {
             const statuses = JSON.parse(storedBibleStatus);
             setBookStatuses(statuses);
-            const currentEntry = Object.entries(statuses).find(([_, s]) => s === 'current');
-            setCurrentBibleBook(currentEntry ? currentEntry[0] : null);
           }
-          if (storedLastRead) {
-            setLastBibleReadDate(storedLastRead);
-          }
+        })
+        .catch(() => undefined);
+      // v211: the Bible Reading Info chips (current book, last read)
+      // read the NEW study store's position — the book he chose in
+      // the Books view and the last chapter he completed there. The
+      // legacy keys above no longer feed them.
+      loadStudyState()
+        .then((study) => {
+          if (!isActive) return;
+          const position = getReadingPosition(study);
+          setCurrentBibleBook(position.currentBook);
+          setLastBibleReadDate(position.lastRead?.date ? position.lastRead.date : null);
         })
         .catch(() => undefined);
       return () => {

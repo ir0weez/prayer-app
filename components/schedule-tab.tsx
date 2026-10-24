@@ -228,8 +228,10 @@ import { syncScheduledEventNotifications } from '@/lib/notification-scheduler';
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
-import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, getLastReadPosition, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
-import { chapterStatus as v205ChapterStatus, loadStudyState as loadV205StudyState } from "@/lib/bible-v205/study";
+import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
+import { chapterStatus as v205ChapterStatus, loadStudyState as loadV205StudyState, type StudyState } from "@/lib/bible-v205/study";
+import { getReadingPosition } from "@/lib/bible-v205/position";
+import { transitionChapterStatus } from "@/lib/bible-v205/rewards";
 import { CHAPTER_COUNTS as V205_CHAPTER_COUNTS, chapterCountFor as v205ChapterCountFor } from "@/lib/bible-v205/index";
 import { previewFor } from "@/lib/bible-v205/preview";
 import { getBibleBookGenre } from "@/lib/bible-genres";
@@ -10704,12 +10706,17 @@ export function ScheduleTab({
   // v205: the Personal Study card's lines come from the NEW study store
   // (the same store the Books view, chapter page and queue read). The
   // first load also runs the one-time migration of his old check-offs.
+  // v211: the card's POSITION comes from that store too — the snapshot
+  // below feeds getReadingPosition (position.ts); the unified store is
+  // out of the card entirely. And the doorway sub-line is retired: the
+  // card no longer navigates anywhere on tap, so "Tap to open your
+  // Books" would be a lie — only real queue lines ride the sub now.
   const [studyDoorway, setStudyDoorway] = useState<{ line: string; sub: string | null } | null>(null);
-  useEffect(() => {
-    let live = true;
+  const [studySnap, setStudySnap] = useState<StudyState | null>(null);
+  const refreshStudyCard = useCallback(() => {
     loadV205StudyState()
       .then((state) => {
-        if (!live) return;
+        setStudySnap(state);
         let complete = 0;
         for (const book of Object.keys(V205_CHAPTER_COUNTS)) {
           const total = v205ChapterCountFor(book);
@@ -10725,14 +10732,38 @@ export function ScheduleTab({
             ? `Next to write: ${nextWrite.book} ${nextWrite.chapter}`
             : nextRestudy
               ? `To re-study: ${nextRestudy.book} ${nextRestudy.chapter}`
-              : "Tap to open your Books",
+              : null,
         });
       })
       .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, [bibleState]);
+  }, []);
+  useEffect(() => {
+    refreshStudyCard();
+  }, [bibleState, refreshStudyCard]);
+
+  // v211: the restored Back button — step the current book's highest
+  // Complete chapter back to None, through the same one door every
+  // status change walks (transitionChapterStatus). No XP is revoked,
+  // ever; lastRead does not move — the target re-derives from the
+  // statuses, so the chapter he stepped back from is next again.
+  const handlePersonalStudyBack = async (book: string) => {
+    try {
+      const study = await loadV205StudyState();
+      const total = v205ChapterCountFor(book);
+      let target: number | null = null;
+      for (let c = total; c >= 1; c--) {
+        if (v205ChapterStatus(study, book, c) === "complete") {
+          target = c;
+          break;
+        }
+      }
+      if (target == null) return;
+      await transitionChapterStatus(study, book, target, "none");
+      refreshStudyCard();
+    } catch (e) {
+      console.error("Error stepping back a chapter:", e);
+    }
+  };
 
   // Sync currentBibleBook whenever bibleState changes.
   // v207: the pre-v205 card fetched its storyteller preview live from
@@ -10866,6 +10897,10 @@ export function ScheduleTab({
   useFocusEffect(
     useCallback(() => {
       loadProfileData();
+      // v211: the Personal Study card reads the study store — reload it
+      // on focus too, so a chapter completed on the chapter page moves
+      // the card's position the moment he comes back.
+      refreshStudyCard();
 
       const reloadBibleData = async () => {
         try {
@@ -10908,7 +10943,7 @@ export function ScheduleTab({
       };
 
       reloadBibleData();
-    }, [loadProfileData])
+    }, [loadProfileData, refreshStudyCard])
   );
 
   // Form handlers
@@ -11813,36 +11848,43 @@ export function ScheduleTab({
       .forEach((todo) => items.push({ type: "todo", id: todo.id, data: todo }));
 
     // Add Personal Study as a card item in the schedule flow (before time blocks)
-    if (bibleState) {
-      // v206: the restored expansion lines — his reading position from
-      // the unified store: where he left off last time, and where he
-      // is this time. (The v205 doorway dropped the old card's
-      // drop-down; these ride the item so the card can expand again.)
-      // v209: the two-line position block is trimmed to ONE line —
-      // when he last read, from his actual last-read record (the
-      // storyteller sections already carry the "Last time in… /
-      // This time in…" labels; he still wants the date he read).
-      const lastPos = getLastReadPosition(bibleState);
-      const lastRead = lastPos
-        ? `Last read ${lastPos.book} ${lastPos.chapter}${lastPos.date ? ` · ${formatReadDate(lastPos.date)}` : ""}`
+    if (studySnap) {
+      // v211: the card's position is derived from the NEW study store
+      // alone (getReadingPosition) — current book, last read, and the
+      // Read target all move when he moves them in the new UI. (v206–
+      // v209 derived them from the legacy unified store, which the new
+      // UI never wrote: the frozen-position defect.)
+      // v209: the position block is ONE line — when he last read, from
+      // his actual last-read record (the storyteller sections already
+      // carry the "Last time in… / This time in…" labels).
+      const position = getReadingPosition(studySnap);
+      const lastRead = position.lastRead
+        ? `Last read ${position.lastRead.book} ${position.lastRead.chapter}${position.lastRead.date ? ` · ${formatReadDate(position.lastRead.date)}` : ""}`
         : null;
-      // v207: the card's storyteller preview + Read target. readTarget
-      // is the pre-v205 derivation (the 'current' book's next unread
-      // chapter — the same position the old fetch and the old Read
-      // Chapter button used); the preview for it is baked local data,
-      // null until that chapter's preview has been written and baked.
-      const currentBook = Object.entries(bibleState.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-      const nextUnread = currentBook ? bibleState.chapters.find((c: any) => c.book === currentBook && !c.isRead) : undefined;
-      const readTarget = currentBook && nextUnread ? { book: currentBook, chapter: nextUnread.chapter } : null;
+      // v207: the storyteller preview for the Read target is baked
+      // local data, null until that chapter's preview exists.
+      const readTarget = position.target;
       const preview = readTarget ? previewFor(readTarget.book, readTarget.chapter) : null;
-      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: studyDoorway?.line ?? "Your Books", sub: studyDoorway?.sub ?? null, lastRead, preview, readTarget } });
+      // v211: the Back button's chapter — the current book's highest
+      // chapter he has marked Complete in the new states.
+      let backChapter: number | null = null;
+      if (position.currentBook) {
+        const total = v205ChapterCountFor(position.currentBook);
+        for (let c = total; c >= 1; c--) {
+          if (v205ChapterStatus(studySnap, position.currentBook, c) === "complete") {
+            backChapter = c;
+            break;
+          }
+        }
+      }
+      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: studyDoorway?.line ?? "Your Books", sub: studyDoorway?.sub ?? null, lastRead, preview, readTarget, currentBook: position.currentBook, backChapter } });
     }
 
     // Add worship section as a direct display (not expandable)
     items.push({ type: "worship-display", id: "worship-section", data: null });
 
     return items;
-  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, currentAlbum, clockNow, studyDoorway]);
+  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, currentAlbum, clockNow, studyDoorway, studySnap]);
 
   // Joi-style sheet: the date header leads the sheet; an empty-state item
   // preserves the "no items" message now that data always carries the header.
@@ -12121,9 +12163,18 @@ export function ScheduleTab({
           // "Last read <book chapter> · <date>" line under the
           // question (his actual last-read record); a chapter with no
           // baked preview shows that line alone.
+          // v211: the box gets its buttons back — and the doorway is
+          // gone. The root tap now ONLY expands/collapses (his words:
+          // tapping the box should either expand it or close it). The
+          // expansion's bottom row restores the pre-v205 trio in the
+          // new setup's terms: Back (the current book's highest
+          // Complete chapter back to None, through the new states),
+          // Books (Books view with its book-picker sheet open), and
+          // Bible (the Books view plain). Every position the card
+          // shows derives from the study store via getReadingPosition.
           return (
             <Pressable
-              onPress={() => router.push('/bible-chapters')}
+              onPress={() => togglePersonalStudyExpanded(!isPersonalStudyExpanded)}
               style={({ pressed }) => [{ marginBottom: 12, marginHorizontal: 12, opacity: pressed ? 0.7 : 1, ...(skinTokens.isPaper ? { marginBottom: 12 + skinTokens.type.gapBoost } : {}) }]}
             >
               <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? cartridgeShadowFor(skinTokens) ?? {} : {}) }}>
@@ -12138,7 +12189,7 @@ export function ScheduleTab({
                         the pre-v205 card — visible collapsed or expanded.
                         It is a nested Pressable like the chevron, so its
                         tap opens the chapter without triggering the
-                        card's doorway or the expand toggle. */}
+                        card's expand toggle. */}
                     {item.data.readTarget ? (
                       <Pressable
                         onPress={() => router.push({ pathname: '/bible-chapter', params: { book: item.data.readTarget.book, chapter: String(item.data.readTarget.chapter) } })}
@@ -12179,7 +12230,7 @@ export function ScheduleTab({
                       </Text>
                     ) : null}
                   </View>
-                  {isPersonalStudyExpanded && (item.data.preview || item.data.lastRead) ? (
+                  {isPersonalStudyExpanded && (item.data.preview || item.data.lastRead || item.data.readTarget) ? (
                     <View style={{ gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
                       {item.data.preview ? (
                         <View style={{ gap: 8 }}>
@@ -12206,6 +12257,48 @@ export function ScheduleTab({
                         <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
                           {item.data.lastRead}
                         </Text>
+                      ) : null}
+                      {/* v211: the button row — the pre-v205 trio, wired
+                          to the new setup. Nested Pressables, like the
+                          header controls: a button tap never toggles
+                          the expansion. Rendered only when the card has
+                          a current target. */}
+                      {item.data.readTarget ? (
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <Pressable
+                            onPress={() => {
+                              if (item.data.currentBook) handlePersonalStudyBack(item.data.currentBook);
+                            }}
+                            disabled={!item.data.backChapter}
+                            accessibilityRole="button"
+                            accessibilityLabel="Back one chapter"
+                            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                          >
+                            <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', opacity: item.data.backChapter ? 1 : 0.4, ...(bitButtonStyle(skinTokens, "secondary") ?? {}), ...(termButtonStyle(skinTokens, "secondary") ?? {}), ...(glassButtonStyle(skinTokens, "secondary") ?? {}) }}>
+                              <MaterialIcons name="arrow-back" size={18} color={skinTokens.isStainedGlass ? glassButtonInk("secondary") : skinTokens.isTerminal ? termButtonInk("secondary") : skinTokens.isEightBit ? bitButtonInk("secondary") : colors.foreground} />
+                            </View>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => router.push({ pathname: '/bible-chapters', params: { openBookNav: '1' } })}
+                            accessibilityRole="button"
+                            accessibilityLabel="Choose Bible book"
+                            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                          >
+                            <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', ...(bitButtonStyle(skinTokens, "secondary") ?? {}), ...(termButtonStyle(skinTokens, "secondary") ?? {}), ...(glassButtonStyle(skinTokens, "secondary") ?? {}) }}>
+                              <MaterialIcons name="list" size={19} color={skinTokens.isStainedGlass ? glassButtonInk("secondary") : skinTokens.isTerminal ? termButtonInk("secondary") : skinTokens.isEightBit ? bitButtonInk("secondary") : colors.primary} />
+                            </View>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => router.push('/bible-chapters')}
+                            accessibilityRole="button"
+                            style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.7 : 1 }]}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8, ...(bitButtonStyle(skinTokens, "primary") ?? {}), ...(termButtonStyle(skinTokens, "primary") ?? {}), ...(glassButtonStyle(skinTokens, "primary") ?? {}), ...(skinTokens.isPaper ? { paddingVertical: 10 + skinTokens.type.gapBoost, paddingHorizontal: 12 + skinTokens.type.padBoost } : {}) }}>
+                              <MaterialIcons name="menu-book" size={18} color={skinTokens.isStainedGlass ? glassButtonInk("primary") : skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF"} />
+                              <Text style={{ color: skinTokens.isStainedGlass ? glassButtonInk("primary") : skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : '#FFFFFF', fontSize: 14, fontWeight: '600', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 9) : {}) }}>Bible</Text>
+                            </View>
+                          </Pressable>
+                        </View>
                       ) : null}
                     </View>
                   ) : null}

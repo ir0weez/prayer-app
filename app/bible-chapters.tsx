@@ -8,11 +8,11 @@
 // canon. v205 grouped by the imported Notion lists and asserted the
 // imported states as his progress — that framing is gone.
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSkin } from '@/hooks/use-skin';
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
@@ -26,8 +26,11 @@ import type { StudyStatus } from '@/lib/bible-v205/types';
 import {
   chapterStatus,
   loadStudyState,
+  saveStudyState,
+  setCurrentBook as setStudyCurrentBook,
   type StudyState,
 } from '@/lib/bible-v205/study';
+import { bookIsComplete } from '@/lib/bible-v205/rewards';
 import { Ornament, StatusChip } from '@/components/bible-v205/blocks';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 import {
@@ -45,6 +48,14 @@ const CANON = Object.keys(CHAPTER_COUNTS);
 
 export default function BibleBooksScreen() {
   const router = useRouter();
+  // v211: the Personal Study card's Books button lands here with
+  // openBookNav=1 — open the Jump to Book sheet on arrival. The sheet
+  // is also one tap from the topbar.
+  const params = useLocalSearchParams<{ openBookNav?: string }>();
+  const [bookNavOpen, setBookNavOpen] = useState(false);
+  useEffect(() => {
+    if (params.openBookNav === '1') setBookNavOpen(true);
+  }, [params.openBookNav]);
   // v207: the top safe-area inset the rest of the app applies — without
   // it the topbar slides up under the Android notification tray.
   const insets = useSafeAreaInsets();
@@ -79,6 +90,16 @@ export default function BibleBooksScreen() {
 
   const openBook = (book: string) => router.push({ pathname: '/bible-book', params: { book } });
 
+  // v211: "mark it as current" is back — and it writes the NEW study
+  // store (the position the Personal Study card reads), not the legacy
+  // unified store the pre-v205 pill wrote.
+  const makeCurrent = async (book: string) => {
+    const fresh = await loadStudyState();
+    const next = setStudyCurrentBook(fresh, book);
+    await saveStudyState(next);
+    setStudyState(next);
+  };
+
   const content = (
     <View style={{ flex: 1, backgroundColor: palette.paper }}>
       <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
@@ -86,6 +107,15 @@ export default function BibleBooksScreen() {
           <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
         </Pressable>
         <Text style={[styles.topTitle, { color: palette.ink }]}>Bible</Text>
+        <Pressable
+          onPress={() => setBookNavOpen(true)}
+          hitSlop={8}
+          style={{ padding: 2 }}
+          accessibilityRole="button"
+          accessibilityLabel="Jump to Book"
+        >
+          <MaterialIcons name="list" size={21} color={palette.ink} />
+        </Pressable>
         <Pressable
           onPress={() => router.push('/bible-queue')}
           style={[styles.queueBtn, { borderColor: palette.rasp }]}
@@ -125,6 +155,7 @@ export default function BibleBooksScreen() {
             palette={palette}
             paperNote={handwrittenNoteFor(handwritten, book)}
             onPress={() => openBook(book)}
+            onMakeCurrent={makeCurrent}
           />
         ))}
 
@@ -220,6 +251,40 @@ export default function BibleBooksScreen() {
           </View>
         </Modal>
 
+        <Modal visible={bookNavOpen} transparent animationType="fade" onRequestClose={() => setBookNavOpen(false)}>
+          <Pressable style={styles.scrim} onPress={() => setBookNavOpen(false)} />
+          <View style={[styles.navCard, { backgroundColor: palette.paper }]}>
+            <View style={styles.navHead}>
+              <Text style={[styles.editorTitle, { color: palette.ink }]}>Jump to Book</Text>
+              <Pressable hitSlop={8} onPress={() => setBookNavOpen(false)} accessibilityRole="button" accessibilityLabel="Close book picker">
+                <MaterialIcons name="close" size={18} color={palette.inkSoft} />
+              </Pressable>
+            </View>
+            <Text style={[styles.editorSub, { color: palette.inkSoft }]}>
+              Tap a book to open it — or mark the one you're studying Current, and the
+              Personal Study card will read from there.
+            </Text>
+            <ScrollView style={{ marginTop: 10 }}>
+              {CANON.map((book) => {
+                const isCurrent = studyState?.currentBook === book;
+                return (
+                  <Pressable
+                    key={book}
+                    style={styles.navRow}
+                    onPress={() => {
+                      setBookNavOpen(false);
+                      openBook(book);
+                    }}
+                  >
+                    <Text style={[styles.navName, { color: palette.ink, fontWeight: isCurrent ? '800' : '600' }]}>{book}</Text>
+                    <CurrentPill book={book} studyState={studyState} palette={palette} onMakeCurrent={makeCurrent} />
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </Modal>
+
         <Text style={[styles.subhead, { color: palette.rasp }]}>The rest of the canon</Text>
         <Text style={[styles.canonQuiet, { color: palette.inkFaint }]}>
           {quiet.join(' · ')} — they read as plain chapters, with nothing marked, until your notes reach them.
@@ -234,18 +299,58 @@ export default function BibleBooksScreen() {
   return content;
 }
 
+/** v211: the Current pill. The book he is studying shows a filled
+ * Current marker; every other unfinished book offers a tappable pill
+ * that makes it current (writing the study store — see makeCurrent).
+ * A finished book needs no pill: there is nothing left to read from
+ * there. */
+function CurrentPill({
+  book,
+  studyState,
+  palette,
+  onMakeCurrent,
+}: {
+  book: string;
+  studyState: StudyState | null;
+  palette: BiblePalette;
+  onMakeCurrent: (book: string) => void;
+}) {
+  if (!studyState) return null;
+  if (studyState.currentBook === book) {
+    return (
+      <View style={[styles.currentPill, { backgroundColor: palette.rasp }]} accessibilityLabel={`${book} is the current book`}>
+        <Text style={[styles.currentPillText, { color: '#FFFFFF' }]}>Current</Text>
+      </View>
+    );
+  }
+  if (bookIsComplete(studyState, book)) return null;
+  return (
+    <Pressable
+      style={[styles.currentPill, { borderWidth: 1.5, borderColor: palette.lineDark }]}
+      accessibilityRole="button"
+      accessibilityLabel={`Make ${book} current`}
+      hitSlop={6}
+      onPress={() => onMakeCurrent(book)}
+    >
+      <Text style={[styles.currentPillText, { color: palette.raspDeep }]}>Current</Text>
+    </Pressable>
+  );
+}
+
 function BookRow({
   book,
   studyState,
   palette,
   paperNote,
   onPress,
+  onMakeCurrent,
 }: {
   book: string;
   studyState: StudyState | null;
   palette: BiblePalette;
   paperNote: string | null;
   onPress: () => void;
+  onMakeCurrent: (book: string) => void;
 }) {
   // v206: counts run over the book's full chapter count, from app
   // states only — the v205 CSV "tracked subset" (Psalms 40) is gone.
@@ -280,7 +385,10 @@ function BookRow({
           {book} <Text style={{ color: palette.rasp }}>›</Text>
           {paperNote ? <Text style={[styles.papermark, { color: palette.inkSoft }]}>  ✎ on paper</Text> : null}
         </Text>
-        <Text style={[styles.bcount, { color: palette.inkSoft }]}>{parts.join(' · ')}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={[styles.bcount, { color: palette.inkSoft }]}>{parts.join(' · ')}</Text>
+          <CurrentPill book={book} studyState={studyState} palette={palette} onMakeCurrent={onMakeCurrent} />
+        </View>
       </View>
       <View style={[styles.thread, { backgroundColor: palette.raspTint }]}>
         <View style={[styles.threadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />
@@ -325,4 +433,10 @@ const styles = StyleSheet.create({
   editorBtns: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, marginTop: 16 },
   editorSave: { borderRadius: 999, paddingVertical: 8, paddingHorizontal: 18 },
   editorSaveText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 },
+  currentPill: { borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9 },
+  currentPillText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
+  navCard: { position: 'absolute', left: 20, right: 20, top: '9%', maxHeight: '80%', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  navHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 9 },
+  navName: { fontSize: 15 },
 });

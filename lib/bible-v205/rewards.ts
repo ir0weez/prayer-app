@@ -75,7 +75,14 @@ export async function transitionChapterStatus(
   position?: XpGainPosition,
 ): Promise<StatusTransitionResult> {
   const prev = chapterStatus(state, book, chapter);
-  const next = setChapterStatus(state, book, chapter, status);
+  let next = setChapterStatus(state, book, chapter, status);
+  // v211: the reading position lives in the study store — a transition
+  // INTO Complete is the one moment lastRead advances. Un-completing
+  // (the card's Back button included) never moves it backwards; the
+  // target simply re-derives from the statuses (position.ts).
+  if (status === 'complete' && prev !== 'complete') {
+    next = { ...next, lastRead: { book, chapter, date: new Date().toISOString().split('T')[0] } };
+  }
   await saveStudyState(next);
   const result: StatusTransitionResult = {
     state: next,

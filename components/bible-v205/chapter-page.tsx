@@ -581,28 +581,38 @@ export function ChapterPageView(props: ChapterPageProps) {
             notes chip and words describe the notes-written track;
             the read mark rides beside them when present. Nothing on
             this strip changes a state any more — the Queue link only
-            navigates. ── */}
+            navigates. v234: the strip's two marks wear the same two
+            family labels as the book panel — COMMENTARY for the
+            notes-written line, STUDY for the read line — so the two
+            tracks never blur into one another here either. ── */}
         <View style={[styles.strip, { backgroundColor: palette.raspTint }]}>
-          {display?.headline === 'read' ? (
-            <>
-              <ReadChip palette={palette} />
-              <Text style={[styles.stripText, { color: palette.ink }]}>
-                {readDate
-                  ? `Chapter ${chapter} — read ${formatReadDate(readDate)}. No notes for this chapter — reading is the whole mark.`
-                  : `Chapter ${chapter} — read. No notes for this chapter, so a Complete here counts as Read.`}
-              </Text>
-            </>
-          ) : (
-            <>
-              <StatusChip status={status} palette={palette} />
-              <Text style={[styles.stripText, { color: palette.ink }]}>
-                {stripText}
+          <View style={styles.stripMain}>
+            {display?.headline === 'read' ? (
+              <View style={styles.stripLine}>
+                <Text style={[styles.stripLabel, { color: palette.inkSoft }]}>Study</Text>
+                <ReadChip palette={palette} />
+                <Text style={[styles.stripText, { color: palette.ink }]}>
+                  {readDate
+                    ? `Chapter ${chapter} — read ${formatReadDate(readDate)}. No notes for this chapter — reading is the whole mark.`
+                    : `Chapter ${chapter} — read. No notes for this chapter, so a Complete here counts as Read.`}
+                </Text>
+              </View>
+            ) : (
+              <>
+                <View style={styles.stripLine}>
+                  <Text style={[styles.stripLabel, { color: palette.inkSoft }]}>Commentary</Text>
+                  <StatusChip status={status} palette={palette} />
+                  <Text style={[styles.stripText, { color: palette.ink }]}>{stripText}</Text>
+                </View>
                 {readDate ? (
-                  <Text style={{ color: palette.inkSoft, fontWeight: '700' }}>{`  ·  ✓ Read ${formatReadDate(readDate)}`}</Text>
+                  <View style={styles.stripLine}>
+                    <Text style={[styles.stripLabel, { color: palette.inkSoft }]}>Study</Text>
+                    <Text style={[styles.stripText, { color: palette.inkSoft, fontWeight: '700' }]}>{`✓ Read ${formatReadDate(readDate)}`}</Text>
+                  </View>
                 ) : null}
-              </Text>
-            </>
-          )}
+              </>
+            )}
+          </View>
           <Pressable onPress={props.onOpenQueue} hitSlop={8}>
             <Text style={[styles.stripLink, { color: palette.raspDeep }]}>Queue ›</Text>
           </Pressable>
@@ -1308,6 +1318,11 @@ const styles = StyleSheet.create({
   modeBtnText: { fontSize: 12, fontWeight: '700' },
   page: { paddingHorizontal: 20, paddingTop: 0, paddingBottom: 8 },
   strip: { flexDirection: 'row', alignItems: 'center', gap: 9, marginHorizontal: -20, paddingVertical: 9, paddingHorizontal: 20 },
+  // v234: the strip's family lines — a narrow label rail keeps the
+  // COMMENTARY and STUDY chips aligned line over line.
+  stripMain: { flex: 1, gap: 4 },
+  stripLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stripLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase', width: 78 },
   stripText: { fontSize: 12.5, lineHeight: 17, flex: 1 },
   stripLink: { fontWeight: '800', fontSize: 12.5 },
   cover: { alignItems: 'center', paddingTop: 34, paddingBottom: 8 },

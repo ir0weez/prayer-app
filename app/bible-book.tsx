@@ -5,7 +5,11 @@
 // all six states as chips, so any chapter can be set — or set back to
 // None — right here. v205 offered no way down from the grid ("I can't
 // seem to undo them"); v206's editor is the fix. The v205 tracked-
-// subset note is gone with the seed it described.
+// subset note is gone with the seed it described. v234: the detail
+// strip's controls sit under two headers — YOUR STUDY (read, stories,
+// the read mark, the re-read queue) and YOUR COMMENTARY (the
+// notes-written pipeline) — his "separate what is commentary buttons
+// and what is personal study buttons."
 
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -270,6 +274,15 @@ export default function BibleBookScreen() {
                       ? 'Notes under way.'
                       : 'No recorded state — it reads as a plain chapter.'}
           </Text>
+          {/* v234 — Two Families (his ruling): the panel's controls
+              split under two headers. YOUR STUDY holds the reading
+              life of the chapter — open it, walk it as Stories, mark
+              it read, queue a re-read. YOUR COMMENTARY holds the
+              notes-written pipeline and nothing else. The v233
+              display model still decides what shows (showNotesEditor,
+              headline); this only moves each control under its own
+              family's header — no semantics moved. */}
+          <Text style={[styles.groupLabel, { color: palette.inkSoft }]}>Your Study</Text>
           <View style={styles.detailBtns}>
             <Pressable style={[styles.btn, styles.btnPrimary, { backgroundColor: palette.rasp }]} onPress={() => openChapter(false)}>
               <Text style={styles.btnPrimaryText}>Read Chapter</Text>
@@ -281,26 +294,10 @@ export default function BibleBookScreen() {
               <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => applyStatus('restudy')}>
                 <Text style={[styles.btnText, { color: palette.ink }]}>Add to ReStudy Queue</Text>
               </Pressable>
-            ) : selStatus === 'restudy' ? (
-              <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => applyStatus('complete')}>
-                <Text style={[styles.btnText, { color: palette.ink }]}>Mark Complete</Text>
-              </Pressable>
-            ) : selStatus === 'write' ? (
-              <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => applyStatus('in-progress')}>
-                <Text style={[styles.btnText, { color: palette.ink }]}>Start Writing</Text>
-              </Pressable>
-            ) : selStatus === 'in-progress' ? (
-              <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => applyStatus('complete')}>
-                <Text style={[styles.btnText, { color: palette.ink }]}>Mark Complete</Text>
-              </Pressable>
-            ) : (
-              <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => applyStatus('write')}>
-                <Text style={[styles.btnText, { color: palette.ink }]}>Add to Write Queue</Text>
-              </Pressable>
-            )}
+            ) : null}
           </View>
-          {/* v228: the READ mark, beside the notes editor — set and
-              cleared here and in the reader, nowhere else. */}
+          {/* v228: the READ mark — set and cleared here (in Your
+              Study) and in the reader, nowhere else. */}
           <View style={styles.readRow}>
             {selReadDate ? (
               <>
@@ -315,41 +312,69 @@ export default function BibleBookScreen() {
               </Pressable>
             )}
           </View>
-          {selDisplay.showNotesEditor ? (
+          {selDisplay.showNotesEditor || selStatus !== 'none' ? (
             <>
-              <Text style={[styles.editorLabel, { color: palette.inkSoft }]}>Notes state — the notes-written mark; any state, including back to none</Text>
-              <View style={styles.editorRow}>
-                {STATUS_EDITOR_ORDER.map((s) => {
-                  const cs = editorChipColors(palette, s);
-                  const isCurrent = s === selStatus;
-                  return (
-                    <Pressable
-                      key={s}
-                      onPress={() => applyStatus(s)}
-                      style={[
-                        styles.editorChip,
-                        { backgroundColor: cs.backgroundColor, borderColor: isCurrent ? palette.ink : cs.borderColor },
-                        isCurrent ? styles.editorChipCurrent : null,
-                      ]}
-                    >
-                      <Text style={[styles.editorChipText, { color: cs.color }]}>
-                        {isCurrent ? '● ' : ''}{STATUS_LABEL[s]}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
-                Notes: {STATUS_LABEL[selStatus]} — it changes only when you change it.
-              </Text>
+              <Text style={[styles.groupLabel, { color: palette.inkSoft }]}>Your Commentary</Text>
+              {selDisplay.showNotesEditor ? (
+                <>
+                  {selStatus !== 'complete' ? (
+                    // The old mixed row's quick move, now at home in
+                    // its own family: it sets a notes state, so it
+                    // stands with the commentary controls. (Complete's
+                    // quick move — Add to ReStudy Queue — is a study
+                    // action and lives under Your Study above.)
+                    <View style={styles.detailBtns}>
+                      {selStatus === 'restudy' || selStatus === 'in-progress' ? (
+                        <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => applyStatus('complete')}>
+                          <Text style={[styles.btnText, { color: palette.ink }]}>Mark Complete</Text>
+                        </Pressable>
+                      ) : selStatus === 'write' ? (
+                        <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => applyStatus('in-progress')}>
+                          <Text style={[styles.btnText, { color: palette.ink }]}>Start Writing</Text>
+                        </Pressable>
+                      ) : (
+                        <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => applyStatus('write')}>
+                          <Text style={[styles.btnText, { color: palette.ink }]}>Add to Write Queue</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  ) : null}
+                  <Text style={[styles.editorLabel, { color: palette.inkSoft }]}>Notes state — the notes-written mark; any state, including back to none</Text>
+                  <View style={styles.editorRow}>
+                    {STATUS_EDITOR_ORDER.map((s) => {
+                      const cs = editorChipColors(palette, s);
+                      const isCurrent = s === selStatus;
+                      return (
+                        <Pressable
+                          key={s}
+                          onPress={() => applyStatus(s)}
+                          style={[
+                            styles.editorChip,
+                            { backgroundColor: cs.backgroundColor, borderColor: isCurrent ? palette.ink : cs.borderColor },
+                            isCurrent ? styles.editorChipCurrent : null,
+                          ]}
+                        >
+                          <Text style={[styles.editorChipText, { color: cs.color }]}>
+                            {isCurrent ? '● ' : ''}{STATUS_LABEL[s]}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
+                    Notes: {STATUS_LABEL[selStatus]} — it changes only when you change it.
+                  </Text>
+                </>
+              ) : (
+                // v233: noteless chapter — no notes editor, but a stored
+                // notes state is never hidden from him: it stays on file
+                // inside the commentary group and counts again the day
+                // notes exist for this chapter.
+                <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
+                  Notes state on file: {STATUS_LABEL[selStatus]} — it counts again if notes arrive for this chapter.
+                </Text>
+              )}
             </>
-          ) : selStatus !== 'none' ? (
-            // v233: noteless chapter — no notes editor, but a stored
-            // notes state is never hidden from him: it stays on file
-            // and counts again the day notes exist for this chapter.
-            <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
-              Notes state on file: {STATUS_LABEL[selStatus]} — it counts again if notes arrive for this chapter.
-            </Text>
           ) : null}
         </View>
         <View style={{ height: 30 }} />
@@ -392,7 +417,10 @@ const styles = StyleSheet.create({
   btnPrimaryText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 },
   btnText: { fontWeight: '700', fontSize: 13.5 },
   detailHint: { fontSize: 11.5, marginTop: 12 },
-  editorLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 16 },
+  // v234: the two family headers — the editor label's own voice
+  // (small caps, letterspaced), one size up so a group reads as a group.
+  groupLabel: { fontSize: 11.5, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 18 },
+  editorLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 10 },
   editorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 9 },
   editorChip: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 11 },
   editorChipCurrent: { borderWidth: 2.5 },

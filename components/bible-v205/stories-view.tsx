@@ -17,10 +17,10 @@ import {
   type StoryScreen,
 } from '@/lib/bible-v205/index';
 import { entryKey, type V205ChapterData } from '@/lib/bible-v205/types';
-import { isKept, type MarksMap } from '@/lib/bible-v205/marks';
+import { isKept, resolveTintFields, type MarksMap } from '@/lib/bible-v205/marks';
 import { BlockView, CategoryTag, Ornament, SectionBand } from './blocks';
 import { entrySourceCategory } from '@/lib/bible-v205/categories';
-import { chapterLabel, rangeLabel, type BiblePalette } from './palette';
+import { chapterLabel, rangeLabel, tintWashFor, verseTintFor, type BiblePalette } from './palette';
 
 export interface StoriesViewProps {
   book: string;
@@ -149,8 +149,14 @@ export function StoriesView(props: StoriesViewProps) {
       const md = chars > 260;
       const sec = sectionOf(screen);
       const kept = isKept(props.marks, book, chapter, e.start, e.end, e.blocks.some((b) => b.kind === 'highlight'));
+      // v212: the entry tint washes the verse screen, and a verse
+      // tint highlights that verse's lines — same resolution as the
+      // chapter page (split partitions in With-notes, covering
+      // grouped records behind Read-only's per-verse entries).
+      const tintFields = resolveTintFields(props.marks, book, chapter, e.start, e.end);
+      const wash = tintWashFor(palette, tintFields.tint);
       return (
-        <View style={styles.screen}>
+        <View style={[styles.screen, wash ? { backgroundColor: wash } : null]}>
           <View>
             <View style={[styles.secChip, { backgroundColor: palette.band }]}>
               <Text style={[styles.secChipText, { color: palette.bandInk }]}>
@@ -162,12 +168,18 @@ export function StoriesView(props: StoriesViewProps) {
             </Text>
           </View>
           <View style={styles.vwrap}>
-            {Array.from({ length: e.end - e.start + 1 }, (_, i) => e.start + i).map((v) => (
-              <Text key={v} style={[styles.vline, { color: palette.ink }, md ? styles.vlineMd : null]}>
-                <Text style={[styles.vn, { color: palette.rasp }]}>{v} </Text>
-                {verseText.get(v) ?? ''}
-              </Text>
-            ))}
+            {Array.from({ length: e.end - e.start + 1 }, (_, i) => e.start + i).map((v) => {
+              const verseBg = verseTintFor(palette, tintFields.verseTints[v]);
+              return (
+                <Text
+                  key={v}
+                  style={[styles.vline, { color: palette.ink }, md ? styles.vlineMd : null, verseBg ? { backgroundColor: verseBg } : null]}
+                >
+                  <Text style={[styles.vn, { color: palette.rasp }]}>{v} </Text>
+                  {verseText.get(v) ?? ''}
+                </Text>
+              );
+            })}
             {screen.flowNote ? (
               <Text style={[styles.vfoot, { color: palette.inkSoft }]}>
                 <Text style={{ color: palette.rasp, fontStyle: 'normal' }}>✦ </Text>

@@ -81,16 +81,23 @@ import {
 import { transitionChapterStatus } from '../bible-v205/rewards';
 import {
   addKeeperLine,
+  applyTintToSelection,
   emptyMarks,
+  findCoveringTintSpan,
   isKept,
   loadMarks,
   marksFor,
   normalizeMarks,
+  resolveTintFields,
+  sanitizeVerseTints,
   saveMarks,
+  scrubVerseTints,
   toggleKept,
+  toggleVerseInSelection,
   withMarks,
   type EntryMarks,
   type MarksMap,
+  type TintColor,
 } from '../bible-v205/marks';
 import { blockCategory, NOTE_CATEGORIES } from '../bible-v205/categories';
 import { embeddedVerses } from '../bible-v205/verses';
@@ -1014,6 +1021,7 @@ describe("v210 — '#' verse splitting: a note's leading #N / #N-M sets those ve
       thoughts: ['A plain thought.'],
       notes: [],
       tint: 'rose',
+      verseTints: {},
       category: 'quote',
     };
     const pieces = splitEntryByHashNotes(entry, m);
@@ -1328,5 +1336,199 @@ describe('v211 — the box gets its buttons back; position lives in the new stor
     const profile = readFileSync(join(process.cwd(), 'app', 'profile.tsx'), 'utf8');
     expect(profile).toContain('getReadingPosition');
     expect(profile).toContain('position.currentBook');
+  });
+});
+
+describe('v212 — tint that actually shows: the whole entry, and per-verse', () => {
+  const bare = (start: number, end: number): DisplayEntry => ({ start, end, blocks: [], verseOnly: true });
+  const LEV_NOTE = '#11-12 Interesting... Some Pastors fit this description far too well.';
+  const pageSrc = () => readFileSync(join(process.cwd(), 'components/bible-v205/chapter-page.tsx'), 'utf8');
+  const storiesSrc = () => readFileSync(join(process.cwd(), 'components/bible-v205/stories-view.tsx'), 'utf8');
+
+  it('storage: verseTints round-trip; records stored before v212 read as {}', async () => {
+    let m = withMarks({}, 'Leviticus', 19, 10, 12, { verseTints: { 11: 'yellow', 12: 'rose' } });
+    await saveMarks(m);
+    const loaded = await loadMarks();
+    expect(marksFor(loaded, 'Leviticus', 19, 10, 12).verseTints).toEqual({ 11: 'yellow', 12: 'rose' });
+    // A record written before the verseTints field existed.
+    const legacy = { kept: true, highlights: [], thoughts: [], notes: [], tint: 'green', category: null } as unknown as EntryMarks;
+    expect(normalizeMarks(legacy).verseTints).toEqual({});
+    expect(normalizeMarks(undefined).verseTints).toEqual({});
+  });
+
+  it('sanitizeVerseTints keeps only integer verse keys with known hues', () => {
+    expect(sanitizeVerseTints({ 11: 'yellow', '12': 'rose', x: 'green', 13: 'blue', '-4': 'yellow', '5.5': 'green' })).toEqual({
+      11: 'yellow',
+      12: 'rose',
+    });
+    expect(sanitizeVerseTints(null)).toEqual({});
+    expect(sanitizeVerseTints(['yellow'])).toEqual({});
+    expect(sanitizeVerseTints('yellow')).toEqual({});
+  });
+
+  it('selection: tapping a verse number toggles it in and out of the set', () => {
+    expect(toggleVerseInSelection([], 11)).toEqual([11]);
+    expect(toggleVerseInSelection([11], 12)).toEqual([11, 12]);
+    expect(toggleVerseInSelection([11, 12], 11)).toEqual([12]);
+    expect(toggleVerseInSelection([11], 11)).toEqual([]);
+  });
+
+  it('apply: a hue lands on every selected verse; a different hue replaces; the same hue lifts it', () => {
+    expect(applyTintToSelection({}, [11, 12], 'yellow')).toEqual({ 11: 'yellow', 12: 'yellow' });
+    expect(applyTintToSelection({ 11: 'yellow' }, [11], 'rose')).toEqual({ 11: 'rose' });
+    // Per-verse toggle: one verse wears the hue (lifts), the other doesn't (takes it).
+    expect(applyTintToSelection({ 11: 'yellow', 12: 'green' }, [11, 12], 'yellow')).toEqual({ 12: 'yellow' });
+    expect(applyTintToSelection({ 11: 'yellow' }, [11], 'yellow')).toEqual({});
+    // Verses outside the selection are never touched.
+    expect(applyTintToSelection({ 10: 'green' }, [11], 'yellow')).toEqual({ 10: 'green', 11: 'yellow' });
+  });
+
+  it('apply: an empty selection is the identity — the no-selection path stays the entry tint', () => {
+    const before: Record<number, TintColor> = { 11: 'yellow' };
+    expect(applyTintToSelection(before, [], 'rose')).toEqual(before);
+  });
+
+  it('resolution: an exact record is authoritative — a split piece never inherits the parent entry tint', () => {
+    const display: MarksMap = {
+      'Leviticus|19|10-12': { ...emptyMarks(), tint: 'rose', verseTints: { 11: 'yellow' } },
+      // The derived records splitSections places at the piece keys:
+      // the parent tint stayed with the FIRST piece (10), so the
+      // 11–12 piece's own record reads null.
+      'Leviticus|19|10-10': { ...emptyMarks(), tint: 'rose' },
+      'Leviticus|19|11-12': { ...emptyMarks(), verseTints: { 11: 'yellow' } },
+    };
+    expect(resolveTintFields(display, 'Leviticus', 19, 11, 12)).toEqual({ tint: null, verseTints: { 11: 'yellow' } });
+    expect(resolveTintFields(display, 'Leviticus', 19, 10, 10).tint).toBe('rose');
+  });
+
+  it("resolution: Read-only's per-verse entries resolve through the covering grouped record", () => {
+    const stored: MarksMap = {
+      'Leviticus|19|10-12': { ...emptyMarks(), tint: 'yellow', verseTints: { 11: 'green' } },
+    };
+    expect(resolveTintFields(stored, 'Leviticus', 19, 11, 11)).toEqual({ tint: 'yellow', verseTints: { 11: 'green' } });
+    expect(resolveTintFields(stored, 'Leviticus', 19, 10, 10)).toEqual({ tint: 'yellow', verseTints: { 11: 'green' } });
+    // A verse outside every record resolves clean.
+    expect(resolveTintFields(stored, 'Leviticus', 19, 20, 20)).toEqual({ tint: null, verseTints: {} });
+    // Among layered covering records, the most specific wins per verse.
+    const layered: MarksMap = {
+      'Leviticus|19|10-12': { ...emptyMarks(), verseTints: { 11: 'yellow', 12: 'yellow' } },
+      'Leviticus|19|11-12': { ...emptyMarks(), verseTints: { 11: 'rose' } },
+    };
+    expect(resolveTintFields(layered, 'Leviticus', 19, 11, 11).verseTints[11]).toBe('rose');
+  });
+
+  it('findCoveringTintSpan returns the most specific covering span, else null', () => {
+    const stored: MarksMap = {
+      'Leviticus|19|10-12': { ...emptyMarks(), tint: 'yellow' },
+      'Leviticus|19|11-12': { ...emptyMarks() },
+    };
+    expect(findCoveringTintSpan(stored, 'Leviticus', 19, 11, 11)).toEqual({ start: 11, end: 12 });
+    expect(findCoveringTintSpan(stored, 'Leviticus', 19, 10, 12)).toEqual({ start: 10, end: 12 });
+    expect(findCoveringTintSpan(stored, 'Leviticus', 19, 30, 30)).toBeNull();
+    expect(findCoveringTintSpan(stored, 'Exodus', 19, 11, 11)).toBeNull();
+  });
+
+  it('scrub: a toggled-off verse leaves every other covering record, the write target excepted', () => {
+    const stored: MarksMap = {
+      'Leviticus|19|10-12': { ...emptyMarks(), verseTints: { 11: 'yellow', 12: 'rose' } },
+      'Leviticus|19|11-12': { ...emptyMarks(), verseTints: { 11: 'yellow' } },
+      'Leviticus|19|30-33': { ...emptyMarks(), verseTints: { 31: 'green' } },
+    };
+    const scrubbed = scrubVerseTints(stored, 'Leviticus', 19, [11], 'Leviticus|19|10-12');
+    // The excepted record keeps its tint; the piece record loses verse 11.
+    expect(scrubbed['Leviticus|19|10-12'].verseTints).toEqual({ 11: 'yellow', 12: 'rose' });
+    expect(scrubbed['Leviticus|19|11-12'].verseTints).toEqual({});
+    // Records not covering the verse are untouched — same object back.
+    expect(scrubbed['Leviticus|19|30-33']).toBe(stored['Leviticus|19|30-33']);
+  });
+
+  it("split partition: a '#11-12' note splits the entry and each verse tint rides only its own piece", () => {
+    const m: EntryMarks = {
+      ...emptyMarks(),
+      highlights: ['#11-12 Set apart.'],
+      verseTints: { 10: 'green', 11: 'yellow', 12: 'rose' },
+    };
+    const pieces = splitEntryByHashNotes(bare(10, 12), m);
+    expect(pieces.map((p) => [p.entry.start, p.entry.end])).toEqual([[10, 10], [11, 12]]);
+    expect(pieces[0].marks.verseTints).toEqual({ 10: 'green' });
+    expect(pieces[1].marks.verseTints).toEqual({ 11: 'yellow', 12: 'rose' });
+    // Sections level, the real Lev 19 pipeline: the display map at the
+    // piece keys carries the partitions every consumer resolves.
+    const sections = buildDisplaySections(null, 37);
+    const stored: MarksMap = {
+      'Leviticus|19|10-12': { ...emptyMarks(), highlights: [LEV_NOTE], verseTints: { 11: 'yellow' } },
+    };
+    const { marks: display } = splitSectionsByHashNotes(sections, stored, 'Leviticus', 19);
+    expect(display['Leviticus|19|11-12'].verseTints).toEqual({ 11: 'yellow' });
+    expect(display['Leviticus|19|10-10'].verseTints).toEqual({});
+    // A record stored directly at the piece key wins its verse.
+    const edited: MarksMap = {
+      'Leviticus|19|10-12': { ...emptyMarks(), highlights: [LEV_NOTE], verseTints: { 11: 'yellow' } },
+      'Leviticus|19|11-12': { ...emptyMarks(), verseTints: { 11: 'green', 12: 'green' } },
+    };
+    const merged = splitSectionsByHashNotes(sections, edited, 'Leviticus', 19).marks;
+    expect(merged['Leviticus|19|11-12'].verseTints).toEqual({ 11: 'green', 12: 'green' });
+  });
+
+  it('the Lev 19 regression: a tinted verse-only chunk entry (34–36) resolves its wash', () => {
+    const sections = buildDisplaySections(null, 37);
+    const chunk = flattenEntries(sections).find((f) => f.entry.start === 34 && f.entry.end === 36)!;
+    // The regression shape: a synthesized chunk with NO blocks at all —
+    // pre-v212 there was no paragraph for the tint to land on.
+    expect(chunk.entry.blocks).toEqual([]);
+    const stored: MarksMap = { 'Leviticus|19|34-36': { ...emptyMarks(), tint: 'yellow' } };
+    expect(resolveTintFields(stored, 'Leviticus', 19, 34, 36).tint).toBe('yellow');
+    const { marks: display } = splitSectionsByHashNotes(sections, stored, 'Leviticus', 19);
+    expect(resolveTintFields(display, 'Leviticus', 19, 34, 36).tint).toBe('yellow');
+  });
+
+  it('render: the entry tint lands on the entry CONTAINER — verses and body, open or closed', () => {
+    const page = pageSrc();
+    const entryView = page.slice(page.indexOf('function EntryView'));
+    // The wash comes from the resolved entry tint…
+    expect(entryView).toContain('tintWashFor(palette, props.entryTint)');
+    // …and paints the Animated.View that wraps head AND body (the body
+    // alone is gated on props.open; the container is not).
+    expect(entryView).toContain('styles.entry, { backgroundColor: flashBg }');
+    expect(entryView.indexOf('styles.entry, { backgroundColor: flashBg }')).toBeLessThan(entryView.indexOf('props.open ?'));
+    // The old first-paragraph-only plumbing is gone, everywhere.
+    expect(page).not.toContain('tinted=');
+    expect(page).not.toContain('firstParaIdx');
+    const blocks = readFileSync(join(process.cwd(), 'components/bible-v205/blocks.tsx'), 'utf8');
+    expect(blocks).not.toContain('tinted');
+  });
+
+  it('render: verse numbers are the selection handles; a selected verse is dashed-underlined', () => {
+    const page = pageSrc();
+    expect(page).toContain('props.onToggleVerse(entry.start)');
+    expect(page).toContain('props.onToggleVerse(v)');
+    expect(page).toContain("textDecorationStyle: 'dashed'");
+    expect(page).toContain('styles.vnumTap');
+    expect(page).toContain('styles.supTap');
+    // A verse wearing a tint paints the highlighter color behind its text.
+    expect(page).toContain('verseTintFor(palette, props.verseTints[v])');
+  });
+
+  it('render: the tint dots serve the selection when one exists, the entry tint when none does', () => {
+    const page = pageSrc();
+    expect(page).toContain('hasSelection ? props.onApplyVerseTint(t) : props.onTint(props.entryTint === t ? null : t)');
+    expect(page).toContain('props.selectedVerses.every((v) => props.verseTints[v] === t)');
+  });
+
+  it('render: Stories verse screens carry the entry wash and per-verse tints', () => {
+    const stories = storiesSrc();
+    expect(stories).toContain('resolveTintFields(props.marks, book, chapter, e.start, e.end)');
+    expect(stories).toContain('tintWashFor(palette, tintFields.tint)');
+    expect(stories).toContain('verseTintFor(palette, tintFields.verseTints[v])');
+  });
+
+  it('palette: entry washes in the unmistakable band, verse tints at highlighter strength', () => {
+    const palette = readFileSync(join(process.cwd(), 'components/bible-v205/palette.ts'), 'utf8');
+    expect(palette).toContain("tintYellow: 'rgba(245,197,66,.32)'");
+    expect(palette).toContain("tintRose: 'rgba(230,73,128,.22)'");
+    expect(palette).toContain("tintGreen: 'rgba(64,160,110,.27)'");
+    expect(palette).toContain("verseTintYellow: 'rgba(245,197,66,.45)'");
+    expect(palette).toContain("verseTintRose: 'rgba(230,73,128,.45)'");
+    expect(palette).toContain("verseTintGreen: 'rgba(64,160,110,.45)'");
   });
 });

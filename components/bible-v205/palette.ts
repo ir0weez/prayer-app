@@ -8,6 +8,7 @@
 import { useColors } from '@/hooks/use-colors';
 import { useSkin } from '@/hooks/use-skin';
 import { hexLuminance } from '@/lib/skin-themes';
+import type { TintColor } from '@/lib/bible-v205/marks';
 
 export interface BiblePalette {
   paper: string;
@@ -39,6 +40,9 @@ export interface BiblePalette {
   tintYellow: string;
   tintRose: string;
   tintGreen: string;
+  verseTintYellow: string;
+  verseTintRose: string;
+  verseTintGreen: string;
   isDark: boolean;
 }
 
@@ -74,11 +78,45 @@ export function useBiblePalette(): BiblePalette {
     calloutPaper: '#F7F7F5',
     vnum: isDark ? '#6E6A63' : '#C6C1B6',
     heartOff: isDark ? '#5A564E' : '#D8D3C8',
-    tintYellow: 'rgba(245,197,66,.38)',
-    tintRose: 'rgba(230,73,128,.14)',
-    tintGreen: 'rgba(64,160,110,.20)',
+    // v212: the entry tint is a wash over the WHOLE entry container —
+    // alphas per hue chosen so all three read equally clearly at
+    // display size (rose is the most saturated hue, so it needs the
+    // least paint; yellow the most). Before v212 these painted only
+    // behind one paragraph, at .38/.14/.20 — and nowhere at all on
+    // verse-only entries.
+    tintYellow: 'rgba(245,197,66,.32)',
+    tintRose: 'rgba(230,73,128,.22)',
+    tintGreen: 'rgba(64,160,110,.27)',
+    // v212: verse-level tints — a highlighter stroke behind one
+    // verse's text, stronger than the entry wash so the single verse
+    // stands out from an entry wash of the same hue.
+    verseTintYellow: 'rgba(245,197,66,.45)',
+    verseTintRose: 'rgba(230,73,128,.45)',
+    verseTintGreen: 'rgba(64,160,110,.45)',
     isDark,
   };
+}
+
+/** The entry-container wash for a tint hue (null = no wash). */
+export function tintWashFor(palette: BiblePalette, tint: TintColor | null | undefined): string | null {
+  return tint === 'yellow'
+    ? palette.tintYellow
+    : tint === 'rose'
+      ? palette.tintRose
+      : tint === 'green'
+        ? palette.tintGreen
+        : null;
+}
+
+/** The highlighter color behind a single tinted verse's text. */
+export function verseTintFor(palette: BiblePalette, tint: TintColor | null | undefined): string | null {
+  return tint === 'yellow'
+    ? palette.verseTintYellow
+    : tint === 'rose'
+      ? palette.verseTintRose
+      : tint === 'green'
+        ? palette.verseTintGreen
+        : null;
 }
 
 /** "Ver. 1–3" style range label (en dash, his Notion convention). */

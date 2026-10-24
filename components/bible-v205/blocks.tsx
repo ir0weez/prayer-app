@@ -58,12 +58,10 @@ export function SectionBand({
 export function BlockView({
   block,
   palette,
-  tinted,
   big,
 }: {
   block: V205Block;
   palette: BiblePalette;
-  tinted?: string | null;
   big?: boolean;
 }) {
   if (block.kind === 'para' || block.kind === 'conversation') {
@@ -72,7 +70,6 @@ export function BlockView({
         style={[
           styles.para,
           { color: palette.ink },
-          tinted ? { backgroundColor: tinted, borderRadius: 6 } : null,
           block.kind === 'conversation' ? { fontStyle: 'italic' } : null,
         ]}
       >

@@ -39,11 +39,15 @@ import { entrySourceCategory, NOTE_CATEGORIES } from '@/lib/bible-v205/categorie
 import { loadUserLabels, type UserLabels } from '@/lib/bible-v205/user-labels';
 import {
   addKeeperLine,
+  applyTintToSelection,
   isKept,
   loadMarks,
   marksFor,
+  resolveTintFields,
   saveMarks,
+  scrubVerseTints,
   toggleKept,
+  toggleVerseInSelection,
   withMarks,
   type EntryMarks,
   type MarksMap,
@@ -63,7 +67,7 @@ import { BlockView, CategoryTag, Ornament, SectionBand, StatusChip, STATUS_LABEL
 import { BookCompleteCelebration } from './celebration';
 import { IndexSheet } from './index-sheet';
 import { StoriesView } from './stories-view';
-import { chapterLabel, rangeLabel, useBiblePalette, type BiblePalette } from './palette';
+import { chapterLabel, rangeLabel, tintWashFor, useBiblePalette, verseTintFor, type BiblePalette } from './palette';
 
 export interface ChapterPageProps {
   book: string;
@@ -99,6 +103,10 @@ export function ChapterPageView(props: ChapterPageProps) {
   const [celebration, setCelebration] = useState<{ book: string; bibleComplete: boolean } | null>(null);
   const [openMap, setOpenMap] = useState<Record<string, boolean> | null>(null);
   const [sheet, setSheet] = useState<null | 'verses' | 'search'>(null);
+  // v212: verse-tint selection — per rendered entry (keyed by its
+  // entry key, split pieces included), the verses he has tapped and
+  // not yet tinted. Pure UI state; only the applied tints persist.
+  const [verseSelection, setVerseSelection] = useState<Record<string, number[]>>({});
   const [stories, setStories] = useState(!!props.initialStories);
   const [statusMenu, setStatusMenu] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -284,10 +292,48 @@ export function ChapterPageView(props: ChapterPageProps) {
     setMarks(next);
     await saveMarks(next);
   };
+  // v212: the span a tint write for a rendered entry lands on. In
+  // Read-only the rendered span is a single verse, but its marks live
+  // on the covering with-notes entry; in With-notes the rendered span
+  // is the entry (or split piece) itself.
+  const tintWriteSpan = (start: number, end: number): { start: number; end: number } => {
+    if (!readOnly) return { start, end };
+    const covering = notesFlat.find((nf) => start >= nf.entry.start && start <= nf.entry.end);
+    return covering ? { start: covering.entry.start, end: covering.entry.end } : { start, end };
+  };
   const handleTint = async (start: number, end: number, tint: TintColor | null) => {
-    const next = withMarks(marks, book, chapter, start, end, { tint });
+    const span = tintWriteSpan(start, end);
+    const next = withMarks(marks, book, chapter, span.start, span.end, { tint });
     setMarks(next);
     await saveMarks(next);
+  };
+  const handleVerseTintApply = async (start: number, end: number, hue: TintColor) => {
+    const key = entryKey(book, chapter, start, end);
+    const sel = verseSelection[key] ?? [];
+    if (sel.length === 0) return;
+    // Resolve against the DISPLAY map (split pieces carry their
+    // partitioned records there), then write the result to the
+    // UNSPLIT entry's record: verse tints live there, and the split
+    // partitions re-derive from it on the next render.
+    const resolved = resolveTintFields(displayMarks, book, chapter, start, end);
+    const nextVerseTints = applyTintToSelection(resolved.verseTints, sel, hue);
+    const covering = notesFlat.find((nf) => start >= nf.entry.start && start <= nf.entry.end);
+    const span = covering ? { start: covering.entry.start, end: covering.entry.end } : { start, end };
+    let next = withMarks(marks, book, chapter, span.start, span.end, { verseTints: nextVerseTints });
+    // A toggled-off verse must also leave any OTHER stored record the
+    // tint was resolved from (e.g. a record stored directly at a split
+    // piece's key), or the display merge would paint it straight back.
+    const removed = sel.filter((v) => nextVerseTints[v] === undefined && resolved.verseTints[v] !== undefined);
+    if (removed.length) {
+      next = scrubVerseTints(next, book, chapter, removed, entryKey(book, chapter, span.start, span.end));
+    }
+    setMarks(next);
+    await saveMarks(next);
+    setVerseSelection((prev) => ({ ...prev, [key]: [] }));
+  };
+  const handleToggleVerse = (start: number, end: number, verse: number) => {
+    const key = entryKey(book, chapter, start, end);
+    setVerseSelection((prev) => ({ ...prev, [key]: toggleVerseInSelection(prev[key] ?? [], verse) }));
   };
   const handleSetStatus = async (s: StudyStatus) => {
     if (!studyState) return;
@@ -564,6 +610,9 @@ export function ChapterPageView(props: ChapterPageProps) {
                 chapter={chapter}
                 verseText={verseText}
                 marksEntry={marksFor(displayMarks, book, chapter, entry.start, entry.end)}
+                entryTint={resolveTintFields(displayMarks, book, chapter, entry.start, entry.end).tint}
+                verseTints={resolveTintFields(displayMarks, book, chapter, entry.start, entry.end).verseTints}
+                selectedVerses={verseSelection[entryKey(book, chapter, entry.start, entry.end)] ?? []}
                 kept={entryStatus.get(entryKey(book, chapter, entry.start, entry.end))?.kept ?? false}
                 open={isOpen(entry)}
                 flash={flashKey === entryKey(book, chapter, entry.start, entry.end)}
@@ -573,6 +622,8 @@ export function ChapterPageView(props: ChapterPageProps) {
                 onToggleKept={() => handleToggleKept(entry.start, entry.end, entry.blocks.some((b) => b.kind === 'highlight'))}
                 onAddLine={(kind, text) => handleAddLine(entry.start, entry.end, kind, text)}
                 onTint={(tint) => handleTint(entry.start, entry.end, tint)}
+                onToggleVerse={(verse) => handleToggleVerse(entry.start, entry.end, verse)}
+                onApplyVerseTint={(hue) => handleVerseTintApply(entry.start, entry.end, hue)}
                 onCategory={(category) => handleCategory(entry.start, entry.end, category)}
                 registerY={(y) =>
                   yByKey.current.set(
@@ -688,6 +739,13 @@ function EntryView(props: {
   chapter: number;
   verseText: Map<number, string>;
   marksEntry: EntryMarks;
+  /** v212: the entry tint + per-verse tints as this entry should show
+   * them (resolved by the page: split-piece partitions in With-notes,
+   * covering grouped records in Read-only). */
+  entryTint: TintColor | null;
+  verseTints: Record<number, TintColor>;
+  /** v212: verses tapped and waiting for a tint color (this entry only). */
+  selectedVerses: number[];
   kept: boolean;
   open: boolean;
   flash: boolean;
@@ -697,6 +755,8 @@ function EntryView(props: {
   onToggleKept: () => void;
   onAddLine: (kind: 'highlight' | 'thought' | 'note', text: string) => void;
   onTint: (tint: TintColor | null) => void;
+  onToggleVerse: (verse: number) => void;
+  onApplyVerseTint: (hue: TintColor) => void;
   onCategory: (category: NoteCategory | null) => void;
   registerY: (y: number) => void;
 }) {
@@ -704,14 +764,13 @@ function EntryView(props: {
   const [composer, setComposer] = useState<null | 'highlight' | 'thought' | 'note'>(null);
   const [draft, setDraft] = useState('');
   const single = entry.start === entry.end;
-  const tintColor =
-    props.marksEntry?.tint === 'yellow' ? palette.tintYellow
-      : props.marksEntry?.tint === 'rose' ? palette.tintRose
-        : props.marksEntry?.tint === 'green' ? palette.tintGreen
-          : null;
+  // v212: the entry tint washes the whole entry container — head and
+  // body, open or closed. (The jump-flash still wins while it runs.)
+  const wash = tintWashFor(palette, props.entryTint);
   const flashBg = props.flash
     ? props.flashAnim.interpolate({ inputRange: [0, 1], outputRange: ['rgba(230,73,128,0)', 'rgba(230,73,128,0.14)'] })
-    : 'transparent';
+    : (wash ?? 'transparent');
+  const hasSelection = props.selectedVerses.length > 0;
 
   const blocks = [...entry.blocks];
   // v210: his plain notes lead his own lines under the verses — inset
@@ -719,7 +778,6 @@ function EntryView(props: {
   for (const text of props.marksEntry?.notes ?? []) blocks.push({ kind: 'note', text });
   for (const text of props.marksEntry?.highlights ?? []) blocks.push({ kind: 'highlight', text });
   for (const text of props.marksEntry?.thoughts ?? []) blocks.push({ kind: 'thought', text });
-  const firstParaIdx = blocks.findIndex((b) => b.kind === 'para' || b.kind === 'conversation');
 
   return (
     <Animated.View
@@ -731,17 +789,54 @@ function EntryView(props: {
           {props.kept ? <Text style={{ color: palette.rose, fontSize: 14 }}>♥</Text> : null}
         </View>
         {single ? (
-          <Text style={[styles.vnumBig, { color: palette.vnum }]}>{entry.start}</Text>
+          <Pressable
+            onPress={() => props.onToggleVerse(entry.start)}
+            hitSlop={8}
+            style={[styles.vnumTap, props.selectedVerses.includes(entry.start) ? { backgroundColor: palette.rasp } : null]}
+          >
+            <Text
+              style={[
+                styles.vnumBig,
+                { color: props.selectedVerses.includes(entry.start) ? '#FFFFFF' : palette.vnum },
+              ]}
+            >
+              {entry.start}
+            </Text>
+          </Pressable>
         ) : (
           <Text style={[styles.vnumRange, { color: palette.vnum }]}>{entry.start}–{entry.end}</Text>
         )}
         <View style={styles.entryVerses}>
-          {Array.from({ length: entry.end - entry.start + 1 }, (_, i) => entry.start + i).map((v) => (
-            <Text key={v} style={[styles.entryVerse, { color: palette.ink }]}>
-              {!single ? <Text style={[styles.sup, { color: palette.rasp }]}>{v} </Text> : null}
-              {props.verseText.get(v) ?? ''}
-            </Text>
-          ))}
+          {Array.from({ length: entry.end - entry.start + 1 }, (_, i) => entry.start + i).map((v) => {
+            const selected = props.selectedVerses.includes(v);
+            const verseBg = verseTintFor(palette, props.verseTints[v]);
+            return (
+              <View key={v} style={styles.verseRow}>
+                {!single ? (
+                  <Pressable
+                    onPress={() => props.onToggleVerse(v)}
+                    hitSlop={7}
+                    style={[styles.supTap, selected ? { backgroundColor: palette.rasp } : null]}
+                  >
+                    <Text style={[styles.sup, { color: selected ? '#FFFFFF' : palette.rasp }]}>{v}</Text>
+                  </Pressable>
+                ) : null}
+                <Text
+                  style={[
+                    styles.entryVerse,
+                    styles.verseTextFlex,
+                    { color: palette.ink },
+                    verseBg ? { backgroundColor: verseBg } : null,
+                    selected
+                      ? { textDecorationLine: 'underline', textDecorationStyle: 'dashed', textDecorationColor: palette.rasp }
+                      : null,
+                  ]}
+                >
+                  {props.verseText.get(v) ?? ''}
+                </Text>
+              </View>
+            );
+          })}
         </View>
         <MaterialIcons
           name={props.open ? 'expand-less' : 'expand-more'}
@@ -767,7 +862,7 @@ function EntryView(props: {
             </Text>
           ) : (
             blocks.map((b, i) => (
-              <BlockView key={i} block={b} palette={palette} tinted={i === firstParaIdx ? tintColor : null} />
+              <BlockView key={i} block={b} palette={palette} />
             ))
           )}
 
@@ -787,21 +882,33 @@ function EntryView(props: {
               <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Note</Text>
             </Pressable>
             <View style={styles.swatches}>
-              {(['yellow', 'rose', 'green'] as TintColor[]).map((t) => (
-                <Pressable
-                  key={t}
-                  style={[
-                    styles.swatch,
-                    {
-                      backgroundColor: t === 'yellow' ? '#F5C542' : t === 'rose' ? '#F08BB4' : '#7FCB9B',
-                      borderColor: props.marksEntry?.tint === t ? palette.ink : 'transparent',
-                      borderWidth: props.marksEntry?.tint === t ? 2 : 0,
-                    },
-                  ]}
-                  onPress={() => props.onTint(props.marksEntry?.tint === t ? null : t)}
-                />
-              ))}
-              <Text style={[styles.tintLabel, { color: palette.inkFaint }]}>Tint</Text>
+              {(['yellow', 'rose', 'green'] as TintColor[]).map((t) => {
+                // v212: with verses selected, the dots speak for the
+                // selection — ringed when every selected verse already
+                // wears this hue; a tap applies it to the selection
+                // (or lifts it, per verse). With no selection they keep
+                // their entry-tint meaning exactly as before.
+                const active = hasSelection
+                  ? props.selectedVerses.every((v) => props.verseTints[v] === t)
+                  : props.entryTint === t;
+                return (
+                  <Pressable
+                    key={t}
+                    style={[
+                      styles.swatch,
+                      {
+                        backgroundColor: t === 'yellow' ? '#F5C542' : t === 'rose' ? '#F08BB4' : '#7FCB9B',
+                        borderColor: active ? palette.ink : 'transparent',
+                        borderWidth: active ? 2 : 0,
+                      },
+                    ]}
+                    onPress={() => (hasSelection ? props.onApplyVerseTint(t) : props.onTint(props.entryTint === t ? null : t))}
+                  />
+                );
+              })}
+              <Text style={[styles.tintLabel, { color: palette.inkFaint }]}>
+                {hasSelection ? `Tint ${props.selectedVerses.length === 1 ? 'verse' : 'verses'} ${props.selectedVerses.join(', ')}` : 'Tint'}
+              </Text>
             </View>
           </View>
 
@@ -921,6 +1028,10 @@ const styles = StyleSheet.create({
   entryVerses: { flex: 1, gap: 3 },
   entryVerse: { fontSize: 15.5, fontWeight: '700', lineHeight: 24 },
   sup: { fontSize: 10.5, fontWeight: '800' },
+  vnumTap: { borderRadius: 9 },
+  verseRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
+  supTap: { borderRadius: 999, minWidth: 17, alignItems: 'center', paddingHorizontal: 3, paddingVertical: 1, marginTop: 3 },
+  verseTextFlex: { flex: 1 },
   entryBody: { marginLeft: 72, paddingRight: 4, paddingBottom: 14 },
   noNotes: { fontSize: 13.5, fontStyle: 'italic', marginBottom: 10 },
   markbar: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', borderTopWidth: 1, paddingTop: 11, marginTop: 4 },

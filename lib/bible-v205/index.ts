@@ -7,7 +7,7 @@
 import { COMMENTARY_DATA } from './data/index';
 import { chapterStatus, type StudyState } from './study';
 import { entrySourceCategory } from './categories';
-import { marksFor, normalizeMarks, type EntryMarks, type MarksMap } from './marks';
+import { marksFor, normalizeMarks, type EntryMarks, type MarksMap, type TintColor } from './marks';
 import {
   entryKey,
   type NoteCategory,
@@ -335,12 +335,26 @@ export function splitEntryByHashNotes(entry: DisplayEntry, entryMarks: EntryMark
   const segForVerse = (v: number) => segs.findIndex((s) => v >= s.start && v <= s.end);
   const firstSeg = segForVerse(entry.start);
 
-  const pieceMarks: EntryMarks[] = segs.map((_, i) => ({
+  // v212: verse tints PARTITION by verse — each piece carries only the
+  // tints of the verses inside its own span, like the lines partition
+  // by claim. (The entry tint, by contrast, stays whole on the
+  // first-verse piece, above.)
+  const verseTintsWithin = (start: number, end: number): Record<number, TintColor> => {
+    const out: Record<number, TintColor> = {};
+    for (const [k, hue] of Object.entries(entryMarks.verseTints ?? {})) {
+      const v = Number(k);
+      if (v >= start && v <= end) out[v] = hue as TintColor;
+    }
+    return out;
+  };
+
+  const pieceMarks: EntryMarks[] = segs.map((s, i) => ({
     kept: i === firstSeg ? entryMarks.kept : false,
     highlights: [],
     thoughts: [],
     notes: [],
     tint: i === firstSeg ? entryMarks.tint : null,
+    verseTints: verseTintsWithin(s.start, s.end),
     category: i === firstSeg ? entryMarks.category : null,
   }));
   notes.forEach((n, i) => {
@@ -402,6 +416,9 @@ export function splitSectionsByHashNotes(
               thoughts: [...piece.marks.thoughts, ...atKey.thoughts],
               notes: [...piece.marks.notes, ...atKey.notes],
               tint: atKey.tint,
+              // The piece-key record is a direct edit on the piece —
+              // its per-verse tints win over the partitioned parent's.
+              verseTints: { ...piece.marks.verseTints, ...atKey.verseTints },
               category: atKey.category,
             }
           : piece.marks;

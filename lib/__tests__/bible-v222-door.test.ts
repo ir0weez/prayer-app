@@ -283,6 +283,104 @@ describe('v222 WS2 — the studio pack door', () => {
     expect(again.todos).toHaveLength(1);
   });
 
+  it('v224: schedule packs carry notes + location through to the created event and todo', () => {
+    const raw = {
+      weekOf: '2026-10-25',
+      events: [
+        {
+          title: 'Commentary writing — Genesis 2',
+          day: 'Tue',
+          date: '2026-10-27',
+          start: '11:00',
+          minutes: 60,
+          type: 'Event',
+          online: true,
+          recur: 'none',
+          notes: 'Bring the Exodus setup pages',
+          location: 'The booth',
+        },
+        {
+          title: 'Buy snapdragons',
+          day: 'Wed',
+          date: '2026-10-28',
+          start: 'All day',
+          minutes: 0,
+          type: 'Todo',
+          online: false,
+          recur: 'none',
+          notes: 'The coolest-looking ones',
+          location: '',
+        },
+      ],
+    };
+    // The pack is accepted WITH the additive keys — never rejected for them.
+    const parsed = parseStudioFile(raw);
+    expect(parsed.kind).toBe('schedule');
+    if (parsed.kind !== 'schedule') throw new Error('expected a schedule pack');
+    expect(parsed.schedule.events[0].notes).toBe('Bring the Exodus setup pages');
+    expect(parsed.schedule.events[0].location).toBe('The booth');
+
+    const merged = mergeStudioSchedule([], [], parsed.schedule);
+    expect(merged.added).toBe(2);
+    expect(merged.events[0].notes).toBe('Bring the Exodus setup pages');
+    // The pack's location wins over the Online fallback even when online.
+    expect(merged.events[0].location).toBe('The booth');
+    // Todos carry notes too (ScheduleTodo has a notes field).
+    expect(merged.todos[0].notes).toBe('The coolest-looking ones');
+  });
+
+  it('v224: online alone still lands location Online; empty pack location + offline leaves it unset', () => {
+    const pack: StudioSchedulePayload = {
+      weekOf: '2026-10-25',
+      events: [
+        {
+          title: 'Online study group',
+          day: 'Tue',
+          date: '2026-10-27',
+          start: '19:00',
+          minutes: 60,
+          type: 'Event',
+          online: true,
+          recur: 'weekly',
+          notes: '',
+          location: '',
+        },
+        {
+          title: 'Garden photos',
+          day: 'Sun',
+          date: '2026-10-25',
+          start: '18:30',
+          minutes: 30,
+          type: 'Event',
+          online: false,
+          recur: 'none',
+        },
+      ],
+    };
+    const merged = mergeStudioSchedule([], [], pack);
+    expect(merged.events[0].location).toBe('Online');
+    expect(merged.events[0].notes).toBeUndefined();
+    expect(merged.events[1].location).toBeUndefined();
+  });
+
+  it('v224: re-import with different notes/location still dedupes on (date, start, title)', () => {
+    const changed: StudioSchedulePayload = {
+      weekOf: '2026-10-25',
+      events: SCHEDULE_PACK.events.map((e) => ({
+        ...e,
+        notes: 'Edited in the studio later',
+        location: 'Somewhere new',
+      })),
+    };
+    const first = mergeStudioSchedule([], [], SCHEDULE_PACK);
+    const again = mergeStudioSchedule(first.events, first.todos, changed);
+    expect(again.added).toBe(0);
+    expect(again.events).toHaveLength(1);
+    expect(again.todos).toHaveLength(1);
+    // The first import's copy stands — a re-import never rewrites it.
+    expect(again.events[0].location).toBeUndefined();
+  });
+
   it('schedule merge does not read whiteSpace — the advisory field never lands in the store', () => {
     const withWhiteSpace: StudioSchedulePayload = {
       ...SCHEDULE_PACK,

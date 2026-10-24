@@ -92,6 +92,10 @@ export interface StudioScheduleEventInput {
   type: 'Event' | 'Todo';
   online: boolean;
   recur: string;
+  /** Additive studio keys (v224): the event's notes and location, carried
+   *  straight through to the created schedule item. '' when unset. */
+  notes?: string;
+  location?: string;
 }
 
 export interface StudioSchedulePayload {
@@ -271,6 +275,10 @@ function validateSchedule(raw: unknown): StudioSchedulePayload {
       type: e.type as 'Event' | 'Todo',
       online: e.online === true,
       recur: typeof e.recur === 'string' ? e.recur : 'none',
+      // Additive keys (v224): accepted when present, never a reason to
+      // reject the pack; anything not a string reads as unset.
+      notes: typeof e.notes === 'string' ? e.notes : '',
+      location: typeof e.location === 'string' ? e.location : '',
     };
   });
   return { weekOf: raw.weekOf as string, events };
@@ -450,9 +458,12 @@ function endTimeOf(start: string, minutes: number): string {
 /**
  * Merge a validated schedule pack into the stored events/todos.
  * Dedupe is by (date, start, title) — re-importing the same pack adds
- * nothing. 'All day' events carry no startTime. Online events keep their
- * marker in the location field the app already shows. Recur labels do not
- * expand: the pack carries one dated instance, and that is what lands.
+ * nothing, and notes/location differences never create a duplicate.
+ * 'All day' events carry no startTime. The pack's notes ride onto the
+ * created event AND todo (both models carry a notes field); the pack's
+ * location rides onto events, and the Online marker only fills the
+ * location when the pack leaves it empty. Recur labels do not expand:
+ * the pack carries one dated instance, and that is what lands.
  * whiteSpace is never read here — it is advisory payload only.
  */
 export function mergeStudioSchedule(
@@ -476,6 +487,7 @@ export function mergeStudioSchedule(
           date: ev.date,
           startTime: start,
           endTime: start ? endTimeOf(start, ev.minutes) : undefined,
+          notes: ev.notes ? ev.notes : undefined,
         },
         todos.length,
       );
@@ -489,7 +501,10 @@ export function mergeStudioSchedule(
         date: ev.date,
         startTime: start,
         endTime: start ? endTimeOf(start, ev.minutes) : undefined,
-        location: ev.online ? 'Online' : undefined,
+        // The pack's own location wins; Online is only the fallback when
+        // the pack leaves location empty (v224).
+        location: ev.location ? ev.location : ev.online ? 'Online' : undefined,
+        notes: ev.notes ? ev.notes : undefined,
       });
       events.push(event);
       seenEvents.add(dedupe);

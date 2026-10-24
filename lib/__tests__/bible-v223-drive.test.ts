@@ -42,6 +42,7 @@ import {
 } from '../bible-v205/drive-folder';
 import {
   convertStudioChapter,
+  mergeStudioSchedule,
   parseStudioFile,
   type StudioChapterPayload,
 } from '../bible-v205/studio-import';
@@ -148,6 +149,40 @@ describe('Rule 5 — schedule conflicts are held, dedupes skipped, new events au
     expect(heldItemLabel(plan.heldSchedule[0])).toContain('Commentary writing — Genesis 2');
     expect(plan.autoSchedule).toHaveLength(1);
     expect(plan.autoSchedule[0].title).toBe('Evening check-in');
+  });
+});
+
+describe('v224 — a Drive check maps notes + location through the same shared door', () => {
+  it('parses a pack carrying notes/location, plans it, and merges with both fields mapped', () => {
+    // The exact sequence checkDriveFolder runs: parse → plan → merge.
+    const pack = parseStudioFile({
+      weekOf: '2026-10-25',
+      events: [
+        {
+          title: 'Commentary writing — Genesis 2',
+          day: 'Tue',
+          date: '2026-10-27',
+          start: '11:00',
+          minutes: 60,
+          type: 'Event',
+          online: true,
+          recur: 'none',
+          notes: 'Bring the Exodus setup pages',
+          location: 'The booth',
+        },
+      ],
+    });
+    const plan = planDrivePack(pack, () => 'none', [], []);
+    expect(plan.autoSchedule).toHaveLength(1);
+    expect(plan.autoSchedule[0].notes).toBe('Bring the Exodus setup pages');
+    expect(plan.autoSchedule[0].location).toBe('The booth');
+    const merged = mergeStudioSchedule([], [], {
+      weekOf: '2026-10-25',
+      events: plan.autoSchedule,
+    });
+    expect(merged.added).toBe(1);
+    expect(merged.events[0].notes).toBe('Bring the Exodus setup pages');
+    expect(merged.events[0].location).toBe('The booth');
   });
 });
 

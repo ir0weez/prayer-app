@@ -1,6 +1,5 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect } from "expo-router";
@@ -689,20 +688,24 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
   // journal-day's chipBg pattern, with readable ink on each ground).
   const pillChipBg = (pastel: string) => (skinTokens.isStainedGlass ? "#F7EFDC" : skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : pastel);
   const pillChipInk = skinTokens.isStainedGlass ? "#241547" : skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : "#1D1830";
-  // v204: the morphing composer's frost — CLEAR, never a solid
-  // strip. Classic gets its own surface at 90% over the blur; the
-  // material skins keep the bar backgrounds their verdicts already
-  // approved (glass panel, terminal panel, 8-bit surface, paper's
-  // translucent white).
-  const frostBackground = skinTokens.isStainedGlass
+  // v213: the morphing composer's ground — SOLID, in every skin.
+  // v204's frost (Classic's surface at 90% over a blur layer;
+  // translucent white under Paper) rendered on his phone as a
+  // muddy GREY slab with the feed ghosting through it — his
+  // verdict, Oct 23: "the grey doesn't really work here in the
+  // status update..." The box now wears the Journal's own surface
+  // language at full opacity — the same ladder the head pill
+  // above uses (glass panel, terminal panel, then the surface
+  // token) — so in light it is the Journal's white, in dark the
+  // dark surface, and nothing behind it ever shows through. The
+  // morph's own shadow (styles.morph) lifts it off the feed.
+  // (8-bit folded into the surface branch: momentsSurface IS
+  // colors.surface, its v204 value, unchanged.)
+  const composerBackground = skinTokens.isStainedGlass
     ? "#241D33"
     : skinTokens.isTerminal
       ? TERM_PANEL
-      : skinTokens.isEightBit
-        ? colors.surface
-        : isSkinned
-          ? "rgba(255,255,255,0.72)"
-          : `${colors.surface}E6`;
+      : momentsSurface;
   // The resting FAB wears the shell FAB's own colors per skin.
   const fabBackground = skinTokens.isStainedGlass ? "#1E1811" : skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary;
   const fabInk = skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF";
@@ -922,9 +925,11 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
           the shell hides the bar on onComposeChange — and the box
           rides the keyboard via morphKeyboardLift, keeping v196's
           "never type blind" rule. Tap-out (the clear backdrop),
-          posting, or the close button folds it back. The box is
-          CLEAR: a frosted BlurView at 90% surface, no solid strip
-          under anything, in any state. v202/v203's entrance kits
+          posting, or the close button folds it back. v213: the
+          box is SOLID — the Journal's surface at full opacity
+          (composerBackground above); v204's frost read on his
+          phone as a grey slab with the feed ghosting through.
+          v202/v203's entrance kits
           still wrap the mount (PaperSettle/BitSettle), so under
           Paper the whole thing settles in, under 8-bit it snaps. */}
       {composing ? (
@@ -932,12 +937,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
       ) : null}
       <PaperSettle style={[styles.composerWrap, { zIndex: 30 }]}>
 <BitSettle>
-        <ReAnimated.View style={[styles.morph, morphStyle, { borderColor: momentsBorder }]}>
-          <BlurView
-            intensity={skinTokens.isTerminal || skinTokens.isEightBit || skinTokens.isStainedGlass ? 0 : 55}
-            tint={isSkinned ? "light" : "dark"}
-            style={[StyleSheet.absoluteFill, { backgroundColor: frostBackground }]}
-          />
+        <ReAnimated.View style={[styles.morph, morphStyle, { borderColor: momentsBorder, backgroundColor: composerBackground }]}>
           <ReAnimated.View
             pointerEvents={composing ? "auto" : "none"}
             style={[styles.morphContent, { width: windowWidth - 20 }, morphContentStyle]}

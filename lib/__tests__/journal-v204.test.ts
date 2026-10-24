@@ -311,8 +311,9 @@ describe("v204 — flat composition + the morph (source pins)", () => {
     // Tap-out backdrop + close affordance both fold the morph.
     expect(tab).toContain("styles.composeBackdrop");
     expect(tab).toContain('accessibilityLabel="Close composer"');
-    // CLEAR box: Classic frost is the surface at 90%, never solid.
-    expect(tab).toContain("${colors.surface}E6");
+    // The box's ground (v213 reversed this pin — the CLEAR box
+    // is now SOLID; see the v213 block at the end of this file).
+    expect(tab).toContain("backgroundColor: composerBackground");
     // The entrance kits still wrap the mount (v202/v203 contract).
     expect(tab).toContain("<PaperSettle style={[styles.composerWrap,");
     // Picks are wired: suggestions computed from the token at the cursor.
@@ -334,5 +335,55 @@ describe("v204 — flat composition + the morph (source pins)", () => {
   it("the tag page titles a place's page with the place's real name", () => {
     const sheets = read("components/journal-sheets.tsx");
     expect(sheets).toContain("placeNameForTag(entries, tag)");
+  });
+});
+
+// v213 — the composer, de-greyed. Jonathan, Oct 23, from his
+// phone with the v204 composer open over the feed: "the grey
+// doesn't really work here in the status update..." The frost
+// (surface at 90% over a blur layer; translucent white under
+// Paper) rendered as a muddy grey slab with feed text ghosting
+// through. The box is now SOLID — the Journal's own surface
+// language at full opacity. These pins hold that.
+describe("v213 — the composer is solid, no frost (source pins)", () => {
+  it("no blur layer anywhere in the Journal tab", () => {
+    const tab = read("components/prayer-journal-tab.tsx");
+    expect(tab).not.toContain("BlurView");
+    expect(tab).not.toContain("expo-blur");
+    expect(tab).not.toContain("frostBackground");
+  });
+
+  it("the composer ground is fully opaque in every skin branch — no alpha, no rgba", () => {
+    const tab = read("components/prayer-journal-tab.tsx");
+    expect(tab).not.toContain("${colors.surface}E6");
+    const ground = tab.slice(tab.indexOf("const composerBackground"), tab.indexOf("// The resting FAB"));
+    expect(ground).not.toContain("rgba");
+    expect(ground).not.toContain("E6");
+    // The ladder is the Journal's own chrome ladder (the head
+    // pill's): glass panel, terminal panel, then the surface
+    // token — momentsSurface, i.e. colors.surface, which is the
+    // light Journal white in light mode and the dark surface
+    // in dark mode.
+    expect(ground).toContain('"#241D33"');
+    expect(ground).toContain("TERM_PANEL");
+    expect(ground).toContain("momentsSurface");
+    expect(tab).toContain("const momentsSurface = colors.surface;");
+  });
+
+  it("the morph container itself paints the solid ground and keeps its lift shadow", () => {
+    const tab = read("components/prayer-journal-tab.tsx");
+    expect(tab).toContain("{ borderColor: momentsBorder, backgroundColor: composerBackground }");
+    const morph = tab.slice(tab.indexOf("morph: {"), tab.indexOf("morphContent:"));
+    expect(morph).toContain("shadowOpacity: 0.18");
+    expect(morph).toContain("elevation: 8");
+  });
+
+  it("composer text renders at full token opacity on the solid ground (unchanged tokens)", () => {
+    const tab = read("components/prayer-journal-tab.tsx");
+    expect(tab).toContain("placeholder=\"What's up?\"");
+    expect(tab).toContain("styles.composerInput, { color: ink }");
+    // The morph itself is untouched: same timing, same keyboard lift.
+    expect(tab).toContain("withTiming(composing ? 1 : 0, skinMotion.settle)");
+    expect(tab).toContain("morphKeyboardLift");
   });
 });

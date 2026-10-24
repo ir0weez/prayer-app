@@ -230,7 +230,7 @@ import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
 import { chapterStatus as v205ChapterStatus, loadStudyState as loadV205StudyState, type StudyState } from "@/lib/bible-v205/study";
-import { getReadingPosition } from "@/lib/bible-v205/position";
+import { getReadingPosition, personalStudyHeadline } from "@/lib/bible-v205/position";
 import { transitionChapterStatus } from "@/lib/bible-v205/rewards";
 import { CHAPTER_COUNTS as V205_CHAPTER_COUNTS, chapterCountFor as v205ChapterCountFor } from "@/lib/bible-v205/index";
 import { previewFor } from "@/lib/bible-v205/preview";
@@ -11877,7 +11877,13 @@ export function ScheduleTab({
           }
         }
       }
-      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: studyDoorway?.line ?? "Your Books", sub: studyDoorway?.sub ?? null, lastRead, preview, readTarget, currentBook: position.currentBook, backChapter } });
+      // v218: the headline line says where he IS — the reading
+      // position in the chapter page's format ("Leviticus ·
+      // Chapter 19"), from the same position object as readTarget
+      // so the line and the Read Chapter button always agree. The
+      // chapters-complete count survives only as the no-position
+      // fallback (a fresh profile with nothing chosen or read).
+      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: personalStudyHeadline(position, studyDoorway?.line ?? "Your Books"), sub: studyDoorway?.sub ?? null, lastRead, preview, readTarget, currentBook: position.currentBook, backChapter } });
     }
 
     // Add worship section as a direct display (not expandable)

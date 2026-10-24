@@ -71,7 +71,7 @@ import {
   STUDY_KEY,
   type StudyState,
 } from '../bible-v205/study';
-import { getReadingPosition, readingPositionDisplay } from '../bible-v205/position';
+import { getReadingPosition, personalStudyHeadline, readingPositionDisplay } from '../bible-v205/position';
 import {
   getCurrentBibleDisplay,
   getLastReadPosition,
@@ -1382,6 +1382,46 @@ describe('v211 — the box gets its buttons back; position lives in the new stor
     const profile = readFileSync(join(process.cwd(), 'app', 'profile.tsx'), 'utf8');
     expect(profile).toContain('getReadingPosition');
     expect(profile).toContain('position.currentBook');
+  });
+});
+
+describe('v218 — the Personal Study headline says where he is', () => {
+  it("Leviticus current, ch. 18 complete — the headline is 'Leviticus · Chapter 19', not the chapters-complete count", () => {
+    let state = seedStudyState();
+    state = setStudyCurrentBook(state, 'Leviticus');
+    for (let c = 1; c <= 18; c++) state = setChapterStatus(state, 'Leviticus', c, 'complete');
+    state = { ...state, lastRead: { book: 'Leviticus', chapter: 18, date: '2026-10-22' } };
+    const position = getReadingPosition(state);
+    // The headline reads the same target the Read Chapter button opens.
+    expect(position.target).toEqual({ book: 'Leviticus', chapter: 19 });
+    const headline = personalStudyHeadline(position, '77 chapters complete');
+    expect(headline).toBe('Leviticus · Chapter 19');
+    expect(headline).not.toContain('chapters complete');
+  });
+
+  it('no position at all (fresh profile) — the chapters-complete count line remains', () => {
+    const position = getReadingPosition(seedStudyState());
+    expect(position).toEqual({ currentBook: null, lastRead: null, target: null });
+    expect(personalStudyHeadline(position, '3 chapters complete')).toBe('3 chapters complete');
+    expect(personalStudyHeadline(position, 'Your Books')).toBe('Your Books');
+  });
+
+  it('the headline follows the position past a finished book, and rests on lastRead at the end of the canon', () => {
+    const genesisDone: StudyState = {
+      ...seedStudyState(),
+      lastRead: { book: 'Genesis', chapter: 50, date: '2026-10-01' },
+    };
+    const position = getReadingPosition(genesisDone);
+    expect(position.target).toEqual({ book: 'Exodus', chapter: 1 });
+    expect(personalStudyHeadline(position, '50 chapters complete')).toBe('Exodus · Chapter 1');
+    const canonEnd: StudyState = { ...seedStudyState(), lastRead: { book: 'Revelation', chapter: 22, date: '2026-10-01' } };
+    expect(getReadingPosition(canonEnd).target).toBeNull();
+    expect(personalStudyHeadline(getReadingPosition(canonEnd), '1189 chapters complete')).toBe('Revelation · Chapter 22');
+  });
+
+  it('the card wires its display line through personalStudyHeadline (source pin)', () => {
+    const src = readFileSync(join(process.cwd(), 'components', 'schedule-tab.tsx'), 'utf8');
+    expect(src).toContain('display: personalStudyHeadline(position, studyDoorway?.line ?? "Your Books")');
   });
 });
 

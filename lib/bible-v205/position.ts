@@ -57,3 +57,17 @@ export function readingPositionDisplay(position: ReadingPosition): string | null
   if (position.lastRead) return `${position.lastRead.book} ${position.lastRead.chapter}`;
   return null;
 }
+
+/** v218: the Personal Study card's headline line — where he IS, in
+ * the chapter page header's own format ("Leviticus · Chapter 19").
+ * The target chapter when there is one (the very chapter the card's
+ * Read Chapter button opens, so the two always agree — including
+ * when the target chained past a finished book), else the last
+ * chapter read. A profile with no position at all (nothing chosen,
+ * nothing read) keeps the caller's fallback line — the
+ * chapters-complete count. */
+export function personalStudyHeadline(position: ReadingPosition, fallback: string): string {
+  if (position.target) return `${position.target.book} · Chapter ${position.target.chapter}`;
+  if (position.lastRead) return `${position.lastRead.book} · Chapter ${position.lastRead.chapter}`;
+  return fallback;
+}

@@ -121,16 +121,18 @@ describe("8-bit coverage — v203 animation pass", () => {
     // Profile card (0) + all seven settings section cards keep
     // their cascade indices in the bit dialect too.
     expect((shell.match(/<BitSettle index=\{\d+\}>/g) ?? []).length).toBe(8);
-    // v216: the six slide-up sheets (profile editor, fast creator,
-    // family actions, theme, skin, app icon) no longer nest a
-    // flex:1 BitSettle — that wrapper sat in the indefinite-height
-    // chain that parked the sheets off-screen. The sheet box is
-    // definite now and the ScrollView carries the flex (pinned in
-    // sheets-rise-v216.test.ts); the settle wrapper itself is bare.
-    expect(count(shell, "<BitSettle style={{ flex: 1 }}>")).toBe(0);
-    // M3Dialog's card and the avatar composer card snap centered;
-    // v216 adds the six sheets' now-bare settle wrappers.
-    expect(count(shell, "<BitSettle>")).toBe(8);
+    // v216 gave the six slide-up sheets (profile editor, fast
+    // creator, family actions, theme, skin, app icon) definite-
+    // height boxes so they rise; v219 restored the flex:1
+    // BitSettle inside each — v216 had stripped it, leaving the
+    // flex:1 ScrollView in an auto-height wrapper where it
+    // collapsed and the sheets rose empty. Definite box above,
+    // flex:1 wrapper below, flex:1 ScrollView at the bottom of
+    // the chain (pinned in sheets-rise-v216.test.ts).
+    expect(count(shell, "<BitSettle style={{ flex: 1 }}>")).toBe(6);
+    // M3Dialog's card and the avatar composer card snap centered
+    // and keep their bare settle wrappers — they are not sheets.
+    expect(count(shell, "<BitSettle>")).toBe(2);
     expect(shell).toContain('<BitSettle style={{ alignItems: "center" }}>');
     // The people FAB depresses while pressed (scale rides inside).
     expect(shell).toContain("bitPressedSnap(skinTokens, pressed, [{ scale: 0.96 }])");
@@ -151,10 +153,10 @@ describe("8-bit coverage — v203 animation pass", () => {
     expect(profile).toContain('<BitSettle index={1} style={{ flexDirection: "row", gap: 10, flex: 1 }}>');
     expect(profile).toContain("<BitSettle index={2}>");
     expect(profile).toContain('<BitSettle index={3} style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>');
-    // v216: the profile fast sheet's BitSettle lost its flex:1
-    // too — its sheet box is definite and its ScrollView carries
-    // the flex now (see sheets-rise-v216.test.ts).
-    expect(count(profile, "<BitSettle style={{ flex: 1 }}>")).toBe(0);
+    // v219: the profile fast sheet's BitSettle carries flex:1
+    // again under its definite 92% box — the one flex:1 wrapper
+    // in the file (see sheets-rise-v216.test.ts).
+    expect(count(profile, "<BitSettle style={{ flex: 1 }}>")).toBe(1);
   });
 
   it("shared forms and menus snap as cartridges under 8-bit", () => {

@@ -1206,7 +1206,7 @@ export default function ProfileScreen() {
             resetFastCreator();
           }} />
           <PaperSettle style={styles.sheet}>
-<BitSettle>
+<BitSettle style={{ flex: 1 }}>
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => {
                 setShowFastCreator(false);
@@ -1791,6 +1791,12 @@ const styles = StyleSheet.create({
     // shell's themeSheet. This sheet carried the identical
     // indefinite-height chain (content-measured box, flex:1
     // settle wrapper, ScrollView) and would sink the same way.
+    // v219: keep the flex chain under this box — flex:1 on the
+    // BitSettle wrapper and on the ScrollView. Stripping the
+    // wrapper's flex (v216's first pass) left the ScrollView in
+    // an auto-height parent, where it collapses and the sheet
+    // renders empty. Never flex on THIS box: it would override
+    // the 92% height and fill the screen.
     height: "92%",
     maxHeight: "92%",
     paddingHorizontal: 22,

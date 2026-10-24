@@ -3500,7 +3500,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowProfileEditor(false)} />
           <PaperSettle style={styles.themeSheet}>
-<BitSettle>
+<BitSettle style={{ flex: 1 }}>
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowProfileEditor(false)}><Text style={styles.sheetDone}>Cancel</Text></Pressable>
               <Text style={styles.sheetTitle}>Edit Profile</Text>
@@ -3526,7 +3526,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }} />
           <PaperSettle style={[styles.themeSheet, styles.fastCreatorSheet]}>
-<BitSettle>
+<BitSettle style={{ flex: 1 }}>
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }}><MaterialIcons name={iconName("close")} size={30} color={colors.foreground} /></Pressable>
               <Text style={styles.sheetTitle}>{editingFastId ? "Edit Fast" : "Start a New Fast"}</Text>
@@ -3581,7 +3581,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setFamilyActionMembers(null)} />
           <PaperSettle style={[styles.themeSheet, { paddingBottom: 24 }]}>
-<BitSettle>
+<BitSettle style={{ flex: 1 }}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{familyActionMembers?.[0]?.familyName || "Family"}</Text>
               <Pressable onPress={() => setFamilyActionMembers(null)}><MaterialIcons name={iconName("close")} size={26} color={colors.foreground} /></Pressable>
@@ -3628,7 +3628,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowThemeSheet(false)} />
           <PaperSettle style={styles.themeSheet}>
-<BitSettle>
+<BitSettle style={{ flex: 1 }}>
             {skinTokens.cardShadow ? <PaperGrainOverlay /> : null}
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowThemeSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
@@ -3674,7 +3674,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowSkinSheet(false)} />
           <PaperSettle style={styles.themeSheet}>
-<BitSettle>
+<BitSettle style={{ flex: 1 }}>
             {skinTokens.cardShadow ? <PaperGrainOverlay /> : null}
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowSkinSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
@@ -3716,7 +3716,7 @@ export default function HomeScreen() {
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowAppIconSheet(false)} />
           <PaperSettle style={styles.themeSheet}>
-<BitSettle>
+<BitSettle style={{ flex: 1 }}>
             <View style={styles.sheetHeader}>
               <Pressable onPress={() => setShowAppIconSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
               <Text style={styles.sheetTitle}>App Icon</Text>
@@ -5077,7 +5077,9 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
   },
   fastCreatorSheet: {
     // v216: the fast sheet is themeSheet's taller variant — its
-    // definite box is 92%, matching its cap.
+    // definite box is 92%, matching its cap. v219: same flex
+    // chain rule as themeSheet (see its comment) — flex:1 on the
+    // BitSettle wrapper and the ScrollView under this box.
     height: "92%",
     maxHeight: "92%",
   },
@@ -5365,9 +5367,17 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     // inner view around a ScrollView — an indefinite-height chain
     // that resolved wrong at the modal's first layout and parked
     // every sheet off-screen at the bottom ("It never rises at
-    // all"). Now the sheet resolves at 72% against sheetOverlay,
-    // the header takes its natural height, and the ScrollView is
-    // the flex child that absorbs the rest.
+    // all"). The sheet now resolves at 72% against sheetOverlay.
+    // v219: the flex chain UNDER the box is load-bearing, do not
+    // strip it again. v216 also removed flex:1 from the inner
+    // BitSettle and put it on the ScrollView alone — but a flex:1
+    // ScrollView inside an auto-height wrapper collapses to zero
+    // height, so the sheets rose EMPTY (header only, no rows).
+    // The rule: definite height on THIS box (never flex — flex:1
+    // here would override the 72% and fill the screen), then
+    // flex:1 on the BitSettle wrapper, flex:1 on the ScrollView:
+    // the header takes its natural height and the ScrollView
+    // absorbs the rest. Same chain as journal-sheets' SheetShell.
     height: "72%",
     maxHeight: "72%",
     paddingBottom: 28,

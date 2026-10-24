@@ -88,6 +88,7 @@ import { AuthorPicker, LivingBubbles, kindLabelFor, type BloomTiming } from './b
 import { IndexSheet } from './index-sheet';
 import { StoriesView } from './stories-view';
 import { chapterLabel, rangeLabel, tintWashFor, useBiblePalette, verseTintFor, type BiblePalette } from './palette';
+import { getDevotional } from '@/lib/devotionals';
 
 export interface ChapterPageProps {
   book: string;
@@ -98,6 +99,9 @@ export interface ChapterPageProps {
   onOpenBook: () => void;
   onOpenQueue: () => void;
   onNavigateChapter: (chapter: number) => void;
+  /** v230: open the devotional listen screen (only wired when the
+   * devotional registry has an entry for this chapter). */
+  onListen?: () => void;
 }
 
 /** App-level read-mode preference ("With notes" is the default). */
@@ -108,6 +112,8 @@ export function ChapterPageView(props: ChapterPageProps) {
   // v207: top safe-area inset, as the rest of the app applies.
   const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
+  // v230: this chapter's devotional, if the registry carries one.
+  const devotional = useMemo(() => getDevotional(book, chapter), [book, chapter]);
   const { skin, motion: skinMotion, isSkinned } = useSkin();
   // v222: studio-imported chapter data (Settings → DATA → Import studio
   // pack), when one exists for this chapter; the shipped chapter stands
@@ -534,6 +540,19 @@ export function ChapterPageView(props: ChapterPageProps) {
               <Text style={[styles.modeBtnText, { color: readOnly ? '#FFFFFF' : palette.inkSoft }]}>Read only</Text>
             </Pressable>
           </View>
+          {/* v230: the Listen door — exists ONLY when the devotional
+              registry carries this chapter (purely registry-driven). */}
+          {props.onListen && devotional ? (
+            <Pressable
+              onPress={props.onListen}
+              hitSlop={8}
+              style={[styles.listenBtn, { backgroundColor: palette.rasp }]}
+              accessibilityLabel={`Listen — ${devotional.title}`}
+            >
+              <MaterialIcons name="play-arrow" size={15} color="#FFFFFF" />
+              <Text style={styles.listenBtnText}>Listen</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -1261,8 +1280,10 @@ const styles = StyleSheet.create({
   keptPillText: { fontSize: 11.5, fontWeight: '800' },
   progressTrack: { height: 3 },
   progressFill: { height: 3 },
-  modeRow: { alignItems: 'center', paddingTop: 8, paddingBottom: 2 },
+  modeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 8, paddingBottom: 2 },
   modeSeg: { flexDirection: 'row', borderWidth: 1, borderRadius: 999, padding: 2, gap: 2 },
+  listenBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, borderRadius: 999, paddingVertical: 5, paddingLeft: 8, paddingRight: 12 },
+  listenBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
   modeBtn: { borderRadius: 999, paddingVertical: 5, paddingHorizontal: 14 },
   modeBtnText: { fontSize: 12, fontWeight: '700' },
   page: { paddingHorizontal: 20, paddingTop: 0, paddingBottom: 8 },

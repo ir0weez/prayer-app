@@ -20,6 +20,7 @@ export default function BibleChapterScreen() {
       onBack={() => router.back()}
       onOpenBook={() => router.push({ pathname: '/bible-book', params: { book } })}
       onOpenQueue={() => router.push('/bible-queue')}
+      onListen={() => router.push({ pathname: '/devotional', params: { book, chapter: String(chapter) } })}
       onNavigateChapter={(next) =>
         router.replace({ pathname: '/bible-chapter', params: { book, chapter: String(next) } })
       }

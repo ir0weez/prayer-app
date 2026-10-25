@@ -321,9 +321,13 @@ describe('v244 — the component contracts', () => {
     expect(bubblesSrc).toContain("line.source !== 'quote'");
   });
 
-  it('the page wires it: head measured, page scroll locked while open, authored quotes leave the block flow', () => {
+  it('the page wires it: head measured, authored quotes leave the block flow', () => {
     expect(pageSrc).toContain('versesBottom={headH}');
-    expect(pageSrc).toContain('scrollEnabled={!openBubblesKey}');
+    // RE-BASED by v249 (his ruling, 2026-10-25 15:17): the v244
+    // page-scroll lock (`scrollEnabled={!openBubblesKey}`) is GONE —
+    // the page scrolls while a thread is open. The lock's own pin
+    // now lives in bible-v249-open-scroll.test.ts.
+    expect(pageSrc).not.toContain('scrollEnabled={!openBubblesKey}');
     expect(pageSrc).toContain("b.kind === 'quote' && b.authorId");
     // The head inset grew with the faces: 48 → 66.
     expect(pageSrc).toContain('entryHeadBubbled: { paddingRight: 66 }');

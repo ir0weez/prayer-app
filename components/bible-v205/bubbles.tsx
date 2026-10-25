@@ -33,6 +33,26 @@
 // verses zone itself, which stays crisp. Studio quote blocks that
 // carry a speaker id join the margin as quote bubbles (edited in the
 // studio — no pencil here).
+// v249 "Scroll While It's Open" (his rulings, 2026-10-25 15:17 +
+// 15:21): the page is no longer scroll-locked while a thread is open
+// (the lock lived in the chapter page) — the whole layer already
+// rides in the page's content coordinates, anchored to its entry, so
+// it scrolls with the chapter and stays on its verses. A quick tap
+// anywhere outside the open cards folds the thread (the blur strips,
+// plus a catcher over the thread's own band for the slivers beside
+// the cards); a drag is the page's scroll, never a tap — every close
+// path here is a plain Pressable onPress, which the page ScrollView's
+// gesture negotiation cancels the moment a drag becomes a scroll.
+// The faces also get a dependable hit target of their own: a real
+// Pressable over the closed stack (below), so a tap on a face can
+// never leak through to the verse row's toggle, and every toggle in
+// this layer is a SET (open means open, close means close) — a press
+// landing mid-bloom re-aims the morph at the last intent instead of
+// racing it. And the open card's corner radius now lives in its
+// STATIC style too: on Android the elevation shadow's silhouette is
+// drawn from the static outline, so the animated-only radius left
+// the shadow SQUARE — grey patches at the card's bottom corners
+// (the same disease the seed's static radius cured in v244).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -56,6 +76,7 @@ import type { Person } from '@/lib/prayercircle-data';
 import {
   bubbleDock,
   conversationViewport,
+  faceStackHitBox,
   openCardWidth,
   resolveBubbleAuthor,
   type BubbleKind,
@@ -70,6 +91,9 @@ import type { BiblePalette } from './palette';
 export const FACE_SIZE = 51;
 const CARD_GAP = 10;
 const STACK_STEP = 28;
+/** The closed stack's vertical cascade step (each face sits 3px
+ * below the one above it — the morph's closed `top` per index). */
+const STACK_TOP_STEP = 3;
 const ANCHOR_TOP = 12;
 const STAGGER_MS = 110;
 /** The open thread's clearance from the verses it hangs on. */
@@ -227,7 +251,7 @@ function MorphCard(props: {
       width: interpolate(p, [0, 1], [FACE_SIZE, props.cardW]),
       height: interpolate(p, [0, 1], [FACE_SIZE, Math.max(FACE_SIZE, props.naturalHeight)]),
       borderRadius: interpolate(p, [0, 1], [FACE_SIZE / 2, 16]),
-      top: interpolate(p, [0, 1], [props.index * 3, props.openTop]),
+      top: interpolate(p, [0, 1], [props.index * STACK_TOP_STEP, props.openTop]),
       right: interpolate(p, [0, 1], [props.closedRight, props.openRight]),
       // v244: NO shadow at rest (the seed wears the face's own round
       // shadow) — the card's big soft shadow fades in with the bloom.
@@ -403,7 +427,7 @@ export function LivingBubbles(props: {
     gap: DOCK_GAP,
   });
   const openRegionTop = dock === 'below' ? headBottom + DOCK_GAP : -(regionHeight + DOCK_GAP);
-  const closedRegionH = FACE_SIZE + 3 * Math.max(0, count - 1) + 2;
+  const closedRegionH = FACE_SIZE + STACK_TOP_STEP * Math.max(0, count - 1) + 2;
 
   const regionStyle = useAnimatedStyle(() => {
     const p = progresses[0]?.value ?? 0;
@@ -426,13 +450,36 @@ export function LivingBubbles(props: {
   const showSpan = piece.start !== piece.parentStart || piece.end !== piece.parentEnd;
   const spanText = showSpan ? spanLabelFor(piece.start, piece.end) : null;
 
+  // v249: every toggle in this layer is a SET, never a flip of the
+  // possibly-stale `open` prop — a press is an intent ("open" /
+  // "close"), and the chapter page's key either already says it
+  // (idempotent: the drive effect below dedupes on the prop it last
+  // applied) or moves to it, re-aiming any in-flight morph from its
+  // current progress. Rapid taps converge on the last intent; no
+  // press can reverse a bloom by re-reading a state the previous
+  // press already changed.
+  const requestToggle = (next: boolean) => props.onToggle(next);
+
   // v244: while a thread is open the chapter behind it BLURS — two
   // expo-blur strips, one from the screen's top down to this entry,
   // one from the foot of its verses to the screen's bottom. The
   // verses zone between them is never covered: the verses stay
   // crisp and readable while everything else softens. A tap on
   // either strip folds the thread back (the v214 scrim's job, kept).
+  // v249: the page scrolls while the thread is open, and the strips
+  // ride in content coordinates with it — so each strip over-covers
+  // by a screenful (the top strip reaches a screen ABOVE the
+  // viewport's top at open time, the bottom strip runs two screens
+  // down), keeping the greyout and the tap-to-close whole across a
+  // screen of scroll travel in either direction.
   const blurTint = palette.isDark ? 'dark' : 'light';
+  // v249: the closed stack's tap target — the union of the cascade.
+  const hitBox = faceStackHitBox({
+    count,
+    faceSize: FACE_SIZE,
+    stackStepX: STACK_STEP,
+    stackStepY: STACK_TOP_STEP,
+  });
   return (
     <>
       {open ? (
@@ -441,20 +488,57 @@ export function LivingBubbles(props: {
             <Pressable
               style={[
                 styles.blurStrip,
-                { top: -props.entryScreenTop, height: props.entryScreenTop, left: -20, width: window.width },
+                {
+                  top: -(props.entryScreenTop + window.height),
+                  height: props.entryScreenTop + window.height,
+                  left: -20,
+                  width: window.width,
+                },
               ]}
-              onPress={() => props.onToggle(false)}
+              onPress={() => requestToggle(false)}
             >
               <BlurView intensity={BLUR_INTENSITY} tint={blurTint} style={StyleSheet.absoluteFill} />
             </Pressable>
           ) : null}
           <Pressable
-            style={[styles.blurStrip, { top: headBottom, height: window.height, left: -20, width: window.width }]}
-            onPress={() => props.onToggle(false)}
+            style={[styles.blurStrip, { top: headBottom, height: window.height * 2, left: -20, width: window.width }]}
+            onPress={() => requestToggle(false)}
           >
             <BlurView intensity={BLUR_INTENSITY} tint={blurTint} style={StyleSheet.absoluteFill} />
           </Pressable>
+          {/* v249: the tap catcher over the thread's own band. The
+              strips cover above and below, but the band the cards
+              sit in belongs to the (box-none) region — a tap in the
+              slivers beside a card would otherwise fall through to
+              the verses. The catcher wears the region's own animated
+              geometry, sits under the cards (zIndex 15 < the
+              region's 26), and closes on a tap like the strips do.
+              It is a plain Pressable: a drag starting here is
+              claimed by the page ScrollView as a scroll and the
+              press is cancelled — a scroll never closes the thread. */}
+          <ReAnimated.View style={[styles.tapCatcher, regionStyle]} pointerEvents="box-none">
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => requestToggle(false)} />
+          </ReAnimated.View>
         </>
+      ) : null}
+      {/* v249: the faces' own hit target — a real Pressable over the
+          closed stack, riding ABOVE the entry head (zIndex 30), so
+          a tap on a face is the face's press and can never leak
+          through to the verse row's expand/collapse toggle beneath
+          it (his video, 2026-10-25 15:21: face taps kept flipping
+          the verse row instead). It lives outside the region
+          ScrollView, whose nested gesture handling made the buried
+          card Pressable finicky, and it asks for OPEN by name —
+          never a flip of current state. While the thread is open
+          it stands down; the cards' own presses carry the close. */}
+      {!open ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open the notes on these verses"
+          style={[styles.faceHit, { top: ANCHOR_TOP, right: 0, width: hitBox.width, height: hitBox.height }]}
+          hitSlop={6}
+          onPress={() => requestToggle(true)}
+        />
       ) : null}
       <ReAnimated.ScrollView
         style={[styles.region, regionStyle]}
@@ -482,7 +566,7 @@ export function LivingBubbles(props: {
               openTop={openTops[i]}
               naturalHeight={heights[i]}
               spanText={spanText}
-              onPressCard={() => props.onToggle(!open)}
+              onPressCard={() => requestToggle(false)}
               onEdit={() => props.onEditLine(i)}
               onRemove={() => props.onRemoveLine(i)}
               onMeasure={(h) =>
@@ -607,10 +691,27 @@ const styles = StyleSheet.create({
   // v244: the blur strips sit where the 5% scrim sat (zIndex 14,
   // under the region's 26) but carry a real BlurView each.
   blurStrip: { position: 'absolute', zIndex: 14 },
+  // v249: the band tap catcher — over the strips (14), under the
+  // region's cards (26); its geometry is the region's animated
+  // style, applied alongside this static frame.
+  tapCatcher: { position: 'absolute', left: 0, right: 0, zIndex: 15 },
+  // v249: the closed faces' dedicated hit target — above the entry
+  // head and the region alike, exactly the stack's cascade box.
+  faceHit: { position: 'absolute', zIndex: 30 },
   region: { position: 'absolute', left: 0, right: 0, zIndex: 26 },
   card: {
     position: 'absolute',
     overflow: 'hidden',
+    // v249: the radius lives in the STATIC style too (16 = the open
+    // resting radius the animated style lands on). Android draws the
+    // elevation shadow's silhouette from the static outline — with
+    // the radius only in the animated style the silhouette stayed
+    // SQUARE and the open card wore grey patches at its bottom
+    // corners. The animated style still owns the drawn radius frame
+    // by frame (it interpolates 25.5 → 16 over this one); the static
+    // value only teaches the shadow the card's true shape — the
+    // same cure the seed got in v244.
+    borderRadius: 16,
     borderWidth: 1.5,
     shadowColor: 'rgba(50,25,35,1)',
     shadowOffset: { width: 0, height: 10 },

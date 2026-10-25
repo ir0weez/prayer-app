@@ -301,6 +301,29 @@ export function bubbleDock(input: {
   return aboveSpace > belowSpace ? 'above' : 'below';
 }
 
+/**
+ * v249: the closed face stack's hit box. The faces cascade — each
+ * disc steps left and down from the one above it — so the dependable
+ * tap target is the UNION of the cascade, not any single disc: a
+ * tap anywhere on the visible stack lands on the target, and the
+ * target (a real Pressable riding above the entry head) never leaks
+ * through to the verse row's expand/collapse toggle underneath.
+ */
+export function faceStackHitBox(input: {
+  count: number;
+  faceSize: number;
+  /** Horizontal cascade step between stacked faces. */
+  stackStepX: number;
+  /** Vertical cascade step between stacked faces. */
+  stackStepY: number;
+}): { width: number; height: number } {
+  const n = Math.max(1, Math.floor(input.count));
+  return {
+    width: input.faceSize + (n - 1) * input.stackStepX,
+    height: input.faceSize + (n - 1) * input.stackStepY,
+  };
+}
+
 // ─── Scroll cap — the open conversation never outgrows the screen ───────────
 
 /**

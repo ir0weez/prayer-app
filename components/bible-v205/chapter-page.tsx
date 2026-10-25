@@ -567,11 +567,14 @@ export function ChapterPageView(props: ChapterPageProps) {
         ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={styles.page}
-        // v244: while a bubble thread is open the page holds still —
-        // the blur strips and the dock are computed against this
-        // scroll position, and the thread's own region scrolls
-        // internally when it needs to.
-        scrollEnabled={!openBubblesKey}
+        // v249 (his ruling, 2026-10-25 15:17): the page scrolls
+        // while a bubble thread is open — the v244 lock is gone.
+        // The bubble layer rides in this content's own coordinates,
+        // anchored to its entry, so it travels with the chapter and
+        // stays on its verses; the blur strips over-cover so the
+        // greyout and tap-to-close survive the travel, and the
+        // thread's own region still scrolls internally when a
+        // conversation is tall.
         onScroll={(e) => {
           const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
           viewHeight.current = layoutMeasurement.height;

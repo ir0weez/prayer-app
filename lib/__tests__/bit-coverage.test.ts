@@ -40,7 +40,12 @@ describe("8-bit coverage — v203 animation pass", () => {
     // optional, unset at every pre-v215 call site.)
     expect(kit).toContain("if (!isEightBit)");
     expect(kit).toContain("return <View style={style} pointerEvents={pointerEvents}>{children}</View>");
-    expect(kit).toContain("return <Animated.View style={[style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>");
+    // (v247 re-base, ruling cited in place — mirrors the Paper kit:
+    // the animated branch's style now LEADS with
+    // `screenRoot ? { flex: 1 } : null`, the blank Bible's second
+    // gate; non-roots get null, card layout unchanged. See
+    // hidden_files/blank-bible-diagnosis.md, v247 addendum.)
+    expect(kit).toContain("return <Animated.View style={[screenRoot ? { flex: 1 } : null, style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>");
     // The snap shrinks FROM the skin's own button shadow: the
     // kit's rest string and the bit button style's shadow are one
     // string (4px hard block in BIT_SHADOW_HEX).

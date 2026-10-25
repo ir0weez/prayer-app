@@ -153,7 +153,12 @@ export function PaperSettle({
   if (!isPaper) {
     return <View style={style} pointerEvents={pointerEvents}>{children}</View>;
   }
-  return <Animated.View style={[style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>;
+  // v247: a screenRoot wrapper must itself take the screen's size —
+  // its child is a bare flex:1 root, and Yoga resolves an auto-height
+  // wrapper from the child's flexBasis 0, collapsing the root to
+  // height 0 (the blank Bible's second gate). flex:1 on the wrapper
+  // gives the child a definite parent to fill.
+  return <Animated.View style={[screenRoot ? { flex: 1 } : null, style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>;
 }
 
 /**

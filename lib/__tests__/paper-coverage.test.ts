@@ -216,7 +216,13 @@ describe("Paper coverage — v202 animation pass", () => {
     // behavior is byte-identical there too.)
     expect(kit).toContain("if (!isPaper)");
     expect(kit).toContain("return <View style={style} pointerEvents={pointerEvents}>{children}</View>");
-    expect(kit).toContain("return <Animated.View style={[style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>");
+    // (v247 re-base, ruling cited in place: the animated branch's
+    // style now LEADS with `screenRoot ? { flex: 1 } : null` — the
+    // second gate of the blank Bible: a screenRoot wrapper must
+    // size itself for its bare flex:1 child, or Yoga collapses it
+    // to height 0. Non-roots get null, so card layout is unchanged.
+    // See hidden_files/blank-bible-diagnosis.md, v247 addendum.)
+    expect(kit).toContain("return <Animated.View style={[screenRoot ? { flex: 1 } : null, style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>");
     // The lift grows FROM the skin's own button shadow: the kit's
     // rest string and the Paper token's buttonShadow are one string
     // (the token composes it with PAPER_SHADOW_ALPHA = 0.28).

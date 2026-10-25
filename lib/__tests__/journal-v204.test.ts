@@ -414,7 +414,11 @@ describe("v215 — the composer wrap is box-none; the feed and the backdrop are 
       const kit = read(kitPath);
       expect(kit).toContain('pointerEvents?: "auto" | "none" | "box-none" | "box-only";');
       expect(kit).toContain("return <View style={style} pointerEvents={pointerEvents}>{children}</View>");
-      expect(kit).toContain("return <Animated.View style={[style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>");
+      // (v247 re-base: the animated branch's style leads with
+      // `screenRoot ? { flex: 1 } : null` — the blank Bible's
+      // second gate — but pointerEvents is still forwarded on the
+      // branch, which is all this pin ever protected.)
+      expect(kit).toContain("return <Animated.View style={[screenRoot ? { flex: 1 } : null, style, animatedStyle]} pointerEvents={pointerEvents}>{children}</Animated.View>");
     }
   });
 

@@ -902,8 +902,10 @@ export function ChapterPageView(props: ChapterPageProps) {
     </View>
   );
 
-  if (skin === 'paper') return <PaperSettle>{content}</PaperSettle>;
-  if (skin === '8bit') return <BitSettle>{content}</BitSettle>;
+  // v246: screenRoot — a whole screen's paint is never gated on
+  // the settle's fade (see components/paper-motion.tsx).
+  if (skin === 'paper') return <PaperSettle screenRoot>{content}</PaperSettle>;
+  if (skin === '8bit') return <BitSettle screenRoot>{content}</BitSettle>;
   return content;
 }
 

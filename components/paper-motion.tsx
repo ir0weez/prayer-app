@@ -61,6 +61,17 @@ export function paperSettleDelay(index: number): number {
 interface PaperSettleProps {
   /** Position in a settling stack — staggers the landing. */
   index?: number;
+  /** v246: a WHOLE-SCREEN wrap. A screen root's entrance is
+   *  transform-only: the sheet still settles the skin's distance
+   *  onto the surface, but opacity is never animated, so the
+   *  screen's paint can never be gated on the animation completing.
+   *  (The Bible screens are the app's whole-screen settle roots;
+   *  under Paper their fade never landed on Jonathan's device and
+   *  the whole Bible section sat at opacity 0 — blank in light and
+   *  dark alike — while Classic/Terminal, which return the content
+   *  bare, painted fine. Card-level settles keep the full fade: a
+   *  stalled card costs a card, not a page.) */
+  screenRoot?: boolean;
   /** When this value changes, the sheet settles again (e.g. the
    *  schedule masthead re-lays itself when the day changes). */
   replayKey?: string | number;
@@ -90,21 +101,26 @@ export function PaperSettle({
   index = 0,
   replayKey,
   settle = true,
+  screenRoot = false,
   pointerEvents,
   style,
   children,
 }: PaperSettleProps) {
   const { isPaper, motion, tokens } = useSkin();
   const distance = tokens.motion.settleDistance;
-  const opacity = useSharedValue(isPaper && settle ? 0 : 1);
+  // v246: a screen root never starts invisible — its opacity is not
+  // part of the entrance at all (see the prop's note).
+  const opacity = useSharedValue(isPaper && settle && !screenRoot ? 0 : 1);
   const translateY = useSharedValue(isPaper && settle ? distance : 0);
   const hasMountedRef = useRef(false);
 
   const playSettle = () => {
     const delay = paperSettleDelay(index);
-    opacity.value = 0;
+    if (!screenRoot) {
+      opacity.value = 0;
+      opacity.value = withDelay(delay, withTiming(1, motion.settle));
+    }
     translateY.value = distance;
-    opacity.value = withDelay(delay, withTiming(1, motion.settle));
     translateY.value = withDelay(delay, withTiming(0, motion.settle));
   };
 
@@ -128,7 +144,9 @@ export function PaperSettle({
   }, [replayKey]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
+    // v246: screen roots pin opacity at 1 — the slide settles, the
+    // paint is never in question.
+    opacity: screenRoot ? 1 : opacity.value,
     transform: [{ translateY: translateY.value }],
   }));
 

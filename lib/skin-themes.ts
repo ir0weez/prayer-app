@@ -538,6 +538,36 @@ export function skinText(
   return lineHeight == null ? { fontSize: size } : { fontSize: size, lineHeight };
 }
 
+/**
+ * v246: the People list's top inset — the clearance its floating
+ * header needs. The header row (app/(tabs)/index.tsx) is absolutely
+ * positioned at top:12, and its pill is sized BY THE SKIN: the title
+ * and subtitle take the type scale's screenTitle/screenSubtitle
+ * (20/12 at base, 28/14 under Paper) and the pill's vertical padding
+ * grows by the scale's gapBoost. The list used to hardcode an 84px
+ * inset — a Classic-metrics number. Under Paper the pill's bottom
+ * edge lands at ~93px, so the first list content (the Pray Today
+ * header) slid underneath it and was half-covered (Jonathan's
+ * screenshot, Oct 25 11:21 PDT). The inset now derives from the same
+ * numbers that size the pill: top offset + pill height (vertical
+ * padding, title line, subtitle line, the subtitle's marginTop) + a
+ * breathing margin, and never less than the historical 84 — so
+ * Classic, 8-bit and Terminal keep exactly the clearance they have
+ * today, and a future type scale grows the clearance with the pill
+ * instead of colliding with it. Line heights are estimated at 1.3×
+ * the font size (RN's default leading for these faces runs ~1.2×;
+ * the estimate errs on the safe side and the margin absorbs the
+ * rest).
+ */
+export function peopleHeaderInset(type: SkinTypeTokens): number {
+  const titleSize = type.screenTitle ?? 20;
+  const subtitleSize = type.screenSubtitle ?? 12;
+  const padV = 10 + (type.gapBoost ?? 0);
+  const pillHeight =
+    padV * 2 + Math.ceil(titleSize * 1.3) + 1 + Math.ceil(subtitleSize * 1.3);
+  return Math.max(84, 12 + pillHeight + 8);
+}
+
 export type SkinTokens = {
   id: SkinThemeId;
   isPaper: boolean;

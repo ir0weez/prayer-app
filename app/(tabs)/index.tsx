@@ -187,7 +187,7 @@ import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/
 import { COINS_STORAGE_KEY, parseCoins, applyCoinsDelta } from "@/lib/hometown";
 import { awardXP, awardCustomXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
-import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, TERM_BG, TERM_DIM, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, getSkinThemeDefinition, normalizeSkinThemeId, skinText, termButtonInk, termButtonStyle, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
+import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, TERM_BG, TERM_DIM, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, getSkinThemeDefinition, normalizeSkinThemeId, peopleHeaderInset, skinText, termButtonInk, termButtonStyle, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 
@@ -2334,7 +2334,7 @@ export default function HomeScreen() {
         keyExtractor={(item) => item.key}
         ListHeaderComponent={<View>{renderPeoplePrayerHeader()}</View>}
         ListEmptyComponent={<View style={styles.emptyStateCard}><MaterialIcons name={iconName("groups")} size={46} color={colors.primary} /><Text style={styles.emptyTitle}>No people yet</Text><Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text></View>}
-        contentContainerStyle={[styles.peopleContent, { paddingTop: 84 }]}
+        contentContainerStyle={[styles.peopleContent, { paddingTop: peopleHeaderInset(skinTokens.type) }]}
         onScroll={handlePeopleScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}

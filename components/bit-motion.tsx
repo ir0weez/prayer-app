@@ -76,6 +76,17 @@ interface BitSettleProps {
   /** Render at rest with no snap — for rows that already carry
    *  their own entrance (a just-added schedule card, say). */
   settle?: boolean;
+  /** v246: a WHOLE-SCREEN wrap — the mirror of PaperSettle's
+   *  screenRoot. A screen root's entrance is transform-only: the
+   *  cartridge still snaps down the skin's distance in steps, but
+   *  opacity is never animated, so the screen's paint can never be
+   *  gated on the animation completing. (The Bible screens are the
+   *  app's whole-screen settle roots; under 8-bit their fade never
+   *  landed on Jonathan's device and the whole Bible section sat
+   *  at opacity 0 — blank in light and dark alike — while
+   *  Classic/Terminal, which return the content bare, painted
+   *  fine. Card-level settles keep the full fade.) */
+  screenRoot?: boolean;
   /** Hit-testing for the wrapper's own frame — the mirror of
    *  PaperSettle's prop (v215): "box-none" lets touches pass
    *  through the frame while children stay tappable (the
@@ -98,6 +109,7 @@ export function BitSettle({
   index = 0,
   replayKey,
   settle = true,
+  screenRoot = false,
   pointerEvents,
   style,
   children,
@@ -109,15 +121,19 @@ export function BitSettle({
     duration: tokens.motion.settleDuration,
     easing: Easing.steps(BIT_SETTLE_STEPS),
   };
-  const opacity = useSharedValue(isEightBit && settle ? 0 : 1);
+  // v246: a screen root never starts invisible — its opacity is not
+  // part of the entrance at all (see the prop's note).
+  const opacity = useSharedValue(isEightBit && settle && !screenRoot ? 0 : 1);
   const translateY = useSharedValue(isEightBit && settle ? distance : 0);
   const hasMountedRef = useRef(false);
 
   const playSnap = () => {
     const delay = bitSettleDelay(index);
-    opacity.value = 0;
+    if (!screenRoot) {
+      opacity.value = 0;
+      opacity.value = withDelay(delay, withTiming(1, stepTiming));
+    }
     translateY.value = distance;
-    opacity.value = withDelay(delay, withTiming(1, stepTiming));
     translateY.value = withDelay(delay, withTiming(0, stepTiming));
   };
 
@@ -141,7 +157,9 @@ export function BitSettle({
   }, [replayKey]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
+    // v246: screen roots pin opacity at 1 — the snap settles, the
+    // paint is never in question.
+    opacity: screenRoot ? 1 : opacity.value,
     transform: [{ translateY: translateY.value }],
   }));
 

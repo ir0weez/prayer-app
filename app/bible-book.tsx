@@ -403,8 +403,10 @@ export default function BibleBookScreen() {
       <BibleBookContent />
     </BibleScreenBoundary>
   );
-  if (skin === 'paper') return <PaperSettle>{guarded}</PaperSettle>;
-  if (skin === '8bit') return <BitSettle>{guarded}</BitSettle>;
+  // v246: screenRoot — a whole screen's paint is never gated on
+  // the settle's fade (see components/paper-motion.tsx).
+  if (skin === 'paper') return <PaperSettle screenRoot>{guarded}</PaperSettle>;
+  if (skin === '8bit') return <BitSettle screenRoot>{guarded}</BitSettle>;
   return guarded;
 }
 

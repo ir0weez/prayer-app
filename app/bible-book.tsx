@@ -9,7 +9,9 @@
 // strip's controls sit under two headers — YOUR STUDY (read, stories,
 // the read mark, the re-read queue) and YOUR COMMENTARY (the
 // notes-written pipeline) — his "separate what is commentary buttons
-// and what is personal study buttons."
+// and what is personal study buttons." v243: the screen's content
+// moved into BibleBookContent under the boundary (see the shell at
+// the foot of this file) so its computes render protected.
 
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -58,12 +60,11 @@ function editorChipColors(palette: BiblePalette, s: StudyStatus) {
           : { backgroundColor: palette.greyBg, borderColor: palette.greyBorder, color: palette.greyLabel };
 }
 
-export default function BibleBookScreen() {
+function BibleBookContent() {
   const router = useRouter();
   // v207: top safe-area inset, as the rest of the app applies.
   const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
-  const { skin } = useSkin();
   const params = useLocalSearchParams<{ book?: string }>();
   const book = typeof params.book === 'string' && params.book ? params.book : 'Genesis';
   const total = chapterCountFor(book);
@@ -383,9 +384,25 @@ export default function BibleBookScreen() {
     </View>
   );
 
-  // v241: same boundary as the Books view — a render failure lands
-  // on a visible fallback, never on a blank page.
-  const guarded = <BibleScreenBoundary>{content}</BibleScreenBoundary>;
+  return content;
+}
+
+export default function BibleBookScreen() {
+  const { skin } = useSkin();
+  // v243: the boundary wraps the content COMPONENT, not the JSX this
+  // screen used to build in its own body. Every per-chapter compute
+  // (displayOf over the imports map, the counts, the grid) runs while
+  // BibleBookContent renders — as a child of the boundary, a throw
+  // there lands on the visible fallback. In the v241 shape the same
+  // computes ran in the screen's own body while the boundary sat
+  // downstream as a child, where React cannot catch them — the Oct 25
+  // diagnosis named exactly that gap in this screen's blank-page
+  // blast radius. Settle wrappers keep their v241 nesting (outside).
+  const guarded = (
+    <BibleScreenBoundary>
+      <BibleBookContent />
+    </BibleScreenBoundary>
+  );
   if (skin === 'paper') return <PaperSettle>{guarded}</PaperSettle>;
   if (skin === '8bit') return <BitSettle>{guarded}</BitSettle>;
   return guarded;

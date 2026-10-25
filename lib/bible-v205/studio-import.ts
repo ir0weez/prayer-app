@@ -80,6 +80,7 @@ import type {
   V205BookData,
   V205ChapterData,
   V205Entry,
+  V205OutlineItem,
   V205Section,
 } from './types';
 import type { RelationshipType, ReminderFrequency } from '../prayercircle-data';
@@ -1114,12 +1115,179 @@ export type StudioImportsMap = Record<string, V205ChapterData>;
 
 export const studioImportKey = (book: string, chapter: number) => `${book}|${chapter}`;
 
+// ── v243: the stored map is sanitized at this read boundary ────────────────
+// Until v243, loadStudioImports handed the parsed JSON to consumers
+// verbatim, and consumers dereference the stored chapter shape
+// unconditionally (chapterDataHasNotes does e.blocks.length,
+// buildDisplaySections maps sections → entries → blocks, the chapter
+// page reads intro.length / outline.length). The Oct 25 blank-Bible
+// diagnosis proved the mechanism synthetically: one stored chapter
+// whose entries lack `blocks` throws inside those consumers — on the
+// chapter page (which wore no boundary) and in the Book screen's own
+// body (where its child boundary cannot catch) the throw unmounts the
+// screen onto the navigator's blank card. The door validates every
+// pack it applies, so a malformed record can only arrive from an older
+// writer — but the store outlives every writer. The trust boundary is
+// therefore HERE, at the loader (the diagnosis's prescription — never
+// `?.` scattered through consumers):
+//
+//   · a chapter override that fails the stored-shape validation is
+//     DROPPED — it degrades to "no import", and the chapter falls
+//     back to its shipped data. Nothing of his is asserted by a shape
+//     that cannot be read.
+//   · a field that is simply ABSENT (an older writer that never wrote
+//     outline/stories) is repaired with the empty default the
+//     converter itself would have written.
+//   · well-formed chapters pass through with their values intact —
+//     quote blocks keep their author, categories keep their meaning.
+//
+// Because every apply flow loads before it saves, the next save after
+// an upgrade persists the sanitized map: the store heals itself.
+
+/** The stored-block shape the door's validateBlock enforces: a record
+ * with a known kind, string text, and — when present — a category his
+ * color code knows. Anything else is not a block consumers may touch. */
+function isValidStoredBlock(v: unknown): v is V205Block {
+  if (!isRecord(v)) return false;
+  if (!BLOCK_KINDS.includes(v.kind as string)) return false;
+  if (typeof v.text !== 'string') return false;
+  if (
+    v.category !== undefined &&
+    v.category !== null &&
+    !NOTE_CATEGORIES.includes(v.category as NoteCategory)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function sanitizeStoredBlock(block: V205Block): V205Block {
+  const out: V205Block = { kind: block.kind, text: block.text };
+  if (typeof block.ref === 'string') out.ref = block.ref;
+  if (typeof block.authorName === 'string') out.authorName = block.authorName;
+  if (block.category) out.category = block.category;
+  return out;
+}
+
+function isValidSpan(v: unknown): v is { start: number; end: number } {
+  return (
+    isRecord(v) &&
+    isInt(v.start) &&
+    isInt(v.end) &&
+    (v.start as number) >= 1 &&
+    (v.end as number) >= (v.start as number)
+  );
+}
+
+/**
+ * One stored chapter, checked end to end. Returns the chapter to keep
+ * (values intact, absent fields defaulted) or null to drop the
+ * override. `keyChapter` is the chapter number the map key names —
+ * the lookup identity — and repairs a stored `chapter` field that
+ * disagrees with it.
+ */
+function sanitizeStoredChapter(raw: unknown, keyChapter: number): V205ChapterData | null {
+  if (!isRecord(raw)) return null;
+
+  // sections → entries → blocks: the crash surface, all-or-nothing.
+  if (!Array.isArray(raw.sections)) return null;
+  const sections: V205Section[] = [];
+  for (const s of raw.sections) {
+    if (!isRecord(s) || !Array.isArray(s.entries)) return null;
+    const title = typeof s.title === 'string' ? s.title : null;
+    const rawEntries = s.entries;
+    if (!isValidSpan(s)) return null;
+    const entries: V205Entry[] = [];
+    for (const e of rawEntries) {
+      if (!isRecord(e) || !Array.isArray(e.blocks)) return null;
+      const rawBlocks = e.blocks;
+      if (!isValidSpan(e)) return null;
+      if (!rawBlocks.every(isValidStoredBlock)) return null;
+      entries.push({ start: e.start, end: e.end, blocks: rawBlocks.map(sanitizeStoredBlock) });
+    }
+    sections.push({ start: s.start, end: s.end, title, entries });
+  }
+
+  // intro: absent → the converter's empty default; present must be
+  // blocks the page may map over (it reads .length and renders each).
+  let intro: V205Block[] = [];
+  if (raw.intro !== undefined) {
+    if (!Array.isArray(raw.intro) || !raw.intro.every(isValidStoredBlock)) return null;
+    intro = raw.intro.map(sanitizeStoredBlock);
+  }
+
+  let previously: string[] = [];
+  if (raw.previously !== undefined) {
+    if (!Array.isArray(raw.previously) || !raw.previously.every((p) => typeof p === 'string')) {
+      return null;
+    }
+    previously = [...(raw.previously as string[])];
+  }
+
+  let outline: V205OutlineItem[] = [];
+  if (raw.outline !== undefined) {
+    if (
+      !Array.isArray(raw.outline) ||
+      !raw.outline.every(
+        (o) => isRecord(o) && typeof o.title === 'string' && typeof o.range === 'string',
+      )
+    ) {
+      return null;
+    }
+    outline = (raw.outline as V205OutlineItem[]).map((o) => ({ title: o.title, range: o.range }));
+  }
+
+  let stories: { start: number; end: number }[] = [];
+  if (raw.stories !== undefined) {
+    if (!Array.isArray(raw.stories) || !raw.stories.every(isValidSpan)) return null;
+    stories = (raw.stories as { start: number; end: number }[]).map((r) => ({
+      start: r.start,
+      end: r.end,
+    }));
+  }
+
+  const clean: V205ChapterData = {
+    chapter: isInt(raw.chapter) ? raw.chapter : keyChapter,
+    intro,
+    previously,
+    outline,
+    sections,
+    stories,
+  };
+  if (raw.verses !== undefined) {
+    if (!isRecord(raw.verses) || !Object.values(raw.verses).every((t) => typeof t === 'string')) {
+      return null;
+    }
+    clean.verses = { ...(raw.verses as Record<number, string>) };
+  }
+  return clean;
+}
+
+/**
+ * The whole stored map, sanitized. Keys that cannot name a chapter
+ * (`Book|chapter`) and chapters that fail validation are dropped;
+ * everything else is kept. Exported for the v243 pins — the loader is
+ * its only production caller.
+ */
+export function sanitizeStudioImportsMap(parsed: unknown): StudioImportsMap {
+  if (!isRecord(parsed)) return {};
+  const out: StudioImportsMap = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    const cut = key.lastIndexOf('|');
+    if (cut <= 0) continue;
+    const keyChapter = Number(key.slice(cut + 1));
+    if (!Number.isInteger(keyChapter) || keyChapter < 1) continue;
+    const clean = sanitizeStoredChapter(value, keyChapter);
+    if (clean) out[key] = clean;
+  }
+  return out;
+}
+
 export async function loadStudioImports(): Promise<StudioImportsMap> {
   try {
     const raw = await AsyncStorage.getItem(STUDIO_IMPORT_KEY);
     if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return isRecord(parsed) ? (parsed as StudioImportsMap) : {};
+    return sanitizeStudioImportsMap(JSON.parse(raw));
   } catch {
     return {};
   }

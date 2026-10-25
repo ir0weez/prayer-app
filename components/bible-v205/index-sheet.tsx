@@ -79,7 +79,7 @@ export function IndexSheet(props: IndexSheetProps) {
   return (
     <Modal visible={props.visible} transparent animationType="slide" onRequestClose={props.onClose}>
       <Pressable style={styles.scrim} onPress={props.onClose} />
-      <View style={[styles.sheet, { backgroundColor: palette.paper }, palette.sheetDress]}>
+      <View style={[styles.sheet, { backgroundColor: palette.paper2 }, palette.sheetDress]}>
         <View style={[styles.handle, { backgroundColor: palette.lineDark }]} />
         <View style={styles.sheetHead}>
           <Text style={[styles.sheetTitle, { color: palette.ink }]}>
@@ -251,14 +251,16 @@ const styles = StyleSheet.create({
   sheetTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
   sheetSub: { fontWeight: '500', fontSize: 12.5 },
   searchRow: { marginTop: 12 },
-  searchInput: { borderWidth: 1.5, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 13, fontSize: 15 },
+  // v250: the sheets speak the Material system too — pill search,
+  // round result cards, rounder verse cells.
+  searchInput: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 16, fontSize: 15 },
   legend: { flexDirection: 'row', gap: 13, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' },
   legendItem: { fontSize: 11.5 },
   catFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
   catFilter: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
   catFilterText: { fontSize: 11, fontWeight: '700' },
   results: { marginTop: 4 },
-  sres: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', borderWidth: 1, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 8 },
+  sres: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', borderWidth: 1, borderRadius: 20, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 8 },
   sresGoto: { borderWidth: 1.5 },
   refchip: { fontWeight: '800', fontSize: 11.5, borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9, overflow: 'hidden', marginTop: 1 },
   rtxt: { fontSize: 13.5, lineHeight: 20 },
@@ -266,7 +268,7 @@ const styles = StyleSheet.create({
   nores: { fontSize: 13, paddingVertical: 8, paddingHorizontal: 2 },
   gridLabel: { marginTop: 16, fontSize: 10.5, letterSpacing: 1.6, textTransform: 'uppercase', fontWeight: '800' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 9 },
-  vcell: { width: '12.6%', borderWidth: 1, borderRadius: 10, paddingTop: 8, paddingBottom: 6, alignItems: 'center', gap: 1 },
+  vcell: { width: '12.6%', borderWidth: 1, borderRadius: 16, paddingTop: 8, paddingBottom: 6, alignItems: 'center', gap: 1 },
   vn: { fontSize: 16.5, fontWeight: '700', lineHeight: 19 },
   vm: { height: 13, flexDirection: 'row', gap: 3, alignItems: 'center' },
 });

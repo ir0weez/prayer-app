@@ -27,9 +27,9 @@ import {
 } from '@/lib/bible-v205/bubbles';
 import type { Person } from '@/lib/prayercircle-data';
 import { BlockView, CategoryTag, Ornament, SectionBand, SelfLineBlock } from './blocks';
-import { BubbleChatRow } from './bubbles';
+import { AuthorFace, BubbleChatRow, spanLabelFor } from './bubbles';
 import { entrySourceCategory } from '@/lib/bible-v205/categories';
-import { chapterLabel, rangeLabel, tintWashFor, verseTintFor, type BiblePalette } from './palette';
+import { chapterLabel, rangeLabel, sectionToneFor, tintWashFor, verseTintFor, type BiblePalette } from './palette';
 
 export interface StoriesViewProps {
   book: string;
@@ -142,13 +142,19 @@ export function StoriesView(props: StoriesViewProps) {
       const count = screens.filter(
         (s) => s.t !== 'section' && s.t !== 'cover' && s.t !== 'end' && sectionOf(s)?.start === screen.sectionStart,
       ).length;
+      // v250: the section divider wears the section's tonal card,
+      // the same card its verses sit in on the chapter page.
+      const tone = sectionToneFor(
+        palette,
+        Math.max(0, sections.findIndex((s) => s.start === screen.sectionStart)),
+      );
       return (
         <View style={[styles.screen, styles.centerScreen]}>
           <Text style={[styles.kicker, { color: palette.rasp, textAlign: 'center' }]}>
             Section {sectionIndex} of {sections.length}
           </Text>
-          <View style={{ marginTop: 14 }}>
-            <SectionBand start={screen.sectionStart} end={screen.sectionEnd} title={screen.title} palette={palette} />
+          <View style={[styles.secCardMini, { backgroundColor: tone.bg }]}>
+            <SectionBand start={screen.sectionStart} end={screen.sectionEnd} title={screen.title} palette={palette} tone={tone} />
           </View>
           <Text style={[styles.secSub, { color: palette.inkSoft }]}>
             {count} screens in this movement — verses, and notes where they were left.
@@ -168,11 +174,15 @@ export function StoriesView(props: StoriesViewProps) {
       // grouped records behind Read-only's per-verse entries).
       const tintFields = resolveTintFields(props.marks, book, chapter, e.start, e.end);
       const wash = tintWashFor(palette, tintFields.tint);
+      // v250: the verse screen's chip and verse numbers wear their
+      // section's tone — the same hue family as the chapter page.
+      const secIdx = sec ? sections.findIndex((s) => s.start === sec.start) : -1;
+      const tone = sectionToneFor(palette, secIdx >= 0 ? secIdx : 0);
       return (
         <View style={[styles.screen, wash ? { backgroundColor: wash } : null]}>
           <View>
-            <View style={[styles.secChip, { backgroundColor: palette.band }]}>
-              <Text style={[styles.secChipText, { color: palette.bandInk }]}>
+            <View style={[styles.secChip, { backgroundColor: tone.bg }]}>
+              <Text style={[styles.secChipText, { color: tone.deep }]}>
                 {(sec ? rangeLabel(sec.start, sec.end) : '') + (sec?.title ? ` · ${sec.title}` : '')}
               </Text>
             </View>
@@ -188,7 +198,7 @@ export function StoriesView(props: StoriesViewProps) {
                   key={v}
                   style={[styles.vline, { color: palette.ink }, md ? styles.vlineMd : null, verseBg ? { backgroundColor: verseBg } : null]}
                 >
-                  <Text style={[styles.vn, { color: palette.rasp }]}>{v} </Text>
+                  <Text style={[styles.vn, { color: tone.deep }]}>{v} </Text>
                   {verseText.get(v) ?? ''}
                 </Text>
               );
@@ -347,6 +357,15 @@ export function StoriesView(props: StoriesViewProps) {
               kind={line.kind}
               text={line.text}
               palette={palette}
+              authorName={resolveBubbleAuthor(line.author, props.people, props.profile).name}
+              face={
+                <AuthorFace
+                  author={resolveBubbleAuthor(line.author, props.people, props.profile)}
+                  size={34}
+                  palette={palette}
+                />
+              }
+              spanText={spanLabelFor(start, end)}
             />
           );
         })}
@@ -453,7 +472,7 @@ export function StoriesView(props: StoriesViewProps) {
 
       <Modal visible={overview} transparent animationType="slide" onRequestClose={() => setOverview(false)}>
         <Pressable style={styles.scrim} onPress={() => setOverview(false)} />
-        <View style={[styles.sheet, { backgroundColor: palette.paper }, palette.sheetDress]}>
+        <View style={[styles.sheet, { backgroundColor: palette.paper2 }, palette.sheetDress]}>
           <View style={[styles.handle, { backgroundColor: palette.lineDark }]} />
           <View style={styles.sheetHead}>
             <Text style={[styles.sheetTitle, { color: palette.ink }]}>
@@ -544,6 +563,9 @@ const styles = StyleSheet.create({
   leader: { flex: 1, borderBottomWidth: 1, borderStyle: 'dotted', minWidth: 14 },
   coverSecRange: { fontSize: 11.5 },
   secSub: { textAlign: 'center', fontSize: 13.5, lineHeight: 21, marginTop: 14, paddingHorizontal: 12 },
+  // v250: the section divider's mini card (the chapter page's
+  // section card, at divider scale).
+  secCardMini: { marginTop: 14, borderRadius: 28, paddingVertical: 14, paddingHorizontal: 18 },
   secChip: { alignSelf: 'flex-start', borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11 },
   secChipText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase' },
   refline: { fontSize: 12.5, fontWeight: '700', letterSpacing: 0.6, marginTop: 12, textTransform: 'uppercase' },
@@ -587,7 +609,7 @@ const styles = StyleSheet.create({
   sheetSub: { fontWeight: '500', fontSize: 12.5 },
   legend: { flexDirection: 'row', gap: 13, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' },
   ovgrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
-  ovcell: { width: '23%', borderWidth: 1, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 6, minHeight: 46, gap: 1 },
+  ovcell: { width: '23%', borderWidth: 1, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 6, minHeight: 46, gap: 1 },
   ovR: { fontSize: 13, fontWeight: '800', lineHeight: 15 },
   ovT: { fontSize: 9, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase' },
 });

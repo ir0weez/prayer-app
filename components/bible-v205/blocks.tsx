@@ -1,9 +1,18 @@
 // ─── v205 shared rendering: his blocks, bands, callouts, status chips ───────
+// v250 "The Bible, Material": the section band is now the head of a
+// big tonal section CARD (the card itself is laid out by the chapter
+// page / Stories), wearing the section's own derived hue; and his
+// own plain Note line is the mockup's filled seed card — face, name,
+// NOTE tag, span — the most colorful object on the page. The meaning
+// surfaces (Highlight gold, Main Thought grey, the category code)
+// keep their dress exactly.
 
+import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NoteCategory, StudyStatus, V205Block } from '@/lib/bible-v205/types';
 import { CATEGORY_META } from '@/lib/bible-v205/categories';
-import { rangeLabel, useBiblePalette, type BiblePalette } from './palette';
+import { rangeLabel, useBiblePalette, type BiblePalette, type BibleSectionTone } from './palette';
 
 /**
  * His color code made visible: a small labeled tag in the category's
@@ -30,26 +39,37 @@ export function Ornament({ palette }: { palette: BiblePalette }) {
   );
 }
 
+/**
+ * v250: the section card's head — the mockup's sechead, verbatim in
+ * shape: the section hue's dot, the range in strong ink, the title
+ * beside it, and the quiet chevron the mockup draws at the right.
+ * The tonal card around it is laid out by the caller (the chapter
+ * page's section wrap, the Stories section screen), in the tone
+ * passed here.
+ */
 export function SectionBand({
   start,
   end,
   title,
   palette,
+  tone,
 }: {
   start: number;
   end: number;
   title: string | null;
   palette: BiblePalette;
+  tone: BibleSectionTone;
 }) {
   return (
-    <View style={[styles.band, { backgroundColor: palette.band }]}>
-      <Text style={[styles.bandRange, { color: palette.bandInk }]}>{rangeLabel(start, end)}</Text>
+    <View style={styles.secHead}>
+      <View style={[styles.secDot, { backgroundColor: tone.hue }]} />
+      <Text style={[styles.secRange, { color: palette.ink }]}>{rangeLabel(start, end)}</Text>
       {title ? (
-        <>
-          <Text style={[styles.bandDot, { color: palette.bandDot }]}>·</Text>
-          <Text style={[styles.bandTitle, { color: palette.ink }]}>{title}</Text>
-        </>
+        <Text style={[styles.secTitle, { color: palette.ink }]} numberOfLines={1}>
+          {title}
+        </Text>
       ) : null}
+      <MaterialIcons name="expand-more" size={18} color={palette.inkFaint} style={styles.secChev} />
     </View>
   );
 }
@@ -131,26 +151,64 @@ export function BlockView({
 /**
  * v217: one of HIS OWN marks lines, rendered in the text flow (the
  * author split: his words live in the text; other people's words are
- * bubbles). Kind styling: a plain Note is the v210 bare inset text
- * and a Main Thought the pre-v214 grey callout — both exactly the
- * BlockView branches — while the Highlight wears the approved
+ * bubbles). Kind styling: a Main Thought keeps the pre-v214 grey
+ * callout (a meaning dress) and the Highlight wears the approved
  * in-flow mockup's block: pale yellow, radius 10, no border, the
- * small ✦ HIGHLIGHT label over 15.5px words.
+ * small ✦ HIGHLIGHT label over 15.5px words. v250: a plain Note —
+ * when the caller supplies its author's face — wears the Material
+ * makeover's filled seed card (below); without one it falls back
+ * to the v210 bare inset text. (This dresses his MARKS lines only;
+ * imported commentary note BLOCKS keep the v210 bare-text ruling
+ * in BlockView.)
  */
 export function SelfLineBlock({
   kind,
   text,
   palette,
+  authorName,
+  face,
+  spanText,
 }: {
   kind: 'note' | 'highlight' | 'thought';
   text: string;
   palette: BiblePalette;
+  /** v250: the author's name for the filled card's head. The face
+   * itself arrives as a rendered node — this module stays out of
+   * the bubbles component tree (its reanimated import is not every
+   * surface's to carry); both callers already render AuthorFace. */
+  authorName?: string;
+  face?: ReactNode;
+  /** v250: "on v. 11" — the span the line rides on, as drawn. */
+  spanText?: string;
 }) {
   if (kind === 'highlight') {
     return (
       <View style={[styles.selfHighlight, { backgroundColor: palette.yellowBg }]}>
         <Text style={[styles.selfHighlightLabel, { color: palette.yellowLabel }]}>✦ Highlight</Text>
         <Text style={[styles.selfHighlightText, { color: palette.yellowInk }]}>{text}</Text>
+      </View>
+    );
+  }
+  if (kind === 'note' && face) {
+    // v250: his own Note is the mockup's filled card — the seed
+    // itself, his face ringed in white, his name, the NOTE tag in
+    // pale seed tonal, the span in the card's softer ink. The most
+    // colorful object on the page, in every palette he picks.
+    return (
+      <View style={[styles.selfNote, { backgroundColor: palette.noteFill }, palette.noteDress]}>
+        <View style={styles.selfNoteHead}>
+          <View style={styles.selfNoteFaceRing}>{face}</View>
+          <Text style={[styles.selfNoteName, { color: palette.noteInk }]} numberOfLines={1}>
+            {authorName ?? ''}
+          </Text>
+          <View style={[styles.selfNoteTag, { backgroundColor: palette.noteTagBg }]}>
+            <Text style={[styles.selfNoteTagText, { color: palette.noteTagInk }]}>NOTE</Text>
+          </View>
+          {spanText ? (
+            <Text style={[styles.selfNoteSpan, { color: palette.noteInkSoft }]}>{spanText}</Text>
+          ) : null}
+        </View>
+        <Text style={[styles.selfNoteText, { color: palette.noteInk }]}>{text}</Text>
       </View>
     );
   }
@@ -201,10 +259,31 @@ const styles = StyleSheet.create({
   orn: { flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'center', marginTop: 18, maxWidth: 210, alignSelf: 'center', width: '100%' },
   ornLine: { flex: 1, height: 2, borderRadius: 1 },
   ornDia: { fontSize: 11 },
-  band: { flexDirection: 'row', alignItems: 'baseline', gap: 8, borderRadius: 6, paddingVertical: 11, paddingHorizontal: 15 },
-  bandRange: { fontWeight: '800', fontSize: 14.5 },
-  bandDot: { fontWeight: '700' },
-  bandTitle: { fontWeight: '700', fontSize: 16.5, flexShrink: 1 },
+  // v250 section-card head (the mockup's sechead): hue dot, strong
+  // range, title, quiet chevron — the card around it carries the tone.
+  secHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 4 },
+  secDot: { width: 11, height: 11, borderRadius: 6 },
+  secRange: { fontWeight: '800', fontSize: 15 },
+  secTitle: { fontWeight: '700', fontSize: 15, flexShrink: 1 },
+  secChev: { marginLeft: 'auto', opacity: 0.45 },
+  // v250 filled self-note card (the mockup's notecard numbers).
+  selfNote: { borderRadius: 24, paddingVertical: 14, paddingHorizontal: 16, marginTop: 12, marginBottom: 14 },
+  selfNoteHead: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  selfNoteFaceRing: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  selfNoteName: { fontSize: 13.5, fontWeight: '700', flexShrink: 1 },
+  selfNoteTag: { borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8 },
+  selfNoteTagText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.6 },
+  selfNoteSpan: { fontSize: 13, fontWeight: '600' },
+  selfNoteText: { fontSize: 15, lineHeight: 22.5, marginTop: 9 },
   para: { fontSize: 15, lineHeight: 25.5, marginBottom: 12, paddingHorizontal: 5, marginLeft: -5 },
   notePara: { marginLeft: 8 },
   callout: { borderRadius: 6, paddingVertical: 15, paddingHorizontal: 17, marginVertical: 14, borderWidth: 1 },

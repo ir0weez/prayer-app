@@ -1146,9 +1146,17 @@ describe("v187 — 8-bit, everywhere it claims to be", () => {
     // Plain todo title + grouped-completed title, pixel face, 8-bit only.
     expect(todoItem).toContain("skinTokens.isEightBit ? bitDisplay(skinTokens, 10) : null");
     expect(todoItem).toContain("skinTokens.isEightBit ? bitDisplay(skinTokens, 9) : null");
-    // The Personal Study card wears the cartridge shadow too, and its
+    // The Personal Study card wore the cartridge shadow too, and its
     // chapter line speaks the pixel face.
-    expect(schedule).toContain("cartridgeShadowFor(skinTokens) ?? {}");
+    // v250 RE-BASE (his ruling, Oct 25 15:50 — the Bible gets the
+    // Material makeover, "match the color I choose in the
+    // settings", SUPERSEDING skin dressing for Bible surfaces): the
+    // Personal Study card left the skin system — its container is
+    // the Bible's tonal card now (a wash of the chosen palette's
+    // primary, radius 28, a soft seed shadow; no frame, no
+    // cartridge shadow, in every skin). The pixel-face chapter
+    // LINE inside it is untouched.
+    expect(schedule).not.toContain("cartridgeShadowFor(skinTokens) ?? {}");
     expect(schedule).toContain("skinTokens.isEightBit ? bitDisplay(skinTokens, 11) : {}");
     // The summary's progress label joins the pixel face under 8-bit.
     expect(read("components/schedule-progress-bar.tsx")).toContain("skinTokens.displayFont");
@@ -1160,8 +1168,8 @@ describe("v187 — 8-bit, everywhere it claims to be", () => {
     // v205: the schedule's only "secondary" button sites were the
     // Personal Study card's check-off buttons — retired when the card
     // became the doorway into the new Bible system (one check-off list
-    // only). The doorway card itself stays skinned: surface, frame and
-    // cartridge shadow, pinned in item 3 above.
+    // only). (v250: the doorway card itself left the skin system for
+    // the Bible's Material dress — see the item 3 re-base above.)
     const journal = read("components/prayer-journal-tab.tsx");
     expect(journal).toContain('bitButtonStyle(skinTokens, item.isBookmarked ? "primary" : "secondary")');
     expect(journal).toContain('bitButtonStyle(skinTokens, "primary")');
@@ -1387,13 +1395,17 @@ describe("v189 — Paper, Not Buttons", () => {
     const schedule = read("components/schedule-tab.tsx");
     expect(schedule).toContain("function paperCutFor(tokens: SkinTokens)");
     expect(schedule).toContain("return tokens.isPaper ? { borderRadius: 6 } : {};");
-    // All 17 content-card frame spreads route through the fallback
-    // (event/ministry/completed cards, grouped + study + worship
-    // cards, todo tiles, the stamp row, the missed panel, the FAB
-    // menu panel). The floating Today button, the missed-action
-    // bar, the dropdown and the white-block dialog keep their
-    // shapes — none of them appears in this count.
-    expect(schedule.split("...(skinTokens.frame ?? paperCutFor(skinTokens))").length - 1).toBe(17);
+    // All 16 content-card frame spreads route through the fallback
+    // (event/ministry/completed cards, grouped + worship cards,
+    // todo tiles, the stamp row, the missed panel, the FAB menu
+    // panel). The floating Today button, the missed-action bar,
+    // the dropdown and the white-block dialog keep their shapes —
+    // none of them appears in this count.
+    // v250: the count was 17 — the seventeenth spread was the
+    // Personal Study card's, removed when the card took the
+    // Bible's Material dress (his Oct 25 15:50 ruling supersedes
+    // skin dressing for Bible surfaces).
+    expect(schedule.split("...(skinTokens.frame ?? paperCutFor(skinTokens))").length - 1).toBe(16);
     // The expandable sections cut their corners under Paper too.
     expect(schedule).toContain("skinTokens.isPaper ? { borderRadius: 6 } : {}), ...((skinTokens.isEightBit || skinTokens.isTerminal)");
   });

@@ -7,12 +7,27 @@
 // sheet behind it. Noteless chapters render the same page with the whole
 // chapter as verse-only entries — the reader, index, search and marking
 // tools all stay live.
+//
+// ─── v250 "The Bible, Material" ─────────────────────────────────────────────
+// Concept 1 "Expressive Cards" (his pick, Oct 25 15:50), every hue
+// derived from his chosen palette: the sticky header gains the
+// mockup's shimmering chapter-progress card (real scroll data — the
+// fill is the page's read fraction, the label names the section at
+// the scroll head); the mode control is a tonal segmented pill; the
+// Stories/Contents doorways are the mockup's amber/teal tonal pills;
+// every section is a big tonal CARD in its own derived hue with
+// chunky verse numerals in that hue's deep shade; his own Note is
+// the filled seed card (SelfLineBlock); Mark as Read is the seed's
+// near-black pill with the gold +25 XP chip. Behavior — scroll,
+// bubbles, marks, the two tracks — is untouched.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   Animated,
   BackHandler,
   Dimensions,
+  Easing as RNEasing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -62,6 +77,7 @@ import {
   buildBubblePieces,
   loadPeopleList,
   loadProfileIdentity,
+  resolveBubbleAuthor,
   type BubblePiece,
   type LineStorageTarget,
   type ProfileIdentity,
@@ -86,10 +102,19 @@ import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import { useSkin } from '@/hooks/use-skin';
 import { BlockView, CategoryTag, Ornament, ReadChip, SectionBand, SelfLineBlock, StatusChip } from './blocks';
-import { AuthorPicker, LivingBubbles, kindLabelFor, type BloomTiming } from './bubbles';
+import { AuthorFace, AuthorPicker, LivingBubbles, kindLabelFor, spanLabelFor, type BloomTiming } from './bubbles';
 import { IndexSheet } from './index-sheet';
 import { StoriesView } from './stories-view';
-import { chapterLabel, rangeLabel, tintWashFor, useBiblePalette, verseTintFor, type BiblePalette } from './palette';
+import {
+  chapterLabel,
+  rangeLabel,
+  sectionToneFor,
+  tintWashFor,
+  useBiblePalette,
+  verseTintFor,
+  type BiblePalette,
+  type BibleSectionTone,
+} from './palette';
 import { getDevotional } from '@/lib/devotionals';
 
 export interface ChapterPageProps {
@@ -108,6 +133,88 @@ export interface ChapterPageProps {
 
 /** App-level read-mode preference ("With notes" is the default). */
 export const READ_MODE_KEY = 'prayercircle.bible.v205.readmode.v1';
+
+/**
+ * v250: the mockup's progress bar, as a card under the app bar.
+ * Everything on it is real data: the fill is the ScrollView's
+ * measured read fraction; the label names the section at the scroll
+ * head against the chapter's verse count. The shimmer is a pale
+ * band sweeping the track on the native driver (calm 1.5s pass,
+ * long rest), still under reduce-motion.
+ */
+function ChapterProgressCard({
+  palette,
+  progress,
+  label,
+}: {
+  palette: BiblePalette;
+  progress: number;
+  label: string;
+}) {
+  const shimmer = useRef(new Animated.Value(0)).current;
+  const [trackW, setTrackW] = useState(0);
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((r) => {
+        if (live) setReduced(r);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (reduced || trackW === 0) return;
+    shimmer.setValue(0);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, {
+          toValue: 1,
+          duration: 1500,
+          easing: RNEasing.inOut(RNEasing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.delay(2400),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, trackW, shimmer]);
+  const pct = Math.max(0, Math.min(100, Math.round(progress * 100)));
+  return (
+    <View style={[styles.progCard, { backgroundColor: palette.paper2 }, palette.cardDress]}>
+      <View style={styles.progLabRow}>
+        <Text style={[styles.progLab, { color: palette.raspDeep }]}>Chapter progress</Text>
+        {label ? <Text style={[styles.progLab, { color: palette.raspDeep }]}>{label}</Text> : null}
+      </View>
+      <View
+        style={[styles.progTrack, { backgroundColor: palette.raspTint }]}
+        onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}
+      >
+        <View style={[styles.progFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />
+        {!reduced && trackW > 0 ? (
+          <Animated.View
+            style={[
+              styles.progShimmer,
+              {
+                transform: [
+                  {
+                    translateX: shimmer.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-trackW * 0.55, trackW * 1.08],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+        ) : null}
+      </View>
+    </View>
+  );
+}
 
 export function ChapterPageView(props: ChapterPageProps) {
   const { book, chapter } = props;
@@ -149,6 +256,10 @@ export function ChapterPageView(props: ChapterPageProps) {
   const scrollYRef = useRef(0);
   const [stories, setStories] = useState(!!props.initialStories);
   const [progress, setProgress] = useState(0);
+  // v250: the section at the scroll head — the progress card's label
+  // names it ("Ver. 1–8 of 37 verses"), from the sections' measured
+  // positions, never a decorative number.
+  const [headSectionEnd, setHeadSectionEnd] = useState<number | null>(null);
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const flashAnim = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<ScrollView>(null);
@@ -509,7 +620,7 @@ export function ChapterPageView(props: ChapterPageProps) {
     <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
       {/* ── topwrap ── */}
       <View style={[styles.topwrap, { backgroundColor: palette.paper, borderBottomColor: palette.line }]}>
-        <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
+        <View style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
           <Pressable onPress={props.onBack} hitSlop={10} style={styles.topBtn}>
             <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
           </Pressable>
@@ -517,34 +628,55 @@ export function ChapterPageView(props: ChapterPageProps) {
             {book} · {chapterLabel(chapter)}
           </Text>
           <View style={styles.topActions}>
-            <View style={[styles.keptPill, { backgroundColor: palette.band }]}>
-              <Text style={{ color: palette.rose, fontSize: 11 }}>♥</Text>
-              <Text style={[styles.keptPillText, { color: palette.bandInk }]}>{keptTotal} kept</Text>
+            <View style={[styles.keptPill, { backgroundColor: palette.noteTagBg }]}>
+              <Text style={{ color: palette.rasp, fontSize: 11 }}>♥</Text>
+              <Text style={[styles.keptPillText, { color: palette.raspDeep }]}>{keptTotal} kept</Text>
             </View>
-            <Pressable onPress={() => setSheet('verses')} hitSlop={8} style={styles.topBtn}>
-              <MaterialIcons name="grid-view" size={19} color={palette.ink} />
+            <Pressable
+              onPress={() => setSheet('verses')}
+              hitSlop={8}
+              style={[styles.iconBtn, { backgroundColor: palette.raspTint }]}
+              accessibilityLabel="Verse index"
+            >
+              <MaterialIcons name="grid-view" size={19} color={palette.raspDeep} />
             </Pressable>
-            <Pressable onPress={() => setSheet('search')} hitSlop={8} style={styles.topBtn}>
-              <MaterialIcons name="search" size={20} color={palette.ink} />
+            <Pressable
+              onPress={() => setSheet('search')}
+              hitSlop={8}
+              style={[styles.iconBtn, { backgroundColor: palette.raspTint }]}
+              accessibilityLabel="Search this chapter"
+            >
+              <MaterialIcons name="search" size={20} color={palette.raspDeep} />
             </Pressable>
           </View>
         </View>
-        <View style={[styles.progressTrack, { backgroundColor: palette.band }]}>
-          <View style={[styles.progressFill, { backgroundColor: palette.rasp, width: `${Math.round(progress * 100)}%` }]} />
-        </View>
+        {/* v250: the hairline progress track becomes the mockup's
+            progress CARD — raised, labelled, shimmering. The fill is
+            the scroll fraction (real read position); the label names
+            the section at the scroll head against the chapter's
+            verse count. */}
+        <ChapterProgressCard
+          palette={palette}
+          progress={progress}
+          label={
+            verseCount > 0
+              ? `Ver. 1–${headSectionEnd ?? sections[0]?.end ?? verseCount} of ${verseCount} verses`
+              : ''
+          }
+        />
         <View style={styles.modeRow}>
-          <View style={[styles.modeSeg, { borderColor: palette.lineDark }]}>
+          <View style={[styles.modeSeg, { backgroundColor: palette.band }]}>
             <Pressable
-              style={[styles.modeBtn, !readOnly ? { backgroundColor: palette.rasp } : null]}
+              style={[styles.modeBtn, !readOnly ? [{ backgroundColor: palette.rasp }, palette.btnDress] : null]}
               onPress={() => chooseReadMode(false)}
             >
-              <Text style={[styles.modeBtnText, { color: !readOnly ? '#FFFFFF' : palette.inkSoft }]}>With notes</Text>
+              <Text style={[styles.modeBtnText, { color: !readOnly ? '#FFFFFF' : palette.bandInk }]}>With notes</Text>
             </Pressable>
             <Pressable
-              style={[styles.modeBtn, readOnly ? { backgroundColor: palette.rasp } : null]}
+              style={[styles.modeBtn, readOnly ? [{ backgroundColor: palette.rasp }, palette.btnDress] : null]}
               onPress={() => chooseReadMode(true)}
             >
-              <Text style={[styles.modeBtnText, { color: readOnly ? '#FFFFFF' : palette.inkSoft }]}>Read only</Text>
+              <Text style={[styles.modeBtnText, { color: readOnly ? '#FFFFFF' : palette.bandInk }]}>Read only</Text>
             </Pressable>
           </View>
           {/* v230: the Listen door — exists ONLY when the devotional
@@ -582,6 +714,15 @@ export function ChapterPageView(props: ChapterPageProps) {
           scrollYRef.current = contentOffset.y;
           const max = contentSize.height - layoutMeasurement.height;
           setProgress(max > 0 ? Math.min(1, contentOffset.y / max) : 0);
+          // v250: the section at the scroll head, from the measured
+          // section positions — the last section whose top has
+          // scrolled up to the header line.
+          let headEnd: number | null = null;
+          for (const s of sections) {
+            const y = yByKey.current.get(`secwrap-${s.start}`);
+            if (y !== undefined && y <= contentOffset.y + 190) headEnd = s.end;
+          }
+          setHeadSectionEnd((prev) => (prev === headEnd ? prev : headEnd));
         }}
         scrollEventThrottle={32}
       >
@@ -593,7 +734,7 @@ export function ChapterPageView(props: ChapterPageProps) {
             family labels as the book panel — COMMENTARY for the
             notes-written line, STUDY for the read line — so the two
             tracks never blur into one another here either. ── */}
-        <View style={[styles.strip, { backgroundColor: palette.raspTint }]}>
+        <View style={[styles.strip, { backgroundColor: palette.raspTint }, palette.cardDress]}>
           <View style={styles.stripMain}>
             {display?.headline === 'read' ? (
               <View style={styles.stripLine}>
@@ -641,7 +782,7 @@ export function ChapterPageView(props: ChapterPageProps) {
 
         {/* ── ReStudy surface card ── */}
         {status === 'restudy' ? (
-          <View style={[styles.surfCard, { borderColor: palette.bandLine, backgroundColor: palette.paper }, palette.cardDress]}>
+          <View style={[styles.surfCard, { backgroundColor: palette.paper2 }, palette.cardDress]}>
             <View style={styles.surfHead}>
               <StatusChip status="restudy" palette={palette} />
               <Text style={[styles.surfTitle, { color: palette.ink }]}>Due another read</Text>
@@ -668,15 +809,32 @@ export function ChapterPageView(props: ChapterPageProps) {
           <Text style={[styles.doorNote, { color: palette.inkSoft }]}>
             The chapter page stays exactly as it is. Stories is simply a way <Text style={{ fontStyle: 'italic' }}>through</Text> it — for personal study, at reading pace.
           </Text>
-          <Pressable
-            style={[styles.readBtn, { backgroundColor: palette.rasp }, palette.btnDress]}
-            onPress={() => {
-              setOpenBubblesKey(null);
-              setStories(true);
-            }}
-          >
-            <Text style={styles.readBtnText}>▶  Read as Stories</Text>
-          </Pressable>
+          {/* v250: the doorway's doors are the mockup's outline row —
+              two tonal pills in the harmonized families: amber for
+              Stories, teal for Contents (which lands on the Contents
+              block below). */}
+          <View style={styles.doorBtns}>
+            <Pressable
+              style={[styles.doorBtn, { backgroundColor: palette.accentAmber.bg }]}
+              onPress={() => {
+                setOpenBubblesKey(null);
+                setStories(true);
+              }}
+            >
+              <MaterialIcons name="list" size={18} color={palette.accentAmber.deep} />
+              <Text style={[styles.doorBtnText, { color: palette.accentAmber.deep }]}>Read as Stories</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.doorBtn, { backgroundColor: palette.accentTeal.bg }]}
+              onPress={() => {
+                const y = yByKey.current.get('contents');
+                if (y !== undefined) scrollToY(y);
+              }}
+            >
+              <MaterialIcons name="menu-book" size={18} color={palette.accentTeal.deep} />
+              <Text style={[styles.doorBtnText, { color: palette.accentTeal.deep }]}>Contents</Text>
+            </Pressable>
+          </View>
           <Text style={[styles.readSub, { color: palette.inkFaint }]}>
             {readOnly
               ? 'Verses one screen at a time in Read-only mode. Tap right to keep going, left to go back.'
@@ -737,7 +895,10 @@ export function ChapterPageView(props: ChapterPageProps) {
 
         {/* ── Contents ── */}
         {!readOnly ? (
-        <View style={styles.block}>
+        <View
+          style={styles.block}
+          onLayout={(e) => yByKey.current.set('contents', e.nativeEvent.layout.y)}
+        >
           <View style={styles.contentsHead}>
             <Text style={[styles.label, { color: palette.inkFaint }]}>Contents</Text>
             <Text style={[styles.tocNote, { color: palette.inkFaint }]}>Tap a line to jump ↓</Text>
@@ -761,13 +922,18 @@ export function ChapterPageView(props: ChapterPageProps) {
         ) : null}
 
         {/* ── Sections + entries ── */}
-        {sections.map((section) => (
+        {sections.map((section, sIdx) => {
+          // v250: every section is a tonal CARD in its own derived
+          // hue — the family cycles by section index, and the tone
+          // rides into the band and every entry inside it.
+          const tone = sectionToneFor(palette, sIdx);
+          return (
           <View
             key={section.start}
-            style={styles.sectionWrap}
+            style={[styles.sectionCard, { backgroundColor: tone.bg }]}
             onLayout={(e) => yByKey.current.set(`secwrap-${section.start}`, e.nativeEvent.layout.y)}
           >
-            <SectionBand start={section.start} end={section.end} title={section.title} palette={palette} />
+            <SectionBand start={section.start} end={section.end} title={section.title} palette={palette} tone={tone} />
             {section.entries.map((entry) => {
               // v214: the bubble piece riding on this rendered entry —
               // in With-notes the entry IS the piece; in Read-only the
@@ -793,6 +959,7 @@ export function ChapterPageView(props: ChapterPageProps) {
                 flash={flashKey === entryKey(book, chapter, entry.start, entry.end)}
                 flashAnim={flashAnim}
                 palette={palette}
+                tone={tone}
                 bubblePiece={piece}
                 people={people}
                 profile={profile}
@@ -822,7 +989,8 @@ export function ChapterPageView(props: ChapterPageProps) {
               );
             })}
           </View>
-        ))}
+          );
+        })}
 
         {!versesLoaded ? (
           <Text style={[styles.loading, { color: palette.inkSoft }]}>Loading the chapter…</Text>
@@ -843,11 +1011,17 @@ export function ChapterPageView(props: ChapterPageProps) {
             old line's honesty pattern. */}
         {studyState !== null && readDate === null ? (
           <Pressable
-            style={[styles.markReadBtn, { borderColor: palette.rasp }, palette.btnDress]}
+            style={[styles.markReadBtn, { backgroundColor: palette.readPill }, palette.btnDress]}
             accessibilityLabel={`Mark ${book} ${chapter} as read`}
             onPress={handleMarkRead}
           >
-            <Text style={[styles.markReadText, { color: palette.raspDeep }]}>Mark as Read</Text>
+            <Text style={[styles.markReadText, { color: palette.readPillInk }]}>Mark as Read</Text>
+            {/* v250: the mockup's gold chip — the reward made visible
+                on the button that earns it (+25 XP is the reader's
+                real reward for a chapter read, rewards.ts). */}
+            <View style={[styles.xpChip, { backgroundColor: palette.xpGold }]}>
+              <Text style={[styles.xpChipText, { color: palette.xpGoldInk }]}>+25 XP</Text>
+            </View>
           </Pressable>
         ) : null}
         {studyState !== null && readDate !== null ? (
@@ -863,14 +1037,14 @@ export function ChapterPageView(props: ChapterPageProps) {
 
         <View style={styles.chapterNav}>
           <Pressable
-            style={[styles.navBtn, { borderColor: palette.lineDark }, palette.btnDress, chapter <= 1 ? styles.navOff : null]}
+            style={[styles.navBtn, { borderColor: palette.lineDark, backgroundColor: palette.paper2 }, palette.btnDress, chapter <= 1 ? styles.navOff : null]}
             disabled={chapter <= 1}
             onPress={() => props.onNavigateChapter(chapter - 1)}
           >
             <Text style={{ color: palette.ink, fontWeight: '700', fontSize: 13.5 }}>‹ {chapterLabel(chapter - 1)}</Text>
           </Pressable>
           <Pressable
-            style={[styles.navBtn, { borderColor: palette.lineDark }, palette.btnDress, chapter >= totalChapters ? styles.navOff : null]}
+            style={[styles.navBtn, { borderColor: palette.lineDark, backgroundColor: palette.paper2 }, palette.btnDress, chapter >= totalChapters ? styles.navOff : null]}
             disabled={chapter >= totalChapters}
             onPress={() => props.onNavigateChapter(chapter + 1)}
           >
@@ -933,6 +1107,9 @@ function EntryView(props: {
   flash: boolean;
   flashAnim: Animated.Value;
   palette: BiblePalette;
+  /** v250: the tone of the section card this entry sits in — its
+   * numerals wear the tone's deep shade. */
+  tone: BibleSectionTone;
   /** v214/v217: the line piece riding on this entry, partitioned by
    * authorship (undefined = the entry carries no user lines). */
   bubblePiece?: BubblePiece;
@@ -1033,8 +1210,10 @@ function EntryView(props: {
   // v212: the entry tint washes the whole entry container — head and
   // body, open or closed. (The jump-flash still wins while it runs.)
   const wash = tintWashFor(palette, props.entryTint);
+  // v250: the flash is the seed's own tint now — the last fixed pink
+  // rgba in this file is gone with the fixed palette.
   const flashBg = props.flash
-    ? props.flashAnim.interpolate({ inputRange: [0, 1], outputRange: ['rgba(230,73,128,0)', 'rgba(230,73,128,0.14)'] })
+    ? props.flashAnim.interpolate({ inputRange: [0, 1], outputRange: [palette.flashTintClear, palette.flashTint] })
     : (wash ?? 'transparent');
   const hasSelection = props.selectedVerses.length > 0;
 
@@ -1083,14 +1262,14 @@ function EntryView(props: {
             <Text
               style={[
                 styles.vnumBig,
-                { color: props.selectedVerses.includes(entry.start) ? '#FFFFFF' : palette.vnum },
+                { color: props.selectedVerses.includes(entry.start) ? '#FFFFFF' : props.tone.deep },
               ]}
             >
               {entry.start}
             </Text>
           </Pressable>
         ) : (
-          <Text style={[styles.vnumRange, { color: palette.vnum }]}>{entry.start}–{entry.end}</Text>
+          <Text style={[styles.vnumRange, { color: props.tone.deep }]}>{entry.start}–{entry.end}</Text>
         )}
         <View style={styles.entryVerses}>
           {Array.from({ length: entry.end - entry.start + 1 }, (_, i) => entry.start + i).map((v) => {
@@ -1121,7 +1300,7 @@ function EntryView(props: {
                     onPress={() => props.onToggleVerse(v)}
                     style={[
                       styles.supTap,
-                      { color: selected ? '#FFFFFF' : palette.rasp },
+                      { color: selected ? '#FFFFFF' : props.tone.deep },
                       selected ? { backgroundColor: palette.rasp } : null,
                     ]}
                   >
@@ -1157,7 +1336,20 @@ function EntryView(props: {
                 onPress={() => editSelfLine(i)}
                 hitSlop={4}
               >
-                <SelfLineBlock kind={line.kind} text={line.text} palette={palette} />
+                <SelfLineBlock
+                  kind={line.kind}
+                  text={line.text}
+                  palette={palette}
+                  authorName={resolveBubbleAuthor(line.author, props.people, props.profile).name}
+                  face={
+                    <AuthorFace
+                      author={resolveBubbleAuthor(line.author, props.people, props.profile)}
+                      size={34}
+                      palette={palette}
+                    />
+                  }
+                  spanText={spanLabelFor(entry.start, entry.end)}
+                />
               </Pressable>
             );
           })}
@@ -1250,7 +1442,7 @@ function EntryView(props: {
           </View>
 
           {composer ? (
-            <View style={[styles.composer, { borderColor: palette.lineDark, backgroundColor: palette.paper }, palette.cardDress]}>
+            <View style={[styles.composer, { borderColor: palette.bandLine, backgroundColor: palette.paper2 }, palette.cardDress]}>
               <Text style={[styles.composerLabel, { color: composer === 'highlight' ? palette.yellowLabel : palette.greyLabel }]}>
                 {editingTarget
                   ? `Editing ${kindLabelFor(composer)}`
@@ -1340,22 +1532,32 @@ function EntryView(props: {
 
 const styles = StyleSheet.create({
   topwrap: { borderBottomWidth: 1 },
-  topbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 9, borderBottomWidth: 1 },
+  topbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 4 },
   topBtn: { padding: 2 },
-  topTitle: { fontSize: 14.5, fontWeight: '800', letterSpacing: -0.2, flex: 1 },
-  topActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  topTitle: { fontSize: 19, fontWeight: '800', letterSpacing: -0.2, flex: 1 },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // v250: the app bar's grid/search are the mockup's 38px tonal
+  // squares (radius 14, seed wash, deep-seed glyph — colors inline).
+  iconBtn: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   keptPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
   keptPillText: { fontSize: 11.5, fontWeight: '800' },
-  progressTrack: { height: 3 },
-  progressFill: { height: 3 },
-  modeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 8, paddingBottom: 2 },
-  modeSeg: { flexDirection: 'row', borderWidth: 1, borderRadius: 999, padding: 2, gap: 2 },
+  // v250 progress card (the mockup's pwrap numbers).
+  progCard: { marginHorizontal: 16, marginTop: 10, borderRadius: 18, paddingVertical: 10, paddingHorizontal: 14 },
+  progLabRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
+  progLab: { fontSize: 12, fontWeight: '700' },
+  progTrack: { height: 9, borderRadius: 999, overflow: 'hidden', position: 'relative' },
+  progFill: { height: 9, borderRadius: 999 },
+  progShimmer: { position: 'absolute', top: 0, bottom: 0, width: '45%', backgroundColor: 'rgba(255,255,255,0.45)' },
+  modeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 10, paddingBottom: 4 },
+  // v250: the segmented control is a tonal pill — wash track (its
+  // background is inline), the chosen half filled with the seed.
+  modeSeg: { flexDirection: 'row', borderRadius: 999, padding: 4, gap: 2 },
   listenBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, borderRadius: 999, paddingVertical: 5, paddingLeft: 8, paddingRight: 12 },
   listenBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-  modeBtn: { borderRadius: 999, paddingVertical: 5, paddingHorizontal: 14 },
+  modeBtn: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 16 },
   modeBtnText: { fontSize: 12, fontWeight: '700' },
-  page: { paddingHorizontal: 20, paddingTop: 0, paddingBottom: 8 },
-  strip: { flexDirection: 'row', alignItems: 'center', gap: 9, marginHorizontal: -20, paddingVertical: 9, paddingHorizontal: 20 },
+  page: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 8 },
+  strip: { flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 16, marginTop: 12 },
   // v234: the strip's family lines — a narrow label rail keeps the
   // COMMENTARY and STUDY chips aligned line over line.
   stripMain: { flex: 1, gap: 4 },
@@ -1368,7 +1570,7 @@ const styles = StyleSheet.create({
   coverH: { fontSize: 47, fontWeight: '800', letterSpacing: -1.4, marginTop: 10, textAlign: 'center' },
   coverBook: { fontStyle: 'italic', fontSize: 19, marginTop: 8, textAlign: 'center' },
   coverNote: { fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 16, paddingHorizontal: 12 },
-  surfCard: { borderWidth: 1, borderRadius: 12, padding: 14, marginTop: 18 },
+  surfCard: { borderRadius: 28, padding: 16, marginTop: 18 },
   surfHead: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   surfTitle: { fontSize: 15, fontWeight: '800' },
   surfBody: { fontSize: 13.5, lineHeight: 20, marginTop: 8 },
@@ -1378,8 +1580,10 @@ const styles = StyleSheet.create({
   surfBtnPrimaryText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
   doorway: { alignItems: 'center', marginTop: 20, paddingHorizontal: 6 },
   doorNote: { textAlign: 'center', fontSize: 13.5, lineHeight: 21.5 },
-  readBtn: { borderRadius: 999, paddingVertical: 12, paddingHorizontal: 26, marginTop: 14 },
-  readBtnText: { color: '#FFFFFF', fontSize: 14.5, fontWeight: '800' },
+  // v250: the doorway's doors — the mockup's tonal pill pair.
+  doorBtns: { flexDirection: 'row', gap: 9, marginTop: 14, justifyContent: 'center', flexWrap: 'wrap' },
+  doorBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingVertical: 9, paddingHorizontal: 14 },
+  doorBtnText: { fontSize: 13.5, fontWeight: '700' },
   readSub: { fontSize: 12, lineHeight: 17.5, textAlign: 'center', marginTop: 10, paddingHorizontal: 16 },
   block: { marginTop: 30 },
   label: { fontSize: 10.5, letterSpacing: 2.2, textTransform: 'uppercase', fontWeight: '800', marginBottom: 12 },
@@ -1394,7 +1598,8 @@ const styles = StyleSheet.create({
   tocTitle: { fontWeight: '600', fontSize: 14.5 },
   leader: { flex: 1, borderBottomWidth: 1, borderStyle: 'dotted', minWidth: 14 },
   tocRange: { fontSize: 11.5 },
-  sectionWrap: { marginTop: 34 },
+  // v250: the tonal section card (the mockup's seccard numbers).
+  sectionCard: { borderRadius: 28, paddingTop: 16, paddingHorizontal: 12, paddingBottom: 8, marginTop: 18 },
   entry: { borderRadius: 10 },
   // v214: an entry whose bubbles are open lifts above its neighbours
   // so the bloomed cards paint over the verses below, mockup-style.
@@ -1408,10 +1613,14 @@ const styles = StyleSheet.create({
   // grew to 51, so the inset grows with them.
   entryHeadBubbled: { paddingRight: 66 },
   heartSlot: { width: 20, alignItems: 'center', paddingTop: 5 },
-  vnumBig: { fontSize: 28, fontWeight: '300', width: 40, lineHeight: 32, textAlign: 'center' },
-  vnumRange: { fontSize: 15.5, fontWeight: '700', width: 40, lineHeight: 32, textAlign: 'center' },
+  // v250: the numerals are chunky (the mockup's .vn 26px/800 and
+  // .vr 14px/800) — in the section tone's deep shade (color inline).
+  vnumBig: { fontSize: 26, fontWeight: '800', width: 40, lineHeight: 32, textAlign: 'center' },
+  vnumRange: { fontSize: 14, fontWeight: '800', width: 40, lineHeight: 32, textAlign: 'center' },
   entryVerses: { flex: 1, gap: 3 },
-  entryVerse: { fontSize: 15.5, fontWeight: '700', lineHeight: 24 },
+  // v250: Scripture text larger and rounder (17.5/26.5/600 — the
+  // mockup's verse type; it was 15.5/700/24).
+  entryVerse: { fontSize: 17.5, fontWeight: '600', lineHeight: 26.5 },
   vnumTap: { borderRadius: 9 },
   // v217: the tint-selection handle is now an inline superscript
   // span inside the verse text (see the head render) — a text style,
@@ -1432,7 +1641,7 @@ const styles = StyleSheet.create({
   catChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
   catDot: { width: 8, height: 8, borderRadius: 4 },
   catChipText: { fontSize: 11, fontWeight: '700' },
-  composer: { borderWidth: 1, borderRadius: 10, padding: 12, marginTop: 12 },
+  composer: { borderWidth: 1, borderRadius: 24, padding: 14, marginTop: 12 },
   composerLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 8 },
   composerInput: { fontSize: 14.5, lineHeight: 21, minHeight: 44, textAlignVertical: 'top' },
   composerHint: { fontSize: 11.5, lineHeight: 16, marginTop: 8 },
@@ -1442,15 +1651,21 @@ const styles = StyleSheet.create({
   addBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
   loading: { textAlign: 'center', fontSize: 13.5, marginTop: 26 },
   footNote: { fontSize: 12, lineHeight: 18, marginTop: 34, textAlign: 'center' },
+  // v250: the mockup's dark pill — near-black in the seed's hue
+  // (background inline), carrying the gold XP chip.
   markReadBtn: {
     marginTop: 20,
     alignSelf: 'center',
-    paddingHorizontal: 26,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 22,
     paddingVertical: 12,
     borderRadius: 999,
-    borderWidth: 1.5,
   },
-  markReadText: { fontWeight: '800', fontSize: 15 },
+  markReadText: { fontWeight: '800', fontSize: 15.5 },
+  xpChip: { borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10 },
+  xpChipText: { fontSize: 12.5, fontWeight: '800' },
   footRead: { marginTop: 20, alignItems: 'center' },
   footReadLine: { fontWeight: '800', fontSize: 15 },
   footReadSub: { fontSize: 12, lineHeight: 18, marginTop: 2 },
@@ -1459,6 +1674,6 @@ const styles = StyleSheet.create({
   navOff: { opacity: 0.35 },
   // v248: the FAB's shadow color is the palette accent (inline) —
   // the fixed deep-raspberry shadow died with the fixed palette.
-  fab: { position: 'absolute', right: 18, bottom: 24, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingVertical: 11, paddingHorizontal: 17, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 6 },
-  fabText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 },
+  fab: { position: 'absolute', right: 18, bottom: 24, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 19, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 6 },
+  fabText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14.5 },
 });

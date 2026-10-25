@@ -52,7 +52,8 @@ import { PaperGrainOverlay } from "./paper-grain";
 import { BitBackground } from "./bit-background";
 import { TerminalBackground } from "./terminal-background";
 import { TerminalRestSky, terminalKeywordSceneFor } from "./terminal-keyword-scenes";
-import { BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint, skinText, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
+import { BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, hexLuminance, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint, skinText, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
+import { mix } from "@/lib/color-themes";
 import type { SkinTokens } from "@/lib/skin-themes";
 
 /**
@@ -12161,7 +12162,13 @@ export function ScheduleTab({
               onPress={() => togglePersonalStudyExpanded(!isPersonalStudyExpanded)}
               style={({ pressed }) => [{ marginBottom: 12, marginHorizontal: 12, opacity: pressed ? 0.7 : 1, ...(skinTokens.isPaper ? { marginBottom: 12 + skinTokens.type.gapBoost } : {}) }]}
             >
-              <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, overflow: 'hidden', ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? cartridgeShadowFor(skinTokens) ?? {} : {}) }}>
+              {/* v250: the Personal Study card wears the Bible's new
+                  Material dress like the section it opens — a big
+                  tonal card washed in the chosen palette's primary
+                  (the same seed the Bible derives from), radius 28,
+                  a soft seed-tinted shadow, no border and no skin
+                  frame: under every skin, the Bible dresses alike. */}
+              <View style={{ backgroundColor: mix(colors.surface, colors.primary, hexLuminance(colors.background) < 0.5 ? 0.22 : 0.12), borderRadius: 28, overflow: 'hidden', shadowColor: colors.primary, shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 4 }}>
                 <View style={{ padding: 16, gap: 12, ...(skinTokens.isPaper ? { padding: 16 + skinTokens.type.padBoost, gap: 12 + skinTokens.type.gapBoost } : {}) }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -12181,7 +12188,7 @@ export function ScheduleTab({
                           paddingHorizontal: 14,
                           paddingVertical: 9,
                           backgroundColor: colors.primary,
-                          borderRadius: 8,
+                          borderRadius: 999,
                           opacity: pressed ? 0.8 : 1,
                           ...(bitButtonStyle(skinTokens, "primary") ?? {}),
                           ...(termButtonStyle(skinTokens, "primary") ?? {}),

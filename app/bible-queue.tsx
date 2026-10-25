@@ -44,7 +44,7 @@ export default function BibleQueueScreen() {
   const renderItem = (item: QueueItem, kind: 'write' | 'restudy') => (
     <Pressable
       key={`${item.book}-${item.chapter}`}
-      style={[styles.qitem, { borderColor: palette.line, backgroundColor: palette.paper }, palette.cardDress]}
+      style={[styles.qitem, { backgroundColor: palette.paper2 }, palette.cardDress]}
       onPress={() => open(item)}
     >
       <Text style={[styles.qname, { color: palette.ink }]}>
@@ -99,9 +99,11 @@ export default function BibleQueueScreen() {
           <Text style={[styles.empty, { color: palette.inkSoft }]}>Nothing waiting to be written.</Text>
         )}
 
-        <View style={[styles.bandHead, { backgroundColor: palette.band, marginTop: 22 }]}>
-          <Text style={[styles.bandTitle, { color: palette.bandInk }]}>Current · To Re-Study</Text>
-          <Text style={[styles.bandCount, { color: palette.bandInk }]}>{restudyQueue.length}</Text>
+        {/* v250: the second queue family wears the harmonized teal —
+            the two families read apart at a glance. */}
+        <View style={[styles.bandHead, { backgroundColor: palette.accentTeal.bg, marginTop: 22 }]}>
+          <Text style={[styles.bandTitle, { color: palette.accentTeal.deep }]}>Current · To Re-Study</Text>
+          <Text style={[styles.bandCount, { color: palette.accentTeal.deep }]}>{restudyQueue.length}</Text>
         </View>
         {restudyQueue.length ? (
           restudyQueue.map((item) => renderItem(item, 'restudy'))
@@ -169,13 +171,13 @@ const styles = StyleSheet.create({
   pipeNodeText: { fontSize: 13, fontWeight: '800' },
   pipeArrow: { fontSize: 15, fontWeight: '700' },
   pipecount: { textAlign: 'center', fontSize: 12.5, lineHeight: 19, marginTop: 12, paddingHorizontal: 8 },
-  bandHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14, marginTop: 18, marginBottom: 10 },
+  bandHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 20, paddingVertical: 12, paddingHorizontal: 16, marginTop: 18, marginBottom: 10 },
   bandTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
   bandCount: { fontSize: 13, fontWeight: '800' },
-  qitem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 8 },
+  qitem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 24, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 10 },
   qname: { fontSize: 15, fontWeight: '700', flex: 1 },
   qopen: { fontSize: 13, fontWeight: '800' },
   empty: { fontSize: 13.5, fontStyle: 'italic', paddingVertical: 6 },
-  qnote: { borderWidth: 1, borderLeftWidth: 3, borderRadius: 6, paddingVertical: 13, paddingHorizontal: 16, marginTop: 22 },
+  qnote: { borderWidth: 1, borderLeftWidth: 3, borderRadius: 20, paddingVertical: 13, paddingHorizontal: 16, marginTop: 22 },
   qnoteText: { fontSize: 13, lineHeight: 20.5 },
 });

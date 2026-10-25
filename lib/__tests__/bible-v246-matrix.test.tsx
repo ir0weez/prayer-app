@@ -341,6 +341,14 @@ describe('v246 — the pure sweep: verse ink in every combination the app can be
  * On 85f8e27 every (b) and (c) row fails: the fill rendered
  * rgba(194,37,92,1.00) in all sixteen combinations and the roots
  * carried no sheet treatment at all.
+ *
+ * v250 RE-BASE (Oct 25, 15:50): his ruling supersedes (c) — the
+ * Bible now wears the Material makeover in every skin ("make it
+ * match the color I choose in the settings"), so the skin no longer
+ * re-dresses it. Pin (c) below now asserts the opposite in every
+ * skin: NO skin sheet treatment on the chapter root. Pins (a) and
+ * (b) stand unchanged — full-height ungated paint, and the accents
+ * still ARE the palette's primary.
  */
 
 /** A hex color as react-native-web serializes it in a style. */
@@ -400,20 +408,22 @@ describe('v248 — the Bible follows the skin and the chosen color', () => {
           expect(kicker, `${label}: kicker color`).toBe(colors.primary.toUpperCase());
           expect(kicker, `${label}: kicker is not the old raspberry`).not.toBe('#C2255C');
 
-          // (c) the chapter root wears the skin's own sheet
-          // treatment — its exact radius and shadow tokens.
+          // (c) RE-BASED by v250 (his ruling, Oct 25 15:50: the
+          // Bible gets the Material makeover, "match the color I
+          // choose in the settings" — the skin NO LONGER re-dresses
+          // the Bible). The v248 expectation (the chapter root wears
+          // the active skin's sheet treatment) is superseded: in
+          // EVERY skin the chapter content root now carries NO skin
+          // sheet treatment at all — no sheet shadow, no sheet
+          // radius. The Bible's dress is the Material system in
+          // components/bible-v205/palette.ts, identical per skin;
+          // only the palette (accent × scheme) moves it. The deeper
+          // v250 pins live in bible-v250-material.test.tsx.
           const root = contentRootStyle(chapter);
-          if (skin === 'classic') {
-            expect(root, `${label}: Classic root carries no sheet shadow`).not.toContain('box-shadow');
-            expect(root, `${label}: Classic root carries no sheet radius`).not.toContain('border-top-left-radius');
-          } else {
-            expect(root, `${label}: sheet radius from the skin tokens`).toContain(
-              `border-top-left-radius:${tokens.sheetRadius}px`,
-            );
-            expect(root, `${label}: sheet shadow is the skin token, verbatim`).toContain(
-              tokens.sheetShadow.boxShadow,
-            );
-          }
+          expect(root, `${label}: no sheet shadow on the chapter root`).not.toContain('box-shadow');
+          expect(root, `${label}: no skin sheet radius on the chapter root`).not.toContain(
+            'border-top-left-radius',
+          );
         });
       }
     }

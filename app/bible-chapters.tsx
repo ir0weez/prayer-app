@@ -143,7 +143,7 @@ export default function BibleBooksScreen() {
         </Pressable>
         <Pressable
           onPress={() => router.push('/bible-queue')}
-          style={[styles.queueBtn, { borderColor: palette.rasp }, palette.btnDress]}
+          style={[styles.queueBtn, { backgroundColor: palette.band }, palette.btnDress]}
         >
           <Text style={[styles.queueBtnText, { color: palette.raspDeep }]}>Study Queue</Text>
         </Pressable>
@@ -168,7 +168,7 @@ export default function BibleBooksScreen() {
               Handwritten-only header) when the sections merged — it
               lives on the ✎ chip now. */}
           <Pressable
-            style={[styles.chip, { backgroundColor: palette.paper, borderColor: palette.lineDark }]}
+            style={[styles.chip, { backgroundColor: palette.band }]}
             accessibilityLabel="Name your notes source"
             onPress={() => {
               setLabelDraft(sourceLabel);
@@ -191,7 +191,7 @@ export default function BibleBooksScreen() {
               onPress={() => router.back()}
               accessibilityRole="button"
               accessibilityLabel="Go back"
-              style={[styles.emptyBack, { borderColor: palette.rasp }, palette.btnDress]}
+              style={[styles.emptyBack, { backgroundColor: palette.band }, palette.btnDress]}
             >
               <Text style={[styles.emptyBackText, { color: palette.raspDeep }]}>Go back</Text>
             </Pressable>
@@ -218,7 +218,7 @@ export default function BibleBooksScreen() {
 
         <Modal visible={labelEditor} transparent animationType="fade" onRequestClose={() => setLabelEditor(false)}>
           <Pressable style={styles.scrim} onPress={() => setLabelEditor(false)} />
-          <View style={[styles.editorCard, { backgroundColor: palette.paper }, palette.sheetDress]}>
+          <View style={[styles.editorCard, { backgroundColor: palette.paper2 }, palette.sheetDress]}>
             <Text style={[styles.editorTitle, { color: palette.ink }]}>Name your notes source</Text>
             <Text style={[styles.editorSub, { color: palette.inkSoft }]}>
               Where your handwritten notes live — a reMarkable, a notebook, anything. However you want to put it.
@@ -251,7 +251,7 @@ export default function BibleBooksScreen() {
 
         <Modal visible={bookNavOpen} transparent animationType="fade" onRequestClose={() => setBookNavOpen(false)}>
           <Pressable style={styles.scrim} onPress={() => setBookNavOpen(false)} />
-          <View style={[styles.navCard, { backgroundColor: palette.paper }, palette.sheetDress]}>
+          <View style={[styles.navCard, { backgroundColor: palette.paper2 }, palette.sheetDress]}>
             <View style={styles.navHead}>
               <Text style={[styles.editorTitle, { color: palette.ink }]}>Jump to Book</Text>
               <Pressable hitSlop={8} onPress={() => setBookNavOpen(false)} accessibilityRole="button" accessibilityLabel="Close book picker">
@@ -322,7 +322,7 @@ function CurrentPill({
   if (bookIsComplete(studyState, book)) return null;
   return (
     <Pressable
-      style={[styles.currentPill, { borderWidth: 1.5, borderColor: palette.lineDark }]}
+      style={[styles.currentPill, { backgroundColor: palette.band }]}
       accessibilityRole="button"
       accessibilityLabel={`Make ${book} current`}
       hitSlop={6}
@@ -380,7 +380,7 @@ function BookRow({
   if (paper) parts.push(paper);
 
   return (
-    <Pressable style={styles.bookrow} onPress={onPress}>
+    <Pressable style={[styles.bookrow, { backgroundColor: palette.paper2 }, palette.cardDress]} onPress={onPress}>
       <View style={styles.btop}>
         <Text style={[styles.bname, { color: palette.ink }]}>
           {book} <Text style={{ color: palette.rasp }}>›</Text>
@@ -406,31 +406,34 @@ function BookRow({
 const styles = StyleSheet.create({
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 9, borderBottomWidth: 1 },
   topTitle: { fontSize: 14.5, fontWeight: '800', flex: 1 },
-  queueBtn: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11 },
+  // v250: topbar actions are tonal pills, not outlines.
+  queueBtn: { borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12 },
   queueBtnText: { fontSize: 12, fontWeight: '800' },
-  page: { paddingHorizontal: 22, paddingBottom: 10 },
+  page: { paddingHorizontal: 18, paddingBottom: 10 },
   vhead: { alignItems: 'center', paddingTop: 26 },
   kicker: { fontSize: 10.5, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '800', textAlign: 'center' },
   h2: { fontSize: 32, fontWeight: '800', letterSpacing: -0.8, marginTop: 8, textAlign: 'center' },
   vsub: { fontSize: 13.5, lineHeight: 21, textAlign: 'center', marginTop: 14, paddingHorizontal: 6 },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, justifyContent: 'center', marginTop: 18 },
-  chip: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
+  chip: { borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
   chipText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
   subhead: { fontSize: 11, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '800', paddingTop: 24, paddingBottom: 4 },
   emptyGuard: { alignItems: 'center', paddingTop: 34, paddingHorizontal: 8 },
   emptyTitle: { fontSize: 19, fontWeight: '800', letterSpacing: -0.4, textAlign: 'center' },
   emptyBody: { fontSize: 13.5, lineHeight: 21, textAlign: 'center', marginTop: 10 },
-  emptyBack: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 18, marginTop: 18 },
+  emptyBack: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 18, marginTop: 18 },
   emptyBackText: { fontSize: 13, fontWeight: '800' },
-  bookrow: { paddingVertical: 11, gap: 7 },
+  // v250: a book is a card now — raised surface, big radius, the
+  // 9px seed progress thread inside it.
+  bookrow: { borderRadius: 24, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 10, gap: 8 },
   btop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   bname: { fontSize: 16, fontWeight: '700' },
   papermark: { fontSize: 11, fontWeight: '600' },
   bcount: { fontSize: 12, flexShrink: 1, textAlign: 'right' },
-  thread: { height: 5, borderRadius: 3, overflow: 'hidden', position: 'relative' },
-  threadFill: { height: 5, borderRadius: 3 },
+  thread: { height: 9, borderRadius: 999, overflow: 'hidden', position: 'relative' },
+  threadFill: { height: 9, borderRadius: 999 },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,16,20,.45)' },
-  editorCard: { position: 'absolute', left: 20, right: 20, top: '30%', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  editorCard: { position: 'absolute', left: 20, right: 20, top: '30%', borderRadius: 28, padding: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   editorTitle: { fontSize: 16, fontWeight: '800' },
   editorSub: { fontSize: 12.5, lineHeight: 18, marginTop: 5 },
   editorInput: { borderWidth: 1.5, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, fontSize: 15, marginTop: 14 },
@@ -439,7 +442,7 @@ const styles = StyleSheet.create({
   editorSaveText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 },
   currentPill: { borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9 },
   currentPillText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
-  navCard: { position: 'absolute', left: 20, right: 20, top: '9%', maxHeight: '80%', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  navCard: { position: 'absolute', left: 20, right: 20, top: '9%', maxHeight: '80%', borderRadius: 28, padding: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   navHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 9 },
   navName: { fontSize: 15 },

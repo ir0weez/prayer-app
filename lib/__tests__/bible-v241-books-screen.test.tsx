@@ -115,7 +115,24 @@ vi.mock('@/components/bit-motion', async () => {
 import BibleBooksScreen from '../../app/bible-chapters';
 import { BibleScreenBoundary, BibleScreenFallback } from '../../components/bible-v205/screen-boundary';
 import { CHAPTER_COUNTS } from '../bible-v205/index';
+import { getThemedPalette, mix } from '../color-themes';
 import { hexContrast } from '../skin-themes';
+
+/**
+ * v250 RE-BASE (his ruling, Oct 25 15:50): the Bible's ground is no
+ * longer the palette background verbatim — palette.ts washes it
+ * with a breath of the chosen color (mix 0.04 light / 0.05 dark,
+ * the Material mockup's palest-seed page). The dark/light ground
+ * pins below therefore compute the expected ground from the real
+ * palette functions, exactly as useBiblePalette resolves it; the
+ * v241 point of these tests — first paint present, ink ≥4.5:1 on
+ * the ground it actually wears — is unchanged and still asserted
+ * against the rendered values.
+ */
+function expectedGround(scheme: 'light' | 'dark'): string {
+  const colors: any = getThemedPalette(scheme, 'default' as any);
+  return mix(colors.background, colors.primary, scheme === 'dark' ? 0.05 : 0.04).toUpperCase();
+}
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 
@@ -167,7 +184,7 @@ describe('v241 — Books screen first paint, dark scheme + Classic (his phone st
 
   it('the paper is the dark page and the book ink clears 4.5:1 on it', () => {
     const paper = renderedPaper(html);
-    expect(paper).toBe('#171022');
+    expect(paper).toBe(expectedGround('dark'));
     const ink = renderedTextColor(html, 'Genesis');
     expect(hexContrast(ink, paper)).toBeGreaterThanOrEqual(4.5);
   });
@@ -181,7 +198,7 @@ describe('v241 — Books screen first paint, light scheme + Classic', () => {
     expect(html).toContain('Your Books');
     for (const book of Object.keys(CHAPTER_COUNTS)) expect(html).toContain(book);
     const paper = renderedPaper(html);
-    expect(paper).toBe('#F7F2FF');
+    expect(paper).toBe(expectedGround('light'));
     const ink = renderedTextColor(html, 'Genesis');
     expect(hexContrast(ink, paper)).toBeGreaterThanOrEqual(4.5);
   });
@@ -223,9 +240,9 @@ describe('v241 — the Bible screen boundary', () => {
     expect(html).toContain('This page hit a snag');
     expect(html).toContain('Go back');
     expect(html).toContain('boom-v241');
-    expect(renderedPaper(html)).toBe('#171022');
+    expect(renderedPaper(html)).toBe(expectedGround('dark'));
     const ink = renderedTextColor(html, 'This page hit a snag');
-    expect(hexContrast(ink, '#171022')).toBeGreaterThanOrEqual(4.5);
+    expect(hexContrast(ink, expectedGround('dark'))).toBeGreaterThanOrEqual(4.5);
   });
 
   it('renders healthy children untouched', () => {

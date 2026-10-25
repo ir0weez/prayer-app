@@ -177,7 +177,7 @@ function BibleBookContent() {
         <Text style={[styles.topTitle, { color: palette.ink }]}>{book}</Text>
         <Pressable
           onPress={() => router.push('/bible-queue')}
-          style={[styles.queueBtn, { borderColor: palette.rasp }, palette.btnDress]}
+          style={[styles.queueBtn, { backgroundColor: palette.band }, palette.btnDress]}
         >
           <Text style={[styles.queueBtnText, { color: palette.raspDeep }]}>Study Queue</Text>
         </Pressable>
@@ -194,18 +194,18 @@ function BibleBookContent() {
           {(['complete', 'in-progress', 'write', 'restudy', 'not-started', 'none'] as StudyStatus[])
             .filter((s) => (counts.get(s) ?? 0) > 0)
             .map((s) => (
-              <View key={s} style={[styles.sumChip, { borderColor: palette.line, backgroundColor: palette.paper2 }]}>
+              <View key={s} style={[styles.sumChip, { backgroundColor: palette.band }]}>
                 <StatusChip status={s} palette={palette} />
                 <Text style={[styles.sumN, { color: palette.ink }]}>{counts.get(s)}</Text>
               </View>
             ))}
-          <View style={[styles.sumChip, { borderColor: palette.line, backgroundColor: palette.paper2 }]}>
+          <View style={[styles.sumChip, { backgroundColor: palette.band }]}>
             <Text style={[styles.sumN, { color: palette.ink }]}>
               {total} {total === 1 ? 'chapter' : 'chapters'}
             </Text>
           </View>
           {readCount > 0 ? (
-            <View style={[styles.sumChip, { borderColor: palette.line, backgroundColor: palette.paper2 }]}>
+            <View style={[styles.sumChip, { backgroundColor: palette.band }]}>
               <View style={[styles.readDot, { backgroundColor: palette.rasp }]} />
               <Text style={[styles.sumN, { color: palette.ink }]}>{readCount} read</Text>
             </View>
@@ -253,7 +253,7 @@ function BibleBookContent() {
           </View>
         ) : null}
 
-        <View style={[styles.detail, { borderColor: palette.line, backgroundColor: palette.paper2 }, palette.cardDress]}>
+        <View style={[styles.detail, { backgroundColor: palette.paper2 }, palette.cardDress]}>
           <View style={styles.detailHead}>
             <Text style={[styles.detailTitle, { color: palette.ink }]}>{chapterLabel(selected)}</Text>
             {selDisplay.headline === 'read' ? (
@@ -290,12 +290,12 @@ function BibleBookContent() {
             <Pressable style={[styles.btn, styles.btnPrimary, { backgroundColor: palette.rasp }, palette.btnDress]} onPress={() => openChapter(false)}>
               <Text style={styles.btnPrimaryText}>Read Chapter</Text>
             </Pressable>
-            <Pressable style={[styles.btn, { borderColor: palette.lineDark }, palette.btnDress]} onPress={() => openChapter(true)}>
-              <Text style={[styles.btnText, { color: palette.ink }]}>Read as Stories</Text>
+            <Pressable style={[styles.btn, { backgroundColor: palette.band }, palette.btnDress]} onPress={() => openChapter(true)}>
+              <Text style={[styles.btnText, { color: palette.raspDeep }]}>Read as Stories</Text>
             </Pressable>
             {selStatus === 'complete' ? (
-              <Pressable style={[styles.btn, { borderColor: palette.lineDark }, palette.btnDress]} onPress={() => applyStatus('restudy')}>
-                <Text style={[styles.btnText, { color: palette.ink }]}>Add to ReStudy Queue</Text>
+              <Pressable style={[styles.btn, { backgroundColor: palette.band }, palette.btnDress]} onPress={() => applyStatus('restudy')}>
+                <Text style={[styles.btnText, { color: palette.raspDeep }]}>Add to ReStudy Queue</Text>
               </Pressable>
             ) : null}
           </View>
@@ -328,16 +328,16 @@ function BibleBookContent() {
                     // action and lives under Your Study above.)
                     <View style={styles.detailBtns}>
                       {selStatus === 'restudy' || selStatus === 'in-progress' ? (
-                        <Pressable style={[styles.btn, { borderColor: palette.lineDark }, palette.btnDress]} onPress={() => applyStatus('complete')}>
-                          <Text style={[styles.btnText, { color: palette.ink }]}>Mark Complete</Text>
+                        <Pressable style={[styles.btn, { backgroundColor: palette.band }, palette.btnDress]} onPress={() => applyStatus('complete')}>
+                          <Text style={[styles.btnText, { color: palette.raspDeep }]}>Mark Complete</Text>
                         </Pressable>
                       ) : selStatus === 'write' ? (
-                        <Pressable style={[styles.btn, { borderColor: palette.lineDark }, palette.btnDress]} onPress={() => applyStatus('in-progress')}>
-                          <Text style={[styles.btnText, { color: palette.ink }]}>Start Writing</Text>
+                        <Pressable style={[styles.btn, { backgroundColor: palette.band }, palette.btnDress]} onPress={() => applyStatus('in-progress')}>
+                          <Text style={[styles.btnText, { color: palette.raspDeep }]}>Start Writing</Text>
                         </Pressable>
                       ) : (
-                        <Pressable style={[styles.btn, { borderColor: palette.lineDark }, palette.btnDress]} onPress={() => applyStatus('write')}>
-                          <Text style={[styles.btnText, { color: palette.ink }]}>Add to Write Queue</Text>
+                        <Pressable style={[styles.btn, { backgroundColor: palette.band }, palette.btnDress]} onPress={() => applyStatus('write')}>
+                          <Text style={[styles.btnText, { color: palette.raspDeep }]}>Add to Write Queue</Text>
                         </Pressable>
                       )}
                     </View>
@@ -414,29 +414,30 @@ export default function BibleBookScreen() {
 const styles = StyleSheet.create({
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 9, borderBottomWidth: 1 },
   topTitle: { fontSize: 14.5, fontWeight: '800', flex: 1 },
-  queueBtn: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11 },
+  // v250: topbar actions are tonal pills, not outlines.
+  queueBtn: { borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12 },
   queueBtnText: { fontSize: 12, fontWeight: '800' },
   page: { paddingHorizontal: 22, paddingBottom: 10 },
   vhead: { alignItems: 'center', paddingTop: 26 },
   kicker: { fontSize: 10.5, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '800', textAlign: 'center' },
   h2: { fontSize: 32, fontWeight: '800', letterSpacing: -0.8, marginTop: 8, textAlign: 'center' },
   sumline: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, justifyContent: 'center', marginTop: 18 },
-  sumChip: { flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
+  sumChip: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
   sumN: { fontSize: 12.5, fontWeight: '800' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 20 },
-  cell: { width: '17.9%', aspectRatio: 1.15, borderWidth: 1.5, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  cell: { width: '17.9%', aspectRatio: 1.15, borderWidth: 1.5, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   cellN: { fontSize: 16, fontWeight: '800' },
   cellReadDot: { position: 'absolute', bottom: 4, width: 5, height: 5, borderRadius: 3 },
   readDot: { width: 7, height: 7, borderRadius: 4 },
   readRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14 },
   readLine: { fontSize: 13.5, fontWeight: '800' },
   readAction: { fontSize: 13.5, fontWeight: '800' },
-  detail: { borderWidth: 1, borderRadius: 14, padding: 16, marginTop: 20 },
+  detail: { borderRadius: 28, padding: 18, marginTop: 20 },
   detailHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   detailTitle: { fontSize: 19, fontWeight: '800' },
   detailSub: { fontSize: 13.5, lineHeight: 20, marginTop: 8 },
   detailBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 13 },
-  btn: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 9, paddingHorizontal: 15 },
+  btn: { borderRadius: 999, paddingVertical: 9, paddingHorizontal: 15 },
   btnPrimary: { borderWidth: 0 },
   btnPrimaryText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 },
   btnText: { fontWeight: '700', fontSize: 13.5 },

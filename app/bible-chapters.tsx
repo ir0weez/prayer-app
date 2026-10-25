@@ -31,6 +31,7 @@ import {
 } from '@/lib/bible-v205/study';
 import { bookIsComplete, groupBooksByStudy } from '@/lib/bible-v205/rewards';
 import { Ornament, StatusChip } from '@/components/bible-v205/blocks';
+import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 import {
   handwrittenNoteFor,
@@ -83,6 +84,10 @@ export default function BibleBooksScreen() {
   // Started, so the list is complete from the first paint.
   const effectiveState = studyState ?? seedStudyState();
   const groups = groupBooksByStudy(effectiveState, CANON);
+  // v241: the canon is 66 books — a grouping with zero books across
+  // all three sections is impossible in a healthy build, so it gets a
+  // visible word (below) instead of an empty page.
+  const totalBooks = groups.current.length + groups.finished.length + groups.notStarted.length;
   const possessive = labels?.possessive ?? 'Your';
   const sourceLabel = labels?.sourceLabel ?? 'Handwritten notes';
 
@@ -174,6 +179,25 @@ export default function BibleBooksScreen() {
           </Pressable>
         </View>
 
+        {totalBooks === 0 ? (
+          <View style={styles.emptyGuard}>
+            <Text style={[styles.emptyTitle, { color: palette.ink }]}>The book list couldn&rsquo;t be built</Text>
+            <Text style={[styles.emptyBody, { color: palette.inkSoft }]}>
+              All 66 books belong on this page — an empty list means something went wrong while
+              loading them, not that anything was lost. Your notes and marks are saved. Head back
+              and open Books again.
+            </Text>
+            <Pressable
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              style={[styles.emptyBack, { borderColor: palette.rasp }]}
+            >
+              <Text style={[styles.emptyBackText, { color: palette.raspDeep }]}>Go back</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {groups.current.length ? (
           <Text style={[styles.subhead, { color: palette.rasp }]}>Current</Text>
         ) : null}
@@ -188,6 +212,9 @@ export default function BibleBooksScreen() {
           <Text style={[styles.subhead, { color: palette.rasp }]}>Not Started</Text>
         ) : null}
         {groups.notStarted.map(renderBookRow)}
+
+        <View style={{ height: 30 }} />
+      </ScrollView>
 
         <Modal visible={labelEditor} transparent animationType="fade" onRequestClose={() => setLabelEditor(false)}>
           <Pressable style={styles.scrim} onPress={() => setLabelEditor(false)} />
@@ -255,15 +282,15 @@ export default function BibleBooksScreen() {
             </ScrollView>
           </View>
         </Modal>
-
-        <View style={{ height: 30 }} />
-      </ScrollView>
     </View>
   );
 
-  if (skin === 'paper') return <PaperSettle>{content}</PaperSettle>;
-  if (skin === '8bit') return <BitSettle>{content}</BitSettle>;
-  return content;
+  // v241: a render failure anywhere in this screen lands on the
+  // Bible boundary's visible fallback — never on a blank page.
+  const guarded = <BibleScreenBoundary>{content}</BibleScreenBoundary>;
+  if (skin === 'paper') return <PaperSettle>{guarded}</PaperSettle>;
+  if (skin === '8bit') return <BitSettle>{guarded}</BitSettle>;
+  return guarded;
 }
 
 /** v211: the Current pill. The book he is studying shows a filled
@@ -388,6 +415,11 @@ const styles = StyleSheet.create({
   chip: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
   chipText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
   subhead: { fontSize: 11, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '800', paddingTop: 24, paddingBottom: 4 },
+  emptyGuard: { alignItems: 'center', paddingTop: 34, paddingHorizontal: 8 },
+  emptyTitle: { fontSize: 19, fontWeight: '800', letterSpacing: -0.4, textAlign: 'center' },
+  emptyBody: { fontSize: 13.5, lineHeight: 21, textAlign: 'center', marginTop: 10 },
+  emptyBack: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 18, marginTop: 18 },
+  emptyBackText: { fontSize: 13, fontWeight: '800' },
   bookrow: { paddingVertical: 11, gap: 7 },
   btop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   bname: { fontSize: 16, fontWeight: '700' },

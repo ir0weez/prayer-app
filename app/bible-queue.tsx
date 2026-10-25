@@ -16,6 +16,7 @@ import type { QueueItem } from '@/lib/bible-v205/types';
 import { loadStudyState, type StudyState } from '@/lib/bible-v205/study';
 import { Ornament, StatusChip } from '@/components/bible-v205/blocks';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
+import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 
 export default function BibleQueueScreen() {
   const router = useRouter();
@@ -126,9 +127,12 @@ export default function BibleQueueScreen() {
     </View>
   );
 
-  if (skin === 'paper') return <PaperSettle>{content}</PaperSettle>;
-  if (skin === '8bit') return <BitSettle>{content}</BitSettle>;
-  return content;
+  // v241: same boundary as the Books view — a render failure lands
+  // on a visible fallback, never on a blank page.
+  const guarded = <BibleScreenBoundary>{content}</BibleScreenBoundary>;
+  if (skin === 'paper') return <PaperSettle>{guarded}</PaperSettle>;
+  if (skin === '8bit') return <BitSettle>{guarded}</BitSettle>;
+  return guarded;
 }
 
 function PipeNode({

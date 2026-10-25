@@ -66,16 +66,19 @@ describe("chrome surfaces converted to the terminal dialect", () => {
     expect(blocks).toContain("[ ${label} ]");
   });
 
-  it("the summary zone speaks phosphor: summary card inks, progress bar + outline sprout, NOW pill", () => {
+  it("the summary zone speaks phosphor: summary card inks, progress bar + outline day cap, NOW pill", () => {
     const summary = read("components/daily-summary-card.tsx");
     expect(summary).toContain("skinTokens.isTerminal ? TERM_SOFT");
     expect(summary).toContain("skinTokens.isTerminal ? TERM_MID");
     const bar = read("components/schedule-progress-bar.tsx");
     expect(bar).toContain("isTerminal ? TERM_PHOS");
     expect(bar).toContain("isTerminal ? TERM_DIM");
-    // Only the sprout's COLORS changed — its growth motion is the
-    // held A46 item and keeps its spring under every skin.
-    expect(bar).toContain("withSpring");
+    // RE-BASED in v240 (Jonathan ruled the held A46 item on
+    // 2026-10-24 and picked the sun/moon cap): the sprout and its
+    // spring are gone under every skin; Terminal's cap is a
+    // phosphor-outline sun/moon on the panel knob.
+    expect(bar).not.toContain("withSpring");
+    expect(bar).toContain("TERM_PANEL");
     const now = read("components/now-indicator.tsx");
     expect(now).toContain("skinTokens.isTerminal ? TERM_PHOS");
     expect(now).toContain("Easing.steps(1)");

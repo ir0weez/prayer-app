@@ -264,14 +264,18 @@ describe("Paper coverage — v202 animation pass", () => {
     expect(schedule).toContain("paperPressedLift(skinTokens, pressed, [{ scale: 0.95 }])");
   });
 
-  it("schedule progress fill soaks across the sheet — A46 sprout springs untouched", () => {
+  it("schedule progress fill soaks across the sheet — A46 ruled in v240: the sprout's springs are GONE", () => {
     const bar = read("components/schedule-progress-bar.tsx");
     expect(bar).toContain("usePaperFill(percentage / 100)");
     expect(bar).toContain('transformOrigin: "left center"');
-    // The held A46 item: the sprout's spring configs are EXACTLY as
-    // they were — this pass did not touch the celebration.
-    expect(bar).toContain("withSpring(1, { damping: 12, stiffness: 110 })");
-    expect(bar).toContain("withSpring(1, { damping: 7, stiffness: 200 })");
+    // RE-BASED in v240 (Jonathan ruled A46 on 2026-10-24: "I'm
+    // really not a fan of that plant animation" — his pick was the
+    // sun/moon cap). The original pin froze the sprout's spring
+    // configs because A46 was HELD for his ruling; the ruling
+    // landed, the springs are out, and the still day cap rides
+    // the fill instead. The fill's soak is exactly as v202 left it.
+    expect(bar).not.toContain("withSpring");
+    expect(bar).toContain("dayCapFaceFor");
   });
 
   it("the quick-add picker rises as a sheet under Paper", () => {

@@ -87,16 +87,18 @@ describe("8-bit coverage — v203 animation pass", () => {
     expect(picker).toContain("isPaper ? skinTokens.motion.settleDuration : 180");
   });
 
-  it("schedule progress fill advances in stepped chunks — A46 sprout springs untouched", () => {
+  it("schedule progress fill advances in stepped chunks — A46 ruled in v240: the sprout's springs are GONE", () => {
     const bar = read("components/schedule-progress-bar.tsx");
     expect(bar).toContain("useBitFill(percentage / 100)");
     expect(bar).toContain("paperFillStyle ?? bitFillStyle");
     // Paper's soak is still wired exactly as v202 left it.
     expect(bar).toContain("usePaperFill(percentage / 100)");
-    // The held A46 item: the sprout's spring configs are EXACTLY
-    // as they were — this pass did not touch the celebration.
-    expect(bar).toContain("withSpring(1, { damping: 12, stiffness: 110 })");
-    expect(bar).toContain("withSpring(1, { damping: 7, stiffness: 200 })");
+    // RE-BASED in v240 (Jonathan ruled A46 on 2026-10-24 and picked
+    // the sun/moon cap): the original pin froze the sprout's spring
+    // configs while A46 was HELD; the springs are now out under
+    // every skin, and the cap wears a blocky bit sun instead.
+    expect(bar).not.toContain("withSpring");
+    expect(bar).toContain("dayCapFaceFor");
   });
 
   it("journal: masthead, rows, separators, and the composer all snap in", () => {

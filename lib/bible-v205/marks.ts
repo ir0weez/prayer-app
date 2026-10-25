@@ -5,6 +5,7 @@
 // read-only inputs, and everything he adds lives here.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { normalizeCategory } from './categories';
 import { entryKey, type NoteCategory } from './types';
 
 export const MARKS_KEY = 'prayercircle.bible.v205.marks.v1';
@@ -104,9 +105,10 @@ export interface EntryMarks {
   verseTints: Record<number, TintColor>;
   /**
    * His color-code category applied to this entry in the app (blue =
-   * definition, red = quote, yellow = good thought, orange =
-   * conversation, green = personal story). User layer, like every
-   * mark: a commentary re-import can never touch it.
+   * definition, red = quote, yellow = good thought, green = personal
+   * story — the working set of four since v245; a pre-merge stored
+   * 'conversation' normalizes to personal-story at load). User layer,
+   * like every mark: a commentary re-import can never touch it.
    */
   category: NoteCategory | null;
 }
@@ -152,7 +154,8 @@ export function normalizeMarks(m: Partial<EntryMarks> | undefined): EntryMarks {
     notes: normalizeLines(m.notes),
     tint: m.tint ?? null,
     verseTints: sanitizeVerseTints(m.verseTints),
-    category: m.category ?? null,
+    // v245: a stored 'conversation' (pre-merge) reads as personal-story.
+    category: normalizeCategory(m.category),
   };
 }
 
@@ -180,7 +183,18 @@ export async function loadMarks(): Promise<MarksMap> {
     const raw = await AsyncStorage.getItem(MARKS_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as MarksMap;
-    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+    if (typeof parsed !== 'object' || parsed === null) return {};
+    // v245: the load IS the read boundary — every entry is normalized
+    // on the way in (missing fields read as their empty values, and a
+    // pre-merge 'conversation' category reads as personal-story), so
+    // no consumer ever sees a raw stored shape. The next saveMarks on
+    // any normal path persists the healed map; the stored file is
+    // never rewritten wholesale behind his back.
+    const healed: MarksMap = {};
+    for (const [key, entry] of Object.entries(parsed)) {
+      healed[key] = normalizeMarks(entry as Partial<EntryMarks>);
+    }
+    return healed;
   } catch {
     return {};
   }

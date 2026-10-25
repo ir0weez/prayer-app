@@ -130,7 +130,7 @@ import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPL
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { loadStudyState, saveStudyState } from "@/lib/bible-v205/study";
 import { applyStudioStatesReads, collectStudioStates } from "@/lib/bible-v205/studio-states";
-import { loadMarks } from "@/lib/bible-v205/marks";
+import { loadMarks, MARKS_KEY } from "@/lib/bible-v205/marks";
 import { transitionChapterStatus } from "@/lib/bible-v205/rewards";
 import {
   applyStudioChapters,
@@ -138,6 +138,7 @@ import {
   emptyStudioApplyCounts,
   formatStudioImportSummary,
   loadStudioImports,
+  STUDIO_IMPORT_KEY,
   mergeStudioSchedule,
   mergeStudioScheduleMinistries,
   parseStudioFileFull,
@@ -2535,6 +2536,17 @@ export default function HomeScreen() {
       const entries = await AsyncStorage.multiGet(keys);
       const storage: Record<string, string | null> = {};
       entries.forEach(([key, value]) => { storage[key] = value; });
+      // v245: the two category-carrying stores are re-serialized from
+      // their loaders, not dumped raw — both loaders normalize at the
+      // read boundary (a pre-merge 'conversation' reads as
+      // personal-story), so the export only ever emits the four
+      // working categories. Keys that were never stored stay absent.
+      if (storage[MARKS_KEY] != null) {
+        storage[MARKS_KEY] = JSON.stringify(await loadMarks());
+      }
+      if (storage[STUDIO_IMPORT_KEY] != null) {
+        storage[STUDIO_IMPORT_KEY] = JSON.stringify(await loadStudioImports());
+      }
       const photos = await createPhotoBackup(storage);
       // v222 (WS2c): the app's bubble lines ride the backup as their own
       // section, so the studio can later read them into its "From the

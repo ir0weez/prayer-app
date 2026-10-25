@@ -571,12 +571,15 @@ describe('read-only mode — the noteless reader on every chapter', () => {
 });
 
 describe('categories — his color code', () => {
-  it('exactly five categories exist, in his colors, with his meanings', () => {
+  // Re-based in v245 with his ruling cited: on 2026-10-25 he merged
+  // Conversation into Personal Story ("just Personal Story is fine,
+  // and it's green") and confirmed Quote is red — the working set is
+  // FOUR, not the Notion era's five this pin originally asserted.
+  it('exactly four categories exist, in his colors, with his meanings', () => {
     expect(NOTE_CATEGORIES.map((c) => c.id)).toEqual([
       'definition',
       'quote',
       'good-thought',
-      'conversation',
       'personal-story',
     ]);
   });

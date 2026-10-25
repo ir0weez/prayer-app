@@ -106,11 +106,15 @@ export function BlockView({
     );
   }
   // v223: a quote is someone else's words, shown WITH the author's name —
-  // never rendered as a plain note, never dropped.
+  // never rendered as a plain note, never dropped. v245 (his ruling,
+  // 2026-10-25: "Quote should be red"): the callout wears the quote
+  // category's red family, like every other Quote surface — it sat in
+  // the grey family until now.
   if (block.kind === 'quote') {
+    const quoteMeta = CATEGORY_META.quote;
     return (
-      <View style={[styles.callout, { backgroundColor: palette.greyBg, borderColor: palette.greyBorder }]}>
-        <Text style={[styles.calloutLabel, { color: palette.greyLabel }]}>❝ Quote — {block.authorName || 'Someone'}</Text>
+      <View style={[styles.callout, { backgroundColor: quoteMeta.bg, borderColor: quoteMeta.color }]}>
+        <Text style={[styles.calloutLabel, { color: quoteMeta.ink }]}>❝ Quote — {block.authorName || 'Someone'}</Text>
         <Text style={[styles.calloutText, { color: palette.greyInk }]}>{block.text}</Text>
       </View>
     );

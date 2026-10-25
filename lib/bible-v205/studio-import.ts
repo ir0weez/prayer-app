@@ -83,6 +83,7 @@ import type {
   V205OutlineItem,
   V205Section,
 } from './types';
+import { normalizeCategory } from './categories';
 import type { RelationshipType, ReminderFrequency } from '../prayercircle-data';
 import { validateStudioStates, type StudioStatesSection } from './studio-states';
 import {
@@ -314,13 +315,12 @@ const STUDY_STATUSES: StudyStatus[] = [
 
 const NOTE_KINDS: StudioNoteKind[] = ['note', 'highlight', 'main-thought', 'imported', 'quote'];
 
-const NOTE_CATEGORIES: NoteCategory[] = [
-  'definition',
-  'quote',
-  'good-thought',
-  'conversation',
-  'personal-story',
-];
+// v245: the working category set is FOUR (his 2026-10-25 merge of
+// Conversation into Personal Story). Acceptance of a raw category —
+// from a pack or from the store — goes through normalizeCategory
+// (categories.ts), which also accepts the retired 'conversation' and
+// reads it as 'personal-story': legacy values are normalized at this
+// door, never rejected and never left as a phantom fifth category.
 
 const BLOCK_KINDS = ['para', 'scripture', 'highlight', 'thought', 'conversation', 'note', 'quote'];
 
@@ -354,10 +354,12 @@ function validateBlock(raw: unknown, where: string): V205Block {
   if (typeof raw.text !== 'string') fail(`${where}: block has no text`);
   const block: V205Block = { kind: raw.kind as V205Block['kind'], text: raw.text };
   if (typeof raw.ref === 'string') block.ref = raw.ref;
-  if (raw.category === null || NOTE_CATEGORIES.includes(raw.category as NoteCategory)) {
-    if (raw.category) block.category = raw.category as NoteCategory;
-  } else if (raw.category !== undefined) {
-    fail(`${where}: unknown note category`);
+  if (raw.category !== undefined && raw.category !== null) {
+    // v245: a legacy 'conversation' is accepted and lands as
+    // personal-story; a value no ruling knows is still a bad pack.
+    const category = normalizeCategory(raw.category);
+    if (category === null) fail(`${where}: unknown note category`);
+    block.category = category;
   }
   return block;
 }
@@ -385,10 +387,13 @@ function validateNote(raw: unknown, where: string): StudioNote {
     if (typeof raw.authorId !== 'string') fail(`${where}: authorId must be a string`);
     if (raw.authorId) note.authorId = raw.authorId;
   }
-  if (raw.category === null || NOTE_CATEGORIES.includes(raw.category as NoteCategory)) {
-    note.category = (raw.category as NoteCategory | null) ?? null;
+  if (raw.category === null) {
+    note.category = null;
   } else if (raw.category !== undefined) {
-    fail(`${where}: unknown note category`);
+    // v245: same merge as blocks — 'conversation' arrives, personal-story lands.
+    const category = normalizeCategory(raw.category);
+    if (category === null) fail(`${where}: unknown note category`);
+    note.category = category;
   }
   return note;
 }
@@ -1173,8 +1178,10 @@ function isValidStoredBlock(v: unknown): v is V205Block {
   if (
     v.category !== undefined &&
     v.category !== null &&
-    !NOTE_CATEGORIES.includes(v.category as NoteCategory)
+    normalizeCategory(v.category) === null
   ) {
+    // v245: normalizeCategory knows the four AND the retired
+    // 'conversation' — only a value no ruling knows is invalid here.
     return false;
   }
   return true;
@@ -1187,7 +1194,12 @@ function sanitizeStoredBlock(block: V205Block): V205Block {
   // v244: the quote speaker's People id survives the sanitize pass
   // too — a healed map must not cost a quote its face.
   if (typeof block.authorId === 'string') out.authorId = block.authorId;
-  if (block.category) out.category = block.category;
+  // v245: a stored 'conversation' heals to personal-story on this pass
+  // (isValidStoredBlock already vouched for the value, so this lands).
+  if (block.category) {
+    const category = normalizeCategory(block.category);
+    if (category) out.category = category;
+  }
   return out;
 }
 

@@ -20,18 +20,22 @@ export type V205BlockKind =
   // shipped commentary data never emit this kind.
 
 /**
- * His Notion color code — the colors are MEANINGS, not decoration
- * (his words, 2026-10-23): Blue = definition, Red = quote, Yellow = a
- * good thought to speak on, Orange = potential conversation, Green =
- * personal story. More colors exist in his code; their meanings are
- * his to name, so no other category exists here until he does.
+ * His color code — the colors are MEANINGS, not decoration (his
+ * words, 2026-10-23): Blue = definition, Red = quote, Yellow = a
+ * good thought to speak on, Green = personal story. The Notion-era
+ * code had a fifth, Orange = potential conversation; on 2026-10-25
+ * he merged it away ("Personal story and conversation should be
+ * the same button — just Personal Story is fine, and it's green"),
+ * so the working set is FOUR. Stored 'conversation' values written
+ * before the merge are legacy data, not a fifth category: every
+ * read boundary normalizes them to 'personal-story' (see
+ * normalizeCategory in categories.ts).
  */
 export type NoteCategory =
   | 'definition' // Blue
   | 'quote' // Red
   | 'good-thought' // Yellow — his speaking material
-  | 'conversation' // Orange — potential conversation
-  | 'personal-story'; // Green
+  | 'personal-story'; // Green — personal stories and conversations alike (v245)
 
 export interface V205Block {
   kind: V205BlockKind;

@@ -73,7 +73,13 @@ describe("v240 — the plant is gone and the cap stands in its place", () => {
   it("the cap is drawn, per skin: flat suns, a blocky bit sun, a phosphor outline", () => {
     expect(bar).toContain("react-native-svg");
     expect(bar).toContain("M21 12.79A9 9 0 1 1 11.21 3"); // the crescent
-    expect(bar).toContain("CAP_SUN_FILL");
+    // RE-BASED in v242 (Jonathan picked Layered Sky from the
+    // livelier-cap mockups, 2026-10-25): the flat CAP_SUN_FILL
+    // glyphs are gone — the cap is now a sky window whose hues
+    // live in SKY_STOPS / BIT_SKY_BANDS. The crescent path and
+    // the per-skin drawing contract stand; schedule-cap-v242
+    // pins the new window.
+    expect(bar).toContain("SKY_STOPS");
     expect(bar).toContain("TERM_PANEL");
   });
 

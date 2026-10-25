@@ -19,25 +19,44 @@
 // shifted up so the whole region stays on screen — and the Android
 // back action closes an open thread instead of leaving the page
 // (the handler lives in the chapter page, which owns the open key).
+// v244 "Bubbles, Floating Right" (his asks, 2026-10-25 10:09): the
+// faces grow (34 → 51) and lose the SQUARE shadow that sat on them —
+// the old card carried elevation + shadow in its static style while
+// its borderRadius lived only in the animated style, so the shadow
+// silhouette stayed rectangular; the closed face now wears its own
+// round, soft shadow on a statically-round seed, the card's shadow
+// fades in only as it blooms, and the stack drifts on a slow sine —
+// buoyed, staggered per face, never synchronized, no springs. The
+// open bubble goes BIG (~92% of the screen, still a bubble), docks
+// BELOW its verses (above only when the room is up there), and the
+// chapter behind it BLURS for real (expo-blur) everywhere except the
+// verses zone itself, which stays crisp. Studio quote blocks that
+// carry a speaker id join the margin as quote bubbles (edited in the
+// studio — no pencil here).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import ReAnimated, {
+  Easing,
   interpolate,
   makeMutable,
   useAnimatedStyle,
+  useSharedValue,
   withDelay,
+  withRepeat,
   withTiming,
   type EasingFunction,
   type EasingFunctionFactory,
   type SharedValue,
 } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AvatarImage } from '@/components/avatar-system';
 import type { Person } from '@/lib/prayercircle-data';
 import {
-  conversationShiftUp,
+  bubbleDock,
   conversationViewport,
+  openCardWidth,
   resolveBubbleAuthor,
   type BubbleKind,
   type BubbleLine,
@@ -48,18 +67,26 @@ import {
 import type { LineAuthor } from '@/lib/bible-v205/marks';
 import type { BiblePalette } from './palette';
 
-export const FACE_SIZE = 34;
-const SOLO_CARD_W = 276;
-const CONVO_CARD_W = 250;
+export const FACE_SIZE = 51;
 const CARD_GAP = 10;
-const STACK_STEP = 19;
+const STACK_STEP = 28;
 const ANCHOR_TOP = 12;
 const STAGGER_MS = 110;
+/** The open thread's clearance from the verses it hangs on. */
+const DOCK_GAP = 8;
+/** The chapter blur's strength while a thread is open. */
+const BLUR_INTENSITY = 45;
 
 export type BloomTiming = { duration: number; easing: EasingFunction | EasingFunctionFactory };
 
 export function kindLabelFor(kind: BubbleKind): string {
-  return kind === 'highlight' ? '✦ Highlight' : kind === 'thought' ? 'Main Thought' : 'Note';
+  return kind === 'highlight'
+    ? '✦ Highlight'
+    : kind === 'thought'
+      ? 'Main Thought'
+      : kind === 'quote'
+        ? '❝ Quote'
+        : 'Note';
 }
 
 /** "on v. 34" / "on vv. 11–12" — the span a card's verses ride on. */
@@ -136,7 +163,9 @@ function cardColors(kind: BubbleKind, palette: BiblePalette): { bg: string; bord
   if (kind === 'highlight') {
     return { bg: palette.yellowBg, border: palette.yellowBorder, ink: palette.yellowInk, label: palette.yellowLabel };
   }
-  if (kind === 'thought') {
+  if (kind === 'thought' || kind === 'quote') {
+    // A quote wears the same grey family as its v223 callout did —
+    // someone else's words, kept distinct from his highlight gold.
     return { bg: palette.greyBg, border: palette.greyBorder, ink: palette.greyInk, label: palette.greyLabel };
   }
   return { bg: palette.paper, border: palette.isDark ? palette.lineDark : '#E4DFEA', ink: palette.ink, label: palette.rasp };
@@ -165,6 +194,33 @@ function MorphCard(props: {
   const { line, palette, progress } = props;
   const colors = cardColors(line.kind, palette);
 
+  // v244: the idle float — a slow sine drift on the closed face,
+  // staggered per face (delay + period both step with the index) so
+  // the stack reads as buoyed, never synchronized. It fades out as
+  // the bloom takes the card (the (1 − p) factor below), and it
+  // never starts at all under reduced motion.
+  const drift = useSharedValue(0);
+  const driftIndex = props.index;
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((reduced) => {
+        if (!live || reduced) return;
+        drift.value = withDelay(
+          driftIndex * 450,
+          withRepeat(
+            withTiming(1, { duration: 2300 + driftIndex * 350, easing: Easing.inOut(Easing.sin) }),
+            -1,
+            true,
+          ),
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [drift, driftIndex]);
+
   const cardStyle = useAnimatedStyle(() => {
     const p = progress.value;
     return {
@@ -173,7 +229,12 @@ function MorphCard(props: {
       borderRadius: interpolate(p, [0, 1], [FACE_SIZE / 2, 16]),
       top: interpolate(p, [0, 1], [props.index * 3, props.openTop]),
       right: interpolate(p, [0, 1], [props.closedRight, props.openRight]),
-      shadowOpacity: interpolate(p, [0, 1], [0.18, 0.3]),
+      // v244: NO shadow at rest (the seed wears the face's own round
+      // shadow) — the card's big soft shadow fades in with the bloom.
+      shadowOpacity: interpolate(p, [0, 1], [0, 0.3]),
+      shadowRadius: interpolate(p, [0, 1], [6, 22]),
+      elevation: interpolate(p, [0, 1], [0, 8]),
+      transform: [{ translateY: interpolate(drift.value, [0, 1], [3, -3]) * (1 - p) }],
     };
   }, [props.cardW, props.naturalHeight, props.openTop, props.closedRight, props.openRight, props.index]);
 
@@ -212,7 +273,7 @@ function MorphCard(props: {
         onLayout={(e) => props.onMeasure(e.nativeEvent.layout.height)}
       >
         <View style={styles.cardHead}>
-          <AuthorFace author={props.author} size={24} palette={palette} />
+          <AuthorFace author={props.author} size={28} palette={palette} />
           <Text style={[styles.cardName, { color: colors.ink }]} numberOfLines={1}>
             {props.author.name}
           </Text>
@@ -221,20 +282,31 @@ function MorphCard(props: {
         </View>
         <Text style={[styles.cardText, { color: colors.ink }]}>{line.text}</Text>
         <View style={styles.cardActions} pointerEvents="box-none">
-          <Pressable hitSlop={6} onPress={props.onEdit} style={styles.cardActionBtn}>
-            <MaterialIcons name="edit" size={15} color={colors.ink} style={{ opacity: 0.6 }} />
-          </Pressable>
-          <Pressable hitSlop={6} onPress={props.onRemove} style={styles.cardActionBtn}>
-            <MaterialIcons name="delete-outline" size={16} color={colors.ink} style={{ opacity: 0.6 }} />
-          </Pressable>
+          {/* v244: a studio quote is read here, not edited — its words
+              live in the studio pack, so it gets no pencil or trash,
+              only the fold-back ×. */}
+          {line.source !== 'quote' ? (
+            <>
+              <Pressable hitSlop={6} onPress={props.onEdit} style={styles.cardActionBtn}>
+                <MaterialIcons name="edit" size={15} color={colors.ink} style={{ opacity: 0.6 }} />
+              </Pressable>
+              <Pressable hitSlop={6} onPress={props.onRemove} style={styles.cardActionBtn}>
+                <MaterialIcons name="delete-outline" size={16} color={colors.ink} style={{ opacity: 0.6 }} />
+              </Pressable>
+            </>
+          ) : null}
           <Pressable hitSlop={6} onPress={props.onPressCard} style={styles.cardActionBtn}>
             <MaterialIcons name="close" size={16} color={colors.ink} style={{ opacity: 0.6 }} />
           </Pressable>
         </View>
       </ReAnimated.View>
       {/* The face itself, riding the card's top corner — the seed the
-          card blooms from. It fades as the card's header takes over. */}
-      <ReAnimated.View style={[styles.seed, seedStyle]} pointerEvents="none">
+          card blooms from. It fades as the card's header takes over.
+          v244: the seed wears the face's shadow — statically round
+          (borderRadius in the style sheet, not the animated style),
+          soft and small — so the closed face's shadow follows its
+          circle on both platforms. */}
+      <ReAnimated.View style={[styles.seed, { backgroundColor: colors.bg }, seedStyle]} pointerEvents="none">
         <AuthorFace author={props.author} size={FACE_SIZE} palette={palette} />
       </ReAnimated.View>
     </ReAnimated.View>
@@ -250,6 +322,13 @@ export function LivingBubbles(props: {
   palette: BiblePalette;
   open: boolean;
   bloom: BloomTiming;
+  /**
+   * v244: the entry-relative y where this entry's verses end (the
+   * chapter page measures its head). The open thread docks below it
+   * — the verses stay on screen, uncovered and unblurred — or above
+   * the entry when the room is up there. Null until measured.
+   */
+  versesBottom: number | null;
   /** The visible area the overlay may use, from the chapter page. */
   viewportHeight: number;
   topChrome: number;
@@ -265,9 +344,7 @@ export function LivingBubbles(props: {
   const lines = piece.lines;
   const count = lines.length;
   const solo = count <= 1;
-  const cardW = solo ? SOLO_CARD_W : CONVO_CARD_W;
   const window = useWindowDimensions();
-  const [stripW, setStripW] = useState(window.width - 40);
   const [heights, setHeights] = useState<number[]>(() => lines.map(() => 120));
   const [scrollReady, setScrollReady] = useState(false);
 
@@ -298,6 +375,12 @@ export function LivingBubbles(props: {
     return undefined;
   }, [open, count, progresses, props.bloom.duration, props.bloom.easing]);
 
+  const [stripW, setStripW] = useState(window.width - 40);
+  // v244: the open cards go BIG — ~92% of the screen for a lone
+  // bubble, ~86% in a conversation so the alternation still reads,
+  // and never wider than the strip they are laid out in.
+  const cardW = openCardWidth({ solo, windowWidth: window.width, stripWidth: stripW });
+
   const natural = heights.reduce((a, b) => a + b, 0) + CARD_GAP * Math.max(0, count - 1);
   const { regionHeight, scrollable } = conversationViewport({
     naturalHeight: natural,
@@ -305,25 +388,30 @@ export function LivingBubbles(props: {
     topChrome: props.topChrome,
     bottomReserve: props.bottomReserve,
   });
-  const shift = open
-    ? conversationShiftUp({
-        anchorTop: ANCHOR_TOP,
-        entryScreenTop: props.entryScreenTop ?? 0,
-        regionHeight,
-        viewportHeight: props.viewportHeight,
-        topChrome: props.topChrome,
-        bottomReserve: props.bottomReserve,
-      })
-    : 0;
+  // v244: the dock — below the verses by default (they stay visible,
+  // uncovered, unblurred), above the entry when the room is up
+  // there. The region's open top lands the whole thread on its dock;
+  // the cards keep their cumulative tops inside it.
+  const headBottom = props.versesBottom ?? ANCHOR_TOP + FACE_SIZE + 6;
+  const dock = bubbleDock({
+    entryScreenTop: props.entryScreenTop,
+    versesBottom: headBottom,
+    cardsHeight: natural,
+    viewportHeight: props.viewportHeight,
+    topChrome: props.topChrome,
+    bottomReserve: props.bottomReserve,
+    gap: DOCK_GAP,
+  });
+  const openRegionTop = dock === 'below' ? headBottom + DOCK_GAP : -(regionHeight + DOCK_GAP);
   const closedRegionH = FACE_SIZE + 3 * Math.max(0, count - 1) + 2;
 
   const regionStyle = useAnimatedStyle(() => {
     const p = progresses[0]?.value ?? 0;
     return {
       height: interpolate(p, [0, 1], [closedRegionH, regionHeight]),
-      top: interpolate(p, [0, 1], [ANCHOR_TOP, ANCHOR_TOP - shift]),
+      top: interpolate(p, [0, 1], [ANCHOR_TOP, openRegionTop]),
     };
-  }, [closedRegionH, regionHeight, shift]);
+  }, [closedRegionH, regionHeight, openRegionTop]);
 
   const openTops: number[] = [];
   {
@@ -338,13 +426,35 @@ export function LivingBubbles(props: {
   const showSpan = piece.start !== piece.parentStart || piece.end !== piece.parentEnd;
   const spanText = showSpan ? spanLabelFor(piece.start, piece.end) : null;
 
+  // v244: while a thread is open the chapter behind it BLURS — two
+  // expo-blur strips, one from the screen's top down to this entry,
+  // one from the foot of its verses to the screen's bottom. The
+  // verses zone between them is never covered: the verses stay
+  // crisp and readable while everything else softens. A tap on
+  // either strip folds the thread back (the v214 scrim's job, kept).
+  const blurTint = palette.isDark ? 'dark' : 'light';
   return (
     <>
       {open ? (
-        <Pressable
-          style={[styles.scrim, { backgroundColor: 'rgba(33,29,26,0.05)' }]}
-          onPress={() => props.onToggle(false)}
-        />
+        <>
+          {props.entryScreenTop !== null && props.entryScreenTop > 0 ? (
+            <Pressable
+              style={[
+                styles.blurStrip,
+                { top: -props.entryScreenTop, height: props.entryScreenTop, left: -20, width: window.width },
+              ]}
+              onPress={() => props.onToggle(false)}
+            >
+              <BlurView intensity={BLUR_INTENSITY} tint={blurTint} style={StyleSheet.absoluteFill} />
+            </Pressable>
+          ) : null}
+          <Pressable
+            style={[styles.blurStrip, { top: headBottom, height: window.height, left: -20, width: window.width }]}
+            onPress={() => props.onToggle(false)}
+          >
+            <BlurView intensity={BLUR_INTENSITY} tint={blurTint} style={StyleSheet.absoluteFill} />
+          </Pressable>
+        </>
       ) : null}
       <ReAnimated.ScrollView
         style={[styles.region, regionStyle]}
@@ -494,7 +604,9 @@ export function AuthorPicker({
 }
 
 const styles = StyleSheet.create({
-  scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 14 },
+  // v244: the blur strips sit where the 5% scrim sat (zIndex 14,
+  // under the region's 26) but carry a real BlurView each.
+  blurStrip: { position: 'absolute', zIndex: 14 },
   region: { position: 'absolute', left: 0, right: 0, zIndex: 26 },
   card: {
     position: 'absolute',
@@ -502,18 +614,34 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     shadowColor: 'rgba(50,25,35,1)',
     shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 22,
-    elevation: 8,
+    // shadowRadius + elevation are driven by the bloom progress in
+    // the animated style — at rest both are 0, so the closed card
+    // casts nothing (the seed wears the face's shadow instead).
   },
-  cardIn: { paddingTop: 11, paddingHorizontal: 13, paddingBottom: 12 },
+  cardIn: { paddingTop: 13, paddingHorizontal: 15, paddingBottom: 14 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 5 },
-  cardName: { fontSize: 12.5, fontWeight: '800', flexShrink: 1 },
+  cardName: { fontSize: 13, fontWeight: '800', flexShrink: 1 },
   cardKind: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1 },
   cardSpan: { fontSize: 10, fontWeight: '700', opacity: 0.6 },
-  cardText: { fontSize: 13.3, lineHeight: 20, fontWeight: '600' },
+  // v244: the big bubble's words are reading size, not caption size.
+  cardText: { fontSize: 15, lineHeight: 22.5, fontWeight: '600' },
   cardActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 4, marginTop: 6 },
   cardActionBtn: { padding: 4 },
-  seed: { position: 'absolute', top: 0, right: 0 },
+  seed: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    // v244: the face's own shadow — round because the radius lives
+    // HERE, in the static style (51 / 2), soft because it is small:
+    // offset 2, radius 6, a quarter-strength ink. This is the fix
+    // for the square shadow that sat on the v214 faces.
+    borderRadius: FACE_SIZE / 2,
+    shadowColor: 'rgba(50,25,35,1)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    shadowOpacity: 0.25,
+    elevation: 4,
+  },
   chatRow: { flexDirection: 'row', gap: 9, alignItems: 'flex-start', marginTop: 11 },
   chatRowFlip: { flexDirection: 'row-reverse' },
   chatBubble: {

@@ -107,6 +107,13 @@ export interface StudioNote {
   category?: NoteCategory | null;
   /** v223: quote notes only — the person whose words these are (studio "Quote this"). */
   author?: string;
+  /**
+   * v244: quote notes only — the speaker's People id, when the
+   * studio's "Someone said" pick was a listed person (a free-text
+   * name rides as `author` alone). Carried onto the quote blocks so
+   * the chapter page can wear the speaker's real face.
+   */
+  authorId?: string;
   blocks: V205Block[];
 }
 
@@ -370,6 +377,14 @@ function validateNote(raw: unknown, where: string): StudioNote {
     blocks,
   };
   if (typeof raw.author === 'string') note.author = raw.author;
+  // v244: the speaker's People id rides beside the name when the
+  // studio pick was a listed person. Present-but-not-a-string is a
+  // malformed pack — fail it like any other bad field rather than
+  // silently dropping the face it names.
+  if (raw.authorId !== undefined) {
+    if (typeof raw.authorId !== 'string') fail(`${where}: authorId must be a string`);
+    if (raw.authorId) note.authorId = raw.authorId;
+  }
   if (raw.category === null || NOTE_CATEGORIES.includes(raw.category as NoteCategory)) {
     note.category = (raw.category as NoteCategory | null) ?? null;
   } else if (raw.category !== undefined) {
@@ -1052,10 +1067,14 @@ function noteToBlocks(note: StudioNote): V205Block[] {
   }
   if (note.kind === 'quote') {
     const authorName = (note.author ?? '').trim();
+    const authorId = (note.authorId ?? '').trim();
     return note.blocks.map((b) => ({
       ...b,
       kind: 'quote' as const,
       ...(authorName ? { authorName } : {}),
+      // v244: the People id rides onto the block beside the name —
+      // the chapter page resolves it to the speaker's face bubble.
+      ...(authorId ? { authorId } : {}),
     }));
   }
   const blocks = note.blocks.map((b) => ({ ...b }));
@@ -1165,6 +1184,9 @@ function sanitizeStoredBlock(block: V205Block): V205Block {
   const out: V205Block = { kind: block.kind, text: block.text };
   if (typeof block.ref === 'string') out.ref = block.ref;
   if (typeof block.authorName === 'string') out.authorName = block.authorName;
+  // v244: the quote speaker's People id survives the sanitize pass
+  // too — a healed map must not cost a quote its face.
+  if (typeof block.authorId === 'string') out.authorId = block.authorId;
   if (block.category) out.category = block.category;
   return out;
 }

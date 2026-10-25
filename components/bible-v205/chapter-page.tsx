@@ -567,6 +567,11 @@ export function ChapterPageView(props: ChapterPageProps) {
         ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={styles.page}
+        // v244: while a bubble thread is open the page holds still —
+        // the blur strips and the dock are computed against this
+        // scroll position, and the thread's own region scrolls
+        // internally when it needs to.
+        scrollEnabled={!openBubblesKey}
         onScroll={(e) => {
           const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
           viewHeight.current = layoutMeasurement.height;
@@ -971,6 +976,10 @@ function EntryView(props: {
     const line = piece.lines[lineIndex];
     const target = piece.targets[lineIndex];
     if (!line || !target) return;
+    // v244: studio quote lines are edited in the studio, never here
+    // (their card shows no pencil either — this is the belt to its
+    // braces, and it keeps the sentinel target away from the marks).
+    if (line.source === 'quote' || line.kind === 'quote') return;
     setComposer(line.kind);
     setDraft(line.text);
     setComposerAuthor(line.author);
@@ -989,6 +998,9 @@ function EntryView(props: {
     const line = piece.selfLines[lineIndex];
     const target = piece.selfTargets[lineIndex];
     if (!line || !target) return;
+    // Self lines are marks lines by construction (v217) — a quote
+    // kind can never land here; the check is the type's seatbelt.
+    if (line.kind === 'quote') return;
     setComposer(line.kind);
     setDraft(line.text);
     setComposerAuthor(line.author);
@@ -1005,6 +1017,8 @@ function EntryView(props: {
   const removeBubbleLine = (lineIndex: number) => {
     const piece = props.bubblePiece;
     if (!piece) return;
+    // v244: a studio quote is never removed from the reading surface.
+    if (piece.lines[lineIndex]?.source === 'quote') return;
     const target = piece.targets[lineIndex];
     if (!target) return;
     props.onRemoveLine(target);
@@ -1019,12 +1033,21 @@ function EntryView(props: {
     : (wash ?? 'transparent');
   const hasSelection = props.selectedVerses.length > 0;
 
+  // v244: the entry head's height — where this entry's verses end.
+  // The Living Bubble layer docks its open thread below that line
+  // (measured here, where the head actually lays out).
+  const [headH, setHeadH] = useState<number | null>(null);
+
   // v217 (his ruling): authorship splits the rendering. HIS OWN
   // lines render in this flow, directly under the entry's verses —
   // always visible, in both modes; OTHER PEOPLE's lines live in the
   // margin as Living Bubbles (below). The body keeps the commentary
   // blocks only; imported blocks are untouched.
-  const blocks = [...entry.blocks];
+  // v244: a studio quote block carrying a speaker id is NOT rendered
+  // as a block any more — it lives in the margin as that person's
+  // face bubble (buildBubblePieces picks it up from the same entry).
+  // A name-only quote keeps its ❝ callout here, untouched.
+  const blocks = entry.blocks.filter((b) => !(b.kind === 'quote' && b.authorId));
   const selfLines = props.bubblePiece?.selfLines ?? [];
   // `lines` on the piece is other people's lines only (v217), so an
   // entry carrying solely his own words gets NO bubble inset.
@@ -1038,6 +1061,10 @@ function EntryView(props: {
       <Pressable
         style={[styles.entryHead, hasBubbles ? styles.entryHeadBubbled : null]}
         onPress={props.onToggleOpen}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          setHeadH((prev) => (prev !== null && Math.abs(prev - h) < 1 ? prev : h));
+        }}
       >
         <View style={styles.heartSlot}>
           {props.kept ? <Text style={{ color: palette.rose, fontSize: 14 }}>♥</Text> : null}
@@ -1115,15 +1142,20 @@ function EntryView(props: {
           text). A tap opens his composer on that line. */}
       {selfLines.length ? (
         <View style={styles.selfLines}>
-          {selfLines.map((line, i) => (
-            <Pressable
-              key={`${line.kind}-${line.fieldIndex}-${i}`}
-              onPress={() => editSelfLine(i)}
-              hitSlop={4}
-            >
-              <SelfLineBlock kind={line.kind} text={line.text} palette={palette} />
-            </Pressable>
-          ))}
+          {selfLines.map((line, i) => {
+            // Self lines are marks lines by construction (v217) —
+            // a quote kind can never land in this group.
+            if (line.kind === 'quote') return null;
+            return (
+              <Pressable
+                key={`${line.kind}-${line.fieldIndex}-${i}`}
+                onPress={() => editSelfLine(i)}
+                hitSlop={4}
+              >
+                <SelfLineBlock kind={line.kind} text={line.text} palette={palette} />
+              </Pressable>
+            );
+          })}
         </View>
       ) : null}
 
@@ -1287,6 +1319,7 @@ function EntryView(props: {
           palette={palette}
           open={props.bubbleOpen}
           bloom={props.bloom}
+          versesBottom={headH}
           viewportHeight={props.viewportHeight}
           topChrome={props.topChrome}
           bottomReserve={props.bottomReserve}
@@ -1366,8 +1399,9 @@ const styles = StyleSheet.create({
   entryOpen: { zIndex: 30 },
   entryHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 13, paddingHorizontal: 2 },
   // v214: entries carrying bubbles indent their verses to clear the
-  // margin faces (the mockup's 44px entry inset).
-  entryHeadBubbled: { paddingRight: 48 },
+  // margin faces (the mockup's 44px entry inset). v244: the faces
+  // grew to 51, so the inset grows with them.
+  entryHeadBubbled: { paddingRight: 66 },
   heartSlot: { width: 20, alignItems: 'center', paddingTop: 5 },
   vnumBig: { fontSize: 28, fontWeight: '300', width: 40, lineHeight: 32, textAlign: 'center' },
   vnumRange: { fontSize: 15.5, fontWeight: '700', width: 40, lineHeight: 32, textAlign: 'center' },

@@ -1212,11 +1212,13 @@ describe("v210 — the plain personal Note: no box, just inset text", () => {
     const page = readFileSync(join(process.cwd(), 'components/bible-v205/chapter-page.tsx'), 'utf8');
     const entryView = page.slice(page.indexOf('function EntryView'));
     // The piece's `lines` are other-authored only since v217, so the
-    // head's 48dp face inset keys off them alone — a self-only entry
-    // keeps its full text width.
+    // head's face inset keys off them alone — a self-only entry
+    // keeps its full text width. (The inset's VALUE was 48dp for the
+    // 34px faces; v244 grew the faces to 51 — his "really small"
+    // verdict, 2026-10-25 — and the inset grew with them to 66.)
     expect(entryView).toContain('const hasBubbles = !!props.bubblePiece && props.bubblePiece.lines.length > 0;');
     expect(entryView).toContain('hasBubbles ? styles.entryHeadBubbled : null');
-    expect(entryView).toContain('entryHeadBubbled: { paddingRight: 48 }');
+    expect(entryView).toContain('entryHeadBubbled: { paddingRight: 66 }');
   });
 
   it('render: no white slab — the open entry lifts by zIndex alone (v217)', () => {

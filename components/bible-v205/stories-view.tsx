@@ -16,11 +16,13 @@ import {
   type DisplaySection,
   type StoryScreen,
 } from '@/lib/bible-v205/index';
-import { entryKey, type V205ChapterData } from '@/lib/bible-v205/types';
+import { entryKey, type V205Block, type V205ChapterData } from '@/lib/bible-v205/types';
 import { isKept, resolveTintFields, type MarksMap } from '@/lib/bible-v205/marks';
 import {
   partitionBubbleLines,
+  quoteBubbleLines,
   resolveBubbleAuthor,
+  type BubbleLine,
   type ProfileIdentity,
 } from '@/lib/bible-v205/bubbles';
 import type { Person } from '@/lib/prayercircle-data';
@@ -240,10 +242,13 @@ export function StoriesView(props: StoriesViewProps) {
             ) : null;
           })()}
           <View style={{ marginTop: 14 }}>
-            {e.blocks.map((b, i) => (
-              <BlockView key={i} block={b} palette={palette} />
-            ))}
+            {e.blocks
+              .filter((b) => !(b.kind === 'quote' && b.authorId))
+              .map((b, i) => (
+                <BlockView key={i} block={b} palette={palette} />
+              ))}
             {renderUserBlocks(e.start, e.end)}
+            {renderQuoteRows(e.blocks)}
           </View>
         </ScrollView>
       );
@@ -251,7 +256,9 @@ export function StoriesView(props: StoriesViewProps) {
     if (screen.t === 'highlight') {
       const e = screen.entry;
       const hl = e.blocks.find((b) => b.kind === 'highlight');
-      const rest = e.blocks.filter((b) => b !== hl);
+      // v244: authored quotes leave the block flow here too — they
+      // ride below as face rows (renderQuoteRows), not ❝ callouts.
+      const rest = e.blocks.filter((b) => b !== hl && !(b.kind === 'quote' && b.authorId));
       const kept = isKept(props.marks, book, chapter, e.start, e.end, true);
       const sec = sectionOf(screen);
       return (
@@ -270,6 +277,7 @@ export function StoriesView(props: StoriesViewProps) {
             <BlockView key={i} block={b} palette={palette} />
           ))}
           {renderUserBlocks(e.start, e.end)}
+          {renderQuoteRows(e.blocks)}
           {kept ? (
             <Text style={[styles.keptTag, { color: palette.raspDeep, textAlign: 'center' }]}>
               <Text style={{ color: palette.rose }}>♥</Text> This verse is kept
@@ -329,14 +337,19 @@ export function StoriesView(props: StoriesViewProps) {
     if (!selfLines.length && !bubbleLines.length) return null;
     return (
       <>
-        {selfLines.map((line, i) => (
-          <SelfLineBlock
-            key={`self-${line.kind}-${line.fieldIndex}-${i}`}
-            kind={line.kind}
-            text={line.text}
-            palette={palette}
-          />
-        ))}
+        {selfLines.map((line, i) => {
+          // Self lines are marks lines by construction (v217) —
+          // a quote kind can never land in this group.
+          if (line.kind === 'quote') return null;
+          return (
+            <SelfLineBlock
+              key={`self-${line.kind}-${line.fieldIndex}-${i}`}
+              kind={line.kind}
+              text={line.text}
+              palette={palette}
+            />
+          );
+        })}
         {bubbleLines.map((line, i) => (
           <BubbleChatRow
             key={`${line.kind}-${line.fieldIndex}-${i}`}
@@ -346,6 +359,34 @@ export function StoriesView(props: StoriesViewProps) {
             flip={bubbleLines.length > 1 && i % 2 === 1}
           />
         ))}
+      </>
+    );
+  };
+
+  // v244: a studio quote block carrying a speaker id reads in
+  // Stories the way another person's marks line does — a chat row
+  // wearing the speaker's face. Name-only quotes never reach here;
+  // they stay in the block flow as ❝ callouts.
+  const renderQuoteRows = (blocks: V205Block[]) => {
+    const quotes = quoteBubbleLines(blocks);
+    if (!quotes.length) return null;
+    return (
+      <>
+        {quotes.map((q, i) => {
+          const line: BubbleLine = {
+            ...q,
+            side: quotes.length <= 1 ? 'solo' : i % 2 === 0 ? 'left' : 'right',
+          };
+          return (
+            <BubbleChatRow
+              key={`quote-${q.fieldIndex}-${i}`}
+              line={line}
+              author={resolveBubbleAuthor(line.author, props.people, props.profile)}
+              palette={palette}
+              flip={quotes.length > 1 && i % 2 === 1}
+            />
+          );
+        })}
       </>
     );
   };

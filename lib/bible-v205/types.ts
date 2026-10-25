@@ -41,6 +41,14 @@ export interface V205Block {
   /** v223: quote blocks only — the person whose words these are. */
   authorName?: string;
   /**
+   * v244: quote blocks only — the speaker's People id, when the
+   * studio's "Someone said" pick carried one (studio packs since
+   * stamp -15 emit it beside the name). A quote block WITH an id
+   * resolves against the People list and renders as that person's
+   * face bubble; a name-only quote keeps the v223 ❝ callout.
+   */
+  authorId?: string;
+  /**
    * His color-code category for this block. The Markdown Notion export
    * strips text colors, so imported blocks leave this unset (null) —
    * categories are never guessed from content. A future HTML export

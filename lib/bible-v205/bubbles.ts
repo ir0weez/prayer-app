@@ -25,9 +25,9 @@ import {
   type LineAuthor,
 } from './marks';
 import type { SplitProvenance, SplitSectionsResult } from './index';
-import { entryKey } from './types';
+import { entryKey, type V205Block } from './types';
 
-export type BubbleKind = 'note' | 'highlight' | 'thought';
+export type BubbleKind = 'note' | 'highlight' | 'thought' | 'quote';
 
 /** Render order of his own lines under an entry — the order his lines
  * have always read in: plain notes first, then Highlights, then Main
@@ -51,6 +51,14 @@ export interface BubbleLine {
   side: 'solo' | 'left' | 'right';
   /** Index of this line within its own field's displayed array. */
   fieldIndex: number;
+  /**
+   * Where the line lives: 'marks' = his marks layer (editable from
+   * the chapter page, the v214 way); 'quote' = a studio quote BLOCK
+   * on the entry (v244) — it renders as a face bubble but is edited
+   * in the studio, never through the marks composer, so the page
+   * shows no edit/remove for it and its storage target is a sentinel.
+   */
+  source: 'marks' | 'quote';
 }
 
 /** Every user line of an entry, flattened in render order (plain
@@ -60,10 +68,35 @@ function flatLinesFor(marks: EntryMarks | undefined): Omit<BubbleLine, 'side'>[]
   const flat: Omit<BubbleLine, 'side'>[] = [];
   for (const { kind, field } of BUBBLE_KIND_ORDER) {
     (marks[field] ?? []).forEach((line: KeeperLine, fieldIndex: number) => {
-      flat.push({ kind, text: lineText(line), author: lineAuthor(line), fieldIndex });
+      flat.push({ kind, text: lineText(line), author: lineAuthor(line), fieldIndex, source: 'marks' });
     });
   }
   return flat;
+}
+
+/**
+ * v244: an entry's studio QUOTE blocks that carry a speaker id, as
+ * bubble lines. A quote block with an authorId is someone else's
+ * words with a face behind them — it joins the margin bubbles and
+ * resolves through the same author resolution as a credited marks
+ * line. A name-only quote is NOT a bubble line: it keeps the v223
+ * ❝ callout rendering in the block flow.
+ */
+export function quoteBubbleLines(blocks: V205Block[]): Omit<BubbleLine, 'side'>[] {
+  const out: Omit<BubbleLine, 'side'>[] = [];
+  blocks.forEach((block, fieldIndex) => {
+    if (block.kind !== 'quote') return;
+    const authorId = typeof block.authorId === 'string' ? block.authorId.trim() : '';
+    if (!authorId) return;
+    out.push({
+      kind: 'quote',
+      text: block.text,
+      author: { authorId, authorName: block.authorName ?? '' },
+      fieldIndex,
+      source: 'quote',
+    });
+  });
+  return out;
 }
 
 function withSides(flat: Omit<BubbleLine, 'side'>[]): BubbleLine[] {
@@ -182,26 +215,90 @@ export function buildBubblePieces(
       const { selfLines, bubbleLines } = partitionBubbleLines(
         marksFor(split.marks, book, chapter, entry.start, entry.end),
       );
-      if (!selfLines.length && !bubbleLines.length) continue;
+      // v244: studio quote blocks carrying a speaker id join the
+      // bubble group — after the marks lines, in block order — and
+      // the conversation sides are dealt across the merged group so
+      // a quote takes its turn in the alternation like any line.
+      const quotes = quoteBubbleLines(entry.blocks);
+      if (!selfLines.length && !bubbleLines.length && !quotes.length) continue;
       const prov = split.provenance[key];
       const targetsFor = (group: BubbleLine[]) =>
         group.map((l) => {
           const field = BUBBLE_KIND_ORDER.find((k) => k.kind === l.kind)!.field;
           return resolveLineStorage(prov, entry.start, entry.end, field, l.fieldIndex);
         });
+      let lines = bubbleLines;
+      let targets = targetsFor(bubbleLines);
+      if (quotes.length) {
+        lines = withSides([
+          ...bubbleLines.map(({ side: _side, ...rest }) => rest),
+          ...quotes,
+        ]);
+        targets = [
+          ...targets,
+          // Quote lines are not marks: their sentinel target (index
+          // −1) can never address a stored line, and the page hides
+          // edit/remove for them — they are edited in the studio.
+          ...quotes.map(
+            (): LineStorageTarget => ({ start: entry.start, end: entry.end, field: 'notes', index: -1 }),
+          ),
+        ];
+      }
       out.set(key, {
         start: entry.start,
         end: entry.end,
         parentStart: prov ? prov.parentStart : entry.start,
         parentEnd: prov ? prov.parentEnd : entry.end,
-        lines: bubbleLines,
-        targets: targetsFor(bubbleLines),
+        lines,
+        targets,
         selfLines,
         selfTargets: targetsFor(selfLines),
       });
     }
   }
   return out;
+}
+
+// ─── v244 open geometry — the big bubble, docked off its verses ─────────────
+
+/**
+ * The open card's width (his ask, 2026-10-25): BIG — it stretches
+ * across the screen, still a bubble. A lone bubble takes ~92% of
+ * the screen width; a conversation's cards take ~86% so the
+ * left/right alternation still reads. Never wider than the strip
+ * the cards are laid out in.
+ */
+export function openCardWidth(input: { solo: boolean; windowWidth: number; stripWidth: number }): number {
+  const fraction = input.solo ? 0.92 : 0.86;
+  return Math.max(200, Math.min(Math.round(input.windowWidth * fraction), input.stripWidth));
+}
+
+/**
+ * Where the open thread docks: BELOW its verses by default, so the
+ * verses stay on screen, uncovered. When the space below the verses
+ * is the smaller of the two and the space above the entry is
+ * roomier, the thread docks ABOVE the entry instead. (A thread
+ * taller than either space still caps and scrolls internally, the
+ * v214 way.)
+ */
+export function bubbleDock(input: {
+  /** The entry's top edge in viewport coordinates (null = unknown). */
+  entryScreenTop: number | null;
+  /** Entry-relative y where the verses end (the head's height). */
+  versesBottom: number;
+  /** The thread's natural (uncapped) height. */
+  cardsHeight: number;
+  viewportHeight: number;
+  topChrome: number;
+  bottomReserve: number;
+  gap: number;
+}): 'below' | 'above' {
+  if (input.entryScreenTop === null) return 'below';
+  const belowSpace =
+    input.viewportHeight - input.bottomReserve - (input.entryScreenTop + input.versesBottom + input.gap);
+  if (input.cardsHeight <= belowSpace) return 'below';
+  const aboveSpace = input.entryScreenTop - input.topChrome - input.gap;
+  return aboveSpace > belowSpace ? 'above' : 'below';
 }
 
 // ─── Scroll cap — the open conversation never outgrows the screen ───────────

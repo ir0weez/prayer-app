@@ -2905,16 +2905,17 @@ export default function HomeScreen() {
         counts.ministriesDeleted = result.summary.deleted;
       }
 
-      // v237: a schedule pack's Ministry rows may carry the session's
-      // Bible book/chapter (the studio's schedule editor asks for them
-      // there). The pair lands on the ministry records — AFTER the
-      // ministries pack above, so a file carrying both finds the
-      // pack's records already in place (matched, never duplicated)
-      // and the full-records pack stays the authority.
+      // v237/v239: a schedule pack's Ministry rows may carry the
+      // session's record fields (the studio's schedule editor asks
+      // for them there — the Bible book/chapter since v237, the
+      // genre/dueDate/travel/color/links/completion since v239).
+      // They land on the ministry records — AFTER the ministries
+      // pack above, so a file carrying both finds the pack's records
+      // already in place (matched, never duplicated) and the
+      // full-records pack stays the authority. Every Ministry row is
+      // handed over; the merge itself ignores a bare row.
       if (plan.schedule) {
-        const linkRows = plan.schedule.events.filter(
-          (ev) => ev.type === 'Ministry' && (ev.bibleBook !== undefined || ev.bibleChapter !== undefined),
-        );
+        const linkRows = plan.schedule.events.filter((ev) => ev.type === 'Ministry');
         if (linkRows.length > 0) {
           const storedMinistries = await loadStoredMinistries();
           const linked = mergeStudioScheduleMinistries(storedMinistries, {

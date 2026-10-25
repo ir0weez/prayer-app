@@ -34,13 +34,31 @@
 //            recurrence of their own, and the pack's labels never expand.
 //   notes / location ride straight through ('' when unset), as in v224.
 //   subtasks (v236): a grouped todo's steps ride as [{id, title,
-//            isCompleted}] — the wire carries no description — and the
-//            key is OMITTED entirely when the todo has no steps, so a
-//            plain item's pack shape is byte-identical to before.
+//            isCompleted}] and the key is OMITTED entirely when the
+//            todo has no steps, so a plain item's pack shape is
+//            byte-identical to before. Since v239 a step's own
+//            description rides too, when the step carries one.
 //   bibleBook / bibleChapter (v237): a ministry's pair rides on its
 //            'Ministry' row — the studio's schedule editor asks for it
 //            there — and the keys are OMITTED when the record carries
 //            neither, so an unpaired ministry's row is unchanged.
+//   everything else (v239 "Nothing Left Behind"): each item now
+//            carries the REST of its record — keyword, color, linked
+//            people, completion (isCompleted only when true, the
+//            stamp whenever set), an event's travel/reminder/season/
+//            episode/poster/time-off fields, a todo's tag/icon/order/
+//            reminder flag/links/group shape, a ministry row's genre
+//            (ministryType), dueDate, and travel time. The omission
+//            rule is the house rule throughout: a key exists only
+//            when the record actually carries a value — never a null,
+//            never a default dressed as data. Two fields need a word:
+//            a todo's `order` rides only when it differs from the
+//            todo's rank among its day's todos (a list already in
+//            its stored order has nothing to add, and the door
+//            re-derives that order from the landing sequence), and a
+//            ministry's genre rides as ministryType whenever it is
+//            not 'Bible Study' — the link-merge's creation default,
+//            so a bare row still births the same record it always did.
 //
 // Items whose date is missing or not a real calendar date cannot be
 // expressed in pack shape at all; they are excluded and COUNTED on the
@@ -99,27 +117,156 @@ interface PackItemSource {
   subtasks?: ScheduleTodo['subtasks'];
   bibleBook?: string;
   bibleChapter?: string;
+  // v239: the rest of the record, read straight off the source. Every
+  // field is optional in at least one of the three record shapes; the
+  // per-kind emission below reads only its own kind's fields.
+  keyword?: string;
+  color?: string;
+  linkedPeopleIds?: string[];
+  isCompleted?: boolean;
+  completedAt?: string;
+  travelTimeMinutes?: number;
+  reminderMinutesBefore?: number;
+  season?: number;
+  episode?: number;
+  posterImageUri?: string;
+  posterColor?: string;
+  isOffEvent?: boolean;
+  tag?: string;
+  icon?: string;
+  order?: number;
+  notificationsEnabled?: boolean;
+  linkedEventId?: string;
+  linkedMinistryId?: string;
+  linkedEventTitle?: string;
+  linkedMinistryTitle?: string;
+  linkedEventColor?: string;
+  linkedMinistryColor?: string;
+  groupId?: string;
+  isGroup?: boolean;
+  isGroupExpanded?: boolean;
+  /** A ministry record's genre (its `type`), adapted by the caller. */
+  genre?: string;
+  dueDate?: string;
 }
 
-/** A stored subtask in wire shape: exactly {id, title, isCompleted}.
- *  Only well-formed steps ride (a record with a non-empty string id
- *  and a string title) — anything else could never pass the door's own
- *  validation on the way home, so it is left behind here instead. */
+/** A stored subtask in wire shape: {id, title, isCompleted}, plus its
+ *  description when it carries one (v239). Only well-formed steps
+ *  ride (a record with a non-empty string id and a string title) —
+ *  anything else could never pass the door's own validation on the
+ *  way home, so it is left behind here instead. */
 function wireSubtasks(
   subtasks: ScheduleTodo['subtasks'],
-): { id: string; title: string; isCompleted: boolean }[] {
+): { id: string; title: string; isCompleted: boolean; description?: string }[] {
   if (!Array.isArray(subtasks)) return [];
-  const out: { id: string; title: string; isCompleted: boolean }[] = [];
+  const out: { id: string; title: string; isCompleted: boolean; description?: string }[] = [];
   for (const s of subtasks) {
     if (!s || typeof s !== 'object') continue;
     if (typeof s.id !== 'string' || s.id.length === 0) continue;
     if (typeof s.title !== 'string') continue;
-    out.push({ id: s.id, title: s.title, isCompleted: s.isCompleted === true });
+    out.push({
+      id: s.id,
+      title: s.title,
+      isCompleted: s.isCompleted === true,
+      ...(typeof s.description === 'string' && s.description.length > 0
+        ? { description: s.description }
+        : {}),
+    });
   }
   return out;
 }
 
-function toPackEvent(source: PackItemSource, type: 'Event' | 'Todo' | 'Ministry'): StudioScheduleEventInput {
+/**
+ * The v239 remainder of a record, in wire shape: a key exists only
+ * when the record carries a value (the header comment gives the two
+ * judgment calls — a todo's `order` and a ministry's genre).
+ * `todoRank` is the todo's position among its own date's todos in
+ * store order, the baseline its stored `order` is compared against.
+ */
+function bridgeExtras(
+  source: PackItemSource,
+  type: 'Event' | 'Todo' | 'Ministry',
+  todoRank?: number,
+): Partial<StudioScheduleEventInput> {
+  const out: Partial<StudioScheduleEventInput> = {};
+  const str = (key: 'color' | 'completedAt' | 'posterImageUri' | 'posterColor' | 'tag' | 'icon' | 'linkedEventId' | 'linkedMinistryId' | 'linkedEventTitle' | 'linkedMinistryTitle' | 'linkedEventColor' | 'linkedMinistryColor' | 'groupId' | 'dueDate', value: string | undefined) => {
+    if (typeof value === 'string' && value.length > 0) out[key] = value;
+  };
+  const num = (key: 'travelTimeMinutes' | 'reminderMinutesBefore' | 'season' | 'episode' | 'order', value: number | undefined) => {
+    if (typeof value === 'number' && Number.isFinite(value)) out[key] = value;
+  };
+  // Every kind: the color override, the linked people, completion.
+  // isCompleted rides only when true (false is every record's birth
+  // state — carrying it would grow every plain item's shape for no
+  // information); its stamp rides whenever one is stored.
+  str('color', source.color);
+  if (Array.isArray(source.linkedPeopleIds) && source.linkedPeopleIds.length > 0) {
+    out.linkedPeopleIds = [...source.linkedPeopleIds];
+  }
+  if (source.isCompleted === true) out.isCompleted = true;
+  str('completedAt', source.completedAt);
+  if (type === 'Event') {
+    if (typeof source.keyword === 'string' && source.keyword.length > 0) {
+      out.keyword = source.keyword;
+    }
+    num('travelTimeMinutes', source.travelTimeMinutes);
+    num('reminderMinutesBefore', source.reminderMinutesBefore);
+    num('season', source.season);
+    num('episode', source.episode);
+    str('posterImageUri', source.posterImageUri);
+    str('posterColor', source.posterColor);
+    if (source.isOffEvent === true) out.isOffEvent = true;
+  }
+  if (type === 'Todo') {
+    str('tag', source.tag);
+    str('icon', source.icon);
+    if (
+      typeof source.order === 'number' &&
+      todoRank !== undefined &&
+      source.order !== todoRank
+    ) {
+      out.order = source.order;
+    }
+    if (typeof source.notificationsEnabled === 'boolean') {
+      out.notificationsEnabled = source.notificationsEnabled;
+    }
+    str('linkedEventId', source.linkedEventId);
+    str('linkedMinistryId', source.linkedMinistryId);
+    str('linkedEventTitle', source.linkedEventTitle);
+    str('linkedMinistryTitle', source.linkedMinistryTitle);
+    str('linkedEventColor', source.linkedEventColor);
+    str('linkedMinistryColor', source.linkedMinistryColor);
+    str('groupId', source.groupId);
+    if (source.isGroup === true) {
+      out.isGroup = true;
+      // A header's fold state is part of its shape: it rides (open
+      // or shut) whenever the header flag does.
+      if (typeof source.isGroupExpanded === 'boolean') {
+        out.isGroupExpanded = source.isGroupExpanded;
+      }
+    } else if (source.isGroupExpanded === true) {
+      out.isGroupExpanded = true;
+    }
+  }
+  if (type === 'Ministry') {
+    if (
+      typeof source.genre === 'string' &&
+      source.genre.length > 0 &&
+      source.genre !== 'Bible Study'
+    ) {
+      out.ministryType = source.genre;
+    }
+    str('dueDate', source.dueDate);
+    num('travelTimeMinutes', source.travelTimeMinutes);
+  }
+  return out;
+}
+
+function toPackEvent(
+  source: PackItemSource,
+  type: 'Event' | 'Todo' | 'Ministry',
+  todoRank?: number,
+): StudioScheduleEventInput {
   const startMinutes = timeToMinutes(source.startTime);
   const endMinutes = timeToMinutes(source.endTime);
   let start: string;
@@ -169,6 +316,8 @@ function toPackEvent(source: PackItemSource, type: 'Event' | 'Todo' | 'Ministry'
     // key only when the record actually carries a value.
     ...(type === 'Ministry' && source.bibleBook ? { bibleBook: source.bibleBook } : {}),
     ...(type === 'Ministry' && source.bibleChapter ? { bibleChapter: source.bibleChapter } : {}),
+    // v239: everything else the record carries (see bridgeExtras).
+    ...bridgeExtras(source, type, todoRank),
   };
 }
 
@@ -195,19 +344,25 @@ export function collectStudioSchedule(
     }
     out.push(toPackEvent(event, 'Event'));
   }
+  // A todo's rank among its own date's todos, in store order — the
+  // baseline bridgeExtras compares its stored `order` against.
+  const rankByDate = new Map<string, number>();
   for (const todo of todos) {
     if (!isUsableDate(todo?.date)) {
       undatedExcluded += 1;
       continue;
     }
-    out.push(toPackEvent(todo, 'Todo'));
+    const rank = rankByDate.get(todo.date) ?? 0;
+    rankByDate.set(todo.date, rank + 1);
+    out.push(toPackEvent(todo, 'Todo', rank));
   }
   for (const ministry of ministries) {
     if (!isUsableDate(ministry?.date)) {
       undatedExcluded += 1;
       continue;
     }
-    out.push(toPackEvent(ministry, 'Ministry'));
+    // The record's genre is its `type`; the wire calls it ministryType.
+    out.push(toPackEvent({ ...ministry, genre: ministry.type }, 'Ministry'));
   }
   const startKey = (e: StudioScheduleEventInput) => (e.start === 'All day' ? -1 : timeToMinutes(e.start) ?? -1);
   out.sort(

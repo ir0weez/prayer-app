@@ -18,9 +18,15 @@
 //                                the studio-facing projection: a known
 //                                type that never lands as an event (the
 //                                records travel by their own pack), but
-//                                whose bibleBook/bibleChapter pair, when
-//                                carried, lands on the ministry record
-//                                (v237, mergeStudioScheduleMinistries).
+//                                whose carried record fields land on
+//                                the ministry record (the bibleBook/
+//                                bibleChapter pair since v237, the
+//                                record's remaining fields since v239 —
+//                                mergeStudioScheduleMinistries). Since
+//                                v239 every kind's items carry their
+//                                full record across the bridge
+//                                (keyword, genre, links, completion…):
+//                                see StudioScheduleEventInput.
 //   a backup's studioStates    → the two chapter marks (v228): notesState
 //     section                     walks transitionChapterStatus like any
 //                                chapterState; readDate lands on the read
@@ -120,11 +126,13 @@ export interface StudioChapterPayload {
 }
 
 /** One step of a grouped todo (v236): the wire shape shared with the
- *  studio — the store's optional per-step description does not travel. */
+ *  studio. Since v239 a step's optional description travels too (it
+ *  was the one per-step field v236 deliberately left behind). */
 export interface StudioSubtaskInput {
   id: string;
   title: string;
   isCompleted: boolean;
+  description?: string;
 }
 
 export interface StudioScheduleEventInput {
@@ -160,6 +168,66 @@ export interface StudioScheduleEventInput {
    *  the full-record authority whenever a file carries both. */
   bibleBook?: string;
   bibleChapter?: string;
+  // ── v239 "Nothing Left Behind" — the rest of each record's fields ──
+  // Until v239 the bridge carried only the keys above; every other
+  // field a schedule item holds in the app (its keyword, its genre,
+  // its links, its completion…) was silently dropped in one or both
+  // directions. The keys below complete the records. All are OPTIONAL:
+  // ABSENT means the pack says nothing (a matched record keeps its
+  // stored value; the export omits unset fields), a PRESENT key is a
+  // payload the merges act on — so a malformed one rejects the file
+  // under the door's validate-first discipline, exactly like subtasks
+  // and the bible pair. Keys scoped to one kind are validated on that
+  // kind and dropped on the others (the bible pair's precedent).
+  /** The item's illustration keyword (all kinds on the wire; in the
+   *  app only ScheduleEvent carries the field, so it lands there). */
+  keyword?: string;
+  /** The item's color override (all kinds — every record carries one). */
+  color?: string;
+  /** Prayer-list people linked to the item (all kinds). */
+  linkedPeopleIds?: string[];
+  /** Completion, all kinds: the flag, and its ISO timestamp. */
+  isCompleted?: boolean;
+  completedAt?: string;
+  /** "Time to leave" minutes (Event and Ministry records). */
+  travelTimeMinutes?: number;
+  /** Local-notification lead time in minutes (Event only). */
+  reminderMinutesBefore?: number;
+  /** TV season / episode numbers (Event only). */
+  season?: number;
+  episode?: number;
+  /** Time-off poster art (Event only): image URI + dominant color. */
+  posterImageUri?: string;
+  posterColor?: string;
+  /** Marks a time-off event (Event only). */
+  isOffEvent?: boolean;
+  /** The todo's tag lane (Todo only). */
+  tag?: string;
+  /** The todo's MaterialIcons name (Todo only). */
+  icon?: string;
+  /** The todo's sort order within its day (Todo only). */
+  order?: number;
+  /** Whether the todo creates a local reminder (Todo only). */
+  notificationsEnabled?: boolean;
+  /** The event/ministry a todo is linked to (Todo only): ids, plus the
+   *  cached titles/colors the app persists alongside them. */
+  linkedEventId?: string;
+  linkedMinistryId?: string;
+  linkedEventTitle?: string;
+  linkedMinistryTitle?: string;
+  linkedEventColor?: string;
+  linkedMinistryColor?: string;
+  /** Grouped-todo shape (Todo only): the parent group's id on a child,
+   *  the header flags on the group header itself. */
+  groupId?: string;
+  isGroup?: boolean;
+  isGroupExpanded?: boolean;
+  /** A Ministry row's genre — lands as ScheduleMinistry.type through
+   *  mergeStudioScheduleMinistries (Ministry rows only). A row that
+   *  omits it never stomps a stored genre. */
+  ministryType?: string;
+  /** A Ministry row's deadline (Ministry rows only), YYYY-MM-DD. */
+  dueDate?: string;
 }
 
 export interface StudioSchedulePayload {
@@ -407,6 +475,9 @@ function validateScheduleEvents(rawEvents: unknown[]): StudioScheduleEventInput[
       // PRESENT key is a payload the ministry merge acts on, so a
       // malformed one rejects the pack, exactly like subtasks.
       ...(e.type === 'Ministry' ? validateBiblePair(e, where) : {}),
+      // The rest of the record's fields (v239): kind-scoped, and a
+      // malformed present key rejects the pack like the pair does.
+      ...validateBridgeFields(e, where),
     };
   });
 }
@@ -432,7 +503,8 @@ function validateBiblePair(
 }
 
 /** The v236 subtask list: an array of {id, title, isCompleted} — a
- *  string id/title and a real boolean, nothing looser rides. */
+ *  string id/title and a real boolean, nothing looser rides. A step's
+ *  description (v239) rides when present and must be text. */
 function validateSubtasks(raw: unknown, where: string): StudioSubtaskInput[] {
   if (!Array.isArray(raw)) fail(`${where}: subtasks is not an array`);
   return raw.map((s, j) => {
@@ -441,8 +513,135 @@ function validateSubtasks(raw: unknown, where: string): StudioSubtaskInput[] {
     if (!isNonEmptyString(s.id)) fail(`${at} has no id`);
     if (typeof s.title !== 'string') fail(`${at} has no title`);
     if (typeof s.isCompleted !== 'boolean') fail(`${at} has no completion state`);
-    return { id: s.id as string, title: s.title as string, isCompleted: s.isCompleted as boolean };
+    if (s.description !== undefined && typeof s.description !== 'string') {
+      fail(`${at} has a non-text description`);
+    }
+    return {
+      id: s.id as string,
+      title: s.title as string,
+      isCompleted: s.isCompleted as boolean,
+      ...(typeof s.description === 'string' ? { description: s.description } : {}),
+    };
   });
+}
+
+// ── v239 bridge fields: one reader per wire type ───────────────────────
+// Each returns undefined when the key is ABSENT and fails the whole
+// file when a PRESENT key carries the wrong type — the validate-first
+// discipline subtasks and the bible pair already follow.
+
+function bridgeString(
+  e: Record<string, unknown>,
+  key: string,
+  where: string,
+): string | undefined {
+  if (e[key] === undefined) return undefined;
+  if (!isNonEmptyString(e[key])) fail(`${where}: ${key} must be a non-empty string when present`);
+  return e[key] as string;
+}
+
+function bridgeCount(
+  e: Record<string, unknown>,
+  key: string,
+  where: string,
+): number | undefined {
+  if (e[key] === undefined) return undefined;
+  if (!isInt(e[key]) || (e[key] as number) < 0) {
+    fail(`${where}: ${key} must be a whole number of 0 or more when present`);
+  }
+  return e[key] as number;
+}
+
+function bridgeFlag(
+  e: Record<string, unknown>,
+  key: string,
+  where: string,
+): boolean | undefined {
+  if (e[key] === undefined) return undefined;
+  if (typeof e[key] !== 'boolean') fail(`${where}: ${key} must be true or false when present`);
+  return e[key] as boolean;
+}
+
+function bridgePeopleIds(
+  e: Record<string, unknown>,
+  where: string,
+): string[] | undefined {
+  if (e.linkedPeopleIds === undefined) return undefined;
+  if (
+    !Array.isArray(e.linkedPeopleIds) ||
+    !e.linkedPeopleIds.every((id) => isNonEmptyString(id))
+  ) {
+    fail(`${where}: linkedPeopleIds must be a list of person ids when present`);
+  }
+  return [...(e.linkedPeopleIds as string[])];
+}
+
+/**
+ * The v239 bridge fields on one schedule item, kind-scoped: shared
+ * keys read on every kind; Event keys only on events; Todo keys only
+ * on todos; a Ministry row's genre/deadline only on Ministry rows
+ * (its travel time is shared with events). A key riding the wrong
+ * kind is dropped unread, like the bible pair on an Event row.
+ */
+function validateBridgeFields(
+  e: Record<string, unknown>,
+  where: string,
+): Partial<StudioScheduleEventInput> {
+  const out: Partial<StudioScheduleEventInput> = {};
+  const put = <K extends keyof StudioScheduleEventInput>(
+    key: K,
+    value: StudioScheduleEventInput[K] | undefined,
+  ) => {
+    if (value !== undefined) out[key] = value;
+  };
+  // Every kind.
+  put('keyword', bridgeString(e, 'keyword', where));
+  put('color', bridgeString(e, 'color', where));
+  put('linkedPeopleIds', bridgePeopleIds(e, where));
+  put('isCompleted', bridgeFlag(e, 'isCompleted', where));
+  if (e.completedAt !== undefined) {
+    if (!isValidIsoDateTime(e.completedAt)) {
+      fail(`${where}: completedAt must be an ISO timestamp when present`);
+    }
+    out.completedAt = e.completedAt as string;
+  }
+  // Events and Ministry rows both sit on records with travel time.
+  if (e.type === 'Event' || e.type === 'Ministry') {
+    put('travelTimeMinutes', bridgeCount(e, 'travelTimeMinutes', where));
+  }
+  if (e.type === 'Event') {
+    put('reminderMinutesBefore', bridgeCount(e, 'reminderMinutesBefore', where));
+    put('season', bridgeCount(e, 'season', where));
+    put('episode', bridgeCount(e, 'episode', where));
+    put('posterImageUri', bridgeString(e, 'posterImageUri', where));
+    put('posterColor', bridgeString(e, 'posterColor', where));
+    put('isOffEvent', bridgeFlag(e, 'isOffEvent', where));
+  }
+  if (e.type === 'Todo') {
+    put('tag', bridgeString(e, 'tag', where));
+    put('icon', bridgeString(e, 'icon', where));
+    put('order', bridgeCount(e, 'order', where));
+    put('notificationsEnabled', bridgeFlag(e, 'notificationsEnabled', where));
+    put('linkedEventId', bridgeString(e, 'linkedEventId', where));
+    put('linkedMinistryId', bridgeString(e, 'linkedMinistryId', where));
+    put('linkedEventTitle', bridgeString(e, 'linkedEventTitle', where));
+    put('linkedMinistryTitle', bridgeString(e, 'linkedMinistryTitle', where));
+    put('linkedEventColor', bridgeString(e, 'linkedEventColor', where));
+    put('linkedMinistryColor', bridgeString(e, 'linkedMinistryColor', where));
+    put('groupId', bridgeString(e, 'groupId', where));
+    put('isGroup', bridgeFlag(e, 'isGroup', where));
+    put('isGroupExpanded', bridgeFlag(e, 'isGroupExpanded', where));
+  }
+  if (e.type === 'Ministry') {
+    put('ministryType', bridgeString(e, 'ministryType', where));
+    if (e.dueDate !== undefined) {
+      if (!isValidIsoDate(e.dueDate)) {
+        fail(`${where}: dueDate must be a YYYY-MM-DD date when present`);
+      }
+      out.dueDate = e.dueDate as string;
+    }
+  }
+  return out;
 }
 
 function validateSchedule(raw: unknown): StudioSchedulePayload {
@@ -785,8 +984,9 @@ export interface StudioApplyCounts {
   ministriesAdded: number;
   ministriesUpdated: number;
   ministriesDeleted: number;
-  /** Ministry sessions a schedule pack's rows tied to a book/chapter
-   *  (v237, mergeStudioScheduleMinistries). */
+  /** Ministry rows a schedule pack landed on a ministry record
+   *  (v237's book/chapter ties; any carried record field since v239 —
+   *  mergeStudioScheduleMinistries). */
   ministriesLinked: number;
 }
 
@@ -1014,6 +1214,75 @@ function endTimeOf(start: string, minutes: number): string {
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 }
 
+// ── v239 landing patches ───────────────────────────────────────────────
+// The bridge fields land under ONE discipline, the subtasks'
+// discipline generalized: a PRESENT key names the value (it wins),
+// an ABSENT key says nothing (the stored value stands). A created
+// record is born with whatever the pack carried; a matched record
+// takes the patch onto a replaced copy, never a mutation.
+
+/**
+ * Completion, shared by all three record kinds. The flag alone moves
+ * the flag; a pack that un-completes (isCompleted: false) also clears
+ * the stamp unless it names one — the app's own toggle clears it the
+ * same way. A stamp riding without a flag just re-dates the record.
+ */
+function completionPatch(ev: StudioScheduleEventInput): {
+  isCompleted?: boolean;
+  completedAt?: string;
+} {
+  if (ev.isCompleted === undefined && ev.completedAt === undefined) return {};
+  if (ev.isCompleted === false) {
+    return { isCompleted: false, completedAt: ev.completedAt };
+  }
+  return {
+    ...(ev.isCompleted !== undefined ? { isCompleted: ev.isCompleted } : {}),
+    ...(ev.completedAt !== undefined ? { completedAt: ev.completedAt } : {}),
+  };
+}
+
+function eventBridgePatch(ev: StudioScheduleEventInput): Partial<ScheduleEvent> {
+  const patch: Partial<ScheduleEvent> = { ...completionPatch(ev) };
+  if (ev.keyword !== undefined) patch.keyword = ev.keyword;
+  if (ev.color !== undefined) patch.color = ev.color;
+  if (ev.linkedPeopleIds !== undefined) patch.linkedPeopleIds = [...ev.linkedPeopleIds];
+  if (ev.travelTimeMinutes !== undefined) patch.travelTimeMinutes = ev.travelTimeMinutes;
+  if (ev.reminderMinutesBefore !== undefined) {
+    patch.reminderMinutesBefore = ev.reminderMinutesBefore;
+  }
+  if (ev.season !== undefined) patch.season = ev.season;
+  if (ev.episode !== undefined) patch.episode = ev.episode;
+  if (ev.posterImageUri !== undefined) patch.posterImageUri = ev.posterImageUri;
+  if (ev.posterColor !== undefined) patch.posterColor = ev.posterColor;
+  if (ev.isOffEvent !== undefined) patch.isOffEvent = ev.isOffEvent;
+  return patch;
+}
+
+function todoBridgePatch(ev: StudioScheduleEventInput): Partial<ScheduleTodo> {
+  const patch: Partial<ScheduleTodo> = { ...completionPatch(ev) };
+  // A wire `keyword` is validated on todos but has no home on the
+  // record (its lanes are tag + icon) — it is the one shared key
+  // that lands nowhere, like the bible pair on an Event row.
+  if (ev.color !== undefined) patch.color = ev.color;
+  if (ev.linkedPeopleIds !== undefined) patch.linkedPeopleIds = [...ev.linkedPeopleIds];
+  if (ev.tag !== undefined) patch.tag = ev.tag;
+  if (ev.icon !== undefined) patch.icon = ev.icon;
+  if (ev.order !== undefined) patch.order = ev.order;
+  if (ev.notificationsEnabled !== undefined) {
+    patch.notificationsEnabled = ev.notificationsEnabled;
+  }
+  if (ev.linkedEventId !== undefined) patch.linkedEventId = ev.linkedEventId;
+  if (ev.linkedMinistryId !== undefined) patch.linkedMinistryId = ev.linkedMinistryId;
+  if (ev.linkedEventTitle !== undefined) patch.linkedEventTitle = ev.linkedEventTitle;
+  if (ev.linkedMinistryTitle !== undefined) patch.linkedMinistryTitle = ev.linkedMinistryTitle;
+  if (ev.linkedEventColor !== undefined) patch.linkedEventColor = ev.linkedEventColor;
+  if (ev.linkedMinistryColor !== undefined) patch.linkedMinistryColor = ev.linkedMinistryColor;
+  if (ev.groupId !== undefined) patch.groupId = ev.groupId;
+  if (ev.isGroup !== undefined) patch.isGroup = ev.isGroup;
+  if (ev.isGroupExpanded !== undefined) patch.isGroupExpanded = ev.isGroupExpanded;
+  return patch;
+}
+
 /**
  * Merge a validated schedule pack into the stored events/todos.
  * Dedupe is by (date, start, title) — re-importing the same pack adds
@@ -1031,6 +1300,15 @@ function endTimeOf(start: string, minutes: number): string {
  * explicit empty list clears it); an item that OMITS the key leaves
  * the existing steps untouched — absence is not deletion. A created
  * todo is born with its steps. Step updates never count in `added`.
+ *
+ * The rest of the record (v239): the same present-wins /
+ * absent-preserves discipline now covers every bridge field, on
+ * created and matched records alike — a matched event or todo takes
+ * the pack's keyword/color/links/completion (and its own kind's
+ * fields) onto a replaced copy. Only the item's identity (title,
+ * date, start) and the v224 notes/location semantics are unchanged:
+ * those differences never created a duplicate, and still don't
+ * update a matched record.
  */
 export function mergeStudioSchedule(
   existingEvents: ScheduleEvent[],
@@ -1039,7 +1317,11 @@ export function mergeStudioSchedule(
 ): { events: ScheduleEvent[]; todos: ScheduleTodo[]; added: number } {
   const events = [...existingEvents];
   const todos = [...existingTodos];
-  const seenEvents = new Set(events.map((e) => `${e.date}|${e.startTime ?? ''}|${e.title}`));
+  const eventIndexByKey = new Map<string, number>();
+  events.forEach((e, i) => {
+    const key = `${e.date}|${e.startTime ?? ''}|${e.title}`;
+    if (!eventIndexByKey.has(key)) eventIndexByKey.set(key, i);
+  });
   const todoIndexByKey = new Map<string, number>();
   todos.forEach((t, i) => {
     const key = `${t.date}|${t.startTime ?? ''}|${t.title}`;
@@ -1050,7 +1332,7 @@ export function mergeStudioSchedule(
     // v229: Ministry rows are the studio-facing projection of ministry
     // records. They validate (a known type) but apply NOTHING here —
     // the records travel by the ministries pack, never as events.
-    // (v237: a row's bibleBook/bibleChapter land separately, through
+    // (v237/v239: a row's record fields land separately, through
     // mergeStudioScheduleMinistries below — never as events either.)
     if (ev.type === 'Ministry') continue;
     const start = ev.start === 'All day' ? undefined : ev.start;
@@ -1058,19 +1340,25 @@ export function mergeStudioSchedule(
     if (ev.type === 'Todo') {
       const existingIndex = todoIndexByKey.get(dedupe);
       if (existingIndex !== undefined) {
-        // Already there: only the steps can change, and only when the
-        // pack speaks about them. The stored todo object is replaced,
-        // never mutated.
-        if (ev.subtasks !== undefined) {
+        // Already there: the steps and the v239 bridge fields can
+        // change, each only when the pack speaks about it. The
+        // stored todo object is replaced, never mutated.
+        const patch = todoBridgePatch(ev);
+        if (ev.subtasks !== undefined || Object.keys(patch).length > 0) {
           todos[existingIndex] = {
             ...todos[existingIndex],
-            subtasks:
-              ev.subtasks.length > 0 ? ev.subtasks.map((s) => ({ ...s })) : undefined,
+            ...patch,
+            ...(ev.subtasks !== undefined
+              ? {
+                  subtasks:
+                    ev.subtasks.length > 0 ? ev.subtasks.map((s) => ({ ...s })) : undefined,
+                }
+              : {}),
           };
         }
         continue;
       }
-      const todo = createScheduleTodo(
+      const created = createScheduleTodo(
         {
           title: ev.title,
           date: ev.date,
@@ -1083,12 +1371,24 @@ export function mergeStudioSchedule(
         },
         todos.length,
       );
+      // Born with the pack's fields too (its order and completion
+      // included — the factory's defaults yield to what rode in).
+      const todo: ScheduleTodo = { ...created, ...todoBridgePatch(ev) };
       todoIndexByKey.set(dedupe, todos.length);
       todos.push(todo);
       added += 1;
     } else {
-      if (seenEvents.has(dedupe)) continue;
-      const event = createScheduleEvent({
+      const existingIndex = eventIndexByKey.get(dedupe);
+      if (existingIndex !== undefined) {
+        // Already there: no duplicate (the v222 rule) — but the
+        // pack's bridge fields still land, present-wins.
+        const patch = eventBridgePatch(ev);
+        if (Object.keys(patch).length > 0) {
+          events[existingIndex] = { ...events[existingIndex], ...patch };
+        }
+        continue;
+      }
+      const created = createScheduleEvent({
         title: ev.title,
         date: ev.date,
         startTime: start,
@@ -1098,36 +1398,66 @@ export function mergeStudioSchedule(
         location: ev.location ? ev.location : ev.online ? 'Online' : undefined,
         notes: ev.notes ? ev.notes : undefined,
       });
+      // Born with the pack's fields: a carried keyword overrides the
+      // factory's title detection, a carried completion its fresh
+      // false — the record the pack described is the record that lands.
+      const event: ScheduleEvent = { ...created, ...eventBridgePatch(ev) };
+      eventIndexByKey.set(dedupe, events.length);
       events.push(event);
-      seenEvents.add(dedupe);
       added += 1;
     }
   }
   return { events, todos, added };
 }
 
+/** Does a Ministry row carry anything that lands on a record? A bare
+ *  row (identity keys only) changes nothing — the records travel by
+ *  the ministries pack, and the row stays a pure projection. A wire
+ *  `keyword` is NOT payload here: the ministry record has no keyword
+ *  field to land it on (validated on the wire, inert on the record,
+ *  like the bible pair on an Event row). */
+function ministryRowHasPayload(ev: StudioScheduleEventInput): boolean {
+  return (
+    ev.bibleBook !== undefined ||
+    ev.bibleChapter !== undefined ||
+    ev.ministryType !== undefined ||
+    ev.dueDate !== undefined ||
+    ev.travelTimeMinutes !== undefined ||
+    ev.color !== undefined ||
+    ev.linkedPeopleIds !== undefined ||
+    ev.isCompleted !== undefined ||
+    ev.completedAt !== undefined
+  );
+}
+
 /**
- * Land the Bible book/chapter pairs a schedule pack's Ministry rows
- * carry (v237) on the ministry records the app's surfaces read.
+ * Land the record fields a schedule pack's Ministry rows carry on
+ * the ministry records the app's surfaces read — the Bible
+ * book/chapter pair (v237) and, since v239, the rest of the record:
+ * its genre (ministryType → the record's `type`), dueDate, travel
+ * time, color, linked people, and completion.
  *
  * Why this exists: the studio's SCHEDULE editor (not its Ministries
  * manager) is where he shapes a ministry session's day, and since
  * v237 it asks for the book/chapter when a line's kind is Ministry.
  * Such a line has no ministries-pack record of its own — without this
- * merge the pair would evaporate at the door, and "Commentary writing
- * — Colossians 1" would reach the phone tied to nothing.
+ * merge what the row carries would evaporate at the door, and
+ * "Commentary writing — Colossians 1" would reach the phone tied to
+ * nothing.
  *
  * Matching follows the schedule door's own convention — (date, start,
  * title), the projection's exact image of the record (the collector
  * derives all three from the record itself) — with one fallback: a
  * unique (date, title) match when the start disagrees. A matched
- * record is REPLACED with the pair applied (a present key wins, an
- * absent key leaves the stored value — the subtasks discipline); an
- * unmatched row CREATES the record (type 'Bible Study' — the app's
- * word for a session spent in a chapter; the Ministries manager stays
- * where full type fidelity is edited), born with its times, place,
- * notes, and the pair. Records are never mutated in place, rows
- * without a pair change nothing, and non-Ministry rows are ignored.
+ * record is REPLACED with the fields applied (a present key wins, an
+ * absent key leaves the stored value — the subtasks discipline; a
+ * row that omits ministryType never stomps a stored genre); an
+ * unmatched row CREATES the record (type from the row's ministryType,
+ * else 'Bible Study' — the app's word for a session spent in a
+ * chapter; the Ministries manager stays where full type fidelity is
+ * edited), born with its times, place, notes, and fields. Records
+ * are never mutated in place, bare rows change nothing, and
+ * non-Ministry rows are ignored.
  *
  * Precedence: callers run this AFTER any ministries pack in the same
  * file (the v229 pack upserts by id, whole record — it stays the
@@ -1152,7 +1482,7 @@ export function mergeStudioScheduleMinistries(
   let linked = 0;
   for (const ev of pack.events) {
     if (ev.type !== 'Ministry') continue;
-    if (ev.bibleBook === undefined && ev.bibleChapter === undefined) continue;
+    if (!ministryRowHasPayload(ev)) continue;
     const start = ev.start === 'All day' ? undefined : ev.start;
     let index = indexByKey.get(`${ev.date}|${start ?? ''}|${ev.title}`);
     if (index === undefined) {
@@ -1162,15 +1492,25 @@ export function mergeStudioScheduleMinistries(
     if (index !== undefined) {
       ministries[index] = {
         ...ministries[index],
+        ...(ev.ministryType !== undefined ? { type: ev.ministryType } : {}),
+        ...(ev.dueDate !== undefined ? { dueDate: ev.dueDate } : {}),
+        ...(ev.travelTimeMinutes !== undefined
+          ? { travelTimeMinutes: ev.travelTimeMinutes }
+          : {}),
+        ...(ev.color !== undefined ? { color: ev.color } : {}),
+        ...(ev.linkedPeopleIds !== undefined
+          ? { linkedPeopleIds: [...ev.linkedPeopleIds] }
+          : {}),
+        ...completionPatch(ev),
         ...(ev.bibleBook !== undefined ? { bibleBook: ev.bibleBook } : {}),
         ...(ev.bibleChapter !== undefined ? { bibleChapter: ev.bibleChapter } : {}),
       };
       linked += 1;
       continue;
     }
-    const created = createScheduleMinistry({
+    const createdBase = createScheduleMinistry({
       title: ev.title,
-      type: 'Bible Study',
+      type: ev.ministryType ?? 'Bible Study',
       date: ev.date,
       startTime: start,
       endTime: start ? endTimeOf(start, ev.minutes) : undefined,
@@ -1180,7 +1520,18 @@ export function mergeStudioScheduleMinistries(
       notes: ev.notes ? ev.notes : undefined,
       bibleBook: ev.bibleBook,
       bibleChapter: ev.bibleChapter,
+      ...(ev.dueDate !== undefined ? { dueDate: ev.dueDate } : {}),
+      ...(ev.travelTimeMinutes !== undefined
+        ? { travelTimeMinutes: ev.travelTimeMinutes }
+        : {}),
+      ...(ev.color !== undefined ? { color: ev.color } : {}),
+      ...(ev.linkedPeopleIds !== undefined
+        ? { linkedPeopleIds: [...ev.linkedPeopleIds] }
+        : {}),
     });
+    // The factory always births a record uncompleted; a carried
+    // completion overrides it, like events and todos.
+    const created: ScheduleMinistry = { ...createdBase, ...completionPatch(ev) };
     register(created, ministries.length);
     ministries.push(created);
     linked += 1;

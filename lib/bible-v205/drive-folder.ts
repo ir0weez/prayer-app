@@ -258,10 +258,13 @@ export interface DrivePlan {
    *  they apply nothing (the records travel by their own pack) and
    *  never enter the slot-conflict logic below. */
   ministryRows: number;
-  /** v237: Ministry rows carrying a bibleBook/bibleChapter pair — the
-   *  pair DOES land (mergeStudioScheduleMinistries), after any
-   *  ministries pack in the same file, exactly like the door. The
-   *  rows themselves still never slot, clash, or become events. */
+  /** v237: Ministry rows carrying record fields — the pair first,
+   *  and since v239 the genre/dueDate/travel/color/links/completion
+   *  too — DO land (mergeStudioScheduleMinistries), after any
+   *  ministries pack in the same file, exactly like the door. Every
+   *  Ministry row is collected here and the merge itself decides
+   *  what lands (a bare row lands nothing). The rows themselves
+   *  still never slot, clash, or become events. */
   ministryLinks: StudioScheduleEventInput[];
   /** v228: a states pack's read marks — they ride whole too (the read
    *  merge is forward-only: a stale export can never un-read a
@@ -356,11 +359,11 @@ export function planDriveFile(
     if (ev.type === 'Ministry') {
       // The projection of a ministry record: noted, never slotted —
       // it must not hold a time slot, clash, or land as an event.
-      // A carried book/chapter pair is collected for the link merge.
+      // Every row is collected for the link merge, which lands
+      // whatever record fields it carries (v237's pair, v239's rest)
+      // and ignores a bare row.
       plan.ministryRows += 1;
-      if (ev.bibleBook !== undefined || ev.bibleChapter !== undefined) {
-        plan.ministryLinks.push(ev);
-      }
+      plan.ministryLinks.push(ev);
       continue;
     }
     const start = ev.start === 'All day' ? '' : ev.start;
@@ -610,10 +613,11 @@ export async function checkDriveFolder(): Promise<
       noteParts.push('Ministries pack — upserts and explicit deletes only');
     }
     if (plan.ministryLinks.length > 0) {
-      // v237: a schedule pack's Ministry rows can carry the session's
-      // book/chapter — the pair lands on the ministry records, AFTER
-      // the ministries pack above (the pack stays the authority; its
-      // records are matched, never duplicated).
+      // v237/v239: a schedule pack's Ministry rows can carry the
+      // session's record fields — book/chapter, genre, the rest —
+      // they land on the ministry records, AFTER the ministries pack
+      // above (the pack stays the authority; its records are matched,
+      // never duplicated). Bare rows land nothing and count nothing.
       const linked = mergeStudioScheduleMinistries(existingMinistries, {
         weekOf: '',
         events: plan.ministryLinks,

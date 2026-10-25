@@ -100,7 +100,11 @@ describe('collectStudioSchedule — grouped todos ride the pack', () => {
     expect(section.events[0].subtasks).toEqual(STEPS);
   });
 
-  it('does not put a step’s store-side description on the wire', () => {
+  // RE-BASED in v239: this pin held v236's deliberate omission ("the
+  // wire carries no description"). The v239 contract carries the
+  // description now — "Nothing Left Behind" — so it rides, and the
+  // stripping pin below keeps only its non-description half.
+  it('puts a step’s description on the wire (v239 — it was the one field v236 left behind)', () => {
     const withDesc = td(
       {
         title: 'Schoolwork',
@@ -111,7 +115,7 @@ describe('collectStudioSchedule — grouped todos ride the pack', () => {
     );
     const section = collectStudioSchedule([], [withDesc], NOW);
     expect(section.events[0].subtasks).toEqual([
-      { id: 'math', title: 'Finish math', isCompleted: false },
+      { id: 'math', title: 'Finish math', isCompleted: false, description: 'Chapter 4' },
     ]);
   });
 
@@ -262,13 +266,22 @@ describe('validate-first — malformed subtasks reject the pack', () => {
     expect(() => parseStudioFileFull(JSON.parse(JSON.stringify(file)))).toThrow(/subtask/i);
   });
 
+  // RE-BASED in v239: the fixture's `description: 'not wire'` key was
+  // this pin's example of a non-wire key in v236; since v239 the
+  // description IS a wire field and legitimately rides. The pin's
+  // surviving half: any OTHER extra key is still stripped (the bogus
+  // key below proves it).
   it('extra keys on a step are stripped to the wire fields, not carried', () => {
     const pack = packOf([
       groupedPackItem({
-        subtasks: [{ id: 'ring', title: 'Ring', isCompleted: false, description: 'not wire' }],
+        subtasks: [
+          { id: 'ring', title: 'Ring', isCompleted: false, description: 'wire since v239', bogus: 'x' } as never,
+        ],
       }),
     ]);
-    expect(pack.events[0].subtasks).toEqual([{ id: 'ring', title: 'Ring', isCompleted: false }]);
+    expect(pack.events[0].subtasks).toEqual([
+      { id: 'ring', title: 'Ring', isCompleted: false, description: 'wire since v239' },
+    ]);
   });
 });
 

@@ -71,7 +71,7 @@ export function BibleScreenFallback({ details }: { details?: string }) {
         onPress={() => router.back()}
         accessibilityRole="button"
         accessibilityLabel="Go back"
-        style={[styles.backBtn, { borderColor: palette.rasp }]}
+        style={[styles.backBtn, { borderColor: palette.rasp }, palette.btnDress]}
       >
         <Text style={[styles.backText, { color: palette.raspDeep }]}>Go back</Text>
       </Pressable>

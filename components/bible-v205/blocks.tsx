@@ -46,7 +46,7 @@ export function SectionBand({
       <Text style={[styles.bandRange, { color: palette.bandInk }]}>{rangeLabel(start, end)}</Text>
       {title ? (
         <>
-          <Text style={styles.bandDot}>·</Text>
+          <Text style={[styles.bandDot, { color: palette.bandDot }]}>·</Text>
           <Text style={[styles.bandTitle, { color: palette.ink }]}>{title}</Text>
         </>
       ) : null}
@@ -188,7 +188,7 @@ export function StatusChip({ status, palette }: { status: StudyStatus; palette: 
         : status === 'write'
           ? { backgroundColor: palette.paper, borderColor: palette.rasp, color: palette.raspDeep }
           : status === 'restudy'
-            ? { backgroundColor: palette.band, borderColor: '#EFC3D6', color: palette.bandInk }
+            ? { backgroundColor: palette.band, borderColor: palette.bandBorder, color: palette.bandInk }
             : { backgroundColor: palette.greyBg, borderColor: palette.greyBorder, color: palette.greyLabel };
   return (
     <View style={[styles.chip, { backgroundColor: style.backgroundColor, borderColor: style.borderColor }]}>
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   ornDia: { fontSize: 11 },
   band: { flexDirection: 'row', alignItems: 'baseline', gap: 8, borderRadius: 6, paddingVertical: 11, paddingHorizontal: 15 },
   bandRange: { fontWeight: '800', fontSize: 14.5 },
-  bandDot: { color: '#DE8FB4', fontWeight: '700' },
+  bandDot: { fontWeight: '700' },
   bandTitle: { fontWeight: '700', fontSize: 16.5, flexShrink: 1 },
   para: { fontSize: 15, lineHeight: 25.5, marginBottom: 12, paddingHorizontal: 5, marginLeft: -5 },
   notePara: { marginLeft: 8 },

@@ -1,17 +1,72 @@
 // ─── v205 Bible palette ──────────────────────────────────────────────────────
 // The chapter surface speaks his Notion language: the identity colors
-// (pink bands, keeper yellow, callout grey, raspberry) stay at full
-// strength in every scheme and skin — paper is a material, not a color.
-// What adapts is the page itself: surface, ink, and hairlines come from
-// the app's theme/skin tokens like every other screen.
+// (keeper yellow, callout grey, the category code, the tint washes)
+// stay at full strength in every scheme and skin — paper is a
+// material, not a color. What adapts is the page itself: surface,
+// ink, and hairlines come from the app's theme/skin tokens like
+// every other screen.
+//
+// ─── v248 "The Bible, Dressed Like the Rest" ───────────────────────────────
+// Two theme-citizenship halves join here (his verdict on v247,
+// Oct 25 13:03: "It works now... But you didn't make a paper
+// version of it, and it didn't change the color to orange to match
+// the selected color. I wanted to make it match the chosen theme."):
+//
+//  (1) PALETTE — the accent family no longer hard-codes the v205
+//      raspberry (#C2255C) and its pinks. It DERIVES from the active
+//      palette's primary via deriveBibleAccents
+//      (lib/bible-v205/palette-accents.ts) — the same token the
+//      Schedule and People screens consume — so the color he picked
+//      dresses the Bible exactly as it dresses the rest of the app:
+//      rasp is the primary itself, the band family is that primary
+//      washed over the page paper, and bandInk/raspDeep are the
+//      primary deepened or lifted until they truly read (≥4.5:1)
+//      where text wears them. The meaning colors are NOT accents
+//      and stay constant: category code, keeper yellow, callout
+//      grey, tint washes, verse-number grey.
+//
+//  (2) SKIN DIALECT — the dress fragments below resolve the active
+//      skin's own surface language from its tokens, in the sibling
+//      screens' idioms: content cards wear the skin's frame (or the
+//      Paper cut radius) plus its card shadow; tappables wear the
+//      Paper button shadow (the hard offset shadow is a
+//      tappable-only signal) or the skin's card shadow; modal
+//      sheets wear the sheet shadow; a screen root wears the sheet
+//      head treatment (sheet radius + sheet shadow + frame side
+//      borders); the big heading takes the skin's page-title size.
+//      Under Classic every fragment is empty and the look is
+//      today's — only the palette follows.
 
 import { useColors } from '@/hooks/use-colors';
 import { useSkin } from '@/hooks/use-skin';
 import { hexLuminance } from '@/lib/skin-themes';
 import { resolveBibleInk } from '@/lib/bible-v205/palette-ink';
+import { deriveBibleAccents } from '@/lib/bible-v205/palette-accents';
 import type { TintColor } from '@/lib/bible-v205/marks';
 
 export { resolveBibleInk } from '@/lib/bible-v205/palette-ink';
+export { deriveBibleAccents, bibleAccentInk, type BibleAccents } from '@/lib/bible-v205/palette-accents';
+
+/**
+ * A skin-dress fragment: the resolved style pieces a Bible surface
+ * spreads to wear the active skin's language. Every field is
+ * optional and every fragment is EMPTY under Classic, so spreading
+ * one is always safe.
+ */
+export interface BibleDress {
+  boxShadow?: string;
+  elevation?: number;
+  borderRadius?: number;
+  borderWidth?: number;
+  borderColor?: string;
+  borderTopLeftRadius?: number;
+  borderTopRightRadius?: number;
+  borderLeftWidth?: number;
+  borderRightWidth?: number;
+  borderLeftColor?: string;
+  borderRightColor?: string;
+  overflow?: 'hidden' | 'visible';
+}
 
 export interface BiblePalette {
   paper: string;
@@ -23,6 +78,9 @@ export interface BiblePalette {
   lineDark: string;
   band: string;
   bandInk: string;
+  bandBorder: string;
+  bandLine: string;
+  bandDot: string;
   rasp: string;
   raspDeep: string;
   raspSoft: string;
@@ -47,6 +105,14 @@ export interface BiblePalette {
   verseTintRose: string;
   verseTintGreen: string;
   isDark: boolean;
+  /** v248 skin dress — resolved from the active skin's tokens. */
+  cardDress: BibleDress;
+  btnDress: BibleDress;
+  sheetDress: BibleDress;
+  screenDress: BibleDress;
+  frameDress: BibleDress;
+  /** The skin type scale's page-title size (null under Classic). */
+  h2Size: number | null;
 }
 
 export function useBiblePalette(): BiblePalette {
@@ -54,6 +120,47 @@ export function useBiblePalette(): BiblePalette {
   const { isSkinned, tokens } = useSkin();
   const isDark = hexLuminance(colors.background) < 0.5;
   const paper = isSkinned ? tokens.surface ?? colors.background : colors.background;
+  // v248: the accent family derives from the chosen color theme's
+  // primary — the token every sibling screen consumes.
+  const accents = deriveBibleAccents(colors.primary, paper);
+  // v248 skin dress, in the sibling screens' own idioms:
+  //  · frame — the skin's frame, or the Paper cut radius
+  //    (schedule-tab's `skinTokens.frame ?? paperCutFor(tokens)`);
+  //  · cards — frame + the skin's card shadow (interior-shell,
+  //    mini-game-scene, profile);
+  //  · buttons — Paper's button shadow on tappables only, the
+  //    skin's card shadow under the other skins (interior-shell);
+  //  · sheets — the modal sheet shadow (family, person,
+  //    date-time-picker);
+  //  · screens — the sheet head: sheet radius + sheet shadow +
+  //    frame side borders (the schedule day sheet, the home sheet).
+  const frameDress: BibleDress = tokens.frame ?? (tokens.isPaper ? { borderRadius: 6 } : {});
+  const cardDress: BibleDress = {
+    ...frameDress,
+    ...(isSkinned ? tokens.cardShadow ?? {} : {}),
+  };
+  const btnDress: BibleDress = isSkinned
+    ? tokens.isPaper
+      ? tokens.buttonShadow ?? {}
+      : tokens.cardShadow ?? {}
+    : {};
+  const sheetDress: BibleDress = isSkinned ? tokens.sheetShadow ?? {} : {};
+  const screenDress: BibleDress = isSkinned
+    ? {
+        borderTopLeftRadius: tokens.sheetRadius ?? 18,
+        borderTopRightRadius: tokens.sheetRadius ?? 18,
+        ...(tokens.sheetShadow ?? {}),
+        ...(tokens.frame
+          ? {
+              borderLeftWidth: tokens.frame.borderWidth,
+              borderRightWidth: tokens.frame.borderWidth,
+              borderLeftColor: tokens.frame.borderColor,
+              borderRightColor: tokens.frame.borderColor,
+            }
+          : {}),
+        overflow: 'hidden',
+      }
+    : {};
   return {
     paper,
     paper2: isDark ? colors.surface : '#FAFAF8',
@@ -65,15 +172,12 @@ export function useBiblePalette(): BiblePalette {
     ink: resolveBibleInk(colors.foreground, paper),
     inkSoft: colors.muted,
     inkFaint: isDark ? '#8A857C' : '#ABA69C',
-    line: colors.border,
+    // v248: under a skin the hairlines take the skin's own border
+    // token (Paper's ink-mixed edge, 8-bit's ink, Terminal's mid
+    // wire); under Classic, the palette border as before.
+    line: isSkinned ? tokens.border ?? colors.border : colors.border,
     lineDark: isDark ? '#4A463F' : '#D9D5CC',
-    band: '#FBE9F1',
-    bandInk: '#9C1B49',
-    rasp: '#C2255C',
-    raspDeep: '#9C1B49',
-    raspSoft: '#FBE9F1',
-    raspTint: '#FDF3F7',
-    rose: '#E64980',
+    ...accents,
     yellowBg: '#FFF3BF',
     yellowBorder: '#EBD489',
     yellowInk: '#5F4B0B',
@@ -102,6 +206,12 @@ export function useBiblePalette(): BiblePalette {
     verseTintRose: 'rgba(230,73,128,.45)',
     verseTintGreen: 'rgba(64,160,110,.45)',
     isDark,
+    cardDress,
+    btnDress,
+    sheetDress,
+    screenDress,
+    frameDress,
+    h2Size: tokens.type.pageTitle,
   };
 }
 

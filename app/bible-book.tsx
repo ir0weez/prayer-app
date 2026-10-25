@@ -56,7 +56,7 @@ function editorChipColors(palette: BiblePalette, s: StudyStatus) {
       : s === 'write'
         ? { backgroundColor: palette.paper, borderColor: palette.rasp, color: palette.raspDeep }
         : s === 'restudy'
-          ? { backgroundColor: palette.band, borderColor: '#EFC3D6', color: palette.bandInk }
+          ? { backgroundColor: palette.band, borderColor: palette.bandBorder, color: palette.bandInk }
           : { backgroundColor: palette.greyBg, borderColor: palette.greyBorder, color: palette.greyLabel };
 }
 
@@ -165,11 +165,11 @@ function BibleBookContent() {
         : s === 'write'
           ? { backgroundColor: palette.paper, borderColor: palette.rasp, color: palette.raspDeep }
           : s === 'restudy'
-            ? { backgroundColor: palette.band, borderColor: '#EFC3D6', color: palette.bandInk }
+            ? { backgroundColor: palette.band, borderColor: palette.bandBorder, color: palette.bandInk }
             : { backgroundColor: palette.greyBg, borderColor: palette.greyBorder, color: palette.greyLabel };
 
   const content = (
-    <View style={{ flex: 1, backgroundColor: palette.paper }}>
+    <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
       <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={{ padding: 2 }}>
           <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
@@ -177,7 +177,7 @@ function BibleBookContent() {
         <Text style={[styles.topTitle, { color: palette.ink }]}>{book}</Text>
         <Pressable
           onPress={() => router.push('/bible-queue')}
-          style={[styles.queueBtn, { borderColor: palette.rasp }]}
+          style={[styles.queueBtn, { borderColor: palette.rasp }, palette.btnDress]}
         >
           <Text style={[styles.queueBtnText, { color: palette.raspDeep }]}>Study Queue</Text>
         </Pressable>
@@ -186,7 +186,7 @@ function BibleBookContent() {
       <ScrollView contentContainerStyle={styles.page}>
         <View style={styles.vhead}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
-          <Text style={[styles.h2, { color: palette.ink }]}>{book}</Text>
+          <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{book}</Text>
           <Ornament palette={palette} />
         </View>
 
@@ -224,6 +224,7 @@ function BibleBookContent() {
                 key={c}
                 style={[
                   styles.cell,
+                  palette.frameDress,
                   { backgroundColor: st.backgroundColor, borderColor: st.borderColor },
                   isSel ? { borderColor: palette.ink, borderWidth: 2 } : null,
                 ]}
@@ -252,7 +253,7 @@ function BibleBookContent() {
           </View>
         ) : null}
 
-        <View style={[styles.detail, { borderColor: palette.line, backgroundColor: palette.paper2 }]}>
+        <View style={[styles.detail, { borderColor: palette.line, backgroundColor: palette.paper2 }, palette.cardDress]}>
           <View style={styles.detailHead}>
             <Text style={[styles.detailTitle, { color: palette.ink }]}>{chapterLabel(selected)}</Text>
             {selDisplay.headline === 'read' ? (
@@ -286,14 +287,14 @@ function BibleBookContent() {
               family's header — no semantics moved. */}
           <Text style={[styles.groupLabel, { color: palette.inkSoft }]}>Your Study</Text>
           <View style={styles.detailBtns}>
-            <Pressable style={[styles.btn, styles.btnPrimary, { backgroundColor: palette.rasp }]} onPress={() => openChapter(false)}>
+            <Pressable style={[styles.btn, styles.btnPrimary, { backgroundColor: palette.rasp }, palette.btnDress]} onPress={() => openChapter(false)}>
               <Text style={styles.btnPrimaryText}>Read Chapter</Text>
             </Pressable>
-            <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => openChapter(true)}>
+            <Pressable style={[styles.btn, { borderColor: palette.lineDark }, palette.btnDress]} onPress={() => openChapter(true)}>
               <Text style={[styles.btnText, { color: palette.ink }]}>Read as Stories</Text>
             </Pressable>
             {selStatus === 'complete' ? (
-              <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => applyStatus('restudy')}>
+              <Pressable style={[styles.btn, { borderColor: palette.lineDark }, palette.btnDress]} onPress={() => applyStatus('restudy')}>
                 <Text style={[styles.btnText, { color: palette.ink }]}>Add to ReStudy Queue</Text>
               </Pressable>
             ) : null}
@@ -327,15 +328,15 @@ function BibleBookContent() {
                     // action and lives under Your Study above.)
                     <View style={styles.detailBtns}>
                       {selStatus === 'restudy' || selStatus === 'in-progress' ? (
-                        <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => applyStatus('complete')}>
+                        <Pressable style={[styles.btn, { borderColor: palette.lineDark }, palette.btnDress]} onPress={() => applyStatus('complete')}>
                           <Text style={[styles.btnText, { color: palette.ink }]}>Mark Complete</Text>
                         </Pressable>
                       ) : selStatus === 'write' ? (
-                        <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => applyStatus('in-progress')}>
+                        <Pressable style={[styles.btn, { borderColor: palette.lineDark }, palette.btnDress]} onPress={() => applyStatus('in-progress')}>
                           <Text style={[styles.btnText, { color: palette.ink }]}>Start Writing</Text>
                         </Pressable>
                       ) : (
-                        <Pressable style={[styles.btn, { borderColor: palette.lineDark }]} onPress={() => applyStatus('write')}>
+                        <Pressable style={[styles.btn, { borderColor: palette.lineDark }, palette.btnDress]} onPress={() => applyStatus('write')}>
                           <Text style={[styles.btnText, { color: palette.ink }]}>Add to Write Queue</Text>
                         </Pressable>
                       )}

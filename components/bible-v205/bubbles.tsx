@@ -168,7 +168,7 @@ function cardColors(kind: BubbleKind, palette: BiblePalette): { bg: string; bord
     // someone else's words, kept distinct from his highlight gold.
     return { bg: palette.greyBg, border: palette.greyBorder, ink: palette.greyInk, label: palette.greyLabel };
   }
-  return { bg: palette.paper, border: palette.isDark ? palette.lineDark : '#E4DFEA', ink: palette.ink, label: palette.rasp };
+  return { bg: palette.paper, border: palette.isDark ? palette.lineDark : palette.line, ink: palette.ink, label: palette.rasp };
 }
 
 // ─── One morphing card ───────────────────────────────────────────────────────

@@ -79,7 +79,7 @@ export function IndexSheet(props: IndexSheetProps) {
   return (
     <Modal visible={props.visible} transparent animationType="slide" onRequestClose={props.onClose}>
       <Pressable style={styles.scrim} onPress={props.onClose} />
-      <View style={[styles.sheet, { backgroundColor: palette.paper }]}>
+      <View style={[styles.sheet, { backgroundColor: palette.paper }, palette.sheetDress]}>
         <View style={[styles.handle, { backgroundColor: palette.lineDark }]} />
         <View style={styles.sheetHead}>
           <Text style={[styles.sheetTitle, { color: palette.ink }]}>
@@ -145,7 +145,7 @@ export function IndexSheet(props: IndexSheetProps) {
             ? categoryHits.map((hit, i) => (
                 <Pressable
                   key={`cat-${hit.entry.start}-${i}`}
-                  style={[styles.sres, { backgroundColor: palette.raspTint, borderColor: '#F3CFE0' }]}
+                  style={[styles.sres, { backgroundColor: palette.raspTint, borderColor: palette.bandLine }, palette.cardDress]}
                   onPress={() => props.onLand(hit.entry.start)}
                 >
                   <Text style={[styles.refchip, { backgroundColor: palette.band, color: palette.bandInk }]}>
@@ -186,7 +186,7 @@ export function IndexSheet(props: IndexSheetProps) {
             ? hits.map((hit, i) => (
                 <Pressable
                   key={`${hit.entry.start}-${i}`}
-                  style={[styles.sres, { backgroundColor: palette.raspTint, borderColor: '#F3CFE0' }]}
+                  style={[styles.sres, { backgroundColor: palette.raspTint, borderColor: palette.bandLine }, palette.cardDress]}
                   onPress={() => props.onLand(hit.entry.start)}
                 >
                   <Text style={[styles.refchip, { backgroundColor: palette.band, color: palette.bandInk }]}>
@@ -220,7 +220,7 @@ export function IndexSheet(props: IndexSheetProps) {
               return (
                 <Pressable
                   key={v.verse}
-                  style={[styles.vcell, { backgroundColor: palette.paper2, borderColor: palette.line }]}
+                  style={[styles.vcell, palette.frameDress, { backgroundColor: palette.paper2, borderColor: palette.line }]}
                   onPress={() => props.onLand(v.verse)}
                 >
                   <Text style={[styles.vn, { color: palette.ink }]}>{v.verse}</Text>

@@ -506,7 +506,7 @@ export function ChapterPageView(props: ChapterPageProps) {
       onNextChapter={chapter < totalChapters ? () => props.onNavigateChapter(chapter + 1) : null}
     />
   ) : (
-    <View style={{ flex: 1, backgroundColor: palette.paper }}>
+    <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
       {/* ── topwrap ── */}
       <View style={[styles.topwrap, { backgroundColor: palette.paper, borderBottomColor: palette.line }]}>
         <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
@@ -553,7 +553,7 @@ export function ChapterPageView(props: ChapterPageProps) {
             <Pressable
               onPress={props.onListen}
               hitSlop={8}
-              style={[styles.listenBtn, { backgroundColor: palette.rasp }]}
+              style={[styles.listenBtn, { backgroundColor: palette.rasp }, palette.btnDress]}
               accessibilityLabel={`Listen — ${devotional.title}`}
             >
               <MaterialIcons name="play-arrow" size={15} color="#FFFFFF" />
@@ -638,7 +638,7 @@ export function ChapterPageView(props: ChapterPageProps) {
 
         {/* ── ReStudy surface card ── */}
         {status === 'restudy' ? (
-          <View style={[styles.surfCard, { borderColor: '#F3CFE0', backgroundColor: palette.paper }]}>
+          <View style={[styles.surfCard, { borderColor: palette.bandLine, backgroundColor: palette.paper }, palette.cardDress]}>
             <View style={styles.surfHead}>
               <StatusChip status="restudy" palette={palette} />
               <Text style={[styles.surfTitle, { color: palette.ink }]}>Due another read</Text>
@@ -648,12 +648,12 @@ export function ChapterPageView(props: ChapterPageProps) {
             </Text>
             <View style={styles.surfBtns}>
               <Pressable
-                style={[styles.surfBtn, styles.surfBtnPrimary, { backgroundColor: palette.rasp }]}
+                style={[styles.surfBtn, styles.surfBtnPrimary, { backgroundColor: palette.rasp }, palette.btnDress]}
                 onPress={props.onOpenQueue}
               >
                 <Text style={styles.surfBtnPrimaryText}>Open in Queue</Text>
               </Pressable>
-              <Pressable style={[styles.surfBtn, { borderColor: palette.lineDark }]} onPress={() => scrollToY(0)}>
+              <Pressable style={[styles.surfBtn, { borderColor: palette.lineDark }, palette.btnDress]} onPress={() => scrollToY(0)}>
                 <Text style={{ color: palette.ink, fontWeight: '700', fontSize: 13 }}>Read Chapter</Text>
               </Pressable>
             </View>
@@ -666,7 +666,7 @@ export function ChapterPageView(props: ChapterPageProps) {
             The chapter page stays exactly as it is. Stories is simply a way <Text style={{ fontStyle: 'italic' }}>through</Text> it — for personal study, at reading pace.
           </Text>
           <Pressable
-            style={[styles.readBtn, { backgroundColor: palette.rasp }]}
+            style={[styles.readBtn, { backgroundColor: palette.rasp }, palette.btnDress]}
             onPress={() => {
               setOpenBubblesKey(null);
               setStories(true);
@@ -840,7 +840,7 @@ export function ChapterPageView(props: ChapterPageProps) {
             old line's honesty pattern. */}
         {studyState !== null && readDate === null ? (
           <Pressable
-            style={[styles.markReadBtn, { borderColor: palette.rasp }]}
+            style={[styles.markReadBtn, { borderColor: palette.rasp }, palette.btnDress]}
             accessibilityLabel={`Mark ${book} ${chapter} as read`}
             onPress={handleMarkRead}
           >
@@ -860,14 +860,14 @@ export function ChapterPageView(props: ChapterPageProps) {
 
         <View style={styles.chapterNav}>
           <Pressable
-            style={[styles.navBtn, { borderColor: palette.lineDark }, chapter <= 1 ? styles.navOff : null]}
+            style={[styles.navBtn, { borderColor: palette.lineDark }, palette.btnDress, chapter <= 1 ? styles.navOff : null]}
             disabled={chapter <= 1}
             onPress={() => props.onNavigateChapter(chapter - 1)}
           >
             <Text style={{ color: palette.ink, fontWeight: '700', fontSize: 13.5 }}>‹ {chapterLabel(chapter - 1)}</Text>
           </Pressable>
           <Pressable
-            style={[styles.navBtn, { borderColor: palette.lineDark }, chapter >= totalChapters ? styles.navOff : null]}
+            style={[styles.navBtn, { borderColor: palette.lineDark }, palette.btnDress, chapter >= totalChapters ? styles.navOff : null]}
             disabled={chapter >= totalChapters}
             onPress={() => props.onNavigateChapter(chapter + 1)}
           >
@@ -879,7 +879,7 @@ export function ChapterPageView(props: ChapterPageProps) {
 
       {/* ── Verses FAB ── */}
       {!sheet ? (
-        <Pressable style={[styles.fab, { backgroundColor: palette.rasp }]} onPress={() => setSheet('verses')}>
+        <Pressable style={[styles.fab, { backgroundColor: palette.rasp, shadowColor: palette.rasp }]} onPress={() => setSheet('verses')}>
           <MaterialIcons name="grid-view" size={16} color="#FFFFFF" />
           <Text style={styles.fabText}>Verses</Text>
         </Pressable>
@@ -1247,7 +1247,7 @@ function EntryView(props: {
           </View>
 
           {composer ? (
-            <View style={[styles.composer, { borderColor: palette.lineDark, backgroundColor: palette.paper }]}>
+            <View style={[styles.composer, { borderColor: palette.lineDark, backgroundColor: palette.paper }, palette.cardDress]}>
               <Text style={[styles.composerLabel, { color: composer === 'highlight' ? palette.yellowLabel : palette.greyLabel }]}>
                 {editingTarget
                   ? `Editing ${kindLabelFor(composer)}`
@@ -1288,7 +1288,7 @@ function EntryView(props: {
                   <Text style={{ color: palette.inkSoft, fontWeight: '600', fontSize: 13 }}>Cancel</Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.addBtn, { backgroundColor: palette.rasp }]}
+                  style={[styles.addBtn, { backgroundColor: palette.rasp }, palette.btnDress]}
                   onPress={() => {
                     const text = draft.trim();
                     if (text) {
@@ -1454,6 +1454,8 @@ const styles = StyleSheet.create({
   chapterNav: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 18, gap: 10 },
   navBtn: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16 },
   navOff: { opacity: 0.35 },
-  fab: { position: 'absolute', right: 18, bottom: 24, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingVertical: 11, paddingHorizontal: 17, shadowColor: '#9C1B49', shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 6 },
+  // v248: the FAB's shadow color is the palette accent (inline) —
+  // the fixed deep-raspberry shadow died with the fixed palette.
+  fab: { position: 'absolute', right: 18, bottom: 24, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingVertical: 11, paddingHorizontal: 17, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 6 },
   fabText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 },
 });

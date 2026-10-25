@@ -126,7 +126,7 @@ export default function BibleBooksScreen() {
   };
 
   const content = (
-    <View style={{ flex: 1, backgroundColor: palette.paper }}>
+    <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
       <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={{ padding: 2 }}>
           <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
@@ -143,7 +143,7 @@ export default function BibleBooksScreen() {
         </Pressable>
         <Pressable
           onPress={() => router.push('/bible-queue')}
-          style={[styles.queueBtn, { borderColor: palette.rasp }]}
+          style={[styles.queueBtn, { borderColor: palette.rasp }, palette.btnDress]}
         >
           <Text style={[styles.queueBtnText, { color: palette.raspDeep }]}>Study Queue</Text>
         </Pressable>
@@ -152,7 +152,7 @@ export default function BibleBooksScreen() {
       <ScrollView contentContainerStyle={styles.page}>
         <View style={styles.vhead}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
-          <Text style={[styles.h2, { color: palette.ink }]}>{possessive} Books</Text>
+          <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{possessive} Books</Text>
           <Ornament palette={palette} />
           <Text style={[styles.vsub, { color: palette.inkSoft }]}>
             The states you set in the app, and the books your notes live in — nothing here is marked for you.
@@ -191,7 +191,7 @@ export default function BibleBooksScreen() {
               onPress={() => router.back()}
               accessibilityRole="button"
               accessibilityLabel="Go back"
-              style={[styles.emptyBack, { borderColor: palette.rasp }]}
+              style={[styles.emptyBack, { borderColor: palette.rasp }, palette.btnDress]}
             >
               <Text style={[styles.emptyBackText, { color: palette.raspDeep }]}>Go back</Text>
             </Pressable>
@@ -218,7 +218,7 @@ export default function BibleBooksScreen() {
 
         <Modal visible={labelEditor} transparent animationType="fade" onRequestClose={() => setLabelEditor(false)}>
           <Pressable style={styles.scrim} onPress={() => setLabelEditor(false)} />
-          <View style={[styles.editorCard, { backgroundColor: palette.paper }]}>
+          <View style={[styles.editorCard, { backgroundColor: palette.paper }, palette.sheetDress]}>
             <Text style={[styles.editorTitle, { color: palette.ink }]}>Name your notes source</Text>
             <Text style={[styles.editorSub, { color: palette.inkSoft }]}>
               Where your handwritten notes live — a reMarkable, a notebook, anything. However you want to put it.
@@ -236,7 +236,7 @@ export default function BibleBooksScreen() {
                 <Text style={{ color: palette.inkSoft, fontWeight: '600', fontSize: 13.5 }}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[styles.editorSave, { backgroundColor: palette.rasp }]}
+                style={[styles.editorSave, { backgroundColor: palette.rasp }, palette.btnDress]}
                 onPress={async () => {
                   const saved = await saveSourceLabel(labelDraft);
                   setLabels((l) => (l ? { ...l, sourceLabel: saved } : l));
@@ -251,7 +251,7 @@ export default function BibleBooksScreen() {
 
         <Modal visible={bookNavOpen} transparent animationType="fade" onRequestClose={() => setBookNavOpen(false)}>
           <Pressable style={styles.scrim} onPress={() => setBookNavOpen(false)} />
-          <View style={[styles.navCard, { backgroundColor: palette.paper }]}>
+          <View style={[styles.navCard, { backgroundColor: palette.paper }, palette.sheetDress]}>
             <View style={styles.navHead}>
               <Text style={[styles.editorTitle, { color: palette.ink }]}>Jump to Book</Text>
               <Pressable hitSlop={8} onPress={() => setBookNavOpen(false)} accessibilityRole="button" accessibilityLabel="Close book picker">
@@ -395,7 +395,7 @@ function BookRow({
         <View style={[styles.threadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />
         {ppct ? (
           <View
-            style={[styles.threadFill, { backgroundColor: '#EBD489', width: `${ppct}%`, marginLeft: `${pct}%`, position: 'absolute', left: 0 }]}
+            style={[styles.threadFill, { backgroundColor: palette.yellowBorder, width: `${ppct}%`, marginLeft: `${pct}%`, position: 'absolute', left: 0 }]}
           />
         ) : null}
       </View>

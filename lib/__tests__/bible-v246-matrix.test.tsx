@@ -186,6 +186,7 @@ import { ChapterPageView } from '../../components/bible-v205/chapter-page';
 import { getThemedPalette, ACCENT_THEMES } from '../color-themes';
 import { getSkinTokens, hexContrast } from '../skin-themes';
 import { resolveBibleInk } from '../bible-v205/palette-ink';
+import { deriveBibleAccents } from '../bible-v205/palette-accents';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -308,6 +309,155 @@ describe('v246 — the pure sweep: verse ink in every combination the app can be
             `${scheme}/${accent}/${skin}: ink ${ink} on ${paper}`,
           ).toBeGreaterThanOrEqual(4.5);
         }
+      }
+    }
+  });
+});
+
+/**
+ * v248 — the Bible, dressed like the rest. Jonathan's verdict on
+ * v247 (Oct 25, 13:03): the blank Bible was cured, "But you didn't
+ * make a paper version of it, and it didn't change the color to
+ * orange to match the selected color. I wanted to make it match the
+ * chosen theme." His standing principle (12:18): the Bible page has
+ * a design that FOLLOWS THE APP SKIN and colors that FOLLOW THE
+ * CHOSEN COLOR THEME. Through v247 the Bible wore the v205 build's
+ * fixed scheme (cream + raspberry #C2255C) under every skin and
+ * palette; v248 derives its accent family from the active palette's
+ * primary (lib/bible-v205/palette-accents.ts) and spreads the active
+ * skin's dress fragments (components/bible-v205/palette.ts). The
+ * pins below are the promise, per skin × {default, sunset} ×
+ * {light, dark}:
+ *  (a) the surfaces render ungated at full height (the content root
+ *      carries flex:1 — the v247 second-gate shape, kept);
+ *  (b) a headline accent element's rendered color EQUALS the active
+ *      palette's primary token, and the old fixed raspberry appears
+ *      nowhere in the render;
+ *  (c) under a skin, the chapter root carries THAT SKIN's sheet
+ *      treatment — the exact sheetRadius and the exact sheetShadow
+ *      string from the skin's own tokens (the same tokens the
+ *      sibling screens consume), never a lookalike; under Classic
+ *      the root carries neither.
+ * On 85f8e27 every (b) and (c) row fails: the fill rendered
+ * rgba(194,37,92,1.00) in all sixteen combinations and the roots
+ * carried no sheet treatment at all.
+ */
+
+/** A hex color as react-native-web serializes it in a style. */
+function hexToRgbaCss(hex: string): string {
+  const n = hex.replace('#', '');
+  const r = parseInt(n.slice(0, 2), 16);
+  const g = parseInt(n.slice(2, 4), 16);
+  const b = parseInt(n.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},1.00)`;
+}
+
+/** The content root's style — the first div that paints a
+ * background (the settle wrappers paint none). */
+function contentRootStyle(html: string): string {
+  const divs = [...html.matchAll(/<div[^>]*style="([^"]*)"/g)].map((m) => m[1]);
+  return divs.find((s) => s.includes('background-color')) ?? '';
+}
+
+const OLD_RASPBERRY_CSS = 'rgba(194,37,92';
+
+describe('v248 — the Bible follows the skin and the chosen color', () => {
+  for (const skin of SKINS) {
+    for (const accent of ACCENTS) {
+      for (const scheme of SCHEMES) {
+        const label = `${skin} × ${accent} × ${scheme}`;
+        it(`${label}: palette-following accents + the skin's sheet treatment`, () => {
+          rig.skin = skin;
+          rig.accent = accent;
+          rig.scheme = scheme;
+          const eff = effScheme();
+          const colors: any = getThemedPalette(eff, accent as any);
+          const tokens: any = getSkinTokens(skin as any, eff, colors);
+
+          const books = renderToString(React.createElement(BibleBooksScreen)).replace(/<!-- -->/g, '');
+          const chapter = renderToString(chapterEl('Genesis', 1)).replace(/<!-- -->/g, '');
+          const stories = renderToString(chapterEl('Genesis', 1, true)).replace(/<!-- -->/g, '');
+
+          // (a) ungated, full height.
+          expectRootUngated(chapter, `${label} Chapter`);
+          expect(contentRootStyle(chapter), `${label}: chapter root fills the screen`).toContain('flex:1');
+          expect(contentRootStyle(books), `${label}: books root fills the screen`).toContain('flex:1');
+          // Stories' root flex lives in its StyleSheet (a class, not
+          // the inline style) — the harness sees its painted paper
+          // at the root instead; the ungated pin above covers the rest.
+          expect(contentRootStyle(stories), `${label}: stories root paints its paper`).toBeTruthy();
+
+          // (b) the headline accents ARE the palette's primary token:
+          // the chapter progress fill paints it, the Books kicker
+          // reads in it, and the old fixed raspberry is gone.
+          expect(
+            chapter.includes(`background-color:${hexToRgbaCss(colors.primary)}`),
+            `${label}: progress fill paints the palette primary ${colors.primary}`,
+          ).toBe(true);
+          expect(chapter, `${label}: no fixed raspberry in the chapter`).not.toContain(OLD_RASPBERRY_CSS);
+          expect(books, `${label}: no fixed raspberry in the books`).not.toContain(OLD_RASPBERRY_CSS);
+          const kicker = renderedTextColor(books, 'PrayerCircle · Bible');
+          expect(kicker, `${label}: kicker color`).toBe(colors.primary.toUpperCase());
+          expect(kicker, `${label}: kicker is not the old raspberry`).not.toBe('#C2255C');
+
+          // (c) the chapter root wears the skin's own sheet
+          // treatment — its exact radius and shadow tokens.
+          const root = contentRootStyle(chapter);
+          if (skin === 'classic') {
+            expect(root, `${label}: Classic root carries no sheet shadow`).not.toContain('box-shadow');
+            expect(root, `${label}: Classic root carries no sheet radius`).not.toContain('border-top-left-radius');
+          } else {
+            expect(root, `${label}: sheet radius from the skin tokens`).toContain(
+              `border-top-left-radius:${tokens.sheetRadius}px`,
+            );
+            expect(root, `${label}: sheet shadow is the skin token, verbatim`).toContain(
+              tokens.sheetShadow.boxShadow,
+            );
+          }
+        });
+      }
+    }
+  }
+});
+
+describe('v248 — the derivation: text shades of the chosen color truly read', () => {
+  it('rasp IS the primary; raspDeep and bandInk clear 4.5:1 on their grounds, every combination', () => {
+    for (const scheme of SCHEMES) {
+      for (const accent of ACCENT_THEMES.map((t) => t.id)) {
+        for (const skin of SKINS) {
+          const eff = skin === 'terminal' ? 'dark' : scheme;
+          const colors: any = getThemedPalette(eff, accent as any);
+          const tokens: any = getSkinTokens(skin as any, eff, colors);
+          const isSkinned = tokens.isPaper || tokens.isEightBit || tokens.isTerminal;
+          const paper = isSkinned ? tokens.surface ?? colors.background : colors.background;
+          const accents = deriveBibleAccents(colors.primary, paper);
+          const at = `${scheme}/${accent}/${skin}`;
+          expect(accents.rasp, `${at}: rasp is the primary`).toBe(colors.primary);
+          expect(hexContrast(accents.raspDeep, paper), `${at}: raspDeep on paper`).toBeGreaterThanOrEqual(4.5);
+          expect(hexContrast(accents.bandInk, accents.band), `${at}: bandInk on band`).toBeGreaterThanOrEqual(4.5);
+          expect(accents.raspSoft, `${at}: raspSoft is the band`).toBe(accents.band);
+        }
+      }
+    }
+  });
+
+  it('wiring: the palette derives from colors.primary; no surface keeps a fixed accent literal', () => {
+    const pal = read('components/bible-v205/palette.ts');
+    expect(pal).toContain('deriveBibleAccents(colors.primary, paper)');
+    for (const f of [
+      'app/bible-chapters.tsx',
+      'app/bible-book.tsx',
+      'app/bible-queue.tsx',
+      'components/bible-v205/blocks.tsx',
+      'components/bible-v205/bubbles.tsx',
+      'components/bible-v205/chapter-page.tsx',
+      'components/bible-v205/index-sheet.tsx',
+      'components/bible-v205/stories-view.tsx',
+      'components/bible-v205/screen-boundary.tsx',
+    ]) {
+      const src = read(f);
+      for (const dead of ['#C2255C', '#9C1B49', '#E64980', '#FBE9F1', '#FDF3F7', '#EFC3D6', '#F3CFE0', '#F3DCE8', '#DE8FB4']) {
+        expect(src, `${f} must not keep ${dead}`).not.toContain(dead);
       }
     }
   });

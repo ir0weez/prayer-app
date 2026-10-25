@@ -122,7 +122,7 @@ export function StoriesView(props: StoriesViewProps) {
             <Text style={{ fontWeight: '700', color: palette.ink }}>{screens.length} screens</Text>, at your pace. Tap
             right to keep going, left to go back.
           </Text>
-          <Pressable style={[styles.beginBtn, { backgroundColor: palette.rasp }]} onPress={() => go(1)}>
+          <Pressable style={[styles.beginBtn, { backgroundColor: palette.rasp }, palette.btnDress]} onPress={() => go(1)}>
             <Text style={styles.beginBtnText}>Begin reading</Text>
           </Pressable>
           <View style={[styles.coverSecs, { borderTopColor: palette.line }]}>
@@ -202,7 +202,7 @@ export function StoriesView(props: StoriesViewProps) {
           </View>
           <View style={[styles.heartRow, { borderTopColor: palette.line }]}>
             <Pressable
-              style={[styles.keepBtn, { borderColor: kept ? palette.rose : palette.lineDark }]}
+              style={[styles.keepBtn, { borderColor: kept ? palette.rose : palette.lineDark }, palette.btnDress]}
               onPress={() => props.onToggleKept(e.start, e.end, e.blocks.some((b) => b.kind === 'highlight'))}
             >
               <Text style={{ color: kept ? palette.rose : palette.heartOff, fontSize: 15 }}>♥</Text>
@@ -312,11 +312,11 @@ export function StoriesView(props: StoriesViewProps) {
         </View>
         <View style={styles.endBtns}>
           {props.onNextChapter ? (
-            <Pressable style={[styles.btnPrimary, { backgroundColor: palette.rasp }]} onPress={props.onNextChapter}>
+            <Pressable style={[styles.btnPrimary, { backgroundColor: palette.rasp }, palette.btnDress]} onPress={props.onNextChapter}>
               <Text style={styles.btnPrimaryText}>Next chapter — {book} {chapter + 1} ›</Text>
             </Pressable>
           ) : null}
-          <Pressable style={[styles.btnGhost, { borderColor: palette.lineDark }]} onPress={props.onExit}>
+          <Pressable style={[styles.btnGhost, { borderColor: palette.lineDark }, palette.btnDress]} onPress={props.onExit}>
             <Text style={[styles.btnGhostText, { color: palette.ink }]}>Back to chapter</Text>
           </Pressable>
         </View>
@@ -392,7 +392,7 @@ export function StoriesView(props: StoriesViewProps) {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: palette.paper }]}>
+    <View style={[styles.root, { backgroundColor: palette.paper }, palette.screenDress]}>
       <View style={[styles.chrome, { borderBottomColor: palette.line, paddingTop: insets.top + 13 }]}>
         <View style={styles.segs}>
           {screens.map((s, i) => (
@@ -400,8 +400,8 @@ export function StoriesView(props: StoriesViewProps) {
               key={i}
               style={[
                 styles.seg,
-                { backgroundColor: i <= idx ? palette.rasp : '#F3DCE8' },
-                i === idx ? styles.segNow : null,
+                { backgroundColor: i <= idx ? palette.rasp : palette.bandLine },
+                i === idx ? [styles.segNow, { shadowColor: palette.rasp }] : null,
               ]}
             />
           ))}
@@ -453,7 +453,7 @@ export function StoriesView(props: StoriesViewProps) {
 
       <Modal visible={overview} transparent animationType="slide" onRequestClose={() => setOverview(false)}>
         <Pressable style={styles.scrim} onPress={() => setOverview(false)} />
-        <View style={[styles.sheet, { backgroundColor: palette.paper }]}>
+        <View style={[styles.sheet, { backgroundColor: palette.paper }, palette.sheetDress]}>
           <View style={[styles.handle, { backgroundColor: palette.lineDark }]} />
           <View style={styles.sheetHead}>
             <Text style={[styles.sheetTitle, { color: palette.ink }]}>
@@ -465,7 +465,7 @@ export function StoriesView(props: StoriesViewProps) {
             </Pressable>
           </View>
           <View style={styles.legend}>
-            <LegendSwatch color={palette.band} border="#F3CFE0" label="Section" palette={palette} />
+            <LegendSwatch color={palette.band} border={palette.bandLine} label="Section" palette={palette} />
             <LegendSwatch color={palette.paper} border={palette.lineDark} label="Verses" palette={palette} />
             <LegendSwatch color={palette.greyBg} border={palette.greyBorder} label="Notes" palette={palette} />
             <LegendSwatch color={palette.yellowBg} border={palette.yellowBorder} label="Highlight" palette={palette} />
@@ -483,11 +483,12 @@ export function StoriesView(props: StoriesViewProps) {
                     key={i}
                     style={[
                       styles.ovcell,
+                      palette.frameDress,
                       { borderColor: palette.line, backgroundColor: palette.paper },
-                      s.t === 'section' ? { backgroundColor: palette.band, borderColor: '#F3CFE0' } : null,
+                      s.t === 'section' ? { backgroundColor: palette.band, borderColor: palette.bandLine } : null,
                       s.t === 'notes' ? { backgroundColor: palette.greyBg } : null,
                       s.t === 'highlight' ? { backgroundColor: palette.yellowBg, borderColor: palette.yellowBorder } : null,
-                      s.t === 'end' ? { backgroundColor: palette.raspTint, borderColor: '#F3CFE0' } : null,
+                      s.t === 'end' ? { backgroundColor: palette.raspTint, borderColor: palette.bandLine } : null,
                       i < idx ? { opacity: 0.62 } : null,
                       i === idx ? { borderColor: palette.rasp, borderWidth: 2 } : null,
                     ]}
@@ -521,7 +522,9 @@ const styles = StyleSheet.create({
   chrome: { paddingHorizontal: 16, paddingTop: 13, paddingBottom: 9, borderBottomWidth: 1 },
   segs: { flexDirection: 'row', gap: 3 },
   seg: { flex: 1, height: 3.5, borderRadius: 2 },
-  segNow: { shadowColor: '#C2255C', shadowOpacity: 0.35, shadowRadius: 2, shadowOffset: { width: 0, height: 0 } },
+  // v248: the current segment's glow takes the palette accent
+  // (inline) — the fixed raspberry shadow died with the fixed palette.
+  segNow: { shadowOpacity: 0.35, shadowRadius: 2, shadowOffset: { width: 0, height: 0 } },
   chromebar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 10 },
   secLabel: { fontSize: 13, fontWeight: '800', flexShrink: 1 },
   chromeActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },

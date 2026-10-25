@@ -44,7 +44,7 @@ export default function BibleQueueScreen() {
   const renderItem = (item: QueueItem, kind: 'write' | 'restudy') => (
     <Pressable
       key={`${item.book}-${item.chapter}`}
-      style={[styles.qitem, { borderColor: palette.line, backgroundColor: palette.paper }]}
+      style={[styles.qitem, { borderColor: palette.line, backgroundColor: palette.paper }, palette.cardDress]}
       onPress={() => open(item)}
     >
       <Text style={[styles.qname, { color: palette.ink }]}>
@@ -56,7 +56,7 @@ export default function BibleQueueScreen() {
   );
 
   const content = (
-    <View style={{ flex: 1, backgroundColor: palette.paper }}>
+    <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
       <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={{ padding: 2 }}>
           <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
@@ -67,7 +67,7 @@ export default function BibleQueueScreen() {
       <ScrollView contentContainerStyle={styles.page}>
         <View style={styles.vhead}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
-          <Text style={[styles.h2, { color: palette.ink }]}>The Study Queue</Text>
+          <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>The Study Queue</Text>
           <Ornament palette={palette} />
           <Text style={[styles.vsub, { color: palette.inkSoft }]}>
             The pipeline — a chapter is written, it rests complete, and when its turn comes it is read again.
@@ -79,7 +79,7 @@ export default function BibleQueueScreen() {
           <Text style={[styles.pipeArrow, { color: palette.inkFaint }]}>→</Text>
           <PipeNode label="Complete" palette={palette} color={palette.rasp} border={palette.rasp} text="#FFFFFF" />
           <Text style={[styles.pipeArrow, { color: palette.inkFaint }]}>→</Text>
-          <PipeNode label="ReStudy" palette={palette} color={palette.band} border="#EFC3D6" text={palette.bandInk} />
+          <PipeNode label="ReStudy" palette={palette} color={palette.band} border={palette.bandBorder} text={palette.bandInk} />
         </View>
         <Text style={[styles.pipecount, { color: palette.inkSoft }]}>
           Right now:{' '}

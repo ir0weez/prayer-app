@@ -54,7 +54,8 @@ vi.mock('react-native', async () => {
 vi.mock('expo-router', async () => {
   const React = await import('react');
   return {
-    useRouter: () => ({ push: () => {}, back: () => {}, replace: () => {} }),
+    useRouter: () => ({ push: () => {}, back: () => {}, replace: () => {}, navigate: () => {}, setParams: () => {} }),
+    usePathname: () => '/bible-chapters',
     useLocalSearchParams: () => ({}),
     useFocusEffect: (cb: any) => {
       React.useEffect(() => {
@@ -64,6 +65,68 @@ vi.mock('expo-router', async () => {
     },
   };
 });
+
+
+// v259: the shared tab bar (mounted by the Bible screens) uses reanimated.
+vi.mock('react-native-reanimated', async () => {
+  const React = await import('react');
+  const { View, Text, ScrollView } = await import('react-native-web');
+  const AV = (props: any) => React.createElement(View, props, props?.children);
+  const AT = (props: any) => React.createElement(Text, props, props?.children);
+  const AS = (props: any) => React.createElement(ScrollView, props, props?.children);
+  return {
+    __esModule: true,
+    default: { View: AV, Text: AT, ScrollView: AS, createAnimatedComponent: (c: any) => c },
+    View: AV,
+    Text: AT,
+    ScrollView: AS,
+    createAnimatedComponent: (c: any) => c,
+    useSharedValue: (v: any) => ({ value: v }),
+    makeMutable: (v: any) => ({ value: v }),
+    useAnimatedStyle: (fn: any) => fn(),
+    useAnimatedProps: (fn: any) => fn(),
+    withTiming: (v: any) => v,
+    withDelay: (_d: any, v: any) => v,
+    withRepeat: (v: any) => v,
+    withSpring: (v: any) => v,
+    interpolate: (_v: any, _i: any, o: any) => o[0],
+    Easing: {
+      bezier: () => ({}),
+      inOut: (f: any) => f,
+      out: (f: any) => f,
+      sin: {},
+      steps: () => ({}),
+      cubic: {},
+      linear: {},
+    },
+    runOnJS: (f: any) => f,
+  };
+});
+
+
+// v259: the shared tab bar derives its Classic dress from the
+// people-material hooks, which read the app theme context — these
+// render rigs stub the family with plain values (the bar's own
+// derivation is pinned in people-v259).
+vi.mock('@/hooks/use-people-material', () => ({
+  usePeopleMaterial: () => ({
+    card: '#FFFFFF', deep: '#4C1D95', inkSoft: '#6B6285', seed: '#7C3AED',
+    tealDeep: '#0F766E', wash: '#EFE9FC', wash2: '#E3D9FA', ink: '#2A2140',
+  }),
+  usePeopleFrontDoor: () => ({
+    card: '#FFFFFF', deep: '#4C1D95', inkSoft: '#6B6285', seed: '#7C3AED',
+    tealDeep: '#0F766E', wash: '#EFE9FC', wash2: '#E3D9FA', ink: '#2A2140',
+    washSub: '#6B6285', queueTeal: '#0F766E', navGround: '#FFFFFF',
+    navInk: '#6B6285', navActiveInk: '#4C1D95', navInd: '#E3D9FA',
+    navTick: '#7C3AED', shadow: '#2A2140',
+  }),
+}));
+
+// v259: the shared tab bar (mounted by the Bible screens) imports expo-haptics.
+vi.mock('expo-haptics', () => ({
+  impactAsync: async () => {},
+  ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
+}));
 
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 0, left: 0 }),

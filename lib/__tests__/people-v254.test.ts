@@ -301,30 +301,32 @@ describe("v254 source pins — People front door + roster (index.tsx)", () => {
   });
 });
 
-describe("v254 source pins — nav as drawn (People · Schedule · Bible · Journal · More)", () => {
+describe("v254 source pins — nav as drawn (People · Schedule · Study · Journal · More) — v259: the bar itself lives in components/app-tab-bar.tsx now, mounted by the shell and the Bible section alike; these pins read its new home", () => {
   const index = read("app/(tabs)/index.tsx");
+  const tabBar = read("components/app-tab-bar.tsx");
 
   it("tabOrder is the five destinations", () => {
-    expect(index).toContain('const tabOrder: AppTab[] = ["people", "schedule", "bible", "journal", "more"]');
+    expect(tabBar).toContain('export const APP_TAB_ORDER: AppNavTab[] = ["people", "schedule", "bible", "journal", "more"]');
   });
 
   it("the bar renders the five tabs in order; Bible pushes the Bible section root; Settings lives under More", () => {
-    const peopleAt = index.indexOf('renderTab("people"');
-    const scheduleAt = index.indexOf('renderTab("schedule"');
-    const bibleAt = index.indexOf('renderTab("bible"');
-    const journalAt = index.indexOf('renderTab("journal"');
-    const moreAt = index.indexOf('renderTab("more"');
+    const peopleAt = tabBar.indexOf('tab: "people"');
+    const scheduleAt = tabBar.indexOf('tab: "schedule"');
+    const bibleAt = tabBar.indexOf('tab: "bible"');
+    const journalAt = tabBar.indexOf('tab: "journal"');
+    const moreAt = tabBar.indexOf('tab: "more"');
     expect(peopleAt).toBeGreaterThan(-1);
     expect(scheduleAt).toBeGreaterThan(peopleAt);
     expect(bibleAt).toBeGreaterThan(scheduleAt);
     expect(journalAt).toBeGreaterThan(bibleAt);
     expect(moreAt).toBeGreaterThan(journalAt);
     expect(index).toContain('router.push("/bible-chapters")');
-    expect(index).not.toContain('renderTab("settings"');
+    expect(index).toContain("<AppTabBar");
+    expect(tabBar).not.toContain('tab: "settings"');
   });
 
   it("the More hub orphans nothing (v255 form — v254's per-household flood buried the destinations and duplicated same-named families; families are ONE entry into a list now)", () => {
-    const hub = index.slice(index.indexOf("const renderMoreScreen"), index.indexOf("Expressive glass tab bar"));
+    const hub = index.slice(index.indexOf("const renderMoreScreen"), index.indexOf("// v259: the bar itself lives in"));
     const settingsAt = hub.indexOf('label: "Settings"');
     const familiesAt = hub.indexOf('label: "Families"');
     const hometownAt = hub.indexOf('"/hometown"');
@@ -347,7 +349,7 @@ describe("v254 source pins — nav as drawn (People · Schedule · Bible · Jour
   });
 
   it("the pill slides on withTiming — no spring in the nav", () => {
-    const navBlock = index.slice(index.indexOf("tabPillX"), index.indexOf("const renderTab"));
+    const navBlock = tabBar.slice(tabBar.indexOf("tabPillX"), tabBar.indexOf("const renderTab"));
     expect(navBlock).toContain("withTiming");
     expect(navBlock).not.toContain("withSpring");
   });

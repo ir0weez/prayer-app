@@ -206,16 +206,17 @@ describe("v255 source pins — front door (index.tsx)", () => {
   });
 });
 
-describe("v255 source pins — tab bar as drawn (index.tsx)", () => {
+describe("v255 source pins — tab bar as drawn (v259: components/app-tab-bar.tsx, the bar's shared home)", () => {
   const index = read("app/(tabs)/index.tsx");
+  const tabBar = read("components/app-tab-bar.tsx");
 
   it("6 · SUPERSEDED by v256 — under Classic the bar is Concept 2 (Expressive): seed-tinted surface, the 58×34 tonal blob behind the active icon", () => {
-    const bar = index.slice(index.indexOf("onLayout={(event) => setNavWidth"), index.indexOf('renderTab("people"'));
+    const bar = tabBar.slice(tabBar.indexOf("onLayout={(event) => setNavWidth"), tabBar.indexOf("APP_TAB_ITEMS.map"));
     expect(bar).toContain("borderTopLeftRadius: 24");
     expect(bar).toContain("backgroundColor: pmf.navGround");
     expect(bar).toContain("backgroundColor: pmf.navInd");
     expect(bar).toContain("height: 34");
-    expect(index).toContain("(navWidth - 20) / 5");
+    expect(tabBar).toContain("(navWidth - 20) / 5");
   });
 
   it("6 · NO + button under Classic — the FAB survives only for the material skins, and Add Person's drawn door (the roster head +) remains", () => {

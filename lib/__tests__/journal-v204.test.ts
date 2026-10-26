@@ -336,8 +336,12 @@ describe("v204 — flat composition + the morph (source pins)", () => {
   it("the shell hides its tab bar only while the Journal composes", () => {
     const shell = read("app/(tabs)/index.tsx");
     expect(shell).toContain("onComposeChange={setJournalComposing}");
-    expect(shell).toContain('opacity: journalComposing && activeTab === "journal" ? 0 : 1');
-    expect(shell).toContain('pointerEvents={journalComposing && activeTab === "journal" ? "none" : "auto"}');
+    // v259: the bar lives in components/app-tab-bar.tsx; the shell
+    // passes its hide state in, the component wears the opacity.
+    expect(shell).toContain('hidden={journalComposing && activeTab === "journal"}');
+    const tabBar = read("components/app-tab-bar.tsx");
+    expect(tabBar).toContain("opacity: hidden ? 0 : 1");
+    expect(tabBar).toContain('pointerEvents={hidden ? "none" : "auto"}');
     // Leaving the tab always restores the bar.
     expect(shell).toContain('if (activeTab !== "journal") setJournalComposing(false);');
   });

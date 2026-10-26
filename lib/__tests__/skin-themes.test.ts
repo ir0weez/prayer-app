@@ -1292,9 +1292,11 @@ describe("v188 — Terminal, finished properly", () => {
     // v255: the expression gained the Classic branch (the mockup's
     // flat light bar icons) between the Terminal null and the skins'
     // icon — Terminal still renders NO icon, exactly as pinned here.
-    expect(index).toContain("skinTokens.isTerminal ? null : isClassicSkin ? (");
-    expect(index).toContain("isActive ? `[${label.toUpperCase()}]` : label.toUpperCase()");
-    expect(index).toContain("numberOfLines={skinTokens.isTerminal ? 1 : undefined}");
+    // v259: the tab bar lives in components/app-tab-bar.tsx.
+    const tabBar = read("components/app-tab-bar.tsx");
+    expect(tabBar).toContain("skinTokens.isTerminal ? null : isClassicSkin ? (");
+    expect(tabBar).toContain("isActive ? `[${label.toUpperCase()}]` : label.toUpperCase()");
+    expect(tabBar).toContain("numberOfLines={skinTokens.isTerminal ? 1 : undefined}");
     // The v186 every-tab bracket string that overflowed is gone.
     expect(index).not.toContain("[ ${label.toUpperCase()} ]");
     // People's primary button and the Settings progress bars converted.
@@ -1542,7 +1544,8 @@ describe("v190 — Paper, Bigger", () => {
     expect(index).toContain("minHeight: 68 + padBoost * 2");
     // The tab bar labels step up under Paper (audit: no clipping —
     // the label level is 13 in a ~90px cell, single line kept).
-    expect(index).toContain("skinTokens.isPaper ? skinText(skinTokens, skinTokens.type.labelText, 16) : null");
+    // v259: the tab bar (and its Paper label step-up) lives in the shared bar.
+    expect(read("components/app-tab-bar.tsx")).toContain("skinTokens.isPaper ? skinText(skinTokens, skinTokens.type.labelText, 16) : null");
     // Journal: header tile, entry titles, prose via MarkdownText's
     // baseSize, dates and section headers. (v194, Journal Zeitgeist:
     // the Journal split into a component family — tab, post, day,

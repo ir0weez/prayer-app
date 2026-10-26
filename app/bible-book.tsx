@@ -42,6 +42,7 @@ import { Ornament, ReadChip, StatusChip, STATUS_LABEL } from '@/components/bible
 import { BookCompleteCelebration } from '@/components/bible-v205/celebration';
 import { chapterLabel, useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
+import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 
 /** v206: the detail strip's full status editor — every state a chapter
  * can wear, in pipeline order, None last (the way back down). */
@@ -65,6 +66,8 @@ function BibleBookContent() {
   // v207: top safe-area inset, as the rest of the app applies.
   const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
+  // v259: the app tab bar rides over this screen (Study active).
+  const tabBarHeight = useTabBarOccupiedHeight();
   const params = useLocalSearchParams<{ book?: string }>();
   const book = typeof params.book === 'string' && params.book ? params.book : 'Genesis';
   const total = chapterCountFor(book);
@@ -380,8 +383,11 @@ function BibleBookContent() {
             </>
           ) : null}
         </View>
-        <View style={{ height: 30 }} />
+        <View style={{ height: tabBarHeight + 27 }} />
       </ScrollView>
+
+      {/* v259: same app, same bar — Study is the active slot. */}
+      <BibleTabBar />
     </View>
   );
 

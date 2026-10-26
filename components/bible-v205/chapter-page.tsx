@@ -129,6 +129,11 @@ export interface ChapterPageProps {
   /** v230: open the devotional listen screen (only wired when the
    * devotional registry has an entry for this chapter). */
   onListen?: () => void;
+  /** v259: the app tab bar rides over the reader now — the height
+   * it occupies at the screen's foot. The scroll's end spacer
+   * grows past it, the Verses FAB lifts above it, and Stories
+   * pads its root by it. Absent (0) if ever mounted without it. */
+  tabBarHeight?: number;
 }
 
 /** App-level read-mode preference ("With notes" is the default). */
@@ -653,6 +658,7 @@ export function ChapterPageView(props: ChapterPageProps) {
       onToggleKept={handleToggleKept}
       possessive={labels?.possessive ?? 'Your'}
       possessiveLower={labels?.possessiveLower ?? 'your'}
+      bottomInset={props.tabBarHeight}
       onExit={() => setStories(false)}
       onNextChapter={chapter < totalChapters ? () => props.onNavigateChapter(chapter + 1) : null}
     />
@@ -1112,12 +1118,15 @@ export function ChapterPageView(props: ChapterPageProps) {
             <Text style={{ color: palette.ink, fontWeight: '700', fontSize: 13.5 }}>{chapterLabel(chapter + 1)} ›</Text>
           </Pressable>
         </View>
-        <View style={{ height: 96 }} />
+        {/* v259: the foot clears the tab bar riding over the
+            reader (its occupied height + breathing room), never
+            less than the old FAB-clearing 96. */}
+        <View style={{ height: Math.max(96, (props.tabBarHeight ?? 0) + 24) }} />
       </ScrollView>
 
       {/* ── Verses FAB ── */}
       {!sheet ? (
-        <Pressable style={[styles.fab, { backgroundColor: palette.rasp, shadowColor: palette.rasp }]} onPress={() => setSheet('verses')}>
+        <Pressable style={[styles.fab, { backgroundColor: palette.rasp, shadowColor: palette.rasp, bottom: 24 + (props.tabBarHeight ?? 0) }]} onPress={() => setSheet('verses')}>
           <MaterialIcons name="grid-view" size={16} color="#FFFFFF" />
           <Text style={styles.fabText}>Verses</Text>
         </Pressable>

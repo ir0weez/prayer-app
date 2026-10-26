@@ -191,12 +191,13 @@ describe("v256 source pins — the bell's one home", () => {
 
 // ─── 6. The Expressive tab bar ──────────────────────────────────────
 
-describe("v256 source pins — tab bar = Concept 2, Expressive (index.tsx)", () => {
+describe("v256 source pins — tab bar = Concept 2, Expressive (v259: components/app-tab-bar.tsx, the bar's shared home)", () => {
   const index = read("app/(tabs)/index.tsx");
-  const bar = index.slice(index.indexOf("onLayout={(event) => setNavWidth"), index.indexOf('renderTab("people"'));
+  const tabBar = read("components/app-tab-bar.tsx");
+  const bar = tabBar.slice(tabBar.indexOf("onLayout={(event) => setNavWidth"), tabBar.indexOf("APP_TAB_ITEMS.map"));
 
   it("the five destinations stand, in the concept's order", () => {
-    expect(index).toContain('const tabOrder: AppTab[] = ["people", "schedule", "bible", "journal", "more"]');
+    expect(tabBar).toContain('export const APP_TAB_ORDER: AppNavTab[] = ["people", "schedule", "bible", "journal", "more"]');
   });
 
   it("attached, taller, seed-tinted from the derivation — the navGround surface, 13/20 padding", () => {
@@ -210,14 +211,14 @@ describe("v256 source pins — tab bar = Concept 2, Expressive (index.tsx)", () 
     expect(bar).toContain("backgroundColor: pmf.navInd");
     expect(bar).toContain("height: 34");
     expect(bar).toContain("borderRadius: 17");
-    expect(index).toContain("isClassicSkin ? 58 : (navWidth - 6) / 5 - 12");
-    expect(index).toContain("tabPillX.value = withTiming(target, skinMotion.slide)");
+    expect(tabBar).toContain("isClassicSkin ? 58 : (navWidth - 6) / 5 - 12");
+    expect(tabBar).toContain("tabPillX.value = withTiming(target, skinMotion.slide)");
   });
 
   it("bigger icons (24) in the concept's inks, labels always visible, the seed tick under the active label", () => {
-    expect(index).toContain("size={24} color={isActive ? pmf.navActiveInk : pmf.navInk}");
-    expect(index).toContain("backgroundColor: pmf.navTick");
-    expect(index).toContain("width: 14, height: 3, borderRadius: 2");
+    expect(tabBar).toContain("size={24} color={isActive ? pmf.navActiveInk : pmf.navInk}");
+    expect(tabBar).toContain("backgroundColor: pmf.navTick");
+    expect(tabBar).toContain("width: 14, height: 3, borderRadius: 2");
   });
 
   it("the Pray Today pill is Concept 2's: filled seed, centered above the taller bar, gold count chip kept", () => {

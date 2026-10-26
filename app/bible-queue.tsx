@@ -17,6 +17,7 @@ import { loadStudyState, type StudyState } from '@/lib/bible-v205/study';
 import { Ornament, StatusChip } from '@/components/bible-v205/blocks';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
+import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 
 export default function BibleQueueScreen() {
   const router = useRouter();
@@ -24,6 +25,8 @@ export default function BibleQueueScreen() {
   const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
   const { skin } = useSkin();
+  // v259: the app tab bar rides over this screen (Study active).
+  const tabBarHeight = useTabBarOccupiedHeight();
   const [studyState, setStudyState] = useState<StudyState | null>(null);
 
   useFocusEffect(
@@ -124,8 +127,11 @@ export default function BibleQueueScreen() {
             strip or its book page.
           </Text>
         </View>
-        <View style={{ height: 30 }} />
+        <View style={{ height: tabBarHeight + 27 }} />
       </ScrollView>
+
+      {/* v259: same app, same bar — Study is the active slot. */}
+      <BibleTabBar />
     </View>
   );
 

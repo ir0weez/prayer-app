@@ -48,9 +48,11 @@ describe("the CRT layer: one static tube behind everything", () => {
 describe("chrome surfaces converted to the terminal dialect", () => {
   it("the tab bar is the mockup's text menu: panel bar, phosphor pill, inverted bracketed labels", () => {
     const index = read("app/(tabs)/index.tsx");
-    expect(index).toContain("skinTokens.isTerminal ? TERM_PANEL");
-    expect(index).toContain("skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_PURPLE : colors.primary");
-    expect(index).toContain("label.toUpperCase()");
+    // v259: the tab bar lives in components/app-tab-bar.tsx.
+    const tabBar = read("components/app-tab-bar.tsx");
+    expect(tabBar).toContain("skinTokens.isTerminal ? TERM_PANEL");
+    expect(tabBar).toContain("skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_PURPLE : colors.primary");
+    expect(tabBar).toContain("label.toUpperCase()");
     // The skin picker's swatch ring for Terminal is phosphor bright.
     expect(index).toContain('theme.id === "terminal" && { borderWidth: 1, borderColor: "#3DFF6E" }');
     // The tabs shell lets the CRT show through instead of painting over it.

@@ -48,6 +48,9 @@ export interface StoriesViewProps {
   possessive: string;
   possessiveLower: string;
   onToggleKept: (start: number, end: number, sourceHasHighlight: boolean) => void;
+  /** v259: the app tab bar rides over Stories too — the root pads
+   * its foot by this so the Back/Next navbar clears the bar. */
+  bottomInset?: number;
   onExit: () => void;
   onNextChapter: (() => void) | null;
 }
@@ -411,7 +414,7 @@ export function StoriesView(props: StoriesViewProps) {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: palette.paper }, palette.screenDress]}>
+    <View style={[styles.root, { backgroundColor: palette.paper, paddingBottom: props.bottomInset ?? 0 }, palette.screenDress]}>
       <View style={[styles.chrome, { borderBottomColor: palette.line, paddingTop: insets.top + 13 }]}>
         <View style={styles.segs}>
           {screens.map((s, i) => (

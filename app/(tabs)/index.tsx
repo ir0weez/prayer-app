@@ -22,6 +22,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { PrayerSession } from "@/components/prayer-session";
 import { AttentionBell } from "@/components/attention-bell";
+import { AppTabBar, type AppNavTab } from "@/components/app-tab-bar";
 import { PeopleEntrance } from "@/components/people-entrance";
 import { usePeopleFrontDoor, usePeopleMaterial } from "@/hooks/use-people-material";
 import { queueFaceStatus, queueFirstName, sortQueueFaces } from "@/lib/people-queue";
@@ -725,13 +726,14 @@ export default function HomeScreen() {
     verifiedPopPlayer.play();
   };
   const router = useRouter();
-  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[]; notificationPersonId?: string | string[]; notificationAction?: string | string[]; notificationScheduleAction?: string | string[]; notificationScheduleKind?: string | string[]; notificationScheduleId?: string | string[] }>();
+  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[]; notificationPersonId?: string | string[]; notificationAction?: string | string[]; notificationScheduleAction?: string | string[]; notificationScheduleKind?: string | string[]; notificationScheduleId?: string | string[]; navTab?: string | string[] }>();
   const editPersonIdParam = Array.isArray(routeParams.editPersonId) ? routeParams.editPersonId[0] : routeParams.editPersonId;
   const notificationPersonIdParam = Array.isArray(routeParams.notificationPersonId) ? routeParams.notificationPersonId[0] : routeParams.notificationPersonId;
   const notificationActionParam = Array.isArray(routeParams.notificationAction) ? routeParams.notificationAction[0] : routeParams.notificationAction;
   const notificationScheduleActionParam = Array.isArray(routeParams.notificationScheduleAction) ? routeParams.notificationScheduleAction[0] : routeParams.notificationScheduleAction;
   const notificationScheduleKindParam = Array.isArray(routeParams.notificationScheduleKind) ? routeParams.notificationScheduleKind[0] : routeParams.notificationScheduleKind;
   const notificationScheduleIdParam = Array.isArray(routeParams.notificationScheduleId) ? routeParams.notificationScheduleId[0] : routeParams.notificationScheduleId;
+  const navTabParam = Array.isArray(routeParams.navTab) ? routeParams.navTab[0] : routeParams.navTab;
   const handledEditPersonId = useRef<string | null>(null);
   const handledNotificationAction = useRef<string | null>(null);
   const today = getTodayISOString();
@@ -1939,6 +1941,18 @@ export default function HomeScreen() {
     setActiveTab("schedule");
     router.setParams({ notificationScheduleAction: undefined, notificationScheduleKind: undefined, notificationScheduleId: undefined });
   }, [notificationScheduleActionParam, notificationScheduleKindParam, notificationScheduleIdParam, router]);
+
+  // v259: the Bible section's tab bar sends the shell home carrying
+  // the destination it should open on — consumed once and cleared,
+  // the notification params' pattern above.
+  useEffect(() => {
+    if (!navTabParam) return;
+    if (navTabParam === "people" || navTabParam === "schedule" || navTabParam === "journal" || navTabParam === "more") {
+      setActiveTab(navTabParam);
+      setShowAddPerson(false);
+    }
+    router.setParams({ navTab: undefined });
+  }, [navTabParam, router]);
 
   const renderAvatar = (person: Person, size: number, story = false) => {
     return <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={size} thumbnail fallbackColor={person.accentColor} />;
@@ -4378,18 +4392,29 @@ export default function HomeScreen() {
     );
   };
 
-  // ---- Expressive glass tab bar: the active pill slides between tabs (withTiming, Material easing — no spring) ----
-  const [navWidth, setNavWidth] = useState(0);
-  const tabPillX = useSharedValue(0);
-  const navFirstLayout = useRef(true);
-  // v254: the nav as drawn — People · Schedule · Bible · Journal ·
+  // v259: the bar itself lives in components/app-tab-bar.tsx — the
+  // shell and the Bible section mount the same AppTabBar, derived
+  // from the same sources. What stays here is the shell's side of
+  // it: the resolved nav slot, the press behavior, and the content
+  // crossfade that rides a tab switch.
+  // v254: the nav as drawn — People · Schedule · Study · Journal ·
   // More. "home" is the legacy alias of People; Settings keeps its
   // own screen but is reached from the More hub, so it borrows the
-  // More slot for the pill. Bible is a launcher (it pushes the Bible
-  // section's root screen), never an activeTab value.
-  const tabOrder: AppTab[] = ["people", "schedule", "bible", "journal", "more"];
-  const navTab: AppTab = activeTab === "home" ? "people" : activeTab === "settings" ? "more" : activeTab;
-  const activeTabIndex = Math.max(0, tabOrder.indexOf(navTab));
+  // More slot for the indicator. "bible" is never an activeTab
+  // value: the tab OPENS the Bible section, which carries the same
+  // bar with the Study slot active (v259).
+  const navTab: AppNavTab = activeTab === "home" ? "people" : activeTab === "settings" ? "more" : activeTab;
+  const handleNavPress = (tab: AppNavTab) => {
+    // v254: Study opens the Bible section's root screen (the Books
+    // view) — a launcher from the shell, so the screens underneath
+    // never change.
+    if (tab === "bible") {
+      router.push("/bible-chapters");
+      return;
+    }
+    setActiveTab(tab);
+    setShowAddPerson(false);
+  };
   const prevTabRef = useRef(activeTab);
   useEffect(() => {
     if (prevTabRef.current !== activeTab) {
@@ -4401,69 +4426,6 @@ export default function HomeScreen() {
   const tabContentStyle = useAnimatedStyle(() => ({
     opacity: tabTransition.value,
   }));
-
-  useEffect(() => {
-    if (navWidth <= 0) return;
-    // v256: under Classic the pill is Concept 2's (Expressive) tonal
-    // blob behind the active ICON — a fixed 58px capsule centered on
-    // the tab's cell; the bar carries 10px side padding, so the cell
-    // math runs off navWidth - 20. The material skins keep the
-    // floating bar's full-cell pill math.
-    const tabW = (navWidth - (isClassicSkin ? 20 : 6)) / 5;
-    const target = Math.max(0, activeTabIndex) * tabW;
-    if (navFirstLayout.current) {
-      tabPillX.value = target;
-      navFirstLayout.current = false;
-    } else {
-      // M3 Expressive emphasized easing: liquid and smooth, no bounce.
-      tabPillX.value = withTiming(target, skinMotion.slide);
-    }
-  }, [activeTabIndex, navWidth, tabPillX, isClassicSkin]);
-
-  const tabPillAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: tabPillX.value }],
-    width: navWidth > 0 ? (isClassicSkin ? 58 : (navWidth - 6) / 5 - 12) : 0,
-  }));
-
-  const renderTab = (tab: AppTab, label: string, icon: string) => {
-    const isActive = activeTab === tab || (tab === "people" && activeTab === "home") || (tab === "more" && activeTab === "settings");
-    return (
-      <Pressable
-        key={tab}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          // v254: Bible is a real tab that opens the Bible section's
-          // existing root screen (the Books view) — a launcher, not a
-          // mounted tab, so the screens underneath never change.
-          if (tab === "bible") {
-            router.push("/bible-chapters");
-            return;
-          }
-          setActiveTab(tab);
-          setShowAddPerson(false);
-        }}
-        style={({ pressed }) => [styles.tabItem, isClassicSkin ? { height: 58, justifyContent: "flex-start", gap: 0 } : null, pressed && styles.pressed]}
-      >
-        {/* Terminal (v188): the mockup's tab bar is a TEXT menu — no
-            icons at all. v186 kept the icons AND bracketed every label,
-            which overflowed the ~72px tab cells and collided ("[ JOURNAL
-            ]" into "[ SETTINGS", a stray bracket under Settings). */}
-        {skinTokens.isTerminal ? null : isClassicSkin ? (
-          <View style={{ height: 34, justifyContent: "center", alignItems: "center" }}>
-            <MaterialIcons name={iconName(icon)} size={24} color={isActive ? pmf.navActiveInk : pmf.navInk} />
-          </View>
-        ) : (
-          <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : "#5F6670"} />
-        )}
-        <Text numberOfLines={skinTokens.isTerminal ? 1 : undefined} style={[styles.tabLabel, isActive && styles.tabLabelActive, skinTokens.isTerminal ? { color: isActive ? TERM_BG : TERM_MID } : skinTokens.isEightBit ? { color: isActive ? "#FFFFFF" : BIT_ON_DUSK_FAINT } : null, null, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 8, lineHeight: 13 } : null, skinTokens.isTerminal ? { fontSize: 13, lineHeight: 16 } : null, skinTokens.isPaper ? skinText(skinTokens, skinTokens.type.labelText, 16) : null, isClassicSkin ? { color: isActive ? pmf.navActiveInk : pmf.navInk, fontSize: 11.5, lineHeight: 14, fontWeight: isActive ? "800" as const : "600" as const, marginTop: 4 } : null]}>{skinTokens.isTerminal ? (isActive ? `[${label.toUpperCase()}]` : label.toUpperCase()) : label}</Text>
-        {/* v256 · Concept 2 (Expressive): the short seed tick under
-            the ACTIVE label — the concept's finishing mark. */}
-        {isClassicSkin && isActive ? (
-          <View style={{ width: 14, height: 3, borderRadius: 2, backgroundColor: pmf.navTick, marginTop: 3, alignSelf: "center" }} />
-        ) : null}
-      </Pressable>
-    );
-  };
 
   if (showAddPerson) {
     return (
@@ -4653,89 +4615,11 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
-      <View
-        onLayout={(event) => setNavWidth(event.nativeEvent.layout.width)}
-        pointerEvents={journalComposing && activeTab === "journal" ? "none" : "auto"}
-        style={[styles.bottomNav, {
-          // v204: hidden while the Journal composer morph is open —
-          // the morphing box stands in the bar's place.
-          opacity: journalComposing && activeTab === "journal" ? 0 : 1,
-          borderColor: colors.border,
-          // 8-bit (v184): the tab bar is the mockup's cartridge panel —
-          // darkest HUD indigo, square corners, 3px ink edge, the one
-          // hard block shadow. Other skins keep their surface.
-          backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : skinTokens.surface ?? colors.surface,
-          elevation: skinTokens.cardShadow?.elevation ?? 3,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: skinTokens.cardShadow ? 0 : 0.1,
-          shadowRadius: 4,
-          ...(skinTokens.cardShadow ?? {}),
-          ...(skinTokens.frame ?? {}),
-          // v256: under Classic the bar is tabbar-concepts-v1's
-          // Concept 2 (Expressive) — attached and taller, the
-          // seed-tinted surface from the front-door derivation
-          // (pmf.navGround: #EFE9FC light / #1D1730 dark at the
-          // violet seed), top corners rounded 24, a soft upward
-          // shadow, NO floating and NO + button beside it. The
-          // skins keep the floating bar as drawn for them.
-          ...(isClassicSkin ? {
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: undefined,
-            borderRadius: 0,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            borderWidth: 0,
-            backgroundColor: pmf.navGround,
-            paddingTop: 13,
-            paddingBottom: 20,
-            paddingHorizontal: 10,
-            alignItems: "flex-start" as const,
-            shadowColor: pmf.shadow,
-            shadowOpacity: 1,
-            shadowOffset: { width: 0, height: -6 },
-            shadowRadius: 20,
-            elevation: 8,
-          } : {}),
-        }]}
-      >
-        {skinTokens.cardShadow ? <PaperGrainOverlay /> : null}
-        {/* sliding expressive pill — v256: under Classic this is
-            Concept 2's wide tonal blob behind the active ICON
-            (58×34, radius 17, the derivation's navInd), sliding
-            between tabs on the same withTiming motion; the skins
-            keep the filled full-cell pill. */}
-        <ReAnimated.View
-          style={[
-            isClassicSkin
-              ? {
-                  position: "absolute" as const,
-                  left: 10 + Math.max(0, (navWidth - 20) / 5 - 58) / 2,
-                  top: 13,
-                  height: 34,
-                  borderRadius: 17,
-                  backgroundColor: pmf.navInd,
-                }
-              : {
-                  position: "absolute" as const,
-                  left: 9,
-                  top: 4,
-                  bottom: 4,
-                  borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 18,
-                  backgroundColor: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
-                },
-            tabPillAnimatedStyle,
-          ]}
-        />
-
-        {renderTab("people", "People", "groups")}
-        {renderTab("schedule", "Schedule", "event-note")}
-        {renderTab("bible", "Bible", "menu-book")}
-        {renderTab("journal", "Journal", "article")}
-        {renderTab("more", "More", "more-horiz")}
-      </View>
+      <AppTabBar
+        activeTab={navTab}
+        hidden={journalComposing && activeTab === "journal"}
+        onPressTab={handleNavPress}
+      />
 
       <Modal
         transparent

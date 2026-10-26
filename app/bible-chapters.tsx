@@ -32,6 +32,7 @@ import {
 import { bookIsComplete, groupBooksByStudy } from '@/lib/bible-v205/rewards';
 import { Ornament, StatusChip } from '@/components/bible-v205/blocks';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
+import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 import {
   handwrittenNoteFor,
@@ -61,6 +62,9 @@ export default function BibleBooksScreen() {
   const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
   const { skin } = useSkin();
+  // v259: the app tab bar rides over this screen (Study active) —
+  // the list's foot spacer clears it by its occupied height.
+  const tabBarHeight = useTabBarOccupiedHeight();
   const [studyState, setStudyState] = useState<StudyState | null>(null);
   const [labels, setLabels] = useState<UserLabels | null>(null);
   const [handwritten, setHandwritten] = useState<HandwrittenEntry[]>([]);
@@ -213,7 +217,7 @@ export default function BibleBooksScreen() {
         ) : null}
         {groups.notStarted.map(renderBookRow)}
 
-        <View style={{ height: 30 }} />
+        <View style={{ height: tabBarHeight + 27 }} />
       </ScrollView>
 
         <Modal visible={labelEditor} transparent animationType="fade" onRequestClose={() => setLabelEditor(false)}>
@@ -282,6 +286,9 @@ export default function BibleBooksScreen() {
             </ScrollView>
           </View>
         </Modal>
+
+      {/* v259: same app, same bar — Study is the active slot. */}
+      <BibleTabBar />
     </View>
   );
 

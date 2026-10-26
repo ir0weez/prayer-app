@@ -13,11 +13,12 @@
 // moved into BibleBookContent under the boundary (see the shell at
 // the foot of this file) so its computes render protected.
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { bibleShellParamsForRoute, type BiblePaneNav } from '@/lib/bible-pane';
 import { useSkin } from '@/hooks/use-skin';
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
@@ -61,15 +62,27 @@ function editorChipColors(palette: BiblePalette, s: StudyStatus) {
           : { backgroundColor: palette.greyBg, borderColor: palette.greyBorder, color: palette.greyLabel };
 }
 
-function BibleBookContent() {
+/** v265: pane mode (the shell's Study tab) hands this screen its
+ * book, the pane's focus flag, and navigation callbacks; route
+ * mode (a deep link's landing shell) keeps the router + params. */
+export interface BibleBookPaneProps {
+  nav: BiblePaneNav;
+  focused: boolean;
+  book: string;
+}
+
+function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
   const router = useRouter();
+  const inPane = !!props.pane;
   // v207: top safe-area inset, as the rest of the app applies.
   const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
   // v259: the app tab bar rides over this screen (Study active).
   const tabBarHeight = useTabBarOccupiedHeight();
   const params = useLocalSearchParams<{ book?: string }>();
-  const book = typeof params.book === 'string' && params.book ? params.book : 'Genesis';
+  const book = props.pane
+    ? props.pane.book
+    : typeof params.book === 'string' && params.book ? params.book : 'Genesis';
   const total = chapterCountFor(book);
 
   const [studyState, setStudyState] = useState<StudyState | null>(null);
@@ -77,16 +90,26 @@ function BibleBookContent() {
   const [selected, setSelected] = useState(1);
   const [celebration, setCelebration] = useState<{ book: string; bibleComplete: boolean } | null>(null);
 
+  const reloadFocusData = useCallback(() => {
+    let live = true;
+    loadStudyState().then((s) => live && setStudyState(s));
+    loadStudioImports().then((m) => live && setStudioImports(m));
+    return () => {
+      live = false;
+    };
+  }, []);
   useFocusEffect(
     useCallback(() => {
-      let live = true;
-      loadStudyState().then((s) => live && setStudyState(s));
-      loadStudioImports().then((m) => live && setStudioImports(m));
-      return () => {
-        live = false;
-      };
-    }, []),
+      // v265: pane focus is the pane's own flag (below).
+      if (inPane) return;
+      return reloadFocusData();
+    }, [inPane, reloadFocusData]),
   );
+  const paneFocused = props.pane?.focused ?? false;
+  useEffect(() => {
+    if (!inPane || !paneFocused) return;
+    return reloadFocusData();
+  }, [inPane, paneFocused, reloadFocusData]);
 
   const statusOf = (c: number): StudyStatus =>
     studyState ? chapterStatus(studyState, book, c) : 'none';
@@ -146,11 +169,29 @@ function BibleBookContent() {
     if (!studyState) return;
     setStudyState(await unmarkChapterRead(studyState, book, selected));
   };
-  const openChapter = (stories: boolean) =>
-    router.push({
-      pathname: '/bible-chapter',
-      params: { book, chapter: String(selected), ...(stories ? { stories: '1' } : {}) },
-    });
+  const openChapter = (stories: boolean) => {
+    // v265: pane mode pushes the pane stack. Route mode (a deep
+    // link's landing) hands off to the shell's pane — no code path
+    // in the app navigates to the Bible routes anymore.
+    if (props.pane) props.pane.nav.openChapter(book, selected, stories);
+    else
+      router.navigate({
+        pathname: '/(tabs)',
+        params: bibleShellParamsForRoute({ name: 'chapter', book, chapter: selected, stories }),
+      });
+  };
+  const goBack = () => {
+    if (props.pane) props.pane.nav.back();
+    else router.back();
+  };
+  const openQueue = () => {
+    if (props.pane) props.pane.nav.openQueue();
+    else router.navigate({ pathname: '/(tabs)', params: bibleShellParamsForRoute({ name: 'queue' }) });
+  };
+  const openBooks = () => {
+    if (props.pane) props.pane.nav.openBooks();
+    else router.navigate({ pathname: '/(tabs)', params: bibleShellParamsForRoute({ name: 'books' }) });
+  };
   const applyStatus = async (s: StudyStatus) => {
     if (!studyState) return;
     const result = await transitionChapterStatus(studyState, book, selected, s);
@@ -173,13 +214,13 @@ function BibleBookContent() {
 
   const content = (
     <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
-      <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={{ padding: 2 }}>
+      <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: inPane ? 8 : insets.top + 8 }]}>
+        <Pressable onPress={goBack} hitSlop={10} style={{ padding: 2 }}>
           <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
         </Pressable>
         <Text style={[styles.topTitle, { color: palette.ink }]}>{book}</Text>
         <Pressable
-          onPress={() => router.push('/bible-queue')}
+          onPress={openQueue}
           style={[styles.queueBtn, { backgroundColor: palette.band }, palette.btnDress]}
         >
           <Text style={[styles.queueBtnText, { color: palette.raspDeep }]}>Study Queue</Text>
@@ -249,7 +290,7 @@ function BibleBookContent() {
               bibleComplete={celebration.bibleComplete}
               onChooseNext={() => {
                 setCelebration(null);
-                router.push('/bible-chapters');
+                openBooks();
               }}
               onDismiss={() => setCelebration(null)}
             />
@@ -383,18 +424,22 @@ function BibleBookContent() {
             </>
           ) : null}
         </View>
-        <View style={{ height: tabBarHeight + 27 }} />
+        {/* v265: in the pane, the pane container carries the tab
+            bar's clearance once — only the breathing room stays. */}
+        <View style={{ height: inPane ? 27 : tabBarHeight + 27 }} />
       </ScrollView>
 
-      {/* v259: same app, same bar — Study is the active slot. */}
-      <BibleTabBar />
+      {/* v259: same app, same bar — Study is the active slot.
+          v265: no per-screen bar in the pane (the shell's stands);
+          route mode keeps its bar. */}
+      {inPane ? null : <BibleTabBar />}
     </View>
   );
 
   return content;
 }
 
-export default function BibleBookScreen() {
+export default function BibleBookScreen(props: { pane?: BibleBookPaneProps } = {}) {
   const { skin } = useSkin();
   // v243: the boundary wraps the content COMPONENT, not the JSX this
   // screen used to build in its own body. Every per-chapter compute
@@ -407,7 +452,7 @@ export default function BibleBookScreen() {
   // blast radius. Settle wrappers keep their v241 nesting (outside).
   const guarded = (
     <BibleScreenBoundary>
-      <BibleBookContent />
+      <BibleBookContent pane={props.pane} />
     </BibleScreenBoundary>
   );
   // v246: screenRoot — a whole screen's paint is never gated on

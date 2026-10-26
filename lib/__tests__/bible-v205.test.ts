@@ -735,10 +735,12 @@ describe('v207 — the storyteller returns, baked in; bare chapters chunk; the t
     expect(src).toContain('item.data.preview.thisLabel');
     expect(src).toContain('item.data.preview.question');
     // The Read Chapter button opens this-time's chapter in the v205
-    // chapter page route — not the retired viewer or tracker.
+    // chapter page — not the retired viewer or tracker.
+    // v265: Study is a pane in the shell now, so the button hands
+    // the shell the pane route instead of pushing the old route —
+    // same target chapter, new mechanism.
     expect(src).toContain('Read Chapter');
-    expect(src).toContain("pathname: '/bible-chapter'");
-    expect(src).toContain('params: { book: item.data.readTarget.book, chapter: String(item.data.readTarget.chapter) }');
+    expect(src).toContain("onOpenBible?.({ name: 'chapter', book: item.data.readTarget.book, chapter: item.data.readTarget.chapter })");
     // The live server fetch is retired from the card for good.
     expect(src).not.toContain('client.bible.getChapterSummary');
     expect(src).not.toContain('createTRPCClient');
@@ -772,9 +774,9 @@ describe('v207 — the storyteller returns, baked in; bare chapters chunk; the t
     // The expanded body no longer carries the button.
     expect(card.slice(bodyIdx)).not.toContain('Read Chapter');
 
-    // And it still navigates to this-time's chapter in the v205 page.
-    expect(card).toContain("pathname: '/bible-chapter'");
-    expect(card).toContain('params: { book: item.data.readTarget.book, chapter: String(item.data.readTarget.chapter) }');
+    // And it still opens this-time's chapter in the v205 page
+    // (v265: through the shell's Study pane — see the pin above).
+    expect(card).toContain("onOpenBible?.({ name: 'chapter', book: item.data.readTarget.book, chapter: item.data.readTarget.chapter })");
   });
 
   it('bare chapter (Judges 1 — no commentary data at all) chunks into ≤3-verse Stories slides', () => {
@@ -868,11 +870,18 @@ describe('v207 — the storyteller returns, baked in; bare chapters chunk; the t
       expect(src, f).toContain('insets.top');
     }
     const chapters = readFileSync(join(process.cwd(), 'app', 'bible-chapters.tsx'), 'utf8');
-    expect(chapters).toContain('paddingTop: insets.top + 8');
+    // v265: inside the shell's Study pane the shell has already
+    // applied the top inset, so the topbar adds a flat 8; as a
+    // standalone route it still applies the full inset itself —
+    // the behavior this pin guards.
+    expect(chapters).toContain('paddingTop: inPane ? 8 : insets.top + 8');
     const book = readFileSync(join(process.cwd(), 'app', 'bible-book.tsx'), 'utf8');
-    expect(book).toContain('paddingTop: insets.top + 8');
+    expect(book).toContain('paddingTop: inPane ? 8 : insets.top + 8');
     const page = readFileSync(join(process.cwd(), 'components', 'bible-v205', 'chapter-page.tsx'), 'utf8');
-    expect(page).toContain('paddingTop: insets.top + 8');
+    // v265: the reader's inset is overridable — the pane passes 0
+    // (shell applied it); route mode defaults to insets.top.
+    expect(page).toContain('paddingTop: topInset + 8');
+    expect(page).toContain('topInsetOverride');
     const stories = readFileSync(join(process.cwd(), 'components', 'bible-v205', 'stories-view.tsx'), 'utf8');
     expect(stories).toContain('paddingTop: insets.top + 13');
   });
@@ -1437,15 +1446,20 @@ describe('v211 — the box gets its buttons back; position lives in the new stor
     expect(rootPress).toBeGreaterThan(-1);
     expect(card.indexOf('onPress')).toBe(rootPress);
     const bodyIdx = card.indexOf('isPersonalStudyExpanded && (item.data.preview');
-    expect(card.split("router.push('/bible-chapters')")).toHaveLength(2);
-    expect(card.indexOf("router.push('/bible-chapters')")).toBeGreaterThan(bodyIdx);
+    // v265: the plain Books-view doorway is the shell handoff now
+    // (onOpenBible to the pane's Books root) — still exactly once,
+    // still inside the expanded body as the Bible button.
+    expect(card.split("onOpenBible?.({ name: 'books' })")).toHaveLength(2);
+    expect(card.indexOf("onOpenBible?.({ name: 'books' })")).toBeGreaterThan(bodyIdx);
     // The doorway sub-line is gone from the whole tab.
     expect(src).not.toContain('Tap to open your Books');
     // The row — Back / Books / Bible — sits in the expanded body,
     // below the storyteller box, gated on a current target.
     expect(card).toContain('accessibilityLabel="Back one chapter"');
     expect(card).toContain('accessibilityLabel="Choose Bible book"');
-    expect(card).toContain("params: { openBookNav: '1' }");
+    // v265: the book picker asks the shell's pane for Books with
+    // the Jump-to-Book sheet open — same ask, pane mechanism.
+    expect(card).toContain("onOpenBible?.({ name: 'books', openBookNav: true })");
     expect(card.indexOf('accessibilityLabel="Back one chapter"')).toBeGreaterThan(bodyIdx);
     expect(card).toContain('disabled={!item.data.backChapter}');
     // Back walks the one door with the fresh study state.

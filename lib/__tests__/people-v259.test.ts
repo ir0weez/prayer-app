@@ -17,6 +17,14 @@
  * (seed × light/dark × skin). No second nav palette, no bell, no
  * Pray Today pill on the Bible screens (bell = People only, pill =
  * shell only — his standing rulings).
+ *
+ * v265 annotation: Study became a pane inside the shell ("Study Is
+ * a Real Tab"); the pins below that named the v259 mechanism (per-
+ * screen bar mounts, the navigate-to-section launch, the tracker
+ * redirect target) were updated to the new mechanism with notes —
+ * the BEHAVIORS they guard (one shared derived bar, Study active
+ * in the section, leaving lands on the right tab, clearance) are
+ * unchanged. The v265 contract itself is pinned in study-v265.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -70,25 +78,33 @@ describe("v259 source pins — one shared bar", () => {
     expect(index).not.toContain("tabPillX");
   });
 
-  it("(b) every Bible-section screen mounts BibleTabBar", () => {
+  it("(b) every Bible-section screen mounts BibleTabBar — as a legacy route only (v265)", () => {
+    // v265 annotation: the screens live in the shell's Study pane
+    // now, where the SHELL's bar stands; each screen renders its
+    // own BibleTabBar only in route mode (deep-link landings),
+    // behind the inPane conditional. The guarded behavior — the
+    // section always shows the shared bar with Study active — is
+    // unchanged; the mount that serves it moved to the shell.
     for (const src of [chapters, book, chapter, queue]) {
-      expect(src).toContain("<BibleTabBar />");
+      expect(src).toContain("{inPane ? null : <BibleTabBar />}");
       expect(src).toContain("components/app-tab-bar");
     }
   });
 
-  it("(b) bible-tracker is a redirect into the Books view, which carries the bar", () => {
-    expect(tracker).toContain('href="/bible-chapters"');
-    expect(chapters).toContain("<BibleTabBar />");
+  it("(b) bible-tracker is a redirect into the Study pane's Books view (v265)", () => {
+    expect(tracker).toContain('pathname: "/(tabs)"');
+    expect(tracker).toContain('navTab: "bible"');
+    expect(tracker).toContain('bibleTarget: "books"');
   });
 
-  it("(b) the shell's Study press still launches the section root", () => {
+  it("(b) the shell's Study press opens the section (v265: a tab switch, not a launch)", () => {
     expect(index).toContain('if (tab === "bible")');
-    // v263: the press NAVIGATES (one navigation both ways — the
-    // same call family BibleTabBar uses to come home) instead of
-    // pushing a fresh Books instance; the launch itself is what
-    // this pin guards, and it still lands on the section root.
-    expect(index).toContain('router.navigate("/bible-chapters")');
+    // v263 navigated; v265 switches the shell's own tab to the
+    // warm pane — and pressed while already on Study it returns
+    // the pane to the Books root, the landing this pin guards.
+    expect(index).toContain('setActiveTab("bible")');
+    expect(index).toContain("setBibleStack([BIBLE_PANE_ROOT_ROUTE])");
+    expect(index).not.toContain('router.navigate("/bible-chapters")');
   });
 });
 
@@ -113,16 +129,22 @@ describe("v259 source pins — Study active inside the section", () => {
 // ─── (d) Destinations from Bible screens go home to the shell ──────
 
 describe("v259 source pins — leaving the section lands on the right tab", () => {
-  it("(d) Bible-screen presses navigate to /(tabs) carrying navTab; Study returns to the Books root (no-op when already there)", () => {
+  it("(d) Bible-screen presses navigate to /(tabs) carrying navTab — Study included (v265)", () => {
+    // v265 annotation: BibleTabBar survives only on the legacy
+    // route screens, and every slot on it — Study too — now goes
+    // home to the shell, where the pane IS the section. The
+    // guarded behavior (leaving a Bible screen lands on the tab
+    // pressed) is unchanged.
     expect(bar).toContain('router.navigate({ pathname: "/(tabs)", params: { navTab: tab } })');
-    expect(bar).toContain('if (pathname !== "/bible-chapters") router.navigate("/bible-chapters");');
+    expect(bar).not.toContain('"/bible-chapters"');
   });
 
-  it("(d) the shell consumes navTab into setActiveTab and clears it, the notification pattern", () => {
+  it("(d) the shell consumes navTab into setActiveTab and clears it (plus the v265 bible* params), the notification pattern", () => {
     expect(index).toContain("const navTabParam");
     expect(index).toContain('navTabParam === "people" || navTabParam === "schedule" || navTabParam === "journal" || navTabParam === "more"');
     expect(index).toContain("setActiveTab(navTabParam)");
-    expect(index).toContain("router.setParams({ navTab: undefined })");
+    expect(index).toContain("router.setParams({ navTab: undefined, bibleTarget: undefined");
+    expect(index).toContain('navTabParam === "bible"');
   });
 });
 
@@ -167,15 +189,16 @@ describe("v259 source pins — clearance", () => {
     expect(bar).toContain('tokens.id === "classic" ? 91 : 126');
   });
 
-  it("Books, Book, and Queue scrolls end past the bar", () => {
+  it("Books, Book, and Queue scrolls end past the bar (v265: in the pane the pane itself carries the clearance)", () => {
     for (const src of [chapters, book, queue]) {
-      expect(src).toContain("height: tabBarHeight + 27");
+      expect(src).toContain("height: inPane ? 27 : tabBarHeight + 27");
       expect(src).toContain("useTabBarOccupiedHeight()");
     }
   });
 
   it("the reader receives the height and clears it: foot spacer grows, the Verses FAB lifts, Stories pads its root", () => {
-    expect(chapter).toContain("tabBarHeight={tabBarHeight}");
+    // v265: in the pane the reader gets 0 — the pane pads once.
+    expect(chapter).toContain("tabBarHeight={inPane ? 0 : tabBarHeight}");
     expect(chapterPage).toContain("tabBarHeight?: number");
     expect(chapterPage).toContain("Math.max(96, (props.tabBarHeight ?? 0) + 24)");
     expect(chapterPage).toContain("bottom: 24 + (props.tabBarHeight ?? 0)");

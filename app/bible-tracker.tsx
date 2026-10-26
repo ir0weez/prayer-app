@@ -13,5 +13,7 @@ import { useSkin } from '@/hooks/use-skin';
 export default function BibleTrackerScreen() {
   const { isSkinned } = useSkin();
   void isSkinned;
-  return <Redirect href="/bible-chapters" />;
+  // v265: the section lives in the shell's Study pane now — the
+  // redirect lands there (Books root), not on the retired route.
+  return <Redirect href={{ pathname: "/(tabs)", params: { navTab: "bible", bibleTarget: "books" } }} />;
 }

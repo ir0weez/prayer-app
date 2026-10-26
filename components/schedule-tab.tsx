@@ -237,6 +237,7 @@ import { getBibleBookGenre } from "@/lib/bible-genres";
 import { BibleGenreMotif } from "@/components/bible-genre-motif";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
 import type { XpAction, XpGainPosition } from "@/lib/xp-engine";
+import type { BiblePaneRoute } from "@/lib/bible-pane";
 
 const LEGACY_BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus'; // Legacy storage key for book statuses
 
@@ -9701,6 +9702,7 @@ export function ScheduleTab({
   notificationScheduleId,
   reachedStamps = [],
   onReachedStampsChange,
+  onOpenBible,
   onAwardXP,
   onRevokeXP,
   selectedDate: propSelectedDate,
@@ -9731,6 +9733,10 @@ export function ScheduleTab({
   notificationScheduleId?: string;
   reachedStamps?: ReachedStamp[];
   onReachedStampsChange?: (stamps: ReachedStamp[]) => void;
+  /** v265: Study is a pane inside the shell now — the Personal
+   * Study card's doors hand the shell the pane route to land on
+   * instead of router-pushing the old Bible routes. */
+  onOpenBible?: (route: BiblePaneRoute) => void;
   onAwardXP?: (action: XpAction, idempotencyKey: string, position?: XpGainPosition) => void;
   onRevokeXP?: (action: XpAction, idempotencyKey: string, position?: XpGainPosition) => void;
   selectedDate?: string;
@@ -12188,7 +12194,7 @@ export function ScheduleTab({
                         card's expand toggle. */}
                     {item.data.readTarget ? (
                       <Pressable
-                        onPress={() => router.push({ pathname: '/bible-chapter', params: { book: item.data.readTarget.book, chapter: String(item.data.readTarget.chapter) } })}
+                        onPress={() => onOpenBible?.({ name: 'chapter', book: item.data.readTarget.book, chapter: item.data.readTarget.chapter })}
                         style={({ pressed }) => [{
                           paddingHorizontal: 14,
                           paddingVertical: 9,
@@ -12275,7 +12281,7 @@ export function ScheduleTab({
                             </View>
                           </Pressable>
                           <Pressable
-                            onPress={() => router.push({ pathname: '/bible-chapters', params: { openBookNav: '1' } })}
+                            onPress={() => onOpenBible?.({ name: 'books', openBookNav: true })}
                             accessibilityRole="button"
                             accessibilityLabel="Choose Bible book"
                             style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
@@ -12285,7 +12291,7 @@ export function ScheduleTab({
                             </View>
                           </Pressable>
                           <Pressable
-                            onPress={() => router.push('/bible-chapters')}
+                            onPress={() => onOpenBible?.({ name: 'books' })}
                             accessibilityRole="button"
                             style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.7 : 1 }]}
                           >

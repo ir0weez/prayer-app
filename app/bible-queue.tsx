@@ -4,11 +4,12 @@
 // (the v205 Notion seeding was cleared by his ruling) and stay editable
 // from any chapter's status menu — reading alone never moves a chapter.
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { bibleShellParamsForRoute, type BiblePaneNav } from '@/lib/bible-pane';
 import { useSkin } from '@/hooks/use-skin';
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
@@ -19,8 +20,17 @@ import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/pale
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 
-export default function BibleQueueScreen() {
+/** v265: pane mode (the shell's Study tab) hands this screen the
+ * pane's focus flag and navigation callbacks; route mode (a deep
+ * link's landing shell) keeps the router. */
+export interface BibleQueuePaneProps {
+  nav: BiblePaneNav;
+  focused: boolean;
+}
+
+export default function BibleQueueScreen(props: { pane?: BibleQueuePaneProps } = {}) {
   const router = useRouter();
+  const inPane = !!props.pane;
   // v207: top safe-area inset, as the rest of the app applies.
   const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
@@ -29,20 +39,42 @@ export default function BibleQueueScreen() {
   const tabBarHeight = useTabBarOccupiedHeight();
   const [studyState, setStudyState] = useState<StudyState | null>(null);
 
+  const reloadStudyState = useCallback(() => {
+    let live = true;
+    loadStudyState().then((s) => live && setStudyState(s));
+    return () => {
+      live = false;
+    };
+  }, []);
   useFocusEffect(
     useCallback(() => {
-      let live = true;
-      loadStudyState().then((s) => live && setStudyState(s));
-      return () => {
-        live = false;
-      };
-    }, []),
+      // v265: pane focus is the pane's own flag (below).
+      if (inPane) return;
+      return reloadStudyState();
+    }, [inPane, reloadStudyState]),
   );
+  const paneFocused = props.pane?.focused ?? false;
+  useEffect(() => {
+    if (!inPane || !paneFocused) return;
+    return reloadStudyState();
+  }, [inPane, paneFocused, reloadStudyState]);
 
   const writeQueue = studyState?.writeQueue ?? [];
   const restudyQueue = studyState?.restudyQueue ?? [];
-  const open = (item: QueueItem) =>
-    router.push({ pathname: '/bible-chapter', params: { book: item.book, chapter: String(item.chapter) } });
+  const open = (item: QueueItem) => {
+    // v265: pane mode pushes the pane stack; route mode hands off
+    // to the shell's pane (no in-app navigation to Bible routes).
+    if (props.pane) props.pane.nav.openChapter(item.book, item.chapter);
+    else
+      router.navigate({
+        pathname: '/(tabs)',
+        params: bibleShellParamsForRoute({ name: 'chapter', book: item.book, chapter: item.chapter }),
+      });
+  };
+  const goBack = () => {
+    if (props.pane) props.pane.nav.back();
+    else router.back();
+  };
 
   const renderItem = (item: QueueItem, kind: 'write' | 'restudy') => (
     <Pressable
@@ -60,8 +92,8 @@ export default function BibleQueueScreen() {
 
   const content = (
     <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
-      <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={{ padding: 2 }}>
+      <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: inPane ? 8 : insets.top + 8 }]}>
+        <Pressable onPress={goBack} hitSlop={10} style={{ padding: 2 }}>
           <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
         </Pressable>
         <Text style={[styles.topTitle, { color: palette.ink }]}>Study Queue</Text>
@@ -127,11 +159,15 @@ export default function BibleQueueScreen() {
             strip or its book page.
           </Text>
         </View>
-        <View style={{ height: tabBarHeight + 27 }} />
+        {/* v265: in the pane, the pane container carries the tab
+            bar's clearance once — only the breathing room stays. */}
+        <View style={{ height: inPane ? 27 : tabBarHeight + 27 }} />
       </ScrollView>
 
-      {/* v259: same app, same bar — Study is the active slot. */}
-      <BibleTabBar />
+      {/* v259: same app, same bar — Study is the active slot.
+          v265: no per-screen bar in the pane (the shell's stands);
+          route mode keeps its bar. */}
+      {inPane ? null : <BibleTabBar />}
     </View>
   );
 

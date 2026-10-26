@@ -320,10 +320,12 @@ describe("v254 source pins — nav as drawn (People · Schedule · Study · Jour
     expect(bibleAt).toBeGreaterThan(scheduleAt);
     expect(journalAt).toBeGreaterThan(bibleAt);
     expect(moreAt).toBeGreaterThan(journalAt);
-    // v263: the Study press navigates (one navigation both ways)
-    // instead of pushing — it still opens the Bible section root,
-    // which is what this pin guards.
-    expect(index).toContain('router.navigate("/bible-chapters")');
+    // v263: the Study press navigated (one navigation both ways)
+    // instead of pushing. v265: Study is a pane inside the shell —
+    // the press switches the shell's own tab to the section, which
+    // still opens on the Books root, which is what this pin guards.
+    expect(index).toContain('setActiveTab("bible")');
+    expect(index).not.toContain('router.navigate("/bible-chapters")');
     expect(index).toContain("<AppTabBar");
     expect(tabBar).not.toContain('tab: "settings"');
   });

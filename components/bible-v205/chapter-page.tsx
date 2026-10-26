@@ -134,6 +134,12 @@ export interface ChapterPageProps {
    * grows past it, the Verses FAB lifts above it, and Stories
    * pads its root by it. Absent (0) if ever mounted without it. */
   tabBarHeight?: number;
+  /** v265: when the reader lives inside the shell's Study pane,
+   * the shell's ScreenContainer has already applied the top
+   * safe-area inset — the page must not apply it a second time.
+   * The pane passes 0; route mode leaves it undefined (the real
+   * inset). */
+  topInsetOverride?: number;
 }
 
 /** App-level read-mode preference ("With notes" is the default). */
@@ -253,6 +259,9 @@ export function ChapterPageView(props: ChapterPageProps) {
   const { book, chapter } = props;
   // v207: top safe-area inset, as the rest of the app applies.
   const insets = useSafeAreaInsets();
+  // v265: inside the Study pane the shell already applied this
+  // inset — the override (0) keeps the header from double-stepping.
+  const topInset = props.topInsetOverride ?? insets.top;
   const palette = useBiblePalette();
   // v230: this chapter's devotional, if the registry carries one.
   const devotional = useMemo(() => getDevotional(book, chapter), [book, chapter]);
@@ -290,7 +299,7 @@ export function ChapterPageView(props: ChapterPageProps) {
   // v251: the sticky header's MEASURED height — the header reports
   // it through onLayout; the ref mirrors it for the scroll
   // callbacks, which must never read a stale render's state.
-  const [headerH, setHeaderH] = useState(() => estimateChapterHeaderHeight(insets.top));
+  const [headerH, setHeaderH] = useState(() => estimateChapterHeaderHeight(topInset));
   const headerHRef = useRef(headerH);
   const [stories, setStories] = useState(!!props.initialStories);
   const [progress, setProgress] = useState(0);
@@ -678,7 +687,7 @@ export function ChapterPageView(props: ChapterPageProps) {
           }
         }}
       >
-        <View style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
+        <View style={[styles.topbar, { paddingTop: topInset + 8 }]}>
           <Pressable onPress={props.onBack} hitSlop={10} style={styles.topBtn}>
             <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
           </Pressable>

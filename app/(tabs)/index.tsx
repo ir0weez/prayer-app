@@ -14,7 +14,7 @@ import { APP_ICONS, getAppIconDef, isIconUnlocked, loadSelectedAppIconId, saveSe
 import { setAppIcon as setNativeAppIcon, getAppIcon as getNativeAppIcon, isAppIconSwitchingAvailable } from "@/modules/expo-app-icon/src/index";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { AccessibilityInfo, Alert, Animated, AppState, BackHandler, Easing as RnEasing, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View, type ViewStyle } from "react-native";
+import { AccessibilityInfo, Alert, Animated, AppState, BackHandler, Easing as RnEasing, FlatList, Image, InteractionManager, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View, type ViewStyle } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Rect as SvgRect, Stop } from "react-native-svg";
 import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideInUp, SlideOutUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, withRepeat, Easing, useSharedValue, useAnimatedStyle, useAnimatedReaction, runOnJS } from "react-native-reanimated";
 
@@ -23,6 +23,17 @@ import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { PrayerSession } from "@/components/prayer-session";
 import { AttentionBell } from "@/components/attention-bell";
 import { AppTabBar, type AppNavTab } from "@/components/app-tab-bar";
+import { BiblePane } from "@/components/bible-pane";
+import {
+  biblePanePop,
+  biblePanePush,
+  biblePaneReplaceTop,
+  biblePaneStackForRequest,
+  bibleRouteFromShellParams,
+  BIBLE_PANE_ROOT_ROUTE,
+  type BiblePaneNav,
+  type BiblePaneRoute,
+} from "@/lib/bible-pane";
 import { PeopleEntrance, PEOPLE_ENTRANCE_EASING, PEOPLE_ENTRANCE_RISE, PEOPLE_ENTRANCE_STAGGER_CAP } from "@/components/people-entrance";
 import { usePeopleFrontDoor, usePeopleMaterial } from "@/hooks/use-people-material";
 import { queueFaceStatus, queueFirstName, sortQueueFaces } from "@/lib/people-queue";
@@ -732,7 +743,7 @@ export default function HomeScreen() {
     verifiedPopPlayer.play();
   };
   const router = useRouter();
-  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[]; notificationPersonId?: string | string[]; notificationAction?: string | string[]; notificationScheduleAction?: string | string[]; notificationScheduleKind?: string | string[]; notificationScheduleId?: string | string[]; navTab?: string | string[] }>();
+  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[]; notificationPersonId?: string | string[]; notificationAction?: string | string[]; notificationScheduleAction?: string | string[]; notificationScheduleKind?: string | string[]; notificationScheduleId?: string | string[]; navTab?: string | string[]; bibleTarget?: string | string[]; bibleBook?: string | string[]; bibleChapter?: string | string[]; bibleStories?: string | string[]; bibleOpenNav?: string | string[] }>();
   const editPersonIdParam = Array.isArray(routeParams.editPersonId) ? routeParams.editPersonId[0] : routeParams.editPersonId;
   const notificationPersonIdParam = Array.isArray(routeParams.notificationPersonId) ? routeParams.notificationPersonId[0] : routeParams.notificationPersonId;
   const notificationActionParam = Array.isArray(routeParams.notificationAction) ? routeParams.notificationAction[0] : routeParams.notificationAction;
@@ -740,6 +751,14 @@ export default function HomeScreen() {
   const notificationScheduleKindParam = Array.isArray(routeParams.notificationScheduleKind) ? routeParams.notificationScheduleKind[0] : routeParams.notificationScheduleKind;
   const notificationScheduleIdParam = Array.isArray(routeParams.notificationScheduleId) ? routeParams.notificationScheduleId[0] : routeParams.notificationScheduleId;
   const navTabParam = Array.isArray(routeParams.navTab) ? routeParams.navTab[0] : routeParams.navTab;
+  // v265: the Study pane's landing params — an external entry (the
+  // legacy Bible route shells, the profile Bible button) names the
+  // pane route it wants; lib/bible-pane parses the set.
+  const bibleTargetParam = Array.isArray(routeParams.bibleTarget) ? routeParams.bibleTarget[0] : routeParams.bibleTarget;
+  const bibleBookParam = Array.isArray(routeParams.bibleBook) ? routeParams.bibleBook[0] : routeParams.bibleBook;
+  const bibleChapterParam = Array.isArray(routeParams.bibleChapter) ? routeParams.bibleChapter[0] : routeParams.bibleChapter;
+  const bibleStoriesParam = Array.isArray(routeParams.bibleStories) ? routeParams.bibleStories[0] : routeParams.bibleStories;
+  const bibleOpenNavParam = Array.isArray(routeParams.bibleOpenNav) ? routeParams.bibleOpenNav[0] : routeParams.bibleOpenNav;
   const handledEditPersonId = useRef<string | null>(null);
   const handledNotificationAction = useRef<string | null>(null);
   const today = getTodayISOString();
@@ -939,6 +958,57 @@ export default function HomeScreen() {
     if (activeTab !== "journal") setJournalComposing(false);
   }, [activeTab]);
   const tabTransition = useSharedValue(1);
+  // ─── v265: Study is a real tab ─────────────────────────────────
+  // "bible" is a first-class activeTab value now, and the whole
+  // Bible section lives in a pane inside this screen (components/
+  // bible-pane.tsx) with its own small route stack — the model in
+  // lib/bible-pane.ts. The shell owns the stack; the pane renders
+  // it. Once warmed, the pane NEVER unmounts (the other panes keep
+  // their lazy mount/unmount; Study is the exception his verdict
+  // bought): leaving and returning is a display toggle, so the
+  // section's scroll, open book, and open chapter survive tab
+  // hops, and no data load ever sits on the switch path again.
+  const [bibleStack, setBibleStack] = useState<BiblePaneRoute[]>(() => [BIBLE_PANE_ROOT_ROUTE]);
+  const [bibleWarmed, setBibleWarmed] = useState(false);
+  const [bibleBookNavNonce, setBibleBookNavNonce] = useState(0);
+  // The tab he was on before Study — the Books root's back chevron
+  // (pane "exit") returns there, the way popping the old route
+  // revealed the shell exactly as he'd left it.
+  const lastNonBibleTabRef = useRef<AppTab>("people");
+  useEffect(() => {
+    if (activeTab !== "bible") lastNonBibleTabRef.current = activeTab;
+  }, [activeTab]);
+  // Pre-warm: mount the pane once the shell's first render has
+  // settled, so even the FIRST Study tap lands on a warm section.
+  // The pane mounts hidden (display: none on its wrapper in
+  // renderContent) and its data loads run there, off the switch.
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => setBibleWarmed(true));
+    return () => task.cancel();
+  }, []);
+  const bibleNav: BiblePaneNav = {
+    openBook: (book) => setBibleStack((s) => biblePanePush(s, { name: "book", book })),
+    openChapter: (book, chapter, stories) =>
+      setBibleStack((s) => biblePanePush(s, { name: "chapter", book, chapter, ...(stories ? { stories: true } : {}) })),
+    openQueue: () => setBibleStack((s) => biblePanePush(s, { name: "queue" })),
+    openBooks: () => setBibleStack([BIBLE_PANE_ROOT_ROUTE]),
+    replaceChapter: (book, chapter) =>
+      setBibleStack((s) => biblePaneReplaceTop(s, { name: "chapter", book, chapter })),
+    back: () => setBibleStack((s) => biblePanePop(s)),
+    exit: () => setActiveTab(lastNonBibleTabRef.current),
+  };
+  // An EXTERNAL entry (Schedule's Personal Study card, the legacy
+  // route shells' redirects, the profile Bible button): land the
+  // pane on the requested route with its natural ancestry under
+  // it, warm the pane, and switch to the Study tab.
+  const openBibleRequest = useCallback((route: BiblePaneRoute) => {
+    setBibleStack(biblePaneStackForRequest(route));
+    if (route.name === "books" && route.openBookNav) {
+      setBibleBookNavNonce((n) => n + 1);
+    }
+    setBibleWarmed(true);
+    setActiveTab("bible");
+  }, []);
   // Preserve Schedule UI state across lazy tab mounts.
   const [scheduleSelectedDate, setScheduleSelectedDate] = useState(() => {
     const d = new Date();
@@ -971,6 +1041,13 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!tabsFocused) return;
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // v265: inside Study, hardware back pops the PANE first —
+      // the in-section back the chevrons take — and only at the
+      // pane root does it fall through to the tab rule below.
+      if (activeTab === 'bible' && bibleStack.length > 1) {
+        setBibleStack((s) => biblePanePop(s));
+        return true;
+      }
       if (activeTab !== 'people' && activeTab !== 'home') {
         setActiveTab('people');
         return true; // Prevent default (exit app)
@@ -978,7 +1055,7 @@ export default function HomeScreen() {
       return false; // Let default behavior happen (exit app from People tab)
     });
     return () => backHandler.remove();
-  }, [tabsFocused, activeTab]);
+  }, [tabsFocused, activeTab, bibleStack]);
   const [hasHydratedPeople, setHasHydratedPeople] = useState(false);
   const [streakRecord, setStreakRecord] = useState<PrayerStreakRecord>({ streak: 0, lastCompletedDate: null });
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -2078,14 +2155,33 @@ export default function HomeScreen() {
   // v259: the Bible section's tab bar sends the shell home carrying
   // the destination it should open on — consumed once and cleared,
   // the notification params' pattern above.
+  // v265: navTab "bible" is the external Study entry now (the
+  // legacy route shells redirect here; the profile Bible button
+  // navigates here). With no bibleTarget it just opens the warm
+  // pane where it stands; with one, the pane lands on the named
+  // route (lib/bible-pane parses the param set).
   useEffect(() => {
     if (!navTabParam) return;
     if (navTabParam === "people" || navTabParam === "schedule" || navTabParam === "journal" || navTabParam === "more") {
       setActiveTab(navTabParam);
       setShowAddPerson(false);
+    } else if (navTabParam === "bible") {
+      const target = bibleRouteFromShellParams({
+        bibleTarget: bibleTargetParam,
+        bibleBook: bibleBookParam,
+        bibleChapter: bibleChapterParam,
+        bibleStories: bibleStoriesParam,
+        bibleOpenNav: bibleOpenNavParam,
+      });
+      if (target) openBibleRequest(target);
+      else {
+        setBibleWarmed(true);
+        setActiveTab("bible");
+      }
+      setShowAddPerson(false);
     }
-    router.setParams({ navTab: undefined });
-  }, [navTabParam, router]);
+    router.setParams({ navTab: undefined, bibleTarget: undefined, bibleBook: undefined, bibleChapter: undefined, bibleStories: undefined, bibleOpenNav: undefined });
+  }, [navTabParam, bibleTargetParam, bibleBookParam, bibleChapterParam, bibleStoriesParam, bibleOpenNavParam, openBibleRequest, router]);
 
   const renderAvatar = (person: Person, size: number, story = false) => {
     return <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={size} thumbnail fallbackColor={person.accentColor} />;
@@ -4601,6 +4697,7 @@ export default function HomeScreen() {
           notificationScheduleKind={notificationScheduleKindParam}
           notificationScheduleId={notificationScheduleIdParam}
           reachedStamps={reachedStamps}
+          onOpenBible={openBibleRequest}
           onReachedStampsChange={handleReachedStampsChange}
           onAwardXP={awardExperience}
           onRevokeXP={revokeExperience}
@@ -4637,6 +4734,22 @@ export default function HomeScreen() {
         {activeTab === "more" && (
           <View style={{ flex: 1 }}>
             {renderMoreScreen()}
+          </View>
+        )}
+        {/* v265: the Study pane — the shell's one keep-alive pane.
+            Once warmed it is ALWAYS in the tree (hidden by display
+            when another tab is up), so the Bible section's state
+            and data survive tab hops and returning is instant. It
+            renders inside the same tabTransition fade as every
+            other pane. */}
+        {bibleWarmed && (
+          <View style={{ flex: 1, display: activeTab === "bible" ? "flex" : "none" }}>
+            <BiblePane
+              stack={bibleStack}
+              tabActive={activeTab === "bible"}
+              bookNavNonce={bibleBookNavNonce}
+              nav={bibleNav}
+            />
           </View>
         )}
       </>
@@ -4733,29 +4846,33 @@ export default function HomeScreen() {
     );
   };
 
-  // v259: the bar itself lives in components/app-tab-bar.tsx — the
-  // shell and the Bible section mount the same AppTabBar, derived
-  // from the same sources. What stays here is the shell's side of
-  // it: the resolved nav slot, the press behavior, and the content
-  // crossfade that rides a tab switch.
+  // v259: the bar itself lives in components/app-tab-bar.tsx,
+  // derived from the same sources the shell always used. What
+  // stays here is the shell's side of it: the resolved nav slot,
+  // the press behavior, and the content crossfade that rides a
+  // tab switch.
   // v254: the nav as drawn — People · Schedule · Study · Journal ·
   // More. "home" is the legacy alias of People; Settings keeps its
   // own screen but is reached from the More hub, so it borrows the
-  // More slot for the indicator. "bible" is never an activeTab
-  // value: the tab OPENS the Bible section, which carries the same
-  // bar with the Study slot active (v259).
+  // More slot for the indicator.
+  // v265: "bible" IS an activeTab value — Study is a pane in this
+  // screen (above), not a section the tab launches. (v259 made the
+  // section carry a copy of the bar; v263 crossfaded the launch;
+  // both were approximations of this.)
   const navTab: AppNavTab = activeTab === "home" ? "people" : activeTab === "settings" ? "more" : activeTab;
   const handleNavPress = (tab: AppNavTab) => {
-    // v254: Study opens the Bible section's root screen (the Books
-    // view) — a launcher from the shell, so the screens underneath
-    // never change.
-    // v263: NAVIGATE, not push — the same call the Bible section's
-    // bar uses to come home (BibleTabBar), so the switch is one
-    // navigation both ways and a Books screen already on the stack
-    // is returned to, never stacked twice. The crossfade itself is
-    // the route's stack option (lib/bible-nav.ts, app/_layout.tsx).
     if (tab === "bible") {
-      router.navigate("/bible-chapters");
+      // Already standing in Study: the press means "the section
+      // root" — the same thing the old in-section bar's Study
+      // press did. From any other tab it just switches, and the
+      // warm pane shows whatever it was left showing.
+      if (activeTab === "bible") {
+        setBibleStack([BIBLE_PANE_ROOT_ROUTE]);
+      } else {
+        setBibleWarmed(true);
+        setActiveTab("bible");
+      }
+      setShowAddPerson(false);
       return;
     }
     setActiveTab(tab);

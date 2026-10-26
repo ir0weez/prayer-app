@@ -676,7 +676,7 @@ export default function ProfileScreen() {
             </View>
           </View>
           <View style={styles.profileButtons}>
-            <Pressable onPress={() => router.push('/bible-chapters')} style={({ pressed }) => [styles.profileButton, { backgroundColor: colors.primary }, pressed && styles.pressed]}>
+            <Pressable onPress={() => router.navigate({ pathname: '/(tabs)', params: { navTab: 'bible' } })} style={({ pressed }) => [styles.profileButton, { backgroundColor: colors.primary }, pressed && styles.pressed]}>
               <MaterialIcons name="school" size={18} color="#FFFFFF" />
               <Text style={styles.profileButtonText}>Bible</Text>
             </Pressable>

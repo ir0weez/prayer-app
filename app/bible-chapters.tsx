@@ -44,11 +44,25 @@ import {
   saveSourceLabel,
   type UserLabels,
 } from '@/lib/bible-v205/user-labels';
+import { bibleShellParamsForRoute, type BiblePaneNav } from '@/lib/bible-pane';
 
 const CANON = Object.keys(CHAPTER_COUNTS);
 
-export default function BibleBooksScreen() {
+/** v265: this screen lives two lives. As a root-stack route (a
+ * deep link's landing shell — nothing in the app navigates here
+ * anymore) it drives the router as it always has. Inside the
+ * shell's Study pane it receives `pane` — navigation callbacks,
+ * the pane's focus flag, and the Jump-to-Book nonce — and the
+ * router stays untouched. */
+export interface BibleBooksPaneProps {
+  nav: BiblePaneNav;
+  focused: boolean;
+  bookNavNonce: number;
+}
+
+export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } = {}) {
   const router = useRouter();
+  const inPane = !!props.pane;
   // v211: the Personal Study card's Books button lands here with
   // openBookNav=1 — open the Jump to Book sheet on arrival. The sheet
   // is also one tap from the topbar.
@@ -57,6 +71,23 @@ export default function BibleBooksScreen() {
   useEffect(() => {
     if (params.openBookNav === '1') setBookNavOpen(true);
   }, [params.openBookNav]);
+  // v265 (pane mode): the same arrival, as a nonce — the shell
+  // bumps it when a Personal Study entry asks for the picker.
+  const bookNavNonce = props.pane?.bookNavNonce ?? 0;
+  useEffect(() => {
+    if (bookNavNonce > 0) setBookNavOpen(true);
+  }, [bookNavNonce]);
+  // v265 (pane mode): the pane stays mounted across tab hops, so
+  // this screen's sheets must not outlive its focus — in route
+  // mode leaving the screen unmounted it; here, losing pane focus
+  // (a covered Books, a switched tab) closes them instead.
+  const paneFocused = props.pane?.focused ?? false;
+  useEffect(() => {
+    if (inPane && !paneFocused) {
+      setBookNavOpen(false);
+      setLabelEditor(false);
+    }
+  }, [inPane, paneFocused]);
   // v207: the top safe-area inset the rest of the app applies — without
   // it the topbar slides up under the Android notification tray.
   const insets = useSafeAreaInsets();
@@ -74,15 +105,28 @@ export default function BibleBooksScreen() {
   // v263: focus reloads the STUDY STATE only — Read/Complete marks
   // made on the book/chapter screens must be fresh when he lands
   // back here, and this is the one store that changes elsewhere.
+  const reloadStudyState = useCallback(() => {
+    let live = true;
+    loadStudyState().then((s) => live && setStudyState(s));
+    return () => {
+      live = false;
+    };
+  }, []);
   useFocusEffect(
     useCallback(() => {
-      let live = true;
-      loadStudyState().then((s) => live && setStudyState(s));
-      return () => {
-        live = false;
-      };
-    }, []),
+      // v265: in the pane, "focus" is the pane's own flag (below) —
+      // the route never blurs while the pane lives inside it.
+      if (inPane) return;
+      return reloadStudyState();
+    }, [inPane, reloadStudyState]),
   );
+  // v265 (pane mode): becoming the pane's visible screen (the tab
+  // switched to Study, or a pane back landed here) is the focus
+  // event — reload the study state then, exactly as route focus did.
+  useEffect(() => {
+    if (!inPane || !paneFocused) return;
+    return reloadStudyState();
+  }, [inPane, paneFocused, reloadStudyState]);
 
   // v263: labels and handwritten coverage load ONCE, on mount.
   // They only ever change on this screen (the notes-source label
@@ -136,7 +180,25 @@ export default function BibleBooksScreen() {
     />
   );
 
-  const openBook = (book: string) => router.push({ pathname: '/bible-book', params: { book } });
+  const openBook = (book: string) => {
+    // v265: pane mode walks the pane stack. Route mode (a deep
+    // link's landing) hands off to the shell's pane — no code path
+    // in the app navigates to the Bible routes anymore, not even
+    // this screen's own.
+    if (props.pane) props.pane.nav.openBook(book);
+    else router.navigate({ pathname: '/(tabs)', params: bibleShellParamsForRoute({ name: 'book', book }) });
+  };
+  const goBack = () => {
+    // The root's back chevron leaves the section — in the pane,
+    // that is the shell's tab switch (nav.exit); as a route it
+    // popped the stack.
+    if (props.pane) props.pane.nav.exit();
+    else router.back();
+  };
+  const openQueue = () => {
+    if (props.pane) props.pane.nav.openQueue();
+    else router.navigate({ pathname: '/(tabs)', params: bibleShellParamsForRoute({ name: 'queue' }) });
+  };
 
   // v211: "mark it as current" is back — and it writes the NEW study
   // store (the position the Personal Study card reads), not the legacy
@@ -150,8 +212,8 @@ export default function BibleBooksScreen() {
 
   const content = (
     <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
-      <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={{ padding: 2 }}>
+      <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: inPane ? 8 : insets.top + 8 }]}>
+        <Pressable onPress={goBack} hitSlop={10} style={{ padding: 2 }}>
           <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
         </Pressable>
         <Text style={[styles.topTitle, { color: palette.ink }]}>Bible</Text>
@@ -165,7 +227,7 @@ export default function BibleBooksScreen() {
           <MaterialIcons name="list" size={21} color={palette.ink} />
         </Pressable>
         <Pressable
-          onPress={() => router.push('/bible-queue')}
+          onPress={openQueue}
           style={[styles.queueBtn, { backgroundColor: palette.band }, palette.btnDress]}
         >
           <Text style={[styles.queueBtnText, { color: palette.raspDeep }]}>Study Queue</Text>
@@ -211,7 +273,7 @@ export default function BibleBooksScreen() {
               and open Books again.
             </Text>
             <Pressable
-              onPress={() => router.back()}
+              onPress={goBack}
               accessibilityRole="button"
               accessibilityLabel="Go back"
               style={[styles.emptyBack, { backgroundColor: palette.band }, palette.btnDress]}
@@ -236,7 +298,9 @@ export default function BibleBooksScreen() {
         ) : null}
         {groups.notStarted.map(renderBookRow)}
 
-        <View style={{ height: tabBarHeight + 27 }} />
+        {/* v265: in the pane, the pane container carries the tab
+            bar's clearance once — only the breathing room stays. */}
+        <View style={{ height: inPane ? 27 : tabBarHeight + 27 }} />
       </ScrollView>
 
         <Modal visible={labelEditor} transparent animationType="fade" onRequestClose={() => setLabelEditor(false)}>
@@ -306,8 +370,11 @@ export default function BibleBooksScreen() {
           </View>
         </Modal>
 
-      {/* v259: same app, same bar — Study is the active slot. */}
-      <BibleTabBar />
+      {/* v259: same app, same bar — Study is the active slot.
+          v265: in the pane there is no per-screen bar at all — the
+          shell's one bar stands for the whole app. Route mode (a
+          deep link's landing) keeps its bar. */}
+      {inPane ? null : <BibleTabBar />}
     </View>
   );
 

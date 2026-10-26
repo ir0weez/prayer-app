@@ -220,12 +220,15 @@ describe('v243 — wiring: every Bible screen renders its content under the boun
 
   it('the Book screen renders BibleBookContent INSIDE the boundary from its shell', () => {
     const src = read('app/bible-book.tsx');
-    expect(src).toContain('function BibleBookContent()');
-    const shell = src.indexOf('export default function BibleBookScreen()');
+    // v265: both the content and its shell take the optional pane
+    // props now (the shell's Study pane renders the same screen);
+    // the boundary nesting this pin guards is unchanged.
+    expect(src).toContain('function BibleBookContent(props');
+    const shell = src.indexOf('export default function BibleBookScreen(props');
     expect(shell).toBeGreaterThan(-1);
     const tail = src.slice(shell);
     const open = tail.indexOf('<BibleScreenBoundary>');
-    const content = tail.indexOf('<BibleBookContent />');
+    const content = tail.indexOf('<BibleBookContent pane={props.pane} />');
     const close = tail.indexOf('</BibleScreenBoundary>');
     expect(open).toBeGreaterThan(-1);
     expect(content).toBeGreaterThan(open);

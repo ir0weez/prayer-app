@@ -21,10 +21,13 @@ describe("v215 — the home back handler can never fire under a pushed screen", 
   it("registration is gated on the (tabs) screen being focused", () => {
     const shell = read("app/(tabs)/index.tsx");
     expect(shell).toContain("const tabsFocused = useIsFocused();");
-    const gate = shell.slice(shell.indexOf("const tabsFocused"), shell.indexOf("}, [tabsFocused, activeTab]);"));
+    // v265: the dep list gained bibleStack (the same handler now
+    // pops the Study pane's stack first) — the focus gate this pin
+    // guards is unchanged.
+    const gate = shell.slice(shell.indexOf("const tabsFocused"), shell.indexOf("}, [tabsFocused, activeTab, bibleStack]);"));
     expect(gate).toContain("if (!tabsFocused) return;");
     expect(gate).toContain("BackHandler.addEventListener('hardwareBackPress'");
-    expect(shell).toContain("}, [tabsFocused, activeTab]);");
+    expect(shell).toContain("}, [tabsFocused, activeTab, bibleStack]);");
   });
 
   it("the focused behavior is preserved exactly: other tabs step to People, People/Home falls through", () => {

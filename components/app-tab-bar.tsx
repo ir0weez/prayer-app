@@ -3,9 +3,16 @@
 // which is why the Bible section — a set of root-stack screens the
 // Bible tab LAUNCHED to — never carried it and felt like a separate
 // app (Jonathan, Oct 25 22:46: "it feels like it brings me to a
-// completely separate area of the app..."). The bar now lives here,
-// mounted by BOTH the shell and every Bible-section screen, with the
-// Study slot active on the Bible screens.
+// completely separate area of the app..."). The bar moved here and
+// was mounted by both the shell and every Bible-section screen.
+//
+// ─── v265: ONE bar, in the shell ────────────────────────────────────
+// Study is a pane inside the shell now, so the shell's mount is
+// the only one the app navigates with — the indicator glides for
+// Study because it is literally the same component and animation
+// value as every other switch. The BibleTabBar wrapper below
+// remains for the legacy Bible route screens (deep-link landings)
+// and sends every press home to the shell.
 //
 // Dress is derived, never pinned, from the SAME sources the shell
 // always used: useColors + useSkin tokens + the people-material
@@ -21,7 +28,7 @@
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
-import { usePathname, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import ReAnimated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
@@ -301,20 +308,22 @@ export function AppTabBar({
 
 /**
  * v259: the bar as the Bible section wears it — Study active, and
- * every other destination goes HOME to the shell carrying the tab
- * it should open on (the shell consumes the navTab param the way it
- * consumes the notification params). Study pressed inside the
- * section returns to the section's root (the Books view); pressed
- * while already there, it does nothing.
+ * every destination goes HOME to the shell carrying the tab it
+ * should open on (the shell consumes the navTab param the way it
+ * consumes the notification params).
+ *
+ * v265: Study lives in the shell now (a pane, not a section of
+ * root-stack routes), so this bar survives only on the legacy
+ * Bible ROUTE screens — the deep-link landings nothing in the app
+ * navigates to anymore — and every slot on it, Study included,
+ * goes home to the shell: Study lands on the pane (Books root by
+ * default landing), the others on their tabs. There is no
+ * in-section bar anymore; inside the pane the shell's own bar
+ * stands.
  */
 export function BibleTabBar() {
   const router = useRouter();
-  const pathname = usePathname();
   const onPressTab = (tab: AppNavTab) => {
-    if (tab === "bible") {
-      if (pathname !== "/bible-chapters") router.navigate("/bible-chapters");
-      return;
-    }
     router.navigate({ pathname: "/(tabs)", params: { navTab: tab } });
   };
   return <AppTabBar activeTab="bible" onPressTab={onPressTab} />;

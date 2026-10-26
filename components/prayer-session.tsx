@@ -840,7 +840,13 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
           </View>
         ) : null}
       </View>
-      <XpGainIndicator />
+      {/* v266: no XpGainIndicator in the shared body. The app-wide
+          indicator in app/_layout already renders every gain, and in
+          the morph-overlay root (which lives in the shell, not a
+          Modal) it sits on top — an in-body copy drew every in-session
+          gain a second time. The Modal root below mounts its own copy:
+          there the root indicator is behind the Modal and can't be
+          seen. One presentation, one indicator. */}
     </>
   );
 
@@ -927,6 +933,12 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
   return (
     <Modal visible={visible} animationType="fade" onRequestClose={() => {}}>
       {sessionBody}
+      {/* v266: the session's own XP indicator lives ONLY in this
+          Modal root — the root indicator in app/_layout is behind
+          the Modal here, so without this copy in-session gains would
+          never be seen. The morph-overlay root must NOT mount one
+          (see the note at the end of sessionBody). */}
+      <XpGainIndicator />
     </Modal>
   );
 }

@@ -97,6 +97,78 @@ export interface PeopleMaterialFamily {
   amberDeep: string;
 }
 
+// ─── v255 "The Front Door, To the Drawing" ─────────────────────────────
+// The People front door takes the approved mockup's LIGHT Material
+// language verbatim (people-material-concept-v2): ground #F8F5FE,
+// white cards, dark ink — measured from the mockup file, not derived
+// from the active palette (v254's family followed the palette, so on
+// his dark palette the whole page rendered dark and matched nothing).
+// The Bible v250 precedent: this stage's Material surfaces stand in
+// their own language. The seed still dresses the page — every role
+// below is the mockup's own hex, hue-rotated by the seed's distance
+// from the mockup's violet, so a different Settings color re-dresses
+// the page in the same tonal family. At the violet seed the rotation
+// is zero and every value is the mockup's, exactly.
+
+export interface PeopleFrontDoorFamily extends PeopleMaterialFamily {
+  /** The don't-slip card's quiet sub-line ink (#6D5BA6 at the violet seed). */
+  washSub: string;
+  /** The queue bar gradient's far end — the mockup's fixed teal #0F766E. */
+  queueTeal: string;
+}
+
+/** The mockup's violet seed — the rotation's zero point. */
+const FRONT_DOOR_SEED = "#7C3AED";
+
+/** The mockup's seed-family roles, verbatim from the concept file. */
+const FRONT_DOOR_ROLES = {
+  ground: "#F8F5FE",
+  wash: "#EDE9FE",
+  wash2: "#DDD6FE",
+  line: "#E6DFF6",
+  deep: "#4C1D95",
+  inkSeed: "#1E1033",
+  ink: "#2A2140",
+  inkSoft: "#75698F",
+  washSub: "#6D5BA6",
+} as const;
+
+function rotateRole(hex: string, hueDelta: number): string {
+  if (hueDelta === 0) return hex;
+  const { h, s, l } = hexToHsl(hex);
+  return hslToHex({ h: h + hueDelta, s, l });
+}
+
+export function derivePeopleFrontDoor(primary: string): PeopleFrontDoorFamily {
+  const hueDelta = hexToHsl(primary).h - hexToHsl(FRONT_DOOR_SEED).h;
+  const deep = rotateRole(FRONT_DOOR_ROLES.deep, hueDelta);
+  const inkSeed = rotateRole(FRONT_DOOR_ROLES.inkSeed, hueDelta);
+  return {
+    ground: rotateRole(FRONT_DOOR_ROLES.ground, hueDelta),
+    card: "#FFFFFF",
+    wash: rotateRole(FRONT_DOOR_ROLES.wash, hueDelta),
+    wash2: rotateRole(FRONT_DOOR_ROLES.wash2, hueDelta),
+    washInk: inkSeed,
+    ink: rotateRole(FRONT_DOOR_ROLES.ink, hueDelta),
+    inkSoft: rotateRole(FRONT_DOOR_ROLES.inkSoft, hueDelta),
+    line: rotateRole(FRONT_DOOR_ROLES.line, hueDelta),
+    seed: primary,
+    deep,
+    inkSeed,
+    tealDeep: "#0F766E",
+    shadow: hexToRgba(deep, 0.1),
+    gold: PEOPLE_PRAISE_GOLD,
+    goldTint: "#FFF3D6",
+    goldWash: "#FFEFD2",
+    goldDeep: "#B26E12",
+    redWash: "#FDE3E3",
+    amberWash: "#FDEBC8",
+    amberDeep: "#9A6206",
+    washSub: rotateRole(FRONT_DOOR_ROLES.washSub, hueDelta),
+    queueTeal: "#0F766E",
+  };
+}
+
 export function derivePeopleMaterial(primary: string, tokens: PeoplePaletteTokens): PeopleMaterialFamily {
   const dark = hexLuminance(tokens.background) < 0.5;
   const card = tokens.surface;

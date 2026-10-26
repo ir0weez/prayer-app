@@ -763,6 +763,42 @@ export function getFamilyGroups(people: Person[]): Array<{ familyId: string; fam
   }));
 }
 
+// v255: the More hub's Families list — one row per DISTINCT
+// household (v254's hub spread one row per familyId at the hub's top
+// level, which flooded it and exposed two same-named households as
+// raw duplicate rows). Each row carries the member count; when two
+// households share a name, the row is distinguished by its head
+// (the first member in sortFamilyMembers order) and that head's
+// relationship section, so no two rows ever read identically.
+export type FamiliesHubRow = {
+  familyId: string;
+  familyName: string;
+  memberCount: number;
+  headName: string;
+  section: string;
+  distinguisher: string | null;
+};
+
+export function buildFamiliesHubList(people: Person[]): FamiliesHubRow[] {
+  const groups = getFamilyGroups(people);
+  const nameCounts = new Map<string, number>();
+  groups.forEach((group) => {
+    nameCounts.set(group.familyName, (nameCounts.get(group.familyName) ?? 0) + 1);
+  });
+  return groups.map((group) => {
+    const head = group.members[0];
+    const duplicated = (nameCounts.get(group.familyName) ?? 0) > 1;
+    return {
+      familyId: group.familyId,
+      familyName: group.familyName,
+      memberCount: group.members.length,
+      headName: head?.name ?? "",
+      section: head?.relationship ?? "Family",
+      distinguisher: duplicated && head ? `${head.name} · ${head.relationship}` : null,
+    };
+  });
+}
+
 // Action: Group people into a family
 // v254: an optional explicit family name (the group builder's edited
 // name field). When given, it is stamped verbatim on every member;

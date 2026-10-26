@@ -23,7 +23,9 @@ import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { PrayerSession } from "@/components/prayer-session";
 import { AttentionBell } from "@/components/attention-bell";
 import { PeopleEntrance } from "@/components/people-entrance";
-import { usePeopleMaterial } from "@/hooks/use-people-material";
+import { usePeopleFrontDoor, usePeopleMaterial } from "@/hooks/use-people-material";
+import { queueFaceStatus, sortQueueFaces } from "@/lib/people-queue";
+import type { PeopleFrontDoorFamily } from "@/lib/people-material";
 import { getReachOutEntries, formatHoursLeft } from "@/lib/bell-header";
 import { SHINY_ACHIEVEMENTS, SHINY_AVATARS, getLevelUnlockedCharacterShinyIds } from "@/lib/avatar-system";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
@@ -93,6 +95,7 @@ import {
   relationshipColors,
   groupIntoFamily,
   getFamilyGroups,
+  buildFamiliesHubList,
   sortFamilyMembers,
   ungroupFromFamily,
   removePerson,
@@ -777,6 +780,10 @@ export default function HomeScreen() {
   const [showPrayerSession, setShowPrayerSession] = useState(false);
   // v254: the People stage's Material family (seed-derived tokens).
   const pm = usePeopleMaterial();
+  // v255: the front door's own family — the approved mockup's LIGHT
+  // language (derivePeopleFrontDoor). The pmf token source is
+  // resolved below, once the skin tokens exist.
+  const frontDoorFamily = usePeopleFrontDoor();
   // v254: group builder state (Piece C — a new flow on groupIntoFamily).
   const [showGroupBuilder, setShowGroupBuilder] = useState(false);
   const [builderStep, setBuilderStep] = useState<1 | 2>(1);
@@ -785,8 +792,6 @@ export default function HomeScreen() {
   const [builderMemberIds, setBuilderMemberIds] = useState<string[]>([]);
   const [builderRoles, setBuilderRoles] = useState<Record<string, FamilyType | undefined>>({});
   const [builderSearch, setBuilderSearch] = useState("");
-  // v254: the don't-slip card rotates its reach rows (his summary rule).
-  const [slipIndex, setSlipIndex] = useState(0);
   const [newPersonShowInPrayerCheckIns, setNewPersonShowInPrayerCheckIns] = useState(true);
   const [selectedFamilyMemberIds, setSelectedFamilyMemberIds] = useState<string[]>([]);
   const [newPersonFamilyType, setNewPersonFamilyType] = useState<"Spouse" | "Child" | "Other" | undefined>(undefined);
@@ -1261,6 +1266,15 @@ export default function HomeScreen() {
   // skin-specific art branches read the tokens' own flags.
   const isSkinned = skinTokens.isPaper || skinTokens.isEightBit;
   const styles = createStyles(colors, skinTokens);
+  // v255: pmf — the token source for the People page's front door,
+  // roster, app-bar bell, and (under Classic) the tab bar. Under the
+  // Classic skin it is the mockup's light family; under the material
+  // skins it falls back to pm, so their pages render exactly as
+  // v254 left them.
+  const isClassicSkin = skinTokens.id === "classic";
+  const pmf: PeopleFrontDoorFamily = isClassicSkin
+    ? frontDoorFamily
+    : { ...pm, washSub: pm.inkSoft, queueTeal: pm.tealDeep };
 
   // Emergency notification "Dismiss" button: clear the active emergency prayer.
   // Uses a ref so the listener always sees the latest people list.
@@ -1313,16 +1327,24 @@ export default function HomeScreen() {
     () => visiblePrayTodayList.filter((person) => !hasPersonCompletedPrayerToday(person, today) && !pendingPrayerIds.includes(person.id)),
     [visiblePrayTodayList, pendingPrayerIds, today],
   );
-  // v254: the don't-slip card's reach rows — the bell lib's reach
-  // entries (a real last-reached date, 14+ days old; never-reached is
-  // never due). The card shows ONE row at a time and rotates, the
-  // same rule his Daily Summary's Reach area follows.
+  // The don't-slip card's reach rows — the bell lib's reach entries
+  // (a real last-reached date, 14+ days old; never-reached is never
+  // due). v255: the card STACKS one row per due person, as the
+  // approved mockup draws it — v254's one-row rotation hid everyone
+  // but the current face. (The Daily Summary's Reach area keeps its
+  // own rotation; that is a different surface.)
   const reachEntries = useMemo(() => getReachOutEntries(people, new Date()), [people]);
+  // v255: the queue bar's shine sweep, as drawn — a soft white band
+  // crossing the bar every 3.8s, ease-in-out, native driver (the
+  // mockup's CSS shimmer, carried over at the same tempo).
+  const queueShine = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    if (reachEntries.length <= 1) return;
-    const id = setInterval(() => setSlipIndex((current) => (current + 1) % reachEntries.length), 4500);
-    return () => clearInterval(id);
-  }, [reachEntries.length]);
+    const animation = Animated.loop(
+      Animated.timing(queueShine, { toValue: 1, duration: 3800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [queueShine]);
 
   const duePersonalTodos = useMemo(() => {
     // Only show personal to-dos after all prayer requests are completed
@@ -2008,7 +2030,7 @@ export default function HomeScreen() {
                 }
                 setAvatarActionPersonId((current) => current === person.id ? null : person.id);
               }}
-              style={({ pressed }) => [styles.storyPlus, { backgroundColor: showPraiseBadge ? "#3B82F6" : showEmergencyBadge ? "#EF4444" : colors.primary, borderColor: colors.background }, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.storyPlus, { backgroundColor: showPraiseBadge ? "#3B82F6" : showEmergencyBadge ? "#EF4444" : colors.primary, borderColor: isClassicSkin ? pmf.ground : colors.background }, pressed && styles.pressed]}
             >
               <MaterialIcons name={iconName(showPraiseBadge ? "thumb-up" : showEmergencyBadge ? "local-fire-department" : "add")} size={showPraiseBadge || showEmergencyBadge ? 20 : 24} color="#FFFFFF" />
             </Pressable>
@@ -2022,7 +2044,7 @@ export default function HomeScreen() {
             />
           )}
         </View>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.storyPersonName, { color: colors.foreground }]}>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.storyPersonName, { color: isClassicSkin ? pmf.ink : colors.foreground }]}>
           {getPrayTodayDisplayName(person.name)}
         </Text>
       </View>
@@ -2114,40 +2136,39 @@ export default function HomeScreen() {
       const meta = `${reachedLabel} · ${completedMembers} of ${familyMembers.length} prayed today`;
       const stackMembers = familyMembers.slice(0, 3);
       const overflow = familyMembers.length - stackMembers.length;
-      const freshestDays = getDaysSinceLastPrayed(mostRecentPerson.lastPrayedDate);
+      // v255: the head row is the mockup's — stacked faces, name,
+      // the FULL-TEXT sub-line (no numberOfLines, no ellipsis), the
+      // emergency pill when one is live, and the chevron. The 0d/1d
+      // day pill v254 carried here is gone; the reach reads in the
+      // sub-line's words, as drawn.
       return (
-        <View key={familyId} style={{ backgroundColor: pm.card, borderRadius: 24, marginHorizontal: 12, marginTop: 9, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2, overflow: "hidden" }}>
+        <View key={familyId} style={{ backgroundColor: pmf.card, borderRadius: 24, marginHorizontal: 12, marginTop: 9, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2, overflow: "hidden" }}>
           <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 14, paddingVertical: 12 }, pressed && { opacity: 0.85 }]}>
             <View style={{ flexDirection: "row", flex: 0 }}>
               {stackMembers.map((member, stackIdx) => (
-                <View key={member.id} style={{ marginLeft: stackIdx === 0 ? 0 : -11, borderWidth: 2.5, borderColor: pm.card, borderRadius: 20, zIndex: stackMembers.length - stackIdx }}>
+                <View key={member.id} style={{ marginLeft: stackIdx === 0 ? 0 : -11, borderWidth: 2.5, borderColor: pmf.card, borderRadius: 20, zIndex: stackMembers.length - stackIdx }}>
                   <AvatarImage id={member.id} name={member.name} gender={member.gender} avatarAsset={member.avatarAsset} photoUri={member.photoUri} size={38} thumbnail fallbackColor={member.accentColor} />
                 </View>
               ))}
               {overflow > 0 ? (
-                <View style={{ marginLeft: -11, width: 38, height: 38, borderRadius: 19, borderWidth: 2.5, borderColor: pm.card, backgroundColor: pm.wash2, alignItems: "center", justifyContent: "center", zIndex: 0 }}>
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: pm.deep }}>+{overflow}</Text>
+                <View style={{ marginLeft: -11, width: 38, height: 38, borderRadius: 19, borderWidth: 2.5, borderColor: pmf.card, backgroundColor: pmf.wash2, alignItems: "center", justifyContent: "center", zIndex: 0 }}>
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: pmf.deep }}>+{overflow}</Text>
                 </View>
               ) : null}
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text numberOfLines={1} style={{ fontSize: 15.5, fontWeight: "800", color: pm.ink }}>{familyName}</Text>
+                <Text numberOfLines={1} style={{ fontSize: 15.5, fontWeight: "800", color: pmf.ink }}>{familyName}</Text>
                 {isFamilyComplete && <VerifiedBadge />}
               </View>
-              <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>{meta}</Text>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: pmf.inkSoft, marginTop: 1 }}>{meta}</Text>
             </View>
             {familyEmergency && emergencyCountdown ? (
               <View style={{ backgroundColor: "#EF4444", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, shadowColor: "#EF4444", shadowOpacity: 0.35, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 3 }}>
                 <Text style={{ fontSize: 11.5, fontWeight: "800", color: "#FFFFFF" }}>Emergency · ≈{Math.max(1, Math.round(emergencyCountdown / 3600000))}h</Text>
               </View>
-            ) : freshestDays !== 999 ? (
-              <View style={{ width: 46, height: 22, borderRadius: 999, backgroundColor: pm.wash, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
-                <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.round(getReachProgressRatio(freshestDays) * 100)}%`, backgroundColor: getLastReachedAccentColor(mostRecentPerson), borderRadius: 999 }} />
-                <Text style={{ fontSize: 11, fontWeight: "800", color: pm.ink }}>{formatDaysSinceLastPrayer(freshestDays)}</Text>
-              </View>
             ) : null}
-            <FamilyChevron expanded={!!isExpanded} color={pm.deep} wash={pm.wash} />
+            <FamilyChevron expanded={!!isExpanded} color={pmf.deep} wash={pmf.wash} />
           </Pressable>
         </View>
       );
@@ -2227,16 +2248,16 @@ export default function HomeScreen() {
         <Pressable
           onLongPress={() => handleContactLongPress(person)}
           onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
-          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderColor: `${relationshipStyle.accent}65`, borderWidth: 1 }, skinTokens.frame, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: colors.background }, !isSkinned && { borderRadius: 22, borderWidth: 0, paddingVertical: 11, paddingHorizontal: 14, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }]}
+          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderColor: `${relationshipStyle.accent}65`, borderWidth: 1 }, skinTokens.frame, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: colors.background }, !isSkinned && { borderRadius: 22, borderWidth: 0, paddingVertical: 11, paddingHorizontal: 14, backgroundColor: pmf.card, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }]}
         >
           {isSkinned ? <PaperGrainOverlay /> : null}
           {renderAvatar(person, isSkinned ? 48 : 52)}
           <View style={styles.personInfo}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text numberOfLines={1} style={[styles.personName, styles.singlePersonName, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null]}>{person.name}</Text>
+              <Text numberOfLines={1} style={[styles.personName, styles.singlePersonName, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null, !isSkinned ? { color: pmf.ink } : null]}>{person.name}</Text>
               {hasPersonCompletedPrayerToday(person, today) && <VerifiedBadge />}
             </View>
-            <Text numberOfLines={1} style={[styles.personMeta, styles.singlePersonMeta]}>
+            <Text style={[styles.personMeta, styles.singlePersonMeta, !isSkinned ? { color: pmf.inkSoft } : null]}>
               {formatLastReachedSummary(person)}
             </Text>
           </View>
@@ -2246,9 +2267,9 @@ export default function HomeScreen() {
                 {emergencyCountdown ? (
                   <EmergencyPrayerPill timeRemaining={reachText} progress={emergencyProgress} />
                 ) : (
-                  <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
+                  <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty, !isSkinned && { backgroundColor: pmf.wash, borderColor: pmf.line }]}>
                     <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
-                    <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
+                    <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted, !isSkinned ? { color: (daysSince === 999 || reachProgress < 0.42) ? pmf.inkSoft : pmf.ink } : null]}>{reachText}</Text>
                   </View>
                 )}
                 <Pressable
@@ -2498,13 +2519,14 @@ export default function HomeScreen() {
   const renderPeopleAppBar = () => (
     <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 18, paddingTop: 4, paddingBottom: 10 }}>
       <View>
-        <Text style={{ fontSize: 27, fontWeight: "800", letterSpacing: -0.5, color: pm.ink }}>People</Text>
-        <Text style={{ fontSize: 12.5, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>
+        <Text style={{ fontSize: 27, fontWeight: "800", letterSpacing: -0.5, color: pmf.ink }}>People</Text>
+        <Text style={{ fontSize: 12.5, fontWeight: "600", color: pmf.inkSoft, marginTop: 1 }}>
           {todayDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         </Text>
       </View>
       <AttentionBell
         people={people}
+        family={pmf}
         onOpenPerson={(personId) => router.push({ pathname: "/person", params: { personId } })}
         onPrayToday={() => setShowPrayerSession(true)}
       />
@@ -2551,7 +2573,7 @@ export default function HomeScreen() {
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
               <Text style={{ fontSize: 12, fontWeight: "600", color: "#FECACA" }}>
-                {emergencies.length > 1 ? `Also: ${emergencies[1].person.name}` : ""}
+                {emergencies.length > 1 ? `Also: ${emergencies[1].person.name}` : "Pinned until the 24 hours close"}
               </Text>
               <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowPrayerSession(true); }} style={({ pressed }) => [{ backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 }, pressed && { opacity: 0.85 }]}>
                 <Text style={{ fontSize: 13.5, fontWeight: "800", color: "#991B1B" }}>Pray now</Text>
@@ -2565,55 +2587,72 @@ export default function HomeScreen() {
 
   const renderQueueCard = () => {
     const { prayed, total } = dailyPrayerProgress;
-    if (total === 0 && visiblePrayTodayList.length === 0) return null;
+    if (total === 0 && prayTodayList.length === 0) return null;
     const pct = total > 0 ? Math.round((prayed / total) * 100) : 0;
-    const faces = visiblePrayTodayList.slice(0, 5);
-    const moreCount = visiblePrayTodayList.length - faces.length;
+    // v255: the queue is the FULL pray-today list (getPrayTodayList),
+    // prayed faces included with their "Prayed" status — as drawn.
+    // v254 read the story bar's visible list, which settles people
+    // out as they are prayed, so the queue emptied as the day was
+    // finished. The story bar keeps its own list and mechanics.
+    const queueFaces = sortQueueFaces(prayTodayList, today);
+    const faces = queueFaces.slice(0, 5);
+    const moreCount = queueFaces.length - faces.length;
     return (
       <PeopleEntrance index={1}>
-        <View style={{ backgroundColor: pm.card, borderRadius: 26, paddingHorizontal: 17, paddingVertical: 15, marginHorizontal: 16, marginTop: 12, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
+        <View style={{ backgroundColor: pmf.card, borderRadius: 26, paddingHorizontal: 17, paddingVertical: 15, marginHorizontal: 16, marginTop: 12, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
           <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" }}>
-            <Text style={{ fontSize: 14.5, fontWeight: "800", color: pm.ink }}>Today's prayer list</Text>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: pm.inkSoft }}>{prayed} of {total} prayed · {Math.max(0, total - prayed)} to go</Text>
+            <Text style={{ fontSize: 14.5, fontWeight: "800", color: pmf.ink }}>Today's prayer list</Text>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: pmf.inkSoft }}>{prayed} of {total} prayed · {Math.max(0, total - prayed)} to go</Text>
           </View>
-          <View style={{ height: 8, borderRadius: 4, backgroundColor: pm.wash, marginTop: 11, overflow: "hidden" }}>
+          <View style={{ height: 8, borderRadius: 4, backgroundColor: pmf.wash, marginTop: 11, overflow: "hidden" }}>
             <View style={{ width: `${pct}%`, height: "100%", borderRadius: 4, overflow: "hidden" }}>
               <Svg width="100%" height="100%" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
                 <Defs>
                   <LinearGradient id="v254QueueGrad" x1="0" y1="0" x2="1" y2="0">
-                    <Stop offset="0" stopColor={pm.seed} />
-                    <Stop offset="1" stopColor={pm.tealDeep} />
+                    <Stop offset="0" stopColor={pmf.seed} />
+                    <Stop offset="1" stopColor={pmf.queueTeal} />
                   </LinearGradient>
                 </Defs>
                 <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254QueueGrad)" />
               </Svg>
             </View>
+            <Animated.View pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, width: 56, transform: [{ translateX: queueShine.interpolate({ inputRange: [0, 1], outputRange: [-70, 340] }) }] }}>
+              <Svg width="100%" height="100%">
+                <Defs>
+                  <LinearGradient id="v255QueueShine" x1="0" y1="0" x2="1" y2="0">
+                    <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0" />
+                    <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.5" />
+                    <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+                  </LinearGradient>
+                </Defs>
+                <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v255QueueShine)" />
+              </Svg>
+            </Animated.View>
           </View>
           <View style={{ flexDirection: "row", gap: 9, marginTop: 13 }}>
             {faces.map((person) => {
               const done = hasPersonCompletedPrayerToday(person, today);
-              const waitingCount = person.prayerItems.filter((item) => !item.isDone).length;
               return (
                 <View key={person.id} style={{ flex: 1, alignItems: "center", minWidth: 0 }}>
-                  <View style={{ width: 47, height: 47, borderRadius: 23.5, borderWidth: 2, borderColor: done ? pm.seed : pm.wash2, alignItems: "center", justifyContent: "center" }}>
+                  <View style={{ width: 47, height: 47, borderRadius: 23.5, borderWidth: 2, borderColor: done ? pmf.seed : pmf.wash2, alignItems: "center", justifyContent: "center" }}>
                     <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={43} thumbnail fallbackColor={person.accentColor} />
                     {done ? (
-                      <View style={{ position: "absolute", bottom: -2, right: -2, width: 17, height: 17, borderRadius: 8.5, backgroundColor: "#2E7D4F", borderWidth: 2, borderColor: pm.card, alignItems: "center", justifyContent: "center" }}>
+                      <View style={{ position: "absolute", bottom: -2, right: -2, width: 17, height: 17, borderRadius: 8.5, backgroundColor: "#2E7D4F", borderWidth: 2, borderColor: pmf.card, alignItems: "center", justifyContent: "center" }}>
                         <MaterialIcons name="check" size={9} color="#FFFFFF" />
                       </View>
                     ) : null}
                   </View>
-                  <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "700", color: pm.ink, marginTop: 5 }}>{getPrayTodayDisplayName(person.name)}</Text>
-                  <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: "600", color: pm.inkSoft }}>{done ? "Prayed" : waitingCount > 0 ? `${waitingCount} waiting` : "Waiting"}</Text>
+                  <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "700", color: pmf.ink, marginTop: 5 }}>{getPrayTodayDisplayName(person.name)}</Text>
+                  <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: "600", color: pmf.inkSoft }}>{queueFaceStatus(person, done)}</Text>
                 </View>
               );
             })}
             {moreCount > 0 ? (
               <View style={{ flex: 1, alignItems: "center", minWidth: 0 }}>
-                <View style={{ width: 47, height: 47, borderRadius: 23.5, backgroundColor: pm.wash, borderWidth: 2, borderStyle: "dashed", borderColor: pm.wash2, alignItems: "center", justifyContent: "center" }}>
-                  <Text style={{ fontSize: 13, fontWeight: "800", color: pm.deep }}>+{moreCount}</Text>
+                <View style={{ width: 47, height: 47, borderRadius: 23.5, backgroundColor: pmf.wash, borderWidth: 2, borderStyle: "dashed", borderColor: pmf.wash2, alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: pmf.deep }}>+{moreCount}</Text>
                 </View>
-                <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "700", color: pm.ink, marginTop: 5 }}>More</Text>
+                <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "700", color: pmf.ink, marginTop: 5 }}>More</Text>
                 <Text style={{ fontSize: 10 }}> </Text>
               </View>
             ) : null}
@@ -2672,31 +2711,34 @@ export default function HomeScreen() {
 
   const renderSlipCard = () => {
     if (reachEntries.length === 0) return null;
-    const entry = reachEntries[slipIndex % reachEntries.length];
-    const person = entry.person;
-    const alsoEmergency = hasActiveEmergencyPrayer(person);
-    const meta = entry.days === 14
-      ? "Due to reach today · last talked 14 days ago"
-      : `Last talked ${entry.days} days ago${alsoEmergency ? " · also today's emergency" : ""}`;
+    // v255: the mockup STACKS the reach candidates — every due
+    // person gets their own row with their own Reach out pill.
     return (
       <PeopleEntrance index={3}>
-        <View style={{ backgroundColor: pm.wash, borderRadius: 26, paddingHorizontal: 17, paddingVertical: 15, marginHorizontal: 16, marginTop: 12 }}>
+        <View style={{ backgroundColor: pmf.wash, borderRadius: 26, paddingHorizontal: 17, paddingVertical: 15, marginHorizontal: 16, marginTop: 12 }}>
           <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" }}>
-            <Text style={{ fontSize: 14.5, fontWeight: "800", color: pm.washInk }}>Don't let anyone slip</Text>
-            <Text style={{ fontSize: 12, fontWeight: "700", color: pm.deep }}>Reach · every 14 days</Text>
+            <Text style={{ fontSize: 14.5, fontWeight: "800", color: pmf.washInk }}>Don't let anyone slip</Text>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: pmf.washSub }}>Reach · every 14 days</Text>
           </View>
-          <PeopleEntrance key={person.id} index={0}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 11, backgroundColor: pm.card, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-              <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={42} thumbnail fallbackColor={person.accentColor} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: "800", color: pm.ink }}>{person.name}</Text>
-                <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>{meta}</Text>
+          {reachEntries.map((entry) => {
+            const person = entry.person;
+            const alsoEmergency = hasActiveEmergencyPrayer(person);
+            const meta = entry.days === 14
+              ? "Due to reach today · last talked 14 days ago"
+              : `Last talked ${entry.days} days ago${alsoEmergency ? " · also today's emergency" : ""}`;
+            return (
+              <View key={person.id} style={{ flexDirection: "row", alignItems: "center", gap: 11, backgroundColor: pmf.card, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+                <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={42} thumbnail fallbackColor={person.accentColor} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: "800", color: pmf.ink }}>{person.name}</Text>
+                  <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: "600", color: pmf.inkSoft, marginTop: 1 }}>{meta}</Text>
+                </View>
+                <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [{ backgroundColor: pmf.seed, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}>
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: "#FFFFFF" }}>Reach out</Text>
+                </Pressable>
               </View>
-              <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [{ backgroundColor: pm.seed, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}>
-                <Text style={{ fontSize: 12, fontWeight: "800", color: "#FFFFFF" }}>Reach out</Text>
-              </Pressable>
-            </View>
-          </PeopleEntrance>
+            );
+          })}
         </View>
       </PeopleEntrance>
     );
@@ -2705,15 +2747,15 @@ export default function HomeScreen() {
   const renderRosterHead = () => (
     <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginHorizontal: 18, marginTop: 22, marginBottom: 2 }}>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <Text style={{ fontSize: 17, fontWeight: "800", color: pm.ink }}>Your people</Text>
+        <Text style={{ fontSize: 17, fontWeight: "800", color: pmf.ink }}>Your people</Text>
         <Pressable
           onPress={() => { setActiveTab("people"); setShowAddPerson(true); }}
-          style={({ pressed }) => [{ width: 30, height: 30, borderRadius: 15, backgroundColor: pm.seed, alignItems: "center", justifyContent: "center", marginLeft: 8, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }, pressed && { opacity: 0.85 }]}
+          style={({ pressed }) => [{ width: 30, height: 30, borderRadius: 15, backgroundColor: pmf.seed, alignItems: "center", justifyContent: "center", marginLeft: 8, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }, pressed && { opacity: 0.85 }]}
         >
           <MaterialIcons name="add" size={16} color="#FFFFFF" />
         </Pressable>
       </View>
-      <Text style={{ fontSize: 12.5, fontWeight: "700", color: pm.inkSoft }}>{people.length} in the circle</Text>
+      <Text style={{ fontSize: 12.5, fontWeight: "700", color: pmf.inkSoft }}>{people.length} in the circle</Text>
     </View>
   );
 
@@ -2734,7 +2776,7 @@ export default function HomeScreen() {
       {(visiblePrayTodayList.length > 0 || remainingPrayTodayCount === 0) && (
         <>
           <View style={{ marginBottom: 8 }}>
-            <Text style={[styles.subheading, !isSkinned && { color: pm.deep }]}>PRAY TODAY</Text>
+            <Text style={[styles.subheading, !isSkinned && { color: pmf.deep }]}>PRAY TODAY</Text>
           </View>
           <ScrollView
             ref={prayTodayScrollRef}
@@ -2780,7 +2822,7 @@ export default function HomeScreen() {
                   <View style={{ position: "relative", width: 86, height: 86, marginTop: -5, alignItems: "center", justifyContent: "center" }}><PulsingGlow isActive color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} /><Pressable onPress={handleCompleteFast} onLongPress={handleMissFast} delayLongPress={500} style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || colors.primary, borderWidth: 3 }, pressed && styles.pressed]}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} profileLevel={xpProgress.level} size={66} thumbnail fallbackColor={fastAvatarColorFromStatus || colors.primary} /></Pressable></View>
                   <View style={[styles.fastingStreakBadge, styles.storyFastingStreakBadge, { backgroundColor: colors.primary }]}><MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" /><Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text></View>
                 </View>
-                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.storyPersonName, { color: colors.foreground }]}>{getPrayTodayDisplayName(profile.name)}</Text>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.storyPersonName, { color: isClassicSkin ? pmf.ink : colors.foreground }]}>{getPrayTodayDisplayName(profile.name)}</Text>
                 {pendingFastAction && <Pressable onPress={handleUndoFastAction} style={styles.fastUndoCountdownPill}><UndoCountdownBar color={colors.primary} /></Pressable>}
               </View>
             )}
@@ -2811,27 +2853,27 @@ export default function HomeScreen() {
             {renderAvatar(member, kid ? 40 : 52)}
             <View style={{ flex: 1, minWidth: 0 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text numberOfLines={1} style={{ fontSize: kid ? 13.5 : 14.5, fontWeight: "800", color: pm.ink }}>{member.name}</Text>
+                <Text numberOfLines={1} style={{ fontSize: kid ? 13.5 : 14.5, fontWeight: "800", color: pmf.ink }}>{member.name}</Text>
                 {dueToReach ? (
-                  <View style={{ backgroundColor: pm.amberWash, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2.5, marginLeft: 7 }}>
-                    <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.9, color: pm.amberDeep }}>DUE TO REACH</Text>
+                  <View style={{ backgroundColor: pmf.amberWash, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2.5, marginLeft: 7 }}>
+                    <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.9, color: pmf.amberDeep }}>DUE TO REACH</Text>
                   </View>
                 ) : null}
               </View>
-              <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>{member.familyType ?? "Other"} · {formatLastReachedSummary(member)}</Text>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: pmf.inkSoft, marginTop: 1 }}>{member.familyType ?? "Other"} · {formatLastReachedSummary(member)}</Text>
             </View>
             {emergencyCountdown ? (
               <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} progress={emergency ? getEmergencyPrayerProgress(emergency.item.emergencyExpiresAt) : 0} />
             ) : !kid ? (
-              <View style={{ width: 46, height: 22, borderRadius: 999, backgroundColor: pm.wash, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
-                <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.round(getReachProgressRatio(daysSince) * 100)}%`, backgroundColor: daysSince === 999 ? pm.wash2 : getLastReachedAccentColor(member), borderRadius: 999 }} />
-                <Text style={{ fontSize: 11, fontWeight: "800", color: pm.ink }}>{daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince)}</Text>
+              <View style={{ width: 46, height: 22, borderRadius: 999, backgroundColor: pmf.wash, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+                <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.round(getReachProgressRatio(daysSince) * 100)}%`, backgroundColor: daysSince === 999 ? pmf.wash2 : getLastReachedAccentColor(member), borderRadius: 999 }} />
+                <Text style={{ fontSize: 11, fontWeight: "800", color: pmf.ink }}>{daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince)}</Text>
               </View>
             ) : null}
             <Pressable
               onPress={(event) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; const count = familyMembers.filter((familyMember) => hasPersonCompletedPrayerToday(familyMember, today)).length; if (!complete && count === familyMembers.length - 1) playVerifiedPop(); if (complete) void revokeExperience("scheduled-prayer", `${today}:${member.id}`, position); else void awardExperience("scheduled-prayer", `${today}:${member.id}`, position); setPeople((previousPeople) => complete ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id)); }}
               hitSlop={8}
-              style={({ pressed }) => [{ width: 25, height: 25, borderRadius: 12.5, borderWidth: 2, borderColor: accent, backgroundColor: complete ? accent : pm.card, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}
+              style={({ pressed }) => [{ width: 25, height: 25, borderRadius: 12.5, borderWidth: 2, borderColor: accent, backgroundColor: complete ? accent : pmf.card, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}
             >
               {complete && <MaterialIcons name="check" size={13} color="#FFFFFF" />}
             </Pressable>
@@ -2841,20 +2883,20 @@ export default function HomeScreen() {
       const adults = familyMembers.filter((member) => member.familyType !== "Child");
       const kids = familyMembers.filter((member) => member.familyType === "Child");
       return (
-        <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -14, marginBottom: 10, backgroundColor: pm.card, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingTop: 20, paddingBottom: 14, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+        <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -14, marginBottom: 10, backgroundColor: pmf.card, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingTop: 20, paddingBottom: 14, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
           <View style={{ paddingHorizontal: 16 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Text style={{ fontSize: 11.5, fontWeight: "800", color: pm.ink }}>{completedMembers} of {familyMembers.length} prayed today</Text>
+              <Text style={{ fontSize: 11.5, fontWeight: "800", color: pmf.ink }}>{completedMembers} of {familyMembers.length} prayed today</Text>
               <Text style={{ fontSize: 11.5, fontWeight: "800", color: accent }}>{pct}%</Text>
             </View>
-            <View style={{ height: 6, borderRadius: 3, backgroundColor: pm.wash, marginTop: 6, overflow: "hidden" }}>
+            <View style={{ height: 6, borderRadius: 3, backgroundColor: pmf.wash, marginTop: 6, overflow: "hidden" }}>
               <View style={{ width: `${pct}%`, height: "100%", borderRadius: 3, backgroundColor: accent }} />
             </View>
           </View>
           <View style={{ marginTop: 6 }}>
             {adults.map((member) => renderMemberRow(member, false))}
             {kids.length > 0 ? (
-              <View style={{ marginLeft: 41, borderLeftWidth: 2, borderLeftColor: pm.wash2 }}>
+              <View style={{ marginLeft: 41, borderLeftWidth: 2, borderLeftColor: pmf.wash2 }}>
                 {kids.map((member) => renderMemberRow(member, true))}
               </View>
             ) : null}
@@ -2893,10 +2935,10 @@ export default function HomeScreen() {
       const newFamilyPill = item.section.title === "Family" ? (
         <Pressable
           onPress={openGroupBuilder}
-          style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginLeft: 8 }, pressed && { opacity: 0.75 }]}
+          style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: pmf.wash, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginLeft: 8 }, pressed && { opacity: 0.75 }]}
         >
-          <MaterialIcons name="group-add" size={14} color={pm.deep} />
-          <Text style={{ fontSize: 11, fontWeight: "800", color: pm.deep }}>New family</Text>
+          <MaterialIcons name="group-add" size={14} color={pmf.deep} />
+          <Text style={{ fontSize: 11, fontWeight: "800", color: pmf.deep }}>New family</Text>
         </Pressable>
       ) : null;
       if (isSkinned) {
@@ -2911,8 +2953,8 @@ export default function HomeScreen() {
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 2, marginTop: 20, marginBottom: 9 }}>
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: accent }} />
           <Text style={{ fontSize: 12.5, fontWeight: "800", letterSpacing: 1.8, color: accent }}>{item.section.title.toUpperCase()}</Text>
-          <View style={{ backgroundColor: pm.card, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2.5, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-            <Text style={{ fontSize: 11, fontWeight: "800", color: pm.ink }}>{sectionCount}</Text>
+          <View style={{ backgroundColor: pmf.card, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2.5, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+            <Text style={{ fontSize: 11, fontWeight: "800", color: pmf.ink }}>{sectionCount}</Text>
           </View>
           <View style={{ flex: 1, height: 1.5, borderRadius: 1, backgroundColor: accent, opacity: 0.28 }} />
           {newFamilyPill}
@@ -2926,80 +2968,30 @@ export default function HomeScreen() {
     return <View>{renderFamilyCard(item.familyMembers, undefined, isExpanded)}{(isExpanded || isClosing) && renderExpandedFamily(item.familyMembers, item.section, isClosing)}</View>;
   };
 
-  const pillVisible = useSharedValue(1);
-  const lastScrollY = useSharedValue(0);
-  const statsProgress = useSharedValue(0);
-
-  const _isStatsDone = prayedTodayCount >= dailyPrayerProgress.total && dailyPrayerProgress.total > 0;
-  useEffect(() => {
-    statsProgress.value = withTiming(_isStatsDone ? 1 : 0, { duration: 320, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
-  }, [_isStatsDone, statsProgress]);
-  const pillsTransformStyle = useAnimatedStyle(() => ({
-    opacity: 1 - statsProgress.value,
-    transform: [{ scale: 1 - statsProgress.value * 0.06 }],
-  }));
-  const chipTransformStyle = useAnimatedStyle(() => ({
-    opacity: statsProgress.value,
-    width: interpolate(statsProgress.value, [0, 1], [56, 148], Extrapolation.CLAMP),
-  }));
-  const chipContentStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(statsProgress.value, [0.4, 1], [0, 1], Extrapolation.CLAMP),
-  }));
-  const pillAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: pillVisible.value,
-    transform: [{ translateY: (1 - pillVisible.value) * -24 }],
-  }));
-  const handlePeopleScroll = (event: any) => {
-    const y = event.nativeEvent.contentOffset.y;
-    const dy = y - lastScrollY.value;
-    lastScrollY.value = y;
-    if (dy > 8 && y > 60) {
-      pillVisible.value = withTiming(0, { duration: 200 });
-    } else if (dy < -8) {
-      pillVisible.value = withTiming(1, { duration: 200 });
-    }
-  };
+  // v255: the floating header's pill machinery (pillVisible,
+  // statsProgress, the show/hide scroll handler) is removed with
+  // the header itself — see renderPeopleScreen below.
 
 
 
 
 
+  // v255: the floating "PrayerCircle — N/N prayed today" header
+  // card and the big streak pill are GONE from this page — the
+  // mockup opens straight on "People" + the date with the bell at
+  // top right, and the in-flow app bar (renderPeopleAppBar, the
+  // list header's first element) is the top of the page. The
+  // streak and the counts themselves live elsewhere in the app;
+  // only this page's header furniture was removed.
   const renderPeopleScreen = () => (
-    <View style={[styles.peopleScreen, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background }, null]}>
-      <ReAnimated.View style={[styles.floatingHeaderRow, pillAnimatedStyle]}>
-        <View style={[styles.floatingPill, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }]}>
-          {isSkinned ? <PaperGrainOverlay /> : null}
-          <Text style={[styles.pillTitle, { color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? "#EDE8FF" : colors.foreground }, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 13, lineHeight: 20 } : null]}>PrayerCircle</Text>
-          <Text style={[styles.pillSubtitle, { color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted }]}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
-        </View>
-        <View style={styles.m3StatsContainer}>
-          <ReAnimated.View style={[styles.m3StatsRow, pillsTransformStyle]}>
-            <View style={[styles.m3StatChip, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }]}>
-              <MaterialIcons name={iconName("local-fire-department")} size={16} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
-              <Text style={[styles.m3StatText, { color: skinTokens.isTerminal ? TERM_SOFT : colors.foreground }]}>{streak}</Text>
-            </View>
-            <View style={[styles.m3StatChip, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }]}>
-              <MaterialIcons name={iconName("chat-bubble")} size={14} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
-              <Text style={[styles.m3StatText, { color: skinTokens.isTerminal ? TERM_SOFT : colors.foreground }]}>{remainingPrayTodayCount}</Text>
-            </View>
-          </ReAnimated.View>
-          <ReAnimated.View style={[styles.m3DoneChipOverlay, chipTransformStyle, { backgroundColor: colors.primary }]}>
-            <ReAnimated.View style={[styles.m3DoneChipContent, chipContentStyle]}>
-              <FlameSpark size={18} />
-              <CountUpNumber value={streak} textStyle={styles.m3DoneText} />
-              <Text style={styles.m3DoneLabel}>Streak</Text>
-            </ReAnimated.View>
-          </ReAnimated.View>
-        </View>
-      </ReAnimated.View>
+    <View style={[styles.peopleScreen, { backgroundColor: isClassicSkin ? pmf.ground : (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background }, null]}>
       <FlatList
         data={peopleRows}
         renderItem={renderPeopleRow}
         keyExtractor={(item) => item.key}
         ListHeaderComponent={<View>{renderPeopleFrontDoor()}</View>}
         ListEmptyComponent={<View style={styles.emptyStateCard}><MaterialIcons name={iconName("groups")} size={46} color={colors.primary} /><Text style={styles.emptyTitle}>No people yet</Text><Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text></View>}
-        contentContainerStyle={[styles.peopleContent, { paddingTop: peopleHeaderInset(skinTokens.type) }]}
-        onScroll={handlePeopleScroll}
+        contentContainerStyle={[styles.peopleContent, { paddingTop: 10, paddingBottom: isClassicSkin ? 118 : 132 }]}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         initialNumToRender={4}
@@ -4395,16 +4387,69 @@ export default function HomeScreen() {
   // that lost its tab or lives outside the four: Settings first,
   // then each family, Hometown, and the profile-side screens. Every
   // route reachable before this build is reachable from here.
+  // v255: the More hub is a hub of DESTINATIONS again. v254 spread
+  // one row per household across the hub's top level — the flood
+  // buried the real destinations (Hometown, My Profile, …) and
+  // exposed two same-named households as raw duplicate rows. Now:
+  // Settings first, ONE "Families" row into a families list (each
+  // distinct household once, same-named ones distinguished), then
+  // the destinations — every route and screen exactly as it was.
+  const [moreShowFamilies, setMoreShowFamilies] = useState(false);
+  useEffect(() => {
+    if (activeTab !== "more") setMoreShowFamilies(false);
+  }, [activeTab]);
+
   const renderMoreScreen = () => {
-    const families = getFamilyGroups(people);
-    const rows: Array<{ key: string; icon: string; label: string; onPress: () => void }> = [
+    const hubRow = (row: { key: string; icon: string; label: string; sub?: string; onPress: () => void }, index: number) => (
+      <PeopleEntrance key={row.key} index={index}>
+        <Pressable
+          onPress={row.onPress}
+          style={({ pressed }) => [{
+            flexDirection: "row", alignItems: "center", gap: 13,
+            backgroundColor: pm.card, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 15, marginTop: 9,
+            shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+          }, pressed && { opacity: 0.8 }]}
+        >
+          <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: pm.wash, alignItems: "center", justifyContent: "center" }}>
+            <MaterialIcons name={iconName(row.icon)} size={20} color={pm.deep} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ fontSize: 15.5, fontWeight: "800", color: pm.ink }}>{row.label}</Text>
+            {row.sub ? <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>{row.sub}</Text> : null}
+          </View>
+          <MaterialIcons name="chevron-right" size={20} color={pm.wash2} />
+        </Pressable>
+      </PeopleEntrance>
+    );
+
+    if (moreShowFamilies) {
+      const familyRows = buildFamiliesHubList(people);
+      return (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24 }} style={{ backgroundColor: isSkinned ? undefined : pm.ground }}>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 2, paddingTop: 4, paddingBottom: 10 }}>
+            <Pressable onPress={() => setMoreShowFamilies(false)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 2, marginRight: 6 }, pressed && { opacity: 0.7 }]}>
+              <MaterialIcons name="chevron-left" size={24} color={pm.deep} />
+              <Text style={{ fontSize: 14, fontWeight: "800", color: pm.deep }}>More</Text>
+            </Pressable>
+            <View>
+              <Text style={{ fontSize: 27, fontWeight: "800", letterSpacing: -0.5, color: pm.ink }}>Families</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>{familyRows.length} {familyRows.length === 1 ? "household" : "households"}</Text>
+            </View>
+          </View>
+          {familyRows.map((family, index) => hubRow({
+            key: `family-${family.familyId}`,
+            icon: "groups",
+            label: family.familyName,
+            sub: family.distinguisher ? `${family.distinguisher} · ${family.memberCount} members` : `${family.memberCount} members`,
+            onPress: () => router.push({ pathname: "/family", params: { familyId: family.familyId } }),
+          }, index))}
+        </ScrollView>
+      );
+    }
+
+    const rows: Array<{ key: string; icon: string; label: string; sub?: string; onPress: () => void }> = [
       { key: "settings", icon: "settings", label: "Settings", onPress: () => setActiveTab("settings") },
-      ...families.map((family) => ({
-        key: `family-${family.familyId}`,
-        icon: "groups",
-        label: family.familyName,
-        onPress: () => router.push({ pathname: "/family", params: { familyId: family.familyId } }),
-      })),
+      { key: "families", icon: "groups", label: "Families", onPress: () => setMoreShowFamilies(true) },
       { key: "hometown", icon: "location-city", label: "Hometown", onPress: () => router.push("/hometown") },
       { key: "profile", icon: "person", label: "My Profile", onPress: () => router.push("/profile") },
       { key: "character", icon: "face", label: "Character", onPress: () => router.push("/character") },
@@ -4426,24 +4471,7 @@ export default function HomeScreen() {
             onPrayToday={() => setShowPrayerSession(true)}
           />
         </View>
-        {rows.map((row, index) => (
-          <PeopleEntrance key={row.key} index={index}>
-            <Pressable
-              onPress={row.onPress}
-              style={({ pressed }) => [{
-                flexDirection: "row", alignItems: "center", gap: 13,
-                backgroundColor: pm.card, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 15, marginTop: 9,
-                shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2,
-              }, pressed && { opacity: 0.8 }]}
-            >
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: pm.wash, alignItems: "center", justifyContent: "center" }}>
-                <MaterialIcons name={iconName(row.icon)} size={20} color={pm.deep} />
-              </View>
-              <Text style={{ flex: 1, fontSize: 15.5, fontWeight: "800", color: pm.ink }}>{row.label}</Text>
-              <MaterialIcons name="chevron-right" size={20} color={pm.wash2} />
-            </Pressable>
-          </PeopleEntrance>
-        ))}
+        {rows.map((row, index) => hubRow(row, index))}
       </ScrollView>
     );
   };
@@ -4474,7 +4502,11 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (navWidth <= 0) return;
-    const tabW = (navWidth - 6) / 5;
+    // v255: under Classic the pill is the mockup's wash pill behind
+    // the active icon — the flat bar is full-width with 8px side
+    // padding, so the cell math runs off navWidth - 16. The
+    // material skins keep the floating bar's full-cell pill math.
+    const tabW = (navWidth - (isClassicSkin ? 16 : 6)) / 5;
     const target = Math.max(0, activeTabIndex) * tabW;
     if (navFirstLayout.current) {
       tabPillX.value = target;
@@ -4483,11 +4515,11 @@ export default function HomeScreen() {
       // M3 Expressive emphasized easing: liquid and smooth, no bounce.
       tabPillX.value = withTiming(target, skinMotion.slide);
     }
-  }, [activeTabIndex, navWidth, tabPillX]);
+  }, [activeTabIndex, navWidth, tabPillX, isClassicSkin]);
 
   const tabPillAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: tabPillX.value }],
-    width: navWidth > 0 ? (navWidth - 6) / 5 - 12 : 0,
+    width: navWidth > 0 ? (isClassicSkin ? (navWidth - 16) / 5 - 14 : (navWidth - 6) / 5 - 12) : 0,
   }));
 
   const renderTab = (tab: AppTab, label: string, icon: string) => {
@@ -4507,16 +4539,20 @@ export default function HomeScreen() {
           setActiveTab(tab);
           setShowAddPerson(false);
         }}
-        style={({ pressed }) => [styles.tabItem, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.tabItem, isClassicSkin ? { height: 44, justifyContent: "flex-start", gap: 0 } : null, pressed && styles.pressed]}
       >
         {/* Terminal (v188): the mockup's tab bar is a TEXT menu — no
             icons at all. v186 kept the icons AND bracketed every label,
             which overflowed the ~72px tab cells and collided ("[ JOURNAL
             ]" into "[ SETTINGS", a stray bracket under Settings). */}
-        {skinTokens.isTerminal ? null : (
+        {skinTokens.isTerminal ? null : isClassicSkin ? (
+          <View style={{ height: 27, justifyContent: "center", marginBottom: 3 }}>
+            <MaterialIcons name={iconName(icon)} size={21} color={isActive ? pmf.deep : pmf.inkSoft} />
+          </View>
+        ) : (
           <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : "#5F6670"} />
         )}
-        <Text numberOfLines={skinTokens.isTerminal ? 1 : undefined} style={[styles.tabLabel, isActive && styles.tabLabelActive, skinTokens.isTerminal ? { color: isActive ? TERM_BG : TERM_MID } : skinTokens.isEightBit ? { color: isActive ? "#FFFFFF" : BIT_ON_DUSK_FAINT } : null, null, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 8, lineHeight: 13 } : null, skinTokens.isTerminal ? { fontSize: 13, lineHeight: 16 } : null, skinTokens.isPaper ? skinText(skinTokens, skinTokens.type.labelText, 16) : null]}>{skinTokens.isTerminal ? (isActive ? `[${label.toUpperCase()}]` : label.toUpperCase()) : label}</Text>
+        <Text numberOfLines={skinTokens.isTerminal ? 1 : undefined} style={[styles.tabLabel, isActive && styles.tabLabelActive, skinTokens.isTerminal ? { color: isActive ? TERM_BG : TERM_MID } : skinTokens.isEightBit ? { color: isActive ? "#FFFFFF" : BIT_ON_DUSK_FAINT } : null, null, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 8, lineHeight: 13 } : null, skinTokens.isTerminal ? { fontSize: 13, lineHeight: 16 } : null, skinTokens.isPaper ? skinText(skinTokens, skinTokens.type.labelText, 16) : null, isClassicSkin ? { color: isActive ? pmf.deep : pmf.inkSoft, fontSize: 10.5, lineHeight: 13 } : null]}>{skinTokens.isTerminal ? (isActive ? `[${label.toUpperCase()}]` : label.toUpperCase()) : label}</Text>
       </Pressable>
     );
   };
@@ -4693,7 +4729,11 @@ export default function HomeScreen() {
 </PaperSettle>
         </View>
       </Modal>
-      {activeTab === "people" || activeTab === "home" ? (
+      {/* v255: under Classic the big round + is GONE — the mockup
+          draws no + button; Add Person's door on People is the
+          roster head's + , as drawn. The material skins keep their
+          FAB (their pages keep the v254 form). */}
+      {(activeTab === "people" || activeTab === "home") && !isClassicSkin ? (
         <Pressable
           onPress={() => {
             setActiveTab("people");
@@ -4724,20 +4764,57 @@ export default function HomeScreen() {
           shadowRadius: 4,
           ...(skinTokens.cardShadow ?? {}),
           ...(skinTokens.frame ?? {}),
+          // v255: under Classic the bar is the mockup's — flat,
+          // light, attached to the bottom edge, top corners rounded
+          // 24, a soft upward shadow, NO floating and NO + button
+          // beside it. The skins keep the floating bar as drawn for
+          // them.
+          ...(isClassicSkin ? {
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: undefined,
+            borderRadius: 0,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            borderWidth: 0,
+            backgroundColor: pmf.card,
+            paddingTop: 10,
+            paddingBottom: 16,
+            paddingHorizontal: 8,
+            alignItems: "flex-start" as const,
+            shadowColor: pmf.shadow,
+            shadowOpacity: 1,
+            shadowOffset: { width: 0, height: -6 },
+            shadowRadius: 20,
+            elevation: 8,
+          } : {}),
         }]}
       >
         {skinTokens.cardShadow ? <PaperGrainOverlay /> : null}
-        {/* sliding expressive pill */}
+        {/* sliding expressive pill — v255: under Classic this is the
+            mockup's wash pill behind the active icon (27px tall,
+            fully rounded, seed wash); the skins keep the filled
+            full-cell pill. */}
         <ReAnimated.View
           style={[
-            {
-              position: "absolute",
-              left: 9,
-              top: 4,
-              bottom: 4,
-              borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 18,
-              backgroundColor: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
-            },
+            isClassicSkin
+              ? {
+                  position: "absolute" as const,
+                  left: 15,
+                  top: 10,
+                  height: 27,
+                  borderRadius: 999,
+                  backgroundColor: pmf.wash,
+                }
+              : {
+                  position: "absolute" as const,
+                  left: 9,
+                  top: 4,
+                  bottom: 4,
+                  borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 18,
+                  backgroundColor: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
+                },
             tabPillAnimatedStyle,
           ]}
         />
@@ -5126,9 +5203,9 @@ export default function HomeScreen() {
           onPress={() => setShowPrayerSession(true)}
           style={{
             position: "absolute",
-            bottom: 140,
+            bottom: isClassicSkin ? 84 : 140,
             alignSelf: "center",
-            backgroundColor: isSkinned ? 'rgba(123, 92, 255, 0.85)' : pm.inkSeed,
+            backgroundColor: isSkinned ? 'rgba(123, 92, 255, 0.85)' : pmf.inkSeed,
             borderRadius: 999,
             paddingVertical: 12,
             paddingHorizontal: 22,

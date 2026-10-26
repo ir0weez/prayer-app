@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 
 import { AvatarImage } from "@/components/avatar-system";
 import { usePeopleMaterial } from "@/hooks/use-people-material";
+import type { PeopleMaterialFamily } from "@/lib/people-material";
 import {
   getBellSummary,
   EMERGENCY_RING_COLOR,
@@ -74,12 +75,21 @@ export function AttentionBell({
   people,
   onOpenPerson,
   onPrayToday,
+  family,
 }: {
   people: Person[];
   onOpenPerson: (personId: string) => void;
   onPrayToday: () => void;
+  /**
+   * v255: an optional token family override. The People front door
+   * passes its own light family (the mockup's language) so the bell
+   * and its sheet sit on that page in the page's dress; every other
+   * host keeps the palette family from the hook.
+   */
+  family?: PeopleMaterialFamily;
 }) {
-  const pm = usePeopleMaterial();
+  const hookFamily = usePeopleMaterial();
+  const pm = family ?? hookFamily;
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [todos, setTodos] = useState<ScheduleTodo[]>([]);
   const [now, setNow] = useState(() => new Date());

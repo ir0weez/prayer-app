@@ -1289,7 +1289,10 @@ describe("v188 — Terminal, finished properly", () => {
 
   it("the tab bar is the mockup's text menu: no icons, brackets only on the active tab", () => {
     const index = read("app/(tabs)/index.tsx");
-    expect(index).toContain("skinTokens.isTerminal ? null : (");
+    // v255: the expression gained the Classic branch (the mockup's
+    // flat light bar icons) between the Terminal null and the skins'
+    // icon — Terminal still renders NO icon, exactly as pinned here.
+    expect(index).toContain("skinTokens.isTerminal ? null : isClassicSkin ? (");
     expect(index).toContain("isActive ? `[${label.toUpperCase()}]` : label.toUpperCase()");
     expect(index).toContain("numberOfLines={skinTokens.isTerminal ? 1 : undefined}");
     // The v186 every-tab bracket string that overflowed is gone.

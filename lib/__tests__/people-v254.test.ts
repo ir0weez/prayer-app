@@ -259,9 +259,9 @@ describe("v254 source pins — People front door + roster (index.tsx)", () => {
     expect(index).toContain("Post to Journal");
   });
 
-  it("the don't-slip card rotates ONE reach row at a time", () => {
-    expect(index).toContain("slipIndex");
-    expect(index).toContain("reachEntries[slipIndex % reachEntries.length]");
+  it("the don't-slip card STACKS one row per due person (v255 supersedes the rotation — it hid everyone but the current face; the mockup stacks them)", () => {
+    expect(index).toContain("reachEntries.map");
+    expect(index).not.toContain("slipIndex");
     expect(index).toContain("getReachOutEntries");
   });
 
@@ -328,21 +328,27 @@ describe("v254 source pins — nav as drawn (People · Schedule · Bible · Jour
     expect(index).not.toContain('renderTab("settings"');
   });
 
-  it("the More hub orphans nothing: Settings first, then families, Hometown, Profile, Character, Fast Collection, Devotional", () => {
+  it("the More hub orphans nothing (v255 form — v254's per-household flood buried the destinations and duplicated same-named families; families are ONE entry into a list now)", () => {
     const hub = index.slice(index.indexOf("const renderMoreScreen"), index.indexOf("Expressive glass tab bar"));
     const settingsAt = hub.indexOf('label: "Settings"');
+    const familiesAt = hub.indexOf('label: "Families"');
     const hometownAt = hub.indexOf('"/hometown"');
     const profileAt = hub.indexOf('"/profile"');
     const characterAt = hub.indexOf('"/character"');
     const fastAt = hub.indexOf('"/fast-collection"');
     const devotionalAt = hub.indexOf('"/devotional"');
     expect(settingsAt).toBeGreaterThan(-1);
-    expect(hub).toContain('pathname: "/family"');
-    expect(hometownAt).toBeGreaterThan(settingsAt);
+    expect(familiesAt).toBeGreaterThan(settingsAt);
+    expect(hometownAt).toBeGreaterThan(familiesAt);
     expect(profileAt).toBeGreaterThan(hometownAt);
     expect(characterAt).toBeGreaterThan(profileAt);
     expect(fastAt).toBeGreaterThan(characterAt);
     expect(devotionalAt).toBeGreaterThan(fastAt);
+    // families arrive through the deduped hub list, never a spread
+    // of one row per household at the hub's top level
+    expect(hub).toContain("buildFamiliesHubList(people)");
+    expect(hub).not.toContain("...families.map");
+    expect(hub).toContain('pathname: "/family"');
   });
 
   it("the pill slides on withTiming — no spring in the nav", () => {

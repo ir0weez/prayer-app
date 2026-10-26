@@ -14,7 +14,7 @@ import { APP_ICONS, getAppIconDef, isIconUnlocked, loadSelectedAppIconId, saveSe
 import { setAppIcon as setNativeAppIcon, getAppIcon as getNativeAppIcon, isAppIconSwitchingAvailable } from "@/modules/expo-app-icon/src/index";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Alert, Animated, BackHandler, Easing as RnEasing, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View, type ViewStyle } from "react-native";
+import { Alert, Animated, AppState, BackHandler, Easing as RnEasing, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View, type ViewStyle } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Rect as SvgRect, Stop } from "react-native-svg";
 import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideInUp, SlideOutUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, withRepeat, Easing, useSharedValue, useAnimatedStyle, useAnimatedReaction, runOnJS } from "react-native-reanimated";
 
@@ -32,6 +32,10 @@ import { CarouselDots, FrontDoorCarousel } from "@/components/front-door-carouse
 import { PeopleStreakCard } from "@/components/people-streak-card";
 import { getPraiseDisplay, getPraiseJournalText } from "@/lib/praise-display";
 import { getReachOutEntries, formatHoursLeft } from "@/lib/bell-header";
+import { getWhatsNext, type WhatsNextItem } from "@/lib/whats-next";
+import { paperKeywordSceneFor } from "@/components/paper-keyword-scenes";
+import { pixelKeywordSceneFor } from "@/components/pixel-keyword-scenes";
+import { terminalKeywordSceneFor } from "@/components/terminal-keyword-scenes";
 import { SHINY_ACHIEVEMENTS, SHINY_AVATARS, getLevelUnlockedCharacterShinyIds } from "@/lib/avatar-system";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
@@ -786,6 +790,46 @@ export default function HomeScreen() {
   const frontDoorFamily = usePeopleFrontDoor();
   // v260: Today's prayer list — collapsed scroll row ⇄ expanded grid.
   const [queueExpanded, setQueueExpanded] = useState(false);
+  // v261: the queue card's own ref — the footer's Start praying
+  // measures this card in the window and the session's container
+  // transform grows out of that rect. The origin is set fresh by
+  // every footer launch and cleared when the session closes, so
+  // the pill / emergency / bell launches never inherit one.
+  const queueCardRef = useRef<View>(null);
+  const [sessionMorphOrigin, setSessionMorphOrigin] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  // v261: the completed card's What's Next — settled from the three
+  // schedule stores the way the bell settles (mount, foreground,
+  // and whenever a session closes and time has moved on).
+  const [whatsNext, setWhatsNext] = useState<WhatsNextItem | null>(null);
+  useEffect(() => {
+    let live = true;
+    const settleWhatsNext = async () => {
+      try {
+        const [eventsRaw, todosRaw, ministriesRaw] = await Promise.all([
+          AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
+          AsyncStorage.getItem(SCHEDULE_TODOS_KEY),
+          AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY),
+        ]);
+        if (!live) return;
+        const parseRows = <T,>(raw: string | null): T[] => {
+          try {
+            const value = raw ? JSON.parse(raw) : [];
+            return Array.isArray(value) ? (value as T[]) : [];
+          } catch {
+            return [];
+          }
+        };
+        setWhatsNext(getWhatsNext(parseRows<ScheduleEvent>(eventsRaw), parseRows<ScheduleTodo>(todosRaw), parseRows<ScheduleMinistry>(ministriesRaw), new Date()));
+      } catch {
+        // Best-effort: the completed card falls back to its skinny form.
+      }
+    };
+    void settleWhatsNext();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void settleWhatsNext();
+    });
+    return () => { live = false; subscription.remove(); };
+  }, [showPrayerSession]);
   // v254: group builder state (Piece C — a new flow on groupIntoFamily).
   const [showGroupBuilder, setShowGroupBuilder] = useState(false);
   const [builderStep, setBuilderStep] = useState<1 | 2>(1);
@@ -2508,6 +2552,93 @@ export default function HomeScreen() {
     );
   };
 
+  // v261: the What's Next thumbnail — the item's bespoke keyword
+  // scene through the ACTIVE SKIN's own scene router (the schedule's
+  // routing, shrunk into a 40px rounded-square container). Classic
+  // wears the keyword map's own artwork language: the entry's color
+  // + icon. No keyword (or a todo's own icon only) falls back to a
+  // tonal container with an icon — never a blank box.
+  const renderWhatsNextThumb = (item: WhatsNextItem) => {
+    const thumbFrame = { width: 40, height: 40, borderRadius: 12, overflow: "hidden" as const };
+    if (item.keyword) {
+      const scene = skinTokens.isPaper
+        ? paperKeywordSceneFor(item.keyword.label, item.title)
+        : skinTokens.isEightBit
+          ? pixelKeywordSceneFor(item.keyword.label, item.title)
+          : skinTokens.isTerminal
+            ? terminalKeywordSceneFor(item.keyword.label, item.title)
+            : null;
+      if (scene) {
+        return <View style={thumbFrame}>{scene}</View>;
+      }
+      return (
+        <View style={[thumbFrame, { backgroundColor: item.keyword.bgColor, alignItems: "center", justifyContent: "center" }]}>
+          <MaterialIcons name={item.keyword.icon as any} size={20} color="#FFFFFF" />
+        </View>
+      );
+    }
+    return (
+      <View style={[thumbFrame, { backgroundColor: pmf.wash, alignItems: "center", justifyContent: "center" }]}>
+        <MaterialIcons name={(item.icon as any) ?? "calendar-month"} size={20} color={pmf.deep} />
+      </View>
+    );
+  };
+
+  // v261 "The Card Becomes the Prayer" (mockup praytoday-action-
+  // card-v3, Stage 3): when the day's whole list is prayed, the
+  // queue card's resting form is the ANNOUNCEMENT — a check chip,
+  // "Pray Today complete", the count. With a next timed thing left
+  // today it carries the What's Next row under a hairline and the
+  // whole card doors to Schedule; with nothing left it is just the
+  // slim stadium bar, and tapping it reopens the session (the
+  // pray-again path). Derived from dailyPrayerProgress at render —
+  // un-mark someone and the face-row card simply returns.
+  const renderQueueCompleteCard = (prayed: number, total: number) => {
+    const headerRow = (
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
+        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: "#2E7D4F", alignItems: "center", justifyContent: "center" }}>
+          <MaterialIcons name="check" size={16} color="#FFFFFF" />
+        </View>
+        <Text style={{ flex: 1, fontSize: 14.5, fontWeight: "800", color: pmf.ink }}>Pray Today complete</Text>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: pmf.inkSoft }}>{prayed} of {total}</Text>
+      </View>
+    );
+    if (!whatsNext) {
+      return (
+        <PeopleEntrance index={1}>
+          <Pressable
+            onPress={() => { setSessionMorphOrigin(null); setShowPrayerSession(true); }}
+            style={({ pressed }) => [{ backgroundColor: pmf.card, borderRadius: 999, paddingHorizontal: 17, paddingVertical: 16, marginHorizontal: 16, marginTop: 12, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 }, pressed && { opacity: 0.85 }]}
+          >
+            {headerRow}
+          </Pressable>
+        </PeopleEntrance>
+      );
+    }
+    return (
+      <PeopleEntrance index={1}>
+        <Pressable
+          onPress={() => setActiveTab("schedule")}
+          style={({ pressed }) => [{ backgroundColor: pmf.card, borderRadius: 26, paddingHorizontal: 17, paddingVertical: 15, marginHorizontal: 16, marginTop: 12, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 }, pressed && { opacity: 0.85 }]}
+        >
+          {headerRow}
+          <View style={{ height: 1, backgroundColor: pmf.line, marginTop: 13 }} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 13 }}>
+            {renderWhatsNextThumb(whatsNext)}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={{ alignSelf: "flex-start", backgroundColor: pmf.seed, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+                <Text style={{ fontSize: 10, fontWeight: "900", letterSpacing: 0.8, color: "#FFFFFF" }}>UP NEXT</Text>
+              </View>
+              <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "800", color: pmf.ink, marginTop: 5 }}>{whatsNext.title}</Text>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: pmf.inkSoft, marginTop: 1 }}>{whatsNext.timeLabel}</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color={pmf.inkSoft} />
+          </View>
+        </Pressable>
+      </PeopleEntrance>
+    );
+  };
+
   const renderQueueCard = () => {
     const { prayed, total } = dailyPrayerProgress;
     if (total === 0 && prayTodayList.length === 0) return null;
@@ -2532,6 +2663,11 @@ export default function HomeScreen() {
     // modes — same ring, same check, same first name/status, same
     // tap (mark prayed / pending undo). All colors stay pmf roles:
     // derive, never pin.
+    // v261: a finished day swaps the face row for the announcement
+    // card (mockup Stage 3) — renderQueueCompleteCard, above.
+    if (total > 0 && prayed >= total) {
+      return renderQueueCompleteCard(prayed, total);
+    }
     const canExpandQueue = queueFaces.length > 5;
     const renderQueueFace = (person: Person, columnStyle: ViewStyle) => {
       const done = hasPersonCompletedPrayerToday(person, today);
@@ -2563,7 +2699,7 @@ export default function HomeScreen() {
     };
     return (
       <PeopleEntrance index={1}>
-        <View style={{ backgroundColor: pmf.card, borderRadius: 26, paddingHorizontal: 17, paddingVertical: 15, marginHorizontal: 16, marginTop: 12, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
+        <View ref={queueCardRef} style={{ backgroundColor: pmf.card, borderRadius: 26, paddingHorizontal: 17, paddingVertical: 15, marginHorizontal: 16, marginTop: 12, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <Text style={{ fontSize: 14.5, fontWeight: "800", color: pmf.ink }}>Today's prayer list</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 }}>
@@ -2613,6 +2749,36 @@ export default function HomeScreen() {
               {queueFaces.map((person) => renderQueueFace(person, { width: 56 }))}
             </ScrollView>
           )}
+          {/* v261 (mockup Stage 1): the action footer — the floating
+              pill's count chip as a tonal chip on the left, the
+              deep-seed filled Start/Keep praying pill on the right.
+              Its press measures THIS card and launches the session
+              with the rect as the morph origin (one container
+              transform, no stop in between). Shows under the grid
+              too — the footer belongs to the card, not the row. */}
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+            <View style={{ backgroundColor: pmf.wash, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+              <Text style={{ fontSize: 11.5, fontWeight: "800", color: pmf.deep }}>{Math.max(0, total - prayed)} left</Text>
+            </View>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                const card = queueCardRef.current;
+                if (card) {
+                  card.measureInWindow((x, y, width, height) => {
+                    setSessionMorphOrigin(width > 0 && height > 0 ? { x, y, width, height } : null);
+                    setShowPrayerSession(true);
+                  });
+                } else {
+                  setSessionMorphOrigin(null);
+                  setShowPrayerSession(true);
+                }
+              }}
+              style={({ pressed }) => [{ backgroundColor: pmf.seed, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 }, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "800", color: "#FFFFFF" }}>{prayed > 0 ? "Keep praying" : "Start praying"}</Text>
+            </Pressable>
+          </View>
         </View>
       </PeopleEntrance>
     );
@@ -5051,13 +5217,16 @@ export default function HomeScreen() {
       <PrayerSession
         visible={showPrayerSession}
         people={sessionPeople}
+        morphOrigin={sessionMorphOrigin}
+        morphSurface={pmf.card}
+        morphHeader={{ prayed: dailyPrayerProgress.prayed, total: dailyPrayerProgress.total }}
         onPray={(personId, position) => {
           commitPrayTodayPerson(personId, position);
         }}
         onTimeBonus={(position) => {
           void awardExperience("prayer-time-bonus", `prayer-time:${Date.now()}`, position);
         }}
-        onClose={() => { setShowPrayerSession(false); setPrayerSessionStartId(null); }}
+        onClose={() => { setShowPrayerSession(false); setPrayerSessionStartId(null); setSessionMorphOrigin(null); }}
       />
     </ScreenContainer>
   );

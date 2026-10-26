@@ -19,10 +19,15 @@ import {
 } from "@/modules/expo-prayer-timer/src/index";
 import type { Person } from "@/lib/prayercircle-data";
 import { usePeopleMaterial } from "@/hooks/use-people-material";
-import { PeopleEntrance } from "@/components/people-entrance";
+import { useSkin } from "@/hooks/use-skin";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { PeopleEntrance, PEOPLE_ENTRANCE_EASING } from "@/components/people-entrance";
 import { FIRST_CARD } from "@/lib/people-material";
 import { getLeadNeed, isActiveEmergencyItem } from "@/lib/prayer-lead";
 import { formatEmergencyPrayerCountdown, getEmergencyPrayerTimeRemaining } from "@/lib/prayercircle-data";
+
+/** A window-coordinate rect the morph grows out of (v261). */
+export type PrayerSessionMorphOrigin = { x: number; y: number; width: number; height: number };
 
 type Props = {
   visible: boolean;
@@ -30,7 +35,23 @@ type Props = {
   onPray: (personId: string, position?: { x: number; y: number }) => void;
   onTimeBonus: (position?: { x: number; y: number }) => void;
   onClose: () => void;
+  /** v261: when the session is launched from the queue card's
+   * footer, the card's measured window rect rides along and the
+   * session presents as a Material container transform out of that
+   * rect instead of the fade Modal. Null/absent (the floating pill,
+   * emergency Pray now, the bell) keeps the Modal exactly as before. */
+  morphOrigin?: PrayerSessionMorphOrigin | null;
+  /** The queue card's own surface color, so the morph container
+   * starts as the card itself (the front-door family's card role). */
+  morphSurface?: string;
+  /** The queue card header's counts, for the replica header that
+   * rides the container's top while it grows (the bar anchor). */
+  morphHeader?: { prayed: number; total: number } | null;
 };
+
+/** v261: the container transform's one motion — the note-bubble
+ * curve family (Material emphasized), no springs, no bounce. */
+const MORPH_DURATION_MS = 380;
 
 /** v254: the FIRST card's breathing glow — a calm, slow,
  * opacity-only breath on the card's amber border while this card
@@ -270,9 +291,11 @@ async function dismissPrayerNotification() {
   }
 }
 
-export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }: Props) {
+export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, morphOrigin, morphSurface, morphHeader }: Props) {
   const colors = useColors();
   const pm = usePeopleMaterial();
+  const { isSkinned } = useSkin();
+  const insets = useSafeAreaInsets();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [prayedCount, setPrayedCount] = useState(0);
@@ -299,6 +322,69 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   // Always call the latest onClose from native notification callbacks.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  // v261: the container transform's machinery. The morph only runs
+  // under the Classic/Material dress (skins keep the session's fade,
+  // their own entrance convention) and never under reduced motion —
+  // both fall back to the Modal below, untouched. All session logic
+  // is shared; only the presentation root differs.
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((value) => { if (live) setReducedMotion(value); })
+      .catch(() => undefined);
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReducedMotion);
+    return () => { live = false; subscription.remove(); };
+  }, []);
+  const morphActive = !!morphOrigin && !isSkinned && !reducedMotion;
+  const morphProgress = useRef(new Animated.Value(0)).current;
+  const morphClosingRef = useRef(false);
+  const morphActiveRef = useRef(false);
+  morphActiveRef.current = morphActive;
+  const [morphEntered, setMorphEntered] = useState(false);
+  // Every close path (Finish, the notification "End prayer") routes
+  // through here: with a morph live, the container first shrinks
+  // back into the card rect, THEN the parent's onClose fires — so
+  // the parent keeps `visible` true for the whole exit and the
+  // session's own cleanup only runs once the card is home.
+  const requestCloseRef = useRef<() => void>(() => {});
+  requestCloseRef.current = () => {
+    if (morphActiveRef.current && !morphClosingRef.current) {
+      morphClosingRef.current = true;
+      Animated.timing(morphProgress, {
+        toValue: 0,
+        duration: MORPH_DURATION_MS,
+        easing: Easing.bezier(...PEOPLE_ENTRANCE_EASING),
+        useNativeDriver: false,
+      }).start(() => {
+        morphClosingRef.current = false;
+        onCloseRef.current();
+      });
+    } else {
+      onCloseRef.current();
+    }
+  };
+
+  // v261: the morph's entrance — one timing from the card rect to
+  // full screen whenever the session opens with an origin.
+  useEffect(() => {
+    if (!visible) {
+      morphProgress.setValue(0);
+      setMorphEntered(false);
+      return;
+    }
+    if (!morphActiveRef.current) return;
+    morphProgress.setValue(0);
+    setMorphEntered(false);
+    const anim = Animated.timing(morphProgress, {
+      toValue: 1,
+      duration: MORPH_DURATION_MS,
+      easing: Easing.bezier(...PEOPLE_ENTRANCE_EASING),
+      useNativeDriver: false,
+    });
+    anim.start(({ finished }) => { if (finished) setMorphEntered(true); });
+    return () => anim.stop();
+  }, [visible, morphProgress]);
 
   // Timer position for bonus XP floater (drops from timer)
   const bonusPosition = timerPos ?? { x: Dimensions.get("window").width - 60, y: 120 };
@@ -346,7 +432,7 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
         startPrayerTimerNotification(firstPersonName);
         endListener = addPrayerTimerEndListener(() => {
           consumePendingPrayerEndRequest();
-          onCloseRef.current();
+          requestCloseRef.current();
         });
         prayListener = addPrayerTimerPrayListener(() => {
           handlePrayRef.current();
@@ -464,11 +550,16 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
 
   const handleFinish = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onClose();
+    requestCloseRef.current();
   };
 
-  return (
-    <Modal visible={visible} animationType="fade" onRequestClose={() => {}}>
+  // v261: the session body is ONE tree with two presentation roots —
+  // the fade Modal (every launch without an origin, every skin,
+  // reduced motion) and the container-transform overlay (footer
+  // launches under Classic). Nothing inside the body knows which
+  // root carries it.
+  const sessionBody = (
+    <>
       <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center", padding: 24 }}>
         {/* Subtle time-of-day backdrop wash (behind everything, non-interactive). */}
         <PrayerSessionSky bucket={skyBucket} />
@@ -689,6 +780,92 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
         ) : null}
       </View>
       <XpGainIndicator />
+    </>
+  );
+
+  if (morphActive && morphOrigin) {
+    // The container transform. The container starts AS the queue
+    // card (its window rect — converted into this overlay's
+    // safe-area-relative coordinates — its radius, its surface) and
+    // grows to the full window in ONE timing. Inside it, a
+    // window-sized inner stage stays screen-fixed while the
+    // container's clip reveals it, so the session content is already
+    // in its final place as it fades in over the last stretch; the
+    // replica of the card's header rides the container's top and
+    // cross-fades out, so the progress bar never jumps. Rendered as
+    // the component's root — the session mounts last in the shell,
+    // so this sits above the page and the tab bar.
+    const win = Dimensions.get("window");
+    const startLeft = morphOrigin.x - insets.left;
+    const startTop = morphOrigin.y - insets.top;
+    const morphPct = morphHeader && morphHeader.total > 0 ? Math.round((morphHeader.prayed / morphHeader.total) * 100) : 0;
+    return (
+      <Animated.View
+        style={{
+          position: "absolute",
+          left: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [startLeft, -insets.left] }),
+          top: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [startTop, -insets.top] }),
+          width: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [morphOrigin.width, win.width] }),
+          height: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [morphOrigin.height, win.height] }),
+          borderRadius: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [26, 0] }),
+          backgroundColor: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [morphSurface ?? pm.card, colors.background] }),
+          overflow: "hidden",
+          zIndex: 60,
+          elevation: 24,
+        }}
+      >
+        <Animated.View
+          style={{
+            position: "absolute",
+            width: win.width,
+            height: win.height,
+            left: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [-startLeft, insets.left] }),
+            top: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [-startTop, insets.top] }),
+            opacity: morphProgress.interpolate({ inputRange: [0.55, 1], outputRange: [0, 1] }),
+          }}
+          pointerEvents={morphEntered ? "auto" : "none"}
+        >
+          {sessionBody}
+        </Animated.View>
+        {morphHeader ? (
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              paddingHorizontal: 17,
+              paddingTop: 15,
+              opacity: morphProgress.interpolate({ inputRange: [0, 0.45], outputRange: [1, 0] }),
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <Text style={{ fontSize: 14.5, fontWeight: "800", color: pm.ink }}>Today's prayer list</Text>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: pm.inkSoft }}>{morphHeader.prayed} of {morphHeader.total} prayed · {Math.max(0, morphHeader.total - morphHeader.prayed)} to go</Text>
+            </View>
+            <View style={{ height: 8, borderRadius: 4, backgroundColor: pm.wash, marginTop: 11, overflow: "hidden" }}>
+              <View style={{ width: `${morphPct}%`, height: "100%", overflow: "hidden" }}>
+                <Svg width="100%" height="100%" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+                  <Defs>
+                    <LinearGradient id="v261MorphGrad" x1="0" y1="0" x2="1" y2="0">
+                      <Stop offset="0" stopColor={pm.seed} />
+                      <Stop offset="1" stopColor={pm.tealDeep} />
+                    </LinearGradient>
+                  </Defs>
+                  <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v261MorphGrad)" />
+                </Svg>
+              </View>
+            </View>
+          </Animated.View>
+        ) : null}
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Modal visible={visible} animationType="fade" onRequestClose={() => {}}>
+      {sessionBody}
     </Modal>
   );
 }

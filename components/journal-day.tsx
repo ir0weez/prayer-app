@@ -22,6 +22,7 @@ import {
   type PlaceIconHint,
   type PlaceNode,
 } from "@/lib/journal-moments";
+import { useJournalMaterial } from "@/hooks/use-journal-material";
 import type { Person } from "@/lib/prayercircle-data";
 import type { PrayerJournalEntry, PrayerJournalReply } from "@/lib/prayer-journal";
 import { getActiveFast, getCurrentFastDay, type PersonalFast } from "@/lib/prayercircle-fasting";
@@ -188,6 +189,7 @@ export function JournalDay({
 }: JournalDayProps) {
   const colors = useColors();
   const { tokens: skinTokens } = useSkin();
+  const jm = useJournalMaterial();
   const todayIso = isoDateOf(new Date());
 
   const counts = useMemo(() => dayCounts(entries, events, date), [entries, events, date]);
@@ -272,8 +274,8 @@ export function JournalDay({
             }
             if (item.kind === "event") {
               return (
-                <View key={`event-${item.event.id}`} style={[styles.eventTile, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : colors.primary + "14" }]}>
-                  <View style={[styles.eventIcon, { backgroundColor: skinTokens.isTerminal ? "transparent" : colors.surface }]}>
+                <View key={`event-${item.event.id}`} style={[styles.eventTile, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : jm.tonal }]}>
+                  <View style={[styles.eventIcon, { backgroundColor: skinTokens.isTerminal ? "transparent" : jm.card }]}>
                     <MaterialIcons name="event" size={19} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -289,9 +291,9 @@ export function JournalDay({
               );
             }
             return (
-              <View key="photos-row" style={[styles.drow, { borderBottomColor: colors.border }]}>
-                <View style={[styles.dIcon, { backgroundColor: "#FBE3EC" }]}>
-                  <MaterialIcons name="photo-camera" size={19} color="#C2507E" />
+              <View key="photos-row" style={[styles.drow, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : jm.card }]}>
+                <View style={[styles.dIcon, { backgroundColor: skinTokens.isTerminal ? "transparent" : jm.tonal }]}>
+                  <MaterialIcons name="photo-camera" size={19} color={skinTokens.isTerminal ? TERM_PHOS : jm.deep} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.dTitle, { color: ink }]}>{item.photos.length} {item.photos.length === 1 ? "photo" : "photos"}</Text>
@@ -394,7 +396,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
     marginVertical: 5,
     padding: 12,
-    borderRadius: 16,
+    borderRadius: 20,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -404,13 +406,16 @@ const styles = StyleSheet.create({
   eventSub: { fontSize: 12.5, marginTop: 1 },
   autoTag: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   autoTagText: { fontSize: 10, fontWeight: "800", letterSpacing: 1 },
+  // v252: the gathered-photos row is a card like the day's other
+  // tiles now (the entries became cards in the same pass).
   drow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginHorizontal: 14,
+    marginTop: 10,
+    borderRadius: 20,
+    padding: 12,
   },
   dIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   dTitle: { fontSize: 15.5, fontWeight: "800" },

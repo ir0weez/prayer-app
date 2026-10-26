@@ -54,6 +54,7 @@ import {
   type ActiveToken,
   type MomentsFeedItem,
 } from "@/lib/journal-moments";
+import { useJournalMaterial } from "@/hooks/use-journal-material";
 import type { Person } from "@/lib/prayercircle-data";
 import {
   addPrayerJournalReply,
@@ -167,6 +168,8 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
   const { isSkinned, tokens: skinTokens, motion: skinMotion } = useSkin();
+  // v252: the Journal's Material family (seed-derived, lib/journal-material).
+  const jm = useJournalMaterial();
   const { width: windowWidth } = useWindowDimensions();
   // The 8-bit pixel face for small caps labels (was a local helper in
   // the old Journal too; the skin pins look for it here).
@@ -676,7 +679,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
 
   if (dayViewDate) {
     return (
-      <View style={[styles.container, { backgroundColor: isSkinned ? skinTokens.background ?? undefined : colors.background }]}>
+      <View style={[styles.container, { backgroundColor: isSkinned ? skinTokens.background ?? undefined : jm.ground }]}>
         <JournalDay
           date={dayViewDate}
           entries={entries}
@@ -721,9 +724,14 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
   // morph's own shadow (styles.morph) lifts it off the feed.
   // (8-bit folded into the surface branch: momentsSurface IS
   // colors.surface, its v204 value, unchanged.)
+  // v252: the ladder's second rung is the Material family's
+  // composer ground — which resolves to that same surface token
+  // (deriveJournalMaterial: composerGround = the palette surface),
+  // so the box's color is unchanged; what changed is that the
+  // family now owns it, and the SOLID rule above is untouched.
   const composerBackground = skinTokens.isTerminal
       ? TERM_PANEL
-      : momentsSurface;
+      : jm.composerGround;
   // The resting FAB wears the shell FAB's own colors per skin.
   const fabBackground = skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary;
   const fabInk = skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF";
@@ -733,7 +741,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
       style={[
         styles.container,
         {
-          backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : skinTokens.background ?? colors.background,
+          backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : jm.ground,
           // v204: the screen no longer pads for the keyboard — the
           // composer is an overlay now, and its own morph lifts by
           // the keyboard height (morphKeyboardLift), so the box
@@ -813,19 +821,19 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
                 onPress={() => setBookmarksOnly((current) => !current)}
                 style={[
                   styles.filterChip,
-                  { backgroundColor: momentsSurface, borderColor: momentsBorder },
+                  { backgroundColor: jm.card, borderColor: jm.line },
                   bookmarksOnly && { backgroundColor: colors.primary, borderColor: colors.primary },
                   bookmarksOnly
                     ? { ...bitButtonStyle(skinTokens, "primary"), ...termButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary") }
                     : {},
                 ]}
               >
-                <MaterialIcons name="bookmark" size={14} color={bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : faint} />
-                <Text style={[styles.filterChipText, { color: bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : faint }]}>Bookmarks</Text>
+                <MaterialIcons name="bookmark" size={14} color={bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : jm.inkSoft} />
+                <Text style={[styles.filterChipText, { color: bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : jm.inkSoft }]}>Bookmarks</Text>
               </Pressable>
-              <Pressable onPress={() => openEditor()} style={[styles.filterChip, { backgroundColor: momentsSurface, borderColor: momentsBorder }]}>
-                <MaterialIcons name="edit-note" size={15} color={faint} />
-                <Text style={[styles.filterChipText, { color: faint }]}>Long entry</Text>
+              <Pressable onPress={() => openEditor()} style={[styles.filterChip, { backgroundColor: jm.card, borderColor: jm.line }]}>
+                <MaterialIcons name="edit-note" size={15} color={jm.inkSoft} />
+                <Text style={[styles.filterChipText, { color: jm.inkSoft }]}>Long entry</Text>
               </Pressable>
             </View>
 
@@ -884,7 +892,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
 </PaperSettle>
         }
         ListEmptyComponent={
-          <View style={[styles.emptyCard, { backgroundColor: "transparent", borderColor: momentsBorder, borderRadius: skinTokens.cardRadius ?? 12 }]}>
+          <View style={[styles.emptyCard, { backgroundColor: jm.tonal, borderColor: jm.line, borderRadius: skinTokens.cardRadius ?? 12 }]}>
             <MaterialIcons name="auto-stories" size={30} color={colors.primary} />
             <Text style={[styles.emptyTitle, { color: ink }]}>{bookmarksOnly ? "No bookmarks yet" : "No moments yet"}</Text>
             <Text style={[styles.emptyText, { color: faint }]}>
@@ -915,7 +923,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
                   {formatPrayerJournalDate(item.date)}
                 </Text>
                 <Pressable onPress={() => setDayViewDate(item.date)} hitSlop={8}>
-                  <Text style={[styles.separatorLink, { color: colors.primary }]}>Open day</Text>
+                  <Text style={[styles.separatorLink, { color: jm.deep }]}>Open day</Text>
                 </Pressable>
               </BitSettle>
 </PaperSettle>
@@ -927,7 +935,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
           return (
             <PaperSettle index={index}>
 <BitSettle index={index}>
-              <JournalPost entry={item.entry} {...sheetCallbacks} />
+              <JournalPost entry={item.entry} entranceIndex={index} {...sheetCallbacks} />
             </BitSettle>
 </PaperSettle>
           );
@@ -1152,7 +1160,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
           <View style={styles.modalRoot}>
             <Pressable style={styles.backdrop} onPress={() => setActionEntry(null)} />
             {item ? (
-              <View style={[styles.actionSheet, { backgroundColor: colors.surface }]}>
+              <View style={[styles.actionSheet, { backgroundColor: jm.card }]}>
                 <Text style={[styles.actionTitle, { color: colors.foreground }]} numberOfLines={1}>
                   {item.title || formatPrayerJournalDate(item.date)}
                 </Text>
@@ -1260,7 +1268,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
         <Modal transparent visible={replyTarget !== null || editingReply !== null} animationType="slide" onRequestClose={() => { setReplyTarget(null); setEditingReply(null); }}>
           <View style={[styles.modalRoot, { paddingBottom: keyboardHeight }]}>
             <Pressable style={styles.backdrop} onPress={() => { setReplyTarget(null); setEditingReply(null); }} />
-            <View style={[styles.replySheet, { backgroundColor: colors.surface, paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View style={[styles.replySheet, { backgroundColor: jm.card, paddingBottom: Math.max(insets.bottom, 16) }]}>
               <Text style={[styles.replyTitle, { color: colors.foreground }]}>{editingReply ? "Edit reply" : "Reply to this moment"}</Text>
               <TextInput
                 value={replyBody}
@@ -1285,7 +1293,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
 
         {/* Long-form editor */}
         <Modal visible={editorOpen} animationType="slide" onRequestClose={() => setEditorOpen(false)}>
-          <View style={[styles.editorRoot, { backgroundColor: colors.background, paddingTop: insets.top + 12 }]}>
+          <View style={[styles.editorRoot, { backgroundColor: jm.ground, paddingTop: insets.top + 12 }]}>
             <View style={styles.editorHead}>
               <Text style={[styles.editorTitle, { color: colors.foreground }]}>{editingEntry ? "Edit entry" : "New entry"}</Text>
               <Pressable onPress={() => setEditorOpen(false)} hitSlop={10}>

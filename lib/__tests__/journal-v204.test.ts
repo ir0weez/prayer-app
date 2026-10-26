@@ -269,15 +269,25 @@ describe("v204 — the places the # strip may suggest", () => {
 });
 
 describe("v204 — flat composition + the morph (source pins)", () => {
-  it("Moment rows paint no background of their own — one surface, hairline only", () => {
+  it("Moment rows are Material cards now (v252 re-base — the flat dress is retired)", () => {
+    // v252 (Jonathan, Oct 25, 17:00): "Make it look like the
+    // mockup but usable like it is now" — the approved Material
+    // mockup's Journal frame is CARDS, so this pin's property
+    // (rows paint no background, hairline only, no shadow)
+    // is superseded by his ruling, the same way v213 superseded
+    // the v204 clear-composer pin below. What the pin protects
+    // NOW: the card paints the seed family's surface and casts
+    // the family's soft seed shadow — never a mockup literal and
+    // never the old surface-token slab (v195's failure). The
+    // dress itself is pinned in journal-v252-material.test.ts.
     const post = read("components/journal-post.tsx");
     expect(post).not.toContain("postSurface");
     expect(post).not.toContain("backgroundColor: postSurface");
-    expect(post).toContain("borderBottomColor: hairline");
-    // The post stylesheet carries no shadow/elevation anywhere.
+    expect(post).toContain("backgroundColor: jm.card");
+    expect(post).toContain("shadowColor: jm.shadow");
     const styles = post.slice(post.indexOf("const styles"));
-    expect(styles).not.toContain("shadow");
-    expect(styles).not.toContain("elevation");
+    expect(styles).toContain("borderRadius: 26");
+    expect(styles).not.toContain("borderBottomWidth");
   });
 
   it("body links render from structure-aware segments (mentions AND #tags)", () => {
@@ -365,9 +375,16 @@ describe("v213 — the composer is solid, no frost (source pins)", () => {
     // light Journal white in light mode and the dark surface
     // in dark mode. (v221: the ladder's glass rung, "#241D33",
     // left with the Stained Glass skin itself.)
+    // v252 re-base: the ladder's second rung is now the Material
+    // family's composer ground (jm.composerGround). The family
+    // resolves it to that very same surface token
+    // (deriveJournalMaterial: composerGround = the palette
+    // surface), so the property this pin protects — a SOLID,
+    // fully opaque box in every skin — is unchanged; only the
+    // token's owner moved.
     expect(ground).not.toContain('"#241D33"');
     expect(ground).toContain("TERM_PANEL");
-    expect(ground).toContain("momentsSurface");
+    expect(ground).toContain("jm.composerGround");
     expect(tab).toContain("const momentsSurface = colors.surface;");
   });
 

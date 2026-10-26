@@ -4,21 +4,34 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AvatarImage } from "@/components/avatar-system";
+import { JournalEntrance } from "@/components/journal-entrance";
 import { MarkdownText } from "@/components/markdown-text";
 import { MoodFace, MoodFaceChip } from "@/components/mood-face";
 import { moodById, type JournalMood } from "@/components/mood-picker";
-import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { entryTags, formatClock, isMoodOnlyEntry, peopleMentionedInBody } from "@/lib/journal-moments";
+import { useJournalMaterial } from "@/hooks/use-journal-material";
 import type { Person } from "@/lib/prayercircle-data";
 import { formatPrayerJournalDate, type PrayerJournalEntry, type PrayerJournalReply } from "@/lib/prayer-journal";
-import { BIT_CREAM, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, TERM_MID, TERM_PHOS, TERM_SOFT, skinText } from "@/lib/skin-themes";
+import { skinText } from "@/lib/skin-themes";
 
 // v194 (Journal, Zeitgeist): the mockup's post — a FLAT row on a
 // hairline, not a card. Avatar + name + time, the words, a photo when
 // there is one, then the quiet chips (drawn mood face, #tags, people).
 // Bookmark / Reply / Edit / Delete live under the ··· (the mockup's
 // own PrayerCircle note), and replies stay threaded underneath.
+//
+// v252 (Journal, Material): his Oct 25 ruling — the Journal frame of
+// the approved app-material-makeover mockup, "make it look like the
+// mockup but usable like it is now." The flat row becomes a Material
+// card (tonal surface from the Settings seed family, soft seed
+// shadow, the mockup's big radius), reversing v204's flat dress the
+// way v213 reversed its composer pin; everything the row DID —
+// structure-aware mention/tag links, threaded replies, the ···
+// actions, long-press, tap-to-expand — is untouched. The card's
+// colors come from lib/journal-material (the v250 derivation family);
+// the skin ladders that dressed the flat row retire with it, the way
+// the Bible's did in v250. Skin TYPE (skinText spreads) stays.
 
 export type JournalAuthor = { name: string; photoUri?: string; avatarAsset?: string };
 
@@ -32,6 +45,8 @@ type JournalPostProps = {
   onReplyLongPress: (entry: PrayerJournalEntry, reply: PrayerJournalReply) => void;
   hidePhotos?: boolean;
   avatarMode?: "author" | "mood";
+  /** Feed position, when the post rides the v252 entrance layer (feed only). */
+  entranceIndex?: number;
 };
 
 function capitalize(tag: string): string {
@@ -92,9 +107,10 @@ export function JournalPost({
   onReplyLongPress,
   hidePhotos = false,
   avatarMode = "author",
+  entranceIndex,
 }: JournalPostProps) {
-  const colors = useColors();
   const { tokens: skinTokens } = useSkin();
+  const jm = useJournalMaterial();
   const [expanded, setExpanded] = useState(false);
 
   // v195 (Journal, Actually Zeitgeist): an entry's legacy color is
@@ -113,15 +129,17 @@ export function JournalPost({
   // background at all (see the Pressable below), so feed and screen
   // are literally one surface; only ink/faint/hairline tokens ride
   // on the row now.
-  const ink = skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground;
-  const faint = skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted;
-  const hairline = skinTokens.isTerminal ? TERM_MID : colors.border;
-  // Chips are a bg/ink PAIR (the mockup's pale chip, dark ink).
-  // v194 colored chip text with the surface ink — white on the pale
-  // chip under dark Classic — so a tagged person's name rendered
-  // invisibly and the chip read as a stray empty white pill.
-  const chipBg = skinTokens.isTerminal ? "rgba(61,255,110,0.12)" : skinTokens.isEightBit ? BIT_CREAM : "#F4F2FA";
-  const chipInk = skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? "#150A2E" : "#1D1830";
+  // v252: the card is an opaque Material surface in every skin, so
+  // its inks come from the seed family, each walked to the 4.5:1
+  // floor on the ground it actually sits on (lib/journal-material).
+  // v194's chip lesson holds — chips stay a bg/ink PAIR, both halves
+  // derived together (tonal + tonalInk) so a name can never render
+  // invisibly on its own chip again.
+  const ink = jm.ink;
+  const faint = jm.inkSoft;
+  const hairline = jm.line;
+  const chipBg = jm.tonal;
+  const chipInk = jm.tonalInk;
 
   const moodOnly = isMoodOnlyEntry(entry);
   const tags = useMemo(() => entryTags(entry), [entry]);
@@ -143,13 +161,14 @@ export function JournalPost({
   }, [people, entry.taggedPeople]);
   const segments = useMemo(() => bodySegments(entry.body, segmentCandidates), [entry.body, segmentCandidates]);
   const hasLinks = segments.some((segment) => "personId" in segment || "tag" in segment);
-  const mentionColor = skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_PHOS : "#5B4BD6";
-  const tagColor = skinTokens.isEightBit ? BIT_ON_DUSK : skinTokens.isTerminal ? TERM_PHOS : "#7C5CFF";
+  const mentionColor = jm.deep;
+  const tagColor = jm.tealDeep;
   const placeForTag = (tag: string) => (entry.places ?? []).find((place) => place.tag.toLowerCase() === tag);
   const bodyText = expanded || entry.body.length <= 240 ? entry.body : `${entry.body.slice(0, 240)}…`;
   const photos = entry.photos ?? [];
 
   return (
+    <JournalEntrance index={entranceIndex ?? 0} style={styles.cardWrap}>
     <Pressable
       delayLongPress={500}
       onLongPress={() => onShowActions(entry)}
@@ -157,16 +176,15 @@ export function JournalPost({
       style={({ pressed }) => [
         styles.post,
         {
-          // v204: NO background of the row's own — the post sits
-          // directly on the screen's one surface, divided from the
-          // next row by the hairline alone. v195/v196 painted the
-          // row with the surface token while the screen behind it
-          // wore the background token, so on his phone every entry
-          // read as a separate pale slab (card) floating on the
-          // lavender field. The mockup's rows and its screen are
-          // one color; now ours are too — both are the surface
-          // beneath, showing through.
-          borderBottomColor: hairline,
+          // v252: the post IS a card now — the approved Material
+          // mockup's shape (his Oct 25 ruling reverses v204's flat
+          // dress; the v204 comment above is its history). The card
+          // paints the seed family's surface and casts the family's
+          // soft seed shadow; the ground beneath it is the family's
+          // seed-washed screen ground, so card and screen are two
+          // tones of one palette, never the v195 slab-on-lavender.
+          backgroundColor: jm.card,
+          shadowColor: jm.shadow,
           ...(skinTokens.isPaper ? { padding: 16 + skinTokens.type.padBoost } : {}),
         },
         pressed && styles.pressed,
@@ -312,19 +330,30 @@ export function JournalPost({
         </View>
       ) : null}
     </Pressable>
+    </JournalEntrance>
   );
 }
 
 const styles = StyleSheet.create({
+  // v252: the entrance wrapper carries the card's outer spacing so
+  // the card itself is pure surface wherever a post renders (feed,
+  // person/tag sheets, the Day view).
+  cardWrap: { marginHorizontal: 14, marginTop: 10 },
   post: {
-    paddingHorizontal: 18,
-    paddingTop: 13,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 13,
+    borderRadius: 26,
+    overflow: "hidden",
+    shadowOpacity: 1,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
   },
   pressed: { opacity: 0.7 },
   // v195: the legacy entry color as a thin accent rule at the row's
   // left edge — the only place a color may appear on a post now.
+  // v252: the card clips it to its rounded corner (overflow above).
   colorRule: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
   postHead: { flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 6 },
   name: { fontSize: 15, fontWeight: "800" },

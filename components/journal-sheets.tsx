@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Rect } from "react-native-svg";
 
 import { AvatarImage } from "@/components/avatar-system";
+import { JournalEntrance } from "@/components/journal-entrance";
 import { JournalPost, type JournalAuthor } from "@/components/journal-post";
 import { PaperSettle } from "@/components/paper-motion";
 import { BitSettle } from "@/components/bit-motion";
@@ -27,6 +28,7 @@ import {
   sharedDatesFor,
   tagIndex,
 } from "@/lib/journal-moments";
+import { useJournalMaterial } from "@/hooks/use-journal-material";
 import type { Person } from "@/lib/prayercircle-data";
 import { formatPrayerJournalDate, type PrayerJournalEntry, type PrayerJournalReply } from "@/lib/prayer-journal";
 import { TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, skinText } from "@/lib/skin-themes";
@@ -129,6 +131,7 @@ export function PersonSheet({
 }: { person: Person | null; entries: PrayerJournalEntry[]; onClose: () => void } & SheetCallbacks) {
   const colors = useColors();
   const { tokens: skinTokens } = useSkin();
+  const jm = useJournalMaterial();
   const [tab, setTab] = useState<"entries" | "notes">("entries");
   const todayIso = isoDateOf(new Date());
 
@@ -164,12 +167,12 @@ export function PersonSheet({
 
         <ContribCalendar dates={sharedDates} stamp={(person.initials[0] ?? person.name[0] ?? "•").toUpperCase()} endIso={todayIso} />
 
-        <View style={[styles.seg, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : "#F4F2FA" }]}>
+        <View style={[styles.seg, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : jm.tonal }]}>
           {(["entries", "notes"] as const).map((value) => (
             <Pressable
               key={value}
               onPress={() => setTab(value)}
-              style={[styles.segBtn, tab === value && { backgroundColor: colors.surface, shadowColor: "#1E1246", shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 }]}
+              style={[styles.segBtn, tab === value && { backgroundColor: jm.card, shadowColor: "#1E1246", shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 }]}
             >
               <Text style={[styles.segText, { color: tab === value ? ink : faint }]}>{value === "entries" ? "Entries" : "Notes"}</Text>
             </Pressable>
@@ -187,25 +190,36 @@ export function PersonSheet({
         ) : (
           <View>
             {person.prayerNote ? (
-              <View style={[styles.noteCard, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : "#FBF9FF", borderColor: skinTokens.isTerminal ? TERM_MID : "#EDE7FB" }]}>
-                <Text style={[styles.noteKind, { color: skinTokens.isTerminal ? TERM_PHOS : colors.primary }]}>Prayer note</Text>
-                <Text style={[styles.noteBody, { color: ink }]}>{person.prayerNote}</Text>
-              </View>
+              <JournalEntrance index={0}>
+                <View style={[styles.noteCard, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : jm.card, borderColor: skinTokens.isTerminal ? TERM_MID : jm.line }]}>
+                  <Text style={[styles.noteKind, { color: skinTokens.isTerminal ? TERM_PHOS : jm.deep }]}>Prayer note</Text>
+                  <Text style={[styles.noteBody, { color: ink }]}>{person.prayerNote}</Text>
+                </View>
+              </JournalEntrance>
             ) : null}
             {person.praiseNote ? (
-              <View style={[styles.noteCard, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : "#FBF9FF", borderColor: skinTokens.isTerminal ? TERM_MID : "#EDE7FB" }]}>
-                <Text style={[styles.noteKind, { color: skinTokens.isTerminal ? TERM_PHOS : colors.primary }]}>Praise</Text>
-                <Text style={[styles.noteBody, { color: ink }]}>{person.praiseNote}</Text>
-              </View>
+              // v252: the Journal's praise surface wears the
+              // mockup's gold treatment — gold-washed card, gold
+              // edge, gold-deep kind label, and the emphasis
+              // entrance. The gold is the app's praise constant,
+              // never the seed (lib/journal-material).
+              <JournalEntrance index={1} emphasis>
+                <View style={[styles.noteCard, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : jm.goldTint, borderColor: skinTokens.isTerminal ? TERM_MID : jm.gold }]}>
+                  <Text style={[styles.noteKind, { color: skinTokens.isTerminal ? TERM_PHOS : jm.goldDeep }]}>Praise</Text>
+                  <Text style={[styles.noteBody, { color: ink }]}>{person.praiseNote}</Text>
+                </View>
+              </JournalEntrance>
             ) : null}
-            {person.prayerItems.map((item) => (
-              <View key={item.id} style={[styles.noteCard, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : "#FBF9FF", borderColor: skinTokens.isTerminal ? TERM_MID : "#EDE7FB" }]}>
-                <Text style={[styles.noteKind, { color: skinTokens.isTerminal ? TERM_PHOS : colors.primary }]}>
-                  {item.isEmergency ? "Emergency prayer" : item.isUrgent ? "Urgent prayer" : "Prayer item"}
-                </Text>
-                <Text style={[styles.noteBody, { color: ink, textDecorationLine: item.isDone ? "line-through" : "none" }]}>{item.title}</Text>
-                <Text style={[styles.noteFoot, { color: faint }]}>{item.isDone ? "Answered" : "Still praying"}</Text>
-              </View>
+            {person.prayerItems.map((item, itemIndex) => (
+              <JournalEntrance key={item.id} index={itemIndex + 2}>
+                <View style={[styles.noteCard, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : jm.card, borderColor: skinTokens.isTerminal ? TERM_MID : jm.line }]}>
+                  <Text style={[styles.noteKind, { color: skinTokens.isTerminal ? TERM_PHOS : jm.deep }]}>
+                    {item.isEmergency ? "Emergency prayer" : item.isUrgent ? "Urgent prayer" : "Prayer item"}
+                  </Text>
+                  <Text style={[styles.noteBody, { color: ink, textDecorationLine: item.isDone ? "line-through" : "none" }]}>{item.title}</Text>
+                  <Text style={[styles.noteFoot, { color: item.isDone && !skinTokens.isTerminal ? jm.goldDeep : faint }]}>{item.isDone ? "Answered" : "Still praying"}</Text>
+                </View>
+              </JournalEntrance>
             ))}
             {!person.prayerNote && !person.praiseNote && person.prayerItems.length === 0 ? (
               <Text style={[styles.quietNote, { color: faint }]}>No prayer notes for {person.name.split(/\s+/)[0]} yet — they live on their People page.</Text>
@@ -309,6 +323,7 @@ export function CalendarSheet({
 }) {
   const colors = useColors();
   const { tokens: skinTokens } = useSkin();
+  const jm = useJournalMaterial();
   const now = new Date();
   const [monthCursor, setMonthCursor] = useState({ year: now.getFullYear(), month: now.getMonth() });
   const todayIso = isoDateOf(now);
@@ -371,7 +386,7 @@ export function CalendarSheet({
                 style={({ pressed }) => [
                   styles.pday,
                   {
-                    backgroundColor: skinTokens.isTerminal ? TERM_PANEL : "#FAF9FC",
+                    backgroundColor: skinTokens.isTerminal ? TERM_PANEL : jm.card,
                     borderColor: iso === todayIso ? colors.primary : colors.border,
                   },
                   pressed && styles.pressed,
@@ -413,7 +428,7 @@ export function CalendarSheet({
                 key={mood.id}
                 accessibilityLabel={`Log mood: ${mood.label}`}
                 onPress={() => onLogMood(mood.id)}
-                style={({ pressed }) => [styles.faceBtn, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : "#F4F2FA" }, pressed && styles.pressed]}
+                style={({ pressed }) => [styles.faceBtn, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : jm.tonal }, pressed && styles.pressed]}
               >
                 <MoodFace moodId={mood.id} size={26} />
               </Pressable>

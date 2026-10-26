@@ -2472,8 +2472,9 @@ export default function HomeScreen() {
       const stackMembers = familyMembers.slice(0, 3);
       const overflow = familyMembers.length - stackMembers.length;
       // v255: the head row is the mockup's — stacked faces, name,
-      // the FULL-TEXT sub-line (no numberOfLines, no ellipsis), the
-      // emergency pill when one is live, and the chevron. The 0d/1d
+      // the FULL-TEXT sub-line (no numberOfLines, no ellipsis), and
+      // the chevron (v272: the emergency countdown moved out of this
+      // row to a little draining pill under the chevron). The 0d/1d
       // day pill v254 carried here is gone; the reach reads in the
       // sub-line's words, as drawn.
       return (
@@ -2493,17 +2494,21 @@ export default function HomeScreen() {
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text numberOfLines={1} style={{ fontSize: 15.5, fontWeight: "800", color: pmf.ink }}>{familyName}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: 15.5, fontWeight: "800", color: pmf.ink, flexShrink: 1 }}>{familyName}</Text>
                 {isFamilyComplete && <VerifiedBadge />}
               </View>
               <Text style={{ fontSize: 12, fontWeight: "600", color: pmf.inkSoft, marginTop: 1 }}>{meta}</Text>
             </View>
-            {familyEmergency && emergencyCountdown ? (
-              <View style={{ backgroundColor: "#EF4444", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, shadowColor: "#EF4444", shadowOpacity: 0.35, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 3 }}>
-                <Text style={{ fontSize: 11.5, fontWeight: "800", color: "#FFFFFF" }}>Emergency · ≈{Math.max(1, Math.round(emergencyCountdown / 3600000))}h</Text>
-              </View>
-            ) : null}
-            <FamilyChevron expanded={!!isExpanded} color={pmf.deep} wash={pmf.wash} />
+            {/* v272: the countdown leaves the head row — the little
+                draining pill rides in the trailing zone, stacked
+                under the chevron, so the name and meta keep the
+                column's full width. */}
+            <View style={{ alignItems: "center", gap: 5 }}>
+              <FamilyChevron expanded={!!isExpanded} color={pmf.deep} wash={pmf.wash} />
+              {familyEmergency && emergencyCountdown ? (
+                <EmergencyPrayerPill millisRemaining={emergencyCountdown} />
+              ) : null}
+            </View>
           </Pressable>
         </View>
       );
@@ -2589,7 +2594,7 @@ export default function HomeScreen() {
           {renderAvatar(person, isSkinned ? 48 : 52)}
           <View style={styles.personInfo}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text numberOfLines={1} style={[styles.personName, styles.singlePersonName, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null, !isSkinned ? { color: pmf.ink } : null]}>{person.name}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.personName, styles.singlePersonName, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null, !isSkinned ? { color: pmf.ink } : null]}>{person.name}</Text>
               {hasPersonCompletedPrayerToday(person, today) && <VerifiedBadge />}
             </View>
             <Text style={[styles.personMeta, styles.singlePersonMeta, !isSkinned ? { color: pmf.inkSoft } : null]}>
@@ -2600,7 +2605,7 @@ export default function HomeScreen() {
             {!isDragged && (
               <>
                 {emergencyCountdown ? (
-                  <EmergencyPrayerPill timeRemaining={reachText} progress={emergencyProgress} />
+                  <EmergencyPrayerPill millisRemaining={emergencyCountdown} />
                 ) : (
                   <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty, !isSkinned && { backgroundColor: pmf.wash, borderColor: pmf.line }]}>
                     <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
@@ -3445,7 +3450,7 @@ export default function HomeScreen() {
             {renderAvatar(member, kid ? 40 : 52)}
             <View style={{ flex: 1, minWidth: 0 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text numberOfLines={1} style={{ fontSize: kid ? 13.5 : 14.5, fontWeight: "800", color: pmf.ink }}>{member.name}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: kid ? 13.5 : 14.5, fontWeight: "800", color: pmf.ink, flexShrink: 1 }}>{member.name}</Text>
                 {dueToReach ? (
                   <View style={{ backgroundColor: pmf.amberWash, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2.5, marginLeft: 7 }}>
                     <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.9, color: pmf.amberDeep }}>DUE TO REACH</Text>
@@ -3455,7 +3460,7 @@ export default function HomeScreen() {
               <Text style={{ fontSize: 12, fontWeight: "600", color: pmf.inkSoft, marginTop: 1 }}>{member.familyType ?? "Other"} · {formatLastReachedSummary(member)}</Text>
             </View>
             {emergencyCountdown ? (
-              <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} progress={emergency ? getEmergencyPrayerProgress(emergency.item.emergencyExpiresAt) : 0} />
+              <EmergencyPrayerPill millisRemaining={emergencyCountdown} />
             ) : !kid ? (
               <View style={{ width: 46, height: 22, borderRadius: 999, backgroundColor: pmf.wash, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
                 <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.round(getReachProgressRatio(daysSince) * 100)}%`, backgroundColor: daysSince === 999 ? pmf.wash2 : getLastReachedAccentColor(member), borderRadius: 999 }} />
@@ -3510,8 +3515,8 @@ export default function HomeScreen() {
         const complete = hasPersonCompletedPrayerToday(member, today);
         return <ReAnimated.View key={member.id} entering={isSkinned ? FadeInUp.duration(skinMotion.settle.duration).delay(memberIdx * 65).easing(skinMotion.settle.easing) : FadeInUp.duration(280).delay(memberIdx * 65)}>
           <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: memberIdx === familyMembers.length - 1 ? 0 : 1, borderBottomColor: colors.border, backgroundColor: pressed ? colors.primary + "15" : "transparent" }]}>
-          {renderAvatar(member, 48)}<View style={{ flex: 1, marginLeft: 12 }}><Text numberOfLines={1} style={[styles.personName, skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null]}>{member.name}</Text><Text numberOfLines={1} style={styles.personMeta}>{formatLastReachedSummary(member)}</Text></View>
-          {emergencyCountdown ? <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} progress={emergency ? getEmergencyPrayerProgress(emergency.item.emergencyExpiresAt) : 0} /> : <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}><View style={[styles.reachPillFill, { backgroundColor: daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(member), width: `${Math.round(getReachProgressRatio(daysSince) * 100)}%` }]} /><Text style={[styles.reachPillText, (daysSince === 999 || getReachProgressRatio(daysSince) < 0.42) && styles.reachPillTextMuted]}>{daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince)}</Text></View>}
+          {renderAvatar(member, 48)}<View style={{ flex: 1, marginLeft: 12 }}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.personName, skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null]}>{member.name}</Text><Text numberOfLines={1} style={styles.personMeta}>{formatLastReachedSummary(member)}</Text></View>
+          {emergencyCountdown ? <EmergencyPrayerPill millisRemaining={emergencyCountdown} /> : <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}><View style={[styles.reachPillFill, { backgroundColor: daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(member), width: `${Math.round(getReachProgressRatio(daysSince) * 100)}%` }]} /><Text style={[styles.reachPillText, (daysSince === 999 || getReachProgressRatio(daysSince) < 0.42) && styles.reachPillTextMuted]}>{daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince)}</Text></View>}
           <Pressable onPress={(event) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; const count = familyMembers.filter((familyMember) => hasPersonCompletedPrayerToday(familyMember, today)).length; if (!complete && count === familyMembers.length - 1) playVerifiedPop(); if (complete) void revokeExperience("scheduled-prayer", `${today}:${member.id}`, position); else void awardExperience("scheduled-prayer", `${today}:${member.id}`, position); setPeople((previousPeople) => complete ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id)); }} hitSlop={8} style={({ pressed }) => [{ width: 24, height: 24, marginLeft: 10, borderRadius: 12, borderWidth: 1.5, borderColor: accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}>{complete && <MaterialIcons name={iconName("check")} size={16} color={accent} />}</Pressable>
         </Pressable>
         </ReAnimated.View>;

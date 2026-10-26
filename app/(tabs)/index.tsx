@@ -28,6 +28,7 @@ import { queueFaceStatus, queueFirstName, sortQueueFaces } from "@/lib/people-qu
 import { PEOPLE_GOLD_PILL_INK } from "@/lib/people-material";
 import type { PeopleFrontDoorFamily } from "@/lib/people-material";
 import { CarouselDots, FrontDoorCarousel } from "@/components/front-door-carousel";
+import { PeopleStreakCard } from "@/components/people-streak-card";
 import { getReachOutEntries, formatHoursLeft } from "@/lib/bell-header";
 import { SHINY_ACHIEVEMENTS, SHINY_AVATARS, getLevelUnlockedCharacterShinyIds } from "@/lib/avatar-system";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
@@ -2584,6 +2585,27 @@ export default function HomeScreen() {
     );
   };
 
+  // v257 "The Streak Card" (streak-on-people-v3, his placement call
+  // 21:33): the fasting streak's home on People, DIRECTLY under the
+  // queue card. Display + door only — it ALWAYS renders, even when
+  // the queue card above it is hidden on an empty day, and it never
+  // carries day-marking or hearts (both live on Fasting/profile).
+  const renderStreakCard = () => (
+    <PeopleEntrance index={2}>
+      <PeopleStreakCard
+        family={pmf}
+        fastingStreak={profile.fastingStreak}
+        activeFast={activeFast}
+        today={today}
+        profileName={profile.name}
+        profileAvatarAsset={profile.avatarAsset}
+        profilePhotoUri={profile.photoUri}
+        profileLevel={xpProgress.level}
+        onPress={() => router.push("/profile")}
+      />
+    </PeopleEntrance>
+  );
+
   const renderPraiseCard = () => {
     const praises = people.filter((person) => hasActivePraise(person));
     if (praises.length === 0) return null;
@@ -2593,7 +2615,7 @@ export default function HomeScreen() {
     // praise = the static card exactly as drawn, no dots.
     const peopleFocused = activeTab === "people" || activeTab === "home";
     return (
-      <PeopleEntrance index={2}>
+      <PeopleEntrance index={3}>
         <FrontDoorCarousel count={praises.length} focused={peopleFocused} style={{ marginHorizontal: 16, marginTop: 12 }}>
           {(pageIndex, registerTouch) => {
             const praisedPerson = praises[Math.min(pageIndex, praises.length - 1)];
@@ -2652,7 +2674,7 @@ export default function HomeScreen() {
     // v255: the mockup STACKS the reach candidates — every due
     // person gets their own row with their own Reach out pill.
     return (
-      <PeopleEntrance index={3}>
+      <PeopleEntrance index={4}>
         <View style={{ backgroundColor: pmf.wash, borderRadius: 26, paddingHorizontal: 17, paddingVertical: 15, marginHorizontal: 16, marginTop: 12 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <Text style={{ fontSize: 14.5, fontWeight: "800", color: pmf.washInk }}>Don't let anyone slip</Text>
@@ -2708,6 +2730,7 @@ export default function HomeScreen() {
       {renderPeopleAppBar()}
       {renderEmergencyBanner()}
       {renderQueueCard()}
+      {renderStreakCard()}
       {renderPraiseCard()}
       {renderSlipCard()}
       {renderRosterHead()}

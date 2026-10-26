@@ -336,6 +336,16 @@ import {
 } from "@/lib/river";
 import { SafeBoundary } from "@/components/safe-boundary";
 import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
+import {
+  buildAwayReport,
+  formatWholeCoins,
+  HOMETOWN_LAST_VISIT_KEY,
+  phaseForTimeOfDay,
+  phaseWindowsLit,
+  PHASE_WASH,
+  type AwayReport,
+  type AwayShiftInput,
+} from "@/lib/welcoming-town";
 import { TownNPCs, CityNPCs, countHometownNpcs, type LightInfo } from "@/components/town-npcs";
 import { PaperBuildingArt, PaperLandmarkArt } from "@/components/paper-building-art";
 import { PaperDecoration } from "@/components/paper-decoration";
@@ -3959,6 +3969,12 @@ export default function HometownScreen() {
     return () => clearTimeout(t);
   }, []);
   const isNight = timeOfDay === "night";
+  // The Welcoming Town, Stage 1 (v271): the day in four phases — dawn /
+  // day / dusk / night — derived from the same timeOfDay state (settled
+  // on open, re-evaluated on the existing 5-minute theme clock; no new
+  // timers, no per-frame state).
+  const dayPhase = phaseForTimeOfDay(timeOfDay);
+  const phaseWash = PHASE_WASH[dayPhase];
   // City celebrations: load persisted state once (which milestones fired, etc.).
   useEffect(() => {
     loadCelebrations()
@@ -4016,6 +4032,17 @@ export default function HometownScreen() {
   const [purchasedPlots, setPurchasedPlots] = useState<string[]>([]);
   /** Bell Tower: the local date the campus bell last rang (null = never). */
   const [bellRungDate, setBellRungDate] = useState<string | null>(null);
+  /** The Welcoming Town (v271): the while-you-were-gone report card,
+   *  built once at mount from the away accrual's own numbers. */
+  const [awayReport, setAwayReport] = useState<AwayReport | null>(null);
+  /** The Welcoming Town (v271): the entry greeting — set once per
+   *  Hometown entry (this screen mounting); the villagers nearest the
+   *  hero's arrival tile wave for a few seconds. Never re-armed while
+   *  the screen lives, so map switches don't repeat it. */
+  const greetRef = useRef<{ untilMs: number; tile: { x: number; y: number } } | null>(null);
+  if (greetRef.current === null) {
+    greetRef.current = { untilMs: Date.now() + 6000, tile: { x: 5, y: 5 } };
+  }
   const [fellowship, setFellowship] = useState<FellowshipState | null>(null);
   const [gatheringNow, setGatheringNow] = useState(false);
   // Garden of Remembrance: loved ones remembered here, with garden upgrades.
@@ -5677,6 +5704,16 @@ export default function HometownScreen() {
         // villagers are its own map's). Falls back to the global prayed
         // count if the settle can't run.
         const awayNow = Date.now();
+        // The Welcoming Town (v271): how long was he gone? Read the
+        // last-visit stamp BEFORE this visit overwrites it (the write
+        // happens after the return report is built, below). First-ever
+        // visit reads null and never reports.
+        let lastVisitMs: number | null = null;
+        try {
+          const rawVisit = await AsyncStorage.getItem(HOMETOWN_LAST_VISIT_KEY);
+          const parsedVisit = rawVisit ? Number(rawVisit) : NaN;
+          lastVisitMs = Number.isFinite(parsedVisit) && parsedVisit > 0 ? parsedVisit : null;
+        } catch {}
         let awayPresenceCounts: Record<string, number> | null = null;
         try {
           const [storedLocations, workNow, missionsNow] = await Promise.all([
@@ -5722,6 +5759,17 @@ export default function HometownScreen() {
         // v161's paint-first arrangement, whose deferred save let a
         // quick back-out strand the accrual ("nothing to collect —
         // back out — re-enter — 1,000+ coins").
+        // The Welcoming Town (v271): snapshot every building's
+        // uncollected pile BEFORE the accrual, so the return report can
+        // tell — per building, from the accrual's own arithmetic — what
+        // the town earned while he was gone. Read-only: the accrual
+        // below is untouched, and nothing here moves a coin.
+        const preAccrualPiles = new Map<string, number>();
+        for (const mid of TOWN_MAP_IDS) {
+          for (const b of t.maps[mid]?.buildings ?? []) {
+            preAccrualPiles.set(b.id, b.accumulated || 0);
+          }
+        }
         const accrual = accrueAwayIncome(t, {
           gearCoinMult,
           generosityMult,
@@ -5793,7 +5841,57 @@ export default function HometownScreen() {
           if (earnedXP > 0) {
             await awardCustomXP(earnedXP, `town-missed-${lastDate}-to-${today}`).catch(() => undefined);
           }
-          Alert.alert("Town Income", `Your towns earned ${earnedCoins} coins${earnedXP > 0 ? ` and ${earnedXP} XP` : ""} while you were away!`);
+        }
+        // The Welcoming Town (v271): the return report — what the town
+        // did while he was gone, told through its people. Built from
+        // the accrual's own numbers (the per-building pile diff against
+        // the pre-accrual snapshot), the work shifts that ended during
+        // the absence, and the missed-days award above. When the card
+        // shows, it carries the missed-days news too, so the plain
+        // "Town Income" alert only remains as the fallback for returns
+        // the card doesn't cover. Nothing here moves money — the
+        // accrual and the award already landed; the coins sit in the
+        // buildings, waiting for his tap, exactly as before.
+        {
+          const awayDeltas: { buildingId: string; name: string; coins: number }[] = [];
+          let awayWaiting = 0;
+          for (const mid of TOWN_MAP_IDS) {
+            for (const b of t.maps[mid]?.buildings ?? []) {
+              awayWaiting += b.accumulated || 0;
+              const delta = (b.accumulated || 0) - (preAccrualPiles.get(b.id) ?? 0);
+              if (delta > 0) {
+                awayDeltas.push({
+                  buildingId: b.id,
+                  name: BUILDINGS[b.type]?.name ?? b.type,
+                  coins: Math.floor(delta),
+                });
+              }
+            }
+          }
+          const awayShifts: AwayShiftInput[] = [];
+          if (lastVisitMs !== null) {
+            for (const a of workStateRef.current?.assignments ?? []) {
+              if (a.endsAt > lastVisitMs && a.endsAt <= awayNow) {
+                awayShifts.push({ personName: a.personName, kind: a.kind, endsAt: a.endsAt });
+              }
+            }
+          }
+          const report = buildAwayReport({
+            absenceMs: lastVisitMs === null ? null : awayNow - lastVisitMs,
+            deltas: awayDeltas,
+            shiftsDone: awayShifts,
+            missedCoins: missed?.earnedCoins ?? 0,
+            missedXP: missed?.earnedXP ?? 0,
+            totalWaiting: awayWaiting,
+          });
+          if (report) {
+            setAwayReport(report);
+          } else if (missed && missed.earnedCoins > 0) {
+            Alert.alert("Town Income", `Your towns earned ${missed.earnedCoins} coins${missed.earnedXP > 0 ? ` and ${missed.earnedXP} XP` : ""} while you were away!`);
+          }
+          try {
+            await AsyncStorage.setItem(HOMETOWN_LAST_VISIT_KEY, String(awayNow));
+          } catch {}
         }
         // Accrue ATM/vault drips onto interior furniture (collectible
         // inside) — after the commit, as they landed after the accrual
@@ -8289,6 +8387,16 @@ export default function HometownScreen() {
             const baseSize = Math.min(fp.w, fp.h) * cellSize * 0.85;
             // Pseudo-3D: tall buildings extend their art above their square.
             const extraPx = tallArtExtraCells(b.type, lvl, b.floors || 1) * cellSize;
+            // The Welcoming Town (v271): wake-by-prayer for the cottages.
+            // A cottage is AWAKE when at least one of today's prayer
+            // lights lives there (the same cottageResidents the cottage
+            // tap uses); with nobody home it reads ASLEEP — gently: a
+            // dimmed house and a small "z", never a warning. Null for
+            // every non-cottage building.
+            const cottageAwake =
+              b.type === "villager-cottage"
+                ? cottageResidents(map.buildings, b.id, lightInfos).length > 0
+                : null;
             return (
               <View
                 key={`bldg-${b.id}`}
@@ -8317,11 +8425,62 @@ export default function HometownScreen() {
                   </>
                 ) : (
                 <>
-                <BuildingArtFX type={b.type} size={baseSize} artH={baseSize + extraPx} level={lvl} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} blessed={b.type === "bell-tower" && bellRungDate === localDateStr()} night={isNight} />
+                <BuildingArtFX type={b.type} size={baseSize} artH={baseSize + extraPx} level={lvl} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} blessed={b.type === "bell-tower" && bellRungDate === localDateStr()} night={isNight || (activeMap === "town" && phaseWindowsLit(dayPhase))} />
                 {/* Ambient life: chimney smoke drifting from hearths
-                    (deferred past first paint — see ambientReady) */}
-                {ambientReady && hasChimney(b.type) && (
+                    (deferred past first paint — see ambientReady).
+                    The Welcoming Town (v271): a cottage only smokes when
+                    somebody's home — an asleep cottage's hearth is cold. */}
+                {ambientReady && hasChimney(b.type) && cottageAwake !== false && (
                   <ChimneySmoke risePx={cellSize * 0.9} puffSize={Math.max(8, cellSize * 0.28)} />
+                )}
+                {/* The Welcoming Town (v271): cottage wake dress — an
+                    awake cottage sits in a warm pool of light (the same
+                    under-glow the L3 towers and the Gathering use); an
+                    asleep one dims under a soft veil with a drawn "z"
+                    at the roofline, the NPC sleep language. */}
+                {cottageAwake === true && (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: "absolute",
+                      bottom: 2,
+                      width: fp.w * cellSize * 0.8,
+                      height: 12,
+                      backgroundColor: "#FDE68A",
+                      opacity: 0.4,
+                      borderRadius: 6,
+                    }}
+                  />
+                )}
+                {cottageAwake === false && (
+                  <>
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: "#1E293B",
+                        opacity: 0.16,
+                        borderRadius: 8,
+                      }}
+                    />
+                    <Text
+                      pointerEvents="none"
+                      style={{
+                        position: "absolute",
+                        top: extraPx + 1,
+                        right: fp.w * cellSize * 0.16,
+                        fontSize: 12,
+                        fontWeight: "800",
+                        color: "#7DD3FC",
+                      }}
+                    >
+                      z
+                    </Text>
+                  </>
                 )}
                 {/* L3 city towers glow with activity */}
                 {lvl >= 3 && !!b.plotId && (
@@ -8483,7 +8642,7 @@ export default function HometownScreen() {
           {/* Townsfolk — prayer lights; those out on field missions (or waiting to be welcomed home) are away.
               bare: entities render directly in the depth layer so villagers walk
               BEHIND tall buildings (zIndex by Y). */}
-          <TownNPCs mapState={map} cellSize={cellSize} bare positionsRef={townNpcPositionsRef} onBankVisit={handleBankVisit} lights={lightsForActiveMap} onVillagerTap={handleVillagerTap} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} scheduleGuides={scheduleGuides} scheduleMap={scheduleMap} scheduleKind={scheduleActivity?.kind} />
+          <TownNPCs mapState={map} cellSize={cellSize} bare positionsRef={townNpcPositionsRef} onBankVisit={handleBankVisit} lights={lightsForActiveMap} onVillagerTap={handleVillagerTap} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} scheduleGuides={scheduleGuides} scheduleMap={scheduleMap} scheduleKind={scheduleActivity?.kind} greet={activeMap === "town" ? greetRef.current : null} />
           {/* City life: commuters from town (depth-sorted, bare). The
               traffic layer is ambient — it mounts after first paint. */}
           {activeMap === "city" && ambientReady && (
@@ -8509,6 +8668,26 @@ export default function HometownScreen() {
           )}
           {/* The player's own pawn, wandering town (depth-sorted with the rest) */}
           {activeMap === "town" && <PlayerPawnWanderer cellSize={cellSize} destTile={scheduleTarget?.tile ?? null} mapState={map} />}
+          {/* The Welcoming Town (v271): the phase light wash over the
+              town map — dawn gold, dusk amber, a faint night cool (the
+              night light itself lives in the building art). Day wears
+              none. Pure dress: pointer-events none, above the depth
+              layer, below every sheet and modal. Town map only. */}
+          {activeMap === "town" && phaseWash && (
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: gridW * cellSize,
+                height: gridH * cellSize,
+                backgroundColor: phaseWash.color,
+                opacity: phaseWash.opacity,
+                zIndex: 1500000,
+              }}
+            />
+          )}
           {/* Surprise visitors — special encounters with "!" badges */}
           {activeMap === "town" && visitors.map((v) => (
             <Pressable
@@ -8784,6 +8963,58 @@ export default function HometownScreen() {
           />
         </View>
         </SeasonalBorder>
+        {/* The Welcoming Town (v271): the while-you-were-gone report —
+            the town telling him, through its people, what it did while
+            he was away. The coins it names are already sitting in the
+            buildings' piles, waiting for his tap; the card collects
+            nothing. It stays until he closes it. */}
+        {activeMap === "town" && awayReport && (
+          <View
+            style={{
+              position: "absolute",
+              top: insets.top + 64,
+              left: 16,
+              right: 16,
+              zIndex: 2000000,
+              backgroundColor: pt.card,
+              borderColor: pt.border,
+              borderWidth: 1,
+              borderRadius: 16,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              shadowColor: "#000000",
+              shadowOpacity: 0.18,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 6,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 16, fontWeight: "800", color: pt.text }}>Welcome back</Text>
+              <Pressable
+                onPress={() => setAwayReport(null)}
+                hitSlop={8}
+                accessibilityLabel="Close the welcome-back report"
+                style={{ width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: pt.bg }}
+              >
+                <MaterialIcons name="close" size={15} color={pt.subtext} />
+              </Pressable>
+            </View>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: pt.subtext, marginTop: 2 }}>While you were gone</Text>
+            <View style={{ marginTop: 8, gap: 3 }}>
+              {awayReport.lines.map((line, i) => (
+                <Text key={i} style={{ fontSize: 13.5, lineHeight: 19, color: pt.text }}>
+                  {line}
+                </Text>
+              ))}
+            </View>
+            {awayReport.totalWaiting > 0 && (
+              <Text style={{ fontSize: 13.5, fontWeight: "800", color: "#B45309", marginTop: 9 }}>
+                {formatWholeCoins(awayReport.totalWaiting)} coins are waiting for you
+              </Text>
+            )}
+          </View>
+        )}
         {activeMap === "town" && (
           <MapSigns
             activeMap={activeMap}

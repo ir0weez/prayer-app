@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Pressable, Text, View } from "react-native";
+import { AccessibilityInfo, Animated, Easing, Pressable, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Svg, { Line, Polygon, Rect } from "react-native-svg";
 import {
@@ -262,6 +262,7 @@ function TownNPCsImpl({
   scheduleGuides,
   scheduleMap,
   scheduleKind,
+  greet,
   bare,
   positionsRef,
 }: {
@@ -293,6 +294,10 @@ function TownNPCsImpl({
   scheduleMap?: Record<string, { untilMs: number; kind: string }>;
   /** The kind of the active schedule event (drives the badge icon). */
   scheduleKind?: string;
+  /** The Welcoming Town (v271): on entry, the villagers nearest this
+   *  tile greet the hero with a wave bubble until `untilMs`. The parent
+   *  passes it once per Hometown entry; null on other maps / after. */
+  greet?: { untilMs: number; tile: { x: number; y: number } } | null;
   /** Render entities directly (no container) so the parent can depth-sort
       them with buildings via zIndex — villagers walk BEHIND tall buildings. */
   bare?: boolean;
@@ -329,6 +334,8 @@ function TownNPCsImpl({
   scheduleGuidesRef.current = scheduleGuides;
   const scheduleMapRef = useRef(scheduleMap);
   scheduleMapRef.current = scheduleMap;
+  const greetRef = useRef(greet);
+  greetRef.current = greet;
   const [renderIds, setRenderIds] = useState<string[]>([]);
   // Villagers asleep at home (night && idle). Synced in tick; drives the sleeping-"z" render.
   const [sleepingIds, setSleepingIds] = useState<Set<string>>(new Set());
@@ -355,6 +362,25 @@ function TownNPCsImpl({
   // Lights currently paused for a chat meetup. Synced in tick; drives bubbles.
   const [chattingIds, setChattingIds] = useState<Set<string>>(new Set());
   const chattingRef = useRef<Set<string>>(new Set());
+  // The Welcoming Town greeting (v271): villagers waving at the hero on
+  // entry. Chosen once per greet window (nearest to the hero's tile) so
+  // the set doesn't churn as people wander; cleared when it lapses.
+  const [greetingIds, setGreetingIds] = useState<Set<string>>(new Set());
+  const greetingRef = useRef<Set<string>>(new Set());
+  const greetChosenRef = useRef<{ untilMs: number; ids: Set<string> } | null>(null);
+  // Reduced motion: the greeting bubble stands still (no float).
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((reduced) => { if (live) setReducedMotion(reduced); })
+      .catch(() => undefined);
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReducedMotion);
+    return () => {
+      live = false;
+      subscription.remove();
+    };
+  }, []);
   const nightRef = useRef<boolean>(getTimeOfDay() === "night");
 
   // Prayer lights: everyone Jonathan prayed for today appears as a golden
@@ -991,6 +1017,56 @@ function TownNPCsImpl({
         chattingRef.current = nextChatting;
         setChattingIds(nextChatting);
       }
+      // The Welcoming Town greeting (v271): while the entry window is
+      // open, the villagers nearest the hero's arrival tile wave hello.
+      // The greeters are picked ONCE (nearest first, at most three,
+      // nobody asleep / working / waiting on a mission / mid-chat) and
+      // simply lapse when the window closes. Pure presentation — no
+      // villager state changes, nothing blocks on it.
+      {
+        const g = greetRef.current;
+        let nextGreeting: Set<string> = greetingRef.current;
+        if (g && now < g.untilMs) {
+          if (!greetChosenRef.current || greetChosenRef.current.untilMs !== g.untilMs) {
+            const near: { id: string; d: number }[] = [];
+            for (const npc of Object.values(logic)) {
+              if (sleepingRef.current.has(npc.id)) continue;
+              if (workingRef.current.has(npc.id)) continue;
+              if (chattingRef.current.has(npc.id)) continue;
+              if (missionWaitingRef.current?.has(String(npc.prayerId || npc.id))) continue;
+              if (npc.state === "returning") continue;
+              const tx = npc.px / cellSize - 0.5;
+              const ty = npc.py / cellSize - 0.5;
+              const d = Math.max(Math.abs(tx - g.tile.x), Math.abs(ty - g.tile.y));
+              if (d <= 3.5) near.push({ id: npc.id, d });
+            }
+            near.sort((a, b) => a.d - b.d);
+            greetChosenRef.current = {
+              untilMs: g.untilMs,
+              ids: new Set(near.slice(0, 3).map((n) => n.id)),
+            };
+          }
+          nextGreeting = new Set(
+            [...greetChosenRef.current.ids].filter((id) => logic[id]),
+          );
+        } else {
+          if (greetChosenRef.current && now >= greetChosenRef.current.untilMs) {
+            greetChosenRef.current = null;
+          }
+          nextGreeting = new Set();
+        }
+        const prevGreeting = greetingRef.current;
+        let greetingChanged = nextGreeting.size !== prevGreeting.size;
+        if (!greetingChanged) {
+          for (const id of nextGreeting) {
+            if (!prevGreeting.has(id)) { greetingChanged = true; break; }
+          }
+        }
+        if (greetingChanged) {
+          greetingRef.current = nextGreeting;
+          setGreetingIds(nextGreeting);
+        }
+      }
       // Sync name labels: names show at the church or a restaurant (the
       // fellowship moment). Capped at 15, closest first, so busy days don't
       // turn into label chaos. Tapping any light shows their name anytime.
@@ -1310,6 +1386,50 @@ function TownNPCsImpl({
                   ) : (
                     <Text style={{ fontSize: 10, fontWeight: "800", color: "#EC4899", lineHeight: 12 }}>...</Text>
                   )}
+                </View>
+                <View
+                  style={{
+                    width: 0,
+                    height: 0,
+                    borderLeftWidth: 3.5,
+                    borderRightWidth: 3.5,
+                    borderTopWidth: 5,
+                    borderLeftColor: "transparent",
+                    borderRightColor: "transparent",
+                    borderTopColor: "#FFFFFF",
+                    marginTop: -1,
+                  }}
+                />
+              </Animated.View>
+            ) : null}
+            {/* greeting bubble — the Welcoming Town (v271): a wave for
+                the hero when he comes into town. Same shell as the chat
+                bubble, gold-edged, with a raised hand. */}
+            {greetingIds.has(id) && !asleep && !isChatting ? (
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  top: -40,
+                  left: -10,
+                  width: 36,
+                  alignItems: "center",
+                  transform: reducedMotion ? [] : [{ translateY: floatY }],
+                }}
+              >
+                <View
+                  style={{
+                    backgroundColor: "#FFFFFF",
+                    borderRadius: 9,
+                    paddingHorizontal: 5,
+                    paddingVertical: 2,
+                    borderWidth: 1,
+                    borderColor: "#D4AF37",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 22,
+                  }}
+                >
+                  <MaterialIcons name="front-hand" size={10} color="#B45309" />
                 </View>
                 <View
                   style={{

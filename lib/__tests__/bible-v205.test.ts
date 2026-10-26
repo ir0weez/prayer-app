@@ -1449,12 +1449,19 @@ describe('v211 — the box gets its buttons back; position lives in the new stor
     // v265: the plain Books-view doorway is the shell handoff now
     // (onOpenBible to the pane's Books root) — still exactly once,
     // still inside the expanded body as the Bible button.
-    expect(card.split("onOpenBible?.({ name: 'books' })")).toHaveLength(2);
-    expect(card.indexOf("onOpenBible?.({ name: 'books' })")).toBeGreaterThan(bodyIdx);
+    // v273 RE-BASE (his ruling, Oct 26 12:11): the Bible button IS
+    // Mark as Read now — the plain Books doorway leaves the card
+    // (zero occurrences), and the Mark as Read control stands in
+    // the expanded body where the Bible button stood.
+    expect(card.split("onOpenBible?.({ name: 'books' })")).toHaveLength(1);
+    expect(card).toContain('handlePersonalStudyMarkRead');
+    expect(card.indexOf('handlePersonalStudyMarkRead')).toBeGreaterThan(bodyIdx);
+    expect(card).toContain('Mark as Read');
     // The doorway sub-line is gone from the whole tab.
     expect(src).not.toContain('Tap to open your Books');
-    // The row — Back / Books / Bible — sits in the expanded body,
-    // below the storyteller box, gated on a current target.
+    // The row — Back / Books / Mark as Read (v273; Bible until
+    // then) — sits in the expanded body, below the storyteller
+    // box, gated on a current target.
     expect(card).toContain('accessibilityLabel="Back one chapter"');
     expect(card).toContain('accessibilityLabel="Choose Bible book"');
     // v265: the book picker asks the shell's pane for Books with

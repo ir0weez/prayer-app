@@ -228,9 +228,10 @@ import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
-import { chapterStatus as v205ChapterStatus, loadStudyState as loadV205StudyState, type StudyState } from "@/lib/bible-v205/study";
+import { chapterReadDate as v205ChapterReadDate, chapterStatus as v205ChapterStatus, loadStudyState as loadV205StudyState, type StudyState } from "@/lib/bible-v205/study";
 import { getReadingPosition, personalStudyHeadline } from "@/lib/bible-v205/position";
-import { transitionChapterStatus } from "@/lib/bible-v205/rewards";
+import { markChapterRead, transitionChapterStatus, unmarkChapterRead } from "@/lib/bible-v205/rewards";
+import { loadStudioImports } from "@/lib/bible-v205/studio-import";
 import { CHAPTER_COUNTS as V205_CHAPTER_COUNTS, chapterCountFor as v205ChapterCountFor } from "@/lib/bible-v205/index";
 import { previewFor } from "@/lib/bible-v205/preview";
 import { getBibleBookGenre } from "@/lib/bible-genres";
@@ -10757,6 +10758,35 @@ export function ScheduleTab({
     }
   };
 
+  // v273: the study card's Mark as Read — his ask (Oct 26 12:11):
+  // the expanded row's big Bible doorway becomes a Mark as Read
+  // button for the headline chapter, so the mark happens where he
+  // already is. Same discipline as the Back button above: fresh
+  // study state at press time, the toggle decided from that state's
+  // own read mark, studio imports loaded fresh (the chapter page
+  // passes its in-memory copies of the same two inputs), and the
+  // mark itself walks the ONE read door — markChapterRead /
+  // unmarkChapterRead from bible-v205/rewards, the two-marks
+  // authority (+25 XP once, never revoked). The legacy unified
+  // markChapterAsRead is never touched here. Marking read advances
+  // the card's position on refresh (the target is by derivation
+  // the next unread chapter), exactly as reading on the chapter
+  // page does.
+  const handlePersonalStudyMarkRead = async (book: string, chapter: number) => {
+    try {
+      const study = await loadV205StudyState();
+      if (v205ChapterReadDate(study, book, chapter) !== null) {
+        await unmarkChapterRead(study, book, chapter);
+      } else {
+        const imports = await loadStudioImports().catch(() => ({}));
+        await markChapterRead(study, book, chapter, undefined, imports);
+      }
+      refreshStudyCard();
+    } catch (e) {
+      console.error("Error toggling the study card's read mark:", e);
+    }
+  };
+
   // Sync currentBibleBook whenever bibleState changes.
   // v207: the pre-v205 card fetched its storyteller preview live from
   // the bible.getChapterSummary tRPC route and cached it per chapter;
@@ -11875,7 +11905,14 @@ export function ScheduleTab({
       // so the line and the Read Chapter button always agree. The
       // chapters-complete count survives only as the no-position
       // fallback (a fresh profile with nothing chosen or read).
-      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: personalStudyHeadline(position, studyDoorway?.line ?? "Your Books"), sub: studyDoorway?.sub ?? null, lastRead, preview, readTarget, currentBook: position.currentBook, backChapter } });
+      // v273: whether the headline chapter already carries a read
+      // mark — the expanded row's big button wears it (Read state,
+      // tap to unmark). By the position derivation the target is
+      // the next UNREAD chapter, so this is normally false; it is
+      // read from the store honestly rather than assumed, so the
+      // button's state is the chapter's true state.
+      const targetRead = readTarget ? v205ChapterReadDate(studySnap, readTarget.book, readTarget.chapter) !== null : false;
+      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: personalStudyHeadline(position, studyDoorway?.line ?? "Your Books"), sub: studyDoorway?.sub ?? null, lastRead, preview, readTarget, targetRead, currentBook: position.currentBook, backChapter } });
     }
 
     // Add worship section as a direct display (not expandable)
@@ -12168,6 +12205,13 @@ export function ScheduleTab({
           // Books (Books view with its book-picker sheet open), and
           // Bible (the Books view plain). Every position the card
           // shows derives from the study store via getReadingPosition.
+          // v273: the trio's third seat changes hands — the big
+          // Bible button becomes Mark as Read for the headline
+          // chapter (his ask: mark it where he already is), a toggle
+          // through the one read door with the read state worn on
+          // the button and the unmark one tap away. The plain Books
+          // doorway leaves the card; the queue button beside it
+          // still opens Books with its picker.
           return (
             <Pressable
               onPress={() => togglePersonalStudyExpanded(!isPersonalStudyExpanded)}
@@ -12290,14 +12334,28 @@ export function ScheduleTab({
                               <MaterialIcons name="list" size={19} color={skinTokens.isTerminal ? termButtonInk("secondary") : skinTokens.isEightBit ? bitButtonInk("secondary") : colors.primary} />
                             </View>
                           </Pressable>
+                          {/* v273: the big button is Mark as Read now
+                              (his ask, Oct 26 12:11) — it marks the
+                              headline chapter (the same readTarget
+                              the header pill opens) through the one
+                              read door, handlePersonalStudyMarkRead.
+                              When the chapter already carries the
+                              mark, the button wears the quiet
+                              secondary dress and reads "Read"; the
+                              tap unmarks — the way back down. Books
+                              stays one tap away on the queue button
+                              beside it. */}
                           <Pressable
-                            onPress={() => onOpenBible?.({ name: 'books' })}
+                            onPress={() => {
+                              if (item.data.readTarget) handlePersonalStudyMarkRead(item.data.readTarget.book, item.data.readTarget.chapter);
+                            }}
                             accessibilityRole="button"
+                            accessibilityLabel={item.data.targetRead ? `${item.data.readTarget.book} ${item.data.readTarget.chapter} is read — tap to clear the read mark` : `Mark ${item.data.readTarget.book} ${item.data.readTarget.chapter} as read`}
                             style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.7 : 1 }]}
                           >
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8, ...(bitButtonStyle(skinTokens, "primary") ?? {}), ...(termButtonStyle(skinTokens, "primary") ?? {}), ...(skinTokens.isPaper ? { paddingVertical: 10 + skinTokens.type.gapBoost, paddingHorizontal: 12 + skinTokens.type.padBoost } : {}) }}>
-                              <MaterialIcons name="menu-book" size={18} color={skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF"} />
-                              <Text style={{ color: skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : '#FFFFFF', fontSize: 14, fontWeight: '600', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 9) : {}) }}>Bible</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: item.data.targetRead ? colors.border : colors.primary, borderRadius: 8, ...(bitButtonStyle(skinTokens, item.data.targetRead ? "secondary" : "primary") ?? {}), ...(termButtonStyle(skinTokens, item.data.targetRead ? "secondary" : "primary") ?? {}), ...(skinTokens.isPaper ? { paddingVertical: 10 + skinTokens.type.gapBoost, paddingHorizontal: 12 + skinTokens.type.padBoost } : {}) }}>
+                              <MaterialIcons name={item.data.targetRead ? "bookmark" : "bookmark-border"} size={18} color={item.data.targetRead ? (skinTokens.isTerminal ? termButtonInk("secondary") : skinTokens.isEightBit ? bitButtonInk("secondary") : colors.foreground) : (skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF")} />
+                              <Text style={{ color: item.data.targetRead ? (skinTokens.isTerminal ? termButtonInk("secondary") : skinTokens.isEightBit ? bitButtonInk("secondary") : colors.foreground) : (skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : '#FFFFFF'), fontSize: 14, fontWeight: '600', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 9) : {}) }}>{item.data.targetRead ? "Read" : "Mark as Read"}</Text>
                             </View>
                           </Pressable>
                         </View>

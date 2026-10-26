@@ -17,6 +17,7 @@ import {
   type StoryScreen,
 } from '@/lib/bible-v205/index';
 import { entryKey, type V205Block, type V205ChapterData } from '@/lib/bible-v205/types';
+import { formatReadDate } from '@/lib/bible-v205/study';
 import { isKept, resolveTintFields, type MarksMap } from '@/lib/bible-v205/marks';
 import {
   partitionBubbleLines,
@@ -53,6 +54,14 @@ export interface StoriesViewProps {
   bottomInset?: number;
   onExit: () => void;
   onNextChapter: (() => void) | null;
+  /** v273: the chapter's READ mark, hosted by the chapter page —
+   * its own handleMarkRead/handleClearRead behind one toggle, so
+   * Stories gains no second mark implementation. readDate is the
+   * mark's date (null = unread); onToggleRead is null while the
+   * host has no study state loaded, and the end screen's button
+   * hides with it. */
+  readDate: string | null;
+  onToggleRead: (() => void) | null;
 }
 
 const screenTypeLabel = (s: StoryScreen): string =>
@@ -324,6 +333,32 @@ export function StoriesView(props: StoriesViewProps) {
           </View>
         </View>
         <View style={styles.endBtns}>
+          {/* v273: the last slide carries Mark as Read (his ask,
+              Oct 26 12:11) — the finish line is where the mark
+              belongs. Same toggle words as the chapter page's own
+              foot: unread offers the button; read shows its date,
+              and the tap clears the mark. Rides the host's
+              handlers, so noteless and read-only chapters get it
+              too — the end screen renders for every chapter. */}
+          {props.onToggleRead ? (
+            props.readDate === null ? (
+              <Pressable
+                style={[styles.btnPrimary, { backgroundColor: palette.rasp }, palette.btnDress]}
+                onPress={props.onToggleRead}
+                accessibilityLabel={`Mark ${book} ${chapter} as read`}
+              >
+                <Text style={styles.btnPrimaryText}>Mark as Read</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                style={[styles.btnGhost, { borderColor: palette.lineDark }, palette.btnDress]}
+                onPress={props.onToggleRead}
+                accessibilityLabel={`Clear the read mark for ${book} ${chapter}`}
+              >
+                <Text style={[styles.btnGhostText, { color: palette.ink }]}>✓ Read · {formatReadDate(props.readDate)}</Text>
+              </Pressable>
+            )
+          ) : null}
           {props.onNextChapter ? (
             <Pressable style={[styles.btnPrimary, { backgroundColor: palette.rasp }, palette.btnDress]} onPress={props.onNextChapter}>
               <Text style={styles.btnPrimaryText}>Next chapter — {book} {chapter + 1} ›</Text>

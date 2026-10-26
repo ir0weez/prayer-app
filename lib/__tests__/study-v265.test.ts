@@ -254,7 +254,13 @@ describe("v265 source pins — external entries re-pointed", () => {
     expect(schedule).toContain("onOpenBible?: (route: BiblePaneRoute) => void");
     expect(schedule).toContain("onOpenBible?.({ name: 'chapter', book: item.data.readTarget.book, chapter: item.data.readTarget.chapter })");
     expect(schedule).toContain("onOpenBible?.({ name: 'books', openBookNav: true })");
-    expect(schedule).toContain("onOpenBible?.({ name: 'books' })");
+    // v273 RE-BASE (his ruling, Oct 26 12:11): the card's plain
+    // Books doorway — the big "Bible" button — is Mark as Read
+    // now, so the '{ name: 'books' }' handoff no longer appears in
+    // the schedule tab. The pane route itself is unchanged (the
+    // route-shape pins above still cover it).
+    expect(schedule).not.toContain("onOpenBible?.({ name: 'books' })");
+    expect(schedule).toContain("handlePersonalStudyMarkRead");
     expect(index).toContain("onOpenBible={openBibleRequest}");
   });
 

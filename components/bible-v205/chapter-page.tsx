@@ -625,6 +625,13 @@ export function ChapterPageView(props: ChapterPageProps) {
     if (!studyState) return;
     setStudyState(await unmarkChapterRead(studyState, book, chapter));
   };
+  // v273: one toggle for the Stories end screen's Mark as Read —
+  // the same two handlers above, chosen by the chapter's current
+  // read mark. No second mark implementation lives in Stories.
+  const handleToggleRead = async () => {
+    if (readDate !== null) await handleClearRead();
+    else await handleMarkRead();
+  };
   const handleCategory = async (start: number, end: number, category: NoteCategory | null) => {
     const next = withMarks(marks, book, chapter, start, end, { category });
     setMarks(next);
@@ -670,6 +677,8 @@ export function ChapterPageView(props: ChapterPageProps) {
       bottomInset={props.tabBarHeight}
       onExit={() => setStories(false)}
       onNextChapter={chapter < totalChapters ? () => props.onNavigateChapter(chapter + 1) : null}
+      readDate={readDate}
+      onToggleRead={studyState ? handleToggleRead : null}
     />
   ) : (
     <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>

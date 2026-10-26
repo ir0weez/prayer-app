@@ -8,7 +8,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext } from "@/lib/theme-provider";
 import { APP_ICONS, getAppIconDef, isIconUnlocked, loadSelectedAppIconId, saveSelectedAppIconId } from "@/lib/app-icons";
 import { setAppIcon as setNativeAppIcon, getAppIcon as getNativeAppIcon, isAppIconSwitchingAvailable } from "@/modules/expo-app-icon/src/index";
@@ -34,7 +34,7 @@ import {
   type BiblePaneNav,
   type BiblePaneRoute,
 } from "@/lib/bible-pane";
-import { PeopleEntrance, PEOPLE_ENTRANCE_EASING, PEOPLE_ENTRANCE_RISE, PEOPLE_ENTRANCE_STAGGER_CAP } from "@/components/people-entrance";
+import { PeopleEntrance, EmergencyLiveDot, EmergencyBreathGlow, PEOPLE_ENTRANCE_EASING, PEOPLE_ENTRANCE_RISE, PEOPLE_ENTRANCE_STAGGER_CAP } from "@/components/people-entrance";
 import { usePeopleFrontDoor, usePeopleMaterial } from "@/hooks/use-people-material";
 import { queueFaceStatus, queueFirstName, sortQueueFaces } from "@/lib/people-queue";
 import { PEOPLE_GOLD_PILL_INK } from "@/lib/people-material";
@@ -250,26 +250,114 @@ type RelationshipSection = {
   familyGroups?: Person[][];
 };
 
-// Panel that visibly unfurls downward when it mounts: animates maxHeight
-// 0 -> large with a clip, so rows are revealed top-down. No measurement
-// needed, so it can't get stuck at zero height.
-function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactNode; outerStyle?: object; closing?: boolean }) {
-  const progress = useSharedValue(0);
+// Panel that visibly unfurls downward when it mounts: the content
+// measures itself (onLayout inside the clip) and the window animates
+// to that REAL height, so rows are revealed top-down on the family's
+// one interactive clock — 320ms on the Material standard easing, the
+// queue tray's clock (QUEUE_TRAY_DURATION_MS). v267 replaced the old
+// maxHeight 0→1200 guess: with a fixed 1200 ceiling the easing mapped
+// onto a height the panel never reaches, so the visible reveal
+// rushed then "animated" invisibly, and closing sat still for half
+// its run before rushing shut — the lag he filmed. Measured height
+// makes the curve BE the motion. Once the open settles, the window
+// returns to auto height so the content can breathe; closing
+// re-locks at the measured height and folds. While the motion runs
+// the panel rasterizes (renderToHardwareTextureAndroid /
+// shouldRasterizeIOS) so the clip composites on the GPU; the texture
+// releases at settle. Reduced motion keeps the tray's contract: the
+// panel is simply there, no travel.
+function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactNode; outerStyle?: { paddingTop?: number; paddingBottom?: number; [key: string]: unknown }; closing?: boolean }) {
+  // The frame's vertical padding rides INSIDE the measured content,
+  // so the animated height is the panel's true full height.
+  const { paddingTop, paddingBottom, ...frameStyle } = outerStyle ?? {};
+  const height = useSharedValue(0);
+  const opacity = useSharedValue(0);
+  const contentHeight = useSharedValue(0);
+  const closingRef = useRef(false);
+  closingRef.current = !!closing;
+  const openedRef = useRef(false);
+  const settledRef = useRef(false);
+  const [settled, setSettled] = useState(false);
+  const [rasterize, setRasterize] = useState(true);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
   useEffect(() => {
-    progress.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) });
-  }, [progress]);
-  useEffect(() => {
-    if (closing) {
-      progress.value = withTiming(0, { duration: 380, easing: Easing.out(Easing.quad) });
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((value) => { if (live) setReducedMotion(value); })
+      .catch(() => undefined);
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReducedMotion);
+    return () => { live = false; subscription.remove(); };
+  }, []);
+
+  const settleOpen = () => { settledRef.current = true; setSettled(true); setRasterize(false); };
+  const runOpen = () => {
+    if (openedRef.current || closingRef.current || contentHeight.value <= 0) return;
+    openedRef.current = true;
+    if (reducedMotion) {
+      opacity.value = 1;
+      settleOpen();
+      return;
     }
-  }, [closing, progress]);
+    setRasterize(true);
+    opacity.value = withTiming(1, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
+    height.value = withTiming(contentHeight.value, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) }, (finished) => {
+      "worklet";
+      if (finished) runOnJS(settleOpen)();
+    });
+  };
+
+  // Closing folds from wherever the panel stands; re-opening
+  // mid-fold reverses from the current height (the tray's rule).
+  useEffect(() => {
+    if (closing === undefined) return;
+    if (closing) {
+      // From a settled (auto-height) panel, re-lock at the content's
+      // current measured height before the fold begins — no jump.
+      if (settledRef.current) height.value = contentHeight.value;
+      settledRef.current = false;
+      setSettled(false);
+      if (reducedMotion) {
+        height.value = 0;
+        opacity.value = 0;
+        return;
+      }
+      setRasterize(true);
+      opacity.value = withTiming(0, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
+      height.value = withTiming(0, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
+    } else if (openedRef.current) {
+      settledRef.current = false;
+      setSettled(false);
+      setRasterize(true);
+      opacity.value = withTiming(1, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
+      height.value = withTiming(contentHeight.value, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) }, (finished) => {
+        "worklet";
+        if (finished) runOnJS(settleOpen)();
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closing]);
+
   const animatedStyle = useAnimatedStyle(() => ({
-    maxHeight: progress.value * 1200,
-    opacity: progress.value,
+    height: height.value,
+    opacity: opacity.value,
   }));
+
+  const handleContentLayout = (layoutHeight: number) => {
+    if (layoutHeight > 0) contentHeight.value = layoutHeight;
+    runOpen();
+  };
+
   return (
-    <ReAnimated.View style={[outerStyle, animatedStyle, { overflow: "hidden" }]} exiting={FadeOut.duration(180)}>
-      {children}
+    <ReAnimated.View
+      style={[frameStyle, settled ? { opacity: 1 } : animatedStyle, { overflow: "hidden" }]}
+      renderToHardwareTextureAndroid={rasterize}
+      shouldRasterizeIOS={rasterize}
+      exiting={FadeOut.duration(180)}
+    >
+      <View style={{ paddingTop, paddingBottom }} onLayout={(event) => handleContentLayout(event.nativeEvent.layout.height)}>
+        {children}
+      </View>
     </ReAnimated.View>
   );
 }
@@ -703,7 +791,10 @@ function FamilyChevron({ expanded, color, wash }: { expanded: boolean; color: st
   useEffect(() => {
     Animated.timing(spin, {
       toValue: expanded ? 1 : 0,
-      duration: 220,
+      // v267: the chevron rides the SAME clock as the unfurl it
+      // announces (320ms, the family's interactive duration) — at
+      // 220ms it used to land before the panel finished moving.
+      duration: QUEUE_TRAY_DURATION_MS,
       easing: RnEasing.bezier(0.2, 0, 0, 1),
       useNativeDriver: true,
     }).start();
@@ -731,6 +822,47 @@ function FamilyChevron({ expanded, color, wash }: { expanded: boolean; color: st
     </Animated.View>
   );
 }
+
+// ─── v267: roster row shells ────────────────────────────────────────
+// The People screen re-renders as a whole far more often than any
+// single row changes: the emergency/praise countdown tick lands a
+// fresh state object every second, and a household toggle flips
+// screen-level state. renderItem is a fresh closure on every one of
+// those renders, so FlatList re-ran EVERY visible household and
+// person row's full render subtree each time — the toggle paid for a
+// whole-roster re-render on top of its own animation, which is the
+// machinery behind "closing the people groups is laggy". The screen's
+// render helpers stay exactly where they are (the suite's pins slice
+// them by name); what changes is that each cell's CONTENT is produced
+// inside a React.memo whose comparator reads a semantic fingerprint:
+// the row's stable data references (identity ids via WeakMap), its
+// OWN expanded/closing/dragged state, the countdown values the row
+// itself displays, and the theme key. A render whose fingerprint
+// matches returns the previous element — a row never re-renders for
+// another row's tick, toggle, or drag.
+const rosterRefIds = new WeakMap<object, number>();
+let rosterRefSeq = 0;
+function rosterRefId(target: object): number {
+  let id = rosterRefIds.get(target);
+  if (id === undefined) {
+    rosterRefSeq += 1;
+    id = rosterRefSeq;
+    rosterRefIds.set(target, id);
+  }
+  return id;
+}
+
+type RosterRowShellProps = {
+  rowKey: string;
+  fingerprint: string;
+  renderRow: () => React.ReactNode;
+};
+const RosterRowShell = memo(
+  function RosterRowShell({ renderRow }: RosterRowShellProps) {
+    return <>{renderRow()}</>;
+  },
+  (prev, next) => prev.rowKey === next.rowKey && prev.fingerprint === next.fingerprint,
+);
 
 export default function HomeScreen() {
   const verifiedPopPlayer = useAudioPlayer(require("@/assets/verified-pop.wav"));
@@ -834,6 +966,8 @@ export default function HomeScreen() {
   const queueTrayProgress = useRef(new Animated.Value(0)).current;
   const queueTrayHeight = useRef(new Animated.Value(0)).current;
   const [queueTrayHeightLocked, setQueueTrayHeightLocked] = useState(false);
+  // v267: true while the tray window is mid-flight (see toggleQueueExpanded).
+  const [queueTrayRasterize, setQueueTrayRasterize] = useState(false);
   const queueExpandedRef = useRef(false);
   queueExpandedRef.current = queueExpanded;
   const queueTrayRowHeightRef = useRef(0);
@@ -861,6 +995,9 @@ export default function HomeScreen() {
     }
     queueTrayAnimatingRef.current = true;
     setQueueTrayHeightLocked(true);
+    // v267: rasterize the tray's clipping window while it moves
+    // (released when the height timing finishes, below).
+    setQueueTrayRasterize(true);
     queueTrayPendingRef.current = true;
     queueTrayProgressAnimRef.current = Animated.timing(queueTrayProgress, {
       toValue: next ? 1 : 0,
@@ -893,6 +1030,7 @@ export default function HomeScreen() {
       if (finished) {
         queueTrayAnimatingRef.current = false;
         setQueueTrayHeightLocked(false);
+        setQueueTrayRasterize(false);
       }
     });
   };
@@ -1187,7 +1325,10 @@ export default function HomeScreen() {
   // Card color fill: the accent pours in from the bottom as the group closes,
   // and drains back down as it opens. Only the active card renders the overlay.
   const cardFillProgress = useSharedValue(1);
-  const fillEasing = Easing.out(Easing.quad);
+  // v267: the fill rides the family's one interactive clock (320ms,
+  // Material standard easing) — the same timing as the unfurl it
+  // accompanies, where it used to run 380ms out-quad on its own.
+  const fillEasing = Easing.bezier(0.2, 0, 0, 1);
 
   // Toggle a family group: opening unfurls the panel; closing folds it back
   // up first and only unmounts after the animation finishes.
@@ -1198,7 +1339,7 @@ export default function HomeScreen() {
     }
     if (expandedFamilyId === familyId) {
       setClosingFamilyId(familyId);
-      cardFillProgress.value = withTiming(1, { duration: 380, easing: fillEasing });
+      cardFillProgress.value = withTiming(1, { duration: QUEUE_TRAY_DURATION_MS, easing: fillEasing });
       familyCloseTimeout.current = setTimeout(() => {
         setExpandedFamilyId(null);
         setClosingFamilyId(null);
@@ -1208,7 +1349,7 @@ export default function HomeScreen() {
       setClosingFamilyId(null);
       setExpandedFamilyId(familyId);
       cardFillProgress.value = 1;
-      cardFillProgress.value = withTiming(0, { duration: 380, easing: fillEasing });
+      cardFillProgress.value = withTiming(0, { duration: QUEUE_TRAY_DURATION_MS, easing: fillEasing });
     }
   };
   const [familyActionMembers, setFamilyActionMembers] = useState<Person[] | null>(null);
@@ -1473,7 +1614,10 @@ export default function HomeScreen() {
   // The surface kit gates on ANY material skin (Paper or 8-bit);
   // skin-specific art branches read the tokens' own flags.
   const isSkinned = skinTokens.isPaper || skinTokens.isEightBit;
-  const styles = createStyles(colors, skinTokens);
+  // v267: the stylesheet was rebuilt from scratch on EVERY render
+  // of this screen — including the 1Hz countdown tick and every
+  // household toggle. It depends only on the theme inputs; memoize.
+  const styles = useMemo(() => createStyles(colors, skinTokens), [colors, skinTokens]);
   // v256: pmf — the token source for the People page's front door,
   // roster, app-bar bell, and (under Classic) the tab bar. Under
   // the Classic skin it is the DERIVED front-door family (seed ×
@@ -2701,10 +2845,16 @@ export default function HomeScreen() {
                   <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254EmergencyGrad)" />
                 </Svg>
                 <View pointerEvents="none" style={{ position: "absolute", top: -46, right: -30, width: 150, height: 150, borderRadius: 75, backgroundColor: "rgba(255,255,255,0.10)" }} />
+                {/* v267: the card LIVES — a soft red edge glow
+                    breathing inside the clip, and the status dot
+                    pulsing in its halo (kit components; calm,
+                    native driver, static under reduced motion or
+                    when People isn't the focused tab). */}
+                <EmergencyBreathGlow active={peopleFocused} />
                 <View style={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 15 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                     <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "rgba(252,165,165,0.28)", alignItems: "center", justifyContent: "center" }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#FCA5A5" }} />
+                      <EmergencyLiveDot active={peopleFocused} />
                     </View>
                     <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: "#FFFFFF" }}>
                       EMERGENCY · {entry.person.name.toUpperCase()}
@@ -2973,7 +3123,16 @@ export default function HomeScreen() {
               320ms timing runs the window to the new height, so the
               cards below glide with it instead of jumping. The +N
               tile rides the collapsed row's right end, as before. */}
-          <Animated.View style={[{ marginTop: 13, overflow: "hidden" }, queueTrayHeightLocked ? { height: queueTrayHeight } : null]}>
+          <Animated.View
+            style={[{ marginTop: 13, overflow: "hidden" }, queueTrayHeightLocked ? { height: queueTrayHeight } : null]}
+            // v267: while the tray moves, its clipping window
+            // rasterizes — the grid inside composites as one GPU
+            // texture instead of re-drawing through every frame of
+            // the JS-driven height. Released at settle (the height
+            // timing's completion, in handleQueueTrayContentLayout).
+            renderToHardwareTextureAndroid={queueTrayRasterize}
+            shouldRasterizeIOS={queueTrayRasterize}
+          >
             {queueExpanded ? (
               <View onLayout={(event) => handleQueueTrayContentLayout(event.nativeEvent.layout.height)} style={{ flexDirection: "row", flexWrap: "wrap", rowGap: 12 }}>
                 {queueFaces.map((person) => renderQueueFace(person, { width: "20%" }))}
@@ -3290,8 +3449,8 @@ export default function HomeScreen() {
     </UnfurlPanel>;
   };
 
-  const renderPeopleRow = ({ item }: { item: (typeof peopleRows)[number] }) => {
-    if (item.kind === "section") {
+  const renderPeopleSectionRow = (item: Extract<(typeof peopleRows)[number], { kind: "section" }>) => {
+    {
       const accent = relationshipColors[item.section.title].accent;
       const sectionCount = item.section.people.length + (item.section.familyGroups ?? []).reduce((sum, group) => sum + group.length, 0);
       const newFamilyPill = item.section.title === "Family" ? (
@@ -3323,11 +3482,57 @@ export default function HomeScreen() {
         </View>
       );
     }
-    if (item.kind === "person") return renderPersonCard(item.person, item.index, item.section.people);
+  };
+
+  const renderPeopleFamilyRow = (item: Extract<(typeof peopleRows)[number], { kind: "family" }>) => {
     const familyId = item.familyMembers[0]?.familyId || "";
     const isExpanded = expandedFamilyId === familyId;
     const isClosing = closingFamilyId === familyId;
     return <View>{renderFamilyCard(item.familyMembers, undefined, isExpanded)}{(isExpanded || isClosing) && renderExpandedFamily(item.familyMembers, item.section, isClosing)}</View>;
+  };
+
+  // v267: FlatList's renderItem. Each cell's content is produced
+  // inside a RosterRowShell (module level, above) whose fingerprint
+  // carries exactly the inputs that row's content reads — so a
+  // household toggle, the 1Hz countdown tick, or a drag re-renders
+  // only the rows whose own inputs actually changed, never the
+  // whole visible roster.
+  const renderPeopleRow = ({ item }: { item: (typeof peopleRows)[number] }) => {
+    const themeKey = `${skinTokens.id}|${colorScheme}|${pmf.seed}`;
+    if (item.kind === "section") {
+      return (
+        <RosterRowShell
+          rowKey={item.key}
+          fingerprint={`s|${rosterRefId(item.section)}|${themeKey}`}
+          renderRow={() => renderPeopleSectionRow(item)}
+        />
+      );
+    }
+    if (item.kind === "person") {
+      const personEmergency = getAllActiveEmergencyPrayers(people).find((ep) => ep.person.id === item.person.id);
+      const countdown = personEmergency ? emergencyCountdowns[personEmergency.item.id] : undefined;
+      return (
+        <RosterRowShell
+          rowKey={item.key}
+          fingerprint={`p|${rosterRefId(item.person)}|${draggedPersonId === item.person.id ? 1 : 0}|${expandedPersonId === item.person.id ? 1 : 0}|${countdown ?? ""}|${themeKey}`}
+          renderRow={() => renderPersonCard(item.person, item.index, item.section.people)}
+        />
+      );
+    }
+    const familyId = item.familyMembers[0]?.familyId || item.key;
+    const memberCountdowns = item.familyMembers
+      .map((member) => {
+        const memberEmergency = getAllActiveEmergencyPrayers(people).find((ep) => ep.person.id === member.id);
+        return memberEmergency ? emergencyCountdowns[memberEmergency.item.id] ?? "" : "";
+      })
+      .join(",");
+    return (
+      <RosterRowShell
+        rowKey={item.key}
+        fingerprint={`f|${rosterRefId(item.familyMembers)}|${expandedFamilyId === familyId ? 1 : 0}|${closingFamilyId === familyId ? 1 : 0}|${memberCountdowns}|${themeKey}`}
+        renderRow={() => renderPeopleFamilyRow(item)}
+      />
+    );
   };
 
   // v255: the floating header's pill machinery (pillVisible,

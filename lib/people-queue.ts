@@ -22,6 +22,17 @@ export function queueFaceStatus(person: Person, done: boolean): string {
   return waiting >= 2 ? `${waiting} waiting` : "Waiting";
 }
 
+/**
+ * v256: the queue's name is the FIRST name, whole — never the
+ * "First L." form and never an ellipsis (his v255 screenshot:
+ * "Jonatha…", "Novalee…"). A long first name shrinks to fit its
+ * column at render instead of truncating.
+ */
+export function queueFirstName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts[0] || "Unnamed";
+}
+
 /** Waiting first, prayed after — stable inside each group. */
 export function sortQueueFaces(list: Person[], today: string): Person[] {
   const waiting = list.filter((person) => !hasPersonCompletedPrayerToday(person, today));

@@ -4,7 +4,6 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
-import { AttentionBell } from "@/components/attention-bell";
 import { bibleEventEmitter } from '@/lib/bible-events';
 import {
   Animated,
@@ -12057,15 +12056,8 @@ export function ScheduleTab({
       label="Jump to date"
       compact
     />
-    {onBellPrayToday ? (
-      <View style={{ marginLeft: "auto" }}>
-        <AttentionBell
-          people={people}
-          onOpenPerson={(personId) => router.push({ pathname: "/person", params: { personId } })}
-          onPrayToday={onBellPrayToday}
-        />
-      </View>
-    ) : null}
+    {/* v256: the attention bell lives on People only — the
+        Schedule date header no longer mounts it. */}
   </View>
   {(skinTokens.isEightBit || skinTokens.isTerminal) ? (
     <Text style={{ color: skinTokens.isTerminal ? TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, skinTokens.isTerminal ? 20 : 12) }}>

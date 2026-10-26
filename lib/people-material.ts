@@ -19,6 +19,8 @@ import { bibleAccentInk, hexToHsl, hexToRgba, hslToHex } from "@/lib/bible-v205/
 
 /** Praise gold — a meaning constant (the bell's praise ring, the XP chip). */
 export const PEOPLE_PRAISE_GOLD = "#F59E0B";
+/** Ink on a filled gold pill (the slip card's Reach out) — ≥7:1 on the gold. */
+export const PEOPLE_GOLD_PILL_INK = "#2A1B02";
 /** The XP chip gold from the Bible rewards family — same chip, same gold. */
 export const PEOPLE_XP_GOLD = "#FFC53D";
 export const PEOPLE_XP_GOLD_INK = "#4A2F00";
@@ -97,24 +99,40 @@ export interface PeopleMaterialFamily {
   amberDeep: string;
 }
 
-// ─── v255 "The Front Door, To the Drawing" ─────────────────────────────
-// The People front door takes the approved mockup's LIGHT Material
-// language verbatim (people-material-concept-v2): ground #F8F5FE,
-// white cards, dark ink — measured from the mockup file, not derived
-// from the active palette (v254's family followed the palette, so on
-// his dark palette the whole page rendered dark and matched nothing).
-// The Bible v250 precedent: this stage's Material surfaces stand in
-// their own language. The seed still dresses the page — every role
-// below is the mockup's own hex, hue-rotated by the seed's distance
-// from the mockup's violet, so a different Settings color re-dresses
-// the page in the same tonal family. At the violet seed the rotation
-// is zero and every value is the mockup's, exactly.
+// ─── v255 "The Front Door, To the Drawing" → v256 "Derive, Don't Pin" ──
+// The mockup (people-material-concept-v2) supplies the front door's
+// STRUCTURE and its Classic-LIGHT instance: ground #F8F5FE, white
+// cards, dark ink, measured from the concept file. v255 pinned that
+// one instance under Classic — and Jonathan's verdict named the cost:
+// no dark mode, the Paper skin gated out, and the Settings color
+// stopped reaching the page. v256 governs the family the way the
+// Bible's deriveBibleMaterial governs its own: the surfaces DERIVE
+// from the active Settings seed × the appearance. The light branch
+// below reproduces the mockup's hexes exactly at the violet seed
+// (hue-rotated by the seed's distance from the mockup's violet, so
+// any other Settings color re-dresses the page in the same tonal
+// family); the dark branch is the same family derived for a dark
+// ground — deep seed shades, near-white inks, every ink walked to
+// the 4.5:1 floor against the surface it sits on. The tab bar's
+// Expressive roles (tabbar-concepts-v1, Concept 2) ride the same
+// derivation: the concept's light AND dark frames are its two
+// instances at the violet seed.
 
 export interface PeopleFrontDoorFamily extends PeopleMaterialFamily {
   /** The don't-slip card's quiet sub-line ink (#6D5BA6 at the violet seed). */
   washSub: string;
   /** The queue bar gradient's far end — the mockup's fixed teal #0F766E. */
   queueTeal: string;
+  /** Expressive tab bar surface (Concept 2: #EFE9FC light / #1D1730 dark). */
+  navGround: string;
+  /** Expressive tab bar quiet ink (inactive icon + label). */
+  navInk: string;
+  /** Expressive tab bar active label ink (the concept's deep seed). */
+  navActiveInk: string;
+  /** Expressive tab bar active indicator (the tonal blob behind the icon). */
+  navInd: string;
+  /** Expressive tab bar tick under the active label. */
+  navTick: string;
 }
 
 /** The mockup's violet seed — the rotation's zero point. */
@@ -131,6 +149,30 @@ const FRONT_DOOR_ROLES = {
   ink: "#2A2140",
   inkSoft: "#75698F",
   washSub: "#6D5BA6",
+  navGround: "#EFE9FC",
+} as const;
+
+/**
+ * The dark instance of the same roles, in the mockup's violet space:
+ * the ground and cards are the light family's inks turned deep, the
+ * washes are the seed at night strength, and the inks are the light
+ * family's pale shades (the tab-bar concept's dark frame supplies
+ * navGround / navInk / navActiveInk / navInd / navTick verbatim).
+ */
+const FRONT_DOOR_DARK_ROLES = {
+  ground: "#161126",
+  card: "#201A38",
+  wash: "#2B2149",
+  wash2: "#3A2A66",
+  line: "#372C59",
+  deep: "#CDBFFB",
+  inkSeed: "#EFE9FD",
+  ink: "#F4F0FE",
+  inkSoft: "#B3A6D9",
+  washSub: "#B7A8E8",
+  navGround: "#1D1730",
+  navInk: "#9C8FC2",
+  navTick: "#A78BFA",
 } as const;
 
 function rotateRole(hex: string, hueDelta: number): string {
@@ -139,8 +181,43 @@ function rotateRole(hex: string, hueDelta: number): string {
   return hslToHex({ h: h + hueDelta, s, l });
 }
 
-export function derivePeopleFrontDoor(primary: string): PeopleFrontDoorFamily {
+export function derivePeopleFrontDoor(primary: string, scheme: "light" | "dark" = "light"): PeopleFrontDoorFamily {
   const hueDelta = hexToHsl(primary).h - hexToHsl(FRONT_DOOR_SEED).h;
+  if (scheme === "dark") {
+    const card = rotateRole(FRONT_DOOR_DARK_ROLES.card, hueDelta);
+    const wash = rotateRole(FRONT_DOOR_DARK_ROLES.wash, hueDelta);
+    const goldTint = mix(card, PEOPLE_PRAISE_GOLD, 0.26);
+    const amberWash = mix(card, PEOPLE_REACH_AMBER, 0.26);
+    return {
+      ground: rotateRole(FRONT_DOOR_DARK_ROLES.ground, hueDelta),
+      card,
+      wash,
+      wash2: rotateRole(FRONT_DOOR_DARK_ROLES.wash2, hueDelta),
+      washInk: rotateRole(FRONT_DOOR_DARK_ROLES.inkSeed, hueDelta),
+      ink: rotateRole(FRONT_DOOR_DARK_ROLES.ink, hueDelta),
+      inkSoft: bibleAccentInk(rotateRole(FRONT_DOOR_DARK_ROLES.inkSoft, hueDelta), card),
+      line: rotateRole(FRONT_DOOR_DARK_ROLES.line, hueDelta),
+      seed: primary,
+      deep: bibleAccentInk(rotateRole(FRONT_DOOR_DARK_ROLES.deep, hueDelta), wash),
+      inkSeed: rotateRole(FRONT_DOOR_DARK_ROLES.inkSeed, hueDelta),
+      tealDeep: "#0F766E",
+      shadow: hexToRgba("#000000", 0.45),
+      gold: PEOPLE_PRAISE_GOLD,
+      goldTint,
+      goldWash: mix(card, PEOPLE_PRAISE_GOLD, 0.18),
+      goldDeep: bibleAccentInk(PEOPLE_PRAISE_GOLD, goldTint),
+      redWash: mix(card, PEOPLE_EMERGENCY_RED, 0.26),
+      amberWash,
+      amberDeep: bibleAccentInk(PEOPLE_REACH_AMBER, amberWash),
+      washSub: bibleAccentInk(rotateRole(FRONT_DOOR_DARK_ROLES.washSub, hueDelta), wash),
+      queueTeal: "#0F766E",
+      navGround: rotateRole(FRONT_DOOR_DARK_ROLES.navGround, hueDelta),
+      navInk: rotateRole(FRONT_DOOR_DARK_ROLES.navInk, hueDelta),
+      navActiveInk: rotateRole(FRONT_DOOR_DARK_ROLES.deep, hueDelta),
+      navInd: rotateRole(FRONT_DOOR_DARK_ROLES.wash2, hueDelta),
+      navTick: rotateRole(FRONT_DOOR_DARK_ROLES.navTick, hueDelta),
+    };
+  }
   const deep = rotateRole(FRONT_DOOR_ROLES.deep, hueDelta);
   const inkSeed = rotateRole(FRONT_DOOR_ROLES.inkSeed, hueDelta);
   return {
@@ -166,6 +243,11 @@ export function derivePeopleFrontDoor(primary: string): PeopleFrontDoorFamily {
     amberDeep: "#9A6206",
     washSub: rotateRole(FRONT_DOOR_ROLES.washSub, hueDelta),
     queueTeal: "#0F766E",
+    navGround: rotateRole(FRONT_DOOR_ROLES.navGround, hueDelta),
+    navInk: rotateRole(FRONT_DOOR_ROLES.inkSoft, hueDelta),
+    navActiveInk: deep,
+    navInd: rotateRole(FRONT_DOOR_ROLES.wash2, hueDelta),
+    navTick: primary,
   };
 }
 

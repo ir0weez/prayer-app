@@ -265,22 +265,17 @@ describe("v254 source pins — People front door + roster (index.tsx)", () => {
     expect(index).toContain("getReachOutEntries");
   });
 
-  it("there is NO day/study strip on People — the front door is app bar, story bar, cards, roster", () => {
+  it("there is NO day/study strip on People — the front door is app bar, cards, roster (v256: the story bar is gone too)", () => {
     expect(index).toContain("renderPeopleFrontDoor");
     expect(index).not.toContain("renderPeopleDayStrip");
   });
 
-  it("the story bar keeps its exact badge rules (praise > emergency > urgent, real bubble colors)", () => {
-    expect(index).toContain("showPraiseBadge");
-    expect(index).toContain("showEmergencyBadge");
-    expect(index).toContain("showUrgentBubble");
-    expect(index).toContain('"#DBEAFE"'); // praise badge family (blue)
-    expect(index).toContain('"#FEE2E2"'); // emergency badge family (red wash)
-    expect(index).toContain('"#F3E8FF"'); // urgent bubble family (violet wash)
-    // precedence is encoded in the flags: praise suppresses the
-    // emergency badge; emergency and praise both suppress urgent.
-    expect(index).toContain("const showEmergencyBadge = isEmergency && emergencyCountdown > 0 && !showPraiseBadge && !isPending;");
-    expect(index).toContain("const showUrgentBubble = urgentItems.length > 0 && !isEmergency && !showPraiseBadge && !isPending;");
+  it("REMOVED in v256 (his call, Oct 25 21:17) — the Pray Today story bar duplicated the queue card, so the bar and its badge machinery are OFF the People page; the queue faces carry its tap-to-pray instead", () => {
+    expect(index).not.toContain("renderStoryPerson");
+    expect(index).not.toContain("renderPeoplePrayerHeader");
+    expect(index).not.toContain("showPraiseBadge");
+    expect(index).not.toContain("showUrgentBubble");
+    expect(index).toContain("isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id)");
   });
 
   it("roster sections keep RELATIONSHIP_ORDER and households render before singles", () => {
@@ -387,13 +382,11 @@ describe("v254 source pins — the Bell (attention-bell.tsx)", () => {
     expect(bell).toContain("getBellSummary");
   });
 
-  it("the bell is mounted on People, the More hub, the Schedule day header, and the Journal masthead", () => {
-    expect(index).toContain("<AttentionBell");
-    expect(schedule).toContain("<AttentionBell");
-    expect(schedule).toContain("onBellPrayToday");
-    expect(journal).toContain("headerBell");
-    expect(index).toContain("headerBell={(");
-    expect(index).toContain("<AttentionBell");
+  it("the bell is mounted on People ONLY (v256 — his call: 'Just the first one is fine'); Schedule, Journal, and More no longer mount it", () => {
+    expect(index.split("<AttentionBell").length - 1).toBe(1);
+    expect(schedule).not.toContain("<AttentionBell");
+    expect(index).not.toContain("headerBell={(");
+    expect(index).not.toContain("onBellPrayToday");
   });
 
   it("settles from storage on mount/foreground — no background timers in the bell", () => {

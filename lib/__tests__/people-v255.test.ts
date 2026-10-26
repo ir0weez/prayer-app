@@ -48,7 +48,7 @@ function item(overrides: Partial<PrayerItem> = {}): PrayerItem {
 // ─── 1. Surfaces — the mockup's light language, exactly ─────────────
 
 describe("v255 front-door tokens — the mockup's values at the violet seed", () => {
-  const fd = derivePeopleFrontDoor("#7C3AED");
+  const fd = derivePeopleFrontDoor("#7C3AED", "light");
 
   it("ground, card, washes, and line are the concept file's hexes", () => {
     expect(fd.ground).toBe("#F8F5FE");
@@ -83,7 +83,7 @@ describe("v255 front-door tokens — the mockup's values at the violet seed", ()
   });
 
   it("a different seed re-dresses the page in the same tonal family (hue rotates, lightness stands, card stays white)", () => {
-    const blue = derivePeopleFrontDoor("#2563EB");
+    const blue = derivePeopleFrontDoor("#2563EB", "light");
     expect(blue.card).toBe("#FFFFFF");
     expect(blue.ground).not.toBe("#F8F5FE");
     expect(blue.deep).not.toBe("#4C1D95");
@@ -185,7 +185,8 @@ describe("v255 source pins — front door (index.tsx)", () => {
   it("4 · the slip card stacks every due person's row", () => {
     const slip = index.slice(index.indexOf("const renderSlipCard"), index.indexOf("const renderRosterHead"));
     expect(slip).toContain("reachEntries.map");
-    expect(slip).toContain("pmf.washSub");
+    // v256: the header's washSub caption became the gold count chip.
+    expect(slip).toContain("pmf.gold");
     expect(slip).not.toContain("slipIndex");
   });
 
@@ -198,7 +199,7 @@ describe("v255 source pins — front door (index.tsx)", () => {
     expect(classic).not.toContain("formatDaysSinceLastPrayer(freshestDays)");
   });
 
-  it("1 · the front door's token source is the light family under Classic, pm under the skins", () => {
+  it("1 · the front door's token source is the derived family under Classic, pm under the skins (v256: the family derives seed × light/dark — see people-v256)", () => {
     expect(index).toContain("const pmf: PeopleFrontDoorFamily = isClassicSkin");
     expect(index).toContain("usePeopleFrontDoor()");
     expect(index).toContain("family={pmf}");
@@ -208,13 +209,13 @@ describe("v255 source pins — front door (index.tsx)", () => {
 describe("v255 source pins — tab bar as drawn (index.tsx)", () => {
   const index = read("app/(tabs)/index.tsx");
 
-  it("6 · under Classic the bar is flat and light: full-width, top radii 24, white card, the wash pill behind the icon", () => {
+  it("6 · SUPERSEDED by v256 — under Classic the bar is Concept 2 (Expressive): seed-tinted surface, the 58×34 tonal blob behind the active icon", () => {
     const bar = index.slice(index.indexOf("onLayout={(event) => setNavWidth"), index.indexOf('renderTab("people"'));
     expect(bar).toContain("borderTopLeftRadius: 24");
-    expect(bar).toContain("backgroundColor: pmf.card");
-    expect(bar).toContain("backgroundColor: pmf.wash");
-    expect(bar).toContain("height: 27");
-    expect(index).toContain("(navWidth - 16) / 5 - 14");
+    expect(bar).toContain("backgroundColor: pmf.navGround");
+    expect(bar).toContain("backgroundColor: pmf.navInd");
+    expect(bar).toContain("height: 34");
+    expect(index).toContain("(navWidth - 20) / 5");
   });
 
   it("6 · NO + button under Classic — the FAB survives only for the material skins, and Add Person's drawn door (the roster head +) remains", () => {
@@ -222,9 +223,9 @@ describe("v255 source pins — tab bar as drawn (index.tsx)", () => {
     expect(index).toContain('setActiveTab("people"); setShowAddPerson(true);');
   });
 
-  it("6 · the floating Pray Today pill floats above the flat bar under Classic (84), unchanged for the skins (140)", () => {
-    expect(index).toContain("bottom: isClassicSkin ? 84 : 140");
-    expect(index).toContain("pmf.inkSeed");
+  it("6 · SUPERSEDED by v256 — the floating Pray Today pill wears Concept 2's filled seed above the taller Expressive bar (103), unchanged for the skins (140)", () => {
+    expect(index).toContain("bottom: isClassicSkin ? 103 : 140");
+    expect(index).toContain("pmf.seed");
   });
 
   it("the bell on the People app bar takes the front door's family; other hosts keep the hook family", () => {

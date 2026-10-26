@@ -1,3 +1,4 @@
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useColors } from "@/hooks/use-colors";
 import {
   derivePeopleFrontDoor,
@@ -21,13 +22,17 @@ export function usePeopleMaterial(): PeopleMaterialFamily {
   });
 }
 
-// v255: the front door's own hook — the mockup's light language,
-// seeded from the active palette's primary (lib/people-material.ts's
-// derivePeopleFrontDoor). Only the People page's front door and
-// roster read this family; the editor, profile, bell panel default,
-// and session keep the palette family above.
+// v256: the front door's own hook — the mockup supplies the
+// structure and the Classic-light instance; the family DERIVES from
+// the live Settings seed (useColors reads the theme context, so a
+// palette change re-dresses the page without a restart) × the
+// appearance (useColorScheme — light AND dark both derive). Only
+// the People page's front door, roster, app-bar bell, and the
+// Classic tab bar read this family; the editor, profile, bell panel
+// default, and session keep the palette family above.
 
 export function usePeopleFrontDoor(): PeopleFrontDoorFamily {
   const colors = useColors();
-  return derivePeopleFrontDoor(colors.primary);
+  const scheme = useColorScheme();
+  return derivePeopleFrontDoor(colors.primary, scheme === "dark" ? "dark" : "light");
 }

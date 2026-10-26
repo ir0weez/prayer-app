@@ -66,6 +66,7 @@ import {
   parseLegacyReadIds,
   saveStudyState,
   seedStudyState,
+  setChapterRead,
   setChapterStatus,
   setCurrentBook as setStudyCurrentBook,
   stripNotionSeedQueues,
@@ -1263,7 +1264,14 @@ describe('v211 — the box gets its buttons back; position lives in the new stor
     let state = seedStudyState();
     state = setStudyCurrentBook(state, 'Leviticus');
     for (let c = 1; c <= 17; c++) state = setChapterStatus(state, 'Leviticus', c, 'complete');
-    expect(getReadingPosition(state).target).toEqual({ book: 'Leviticus', chapter: 18 });
+    // v253 RE-BASE (the two-marks fix): notes-Complete chapters
+    // alone no longer position the READING target — with no read
+    // marks and no position stamp, the reading position honestly
+    // starts at the book's first chapter. (Pre-v253 this asserted
+    // 18 off the notes scan — the same notes-driven derivation
+    // that slammed his card to Leviticus 1 on Oct 25.) The
+    // transition below still advances the position, via the stamp.
+    expect(getReadingPosition(state).target).toEqual({ book: 'Leviticus', chapter: 1 });
 
     const done = await transitionChapterStatus(state, 'Leviticus', 18, 'complete');
     // The completion stamped lastRead in the STUDY store…
@@ -1285,7 +1293,7 @@ describe('v211 — the box gets its buttons back; position lives in the new stor
     expect(store.get(UNIFIED_BIBLE_KEY)).toBe('{"sentinel":true}');
   });
 
-  it('un-completing (Back semantics) moves the target back without moving lastRead', async () => {
+  it('un-completing (Back semantics) steps the notes state back; the position floor does not retreat', async () => {
     let state = seedStudyState();
     state = setStudyCurrentBook(state, 'Leviticus');
     for (let c = 1; c <= 18; c++) state = setChapterStatus(state, 'Leviticus', c, 'complete');
@@ -1296,8 +1304,14 @@ describe('v211 — the box gets its buttons back; position lives in the new stor
     expect(chapterStatus(back.state, 'Leviticus', 18)).toBe('none');
     // lastRead does NOT retreat…
     expect(back.state.lastRead).toEqual({ book: 'Leviticus', chapter: 18, date: '2026-10-22' });
-    // …but the target re-derives to the chapter stepped back from.
-    expect(getReadingPosition(back.state).target).toEqual({ book: 'Leviticus', chapter: 18 });
+    // …and neither does the reading target. v253 RE-BASE: pre-v253
+    // this asserted the target re-derived to the chapter stepped
+    // back from (18) — true only while the target scanned notes
+    // states. Under the two-marks fix the stamp is the position
+    // floor and (per the v211 rule above) it never retreats when a
+    // notes state steps back, so the target stays past it at 19;
+    // only read marks move the reading target now.
+    expect(getReadingPosition(back.state).target).toEqual({ book: 'Leviticus', chapter: 19 });
     // And no XP moved in either direction (no award, no revoke).
     expect((await loadXPState()).totalXP).toBe(0);
   });
@@ -1315,14 +1329,25 @@ describe('v211 — the box gets its buttons back; position lives in the new stor
     expect(getReadingPosition(seedStudyState())).toEqual({ currentBook: null, lastRead: null, target: null });
   });
 
-  it("getReadingPosition: current book — target is its first chapter not yet Complete", () => {
+  it("getReadingPosition: current book — target is its first chapter not yet READ (v253)", () => {
+    // v253 RE-BASE: this pin was written against the notes scan
+    // (setChapterStatus 'complete' marks). The reading position
+    // follows the READ track now, so the same shape is driven with
+    // read marks — and a book finished by reading CHAINS to the
+    // next book (the stamp branch's long-standing semantics)
+    // instead of resting at null.
     let state = setStudyCurrentBook(seedStudyState(), 'Ruth');
-    state = setChapterStatus(state, 'Ruth', 1, 'complete');
-    state = setChapterStatus(state, 'Ruth', 2, 'complete');
-    state = setChapterStatus(state, 'Ruth', 4, 'complete'); // the gap at 3 is next
+    state = setChapterRead(state, 'Ruth', 1, '2026-10-20');
+    state = setChapterRead(state, 'Ruth', 2, '2026-10-20');
+    state = setChapterRead(state, 'Ruth', 4, '2026-10-21'); // the gap at 3 is next
     expect(getReadingPosition(state).target).toEqual({ book: 'Ruth', chapter: 3 });
+    // A notes-Complete on the gap chapter does NOT cover it for
+    // reading (two marks) — the target stays on the unread gap.
     state = setChapterStatus(state, 'Ruth', 3, 'complete');
-    expect(getReadingPosition(state).target).toBeNull(); // Ruth is finished
+    expect(getReadingPosition(state).target).toEqual({ book: 'Ruth', chapter: 3 });
+    state = setChapterRead(state, 'Ruth', 3, '2026-10-21');
+    // Ruth is finished by reading — the position flows on.
+    expect(getReadingPosition(state).target).toEqual({ book: '1 Samuel', chapter: 1 });
   });
 
   it('deriveSeedPosition: the unified current book + its latest dated read', () => {

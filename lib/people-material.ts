@@ -48,6 +48,24 @@ export const FIRST_CARD = {
   pillInk: "#FFF7E6",
 } as const;
 
+/**
+ * v269 "A Prayer Just for Them": the praise lead's paints for the
+ * session — the front-door praise card's OWN colors (v254: gradient
+ * #FFF3D6 → #FFE9B8, line #F5D67B, ink #4A3205, sub #7A5A14, deep
+ * #B26E12), carried into Pray Today so a praise reads the same gold
+ * in both rooms. Constants beside FIRST_CARD for the same reason:
+ * praise gold is a meaning, never a palette role.
+ */
+export const PRAISE_CARD = {
+  bgFrom: "#FFF3D6",
+  bgTo: "#FFE9B8",
+  line: "#F5D67B",
+  ink: "#4A3205",
+  sub: "#7A5A14",
+  deep: "#B26E12",
+  pillInk: "#FFFFFF",
+} as const;
+
 export type PeoplePaletteTokens = {
   background: string;
   surface: string;

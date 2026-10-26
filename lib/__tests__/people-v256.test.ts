@@ -276,7 +276,13 @@ describe("v256 source pins — the banner and praise card page (index.tsx)", () 
   });
 
   it("each page's Pray now starts the session at THAT page's person", () => {
-    expect(index).toContain("setPrayerSessionStartId(entry.person.id); setShowPrayerSession(true);");
+    // v269 re-base (his pick, Oct 26 11:45 — "Focused: a prayer just
+    // for that person"): the banner's Pray now no longer ROTATES the
+    // queue to that person (the v256 behavior pinned here) — the
+    // rotation filtered out anyone already prayed today and dealt
+    // the wrong session, or the empty "0 people" one. It now opens
+    // a FOCUSED session of exactly that person. See people-v269.
+    expect(index).toContain('openFocusedPrayerSession(entry.person.id, "emergency")');
     expect(index).toContain("people={sessionPeople}");
   });
 

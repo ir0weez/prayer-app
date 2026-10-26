@@ -93,7 +93,12 @@ describe("v261 source pins — the complete card (index.tsx)", () => {
 
   it("skinny: no next item → the stadium bar alone, tap reopens the session (no origin)", () => {
     expect(zone).toContain("if (!whatsNext) {");
-    expect(zone).toContain("onPress={() => { setSessionMorphOrigin(null); setShowPrayerSession(true); }}");
+    // v269 re-base: the tap now routes through openPrayerSession —
+    // the shared non-focused door, which still clears the origin
+    // (v261's semantics) and additionally refuses to open over an
+    // empty waiting list, the path that dealt his Oct 26 "Prayer
+    // Time Complete — 0 people" screen. See people-v269.
+    expect(zone).toContain("onPress={openPrayerSession}");
     expect(zone).toContain("borderRadius: 999, paddingHorizontal: 17, paddingVertical: 16");
   });
 

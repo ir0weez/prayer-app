@@ -22,7 +22,8 @@ import { usePeopleMaterial } from "@/hooks/use-people-material";
 import { useSkin } from "@/hooks/use-skin";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PeopleEntrance, PEOPLE_ENTRANCE_EASING } from "@/components/people-entrance";
-import { FIRST_CARD } from "@/lib/people-material";
+import { FIRST_CARD, PRAISE_CARD } from "@/lib/people-material";
+import { getPraiseDisplay } from "@/lib/praise-display";
 import { mix } from "@/lib/color-themes";
 import { hexToRgba } from "@/lib/bible-v205/palette-accents";
 import { getLeadNeed, isActiveEmergencyItem } from "@/lib/prayer-lead";
@@ -49,6 +50,25 @@ type Props = {
   /** The queue card header's counts, for the replica header that
    * rides the container's top while it grows (the bar anchor). */
   morphHeader?: { prayed: number; total: number } | null;
+  /** v269 "A Prayer Just for Them" (his pick, Oct 26 11:45): a
+   * FOCUSED launch — a Pray now on an emergency or praise card. The
+   * session holds exactly that one person (even already prayed
+   * today) and the lead wears the launch's dress: "emergency" keeps
+   * the standard lead path; "praise" deals a gold praise lead in
+   * the FIRST slot. Null/absent for every ordinary launch. The
+   * session snapshots this at reset. */
+  focusKind?: "emergency" | "praise" | null;
+  /** v269: bumped by the parent when the session's list is swapped
+   * mid-flight (Keep praying out of a focused session) — the reset
+   * re-runs over the new list without the session ever closing. */
+  resetNonce?: number;
+  /** v269: how many others were still waiting when a focused
+   * session launched — the focused complete screen offers Keep
+   * praying only when this is greater than zero. */
+  keepPrayingCount?: number;
+  /** v269: from the focused complete screen — swap to the waiting
+   * list and keep going, inside this same session. */
+  onKeepPraying?: () => void;
 };
 
 /** v261: the container transform's one motion — the note-bubble
@@ -302,7 +322,7 @@ async function dismissPrayerNotification() {
   }
 }
 
-export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, morphOrigin, morphSurface, morphHeader }: Props) {
+export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, morphOrigin, morphSurface, morphHeader, focusKind, resetNonce, keepPrayingCount, onKeepPraying }: Props) {
   const colors = useColors();
   const pm = usePeopleMaterial();
   const { isSkinned } = useSkin();
@@ -313,6 +333,11 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
   const [isFinished, setIsFinished] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [sessionPeople, setSessionPeople] = useState<Person[]>([]);
+  // v269: the focused launch's kind, snapshotted at reset — the
+  // parent may clear its own focus state (Keep praying) while the
+  // session is mid-flight, and the leg being prayed keeps the dress
+  // it was dealt until the reset deals the next one.
+  const [sessionFocusKind, setSessionFocusKind] = useState<"emergency" | "praise" | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastBonusMinute = useRef(0);
   const sessionStartRef = useRef<number>(0);
@@ -423,6 +448,8 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
       setIsFinished(false);
       setTotalCount(people.length);
       setSessionPeople([...people]);
+      // v269: snapshot the focused launch's kind with the list.
+      setSessionFocusKind(focusKind ?? null);
       // Lock in the time-of-day backdrop once per session (no live switching).
       setSkyBucket(getPrayerSkyBucket(new Date()));
       // v215: each new session earns its one visible back hint.
@@ -496,7 +523,12 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
       if (isNativePrayerTimerAvailable()) stopPrayerTimerNotification();
       else dismissPrayerNotification();
     };
-  }, [visible]);
+    // v269: resetNonce joins the deps — when the parent swaps the
+    // list mid-flight (Keep praying out of a focused session) the
+    // whole reset re-runs over the new list: fresh counts, fresh
+    // snapshot, the notification re-aimed at the new first person,
+    // and the session never closes in between.
+  }, [visible, resetNonce, focusKind]);
 
   // Stop timer when finished
   useEffect(() => {
@@ -564,6 +596,18 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
     requestCloseRef.current();
   };
 
+  // v269: the focused complete screen's second door. A focused
+  // session honestly totals its ONE person above; when others were
+  // still waiting at launch, Keep praying swaps the parent's list
+  // to those people and the reset re-deals this same session over
+  // them — the prayer continues without leaving the room. With
+  // nobody waiting, the complete screen is the standard one.
+  const showKeepPraying = isFinished && sessionFocusKind !== null && (keepPrayingCount ?? 0) > 0 && !!onKeepPraying;
+  const handleKeepPraying = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onKeepPraying?.();
+  };
+
   // v261: the session body is ONE tree with two presentation roots —
   // the fade Modal (every launch without an origin, every skin,
   // reduced motion) and the container-transform overlay (footer
@@ -604,7 +648,14 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
         {!isFinished && currentPerson ? (
           <>
             {(() => {
-              const lead = getLeadNeed(currentPerson);
+              // v269: a focused PRAISE launch deals its own lead —
+              // the praise itself, in gold, in the FIRST slot. The
+              // need-lead stands down for this leg only; the person's
+              // needs still list below, fully quiet (an emergency
+              // among them keeps its red countdown in its row).
+              const praiseFocus = sessionFocusKind === "praise";
+              const praiseDisplay = praiseFocus ? getPraiseDisplay(currentPerson) : null;
+              const lead = praiseFocus ? null : getLeadNeed(currentPerson);
               const activeItems = currentPerson.prayerItems.filter((item) => !item.isDone);
               const otherItems = lead ? activeItems.filter((item) => item.id !== lead.item.id) : activeItems;
               // v264 (audit D6): every other need shows — the
@@ -621,6 +672,13 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
               const quietInk = mix(pm.ink, pm.inkSoft, 0.45);
               const timerFraction = (elapsedSeconds % 60) / 60;
               const timerCircumference = 2 * Math.PI * 20.5;
+              // v269: the session row's ring wears the lead's family
+              // — the praise gold on a focused praise leg, the FIRST
+              // warmth on a first lead, the seed family otherwise.
+              const ringTrack = praiseFocus ? hexToRgba(PRAISE_CARD.ink, 0.25) : lead?.kind === "first" ? hexToRgba(FIRST_CARD.ink, 0.25) : pm.wash;
+              const ringStroke = praiseFocus ? PRAISE_CARD.deep : lead?.kind === "first" ? FIRST_CARD.deep : pm.deep;
+              const ringInk = praiseFocus ? PRAISE_CARD.ink : lead?.kind === "first" ? FIRST_CARD.ink : colors.foreground;
+              const ringSub = praiseFocus ? PRAISE_CARD.sub : lead?.kind === "first" ? FIRST_CARD.sub : colors.muted;
               const sessionRow = (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                   <View
@@ -638,18 +696,18 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                           the track is now the warm ink at 25%, an
                           engraved groove the eye can find from the
                           first second. */}
-                      <Circle cx={24} cy={24} r={20.5} fill="none" stroke={lead?.kind === "first" ? hexToRgba(FIRST_CARD.ink, 0.25) : pm.wash} strokeWidth={3.5} />
-                      <Circle cx={24} cy={24} r={20.5} fill="none" stroke={lead?.kind === "first" ? FIRST_CARD.deep : pm.deep} strokeWidth={3.5} strokeLinecap="round" strokeDasharray={timerCircumference} strokeDashoffset={timerCircumference * (1 - timerFraction)} />
+                      <Circle cx={24} cy={24} r={20.5} fill="none" stroke={ringTrack} strokeWidth={3.5} />
+                      <Circle cx={24} cy={24} r={20.5} fill="none" stroke={ringStroke} strokeWidth={3.5} strokeLinecap="round" strokeDasharray={timerCircumference} strokeDashoffset={timerCircumference * (1 - timerFraction)} />
                     </Svg>
                     <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
-                      <Text style={{ fontSize: 11, fontWeight: "800", lineHeight: 12, color: lead?.kind === "first" ? FIRST_CARD.ink : colors.foreground, fontVariant: ["tabular-nums"] }}>{formatTime(elapsedSeconds)}</Text>
-                      <Text style={{ fontSize: 7.5, fontWeight: "800", letterSpacing: 0.6, color: lead?.kind === "first" ? FIRST_CARD.sub : colors.muted }}>PRAYING</Text>
+                      <Text style={{ fontSize: 11, fontWeight: "800", lineHeight: 12, color: ringInk, fontVariant: ["tabular-nums"] }}>{formatTime(elapsedSeconds)}</Text>
+                      <Text style={{ fontSize: 7.5, fontWeight: "800", letterSpacing: 0.6, color: ringSub }}>PRAYING</Text>
                     </View>
                     {/* v264 (audit D4): the pulse dot sits ON the
                         ring at its 45° point, inset from the corner
                         — out of the gap where it crowded the
                         Complete button's left edge. */}
-                    <View style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: lead?.kind === "first" ? FIRST_CARD.deep : pm.deep }} />
+                    <View style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: ringStroke }} />
                   </View>
                   <Pressable
                     onPress={handlePray}
@@ -747,6 +805,43 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                       </FirstWarmShadow>
                     ) : null}
 
+                    {/* v269: the focused praise lead — the FIRST
+                        card's slot and grammar in the praise gold
+                        (PRAISE_CARD: the front-door praise card's
+                        own paints), the session row inside it like
+                        the FIRST card carries it. The headline is
+                        his praise title, the sentence under it his
+                        praise note (praise-display's fallbacks) —
+                        never words he didn't write. */}
+                    {praiseFocus && praiseDisplay ? (
+                      <FirstWarmShadow>
+                      <View style={{ borderRadius: 22, borderWidth: 1.5, borderColor: PRAISE_CARD.line, overflow: "hidden", backgroundColor: PRAISE_CARD.bgTo, paddingHorizontal: 15, paddingTop: 14, paddingBottom: 15 }}>
+                        <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
+                          <Defs>
+                            <LinearGradient id="v269PraiseGrad" x1="0" y1="0" x2="1" y2="1">
+                              <Stop offset="0" stopColor={PRAISE_CARD.bgFrom} />
+                              <Stop offset="1" stopColor={PRAISE_CARD.bgTo} />
+                            </LinearGradient>
+                          </Defs>
+                          <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v269PraiseGrad)" />
+                        </Svg>
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: PRAISE_CARD.deep, borderRadius: 999, paddingLeft: 9, paddingRight: 11, paddingVertical: 5, shadowColor: PRAISE_CARD.deep, shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+                            <MaterialIcons name="star" size={11} color={PRAISE_CARD.pillInk} />
+                            <Text style={{ fontSize: 10, fontWeight: "900", letterSpacing: 1.4, color: PRAISE_CARD.pillInk }}>PRAISE</Text>
+                          </View>
+                        </View>
+                        <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 21, letterSpacing: -0.1, color: PRAISE_CARD.ink, marginTop: 10 }}>{praiseDisplay.headline}</Text>
+                        {!!praiseDisplay.note && (
+                          <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 17, color: PRAISE_CARD.sub, marginTop: 4 }}>{praiseDisplay.note}</Text>
+                        )}
+                        <View style={{ marginTop: 15, paddingTop: 14, borderTopWidth: 1.5, borderTopColor: hexToRgba(PRAISE_CARD.line, 0.85) }}>
+                          {sessionRow}
+                        </View>
+                      </View>
+                      </FirstWarmShadow>
+                    ) : null}
+
                     {/* The other needs — quiet rows; an emergency lead
                         keeps its own red treatment, never the FIRST card */}
                     {shownOthers.length > 0 || lead?.kind === "emergency" ? (
@@ -792,9 +887,13 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                     ) : null}
 
                     {/* No FIRST card (no needs, or the lead is an
-                        emergency): the session row stands on its own. */}
+                        emergency): the session row stands on its own.
+                        v269: on a focused praise leg the row already
+                        rides inside the praise lead — never twice. */}
                     {lead?.kind !== "first" ? (
-                      <View style={{ marginTop: 15 }}>{sessionRow}</View>
+                      praiseFocus ? null : (
+                        <View style={{ marginTop: 15 }}>{sessionRow}</View>
+                      )
                     ) : null}
                   </View>
 
@@ -821,12 +920,29 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
             <Text style={{ color: colors.primary, fontSize: 18, fontWeight: "800", marginTop: 16 }}>
               +{prayedCount * 10} XP earned
             </Text>
-            <Pressable
-              onPress={handleFinish}
-              style={{ backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 48, marginTop: 32 }}
-            >
-              <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "800" }}>Finish</Text>
-            </Pressable>
+            {showKeepPraying ? (
+              <>
+                <Pressable
+                  onPress={handleKeepPraying}
+                  style={{ backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 48, marginTop: 32 }}
+                >
+                  <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "800" }}>Keep praying</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleFinish}
+                  style={({ pressed }) => [{ paddingVertical: 12, paddingHorizontal: 24, marginTop: 10 }, pressed && { opacity: 0.65 }]}
+                >
+                  <Text style={{ color: colors.muted, fontSize: 15, fontWeight: "700" }}>Finish</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                onPress={handleFinish}
+                style={{ backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 48, marginTop: 32 }}
+              >
+                <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "800" }}>Finish</Text>
+              </Pressable>
+            )}
           </View>
         )}
         </ScrollView>

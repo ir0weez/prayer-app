@@ -934,6 +934,21 @@ export default function HomeScreen() {
   // per-page button) starts the session at that person; every other
   // launcher leaves this null and the session order is untouched.
   const [prayerSessionStartId, setPrayerSessionStartId] = useState<string | null>(null);
+  // v269 "A Prayer Just for Them" (his pick, Oct 26 11:45): a Pray
+  // now on an emergency or praise card opens a FOCUSED session —
+  // exactly that person, built from the full people record, even
+  // when they were already prayed today (the v256 rotation filtered
+  // them out and the session opened on the wrong list, or on the
+  // empty "0 people" complete screen when the day was done). The
+  // waiting count is the others still waiting at launch — it deals
+  // the focused complete screen its Keep praying door.
+  const [prayerSessionFocusId, setPrayerSessionFocusId] = useState<string | null>(null);
+  const [prayerSessionFocusKind, setPrayerSessionFocusKind] = useState<"emergency" | "praise" | null>(null);
+  const [prayerSessionFocusWaiting, setPrayerSessionFocusWaiting] = useState(0);
+  // v269: bumped when the session's list is swapped mid-flight
+  // (Keep praying out of a focused session) so PrayerSession's
+  // reset re-runs over the new list without the session closing.
+  const [sessionResetNonce, setSessionResetNonce] = useState(0);
   // v254: the People stage's Material family (seed-derived tokens).
   const pm = usePeopleMaterial();
   // v256: the front door's own family — DERIVED from the live seed
@@ -1685,12 +1700,19 @@ export default function HomeScreen() {
   // v256: the session's list — the prayable list rotated to start at
   // prayerSessionStartId when a per-person Pray now set one (and that
   // person is still waiting); otherwise the list exactly as it was.
+  // v269: a FOCUSED launch stands in front of the rotation — the
+  // session is exactly the one person, read from the full people
+  // record so an already-prayed person is still prayable here.
   const sessionPeople = useMemo(() => {
+    if (prayerSessionFocusId) {
+      const focused = people.find((person) => person.id === prayerSessionFocusId);
+      if (focused) return [focused];
+    }
     if (!prayerSessionStartId) return prayablePrayTodayList;
     const at = prayablePrayTodayList.findIndex((person) => person.id === prayerSessionStartId);
     if (at <= 0) return prayablePrayTodayList;
     return [...prayablePrayTodayList.slice(at), ...prayablePrayTodayList.slice(0, at)];
-  }, [prayablePrayTodayList, prayerSessionStartId]);
+  }, [people, prayerSessionFocusId, prayablePrayTodayList, prayerSessionStartId]);
   // The don't-slip card's reach rows — the bell lib's reach entries
   // (a real last-reached date, 14+ days old; never-reached is never
   // due). v255: the card STACKS one row per due person, as the
@@ -2105,6 +2127,39 @@ export default function HomeScreen() {
     void awardExperience("scheduled-prayer", `${today}:${personId}`, position ?? pendingPrayerPositions.current[personId]);
     delete pendingPrayerPositions.current[personId];
   }, [awardExperience, maybeAdvanceStreak, today]);
+
+  // v269: the ordinary launchers (the bell's Pray Today, the
+  // floating pill, the complete card's pray-again) share one door,
+  // and it stays shut over an empty list — a session must never
+  // open onto the fake "Prayer Time Complete — 0 people" screen
+  // (his Oct 26 screenshot). Focused launches build their own
+  // one-person list and never pass through here.
+  const openPrayerSession = useCallback(() => {
+    if (prayablePrayTodayList.length === 0) return;
+    setSessionMorphOrigin(null);
+    setShowPrayerSession(true);
+  }, [prayablePrayTodayList]);
+
+  // v269: a card's Pray now — a prayer just for that person, even
+  // if they were already prayed today. The waiting count is
+  // captured NOW, at launch: it is the focused complete screen's
+  // Keep praying condition, not a live count.
+  const openFocusedPrayerSession = useCallback((personId: string, kind: "emergency" | "praise") => {
+    setPrayerSessionFocusWaiting(prayablePrayTodayList.filter((person) => person.id !== personId).length);
+    setPrayerSessionFocusId(personId);
+    setPrayerSessionFocusKind(kind);
+    setShowPrayerSession(true);
+  }, [prayablePrayTodayList]);
+
+  // v269: Keep praying from a focused complete screen — the focus
+  // clears, the session's list falls back to whoever is still
+  // waiting, and the nonce re-deals the open session over them.
+  const keepPrayingFromFocus = useCallback(() => {
+    setPrayerSessionFocusId(null);
+    setPrayerSessionFocusKind(null);
+    setPrayerSessionFocusWaiting(0);
+    setSessionResetNonce((nonce) => nonce + 1);
+  }, []);
 
   const handleMarkPrayTodayPerson = (personId: string, position?: XpGainPosition) => {
     const targetPerson = people.find((person) => person.id === personId);
@@ -2808,7 +2863,7 @@ export default function HomeScreen() {
         people={people}
         family={pmf}
         onOpenPerson={(personId) => router.push({ pathname: "/person", params: { personId } })}
-        onPrayToday={() => setShowPrayerSession(true)}
+        onPrayToday={openPrayerSession}
       />
     </View>
   );
@@ -2872,7 +2927,7 @@ export default function HomeScreen() {
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
                     <CarouselDots count={emergencies.length} index={Math.min(pageIndex, emergencies.length - 1)} activeColor="#FFFFFF" inactiveColor="rgba(255,255,255,0.4)" />
-                    <Pressable onPressIn={registerTouch} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setPrayerSessionStartId(entry.person.id); setShowPrayerSession(true); }} style={({ pressed }) => [{ backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 }, pressed && { opacity: 0.85 }]}>
+                    <Pressable onPressIn={registerTouch} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openFocusedPrayerSession(entry.person.id, "emergency"); }} style={({ pressed }) => [{ backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 }, pressed && { opacity: 0.85 }]}>
                       <Text style={{ fontSize: 13.5, fontWeight: "800", color: "#991B1B" }}>Pray now</Text>
                     </Pressable>
                   </View>
@@ -2940,7 +2995,7 @@ export default function HomeScreen() {
       return (
         <PeopleEntrance index={1}>
           <Pressable
-            onPress={() => { setSessionMorphOrigin(null); setShowPrayerSession(true); }}
+            onPress={openPrayerSession}
             style={({ pressed }) => [{ backgroundColor: pmf.card, borderRadius: 999, paddingHorizontal: 17, paddingVertical: 16, marginHorizontal: 16, marginTop: 12, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 }, pressed && { opacity: 0.85 }]}
           >
             {headerRow}
@@ -3171,6 +3226,9 @@ export default function HomeScreen() {
             </View>
             <Pressable
               onPress={() => {
+                // v269: the morph launch is a non-focused launch —
+                // it never opens over an empty waiting list.
+                if (prayablePrayTodayList.length === 0) return;
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 const card = queueCardRef.current;
                 if (card) {
@@ -3264,17 +3322,30 @@ export default function HomeScreen() {
                       <Text style={{ fontSize: 12, fontWeight: "700", color: "#B26E12" }}>{hoursLeft !== null ? `${hoursLeft}h left to celebrate` : "Celebrating today"}</Text>
                       <CarouselDots count={praises.length} index={Math.min(pageIndex, praises.length - 1)} activeColor="#B26E12" inactiveColor="#E8C87A" />
                     </View>
-                    <Pressable
-                      onPressIn={registerTouch}
-                      onPress={() => {
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        setJournal((previous) => createPrayerJournalEntry(previous, { body: text, taggedPeople: [praisedPerson] }, `journal-praise-${Date.now()}`));
-                        setActiveTab("journal");
-                      }}
-                      style={({ pressed }) => [{ backgroundColor: "#B26E12", borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}
-                    >
-                      <Text style={{ fontSize: 12.5, fontWeight: "800", color: "#FFFFFF" }}>Post to Journal</Text>
-                    </Pressable>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      {/* v269: the praise card gains its Pray now —
+                          the emergency card's pill exactly (white,
+                          its shadow), in the praise gold ink. It
+                          opens a prayer just for this person. */}
+                      <Pressable
+                        onPressIn={registerTouch}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openFocusedPrayerSession(praisedPerson.id, "praise"); }}
+                        style={({ pressed }) => [{ backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 }, pressed && { opacity: 0.85 }]}
+                      >
+                        <Text style={{ fontSize: 13.5, fontWeight: "800", color: "#B26E12" }}>Pray now</Text>
+                      </Pressable>
+                      <Pressable
+                        onPressIn={registerTouch}
+                        onPress={() => {
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          setJournal((previous) => createPrayerJournalEntry(previous, { body: text, taggedPeople: [praisedPerson] }, `journal-praise-${Date.now()}`));
+                          setActiveTab("journal");
+                        }}
+                        style={({ pressed }) => [{ backgroundColor: "#B26E12", borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}
+                      >
+                        <Text style={{ fontSize: 12.5, fontWeight: "800", color: "#FFFFFF" }}>Post to Journal</Text>
+                      </Pressable>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -5665,7 +5736,7 @@ export default function HomeScreen() {
           count chip stays (the family's rewards gold). */}
       {activeTab === "people" && remainingPrayTodayCount > 0 && (
         <Pressable
-          onPress={() => setShowPrayerSession(true)}
+          onPress={openPrayerSession}
           style={{
             position: "absolute",
             bottom: isClassicSkin ? 103 : 140,
@@ -5701,13 +5772,17 @@ export default function HomeScreen() {
         morphOrigin={sessionMorphOrigin}
         morphSurface={pmf.card}
         morphHeader={{ prayed: dailyPrayerProgress.prayed, total: dailyPrayerProgress.total }}
+        focusKind={prayerSessionFocusKind}
+        resetNonce={sessionResetNonce}
+        keepPrayingCount={prayerSessionFocusWaiting}
+        onKeepPraying={keepPrayingFromFocus}
         onPray={(personId, position) => {
           commitPrayTodayPerson(personId, position);
         }}
         onTimeBonus={(position) => {
           void awardExperience("prayer-time-bonus", `prayer-time:${Date.now()}`, position);
         }}
-        onClose={() => { setShowPrayerSession(false); setPrayerSessionStartId(null); setSessionMorphOrigin(null); }}
+        onClose={() => { setShowPrayerSession(false); setPrayerSessionStartId(null); setSessionMorphOrigin(null); setPrayerSessionFocusId(null); setPrayerSessionFocusKind(null); setPrayerSessionFocusWaiting(0); }}
       />
     </ScreenContainer>
   );

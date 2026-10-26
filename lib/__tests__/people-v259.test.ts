@@ -84,7 +84,11 @@ describe("v259 source pins — one shared bar", () => {
 
   it("(b) the shell's Study press still launches the section root", () => {
     expect(index).toContain('if (tab === "bible")');
-    expect(index).toContain('router.push("/bible-chapters")');
+    // v263: the press NAVIGATES (one navigation both ways — the
+    // same call family BibleTabBar uses to come home) instead of
+    // pushing a fresh Books instance; the launch itself is what
+    // this pin guards, and it still lands on the section root.
+    expect(index).toContain('router.navigate("/bible-chapters")');
   });
 });
 

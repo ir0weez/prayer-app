@@ -15,6 +15,8 @@ import {
 import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider, useThemeContext } from "@/lib/theme-provider";
+import { useSkin } from "@/hooks/use-skin";
+import { BIBLE_STACK_ROUTES, bibleStackScreenOptions } from "@/lib/bible-nav";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -55,6 +57,10 @@ export const unstable_settings = {
 
 function RootLayoutContent() {
   const { colorScheme } = useThemeContext();
+  // v263: the Bible section's stack transition runs on the active
+  // skin's tab-slide duration — the same clock as the shell's tab
+  // crossfade (lib/bible-nav.ts).
+  const { tokens: skinTokens } = useSkin();
   const router = useRouter();
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
@@ -198,6 +204,14 @@ function RootLayoutContent() {
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="oauth/callback" />
+            {/* v263: Study switches like a tab — the Bible-section
+                routes crossfade on the skin's slide duration instead
+                of the native stack's default horizontal slide, so
+                shell → Study and Study → shell feel like the other
+                tab switches (lib/bible-nav.ts). */}
+            {BIBLE_STACK_ROUTES.map((name) => (
+              <Stack.Screen key={name} name={name} options={bibleStackScreenOptions(skinTokens.motion.slideDuration)} />
+            ))}
           </Stack>
           <XpGainIndicator />
           <SetCompleteAnnouncer />

@@ -4749,8 +4749,13 @@ export default function HomeScreen() {
     // v254: Study opens the Bible section's root screen (the Books
     // view) — a launcher from the shell, so the screens underneath
     // never change.
+    // v263: NAVIGATE, not push — the same call the Bible section's
+    // bar uses to come home (BibleTabBar), so the switch is one
+    // navigation both ways and a Books screen already on the stack
+    // is returned to, never stacked twice. The crossfade itself is
+    // the route's stack option (lib/bible-nav.ts, app/_layout.tsx).
     if (tab === "bible") {
-      router.push("/bible-chapters");
+      router.navigate("/bible-chapters");
       return;
     }
     setActiveTab(tab);

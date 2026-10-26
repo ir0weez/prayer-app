@@ -8,7 +8,7 @@
 // with notes but no states lands in Not Started with its notes count on
 // the row — notes no longer earn a book its own section.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -71,23 +71,42 @@ export default function BibleBooksScreen() {
   const [labelEditor, setLabelEditor] = useState(false);
   const [labelDraft, setLabelDraft] = useState('');
 
+  // v263: focus reloads the STUDY STATE only — Read/Complete marks
+  // made on the book/chapter screens must be fresh when he lands
+  // back here, and this is the one store that changes elsewhere.
   useFocusEffect(
     useCallback(() => {
       let live = true;
       loadStudyState().then((s) => live && setStudyState(s));
-      loadUserLabels().then((l) => live && setLabels(l));
-      loadHandwritten().then((h) => live && setHandwritten(h));
       return () => {
         live = false;
       };
     }, []),
   );
 
+  // v263: labels and handwritten coverage load ONCE, on mount.
+  // They only ever change on this screen (the notes-source label
+  // editor lives here and updates its own state as it saves), so
+  // re-reading them on every focus was pure cost on the tab-switch
+  // path: three storage loads and up to three full 66-row
+  // re-renders landed inside the switch's first frames every time
+  // he hopped People → Study. A refocus now costs one load and one
+  // re-render, and unrelated re-renders (the sheets opening) reuse
+  // the memoized grouping below.
+  useEffect(() => {
+    let live = true;
+    loadUserLabels().then((l) => live && setLabels(l));
+    loadHandwritten().then((h) => live && setHandwritten(h));
+    return () => {
+      live = false;
+    };
+  }, []);
+
   // v222: all 66 books, three sections, from the study store alone.
   // Before the store loads, the seed state puts every book in Not
   // Started, so the list is complete from the first paint.
   const effectiveState = studyState ?? seedStudyState();
-  const groups = groupBooksByStudy(effectiveState, CANON);
+  const groups = useMemo(() => groupBooksByStudy(effectiveState, CANON), [effectiveState]);
   // v241: the canon is 66 books — a grouping with zero books across
   // all three sections is impossible in a healthy build, so it gets a
   // visible word (below) instead of an empty page.

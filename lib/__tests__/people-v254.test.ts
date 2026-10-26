@@ -440,7 +440,11 @@ describe("v254 source pins — FIRST in the session (prayer-session.tsx)", () =>
     expect(session).toContain("getLeadNeed");
     expect(session).toContain("FIRST_CARD");
     expect(session).toContain(">FIRST<");
-    expect(session).toContain("Flagged urgent");
+    // v264 re-base (audit §c item 10; his ruling Oct 26 09:28 —
+    // "one glowing FIRST per person, other needs fully quiet"):
+    // the flagged-urgent captions this pin once asserted are
+    // REMOVED. Urgent lives only in the FIRST card. See v264 pins.
+    expect(session).not.toContain("Flagged urgent");
   });
 
   it("session mechanics stay: Complete prayer with the gold +10 XP chip, queue dots, person N of M", () => {
@@ -536,11 +540,16 @@ describe("v254 motion layer — Material, native-driver, no springs", () => {
     expect(index).toContain("fromX={builderStep === 2 ? 30 : -30}");
   });
 
-  it("the FIRST card breathes while it is being prayed (opacity loop, native driver, reduced-motion steady)", () => {
-    expect(session).toContain("function FirstGlowBorder");
+  it("the FIRST card breathes while it is being prayed — in its warm shadow (v264 re-base, audit D9)", () => {
+    // v264: the breath moved from v254's deep-amber BORDER overlay
+    // (which read on device as a heavy tan outline) into the soft
+    // warm shadow the drawing itself specifies (.lead.active),
+    // carried by a wrapper outside the card's overflow:hidden clip.
+    expect(session).toContain("function FirstWarmShadow");
+    expect(session).toContain("<FirstWarmShadow>");
     expect(session).toContain("Animated.loop");
-    expect(session).toContain("<FirstGlowBorder />");
     expect(session).toContain("isReduceMotionEnabled");
+    expect(session).not.toContain("FirstGlowBorder");
     expect(session).not.toContain("Animated.spring");
   });
 

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, AppState, BackHandler, Dimensions, Easing, Modal, Pressable, Text, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AccessibilityInfo, Animated, AppState, BackHandler, Dimensions, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import Svg, { Circle, Defs, LinearGradient, Path, Rect as SvgRect, Stop } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -23,6 +23,8 @@ import { useSkin } from "@/hooks/use-skin";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PeopleEntrance, PEOPLE_ENTRANCE_EASING } from "@/components/people-entrance";
 import { FIRST_CARD } from "@/lib/people-material";
+import { mix } from "@/lib/color-themes";
+import { hexToRgba } from "@/lib/bible-v205/palette-accents";
 import { getLeadNeed, isActiveEmergencyItem } from "@/lib/prayer-lead";
 import { formatEmergencyPrayerCountdown, getEmergencyPrayerTimeRemaining } from "@/lib/prayercircle-data";
 
@@ -53,12 +55,20 @@ type Props = {
  * curve family (Material emphasized), no springs, no bounce. */
 const MORPH_DURATION_MS = 380;
 
-/** v254: the FIRST card's breathing glow — a calm, slow,
- * opacity-only breath on the card's amber border while this card
- * is the one being prayed (the urgent-feel concept's glow). Native
- * driver, no springs; reduced motion holds it at a steady glow. */
-function FirstGlowBorder() {
-  const glow = useRef(new Animated.Value(0.35)).current;
+/** v264 (audit D9): the FIRST card's warmth at rest. The drawing
+ * (praytoday-urgent-feel-v1, .lead.active) breathes a soft WARM
+ * SHADOW — v254 instead breathed a second deep-amber border
+ * overlay, which read on device as a heavy tan outline and is
+ * gone. The breath now lives where the drawing
+ * puts it: the shadow of a wrapper OUTSIDE the card's
+ * overflow:hidden clip (shadow #D9A420 — the drawing's shadow
+ * paint — opacity .16 → .30 on its 4.5s breath). The card's own
+ * static #EAD49C border is unchanged. JS driver (shadowOpacity
+ * cannot ride the native driver); reduced motion holds a steady
+ * glow. Android draws elevation statically — the border still
+ * rests there. */
+function FirstWarmShadow({ children }: { children: ReactNode }) {
+  const breath = useRef(new Animated.Value(0.16)).current;
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
     let live = true;
@@ -69,23 +79,24 @@ function FirstGlowBorder() {
   }, []);
   useEffect(() => {
     if (reduced) {
-      glow.setValue(0.55);
+      breath.setValue(0.2);
       return;
     }
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(glow, { toValue: 0.9, duration: 1900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(glow, { toValue: 0.35, duration: 1900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(breath, { toValue: 0.3, duration: 2250, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(breath, { toValue: 0.16, duration: 2250, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
       ]),
     );
     loop.start();
     return () => loop.stop();
-  }, [reduced, glow]);
+  }, [reduced, breath]);
   return (
     <Animated.View
-      pointerEvents="none"
-      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: 22, borderWidth: 1.5, borderColor: FIRST_CARD.deep, opacity: glow }}
-    />
+      style={{ marginTop: 14, borderRadius: 22, shadowColor: "#D9A420", shadowOpacity: breath, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 3 }}
+    >
+      {children}
+    </Animated.View>
   );
 }
 
@@ -560,9 +571,21 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
   // root carries it.
   const sessionBody = (
     <>
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center", padding: 24 }}>
-        {/* Subtle time-of-day backdrop wash (behind everything, non-interactive). */}
-        <PrayerSessionSky bucket={skyBucket} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        {/* v264 (audit D3): the time-of-day sky is skin furniture —
+            under Classic the drawings carry a flat ground with no
+            backdrop motif, so the sky renders only when a skin is
+            active (Paper / 8-bit / Terminal keep their dress). */}
+        {isSkinned ? <PrayerSessionSky bucket={skyBucket} /> : null}
+        {/* v264 (audit D5): top-anchored flow — the page starts at
+            the top like the drawings instead of floating centred
+            over a dead bottom third, and scrolls when a person
+            card grows (every need now shows, audit D6). */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ alignItems: "center", paddingHorizontal: 24, paddingTop: insets.top + 14, paddingBottom: 24 }}
+          showsVerticalScrollIndicator={false}
+        >
         {/* v254 (praytoday-urgent-feel-v1): the session's head — title,
             count chip, and the queue dots. The big timer moved into
             the lead card's ring; the timer itself is unchanged. */}
@@ -584,8 +607,18 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
               const lead = getLeadNeed(currentPerson);
               const activeItems = currentPerson.prayerItems.filter((item) => !item.isDone);
               const otherItems = lead ? activeItems.filter((item) => item.id !== lead.item.id) : activeItems;
-              const shownOthers = otherItems.slice(0, 4);
-              const hiddenCount = otherItems.length - shownOthers.length;
+              // v264 (audit D6): every other need shows — the
+              // drawing truncates nothing, and a need hidden
+              // behind "+N more" was unreachable for the whole
+              // session. The page scrolls instead (audit D5).
+              const shownOthers = otherItems;
+              // v264 (audit D10): the quiet rows' whisper dress —
+              // the card mixed a breath toward the seed (the
+              // drawing's near-white #FAF8FE at the violet seed),
+              // the title softened from full ink toward the
+              // drawing's soft ink. Derived, never pinned.
+              const quietFill = mix(pm.card, pm.seed, 0.05);
+              const quietInk = mix(pm.ink, pm.inkSoft, 0.45);
               const timerFraction = (elapsedSeconds % 60) / 60;
               const timerCircumference = 2 * Math.PI * 20.5;
               const sessionRow = (
@@ -600,14 +633,23 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                     style={{ width: 48, height: 48 }}
                   >
                     <Svg width={48} height={48} style={{ transform: [{ rotate: "-90deg" }] }}>
-                      <Circle cx={24} cy={24} r={20.5} fill="none" stroke={lead?.kind === "first" ? "#EFE3BC" : pm.wash} strokeWidth={3.5} />
+                      {/* v264 (audit D4): the drawn track #EFE3BC is
+                          near-invisible on the amber fill at 00:05 —
+                          the track is now the warm ink at 25%, an
+                          engraved groove the eye can find from the
+                          first second. */}
+                      <Circle cx={24} cy={24} r={20.5} fill="none" stroke={lead?.kind === "first" ? hexToRgba(FIRST_CARD.ink, 0.25) : pm.wash} strokeWidth={3.5} />
                       <Circle cx={24} cy={24} r={20.5} fill="none" stroke={lead?.kind === "first" ? FIRST_CARD.deep : pm.deep} strokeWidth={3.5} strokeLinecap="round" strokeDasharray={timerCircumference} strokeDashoffset={timerCircumference * (1 - timerFraction)} />
                     </Svg>
                     <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
                       <Text style={{ fontSize: 11, fontWeight: "800", lineHeight: 12, color: lead?.kind === "first" ? FIRST_CARD.ink : colors.foreground, fontVariant: ["tabular-nums"] }}>{formatTime(elapsedSeconds)}</Text>
                       <Text style={{ fontSize: 7.5, fontWeight: "800", letterSpacing: 0.6, color: lead?.kind === "first" ? FIRST_CARD.sub : colors.muted }}>PRAYING</Text>
                     </View>
-                    <View style={{ position: "absolute", top: 1, right: 1, width: 8, height: 8, borderRadius: 4, backgroundColor: lead?.kind === "first" ? FIRST_CARD.deep : pm.deep }} />
+                    {/* v264 (audit D4): the pulse dot sits ON the
+                        ring at its 45° point, inset from the corner
+                        — out of the gap where it crowded the
+                        Complete button's left edge. */}
+                    <View style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: lead?.kind === "first" ? FIRST_CARD.deep : pm.deep }} />
                   </View>
                   <Pressable
                     onPress={handlePray}
@@ -630,7 +672,10 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                 <>
                   {/* Queue progress */}
                   <View style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12 }}>
-                    <View style={{ flexDirection: "row", gap: 5, alignItems: "center", flex: 1, flexWrap: "nowrap", overflow: "hidden" }}>
+                    {/* v264 (audit D12): the dots WRAP — a count
+                        past one row's width used to clip silently
+                        behind overflow:hidden. */}
+                    <View style={{ flexDirection: "row", gap: 5, rowGap: 5, alignItems: "center", flex: 1, flexWrap: "wrap" }}>
                       {sessionPeople.map((person, idx) => (
                         <View key={person.id} style={{ width: idx === currentIndex ? 20 : 7, height: 7, borderRadius: 99, backgroundColor: idx < currentIndex ? "#31C48D" : idx === currentIndex ? pm.seed : pm.wash2 }} />
                       ))}
@@ -662,7 +707,14 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
 
                     {/* The lead need — the FIRST card (warm, never alarmed) */}
                     {lead?.kind === "first" ? (
-                      <View style={{ marginTop: 14, borderRadius: 22, borderWidth: 1.5, borderColor: FIRST_CARD.line, overflow: "hidden", paddingHorizontal: 15, paddingTop: 14, paddingBottom: 15 }}>
+                      <FirstWarmShadow>
+                      {/* v264 (audit D1): the amber fill is the card's
+                          OWN background (bgTo under the gradient) —
+                          v254 painted it with a percentage-sized SVG
+                          and no fallback, and on device the paint
+                          stopped at ~84% of the card, leaving a hard
+                          white strip inside the border. */}
+                      <View style={{ borderRadius: 22, borderWidth: 1.5, borderColor: FIRST_CARD.line, overflow: "hidden", backgroundColor: FIRST_CARD.bgTo, paddingHorizontal: 15, paddingTop: 14, paddingBottom: 15 }}>
                         <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
                           <Defs>
                             <LinearGradient id="v254FirstGrad" x1="0" y1="0" x2="1" y2="1">
@@ -672,7 +724,6 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                           </Defs>
                           <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254FirstGrad)" />
                         </Svg>
-                        <FirstGlowBorder />
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
                           <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: FIRST_CARD.deep, borderRadius: 999, paddingLeft: 9, paddingRight: 11, paddingVertical: 5, shadowColor: FIRST_CARD.deep, shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
                             <Svg width={12} height={12} viewBox="0 0 24 24">
@@ -683,11 +734,17 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                           </View>
                         </View>
                         <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 21, letterSpacing: -0.1, color: FIRST_CARD.ink, marginTop: 10 }}>{lead.item.title}</Text>
-                        <Text style={{ fontSize: 12, fontWeight: "600", color: FIRST_CARD.sub, marginTop: 4 }}>{lead.item.isUrgent ? "Flagged urgent · Waiting" : "Waiting"}</Text>
+                        {/* v264 (audit D2): the subline is the need's
+                            own note sentence, as drawn — content, not
+                            a status label. No note, no subline. */}
+                        {!!lead.item.note && (
+                          <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 17, color: FIRST_CARD.sub, marginTop: 4 }}>{lead.item.note}</Text>
+                        )}
                         <View style={{ marginTop: 15, paddingTop: 14, borderTopWidth: 1.5, borderTopColor: "rgba(234,212,156,0.85)" }}>
                           {sessionRow}
                         </View>
                       </View>
+                      </FirstWarmShadow>
                     ) : null}
 
                     {/* The other needs — quiet rows; an emergency lead
@@ -709,25 +766,28 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                         {shownOthers.map((item) => {
                           const emergency = isActiveEmergencyItem(item);
                           return (
-                            <View key={item.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: pm.ground, borderWidth: 1, borderColor: pm.line, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 }}>
-                              <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: pm.wash2, marginTop: 1 }} />
+                            <View key={item.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: quietFill, borderWidth: 1, borderColor: pm.line, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 }}>
+                              <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: pm.wash, marginTop: 1 }} />
                               <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 13.5, fontWeight: "600", lineHeight: 18, color: pm.ink }}>{item.title}</Text>
+                                <Text style={{ fontSize: 13.5, fontWeight: "600", lineHeight: 18, color: quietInk }}>{item.title}</Text>
                                 {!!item.note && (
                                   <Text style={{ fontSize: 12, fontWeight: "500", lineHeight: 16, color: emergency ? "#DC2626" : pm.inkSoft, marginTop: 1 }}>{item.note}</Text>
                                 )}
                                 {emergency ? (
                                   <Text style={{ fontSize: 11, fontWeight: "600", color: "#DC2626", marginTop: 1 }}>Emergency · {formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt))} left</Text>
-                                ) : item.isUrgent ? (
-                                  <Text style={{ fontSize: 11, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>Flagged urgent</Text>
                                 ) : null}
+                                {/* v264 (audit §c item 10, his ruling
+                                    Oct 26 09:28 — "one glowing FIRST
+                                    per person, other needs fully
+                                    quiet"): the unsanctioned 11px
+                                    flagged-urgent caption is GONE.
+                                    A 2nd+ urgent item wears no marker
+                                    of any kind; urgent lives only in
+                                    the FIRST card, as drawn. */}
                               </View>
                             </View>
                           );
                         })}
-                        {hiddenCount > 0 ? (
-                          <Text style={{ fontSize: 12, fontWeight: "600", color: pm.inkSoft, textAlign: "center" }}>+{hiddenCount} more</Text>
-                        ) : null}
                       </View>
                     ) : null}
 
@@ -769,6 +829,7 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
             </Pressable>
           </View>
         )}
+        </ScrollView>
         {/* v215: the visible word on a blocked back press — once
             per session, along the bottom, gone on its own. */}
         {backHintVisible ? (

@@ -570,6 +570,10 @@ export async function showPrayerTrayNotification(kind: "emergency" | "praise", p
       ? `Urgent prayer for ${personName} — tap to pray`
       : `Praise God for ${personName} — tap to view`;
     await Notifications.scheduleNotificationAsync({
+      // v268 MARK: stable tray identifier — Android presents notifications
+      // keyed by (tag = identifier, fixed id), so re-posting the same tray
+      // card REPLACES the one in the shade instead of stacking a new copy.
+      identifier: prayerTrayKey(kind, personId),
       content: {
         title,
         body,
@@ -600,7 +604,7 @@ export async function clearPrayerTrayNotification(kind: "emergency" | "praise", 
 }
 
 /** Reconciles sticky tray notifications with the current people list. */
-export async function syncPrayerTrayNotifications(people: Array<{ id: string; name: string; isPraised?: boolean; praiseExpiresAt?: string; prayerItems: Array<{ isEmergency?: boolean; emergencyExpiresAt?: string }> }>): Promise<void> {
+async function syncPrayerTrayNotificationsNow(people: Array<{ id: string; name: string; isPraised?: boolean; praiseExpiresAt?: string; prayerItems: Array<{ isEmergency?: boolean; emergencyExpiresAt?: string }> }>): Promise<void> {
   if (Platform.OS === "web") return;
   try {
     if (!(await ensureNotificationPermission())) return;
@@ -635,10 +639,17 @@ export async function syncPrayerTrayNotifications(people: Array<{ id: string; na
       }
     }
     // What's actually sitting in the shade right now? (fetched above)
-    const presentedTray = new Map<string, string>();
+    // v268: key → ALL identifiers. Copies of the same card can already be
+    // stacked from before the stable-identifier fix; a one-identifier map
+    // hid the extras from cleanup. Every identifier is tracked so the
+    // shade can heal itself back to exactly one card per person + kind.
+    const presentedTray = new Map<string, string[]>();
     for (const n of presented) {
       const key = presentedTrayKey(n.request.content.data as PrayerTrayData);
-      if (key) presentedTray.set(key, n.request.identifier);
+      if (!key) continue;
+      const identifiers = presentedTray.get(key) ?? [];
+      identifiers.push(n.request.identifier);
+      presentedTray.set(key, identifiers);
     }
     // Post whatever should be there but isn't.
     for (const [key, info] of wanted) {
@@ -646,13 +657,36 @@ export async function syncPrayerTrayNotifications(people: Array<{ id: string; na
         await showPrayerTrayNotification(info.kind, info.personId, info.personName);
       }
     }
-    // Clear whatever is there but no longer wanted.
-    for (const [key, id] of presentedTray) {
-      if (!wanted.has(key)) {
+    // Clear whatever is there but no longer wanted, and any duplicate
+    // copies of cards that are still wanted: keep exactly one per key —
+    // the copy carrying the stable tray identifier when there is one
+    // (that is the card future re-posts replace), otherwise the first.
+    for (const [key, identifiers] of presentedTray) {
+      const keep = wanted.has(key)
+        ? identifiers.includes(key)
+          ? key
+          : identifiers[0]
+        : null;
+      for (const id of identifiers) {
+        if (id === keep) continue;
         try { await Notifications.dismissNotificationAsync(id); } catch { /* already gone */ }
       }
     }
   } catch {
     // Best-effort
   }
+}
+
+let prayerTraySyncQueue: Promise<void> = Promise.resolve();
+
+// v268 MARK: the exported tray sync is queue-serialized, exactly like the
+// prayer/schedule/budget syncs above. The People-page effect fires this on
+// every people change; unserialized runs raced — each snapshotted the
+// shade while another run's post was still in flight, read it as missing,
+// and posted another copy. Serialized runs see each other's posts.
+export function syncPrayerTrayNotifications(people: Array<{ id: string; name: string; isPraised?: boolean; praiseExpiresAt?: string; prayerItems: Array<{ isEmergency?: boolean; emergencyExpiresAt?: string }> }>): Promise<void> {
+  prayerTraySyncQueue = prayerTraySyncQueue
+    .catch(() => undefined)
+    .then(() => syncPrayerTrayNotificationsNow(people));
+  return prayerTraySyncQueue;
 }

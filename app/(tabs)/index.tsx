@@ -14,7 +14,7 @@ import { APP_ICONS, getAppIconDef, isIconUnlocked, loadSelectedAppIconId, saveSe
 import { setAppIcon as setNativeAppIcon, getAppIcon as getNativeAppIcon, isAppIconSwitchingAvailable } from "@/modules/expo-app-icon/src/index";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Alert, Animated, BackHandler, Easing as RnEasing, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Animated, BackHandler, Easing as RnEasing, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View, type ViewStyle } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Rect as SvgRect, Stop } from "react-native-svg";
 import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideInUp, SlideOutUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, withRepeat, Easing, useSharedValue, useAnimatedStyle, useAnimatedReaction, runOnJS } from "react-native-reanimated";
 
@@ -784,6 +784,8 @@ export default function HomeScreen() {
   // the structure and the Classic-light instance). The pmf token
   // source is resolved below, once the skin tokens exist.
   const frontDoorFamily = usePeopleFrontDoor();
+  // v260: Today's prayer list — collapsed scroll row ⇄ expanded grid.
+  const [queueExpanded, setQueueExpanded] = useState(false);
   // v254: group builder state (Piece C — a new flow on groupIntoFamily).
   const [showGroupBuilder, setShowGroupBuilder] = useState(false);
   const [builderStep, setBuilderStep] = useState<1 | 2>(1);
@@ -2519,14 +2521,63 @@ export default function HomeScreen() {
     // faces carry the bar's tap: tap marks prayed with the pending
     // undo, exactly the bar's semantics.
     const queueFaces = sortQueueFaces(prayTodayList, today);
-    const faces = queueFaces.slice(0, 5);
-    const moreCount = queueFaces.length - faces.length;
+    // v260 "See Everyone on the List" (his Oct 26 ask — he couldn't
+    // see who the +14 were): the static +N tile is GONE. Collapsed,
+    // the face row is a horizontal ScrollView over the FULL list —
+    // fixed-width columns, so the next face peeks half-cut at the
+    // card's right edge as the scroll cue. The header's expand
+    // button (only when the list runs past five) swaps the row for
+    // a wrapped 5-column grid of everyone; the card grows and the
+    // page scroll carries it. ONE shared face renderer serves both
+    // modes — same ring, same check, same first name/status, same
+    // tap (mark prayed / pending undo). All colors stay pmf roles:
+    // derive, never pin.
+    const canExpandQueue = queueFaces.length > 5;
+    const renderQueueFace = (person: Person, columnStyle: ViewStyle) => {
+      const done = hasPersonCompletedPrayerToday(person, today);
+      const isPending = pendingPrayerIds.includes(person.id);
+      return (
+        <Pressable
+          key={person.id}
+          onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))}
+          style={({ pressed }) => [columnStyle, { alignItems: "center" }, pressed && { opacity: 0.75 }]}
+        >
+          <View style={{ width: 47, height: 47, borderRadius: 23.5, borderWidth: 2, borderColor: done || isPending ? pmf.seed : pmf.wash2, alignItems: "center", justifyContent: "center" }}>
+            <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={43} thumbnail fallbackColor={person.accentColor} />
+            {done || isPending ? (
+              <View style={{ position: "absolute", bottom: -2, right: -2, width: 17, height: 17, borderRadius: 8.5, backgroundColor: "#2E7D4F", borderWidth: 2, borderColor: pmf.card, alignItems: "center", justifyContent: "center" }}>
+                <MaterialIcons name="check" size={9} color="#FFFFFF" />
+              </View>
+            ) : null}
+          </View>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 11, fontWeight: "700", color: pmf.ink, marginTop: 5 }}>{queueFirstName(person.name)}</Text>
+          {isPending ? (
+            <View style={{ marginTop: 2 }}>
+              <UndoCountdownTimer color={pmf.deep} variant="pill" />
+            </View>
+          ) : (
+            <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: "600", color: pmf.inkSoft }}>{queueFaceStatus(person, done)}</Text>
+          )}
+        </Pressable>
+      );
+    };
     return (
       <PeopleEntrance index={1}>
         <View style={{ backgroundColor: pmf.card, borderRadius: 26, paddingHorizontal: 17, paddingVertical: 15, marginHorizontal: 16, marginTop: 12, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
-          <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <Text style={{ fontSize: 14.5, fontWeight: "800", color: pmf.ink }}>Today's prayer list</Text>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: pmf.inkSoft }}>{prayed} of {total} prayed · {Math.max(0, total - prayed)} to go</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 }}>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: pmf.inkSoft, flexShrink: 1 }}>{prayed} of {total} prayed · {Math.max(0, total - prayed)} to go</Text>
+              {canExpandQueue ? (
+                <Pressable
+                  onPress={() => setQueueExpanded((value) => !value)}
+                  accessibilityLabel={queueExpanded ? "Collapse the prayer list" : "Expand the prayer list"}
+                  style={({ pressed }) => [{ width: 30, height: 30, borderRadius: 15, backgroundColor: pmf.wash, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.75 }]}
+                >
+                  <MaterialIcons name={queueExpanded ? "expand-less" : "expand-more"} size={20} color={pmf.deep} />
+                </Pressable>
+              ) : null}
+            </View>
           </View>
           <View style={{ height: 8, borderRadius: 4, backgroundColor: pmf.wash, marginTop: 11, overflow: "hidden" }}>
             <View style={{ width: `${pct}%`, height: "100%", borderRadius: 4, overflow: "hidden" }}>
@@ -2553,45 +2604,15 @@ export default function HomeScreen() {
               </Svg>
             </Animated.View>
           </View>
-          <View style={{ flexDirection: "row", gap: 9, marginTop: 13 }}>
-            {faces.map((person) => {
-              const done = hasPersonCompletedPrayerToday(person, today);
-              const isPending = pendingPrayerIds.includes(person.id);
-              return (
-                <Pressable
-                  key={person.id}
-                  onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))}
-                  style={({ pressed }) => [{ flex: 1, alignItems: "center", minWidth: 0 }, pressed && { opacity: 0.75 }]}
-                >
-                  <View style={{ width: 47, height: 47, borderRadius: 23.5, borderWidth: 2, borderColor: done || isPending ? pmf.seed : pmf.wash2, alignItems: "center", justifyContent: "center" }}>
-                    <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={43} thumbnail fallbackColor={person.accentColor} />
-                    {done || isPending ? (
-                      <View style={{ position: "absolute", bottom: -2, right: -2, width: 17, height: 17, borderRadius: 8.5, backgroundColor: "#2E7D4F", borderWidth: 2, borderColor: pmf.card, alignItems: "center", justifyContent: "center" }}>
-                        <MaterialIcons name="check" size={9} color="#FFFFFF" />
-                      </View>
-                    ) : null}
-                  </View>
-                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 11, fontWeight: "700", color: pmf.ink, marginTop: 5 }}>{queueFirstName(person.name)}</Text>
-                  {isPending ? (
-                    <View style={{ marginTop: 2 }}>
-                      <UndoCountdownTimer color={pmf.deep} variant="pill" />
-                    </View>
-                  ) : (
-                    <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: "600", color: pmf.inkSoft }}>{queueFaceStatus(person, done)}</Text>
-                  )}
-                </Pressable>
-              );
-            })}
-            {moreCount > 0 ? (
-              <View style={{ flex: 1, alignItems: "center", minWidth: 0 }}>
-                <View style={{ width: 47, height: 47, borderRadius: 23.5, backgroundColor: pmf.wash, borderWidth: 2, borderStyle: "dashed", borderColor: pmf.wash2, alignItems: "center", justifyContent: "center" }}>
-                  <Text style={{ fontSize: 13, fontWeight: "800", color: pmf.deep }}>+{moreCount}</Text>
-                </View>
-                <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "700", color: pmf.ink, marginTop: 5 }}>More</Text>
-                <Text style={{ fontSize: 10 }}> </Text>
-              </View>
-            ) : null}
-          </View>
+          {queueExpanded ? (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", rowGap: 12, marginTop: 13 }}>
+              {queueFaces.map((person) => renderQueueFace(person, { width: "20%" }))}
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 13 }} contentContainerStyle={{ flexDirection: "row", gap: 9 }}>
+              {queueFaces.map((person) => renderQueueFace(person, { width: 56 }))}
+            </ScrollView>
+          )}
         </View>
       </PeopleEntrance>
     );

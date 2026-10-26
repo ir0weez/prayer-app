@@ -13,7 +13,7 @@ import { entryTags, formatClock, isMoodOnlyEntry, peopleMentionedInBody } from "
 import { useJournalMaterial } from "@/hooks/use-journal-material";
 import type { Person } from "@/lib/prayercircle-data";
 import { formatPrayerJournalDate, type PrayerJournalEntry, type PrayerJournalReply } from "@/lib/prayer-journal";
-import { skinText } from "@/lib/skin-themes";
+import { hasTypeScale, skinText } from "@/lib/skin-themes";
 
 // v194 (Journal, Zeitgeist): the mockup's post — a FLAT row on a
 // hairline, not a card. Avatar + name + time, the words, a photo when
@@ -185,7 +185,7 @@ export function JournalPost({
           // tones of one palette, never the v195 slab-on-lavender.
           backgroundColor: jm.card,
           shadowColor: jm.shadow,
-          ...(skinTokens.isPaper ? { padding: 16 + skinTokens.type.padBoost } : {}),
+          ...(hasTypeScale(skinTokens) ? { padding: 16 + skinTokens.type.padBoost } : {}),
         },
         pressed && styles.pressed,
       ]}

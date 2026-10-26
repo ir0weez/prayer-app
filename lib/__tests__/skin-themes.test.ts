@@ -1434,12 +1434,16 @@ describe("v190 — Paper, Bigger", () => {
   // v190 brings the mockup's proportions into the existing Paper
   // skin — a type table on the tokens (named levels, absolute
   // sizes) plus padding/gap boosts — with the same font family,
-  // colors, stock, edges and scenes. Paper-only: the table is the
-  // identity (all null, zero boosts) under every other skin.
+  // colors, stock, edges and scenes. Paper-only at first: the
+  // table was the identity (all null, zero boosts) under every
+  // other skin. v274 (Oct 26) re-bases that scoping on Jonathan's
+  // ruling — "Yes — make the default theme bigger too" — Classic
+  // carries the same table; the identity remains under 8-bit and
+  // Terminal only.
   const palette = getThemedPalette("light", "default");
   const darkPalette = getThemedPalette("dark", "default");
 
-  it("the type table exists only under Paper — identity under Classic, 8-bit and Terminal", () => {
+  it("the type table lives under Paper and (v274) Classic — identity under 8-bit and Terminal", () => {
     const paper = getSkinTokens("paper", "light", palette);
     // The headline steps: header tiles 20 → 28 (the mockup
     // masthead's ~1.4×), the date panel's day name 48 → 56, card
@@ -1464,9 +1468,15 @@ describe("v190 — Paper, Bigger", () => {
     expect(paper.type.gapBoost).toBe(2);
     // Scheme-independent: paper reads the same size in the dark.
     expect(getSkinTokens("paper", "dark", darkPalette).type).toEqual(paper.type);
-    // Every other skin: all-null levels, zero boosts — the whole
-    // table is identical to the identity, so no consumer moves.
-    for (const id of ["classic", "8bit", "terminal"] as const) {
+    // v274: Classic — the default theme — carries the same table,
+    // level for level, in both schemes (his Oct 26 ruling).
+    const classic = getSkinTokens("classic", "light", palette);
+    expect(classic.type).toEqual(paper.type);
+    expect(getSkinTokens("classic", "dark", darkPalette).type).toEqual(paper.type);
+    // The remaining skins: all-null levels, zero boosts — the
+    // whole table is identical to the identity, so no consumer
+    // moves under them.
+    for (const id of ["8bit", "terminal"] as const) {
       const other = getSkinTokens(id, "light", palette);
       expect(other.type.screenTitle).toBeNull();
       expect(other.type.cardTitle).toBeNull();
@@ -1481,13 +1491,17 @@ describe("v190 — Paper, Bigger", () => {
     expect(getSkinTokens("8bit", "light", palette).cardRadius).toBe(2);
   });
 
-  it("skinText resolves a level to a style override — and to nothing under the other skins", () => {
+  it("skinText resolves a level to a style override — and to nothing under 8-bit and Terminal", () => {
     const paper = getSkinTokens("paper", "light", palette);
     expect(skinText(paper, paper.type.cardTitle)).toEqual({ fontSize: 20 });
     expect(skinText(paper, paper.type.dayName, paper.type.dayNameLineHeight)).toEqual({ fontSize: 56, lineHeight: 58 });
     expect(skinText(paper, null)).toEqual({});
     expect(skinText(paper, null, 24)).toEqual({});
-    for (const id of ["classic", "8bit", "terminal"] as const) {
+    // v274: Classic resolves exactly like Paper now.
+    const classic = getSkinTokens("classic", "light", palette);
+    expect(skinText(classic, classic.type.cardTitle)).toEqual({ fontSize: 20 });
+    expect(skinText(classic, classic.type.screenTitle)).toEqual({ fontSize: 28 });
+    for (const id of ["8bit", "terminal"] as const) {
       const other = getSkinTokens(id, "light", palette);
       expect(skinText(other, other.type.cardTitle)).toEqual({});
       expect(skinText(other, other.type.screenTitle)).toEqual({});

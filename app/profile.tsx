@@ -19,7 +19,7 @@ import { COINS_STORAGE_KEY, SHOP_OWNED_KEY, parseCoins, parseOwnedItems, type Ho
 } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { TERM_DEEP, TERM_PANEL_2, skinText } from "@/lib/skin-themes";
+import { TERM_DEEP, TERM_PANEL_2, hasTypeScale, skinText } from "@/lib/skin-themes";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -527,12 +527,14 @@ export default function ProfileScreen() {
       // squares to match (its layers branch to 6 above).
       ...(isPaper ? { borderRadius: 6 } : null),
       // v190: roomier under Paper — the card grows with its type.
-      ...(isPaper ? { padding: 18 + skinTokens.type.padBoost } : null),
+      // v274: Classic carries the scale too, so the gate is the scale.
+      ...(hasTypeScale(skinTokens) ? { padding: 18 + skinTokens.type.padBoost } : null),
     },
     profileName: {
       ...styles.profileName,
       color: colors.foreground,
-      // v190: the name takes the displayName step under Paper.
+      // v190: the name takes the displayName step under Paper
+      // (and under Classic since v274 — the table decides).
       ...skinText(skinTokens, skinTokens.type.displayName, skinTokens.type.displayNameLineHeight),
     },
     profileSubtitle: {
@@ -546,7 +548,8 @@ export default function ProfileScreen() {
     statNumber: {
       ...styles.statNumber,
       color: colors.primary,
-      // v190: stat numerals take the statValue step under Paper.
+      // v190: stat numerals take the statValue step under Paper
+      // (and under Classic since v274 — the table decides).
       ...skinText(skinTokens, skinTokens.type.statValue),
     },
     secondaryButtonText: {
@@ -706,17 +709,17 @@ export default function ProfileScreen() {
 
         <PaperSettle index={1} style={styles.statsGrid}>
 <BitSettle index={1} style={{ flexDirection: "row", gap: 10, flex: 1 }}>
-          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
+          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <Text style={dynamicStyles.statNumber}>{highestFastStreak}</Text>
             <Text style={[styles.statLabel, skinText(skinTokens, skinTokens.type.labelText)]}>Highest Streak</Text>
           </View>
-          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
+          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <Text style={dynamicStyles.statNumber}>{completedFastCount}</Text>
             <Text style={[styles.statLabel, skinText(skinTokens, skinTokens.type.labelText)]}>Completed Fasts</Text>
           </View>
-          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
+          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }, skinText(skinTokens, skinTokens.type.rowTitle, skinTokens.type.rowTitleLineHeight)]}>
               {lastCompletedFastProgress ? `${lastCompletedFastPercentage}%` : "Collecting Data"}
@@ -745,7 +748,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
         {lastCompletedFast && lastCompletedFastProgress ? (
-          <PaperSettle index={2} style={[styles.previousFastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, padding: 16 + skinTokens.type.padBoost } : null]}>
+          <PaperSettle index={2} style={[styles.previousFastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { padding: 16 + skinTokens.type.padBoost } : null]}>
 <BitSettle index={2}>
             {isSkinned ? <PaperGrainOverlay /> : null}
             <View style={styles.previousFastHeader}>
@@ -786,7 +789,7 @@ export default function ProfileScreen() {
                 </View>
               )}
             </View>
-            <PaperSettle index={3} style={[styles.fastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, padding: 16 + skinTokens.type.padBoost } : null]}>
+            <PaperSettle index={3} style={[styles.fastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { padding: 16 + skinTokens.type.padBoost } : null]}>
 <BitSettle index={3} style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
               {isSkinned ? <PaperGrainOverlay /> : null}
               <View style={[styles.fastIcon, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
@@ -1138,7 +1141,7 @@ export default function ProfileScreen() {
                       <View style={[styles.timelineDot, { backgroundColor: typeInfo?.color ?? colors.primary }]} />
                       {index < fastHistory.length - 1 && <View style={styles.timelineLine} />}
                     </View>
-                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6, padding: 14 + skinTokens.type.padBoost, marginBottom: 10 + skinTokens.type.gapBoost } : null, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
+                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { padding: 14 + skinTokens.type.padBoost, marginBottom: 10 + skinTokens.type.gapBoost } : null, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
                       {isSkinned ? <PaperGrainOverlay /> : null}
                       <View style={styles.historyCardHeader}>
                         <View style={{ flex: 1 }}>

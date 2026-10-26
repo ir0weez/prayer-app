@@ -5802,9 +5802,11 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
   const cardShadow = skin?.cardShadow ? { boxShadow: skin.cardShadow.boxShadow, elevation: skin.cardShadow.elevation } : {};
   const sheetShadow = skin?.sheetShadow ? { boxShadow: skin.sheetShadow.boxShadow, elevation: skin.sheetShadow.elevation } : {};
   // v190 ("Paper, Bigger"): the skin's type scale + roominess boosts.
-  // Every level is null and both boosts are 0 under Classic, 8-bit
-  // and Terminal, so each use below resolves to the pre-v190 value
-  // for those skins; only Paper's styles grow.
+  // Every level is null and both boosts are 0 under 8-bit and
+  // Terminal, so each use below resolves to the pre-v190 value for
+  // those skins. Paper's styles grow — and since v274 ("Bigger, in
+  // the Default Theme Too") Classic carries the same table, so the
+  // default theme's styles grow by the same steps.
   const typeScale = skin?.type ?? null;
   const padBoost = typeScale?.padBoost ?? 0;
   const gapBoost = typeScale?.gapBoost ?? 0;

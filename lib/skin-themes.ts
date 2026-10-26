@@ -372,11 +372,16 @@ export type SkinMotionTokens = {
  * mockup's SCALE inside the existing Paper skin — larger type at
  * every level, same font family. Every field is an absolute size
  * for one named level; null means "the component's own size", so
- * under Classic, 8-bit and Terminal the whole table is null and
- * every consumer spread is a no-op (their type is byte-preserved).
- * Only Paper carries values. padBoost/gapBoost are the roominess
- * half of the same ruling: extra px consumers add to themed card
- * padding / inter-card gaps (0 under every other skin).
+ * under 8-bit and Terminal the whole table is null and every
+ * consumer spread is a no-op (their type is byte-preserved).
+ * Paper carried the values first (v190); Classic — the default
+ * theme — carries the same table since v274 ("make the default
+ * theme bigger too", his Oct 26 ruling, after he confirmed the
+ * Paper scale on his phone: "I really like how the paper theme
+ * is bigger. It looks so much better."). padBoost/gapBoost are
+ * the roominess half of the same ruling: extra px consumers add
+ * to themed card padding / inter-card gaps (0 under 8-bit and
+ * Terminal).
  */
 export type SkinTypeTokens = {
   /** Floating header tiles: the Schedule tile, the People pill, the Journal header (base 20). */
@@ -522,11 +527,64 @@ const PAPER_TYPE_SCALE: SkinTypeTokens = {
 };
 
 /**
+ * Classic's bigger scale (v274, "Bigger, in the Default Theme
+ * Too"). On Oct 22 Jonathan asked for scale across the Paper skin
+ * and v190 shipped it Paper-only; on Oct 26, shown that record —
+ * and having confirmed Paper on his phone ("I really like how the
+ * paper theme is bigger. It looks so much better.") — he ruled:
+ * "Yes — make the default theme bigger too." The component bases
+ * the steps were measured from are the same shared bases under
+ * both skins, so Classic's table mirrors Paper's level for level:
+ * bigger type at every named level, card padding +4 / gaps +2,
+ * in Classic's own fonts, colors and material (the Material
+ * surfaces still derive seed × appearance exactly as before —
+ * this table moves sizes and roominess only, never paints).
+ * Scheme-independent, like Paper's: the same sizes in light and
+ * dark.
+ */
+const CLASSIC_TYPE_SCALE: SkinTypeTokens = {
+  screenTitle: 28,
+  pageTitle: 34,
+  screenSubtitle: 14,
+  greeting: 21,
+  summaryName: 18,
+  summaryBody: 18,
+  summaryLineHeight: 27,
+  dayName: 56,
+  dayNameLineHeight: 58,
+  dateLine: 15,
+  weekNum: 21,
+  weekNumLineHeight: 25,
+  weekDay: 11,
+  cardTitle: 20,
+  cardLead: 22,
+  cardLeadLineHeight: 27,
+  cardBody: 18,
+  cardBodyLineHeight: 24,
+  cardMeta: 14,
+  barTitle: 17,
+  sectionTitle: 18,
+  sectionLineHeight: 23,
+  rowTitle: 20,
+  rowTitleLineHeight: 25,
+  rowBody: 15,
+  rowBodyLineHeight: 21,
+  proseBody: 17,
+  proseLineHeight: 24,
+  labelText: 13,
+  displayName: 28,
+  displayNameLineHeight: 34,
+  statValue: 32,
+  padBoost: 4,
+  gapBoost: 2,
+};
+
+/**
  * A text-style override from the skin's type table (v190): the
  * level's size (and line height, when the caller passes one).
- * Returns an empty object when the level is unset — under Classic,
- * 8-bit and Terminal every level is unset, so spreading the result
- * into a text style is a no-op and those skins render exactly as
+ * Returns an empty object when the level is unset — under 8-bit
+ * and Terminal every level is unset, so spreading the result into
+ * a text style is a no-op and those skins render exactly as
  * before. Mirrors how bitDisplay/termButtonStyle gate on the skin.
  */
 export function skinText(
@@ -536,6 +594,20 @@ export function skinText(
 ): { fontSize?: number; lineHeight?: number } {
   if (size == null) return {};
   return lineHeight == null ? { fontSize: size } : { fontSize: size, lineHeight };
+}
+
+/**
+ * Whether the skin carries the bigger type scale (v190 Paper;
+ * v274 Classic too). Consumers whose roominess spreads were
+ * historically gated `isPaper` (the schedule cards, the fasting
+ * profile cards) gate on this instead since v274: it is true
+ * exactly under Paper and Classic — the two skins whose tables
+ * carry values — so 8-bit and Terminal keep their fixed cartridge
+ * / window geometry byte-preserved, and a gated spread is always
+ * the component's own base + the table's boosts.
+ */
+export function hasTypeScale(tokens: SkinTokens): boolean {
+  return tokens.type.screenTitle != null;
 }
 
 /**
@@ -552,9 +624,11 @@ export function skinText(
  * numbers that size the pill: top offset + pill height (vertical
  * padding, title line, subtitle line, the subtitle's marginTop) + a
  * breathing margin, and never less than the historical 84 — so
- * Classic, 8-bit and Terminal keep exactly the clearance they have
- * today, and a future type scale grows the clearance with the pill
- * instead of colliding with it. Line heights are estimated at 1.3×
+ * 8-bit and Terminal keep exactly the clearance they have today,
+ * and a type scale grows the clearance with the pill instead of
+ * colliding with it. (Since v274 Classic carries the scale too,
+ * so its derived inset grows to match Paper's.) Line heights are
+ * estimated at 1.3×
  * the font size (RN's default leading for these faces runs ~1.2×;
  * the estimate errs on the safe side and the margin absorbs the
  * rest).
@@ -635,9 +709,10 @@ export type SkinTokens = {
   grainLightOpacity: number;
   motion: SkinMotionTokens;
   /**
-   * The type scale (v190): named text levels + card padding/gap
-   * boosts. Paper-only values; the identity table (all null, zero
-   * boosts) under Classic, 8-bit and Terminal.
+   * The type scale (v190; Classic too since v274): named text
+   * levels + card padding/gap boosts. Paper and Classic carry the
+   * same values; the identity table (all null, zero boosts) under
+   * 8-bit and Terminal.
    */
   type: SkinTypeTokens;
 };
@@ -812,7 +887,9 @@ export function getSkinTokens(
       grainColor: PAPER_INK_HEX,
       grainLightOpacity: 0,
       motion: CLASSIC_MOTION,
-      type: NO_TYPE_SCALE,
+      // v274: the default theme carries the bigger scale too —
+      // the same table Paper got in v190 (see CLASSIC_TYPE_SCALE).
+      type: CLASSIC_TYPE_SCALE,
     };
   }
 

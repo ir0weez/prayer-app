@@ -91,9 +91,10 @@ export function DailySummaryCard({
   // #EDE8FF body, #CFC6F2 soft — instead of the palette's dark inks.
   const ink = skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground;
   const inkSoft = skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted;
-  // v190 (Paper only): the summary's inline icons ride inside the
-  // paragraph text, so they grow with it — 16 to match the old body,
-  // the summaryBody size (18) under Paper.
+  // v190: the summary's inline icons ride inside the paragraph
+  // text, so they grow with it — 16 to match the old body, the
+  // summaryBody size (18) under a scaled skin (Paper; Classic too
+  // since v274).
   const summaryIconSize = skinTokens.type.summaryBody ?? 16;
   const [showDayDropdown, setShowDayDropdown] = useState(false);
   

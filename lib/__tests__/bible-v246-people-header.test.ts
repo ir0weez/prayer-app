@@ -12,8 +12,12 @@
  * Classic-metrics number, so under Paper the list's first content
  * slid under the pill. The fix derives the inset from the same type
  * scale that sizes the pill (peopleHeaderInset in lib/skin-themes):
- * it never drops below the historical 84, so Classic, 8-bit and
- * Terminal keep exactly today's clearance.
+ * it never drops below the historical 84, so 8-bit and Terminal
+ * keep exactly today's clearance. (v274, Oct 26: Classic carries
+ * the type scale too — Jonathan's "make the default theme bigger
+ * too" — so Classic's derived inset grows with its pill, exactly
+ * like Paper's. The helper's contract is unchanged; Classic's
+ * inputs are what moved.)
  *
  * What the harness can honestly pin: the helper's numbers per skin
  * and the wiring in index.tsx. The actual on-device clearance —
@@ -31,8 +35,12 @@ const tokensFor = (skin: string) =>
   getSkinTokens(skin as any, 'light', getThemedPalette('light', 'default') as any);
 
 describe('v246 — peopleHeaderInset derives the clearance from the skin', () => {
-  it('Classic keeps exactly the historical 84', () => {
-    expect(peopleHeaderInset(tokensFor('classic').type)).toBe(84);
+  it('Classic (v274) carries the scale: its inset derives like Paper\u2019s', () => {
+    // Same table as Paper since v274 -> same derived clearance.
+    expect(peopleHeaderInset(tokensFor('classic').type)).toBe(101);
+    expect(peopleHeaderInset(tokensFor('classic').type)).toBe(
+      peopleHeaderInset(tokensFor('paper').type),
+    );
   });
 
   it('8-bit and Terminal keep 84 too (their type scales are unset)', () => {

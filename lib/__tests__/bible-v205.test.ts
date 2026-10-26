@@ -1229,7 +1229,15 @@ describe("v210 — the plain personal Note: no box, just inset text", () => {
     // The v214 elevation: 30 made Android paint a hard shadow
     // silhouette of the transparent entry — a white box on his phone.
     expect(page).toContain('entryOpen: { zIndex: 30 }');
-    expect(page).not.toContain('zIndex: 30, elevation');
+    // v251 RE-BASE (the measured-header fix): the blanket ban on
+    // 'zIndex: 30, elevation' anywhere in the file is scoped to
+    // the ENTRY, where the invariant lives. v251's header overlay
+    // pairs zIndex 30 with elevation 10 — it is OPAQUE
+    // (palette.paper), so the v217 mechanism (a TRANSPARENT view's
+    // shadow silhouette painting as a slab) cannot occur there;
+    // the elevation only stacks the header above the scrolled
+    // content's raised cards on Android.
+    expect(page).not.toContain('entryOpen: { zIndex: 30, elevation');
   });
 
   it('render: multi-verse text starts at the single-verse x — inline sup, no rail (v217)', () => {

@@ -135,6 +135,34 @@ export interface ChapterPageProps {
 export const READ_MODE_KEY = 'prayercircle.bible.v205.readmode.v1';
 
 /**
+ * v251 — the header clearance is MEASURED, never guessed (the v246
+ * lesson, applied to this page after his v250 screenshot: the
+ * doorway hero's "Chapter 01" rendered UNDER the sticky header —
+ * only its bottom ~28px peeked out below the segmented pill,
+ * because the header was an in-flow block whose bottom edge the
+ * cover's layout never actually cleared on his device). The header
+ * is now a measured overlay (the Schedule tab's proven pattern):
+ * it reports its own height through onLayout, the ScrollView's
+ * content opens with a spacer of exactly that height, and the
+ * three scroll consumers that used to carry stale magic constants
+ * (scrollToY's −128, the head-section line's +190, the bubble
+ * dock's insets.top + 118) all read the same measured height — so
+ * the hero clears the header BY CONSTRUCTION at any header height:
+ * Listen pill present or not, progress label wrapped or not, any
+ * font scale. This estimate only sizes the spacer for the first
+ * frame, before the header's own onLayout lands the true height.
+ */
+export function estimateChapterHeaderHeight(insetsTop: number): number {
+  // topbar (insets + 8 pad + ~37 row + 4 pad) + progress card
+  // (10 margin + ~52) + mode row (~52) + the 1px rule ≈ insets + 164.
+  return insetsTop + 164;
+}
+
+/** Where a scrollToY landing stops, relative to the header's
+ * measured bottom edge — a small breathing gap under the rule. */
+export const CHAPTER_HEADER_LAND_GAP = 8;
+
+/**
  * v250: the mockup's progress bar, as a card under the app bar.
  * Everything on it is real data: the fill is the ScrollView's
  * measured read fraction; the label names the section at the scroll
@@ -254,6 +282,11 @@ export function ChapterPageView(props: ChapterPageProps) {
   const [profile, setProfile] = useState<ProfileIdentity>({ name: '' });
   const [openBubblesKey, setOpenBubblesKey] = useState<string | null>(null);
   const scrollYRef = useRef(0);
+  // v251: the sticky header's MEASURED height — the header reports
+  // it through onLayout; the ref mirrors it for the scroll
+  // callbacks, which must never read a stale render's state.
+  const [headerH, setHeaderH] = useState(() => estimateChapterHeaderHeight(insets.top));
+  const headerHRef = useRef(headerH);
   const [stories, setStories] = useState(!!props.initialStories);
   const [progress, setProgress] = useState(0);
   // v250: the section at the scroll head — the progress card's label
@@ -455,7 +488,14 @@ export function ChapterPageView(props: ChapterPageProps) {
   }, [displayMarks]);
 
   const scrollToY = (y: number) => {
-    scrollRef.current?.scrollTo({ y: Math.max(0, y - 128), animated: true });
+    // v251: the landing offset is the header's MEASURED height
+    // (+ a small gap), not the old hard-coded 128 — the header is
+    // taller than that since the v250 progress card, and a stale
+    // constant is what buried landings under the pill.
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, y - headerHRef.current - CHAPTER_HEADER_LAND_GAP),
+      animated: true,
+    });
   };
   const landOnVerse = (verse: number) => {
     setSheet(null);
@@ -618,8 +658,20 @@ export function ChapterPageView(props: ChapterPageProps) {
     />
   ) : (
     <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
-      {/* ── topwrap ── */}
-      <View style={[styles.topwrap, { backgroundColor: palette.paper, borderBottomColor: palette.line }]}>
+      {/* ── topwrap ── v251: a measured overlay (styles.topwrap is
+          absolute); it reports its true height here, and the
+          ScrollView below opens its content with a spacer of
+          exactly that height — the hero can never slide under it. */}
+      <View
+        style={[styles.topwrap, { backgroundColor: palette.paper, borderBottomColor: palette.line }]}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (Math.abs(h - headerHRef.current) > 0.5) {
+            headerHRef.current = h;
+            setHeaderH(h);
+          }
+        }}
+      >
         <View style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
           <Pressable onPress={props.onBack} hitSlop={10} style={styles.topBtn}>
             <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
@@ -716,16 +768,25 @@ export function ChapterPageView(props: ChapterPageProps) {
           setProgress(max > 0 ? Math.min(1, contentOffset.y / max) : 0);
           // v250: the section at the scroll head, from the measured
           // section positions — the last section whose top has
-          // scrolled up to the header line.
+          // scrolled up to the header line. v251: the header line is
+          // the header's MEASURED bottom edge (this was a hard-coded
+          // +190 that no longer matched the real header).
           let headEnd: number | null = null;
           for (const s of sections) {
             const y = yByKey.current.get(`secwrap-${s.start}`);
-            if (y !== undefined && y <= contentOffset.y + 190) headEnd = s.end;
+            if (y !== undefined && y <= contentOffset.y + headerHRef.current) headEnd = s.end;
           }
           setHeadSectionEnd((prev) => (prev === headEnd ? prev : headEnd));
         }}
         scrollEventThrottle={32}
       >
+        {/* v251: the measured header spacer — the content's first
+            box is exactly the overlay header's measured height, so
+            at rest the status strip and the doorway hero begin
+            below the header's bottom edge BY CONSTRUCTION (the
+            Schedule tab's spacer pattern). Nothing is allowed to
+            render above this line. */}
+        <View pointerEvents="none" style={{ height: headerH }} />
         {/* ── slim status strip — v228: passive display only. The
             notes chip and words describe the notes-written track;
             the read mark rides beside them when present. Nothing on
@@ -966,7 +1027,7 @@ export function ChapterPageView(props: ChapterPageProps) {
                 bubbleOpen={pieceKey !== null && openBubblesKey === pieceKey}
                 bloom={bloom}
                 viewportHeight={viewHeight.current > 0 ? viewHeight.current : Dimensions.get('window').height}
-                topChrome={insets.top + 118}
+                topChrome={headerH}
                 bottomReserve={112}
                 entryScreenTop={entryY !== undefined ? entryY - scrollYRef.current : null}
                 onBubbleToggle={(next) => setOpenBubblesKey(next && pieceKey ? pieceKey : null)}
@@ -1531,7 +1592,11 @@ function EntryView(props: {
 }
 
 const styles = StyleSheet.create({
-  topwrap: { borderBottomWidth: 1 },
+  // v251: the header is a measured OVERLAY — absolute over the
+  // ScrollView, its height reported through onLayout. elevation
+  // lifts it above the scrolled content's own raised cards on
+  // Android; zIndex covers iOS.
+  topwrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30, elevation: 10, borderBottomWidth: 1 },
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 4 },
   topBtn: { padding: 2 },
   topTitle: { fontSize: 19, fontWeight: '800', letterSpacing: -0.2, flex: 1 },

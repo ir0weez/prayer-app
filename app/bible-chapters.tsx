@@ -274,7 +274,7 @@ export default function BibleBooksScreen() {
                       openBook(book);
                     }}
                   >
-                    <Text style={[styles.navName, { color: palette.ink, fontWeight: isCurrent ? '800' : '600' }]}>{book}</Text>
+                    <Text style={[styles.navName, { color: palette.ink, fontWeight: isCurrent ? '800' : '600' }]} numberOfLines={1}>{book}</Text>
                     <CurrentPill book={book} studyState={studyState} palette={palette} onMakeCurrent={makeCurrent} />
                   </Pressable>
                 );
@@ -382,12 +382,15 @@ function BookRow({
   return (
     <Pressable style={[styles.bookrow, { backgroundColor: palette.paper2 }, palette.cardDress]} onPress={onPress}>
       <View style={styles.btop}>
-        <Text style={[styles.bname, { color: palette.ink }]}>
+        <Text style={[styles.bname, { color: palette.ink }]} numberOfLines={1}>
           {book} <Text style={{ color: palette.rasp }}>›</Text>
           {paperNote ? <Text style={[styles.papermark, { color: palette.inkSoft }]}>  ✎ on paper</Text> : null}
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={[styles.bcount, { color: palette.inkSoft }]}>{parts.join(' · ')}</Text>
+        {/* v251: this side shrinks too (minWidth 0 lets it) — the
+            stats text ellipsizes to one line and the chip, which
+            never shrinks, stays whole inside the card. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, minWidth: 0 }}>
+          <Text style={[styles.bcount, { color: palette.inkSoft }]} numberOfLines={1}>{parts.join(' · ')}</Text>
           <CurrentPill book={book} studyState={studyState} palette={palette} onMakeCurrent={onMakeCurrent} />
         </View>
       </View>
@@ -427,7 +430,11 @@ const styles = StyleSheet.create({
   // 9px seed progress thread inside it.
   bookrow: { borderRadius: 24, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 10, gap: 8 },
   btop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
-  bname: { fontSize: 16, fontWeight: '700' },
+  // v251: the name SHRINKS (and ellipsizes to one line) — with no
+  // flexShrink anywhere in this row, a long stats string pushed
+  // the whole right side past the card's edge and the CURRENT chip
+  // was clipped mid-word by the screen (his Hebrews screenshot).
+  bname: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
   papermark: { fontSize: 11, fontWeight: '600' },
   bcount: { fontSize: 12, flexShrink: 1, textAlign: 'right' },
   thread: { height: 9, borderRadius: 999, overflow: 'hidden', position: 'relative' },
@@ -440,10 +447,12 @@ const styles = StyleSheet.create({
   editorBtns: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, marginTop: 16 },
   editorSave: { borderRadius: 999, paddingVertical: 8, paddingHorizontal: 18 },
   editorSaveText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 },
-  currentPill: { borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9 },
+  // v251: the chip NEVER shrinks — it keeps its full width inside
+  // the card; the texts beside it do the shrinking.
+  currentPill: { borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9, flexShrink: 0 },
   currentPillText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
   navCard: { position: 'absolute', left: 20, right: 20, top: '9%', maxHeight: '80%', borderRadius: 28, padding: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   navHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 9 },
-  navName: { fontSize: 15 },
+  navName: { fontSize: 15, flexShrink: 1 },
 });

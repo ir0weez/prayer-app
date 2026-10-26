@@ -14,13 +14,17 @@ import { APP_ICONS, getAppIconDef, isIconUnlocked, loadSelectedAppIconId, saveSe
 import { setAppIcon as setNativeAppIcon, getAppIcon as getNativeAppIcon, isAppIconSwitchingAvailable } from "@/modules/expo-app-icon/src/index";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import { Alert, Animated, BackHandler, Easing as RnEasing, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import Svg, { Defs, LinearGradient, Path, Rect as SvgRect, Stop } from "react-native-svg";
 import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideInUp, SlideOutUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, withRepeat, Easing, useSharedValue, useAnimatedStyle, useAnimatedReaction, runOnJS } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { PrayerSession } from "@/components/prayer-session";
+import { AttentionBell } from "@/components/attention-bell";
+import { PeopleEntrance } from "@/components/people-entrance";
+import { usePeopleMaterial } from "@/hooks/use-people-material";
+import { getReachOutEntries, formatHoursLeft } from "@/lib/bell-header";
 import { SHINY_ACHIEVEMENTS, SHINY_AVATARS, getLevelUnlockedCharacterShinyIds } from "@/lib/avatar-system";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
@@ -88,6 +92,7 @@ import {
   type FamilyType,
   relationshipColors,
   groupIntoFamily,
+  getFamilyGroups,
   sortFamilyMembers,
   ungroupFromFamily,
   removePerson,
@@ -181,7 +186,7 @@ import {
 } from "@/lib/bible-v205/drive-export";
 import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from "@/lib/schedule-data";
 import { getReadingPosition, readingPositionDisplay } from "@/lib/bible-v205/position";
-import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
+import { createPrayerJournalEntry, normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
 import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/monuments";
 import { COINS_STORAGE_KEY, parseCoins, applyCoinsDelta } from "@/lib/hometown";
@@ -191,7 +196,7 @@ import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, TER
 import { useSkin } from "@/hooks/use-skin";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 
-type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
+type AppTab = "home" | "people" | "schedule" | "journal" | "settings" | "bible" | "more";
 
 function VerifiedBadge() {
   const scale = useSharedValue(0.2);
@@ -674,6 +679,43 @@ function FlameSpark({ size = 18 }: { size?: number }) {
 }
 
 
+/** v254: the Classic household card's chevron — rotates 0↔180 as
+ * the card unfurls/collapses (Material standard easing, native
+ * driver, no spring). */
+function FamilyChevron({ expanded, color, wash }: { expanded: boolean; color: string; wash: string }) {
+  const spin = useRef(new Animated.Value(expanded ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.timing(spin, {
+      toValue: expanded ? 1 : 0,
+      duration: 220,
+      easing: RnEasing.bezier(0.2, 0, 0, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [expanded, spin]);
+  return (
+    <Animated.View
+      style={{
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: wash,
+        alignItems: "center",
+        justifyContent: "center",
+        transform: [
+          {
+            rotate: spin.interpolate({
+              inputRange: [0, 1],
+              outputRange: ["0deg", "180deg"],
+            }),
+          },
+        ],
+      }}
+    >
+      <MaterialIcons name="expand-more" size={17} color={color} />
+    </Animated.View>
+  );
+}
+
 export default function HomeScreen() {
   const verifiedPopPlayer = useAudioPlayer(require("@/assets/verified-pop.wav"));
   useEffect(() => {
@@ -733,6 +775,18 @@ export default function HomeScreen() {
   const [newPersonAvatarAsset, setNewPersonAvatarAsset] = useState<string | undefined>(undefined);
   const [showPersonAvatarPicker, setShowPersonAvatarPicker] = useState(false);
   const [showPrayerSession, setShowPrayerSession] = useState(false);
+  // v254: the People stage's Material family (seed-derived tokens).
+  const pm = usePeopleMaterial();
+  // v254: group builder state (Piece C — a new flow on groupIntoFamily).
+  const [showGroupBuilder, setShowGroupBuilder] = useState(false);
+  const [builderStep, setBuilderStep] = useState<1 | 2>(1);
+  const [builderAnchorId, setBuilderAnchorId] = useState<string | null>(null);
+  const [builderName, setBuilderName] = useState("");
+  const [builderMemberIds, setBuilderMemberIds] = useState<string[]>([]);
+  const [builderRoles, setBuilderRoles] = useState<Record<string, FamilyType | undefined>>({});
+  const [builderSearch, setBuilderSearch] = useState("");
+  // v254: the don't-slip card rotates its reach rows (his summary rule).
+  const [slipIndex, setSlipIndex] = useState(0);
   const [newPersonShowInPrayerCheckIns, setNewPersonShowInPrayerCheckIns] = useState(true);
   const [selectedFamilyMemberIds, setSelectedFamilyMemberIds] = useState<string[]>([]);
   const [newPersonFamilyType, setNewPersonFamilyType] = useState<"Spouse" | "Child" | "Other" | undefined>(undefined);
@@ -1259,6 +1313,17 @@ export default function HomeScreen() {
     () => visiblePrayTodayList.filter((person) => !hasPersonCompletedPrayerToday(person, today) && !pendingPrayerIds.includes(person.id)),
     [visiblePrayTodayList, pendingPrayerIds, today],
   );
+  // v254: the don't-slip card's reach rows — the bell lib's reach
+  // entries (a real last-reached date, 14+ days old; never-reached is
+  // never due). The card shows ONE row at a time and rotates, the
+  // same rule his Daily Summary's Reach area follows.
+  const reachEntries = useMemo(() => getReachOutEntries(people, new Date()), [people]);
+  useEffect(() => {
+    if (reachEntries.length <= 1) return;
+    const id = setInterval(() => setSlipIndex((current) => (current + 1) % reachEntries.length), 4500);
+    return () => clearInterval(id);
+  }, [reachEntries.length]);
+
   const duePersonalTodos = useMemo(() => {
     // Only show personal to-dos after all prayer requests are completed
     if (visiblePrayTodayList.length > 0) {
@@ -2036,8 +2101,60 @@ export default function HomeScreen() {
       .sort()
       .at(-1);
 
+    // v254 (Classic): the household as the People concept draws it —
+    // one white card: stacked faces, the family's freshest reach as
+    // the headline, urgency riding in place (an emergency countdown
+    // pill, else the freshest member's reach pill), and the chevron
+    // in its seed-wash circle. Skinned rendering keeps the legacy
+    // full-accent card below.
+    if (!isSkinned) {
+      const reachedLabel = lastReachedDate
+        ? `Reached ${new Date(`${lastReachedDate}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+        : "Never reached";
+      const meta = `${reachedLabel} · ${completedMembers} of ${familyMembers.length} prayed today`;
+      const stackMembers = familyMembers.slice(0, 3);
+      const overflow = familyMembers.length - stackMembers.length;
+      const freshestDays = getDaysSinceLastPrayed(mostRecentPerson.lastPrayedDate);
+      return (
+        <View key={familyId} style={{ backgroundColor: pm.card, borderRadius: 24, marginHorizontal: 12, marginTop: 9, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2, overflow: "hidden" }}>
+          <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 14, paddingVertical: 12 }, pressed && { opacity: 0.85 }]}>
+            <View style={{ flexDirection: "row", flex: 0 }}>
+              {stackMembers.map((member, stackIdx) => (
+                <View key={member.id} style={{ marginLeft: stackIdx === 0 ? 0 : -11, borderWidth: 2.5, borderColor: pm.card, borderRadius: 20, zIndex: stackMembers.length - stackIdx }}>
+                  <AvatarImage id={member.id} name={member.name} gender={member.gender} avatarAsset={member.avatarAsset} photoUri={member.photoUri} size={38} thumbnail fallbackColor={member.accentColor} />
+                </View>
+              ))}
+              {overflow > 0 ? (
+                <View style={{ marginLeft: -11, width: 38, height: 38, borderRadius: 19, borderWidth: 2.5, borderColor: pm.card, backgroundColor: pm.wash2, alignItems: "center", justifyContent: "center", zIndex: 0 }}>
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: pm.deep }}>+{overflow}</Text>
+                </View>
+              ) : null}
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text numberOfLines={1} style={{ fontSize: 15.5, fontWeight: "800", color: pm.ink }}>{familyName}</Text>
+                {isFamilyComplete && <VerifiedBadge />}
+              </View>
+              <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>{meta}</Text>
+            </View>
+            {familyEmergency && emergencyCountdown ? (
+              <View style={{ backgroundColor: "#EF4444", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, shadowColor: "#EF4444", shadowOpacity: 0.35, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 3 }}>
+                <Text style={{ fontSize: 11.5, fontWeight: "800", color: "#FFFFFF" }}>Emergency · ≈{Math.max(1, Math.round(emergencyCountdown / 3600000))}h</Text>
+              </View>
+            ) : freshestDays !== 999 ? (
+              <View style={{ width: 46, height: 22, borderRadius: 999, backgroundColor: pm.wash, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+                <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.round(getReachProgressRatio(freshestDays) * 100)}%`, backgroundColor: getLastReachedAccentColor(mostRecentPerson), borderRadius: 999 }} />
+                <Text style={{ fontSize: 11, fontWeight: "800", color: pm.ink }}>{formatDaysSinceLastPrayer(freshestDays)}</Text>
+              </View>
+            ) : null}
+            <FamilyChevron expanded={!!isExpanded} color={pm.deep} wash={pm.wash} />
+          </Pressable>
+        </View>
+      );
+    }
+
     return (
-      <ReAnimated.View key={familyId} entering={isSkinned ? FadeInUp.duration(skinMotion.settle.duration).delay(familyIndex * 50).easing(skinMotion.settle.easing) : FadeIn.duration(400).delay(familyIndex * 50).springify()}>
+      <ReAnimated.View key={familyId} entering={isSkinned ? FadeInUp.duration(skinMotion.settle.duration).delay(familyIndex * 50).easing(skinMotion.settle.easing) : FadeInUp.duration(300).delay(Math.min(familyIndex, 6) * 35).easing(Easing.bezier(0.2, 0, 0, 1))}>
         <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: (isExpanded || closingFamilyId === familyId) ? (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface) : familyRelationship.accent, overflow: (isExpanded || closingFamilyId === familyId) ? "hidden" : "visible", borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, skinTokens.frame, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         {/* Paper: the family card is colored stock — full-strength
             accent, matte grain over it, never a tan wash. */}
@@ -2106,14 +2223,14 @@ export default function HomeScreen() {
     const relationshipStyle = relationshipColors[person.relationship] ?? relationshipColors.Friends;
 
     return (
-      <ReAnimated.View key={person.id} style={[isDragged && { opacity: 0.6 }]} entering={isSkinned ? FadeInUp.duration(skinMotion.settle.duration).delay(personIndex * 50).easing(skinMotion.settle.easing) : FadeIn.duration(400).delay(personIndex * 50).springify()}>
+      <ReAnimated.View key={person.id} style={[isDragged && { opacity: 0.6 }]} entering={isSkinned ? FadeInUp.duration(skinMotion.settle.duration).delay(personIndex * 50).easing(skinMotion.settle.easing) : FadeInUp.duration(300).delay(Math.min(personIndex, 6) * 35).easing(Easing.bezier(0.2, 0, 0, 1))}>
         <Pressable
           onLongPress={() => handleContactLongPress(person)}
           onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
-          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderColor: `${relationshipStyle.accent}65`, borderWidth: 1 }, skinTokens.frame, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: colors.background }]}
+          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderColor: `${relationshipStyle.accent}65`, borderWidth: 1 }, skinTokens.frame, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: colors.background }, !isSkinned && { borderRadius: 22, borderWidth: 0, paddingVertical: 11, paddingHorizontal: 14, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }]}
         >
           {isSkinned ? <PaperGrainOverlay /> : null}
-          {renderAvatar(person, 48)}
+          {renderAvatar(person, isSkinned ? 48 : 52)}
           <View style={styles.personInfo}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Text numberOfLines={1} style={[styles.personName, styles.singlePersonName, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null]}>{person.name}</Text>
@@ -2144,9 +2261,9 @@ export default function HomeScreen() {
                     setPeople((previousPeople) => completed ? unmarkPersonPrayed(previousPeople, person.id) : markPersonPrayed(previousPeople, person.id));
                   }}
                   hitSlop={8}
-                  style={({ pressed }) => [{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: relationshipStyle.accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}
+                  style={({ pressed }) => [{ width: isSkinned ? 22 : 25, height: isSkinned ? 22 : 25, borderRadius: isSkinned ? 11 : 12.5, borderWidth: isSkinned ? 1.5 : 2, borderColor: relationshipStyle.accent, backgroundColor: !isSkinned && hasPersonCompletedPrayerToday(person, today) ? relationshipStyle.accent : "transparent", alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}
                 >
-                  {hasPersonCompletedPrayerToday(person, today) && <MaterialIcons name={iconName("check")} size={14} color={relationshipStyle.accent} />}
+                  {hasPersonCompletedPrayerToday(person, today) && <MaterialIcons name={iconName("check")} size={14} color={!isSkinned ? "#FFFFFF" : relationshipStyle.accent} />}
                 </Pressable>
               </>
             )}
@@ -2169,12 +2286,455 @@ export default function HomeScreen() {
     );
   };
 
+  // ─── v254 group builder (Piece C) ───────────────────────────────────────
+  // A new flow on the real model: anchor + members + roles + an
+  // editable name, created through groupIntoFamily (min 2 enforced
+  // there and in the Create button's disabled state; one family per
+  // person — people already grouped are disabled rows, as both
+  // existing grouping UIs do). Entry: the "New family" pill in the
+  // Family section head.
+  const derivedFamilyName = (person: Person | undefined) => {
+    if (!person) return "";
+    const parts = person.name.trim().split(/\s+/);
+    return `${parts.length > 1 ? parts[parts.length - 1] : parts[0]} Family`;
+  };
+
+  const openGroupBuilder = () => {
+    setBuilderStep(1);
+    setBuilderAnchorId(null);
+    setBuilderName("");
+    setBuilderMemberIds([]);
+    setBuilderRoles({});
+    setBuilderSearch("");
+    setShowGroupBuilder(true);
+  };
+
+  const pickBuilderAnchor = (person: Person) => {
+    setBuilderAnchorId(person.id);
+    setBuilderName(derivedFamilyName(person));
+    setBuilderRoles((current) => ({ ...current, [person.id]: current[person.id] ?? "Spouse" }));
+  };
+
+  const toggleBuilderMember = (personId: string) => {
+    setBuilderMemberIds((current) => current.includes(personId) ? current.filter((id) => id !== personId) : [...current, personId]);
+    setBuilderRoles((current) => ({ ...current, [personId]: current[personId] ?? "Other" }));
+  };
+
+  const createBuilderFamily = () => {
+    if (!builderAnchorId || builderMemberIds.length < 1) return;
+    const ids = [builderAnchorId, ...builderMemberIds];
+    const types: Record<string, FamilyType | undefined> = {};
+    ids.forEach((id) => { types[id] = builderRoles[id]; });
+    const next = groupIntoFamily(people, ids, types, builderName);
+    setPeople(next);
+    AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(next))).catch(() => undefined);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setShowGroupBuilder(false);
+  };
+
+  const renderGroupBuilder = () => {
+    if (!showGroupBuilder) return null;
+    const anchor = people.find((person) => person.id === builderAnchorId);
+    const builderPeople = people.slice().sort((a, b) => a.name.localeCompare(b.name));
+    const searchNeedle = builderSearch.trim().toLowerCase();
+    const matchesSearch = (person: Person) => !searchNeedle || person.name.toLowerCase().includes(searchNeedle);
+    const roleBar = (personId: string) => (
+      <View style={{ flexDirection: "row", gap: 6, marginLeft: 58, marginTop: 9, marginBottom: 2 }}>
+        {(["Spouse", "Child", "Other"] as const).map((role) => {
+          const selected = (builderRoles[personId] ?? "Other") === role;
+          return (
+            <Pressable key={role} onPress={() => setBuilderRoles((current) => ({ ...current, [personId]: role }))} style={({ pressed }) => [{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1.5, borderColor: pm.seed, backgroundColor: selected ? pm.seed : "transparent" }, pressed && { opacity: 0.75 }]}>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: selected ? "#FFFFFF" : pm.deep }}>{role}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+    const personRow = (person: Person, mode: "anchor" | "member") => {
+      const inFamily = Boolean(person.familyId);
+      const selected = mode === "anchor" ? builderAnchorId === person.id : builderMemberIds.includes(person.id);
+      const disabled = inFamily || (mode === "member" && person.id === builderAnchorId);
+      return (
+        <View key={person.id}>
+          <Pressable
+            disabled={disabled}
+            onPress={() => mode === "anchor" ? pickBuilderAnchor(person) : toggleBuilderMember(person.id)}
+            style={({ pressed }) => [{
+              flexDirection: "row", alignItems: "center", gap: 12,
+              backgroundColor: pm.card, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 9,
+              borderWidth: 1.5, borderColor: selected ? pm.seed : "transparent",
+              opacity: disabled ? 0.48 : 1,
+              shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1,
+            }, pressed && { opacity: 0.8 }]}
+          >
+            <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={46} thumbnail fallbackColor={person.accentColor} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={{ fontSize: 15.5, fontWeight: "700", color: pm.ink }}>{person.name}</Text>
+              <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>{inFamily ? (person.familyName || "In a family") : `${person.relationship} · ${formatLastReachedSummary(person)}`}</Text>
+            </View>
+            {inFamily ? (
+              <View style={{ backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+                <Text style={{ fontSize: 10.5, fontWeight: "800", letterSpacing: 0.5, color: pm.deep }}>IN A FAMILY</Text>
+              </View>
+            ) : mode === "anchor" ? (
+              <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2.2, borderColor: selected ? pm.seed : pm.wash2, alignItems: "center", justifyContent: "center" }}>
+                {selected ? <View style={{ width: 13, height: 13, borderRadius: 6.5, backgroundColor: pm.seed }} /> : null}
+              </View>
+            ) : person.id === builderAnchorId ? (
+              <View style={{ backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+                <Text style={{ fontSize: 10.5, fontWeight: "800", letterSpacing: 0.5, color: pm.deep }}>HEAD</Text>
+              </View>
+            ) : (
+              <View style={{ width: 26, height: 26, borderRadius: 9, borderWidth: 2.2, borderColor: selected ? pm.seed : pm.wash2, backgroundColor: selected ? pm.seed : "transparent", alignItems: "center", justifyContent: "center" }}>
+                {selected ? <MaterialIcons name="check" size={15} color="#FFFFFF" /> : null}
+              </View>
+            )}
+          </Pressable>
+          {mode === "member" && selected ? roleBar(person.id) : null}
+        </View>
+      );
+    };
+
+    return (
+      <Modal visible={showGroupBuilder} animationType="slide" onRequestClose={() => setShowGroupBuilder(false)}>
+        <View style={{ flex: 1, backgroundColor: pm.ground }}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingBottom: 12 }}>
+              <Pressable onPress={() => builderStep === 2 ? setBuilderStep(1) : setShowGroupBuilder(false)} style={({ pressed }) => [{ width: 38, height: 38, borderRadius: 19, backgroundColor: pm.wash, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.75 }]}>
+                <MaterialIcons name="chevron-left" size={22} color={pm.deep} />
+              </Pressable>
+              <Text style={{ flex: 1, fontSize: 20, fontWeight: "800", color: pm.ink }}>{builderStep === 1 ? "New Family" : "Add Members"}</Text>
+              <Pressable onPress={() => setShowGroupBuilder(false)} style={({ pressed }) => [{ width: 38, height: 38, borderRadius: 19, backgroundColor: pm.wash, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.75 }]}>
+                <MaterialIcons name="close" size={20} color={pm.deep} />
+              </Pressable>
+            </View>
+
+            <PeopleEntrance key={`builder-step-${builderStep}`} fromX={builderStep === 2 ? 30 : -30}>
+            {builderStep === 1 ? (
+              <>
+                <Text style={{ fontSize: 11.5, fontWeight: "800", letterSpacing: 1.1, color: pm.inkSoft, marginHorizontal: 2, marginTop: 4, marginBottom: 8 }}>START WITH — THE HEAD OF THE FAMILY</Text>
+                {builderPeople.filter(matchesSearch).map((person) => personRow(person, "anchor"))}
+                <Text style={{ fontSize: 11.5, fontWeight: "800", letterSpacing: 1.1, color: pm.inkSoft, marginHorizontal: 2, marginTop: 16, marginBottom: 8 }}>FAMILY NAME</Text>
+                <View style={{ backgroundColor: pm.card, borderWidth: 1.6, borderColor: pm.seed, borderRadius: 14, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10 }}>
+                  <Text style={{ position: "absolute", top: -8, left: 10, backgroundColor: pm.ground, paddingHorizontal: 5, fontSize: 11, fontWeight: "700", letterSpacing: 0.4, color: pm.deep }}>NAME</Text>
+                  <TextInput value={builderName} onChangeText={setBuilderName} placeholder="Family name" placeholderTextColor={pm.inkSoft} returnKeyType="done" style={{ fontSize: 17, fontWeight: "700", color: pm.ink, padding: 0 }} />
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: pm.inkSoft, marginTop: 2 }}>{anchor ? `From ${anchor.name}'s last name — tap to rename` : "Pick the head and the name fills in"}</Text>
+                </View>
+                <Text style={{ fontSize: 11.5, fontWeight: "800", letterSpacing: 1.1, color: pm.inkSoft, marginHorizontal: 2, marginTop: 16, marginBottom: 8 }}>KIND OF GROUP</Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: pm.seed, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 }}>
+                    <MaterialIcons name="home" size={15} color="#FFFFFF" />
+                    <Text style={{ fontSize: 13.5, fontWeight: "700", color: "#FFFFFF" }}>Family</Text>
+                  </View>
+                  <View style={{ backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 }}>
+                    <Text style={{ fontSize: 13.5, fontWeight: "700", color: pm.inkSoft }}>Only kind of group</Text>
+                  </View>
+                </View>
+                <Pressable disabled={!builderAnchorId} onPress={() => setBuilderStep(2)} style={({ pressed }) => [{ marginTop: 22, backgroundColor: pm.seed, borderRadius: 999, paddingVertical: 15, alignItems: "center", opacity: !builderAnchorId ? 0.45 : pressed ? 0.85 : 1, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 }]}>
+                  <Text style={{ fontSize: 15, fontWeight: "800", color: "#FFFFFF" }}>Continue — add members</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 11, marginBottom: 12 }}>
+                  <MaterialIcons name="search" size={18} color={pm.inkSoft} />
+                  <TextInput value={builderSearch} onChangeText={setBuilderSearch} placeholder="Search your people…" placeholderTextColor={pm.inkSoft} returnKeyType="search" style={{ flex: 1, fontSize: 14, fontWeight: "600", color: pm.ink, padding: 0 }} />
+                </View>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
+                  {anchor ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: pm.wash, borderRadius: 999, paddingLeft: 5, paddingRight: 11, paddingVertical: 5 }}>
+                      <AvatarImage id={anchor.id} name={anchor.name} gender={anchor.gender} avatarAsset={anchor.avatarAsset} photoUri={anchor.photoUri} size={26} thumbnail fallbackColor={anchor.accentColor} />
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: pm.washInk }}>{anchor.name.split(" ")[0]} · Head</Text>
+                    </View>
+                  ) : null}
+                  {builderMemberIds.map((id) => people.find((person) => person.id === id)).filter(Boolean).map((person) => (
+                    <PeopleEntrance key={person!.id}>
+                      <Pressable onPress={() => toggleBuilderMember(person!.id)} style={{ flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: pm.wash, borderRadius: 999, paddingLeft: 5, paddingRight: 11, paddingVertical: 5 }}>
+                        <AvatarImage id={person!.id} name={person!.name} gender={person!.gender} avatarAsset={person!.avatarAsset} photoUri={person!.photoUri} size={26} thumbnail fallbackColor={person!.accentColor} />
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: pm.washInk }}>{person!.name.split(" ")[0]}</Text>
+                        <MaterialIcons name="close" size={14} color={pm.deep} />
+                      </Pressable>
+                    </PeopleEntrance>
+                  ))}
+                </View>
+                {anchor ? (
+                  <View style={{ marginBottom: 4 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: pm.wash, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 11 }}>
+                      <AvatarImage id={anchor.id} name={anchor.name} gender={anchor.gender} avatarAsset={anchor.avatarAsset} photoUri={anchor.photoUri} size={46} thumbnail fallbackColor={anchor.accentColor} />
+                      <View style={{ flex: 1 }}>
+                        <Text numberOfLines={1} style={{ fontSize: 15.5, fontWeight: "700", color: pm.ink }}>{anchor.name}</Text>
+                        <Text style={{ fontSize: 12.5, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>Head of the family</Text>
+                      </View>
+                    </View>
+                    {roleBar(anchor.id)}
+                  </View>
+                ) : null}
+                <Text style={{ fontSize: 11.5, fontWeight: "800", letterSpacing: 1.1, color: pm.inkSoft, marginHorizontal: 2, marginTop: 10, marginBottom: 8 }}>YOUR PEOPLE</Text>
+                {builderPeople.filter((person) => person.id !== builderAnchorId).filter(matchesSearch).map((person) => personRow(person, "member"))}
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginHorizontal: 2, marginTop: 14, marginBottom: 10 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "800", color: pm.ink }}><Text style={{ color: pm.deep }}>{1 + builderMemberIds.length}</Text> people in this family</Text>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: pm.inkSoft }}>{builderName}</Text>
+                </View>
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <Pressable onPress={() => setBuilderStep(1)} style={({ pressed }) => [{ flex: 0, paddingHorizontal: 26, backgroundColor: pm.wash, borderRadius: 999, paddingVertical: 15, alignItems: "center" }, pressed && { opacity: 0.85 }]}>
+                    <Text style={{ fontSize: 15, fontWeight: "800", color: pm.deep }}>Back</Text>
+                  </Pressable>
+                  <Pressable disabled={builderMemberIds.length < 1} onPress={createBuilderFamily} style={({ pressed }) => [{ flex: 1, backgroundColor: pm.seed, borderRadius: 999, paddingVertical: 15, alignItems: "center", opacity: builderMemberIds.length < 1 ? 0.45 : pressed ? 0.85 : 1, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 }]}>
+                    <Text style={{ fontSize: 15, fontWeight: "800", color: "#FFFFFF" }}>Create Family</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+            </PeopleEntrance>
+          </ScrollView>
+        </View>
+      </Modal>
+    );
+  };
+
+  // ─── v254 front door (People concept v2) ────────────────────────────────
+  // The state cards ride ABOVE the roster: the roster keeps its own
+  // order (types, households) and these cards carry the day's state.
+  const renderPeopleAppBar = () => (
+    <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 18, paddingTop: 4, paddingBottom: 10 }}>
+      <View>
+        <Text style={{ fontSize: 27, fontWeight: "800", letterSpacing: -0.5, color: pm.ink }}>People</Text>
+        <Text style={{ fontSize: 12.5, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>
+          {todayDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+        </Text>
+      </View>
+      <AttentionBell
+        people={people}
+        onOpenPerson={(personId) => router.push({ pathname: "/person", params: { personId } })}
+        onPrayToday={() => setShowPrayerSession(true)}
+      />
+    </View>
+  );
+
+  const renderEmergencyBanner = () => {
+    const emergencies = getAllActiveEmergencyPrayers(people)
+      .slice()
+      .sort((a, b) => new Date(a.item.emergencyExpiresAt ?? 0).getTime() - new Date(b.item.emergencyExpiresAt ?? 0).getTime());
+    const first = emergencies[0];
+    if (!first) return null;
+    const leftRaw = formatHoursLeft(first.item.emergencyExpiresAt ?? "", new Date());
+    const leftText = `${leftRaw.charAt(0).toUpperCase()}${leftRaw.slice(1)} of 24`;
+    return (
+      <PeopleEntrance index={0} emphasis>
+        <View style={{ borderRadius: 26, overflow: "hidden", marginHorizontal: 16, shadowColor: "#991B1B", shadowOpacity: 0.32, shadowRadius: 13, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
+          <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
+            <Defs>
+              <LinearGradient id="v254EmergencyGrad" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor="#B91C1C" />
+                <Stop offset="0.55" stopColor="#991B1B" />
+                <Stop offset="1" stopColor="#7F1D1D" />
+              </LinearGradient>
+            </Defs>
+            <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254EmergencyGrad)" />
+          </Svg>
+          <View pointerEvents="none" style={{ position: "absolute", top: -46, right: -30, width: 150, height: 150, borderRadius: 75, backgroundColor: "rgba(255,255,255,0.10)" }} />
+          <View style={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 15 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "rgba(252,165,165,0.28)", alignItems: "center", justifyContent: "center" }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#FCA5A5" }} />
+              </View>
+              <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: "#FFFFFF" }}>
+                EMERGENCY · {first.person.name.toUpperCase()}{emergencies.length > 1 ? ` +${emergencies.length - 1}` : ""}
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 11, marginTop: 10 }}>
+              <AvatarImage id={first.person.id} name={first.person.name} gender={first.person.gender} avatarAsset={first.person.avatarAsset} photoUri={first.person.photoUri} size={46} thumbnail fallbackColor={first.person.accentColor} style={{ borderWidth: 2, borderColor: "rgba(255,255,255,0.75)", borderRadius: 23 }} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text numberOfLines={2} style={{ fontSize: 16.5, fontWeight: "800", lineHeight: 21, color: "#FFFFFF" }}>{first.item.title}</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#FECACA", marginTop: 1 }}>{leftText}</Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: "#FECACA" }}>
+                {emergencies.length > 1 ? `Also: ${emergencies[1].person.name}` : ""}
+              </Text>
+              <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowPrayerSession(true); }} style={({ pressed }) => [{ backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 }, pressed && { opacity: 0.85 }]}>
+                <Text style={{ fontSize: 13.5, fontWeight: "800", color: "#991B1B" }}>Pray now</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </PeopleEntrance>
+    );
+  };
+
+  const renderQueueCard = () => {
+    const { prayed, total } = dailyPrayerProgress;
+    if (total === 0 && visiblePrayTodayList.length === 0) return null;
+    const pct = total > 0 ? Math.round((prayed / total) * 100) : 0;
+    const faces = visiblePrayTodayList.slice(0, 5);
+    const moreCount = visiblePrayTodayList.length - faces.length;
+    return (
+      <PeopleEntrance index={1}>
+        <View style={{ backgroundColor: pm.card, borderRadius: 26, paddingHorizontal: 17, paddingVertical: 15, marginHorizontal: 16, marginTop: 12, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
+          <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" }}>
+            <Text style={{ fontSize: 14.5, fontWeight: "800", color: pm.ink }}>Today's prayer list</Text>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: pm.inkSoft }}>{prayed} of {total} prayed · {Math.max(0, total - prayed)} to go</Text>
+          </View>
+          <View style={{ height: 8, borderRadius: 4, backgroundColor: pm.wash, marginTop: 11, overflow: "hidden" }}>
+            <View style={{ width: `${pct}%`, height: "100%", borderRadius: 4, overflow: "hidden" }}>
+              <Svg width="100%" height="100%" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+                <Defs>
+                  <LinearGradient id="v254QueueGrad" x1="0" y1="0" x2="1" y2="0">
+                    <Stop offset="0" stopColor={pm.seed} />
+                    <Stop offset="1" stopColor={pm.tealDeep} />
+                  </LinearGradient>
+                </Defs>
+                <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254QueueGrad)" />
+              </Svg>
+            </View>
+          </View>
+          <View style={{ flexDirection: "row", gap: 9, marginTop: 13 }}>
+            {faces.map((person) => {
+              const done = hasPersonCompletedPrayerToday(person, today);
+              const waitingCount = person.prayerItems.filter((item) => !item.isDone).length;
+              return (
+                <View key={person.id} style={{ flex: 1, alignItems: "center", minWidth: 0 }}>
+                  <View style={{ width: 47, height: 47, borderRadius: 23.5, borderWidth: 2, borderColor: done ? pm.seed : pm.wash2, alignItems: "center", justifyContent: "center" }}>
+                    <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={43} thumbnail fallbackColor={person.accentColor} />
+                    {done ? (
+                      <View style={{ position: "absolute", bottom: -2, right: -2, width: 17, height: 17, borderRadius: 8.5, backgroundColor: "#2E7D4F", borderWidth: 2, borderColor: pm.card, alignItems: "center", justifyContent: "center" }}>
+                        <MaterialIcons name="check" size={9} color="#FFFFFF" />
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "700", color: pm.ink, marginTop: 5 }}>{getPrayTodayDisplayName(person.name)}</Text>
+                  <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: "600", color: pm.inkSoft }}>{done ? "Prayed" : waitingCount > 0 ? `${waitingCount} waiting` : "Waiting"}</Text>
+                </View>
+              );
+            })}
+            {moreCount > 0 ? (
+              <View style={{ flex: 1, alignItems: "center", minWidth: 0 }}>
+                <View style={{ width: 47, height: 47, borderRadius: 23.5, backgroundColor: pm.wash, borderWidth: 2, borderStyle: "dashed", borderColor: pm.wash2, alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: pm.deep }}>+{moreCount}</Text>
+                </View>
+                <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "700", color: pm.ink, marginTop: 5 }}>More</Text>
+                <Text style={{ fontSize: 10 }}> </Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </PeopleEntrance>
+    );
+  };
+
+  const renderPraiseCard = () => {
+    const praisedPerson = people.find((person) => hasActivePraise(person));
+    if (!praisedPerson) return null;
+    const text = praisedPerson.praiseNote?.trim() || praisedPerson.prayerItems.find((item) => item.isPraised)?.title?.trim() || "Praise";
+    const hoursLeft = praisedPerson.praiseExpiresAt
+      ? Math.max(0, Math.round((new Date(praisedPerson.praiseExpiresAt).getTime() - Date.now()) / 3600000))
+      : null;
+    return (
+      <PeopleEntrance index={2}>
+        <View style={{ borderRadius: 26, overflow: "hidden", borderWidth: 1.5, borderColor: "#F5D67B", marginHorizontal: 16, marginTop: 12, shadowColor: "#B26E12", shadowOpacity: 0.16, shadowRadius: 11, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
+          <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
+            <Defs>
+              <LinearGradient id="v254PraiseGrad" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor="#FFF3D6" />
+                <Stop offset="1" stopColor="#FFE9B8" />
+              </LinearGradient>
+            </Defs>
+            <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254PraiseGrad)" />
+          </Svg>
+          <View style={{ paddingHorizontal: 17, paddingVertical: 15 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <MaterialIcons name="star" size={14} color="#B26E12" />
+              <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: "#B26E12" }}>PRAISE · {praisedPerson.name.toUpperCase()}</Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 11, marginTop: 9, alignItems: "flex-start" }}>
+              <AvatarImage id={praisedPerson.id} name={praisedPerson.name} gender={praisedPerson.gender} avatarAsset={praisedPerson.avatarAsset} photoUri={praisedPerson.photoUri} size={44} thumbnail fallbackColor={praisedPerson.accentColor} style={{ borderWidth: 2.5, borderColor: "#F59E0B", borderRadius: 22 }} />
+              <Text style={{ flex: 1, fontSize: 14.5, fontWeight: "700", lineHeight: 20, color: "#4A3205" }}>{text}</Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 11 }}>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#B26E12" }}>{hoursLeft !== null ? `${hoursLeft}h left to celebrate` : "Celebrating today"}</Text>
+              <Pressable
+                onPress={() => {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  setJournal((previous) => createPrayerJournalEntry(previous, { body: text, taggedPeople: [praisedPerson] }, `journal-praise-${Date.now()}`));
+                  setActiveTab("journal");
+                }}
+                style={({ pressed }) => [{ backgroundColor: "#B26E12", borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={{ fontSize: 12.5, fontWeight: "800", color: "#FFFFFF" }}>Post to Journal</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </PeopleEntrance>
+    );
+  };
+
+  const renderSlipCard = () => {
+    if (reachEntries.length === 0) return null;
+    const entry = reachEntries[slipIndex % reachEntries.length];
+    const person = entry.person;
+    const alsoEmergency = hasActiveEmergencyPrayer(person);
+    const meta = entry.days === 14
+      ? "Due to reach today · last talked 14 days ago"
+      : `Last talked ${entry.days} days ago${alsoEmergency ? " · also today's emergency" : ""}`;
+    return (
+      <PeopleEntrance index={3}>
+        <View style={{ backgroundColor: pm.wash, borderRadius: 26, paddingHorizontal: 17, paddingVertical: 15, marginHorizontal: 16, marginTop: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" }}>
+            <Text style={{ fontSize: 14.5, fontWeight: "800", color: pm.washInk }}>Don't let anyone slip</Text>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: pm.deep }}>Reach · every 14 days</Text>
+          </View>
+          <PeopleEntrance key={person.id} index={0}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 11, backgroundColor: pm.card, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+              <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={42} thumbnail fallbackColor={person.accentColor} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: "800", color: pm.ink }}>{person.name}</Text>
+                <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>{meta}</Text>
+              </View>
+              <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [{ backgroundColor: pm.seed, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}>
+                <Text style={{ fontSize: 12, fontWeight: "800", color: "#FFFFFF" }}>Reach out</Text>
+              </Pressable>
+            </View>
+          </PeopleEntrance>
+        </View>
+      </PeopleEntrance>
+    );
+  };
+
+  const renderRosterHead = () => (
+    <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginHorizontal: 18, marginTop: 22, marginBottom: 2 }}>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <Text style={{ fontSize: 17, fontWeight: "800", color: pm.ink }}>Your people</Text>
+        <Pressable
+          onPress={() => { setActiveTab("people"); setShowAddPerson(true); }}
+          style={({ pressed }) => [{ width: 30, height: 30, borderRadius: 15, backgroundColor: pm.seed, alignItems: "center", justifyContent: "center", marginLeft: 8, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }, pressed && { opacity: 0.85 }]}
+        >
+          <MaterialIcons name="add" size={16} color="#FFFFFF" />
+        </Pressable>
+      </View>
+      <Text style={{ fontSize: 12.5, fontWeight: "700", color: pm.inkSoft }}>{people.length} in the circle</Text>
+    </View>
+  );
+
+  const renderPeopleFrontDoor = () => (
+    <View>
+      {renderPeopleAppBar()}
+      {renderPeoplePrayerHeader()}
+      {renderEmergencyBanner()}
+      {renderQueueCard()}
+      {renderPraiseCard()}
+      {renderSlipCard()}
+      {renderRosterHead()}
+    </View>
+  );
+
   const renderPeoplePrayerHeader = () => (
     <View>
       {(visiblePrayTodayList.length > 0 || remainingPrayTodayCount === 0) && (
         <>
           <View style={{ marginBottom: 8 }}>
-            <Text style={styles.subheading}>PRAY TODAY</Text>
+            <Text style={[styles.subheading, !isSkinned && { color: pm.deep }]}>PRAY TODAY</Text>
           </View>
           <ScrollView
             ref={prayTodayScrollRef}
@@ -2233,6 +2793,79 @@ export default function HomeScreen() {
   const renderExpandedFamily = (familyMembers: Person[], section: RelationshipSection, closing?: boolean) => {
     const accent = relationshipColors[section.title].accent;
     const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
+    // v254 (Classic): the unfurl as the concept draws it — the panel
+    // joins the household card as one surface: a "prayed today"
+    // progress head, member rows with urgency in place (DUE TO REACH
+    // badge, emergency pill), children nested smaller on a rail, and
+    // the filled Mark as Complete. Same handlers as the legacy panel.
+    if (!isSkinned) {
+      const pct = Math.round((completedMembers / familyMembers.length) * 100);
+      const renderMemberRow = (member: Person, kid: boolean) => {
+        const emergency = getAllActiveEmergencyPrayers(people).find((entry) => entry.person.id === member.id);
+        const emergencyCountdown = emergency ? emergencyCountdowns[emergency.item.id] : undefined;
+        const daysSince = getDaysSinceLastPrayed(member.lastPrayedDate);
+        const complete = hasPersonCompletedPrayerToday(member, today);
+        const dueToReach = !complete && daysSince >= 14 && daysSince !== 999;
+        return (
+          <Pressable key={member.id} onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 10, paddingHorizontal: 14, paddingLeft: kid ? 15 : 16 }, pressed && { backgroundColor: `${accent}10` }]}>
+            {renderAvatar(member, kid ? 40 : 52)}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text numberOfLines={1} style={{ fontSize: kid ? 13.5 : 14.5, fontWeight: "800", color: pm.ink }}>{member.name}</Text>
+                {dueToReach ? (
+                  <View style={{ backgroundColor: pm.amberWash, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2.5, marginLeft: 7 }}>
+                    <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.9, color: pm.amberDeep }}>DUE TO REACH</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>{member.familyType ?? "Other"} · {formatLastReachedSummary(member)}</Text>
+            </View>
+            {emergencyCountdown ? (
+              <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} progress={emergency ? getEmergencyPrayerProgress(emergency.item.emergencyExpiresAt) : 0} />
+            ) : !kid ? (
+              <View style={{ width: 46, height: 22, borderRadius: 999, backgroundColor: pm.wash, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+                <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.round(getReachProgressRatio(daysSince) * 100)}%`, backgroundColor: daysSince === 999 ? pm.wash2 : getLastReachedAccentColor(member), borderRadius: 999 }} />
+                <Text style={{ fontSize: 11, fontWeight: "800", color: pm.ink }}>{daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince)}</Text>
+              </View>
+            ) : null}
+            <Pressable
+              onPress={(event) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; const count = familyMembers.filter((familyMember) => hasPersonCompletedPrayerToday(familyMember, today)).length; if (!complete && count === familyMembers.length - 1) playVerifiedPop(); if (complete) void revokeExperience("scheduled-prayer", `${today}:${member.id}`, position); else void awardExperience("scheduled-prayer", `${today}:${member.id}`, position); setPeople((previousPeople) => complete ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id)); }}
+              hitSlop={8}
+              style={({ pressed }) => [{ width: 25, height: 25, borderRadius: 12.5, borderWidth: 2, borderColor: accent, backgroundColor: complete ? accent : pm.card, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}
+            >
+              {complete && <MaterialIcons name="check" size={13} color="#FFFFFF" />}
+            </Pressable>
+          </Pressable>
+        );
+      };
+      const adults = familyMembers.filter((member) => member.familyType !== "Child");
+      const kids = familyMembers.filter((member) => member.familyType === "Child");
+      return (
+        <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -14, marginBottom: 10, backgroundColor: pm.card, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingTop: 20, paddingBottom: 14, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+          <View style={{ paddingHorizontal: 16 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={{ fontSize: 11.5, fontWeight: "800", color: pm.ink }}>{completedMembers} of {familyMembers.length} prayed today</Text>
+              <Text style={{ fontSize: 11.5, fontWeight: "800", color: accent }}>{pct}%</Text>
+            </View>
+            <View style={{ height: 6, borderRadius: 3, backgroundColor: pm.wash, marginTop: 6, overflow: "hidden" }}>
+              <View style={{ width: `${pct}%`, height: "100%", borderRadius: 3, backgroundColor: accent }} />
+            </View>
+          </View>
+          <View style={{ marginTop: 6 }}>
+            {adults.map((member) => renderMemberRow(member, false))}
+            {kids.length > 0 ? (
+              <View style={{ marginLeft: 41, borderLeftWidth: 2, borderLeftColor: pm.wash2 }}>
+                {kids.map((member) => renderMemberRow(member, true))}
+              </View>
+            ) : null}
+          </View>
+          <Pressable onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))} style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 8, borderRadius: 13, backgroundColor: accent, paddingVertical: 11, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }, pressed && { opacity: 0.85 }]}>
+            <MaterialIcons name="check" size={14} color="#FFFFFF" />
+            <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "800" }}>Mark as Complete</Text>
+          </Pressable>
+        </UnfurlPanel>
+      );
+    }
     return <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: isSkinned ? skinTokens.surface ?? colors.background : colors.background, borderBottomLeftRadius: skinTokens.isEightBit ? 2 : 12, borderBottomRightRadius: skinTokens.isEightBit ? 2 : 12, borderWidth: skinTokens.isEightBit ? 3 : 1, borderTopWidth: 0, borderColor: skinTokens.isEightBit ? skinTokens.border : `${accent}45` }}>
       {isSkinned ? <PaperGrainOverlay /> : null}
       <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800", ...(skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 9, lineHeight: 15 } : {}) }}>{completedMembers} of {familyMembers.length} complete</Text><Text style={{ color: accent, fontSize: 12, fontWeight: "800" }}>{Math.round((completedMembers / familyMembers.length) * 100)}%</Text></View><View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${accent}18`, overflow: "hidden" }}><View style={{ width: `${Math.round((completedMembers / familyMembers.length) * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: accent }} /></View></View>
@@ -2254,7 +2887,38 @@ export default function HomeScreen() {
   };
 
   const renderPeopleRow = ({ item }: { item: (typeof peopleRows)[number] }) => {
-    if (item.kind === "section") return <View style={styles.sectionBlock}><Text style={[styles.relationshipTitle, { color: relationshipColors[item.section.title].accent }, skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null]}>{item.section.title.toUpperCase()}</Text></View>;
+    if (item.kind === "section") {
+      const accent = relationshipColors[item.section.title].accent;
+      const sectionCount = item.section.people.length + (item.section.familyGroups ?? []).reduce((sum, group) => sum + group.length, 0);
+      const newFamilyPill = item.section.title === "Family" ? (
+        <Pressable
+          onPress={openGroupBuilder}
+          style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginLeft: 8 }, pressed && { opacity: 0.75 }]}
+        >
+          <MaterialIcons name="group-add" size={14} color={pm.deep} />
+          <Text style={{ fontSize: 11, fontWeight: "800", color: pm.deep }}>New family</Text>
+        </Pressable>
+      ) : null;
+      if (isSkinned) {
+        return (
+          <View style={[styles.sectionBlock, { flexDirection: "row", alignItems: "center" }]}>
+            <Text style={[styles.relationshipTitle, { color: relationshipColors[item.section.title].accent }, skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null]}>{item.section.title.toUpperCase()}</Text>
+            {newFamilyPill}
+          </View>
+        );
+      }
+      return (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 2, marginTop: 20, marginBottom: 9 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: accent }} />
+          <Text style={{ fontSize: 12.5, fontWeight: "800", letterSpacing: 1.8, color: accent }}>{item.section.title.toUpperCase()}</Text>
+          <View style={{ backgroundColor: pm.card, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2.5, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+            <Text style={{ fontSize: 11, fontWeight: "800", color: pm.ink }}>{sectionCount}</Text>
+          </View>
+          <View style={{ flex: 1, height: 1.5, borderRadius: 1, backgroundColor: accent, opacity: 0.28 }} />
+          {newFamilyPill}
+        </View>
+      );
+    }
     if (item.kind === "person") return renderPersonCard(item.person, item.index, item.section.people);
     const familyId = item.familyMembers[0]?.familyId || "";
     const isExpanded = expandedFamilyId === familyId;
@@ -2332,7 +2996,7 @@ export default function HomeScreen() {
         data={peopleRows}
         renderItem={renderPeopleRow}
         keyExtractor={(item) => item.key}
-        ListHeaderComponent={<View>{renderPeoplePrayerHeader()}</View>}
+        ListHeaderComponent={<View>{renderPeopleFrontDoor()}</View>}
         ListEmptyComponent={<View style={styles.emptyStateCard}><MaterialIcons name={iconName("groups")} size={46} color={colors.primary} /><Text style={styles.emptyTitle}>No people yet</Text><Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text></View>}
         contentContainerStyle={[styles.peopleContent, { paddingTop: peopleHeaderInset(skinTokens.type) }]}
         onScroll={handlePeopleScroll}
@@ -3684,6 +4348,7 @@ export default function HomeScreen() {
           onRevokeXP={revokeExperience}
           showWorshipAlbumForm={showWorshipAlbumForm}
           onShowWorshipAlbumForm={setShowWorshipAlbumForm}
+          onBellPrayToday={() => setShowPrayerSession(true)}
           onTodoComplete={(todoId) => {
             const updatedPeople = people.map(p => {
               if (p.isPersonal) {
@@ -3703,7 +4368,13 @@ export default function HomeScreen() {
         )}
         {activeTab === "journal" && (
           <View style={{ flex: 1 }}>
-            <PrayerJournalTab entries={journal} people={people} onChange={setJournal} onComposeChange={setJournalComposing} />
+            <PrayerJournalTab entries={journal} people={people} onChange={setJournal} onComposeChange={setJournalComposing} headerBell={(
+            <AttentionBell
+              people={people}
+              onOpenPerson={(personId) => router.push({ pathname: "/person", params: { personId } })}
+              onPrayToday={() => setShowPrayerSession(true)}
+            />
+          )} />
           </View>
         )}
         {activeTab === "settings" && (
@@ -3711,16 +4382,84 @@ export default function HomeScreen() {
             {renderSettingsScreen()}
           </View>
         )}
+        {activeTab === "more" && (
+          <View style={{ flex: 1 }}>
+            {renderMoreScreen()}
+          </View>
+        )}
       </>
     );
   };
 
-  // ---- Expressive glass tab bar: the active pill slides between tabs on a spring ----
+  // v254: the More hub — a plain Material list of every destination
+  // that lost its tab or lives outside the four: Settings first,
+  // then each family, Hometown, and the profile-side screens. Every
+  // route reachable before this build is reachable from here.
+  const renderMoreScreen = () => {
+    const families = getFamilyGroups(people);
+    const rows: Array<{ key: string; icon: string; label: string; onPress: () => void }> = [
+      { key: "settings", icon: "settings", label: "Settings", onPress: () => setActiveTab("settings") },
+      ...families.map((family) => ({
+        key: `family-${family.familyId}`,
+        icon: "groups",
+        label: family.familyName,
+        onPress: () => router.push({ pathname: "/family", params: { familyId: family.familyId } }),
+      })),
+      { key: "hometown", icon: "location-city", label: "Hometown", onPress: () => router.push("/hometown") },
+      { key: "profile", icon: "person", label: "My Profile", onPress: () => router.push("/profile") },
+      { key: "character", icon: "face", label: "Character", onPress: () => router.push("/character") },
+      { key: "fast-collection", icon: "collections-bookmark", label: "Fast Collection", onPress: () => router.push("/fast-collection") },
+      { key: "devotional", icon: "menu-book", label: "Devotional", onPress: () => router.push("/devotional") },
+    ];
+    return (
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24 }} style={{ backgroundColor: isSkinned ? undefined : pm.ground }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 2, paddingTop: 4, paddingBottom: 10 }}>
+          <View>
+            <Text style={{ fontSize: 27, fontWeight: "800", letterSpacing: -0.5, color: pm.ink }}>More</Text>
+            <Text style={{ fontSize: 12.5, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>
+              {todayDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            </Text>
+          </View>
+          <AttentionBell
+            people={people}
+            onOpenPerson={(personId) => router.push({ pathname: "/person", params: { personId } })}
+            onPrayToday={() => setShowPrayerSession(true)}
+          />
+        </View>
+        {rows.map((row, index) => (
+          <PeopleEntrance key={row.key} index={index}>
+            <Pressable
+              onPress={row.onPress}
+              style={({ pressed }) => [{
+                flexDirection: "row", alignItems: "center", gap: 13,
+                backgroundColor: pm.card, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 15, marginTop: 9,
+                shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+              }, pressed && { opacity: 0.8 }]}
+            >
+              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: pm.wash, alignItems: "center", justifyContent: "center" }}>
+                <MaterialIcons name={iconName(row.icon)} size={20} color={pm.deep} />
+              </View>
+              <Text style={{ flex: 1, fontSize: 15.5, fontWeight: "800", color: pm.ink }}>{row.label}</Text>
+              <MaterialIcons name="chevron-right" size={20} color={pm.wash2} />
+            </Pressable>
+          </PeopleEntrance>
+        ))}
+      </ScrollView>
+    );
+  };
+
+  // ---- Expressive glass tab bar: the active pill slides between tabs (withTiming, Material easing — no spring) ----
   const [navWidth, setNavWidth] = useState(0);
   const tabPillX = useSharedValue(0);
   const navFirstLayout = useRef(true);
-  const tabOrder: AppTab[] = ["people", "schedule", "journal", "settings"];
-  const activeTabIndex = activeTab === "home" ? 0 : tabOrder.indexOf(activeTab);
+  // v254: the nav as drawn — People · Schedule · Bible · Journal ·
+  // More. "home" is the legacy alias of People; Settings keeps its
+  // own screen but is reached from the More hub, so it borrows the
+  // More slot for the pill. Bible is a launcher (it pushes the Bible
+  // section's root screen), never an activeTab value.
+  const tabOrder: AppTab[] = ["people", "schedule", "bible", "journal", "more"];
+  const navTab: AppTab = activeTab === "home" ? "people" : activeTab === "settings" ? "more" : activeTab;
+  const activeTabIndex = Math.max(0, tabOrder.indexOf(navTab));
   const prevTabRef = useRef(activeTab);
   useEffect(() => {
     if (prevTabRef.current !== activeTab) {
@@ -3735,7 +4474,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (navWidth <= 0) return;
-    const tabW = (navWidth - 6) / 4;
+    const tabW = (navWidth - 6) / 5;
     const target = Math.max(0, activeTabIndex) * tabW;
     if (navFirstLayout.current) {
       tabPillX.value = target;
@@ -3748,16 +4487,23 @@ export default function HomeScreen() {
 
   const tabPillAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: tabPillX.value }],
-    width: navWidth > 0 ? (navWidth - 6) / 4 - 12 : 0,
+    width: navWidth > 0 ? (navWidth - 6) / 5 - 12 : 0,
   }));
 
   const renderTab = (tab: AppTab, label: string, icon: string) => {
-    const isActive = activeTab === tab || (tab === "people" && activeTab === "home");
+    const isActive = activeTab === tab || (tab === "people" && activeTab === "home") || (tab === "more" && activeTab === "settings");
     return (
       <Pressable
         key={tab}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          // v254: Bible is a real tab that opens the Bible section's
+          // existing root screen (the Books view) — a launcher, not a
+          // mounted tab, so the screens underneath never change.
+          if (tab === "bible") {
+            router.push("/bible-chapters");
+            return;
+          }
           setActiveTab(tab);
           setShowAddPerson(false);
         }}
@@ -3783,33 +4529,34 @@ export default function HomeScreen() {
             <MaterialIcons name={iconName("close")} size={30} color="#46525D" />
           </Pressable>
           <Text style={styles.addTitle}>{editingPersonId ? "Edit Person" : "Add Person"}</Text>
-          {editingPersonId ? <Pressable onPress={handleDeleteEditedPerson} style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}><MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" /></Pressable> : <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}>
-            <Text style={styles.saveButtonText}>Save</Text>
+          {editingPersonId ? <Pressable onPress={handleDeleteEditedPerson} style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}><MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" /></Pressable> : <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.saveButton, !isSkinned && { backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 }, pressed && styles.pressed]}>
+            <Text style={[styles.saveButtonText, !isSkinned && { color: pm.deep }]}>Save</Text>
           </Pressable>}
         </View>
 
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.addContent}>
-          <Text style={styles.fieldLabel}>AVATAR</Text>
+          <PeopleEntrance>
+          <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>AVATAR</Text>
           <View style={{ alignItems: "center", marginBottom: 12 }}>
             <AvatarImage id={editingPersonId || "new-person"} name={newPersonName} avatarAsset={newPersonAvatarAsset} photoUri={newPersonPhotoUri} size={104} fallbackColor={colors.surface} />
             <Text style={[styles.photoPrompt, { marginTop: 8 }]}>{newPersonPhotoUri ? "Uploaded photo" : newPersonAvatarAsset ? "Pack avatar" : "Default avatar"}</Text>
           </View>
           <View style={{ flexDirection: "row", gap: 10, marginBottom: 18 }}>
-            <Pressable onPress={handlePickNewPersonPhoto} style={({ pressed }) => [{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 11 }, pressed && styles.pressed]}><MaterialIcons name={iconName("photo-library")} size={18} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: "800" }}>Upload photo</Text></Pressable>
-            <Pressable onPress={() => setShowPersonAvatarPicker(true)} style={({ pressed }) => [{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 11 }, pressed && styles.pressed]}><MaterialIcons name={iconName("pets")} size={18} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: "800" }}>Choose avatar</Text></Pressable>
+            <Pressable onPress={handlePickNewPersonPhoto} style={({ pressed }) => [{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 11 }, !isSkinned && { borderRadius: 999, borderWidth: 1.5, borderColor: pm.wash2 }, pressed && styles.pressed]}><MaterialIcons name={iconName("photo-library")} size={18} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: "800" }}>Upload photo</Text></Pressable>
+            <Pressable onPress={() => setShowPersonAvatarPicker(true)} style={({ pressed }) => [{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 11 }, !isSkinned && { borderRadius: 999, borderWidth: 1.5, borderColor: pm.wash2 }, pressed && styles.pressed]}><MaterialIcons name={iconName("pets")} size={18} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: "800" }}>Choose avatar</Text></Pressable>
           </View>
 
-          <Text style={styles.fieldLabel}>NAME</Text>
+          <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>NAME</Text>
           <TextInput
             value={newPersonName}
             onChangeText={setNewPersonName}
             placeholder="Full name"
             placeholderTextColor="#73808B"
             returnKeyType="done"
-            style={styles.textInput}
+            style={[styles.textInput, !isSkinned && { backgroundColor: pm.wash, borderBottomWidth: 2, borderBottomColor: pm.line, borderTopLeftRadius: 14, borderTopRightRadius: 14, borderBottomLeftRadius: 4, borderBottomRightRadius: 4 }]}
           />
 
-          <Text style={styles.fieldLabel}>RELATIONSHIP</Text>
+          <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>RELATIONSHIP</Text>
           <View style={styles.relationshipPills}>
             {RELATIONSHIP_ORDER.map((relationship) => {
               const isActive = relationship === newPersonRelationship && !newPersonCustomRelationship;
@@ -3842,11 +4589,11 @@ export default function HomeScreen() {
               placeholder="Enter custom relationship"
               placeholderTextColor="#73808B"
               returnKeyType="done"
-              style={[styles.textInput, { marginBottom: 12 }]}
+              style={[styles.textInput, { marginBottom: 12 }, !isSkinned && { backgroundColor: pm.wash, borderBottomWidth: 2, borderBottomColor: pm.line, borderTopLeftRadius: 14, borderTopRightRadius: 14, borderBottomLeftRadius: 4, borderBottomRightRadius: 4 }]}
             />
           )}
 
-          <Text style={styles.fieldLabel}>FAMILY MEMBERS (optional)</Text>
+          <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>FAMILY MEMBERS (optional)</Text>
           <Text style={styles.fieldHint}>Select existing contacts to place this person in the same family card.</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 8 }}>
             {people.filter((person) => {
@@ -3869,7 +4616,7 @@ export default function HomeScreen() {
                     }
                     return { ...current, [person.id]: current[person.id] ?? person.familyType ?? "Other" };
                   });
-                }} style={({ pressed }) => [{ minWidth: 86, paddingHorizontal: 10, paddingVertical: 9, borderRadius: 14, borderWidth: 1.5, borderColor: accent, backgroundColor: selected ? accent : colors.background, alignItems: "center" }, pressed && styles.pressed]}>
+                }} style={({ pressed }) => [{ minWidth: 86, paddingHorizontal: 10, paddingVertical: 9, borderRadius: 14, borderWidth: 1.5, borderColor: accent, backgroundColor: selected ? accent : colors.background, alignItems: "center" }, !isSkinned && { borderRadius: 16 }, pressed && styles.pressed]}>
                   <Text numberOfLines={1} style={{ maxWidth: 100, color: selected ? "#FFFFFF" : colors.foreground, fontWeight: "800", fontSize: 12 }}>{person.name}</Text>
                   <Text style={{ color: selected ? "rgba(255,255,255,0.82)" : colors.muted, fontSize: 10 }}>{person.relationship}</Text>
                 </Pressable>
@@ -3878,14 +4625,14 @@ export default function HomeScreen() {
           </ScrollView>
           {selectedFamilyMemberIds.length > 0 && (
             <>
-              <Text style={styles.fieldLabel}>FAMILY ROLES</Text>
+              <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>FAMILY ROLES</Text>
               <Text style={styles.fieldHint}>Choose a role separately for each person in this family.</Text>
               {[...(editingPersonId ? [people.find((person) => person.id === editingPersonId)].filter(Boolean) : [{ id: "new-person", name: newPersonName.trim() || "This person" } as Person]), ...selectedFamilyMemberIds.map((id) => people.find((person) => person.id === id)).filter(Boolean)].map((member) => {
                 if (!member) return null;
                 const isCurrentPerson = member.id === editingPersonId || member.id === "new-person";
                 const selectedRole = isCurrentPerson ? newPersonFamilyType : familyRolesByPersonId[member.id];
                 return (
-                  <View key={member.id} style={{ marginBottom: 10, padding: 12, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  <View key={member.id} style={{ marginBottom: 10, padding: 12, borderRadius: isSkinned ? 14 : 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
                     <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800", marginBottom: 8 }}>{member.name}{isCurrentPerson ? " (this person)" : ""}</Text>
                     <View style={styles.relationshipPills}>
                       {(["Spouse", "Child", "Other"] as const).map((familyType) => (
@@ -3900,20 +4647,21 @@ export default function HomeScreen() {
             </>
           )}
 
-          <Text style={styles.fieldLabel}>BIRTHDAY (optional)</Text>
+          <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>BIRTHDAY (optional)</Text>
           <TextInput
             value={newPersonBirthday}
             onChangeText={setNewPersonBirthday}
             placeholder="MM-DD-YYYY or MM-DD"
             placeholderTextColor="#73808B"
             returnKeyType="done"
-            style={styles.textInput}
+            style={[styles.textInput, !isSkinned && { backgroundColor: pm.wash, borderBottomWidth: 2, borderBottomColor: pm.line, borderTopLeftRadius: 14, borderTopRightRadius: 14, borderBottomLeftRadius: 4, borderBottomRightRadius: 4 }]}
           />
           <Text style={styles.fieldHint}>Format: MM-DD-YYYY (e.g., 03-15-1990)</Text>
 
-          <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.createFastButton, { marginTop: 18, marginBottom: 20 }, pressed && styles.pressed]}>
+          <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.createFastButton, { marginTop: 18, marginBottom: 20 }, !isSkinned && { borderRadius: 999 }, pressed && styles.pressed]}>
             <Text style={styles.createFastButtonText}>{editingPersonId ? "Save Changes" : "Create Contact"}</Text>
           </Pressable>
+          </PeopleEntrance>
 
         </ScrollView>
         <AvatarPicker visible={showPersonAvatarPicker} initialAvatarAsset={newPersonAvatarAsset} unlockedShinyIds={[...achievementState.unlockedAvatarIds, ...getLevelUnlockedCharacterShinyIds(xpState.level)]} unlockedHeroIds={achievementState.unlockedAvatarIds} unlockedBookIds={unlockedBookIds} onClose={() => setShowPersonAvatarPicker(false)} onSelect={(asset) => { setNewPersonAvatarAsset(asset); setNewPersonPhotoUri(undefined); }} />
@@ -3996,8 +4744,9 @@ export default function HomeScreen() {
 
         {renderTab("people", "People", "groups")}
         {renderTab("schedule", "Schedule", "event-note")}
+        {renderTab("bible", "Bible", "menu-book")}
         {renderTab("journal", "Journal", "article")}
-        {renderTab("settings", "Settings", "settings")}
+        {renderTab("more", "More", "more-horiz")}
       </View>
 
       <Modal
@@ -4019,7 +4768,7 @@ export default function HomeScreen() {
                 <Text style={styles.sheetDone}>Save</Text>
               </Pressable>
             </View>
-            <Text style={styles.fieldLabel}>{avatarComposer?.kind === "praise" ? "WHAT ARE YOU PRAISING?" : "WHAT DO YOU NEED PRAYER FOR?"}</Text>
+            <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>{avatarComposer?.kind === "praise" ? "WHAT ARE YOU PRAISING?" : "WHAT DO YOU NEED PRAYER FOR?"}</Text>
             <TextInput
               autoFocus
               value={avatarComposerText}
@@ -4051,11 +4800,11 @@ export default function HomeScreen() {
               <Text style={styles.photoPrompt}>{draftProfilePhotoUri ? "Uploaded photo" : draftProfileAvatarAsset ? "Pack avatar" : "Default avatar"}</Text>
             </View>
             <View style={{ flexDirection: "row", gap: 10, marginBottom: 14 }}>
-              <Pressable onPress={handlePickProfilePhoto} style={({ pressed }) => [{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 11 }, pressed && styles.pressed]}><MaterialIcons name={iconName("photo-library")} size={18} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: "800" }}>Upload photo</Text></Pressable>
-              <Pressable onPress={() => setShowProfileAvatarPicker(true)} style={({ pressed }) => [{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 11 }, pressed && styles.pressed]}><MaterialIcons name={iconName("pets")} size={18} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: "800" }}>Choose avatar</Text></Pressable>
+              <Pressable onPress={handlePickProfilePhoto} style={({ pressed }) => [{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 11 }, !isSkinned && { borderRadius: 999, borderWidth: 1.5, borderColor: pm.wash2 }, pressed && styles.pressed]}><MaterialIcons name={iconName("photo-library")} size={18} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: "800" }}>Upload photo</Text></Pressable>
+              <Pressable onPress={() => setShowProfileAvatarPicker(true)} style={({ pressed }) => [{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 11 }, !isSkinned && { borderRadius: 999, borderWidth: 1.5, borderColor: pm.wash2 }, pressed && styles.pressed]}><MaterialIcons name={iconName("pets")} size={18} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: "800" }}>Choose avatar</Text></Pressable>
             </View>
-            <Text style={styles.fieldLabel}>NAME</Text>
-            <TextInput value={draftProfileName} onChangeText={setDraftProfileName} placeholder="Your name" placeholderTextColor="#73808B" returnKeyType="done" style={styles.textInput} />
+            <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>NAME</Text>
+            <TextInput value={draftProfileName} onChangeText={setDraftProfileName} placeholder="Your name" placeholderTextColor="#73808B" returnKeyType="done" style={[styles.textInput, !isSkinned && { backgroundColor: pm.wash, borderBottomWidth: 2, borderBottomColor: pm.line, borderTopLeftRadius: 14, borderTopRightRadius: 14, borderBottomLeftRadius: 4, borderBottomRightRadius: 4 }]} />
           </BitSettle>
 </PaperSettle>
         </View>
@@ -4074,11 +4823,11 @@ export default function HomeScreen() {
               {!editingFastId && <View style={{ width: 42 }} />}
             </View>
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={styles.fieldLabel}>FAST NAME</Text>
-              <TextInput value={draftFastName} onChangeText={setDraftFastName} placeholder="e.g., 40-Day Prayer Fast" placeholderTextColor="#73808B" returnKeyType="done" style={styles.textInput} />
-              <Text style={styles.fieldLabel}>START DATE</Text>
-              <TextInput value={draftFastStartDate} onChangeText={setDraftFastStartDate} placeholder="MM-DD-YYYY" placeholderTextColor="#73808B" keyboardType="numbers-and-punctuation" returnKeyType="done" style={styles.textInput} />
-              <Text style={styles.fieldLabel}>DURATION</Text>
+              <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>FAST NAME</Text>
+              <TextInput value={draftFastName} onChangeText={setDraftFastName} placeholder="e.g., 40-Day Prayer Fast" placeholderTextColor="#73808B" returnKeyType="done" style={[styles.textInput, !isSkinned && { backgroundColor: pm.wash, borderBottomWidth: 2, borderBottomColor: pm.line, borderTopLeftRadius: 14, borderTopRightRadius: 14, borderBottomLeftRadius: 4, borderBottomRightRadius: 4 }]} />
+              <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>START DATE</Text>
+              <TextInput value={draftFastStartDate} onChangeText={setDraftFastStartDate} placeholder="MM-DD-YYYY" placeholderTextColor="#73808B" keyboardType="numbers-and-punctuation" returnKeyType="done" style={[styles.textInput, !isSkinned && { backgroundColor: pm.wash, borderBottomWidth: 2, borderBottomColor: pm.line, borderTopLeftRadius: 14, borderTopRightRadius: 14, borderBottomLeftRadius: 4, borderBottomRightRadius: 4 }]} />
+              <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>DURATION</Text>
               <View style={styles.fastDurationGrid}>
                 {FAST_DURATIONS.map((duration) => (
                   <Pressable key={duration} onPress={() => setDraftFastDuration(duration)} style={({ pressed }) => [styles.fastDurationButton, draftFastDuration === duration && styles.fastDurationButtonActive, pressed && styles.pressed]}>
@@ -4086,7 +4835,7 @@ export default function HomeScreen() {
                   </Pressable>
                 ))}
               </View>
-              <Text style={styles.fieldLabel}>FAST TYPE</Text>
+              <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>FAST TYPE</Text>
               <View style={styles.fastTypeGrid}>
                 {FAST_TYPES.map((entry) => {
                   const isSelected = draftFastType === entry.type;
@@ -4098,7 +4847,7 @@ export default function HomeScreen() {
                   );
                 })}
               </View>
-              <Text style={styles.fieldLabel}>WHAT ARE YOU GIVING UP, CUTTING BACK ON, OR FOCUSING ON?</Text>
+              <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>WHAT ARE YOU GIVING UP, CUTTING BACK ON, OR FOCUSING ON?</Text>
               <View style={styles.fastFocusRow}>
                 <TextInput value={draftFastFocusInput} onChangeText={setDraftFastFocusInput} placeholder="e.g., Social Media" placeholderTextColor="#73808B" returnKeyType="done" style={[styles.textInput, styles.fastFocusInput]} />
                 <Pressable onPress={addDraftFastFocusItem} style={({ pressed }) => [styles.fastFocusAdd, pressed && styles.pressed]}>
@@ -4370,7 +5119,8 @@ export default function HomeScreen() {
           <Text style={{ color: colors.background, fontSize: 13, fontWeight: "700" }}>{driveToast}</Text>
         </Animated.View>
       )}
-      {/* Floating Prayer Time button — only on People tab, hides when Pray Today is complete */}
+      {/* Floating Pray Today pill — only on People tab, hides when Pray Today is complete.
+          v254: dressed as the concept's dark seed-ink pill with the gold count chip. */}
       {activeTab === "people" && remainingPrayTodayCount > 0 && (
         <Pressable
           onPress={() => setShowPrayerSession(true)}
@@ -4378,10 +5128,10 @@ export default function HomeScreen() {
             position: "absolute",
             bottom: 140,
             alignSelf: "center",
-            backgroundColor: 'rgba(123, 92, 255, 0.85)',
-            borderRadius: 24,
+            backgroundColor: isSkinned ? 'rgba(123, 92, 255, 0.85)' : pm.inkSeed,
+            borderRadius: 999,
             paddingVertical: 12,
-            paddingHorizontal: 20,
+            paddingHorizontal: 22,
             flexDirection: "row",
             alignItems: "center",
             gap: 8,
@@ -4393,10 +5143,16 @@ export default function HomeScreen() {
             shadowOffset: { width: 0, height: 4 },
           }}
         >
-          <MaterialIcons name="timer" size={18} color="#FFFFFF" />
-          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 14 }}>Prayer Time</Text>
+          {isSkinned ? <MaterialIcons name="timer" size={18} color="#FFFFFF" /> : null}
+          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 13.5 }}>{isSkinned ? "Prayer Time" : "Pray Today"}</Text>
+          {!isSkinned ? (
+            <View style={{ backgroundColor: "#FFC53D", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+              <Text style={{ color: "#4A2F00", fontSize: 11.5, fontWeight: "900" }}>{remainingPrayTodayCount} left</Text>
+            </View>
+          ) : null}
         </Pressable>
       )}
+      {renderGroupBuilder()}
       <PrayerSession
         visible={showPrayerSession}
         people={prayablePrayTodayList}

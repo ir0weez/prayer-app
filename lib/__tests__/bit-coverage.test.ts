@@ -151,7 +151,7 @@ describe("8-bit coverage — v203 animation pass", () => {
     expect(person).toContain('<BitSettle style={{ alignItems: "center" }}>');
     expect(count(person, "<BitSettle>")).toBe(6);
     // Paper's modal cards are still the outer wrapper, unchanged.
-    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard]}>")).toBe(6);
+    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned &&")).toBe(6);
   });
 
   it("fasting profile: the above-fold cards snap with their cascade; its sheets drop in", () => {

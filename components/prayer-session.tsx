@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, AppState, BackHandler, Dimensions, Easing, Modal, Pressable, Text, View } from "react-native";
-import Svg, { Defs, LinearGradient, Rect as SvgRect, Stop } from "react-native-svg";
+import { AccessibilityInfo, Animated, AppState, BackHandler, Dimensions, Easing, Modal, Pressable, Text, View } from "react-native";
+import Svg, { Circle, Defs, LinearGradient, Path, Rect as SvgRect, Stop } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
@@ -18,6 +18,11 @@ import {
   updatePrayerTimerNotification,
 } from "@/modules/expo-prayer-timer/src/index";
 import type { Person } from "@/lib/prayercircle-data";
+import { usePeopleMaterial } from "@/hooks/use-people-material";
+import { PeopleEntrance } from "@/components/people-entrance";
+import { FIRST_CARD } from "@/lib/people-material";
+import { getLeadNeed, isActiveEmergencyItem } from "@/lib/prayer-lead";
+import { formatEmergencyPrayerCountdown, getEmergencyPrayerTimeRemaining } from "@/lib/prayercircle-data";
 
 type Props = {
   visible: boolean;
@@ -26,6 +31,42 @@ type Props = {
   onTimeBonus: (position?: { x: number; y: number }) => void;
   onClose: () => void;
 };
+
+/** v254: the FIRST card's breathing glow — a calm, slow,
+ * opacity-only breath on the card's amber border while this card
+ * is the one being prayed (the urgent-feel concept's glow). Native
+ * driver, no springs; reduced motion holds it at a steady glow. */
+function FirstGlowBorder() {
+  const glow = useRef(new Animated.Value(0.35)).current;
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((value) => { if (live) setReduced(value); })
+      .catch(() => undefined);
+    return () => { live = false; };
+  }, []);
+  useEffect(() => {
+    if (reduced) {
+      glow.setValue(0.55);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, { toValue: 0.9, duration: 1900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0.35, duration: 1900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, glow]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: 22, borderWidth: 1.5, borderColor: FIRST_CARD.deep, opacity: glow }}
+    />
+  );
+}
 
 /** Time-of-day bucket for the prayer session backdrop (his white-block buckets). */
 type PrayerSkyBucket = "morning" | "afternoon" | "evening" | "night";
@@ -231,6 +272,7 @@ async function dismissPrayerNotification() {
 
 export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }: Props) {
   const colors = useColors();
+  const pm = usePeopleMaterial();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [prayedCount, setPrayedCount] = useState(0);
@@ -430,119 +472,183 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
       <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center", padding: 24 }}>
         {/* Subtle time-of-day backdrop wash (behind everything, non-interactive). */}
         <PrayerSessionSky bucket={skyBucket} />
-        {/* Timer */}
-        <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginBottom: 8 }}>
-          PRAYER TIME
-        </Text>
-        <View
-          ref={timerRef2}
-          onLayout={() => {
-            timerRef2.current?.measure((x, y, width, height, pageX, pageY) => {
-              setTimerPos({ x: pageX + width / 2, y: pageY + height });
-            });
-          }}
-        >
-          <Text style={{ color: colors.foreground, fontSize: 56, fontWeight: "900", fontVariant: ["tabular-nums"], marginBottom: 24 }}>
-            {formatTime(elapsedSeconds)}
-          </Text>
+        {/* v254 (praytoday-urgent-feel-v1): the session's head — title,
+            count chip, and the queue dots. The big timer moved into
+            the lead card's ring; the timer itself is unchanged. */}
+        <View style={{ width: "100%", flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 4 }}>
+          <View>
+            <Text style={{ color: colors.foreground, fontSize: 21, fontWeight: "800", letterSpacing: -0.2 }}>Pray Today</Text>
+            <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "600", marginTop: 1 }}>
+              {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            </Text>
+          </View>
+          <View style={{ backgroundColor: pm.seed, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+            <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "800" }}>{totalCount} {totalCount === 1 ? "person" : "people"}</Text>
+          </View>
         </View>
 
         {!isFinished && currentPerson ? (
           <>
-            {/* Progress */}
-            <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "700", marginBottom: 16 }}>
-              {currentIndex + 1} of {totalCount}
-            </Text>
-
-            {/* Person card */}
-            <View style={{ alignItems: "center", backgroundColor: colors.surface, borderRadius: 20, padding: 32, width: "100%", borderWidth: 1, borderColor: colors.border }}>
-              <AvatarImage
-                id={currentPerson.id}
-                name={currentPerson.name}
-                avatarAsset={currentPerson.avatarAsset}
-                photoUri={currentPerson.photoUri}
-                size={96}
-              />
-              <Text style={{ color: colors.foreground, fontSize: 24, fontWeight: "900", marginTop: 16, textAlign: "center" }}>
-                {currentPerson.name}
-              </Text>
-              {currentPerson.prayerNote ? (
-                <Text style={{ color: colors.muted, fontSize: 15, textAlign: "center", marginTop: 8, lineHeight: 22 }}>
-                  {currentPerson.prayerNote}
-                </Text>
-              ) : null}
-              {/* Prayer items list */}
-              {currentPerson.prayerItems && currentPerson.prayerItems.filter(item => !item.isDone).length > 0 && (
-                <View style={{ width: "100%", marginTop: 20 }}>
-                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "700", letterSpacing: 1.5, marginBottom: 8, textAlign: "center" }}>
-                    PRAYER REQUESTS
-                  </Text>
-                  {currentPerson.prayerItems.filter(item => !item.isDone).slice(0, 5).map((item, idx, arr) => (
-                    <View
-                      key={item.id}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        paddingVertical: 10,
-                        paddingHorizontal: 4,
-                        borderBottomWidth: idx < Math.min(arr.length, 5) - 1 ? 1 : 0,
-                        borderBottomColor: colors.border,
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 32, height: 32, borderRadius: 16,
-                          backgroundColor: item.isUrgent ? colors.error + "20" : colors.primary + "15",
-                          alignItems: "center", justifyContent: "center",
-                          marginRight: 12,
-                        }}
-                      >
-                        <MaterialIcons
-                          name={item.isUrgent ? "priority-high" : "favorite-border"}
-                          size={16}
-                          color={item.isUrgent ? colors.error : colors.primary}
-                        />
-                      </View>
-                      <Text style={{ color: colors.foreground, fontSize: 15, flex: 1 }}>
-                        {item.title}
-                      </Text>
+            {(() => {
+              const lead = getLeadNeed(currentPerson);
+              const activeItems = currentPerson.prayerItems.filter((item) => !item.isDone);
+              const otherItems = lead ? activeItems.filter((item) => item.id !== lead.item.id) : activeItems;
+              const shownOthers = otherItems.slice(0, 4);
+              const hiddenCount = otherItems.length - shownOthers.length;
+              const timerFraction = (elapsedSeconds % 60) / 60;
+              const timerCircumference = 2 * Math.PI * 20.5;
+              const sessionRow = (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <View
+                    ref={timerRef2}
+                    onLayout={() => {
+                      timerRef2.current?.measure((x, y, width, height, pageX, pageY) => {
+                        setTimerPos({ x: pageX + width / 2, y: pageY + height });
+                      });
+                    }}
+                    style={{ width: 48, height: 48 }}
+                  >
+                    <Svg width={48} height={48} style={{ transform: [{ rotate: "-90deg" }] }}>
+                      <Circle cx={24} cy={24} r={20.5} fill="none" stroke={lead?.kind === "first" ? "#EFE3BC" : pm.wash} strokeWidth={3.5} />
+                      <Circle cx={24} cy={24} r={20.5} fill="none" stroke={lead?.kind === "first" ? FIRST_CARD.deep : pm.deep} strokeWidth={3.5} strokeLinecap="round" strokeDasharray={timerCircumference} strokeDashoffset={timerCircumference * (1 - timerFraction)} />
+                    </Svg>
+                    <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
+                      <Text style={{ fontSize: 11, fontWeight: "800", lineHeight: 12, color: lead?.kind === "first" ? FIRST_CARD.ink : colors.foreground, fontVariant: ["tabular-nums"] }}>{formatTime(elapsedSeconds)}</Text>
+                      <Text style={{ fontSize: 7.5, fontWeight: "800", letterSpacing: 0.6, color: lead?.kind === "first" ? FIRST_CARD.sub : colors.muted }}>PRAYING</Text>
                     </View>
-                  ))}
-                  {currentPerson.prayerItems.filter(item => !item.isDone).length > 5 && (
-                    <Text style={{ color: colors.muted, fontSize: 12, marginTop: 8, textAlign: "center" }}>
-                      +{currentPerson.prayerItems.filter(item => !item.isDone).length - 5} more
-                    </Text>
-                  )}
+                    <View style={{ position: "absolute", top: 1, right: 1, width: 8, height: 8, borderRadius: 4, backgroundColor: lead?.kind === "first" ? FIRST_CARD.deep : pm.deep }} />
+                  </View>
+                  <Pressable
+                    onPress={handlePray}
+                    ref={prayButtonRef}
+                    onLayout={() => {
+                      prayButtonRef.current?.measure((x, y, width, height, pageX, pageY) => {
+                        setPrayButtonPos({ x: pageX + width / 2, y: pageY });
+                      });
+                    }}
+                    style={({ pressed }) => [{ flex: 1, backgroundColor: pm.deep, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, shadowColor: pm.deep, shadowOpacity: 0.28, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 4 }, pressed && { opacity: 0.85 }]}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "800" }}>Complete prayer</Text>
+                    <View style={{ backgroundColor: "#FFC53D", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 }}>
+                      <Text style={{ color: "#4A2F00", fontSize: 11, fontWeight: "900" }}>+10 XP</Text>
+                    </View>
+                  </Pressable>
                 </View>
-              )}
-            </View>
+              );
+              return (
+                <>
+                  {/* Queue progress */}
+                  <View style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12 }}>
+                    <View style={{ flexDirection: "row", gap: 5, alignItems: "center", flex: 1, flexWrap: "nowrap", overflow: "hidden" }}>
+                      {sessionPeople.map((person, idx) => (
+                        <View key={person.id} style={{ width: idx === currentIndex ? 20 : 7, height: 7, borderRadius: 99, backgroundColor: idx < currentIndex ? "#31C48D" : idx === currentIndex ? pm.seed : pm.wash2 }} />
+                      ))}
+                    </View>
+                    <Text style={{ fontSize: 11.5, fontWeight: "800", letterSpacing: 0.4, color: colors.muted }}>PERSON {currentIndex + 1} OF {totalCount}</Text>
+                  </View>
 
-            {/* Buttons */}
-            <View style={{ flexDirection: "row", gap: 16, marginTop: 32, width: "100%" }}>
-              <Pressable
-                onPress={handleSkip}
-                style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingVertical: 18, alignItems: "center" }}
-              >
-                <Text style={{ color: colors.muted, fontSize: 17, fontWeight: "800" }}>Skip</Text>
-              </Pressable>
-              <Pressable
-                onPress={handlePray}
-                style={{ flex: 2, backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 18, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 }}
-                ref={prayButtonRef}
-                onLayout={() => {
-                  prayButtonRef.current?.measure((x, y, width, height, pageX, pageY) => {
-                    setPrayButtonPos({ x: pageX + width / 2, y: pageY });
-                  });
-                }}
-              >
-                <MaterialIcons name="favorite" size={20} color="#FFFFFF" />
-                <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "800" }}>Pray</Text>
-              </Pressable>
-            </View>
+                  {/* Person card */}
+                  <PeopleEntrance key={currentPerson.id} emphasis style={{ width: "100%" }}>
+                  <View style={{ width: "100%", backgroundColor: pm.card, borderRadius: 28, paddingHorizontal: 16, paddingVertical: 18, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 13, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                      <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 3, borderColor: pm.wash, alignItems: "center", justifyContent: "center" }}>
+                        <AvatarImage id={currentPerson.id} name={currentPerson.name} avatarAsset={currentPerson.avatarAsset} photoUri={currentPerson.photoUri} size={46} />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text numberOfLines={1} style={{ fontSize: 17.5, fontWeight: "800", letterSpacing: -0.2, color: pm.ink }}>{currentPerson.name}</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
+                          <View style={{ backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
+                            <Text style={{ fontSize: 10.5, fontWeight: "800", color: pm.deep }}>{currentPerson.relationship}</Text>
+                          </View>
+                          {currentPerson.familyName ? (
+                            <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: "600", color: pm.inkSoft }}>{currentPerson.familyName} household</Text>
+                          ) : currentPerson.prayerNote ? (
+                            <Text numberOfLines={1} style={{ flex: 1, fontSize: 11.5, fontWeight: "600", color: pm.inkSoft }}>{currentPerson.prayerNote}</Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    </View>
 
-            <Text style={{ color: colors.muted, fontSize: 12, marginTop: 16 }}>
-              Each prayer earns 10 XP
-            </Text>
+                    {/* The lead need — the FIRST card (warm, never alarmed) */}
+                    {lead?.kind === "first" ? (
+                      <View style={{ marginTop: 14, borderRadius: 22, borderWidth: 1.5, borderColor: FIRST_CARD.line, overflow: "hidden", paddingHorizontal: 15, paddingTop: 14, paddingBottom: 15 }}>
+                        <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
+                          <Defs>
+                            <LinearGradient id="v254FirstGrad" x1="0" y1="0" x2="1" y2="1">
+                              <Stop offset="0" stopColor={FIRST_CARD.bgFrom} />
+                              <Stop offset="1" stopColor={FIRST_CARD.bgTo} />
+                            </LinearGradient>
+                          </Defs>
+                          <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254FirstGrad)" />
+                        </Svg>
+                        <FirstGlowBorder />
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: FIRST_CARD.deep, borderRadius: 999, paddingLeft: 9, paddingRight: 11, paddingVertical: 5, shadowColor: FIRST_CARD.deep, shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+                            <Svg width={12} height={12} viewBox="0 0 24 24">
+                              <Path d="M11 21.2C7.7 20.4 5.8 18 5.8 14.7c0-3.9 2.5-8.5 5.2-11.6v18.1z" fill={FIRST_CARD.pillInk} />
+                              <Path d="M13 21.2c3.3-.8 5.2-3.2 5.2-6.5 0-3.9-2.5-8.5-5.2-11.6v18.1z" fill={FIRST_CARD.pillInk} />
+                            </Svg>
+                            <Text style={{ fontSize: 10, fontWeight: "900", letterSpacing: 1.4, color: FIRST_CARD.pillInk }}>FIRST</Text>
+                          </View>
+                        </View>
+                        <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 21, letterSpacing: -0.1, color: FIRST_CARD.ink, marginTop: 10 }}>{lead.item.title}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: "600", color: FIRST_CARD.sub, marginTop: 4 }}>{lead.item.isUrgent ? "Flagged urgent · Waiting" : "Waiting"}</Text>
+                        <View style={{ marginTop: 15, paddingTop: 14, borderTopWidth: 1.5, borderTopColor: "rgba(234,212,156,0.85)" }}>
+                          {sessionRow}
+                        </View>
+                      </View>
+                    ) : null}
+
+                    {/* The other needs — quiet rows; an emergency lead
+                        keeps its own red treatment, never the FIRST card */}
+                    {shownOthers.length > 0 || lead?.kind === "emergency" ? (
+                      <View style={{ marginTop: 10, gap: 7 }}>
+                        {lead?.kind === "emergency" ? (
+                          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: pm.redWash, borderWidth: 1, borderColor: "#EF4444", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 }}>
+                            <MaterialIcons name="local-fire-department" size={17} color="#EF4444" style={{ marginTop: 1 }} />
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 13.5, fontWeight: "700", lineHeight: 18, color: "#991B1B" }}>{lead.item.title}</Text>
+                              <Text style={{ fontSize: 11, fontWeight: "600", color: "#DC2626", marginTop: 1 }}>Emergency · {formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(lead.item.emergencyExpiresAt))} left</Text>
+                            </View>
+                          </View>
+                        ) : null}
+                        {shownOthers.map((item) => {
+                          const emergency = isActiveEmergencyItem(item);
+                          return (
+                            <View key={item.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: pm.ground, borderWidth: 1, borderColor: pm.line, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 }}>
+                              <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: pm.wash2, marginTop: 1 }} />
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 13.5, fontWeight: "600", lineHeight: 18, color: pm.ink }}>{item.title}</Text>
+                                {emergency ? (
+                                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#DC2626", marginTop: 1 }}>Emergency · {formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt))} left</Text>
+                                ) : item.isUrgent ? (
+                                  <Text style={{ fontSize: 11, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>Flagged urgent</Text>
+                                ) : null}
+                              </View>
+                            </View>
+                          );
+                        })}
+                        {hiddenCount > 0 ? (
+                          <Text style={{ fontSize: 12, fontWeight: "600", color: pm.inkSoft, textAlign: "center" }}>+{hiddenCount} more</Text>
+                        ) : null}
+                      </View>
+                    ) : null}
+
+                    {/* No FIRST card (no needs, or the lead is an
+                        emergency): the session row stands on its own. */}
+                    {lead?.kind !== "first" ? (
+                      <View style={{ marginTop: 15 }}>{sessionRow}</View>
+                    ) : null}
+                  </View>
+
+                  </PeopleEntrance>
+
+                  <Pressable onPress={handleSkip} style={({ pressed }) => [{ marginTop: 16, paddingHorizontal: 18, paddingVertical: 8 }, pressed && { opacity: 0.65 }]}>
+                    <Text style={{ color: colors.muted, fontSize: 14, fontWeight: "700" }}>Skip</Text>
+                  </Pressable>
+                </>
+              );
+            })()}
           </>
         ) : (
           /* Summary */

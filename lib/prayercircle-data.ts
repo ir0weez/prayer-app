@@ -764,7 +764,10 @@ export function getFamilyGroups(people: Person[]): Array<{ familyId: string; fam
 }
 
 // Action: Group people into a family
-export function groupIntoFamily(people: Person[], personIds: string[], familyTypes?: Record<string, FamilyType | undefined>): Person[] {
+// v254: an optional explicit family name (the group builder's edited
+// name field). When given, it is stamped verbatim on every member;
+// when absent, the longstanding derived "<Lastname> Family" stands.
+export function groupIntoFamily(people: Person[], personIds: string[], familyTypes?: Record<string, FamilyType | undefined>, explicitFamilyName?: string): Person[] {
   if (personIds.length < 2) return people; // Need at least 2 people to form a family
 
   // Check if any of the selected people are already in a family
@@ -788,7 +791,7 @@ export function groupIntoFamily(people: Person[], personIds: string[], familyTyp
   }
 
   const lastName = getLastName(selectedPeople[0]?.name || "Family");
-  const familyName = `${lastName} Family`;
+  const familyName = explicitFamilyName?.trim() ? explicitFamilyName.trim() : `${lastName} Family`;
 
   // Add all selected people to the family, and also add any existing family members
   const allFamilyMemberIds = new Set(personIds);

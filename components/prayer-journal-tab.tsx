@@ -90,6 +90,8 @@ import {
 const JOURNAL_COLORS = ["#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316", "#6366F1"];
 
 type PrayerJournalTabProps = {
+  /** v254: the attention bell, rendered at the masthead's right edge (Piece D). */
+  headerBell?: React.ReactNode;
   entries: PrayerJournalEntry[];
   people: Person[];
   onChange: (entries: PrayerJournalEntry[]) => void;
@@ -163,7 +165,7 @@ function createId(prefix: string): string {
 // from the token at the cursor, and picks are stored structurally
 // on the entry (taggedPeople / places), so the links are data,
 // not render-time guesses.
-export function PrayerJournalTab({ entries, people, onChange, onComposeChange }: PrayerJournalTabProps) {
+export function PrayerJournalTab({ entries, people, onChange, onComposeChange, headerBell }: PrayerJournalTabProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
@@ -795,6 +797,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange }:
                   <MaterialIcons name="calendar-month" size={20} color={ink} />
                 </Pressable>
               </View>
+              {headerBell}
             </View>
 
             {searchOpen ? (

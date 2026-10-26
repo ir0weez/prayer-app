@@ -106,6 +106,6 @@ describe("v216/v219 — sheets rise, full: definite boxes over a live flex chain
     // chain. Left untouched; pinned so the pattern stays out.
     const person = read("app/(tabs)/person.tsx");
     expect(count(person, "<BitSettle style={{ flex: 1 }}>")).toBe(0);
-    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard]}>")).toBe(6);
+    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned &&")).toBe(6);
   });
 });

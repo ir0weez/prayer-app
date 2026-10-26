@@ -17,6 +17,8 @@ import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
 import {
   addPrayerItem,
   formatDaysSinceLastPrayer,
+  formatEmergencyPrayerCountdown,
+  getEmergencyPrayerTimeRemaining,
   formatIsoDateForDisplay,
   getDaysSinceLastPrayed,
   getLastReachedAccentColor,
@@ -42,6 +44,8 @@ import {
   type RelationshipType,
   type ReminderFrequency,
 } from "@/lib/prayercircle-data";
+import { usePeopleMaterial } from "@/hooks/use-people-material";
+import { PeopleEntrance } from "@/components/people-entrance";
 import { PEOPLE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { awardXP } from "@/lib/xp-engine";
@@ -731,6 +735,7 @@ export default function PersonScreen() {
   };
 
   const { isSkinned, tokens: skinTokens } = useSkin();
+  const pm = usePeopleMaterial();
   // Paper (v179): the person screen's cards/modals were never converted.
   // Tinted cards keep their tints and gain the kit offset shadow; the
   // modal cards become warm paper sheets.
@@ -774,22 +779,30 @@ export default function PersonScreen() {
           <MaterialIcons name={iconName("chevron-left")} size={34} color={colors.primary} />
         </Pressable>
         <Text style={[styles.headerTitle, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, null]}>Prayer List</Text>
-        <Pressable onPress={openEditModal} style={({ pressed }) => [styles.headerEditButton, pressed && styles.pressed]}>
-          <Text style={styles.headerEditButtonText}>Edit</Text>
+        <Pressable onPress={openEditModal} style={({ pressed }) => [styles.headerEditButton, !isSkinned && { backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 6 }, pressed && styles.pressed]}>
+          {!isSkinned ? <MaterialIcons name={iconName("edit")} size={15} color={pm.deep} /> : null}
+          <Text style={[styles.headerEditButtonText, !isSkinned && { color: pm.deep }]}>Edit</Text>
         </Pressable>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
         {/* v202: the person's header sheet settles in under Paper. */}
-        <PaperSettle style={styles.profileSection}>
+        <PeopleEntrance emphasis>
+        <PaperSettle style={[styles.profileSection, !isSkinned && { backgroundColor: pm.wash, borderRadius: 28, marginHorizontal: 16, marginTop: 8, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 3 }]}>
 <BitSettle style={{ alignItems: "center" }}>
           <AvatarImage id={currentPerson.id} name={currentPerson.name} gender={currentPerson.gender} avatarAsset={currentPerson.avatarAsset} photoUri={currentPerson.photoUri} size={96} fallbackColor={currentPerson.avatarColor} style={{ borderWidth: 3, borderColor: currentPerson.accentColor, borderRadius: 48, backgroundColor: "transparent" }} />
           <Text style={[styles.personName, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, null]}>{currentPerson.name}</Text>
-          <Text style={[styles.personRelationship, { color: currentPerson.accentColor }]}>{currentPerson.relationship}</Text>
+          {!isSkinned ? (
+            <View style={{ backgroundColor: currentPerson.accentColor, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginTop: 8 }}>
+              <Text style={{ color: "#FFFFFF", fontSize: 11.5, fontWeight: "800" }}>{currentPerson.relationship}</Text>
+            </View>
+          ) : (
+            <Text style={[styles.personRelationship, { color: currentPerson.accentColor }]}>{currentPerson.relationship}</Text>
+          )}
           {currentPerson.birthday && (
             <Text style={[styles.personBirthday, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null, null]}>Birthday: {currentPerson.birthday}</Text>
           )}
-          <Pressable onPress={openReminderModal} style={({ pressed }) => [styles.reminderChip, pressed && styles.pressed]}>
+          <Pressable onPress={openReminderModal} style={({ pressed }) => [styles.reminderChip, !isSkinned && { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: pm.line, borderRadius: 999, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 }, pressed && styles.pressed]}>
              <MaterialIcons name={iconName("notifications")} size={17} color={colors.primary} />
             <Text style={styles.reminderChipText}>
               {getReminderScheduleText(currentPerson)}
@@ -801,10 +814,34 @@ export default function PersonScreen() {
           ) : null}
         </BitSettle>
 </PaperSettle>
+        </PeopleEntrance>
+
+        {!isSkinned ? (
+          <View style={{ flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 14 }}>
+            {[
+              { label: "LAST PRAYED", value: currentPerson.lastPrayerCompletedDate ? new Date(`${currentPerson.lastPrayerCompletedDate}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "—", badge: null as string | null, badgeColor: "" },
+              { label: "LAST REACHED", value: currentPerson.lastPrayedDate ? new Date(`${currentPerson.lastPrayedDate}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Never", badge: daysSinceLastReached === 999 ? null : formatDaysSinceLastPrayer(daysSinceLastReached), badgeColor: daysSinceLastReached >= 15 ? "#EF4444" : "#F59E0B" },
+              { label: "TODAY", value: hasPrayedToday ? "Prayed" : "Not yet", badge: null as string | null, badgeColor: "" },
+            ].map((chip) => (
+              <View key={chip.label} style={{ flex: 1, backgroundColor: pm.card, borderWidth: 1, borderColor: pm.line, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 9, alignItems: "center", shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 }}>
+                <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.9, color: pm.inkSoft }}>{chip.label}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                  {chip.label === "TODAY" && hasPrayedToday ? <MaterialIcons name={iconName("check")} size={14} color="#2E9E5B" /> : null}
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: chip.label === "TODAY" && hasPrayedToday ? "#2E9E5B" : pm.ink }}>{chip.value}</Text>
+                  {chip.badge ? (
+                    <View style={{ backgroundColor: `${chip.badgeColor}22`, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
+                      <Text style={{ fontSize: 10.5, fontWeight: "800", color: chip.badgeColor }}>{chip.badge}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <Pressable
           onPress={handleMarkAsPrayed}
-          style={({ pressed }) => [styles.actionButton, { backgroundColor: hasPrayedToday ? "#31C48D" : currentPerson.accentColor }, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.actionButton, { backgroundColor: hasPrayedToday ? "#31C48D" : currentPerson.accentColor }, !isSkinned && { borderRadius: 999, marginHorizontal: 16 }, pressed && styles.pressed]}
         >
           <MaterialIcons name={iconName(hasPrayedToday ? "check-circle" : "volunteer-activism")} size={22} color="#FFFFFF" />
           <Text style={styles.actionButtonText}>{hasPrayedToday ? "Prayed Today" : "Mark as Prayed"}</Text>
@@ -814,15 +851,15 @@ export default function PersonScreen() {
           onPress={(event) => handleMarkReachedToday({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
           onLongPress={openLastReachedDateModal}
           delayLongPress={350}
-          style={({ pressed }) => [styles.actionButton, { backgroundColor: lastReachedColor }, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.actionButton, { backgroundColor: lastReachedColor }, !isSkinned && { borderRadius: 999, marginHorizontal: 16, backgroundColor: `${lastReachedColor}1F`, shadowOpacity: 0, elevation: 0 }, pressed && styles.pressed]}
         >
-          <MaterialIcons name={iconName("event")} size={22} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>Last reached: {formatIsoDateForDisplay(currentPerson.lastPrayedDate)}</Text>
-          <View style={styles.actionButtonBadge}>
+          <MaterialIcons name={iconName("event")} size={22} color={!isSkinned ? lastReachedColor : "#FFFFFF"} />
+          <Text style={[styles.actionButtonText, !isSkinned && { color: lastReachedColor }]}>Last reached: {formatIsoDateForDisplay(currentPerson.lastPrayedDate)}</Text>
+          <View style={[styles.actionButtonBadge, !isSkinned && { backgroundColor: lastReachedColor }]}>
             <Text style={styles.actionButtonBadgeText}>{daysSinceLastReached === 999 ? "—" : formatDaysSinceLastPrayer(daysSinceLastReached)}</Text>
           </View>
         </Pressable>
-        <View style={styles.scheduleCheckInsRow}>
+        <View style={[styles.scheduleCheckInsRow, !isSkinned && { borderRadius: 18, marginHorizontal: 16, backgroundColor: pm.card, borderColor: pm.line }]}>
           <View style={styles.scheduleCheckInsCopy}>
             <Text style={styles.scheduleCheckInsLabel}>Schedule check-ins</Text>
             <Text style={styles.scheduleCheckInsHint}>Keep this contact visible after 14 days until they are reached</Text>
@@ -837,7 +874,7 @@ export default function PersonScreen() {
         <Text style={styles.longPressHint}>Tap to set today. Long-press to choose a previous date.</Text>
 
         {reachedStamps.some((stamp) => stamp.personId === currentPerson.id) && (
-          <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: getThemeAwareColor("#FBF8FF", colors) }}>
+          <View style={{ marginTop: 12, padding: 12, borderRadius: isSkinned ? 12 : 20, backgroundColor: isSkinned ? getThemeAwareColor("#FBF8FF", colors) : pm.card, borderWidth: isSkinned ? 0 : 1, borderColor: pm.line, marginHorizontal: isSkinned ? 0 : 16 }}>
             <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800", marginBottom: 7 }}>Reached stamps</Text>
             {reachedStamps.filter((stamp) => stamp.personId === currentPerson.id).slice().reverse().map((stamp) => (
               <View key={stamp.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 }}>
@@ -849,33 +886,48 @@ export default function PersonScreen() {
           </View>
         )}
 
-        <Pressable
-          onPress={() => setShowEmergencyPrayerModal(true)}
-          style={({ pressed }) => [styles.actionButton, { backgroundColor: "#EF4444" }, pressed && styles.pressed]}
-        >
-          <MaterialIcons name={iconName("local-fire-department")} size={22} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>Emergency Prayer (24h)</Text>
-        </Pressable>
+        <View style={!isSkinned ? { flexDirection: "row", gap: 9, marginHorizontal: 16 } : undefined}>
+          <Pressable
+            onPress={() => setShowEmergencyPrayerModal(true)}
+            style={({ pressed }) => [styles.actionButton, { backgroundColor: "#EF4444" }, !isSkinned && { flex: 1, marginHorizontal: 0, borderRadius: 999, backgroundColor: "#FDECEA", shadowOpacity: 0, elevation: 0, minHeight: 48, paddingVertical: 12 }, pressed && styles.pressed]}
+          >
+            <MaterialIcons name={iconName("local-fire-department")} size={20} color={!isSkinned ? "#C23325" : "#FFFFFF"} />
+            <Text style={[styles.actionButtonText, !isSkinned && { color: "#C23325", fontSize: 13.5 }]}>Emergency Prayer (24h)</Text>
+          </Pressable>
 
-        <Pressable
-          onPress={() => handlePraise(currentPerson.prayerItems[0]?.id || '')}
-          style={({ pressed }) => [styles.actionButton, { backgroundColor: "#3B82F6" }, pressed && styles.pressed]}
-        >
-          <MaterialIcons name={iconName("thumb-up")} size={22} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>Praise</Text>
-        </Pressable>
+          <Pressable
+            onPress={() => handlePraise(currentPerson.prayerItems[0]?.id || '')}
+            style={({ pressed }) => [styles.actionButton, { backgroundColor: "#3B82F6" }, !isSkinned && { flex: 1, marginHorizontal: 0, marginTop: 10, borderRadius: 999, backgroundColor: "#FDF3D7", shadowOpacity: 0, elevation: 0, minHeight: 48, paddingVertical: 12 }, pressed && styles.pressed]}
+          >
+            <MaterialIcons name={iconName("thumb-up")} size={20} color={!isSkinned ? "#8A5F06" : "#FFFFFF"} />
+            <Text style={[styles.actionButtonText, !isSkinned && { color: "#8A5F06", fontSize: 13.5 }]}>Praise</Text>
+          </Pressable>
+        </View>
 
         {currentPerson.familyId && (
           <>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Family Group</Text>
             </View>
-            <View style={[styles.familyGroupCard, { backgroundColor: getThemeAwareColor("#F5F3F7", colors) }, paperCardShadow]}>
-              <View style={styles.familyGroupInfo}>
-                <Text style={styles.familyGroupName}>{currentPerson.familyName || "Family"}</Text>
-                <Text style={styles.familyGroupMeta}>{familyMembers.length} {familyMembers.length === 1 ? "member" : "members"}</Text>
+            <View style={[styles.familyGroupCard, { backgroundColor: getThemeAwareColor("#F5F3F7", colors) }, paperCardShadow, !isSkinned && { backgroundColor: pm.card, borderColor: pm.line, borderRadius: 20, flexDirection: "column", alignItems: "stretch", justifyContent: "flex-start" }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={styles.familyGroupInfo}>
+                  <Text style={styles.familyGroupName}>{currentPerson.familyName || "Family"}</Text>
+                  <Text style={styles.familyGroupMeta}>{familyMembers.length} {familyMembers.length === 1 ? "member" : "members"}</Text>
+                </View>
+                <MaterialIcons name={iconName(isSkinned ? "people" : "chevron-right")} size={24} color={colors.primary} />
               </View>
-               <MaterialIcons name={iconName("people")} size={24} color={colors.primary} />
+              {!isSkinned ? (
+                <View style={{ flexDirection: "row", gap: 12, marginTop: 11 }}>
+                  {familyMembers.map((member) => (
+                    <View key={member.id} style={{ alignItems: "center", width: 52 }}>
+                      <AvatarImage id={member.id} name={member.name} gender={member.gender} avatarAsset={member.avatarAsset} photoUri={member.photoUri} size={46} thumbnail fallbackColor={member.accentColor} style={{ borderWidth: 2.5, borderColor: member.accentColor, borderRadius: 23 }} />
+                      <Text numberOfLines={1} style={{ fontSize: 10.5, fontWeight: "800", color: pm.ink, marginTop: 4 }}>{member.name.split(" ")[0]}</Text>
+                      <Text numberOfLines={1} style={{ fontSize: 9.5, fontWeight: "600", color: pm.inkSoft }}>{member.familyType ?? "Other"}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </View>
           </>
         )}
@@ -886,15 +938,15 @@ export default function PersonScreen() {
         </View>
 
         {currentPerson.isPraised && currentPerson.praiseExpiresAt && (
-          <View style={[styles.prayerItem, { backgroundColor: getThemeAwareColor("#DBEAFE", colors), borderColor: "#3B82F6", borderWidth: 1 }, paperCardShadow]}>
+          <View style={[styles.prayerItem, { backgroundColor: getThemeAwareColor("#DBEAFE", colors), borderColor: "#3B82F6", borderWidth: 1 }, paperCardShadow, !isSkinned && { backgroundColor: pm.goldTint, borderColor: "#F0DFA6", borderRadius: 20 }]}>
             <View style={[styles.prayerItemCheckbox, { backgroundColor: "transparent" }]} />
             <View style={{ flex: 1 }}>
-              <Text numberOfLines={2} style={[styles.prayerItemTitle, { color: "#1E40AF" }]}>Praise</Text>
-              <Text style={{ fontSize: 12, color: "#3B82F6", marginTop: 4 }}>24-hour praise</Text>
+              <Text numberOfLines={2} style={[styles.prayerItemTitle, { color: !isSkinned ? pm.goldDeep : "#1E40AF" }]}>Praise</Text>
+              <Text style={{ fontSize: 12, color: !isSkinned ? pm.goldDeep : "#3B82F6", marginTop: 4 }}>24-hour praise{!isSkinned && currentPerson.praiseExpiresAt ? ` · ${formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(currentPerson.praiseExpiresAt))} left` : ""}</Text>
             </View>
-            <MaterialIcons name={iconName("thumb-up")} size={20} color="#3B82F6" />
-            <Pressable onPress={() => handleUndoPraise()} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
-              <MaterialIcons name={iconName("close")} size={18} color="#3B82F6" />
+            <MaterialIcons name={iconName("thumb-up")} size={20} color={!isSkinned ? pm.goldDeep : "#3B82F6"} />
+            <Pressable onPress={() => handleUndoPraise()} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: !isSkinned ? pm.goldWash : getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
+              <MaterialIcons name={iconName("close")} size={18} color={!isSkinned ? pm.goldDeep : "#3B82F6"} />
             </Pressable>
           </View>
         )}
@@ -910,17 +962,26 @@ export default function PersonScreen() {
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
-              <View style={[styles.prayerItem, item.isUrgent && { ...styles.prayerItemUrgent, backgroundColor: getThemeAwareColor("#FFF7F8", colors) }, item.isEmergency && { backgroundColor: getThemeAwareColor("#FEE2E2", colors), borderColor: "#EF4444", borderWidth: 1 }, paperCardShadow]}>
+              <View style={[styles.prayerItem, item.isUrgent && { ...styles.prayerItemUrgent, backgroundColor: getThemeAwareColor("#FFF7F8", colors) }, item.isEmergency && { backgroundColor: getThemeAwareColor("#FEE2E2", colors), borderColor: "#EF4444", borderWidth: 1 }, paperCardShadow, !isSkinned && { borderRadius: 20, borderWidth: 1, borderColor: pm.line, backgroundColor: pm.card }, !isSkinned && item.isEmergency && { borderColor: "#EF4444", borderWidth: 1.5, backgroundColor: pm.card }, !isSkinned && item.isDone && { opacity: 0.72 }]}>
                 <Pressable
                   onPress={() => handleToggleDone(item.id)}
-                  style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, pressed && styles.pressed]}
+                  style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, !isSkinned && { borderRadius: 8, width: 24, height: 24 }, !isSkinned && item.isDone && { backgroundColor: "#2E9E5B", borderColor: "#2E9E5B" }, pressed && styles.pressed]}
                 >
                   {item.isDone ? <MaterialIcons name={iconName("check")} size={15} color="#FFFFFF" /> : null}
                 </Pressable>
                 <View style={{ flex: 1 }}>
                   <Text numberOfLines={2} style={[styles.prayerItemTitle, item.isDone && styles.prayerItemTitleDone, item.isEmergency && { color: "#DC2626" }]}>{item.title}</Text>
                   {item.isEmergency && item.emergencyExpiresAt && (
-                    <Text style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>24-hour emergency prayer</Text>
+                    <Text style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>24-hour emergency prayer{!isSkinned ? ` · ${formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt))} left` : ""}</Text>
+                  )}
+                  {!isSkinned && !item.isEmergency && item.isUrgent && !item.isDone && (
+                    <Text style={{ fontSize: 11.5, fontWeight: "700", color: "#B97A0C", marginTop: 3 }}>Urgent</Text>
+                  )}
+                  {!isSkinned && !item.isEmergency && !item.isUrgent && !item.isDone && (
+                    <Text style={{ fontSize: 11.5, fontWeight: "700", color: pm.inkSoft, marginTop: 3 }}>Waiting</Text>
+                  )}
+                  {!isSkinned && item.isDone && (
+                    <Text style={{ fontSize: 11.5, fontWeight: "700", color: "#2E9E5B", marginTop: 3 }}>Prayed</Text>
                   )}
                 </View>
                 {item.isEmergency ? (
@@ -941,7 +1002,7 @@ export default function PersonScreen() {
 
         <View style={styles.inputContainer}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, !isSkinned && { backgroundColor: pm.wash, borderWidth: 0, borderRadius: 999, paddingHorizontal: 16 }]}
             placeholder="Add prayer item..."
             placeholderTextColor={colors.muted}
             value={newItemTitle}
@@ -949,7 +1010,7 @@ export default function PersonScreen() {
             onSubmitEditing={handleAddItem}
             returnKeyType="done"
           />
-          <Pressable style={({ pressed }) => [styles.addButton, pressed && styles.pressed]} onPress={handleAddItem}>
+          <Pressable style={({ pressed }) => [styles.addButton, !isSkinned && { backgroundColor: pm.seed, width: 44, height: 44, borderRadius: 22 }, pressed && styles.pressed]} onPress={handleAddItem}>
             <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
           </Pressable>
         </View>
@@ -1064,7 +1125,7 @@ export default function PersonScreen() {
 
       <Modal transparent visible={showEditModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowEditModal(false)}>
         <View style={styles.modalOverlay}>
-          <PaperSettle style={[styles.modalCard, paperModalCard]}>
+          <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
 <BitSettle>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Person</Text>
@@ -1091,7 +1152,7 @@ export default function PersonScreen() {
               placeholder="Name"
               placeholderTextColor={colors.muted}
               returnKeyType="done"
-              style={styles.modalInput}
+              style={[styles.modalInput, !isSkinned && { backgroundColor: pm.wash, borderWidth: 0, borderRadius: 14 }]}
             />
             <Text style={styles.modalFieldLabel}>Relationship</Text>
             <View style={styles.editRelationshipRow}>
@@ -1103,7 +1164,7 @@ export default function PersonScreen() {
                     key={relationship}
                     onPress={() => setDraftRelationship(relationship)}
                     style={({ pressed }) => {
-                      const bgColor = isSelected ? relationshipColors[relationship].avatar : getThemeAwareColor("#FBF8FF", colors);
+                      const bgColor = isSelected ? (isSkinned ? relationshipColors[relationship].avatar : relationshipColors[relationship].accent) : getThemeAwareColor("#FBF8FF", colors);
                       return [
                         styles.editRelationshipPill,
                         { borderColor: isSelected ? relationshipColors[relationship].accent : "#E7E1EF", backgroundColor: bgColor },
@@ -1111,7 +1172,7 @@ export default function PersonScreen() {
                       ];
                     }}
                   >
-                    <Text style={[styles.editRelationshipPillText, { color: isSelected ? relationshipColors[relationship].accent : "#7E7C88" }]}>{relationship}</Text>
+                    <Text style={[styles.editRelationshipPillText, { color: isSelected ? (isSkinned ? relationshipColors[relationship].accent : "#FFFFFF") : "#7E7C88" }]}>{relationship}</Text>
                   </Pressable>
                 );
               })}
@@ -1161,7 +1222,7 @@ export default function PersonScreen() {
               <Pressable accessibilityLabel="Delete person" onPress={confirmDeletePerson} pointerEvents="auto" style={({ pressed }) => [{ ...styles.modalDeleteButton, backgroundColor: getThemeAwareColor("#FFF0F3", colors) }, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" />
               </Pressable>
-              <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.modalPrimaryButton, styles.modalSaveButton, pressed && styles.pressed]}>
+              <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.modalPrimaryButton, styles.modalSaveButton, !isSkinned && { borderRadius: 999 }, pressed && styles.pressed]}>
                 <Text style={styles.modalPrimaryButtonText}>Save Person</Text>
               </Pressable>
             </View>
@@ -1172,7 +1233,7 @@ export default function PersonScreen() {
 
       <Modal transparent visible={showFamilyModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowFamilyModal(false)}>
         <View style={styles.modalOverlay}>
-          <PaperSettle style={[styles.modalCard, paperModalCard]}>
+          <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
 <BitSettle>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add to Family</Text>
@@ -1237,7 +1298,7 @@ export default function PersonScreen() {
 
       <Modal transparent visible={showReminderModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowReminderModal(false)}>
         <View style={styles.modalOverlay}>
-          <PaperSettle style={[styles.modalCard, paperModalCard]}>
+          <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
 <BitSettle>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Prayer Reminder</Text>
@@ -1304,7 +1365,7 @@ export default function PersonScreen() {
               returnKeyType="done"
               style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
-            <Pressable onPress={handleSaveReminder} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
+            <Pressable onPress={handleSaveReminder} style={({ pressed }) => [styles.modalPrimaryButton, !isSkinned && { borderRadius: 999 }, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Save Reminder</Text>
             </Pressable>
           </BitSettle>
@@ -1314,7 +1375,7 @@ export default function PersonScreen() {
 
       <Modal transparent visible={showDateModal} animationType="fade" onRequestClose={() => setShowDateModal(false)}>
         <View style={styles.modalOverlay}>
-          <PaperSettle style={[styles.modalCard, paperModalCard]}>
+          <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
 <BitSettle>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Last Reached</Text>
@@ -1351,7 +1412,7 @@ export default function PersonScreen() {
               returnKeyType="done"
               style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
-            <Pressable onPress={handleSaveLastReachedDate} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
+            <Pressable onPress={handleSaveLastReachedDate} style={({ pressed }) => [styles.modalPrimaryButton, !isSkinned && { borderRadius: 999 }, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Save Last Reached</Text>
             </Pressable>
             <Pressable onPress={handleDeleteLastReachedDate} style={({ pressed }) => [{ ...styles.modalSecondaryButton, backgroundColor: getThemeAwareColor("#EFE8FB", colors) }, pressed && styles.pressed]}>
@@ -1364,7 +1425,7 @@ export default function PersonScreen() {
 
       <Modal transparent visible={showEmergencyPrayerModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowEmergencyPrayerModal(false)}>
         <View style={styles.modalOverlay}>
-          <PaperSettle style={[styles.modalCard, paperModalCard]}>
+          <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
 <BitSettle>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Emergency Prayer ({emergencyPrayerDuration}h)</Text>
@@ -1411,7 +1472,7 @@ export default function PersonScreen() {
 
       <Modal transparent visible={showPersonalTodoModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowPersonalTodoModal(false)}>
         <View style={styles.modalOverlay}>
-          <PaperSettle style={[styles.modalCard, paperModalCard]}>
+          <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
 <BitSettle>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Set Time & Days</Text>
@@ -1483,7 +1544,7 @@ export default function PersonScreen() {
               );
               setEditingTodoId(null);
               setShowPersonalTodoModal(false);
-            }} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
+            }} style={({ pressed }) => [styles.modalPrimaryButton, !isSkinned && { borderRadius: 999 }, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Save</Text>
             </Pressable>
           </BitSettle>

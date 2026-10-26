@@ -4,6 +4,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
+import { AttentionBell } from "@/components/attention-bell";
 import { bibleEventEmitter } from '@/lib/bible-events';
 import {
   Animated,
@@ -9691,6 +9692,7 @@ export function ScheduleTab({
   showWorshipAlbumForm = false,
   onShowWorshipAlbumForm,
   onTodoComplete,
+  onBellPrayToday,
   eventRemindersEnabled = true,
   defaultEventReminderMinutes = 0,
   whiteSpaceEnabled = true,
@@ -9719,6 +9721,8 @@ export function ScheduleTab({
   showWorshipAlbumForm?: boolean;
   onShowWorshipAlbumForm?: (show: boolean) => void;
   onTodoComplete?: (todoId: string) => void;
+  /** v254: when set, the attention bell rides the date header (Piece D). */
+  onBellPrayToday?: () => void;
   eventRemindersEnabled?: boolean;
   defaultEventReminderMinutes?: number;
   whiteSpaceEnabled?: boolean;
@@ -12053,6 +12057,15 @@ export function ScheduleTab({
       label="Jump to date"
       compact
     />
+    {onBellPrayToday ? (
+      <View style={{ marginLeft: "auto" }}>
+        <AttentionBell
+          people={people}
+          onOpenPerson={(personId) => router.push({ pathname: "/person", params: { personId } })}
+          onPrayToday={onBellPrayToday}
+        />
+      </View>
+    ) : null}
   </View>
   {(skinTokens.isEightBit || skinTokens.isTerminal) ? (
     <Text style={{ color: skinTokens.isTerminal ? TERM_SOFT : BIT_ON_DUSK_SOFT, marginBottom: 8, ...bitDisplay(skinTokens, skinTokens.isTerminal ? 20 : 12) }}>
@@ -12097,7 +12110,7 @@ export function ScheduleTab({
   </View>
       </View>
     </>
-  ), [colors, dateHeader, weekDates, weekSlideDir, selectedDate, today, timeOffList, isSkinned, skinTokens]);
+  ), [colors, dateHeader, weekDates, weekSlideDir, selectedDate, today, timeOffList, isSkinned, skinTokens, people, onBellPrayToday]);
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {

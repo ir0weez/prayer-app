@@ -1,6 +1,9 @@
 export type PrayerItem = {
   id: string;
   title: string;
+  /** v258: the quick sentence under the title — set on emergency items
+   *  (title + note form); regular items never carry one. */
+  note?: string;
   isUrgent: boolean;
   isDone: boolean;
   isEmergency?: boolean;
@@ -83,6 +86,11 @@ export type Person = {
   budgetTransactions?: BudgetTransaction[]; // Expense transactions
   isPraised?: boolean; // Whether praise is active for this person
   praiseExpiresAt?: string; // ISO datetime string for when praise expires
+  /** v258: his own praise headline (title field on the praise form);
+   *  blank/absent displays fall back to the generic "Praise". The
+   *  praise NOTE rides the long-standing praiseNote field above. Both
+   *  are cleared wherever the praise state is cleared (clearPraise). */
+  praiseTitle?: string;
   showInPrayerCheckIns?: boolean; // Whether overdue 14-day check-ins appear on the schedule
 };
 
@@ -270,6 +278,37 @@ export function hasActivePraise(person: Person, now = new Date()): boolean {
   if (!person.isPraised || !person.praiseExpiresAt) return false;
   const expiresAt = new Date(person.praiseExpiresAt).getTime();
   return Number.isFinite(expiresAt) && expiresAt > now.getTime();
+}
+
+/**
+ * v258: start (or restart) a person's 24-hour praise, carrying his
+ * title + note from the praise form. A blank title/note stores
+ * undefined — displays fall back to the generic "Praise" headline and
+ * no note line. Re-activation overwrites the previous title/note.
+ */
+export function activatePraise(person: Person, title?: string, note?: string, now = new Date()): Person {
+  return {
+    ...person,
+    isPraised: true,
+    praiseExpiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+    praiseTitle: normalizeOptionalText(title),
+    praiseNote: normalizeOptionalText(note),
+  };
+}
+
+/**
+ * v258: clear the whole praise state — flag, expiry, title, and note
+ * together. Every undo / toggle-off path goes through here so the
+ * title and note can never outlive the praise they belong to.
+ */
+export function clearPraise(person: Person): Person {
+  return {
+    ...person,
+    isPraised: false,
+    praiseExpiresAt: undefined,
+    praiseTitle: undefined,
+    praiseNote: undefined,
+  };
 }
 
 /** Returns whether any of a person's emergency prayers are still within their 24-hour window. */
@@ -870,13 +909,16 @@ export function getInitialState() {
   };
 }
 
-// Helper: Add emergency prayer to a person
-export function addEmergencyPrayer(person: Person, title: string, durationHours: number = 24): Person {
+// Helper: Add emergency prayer to a person.
+// v258: the optional note is the quick sentence under the title
+// (title + note form); omitted/blank stores no note at all.
+export function addEmergencyPrayer(person: Person, title: string, durationHours: number = 24, note?: string): Person {
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
   const emergencyItem: PrayerItem = {
     id: `emergency-${Date.now()}`,
     title,
+    note: normalizeOptionalText(note),
     isUrgent: true,
     isDone: false,
     isEmergency: true,

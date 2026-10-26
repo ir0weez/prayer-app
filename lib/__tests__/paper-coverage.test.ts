@@ -328,8 +328,9 @@ describe("Paper coverage — v202 animation pass", () => {
   it("people: the person header settles; their modals are pages laid down", () => {
     const person = read("app/(tabs)/person.tsx");
     expect(person).toContain("<PaperSettle style={[styles.profileSection, !isSkinned &&");
-    expect(count(person, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(5);
-    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned &&")).toBe(6);
+    // v258: the praise form modal joins the family (6 sheets, 7 modal cards).
+    expect(count(person, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(6);
+    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned &&")).toBe(7);
   });
 
   it("fasting profile: the above-fold sheets settle; its two modals fade as pages", () => {

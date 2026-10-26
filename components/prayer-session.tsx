@@ -608,6 +608,9 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
                             <MaterialIcons name="local-fire-department" size={17} color="#EF4444" style={{ marginTop: 1 }} />
                             <View style={{ flex: 1 }}>
                               <Text style={{ fontSize: 13.5, fontWeight: "700", lineHeight: 18, color: "#991B1B" }}>{lead.item.title}</Text>
+                              {!!lead.item.note && (
+                                <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 16, color: "#991B1B", marginTop: 1 }}>{lead.item.note}</Text>
+                              )}
                               <Text style={{ fontSize: 11, fontWeight: "600", color: "#DC2626", marginTop: 1 }}>Emergency · {formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(lead.item.emergencyExpiresAt))} left</Text>
                             </View>
                           </View>
@@ -619,6 +622,9 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
                               <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: pm.wash2, marginTop: 1 }} />
                               <View style={{ flex: 1 }}>
                                 <Text style={{ fontSize: 13.5, fontWeight: "600", lineHeight: 18, color: pm.ink }}>{item.title}</Text>
+                                {!!item.note && (
+                                  <Text style={{ fontSize: 12, fontWeight: "500", lineHeight: 16, color: emergency ? "#DC2626" : pm.inkSoft, marginTop: 1 }}>{item.note}</Text>
+                                )}
                                 {emergency ? (
                                   <Text style={{ fontSize: 11, fontWeight: "600", color: "#DC2626", marginTop: 1 }}>Emergency · {formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt))} left</Text>
                                 ) : item.isUrgent ? (

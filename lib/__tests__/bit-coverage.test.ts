@@ -149,9 +149,11 @@ describe("8-bit coverage — v203 animation pass", () => {
   it("people: the person header snaps centered; their modals drop as cartridges", () => {
     const person = read("app/(tabs)/person.tsx");
     expect(person).toContain('<BitSettle style={{ alignItems: "center" }}>');
-    expect(count(person, "<BitSettle>")).toBe(6);
+    // v258: the praise title + note form is a seventh person modal,
+    // wearing the same cartridge structure as the other six.
+    expect(count(person, "<BitSettle>")).toBe(7);
     // Paper's modal cards are still the outer wrapper, unchanged.
-    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned &&")).toBe(6);
+    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned &&")).toBe(7);
   });
 
   it("fasting profile: the above-fold cards snap with their cascade; its sheets drop in", () => {

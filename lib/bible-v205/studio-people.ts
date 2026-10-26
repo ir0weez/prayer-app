@@ -145,6 +145,12 @@ function applyPackNeed(person: Person, need: StudioPersonNeedInput): void {
     isUrgent: isEmergency,
     isDone: need.isDone,
   };
+  // v258: the quick sentence under the title rides the pack as `note`.
+  // Merge-only like everything here: a pack that names a note sets it;
+  // a pack silent on notes keeps the item's existing one.
+  const packNote = need.note?.trim();
+  if (packNote) item.note = packNote;
+  else if (existing?.note) item.note = existing.note;
   if (isEmergency) {
     item.isEmergency = true;
     const expires = need.emergencyExpiresAt ?? existing?.emergencyExpiresAt;
@@ -368,6 +374,7 @@ export function collectStudioPeople(
       };
       if (item.emergencyExpiresAt) need.emergencyExpiresAt = item.emergencyExpiresAt;
       if (item.praiseExpiresAt) need.praiseExpiresAt = item.praiseExpiresAt;
+      if (item.note) need.note = item.note;
       return need;
     });
     const out: StudioPersonInput = {

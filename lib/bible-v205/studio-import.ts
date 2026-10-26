@@ -268,6 +268,11 @@ export interface StudioPersonNeedInput {
   /** The need's longer words. In the app they live as a Journal moment
    *  (PrayerItem has no body field), linked by (personId, needId). */
   more: string;
+  /** v258: the item's quick sentence under its title (PrayerItem.note,
+   *  set by the emergency title + note form). Optional both ways: old
+   *  packs never carry it, and a pack without it never strips an
+   *  existing note on merge. */
+  note?: string;
   kind: StudioNeedKind;
   isDone: boolean;
   isEmergency: boolean;
@@ -723,6 +728,7 @@ function validatePersonNeed(raw: unknown, where: string): StudioPersonNeedInput 
     fail(`${where}: need kind must be Regular, Praise, or Emergency`);
   }
   if (raw.more !== undefined && typeof raw.more !== 'string') fail(`${where}: need "more" must be text`);
+  if (raw.note !== undefined && typeof raw.note !== 'string') fail(`${where}: need "note" must be text`);
   if (raw.emergencyExpiresAt !== undefined && !isValidIsoDateTime(raw.emergencyExpiresAt)) {
     fail(`${where}: need has a bad emergencyExpiresAt date`);
   }
@@ -740,6 +746,7 @@ function validatePersonNeed(raw: unknown, where: string): StudioPersonNeedInput 
   };
   if (typeof raw.emergencyExpiresAt === 'string') need.emergencyExpiresAt = raw.emergencyExpiresAt;
   if (typeof raw.praiseExpiresAt === 'string') need.praiseExpiresAt = raw.praiseExpiresAt;
+  if (typeof raw.note === 'string' && raw.note.trim()) need.note = raw.note;
   return need;
 }
 

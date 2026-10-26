@@ -100,12 +100,13 @@ describe("v216/v219 — sheets rise, full: definite boxes over a live flex chain
     const sheets = read("components/journal-sheets.tsx");
     expect(styleBlock(sheets, "sheet")).toContain('height: "94%"');
     expect(sheets).toContain("<BitSettle style={{ flex: 1 }}>");
-    // app/(tabs)/person.tsx — all six modals are content-sized
+    // app/(tabs)/person.tsx — all seven modals are content-sized
     // cards (modalCard) with a bare settle wrapper and no
     // ScrollView inside: finite form content, no indefinite
     // chain. Left untouched; pinned so the pattern stays out.
+    // (v258's praise form is the seventh, same definite shape.)
     const person = read("app/(tabs)/person.tsx");
     expect(count(person, "<BitSettle style={{ flex: 1 }}>")).toBe(0);
-    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned &&")).toBe(6);
+    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned &&")).toBe(7);
   });
 });

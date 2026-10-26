@@ -37,6 +37,8 @@ import {
   sortFamilyMembers,
   ungroupFromFamily,
   addEmergencyPrayer,
+  activatePraise,
+  clearPraise,
   addPersonalTodo,
   completePersonalTodo,
   removePersonalTodo,
@@ -45,6 +47,7 @@ import {
   type ReminderFrequency,
 } from "@/lib/prayercircle-data";
 import { usePeopleMaterial } from "@/hooks/use-people-material";
+import { getPraiseDisplay } from "@/lib/praise-display";
 import { PeopleEntrance } from "@/components/people-entrance";
 import { PEOPLE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
@@ -309,8 +312,12 @@ export default function PersonScreen() {
   const [showFamilyModal, setShowFamilyModal] = useState(false);
   const [selectedFamilyMember, setSelectedFamilyMember] = useState<string | null>(null);
   const [showEmergencyPrayerModal, setShowEmergencyPrayerModal] = useState(false);
-  const [emergencyPrayerText, setEmergencyPrayerText] = useState("");
+  const [emergencyTitle, setEmergencyTitle] = useState("");
+  const [emergencyNote, setEmergencyNote] = useState("");
   const [emergencyPrayerDuration, setEmergencyPrayerDuration] = useState<1 | 5 | 12 | 24>(24);
+  const [showPraiseModal, setShowPraiseModal] = useState(false);
+  const [praiseTitleText, setPraiseTitleText] = useState("");
+  const [praiseNoteText, setPraiseNoteText] = useState("");
   const [draftIsPersonal, setDraftIsPersonal] = useState(false);
   const [showPersonalTodoModal, setShowPersonalTodoModal] = useState(false);
   const [personalTodoTitle, setPersonalTodoTitle] = useState("");
@@ -443,33 +450,40 @@ export default function PersonScreen() {
     updatePeople((previousPeople) => togglePrayerItemDone(previousPeople, personId, itemId));
   };
 
-  const handlePraise = (itemId: string) => {
+  // v258: the Praise button — with a praise running it keeps today's
+  // toggle-off; with none running it opens the title + note form
+  // (praise is never blocked on typing: both fields may stay blank).
+  const handlePraise = () => {
+    if (!currentPerson) return;
+    if (currentPerson.isPraised) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPeople((previousPeople) => {
+        const updatedPeople = previousPeople.map((person) =>
+          person.id === currentPerson.id ? clearPraise(person) : person,
+        );
+        AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
+        return updatedPeople;
+      });
+      return;
+    }
+    setPraiseTitleText(currentPerson.praiseTitle ?? "");
+    setPraiseNoteText(currentPerson.praiseNote ?? "");
+    setShowPraiseModal(true);
+  };
+
+  const handleActivatePraise = () => {
     if (!currentPerson) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setPeople((previousPeople) => {
-      const updatedPeople = previousPeople.map((person) => {
-        if (person.id === currentPerson.id) {
-          if (person.isPraised) {
-            return {
-              ...person,
-              isPraised: false,
-              praiseExpiresAt: undefined,
-            };
-          } else {
-            const now = new Date();
-            const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
-            return {
-              ...person,
-              isPraised: true,
-              praiseExpiresAt,
-            };
-          }
-        }
-        return person;
-      });
+      const updatedPeople = previousPeople.map((person) =>
+        person.id === currentPerson.id ? activatePraise(person, praiseTitleText, praiseNoteText) : person,
+      );
       AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
       return updatedPeople;
     });
+    setPraiseTitleText("");
+    setPraiseNoteText("");
+    setShowPraiseModal(false);
   };
 
   const handleUndoPraise = () => {
@@ -478,11 +492,7 @@ export default function PersonScreen() {
     setPeople((previousPeople) => {
       const updatedPeople = previousPeople.map((person) => {
         if (person.id === currentPerson.id) {
-          return {
-            ...person,
-            isPraised: false,
-            praiseExpiresAt: undefined,
-          };
+          return clearPraise(person);
         }
         return person;
       });
@@ -516,15 +526,16 @@ export default function PersonScreen() {
   };
 
   const handleAddEmergencyPrayer = () => {
-    if (!personId || !currentPerson || !emergencyPrayerText.trim()) return;
+    if (!personId || !currentPerson || !emergencyTitle.trim()) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     updatePeople((previousPeople) => {
       const person = previousPeople.find((p) => p.id === personId);
       if (!person) return previousPeople;
-      const updated = addEmergencyPrayer(person, emergencyPrayerText.trim(), emergencyPrayerDuration);
+      const updated = addEmergencyPrayer(person, emergencyTitle.trim(), emergencyPrayerDuration, emergencyNote);
       return previousPeople.map((p) => (p.id === personId ? updated : p));
     });
-    setEmergencyPrayerText("");
+    setEmergencyTitle("");
+    setEmergencyNote("");
     setEmergencyPrayerDuration(24);
     setShowEmergencyPrayerModal(false);
   };
@@ -896,7 +907,7 @@ export default function PersonScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => handlePraise(currentPerson.prayerItems[0]?.id || '')}
+            onPress={() => handlePraise()}
             style={({ pressed }) => [styles.actionButton, { backgroundColor: "#3B82F6" }, !isSkinned && { flex: 1, marginHorizontal: 0, marginTop: 10, borderRadius: 999, backgroundColor: "#FDF3D7", shadowOpacity: 0, elevation: 0, minHeight: 48, paddingVertical: 12 }, pressed && styles.pressed]}
           >
             <MaterialIcons name={iconName("thumb-up")} size={20} color={!isSkinned ? "#8A5F06" : "#FFFFFF"} />
@@ -941,7 +952,10 @@ export default function PersonScreen() {
           <View style={[styles.prayerItem, { backgroundColor: getThemeAwareColor("#DBEAFE", colors), borderColor: "#3B82F6", borderWidth: 1 }, paperCardShadow, !isSkinned && { backgroundColor: pm.goldTint, borderColor: "#F0DFA6", borderRadius: 20 }]}>
             <View style={[styles.prayerItemCheckbox, { backgroundColor: "transparent" }]} />
             <View style={{ flex: 1 }}>
-              <Text numberOfLines={2} style={[styles.prayerItemTitle, { color: !isSkinned ? pm.goldDeep : "#1E40AF" }]}>Praise</Text>
+              <Text numberOfLines={2} style={[styles.prayerItemTitle, { color: !isSkinned ? pm.goldDeep : "#1E40AF" }]}>{getPraiseDisplay(currentPerson).headline}</Text>
+              {!!getPraiseDisplay(currentPerson).note && (
+                <Text numberOfLines={2} style={{ fontSize: 12.5, color: !isSkinned ? pm.goldDeep : "#1E40AF", marginTop: 2 }}>{getPraiseDisplay(currentPerson).note}</Text>
+              )}
               <Text style={{ fontSize: 12, color: !isSkinned ? pm.goldDeep : "#3B82F6", marginTop: 4 }}>24-hour praise{!isSkinned && currentPerson.praiseExpiresAt ? ` · ${formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(currentPerson.praiseExpiresAt))} left` : ""}</Text>
             </View>
             <MaterialIcons name={iconName("thumb-up")} size={20} color={!isSkinned ? pm.goldDeep : "#3B82F6"} />
@@ -971,6 +985,9 @@ export default function PersonScreen() {
                 </Pressable>
                 <View style={{ flex: 1 }}>
                   <Text numberOfLines={2} style={[styles.prayerItemTitle, item.isDone && styles.prayerItemTitleDone, item.isEmergency && { color: "#DC2626" }]}>{item.title}</Text>
+                  {!!item.note && (
+                    <Text numberOfLines={2} style={{ fontSize: 12.5, color: colors.muted, marginTop: 2 }}>{item.note}</Text>
+                  )}
                   {item.isEmergency && item.emergencyExpiresAt && (
                     <Text style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>24-hour emergency prayer{!isSkinned ? ` · ${formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt))} left` : ""}</Text>
                   )}
@@ -1452,18 +1469,65 @@ export default function PersonScreen() {
                 </Pressable>
               ))}
             </View>
-            <Text style={styles.modalFieldLabel}>Prayer Request</Text>
+            <Text style={styles.modalFieldLabel}>Title</Text>
             <TextInput
-              value={emergencyPrayerText}
-              onChangeText={setEmergencyPrayerText}
-              placeholder="Type your prayer request..."
+              value={emergencyTitle}
+              onChangeText={setEmergencyTitle}
+              placeholder="What are you praying for?"
+              placeholderTextColor={colors.muted}
+              returnKeyType="done"
+              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
+            />
+            <Text style={styles.modalFieldLabel}>Note (optional)</Text>
+            <TextInput
+              value={emergencyNote}
+              onChangeText={setEmergencyNote}
+              placeholder="A quick sentence about it..."
               placeholderTextColor={colors.muted}
               multiline
               returnKeyType="done"
-              style={[styles.modalInput, { minHeight: 100, paddingTop: 12, textAlignVertical: "top", backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
+              style={[styles.modalInput, { minHeight: 64, paddingTop: 12, textAlignVertical: "top", backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
             <Pressable onPress={handleAddEmergencyPrayer} style={({ pressed }) => [styles.modalPrimaryButton, { backgroundColor: "#EF4444" }, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Add Emergency Prayer</Text>
+            </Pressable>
+          </BitSettle>
+</PaperSettle>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={showPraiseModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowPraiseModal(false)}>
+        <View style={styles.modalOverlay}>
+          <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
+<BitSettle>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Praise (24h)</Text>
+              <Pressable onPress={() => setShowPraiseModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
+                <MaterialIcons name={iconName("close")} size={23} color={colors.muted} />
+              </Pressable>
+            </View>
+            <Text style={styles.modalDescription}>Add a praise that will appear on People for the next 24 hours.</Text>
+            <Text style={styles.modalFieldLabel}>Title</Text>
+            <TextInput
+              value={praiseTitleText}
+              onChangeText={setPraiseTitleText}
+              placeholder="What are you praising?"
+              placeholderTextColor={colors.muted}
+              returnKeyType="done"
+              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
+            />
+            <Text style={styles.modalFieldLabel}>Note (optional)</Text>
+            <TextInput
+              value={praiseNoteText}
+              onChangeText={setPraiseNoteText}
+              placeholder="A quick sentence about it..."
+              placeholderTextColor={colors.muted}
+              multiline
+              returnKeyType="done"
+              style={[styles.modalInput, { minHeight: 64, paddingTop: 12, textAlignVertical: "top", backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
+            />
+            <Pressable onPress={handleActivatePraise} style={({ pressed }) => [styles.modalPrimaryButton, { backgroundColor: "#D97706" }, pressed && styles.pressed]}>
+              <Text style={styles.modalPrimaryButtonText}>Start Praise</Text>
             </Pressable>
           </BitSettle>
 </PaperSettle>

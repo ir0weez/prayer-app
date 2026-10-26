@@ -29,6 +29,7 @@ import { PEOPLE_GOLD_PILL_INK } from "@/lib/people-material";
 import type { PeopleFrontDoorFamily } from "@/lib/people-material";
 import { CarouselDots, FrontDoorCarousel } from "@/components/front-door-carousel";
 import { PeopleStreakCard } from "@/components/people-streak-card";
+import { getPraiseDisplay, getPraiseJournalText } from "@/lib/praise-display";
 import { getReachOutEntries, formatHoursLeft } from "@/lib/bell-header";
 import { SHINY_ACHIEVEMENTS, SHINY_AVATARS, getLevelUnlockedCharacterShinyIds } from "@/lib/avatar-system";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
@@ -72,6 +73,8 @@ import { FastFlame, FastSummaryCard, getPreviousFast, getSpecialSpace, getSpecia
 import {
   addPerson,
   addEmergencyPrayer,
+  activatePraise,
+  clearPraise,
   formatDaysSinceLastPrayer,
   formatIsoDateForDisplay,
   formatLastReachedSummary,
@@ -1826,14 +1829,11 @@ export default function HomeScreen() {
       const markedPeople = markPersonPrayed(previousPeople, personId);
       const updatedPeople = markedPeople.map((person) => {
         if (person.id === personId) {
-          const now = new Date();
-          const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
-          return {
-            ...person,
-            isPraised: true,
-            praiseExpiresAt,
-            praiseNote: note.trim() || undefined,
-          };
+          // v258: this quick flow carries one field — it stays the
+          // praise NOTE (under the headline), exactly as before; the
+          // title is set on the profile praise form. Re-activation
+          // overwrites both, via activatePraise.
+          return activatePraise(person, undefined, note);
         }
         return person;
       });
@@ -1850,12 +1850,7 @@ export default function HomeScreen() {
     setPeople((previousPeople) => {
       const updatedPeople = previousPeople.map((person) => {
         if (person.id === personId) {
-          return {
-            ...person,
-            isPraised: false,
-            praiseExpiresAt: undefined,
-            praiseNote: undefined,
-          };
+          return clearPraise(person);
         }
         return person;
       });
@@ -2476,6 +2471,9 @@ export default function HomeScreen() {
                     <AvatarImage id={entry.person.id} name={entry.person.name} gender={entry.person.gender} avatarAsset={entry.person.avatarAsset} photoUri={entry.person.photoUri} size={46} thumbnail fallbackColor={entry.person.accentColor} style={{ borderWidth: 2, borderColor: "rgba(255,255,255,0.75)", borderRadius: 23 }} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text numberOfLines={2} style={{ fontSize: 16.5, fontWeight: "800", lineHeight: 21, color: "#FFFFFF" }}>{entry.item.title}</Text>
+                      {!!entry.item.note && (
+                        <Text numberOfLines={2} style={{ fontSize: 13, fontWeight: "600", lineHeight: 17, color: "#FEE2E2", marginTop: 2 }}>{entry.item.note}</Text>
+                      )}
                       <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#FECACA", marginTop: 1 }}>{leftText}</Text>
                     </View>
                   </View>
@@ -2619,7 +2617,10 @@ export default function HomeScreen() {
         <FrontDoorCarousel count={praises.length} focused={peopleFocused} style={{ marginHorizontal: 16, marginTop: 12 }}>
           {(pageIndex, registerTouch) => {
             const praisedPerson = praises[Math.min(pageIndex, praises.length - 1)];
-            const text = praisedPerson.praiseNote?.trim() || praisedPerson.prayerItems.find((item) => item.isPraised)?.title?.trim() || "Praise";
+            // v258: title is the headline, the note the sentence under
+            // it (praise-display holds the legacy fallbacks).
+            const praiseDisplay = getPraiseDisplay(praisedPerson);
+            const text = getPraiseJournalText(praisedPerson);
             const hoursLeft = praisedPerson.praiseExpiresAt
               ? Math.max(0, Math.round((new Date(praisedPerson.praiseExpiresAt).getTime() - Date.now()) / 3600000))
               : null;
@@ -2641,7 +2642,12 @@ export default function HomeScreen() {
                   </View>
                   <View style={{ flexDirection: "row", gap: 11, marginTop: 9, alignItems: "flex-start" }}>
                     <AvatarImage id={praisedPerson.id} name={praisedPerson.name} gender={praisedPerson.gender} avatarAsset={praisedPerson.avatarAsset} photoUri={praisedPerson.photoUri} size={44} thumbnail fallbackColor={praisedPerson.accentColor} style={{ borderWidth: 2.5, borderColor: "#F59E0B", borderRadius: 22 }} />
-                    <Text style={{ flex: 1, fontSize: 14.5, fontWeight: "700", lineHeight: 20, color: "#4A3205" }}>{text}</Text>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text numberOfLines={2} style={{ fontSize: 14.5, fontWeight: "800", lineHeight: 20, color: "#4A3205" }}>{praiseDisplay.headline}</Text>
+                      {!!praiseDisplay.note && (
+                        <Text numberOfLines={2} style={{ fontSize: 13, fontWeight: "600", lineHeight: 18, color: "#7A5A14", marginTop: 2 }}>{praiseDisplay.note}</Text>
+                      )}
+                    </View>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 11 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>

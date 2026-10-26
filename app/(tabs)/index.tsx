@@ -14,7 +14,7 @@ import { APP_ICONS, getAppIconDef, isIconUnlocked, loadSelectedAppIconId, saveSe
 import { setAppIcon as setNativeAppIcon, getAppIcon as getNativeAppIcon, isAppIconSwitchingAvailable } from "@/modules/expo-app-icon/src/index";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Alert, Animated, AppState, BackHandler, Easing as RnEasing, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View, type ViewStyle } from "react-native";
+import { AccessibilityInfo, Alert, Animated, AppState, BackHandler, Easing as RnEasing, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View, type ViewStyle } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Rect as SvgRect, Stop } from "react-native-svg";
 import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideInUp, SlideOutUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, withRepeat, Easing, useSharedValue, useAnimatedStyle, useAnimatedReaction, runOnJS } from "react-native-reanimated";
 
@@ -23,7 +23,7 @@ import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { PrayerSession } from "@/components/prayer-session";
 import { AttentionBell } from "@/components/attention-bell";
 import { AppTabBar, type AppNavTab } from "@/components/app-tab-bar";
-import { PeopleEntrance } from "@/components/people-entrance";
+import { PeopleEntrance, PEOPLE_ENTRANCE_EASING, PEOPLE_ENTRANCE_RISE, PEOPLE_ENTRANCE_STAGGER_CAP } from "@/components/people-entrance";
 import { usePeopleFrontDoor, usePeopleMaterial } from "@/hooks/use-people-material";
 import { queueFaceStatus, queueFirstName, sortQueueFaces } from "@/lib/people-queue";
 import { PEOPLE_GOLD_PILL_INK } from "@/lib/people-material";
@@ -297,6 +297,8 @@ type PersonalProfile = {
 const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry", "Unministry", "Prospect"];
 const AVATAR_PALETTE = ["#E6E6FA"]; // Consistent light purple for all blank avatars
 const UNDO_COUNTDOWN_MS = 5000;
+/** v262: the queue tray's open/close motion — one timing, no springs. */
+const QUEUE_TRAY_DURATION_MS = 320;
 
 const DEFAULT_SETTINGS: AppSettings = {
   demoMode: false,
@@ -790,6 +792,91 @@ export default function HomeScreen() {
   const frontDoorFamily = usePeopleFrontDoor();
   // v260: Today's prayer list — collapsed scroll row ⇄ expanded grid.
   const [queueExpanded, setQueueExpanded] = useState(false);
+  // v262 "The Tray Learns to Move" (his Oct 26 device verdict on
+  // v260/v261, with a screen recording: "There's absolutely no
+  // animation for the 'Pray today' tray" — the expand chevron
+  // swapped the grid in instantly and the cards below jumped). The
+  // tray now MOVES: ONE 320ms timing on PEOPLE_ENTRANCE_EASING (the
+  // people-entrance / v261-morph curve), no springs, no bounce. A
+  // single progress value drives the whole gesture — the clipping
+  // window's height (measured, below), the header chevron's
+  // rotation, and the grid faces' staggered fade/rise — so a tap
+  // mid-flight simply reverses every part of it from wherever it
+  // stands. Reduced motion keeps v260's instant swap, exactly.
+  const [queueTrayReducedMotion, setQueueTrayReducedMotion] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((value) => { if (live) setQueueTrayReducedMotion(value); })
+      .catch(() => undefined);
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setQueueTrayReducedMotion);
+    return () => { live = false; subscription.remove(); };
+  }, []);
+  const queueTrayProgress = useRef(new Animated.Value(0)).current;
+  const queueTrayHeight = useRef(new Animated.Value(0)).current;
+  const [queueTrayHeightLocked, setQueueTrayHeightLocked] = useState(false);
+  const queueExpandedRef = useRef(false);
+  queueExpandedRef.current = queueExpanded;
+  const queueTrayRowHeightRef = useRef(0);
+  const queueTrayPendingRef = useRef(false);
+  const queueTrayAnimatingRef = useRef(false);
+  const queueTrayHeightAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+  const queueTrayProgressAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+  // The one toggle behind BOTH the header chevron and the +N tile.
+  const toggleQueueExpanded = () => {
+    const next = !queueExpandedRef.current;
+    if (queueTrayReducedMotion) {
+      queueTrayProgress.setValue(next ? 1 : 0);
+      setQueueExpanded(next);
+      return;
+    }
+    // Reverse from current: stop any in-flight motion and keep its
+    // values — the new timing picks up exactly where things stand.
+    queueTrayHeightAnimRef.current?.stop();
+    queueTrayProgressAnimRef.current?.stop();
+    if (!queueTrayAnimatingRef.current && queueTrayRowHeightRef.current > 0) {
+      // From rest: lock the tray window at the row's height BEFORE
+      // the content swap commits, so the grid can't flash tall for
+      // a frame. (Mid-flight reversals keep the animated height.)
+      queueTrayHeight.setValue(queueTrayRowHeightRef.current);
+    }
+    queueTrayAnimatingRef.current = true;
+    setQueueTrayHeightLocked(true);
+    queueTrayPendingRef.current = true;
+    queueTrayProgressAnimRef.current = Animated.timing(queueTrayProgress, {
+      toValue: next ? 1 : 0,
+      duration: QUEUE_TRAY_DURATION_MS,
+      easing: RnEasing.bezier(...PEOPLE_ENTRANCE_EASING),
+      useNativeDriver: false,
+    });
+    queueTrayProgressAnimRef.current.start();
+    setQueueExpanded(next);
+  };
+  // The tray content reports its natural height from inside the
+  // clipping window. At rest this just keeps the row's height
+  // fresh; right after a toggle it is the pending animation's
+  // target — the timing runs the window from its current height
+  // to the content's real height, so the cards below glide in
+  // normal page flow, then the window unlocks back to auto.
+  const handleQueueTrayContentLayout = (height: number) => {
+    if (!queueExpandedRef.current && !queueTrayPendingRef.current) {
+      queueTrayRowHeightRef.current = height;
+    }
+    if (!queueTrayPendingRef.current || height <= 0) return;
+    queueTrayPendingRef.current = false;
+    queueTrayHeightAnimRef.current = Animated.timing(queueTrayHeight, {
+      toValue: height,
+      duration: QUEUE_TRAY_DURATION_MS,
+      easing: RnEasing.bezier(...PEOPLE_ENTRANCE_EASING),
+      useNativeDriver: false,
+    });
+    queueTrayHeightAnimRef.current.start(({ finished }) => {
+      if (finished) {
+        queueTrayAnimatingRef.current = false;
+        setQueueTrayHeightLocked(false);
+      }
+    });
+  };
   // v261: the queue card's own ref — the footer's Start praying
   // measures this card in the window and the session's container
   // transform grows out of that rect. The origin is set fresh by
@@ -2663,21 +2750,31 @@ export default function HomeScreen() {
     // modes — same ring, same check, same first name/status, same
     // tap (mark prayed / pending undo). All colors stay pmf roles:
     // derive, never pin.
+    // v262: two corrections from his device verdict. (1) The +N
+    // circle RETURNS at the end of the collapsed row — he liked it;
+    // what he hated was that it was dead. It is the pre-v260 tile
+    // again (dashed pmf.wash2 ring, "+{length − 5}", "More") but a
+    // Pressable now: tapping it opens the tray, same toggle as the
+    // header chevron. (2) The swap itself now ANIMATES — the tray
+    // window's height is one 320ms timing on the entrance curve
+    // (toggleQueueExpanded / handleQueueTrayContentLayout, above),
+    // the chevron rotates on the same progress instead of swapping
+    // glyphs, and grid faces stagger in on per-face slices of that
+    // progress. The v261 footer below is untouched.
     // v261: a finished day swaps the face row for the announcement
     // card (mockup Stage 3) — renderQueueCompleteCard, above.
     if (total > 0 && prayed >= total) {
       return renderQueueCompleteCard(prayed, total);
     }
     const canExpandQueue = queueFaces.length > 5;
+    // v262: the returned tile's count — the faces past the first
+    // five (his 19-person day reads +14, the number he asked about).
+    const moreCount = queueFaces.length - 5;
     const renderQueueFace = (person: Person, columnStyle: ViewStyle) => {
       const done = hasPersonCompletedPrayerToday(person, today);
       const isPending = pendingPrayerIds.includes(person.id);
-      return (
-        <Pressable
-          key={person.id}
-          onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))}
-          style={({ pressed }) => [columnStyle, { alignItems: "center" }, pressed && { opacity: 0.75 }]}
-        >
+      const faceBody = (
+        <>
           <View style={{ width: 47, height: 47, borderRadius: 23.5, borderWidth: 2, borderColor: done || isPending ? pmf.seed : pmf.wash2, alignItems: "center", justifyContent: "center" }}>
             <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={43} thumbnail fallbackColor={person.accentColor} />
             {done || isPending ? (
@@ -2694,6 +2791,34 @@ export default function HomeScreen() {
           ) : (
             <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: "600", color: pmf.inkSoft }}>{queueFaceStatus(person, done)}</Text>
           )}
+        </>
+      );
+      // v262: in the grid, each face rides its own staggered slice
+      // of the tray's shared open progress (the people-entrance
+      // pattern: capped per-item offset, fade + rise, no springs) —
+      // as the window's height opens, the faces settle in one by
+      // one; on collapse the row returns and they simply ride down.
+      const staggerStart = Math.min(queueFaces.indexOf(person), PEOPLE_ENTRANCE_STAGGER_CAP) * 0.045;
+      const staggerRange: [number, number] = [staggerStart, Math.min(1, staggerStart + 0.55)];
+      return (
+        <Pressable
+          key={person.id}
+          onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))}
+          style={({ pressed }) => [columnStyle, { alignItems: "center" }, pressed && { opacity: 0.75 }]}
+        >
+          {queueExpanded ? (
+            <Animated.View
+              style={{
+                alignItems: "center",
+                opacity: queueTrayProgress.interpolate({ inputRange: staggerRange, outputRange: [0, 1], extrapolate: "clamp" }),
+                transform: [{ translateY: queueTrayProgress.interpolate({ inputRange: staggerRange, outputRange: [PEOPLE_ENTRANCE_RISE, 0], extrapolate: "clamp" }) }],
+              }}
+            >
+              {faceBody}
+            </Animated.View>
+          ) : (
+            faceBody
+          )}
         </Pressable>
       );
     };
@@ -2706,11 +2831,16 @@ export default function HomeScreen() {
               <Text style={{ fontSize: 12, fontWeight: "600", color: pmf.inkSoft, flexShrink: 1 }}>{prayed} of {total} prayed · {Math.max(0, total - prayed)} to go</Text>
               {canExpandQueue ? (
                 <Pressable
-                  onPress={() => setQueueExpanded((value) => !value)}
+                  onPress={toggleQueueExpanded}
                   accessibilityLabel={queueExpanded ? "Collapse the prayer list" : "Expand the prayer list"}
                   style={({ pressed }) => [{ width: 30, height: 30, borderRadius: 15, backgroundColor: pmf.wash, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.75 }]}
                 >
-                  <MaterialIcons name={queueExpanded ? "expand-less" : "expand-more"} size={20} color={pmf.deep} />
+                  {/* v262: ONE glyph, rotated by the tray's shared
+                      progress (down ↔ up on the same 320ms timing)
+                      — never a glyph swap. */}
+                  <Animated.View style={{ transform: [{ rotate: queueTrayProgress.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] }) }] }}>
+                    <MaterialIcons name="expand-more" size={20} color={pmf.deep} />
+                  </Animated.View>
                 </Pressable>
               ) : null}
             </View>
@@ -2740,15 +2870,39 @@ export default function HomeScreen() {
               </Svg>
             </Animated.View>
           </View>
-          {queueExpanded ? (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", rowGap: 12, marginTop: 13 }}>
-              {queueFaces.map((person) => renderQueueFace(person, { width: "20%" }))}
-            </View>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 13 }} contentContainerStyle={{ flexDirection: "row", gap: 9 }}>
-              {queueFaces.map((person) => renderQueueFace(person, { width: 56 }))}
-            </ScrollView>
-          )}
+          {/* v262: the tray window — a clipping Animated.View whose
+              height IS the open/close motion. At rest the height is
+              auto; a toggle locks it at the current height, the
+              incoming content measures itself (onLayout), and one
+              320ms timing runs the window to the new height, so the
+              cards below glide with it instead of jumping. The +N
+              tile rides the collapsed row's right end, as before. */}
+          <Animated.View style={[{ marginTop: 13, overflow: "hidden" }, queueTrayHeightLocked ? { height: queueTrayHeight } : null]}>
+            {queueExpanded ? (
+              <View onLayout={(event) => handleQueueTrayContentLayout(event.nativeEvent.layout.height)} style={{ flexDirection: "row", flexWrap: "wrap", rowGap: 12 }}>
+                {queueFaces.map((person) => renderQueueFace(person, { width: "20%" }))}
+              </View>
+            ) : (
+              <View onLayout={(event) => handleQueueTrayContentLayout(event.nativeEvent.layout.height)} style={{ flexDirection: "row", gap: 9 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: "row", gap: 9 }}>
+                  {queueFaces.map((person) => renderQueueFace(person, { width: 56 }))}
+                </ScrollView>
+                {canExpandQueue ? (
+                  <Pressable
+                    onPress={toggleQueueExpanded}
+                    accessibilityLabel="Show everyone on today's prayer list"
+                    style={({ pressed }) => [{ width: 56, alignItems: "center" }, pressed && { opacity: 0.75 }]}
+                  >
+                    <View style={{ width: 47, height: 47, borderRadius: 23.5, backgroundColor: pmf.wash, borderWidth: 2, borderStyle: "dashed", borderColor: pmf.wash2, alignItems: "center", justifyContent: "center" }}>
+                      <Text style={{ fontSize: 13, fontWeight: "800", color: pmf.deep }}>+{moreCount}</Text>
+                    </View>
+                    <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "700", color: pmf.ink, marginTop: 5 }}>More</Text>
+                    <Text style={{ fontSize: 10 }}> </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            )}
+          </Animated.View>
           {/* v261 (mockup Stage 1): the action footer — the floating
               pill's count chip as a tonal chip on the left, the
               deep-seed filled Start/Keep praying pill on the right.

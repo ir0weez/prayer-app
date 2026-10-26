@@ -12,6 +12,15 @@
  * pending = undo, countdown pill in place of the status line) are
  * identical either way. Governance unchanged: every color is a pmf
  * role — derive, never pin.
+ *
+ * v262 addendum (same-day device verdict): two of this build's
+ * claims were reversed by Jonathan — "I also like the '+N' circle
+ * at the end. I just wanted it to be more functional" and the
+ * expand swap needed real animation. The +N circle returns as a
+ * functional Pressable and the tray animates with a rotating
+ * chevron; the three pins that asserted the old shapes were
+ * updated in place below, and people-v262.test.ts carries the
+ * new pins.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -23,17 +32,20 @@ const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 const index = read("app/(tabs)/index.tsx");
 const queue = index.slice(index.indexOf("const renderQueueCard"), index.indexOf("const renderStreakCard"));
 
-describe("v260 source pins — no truncation, no +N tile (index.tsx)", () => {
+describe("v260 source pins — no truncation; the +N tile is a button since v262 (index.tsx)", () => {
   it("the queue is never sliced — no slice(0, 5) anywhere in the card", () => {
     expect(queue).not.toContain("slice(0, 5)");
     expect(queue).not.toContain("slice(0,5)");
     expect(queue).not.toContain("const faces =");
   });
 
-  it("the static +N / More tile is gone entirely", () => {
-    expect(queue).not.toContain("moreCount");
-    expect(queue).not.toContain("borderStyle: \"dashed\"");
-    expect(queue).not.toContain(">More</Text>");
+  it("the pre-v260 STATIC +N tile stays gone — the circle that returns in v262 is a button", () => {
+    // The v259 tile was a plain View with a slice-derived count.
+    // v262 brings the circle back (his correction) as a Pressable
+    // on the shared tray toggle — the dead tile must not return.
+    expect(queue).not.toContain("queueFaces.slice(0, 5)");
+    expect(queue).toContain(">+{moreCount}</Text>");
+    expect(queue).toContain("onPress={toggleQueueExpanded}");
   });
 
   it("both modes map the FULL queueFaces list", () => {
@@ -67,11 +79,12 @@ describe("v260 source pins — openable = expand button + grid (index.tsx)", () 
     expect(queue).toContain("{canExpandQueue ? (");
   });
 
-  it("the button is a tonal pmf circle whose icon flips with the state", () => {
+  it("the button is a tonal pmf circle whose chevron rotates with the tray (v262)", () => {
     expect(queue).toContain("backgroundColor: pmf.wash");
-    expect(queue).toContain("queueExpanded ? \"expand-less\" : \"expand-more\"");
+    expect(queue).toContain("name=\"expand-more\"");
+    expect(queue).toContain("rotate: queueTrayProgress.interpolate");
     expect(queue).toContain("color={pmf.deep}");
-    expect(queue).toContain("setQueueExpanded((value) => !value)");
+    expect(queue).toContain("onPress={toggleQueueExpanded}");
   });
 
   it("expanded mode replaces the row with a wrapped grid of everyone", () => {

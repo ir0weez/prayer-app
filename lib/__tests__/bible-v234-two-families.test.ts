@@ -57,22 +57,29 @@ describe('the book panel — two labeled groups', () => {
     ]) {
       expect(src.indexOf(needle), needle).toBeGreaterThan(commentaryAt);
     }
-    // …and the editor row itself is gated on the v233 display model:
-    // it renders only when the chapter is noted (showNotesEditor).
+    // …and this branch of the editor row is gated on the v233
+    // display model: it renders when the chapter is noted
+    // (showNotesEditor). (v278: the not-editor branch below the
+    // on-file line carries the same row for a noteless chapter with
+    // a stored state — study-v278 pins it; this branch is unmoved.)
     expect(src).toContain('{selDisplay.showNotesEditor ? (');
   });
 
-  it('a noteless chapter: no commentary button row, the study group intact, the on-file line inside the commentary group', () => {
+  it('a noteless chapter: the study group intact, the on-file line inside the commentary group', () => {
     // The commentary GROUP renders only when there is something
     // commentary-shaped to say: the editor (noted) or a stored state.
     expect(src).toContain("selDisplay.showNotesEditor || selStatus !== 'none'");
     // The on-file line lives below the YOUR COMMENTARY header…
     const onFileAt = src.indexOf('Notes state on file');
     expect(onFileAt).toBeGreaterThan(commentaryAt);
-    // …in the not-editor branch: the editor row's map is the only
-    // STATUS_EDITOR_ORDER render, and it sits in the showNotesEditor
-    // branch ABOVE the on-file line — so a noteless chapter (editor
-    // branch closed) can show the line but no button row.
+    // …in the not-editor branch: the editor row's FIRST render sits
+    // in the showNotesEditor branch ABOVE the on-file line.
+    // (v278 re-base: a second render of the same row now stands
+    // BELOW the on-file line, inside the same group gate, so a
+    // stored state on a noteless chapter can be changed where it is
+    // shown — study-v278 carries those pins. Nothing here moves:
+    // the first render is still above the line, and a stateless
+    // noteless chapter still opens no group at all.)
     expect(src.indexOf('STATUS_EDITOR_ORDER.map')).toBeLessThan(onFileAt);
     // The study group is untouched by the gate: it closes before the
     // commentary group opens (pinned by the ordering tests above).

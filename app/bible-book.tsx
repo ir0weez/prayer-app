@@ -413,13 +413,43 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
                   </Text>
                 </>
               ) : (
-                // v233: noteless chapter — no notes editor, but a stored
-                // notes state is never hidden from him: it stays on file
-                // inside the commentary group and counts again the day
-                // notes exist for this chapter.
-                <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
-                  Notes state on file: {STATUS_LABEL[selStatus]} — it counts again if notes arrive for this chapter.
-                </Text>
+                // v233: noteless chapter — a stored notes state is never
+                // hidden from him: it stays on file inside the commentary
+                // group and counts again the day notes exist for this
+                // chapter. v278: the state on file is CHANGEABLE here
+                // too — before this, the hint was a dead end: a stored
+                // ReStudy on a noteless chapter (his Leviticus 1) could
+                // not be removed anywhere in the app, because the only
+                // editor in the app was gated on notes existing. The
+                // same editor row stands under the hint, walking the
+                // same applyStatus door as the noted branch.
+                <>
+                  <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
+                    Notes state on file: {STATUS_LABEL[selStatus]} — it counts again if notes arrive for this chapter.
+                  </Text>
+                  <Text style={[styles.editorLabel, { color: palette.inkSoft }]}>Notes state — the notes-written mark; any state, including back to none</Text>
+                  <View style={styles.editorRow}>
+                    {STATUS_EDITOR_ORDER.map((s) => {
+                      const cs = editorChipColors(palette, s);
+                      const isCurrent = s === selStatus;
+                      return (
+                        <Pressable
+                          key={s}
+                          onPress={() => applyStatus(s)}
+                          style={[
+                            styles.editorChip,
+                            { backgroundColor: cs.backgroundColor, borderColor: isCurrent ? palette.ink : cs.borderColor },
+                            isCurrent ? styles.editorChipCurrent : null,
+                          ]}
+                        >
+                          <Text style={[styles.editorChipText, { color: cs.color }]}>
+                            {isCurrent ? '● ' : ''}{STATUS_LABEL[s]}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
               )}
             </>
           ) : null}

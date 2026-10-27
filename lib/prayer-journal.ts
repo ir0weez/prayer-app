@@ -1,4 +1,4 @@
-import type { Person } from "./prayercircle-data";
+import type { Person, PrayerItem } from "./prayercircle-data";
 
 export type PrayerJournalTaggedPerson = Pick<
   Person,
@@ -22,10 +22,20 @@ export type PrayerJournalReply = {
   createdAt: string;
 };
 
+// v281 (Journal, To the Drawing): an entry's KIND — the data the
+// approved frame's two hero cards needed and v252 couldn't carry.
+// A praise posted from the People page is kind "praise" (the gold
+// post); a prayer marked answered posts as kind "answered" (the
+// teal card). Ordinary moments carry NO kind field at all — absence
+// is the ordinary kind, so every entry written before v281 keeps
+// its exact shape.
+export type PrayerJournalEntryKind = "praise" | "answered";
+
 export type PrayerJournalEntry = {
   id: string;
   title?: string;
   body: string;
+  kind?: PrayerJournalEntryKind;
   date: string;
   taggedPeople: PrayerJournalTaggedPerson[];
   places?: PrayerJournalTaggedPlace[];
@@ -147,6 +157,7 @@ export function sortPrayerJournalEntries(entries: PrayerJournalEntry[]): PrayerJ
 type PrayerJournalEntryInput = {
   title?: string;
   body: string;
+  kind?: PrayerJournalEntryKind;
   date?: string;
   taggedPeople?: Person[];
   places?: PrayerJournalTaggedPlace[];
@@ -219,6 +230,7 @@ export function createPrayerJournalEntry(
     weather: input.weather,
     mood: input.mood,
     photos,
+    ...(input.kind ? { kind: input.kind } : {}),
   };
   return sortPrayerJournalEntries([entry, ...entries]);
 }
@@ -420,6 +432,10 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
         })
       : [];
     const title = typeof candidate.title === "string" && candidate.title.trim() ? candidate.title.trim() : undefined;
+    // v281: the kind round-trips — a pack written by v281 keeps
+    // its praise/answered entries; a pack from before the field
+    // existed (or carrying anything else) loads as ordinary.
+    const kind = candidate.kind === "praise" || candidate.kind === "answered" ? candidate.kind : undefined;
     const color = typeof candidate.color === "string" && candidate.color.trim() ? candidate.color.trim() : undefined;
     const location = typeof candidate.location === "string" && candidate.location.trim() ? candidate.location.trim() : undefined;
     const weather = typeof candidate.weather === "string" && candidate.weather.trim() ? candidate.weather.trim() : undefined;
@@ -449,8 +465,54 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
         ...(weather ? { weather } : {}),
         ...(mood ? { mood } : {}),
         ...(candidatePhotos ? { photos: candidatePhotos } : {}),
+        ...(kind ? { kind } : {}),
       } satisfies PrayerJournalEntry,
     ];
   });
   return sortPrayerJournalEntries(normalized);
+}
+
+// ─── v281: entry kinds — the gold praise post, the teal answered post ──────
+
+/** An entry's kind, with absence read as the ordinary moment it has
+ *  always been. Renderers branch on this, never on the raw field. */
+export function journalEntryKind(entry: PrayerJournalEntry): PrayerJournalEntryKind | "moment" {
+  return entry.kind ?? "moment";
+}
+
+/** The stable Journal id for a prayer's answered post — one post
+ *  per prayer item, ever, the studio-moments dedupe discipline. */
+export function answeredPrayerJournalId(personId: string, itemId: string): string {
+  return `journal-answered-${personId}-${itemId}`;
+}
+
+/**
+ * The answered write-in (Jonathan's Oct 26 ruling: praise and
+ * answered posts belong in the Journal). Marking a prayer item
+ * answered posts it: the item's own words — its note under its
+ * title when he wrote both, the title alone when that is all there
+ * is — tagged to the person, kind "answered". Re-marking never
+ * stacks a second post (the stable id above), and un-marking
+ * never deletes the post: it is a moment in the story now.
+ */
+export function addAnsweredPrayerJournalEntry(
+  entries: PrayerJournalEntry[],
+  person: Person,
+  item: PrayerItem,
+  now = new Date(),
+): PrayerJournalEntry[] {
+  const id = answeredPrayerJournalId(person.id, item.id);
+  if (entries.some((entry) => entry.id === id)) return entries;
+  const note = item.note?.trim();
+  return createPrayerJournalEntry(
+    entries,
+    {
+      ...(note ? { title: item.title } : {}),
+      body: note ?? item.title,
+      taggedPeople: [person],
+      kind: "answered",
+    },
+    id,
+    now,
+  );
 }

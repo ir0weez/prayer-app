@@ -22,8 +22,11 @@
  *  (2) change the palette → the family changes: Sunset's and
  *      Pomegranate's families share no ground, tonal fill or
  *      shadow paint; light and dark differ.
- *  (3) the only hex literal in the derivation module is the
- *      praise gold constant — no mockup berry survives.
+ *  (3) the only hex literals in the derivation module are the
+ *      MEANING constants — the praise gold, and (v281 re-base:
+ *      the fidelity audit's D6) the three count hues, which are
+ *      derived exactly like the gold — mixed over the card with
+ *      inks walked to the floor. No mockup pastel survives.
  *  (4) the dress is wired: feed posts paint jm.card with the
  *      family shadow inside the entrance layer; the tab's screen
  *      ground is the family's seed-washed ground (8-bit/Terminal
@@ -79,6 +82,14 @@ describe("v252 — the derivation sweep (every palette × scheme)", () => {
         expect(hexContrast(fam.tealDeep, fam.card), `${theme.id}/${scheme} tealDeep`).toBeGreaterThanOrEqual(4.5);
         expect(hexContrast(fam.tonalInk, fam.tonal), `${theme.id}/${scheme} tonalInk`).toBeGreaterThanOrEqual(4.5);
         expect(hexContrast(fam.goldDeep, fam.goldTint), `${theme.id}/${scheme} goldDeep`).toBeGreaterThanOrEqual(4.5);
+        // v281: the answered card's inks walk on the teal tint, and
+        // each count chip's ink walks on its own meaning-hue mix.
+        expect(hexContrast(fam.tealTintInk, fam.tealTint), `${theme.id}/${scheme} tealTintInk`).toBeGreaterThanOrEqual(4.5);
+        expect(hexContrast(fam.tealInk, fam.tealTint), `${theme.id}/${scheme} tealInk`).toBeGreaterThanOrEqual(4.5);
+        expect(hexContrast(fam.tealInkSoft, fam.tealTint), `${theme.id}/${scheme} tealInkSoft`).toBeGreaterThanOrEqual(4.5);
+        expect(hexContrast(fam.entriesChipInk, fam.entriesChipBg), `${theme.id}/${scheme} entriesChip`).toBeGreaterThanOrEqual(4.5);
+        expect(hexContrast(fam.photosChipInk, fam.photosChipBg), `${theme.id}/${scheme} photosChip`).toBeGreaterThanOrEqual(4.5);
+        expect(hexContrast(fam.eventsChipInk, fam.eventsChipBg), `${theme.id}/${scheme} eventsChip`).toBeGreaterThanOrEqual(4.5);
         // The praise gold is a meaning constant — the same in
         // every palette, never derived from the seed.
         expect(fam.gold).toBe(JOURNAL_PRAISE_GOLD);
@@ -111,10 +122,13 @@ describe("v252 — the derivation sweep (every palette × scheme)", () => {
     expect(light.ground).not.toBe(dark.ground);
   });
 
-  it("the derivation module carries no hex literal but the praise gold", () => {
+  it("the derivation module carries no hex literals but the meaning constants", () => {
     const source = read("lib/journal-material.ts");
     const literals = source.match(/#[0-9A-Fa-f]{6}\b/g) ?? [];
-    expect([...new Set(literals)]).toEqual(["#F59E0B"]);
+    // v281 re-base (audit D6): the praise gold plus the three
+    // count hues — all meaning constants, each mixed over the
+    // card and ink-walked. Pinned mockup pastels stay banned.
+    expect([...new Set(literals)]).toEqual(["#F59E0B", "#22C55E", "#3B82F6", "#EC4899"]);
   });
 });
 
@@ -136,7 +150,11 @@ describe("v252 — the dress is wired (source pins)", () => {
   it("the tab paints the family's ground and wires the chips to it", () => {
     const tab = read("components/prayer-journal-tab.tsx");
     expect(tab).toContain('(skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : jm.ground');
-    expect(tab).toContain("{ backgroundColor: jm.card, borderColor: jm.line }");
+    // v281 re-base (audit D5): the filter chips wear the family's
+    // tonal dress now — the v252 white-outlined chip string is
+    // retired and must not come back.
+    expect(tab).toContain("{ backgroundColor: jm.tonal }");
+    expect(tab).not.toContain("{ backgroundColor: jm.card, borderColor: jm.line }");
     expect(tab).toContain("{ backgroundColor: jm.tonal, borderColor: jm.line, borderRadius: skinTokens.cardRadius ?? 12 }");
     // The feed hands each post its entrance index.
     expect(tab).toContain("<JournalPost entry={item.entry} entranceIndex={index} {...sheetCallbacks} />");

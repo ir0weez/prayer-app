@@ -9,10 +9,10 @@ import { MarkdownText } from "@/components/markdown-text";
 import { MoodFace, MoodFaceChip } from "@/components/mood-face";
 import { moodById, type JournalMood } from "@/components/mood-picker";
 import { useSkin } from "@/hooks/use-skin";
-import { entryTags, formatClock, isMoodOnlyEntry, peopleMentionedInBody } from "@/lib/journal-moments";
+import { addDaysToIso, entryTags, formatClock, isoDateOf, isMoodOnlyEntry, peopleMentionedInBody } from "@/lib/journal-moments";
 import { useJournalMaterial } from "@/hooks/use-journal-material";
 import type { Person } from "@/lib/prayercircle-data";
-import { formatPrayerJournalDate, type PrayerJournalEntry, type PrayerJournalReply } from "@/lib/prayer-journal";
+import { formatPrayerJournalDate, journalEntryKind, type PrayerJournalEntry, type PrayerJournalReply } from "@/lib/prayer-journal";
 import { hasTypeScale, skinText } from "@/lib/skin-themes";
 
 // v194 (Journal, Zeitgeist): the mockup's post — a FLAT row on a
@@ -43,6 +43,9 @@ type JournalPostProps = {
   onOpenTag: (tag: string) => void;
   onShowActions: (entry: PrayerJournalEntry) => void;
   onReplyLongPress: (entry: PrayerJournalEntry, reply: PrayerJournalReply) => void;
+  /** v281 (D8): the footer row's bookmark toggle — the same path
+   *  the ··· menu's Bookmark item walks. */
+  onToggleBookmark?: (entry: PrayerJournalEntry) => void;
   hidePhotos?: boolean;
   avatarMode?: "author" | "mood";
   /** Feed position, when the post rides the v252 entrance layer (feed only). */
@@ -105,6 +108,7 @@ export function JournalPost({
   onOpenTag,
   onShowActions,
   onReplyLongPress,
+  onToggleBookmark,
   hidePhotos = false,
   avatarMode = "author",
   entranceIndex,
@@ -114,11 +118,11 @@ export function JournalPost({
   const [expanded, setExpanded] = useState(false);
 
   // v195 (Journal, Actually Zeitgeist): an entry's legacy color is
-  // an ACCENT now — a thin rule at the row's left edge (colorRule
-  // below) — never the row's surface. v194 filled the whole post
-  // with entry.color and flipped the text white; on his phone a
-  // colored long entry became a full-screen orange block, nothing
-  // like the mockup's flat rows on a plain surface.
+  // an ACCENT now — a thin rule at the row's left edge — never the
+  // row's surface. v194 filled the whole post with entry.color and
+  // flipped the text white; on his phone a colored long entry
+  // became a full-screen orange block, nothing like the mockup's
+  // flat rows on a plain surface.
   // v196: v195 also forced the mockup's WHITE surface onto the post
   // under Classic (the lightSurface treatment) — his app runs dark
   // everywhere else and the white Journal glared ("Holy bright!").
@@ -135,8 +139,19 @@ export function JournalPost({
   // v194's chip lesson holds — chips stay a bg/ink PAIR, both halves
   // derived together (tonal + tonalInk) so a name can never render
   // invisibly on its own chip again.
-  const ink = jm.ink;
-  const faint = jm.inkSoft;
+  // v281 (D9): the legacy color RULE retires — no drawing carries
+  // a left-edge band on a post. entry.color stays in the data
+  // untouched (the editor still writes it); it just no longer
+  // paints furniture on the card.
+  // v281 (D2/D3): the entry KIND dresses the card — a praise post
+  // leads with the praised person's gold-ringed face; an answered
+  // post is the frame's teal card, its inks walked on the tint.
+  const kind = journalEntryKind(entry);
+  const isPraise = kind === "praise";
+  const isAnswered = kind === "answered";
+  const praisedPerson = isPraise ? entry.taggedPeople[0] : undefined;
+  const ink = isAnswered ? jm.tealInk : jm.ink;
+  const faint = isAnswered ? jm.tealInkSoft : jm.inkSoft;
   const hairline = jm.line;
   const chipBg = jm.tonal;
   const chipInk = jm.tonalInk;
@@ -166,6 +181,16 @@ export function JournalPost({
   const placeForTag = (tag: string) => (entry.places ?? []).find((place) => place.tag.toLowerCase() === tag);
   const bodyText = expanded || entry.body.length <= 240 ? entry.body : `${entry.body.slice(0, 240)}…`;
   const photos = entry.photos ?? [];
+  // v281 (D7): the head's meta subline — relative day · time, and
+  // the place when the entry carries one. Only what's true.
+  const todayKey = isoDateOf(new Date());
+  const dayLabel =
+    entry.date === todayKey
+      ? "Today"
+      : entry.date === addDaysToIso(todayKey, -1)
+        ? "Yesterday"
+        : formatPrayerJournalDate(entry.date, false);
+  const metaLine = `${dayLabel} · ${formatClock(entry.createdAt)}${entry.location ? ` · ${entry.location}` : ""}`;
 
   return (
     <JournalEntrance index={entranceIndex ?? 0} style={styles.cardWrap}>
@@ -185,20 +210,36 @@ export function JournalPost({
           // tones of one palette, never the v195 slab-on-lavender.
           backgroundColor: jm.card,
           shadowColor: jm.shadow,
+          // v281 (D3): the answered card is the frame's teal tint
+          // and casts NO shadow — the tint does the separation.
+          ...(isAnswered ? { backgroundColor: jm.tealTint, shadowColor: "transparent", shadowOpacity: 0, elevation: 0 } : {}),
           ...(hasTypeScale(skinTokens) ? { padding: 16 + skinTokens.type.padBoost } : {}),
         },
         pressed && styles.pressed,
       ]}
     >
-      {entry.color ? <View pointerEvents="none" style={[styles.colorRule, { backgroundColor: entry.color }]} /> : null}
+      {isAnswered ? (
+        <Text style={[styles.kicker, { color: jm.tealTintInk }]}>Answered prayer</Text>
+      ) : null}
       <View style={styles.postHead}>
-        {avatarMode === "mood" && entry.mood ? (
+        {avatarMode === "mood" && entry.mood && !praisedPerson ? (
           <MoodFace moodId={entry.mood.id} size={30} />
+        ) : praisedPerson ? (
+          // v281 (D2): the praise post leads with the praised
+          // person's face in the frame's gold ring (a ground gap,
+          // then the gold — the app's praise constant).
+          <View style={[styles.praiseRing, { backgroundColor: jm.card, borderColor: jm.gold }]}>
+            <AvatarImage id={praisedPerson.id} name={praisedPerson.name} gender={praisedPerson.gender} avatarAsset={praisedPerson.avatarAsset} photoUri={praisedPerson.photoUri} size={40} fallbackColor={praisedPerson.avatarColor} />
+          </View>
         ) : (
-          <AvatarImage id="journal-author" name={author.name} avatarAsset={author.avatarAsset} photoUri={author.photoUri} size={34} fallbackColor="#7C4DFF" />
+          <AvatarImage id="journal-author" name={author.name} avatarAsset={author.avatarAsset} photoUri={author.photoUri} size={40} fallbackColor="#7C4DFF" />
         )}
-        <Text style={[styles.name, { color: ink }, skinText(skinTokens, skinTokens.type.barTitle, 22)]}>{author.name}</Text>
-        <Text style={[styles.time, { color: faint }]}>{formatClock(entry.createdAt)}</Text>
+        <View style={styles.headText}>
+          <Text style={[styles.name, { color: ink }, skinText(skinTokens, skinTokens.type.barTitle, 22)]}>
+            {praisedPerson ? `Praise · ${praisedPerson.name.split(/\s+/)[0]}` : author.name}
+          </Text>
+          <Text style={[styles.meta, { color: faint }]}>{metaLine}</Text>
+        </View>
         <Pressable
           accessibilityLabel="Entry options"
           onPress={() => onShowActions(entry)}
@@ -311,11 +352,34 @@ export function JournalPost({
         </View>
       ) : null}
 
+      {/* v281 (D8): the card closes with the drawing's footer row —
+          real affordances only: the reply count at the left (the
+          count that used to head the replies section lives here
+          now), the bookmark state at the right, filled when
+          bookmarked and toggling through the same path the ···
+          menu uses. No heart, no counts that don't exist. */}
+      <View style={[styles.footer, { borderTopColor: hairline }]}>
+        {entry.replies.length > 0 ? (
+          <View style={styles.footerLeft}>
+            <MaterialIcons name="chat-bubble-outline" size={14} color={faint} />
+            <Text style={[styles.footerText, { color: faint }]}>
+              {entry.replies.length} {entry.replies.length === 1 ? "reply" : "replies"}
+            </Text>
+          </View>
+        ) : (
+          <View />
+        )}
+        <Pressable
+          accessibilityLabel={entry.isBookmarked ? "Remove bookmark" : "Bookmark entry"}
+          onPress={() => onToggleBookmark?.(entry)}
+          style={({ pressed }) => [styles.footerBookmark, pressed && styles.pressed]}
+        >
+          <MaterialIcons name={entry.isBookmarked ? "bookmark" : "bookmark-border"} size={19} color={entry.isBookmarked ? jm.deep : faint} />
+        </Pressable>
+      </View>
+
       {entry.replies.length > 0 ? (
         <View style={[styles.replies, { borderTopColor: hairline }]}>
-          <Text style={[styles.replyCount, { color: faint }]}>
-            {entry.replies.length} {entry.replies.length === 1 ? "reply" : "replies"}
-          </Text>
           {entry.replies.map((reply) => (
             <Pressable
               key={reply.id}
@@ -351,20 +415,26 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   pressed: { opacity: 0.7 },
-  // v195: the legacy entry color as a thin accent rule at the row's
-  // left edge — the only place a color may appear on a post now.
-  // v252: the card clips it to its rounded corner (overflow above).
-  colorRule: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
+  // v281 (D3): the answered card's kicker — the frame's letterspaced
+  // teal-deep label, in the family's tint ink.
+  kicker: { fontSize: 11, fontWeight: "800", letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 8 },
+  // v281 (D2): the gold ring around the praised person's face —
+  // the frame's double ring (ground gap, then gold) as a bordered
+  // pad, since RN has no stacked box-shadow.
+  praiseRing: { borderRadius: 999, borderWidth: 3, padding: 2.5 },
   postHead: { flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 6 },
+  // v281 (D7): name over meta subline, the frame's post head.
+  headText: { flex: 1, minWidth: 0 },
   name: { fontSize: 15, fontWeight: "800" },
-  time: { fontSize: 13, fontWeight: "600" },
+  meta: { fontSize: 12, fontWeight: "600", marginTop: 1 },
   dots: { marginLeft: "auto", padding: 4 },
   title: { fontSize: 16, fontWeight: "800", marginBottom: 4 },
   body: { fontSize: 15.5, lineHeight: 22.5 },
   moodLog: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 2 },
   moodName: { fontSize: 15.5, fontWeight: "800" },
   moodSub: { fontSize: 13 },
-  photo: { height: 148, borderRadius: 16, marginTop: 10, width: "100%" },
+  // v281 (D10): the frame's feed photo metrics (v1 §5).
+  photo: { height: 138, borderRadius: 20, marginTop: 10, width: "100%" },
   photoCaption: { fontSize: 11, fontWeight: "700", marginTop: 5 },
   thumbRow: { flexDirection: "row", gap: 7, marginTop: 7 },
   thumb: { width: 62, height: 52, borderRadius: 11 },
@@ -378,8 +448,19 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   chipText: { fontSize: 12.5, fontWeight: "700" },
+  // v281 (D8): the footer row that closes the card.
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: 12,
+    paddingTop: 8,
+  },
+  footerLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
+  footerText: { fontSize: 12.5, fontWeight: "700" },
+  footerBookmark: { padding: 4 },
   replies: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 12, paddingTop: 10, gap: 8 },
-  replyCount: { fontSize: 12.5, fontWeight: "700" },
   replyDate: { fontSize: 11.5, fontWeight: "600" },
   replyBody: { fontSize: 14.5, lineHeight: 21 },
 });

@@ -23,6 +23,7 @@ import {
   type PlaceNode,
 } from "@/lib/journal-moments";
 import { useJournalMaterial } from "@/hooks/use-journal-material";
+import { hexToRgba } from "@/lib/bible-v205/palette-accents";
 import type { Person } from "@/lib/prayercircle-data";
 import type { PrayerJournalEntry, PrayerJournalReply } from "@/lib/prayer-journal";
 import { getActiveFast, getCurrentFastDay, type PersonalFast } from "@/lib/prayercircle-fasting";
@@ -59,6 +60,8 @@ type JournalDayProps = {
   onOpenTag: (tag: string) => void;
   onShowActions: (entry: PrayerJournalEntry) => void;
   onReplyLongPress: (entry: PrayerJournalEntry, reply: PrayerJournalReply) => void;
+  /** v281 (D8): the post footer's bookmark toggle. */
+  onToggleBookmark?: (entry: PrayerJournalEntry) => void;
 };
 
 const BAND_W = 392;
@@ -105,14 +108,19 @@ const PLACE_ICONS: Record<PlaceIconHint, string> = {
   place: "place",
 };
 
-function PlaceNodeView({ node, anchor }: { node: PlaceNode; anchor: { x: number; top: number } }) {
+// v281 (D12): the path's CHROME violet derives from the journal
+// family's seed-deep (passed in as `accent`) — the route, the NOW
+// pin's border and halo, its name and pill all re-tone with the
+// palette. The land/water pastels below are the place's PICTURE,
+// not chrome, and stay as drawn.
+function PlaceNodeView({ node, anchor, accent }: { node: PlaceNode; anchor: { x: number; top: number }; accent: string }) {
   const isNow = node.state === "now";
   const pin = (
-    <View style={[styles.ppPin, isNow && styles.ppPinNow]}>
+    <View style={[styles.ppPin, isNow && { borderColor: accent }]}>
       <MaterialIcons
         name={PLACE_ICONS[node.iconHint] as never}
         size={20}
-        color={isNow ? "#5E35D6" : "#5E5875"}
+        color={isNow ? accent : "#5E5875"}
       />
     </View>
   );
@@ -127,13 +135,13 @@ function PlaceNodeView({ node, anchor }: { node: PlaceNode; anchor: { x: number;
         },
       ]}
     >
-      {isNow ? <View style={styles.ppRing}>{pin}</View> : pin}
-      <Text style={[styles.ppName, isNow && { color: "#5E35D6" }]} numberOfLines={1}>
+      {isNow ? <View style={[styles.ppRing, { borderColor: hexToRgba(accent, 0.28) }]}>{pin}</View> : pin}
+      <Text style={[styles.ppName, isNow && { color: accent }]} numberOfLines={1}>
         {node.location}
       </Text>
       {node.timeLabel ? <Text style={styles.ppTime}>{node.timeLabel}</Text> : null}
       {isNow ? (
-        <View style={styles.ppNow}>
+        <View style={[styles.ppNow, { backgroundColor: accent }]}>
           <Text style={styles.ppNowText}>Now</Text>
         </View>
       ) : null}
@@ -141,7 +149,7 @@ function PlaceNodeView({ node, anchor }: { node: PlaceNode; anchor: { x: number;
   );
 }
 
-function PlacesPathBand({ events, date }: { events: ScheduleEvent[]; date: string }) {
+function PlacesPathBand({ events, date, accent }: { events: ScheduleEvent[]; date: string; accent: string }) {
   // "Live" at render: the path and its NOW marker are computed from
   // the day's schedule and the current time whenever the Day opens
   // or re-renders — the app runs no background timers.
@@ -160,13 +168,13 @@ function PlacesPathBand({ events, date }: { events: ScheduleEvent[]; date: strin
         <Path d="M30 -10 L140 236 M118 -10 L224 236 M-10 74 L402 50 M-10 128 L402 152" stroke="#C9C2B4" strokeWidth={9} fill="none" />
         <Path d="M30 -10 L140 236 M118 -10 L224 236 M-10 74 L402 50 M-10 128 L402 152" stroke="#FFFFFF" strokeWidth={5.5} fill="none" />
         {centers.length > 1 ? (
-          <Path d={routePath(centers)} stroke="#7C4DFF" strokeWidth={2.5} fill="none" strokeDasharray="6 6" opacity={0.7} />
+          <Path d={routePath(centers)} stroke={accent} strokeWidth={2.5} fill="none" strokeDasharray="6 6" opacity={0.7} />
         ) : null}
         <SvgText x={24} y={30} fontSize={10.5} fontWeight="700" fill="#7C8A70">ANTELOPE VALLEY</SvgText>
         <SvgText x={252} y={212} fontSize={10.5} fontWeight="700" fill="#7C8A70">LANCASTER</SvgText>
       </Svg>
       {path.nodes.map((node, index) => (
-        <PlaceNodeView key={node.key} node={node} anchor={anchors[index]} />
+        <PlaceNodeView key={node.key} node={node} anchor={anchors[index]} accent={accent} />
       ))}
       {path.homeOnly ? <Text style={styles.bandCaption}>A home day — no places on the schedule</Text> : null}
     </View>
@@ -186,6 +194,7 @@ export function JournalDay({
   onOpenTag,
   onShowActions,
   onReplyLongPress,
+  onToggleBookmark,
 }: JournalDayProps) {
   const colors = useColors();
   const { tokens: skinTokens } = useSkin();
@@ -199,14 +208,28 @@ export function JournalDay({
 
   const ink = skinTokens.isTerminal ? TERM_SOFT : colors.foreground;
   const faint = skinTokens.isTerminal ? TERM_MID : colors.muted;
-  const chipBg = (pastel: string) => (skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : pastel);
-  const chipInk = skinTokens.isTerminal ? TERM_PHOS : colors.foreground;
+  // v281 (D12): the day view's chips wear the journal family's
+  // derived pairs — the count chips take the same meaning-hue
+  // pairs as the Today strip, the fast chip takes the family's
+  // teal tint pair, the mood chip the tonal pair. The pinned
+  // pastel washes are gone; Terminal/8-bit keep their panel dress.
+  const chipPair = (bg: string, inkOn: string) =>
+    skinTokens.isTerminal
+      ? { bg: TERM_PANEL, ink: TERM_PHOS }
+      : skinTokens.isEightBit
+        ? { bg: BIT_PANEL, ink: colors.foreground }
+        : { bg, ink: inkOn };
+  const entriesPair = chipPair(jm.entriesChipBg, jm.entriesChipInk);
+  const photosPair = chipPair(jm.photosChipBg, jm.photosChipInk);
+  const eventsPair = chipPair(jm.eventsChipBg, jm.eventsChipInk);
+  const fastPair = chipPair(jm.tealTint, jm.tealTintInk);
+  const moodPairBg = chipPair(jm.tonal, jm.tonalInk).bg;
 
   return (
     <View style={{ flex: 1 }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
         <View>
-          <PlacesPathBand events={events} date={date} />
+          <PlacesPathBand events={events} date={date} accent={jm.deep} />
           <Pressable
             accessibilityLabel="Back to Moments"
             onPress={onBack}
@@ -220,30 +243,30 @@ export function JournalDay({
         <Text style={[styles.daySub, { color: faint }]}>{formatDaySub(date)} · the whole day, gathered on its own</Text>
 
         <View style={styles.chipsCloud}>
-          <View style={[styles.dchip, { backgroundColor: chipBg("#E1EDFB") }]}>
-            <MaterialIcons name="edit" size={15} color={chipInk} />
-            <Text style={[styles.dchipText, { color: chipInk }]}>{counts.entries} {counts.entries === 1 ? "entry" : "entries"}</Text>
+          <View style={[styles.dchip, { backgroundColor: entriesPair.bg }]}>
+            <MaterialIcons name="edit" size={15} color={entriesPair.ink} />
+            <Text style={[styles.dchipText, { color: entriesPair.ink }]}>{counts.entries} {counts.entries === 1 ? "entry" : "entries"}</Text>
           </View>
           {counts.photos > 0 ? (
-            <View style={[styles.dchip, { backgroundColor: chipBg("#FBE3EC") }]}>
-              <MaterialIcons name="photo-camera" size={15} color={chipInk} />
-              <Text style={[styles.dchipText, { color: chipInk }]}>{counts.photos} {counts.photos === 1 ? "photo" : "photos"}</Text>
+            <View style={[styles.dchip, { backgroundColor: photosPair.bg }]}>
+              <MaterialIcons name="photo-camera" size={15} color={photosPair.ink} />
+              <Text style={[styles.dchipText, { color: photosPair.ink }]}>{counts.photos} {counts.photos === 1 ? "photo" : "photos"}</Text>
             </View>
           ) : null}
           {counts.events > 0 ? (
-            <View style={[styles.dchip, { backgroundColor: chipBg("#E9E4FB") }]}>
-              <MaterialIcons name="event" size={15} color={chipInk} />
-              <Text style={[styles.dchipText, { color: chipInk }]}>{counts.events} {counts.events === 1 ? "event" : "events"}</Text>
+            <View style={[styles.dchip, { backgroundColor: eventsPair.bg }]}>
+              <MaterialIcons name="event" size={15} color={eventsPair.ink} />
+              <Text style={[styles.dchipText, { color: eventsPair.ink }]}>{counts.events} {counts.events === 1 ? "event" : "events"}</Text>
             </View>
           ) : null}
           {fast ? (
-            <View style={[styles.dchip, { backgroundColor: chipBg("#DDF2EE") }]}>
-              <MaterialIcons name="local-fire-department" size={15} color={chipInk} />
-              <Text style={[styles.dchipText, { color: chipInk }]}>Fasting · day {getCurrentFastDay(fast, date)} of {fast.durationDays}</Text>
+            <View style={[styles.dchip, { backgroundColor: fastPair.bg }]}>
+              <MaterialIcons name="local-fire-department" size={15} color={fastPair.ink} />
+              <Text style={[styles.dchipText, { color: fastPair.ink }]}>Fasting · day {getCurrentFastDay(fast, date)} of {fast.durationDays}</Text>
             </View>
           ) : null}
           {painted ? (
-            <View style={[styles.dchip, { backgroundColor: chipBg("#F1F0F5") }]}>
+            <View style={[styles.dchip, { backgroundColor: moodPairBg }]}>
               {DAY_PARTS.map((part) => (painted[part] ? <MoodFace key={part} moodId={painted[part]} size={17} /> : null))}
               <Text style={[styles.dchipText, { color: faint, fontSize: 11.5 }]}>morning · midday · evening</Text>
             </View>
@@ -268,6 +291,7 @@ export function JournalDay({
                   onOpenTag={onOpenTag}
                   onShowActions={onShowActions}
                   onReplyLongPress={onReplyLongPress}
+                  onToggleBookmark={onToggleBookmark}
                   hidePhotos
                 />
               );
@@ -350,17 +374,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
   },
-  ppPinNow: { borderColor: "#7C4DFF" },
+  // v281 (D12): the NOW border/background derive from the family
+  // accent and are applied inline at the render site.
   ppRing: {
     borderRadius: 999,
     padding: 3,
     borderWidth: 3,
-    borderColor: "rgba(124,77,255,0.28)",
     margin: -6,
   },
   ppName: { fontSize: 11.5, fontWeight: "800", color: "#1D1830", marginTop: 4, lineHeight: 13, textAlign: "center" },
   ppTime: { fontSize: 10, fontWeight: "700", color: "#7C8A70", textAlign: "center" },
-  ppNow: { backgroundColor: "#7C4DFF", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1.5, marginTop: 2 },
+  ppNow: { borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1.5, marginTop: 2 },
   ppNowText: { color: "#FFFFFF", fontSize: 8.5, fontWeight: "800", letterSpacing: 1 },
   bandCaption: { position: "absolute", left: 12, bottom: 10, fontSize: 10.5, fontWeight: "700", color: "#7C8A70" },
   roundBtn: {

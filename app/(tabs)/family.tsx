@@ -9,7 +9,8 @@ import { sortFamilyMembers, type Person } from "@/lib/prayercircle-data";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { BIT_ON_DUSK } from "@/lib/skin-themes";
-import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { addAnsweredPrayerJournalEntry, normalizePrayerJournalEntries } from "@/lib/prayer-journal";
 import { togglePrayerItemDone, ungroupFromFamily } from "@/lib/prayercircle-data";
 
 export default function FamilyScreen() {
@@ -64,9 +65,29 @@ export default function FamilyScreen() {
   };
 
   const handleTogglePrayerDone = (prayerId: string) => {
+    const answeredItem = selectedMember?.prayerItems?.find((prayer) => prayer.id === prayerId);
+    const flippingToAnswered = Boolean(answeredItem && !answeredItem.isDone);
     const updated = togglePrayerItemDone(people, selectedMemberId || "", prayerId);
     setPeople(updated);
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
+    // v281 (D3): the same answered write-in as the person page —
+    // marking a prayer answered from the family page posts it to
+    // the Journal as a kind-"answered" entry. Failed journal
+    // writes never interrupt; the stable id prevents duplicates.
+    if (flippingToAnswered && selectedMember && answeredItem) {
+      void (async () => {
+        try {
+          const raw = await AsyncStorage.getItem(JOURNAL_STORAGE_KEY);
+          const entries = raw ? normalizePrayerJournalEntries(JSON.parse(raw)) : [];
+          const next = addAnsweredPrayerJournalEntry(entries, selectedMember, answeredItem);
+          if (next !== entries) {
+            await AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(next));
+          }
+        } catch {
+          // Losing the Journal post must never break marking answered.
+        }
+      })();
+    }
   };
 
   const handleDeletePrayer = (prayerId: string) => {

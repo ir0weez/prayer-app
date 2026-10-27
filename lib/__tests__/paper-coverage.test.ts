@@ -28,9 +28,10 @@ describe("v179 paper coverage — every named surface consumes the skin", () => 
     // v195 (Journal, Actually Zeitgeist): the entry color no longer
     // paints the row at all — v194's full-bleed fill read on his
     // phone as a giant colored block, nothing like the mockup's
-    // flat rows. The color survives only as the post's thin left
-    // accent rule (colorRule); the row's surface is the surface.
-    expect(journal).toContain("styles.colorRule");
+    // flat rows. v281 re-base (audit D9): the colorRule the color
+    // survived as retires too — no drawing carries a left-edge band
+    // on a post. entry.color stays in the data; it paints nothing.
+    expect(journal).not.toContain("styles.colorRule");
     expect(journal).not.toContain("entry.color ?? paperSurface");
     // Sheets sit on the paper page background.
     expect(journal).toContain("skinTokens.background");

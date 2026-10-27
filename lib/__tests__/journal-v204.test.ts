@@ -300,13 +300,18 @@ describe("v204 — flat composition + the morph (source pins)", () => {
     expect(post).toContain("place ? place.name : capitalize(tag)");
   });
 
-  it("the day pill is a flat in-flow row: no shadow, no elevation, transparent fill", () => {
+  it("the day pill is a flat in-flow row: no shadow, no elevation", () => {
     const tab = read("components/prayer-journal-tab.tsx");
     const dayPill = tab.slice(tab.indexOf("dayPill: {"), tab.indexOf("dayPillToday:"));
     expect(dayPill).not.toContain("shadowColor");
     expect(dayPill).not.toContain("shadowOpacity");
     expect(dayPill).not.toContain("elevation:");
-    expect(tab).toContain('{ backgroundColor: "transparent", borderColor: momentsBorder }');
+    // v281 re-base (audit D1/D6): the pill's fill is the family's
+    // tonal now, not v204's transparent — the transparent shape is
+    // what let the Today block collapse into the page in v252.
+    // The v204 flatness contract (no shadow, no elevation) holds.
+    expect(tab).toContain('{ backgroundColor: jm.tonal, borderColor: jm.line }');
+    expect(tab).not.toContain('{ backgroundColor: "transparent", borderColor: momentsBorder }');
   });
 
   it("the composer is a morph: FAB at rest, one timing animation, no springs, no leftover bar", () => {

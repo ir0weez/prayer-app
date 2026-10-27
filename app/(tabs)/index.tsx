@@ -3357,7 +3357,10 @@ export default function HomeScreen() {
                         onPressIn={registerTouch}
                         onPress={() => {
                           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                          setJournal((previous) => createPrayerJournalEntry(previous, { body: text, taggedPeople: [praisedPerson] }, `journal-praise-${Date.now()}`));
+                          // v281 (D2): a posted praise is kind
+                          // "praise" — the Journal renders it as
+                          // the frame's gold praise post.
+                          setJournal((previous) => createPrayerJournalEntry(previous, { body: text, taggedPeople: [praisedPerson], kind: "praise" }, `journal-praise-${Date.now()}`));
                           setActiveTab("journal");
                         }}
                         style={({ pressed }) => [{ backgroundColor: "#B26E12", borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}

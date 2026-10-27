@@ -47,6 +47,8 @@ type SheetCallbacks = {
   onOpenTag: (tag: string) => void;
   onShowActions: (entry: PrayerJournalEntry) => void;
   onReplyLongPress: (entry: PrayerJournalEntry, reply: PrayerJournalReply) => void;
+  /** v281 (D8): the post footer's bookmark toggle. */
+  onToggleBookmark?: (entry: PrayerJournalEntry) => void;
 };
 
 function SheetShell({

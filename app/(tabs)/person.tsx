@@ -49,7 +49,8 @@ import {
 import { usePeopleMaterial } from "@/hooks/use-people-material";
 import { getPraiseDisplay } from "@/lib/praise-display";
 import { PeopleEntrance } from "@/components/people-entrance";
-import { PEOPLE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { addAnsweredPrayerJournalEntry, normalizePrayerJournalEntries } from "@/lib/prayer-journal";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { awardXP } from "@/lib/xp-engine";
 import { getNotificationPreferences } from "@/lib/notification-scheduler";
@@ -447,7 +448,29 @@ export default function PersonScreen() {
   const handleToggleDone = (itemId: string) => {
     if (!personId) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const answeredItem = currentPerson?.prayerItems.find((item) => item.id === itemId);
+    const flippingToAnswered = Boolean(answeredItem && !answeredItem.isDone);
     updatePeople((previousPeople) => togglePrayerItemDone(previousPeople, personId, itemId));
+    // v281 (D3): marking a prayer ANSWERED posts it to the Journal
+    // as a kind-"answered" entry (Jonathan's Oct 26 ruling: praise
+    // and answered posts belong in the Journal). Written through
+    // the same AsyncStorage door the fast recaps use; a failed
+    // journal write never interrupts the profile, and the stable
+    // id means re-marking never stacks a second post.
+    if (flippingToAnswered && currentPerson && answeredItem) {
+      void (async () => {
+        try {
+          const raw = await AsyncStorage.getItem(JOURNAL_STORAGE_KEY);
+          const entries = raw ? normalizePrayerJournalEntries(JSON.parse(raw)) : [];
+          const next = addAnsweredPrayerJournalEntry(entries, currentPerson, answeredItem);
+          if (next !== entries) {
+            await AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(next));
+          }
+        } catch {
+          // Losing the Journal post must never break marking answered.
+        }
+      })();
+    }
   };
 
   // v258: the Praise button — with a praise running it keeps today's

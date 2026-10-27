@@ -667,6 +667,9 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
     people,
     onOpenPerson: (id: string) => setPersonId(id),
     onOpenTag: (tag: string) => setTagPage(tag),
+    // v281 (D8): the post footer's bookmark toggle — the same
+    // toggle the ··· menu walks.
+    onToggleBookmark: (entry: PrayerJournalEntry) => toggleBookmark(entry),
     onShowActions: (entry: PrayerJournalEntry) => {
       setActionReply(null);
       setActionEntry(entry);
@@ -709,10 +712,31 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
   const faint = skinTokens.isTerminal ? TERM_MID : colors.muted;
   const momentsSurface = colors.surface;
   const momentsBorder = colors.border;
-  // The day pill's count chips, as a bg/ink pair per skin (mirrors
-  // journal-day's chipBg pattern, with readable ink on each ground).
-  const pillChipBg = (pastel: string) => (skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : pastel);
-  const pillChipInk = skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : "#1D1830";
+  // v281 (D6): the day pill's count chips wear the journal
+  // family's derived pairs — a meaning hue mixed over the card
+  // with its ink walked to the floor (lib/journal-material). The
+  // fixed pastels and fixed ink are gone; Terminal and 8-bit keep
+  // their own panel dress, as everywhere in the app.
+  const pillChipBg = (kind: "entries" | "photos" | "events") =>
+    skinTokens.isTerminal
+      ? TERM_PANEL
+      : skinTokens.isEightBit
+        ? BIT_PANEL
+        : kind === "entries"
+          ? jm.entriesChipBg
+          : kind === "photos"
+            ? jm.photosChipBg
+            : jm.eventsChipBg;
+  const pillChipInk = (kind: "entries" | "photos" | "events") =>
+    skinTokens.isTerminal
+      ? TERM_PHOS
+      : skinTokens.isEightBit
+        ? BIT_ON_DUSK
+        : kind === "entries"
+          ? jm.entriesChipInk
+          : kind === "photos"
+            ? jm.photosChipInk
+            : jm.eventsChipInk;
   // v213: the morphing composer's ground — SOLID, in every skin.
   // v204's frost (Classic's surface at 90% over a blur layer;
   // translucent white under Paper) rendered on his phone as a
@@ -765,39 +789,50 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
           // of the feed; other skins get the plain View as before.
           <PaperSettle>
 <BitSettle>
+            {/* v281 (D4): the header goes to the drawing — a
+                left-aligned title block ("Journal" + the v1
+                subline), nothing else in the bar but the furniture
+                at the right: the search|calendar pill in the
+                family's tonal dress, his avatar keeping its
+                write-a-long-entry shortcut, and the bell at the
+                masthead's right edge. The app-icon wordmark that
+                floated beside the title is gone — no drawing
+                carries it. */}
             <View style={styles.header}>
-              <Pressable
-                accessibilityLabel="Write a long entry"
-                onPress={() => openEditor()}
-                style={({ pressed }) => [styles.personBtn, { borderColor: momentsBorder }, pressed && styles.pressed]}
-              >
-                <AvatarImage id="journal-author" name={author.name} avatarAsset={author.avatarAsset} photoUri={author.photoUri} size={40} fallbackColor="#7C4DFF" />
-              </Pressable>
-              <View style={styles.wordmark}>
-                <Image source={require("../assets/images/icon.png")} style={styles.logoMark} contentFit="contain" />
+              <View style={styles.titleBlock}>
                 <Text style={[styles.journalTitle, { color: ink }, skinText(skinTokens, skinTokens.type.screenTitle)]}>Journal</Text>
+                <Text style={[styles.journalSub, { color: jm.inkSoft }]}>Your story, as it happens</Text>
               </View>
-              <View style={[styles.headPill, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : momentsSurface, borderColor: momentsBorder }]}>
+              <View style={styles.headCluster}>
+                <View style={[styles.headPill, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : jm.tonal, borderColor: skinTokens.isTerminal ? momentsBorder : "transparent" }]}>
+                  <Pressable
+                    accessibilityLabel="Search journal"
+                    onPress={() => {
+                      // v196: toggling the search bar resets the
+                      // query — a filter must never outlive the bar
+                      // that shows it (that invisible leftover is
+                      // what hid a fresh post from this feed).
+                      setSearchOpen((current) => !current);
+                      setQuery("");
+                    }}
+                    style={styles.headPillBtn}
+                  >
+                    <MaterialIcons name="search" size={20} color={ink} />
+                  </Pressable>
+                  <View style={[styles.headDivider, { backgroundColor: jm.line }]} />
+                  <Pressable accessibilityLabel="Open mood calendar" onPress={() => setCalendarOpen(true)} style={styles.headPillBtn}>
+                    <MaterialIcons name="calendar-month" size={20} color={ink} />
+                  </Pressable>
+                </View>
                 <Pressable
-                  accessibilityLabel="Search journal"
-                  onPress={() => {
-                    // v196: toggling the search bar resets the
-                    // query — a filter must never outlive the bar
-                    // that shows it (that invisible leftover is
-                    // what hid a fresh post from this feed).
-                    setSearchOpen((current) => !current);
-                    setQuery("");
-                  }}
-                  style={styles.headPillBtn}
+                  accessibilityLabel="Write a long entry"
+                  onPress={() => openEditor()}
+                  style={({ pressed }) => [styles.personBtn, { borderColor: momentsBorder }, pressed && styles.pressed]}
                 >
-                  <MaterialIcons name="search" size={20} color={ink} />
+                  <AvatarImage id="journal-author" name={author.name} avatarAsset={author.avatarAsset} photoUri={author.photoUri} size={40} fallbackColor="#7C4DFF" />
                 </Pressable>
-                <View style={[styles.headDivider, { backgroundColor: momentsBorder }]} />
-                <Pressable accessibilityLabel="Open mood calendar" onPress={() => setCalendarOpen(true)} style={styles.headPillBtn}>
-                  <MaterialIcons name="calendar-month" size={20} color={ink} />
-                </Pressable>
+                {headerBell}
               </View>
-              {headerBell}
             </View>
 
             {searchOpen ? (
@@ -819,24 +854,29 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
               </View>
             ) : null}
 
+            {/* v281 (D5): the filter chips wear the family's
+                tonal dress — filled tonal field, seed-deep ink,
+                weight 800, no hairline — instead of white outlined
+                pills. The Bookmarks ACTIVE state keeps its
+                filled-seed treatment (behavior unchanged). */}
             <View style={styles.filterRow}>
               <Pressable
                 onPress={() => setBookmarksOnly((current) => !current)}
                 style={[
                   styles.filterChip,
-                  { backgroundColor: jm.card, borderColor: jm.line },
-                  bookmarksOnly && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  { backgroundColor: jm.tonal },
+                  bookmarksOnly && { backgroundColor: colors.primary },
                   bookmarksOnly
                     ? { ...bitButtonStyle(skinTokens, "primary"), ...termButtonStyle(skinTokens, bookmarksOnly ? "primary" : "secondary") }
                     : {},
                 ]}
               >
-                <MaterialIcons name="bookmark" size={14} color={bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : jm.inkSoft} />
-                <Text style={[styles.filterChipText, { color: bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : jm.inkSoft }]}>Bookmarks</Text>
+                <MaterialIcons name="bookmark" size={14} color={bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : jm.deep} />
+                <Text style={[styles.filterChipText, { color: bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : jm.deep }]}>Bookmarks</Text>
               </Pressable>
-              <Pressable onPress={() => openEditor()} style={[styles.filterChip, { backgroundColor: jm.card, borderColor: jm.line }]}>
-                <MaterialIcons name="edit-note" size={15} color={jm.inkSoft} />
-                <Text style={[styles.filterChipText, { color: jm.inkSoft }]}>Long entry</Text>
+              <Pressable onPress={() => openEditor()} style={[styles.filterChip, { backgroundColor: jm.tonal }]}>
+                <MaterialIcons name="edit-note" size={15} color={jm.deep} />
+                <Text style={[styles.filterChipText, { color: jm.deep }]}>Long entry</Text>
               </Pressable>
             </View>
 
@@ -851,26 +891,32 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
                 // v204: flattened to the mockup's shape — an
                 // in-flow pill ROW on the one surface, hairline
                 // border, no shadow, no panel fill of its own.
-                { backgroundColor: "transparent", borderColor: momentsBorder },
+                // v281 (D1/D6): the row carries the family's tonal
+                // fill now — the transparent v204 shape is what
+                // let the \"Today header block\" collapse into the
+                // page in v252. The calendar glyph takes the
+                // seed's deep ink; the count chips wear the
+                // family's derived meaning-hue pairs.
+                { backgroundColor: jm.tonal, borderColor: jm.line },
                 pressed && styles.pressed,
               ]}
             >
-              <MaterialIcons name="calendar-month" size={16} color="#E4572E" />
+              <MaterialIcons name="calendar-month" size={16} color={jm.deep} />
               <Text style={[styles.dayPillToday, { color: ink }]}>Today</Text>
-              <View style={[styles.dayPillChip, { backgroundColor: pillChipBg("#DFF3DF") }]}>
-                <Text style={[styles.dayPillChipText, { color: pillChipInk }]}>
+              <View style={[styles.dayPillChip, { backgroundColor: pillChipBg("entries") }]}>
+                <Text style={[styles.dayPillChipText, { color: pillChipInk("entries") }]}>
                   {todayCounts.entries} {todayCounts.entries === 1 ? "entry" : "entries"}
                 </Text>
               </View>
-              <View style={[styles.dayPillChip, { backgroundColor: pillChipBg("#E1EDFB") }]}>
-                <Text style={[styles.dayPillChipText, { color: pillChipInk }]}>{todayCounts.photos} photos</Text>
+              <View style={[styles.dayPillChip, { backgroundColor: pillChipBg("photos") }]}>
+                <Text style={[styles.dayPillChipText, { color: pillChipInk("photos") }]}>{todayCounts.photos} photos</Text>
               </View>
-              <View style={[styles.dayPillChip, { backgroundColor: pillChipBg("#FBE3EC") }]}>
-                <Text style={[styles.dayPillChipText, { color: pillChipInk }]}>{todayCounts.events} events</Text>
+              <View style={[styles.dayPillChip, { backgroundColor: pillChipBg("events") }]}>
+                <Text style={[styles.dayPillChipText, { color: pillChipInk("events") }]}>{todayCounts.events} events</Text>
               </View>
               <View style={styles.dayPillStack}>
                 {todayCounts.people.slice(0, 3).map((person, index) => (
-                  <View key={person.id} style={[styles.dayPillAvatar, { marginLeft: index === 0 ? 0 : -8, zIndex: 3 - index }]}>
+                  <View key={person.id} style={[styles.dayPillAvatar, { marginLeft: index === 0 ? 0 : -8, zIndex: 3 - index, borderColor: jm.card }]}>
                     <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={22} fallbackColor={person.avatarColor} />
                   </View>
                 ))}
@@ -881,7 +927,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
             {showYesterdayPeek ? (
               <Pressable
                 onPress={() => setDayViewDate(yesterdayIso)}
-                style={({ pressed }) => [styles.peek, { backgroundColor: "transparent", borderColor: momentsBorder }, pressed && styles.pressed]}
+                style={({ pressed }) => [styles.peek, { backgroundColor: jm.tonal, borderColor: jm.line }, pressed && styles.pressed]}
               >
                 <Text style={[styles.peekKicker, { color: faint }]}>Yesterday</Text>
                 <Text style={[styles.peekText, { color: ink }]}>
@@ -1484,9 +1530,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
   },
-  wordmark: { flexDirection: "row", alignItems: "center", gap: 8 },
-  logoMark: { width: 30, height: 30 },
+  // v281 (D4): the title block sits at the left; the right cluster
+  // carries pill, avatar and bell.
+  titleBlock: { flex: 1, minWidth: 0 },
   journalTitle: { fontSize: 21, fontWeight: "800", letterSpacing: -0.3 },
+  journalSub: { fontSize: 12.5, fontWeight: "600", marginTop: 1 },
+  headCluster: { flexDirection: "row", alignItems: "center", gap: 10 },
   headPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -1514,16 +1563,16 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 14.5 },
   filterRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 10 },
+  // v281 (D5): no hairline on the tonal chips; weight 800.
   filterChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  filterChipText: { fontSize: 12.5, fontWeight: "700" },
+  filterChipText: { fontSize: 12.5, fontWeight: "800" },
   peek: {
     marginHorizontal: 16,
     marginTop: 12,
@@ -1575,7 +1624,9 @@ const styles = StyleSheet.create({
   dayPillChip: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   dayPillChipText: { fontSize: 11.5, fontWeight: "800" },
   dayPillStack: { flexDirection: "row", alignItems: "center", marginLeft: "auto" },
-  dayPillAvatar: { borderRadius: 999, borderWidth: 2, borderColor: "#FFFFFF", overflow: "hidden" },
+  // v281 (D1): the stack's ring derives from the family's card —
+  // the pinned #FFFFFF is overridden inline at the render site.
+  dayPillAvatar: { borderRadius: 999, borderWidth: 2, overflow: "hidden" },
   // v204: the settle kits wrap a full-screen anchor layer; the
   // morph itself is the layer's only child, pinned bottom-right
   // where the shell's FAB rests on the other tabs.

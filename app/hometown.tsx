@@ -375,6 +375,8 @@ import {
   type ScheduleTarget,
 } from "@/lib/schedule-sync";
 import { PlayerPawnWanderer } from "@/components/player-pawn";
+import { WalkableTownShell } from "@/components/walkable-town";
+import { planWalkTo, type WalkTile } from "@/lib/walkable-town";
 import { GardenOfRemembrance } from "@/components/garden-of-remembrance";
 import { TheWell } from "@/components/the-well";
 import { FireworksOverlay } from "@/components/fireworks";
@@ -4208,7 +4210,7 @@ export default function HometownScreen() {
   // ("+X") fades in on a green face, holds briefly, then crossfades
   // back — and the pill settles to whatever its normal derived face
   // dictates (the new balance, since the pending total just zeroed).
-  const { width: windowW } = useWindowDimensions();
+  const { width: windowW, height: windowH } = useWindowDimensions();
   // Coin-fly bursts live in the isolated CoinFlyOverlay (v164) — this
   // screen only holds a handle to spawn them, never burst state, so a
   // flight can't re-render the town.
@@ -7490,6 +7492,134 @@ export default function HometownScreen() {
     setSelectedTile({ x, y });
   };
 
+  /* ── v290: the walkable town ──────────────────────────────────────
+     Tap-to-walk on the town map. A ground tap plans a path over
+     walkable tiles (lib/walkable-town), the Hero walks it, and only
+     then does the tap's action run — through the EXISTING handlers,
+     unchanged. Whenever walking isn't possible (night, the pawn not
+     on the map yet, a building being moved, no route, already there)
+     the action runs immediately, exactly as taps always have: a walk
+     must never swallow a tap. */
+  const heroPosRef = useRef<{ x: number; y: number }>({ x: 5.5 * 40, y: 5.5 * 40 - 4 });
+  const heroReadyRef = useRef(false);
+  const [walkCmd, setWalkCmd] = useState<{ tiles: WalkTile[]; seq: number } | null>(null);
+  const [walkNonce, setWalkNonce] = useState(0);
+  const walkSeqRef = useRef(0);
+  const pendingWalkRef = useRef<{ seq: number; run: () => void } | null>(null);
+  const walkWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearPendingWalk = () => {
+    pendingWalkRef.current = null;
+    if (walkWatchdogRef.current) {
+      clearTimeout(walkWatchdogRef.current);
+      walkWatchdogRef.current = null;
+    }
+  };
+
+  /** Run a pending walk's action exactly once (arrival or watchdog). */
+  const firePendingWalk = (seq: number) => {
+    const pending = pendingWalkRef.current;
+    if (!pending || pending.seq !== seq) return;
+    clearPendingWalk();
+    pending.run();
+  };
+
+  const handleCommandArrive = useCallback((seq: number) => {
+    firePendingWalk(seq);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Walk the Hero to a tile, then run `action` (a null action is a
+   *  pure stroll — the tap just moves him). */
+  const dispatchWalkTo = (target: WalkTile, action: (() => void) | null) => {
+    if (!action) {
+      if (isNight || !heroReadyRef.current) return;
+      const from = {
+        x: Math.floor(heroPosRef.current.x / cellSize),
+        y: Math.floor(heroPosRef.current.y / cellSize),
+      };
+      const plan = planWalkTo(map, from, target);
+      if (!plan || plan.tiles.length <= 1) return;
+      const seq = ++walkSeqRef.current;
+      setWalkCmd({ tiles: plan.tiles, seq });
+      setWalkNonce(seq);
+      return;
+    }
+    if (activeMap !== "town" || isNight || !heroReadyRef.current || movingBuilding) {
+      action();
+      return;
+    }
+    const from = {
+      x: Math.floor(heroPosRef.current.x / cellSize),
+      y: Math.floor(heroPosRef.current.y / cellSize),
+    };
+    const plan = planWalkTo(map, from, target);
+    if (!plan || plan.tiles.length <= 1) {
+      action();
+      return;
+    }
+    clearPendingWalk();
+    const seq = ++walkSeqRef.current;
+    pendingWalkRef.current = { seq, run: action };
+    // Watchdog: if arrival never reports (night falls mid-walk, the
+    // pawn unmounts), the tap's action still lands.
+    walkWatchdogRef.current = setTimeout(
+      () => firePendingWalk(seq),
+      plan.tiles.length * 1400 + 5000
+    );
+    setWalkCmd({ tiles: plan.tiles, seq });
+    setWalkNonce(seq);
+  };
+
+  const tileFromWorldPx = (px: { x: number; y: number }): WalkTile => ({
+    x: Math.max(0, Math.min(gridW - 1, Math.floor(px.x / cellSize))),
+    y: Math.max(0, Math.min(gridH - 1, Math.floor(px.y / cellSize))),
+  });
+
+  /** A tap on the walkable town's ground (world pixel coordinates).
+   *  Buildings, landmarks and lots act through the existing tile
+   *  press once the Hero reaches their door; a building with coins
+   *  waiting collects them on arrival (the existing collect flow),
+   *  then opens as it always has. Open ground just walks him there. */
+  const handleWalkTapWorld = (px: { x: number; y: number }) => {
+    const { x, y } = tileFromWorldPx(px);
+    const building = buildingAt(x, y);
+    const landmark = !building ? townLandmarkAt(x, y) : undefined;
+    const lot = !building && !landmark ? townLotAt(x, y) : undefined;
+    if (!building && !landmark && !lot) {
+      dispatchWalkTo({ x, y }, null);
+      return;
+    }
+    dispatchWalkTo({ x, y }, () => {
+      if (building && (building.accumulated || 0) > 0 && !isUnderConstruction(building, Date.now())) {
+        handleCollectBuilding(building.id);
+      }
+      handleTilePress(x, y);
+    });
+  };
+
+  const handleWalkLongPressWorld = (px: { x: number; y: number }) => {
+    const { x, y } = tileFromWorldPx(px);
+    const b = buildingAt(x, y);
+    if (b) setPopupBuilding(b);
+  };
+
+  /** On the walkable town, tapping a villager sends the Hero to them
+   *  first; their sheet opens when he arrives. */
+  const handleVillagerTapWalk = (p: { id: string; name: string; tile?: { x: number; y: number } }) => {
+    if (activeMap !== "town" || !p.tile) {
+      handleVillagerTap(p);
+      return;
+    }
+    dispatchWalkTo(p.tile, () => handleVillagerTap(p));
+  };
+
+  /** The Mountain: the Hero walks to the lane's end under the
+   *  Schoolhouse, then steps up to the cave mouth as always. */
+  const handlePeakPress = () => {
+    dispatchWalkTo({ x: 4, y: 2 }, () => router.push("/mine-mouth"));
+  };
+
   const handleBuild = (type: BuildingType) => {
     if (!selectedTile) return;
     const def = BUILDINGS[type];
@@ -7911,6 +8041,9 @@ export default function HometownScreen() {
   // with the date it opens instead (bossGateOpensOn).
   const bossGateVis = bossGateVisibility(fastsRef.current, prestigeStateRef.current, getTodayISOString());
   const cellSize = 40;
+  // v290: the walkable town's window — one screenful of town at a
+  // time; the rest is explored by walking and by dragging the map.
+  const TOWN_VIEWPORT_H = Math.round(Math.min(640, Math.max(460, windowH * 0.66)));
   // The town and city grids are taller (10x14) so every district gets its
   // own street; other maps stay 10x10.
   const gridSize = mapGridSize(activeMap);
@@ -8524,7 +8657,7 @@ export default function HometownScreen() {
             never say so (v169). Town map only — never city or school. */}
         {activeMap === "town" && (
           <Pressable
-            onPress={() => router.push("/mine-mouth")}
+            onPress={handlePeakPress}
             accessibilityLabel="The Mine — the cave mouth"
             style={{ marginBottom: 10 }}
           >
@@ -8547,8 +8680,21 @@ export default function HometownScreen() {
               : undefined
           }
         >
+        <WalkableTownShell
+          enabled={activeMap === "town"}
+          worldW={gridW * cellSize}
+          worldH={gridH * cellSize}
+          viewportH={TOWN_VIEWPORT_H}
+          heroPosRef={heroPosRef}
+          followNonce={walkNonce}
+          onTapWorld={handleWalkTapWorld}
+          onLongPressWorld={handleWalkLongPressWorld}
+        >
         <View ref={mapGridRef} style={{ position: "relative" }}>
-          {rows}
+          {/* On the walkable town the ground cells are pure art: the
+              shell's ground surface hears the taps (cells would eat
+              them cell-by-cell and the walk would never start). */}
+          <View pointerEvents={activeMap === "town" ? "none" : "auto"}>{rows}</View>
           {/* Street lamps (v285): a post stands IN the lane's edge on
               its rhythm tiles; at dusk and through the night the lamp
               lights and pools its glow on the paper street. */}
@@ -8893,7 +9039,7 @@ export default function HometownScreen() {
           {/* Townsfolk — prayer lights; those out on field missions (or waiting to be welcomed home) are away.
               bare: entities render directly in the depth layer so villagers walk
               BEHIND tall buildings (zIndex by Y). */}
-          <TownNPCs mapState={map} cellSize={cellSize} bare positionsRef={townNpcPositionsRef} onBankVisit={handleBankVisit} lights={lightsForActiveMap} onVillagerTap={handleVillagerTap} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} scheduleGuides={scheduleGuides} scheduleMap={scheduleMap} scheduleKind={scheduleActivity?.kind} greet={activeMap === "town" ? greetRef.current : null} />
+          <TownNPCs mapState={map} cellSize={cellSize} bare positionsRef={townNpcPositionsRef} onBankVisit={handleBankVisit} lights={lightsForActiveMap} onVillagerTap={handleVillagerTapWalk} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} scheduleGuides={scheduleGuides} scheduleMap={scheduleMap} scheduleKind={scheduleActivity?.kind} greet={activeMap === "town" ? greetRef.current : null} />
           {/* The Street & The Café: the café's marker on the town map —
               the awning and ovens seated on the diner itself, and a
               small board glyph standing at its front (v287: the scene
@@ -8938,7 +9084,7 @@ export default function HometownScreen() {
             <MapBirds width={gridW * cellSize} height={gridH * cellSize} birdCount={4} />
           )}
           {/* The player's own pawn, wandering town (depth-sorted with the rest) */}
-          {activeMap === "town" && <PlayerPawnWanderer cellSize={cellSize} destTile={scheduleTarget?.tile ?? null} mapState={map} />}
+          {activeMap === "town" && <PlayerPawnWanderer cellSize={cellSize} destTile={scheduleTarget?.tile ?? null} mapState={map} commandPath={walkCmd} onCommandArrive={handleCommandArrive} positionRef={heroPosRef} onReady={() => { heroReadyRef.current = true; }} />}
           {/* The Welcoming Town (v271): the phase light wash over the
               town map — dawn gold, dusk amber, a faint night cool (the
               night light itself lives in the building art). Day wears
@@ -9233,6 +9379,7 @@ export default function HometownScreen() {
             onDone={dismissCelebration}
           />
         </View>
+        </WalkableTownShell>
         </SeasonalBorder>
         {/* The Welcoming Town (v271): the while-you-were-gone report —
             the town telling him, through its people, what it did while

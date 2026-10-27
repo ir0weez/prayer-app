@@ -33,10 +33,27 @@ export function PlayerPawnWanderer({
   cellSize,
   destTile,
   mapState,
+  commandPath,
+  onCommandArrive,
+  positionRef,
+  onReady,
 }: {
   cellSize: number;
   destTile?: { x: number; y: number } | null;
   mapState: MapState;
+  /** v290 (walkable town): an explicit tile path the Hero must walk —
+   *  a tap-to-walk command. A new `seq` starts a new command; the path
+   *  comes from lib/walkable-town's planWalkTo (walkable tiles only). */
+  commandPath?: { tiles: { x: number; y: number }[]; seq: number } | null;
+  /** Fired once when a commanded walk reaches its last tile. */
+  onCommandArrive?: (seq: number) => void;
+  /** Receives the Hero's live pixel position (feet anchor) each frame
+   *  the position value changes — the walkable viewport's camera reads
+   *  it without re-rendering anything. */
+  positionRef?: React.MutableRefObject<{ x: number; y: number }>;
+  /** Fired once the pawn's saved appearance has loaded (the Hero is
+   *  on the map and able to take commands). */
+  onReady?: () => void;
 }) {
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
   const [isNight, setIsNight] = useState(getTimeOfDay() === "night");
@@ -60,10 +77,15 @@ export function PlayerPawnWanderer({
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
   useEffect(() => {
     mountedRef.current = true;
     loadCustomPawn().then((p) => {
-      if (mountedRef.current && p) setPawn(p);
+      if (mountedRef.current && p) {
+        setPawn(p);
+        onReadyRef.current?.();
+      }
     });
     return () => {
       mountedRef.current = false;
@@ -128,22 +150,18 @@ export function PlayerPawnWanderer({
     }, 1400 + Math.random() * 1600);
   };
 
-  /** Walk to a tile along the roads, segment by segment (tile-to-tile
-   *  steps, so corners turn crisply instead of gliding diagonally). */
-  const walkToRef = useRef((_dest: { x: number; y: number }) => {});
-  walkToRef.current = (dest) => {
+  /** Walk a pixel waypoint list segment by segment (tile-to-tile
+   *  steps, so corners turn crisply instead of gliding diagonally).
+   *  Shared by the road walks and the v290 tap-to-walk commands. */
+  const walkWaypointsRef = useRef((_pts: { x: number; y: number }[], _onDone: () => void) => {});
+  walkWaypointsRef.current = (pts, onDone) => {
     stopWalk();
     const gen = walkGenRef.current;
-    const fromTile = {
-      x: pxRef.current.x / cellSize - 0.5,
-      y: (pxRef.current.y + 4) / cellSize - 0.5,
-    };
-    const pts = buildPath(mapStateRef.current, fromTile, dest, cellSize);
     let i = 0;
     const step = () => {
       if (!mountedRef.current || gen !== walkGenRef.current) return;
       if (i >= pts.length) {
-        scheduleIdleRef.current();
+        onDone();
         return;
       }
       const p = pts[i++];
@@ -168,10 +186,54 @@ export function PlayerPawnWanderer({
     step();
   };
 
+  /** Walk to a tile along the roads, segment by segment. */
+  const walkToRef = useRef((_dest: { x: number; y: number }) => {});
+  walkToRef.current = (dest) => {
+    const fromTile = {
+      x: pxRef.current.x / cellSize - 0.5,
+      y: (pxRef.current.y + 4) / cellSize - 0.5,
+    };
+    const pts = buildPath(mapStateRef.current, fromTile, dest, cellSize);
+    walkWaypointsRef.current(pts, () => scheduleIdleRef.current());
+  };
+
+  /* ---------------- v290: tap-to-walk commands ---------------- */
+  // A command outranks the schedule destination and idle wandering
+  // while it is in flight; on arrival the parent fires its action,
+  // then the Hero returns to whatever the schedule asks of him.
+  const commandInFlightRef = useRef(false);
+  const onCommandArriveRef = useRef(onCommandArrive);
+  onCommandArriveRef.current = onCommandArrive;
+  const commandSeq = commandPath?.seq ?? 0;
+  const lastCommandSeqRef = useRef(0);
+  useEffect(() => {
+    if (!commandPath || commandSeq === 0 || commandSeq === lastCommandSeqRef.current) return;
+    lastCommandSeqRef.current = commandSeq;
+    if (getTimeOfDay() === "night") return;
+    commandInFlightRef.current = true;
+    const pts = commandPath.tiles.map((t) => ({
+      x: (t.x + 0.5) * cellSize,
+      y: (t.y + 0.5) * cellSize - 4,
+    }));
+    walkWaypointsRef.current(pts, () => {
+      commandInFlightRef.current = false;
+      onCommandArriveRef.current?.(commandSeq);
+      // Back to the schedule's business once the errand is done.
+      if (destTileRef.current) walkToRef.current(destTileRef.current);
+      else scheduleIdleRef.current();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commandSeq]);
+
   /* ---------------- position tracking ---------------- */
+  const positionRefHolder = useRef(positionRef);
+  positionRefHolder.current = positionRef;
   useEffect(() => {
     const id = pos.addListener((v) => {
       pxRef.current = { x: v.x, y: v.y };
+      if (positionRefHolder.current) {
+        positionRefHolder.current.current = { x: v.x, y: v.y };
+      }
     });
     return () => pos.removeListener(id);
   }, [pos]);
@@ -185,6 +247,9 @@ export function PlayerPawnWanderer({
     if (lastDestKeyRef.current === destKey) return;
     lastDestKeyRef.current = destKey;
     if (getTimeOfDay() === "night") return;
+    // A tap-to-walk command in flight outranks the schedule; the
+    // command's own completion returns the Hero here afterwards.
+    if (commandInFlightRef.current) return;
     if (destTile) {
       walkToRef.current(destTile);
     } else {

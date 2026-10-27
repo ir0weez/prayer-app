@@ -281,8 +281,10 @@ function TownNPCsImpl({
   onBankVisit?: (buildingId: string) => void;
   /** People prayed for today — golden lights (max 40). */
   lights?: LightInfo[];
-  /** Called when a villager is tapped: ({ id, name }). */
-  onVillagerTap?: (person: { id: string; name: string }) => void;
+  /** Called when a villager is tapped: ({ id, name, tile }) — the tile
+   *  is where the villager stands at tap time (v290: the Hero walks to
+   *  it before the sheet opens). */
+  onVillagerTap?: (person: { id: string; name: string; tile?: { x: number; y: number } }) => void;
   /** personIds of lights with a waiting villager mission — they stand still with a "?". */
   missionWaitingIds?: Set<string>;
   /** personId -> forced destination while guiding a villager mission. */
@@ -1549,7 +1551,11 @@ function TownNPCsImpl({
         return (
           <AnimatedPressable
             key={id}
-            onPress={() => tapRef.current?.({ id: npc.prayerId || npc.id, name: npc.name || "Friend" })}
+            onPress={() => tapRef.current?.({
+              id: npc.prayerId || npc.id,
+              name: npc.name || "Friend",
+              tile: { x: Math.floor(npc.px / cellSize), y: Math.floor(npc.py / cellSize) },
+            })}
             style={frameStyle}
           >
             {body}

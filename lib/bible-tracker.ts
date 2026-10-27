@@ -1,3 +1,4 @@
+import { formatDateLocal } from './date-utils';
 import { BibleChapter } from './prayercircle-data';
 
 // List of all Bible books in order
@@ -62,9 +63,9 @@ export function markChapterAsRead(chapters: BibleChapter[] | undefined, book: st
   const index = updatedChapters.findIndex(c => c.book === book && c.chapter === chapter);
   
   if (index >= 0) {
-    updatedChapters[index] = { ...updatedChapters[index], isRead: true, readDate: new Date().toISOString().split('T')[0] };
+    updatedChapters[index] = { ...updatedChapters[index], isRead: true, readDate: formatDateLocal(new Date()) };
   } else {
-    updatedChapters.push({ book, chapter, isRead: true, readDate: new Date().toISOString().split('T')[0] });
+    updatedChapters.push({ book, chapter, isRead: true, readDate: formatDateLocal(new Date()) });
   }
   
   return updatedChapters;

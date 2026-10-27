@@ -29,6 +29,7 @@
 // knows the two rules.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { formatDateLocal } from '../date-utils';
 import { awardXP, XP_AWARDS_STORAGE_KEY, type XpGainPosition } from '../xp-engine';
 import { CHAPTER_COUNTS, chapterCountFor } from './index';
 import {
@@ -212,7 +213,7 @@ export async function transitionChapterStatus(
   // lastRead stays a POSITION stamp only — it is not the read track
   // (state.reads) and implies nothing about it.
   if (status === 'complete' && prev !== 'complete') {
-    next = { ...next, lastRead: { book, chapter, date: new Date().toISOString().split('T')[0] } };
+    next = { ...next, lastRead: { book, chapter, date: formatDateLocal(new Date()) } };
   }
   await saveStudyState(next);
   const result: StatusTransitionResult = {
@@ -257,7 +258,10 @@ export async function markChapterRead(
   let next = state;
   let awarded = false;
   if (!alreadyRead) {
-    const today = new Date().toISOString().split('T')[0];
+    // v277 — the stamp is HIS day, device-local (formatDateLocal),
+    // never the UTC date: at 6 PM his time UTC is already tomorrow,
+    // and the card read "finished it tomorrow" (his Oct 26 report).
+    const today = formatDateLocal(new Date());
     next = setChapterRead(state, book, chapter, today);
     await saveStudyState(next);
 

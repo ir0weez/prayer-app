@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Consolidates bibleReadingProgress + bibleChapters into a single source of truth
 
 import { bibleEventEmitter } from './bible-events';
+import { formatDateLocal } from './date-utils';
 
 export const UNIFIED_BIBLE_KEY = 'prayercircle.bible.unified.v1';
 export const BIBLE_BOOK_STATUS_KEY = 'prayercircle.bible.bookstatus.v1';
@@ -158,7 +159,7 @@ export async function markChapterAsRead(book: string, chapter: number, updateCur
   const chapterEntry = state.chapters.find((c) => c.book === book && c.chapter === chapter);
   if (chapterEntry) {
     chapterEntry.isRead = true;
-    chapterEntry.readDate = new Date().toISOString().split('T')[0];
+    chapterEntry.readDate = formatDateLocal(new Date());
     state.lastReadDate = chapterEntry.readDate;
   }
 
@@ -343,7 +344,7 @@ export function calculateReadingStreak(state: UnifiedBibleState): { streak: numb
   const streakStartDate = new Date(today);
   streakStartDate.setDate(streakStartDate.getDate() - (streak - 1));
   
-  return { streak, startDate: streakStartDate.toISOString().split('T')[0] };
+  return { streak, startDate: formatDateLocal(streakStartDate) };
 }
 
 // Mark a chapter as unread (for going back)

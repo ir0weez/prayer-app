@@ -60,9 +60,14 @@ describe("v264 source pins — the FIRST card (audit D1, D2, D9)", () => {
 
   it("the breath lives in a soft warm shadow on a wrapper outside the clip (D9)", () => {
     expect(session).toContain("function FirstWarmShadow");
-    expect(session).toContain("<FirstWarmShadow>");
-    expect(session).toContain('shadowColor: "#D9A420"');
-    // The wrapper stands outside the card's overflow:hidden view.
+    expect(session).toContain("<FirstWarmShadow");
+    // v288 re-base (audit v2 §0.1 / fix 1): the warm shadow's PAINT
+    // is unchanged — #D9A420, the drawing's shadow color, now
+    // handed to the wrapper as its halo paint — but the CARRIER
+    // changed: v264's RN shadow props are ignored on Android, so
+    // the glow is a rendered layer (see people-v288.test.ts). The
+    // wrapper still stands outside the card's overflow:hidden view.
+    expect(session).toContain('<FirstWarmShadow paint="#D9A420">');
     expect(session.indexOf("<FirstWarmShadow>")).toBeLessThan(
       session.indexOf('overflow: "hidden", backgroundColor: FIRST_CARD.bgTo'),
     );

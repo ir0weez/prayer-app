@@ -158,7 +158,9 @@ describe("v269 source pins — the focused session (prayer-session.tsx)", () => 
     expect(session).toContain('const praiseFocus = sessionFocusKind === "praise";');
     expect(session).toContain("const praiseDisplay = praiseFocus ? getPraiseDisplay(currentPerson) : null;");
     const praiseLead = session.slice(session.indexOf("{praiseFocus && praiseDisplay ? ("), session.indexOf("{/* The other needs"));
-    expect(praiseLead).toContain("<FirstWarmShadow>");
+    // v288: the wrapper takes the lead family's halo paint — the
+    // praise lead glows in its own deep gold (audit v2 fix 1).
+    expect(praiseLead).toContain("<FirstWarmShadow paint={PRAISE_CARD.deep}>");
     expect(praiseLead).toContain("backgroundColor: PRAISE_CARD.bgTo");
     expect(praiseLead).toContain('id="v269PraiseGrad"');
     expect(praiseLead).toContain("stopColor={PRAISE_CARD.bgFrom}");

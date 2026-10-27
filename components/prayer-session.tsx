@@ -20,6 +20,7 @@ import {
 import type { Person } from "@/lib/prayercircle-data";
 import { usePeopleMaterial } from "@/hooks/use-people-material";
 import { useSkin } from "@/hooks/use-skin";
+import { skinText } from "@/lib/skin-themes";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PeopleEntrance, PEOPLE_ENTRANCE_EASING } from "@/components/people-entrance";
 import { FIRST_CARD, PRAISE_CARD } from "@/lib/people-material";
@@ -75,19 +76,25 @@ type Props = {
  * curve family (Material emphasized), no springs, no bounce. */
 const MORPH_DURATION_MS = 380;
 
-/** v264 (audit D9): the FIRST card's warmth at rest. The drawing
- * (praytoday-urgent-feel-v1, .lead.active) breathes a soft WARM
- * SHADOW — v254 instead breathed a second deep-amber border
- * overlay, which read on device as a heavy tan outline and is
- * gone. The breath now lives where the drawing
- * puts it: the shadow of a wrapper OUTSIDE the card's
- * overflow:hidden clip (shadow #D9A420 — the drawing's shadow
- * paint — opacity .16 → .30 on its 4.5s breath). The card's own
- * static #EAD49C border is unchanged. JS driver (shadowOpacity
- * cannot ride the native driver); reduced motion holds a steady
- * glow. Android draws elevation statically — the border still
- * rests there. */
-function FirstWarmShadow({ children }: { children: ReactNode }) {
+/** The FIRST card's warmth at rest (v264, audit D9; rebuilt v288,
+ * audit v2 §0.1 / fix 1). The drawing (praytoday-urgent-feel-v1,
+ * .lead.active) breathes a soft WARM SHADOW — #D9A420 at .16 → .30
+ * on a 4.5s breath. v264 carried that breath in React Native
+ * shadow props on this wrapper — but Android IGNORES
+ * shadowColor/shadowOpacity/shadowRadius entirely (only
+ * `elevation` renders, a faint GREY shadow), so on Jonathan's
+ * Pixel the one device that makes the pale amber card read as
+ * LIT never rendered: the card sat flat and washed inside the
+ * person card (his Oct 27 screenshot, 09:11). The glow is now a
+ * RENDERED LAYER: a rounded rect in the lead's own family paint,
+ * standing ~10dp proud of the card on every side (a visible
+ * 8–16dp warm band), breathing on the same 4.5s loop — opacity
+ * rides the NATIVE driver (the shadow breath had to ride JS).
+ * The wrapper still stands OUTSIDE the card's overflow:hidden
+ * clip, and the card's own static border is unchanged. Reduced
+ * motion holds a steady glow. The component keeps its v264 name:
+ * it is still the warm-shadow wrapper, now painted for real. */
+function FirstWarmShadow({ paint, children }: { paint: string; children: ReactNode }) {
   const breath = useRef(new Animated.Value(0.16)).current;
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
@@ -104,19 +111,58 @@ function FirstWarmShadow({ children }: { children: ReactNode }) {
     }
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(breath, { toValue: 0.3, duration: 2250, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-        Animated.timing(breath, { toValue: 0.16, duration: 2250, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(breath, { toValue: 0.3, duration: 2250, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(breath, { toValue: 0.16, duration: 2250, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ]),
     );
     loop.start();
     return () => loop.stop();
   }, [reduced, breath]);
   return (
-    <Animated.View
-      style={{ marginTop: 14, borderRadius: 22, shadowColor: "#D9A420", shadowOpacity: breath, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 3 }}
-    >
+    <View style={{ marginTop: 14, position: "relative" }}>
+      <Animated.View
+        pointerEvents="none"
+        style={{ position: "absolute", top: -10, left: -10, right: -10, bottom: -10, borderRadius: 32, backgroundColor: paint, opacity: breath }}
+      />
       {children}
-    </Animated.View>
+    </View>
+  );
+}
+
+/** v288 (audit v2 fix 2): the timer ring's pulse dot PULSES again —
+ * the drawing animates it; v264 left it static on the ring. It
+ * stays exactly where v264 put it (on the ring at its 45° point,
+ * clear of the Complete button); only the breath is restored.
+ * Opacity on the native driver; reduced motion holds it steady. */
+function TimerPulseDot({ color }: { color: string }) {
+  const pulse = useRef(new Animated.Value(1)).current;
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((value) => { if (live) setReduced(value); })
+      .catch(() => undefined);
+    return () => { live = false; };
+  }, []);
+  useEffect(() => {
+    if (reduced) {
+      pulse.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.35, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, pulse]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: color, opacity: pulse }}
+    />
   );
 }
 
@@ -325,7 +371,16 @@ async function dismissPrayerNotification() {
 export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, morphOrigin, morphSurface, morphHeader, focusKind, resetNonce, keepPrayingCount, onKeepPraying }: Props) {
   const colors = useColors();
   const pm = usePeopleMaterial();
-  const { isSkinned } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
+  // v288 (audit v2 fix 3): the session finally consumes the app's
+  // type scale — until now this file held ZERO references to it,
+  // so every size stayed a pre-v190/v274 literal while the app
+  // around it grew (his Oct 27 ruling: "Use the bigger scale like
+  // the rest of the app… the bigger scale makes it easier to see
+  // and use"). Under 8-bit/Terminal every level is null and each
+  // spread below is a no-op — their dress is byte-preserved.
+  const type = skinTokens.type;
+  const padBoost = type.padBoost;
   const insets = useSafeAreaInsets();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -615,7 +670,11 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
   // root carries it.
   const sessionBody = (
     <>
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* v288 (audit v2 fix 5): the ground is the family's own
+          seed-washed ground — the same ground the front door
+          stands on — not the raw palette background, which read
+          paler than the drawing's at the violet seed. */}
+      <View style={{ flex: 1, backgroundColor: pm.ground }}>
         {/* v264 (audit D3): the time-of-day sky is skin furniture —
             under Classic the drawings carry a flat ground with no
             backdrop motif, so the sky renders only when a skin is
@@ -624,10 +683,15 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
         {/* v264 (audit D5): top-anchored flow — the page starts at
             the top like the drawings instead of floating centred
             over a dead bottom third, and scrolls when a person
-            card grows (every need now shows, audit D6). */}
+            card grows (every need now shows, audit D6).
+            v288 (audit v2 fix 4): the stage inset is the
+            drawing's 16/side, not 24 — the extra 8 per side (40
+            against the drawing's 32 with card padding) was
+            shrinking the lead card to ~80% of the screen where
+            the drawing gives it ~84%. */}
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ alignItems: "center", paddingHorizontal: 24, paddingTop: insets.top + 14, paddingBottom: 24 }}
+          contentContainerStyle={{ alignItems: "center", paddingHorizontal: 16, paddingTop: insets.top + 14, paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
         >
         {/* v254 (praytoday-urgent-feel-v1): the session's head — title,
@@ -670,6 +734,10 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
               // drawing's soft ink. Derived, never pinned.
               const quietFill = mix(pm.card, pm.seed, 0.05);
               const quietInk = mix(pm.ink, pm.inkSoft, 0.45);
+              // v288 (audit v2 fix 3 + 7): the quiet rows join the
+              // type scale too — title at rowBody, and the subline
+              // back to the drawing's 11/600 at base, cardMeta
+              // under the scale (it had drifted to 12/500).
               const timerFraction = (elapsedSeconds % 60) / 60;
               const timerCircumference = 2 * Math.PI * 20.5;
               // v269: the session row's ring wears the lead's family
@@ -699,15 +767,31 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                       <Circle cx={24} cy={24} r={20.5} fill="none" stroke={ringTrack} strokeWidth={3.5} />
                       <Circle cx={24} cy={24} r={20.5} fill="none" stroke={ringStroke} strokeWidth={3.5} strokeLinecap="round" strokeDasharray={timerCircumference} strokeDashoffset={timerCircumference * (1 - timerFraction)} />
                     </Svg>
+                    {/* v288 (audit v2 fix 2): the two labels are
+                        FENCED inside the ring. The disc is fixed
+                        SVG geometry; unguarded RN Text follows the
+                        device font scale, and at the drawing's
+                        sizes the words already filled the ring's
+                        inner chord with zero headroom — in his
+                        screenshot "00:05" crossed the stroke and
+                        "PRAYING" spilled past both edges toward
+                        the button. Font scaling is now refused
+                        (the disc cannot grow, so its words may
+                        not), the sizes step down a half-step
+                        (11 → 10.5, 7.5 → 7, tracking .6 → .4), and
+                        the time may shrink-to-fit on one line —
+                        both labels hold ≥2dp clearance inside the
+                        inner chord at font scales 1.0 and 1.3. */}
                     <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
-                      <Text style={{ fontSize: 11, fontWeight: "800", lineHeight: 12, color: ringInk, fontVariant: ["tabular-nums"] }}>{formatTime(elapsedSeconds)}</Text>
-                      <Text style={{ fontSize: 7.5, fontWeight: "800", letterSpacing: 0.6, color: ringSub }}>PRAYING</Text>
+                      <Text allowFontScaling={false} maxFontSizeMultiplier={1} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: 10.5, fontWeight: "800", lineHeight: 12, color: ringInk, fontVariant: ["tabular-nums"] }}>{formatTime(elapsedSeconds)}</Text>
+                      <Text allowFontScaling={false} maxFontSizeMultiplier={1} numberOfLines={1} style={{ fontSize: 7, fontWeight: "800", letterSpacing: 0.4, color: ringSub }}>PRAYING</Text>
                     </View>
                     {/* v264 (audit D4): the pulse dot sits ON the
                         ring at its 45° point, inset from the corner
                         — out of the gap where it crowded the
-                        Complete button's left edge. */}
-                    <View style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: ringStroke }} />
+                        Complete button's left edge. v288: it pulses
+                        again, as drawn (TimerPulseDot). */}
+                    <TimerPulseDot color={ringStroke} />
                   </View>
                   <Pressable
                     onPress={handlePray}
@@ -743,13 +827,13 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
 
                   {/* Person card */}
                   <PeopleEntrance key={currentPerson.id} emphasis style={{ width: "100%" }}>
-                  <View style={{ width: "100%", backgroundColor: pm.card, borderRadius: 28, paddingHorizontal: 16, paddingVertical: 18, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 13, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
+                  <View style={{ width: "100%", backgroundColor: pm.card, borderRadius: 28, paddingHorizontal: 16 + padBoost, paddingVertical: 18 + padBoost, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 13, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                       <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 3, borderColor: pm.wash, alignItems: "center", justifyContent: "center" }}>
                         <AvatarImage id={currentPerson.id} name={currentPerson.name} avatarAsset={currentPerson.avatarAsset} photoUri={currentPerson.photoUri} size={46} />
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text numberOfLines={1} style={{ fontSize: 17.5, fontWeight: "800", letterSpacing: -0.2, color: pm.ink }}>{currentPerson.name}</Text>
+                        <Text numberOfLines={1} style={{ fontSize: 17.5, fontWeight: "800", letterSpacing: -0.2, color: pm.ink, ...skinText(skinTokens, type.cardTitle) }}>{currentPerson.name}</Text>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
                           <View style={{ backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
                             <Text style={{ fontSize: 10.5, fontWeight: "800", color: pm.deep }}>{currentPerson.relationship}</Text>
@@ -765,14 +849,14 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
 
                     {/* The lead need — the FIRST card (warm, never alarmed) */}
                     {lead?.kind === "first" ? (
-                      <FirstWarmShadow>
+                      <FirstWarmShadow paint="#D9A420">
                       {/* v264 (audit D1): the amber fill is the card's
                           OWN background (bgTo under the gradient) —
                           v254 painted it with a percentage-sized SVG
                           and no fallback, and on device the paint
                           stopped at ~84% of the card, leaving a hard
                           white strip inside the border. */}
-                      <View style={{ borderRadius: 22, borderWidth: 1.5, borderColor: FIRST_CARD.line, overflow: "hidden", backgroundColor: FIRST_CARD.bgTo, paddingHorizontal: 15, paddingTop: 14, paddingBottom: 15 }}>
+                      <View style={{ borderRadius: 22, borderWidth: 1.5, borderColor: FIRST_CARD.line, overflow: "hidden", backgroundColor: FIRST_CARD.bgTo, paddingHorizontal: 15 + padBoost, paddingTop: 14 + padBoost, paddingBottom: 15 + padBoost }}>
                         <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
                           <Defs>
                             <LinearGradient id="v254FirstGrad" x1="0" y1="0" x2="1" y2="1">
@@ -791,12 +875,12 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                             <Text style={{ fontSize: 10, fontWeight: "900", letterSpacing: 1.4, color: FIRST_CARD.pillInk }}>FIRST</Text>
                           </View>
                         </View>
-                        <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 21, letterSpacing: -0.1, color: FIRST_CARD.ink, marginTop: 10 }}>{lead.item.title}</Text>
+                        <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 21, letterSpacing: -0.1, color: FIRST_CARD.ink, marginTop: 10, ...skinText(skinTokens, type.cardLead, type.cardLeadLineHeight) }}>{lead.item.title}</Text>
                         {/* v264 (audit D2): the subline is the need's
                             own note sentence, as drawn — content, not
                             a status label. No note, no subline. */}
                         {!!lead.item.note && (
-                          <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 17, color: FIRST_CARD.sub, marginTop: 4 }}>{lead.item.note}</Text>
+                          <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 17, color: FIRST_CARD.sub, marginTop: 4, ...skinText(skinTokens, type.rowBody, type.rowBodyLineHeight) }}>{lead.item.note}</Text>
                         )}
                         <View style={{ marginTop: 15, paddingTop: 14, borderTopWidth: 1.5, borderTopColor: "rgba(234,212,156,0.85)" }}>
                           {sessionRow}
@@ -814,8 +898,8 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                         praise note (praise-display's fallbacks) —
                         never words he didn't write. */}
                     {praiseFocus && praiseDisplay ? (
-                      <FirstWarmShadow>
-                      <View style={{ borderRadius: 22, borderWidth: 1.5, borderColor: PRAISE_CARD.line, overflow: "hidden", backgroundColor: PRAISE_CARD.bgTo, paddingHorizontal: 15, paddingTop: 14, paddingBottom: 15 }}>
+                      <FirstWarmShadow paint={PRAISE_CARD.deep}>
+                      <View style={{ borderRadius: 22, borderWidth: 1.5, borderColor: PRAISE_CARD.line, overflow: "hidden", backgroundColor: PRAISE_CARD.bgTo, paddingHorizontal: 15 + padBoost, paddingTop: 14 + padBoost, paddingBottom: 15 + padBoost }}>
                         <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
                           <Defs>
                             <LinearGradient id="v269PraiseGrad" x1="0" y1="0" x2="1" y2="1">
@@ -831,9 +915,9 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                             <Text style={{ fontSize: 10, fontWeight: "900", letterSpacing: 1.4, color: PRAISE_CARD.pillInk }}>PRAISE</Text>
                           </View>
                         </View>
-                        <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 21, letterSpacing: -0.1, color: PRAISE_CARD.ink, marginTop: 10 }}>{praiseDisplay.headline}</Text>
+                        <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 21, letterSpacing: -0.1, color: PRAISE_CARD.ink, marginTop: 10, ...skinText(skinTokens, type.cardLead, type.cardLeadLineHeight) }}>{praiseDisplay.headline}</Text>
                         {!!praiseDisplay.note && (
-                          <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 17, color: PRAISE_CARD.sub, marginTop: 4 }}>{praiseDisplay.note}</Text>
+                          <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 17, color: PRAISE_CARD.sub, marginTop: 4, ...skinText(skinTokens, type.rowBody, type.rowBodyLineHeight) }}>{praiseDisplay.note}</Text>
                         )}
                         <View style={{ marginTop: 15, paddingTop: 14, borderTopWidth: 1.5, borderTopColor: hexToRgba(PRAISE_CARD.line, 0.85) }}>
                           {sessionRow}
@@ -864,9 +948,9 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                             <View key={item.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: quietFill, borderWidth: 1, borderColor: pm.line, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 }}>
                               <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: pm.wash, marginTop: 1 }} />
                               <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 13.5, fontWeight: "600", lineHeight: 18, color: quietInk }}>{item.title}</Text>
+                                <Text style={{ fontSize: 13.5, fontWeight: "600", lineHeight: 18, color: quietInk, ...skinText(skinTokens, type.rowBody, type.rowBodyLineHeight) }}>{item.title}</Text>
                                 {!!item.note && (
-                                  <Text style={{ fontSize: 12, fontWeight: "500", lineHeight: 16, color: emergency ? "#DC2626" : pm.inkSoft, marginTop: 1 }}>{item.note}</Text>
+                                  <Text style={{ fontSize: 11, fontWeight: "600", lineHeight: type.cardMeta ? 19 : 16, color: emergency ? "#DC2626" : pm.inkSoft, marginTop: 1, ...skinText(skinTokens, type.cardMeta) }}>{item.note}</Text>
                                 )}
                                 {emergency ? (
                                   <Text style={{ fontSize: 11, fontWeight: "600", color: "#DC2626", marginTop: 1 }}>Emergency · {formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt))} left</Text>
@@ -907,24 +991,33 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
             })()}
           </>
         ) : (
-          /* Summary */
+          /* Summary — v288 (audit v2 fix 6): the finished state
+             joins the session's own family. It was the oldest-
+             looking state of the screen, dressed entirely in
+             legacy colors.* tokens that belong to neither drawing:
+             the check now wears the session's prayed green (the
+             progress dots' own #31C48D), the words take the
+             family inks, the XP line the family's ink-walked gold,
+             the buttons the seed-deep fill the Complete prayer
+             button wears, and the sizes ride the same type scale
+             as the rest of the session. No colors.* remains here. */
           <View style={{ alignItems: "center", width: "100%" }}>
-            <MaterialIcons name="check-circle" size={72} color={colors.primary} />
-            <Text style={{ color: colors.foreground, fontSize: 26, fontWeight: "900", marginTop: 20, textAlign: "center" }}>
+            <MaterialIcons name="check-circle" size={72} color="#31C48D" />
+            <Text style={{ color: pm.ink, fontSize: 26, fontWeight: "900", marginTop: 20, textAlign: "center", ...skinText(skinTokens, type.pageTitle) }}>
               Prayer Time Complete
             </Text>
-            <Text style={{ color: colors.muted, fontSize: 16, marginTop: 12, textAlign: "center", lineHeight: 24 }}>
+            <Text style={{ color: pm.inkSoft, fontSize: 16, marginTop: 12, textAlign: "center", lineHeight: 24, ...skinText(skinTokens, type.cardBody, type.cardBodyLineHeight) }}>
               You prayed for {prayedCount} {prayedCount === 1 ? "person" : "people"}{"\n"}
               in {formatTime(elapsedSeconds)}
             </Text>
-            <Text style={{ color: colors.primary, fontSize: 18, fontWeight: "800", marginTop: 16 }}>
+            <Text style={{ color: pm.goldDeep, fontSize: 18, fontWeight: "800", marginTop: 16, ...skinText(skinTokens, type.cardBody) }}>
               +{prayedCount * 10} XP earned
             </Text>
             {showKeepPraying ? (
               <>
                 <Pressable
                   onPress={handleKeepPraying}
-                  style={{ backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 48, marginTop: 32 }}
+                  style={{ backgroundColor: pm.deep, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 48, marginTop: 32 }}
                 >
                   <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "800" }}>Keep praying</Text>
                 </Pressable>
@@ -932,13 +1025,13 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                   onPress={handleFinish}
                   style={({ pressed }) => [{ paddingVertical: 12, paddingHorizontal: 24, marginTop: 10 }, pressed && { opacity: 0.65 }]}
                 >
-                  <Text style={{ color: colors.muted, fontSize: 15, fontWeight: "700" }}>Finish</Text>
+                  <Text style={{ color: pm.inkSoft, fontSize: 15, fontWeight: "700" }}>Finish</Text>
                 </Pressable>
               </>
             ) : (
               <Pressable
                 onPress={handleFinish}
-                style={{ backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 48, marginTop: 32 }}
+                style={{ backgroundColor: pm.deep, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 48, marginTop: 32 }}
               >
                 <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "800" }}>Finish</Text>
               </Pressable>
@@ -991,7 +1084,7 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
           width: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [morphOrigin.width, win.width] }),
           height: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [morphOrigin.height, win.height] }),
           borderRadius: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [26, 0] }),
-          backgroundColor: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [morphSurface ?? pm.card, colors.background] }),
+          backgroundColor: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [morphSurface ?? pm.card, pm.ground] }),
           overflow: "hidden",
           zIndex: 60,
           elevation: 24,

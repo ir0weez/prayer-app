@@ -547,8 +547,12 @@ describe("v254 motion layer — Material, native-driver, no springs", () => {
     // (which read on device as a heavy tan outline) into the soft
     // warm shadow the drawing itself specifies (.lead.active),
     // carried by a wrapper outside the card's overflow:hidden clip.
+    // v288: the wrapper now takes the lead's halo paint as a prop
+    // and renders the glow as a real layer — Android ignores RN
+    // shadow props, so v264's carrier never painted on his Pixel
+    // (audit v2 §0.1; the layer itself is pinned in v288's tests).
     expect(session).toContain("function FirstWarmShadow");
-    expect(session).toContain("<FirstWarmShadow>");
+    expect(session).toContain('<FirstWarmShadow paint="#D9A420">');
     expect(session).toContain("Animated.loop");
     expect(session).toContain("isReduceMotionEnabled");
     expect(session).not.toContain("FirstGlowBorder");

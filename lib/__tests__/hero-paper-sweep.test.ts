@@ -38,7 +38,13 @@ describe("world hero renders route to the paper figure", () => {
   });
 
   it("the fasting profile hero card goes through PawnPreview", () => {
-    expect(read("app/profile.tsx")).toContain("<PawnPreview");
+    // v283 re-base: the pawn row left the fasting page at
+    // Jonathan's Oct 27 word (not in the approved tracker mockup,
+    // never approved for that page) — the profile no longer
+    // renders PawnPreview at all. The preview's standing doors
+    // are the pawn creator and the barbershop (pinned above), and
+    // the interiors keep theirs.
+    expect(read("app/profile.tsx")).not.toContain("<PawnPreview");
     expect(read("app/opera-house-interior.tsx")).toContain("<PawnPreview");
   });
 

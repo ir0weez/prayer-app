@@ -21,6 +21,8 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useSkin } from "@/hooks/use-skin";
 import { derivePeopleFrontDoor } from "@/lib/people-material";
 import {
+  FAST_KEPT_DEEP,
+  FAST_KEPT_WASH,
   composeFinalRecap,
   composeWeeklyRecap,
   getFastQuarters,
@@ -31,7 +33,7 @@ import {
   type FastRecap,
 } from "@/lib/fast-tracker";
 import { createPrayerJournalEntry, normalizePrayerJournalEntries } from "@/lib/prayer-journal";
-import { TERM_DEEP, TERM_PANEL_2, hasTypeScale, skinText } from "@/lib/skin-themes";
+import { hasTypeScale, skinText } from "@/lib/skin-themes";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -65,9 +67,7 @@ import { getReadingPosition } from "@/lib/bible-v205/position";
 import { awardXP, awardCustomXP, loadXPState, loseHeart, restoreHeart, revokeXP, type XpGainPosition } from "@/lib/xp-engine";
 import { generateFastSummary } from "@/lib/prayercircle-fasting";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
-import { PawnPreview } from "@/components/pawn-preview";
 import { loadPrestigeState } from "@/lib/prestige";
-import { BadgeCase } from "@/components/badge-case";
 
 type PersonalProfile = {
   name: string;
@@ -631,145 +631,20 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* v202: the profile card + its paper stack settle as one
-            sheet under Paper. */}
-        <PaperSettle index={0} style={{ position: 'relative' }}>
-<BitSettle index={0}>
-          {/* Paper: a warm stack of sheets under the profile card —
-              the v174 build's single gray offset read as a picture
-              frame; stacked warm stock reads as paper. v182: the stack
-              stepped to the cleaner white-paper neutral (the old tan
-              sheets were the beige family Jonathan asked to pull
-              back). */}
-          {isSkinned ? (
-            <>
-              {/* 8-bit: the same stack in dusk layers with square corners.
-                  Terminal (v186): deeper tube greens, 2px corners. */}
-              <View style={{ position: 'absolute', left: 7, right: -7, top: 9, bottom: -9, borderRadius: isPaper ? 6 : skinTokens.isTerminal ? 2 : 6, backgroundColor: isPaper ? '#E6DCC2' : skinTokens.isTerminal ? TERM_DEEP : '#1E1138' }} />
-              <View style={{ position: 'absolute', left: 3.5, right: -3.5, top: 4.5, bottom: -4.5, borderRadius: isPaper ? 6 : skinTokens.isTerminal ? 2 : 6, backgroundColor: isPaper ? '#EFE9DB' : skinTokens.isTerminal ? TERM_PANEL_2 : '#2A1B4E' }} />
-            </>
-          ) : null}
-        <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }, isSkinned ? { overflow: 'hidden' } : null, skinCardShadow]}>
-          {isSkinned && profileAura ? <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: auraWashColor(profileAura, "24") }} /> : null}
-          {isSkinned ? <PaperGrainOverlay /> : null}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
-            <View>
-              <Pressable onPress={() => setShowAvatarPicker(true)}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" profileLevel={profileLevel} photoUri={profile.photoUri} size={76} fallbackColor={PURPLE} /></Pressable>
-              {prestigeLevel > 0 && (
-                <View style={{ position: "absolute", bottom: -4, right: -4, backgroundColor: "#F59E0B", borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 2, borderColor: "#FFFFFF" }}>
-                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#FFFFFF" }}>★{prestigeLevel}</Text>
-                </View>
-              )}
-            </View>
-            <View style={[styles.profileCopy, { marginLeft: 12 }]}>
-              <Text style={dynamicStyles.profileName}>{profile.name}</Text>
-              <Text style={dynamicStyles.profileSubtitle}>Personal prayers, fasts, and daily streak tracking</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' }}>
-                <Text style={{ fontSize: 13 }}>🪙</Text>
-                <Text style={{ marginLeft: 4, fontWeight: '700', fontSize: 12, color: colors.foreground }}>{formatCoins(coins.balance)}</Text>
-              </View>
-            </View>
-          </View>
-          <View style={styles.profileButtons}>
-            <Pressable onPress={() => router.navigate({ pathname: '/(tabs)', params: { navTab: 'bible' } })} style={({ pressed }) => [styles.profileButton, { backgroundColor: colors.primary }, pressed && styles.pressed]}>
-              <MaterialIcons name="school" size={18} color="#FFFFFF" />
-              <Text style={styles.profileButtonText}>Bible</Text>
-            </Pressable>
-            <Pressable onPress={() => router.push('/budget-tracker')} style={({ pressed }) => [styles.profileButton, { backgroundColor: colors.primary }, pressed && styles.pressed]}>
-              <MaterialIcons name="attach-money" size={18} color="#FFFFFF" />
-              <Text style={styles.profileButtonText}>Budget</Text>
-            </Pressable>
-          </View>
-          {/* Bible Reading Info */}
-          {currentBibleBook && (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '20', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 }}>
-                <MaterialIcons name="menu-book" size={14} color={colors.primary} />
-                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary, marginLeft: 4 }}>{currentBibleBook}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 }}>
-                <MaterialIcons name="schedule" size={14} color={colors.muted} />
-                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginLeft: 4 }}>
-                  {lastBibleReadDate ? `${Math.floor((Date.now() - new Date(lastBibleReadDate).getTime()) / (1000 * 60 * 60 * 24))}d ago` : 'No reads yet'}
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
-        </BitSettle>
-</PaperSettle>
-
-        <PaperSettle index={1} style={styles.statsGrid}>
-<BitSettle index={1} style={{ flexDirection: "row", gap: 10, flex: 1 }}>
-          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
-            {isSkinned ? <PaperGrainOverlay /> : null}
-            <Text style={dynamicStyles.statNumber}>{highestFastStreak}</Text>
-            <Text style={[styles.statLabel, skinText(skinTokens, skinTokens.type.labelText)]}>Highest Streak</Text>
-          </View>
-          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
-            {isSkinned ? <PaperGrainOverlay /> : null}
-            <Text style={dynamicStyles.statNumber}>{completedFastCount}</Text>
-            <Text style={[styles.statLabel, skinText(skinTokens, skinTokens.type.labelText)]}>Completed Fasts</Text>
-          </View>
-          <View style={[styles.statCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { minHeight: 84 + skinTokens.type.padBoost * 2 } : null]}>
-            {isSkinned ? <PaperGrainOverlay /> : null}
-            <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }, skinText(skinTokens, skinTokens.type.rowTitle, skinTokens.type.rowTitleLineHeight)]}>
-              {lastCompletedFastProgress ? `${lastCompletedFastPercentage}%` : "Collecting Data"}
-            </Text>
-            <Text style={[styles.statLabel, skinText(skinTokens, skinTokens.type.labelText)]}>Last {selectedFast?.type ?? "Fast"}</Text>
-          </View>
-        </BitSettle>
-</PaperSettle>
-
-        {/* Boss badges — won at the Dark Forest's Boss Gate. Permanent. */}
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-          <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>BOSS BADGES</Text>
-          <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted }}>{ownedBadges.length}/10</Text>
-        </View>
-        <Text style={{ fontSize: 12.5, color: colors.muted, lineHeight: 17, marginBottom: 12 }}>
-          Won from the bosses who guard each Begin Again. Badges are forever — prestige can never take them.
-        </Text>
-        <View style={{ marginBottom: 20 }}>
-          <BadgeCase ownedBadges={ownedBadges} />
-        </View>
-
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>PREVIOUS FAST</Text>
-          <Pressable onPress={() => router.push("/fast-collection")} style={{ padding: 6 }}>
-            <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 13 }}>View Collection →</Text>
-          </Pressable>
-        </View>
-        {lastCompletedFast && lastCompletedFastProgress ? (
-          <PaperSettle index={2} style={[styles.previousFastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { padding: 16 + skinTokens.type.padBoost } : null]}>
-<BitSettle index={2}>
-            {isSkinned ? <PaperGrainOverlay /> : null}
-            <View style={styles.previousFastHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.previousFastTitle, skinText(skinTokens, skinTokens.type.cardTitle)]}>{lastCompletedFast.name}</Text>
-                <Text style={styles.previousFastMeta}>{lastCompletedFast.type} • {getFastDateRangeLabel(lastCompletedFast)}</Text>
-              </View>
-              <Text style={[styles.previousFastPercentage, { color: colors.primary }, skinText(skinTokens, skinTokens.type.displayName)]}>{lastCompletedFastPercentage}%</Text>
-            </View>
-            <View style={styles.previousFastProgressTrack}>
-              <View style={[styles.previousFastProgressFill, { width: `${lastCompletedFastPercentage}%`, backgroundColor: profileAura?.glowColor || colors.primary }]} />
-            </View>
-            <Text style={styles.previousFastDays}>{lastCompletedFastProgress.completed}/{lastCompletedFastProgress.total} days completed</Text>
-            <Text style={styles.previousFastFocusLabel}>FOCUS ITEMS</Text>
-            <View style={styles.focusWrap}>
-              {(lastCompletedFast.focusItems.length ? lastCompletedFast.focusItems : ["No focus items recorded"]).map((item) => (
-                <View key={item} style={[styles.previousFocusChip, { backgroundColor: `${colors.primary}18`, borderColor: `${colors.primary}35` }]}>
-                  <Text style={[styles.previousFocusChipText, { color: colors.primary }]}>{item}</Text>
-                </View>
-              ))}
-            </View>
-          </BitSettle>
-</PaperSettle>
-        ) : (
-          <View style={styles.previousFastEmpty}>
-            <MaterialIcons name={iconName("history")} size={22} color={colors.muted} />
-            <Text style={styles.previousFastEmptyText}>Complete a fast to start your history.</Text>
-          </View>
-        )}
+        {/* v283 (Jonathan, Oct 27 08:37-08:46: the badges and
+            profile stuff on this page "were never approved
+            either" - "I want the fucking rebuild done! Put the
+            badges in 'More' or something for now."): the page
+            is the tracker mockup plus Fast History, nothing
+            else. The profile card, the 3-stat grid, the Boss
+            Badges block and the previous-fast section are OFF
+            the page. Their doors live elsewhere now: badges
+            behind More -> Boss Badges, Budget behind More ->
+            Budget, the avatar in the People profile editor,
+            coins in Hometown, the previous fast's record in
+            Fast History below and the Fast Collection. The
+            state and loaders behind those surfaces still run
+            above - only their dressing left this page. */}
 
         {selectedFast ? (
           <>
@@ -780,10 +655,10 @@ export default function ProfileScreen() {
                 disc, the meta line, and the enclosing fastCard are
                 gone: the tracker surfaces stand on the page ground
                 exactly as the mockup draws them. */}
-            <PaperSettle index={3} style={styles.trackerSection}>
-<BitSettle index={3} style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+            <PaperSettle index={0} style={styles.trackerSection}>
+<BitSettle index={0} style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
               {isSkinned ? <PaperGrainOverlay /> : null}
-              <Text style={[styles.fastTitle, { color: colors.foreground, flex: 1 }, skinText(skinTokens, skinTokens.type.cardTitle, 25)]} numberOfLines={1}>{selectedFast.name}</Text>
+              <Text style={[styles.trackerTitle, { color: colors.foreground, flex: 1 }]} numberOfLines={1}>{selectedFast.name}</Text>
               {selectedFastStreak > 0 && (
                 <View style={[styles.streakChip, { backgroundColor: trackerFamily.wash }]}>
                   <MaterialIcons name="local-fire-department" size={18} color={trackerFamily.deep} />
@@ -831,66 +706,14 @@ export default function ProfileScreen() {
                 is removed — the mockup's fasting page has no such
                 surface, and its dress was the profile chrome, not
                 the tracker's. Hometown stays one tap away from the
-                People page's nav row (and its unlock rule is
-                unchanged — it still gates the Forge card below). */}
+                People page's nav row. */}
             {/* End-of-fast "Begin Again?" prestige prompt (shows once per completed fast) */}
             <PrestigePrompt fasts={fasts} />
-            {hometownUnlocked ? (
-            <Pressable
-              onPress={() => router.push("/pawn-creator")}
-              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#1E1B4B", borderRadius: 12, padding: 12, marginBottom: 12 }}
-            >
-              {customPawn ? (
-                <PawnPreview pawn={customPawn} size={44} />
-              ) : (
-                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }}>
-                  <MaterialIcons name="brush" size={22} color="#A78BFA" />
-                </View>
-              )}
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={{ fontWeight: "700", fontSize: 16, color: "#FFFFFF" }}>
-                  {customPawn ? (customPawn.name || "Your Hero") : "Forge Your Hero"}
-                </Text>
-                <Text style={{ fontSize: 12, color: "#A78BFA" }}>
-                  {customPawn ? "Tap to customize" : "Design your own pawn companion"}
-                </Text>
-              </View>
-              <Text style={{ fontSize: 20, color: "#A78BFA" }}>→</Text>
-            </Pressable>
-            ) : (
-            <View
-              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#1E1B4B", borderRadius: 12, padding: 12, marginBottom: 12, opacity: 0.6 }}
-            >
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center" }}>
-                <MaterialIcons name="lock" size={22} color="#6D6A8A" />
-              </View>
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={{ fontWeight: "700", fontSize: 16, color: "#8E8BA3" }}>
-                  Your Pawn
-                </Text>
-                <Text style={{ fontSize: 12, color: "#6D6A8A" }}>
-                  Unlocks on fasts longer than {HOMETOWN_MIN_FAST_DAYS} days
-                </Text>
-              </View>
-            </View>
-            )}
-            <Pressable
-              onPress={() => router.push("/character")}
-              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#1E1B4B", borderRadius: 12, padding: 12, marginBottom: 12 }}
-            >
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }}>
-                <MaterialIcons name="person" size={22} color="#A78BFA" />
-              </View>
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={{ fontWeight: "700", fontSize: 16, color: "#FFFFFF" }}>
-                  Character Stats
-                </Text>
-                <Text style={{ fontSize: 12, color: "#A78BFA" }}>
-                  Spend level-up points, unlock perks
-                </Text>
-              </View>
-              <Text style={{ fontSize: 20, color: "#A78BFA" }}>→</Text>
-            </Pressable>
+            {/* v283: the Pebble / "Your Pawn" row and the
+                character-stats row are OFF this page - they are
+                not in the mockup and were never approved for it.
+                Their doors stand elsewhere: the pawn in the
+                barbershop, Character in the More hub. */}
           </>
         ) : (
           <View style={styles.emptyState}>
@@ -915,26 +738,33 @@ export default function ProfileScreen() {
                 return (
                   <View key={fast.id} style={styles.timelineRow}>
                     <View style={styles.timelineRail}>
-                      <View style={[styles.timelineDot, { backgroundColor: typeInfo?.color ?? colors.primary }]} />
-                      {index < fastHistory.length - 1 && <View style={styles.timelineLine} />}
+                      <View style={[styles.timelineDot, { backgroundColor: trackerFamily.seed, borderColor: trackerFamily.ground }]} />
+                      {index < fastHistory.length - 1 && <View style={[styles.timelineLine, { backgroundColor: trackerFamily.line }]} />}
                     </View>
-                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { padding: 14 + skinTokens.type.padBoost, marginBottom: 10 + skinTokens.type.gapBoost } : null, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
+                    {/* v283: Fast History wears the tracker family
+                        now - the pinned white card (#FFFFFF on the
+                        dark page in his Oct 27 screenshot) is gone.
+                        Card ground, line, seed and shadow all derive
+                        from the family; the completed pill speaks
+                        the kept meaning colors; the tap still
+                        selects the fast, the counts line is his. */}
+                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, { backgroundColor: trackerFamily.card, borderColor: selectedFast?.id === fast.id ? trackerFamily.seed : trackerFamily.line, shadowColor: trackerFamily.shadow, shadowOpacity: 1, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 2 }, pressed && styles.pressed]}>
                       {isSkinned ? <PaperGrainOverlay /> : null}
                       <View style={styles.historyCardHeader}>
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.historyTitle, skinText(skinTokens, skinTokens.type.barTitle)]}>{fast.name}</Text>
-                          <Text style={[styles.historyMeta, skinText(skinTokens, skinTokens.type.labelText)]}>{fast.type} • {getFastDateRangeLabel(fast)}</Text>
+                          <Text style={[styles.historyTitle, { color: trackerFamily.ink }, skinText(skinTokens, skinTokens.type.barTitle)]}>{fast.name}</Text>
+                          <Text style={[styles.historyMeta, { color: trackerFamily.inkSoft }, skinText(skinTokens, skinTokens.type.labelText)]}>{fast.type} • {getFastDateRangeLabel(fast)}</Text>
                         </View>
-                        <View style={[styles.historyStatusPill, { backgroundColor: isCompleted ? "#DDF8ED" : `${typeInfo?.color ?? colors.primary}18` }]}>
-                          <Text style={[styles.historyStatusText, { color: isCompleted ? "#16845A" : typeInfo?.color ?? colors.primary }]}>{isCompleted ? "Complete" : `${percentage}%`}</Text>
+                        <View style={[styles.historyStatusPill, { backgroundColor: isCompleted ? FAST_KEPT_WASH : trackerFamily.wash }]}>
+                          <Text style={[styles.historyStatusText, { color: isCompleted ? FAST_KEPT_DEEP : trackerFamily.deep }]}>{isCompleted ? "Complete" : `${percentage}%`}</Text>
                         </View>
                       </View>
-                      <View style={styles.historyProgressTrack}>
-                        <View style={[styles.historyProgressFill, { width: `${percentage}%`, backgroundColor: typeInfo?.color ?? colors.primary }]} />
+                      <View style={[styles.historyProgressTrack, { backgroundColor: trackerFamily.wash }]}>
+                        <View style={[styles.historyProgressFill, { width: `${percentage}%`, backgroundColor: trackerFamily.seed }]} />
                       </View>
-                      <Text style={[styles.historyDays, skinText(skinTokens, skinTokens.type.labelText)]}>{progress.completed}/{progress.total} completed • {progress.missed} missed • {progress.skipped} skipped</Text>
+                      <Text style={[styles.historyDays, { color: trackerFamily.inkSoft }, skinText(skinTokens, skinTokens.type.labelText)]}>{progress.completed}/{progress.total} completed • {progress.missed} missed • {progress.skipped} skipped</Text>
                       {fast.focusItems.length > 0 && (
-                        <Text numberOfLines={1} style={[styles.historyFocus, skinText(skinTokens, skinTokens.type.labelText)]}>Focus: {fast.focusItems.join(" • ")}</Text>
+                        <Text numberOfLines={1} style={[styles.historyFocus, { color: trackerFamily.ink }, skinText(skinTokens, skinTokens.type.labelText)]}>Focus: {fast.focusItems.join(" • ")}</Text>
                       )}
                     </Pressable>
                   </View>
@@ -1276,19 +1106,20 @@ const styles = StyleSheet.create({
     width: 22,
     alignItems: "center" as const,
   },
+  // v283: the timeline + history colors moved to the call sites,
+  // where the tracker family supplies them — no pinned paints are
+  // left in these base styles.
   timelineDot: {
     width: 13,
     height: 13,
     marginTop: 19,
     borderRadius: 7,
     borderWidth: 3,
-    borderColor: "#FFFFFF",
   },
   timelineLine: {
     width: 2,
     flex: 1,
     marginTop: 3,
-    backgroundColor: "#DED4EC",
   },
   historyCard: {
     flex: 1,
@@ -1296,9 +1127,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     padding: 14,
     borderRadius: 22,
-    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#E5DDF2",
   },
   historyCardHeader: {
     flexDirection: "row" as const,
@@ -1329,7 +1158,6 @@ const styles = StyleSheet.create({
     height: 7,
     marginTop: 12,
     borderRadius: 4,
-    backgroundColor: "#EEE9F7",
     overflow: "hidden" as const,
   },
   historyProgressFill: {
@@ -1392,6 +1220,15 @@ const styles = StyleSheet.create({
   trackerSection: {
     marginTop: 4,
     marginBottom: 2,
+  },
+  // v283: the section head's title takes the mockup's app-bar
+  // metrics (title-lg: 22/28, weight 500) — the legacy fastTitle
+  // (19/900) plus the skin card-title spread read heavier than the
+  // drawing on device.
+  trackerTitle: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "500",
   },
   streakChip: {
     flexDirection: "row",

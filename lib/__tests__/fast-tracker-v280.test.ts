@@ -168,7 +168,11 @@ describe("v280 fidelity: the fasting section is the mockup", () => {
   it("the section head is the mockup's app-bar row: name + streak chip, no label, no card", () => {
     expect(profile).toContain("{selectedFastStreak}-day streak");
     expect(profile).toContain('name="local-fire-department" size={18} color={trackerFamily.deep}');
-    expect(profile).toContain("<PaperSettle index={3} style={styles.trackerSection}>");
+    // v283 re-base: the settle renumbered 3 -> 0 — the sheets
+    // above it (profile card, stat grid, previous-fast card) left
+    // the page at Jonathan's Oct 27 ruling, so the section head
+    // is the page's first settling sheet now.
+    expect(profile).toContain("<PaperSettle index={0} style={styles.trackerSection}>");
     expect(profile).not.toContain(">CURRENT FAST<");
     expect(profile).not.toContain("styles.fastCard,");
     expect(profile).not.toContain("🔥 {selectedFastStreak}");
@@ -190,8 +194,16 @@ describe("v280 fidelity: the fasting section is the mockup", () => {
   });
 
   it("week rows speak the mockup's kept label; weekday labels only under the current week", () => {
-    expect(tracker).toContain("{week.kept} of {week.current ? week.elapsed : week.days.length}");
-    expect(tracker).toContain('{week.current ? " so far" : " kept"}');
+    // v283 RE-BASE (his Oct 27 device report): the inline count is
+    // the MODEL's label now — getFastWeekKeptLabel returns null
+    // for a week that has not begun, and getFastRecordWeeks keeps
+    // future weeks off the Record entirely. On v280 the component
+    // built the label inline over ALL the quarter's weeks
+    // reversed, so Q4 opened on Week 53 stamped "0 of 7 kept" and
+    // read as his record wiped.
+    expect(tracker).toContain("const shownWeeks = getFastRecordWeeks(weeks);");
+    expect(tracker).toContain("getFastWeekKeptLabel(week)");
+    expect(tracker).not.toContain("{week.kept} of {week.current ? week.elapsed : week.days.length}");
     expect(tracker).toContain("week.current ? (");
     expect(tracker).toContain("styles.dotLabel,");
     expect(tracker).toContain("styles.dotHalo");

@@ -173,13 +173,20 @@ describe("v274 — wiring: the gated roominess spreads follow the scale, not Pap
     expect(profile).toContain(
       "hasTypeScale(skinTokens) ? { padding: 18 + skinTokens.type.padBoost } : null",
     );
-    expect(profile).toContain(
+    // v283 re-base: three of the spreads below retired with the
+    // surfaces that carried them — Jonathan's Oct 27 ruling took
+    // the stat grid (minHeight 84…) and the previous-fast card
+    // (padding 16…) off the fasting page, and the Fast History
+    // cards (padding 14…/gapBoost) were re-dressed in the tracker
+    // family without their skin spreads. The split-form rule the
+    // surviving pins guard is unchanged.
+    expect(profile).not.toContain(
       "isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { minHeight: 84 + skinTokens.type.padBoost * 2 } : null",
     );
-    expect(profile).toContain(
+    expect(profile).not.toContain(
       "isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { padding: 16 + skinTokens.type.padBoost } : null",
     );
-    expect(profile).toContain(
+    expect(profile).not.toContain(
       "isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { padding: 14 + skinTokens.type.padBoost, marginBottom: 10 + skinTokens.type.gapBoost } : null",
     );
     // The bundled single-gate form is gone — Classic never

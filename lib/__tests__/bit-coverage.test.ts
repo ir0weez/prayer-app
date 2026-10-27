@@ -158,10 +158,15 @@ describe("8-bit coverage — v203 animation pass", () => {
 
   it("fasting profile: the above-fold cards snap with their cascade; its sheets drop in", () => {
     const profile = read("app/profile.tsx");
-    expect(profile).toContain("<BitSettle index={0}>");
-    expect(profile).toContain('<BitSettle index={1} style={{ flexDirection: "row", gap: 10, flex: 1 }}>');
-    expect(profile).toContain("<BitSettle index={2}>");
-    expect(profile).toContain('<BitSettle index={3} style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>');
+    // v283 re-base: the above-fold cascade is gone with the cards
+    // it animated — Jonathan's Oct 27 ruling took the profile
+    // card, the stat grid and the previous-fast card off the
+    // fasting page. The tracker section head's BitSettle remains,
+    // renumbered to index 0.
+    expect(profile).not.toContain("<BitSettle index={1}");
+    expect(profile).not.toContain("<BitSettle index={2}>");
+    expect(profile).not.toContain("<BitSettle index={3}");
+    expect(profile).toContain('<BitSettle index={0} style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>');
     // v219: the profile fast sheet's BitSettle carries flex:1
     // again under its definite 92% box — the one flex:1 wrapper
     // in the file (see sheets-rise-v216.test.ts).

@@ -104,10 +104,14 @@ describe("chrome surfaces converted to the terminal dialect", () => {
 
   it("the fasting profile's sheet stack steps to tube greens under Terminal", () => {
     const profile = read("app/profile.tsx");
-    expect(profile).toContain("TERM_DEEP");
-    expect(profile).toContain("TERM_PANEL_2");
-    // The paper stack survives for Paper in the same expression.
-    expect(profile).toContain("#E6DCC2");
+    // v283 re-base: the stack this pin guarded belonged to the
+    // profile card, and Jonathan's Oct 27 ruling removed that
+    // card from the fasting page entirely (never-approved profile
+    // dressing). The tube-green stack steps left with it — the
+    // strings survive nowhere in the file, import included.
+    expect(profile).not.toContain("TERM_DEEP");
+    expect(profile).not.toContain("TERM_PANEL_2");
+    expect(profile).not.toContain("#E6DCC2");
   });
 
   it("creator forms ride the shared kit: the event form's surfaces come from the skin tokens", () => {

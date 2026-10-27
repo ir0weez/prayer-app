@@ -13,6 +13,8 @@ import {
   FAST_SKIPPED_WASH,
   getFastEncouragement,
   getFastNoteStream,
+  getFastRecordWeeks,
+  getFastWeekKeptLabel,
   type FastRecap,
   type FastWeek,
 } from "@/lib/fast-tracker";
@@ -262,7 +264,10 @@ export function FastRecordCard(props: {
 }) {
   const { family, fast, today, weeks, quarters, activeQuarter, onQuarterChange, onOpenDay } = props;
   const notes = getFastNoteStream(fast, 3);
-  const shownWeeks = [...weeks].reverse();
+  // v283: the Record shows the weeks that have begun, current week
+  // first (the model's ruling) — v280 reversed ALL of the quarter's
+  // weeks, so Q4 opened on Week 53 stamped "0 of 7 kept".
+  const shownWeeks = getFastRecordWeeks(weeks);
   return (
     <View style={[styles.card, { backgroundColor: family.container, shadowColor: family.shadow }]}>
       <View style={styles.cardHead}>
@@ -281,7 +286,14 @@ export function FastRecordCard(props: {
         </View>
       ) : null}
 
-      {shownWeeks.map((week) => (
+      {shownWeeks.map((week) => {
+        // The kept label is the model's now (v283): null for a week
+        // that has not begun — those rows (a future quarter tapped
+        // into) stand on their ahead dots alone, no count spoken.
+        const keptLabel = getFastWeekKeptLabel(week);
+        const keptSuffix = keptLabel?.endsWith(" so far") ? " so far" : " kept";
+        const keptBold = keptLabel ? keptLabel.slice(0, keptLabel.length - keptSuffix.length) : null;
+        return (
         <View key={week.weekNumber} style={[styles.weekRow, { borderBottomColor: family.line }]}>
           <View style={styles.weekMeta}>
             <View style={{ flexDirection: "row", alignItems: "baseline", flex: 1 }}>
@@ -291,12 +303,12 @@ export function FastRecordCard(props: {
                 {week.current ? " · this week" : ""}
               </Text>
             </View>
-            <Text style={[styles.weekKept, { color: family.inkSoft }]}>
-              <Text style={{ color: FAST_KEPT_DEEP, fontWeight: "600" }}>
-                {week.kept} of {week.current ? week.elapsed : week.days.length}
+            {keptLabel ? (
+              <Text style={[styles.weekKept, { color: family.inkSoft }]}>
+                <Text style={{ color: FAST_KEPT_DEEP, fontWeight: "600" }}>{keptBold}</Text>
+                {keptSuffix}
               </Text>
-              {week.current ? " so far" : " kept"}
-            </Text>
+            ) : null}
           </View>
           <View style={styles.dots}>
             {week.days.map((day) => {
@@ -350,7 +362,8 @@ export function FastRecordCard(props: {
             </View>
           ) : null}
         </View>
-      ))}
+        );
+      })}
 
       {notes.length > 0 && (
         <View style={{ marginTop: 6 }}>
@@ -476,7 +489,7 @@ export function FastDaySheetContent(props: {
   const encouragement = getFastEncouragement(status ?? undefined);
   return (
     <View>
-      <View style={[styles.handle, { backgroundColor: family.line }]} />
+      <View style={[styles.handle, { backgroundColor: family.wash2 }]} />
       <Text style={[styles.sheetTitle, { color: family.ink }]}>Day {dayNumber}</Text>
       <Text style={[styles.sheetSub, { color: family.inkSoft }]}>
         {weekdayName(date)} · Week {weekNumber} of the fast
@@ -710,8 +723,14 @@ const styles = StyleSheet.create({
   heroTop: { flexDirection: "row", alignItems: "center", gap: 18, marginTop: 10 },
   ringWrap: { width: 118, height: 118, position: "relative" },
   ringCenter: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
-  ringPct: { fontSize: 31, lineHeight: 36, fontWeight: "700", color: "#FFFFFF" },
-  ringOf: { fontSize: 10, lineHeight: 14, fontWeight: "600", letterSpacing: 1.2, color: "rgba(255,255,255,0.78)" },
+  // v283: Android's default includeFontPadding inflates both ring
+  // texts past their line heights, which pushed the caption low in
+  // the ring where the circle's chord is narrower than the
+  // letter-spaced text — its ends crossed the stroke (his Oct 27
+  // screenshot). Padding off, and the caption is fenced to a width
+  // the ring's middle chord holds, centered.
+  ringPct: { fontSize: 31, lineHeight: 36, fontWeight: "700", color: "#FFFFFF", includeFontPadding: false },
+  ringOf: { fontSize: 10, lineHeight: 14, fontWeight: "600", letterSpacing: 1.0, color: "rgba(255,255,255,0.78)", includeFontPadding: false, width: 84, textAlign: "center" },
   heroDay: { fontSize: 34, lineHeight: 40, fontWeight: "700", letterSpacing: -0.3, color: "#FFFFFF" },
   heroDayOf: { fontSize: 20, lineHeight: 26, fontWeight: "500", color: "rgba(255,255,255,0.75)" },
   heroSub: { fontSize: 14, lineHeight: 20, letterSpacing: 0.25, color: "rgba(255,255,255,0.85)", marginTop: 4 },

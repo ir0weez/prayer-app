@@ -523,8 +523,12 @@ describe("v176 chrome coverage (source pins)", () => {
     const profile = read("app/profile.tsx");
     expect(profile).toContain("paperSurfaceStyle");
     // v182: the stack stepped to the cleaner white-paper neutral.
-    expect(profile).toContain("#E6DCC2");
-    expect(profile).toContain("#EFE9DB");
+    // v283 re-base: the card and its stack left the fasting page
+    // at Jonathan's Oct 27 ruling (never-approved profile
+    // dressing; the page is the tracker mockup now) — the stack
+    // hexes survive nowhere in the file.
+    expect(profile).not.toContain("#E6DCC2");
+    expect(profile).not.toContain("#EFE9DB");
   });
 });
 
@@ -565,8 +569,11 @@ describe("v182 paper polish — cleaner neutral, true tints, readable completed 
 
   it("the fasting profile sheet stack stepped to the cleaner neutral family", () => {
     const profile = read("app/profile.tsx");
-    expect(profile).toContain("#EFE9DB");
-    expect(profile).toContain("#E6DCC2");
+    // v283 re-base: the stack left the page with the profile card
+    // (Jonathan, Oct 27) — neither the cleaner neutral family nor
+    // the beige it replaced stands anywhere in the file now.
+    expect(profile).not.toContain("#EFE9DB");
+    expect(profile).not.toContain("#E6DCC2");
     expect(profile).not.toContain("#DCCBA6");
     expect(profile).not.toContain("#E9DCBE");
   });
@@ -1591,8 +1598,13 @@ describe("v190 — Paper, Bigger", () => {
     // the CURRENT FAST label too: the section head is the mockup's
     // app-bar row (fast name + streak chip), no kicker label.
     // BOSS BADGES, PREVIOUS FAST and FAST HISTORY remain.
-    expect(profile.split("skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)").length - 1).toBe(3);
-    expect(profile).toContain("padding: 16 + skinTokens.type.padBoost");
+    // v283 re-base: 3 -> 1 — Jonathan's Oct 27 ruling took the
+    // BOSS BADGES and PREVIOUS FAST sections off the fasting page
+    // entirely (never approved for it; badges moved behind a More
+    // door). Only FAST HISTORY's label remains, and the
+    // previous-fast card's padBoost spread retired with its card.
+    expect(profile.split("skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)").length - 1).toBe(1);
+    expect(profile).not.toContain("padding: 16 + skinTokens.type.padBoost");
   });
 
   it("no serif, no new family: Paper's display/body fonts stay null — scale only", () => {

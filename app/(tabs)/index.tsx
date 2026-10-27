@@ -5070,6 +5070,13 @@ export default function HomeScreen() {
       { key: "character", icon: "face", label: "Character", onPress: () => router.push("/character") },
       { key: "fast-collection", icon: "collections-bookmark", label: "Fast Collection", onPress: () => router.push("/fast-collection") },
       { key: "devotional", icon: "menu-book", label: "Devotional", onPress: () => router.push("/devotional") },
+      // v283: interim homes, moved off the fasting page at
+      // Jonathan's word (Oct 27 08:46: "Put the badges in 'More'
+      // or something for now") — the BadgeCase's door and the
+      // Budget tracker's door, in the hub's standing dress. No
+      // redesign of More itself.
+      { key: "boss-badges", icon: "military-tech", label: "Boss Badges", onPress: () => router.push("/boss-badges") },
+      { key: "budget", icon: "attach-money", label: "Budget", onPress: () => router.push("/budget-tracker") },
     ];
     return (
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24 }} style={{ backgroundColor: isSkinned ? undefined : pm.ground }}>

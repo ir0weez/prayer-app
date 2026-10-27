@@ -336,15 +336,21 @@ describe("Paper coverage — v202 animation pass", () => {
 
   it("fasting profile: the above-fold sheets settle; its modals fade as pages", () => {
     const profile = read("app/profile.tsx");
-    expect(profile).toContain("<PaperSettle index={0} style={{ position: 'relative' }}>");
-    expect(profile).toContain("<PaperSettle index={1} style={styles.statsGrid}>");
-    expect(profile).toContain("<PaperSettle index={2} style={[styles.previousFastCard,");
+    // v283 re-base: the above-fold sheets are GONE — Jonathan's
+    // Oct 27 ruling removed the profile card, the stat grid and
+    // the previous-fast card from the fasting page (none of them
+    // are in the approved tracker mockup; badges and budget moved
+    // behind More doors). The tracker section head is now the
+    // page's first settling sheet, renumbered to index 0.
+    expect(profile).not.toContain("<PaperSettle index={1} style={styles.statsGrid}>");
+    expect(profile).not.toContain("<PaperSettle index={2} style={[styles.previousFastCard,");
+    expect(profile).not.toContain("<PaperSettle index={3} style={styles.trackerSection}>");
     // v280 re-base: the fastCard wrapper retired — amendment 2
     // (mockup fidelity) took the enclosing card off; the section
     // head is now a plain row on the page ground (trackerSection)
     // and the tracker cards stand on the ground themselves. The
     // settle still lands at index 3.
-    expect(profile).toContain("<PaperSettle index={3} style={styles.trackerSection}>");
+    expect(profile).toContain("<PaperSettle index={0} style={styles.trackerSection}>");
     // v276 re-base: 2 -> 3. The centered Daily Note modal retired;
     // the tracker adds the day-sheet modal and the recap-viewer
     // modal, both in the same fade-under-Paper dress (creator +

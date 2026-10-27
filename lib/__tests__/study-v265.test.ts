@@ -264,8 +264,13 @@ describe("v265 source pins — external entries re-pointed", () => {
     expect(index).toContain("onOpenBible={openBibleRequest}");
   });
 
-  it("(e) the profile Bible button opens the shell on the Study tab", () => {
-    expect(profile).toContain("params: { navTab: 'bible' }");
+  it("(e) the profile Bible button retired with the profile card (v283) — Study keeps its own tab door", () => {
+    // v283 re-base: the button lived on the profile card, and
+    // Jonathan's Oct 27 ruling removed that card from the fasting
+    // page (profile dressing he never approved there). The shell's
+    // Study tab is the Bible's standing door; nothing about the
+    // pane handoff above changes.
+    expect(profile).not.toContain("params: { navTab: 'bible' }");
   });
 
   it("(e) an external request lands with ancestry, pre-warms, and switches — one helper", () => {

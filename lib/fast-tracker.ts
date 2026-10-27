@@ -22,6 +22,7 @@ import {
 // ─── Meaning colors — constants of the app. They never follow the
 // seed: kept green, skipped amber, missed red (the mockup's :root). ──
 export const FAST_KEPT = "#31C48D";
+export const FAST_KEPT_WASH = "#D9F5E7";
 export const FAST_KEPT_DEEP = "#1E9E6A";
 export const FAST_SKIPPED_WASH = "#FDEBC8";
 export const FAST_SKIPPED_DEEP = "#9A6206";
@@ -116,9 +117,32 @@ export function getFastWeeks(fast: PersonalFast, today: string = getTodayISOStri
   return weeks;
 }
 
-/** "5 of 7 kept" for an ended week, "3 of 5 so far" for the current one. */
-export function getFastWeekKeptLabel(week: FastWeek): string {
+/**
+ * "5 of 7 kept" for an ended week, "3 of 5 so far" for the current
+ * one — and NULL for a week that has not begun. v283 (Jonathan's
+ * Oct 27 device report on v280): the Record opened on Q4 with the
+ * future weeks first, each stamped "0 of 7 kept", which read as
+ * his whole year wiped. An unstarted week has nothing to report —
+ * it carries no kept label at all.
+ */
+export function getFastWeekKeptLabel(week: FastWeek): string | null {
+  if (!week.current && week.elapsed === 0) return null;
   return week.current ? `${week.kept} of ${week.elapsed} so far` : `${week.kept} of ${week.days.length} kept`;
+}
+
+/**
+ * The weeks the Record actually shows, newest first (v283): the
+ * weeks that have begun — the current week leads, ended weeks
+ * follow — and the future weeks of the quarter stay off the page.
+ * A quarter with NO begun week (reachable only by tapping ahead
+ * into a future quarter) falls back to all of its weeks, still
+ * newest first; those rows render their ahead dots with no kept
+ * label (getFastWeekKeptLabel is null for every one of them).
+ */
+export function getFastRecordWeeks(weeks: FastWeek[]): FastWeek[] {
+  const begun = weeks.filter((week) => week.elapsed > 0);
+  const display = begun.length > 0 ? begun : weeks;
+  return [...display].sort((a, b) => b.weekNumber - a.weekNumber);
 }
 
 // ─── Quarters — the existing 80+ day behavior: quarterSize =

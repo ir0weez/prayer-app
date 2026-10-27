@@ -378,6 +378,7 @@ import { PlayerPawnWanderer } from "@/components/player-pawn";
 import { WalkableTownShell } from "@/components/walkable-town";
 import { type WalkTile } from "@/lib/walkable-town";
 import { StreetWorldView } from "@/components/wide-street";
+import { StreetErrorBoundary } from "@/components/street-error-boundary";
 import { StreetVillagers } from "@/components/street-villagers";
 import {
   defaultWideStreetState,
@@ -4097,6 +4098,19 @@ export default function HometownScreen() {
   );
   const wideStreetStateRef = useRef(wideStreetState);
   wideStreetStateRef.current = wideStreetState;
+  // v292: the street's kill switch. If the migration or the street
+  // derivation throws on this save's shape, or the street subtree
+  // throws while rendering (the error boundary reports it), the
+  // town falls back to the pre-Part-2 presentation — the grid view
+  // in the render's else branch — over the SAME save. The town
+  // opening can never crash on the street's account again.
+  const [streetBroken, setStreetBroken] = useState(false);
+  const streetBrokenRef = useRef(false);
+  const markStreetBroken = useCallback(() => {
+    if (streetBrokenRef.current) return;
+    streetBrokenRef.current = true;
+    setStreetBroken(true);
+  }, []);
   const [cafeDay, setCafeDay] = useState<string>(() => getTodayISOString());
   /** The Welcoming Town (v271): the entry greeting — set once per
    *  Hometown entry (this screen mounting); the villagers nearest the
@@ -5960,16 +5974,32 @@ export default function HometownScreen() {
         // twice or strand half-moved. Idempotent — after the first
         // sweep the sources stand at zero (lib/wide-street).
         preMigrationTown = t;
-        const mig = settleWideStreetMigration(t, wideStreetOnLoad);
-        t = mig.town;
+        // v292: the sweep is ATOMIC or it does not happen. The
+        // settle is pure (compute fully, then commit), and if it
+        // ever throws on a save shape the fixtures didn't foresee,
+        // the commit below writes the town exactly as loaded —
+        // every waiting coin still on the building where it was,
+        // never half-moved, never lost, never doubled — and the
+        // street stands down (the pre-Part-2 view renders instead).
+        let migState: WideStreetState | null = null;
+        try {
+          const mig = settleWideStreetMigration(t, wideStreetOnLoad);
+          t = mig.town;
+          migState = mig.state;
+          if (!mig.changed) migState = wideStreetOnLoad;
+        } catch {
+          markStreetBroken();
+        }
         try {
           await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(t));
         } catch {}
         setTown(t);
-        if (mig.changed) {
-          saveWideStreetState(mig.state).catch(() => undefined);
+        if (migState) {
+          if (migState !== wideStreetOnLoad) {
+            saveWideStreetState(migState).catch(() => undefined);
+          }
+          setWideStreetState(migState);
         }
-        setWideStreetState(mig.state);
         // The missed-days award lands right after the commit — the
         // same position relative to the town paint the old chain gave
         // it. The day count itself can never double-award:
@@ -6233,11 +6263,20 @@ export default function HometownScreen() {
         // café stands on the street (its doorstep tile) against the
         // street villagers' positions, in the street's own
         // coordinates. The same engine function, the same reach.
-        const tickStreet = deriveStreetWorld(prev.maps.town);
-        const tickCafeDoor =
-          tickStreet.cafe && tickStreet.cafeBuildingId
-            ? { id: tickStreet.cafeBuildingId, x: tickStreet.cafe.door.x, y: tickStreet.cafe.door.y }
-            : null;
+        // v292: guarded like every street derivation — if the
+        // street can't be derived from this save, the café's
+        // presence simply falls back to its record coordinates
+        // (the pre-Part-2 measurement) for this tick.
+        let tickCafeDoor: { id: string; x: number; y: number } | null = null;
+        try {
+          const tickStreet = deriveStreetWorld(prev.maps.town);
+          tickCafeDoor =
+            tickStreet.cafe && tickStreet.cafeBuildingId
+              ? { id: tickStreet.cafeBuildingId, x: tickStreet.cafe.door.x, y: tickStreet.cafe.door.y }
+              : null;
+        } catch {
+          tickCafeDoor = null;
+        }
         for (const mapId of TOWN_MAP_IDS) {
           const m = newMaps[mapId];
           if (!m) continue;
@@ -8210,16 +8249,28 @@ export default function HometownScreen() {
   // migration's waiting sum), deterministically, every render. The
   // walk handlers read it through the ref so a tap always plans
   // against the street as it stands NOW.
-  const streetWorld = useMemo(
-    () =>
-      activeMap === "town" && !hometownLocked
-        ? deriveStreetWorld(town.maps.town, {
-            pendingRegister: wideStreetState.pendingRegister,
-            weekLots: cafeWeekLots,
-          })
-        : null,
-    [activeMap, hometownLocked, town, wideStreetState, cafeWeekLots]
-  );
+  // v292: the derivation is attempted, never assumed. A throw on
+  // any save shape yields no street (and stands the street down via
+  // the effect below) — the render's else branch, the pre-Part-2
+  // town, takes over. Deriving must never be able to crash the open.
+  const streetAttempt = useMemo(() => {
+    if (activeMap !== "town" || hometownLocked) return { world: null, failed: false };
+    try {
+      return {
+        world: deriveStreetWorld(town.maps.town, {
+          pendingRegister: wideStreetState.pendingRegister,
+          weekLots: cafeWeekLots,
+        }),
+        failed: false,
+      };
+    } catch {
+      return { world: null, failed: true };
+    }
+  }, [activeMap, hometownLocked, town, wideStreetState, cafeWeekLots]);
+  useEffect(() => {
+    if (streetAttempt.failed) markStreetBroken();
+  }, [streetAttempt.failed, markStreetBroken]);
+  const streetWorld = streetBroken ? null : streetAttempt.world;
   const streetWorldRef = useRef(streetWorld);
   streetWorldRef.current = streetWorld;
   /** The street's roads under the pawn's feet (his stroll network). */
@@ -8866,7 +8917,13 @@ export default function HometownScreen() {
             {/* v291: the Wide Street itself — its places, its people,
                 its ground, all carrying their own Pressables inside
                 this subtree (the v290 lesson: a tap must land on a
-                real Pressable in the same tree as the art). */}
+                real Pressable in the same tree as the art).
+                v292: the whole street subtree sits inside an error
+                boundary — a render throw anywhere in it (the v291
+                crash class) unmounts the street for one commit and
+                stands it down; the else branch below (the pre-Part-2
+                town) renders instead of the app dying. */}
+            <StreetErrorBoundary onError={markStreetBroken}>
             <StreetWorldView
               world={streetWorld}
               cellSize={cellSize}
@@ -8900,6 +8957,7 @@ export default function HometownScreen() {
                 onReady={() => { heroReadyRef.current = true; }}
               />
             </StreetWorldView>
+            </StreetErrorBoundary>
           </View>
         ) : (
           <View ref={mapGridRef} style={{ position: "relative" }}>

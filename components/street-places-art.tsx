@@ -13,7 +13,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { View } from "react-native";
-import Svg, { Circle, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, G, Polygon, Rect } from "react-native-svg";
 import { HORIZON_DRESS, type DayPhase } from "@/lib/welcoming-town";
 
 // ── Ground dress per phase ──────────────────────────────────────────────────
@@ -238,12 +238,16 @@ export function MineArt({ w, h, night }: { w: number; h: number; night: boolean 
 // ── The Dark Forest (the treeline) ──────────────────────────────────────────
 
 function PaperTree({ x, base, s, dark }: { x: number; base: number; s: number; dark: string }) {
+  // v292: this group MUST be react-native-svg's G component. The
+  // v291 original wrote a raw lowercase g tag — a string element
+  // type with no native view config — which crashed the app the
+  // moment the street (and its treeline) first rendered on device.
   return (
-    <g>
+    <G>
       <Rect x={x + 5 * s} y={base - 8 * s} width={3.4 * s} height={8 * s} fill="#5D4630" />
       <Polygon points={`${x},${base - 6 * s} ${x + 6.7 * s},${base - 20 * s} ${x + 13.4 * s},${base - 6 * s}`} fill={dark} />
       <Polygon points={`${x + 1.4 * s},${base - 13 * s} ${x + 6.7 * s},${base - 26 * s} ${x + 12 * s},${base - 13 * s}`} fill={dark} />
-    </g>
+    </G>
   );
 }
 

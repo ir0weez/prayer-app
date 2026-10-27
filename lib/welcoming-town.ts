@@ -62,6 +62,23 @@ export const PHASE_WASH: Record<DayPhase, { color: string; opacity: number } | n
 };
 
 /** Windows light at dusk and stay lit all night. */
+/**
+ * v285 — the horizon's dress per phase: three paper layers (far hills,
+ * near hills, the town's own rooftops) stacked beneath the Great Peak,
+ * tinted by the same light as everything else in the scene. All four
+ * phases dress differently — dawn gilds the hills, dusk deepens every
+ * layer and warms the rooftops' windows, night cools to silhouette.
+ */
+export const HORIZON_DRESS: Record<
+  DayPhase,
+  { far: string; near: string; roofs: string; windowsLit: boolean }
+> = {
+  dawn: { far: "#F2D492", near: "#D9C08A", roofs: "#C4A878", windowsLit: true },
+  day: { far: "#BCD3A0", near: "#A3BC85", roofs: "#8FA873", windowsLit: false },
+  dusk: { far: "#E8A56B", near: "#C47F52", roofs: "#9C6248", windowsLit: true },
+  night: { far: "#5A6B8A", near: "#46536E", roofs: "#333F55", windowsLit: true },
+};
+
 export function phaseWindowsLit(phase: DayPhase): boolean {
   return phase === "dusk" || phase === "night";
 }

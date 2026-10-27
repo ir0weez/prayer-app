@@ -2086,20 +2086,25 @@ export const TOWN_SHOP_TYPES: BuildingType[] = [
 ];
 
 export const TOWN_LOTS: TownLot[] = [
-  // Chapel Hill shops (2x2 commercial — converted from cottage lots;
-  // houses removed, prayer lights are the population now)
-  { id: "town-lot-n1", x: 0, y: 0, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Chapel Shops", presetType: "diner" },
-  // Chapel Hill — the church, prominent at the top of the neighborhood
-  { id: "town-lot-church", x: 3, y: 0, w: 2, h: 2, allowedTypes: ["church"], cost: 550, name: "Chapel Hill" },
-  // Hearthside — the pawn's home, near the church
-  { id: "town-lot-pawn", x: 6, y: 0, w: 2, h: 2, allowedTypes: ["pawn-house"], cost: 275, name: "Hearthside" },
-  // Sunny Acres — farm on the hilltop (moved from west side for the bigger grid)
-  { id: "town-lot-farm", x: 8, y: 0, w: 2, h: 2, allowedTypes: ["farm"], cost: 550, name: "Sunny Acres" },
+  // v285 — The Town, Redrawn (Jonathan's Oct 27 ruling: the reshape was
+  // always the ask — new lots, winding streets, the school at the end
+  // of the neighborhood). Every lot keeps its id, footprint, allowed
+  // types, cost, preset and beach flag — identity is untouched; only
+  // geography moved. Buildings carry their townLotId, and
+  // ensureTownNeighborhood snaps each one onto its lot's new position
+  // on load: nothing he owns is lost, reset, or repriced.
+  // The School End — Chapel Hill crowns the north of the neighborhood:
+  // the church, Sunny Acres, and the Chapel Shops (the diner) under the
+  // mountain, with the Schoolhouse gate (TOWN_LANDMARKS) at the lane's
+  // end between the farm and the shops.
+  { id: "town-lot-church", x: 0, y: 0, w: 2, h: 2, allowedTypes: ["church"], cost: 550, name: "Chapel Hill" },
+  { id: "town-lot-farm", x: 2, y: 0, w: 2, h: 2, allowedTypes: ["farm"], cost: 550, name: "Sunny Acres" },
+  { id: "town-lot-n1", x: 6, y: 0, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Chapel Shops", presetType: "diner" },
   // Main Street North — 5 preset commercial lots (unlock & upgrade)
-  { id: "town-lot-s1", x: 0, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Main Street West", presetType: "shop" },
-  { id: "town-lot-s2", x: 2, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Main Street", presetType: "bakery" },
-  { id: "town-lot-s3", x: 4, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Main Street Central", presetType: "market" },
-  { id: "town-lot-s4", x: 6, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Main Street East", presetType: "bank" },
+  { id: "town-lot-s1", x: 2, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Main Street", presetType: "shop" },
+  { id: "town-lot-s2", x: 0, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Main Street West", presetType: "bakery" },
+  { id: "town-lot-s3", x: 6, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Main Street East", presetType: "market" },
+  { id: "town-lot-s4", x: 4, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Main Street Central", presetType: "bank" },
   // Old Town South — 4 preset commercial lots (the 5th moved south to make
   // room for Chapel Avenue, the vertical spine connecting every street)
   { id: "town-lot-s6", x: 0, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Old Town West", presetType: "barbershop" },
@@ -2110,116 +2115,132 @@ export const TOWN_LOTS: TownLot[] = [
   // served by Old Town Lane (north) and Harbor Lane (south)
   { id: "town-lot-s5", x: 0, y: 9, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "South End West", presetType: "bookstore" },
   { id: "town-lot-s10", x: 2, y: 9, w: 2, h: 2, allowedTypes: ["community-garden"], cost: 825, name: "South End Garden", presetType: "community-garden" },
-  { id: "town-lot-banquet", x: 4, y: 9, w: 2, h: 2, allowedTypes: ["banquet-table"], cost: 2200, name: "Marriage Supper Green", presetType: "banquet-table" },
+  { id: "town-lot-banquet", x: 6, y: 9, w: 2, h: 2, allowedTypes: ["banquet-table"], cost: 2200, name: "Marriage Supper Green", presetType: "banquet-table" },
   // Fountain Plaza — a quiet gathering place in the South End, east of the garden
-  { id: "town-lot-plaza", x: 6, y: 9, w: 2, h: 2, allowedTypes: ["fountain-plaza"], cost: 990, name: "Plaza Green", presetType: "fountain-plaza" },
-  // Cottage Row — cozy 1x1 homes for the prayer lights along the east edge.
-  // Each cottage gives villagers a place to belong: they sleep here at
-  // night, rest here by day, and visit one another.
-  { id: "town-lot-c1", x: 9, y: 3, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row North" },
-  { id: "town-lot-c2", x: 9, y: 4, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row North East" },
-  { id: "town-lot-c3", x: 9, y: 6, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row" },
-  { id: "town-lot-c4", x: 9, y: 7, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row East" },
-  { id: "town-lot-c5", x: 9, y: 9, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row South" },
-  { id: "town-lot-c6", x: 9, y: 10, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row South East" },
-  { id: "town-lot-c7", x: 9, y: 12, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row Shore" },
-  { id: "town-lot-c8", x: 9, y: 13, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row Far Shore" },
+  { id: "town-lot-plaza", x: 8, y: 9, w: 2, h: 2, allowedTypes: ["fountain-plaza"], cost: 990, name: "Plaza Green", presetType: "fountain-plaza" },
+  // Cottage courts — cozy 1x1 homes for the prayer lights: a terrace
+  // pair over Chapel Way, a court along the east spine, and a pair at
+  // the overlook where the artisans' row ends. Each cottage gives villagers a
+  // place to belong: they sleep here at night, rest here by day, and
+  // visit one another. The ids run in (y, x) reading order ON PURPOSE:
+  // cottageResidents deals villagers to cottages by that sort, so
+  // keeping the order keeps every villager in the same home.
+  { id: "town-lot-c1", x: 8, y: 0, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Chapel Terrace" },
+  { id: "town-lot-c2", x: 9, y: 0, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Chapel Terrace East" },
+  { id: "town-lot-c3", x: 9, y: 3, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Court" },
+  { id: "town-lot-c4", x: 9, y: 4, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Court East" },
+  { id: "town-lot-c5", x: 9, y: 6, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Court South" },
+  { id: "town-lot-c6", x: 9, y: 7, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Court Lower" },
+  { id: "town-lot-c7", x: 8, y: 27, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Overlook Cottages" },
+  { id: "town-lot-c8", x: 8, y: 28, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Overlook Cottages East" },
   // Mercy's Shore — 4 beach-themed lots with preset beachside dining, now the
   // southernmost district with the waves right below.
   // (NPCs reach via Harbor Lane — no more floating over buildings)
-  { id: "town-lot-s11", x: 0, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Mercy's Shore West", presetType: "pizza-place", beach: true },
-  { id: "town-lot-s12", x: 2, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Mercy's Shore", presetType: "burger-joint", beach: true },
-  { id: "town-lot-s13", x: 4, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Mercy's Shore Central", presetType: "taco-stand", beach: true },
-  { id: "town-lot-s14", x: 6, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Mercy's Shore East", presetType: "sushi-bar", beach: true },
+  { id: "town-lot-s11", x: 2, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Mercy's Shore West", presetType: "pizza-place", beach: true },
+  { id: "town-lot-s12", x: 4, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Mercy's Shore", presetType: "burger-joint", beach: true },
+  { id: "town-lot-s13", x: 6, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Mercy's Shore Central", presetType: "taco-stand", beach: true },
+  { id: "town-lot-s14", x: 8, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Mercy's Shore East", presetType: "sushi-bar", beach: true },
   // Southgate — the hospital (care for the town) and a town amphitheater
   // (for movie nights and shows with the villagers), in the southern
   // extension. Served by Southgate Lane, linked to Chapel Avenue.
-  { id: "town-lot-hospital", x: 0, y: 14, w: 2, h: 2, allowedTypes: ["hospital"], cost: 1320, name: "Healing Hills", presetType: "hospital" },
-  { id: "town-lot-amphi", x: 4, y: 14, w: 2, h: 2, allowedTypes: ["amphitheater"], cost: 1650, name: "Starlight Green", presetType: "amphitheater" },
+  { id: "town-lot-hospital", x: 1, y: 14, w: 2, h: 2, allowedTypes: ["hospital"], cost: 1320, name: "Healing Hills", presetType: "hospital" },
+  { id: "town-lot-amphi", x: 5, y: 14, w: 2, h: 2, allowedTypes: ["amphitheater"], cost: 1650, name: "Starlight Green", presetType: "amphitheater" },
   // Ministry Row (north side) — the Wayside Inn lot is now the Fasting
   // House, a quiet retreat at the head of the street. The remaining
   // artisan services keep their lots. Preset: unlock & upgrade only.
-  { id: "town-lot-inn", x: 0, y: 28, w: 2, h: 2, allowedTypes: ["fasting-house"], cost: 1320, name: "Fasting House", presetType: "fasting-house" },
-  { id: "town-lot-carpenter", x: 2, y: 28, w: 2, h: 2, allowedTypes: ["carpenter"], cost: 1210, name: "Carpenter's Workshop", presetType: "carpenter" },
-  { id: "town-lot-pottery", x: 4, y: 28, w: 2, h: 2, allowedTypes: ["pottery"], cost: 1100, name: "Pottery Studio", presetType: "pottery" },
-  { id: "town-lot-musichall", x: 6, y: 28, w: 2, h: 2, allowedTypes: ["music-hall"], cost: 1760, name: "Music Hall", presetType: "music-hall" },
-  { id: "town-lot-tailor", x: 8, y: 28, w: 2, h: 2, allowedTypes: ["tailor"], cost: 1100, name: "Tailor", presetType: "tailor" },
+  { id: "town-lot-inn", x: 0, y: 27, w: 2, h: 2, allowedTypes: ["fasting-house"], cost: 1320, name: "Fasting House", presetType: "fasting-house" },
+  { id: "town-lot-carpenter", x: 2, y: 27, w: 2, h: 2, allowedTypes: ["carpenter"], cost: 1210, name: "Carpenter's Workshop", presetType: "carpenter" },
+  { id: "town-lot-pottery", x: 4, y: 27, w: 2, h: 2, allowedTypes: ["pottery"], cost: 1100, name: "Pottery Studio", presetType: "pottery" },
+  // The Music Hall stands on the hub plaza now (below with the plaza
+  // lots) — performances where the town already gathers.
+  { id: "town-lot-tailor", x: 6, y: 27, w: 2, h: 2, allowedTypes: ["tailor"], cost: 1100, name: "Tailor", presetType: "tailor" },
   // Ministry Row, south side — the observatory and apothecary keep their
   // lots; the bathhouse is now the Gym, the town hall is now the Bible
   // Study Hall, and the post office is now the Outreach Center. Preset
   // lots: unlock & upgrade, no designing. (Existing buildings on the
   // converted lots are remapped to the new types — see
   // ensureTownNeighborhood — keeping their levels.)
-  { id: "town-lot-observatory", x: 0, y: 31, w: 2, h: 2, allowedTypes: ["observatory"], cost: 2200, name: "Observatory", presetType: "observatory" },
-  { id: "town-lot-bathhouse", x: 2, y: 31, w: 2, h: 2, allowedTypes: ["gym"], cost: 1650, name: "The Gym", presetType: "gym" },
-  { id: "town-lot-apothecary", x: 4, y: 31, w: 2, h: 2, allowedTypes: ["apothecary"], cost: 1430, name: "Apothecary", presetType: "apothecary" },
-  { id: "town-lot-townhall", x: 6, y: 31, w: 2, h: 2, allowedTypes: ["bible-study-hall"], cost: 2750, name: "Bible Study Hall", presetType: "bible-study-hall" },
-  { id: "town-lot-postoffice", x: 8, y: 31, w: 2, h: 2, allowedTypes: ["outreach-center"], cost: 990, name: "Outreach Center", presetType: "outreach-center" },
+  { id: "town-lot-observatory", x: 0, y: 30, w: 2, h: 2, allowedTypes: ["observatory"], cost: 2200, name: "Observatory", presetType: "observatory" },
+  { id: "town-lot-bathhouse", x: 2, y: 30, w: 2, h: 2, allowedTypes: ["gym"], cost: 1650, name: "The Gym", presetType: "gym" },
+  { id: "town-lot-apothecary", x: 4, y: 30, w: 2, h: 2, allowedTypes: ["apothecary"], cost: 1430, name: "Apothecary", presetType: "apothecary" },
+  { id: "town-lot-townhall", x: 6, y: 30, w: 2, h: 2, allowedTypes: ["bible-study-hall"], cost: 2750, name: "Bible Study Hall", presetType: "bible-study-hall" },
+  { id: "town-lot-postoffice", x: 8, y: 30, w: 2, h: 2, allowedTypes: ["outreach-center"], cost: 990, name: "Outreach Center", presetType: "outreach-center" },
   // Southgate — fills the gap between the hospital/amphitheater row (y14-15)
   // and the hub district. All preset lots: unlock & upgrade, no designing.
-  { id: "town-lot-s15", x: 2, y: 14, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Southgate West", presetType: "pizza-place" },
-  { id: "town-lot-s16", x: 6, y: 14, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Southgate East", presetType: "sushi-bar" },
+  { id: "town-lot-s15", x: 3, y: 14, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Southgate West", presetType: "pizza-place" },
+  { id: "town-lot-s16", x: 7, y: 14, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Southgate East", presetType: "sushi-bar" },
   // Pilgrim's Rest — fills the gap between the hub district (ends y24) and
   // Artisans' Way (y27). A rest stop for travelers on Pilgrim's Way.
-  { id: "town-lot-p1", x: 0, y: 25, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 935, name: "Pilgrim's Way West", presetType: "burger-joint" },
-  { id: "town-lot-p2", x: 3, y: 25, w: 2, h: 2, allowedTypes: ["fountain-plaza"], cost: 990, name: "Pilgrim Fountain", presetType: "fountain-plaza" },
-  { id: "town-lot-p3", x: 5, y: 25, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 935, name: "Pilgrim's Way East", presetType: "taco-stand" },
+  { id: "town-lot-p1", x: 0, y: 24, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 935, name: "Pilgrim's Way West", presetType: "burger-joint" },
+  { id: "town-lot-p2", x: 3, y: 24, w: 2, h: 2, allowedTypes: ["fountain-plaza"], cost: 990, name: "Pilgrim Fountain", presetType: "fountain-plaza" },
+  { id: "town-lot-p3", x: 5, y: 24, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 935, name: "Pilgrim's Way East", presetType: "taco-stand" },
+  // The Hub — the Music Hall stands on the landmark plaza, and
+  // Hearthside (the pawn's home) sits at the plaza's south edge,
+  // among the neighbors.
+  { id: "town-lot-musichall", x: 6, y: 18, w: 2, h: 2, allowedTypes: ["music-hall"], cost: 1760, name: "Music Hall", presetType: "music-hall" },
+  { id: "town-lot-pawn", x: 4, y: 21, w: 2, h: 2, allowedTypes: ["pawn-house"], cost: 275, name: "Hearthside" },
 ];
 
 /** Winding neighborhood path tiles — permanent infrastructure (not a grid). */
 export const TOWN_PATH: Array<{ x: number; y: number }> = [
-  // Chapel Way — winds across the top of the hill, serving cottages, church, pawn house, farm
+  // v285 — the Lane. One winding street: it starts at the artisans'
+  // end in the south, climbs Pilgrim's Rest, bends east at the hub
+  // plaza, crosses the stream on little bridges, runs Main Street,
+  // and ends at the school at the top of the neighborhood.
+  // Chapel spur — up to the terrace cottages at the lane's end
+  { x: 8, y: 1 }, { x: 9, y: 1 },
+  // Chapel Way — across the top of the hill, serving the School End
   { x: 0, y: 2 }, { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 },
   { x: 5, y: 2 }, { x: 6, y: 2 }, { x: 7, y: 2 }, { x: 8, y: 2 }, { x: 9, y: 2 },
-  // Cul-de-sac spur — tucks into the cottage cluster
-  { x: 2, y: 0 }, { x: 2, y: 1 },
-  // Chapel plaza spur — between church and pawn house
-  { x: 5, y: 0 }, { x: 5, y: 1 },
+  // The east spine — down the cottage court, so villagers walk the
+  // roads instead of floating over buildings
+  { x: 8, y: 3 }, { x: 8, y: 4 },
   // Main Street — the bustling thoroughfare between the two market rows
   { x: 0, y: 5 }, { x: 1, y: 5 }, { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 },
   { x: 5, y: 5 }, { x: 6, y: 5 }, { x: 7, y: 5 }, { x: 8, y: 5 }, { x: 9, y: 5 },
-  // Old Town Lane — between Old Town and the South End
+  // The east spine, continued — Main Street down to Old Town Lane
+  { x: 8, y: 6 }, { x: 8, y: 7 },
+  // Old Town Lane — runs to the spine and stops; the lane bends here
   { x: 0, y: 8 }, { x: 1, y: 8 }, { x: 2, y: 8 }, { x: 3, y: 8 }, { x: 4, y: 8 },
-  { x: 5, y: 8 }, { x: 6, y: 8 }, { x: 7, y: 8 }, { x: 8, y: 8 }, { x: 9, y: 8 },
-  // Harbor Lane — between the South End and Mercy's Shore
+  { x: 5, y: 8 }, { x: 6, y: 8 }, { x: 7, y: 8 }, { x: 8, y: 8 },
+  // The Jog — the bend itself, dropping between the garden and the
+  // Marriage Supper green down to Harbor Lane
+  { x: 5, y: 9 }, { x: 5, y: 10 },
+  // Harbor Lane — above Mercy's Shore
   { x: 0, y: 11 }, { x: 1, y: 11 }, { x: 2, y: 11 }, { x: 3, y: 11 }, { x: 4, y: 11 },
   { x: 5, y: 11 }, { x: 6, y: 11 }, { x: 7, y: 11 }, { x: 8, y: 11 }, { x: 9, y: 11 },
-  // Chapel Avenue — the vertical spine linking every street, so villagers
-  // walk the roads instead of floating over buildings
-  { x: 8, y: 3 }, { x: 8, y: 4 },
-  { x: 8, y: 6 }, { x: 8, y: 7 },
-  { x: 8, y: 9 }, { x: 8, y: 10 },
-  { x: 8, y: 12 }, { x: 8, y: 13 },
-  { x: 8, y: 14 }, { x: 8, y: 15 },
-  // Southgate Lane — serves the hospital and amphitheater in the southern
-  // extension, at the foot of the neighborhood
+  // Shore Lane — down the west edge to Southgate
+  { x: 0, y: 12 }, { x: 0, y: 13 }, { x: 0, y: 14 }, { x: 0, y: 15 },
+  // Southgate Lane — the boulevard's south side, serving the hospital
+  // and amphitheater (bridge where it crosses the stream)
   { x: 0, y: 16 }, { x: 1, y: 16 }, { x: 2, y: 16 }, { x: 3, y: 16 }, { x: 4, y: 16 },
   { x: 5, y: 16 }, { x: 6, y: 16 }, { x: 7, y: 16 }, { x: 8, y: 16 }, { x: 9, y: 16 },
-  // Pilgrim's Way — the southern hub district. Three east-west streets
-  // linking the map landmarks (Well, Garden, Mission Field, Dark Forest,
-  // River of Life), joined to Chapel Avenue.
-  { x: 0, y: 18 }, { x: 1, y: 18 }, { x: 2, y: 18 }, { x: 3, y: 18 }, { x: 4, y: 18 },
-  { x: 5, y: 18 }, { x: 6, y: 18 }, { x: 7, y: 18 }, { x: 8, y: 18 }, { x: 9, y: 18 },
-  { x: 0, y: 21 }, { x: 1, y: 21 }, { x: 2, y: 21 }, { x: 3, y: 21 }, { x: 4, y: 21 },
-  { x: 5, y: 21 }, { x: 6, y: 21 }, { x: 7, y: 21 }, { x: 8, y: 21 }, { x: 9, y: 21 },
-  { x: 0, y: 24 }, { x: 1, y: 24 }, { x: 2, y: 24 }, { x: 3, y: 24 }, { x: 4, y: 24 },
-  { x: 5, y: 24 }, { x: 6, y: 24 }, { x: 7, y: 24 }, { x: 8, y: 24 }, { x: 9, y: 24 },
-  // Chapel Avenue south extension — joins Southgate Lane to Pilgrim's Way
-  { x: 8, y: 17 },
-  // Hub connector — north-south link between the landmark rows
-  { x: 2, y: 17 }, { x: 2, y: 19 }, { x: 2, y: 20 },
-  { x: 2, y: 22 }, { x: 2, y: 23 }, { x: 2, y: 25 },
-  // Artisans' Spur — drops below the hub district to Artisans' Way
-  { x: 2, y: 26 },
-  // Artisans' Way — the craft street above the north Artisans' Row lots
-  { x: 0, y: 27 }, { x: 1, y: 27 }, { x: 2, y: 27 }, { x: 3, y: 27 }, { x: 4, y: 27 },
-  { x: 5, y: 27 }, { x: 6, y: 27 }, { x: 7, y: 27 }, { x: 8, y: 27 }, { x: 9, y: 27 },
-  // Artisans' Lane — the middle street, between the two Artisans' Row lot rows
-  { x: 0, y: 30 }, { x: 1, y: 30 }, { x: 2, y: 30 }, { x: 3, y: 30 }, { x: 4, y: 30 },
-  { x: 5, y: 30 }, { x: 6, y: 30 }, { x: 7, y: 30 }, { x: 8, y: 30 }, { x: 9, y: 30 },
-  // South Walk — the buffer street below the south Artisans' Row lots
-  { x: 0, y: 33 }, { x: 1, y: 33 }, { x: 2, y: 33 }, { x: 3, y: 33 }, { x: 4, y: 33 },
-  { x: 5, y: 33 }, { x: 6, y: 33 }, { x: 7, y: 33 }, { x: 8, y: 33 }, { x: 9, y: 33 },
+  // Pilgrim Street — the boulevard's north side, running to the plaza
+  // bridges at the hub
+  { x: 0, y: 17 }, { x: 1, y: 17 }, { x: 2, y: 17 }, { x: 3, y: 17 }, { x: 4, y: 17 },
+  { x: 5, y: 17 }, { x: 6, y: 17 }, { x: 7, y: 17 }, { x: 8, y: 17 },
+  // The plaza bridges — the lane crosses the stream at the hub
+  { x: 8, y: 18 }, { x: 8, y: 19 },
+  // Plaza Walk — along the landmark row's south edge, out to the bridges
+  { x: 0, y: 20 }, { x: 1, y: 20 }, { x: 2, y: 20 }, { x: 3, y: 20 }, { x: 4, y: 20 },
+  { x: 5, y: 20 }, { x: 6, y: 20 }, { x: 7, y: 20 }, { x: 8, y: 20 },
+  // Plaza Lane — down between Hearthside and the stream
+  { x: 6, y: 21 }, { x: 6, y: 22 },
+  // Hub South Street (bridge where it crosses the stream)
+  { x: 0, y: 23 }, { x: 1, y: 23 }, { x: 2, y: 23 }, { x: 3, y: 23 }, { x: 4, y: 23 },
+  { x: 5, y: 23 }, { x: 6, y: 23 }, { x: 7, y: 23 }, { x: 8, y: 23 }, { x: 9, y: 23 },
+  // Pilgrim Drop — threads between the rest stop and the fountain
+  { x: 2, y: 24 }, { x: 2, y: 25 },
+  // The east bridges — the lane hops the stream beside the café green
+  { x: 9, y: 24 }, { x: 9, y: 25 }, { x: 9, y: 26 },
+  // Pilgrim Lane — serves Pilgrim's Rest and the artisans' north row
+  { x: 0, y: 26 }, { x: 1, y: 26 }, { x: 2, y: 26 }, { x: 3, y: 26 }, { x: 4, y: 26 },
+  { x: 5, y: 26 }, { x: 6, y: 26 },
+  // The south spine — down the east edge to Artisans' Lane
+  { x: 9, y: 27 }, { x: 9, y: 28 },
+  // Artisans' Lane — between the two artisan rows
+  { x: 0, y: 29 }, { x: 1, y: 29 }, { x: 2, y: 29 }, { x: 3, y: 29 }, { x: 4, y: 29 },
+  { x: 5, y: 29 }, { x: 6, y: 29 }, { x: 7, y: 29 }, { x: 8, y: 29 }, { x: 9, y: 29 },
 ];
 
 /** A hub landmark — a place on the town map that travels to another map. */
@@ -2232,16 +2253,18 @@ export type TownLandmark = {
   y: number;
   w: number;
   h: number;
-  art: "well" | "garden-gate" | "mission-field" | "dark-forest" | "river-dock";
+  art: "well" | "garden-gate" | "mission-field" | "dark-forest" | "river-dock" | "schoolhouse";
 };
 
-/** The five gates of the hub district — each opens its map. */
+/** The gates of the town — five around the hub plaza, and (v285) the
+ *  Schoolhouse at the end of the lane. Each opens its map. */
 export const TOWN_LANDMARKS: TownLandmark[] = [
-  { id: "landmark-well",    name: "The Well",             blurb: "Draw living water, once a day",          targetMap: "well",    x: 0, y: 19, w: 2, h: 2, art: "well" },
-  { id: "landmark-garden",  name: "Garden of Remembrance", blurb: "Remember those you love",               targetMap: "mall",    x: 3, y: 19, w: 2, h: 2, art: "garden-gate" },
-  { id: "landmark-mission", name: "Mission Field",        blurb: "Send prayer lights on missions",         targetMap: "reserve", x: 5, y: 19, w: 2, h: 2, art: "mission-field" },
-  { id: "landmark-forest",  name: "Dark Forest",          blurb: "Battle demons in the dark wood",         targetMap: "forest",  x: 0, y: 22, w: 2, h: 2, art: "dark-forest" },
-  { id: "landmark-river",   name: "River of Life",        blurb: "Fish the waters, sell your catch",       targetMap: "river",   x: 3, y: 22, w: 2, h: 2, art: "river-dock" },
+  { id: "landmark-school",  name: "The Schoolhouse",      blurb: "The school at the end of the lane",       targetMap: "school",  x: 4, y: 0, w: 2, h: 2, art: "schoolhouse" },
+  { id: "landmark-well",    name: "The Well",             blurb: "Draw living water, once a day",          targetMap: "well",    x: 0, y: 18, w: 2, h: 2, art: "well" },
+  { id: "landmark-garden",  name: "Garden of Remembrance", blurb: "Remember those you love",               targetMap: "mall",    x: 2, y: 18, w: 2, h: 2, art: "garden-gate" },
+  { id: "landmark-mission", name: "Mission Field",        blurb: "Send prayer lights on missions",         targetMap: "reserve", x: 4, y: 18, w: 2, h: 2, art: "mission-field" },
+  { id: "landmark-forest",  name: "Dark Forest",          blurb: "Battle demons in the dark wood",         targetMap: "forest",  x: 0, y: 21, w: 2, h: 2, art: "dark-forest" },
+  { id: "landmark-river",   name: "River of Life",        blurb: "Fish the waters, sell your catch",       targetMap: "river",   x: 2, y: 21, w: 2, h: 2, art: "river-dock" },
 ];
 
 /** Find the landmark covering tile (x, y), if any. */
@@ -2254,13 +2277,15 @@ export function townLandmarkAt(x: number, y: number): TownLandmark | undefined {
  * to the southern waves. Purely decorative; villagers stroll its banks.
  */
 export const TOWN_STREAM: Array<{ x: number; y: number }> = [
-  { x: 9, y: 19 },
-  { x: 9, y: 20 }, { x: 8, y: 20 }, { x: 7, y: 20 },
-  { x: 7, y: 21 },
-  { x: 7, y: 22 }, { x: 8, y: 22 }, { x: 9, y: 22 },
-  { x: 9, y: 23 },
-  { x: 9, y: 24 },
-  { x: 9, y: 25 },
+  // v285: the stream slips down the east edge from Mercy's Shore,
+  // widens into a still pool beside the hub plaza (the lane crosses
+  // it on little bridges), and settles in a pond by the café green.
+  { x: 9, y: 14 }, { x: 9, y: 15 }, { x: 9, y: 16 }, { x: 9, y: 17 },
+  { x: 8, y: 18 }, { x: 9, y: 18 }, { x: 8, y: 19 }, { x: 9, y: 19 },
+  { x: 9, y: 20 },
+  { x: 8, y: 21 }, { x: 9, y: 21 }, { x: 8, y: 22 }, { x: 9, y: 22 },
+  { x: 9, y: 23 }, { x: 9, y: 24 }, { x: 9, y: 25 },
+  { x: 8, y: 24 },
 ];
 
 const TOWN_STREAM_SET = new Set(TOWN_STREAM.map((s) => `${s.x}-${s.y}`));

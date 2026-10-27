@@ -415,10 +415,10 @@ export function paperCityLookFor(npcId: string, color?: string): PaperDinerLook 
 /* Hub landmarks — the five gates to the other maps, in paper.        */
 /* ------------------------------------------------------------------ */
 
-export type PaperLandmarkKind = "well" | "garden-gate" | "mission-field" | "dark-forest" | "river-dock";
+export type PaperLandmarkKind = "well" | "garden-gate" | "mission-field" | "dark-forest" | "river-dock" | "schoolhouse";
 
 export const PAPER_LANDMARKS: readonly PaperLandmarkKind[] = [
-  "well", "garden-gate", "mission-field", "dark-forest", "river-dock",
+  "well", "garden-gate", "mission-field", "dark-forest", "river-dock", "schoolhouse",
 ];
 
 /* ------------------------------------------------------------------ */

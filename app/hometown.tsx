@@ -94,6 +94,7 @@ import {
   loadPurchasedPlots,
   savePurchasedPlots,
   TOWN_LOTS,
+  TOWN_PATH,
   townLotAt,
   lotPurchaseBlocker,
   countBuildingsOfType,
@@ -351,11 +352,13 @@ import {
   buildAwayReport,
   formatWholeCoins,
   HOMETOWN_LAST_VISIT_KEY,
+  HORIZON_DRESS,
   phaseForTimeOfDay,
   phaseWindowsLit,
   PHASE_WASH,
   type AwayReport,
   type AwayShiftInput,
+  type DayPhase,
 } from "@/lib/welcoming-town";
 import { TownNPCs, CityNPCs, countHometownNpcs, type LightInfo } from "@/components/town-npcs";
 import { PaperBuildingArt, PaperLandmarkArt } from "@/components/paper-building-art";
@@ -766,6 +769,52 @@ function StreamBridge({ size }: { size: number }) {
  * this is only the town map's gate to it. */
 function LandmarkArt({ art, size }: { art: TownLandmark["art"]; size: number }) {
   return <PaperLandmarkArt art={art} size={size} />;
+}
+
+/** v285: street lamps stand on a rhythm of the lane's tiles —
+ * deterministic from the tile itself, so the same lamps stand in the
+ * same places on every render, and only ever on the lane. */
+function lampForTile(x: number, y: number): boolean {
+  return (x * 7 + y * 13) % 9 === 0;
+}
+
+/** The rooftop silhouette along the horizon strip: width/height as
+ * fractions, some with a chimney nub seated on top. */
+const HORIZON_ROOFLINE: Array<{ w: number; h: number; chimney?: boolean }> = [
+  { w: 0.07, h: 0.3 }, { w: 0.05, h: 0.22, chimney: true }, { w: 0.08, h: 0.34 },
+  { w: 0.06, h: 0.26 }, { w: 0.07, h: 0.31, chimney: true }, { w: 0.05, h: 0.24 },
+  { w: 0.08, h: 0.33 }, { w: 0.06, h: 0.27, chimney: true }, { w: 0.07, h: 0.3 },
+];
+
+/** v285 — the Horizon: layers of paper hills and the town's own
+ * rooftops between the Great Peak and the streets, dressed by the
+ * same day phase as everything else in the scene (lib/welcoming-town
+ * HORIZON_DRESS). Presentation only; nothing here takes a tap. */
+function TownHorizon({ width, phase }: { width: number; phase: DayPhase }) {
+  const d = HORIZON_DRESS[phase];
+  const h = Math.max(26, width * 0.09);
+  return (
+    <View pointerEvents="none" style={{ width, height: h, overflow: "hidden", marginBottom: 2 }}>
+      {/* far hills */}
+      <View style={{ position: "absolute", bottom: h * 0.34, left: -width * 0.1, width: width * 1.2, height: h * 0.95, borderRadius: width * 0.6, backgroundColor: d.far }} />
+      {/* near hills, shouldering in from both sides */}
+      <View style={{ position: "absolute", bottom: h * 0.12, left: -width * 0.28, width: width * 1.05, height: h * 0.78, borderRadius: width * 0.55, backgroundColor: d.near }} />
+      <View style={{ position: "absolute", bottom: h * 0.12, right: -width * 0.28, width: width * 1.05, height: h * 0.78, borderRadius: width * 0.55, backgroundColor: d.near }} />
+      {/* the town's own rooftops along the strip's foot */}
+      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: h * 0.36, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: width * 0.04 }}>
+        {HORIZON_ROOFLINE.map((r, i) => (
+          <View key={i} style={{ width: width * r.w, height: h * r.h, backgroundColor: d.roofs, borderTopLeftRadius: 3, borderTopRightRadius: 3 }}>
+            {r.chimney && (
+              <View style={{ position: "absolute", top: -3, right: 2, width: 3, height: 5, backgroundColor: d.roofs }} />
+            )}
+            {d.windowsLit && (
+              <View style={{ position: "absolute", top: "38%", left: "30%", width: 3, height: 4, backgroundColor: "#FDE68A", borderRadius: 1 }} />
+            )}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
 }
 
 function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH, blessed = false, night = false }: { type: string; size: number; level?: number; floors?: number; prayedCount?: number; artH?: number; blessed?: boolean; night?: boolean }) {
@@ -3986,6 +4035,10 @@ export default function HometownScreen() {
   // timers, no per-frame state).
   const dayPhase = phaseForTimeOfDay(timeOfDay);
   const phaseWash = PHASE_WASH[dayPhase];
+  // v285: at dusk every building throws a long shadow east — the scene
+  // has one light, and it rakes +x like every drawn shadow in it. The
+  // strips render in the buildings layer, under each building's art.
+  const longShadow = activeMap === "town" && dayPhase === "dusk";
   // City celebrations: load persisted state once (which milestones fired, etc.).
   useEffect(() => {
     loadCelebrations()
@@ -8471,6 +8524,9 @@ export default function HometownScreen() {
             <GreatPeakArt width={gridW * cellSize} night={isNight || timeOfDay === "evening"} />
           </Pressable>
         )}
+        {/* The Horizon (v285): hills and rooftops between the Peak and
+            the streets, in the day phase's own dress. */}
+        {activeMap === "town" && <TownHorizon width={gridW * cellSize} phase={dayPhase} />}
         <SeasonalBorder
           variant={activeMap === "city" ? "city" : activeMap === "school" ? "school" : "town"}
           lighthouse={
@@ -8486,6 +8542,28 @@ export default function HometownScreen() {
         >
         <View ref={mapGridRef} style={{ position: "relative" }}>
           {rows}
+          {/* Street lamps (v285): a post stands IN the lane's edge on
+              its rhythm tiles; at dusk and through the night the lamp
+              lights and pools its glow on the paper street. */}
+          {activeMap === "town" && (
+            <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }}>
+              {TOWN_PATH.filter((t) => lampForTile(t.x, t.y)).map((t) => {
+                const lit = dayPhase === "dusk" || dayPhase === "night";
+                return (
+                  <View key={`lamp-${t.x}-${t.y}`} style={{ position: "absolute", left: t.x * cellSize, top: t.y * cellSize, width: cellSize, height: cellSize }}>
+                    {lit && (
+                      <>
+                        <View style={{ position: "absolute", left: cellSize * 0.36, top: cellSize * 0.02, width: cellSize * 0.68, height: cellSize * 0.68, borderRadius: cellSize * 0.34, backgroundColor: "rgba(252, 211, 77, 0.26)" }} />
+                        <View style={{ position: "absolute", left: cellSize * 0.52, top: cellSize * 0.14, width: cellSize * 0.36, height: cellSize * 0.36, borderRadius: cellSize * 0.18, backgroundColor: "rgba(253, 230, 138, 0.38)" }} />
+                      </>
+                    )}
+                    <View style={{ position: "absolute", left: cellSize * 0.68, top: cellSize * 0.3, width: Math.max(2, cellSize * 0.06), height: cellSize * 0.42, backgroundColor: "#5E5646", borderRadius: 2 }} />
+                    <View style={{ position: "absolute", left: cellSize * 0.605, top: cellSize * 0.2, width: cellSize * 0.21, height: cellSize * 0.17, backgroundColor: lit ? "#FDE68A" : "#FFF7E0", borderRadius: 3 }} />
+                  </View>
+                );
+              })}
+            </View>
+          )}
           {/* Holiday decorations over the town/city grid — date-driven. */}
           {(activeMap === "town" || activeMap === "city") && (
             <HolidayMapOverlay season={getHolidaySeason()} />
@@ -8555,6 +8633,11 @@ export default function HometownScreen() {
                   zIndex: Math.round((b.y + fp.h) * cellSize),
                 }}
               >
+                {/* v285: the dusk long shadow rakes east from the
+                    building's base, under its art (one light, +x). */}
+                {longShadow && (
+                  <View pointerEvents="none" style={{ position: "absolute", bottom: 2, left: "52%", width: fp.w * cellSize * 0.95, height: Math.max(4, cellSize * 0.2), backgroundColor: "rgba(146, 90, 32, 0.22)", borderRadius: 999, transform: [{ skewX: "-24deg" }] }} />
+                )}
                 {building ? (
                   <>
                     <ConstructionSiteArt width={fp.w * cellSize * 0.96} height={fp.h * cellSize + extraPx} />

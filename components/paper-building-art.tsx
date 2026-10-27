@@ -583,6 +583,58 @@ function displayContent(c: Ctx, kind: PaperDisplayKind, x: number, y: number, w:
 /* sign, display glass or the window ladder, door, base dressing.     */
 /* ------------------------------------------------------------------ */
 
+/* v285 — the drawing's ground treatment, shared by every renderer:
+ * a building stands on its own sheet of paper, sits IN a foundation
+ * course on the ground line, pools its door light at night, and walks
+ * to the street. Nothing floats; everything is attached. */
+const PAPER_SHEET = "#FFFDF4";
+const PAPER_SHEET_OFF = "#E9DFC6";
+const FOUNDATION_STONE = "#CBBFA8";
+const FOUNDATION_EDGE = "#B3A184";
+const PATH_PAPER = "#EFE6CC";
+const PATH_EDGE = "#D8CBA6";
+
+/** Darken a #RRGGBB hex by a factor (the underlay of a two-layer roof). */
+function shade(hex: string, f: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.round(((n >> 16) & 255) * f);
+  const g = Math.round(((n >> 8) & 255) * f);
+  const b = Math.round((n & 255) * f);
+  return `rgb(${r},${g},${b})`;
+}
+
+/** The backing sheet: two pages, the under one offset down-right —
+ * the same light (+x, +y) as every shadow in the scene. */
+function paperSheet(c: Ctx, x: number, y: number, w: number, bottom: number) {
+  const { p } = c;
+  p.rect(x + 1.8, y + 1.8, w, bottom - y, PAPER_SHEET_OFF, { shadow: false, r: 2 });
+  p.rect(x, y, w, bottom - y, PAPER_SHEET, { shadow: false, r: 2 });
+}
+
+/** The foundation course: a stone strip whose top overlaps the wall's
+ * base and whose foot IS the ground line — flush, never hovering. */
+function foundationCourse(c: Ctx, x: number, w: number, ground: number) {
+  const { p } = c;
+  p.rect(x - 1, ground - 2.6, w + 2, 2.6, FOUNDATION_STONE, { shadow: false, r: 0.6 });
+  p.rect(x - 1, ground - 2.6, w + 2, 0.9, FOUNDATION_EDGE, { shadow: false });
+}
+
+/** The door's light, pooled on the ground in front of it at night. */
+function doorLightPool(c: Ctx, cx: number, ground: number) {
+  const { p } = c;
+  p.ellipse(cx, ground + 1, 13.5, 2.6, "#FCD34D", { shadow: false, opacity: 0.32 });
+  p.ellipse(cx, ground + 1, 8, 1.7, "#FDE68A", { shadow: false, opacity: 0.38 });
+}
+
+/** The walk from the doorstep to the street: light paper stones from
+ * the ground line to the canvas foot, where the lane takes over. */
+function pathStrip(c: Ctx, cx: number, ground: number) {
+  const { p, rows } = c;
+  p.rect(cx - 4.2, ground, 8.4, rows - ground, PATH_PAPER, { shadow: false });
+  p.line(cx - 4.2, ground, cx - 4.2, rows, PATH_EDGE, 0.6);
+  p.line(cx + 4.2, ground, cx + 4.2, rows, PATH_EDGE, 0.6);
+}
+
 function drawStory(c: Ctx, cfg: PaperStoryConfig) {
   const { p, rows, ground, lv, night } = c;
   const d = exteriorDressingFor(lv);
@@ -603,10 +655,12 @@ function drawStory(c: Ctx, cfg: PaperStoryConfig) {
   const doorCx = doorAt === "right" ? bodyX + bodyW - 6 - doorW / 2 : PAPER_TOWN_COLS / 2;
   const awningH = cfg.awning ? rows * 0.055 + 3 : 0;
 
-  // ground shadow — the sheet the building sits on
+  // the backing sheet (v285) — the building's own page, drawn first
+  paperSheet(c, bodyX - 5, bodyY - roofH - (gable ? 6 : bodyH * 0.22 + 7), bodyW + 10, ground + 1.6);
+  // contact shadow where the building meets its sheet
   p.ellipse(50, ground + 0.5, bodyW * 0.58, 1.7, PAPER_SHADOW, { shadow: false });
-  // chimney behind the roof
-  if (cfg.chimney) {
+  // chimney behind the roof — its base lands in the wall (seated)
+  if (cfg.chimney && gable) {
     const chW = 8;
     const chX = bodyX + bodyW * 0.78;
     p.rect(chX, bodyY - roofH * 0.55, chW, bodyH * 0.34 + roofH * 0.55, cfg.chimney);
@@ -614,6 +668,10 @@ function drawStory(c: Ctx, cfg: PaperStoryConfig) {
   }
   // roof
   if (gable) {
+    // two-layer roof (v285): a darker cutout of the same roof sits
+    // offset down-right beneath it — paper depth, one light
+    const roofUnderlay = shade(cfg.roof, 0.8);
+    p.poly(`${bodyX - 3 + 1.7},${bodyY + 1.5 + 1.7} 50,${bodyY - roofH + 1.7} ${bodyX + bodyW + 3 + 1.7},${bodyY + 1.5 + 1.7}`, roofUnderlay, { shadow: false });
     p.poly(`${bodyX - 3},${bodyY + 1.5} 50,${bodyY - roofH} ${bodyX + bodyW + 3},${bodyY + 1.5}`, cfg.roof);
     if (d.gildedRoof) {
       p.poly(`${bodyX + bodyW * 0.22},${bodyY + 1.5} 50,${bodyY - roofH * 0.5} ${bodyX + bodyW * 0.78},${bodyY + 1.5}`, trim, { shadow: false, opacity: 0.45 });
@@ -622,9 +680,19 @@ function drawStory(c: Ctx, cfg: PaperStoryConfig) {
     p.rect(bodyX - 2, bodyY - roofH, bodyW + 4, roofH, cfg.roof, { r: 1 });
     p.line(bodyX, bodyY - roofH + 1.2, bodyX + bodyW, bodyY - roofH + 1.2, "#FFFFFF", 0.8);
   }
+  // flat roofs carry their stack ON the slab (v285): its base sinks
+  // into the slab, so it stands on the roof — never floats beside it
+  if (cfg.chimney && !gable) {
+    const stackTop = bodyY - roofH - bodyH * 0.22;
+    p.rect(bodyX + bodyW * 0.78, stackTop, 8, bodyY - roofH + 1.2 - stackTop, cfg.chimney);
+    p.rect(bodyX + bodyW * 0.78 - 1.6, stackTop - 2.6, 11.2, 3.4, cfg.chimney, { r: 0.7 });
+  }
   // body sheet
   p.rect(bodyX, bodyY, bodyW, bodyH, cfg.wall, { r: 1.6 });
   p.rect(bodyX + bodyW - bodyW * 0.11, bodyY + 1, bodyW * 0.11, bodyH - 1, "#000000", { shadow: false, opacity: 0.1, r: 1 });
+  // the foundation course (v285): the wall stands IN it, flush on the
+  // ground line — no stilts, no gap, no hover
+  foundationCourse(c, bodyX, bodyW, ground);
   // striped awning over the storefront
   if (cfg.awning) {
     const stripes = 6;
@@ -677,6 +745,10 @@ function drawStory(c: Ctx, cfg: PaperStoryConfig) {
   if (d.stoneStep) {
     p.rect(doorCx - (doorW + 8) / 2, ground - 1.6, doorW + 8, 2.2, "#D6CDBB", { r: 0.7 });
   }
+  // the door's light pools on the ground at night (v285), and the
+  // walk runs from the doorstep down to the street
+  if (night) doorLightPool(c, doorCx, ground);
+  pathStrip(c, doorCx, ground);
   // L2+ plant pots at the base corners
   if (d.pots && !cfg.front) {
     plantPot(c, bodyX + bodyW * 0.05, ground, lv >= 3);
@@ -832,6 +904,8 @@ function drawTowerBody(c: Ctx, x: number, w: number, top: number, front: string,
   p.rect(x, top + roofH - 0.5, w - sideW, bodyH - roofH + 0.5, front, { r: 1.2 });
   p.rect(x + w - sideW, top + roofH - 0.5, sideW, bodyH - roofH + 0.5, side, { r: 1.2 });
   p.line(x + w - sideW + 0.9, top + roofH + 2, x + w - sideW + 0.9, ground - 2, "#FFFFFF", 0.6);
+  // the foundation course (v285) — the tower stands flush on the ground
+  foundationCourse(c, x, w, ground);
   return { frontX: x, frontW: w - sideW, frontTop: top + roofH + bodyH * 0.05, frontH: bodyH * 0.9, sideW };
 }
 
@@ -844,6 +918,9 @@ function drawTower(c: Ctx, type: string) {
   const top = rows * 0.03;
   const rowsN = paperTowerRows(type, lv, c.floors ?? 1);
 
+  // the backing sheet (v285) — drawn first, so the caps and flags
+  // rise from the tower's own page
+  paperSheet(c, x - 4, top - rows * 0.19, w + 8, ground + 1.6);
   // cap dressing that rises above the roof line
   if (cfg.cap === "crest") {
     const crestW = w * 0.6;
@@ -2055,6 +2132,9 @@ function sceneGeneric(c: Ctx, type: string) {
 /* ------------------------------------------------------------------ */
 
 function drawSpecial(c: Ctx, type: string, props: PaperBuildingProps) {
+  // v285 ground treatment, shared by every special scene: the plot
+  // stands on its own sheet of paper…
+  paperSheet(c, 3, 5, 94, c.ground + 1.5);
   switch (type) {
     case "house": sceneHouse(c); break;
     case "villager-cottage": sceneCottage(c); break;
@@ -2091,6 +2171,11 @@ function drawSpecial(c: Ctx, type: string, props: PaperBuildingProps) {
     case "apartments": sceneApartments(c); break;
     default: sceneGeneric(c, type);
   }
+  // …and sits flush on the ground: a foundation course across the
+  // plot's base, the door's light pooled at night, the walk to the street
+  foundationCourse(c, 6, 88, c.ground);
+  if (props.night) doorLightPool(c, 50, c.ground);
+  pathStrip(c, 50, c.ground);
 }
 
 /** Every building exterior on the maps, in paper. Same props as the
@@ -2155,6 +2240,37 @@ export function PaperLandmarkArt({ art, size }: { art: string; size: number }) {
           const c: Ctx = { p, rows, ground: rows - 2, lv: 1, night: false, seed: 3 };
           const ground = c.ground;
           switch (art) {
+            case "schoolhouse": {
+              // the school at the end of the lane (v285): cream walls,
+              // a red roof, the little bell tower, the flag over the door
+              p.rect(2, 4, 96, ground - 2, "#FDEFD2", { r: 3 });
+              p.rect(2, ground - 6, 96, 6, "#CBE3AC", { shadow: false });
+              const wallX = 26, wallW = 48, wallTop = ground - 30;
+              // foundation first — the walls stand in it, flush
+              p.rect(wallX - 1, ground - 2.4, wallW + 2, 2.4, "#CBBFA8", { shadow: false, r: 0.6 });
+              p.rect(wallX, wallTop, wallW, ground - wallTop, "#FFF3D6", { r: 1.2 });
+              // the chimney, seated: its base sinks below the roofline
+              p.rect(wallX + wallW * 0.78, wallTop - 12, 6.5, 10, "#B4552D", { shadow: false, r: 0.6 });
+              p.poly(`${wallX - 3},${wallTop + 1.5} 50,${wallTop - 11} ${wallX + wallW + 3},${wallTop + 1.5}`, "#C4493B");
+              // the bell tower astride the roof, bell in its arch, flag above
+              p.rect(45.5, wallTop - 17, 9, 7.5, "#FFF3D6", { shadow: false, r: 0.8 });
+              p.poly(`43.5,${wallTop - 17} 50,${wallTop - 22.5} 56.5,${wallTop - 17}`, "#C4493B", { shadow: false });
+              p.circle(50, wallTop - 13.4, 2.1, "#B98A2F", { shadow: false });
+              p.line(50, wallTop - 22.5, 50, wallTop - 28, "#8A5A2B", 0.9);
+              p.poly(`50,${wallTop - 28} 58,${wallTop - 25.8} 50,${wallTop - 23.6}`, "#3E7CB1", { shadow: false });
+              // windows in the walls, either side of the door
+              [wallX + 6, wallX + wallW - 13].forEach((wx) => {
+                p.rect(wx, wallTop + 9, 7, 10, "#7FB6D9", { shadow: false, r: 0.8 });
+                p.line(wx + 3.5, wallTop + 9, wx + 3.5, wallTop + 19, "#FFF3D6", 0.7);
+              });
+              // the door on the ground line, its step, the path out
+              p.rect(45.5, ground - 13, 9, 13, "#8A5A2B", { r: 0.8 });
+              p.rect(41.5, ground - 1.4, 17, 1.4, "#D6CDBB", { shadow: false, r: 0.5 });
+              p.rect(46.8, ground - 1.2, 6.4, 1.2, "#EFE6CC", { shadow: false });
+              paperTree(c, 14, ground - 2, 24);
+              paperTree(c, 86, ground - 2, 24);
+              break;
+            }
             case "dark-forest": {
               // dark paper pines over a shadow path + fireflies
               p.rect(2, 4, 96, ground - 2, "#22301F", { r: 3 });

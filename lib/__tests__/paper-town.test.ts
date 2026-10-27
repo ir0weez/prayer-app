@@ -68,12 +68,15 @@ describe("paper town — renderer coverage", () => {
     }
   });
 
-  it("the landmark scenes cover the five map gates", () => {
+  it("the landmark scenes cover the map gates", () => {
+    // v285 (Jonathan's Oct 27 reshape ruling): a sixth gate — the
+    // Schoolhouse at the end of the lane — joins the five hub gates.
     expect([...PAPER_LANDMARKS].sort()).toEqual([
       "dark-forest",
       "garden-gate",
       "mission-field",
       "river-dock",
+      "schoolhouse",
       "well",
     ]);
   });

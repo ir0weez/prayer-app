@@ -223,7 +223,24 @@ function refDailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: nu
 }
 
 function refDailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1, nowMs: number = Date.now()): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + refDailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus, prestigeMult, nowMs), 0) * houseMult;
+  // v291 re-base: the production aggregator prices the TOWN map
+  // through the café alone (the old building set retired; the café
+  // is the town's only producer). The reference applies the same
+  // rule independently: the town map contributes its first diner
+  // (north-most, then west-most — the café's anchor) priced on a
+  // map holding only it; every other map composes in full, as
+  // before. The per-map pricer itself is unchanged (pinned above).
+  return TOWN_MAP_IDS.reduce((sum, id) => {
+    const map = town.maps[id];
+    if (id !== "town") {
+      return sum + refDailyIncomeForMap(map, town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus, prestigeMult, nowMs);
+    }
+    const anchor = [...map.buildings]
+      .filter((b) => b.type === "diner")
+      .sort((a, b) => a.y - b.y || a.x - b.x)[0];
+    const cafeOnly: MapState = { ...map, buildings: anchor ? [anchor] : [] };
+    return sum + refDailyIncomeForMap(cafeOnly, town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus, prestigeMult, nowMs);
+  }, 0) * houseMult;
 }
 
 // ---------------------------------------------------------------------------

@@ -198,6 +198,11 @@ const TODAY = "2027-01-15";
 const THREE_DAYS_AGO = "2027-01-12"; // missed window: 12th, 13th, 14th
 
 function churchTown(lastIncomeDate: string | null = THREE_DAYS_AGO): TownState {
+  // v291 re-base: the fixture church stands on the CITY map — Part
+  // 2 retired the town map's building set (the café alone earns
+  // there), so a town-map church neither accrues nor prices missed
+  // days by design. The settlement arithmetic this file pins is
+  // unchanged; the city is where a church still earns it.
   const town = emptyTownState();
   const church: PlacedBuilding = {
     id: "church-1",
@@ -208,7 +213,7 @@ function churchTown(lastIncomeDate: string | null = THREE_DAYS_AGO): TownState {
     accumulated: 0,
     lastTick: new Date(NOW - 5 * 60000).toISOString(),
   };
-  town.maps.town.buildings = [church];
+  town.maps.city.buildings = [church];
   town.lastIncomeDate = lastIncomeDate;
   return town;
 }

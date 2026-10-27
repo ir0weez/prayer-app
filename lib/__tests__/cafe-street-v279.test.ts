@@ -500,7 +500,11 @@ describe("v279 — the wiring stands in the app", () => {
 
   it("hometown renders the café on the town map and feeds the report", () => {
     const src = read("app/hometown.tsx");
-    expect(src).toContain("<CafeStreetOverlay");
+    // v287 re-base (Jonathan's 2026-10-27 verdict on the v280 build,
+    // screenshot 10759: the overlay popup was "NOT a redesign at
+    // all"): the map now mounts the seated CafeMapMarker, and the
+    // café itself is a scene route — pinned in cafe-scene-v287.
+    expect(src).toContain("<CafeMapMarker");
     expect(src).toContain("<CafeWeekLot");
     expect(src).toContain("loadCafeStreetData()");
     expect(src).toContain("orders: cafeOrders");

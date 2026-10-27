@@ -220,7 +220,7 @@ import {
   ovenStateFor,
   weekStripFor,
 } from "@/lib/cafe-street";
-import { CafeStreetOverlay, CafeWeekLot, type CafeAnchor } from "@/components/cafe-street";
+import { CafeMapMarker, CafeWeekLot, type CafeAnchor } from "@/components/cafe-street";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, BASE_CRIT_CHANCE, type CombatStats } from "@/lib/gear";
 import { MINI_GAME_CAPS, TRAINING_BONUS_MULT, SET_BONUS_RATE, loadSetCompletedDates, loadTodaySetStatus, loadTrainingBonus, playsLeftToday, recordPlay, scaleMiniGamePayout, type TodaySetStatus } from "@/lib/mini-games";
@@ -7201,6 +7201,13 @@ export default function HometownScreen() {
     } else if (b.type === "toolshop") {
       router.push("/gear-shop?type=tool");
       return;
+    } else if (b.type === "diner") {
+      // The Café (v287): the diner's tap opens the café street scene —
+      // the place the approved drawings drew. Its restaurant interior
+      // (furniture, coffee) lives on one step inside, through the
+      // scene's own door; every other restaurant keeps the interior.
+      router.push(`/cafe-street-scene?buildingId=${b.id}`);
+      return;
     } else if (isEnterableRestaurant(b.type)) {
       router.push(`/restaurant-interior?buildingId=${b.id}`);
       return;
@@ -8887,14 +8894,15 @@ export default function HometownScreen() {
               bare: entities render directly in the depth layer so villagers walk
               BEHIND tall buildings (zIndex by Y). */}
           <TownNPCs mapState={map} cellSize={cellSize} bare positionsRef={townNpcPositionsRef} onBankVisit={handleBankVisit} lights={lightsForActiveMap} onVillagerTap={handleVillagerTap} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} scheduleGuides={scheduleGuides} scheduleMap={scheduleMap} scheduleKind={scheduleActivity?.kind} greet={activeMap === "town" ? greetRef.current : null} />
-          {/* The Street & The Café (v279): the café frontage on the town
-              map — the order board with today's real prayer list as
-              tickets, the served at their tables, the slipping at the
-              door, the ovens breathing with the fast. Pure dress over
-              settled state (pointer-events none; the diner keeps its
-              tap), town map only, and only while the town is unlocked. */}
+          {/* The Street & The Café: the café's marker on the town map —
+              the awning and ovens seated on the diner itself, and a
+              small board glyph standing at its front (v287: the scene
+              itself is a place now, entered from the diner's tap; the
+              v279 overlay popup that floated here is retired). Pure
+              dress over settled state (pointer-events none), town map
+              only, and only while the town is unlocked. */}
           {activeMap === "town" && cafeAnchor && cafeBoard && (
-            <CafeStreetOverlay anchor={cafeAnchor} cellSize={cellSize} board={cafeBoard} oven={cafeOven} night={isNight} />
+            <CafeMapMarker anchor={cafeAnchor} oven={cafeOven} night={isNight} alert={cafeBoard.tickets.some((t) => t.kind === "emergency")} />
           )}
           {/* The fast-week lot: roped ground at the street's end once a
               kept week inside the current fast has opened it. */}

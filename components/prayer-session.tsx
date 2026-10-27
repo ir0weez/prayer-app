@@ -393,6 +393,13 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
   // session is mid-flight, and the leg being prayed keeps the dress
   // it was dealt until the reset deals the next one.
   const [sessionFocusKind, setSessionFocusKind] = useState<"emergency" | "praise" | null>(null);
+  // v289: who has been prayed THIS session — handlePray's own
+  // record, kept beside prayedCount. The stacked composition's
+  // settled cards wear the drawing's settled dress only for
+  // people actually prayed, never for people skipped past.
+  // Session-local render state only: onPray stays the sole write
+  // path, and no mechanic reads this set.
+  const [prayedIds, setPrayedIds] = useState<ReadonlySet<string>>(() => new Set());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastBonusMinute = useRef(0);
   const sessionStartRef = useRef<number>(0);
@@ -402,6 +409,18 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
   const handlePrayRef = useRef<() => void>(() => {});
   const timerRef2 = useRef<View>(null);
   const [timerPos, setTimerPos] = useState<{ x: number; y: number } | null>(null);
+  // v289: the stack's scroll settle. When completing a prayer
+  // grows a settled card above the active one, the list scrolls —
+  // a plain scrollTo, no springs, no bounce — so the new active
+  // card stays at the top of the stage, fully reachable. The
+  // position comes from the active wrapper's layout; the owed
+  // scroll is keyed to the index it was settled for. No timers
+  // stand behind any of this: it settles from state on render.
+  const scrollRef = useRef<ScrollView | null>(null);
+  const activeCardYRef = useRef(0);
+  const scrolledForIndexRef = useRef(0);
+  const currentIndexRef = useRef(0);
+  currentIndexRef.current = currentIndex;
   // Time-of-day backdrop bucket, locked in when the session opens.
   const [skyBucket, setSkyBucket] = useState<PrayerSkyBucket>("night");
   // v215: the back-block below is deliberate and stays — but its
@@ -505,6 +524,11 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
       setSessionPeople([...people]);
       // v269: snapshot the focused launch's kind with the list.
       setSessionFocusKind(focusKind ?? null);
+      // v289: a fresh session has nobody settled and no settle
+      // scroll owed.
+      setPrayedIds(new Set());
+      scrolledForIndexRef.current = 0;
+      activeCardYRef.current = 0;
       // Lock in the time-of-day backdrop once per session (no live switching).
       setSkyBucket(getPrayerSkyBucket(new Date()));
       // v215: each new session earns its one visible back hint.
@@ -604,6 +628,162 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
   const currentPerson = sessionPeople[currentIndex];
   const isLast = currentIndex >= totalCount - 1;
 
+  // v289 (audit v2 §5 / D8; his ruling, Oct 27 11:02): the
+  // drawing's composition is a STACK of person cards — settled
+  // above, active in the middle, next below. The stack's members
+  // derive from the session's own state on every render: who
+  // stands settled is exactly who handlePray has prayed (a
+  // skipped person never wears the settled dress), and the next
+  // person is simply the one after the active. Nothing here
+  // writes or advances anything — the flow below is untouched.
+  const settledPeople = sessionPeople.slice(0, currentIndex).filter((person) => prayedIds.has(person.id));
+  const nextPerson = sessionPeople[currentIndex + 1];
+
+  // v289: settle the scroll ONCE per advance, to the active
+  // wrapper's measured place in the stack (a few dp of air above
+  // the card). Called from the wrapper's onLayout (the common
+  // path — a settled card growing above moves the wrapper) and
+  // from an index effect below (an advance whose layout did not
+  // move). Reduced motion makes the settle a cut, not a scroll.
+  const settleScrollToActive = () => {
+    const idx = currentIndexRef.current;
+    if (idx <= 0 || scrolledForIndexRef.current === idx) return;
+    scrolledForIndexRef.current = idx;
+    scrollRef.current?.scrollTo({ y: Math.max(0, activeCardYRef.current - 6), animated: !reducedMotion });
+  };
+
+  // v289: one stack card in the drawing's quieter dresses — the
+  // SETTLED person (already prayed this session: green check,
+  // "Prayed today", face ring tinted to the prayed green, the
+  // lead card at rest with NO halo and no session row, the other
+  // needs dimmed to .75 as drawn) and the NEXT person (lead
+  // already visible, "Up next" in the meta line, no halo —
+  // only the active person's lead glows). The lead grammar is
+  // the active card's own: a FIRST lead in its warm card, an
+  // emergency lead in its standing red row (the D11 exception),
+  // the rest quiet rows. The focused-praise lead never appears
+  // here: a focused session holds exactly one person, so it has
+  // no stack neighbours.
+  const renderStackCard = (person: Person, variant: "settled" | "next", stackFirst: boolean) => {
+    const settled = variant === "settled";
+    const lead = getLeadNeed(person);
+    const activeItems = person.prayerItems.filter((item) => !item.isDone);
+    const otherItems = lead ? activeItems.filter((item) => item.id !== lead.item.id) : activeItems;
+    // The quiet rows' whisper dress, same derivation as the
+    // active card's (v264/D10).
+    const quietFill = mix(pm.card, pm.seed, 0.05);
+    const quietInk = mix(pm.ink, pm.inkSoft, 0.45);
+    return (
+      <View
+        key={person.id}
+        style={{
+          width: "100%",
+          marginTop: stackFirst ? 4 : 18,
+          backgroundColor: pm.card,
+          borderRadius: 28,
+          paddingHorizontal: 16 + padBoost,
+          paddingVertical: 18 + padBoost,
+          shadowColor: pm.shadow,
+          shadowOpacity: 1,
+          shadowRadius: settled ? 9 : 13,
+          shadowOffset: { width: 0, height: settled ? 3 : 5 },
+          elevation: settled ? 2 : 4,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 3, borderColor: settled ? mix(pm.card, "#31C48D", 0.25) : pm.wash, alignItems: "center", justifyContent: "center" }}>
+            <AvatarImage id={person.id} name={person.name} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={46} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text numberOfLines={1} style={{ fontSize: 17.5, fontWeight: "800", letterSpacing: -0.2, color: pm.ink, ...skinText(skinTokens, type.cardTitle) }}>{person.name}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
+              <View style={{ backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
+                <Text style={{ fontSize: 10.5, fontWeight: "800", color: pm.deep }}>{person.relationship}</Text>
+              </View>
+              {/* The drawing's meta word for the stack positions:
+                  the settled person reads "Prayed today", the
+                  next "Up next" — where the active card carries
+                  its household line. */}
+              <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: "600", color: pm.inkSoft }}>{settled ? "Prayed today" : "Up next"}</Text>
+            </View>
+          </View>
+          {settled ? (
+            <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: "#31C48D", alignItems: "center", justifyContent: "center" }}>
+              <MaterialIcons name="check" size={16} color="#FFFFFF" />
+            </View>
+          ) : null}
+        </View>
+
+        {/* The lead at rest — the FIRST card's own dress with no
+            halo wrapper and no session row inside it. */}
+        {lead?.kind === "first" ? (
+          <View style={{ marginTop: 14 }}>
+            <View style={{ borderRadius: 22, borderWidth: 1.5, borderColor: FIRST_CARD.line, overflow: "hidden", backgroundColor: FIRST_CARD.bgTo, paddingHorizontal: 15 + padBoost, paddingTop: 14 + padBoost, paddingBottom: 15 + padBoost }}>
+              <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
+                <Defs>
+                  <LinearGradient id={`v289StackGrad-${person.id}`} x1="0" y1="0" x2="1" y2="1">
+                    <Stop offset="0" stopColor={FIRST_CARD.bgFrom} />
+                    <Stop offset="1" stopColor={FIRST_CARD.bgTo} />
+                  </LinearGradient>
+                </Defs>
+                <SvgRect x="0" y="0" width="100%" height="100%" fill={`url(#v289StackGrad-${person.id})`} />
+              </Svg>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: FIRST_CARD.deep, borderRadius: 999, paddingLeft: 9, paddingRight: 11, paddingVertical: 5, shadowColor: FIRST_CARD.deep, shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+                  <Svg width={12} height={12} viewBox="0 0 24 24">
+                    <Path d="M11 21.2C7.7 20.4 5.8 18 5.8 14.7c0-3.9 2.5-8.5 5.2-11.6v18.1z" fill={FIRST_CARD.pillInk} />
+                    <Path d="M13 21.2c3.3-.8 5.2-3.2 5.2-6.5 0-3.9-2.5-8.5-5.2-11.6v18.1z" fill={FIRST_CARD.pillInk} />
+                  </Svg>
+                  <Text style={{ fontSize: 10, fontWeight: "900", letterSpacing: 1.4, color: FIRST_CARD.pillInk }}>FIRST</Text>
+                </View>
+              </View>
+              <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 21, letterSpacing: -0.1, color: FIRST_CARD.ink, marginTop: 10, ...skinText(skinTokens, type.cardLead, type.cardLeadLineHeight) }}>{lead.item.title}</Text>
+              {!!lead.item.note && (
+                <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 17, color: FIRST_CARD.sub, marginTop: 4, ...skinText(skinTokens, type.rowBody, type.rowBodyLineHeight) }}>{lead.item.note}</Text>
+              )}
+            </View>
+          </View>
+        ) : null}
+
+        {/* The remaining needs, quiet — dimmed on the settled
+            card, as drawn (.person.settled .quiet). */}
+        {otherItems.length > 0 || lead?.kind === "emergency" ? (
+          <View style={{ marginTop: 10, gap: 7, opacity: settled ? 0.75 : 1 }}>
+            {lead?.kind === "emergency" ? (
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: pm.redWash, borderWidth: 1, borderColor: "#EF4444", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 }}>
+                <MaterialIcons name="local-fire-department" size={17} color="#EF4444" style={{ marginTop: 1 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13.5, fontWeight: "700", lineHeight: 18, color: "#991B1B" }}>{lead.item.title}</Text>
+                  {!!lead.item.note && (
+                    <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 16, color: "#991B1B", marginTop: 1 }}>{lead.item.note}</Text>
+                  )}
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#DC2626", marginTop: 1 }}>Emergency · {formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(lead.item.emergencyExpiresAt))} left</Text>
+                </View>
+              </View>
+            ) : null}
+            {otherItems.map((item) => {
+              const emergency = isActiveEmergencyItem(item);
+              return (
+                <View key={item.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: quietFill, borderWidth: 1, borderColor: pm.line, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 }}>
+                  <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: pm.wash, marginTop: 1 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13.5, fontWeight: "600", lineHeight: 18, color: quietInk, ...skinText(skinTokens, type.rowBody, type.rowBodyLineHeight) }}>{item.title}</Text>
+                    {!!item.note && (
+                      <Text style={{ fontSize: 11, fontWeight: "600", lineHeight: type.cardMeta ? 19 : 16, color: emergency ? "#DC2626" : pm.inkSoft, marginTop: 1, ...skinText(skinTokens, type.cardMeta) }}>{item.note}</Text>
+                    )}
+                    {emergency ? (
+                      <Text style={{ fontSize: 11, fontWeight: "600", color: "#DC2626", marginTop: 1 }}>Emergency · {formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt))} left</Text>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+      </View>
+    );
+  };
+
   // Keep the ongoing notification showing who is currently being prayed for.
   // NOTE: this hook must stay above the `!visible` early return — hooks must
   // run in the same order on every render or React crashes the app.
@@ -618,6 +798,15 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
     }
   }, [visible, currentIndex, sessionPeople]);
 
+  // v289: the scroll settle's second path — an advance whose
+  // active-wrapper layout did not move still owes its settle.
+  // (The wrapper's onLayout is the common path; see
+  // settleScrollToActive.) Settles from state on render — no
+  // timers, no springs.
+  useEffect(() => {
+    settleScrollToActive();
+  }, [currentIndex]);
+
   if (!visible) return null;
 
   const handlePray = (e: any) => {
@@ -627,6 +816,9 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
     const position = prayButtonPos ?? { x: Dimensions.get("window").width / 2, y: Dimensions.get("window").height / 2 };
     onPray(currentPerson.id, position);
     setPrayedCount((c) => c + 1);
+    // v289: the settled stack's record of this same pray —
+    // render state only (see the prayedIds declaration).
+    setPrayedIds((prev) => new Set(prev).add(currentPerson.id));
     if (isLast) {
       setIsFinished(true);
     } else {
@@ -690,6 +882,7 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
             shrinking the lead card to ~80% of the screen where
             the drawing gives it ~84%. */}
         <ScrollView
+          ref={scrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={{ alignItems: "center", paddingHorizontal: 16, paddingTop: insets.top + 14, paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
@@ -825,7 +1018,28 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                     <Text style={{ fontSize: 11.5, fontWeight: "800", letterSpacing: 0.4, color: colors.muted }}>PERSON {currentIndex + 1} OF {totalCount}</Text>
                   </View>
 
+                  {/* v289 (audit v2 §5 / D8 — his Oct 27 11:02
+                      ruling): the stack. The people already
+                      prayed this session stand SETTLED above the
+                      active person, in the drawing's settled
+                      dress; the lone card parked over ~40% dead
+                      space (his screenshot 10766) is gone — the
+                      stack fills the screen, and it scrolls. */}
+                  {settledPeople.map((person, i) => renderStackCard(person, "settled", i === 0))}
+
                   {/* Person card */}
+                  {/* v289: the active person, exactly the v288
+                      dress. The wrapper measures the card's
+                      place in the stack so the settle can keep
+                      it at the top when a settled card grows
+                      above it (see settleScrollToActive). */}
+                  <View
+                    style={{ width: "100%", marginTop: settledPeople.length > 0 ? 18 : 0 }}
+                    onLayout={(e) => {
+                      activeCardYRef.current = e.nativeEvent.layout.y;
+                      settleScrollToActive();
+                    }}
+                  >
                   <PeopleEntrance key={currentPerson.id} emphasis style={{ width: "100%" }}>
                   <View style={{ width: "100%", backgroundColor: pm.card, borderRadius: 28, paddingHorizontal: 16 + padBoost, paddingVertical: 18 + padBoost, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 13, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
@@ -982,10 +1196,18 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                   </View>
 
                   </PeopleEntrance>
+                  </View>
 
                   <Pressable onPress={handleSkip} style={({ pressed }) => [{ marginTop: 16, paddingHorizontal: 18, paddingVertical: 8 }, pressed && { opacity: 0.65 }]}>
                     <Text style={{ color: colors.muted, fontSize: 14, fontWeight: "700" }}>Skip</Text>
                   </Pressable>
+
+                  {/* v289: the NEXT person waits below with
+                      their lead already visible and the
+                      drawing's "Up next" note — the third card
+                      of the stack. On the last person there is
+                      no card below, as drawn. */}
+                  {nextPerson ? renderStackCard(nextPerson, "next", false) : null}
                 </>
               );
             })()}

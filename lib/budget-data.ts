@@ -178,3 +178,43 @@ export function deleteExpense(
 ): MonthlyExpenseRecord[] {
   return expenses.filter((expense) => expense.id !== expenseId);
 }
+
+/** A local YYYY-MM-DD key for a Date (never a UTC conversion). */
+export function budgetDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * v286: the NEXT DUE mini's record — the earliest unpaid bill in the
+ * viewed month whose due date is today or later; if every unpaid bill
+ * in the month is already past, the earliest unpaid one. Null when
+ * nothing in the month is unpaid. Pure derivation over the stored
+ * records; all date matching is string-prefix, like the month totals.
+ */
+export function getBudgetNextDue(
+  expenses: MonthlyExpenseRecord[],
+  month: Date,
+  today: Date,
+): MonthlyExpenseRecord | null {
+  const targetMonth = monthKey(month);
+  const todayKey = budgetDateKey(today);
+  const unpaid = normalizeRecurringExpenses(expenses)
+    .filter((expense) => expense.dueDate.slice(0, 7) === targetMonth && !expense.isPaid)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.id.localeCompare(b.id));
+  if (unpaid.length === 0) return null;
+  return unpaid.find((expense) => expense.dueDate >= todayKey) ?? unpaid[0];
+}
+
+/**
+ * v286: whole days a bill's due date sits before today (0 when due
+ * today or later). Parsed from the stored Y/M/D parts and compared
+ * in UTC so a device timezone can never shift the count.
+ */
+export function getBudgetDaysLate(expense: MonthlyExpenseRecord, today: Date): number {
+  const [year, month, day] = expense.dueDate.split("-").map(Number);
+  if (!year || !month || !day) return 0;
+  const dueUtc = Date.UTC(year, month - 1, day);
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const days = Math.round((todayUtc - dueUtc) / 86_400_000);
+  return days > 0 ? days : 0;
+}

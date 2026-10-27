@@ -2,9 +2,21 @@
 
 import { ScreenContainer } from '@/components/screen-container';
 import { useSkin } from '@/hooks/use-skin';
-import { useColors } from '@/hooks/use-colors';
+import { useBudgetMaterial } from '@/hooks/use-budget-material';
 import { useCallback, useState } from 'react';
-import { createRecurringExpense, deleteExpense as removeExpense, deleteRecurringSeries, materializeRecurringExpenses, normalizeRecurringExpenses, type MonthlyExpenseRecord } from '@/lib/budget-data';
+import {
+  createRecurringExpense,
+  deleteExpense as removeExpense,
+  deleteRecurringSeries,
+  getBudgetDaysLate,
+  getBudgetMonthTotals,
+  getBudgetNextDue,
+  getDaysInMonth,
+  materializeRecurringExpenses,
+  monthKey,
+  normalizeRecurringExpenses,
+  type MonthlyExpenseRecord,
+} from '@/lib/budget-data';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -15,13 +27,23 @@ const BUDGET_STORAGE_KEY = 'monthlyBudgetExpenses';
 
 type MonthlyExpense = MonthlyExpenseRecord;
 
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "2026-10-28" → "Oct 28" — string parts only, never a Date parse. */
+function formatDueDate(dueDate: string): string {
+  const [, month, day] = dueDate.split('-').map(Number);
+  if (!month || !day) return dueDate;
+  return `${MONTH_SHORT[month - 1]} ${day}`;
+}
+
 export default function BudgetTrackerScreen() {
-  const colors = useColors();
+  const bm = useBudgetMaterial();
   const { isSkinned, tokens: skinTokens } = useSkin();
-  // Paper (v179): every card/sheet surface in this screen's local
-  // stylesheet becomes warm paper stock; Classic keeps colors.surface.
-  const paperSurface = isSkinned ? skinTokens.surface ?? colors.surface : colors.surface;
-  const paperCardShadow = isSkinned ? skinTokens.cardShadow ?? {} : {};
+  // v286: the page ground takes the skin background the way
+  // prayer-journal-tab.tsx does; every card/hero/row/sheet wears the
+  // derived budget family (lib/budget-material.ts). v179's paperSurface
+  // swap is superseded by the family.
+  const ground = isSkinned ? skinTokens.background ?? bm.ground : bm.ground;
   const router = useRouter();
   const [expenses, setExpenses] = useState<MonthlyExpense[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -65,51 +87,6 @@ export default function BudgetTrackerScreen() {
       loadExpenses();
     }, [loadExpenses])
   );
-
-  const getDaysInMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
-
-  const getExpensesForDay = (day: number) => {
-    return expenses.filter(exp => {
-      const expDate = new Date(exp.dueDate);
-      return expDate.getDate() === day && 
-             expDate.getMonth() === currentMonth.getMonth() &&
-             expDate.getFullYear() === currentMonth.getFullYear();
-    });
-  };
-
-  const getTotalForMonth = () => {
-    return expenses
-      .filter(exp => {
-        const expDate = new Date(exp.dueDate);
-        return expDate.getMonth() === currentMonth.getMonth() &&
-               expDate.getFullYear() === currentMonth.getFullYear();
-      })
-      .reduce((sum, exp) => sum + exp.amount, 0);
-  };
-
-  const getRemainingForMonth = () => {
-    return expenses
-      .filter(exp => {
-        const expDate = new Date(exp.dueDate);
-        return expDate.getMonth() === currentMonth.getMonth() &&
-               expDate.getFullYear() === currentMonth.getFullYear() &&
-               !exp.isPaid;
-      })
-      .reduce((sum, exp) => sum + exp.amount, 0);
-  };
-
-  const getPaidForMonth = () => {
-    return expenses
-      .filter(exp => {
-        const expDate = new Date(exp.dueDate);
-        return expDate.getMonth() === currentMonth.getMonth() &&
-               expDate.getFullYear() === currentMonth.getFullYear() &&
-               exp.isPaid;
-      })
-      .reduce((sum, exp) => sum + exp.amount, 0);
-  };
 
   const handleAddExpense = () => {
     const amount = parseFloat(newExpenseAmount);
@@ -172,407 +149,547 @@ export default function BudgetTrackerScreen() {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
   };
 
+  const today = new Date();
   const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const monthLabel = currentMonth.toLocaleString('default', { month: 'long' });
   const daysInMonth = getDaysInMonth(currentMonth);
-  const totalMonth = getTotalForMonth();
-  const paidMonth = getPaidForMonth();
-  const remainingMonth = getRemainingForMonth();
+  // v286: totals come from the lib's string-prefix helper — the
+  // screen's old helpers parsed new Date(dueDate) (UTC midnight,
+  // timezone-shiftable); the lib's cannot move a bill across months.
+  const { totalDue: totalMonth, paid: paidMonth, remaining: remainingMonth } = getBudgetMonthTotals(expenses, currentMonth);
+  const targetMonthKey = monthKey(currentMonth);
+  const byDue = (a: MonthlyExpense, b: MonthlyExpense) => a.dueDate.localeCompare(b.dueDate) || a.id.localeCompare(b.id);
+  const monthBills = expenses.filter(exp => exp.dueDate.slice(0, 7) === targetMonthKey);
+  const unpaidBills = monthBills.filter(exp => !exp.isPaid).sort(byDue);
+  const paidBills = monthBills.filter(exp => exp.isPaid).sort(byDue);
+  const recurringCount = monthBills.filter(exp => exp.isRecurring).length;
+  const nextDue = getBudgetNextDue(expenses, currentMonth, today);
+  const paidShare = totalMonth > 0 ? paidMonth / totalMonth : 0;
+
+  const money = (value: number) => `$${value.toFixed(2)}`;
 
   const styles = StyleSheet.create({
-    header: {
-      marginBottom: 20,
-    },
-    monthHeader: {
+    appbar: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 16,
+      gap: 6,
+      paddingBottom: 12,
     },
-    monthTitle: {
-      fontSize: 24,
-      fontWeight: '900',
-      color: colors.foreground,
-    },
-    monthNav: {
-      flexDirection: 'row',
-      gap: 8,
-    },
-    navButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 8,
-      backgroundColor: paperSurface,
+    closeButton: {
+      width: 34,
+      height: 34,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    summaryContainer: {
-      backgroundColor: paperSurface,
-      ...paperCardShadow,
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 20,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    summaryRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 12,
-    },
-    summaryLabel: {
-      fontSize: 12,
-      color: colors.muted,
-      fontWeight: '600',
-    },
-    summaryValue: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: colors.foreground,
-    },
-    paidValue: {
-      color: '#22C55E',
-    },
-    remainingValue: {
-      color: '#F59E0B',
-    },
-    calendarGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      marginBottom: 20,
-    },
-    dayButton: {
-      width: '22%',
-      aspectRatio: 1,
-      borderRadius: 12,
-      borderWidth: 2,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: paperSurface,
-    },
-    dayNumber: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: colors.foreground,
-      marginBottom: 2,
-    },
-    dayExpenseCount: {
-      fontSize: 10,
-      color: colors.muted,
-      fontWeight: '600',
-    },
-    dayExpenseCountPaid: {
-      color: '#22C55E',
-    },
-    expensesList: {
-      marginBottom: 20,
-    },
-    expenseItem: {
-      backgroundColor: paperSurface,
-      ...paperCardShadow,
-      borderRadius: 12,
-      padding: 12,
-      marginBottom: 8,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    expenseInfo: {
+    appbarTitle: {
       flex: 1,
+      fontSize: 20,
+      fontWeight: '800',
+      letterSpacing: -0.2,
+      color: bm.ink,
     },
-    expenseName: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.foreground,
-      marginBottom: 4,
+    monthPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      backgroundColor: bm.tonal,
+      borderRadius: 999,
+      paddingVertical: 5,
+      paddingHorizontal: 6,
     },
-    expenseAmount: {
-      fontSize: 12,
-      color: colors.muted,
-      fontWeight: '600',
+    monthPillText: {
+      fontSize: 12.5,
+      fontWeight: '700',
+      color: bm.tonalInk,
+      paddingHorizontal: 2,
     },
-    expenseCheckbox: {
+    monthPillButton: {
       width: 24,
       height: 24,
-      borderRadius: 6,
-      borderWidth: 2,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 12,
     },
-    expenseActions: {
+    hero: {
+      backgroundColor: bm.hero,
+      borderRadius: 26,
+      padding: 18,
+      shadowColor: bm.shadow,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 1,
+      shadowRadius: 16,
+      elevation: 3,
+    },
+    heroKicker: {
+      fontSize: 10.5,
+      fontWeight: '900',
+      letterSpacing: 1.4,
+      color: bm.heroInkSoft,
+    },
+    heroBig: {
+      fontSize: 37,
+      fontWeight: '800',
+      letterSpacing: -0.6,
+      color: bm.heroInk,
+      marginTop: 4,
+    },
+    heroOf: {
+      fontSize: 12.5,
+      color: bm.heroInkSoft,
+      marginTop: 2,
+    },
+    heroBar: {
+      height: 9,
+      backgroundColor: bm.heroBarTrack,
+      borderRadius: 99,
+      marginTop: 14,
+      overflow: 'hidden',
+    },
+    heroBarFill: {
+      height: '100%',
+      backgroundColor: bm.heroBarFill,
+      borderRadius: 99,
+    },
+    heroSplit: {
       flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 9,
+    },
+    heroSplitText: {
+      fontSize: 12,
+      color: bm.heroInkSoft,
+    },
+    heroSplitBold: {
+      color: bm.heroInk,
+      fontWeight: '700',
+    },
+    strip: {
+      marginTop: 12,
+    },
+    stripContent: {
       gap: 8,
+      paddingRight: 4,
+    },
+    mini: {
+      width: 118,
+      backgroundColor: bm.tonal,
+      borderRadius: 18,
+      paddingVertical: 11,
+      paddingHorizontal: 12,
+    },
+    miniHot: {
+      backgroundColor: bm.tonalHot,
+    },
+    miniKey: {
+      fontSize: 9,
+      fontWeight: '900',
+      letterSpacing: 1.1,
+      color: bm.inkSoft,
+    },
+    miniValue: {
+      fontSize: 16.5,
+      fontWeight: '800',
+      color: bm.tonalInk,
+      marginTop: 3,
+    },
+    miniSub: {
+      fontSize: 10,
+      color: bm.inkSoft,
+      marginTop: 1,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 18,
+      marginBottom: 9,
+      paddingHorizontal: 2,
+    },
+    sectionLabel: {
+      fontSize: 11,
+      fontWeight: '900',
+      letterSpacing: 1.3,
+      color: bm.inkSoft,
+    },
+    sectionCount: {
+      fontSize: 11.5,
+      fontWeight: '700',
+      color: bm.deep,
+    },
+    bill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 11,
+      backgroundColor: bm.card,
+      borderRadius: 19,
+      paddingVertical: 12,
+      paddingHorizontal: 13,
+      marginBottom: 8,
+      shadowColor: bm.shadow,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 1,
+      shadowRadius: 10,
+      elevation: 2,
+    },
+    check: {
+      width: 25,
+      height: 25,
+      borderRadius: 999,
+      borderWidth: 2,
+      borderColor: bm.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkDone: {
+      backgroundColor: bm.paidGreen,
+      borderColor: bm.paidGreen,
+    },
+    billMain: {
+      flex: 1,
+      minWidth: 0,
+    },
+    billNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 7,
+    },
+    billName: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: bm.ink,
+    },
+    billNamePaid: {
+      color: bm.inkSoft,
+      textDecorationLine: 'line-through',
+    },
+    recChip: {
+      backgroundColor: bm.tonal,
+      borderRadius: 999,
+      paddingHorizontal: 7,
+      paddingVertical: 2.5,
+    },
+    recChipText: {
+      fontSize: 9.5,
+      fontWeight: '900',
+      letterSpacing: 0.8,
+      color: bm.tonalInk,
+    },
+    billDue: {
+      fontSize: 11.5,
+      color: bm.inkSoft,
+      marginTop: 1,
+    },
+    billDueLate: {
+      color: bm.lateInk,
+      fontWeight: '700',
+    },
+    billAmount: {
+      fontSize: 14.5,
+      fontWeight: '800',
+      color: bm.ink,
+    },
+    billAmountPaid: {
+      color: bm.inkSoft,
+      textDecorationLine: 'line-through',
     },
     deleteButton: {
-      padding: 8,
+      padding: 6,
     },
-    addButton: {
-      backgroundColor: colors.primary,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+    emptyCard: {
+      backgroundColor: bm.card,
+      borderRadius: 19,
+      padding: 16,
       alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 20,
+      marginBottom: 8,
     },
-    addButtonText: {
+    emptyText: {
+      fontSize: 13,
+      color: bm.inkSoft,
+      fontWeight: '600',
+    },
+    addPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      alignSelf: 'center',
+      backgroundColor: bm.seed,
+      borderRadius: 999,
+      paddingVertical: 11,
+      paddingHorizontal: 16,
+      marginTop: 14,
+    },
+    addPillText: {
       color: '#FFFFFF',
-      fontWeight: '700',
-      fontSize: 14,
+      fontWeight: '800',
+      fontSize: 13.5,
     },
     modal: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'flex-end',
     },
-    modalContent: {
-      backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background,
-      ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}),
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      padding: 20,
-      paddingBottom: 40,
+    sheet: {
+      backgroundColor: bm.card,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 15,
+      paddingBottom: 34,
     },
-    modalTitle: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: colors.foreground,
-      marginBottom: 16,
+    sheetTitle: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: bm.ink,
+      marginBottom: 11,
     },
-    input: {
-      backgroundColor: paperSurface,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: 12,
-      color: colors.foreground,
-      marginBottom: 12,
-      fontSize: 14,
-    },
-    recurringCheckbox: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 12,
+    field: {
+      backgroundColor: bm.ground,
+      borderRadius: 13,
       paddingHorizontal: 12,
-      borderRadius: 8,
-      marginBottom: 16,
-      borderWidth: 1,
-      gap: 8,
-    },
-    recurringCheckboxInner: {
-      width: 20,
-      height: 20,
-      borderRadius: 4,
-      borderWidth: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    daySelector: {
-      marginBottom: 16,
-    },
-    daySelectorLabel: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.muted,
+      paddingVertical: 11,
+      color: bm.ink,
+      fontSize: 13,
       marginBottom: 8,
     },
-    daySelectorGrid: {
+    dayLabel: {
+      fontSize: 11,
+      fontWeight: '900',
+      letterSpacing: 1.1,
+      color: bm.inkSoft,
+      marginTop: 4,
+      marginBottom: 8,
+    },
+    dayGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 6,
-      marginBottom: 16,
+      marginBottom: 12,
     },
-    daySelectorButton: {
-      width: '22%',
+    dayButton: {
+      width: '12.8%',
       paddingVertical: 8,
-      borderRadius: 8,
-      borderWidth: 2,
+      borderRadius: 10,
       alignItems: 'center',
-      backgroundColor: paperSurface,
-      borderColor: colors.border,
+      backgroundColor: bm.tonal,
     },
-    daySelectorButtonSelected: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+    dayButtonSelected: {
+      backgroundColor: bm.seed,
     },
-    daySelectorButtonText: {
+    dayButtonText: {
       fontSize: 12,
       fontWeight: '700',
-      color: colors.foreground,
+      color: bm.tonalInk,
     },
-    daySelectorButtonTextSelected: {
+    dayButtonTextSelected: {
       color: '#FFFFFF',
     },
-    modalButtons: {
+    repToggle: {
       flexDirection: 'row',
-      gap: 12,
+      alignItems: 'center',
+      gap: 11,
+      backgroundColor: bm.hero,
+      borderRadius: 15,
+      paddingVertical: 11,
+      paddingHorizontal: 12,
+      marginBottom: 11,
     },
-    modalButton: {
+    repToggleMain: {
       flex: 1,
+    },
+    repToggleTitle: {
+      fontSize: 13.5,
+      fontWeight: '800',
+      color: bm.heroInk,
+    },
+    repToggleSub: {
+      fontSize: 11,
+      color: bm.heroInkSoft,
+      marginTop: 1,
+    },
+    repPill: {
+      width: 46,
+      height: 27,
+      borderRadius: 99,
+      backgroundColor: bm.line,
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    repPillOn: {
+      backgroundColor: bm.seed,
+      alignItems: 'flex-end',
+    },
+    repKnob: {
+      width: 21,
+      height: 21,
+      borderRadius: 999,
+      backgroundColor: '#FFFFFF',
+    },
+    sheetButtons: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    cancelButton: {
+      backgroundColor: bm.tonal,
+      borderRadius: 999,
       paddingVertical: 12,
-      borderRadius: 8,
+      paddingHorizontal: 18,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    modalCancelButton: {
-      backgroundColor: paperSurface,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    modalCancelButtonText: {
-      color: colors.foreground,
+    cancelButtonText: {
+      color: bm.tonalInk,
       fontWeight: '700',
+      fontSize: 14,
     },
-    modalConfirmButton: {
-      backgroundColor: colors.primary,
+    addButton: {
+      flex: 1,
+      backgroundColor: bm.seed,
+      borderRadius: 999,
+      paddingVertical: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    modalConfirmButtonText: {
+    addButtonText: {
       color: '#FFFFFF',
-      fontWeight: '700',
+      fontWeight: '800',
+      fontSize: 14,
     },
   });
 
+  const renderBill = (expense: MonthlyExpense) => {
+    const daysLate = expense.isPaid ? 0 : getBudgetDaysLate(expense, today);
+    const dueText = daysLate > 0
+      ? `Due ${formatDueDate(expense.dueDate)} · ${daysLate} ${daysLate === 1 ? 'day' : 'days'} late`
+      : `Due ${formatDueDate(expense.dueDate)}${!expense.isPaid && !expense.isRecurring ? ' · one-time' : ''}`;
+    return (
+      <View key={expense.id} style={styles.bill}>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityLabel={expense.isPaid ? `Mark ${expense.name} unpaid` : `Mark ${expense.name} paid`}
+          onPress={() => toggleExpensePaid(expense.id)}
+          style={[styles.check, expense.isPaid && styles.checkDone]}
+        >
+          {expense.isPaid && <MaterialIcons name="check" size={15} color="#FFFFFF" />}
+        </Pressable>
+        <View style={styles.billMain}>
+          <View style={styles.billNameRow}>
+            <Text style={[styles.billName, expense.isPaid && styles.billNamePaid]}>{expense.name}</Text>
+            {expense.isRecurring && (
+              <View style={styles.recChip}>
+                <Text style={styles.recChipText}>↻ MONTHLY</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.billDue, daysLate > 0 && styles.billDueLate]}>{dueText}</Text>
+        </View>
+        <Text style={[styles.billAmount, expense.isPaid && styles.billAmountPaid]}>{money(expense.amount)}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={expense.isRecurring ? `Delete recurring ${expense.name}` : `Delete ${expense.name}`}
+          onPress={() => deleteExpense(expense)}
+          style={styles.deleteButton}
+        >
+          <MaterialIcons name="delete" size={19} color={bm.inkSoft} />
+        </Pressable>
+      </View>
+    );
+  };
+
   return (
     <ScreenContainer className="p-0">
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}>
-        {/* Month Header */}
-        <View style={styles.header}>
-          <View style={styles.monthHeader}>
-            <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
-              <MaterialIcons name="close" size={24} color={colors.foreground} />
+      <View style={{ flex: 1, backgroundColor: ground }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 32 }}>
+          {/* Appbar */}
+          <View style={styles.appbar}>
+            <Pressable onPress={() => router.back()} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close budget">
+              <MaterialIcons name="close" size={22} color={bm.ink} />
             </Pressable>
-            <Text style={styles.monthTitle}>{monthName}</Text>
-            <View style={styles.monthNav}>
-              <Pressable onPress={previousMonth} style={styles.navButton}>
-                <MaterialIcons name="chevron-left" size={24} color={colors.foreground} />
+            <Text style={styles.appbarTitle}>Budget</Text>
+            <View style={styles.monthPill}>
+              <Pressable onPress={previousMonth} style={styles.monthPillButton} accessibilityRole="button" accessibilityLabel="Previous month">
+                <MaterialIcons name="chevron-left" size={18} color={bm.tonalInk} />
               </Pressable>
-              <Pressable onPress={nextMonth} style={styles.navButton}>
-                <MaterialIcons name="chevron-right" size={24} color={colors.foreground} />
+              <Text style={styles.monthPillText}>{monthName}</Text>
+              <Pressable onPress={nextMonth} style={styles.monthPillButton} accessibilityRole="button" accessibilityLabel="Next month">
+                <MaterialIcons name="chevron-right" size={18} color={bm.tonalInk} />
               </Pressable>
             </View>
           </View>
 
-          {/* Summary */}
-          <View style={styles.summaryContainer}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Total Due</Text>
-              <Text style={styles.summaryValue}>${totalMonth.toFixed(2)}</Text>
+          {/* Hero — LEFT TO PAY */}
+          <View style={styles.hero}>
+            <Text style={styles.heroKicker}>LEFT TO PAY · {monthLabel.toUpperCase()}</Text>
+            <Text style={styles.heroBig}>{money(remainingMonth)}</Text>
+            <Text style={styles.heroOf}>of {money(totalMonth)} this month</Text>
+            <View style={styles.heroBar}>
+              <View style={[styles.heroBarFill, { width: `${Math.round(paidShare * 100)}%` }]} />
             </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Paid</Text>
-              <Text style={[styles.summaryValue, styles.paidValue]}>${paidMonth.toFixed(2)}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Remaining</Text>
-              <Text style={[styles.summaryValue, styles.remainingValue]}>${remainingMonth.toFixed(2)}</Text>
+            <View style={styles.heroSplit}>
+              <Text style={styles.heroSplitText}>Paid <Text style={styles.heroSplitBold}>{money(paidMonth)}</Text></Text>
+              <Text style={styles.heroSplitText}><Text style={styles.heroSplitBold}>{paidBills.length} of {monthBills.length}</Text> bills paid</Text>
             </View>
           </View>
-        </View>
 
-        {/* Calendar Grid */}
-        <View style={styles.calendarGrid}>
-          {Array.from({ length: daysInMonth }, (_, i) => {
-            const day = i + 1;
-            const dayExpenses = getExpensesForDay(day);
-            const paidCount = dayExpenses.filter(e => e.isPaid).length;
-            const totalCount = dayExpenses.length;
+          {/* Mini stat strip */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.stripContent}>
+            <View style={styles.mini}>
+              <Text style={styles.miniKey}>TOTAL</Text>
+              <Text style={styles.miniValue}>{money(totalMonth)}</Text>
+              <Text style={styles.miniSub}>{monthBills.length} bills</Text>
+            </View>
+            <View style={styles.mini}>
+              <Text style={styles.miniKey}>PAID</Text>
+              <Text style={styles.miniValue}>{money(paidMonth)}</Text>
+              <Text style={styles.miniSub}>{paidBills.length} bills</Text>
+            </View>
+            <View style={[styles.mini, styles.miniHot]}>
+              <Text style={styles.miniKey}>NEXT DUE</Text>
+              <Text style={styles.miniValue}>{nextDue ? formatDueDate(nextDue.dueDate) : '—'}</Text>
+              <Text style={styles.miniSub}>{nextDue ? `${nextDue.name} ${money(nextDue.amount)}` : 'nothing due'}</Text>
+            </View>
+            <View style={styles.mini}>
+              <Text style={styles.miniKey}>↻ MONTHLY</Text>
+              <Text style={styles.miniValue}>{recurringCount} bills</Text>
+              <Text style={styles.miniSub}>run themselves</Text>
+            </View>
+          </ScrollView>
 
-            return (
-              <Pressable
-                key={day}
-                onPress={() => {
-                  setSelectedDay(day);
-                  setShowAddModal(true);
-                }}
-                style={[
-                  styles.dayButton,
-                  {
-                    borderColor: totalCount > 0 ? colors.primary : colors.border,
-                    backgroundColor: totalCount > 0 ? colors.primary + '15' : paperSurface,
-                  },
-                ]}
-              >
-                <Text style={styles.dayNumber}>{day}</Text>
-                {totalCount > 0 && (
-                  <Text style={[styles.dayExpenseCount, paidCount === totalCount && styles.dayExpenseCountPaid]}>
-                    ${dayExpenses.reduce((sum, e) => sum + (e.isPaid ? 0 : e.amount), 0).toFixed(0)}
-                  </Text>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+          {/* Still to Pay */}
+          {unpaidBills.length > 0 && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionLabel}>STILL TO PAY</Text>
+                <Text style={styles.sectionCount}>{unpaidBills.length} bills</Text>
+              </View>
+              {unpaidBills.map(renderBill)}
+            </>
+          )}
 
-        {/* Expenses for selected month */}
-        {expenses.filter(exp => {
-          const expDate = new Date(exp.dueDate);
-          return expDate.getMonth() === currentMonth.getMonth() &&
-                 expDate.getFullYear() === currentMonth.getFullYear();
-        }).length > 0 && (
-          <View style={styles.expensesList}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, marginBottom: 12 }}>
-              Expenses
-            </Text>
-            {expenses
-              .filter(exp => {
-                const expDate = new Date(exp.dueDate);
-                return expDate.getMonth() === currentMonth.getMonth() &&
-                       expDate.getFullYear() === currentMonth.getFullYear();
-              })
-              .sort((a, b) => a.day - b.day)
-              .map(expense => (
-                <View key={expense.id} style={styles.expenseItem}>
-                  <Pressable
-                    onPress={() => toggleExpensePaid(expense.id)}
-                    style={[
-                      styles.expenseCheckbox,
-                      {
-                        borderColor: expense.isPaid ? '#22C55E' : colors.border,
-                        backgroundColor: expense.isPaid ? '#22C55E' : 'transparent',
-                      },
-                    ]}
-                  >
-                    {expense.isPaid && (
-                      <MaterialIcons name="check" size={16} color="#FFFFFF" />
-                    )}
-                  </Pressable>
-                  <View style={styles.expenseInfo}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={[styles.expenseName, expense.isPaid && { textDecorationLine: 'line-through', color: colors.muted }]}>
-                        {expense.name}
-                      </Text>
-                      {expense.isRecurring && (
-                        <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600', backgroundColor: colors.primary + '20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>Recurring</Text>
-                      )}
-                    </View>
-                    <Text style={styles.expenseAmount}>Due: {expense.day}</Text>
-                  </View>
-                  <Text style={[styles.summaryValue, expense.isPaid && { color: colors.muted }]}>
-                    ${expense.amount.toFixed(2)}
-                  </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={expense.isRecurring ? `Delete recurring ${expense.name}` : `Delete ${expense.name}`}
-                    onPress={() => deleteExpense(expense)}
-                    style={styles.deleteButton}
-                  >
-                    <MaterialIcons name="delete" size={20} color="#EF4444" />
-                  </Pressable>
-                </View>
-              ))}
-          </View>
-        )}
+          {/* Paid */}
+          {paidBills.length > 0 && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionLabel}>PAID</Text>
+                <Text style={styles.sectionCount}>{money(paidMonth)}</Text>
+              </View>
+              {paidBills.map(renderBill)}
+            </>
+          )}
 
-        {/* Add Expense Button */}
-        <Pressable onPress={() => setShowAddModal(true)} style={styles.addButton}>
-          <Text style={styles.addButtonText}>+ Add Expense</Text>
-        </Pressable>
-      </ScrollView>
+          {monthBills.length === 0 && (
+            <View style={[styles.emptyCard, { marginTop: 18 }]}>
+              <Text style={styles.emptyText}>No bills this month yet.</Text>
+            </View>
+          )}
 
-      {/* Add Expense Modal */}
+          {/* Add a bill */}
+          <Pressable onPress={() => setShowAddModal(true)} style={styles.addPill} accessibilityRole="button" accessibilityLabel="Add a bill">
+            <MaterialIcons name="add" size={18} color="#FFFFFF" />
+            <Text style={styles.addPillText}>Add a bill</Text>
+          </Pressable>
+        </ScrollView>
+      </View>
+
+      {/* Add Bill sheet */}
       <Modal
         visible={showAddModal}
         animationType="slide"
@@ -580,84 +697,64 @@ export default function BudgetTrackerScreen() {
         onRequestClose={() => setShowAddModal(false)}
       >
         <View style={styles.modal}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add Monthly Expense</Text>
+          <View style={styles.sheet}>
+            <Text style={styles.sheetTitle}>Add a bill</Text>
 
             <TextInput
-              style={styles.input}
-              placeholder="Expense name"
-              placeholderTextColor={colors.muted}
+              style={styles.field}
+              placeholder="Name"
+              placeholderTextColor={bm.inkSoft}
               value={newExpenseName}
               onChangeText={setNewExpenseName}
             />
 
             <TextInput
-              style={styles.input}
+              style={styles.field}
               placeholder="Amount"
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={bm.inkSoft}
               value={newExpenseAmount}
               onChangeText={setNewExpenseAmount}
               keyboardType="decimal-pad"
             />
 
-            {/* Recurring Checkbox */}
-            <Pressable
-              onPress={() => setIsRecurring(!isRecurring)}
-              style={[styles.recurringCheckbox, { borderColor: colors.border }]}
-            >
-              <View
-                style={[
-                  styles.recurringCheckboxInner,
-                  {
-                    backgroundColor: isRecurring ? colors.primary : 'transparent',
-                    borderColor: isRecurring ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                {isRecurring && (
-                  <MaterialIcons name="check" size={16} color="#FFFFFF" />
-                )}
-              </View>
-              <Text style={{ color: colors.foreground, fontSize: 14 }}>Recurring monthly</Text>
-            </Pressable>
-
-            <View style={styles.daySelector}>
-              <Text style={styles.daySelectorLabel}>Select Day of Month</Text>
-              <View style={styles.daySelectorGrid}>
-                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
-                  <Pressable
-                    key={day}
-                    onPress={() => setSelectedDay(day)}
-                    style={[
-                      styles.daySelectorButton,
-                      selectedDay === day && styles.daySelectorButtonSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.daySelectorButtonText,
-                        selectedDay === day && styles.daySelectorButtonTextSelected,
-                      ]}
-                    >
-                      {day}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+            <Text style={styles.dayLabel}>DUE DAY</Text>
+            <View style={styles.dayGrid}>
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
+                <Pressable
+                  key={day}
+                  onPress={() => setSelectedDay(day)}
+                  style={[styles.dayButton, selectedDay === day && styles.dayButtonSelected]}
+                >
+                  <Text style={[styles.dayButtonText, selectedDay === day && styles.dayButtonTextSelected]}>
+                    {day}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
 
-            <View style={styles.modalButtons}>
-              <Pressable
-                onPress={() => setShowAddModal(false)}
-                style={styles.modalCancelButton}
-              >
-                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+            {/* The prominent recurrence toggle — the v286 feature ask. */}
+            <Pressable
+              onPress={() => setIsRecurring(!isRecurring)}
+              style={styles.repToggle}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: isRecurring }}
+              accessibilityLabel="Repeats monthly"
+            >
+              <View style={styles.repToggleMain}>
+                <Text style={styles.repToggleTitle}>↻ Repeats monthly</Text>
+                <Text style={styles.repToggleSub}>Added to every month for you</Text>
+              </View>
+              <View style={[styles.repPill, isRecurring && styles.repPillOn]}>
+                <View style={styles.repKnob} />
+              </View>
+            </Pressable>
+
+            <View style={styles.sheetButtons}>
+              <Pressable onPress={() => setShowAddModal(false)} style={styles.cancelButton}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
-              <Pressable
-                onPress={handleAddExpense}
-                style={styles.modalConfirmButton}
-              >
-                <Text style={styles.modalConfirmButtonText}>Add</Text>
+              <Pressable onPress={handleAddExpense} style={styles.addButton}>
+                <Text style={styles.addButtonText}>Add bill</Text>
               </Pressable>
             </View>
           </View>

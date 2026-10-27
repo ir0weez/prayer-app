@@ -333,13 +333,18 @@ describe("Paper coverage — v202 animation pass", () => {
     expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned &&")).toBe(7);
   });
 
-  it("fasting profile: the above-fold sheets settle; its two modals fade as pages", () => {
+  it("fasting profile: the above-fold sheets settle; its modals fade as pages", () => {
     const profile = read("app/profile.tsx");
     expect(profile).toContain("<PaperSettle index={0} style={{ position: 'relative' }}>");
     expect(profile).toContain("<PaperSettle index={1} style={styles.statsGrid}>");
     expect(profile).toContain("<PaperSettle index={2} style={[styles.previousFastCard,");
     expect(profile).toContain("<PaperSettle index={3} style={[styles.fastCard,");
-    expect(count(profile, 'animationType={isPaper ? "fade" : "slide"}')).toBe(2);
+    // v276 re-base: 2 -> 3. The centered Daily Note modal retired;
+    // the tracker adds the day-sheet modal and the recap-viewer
+    // modal, both in the same fade-under-Paper dress (creator +
+    // day sheet + recap viewer). The above-fold PaperSettle
+    // indices 0-3 above are untouched.
+    expect(count(profile, 'animationType={isPaper ? "fade" : "slide"}')).toBe(3);
     expect(profile).toContain("<PaperSettle style={styles.sheet}>");
   });
 

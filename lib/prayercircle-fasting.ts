@@ -10,6 +10,11 @@ export type PersonalFast = {
   durationDays: number;
   type: FastType;
   focusItems: string[];
+  // v276: the standing "Why I'm fasting" for this fast — written in
+  // the creator, edited from the tracker page's Why card, quoted back
+  // verbatim by the Final recap. Optional: fasts created before v276
+  // simply have no why yet (the card shows its gentle empty state).
+  why?: string;
   dayStatuses: Record<string, FastDayStatus>;
   focusItemDailyStatuses?: Record<string, FocusItemDailyStatus[]>; // Track daily completion/missed status per focus item
   dailyNotes?: Record<string, string>; // Date ISO -> short note on why/why not the day was completed
@@ -239,12 +244,14 @@ export function createPersonalFast(input: {
   durationDays: number;
   type: FastType;
   focusItems: string[];
+  why?: string;
   existingCount?: number;
 }): PersonalFast | null {
   const trimmedName = input.name.trim();
   const normalizedStartDate = normalizeFastDateInput(input.startDate);
   if (!trimmedName || !normalizedStartDate || !FAST_DURATIONS.includes(input.durationDays as (typeof FAST_DURATIONS)[number])) return null;
   const focusItems = input.focusItems.map((item) => item.trim()).filter(Boolean);
+  const why = input.why?.trim();
   return {
     id: `fast-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${input.existingCount ?? 0}`,
     name: trimmedName,
@@ -252,6 +259,7 @@ export function createPersonalFast(input: {
     durationDays: input.durationDays,
     type: input.type,
     focusItems,
+    ...(why ? { why } : null),
     dayStatuses: {},
     createdAt: new Date().toISOString(),
   };
@@ -271,6 +279,16 @@ export function normalizeFastsForStorage(value: unknown): PersonalFast[] {
       Object.entries(rawStatuses).filter(([, status]) => status === "completed" || status === "skipped" || status === "missed"),
     ) as Record<string, FastDayStatus>;
     const focusItemDailyStatuses = fast.focusItemDailyStatuses && typeof fast.focusItemDailyStatuses === "object" ? fast.focusItemDailyStatuses : {};
+    // v276: carry the why, the per-day notes, and the generated
+    // summary through normalization — earlier versions of this
+    // function rebuilt the record without them, so a load + save
+    // cycle silently dropped all three from storage.
+    const why = typeof fast.why === "string" && fast.why.trim() ? fast.why.trim() : undefined;
+    const rawNotes = fast.dailyNotes && typeof fast.dailyNotes === "object" ? fast.dailyNotes : {};
+    const dailyNotes = Object.fromEntries(
+      Object.entries(rawNotes).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    );
+    const summary = typeof fast.summary === "string" && fast.summary.trim() ? fast.summary : undefined;
     return [{
       id: typeof fast.id === "string" && fast.id.trim() ? fast.id.trim() : `fast-migrated-${index}`,
       name,
@@ -278,7 +296,10 @@ export function normalizeFastsForStorage(value: unknown): PersonalFast[] {
       durationDays,
       type,
       focusItems: Array.isArray(fast.focusItems) ? fast.focusItems.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim()) : [],
+      ...(why ? { why } : null),
       dayStatuses,
+      ...(Object.keys(dailyNotes).length ? { dailyNotes } : null),
+      ...(summary ? { summary } : null),
       focusItemDailyStatuses,
       createdAt: typeof fast.createdAt === "string" ? fast.createdAt : new Date().toISOString(),
     }];

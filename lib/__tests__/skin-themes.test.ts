@@ -1582,7 +1582,12 @@ describe("v190 — Paper, Bigger", () => {
     expect(profile).toContain("skinText(skinTokens, skinTokens.type.pageTitle)");
     expect(profile).toContain("...skinText(skinTokens, skinTokens.type.displayName, skinTokens.type.displayNameLineHeight)");
     expect(profile).toContain("...skinText(skinTokens, skinTokens.type.statValue)");
-    expect(profile.split("skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)").length - 1).toBe(8);
+    // v276 re-base: the count drops 8 -> 4 — the fasting section's
+    // FASTING FOCUS / TODAY / SEASONS / BOARD labels retired with
+    // the tracker re-presentation (the tracker cards carry their
+    // own Material kickers); BOSS BADGES, PREVIOUS FAST, CURRENT
+    // FAST and FAST HISTORY remain.
+    expect(profile.split("skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)").length - 1).toBe(4);
     expect(profile).toContain("padding: 16 + skinTokens.type.padBoost");
   });
 

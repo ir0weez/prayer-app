@@ -11,14 +11,27 @@ import { PaperGrainOverlay } from "@/components/paper-grain";
 import { PaperSettle } from "@/components/paper-motion";
 import { BitSettle } from "@/components/bit-motion";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
-import { FastBoard, FastPawnPicker, PawnCompanion, getSpecialSpace, getSpecialSpaceXP, type FastBoardColors } from "@/components/fast-board";
+import { getSpecialSpace, getSpecialSpaceXP } from "@/components/fast-board";
+import { FastAllRecapsList, FastDaySheetContent, FastRecapDocument, FastRecapsCard, FastRecordCard, FastTodayHero, FastWhyCard, type FastRecapTarget } from "@/components/fast-tracker";
 import { PrestigePrompt } from "@/components/prestige-prompt";
-import { MONUMENT_STORAGE_KEY, parseMonuments, type MonumentDesign } from "@/lib/monuments";
-import { COINS_STORAGE_KEY, SHOP_OWNED_KEY, parseCoins, parseOwnedItems, type HometownCoins, HOMETOWN_MIN_FAST_DAYS, hometownUnlockedForFastLength,
+import { COINS_STORAGE_KEY, parseCoins, type HometownCoins, HOMETOWN_MIN_FAST_DAYS, hometownUnlockedForFastLength,
   formatCoins, applyCoinsDelta,
 } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useSkin } from "@/hooks/use-skin";
+import { derivePeopleFrontDoor } from "@/lib/people-material";
+import {
+  composeFinalRecap,
+  composeWeeklyRecap,
+  getFastQuarters,
+  getFastWeeks,
+  getFastWeeksForQuarter,
+  isFinalRecapReady,
+  recapToJournalBody,
+  type FastRecap,
+} from "@/lib/fast-tracker";
+import { createPrayerJournalEntry, normalizePrayerJournalEntries } from "@/lib/prayer-journal";
 import { TERM_DEEP, TERM_PANEL_2, hasTypeScale, skinText } from "@/lib/skin-themes";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
@@ -35,27 +48,23 @@ import {
   getFastProgress,
   getHighestFastStreak,
   getLastCompletedFastForType,
-  getTodayFocusItemStatus,
   isFastCompleted,
   normalizeFastDateInput,
   normalizeFastsForStorage,
   resetFocusItemsForNewDay,
   type FastDayStatus,
   type FastType,
-  type FocusItemStatus,
   type PersonalFast,
-  updateFocusItemStatus,
   upsertFastDayStatus,
   removeFastDayStatus,
 } from "@/lib/prayercircle-fasting";
-import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { loadStudyState } from "@/lib/bible-v205/study";
 import { getReadingPosition } from "@/lib/bible-v205/position";
 import { awardXP, awardCustomXP, loadXPState, loseHeart, restoreHeart, revokeXP, type XpGainPosition } from "@/lib/xp-engine";
 import { generateFastSummary } from "@/lib/prayercircle-fasting";
-import { useFastPawn, usePawnName, usePawnPetUnlocked } from "@/lib/fast-pawns";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { PawnPreview } from "@/components/pawn-preview";
 import { loadPrestigeState } from "@/lib/prestige";
@@ -133,29 +142,17 @@ function parseStoredProfile(value: string | null): PersonalProfile {
   }
 }
 
-function getStatusColor(status?: FastDayStatus) {
-  if (status === "completed") return "#31C48D";
-  if (status === "skipped") return "#F59E0B";
-  if (status === "missed") return "#D3384A";
-  return "#E8E1F3";
-}
-
-function getStatusIcon(status?: FastDayStatus) {
-  if (status === "completed") return "check";
-  if (status === "skipped") return "pause";
-  if (status === "missed") return "close";
-  return "radio-button-unchecked";
-}
-
-function getFastDayButtonLabel(status?: FastDayStatus) {
-  if (status === "missed") return "Unsuccessful Day";
-  if (status === "skipped") return "Skipped Day";
-  return "Successful Day";
-}
-
 export default function ProfileScreen() {
   const router = useRouter();
   const colors = useColors();
+  const scheme = useColorScheme();
+  // v276: the fasting section's Material family — derived from the
+  // Settings seed (colors.primary) × the appearance, the way People
+  // and the Bible derive theirs. Never pinned to a mockup instance.
+  const trackerFamily = useMemo(
+    () => derivePeopleFrontDoor(colors.primary, scheme === "dark" ? "dark" : "light"),
+    [colors.primary, scheme],
+  );
   // Paper skin (v174): the profile's cards sit on the page like sheets —
   // the kit's offset shadow joins their style arrays; null under Classic.
   const { isPaper, isSkinned, tokens: skinTokens } = useSkin();
@@ -168,13 +165,8 @@ export default function ProfileScreen() {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [prestigeLevel, setPrestigeLevel] = useState(0);
   const [ownedBadges, setOwnedBadges] = useState<string[]>([]);
-  const [showNoteInput, setShowNoteInput] = useState(false);
-  const [noteText, setNoteText] = useState("");
-  const [noteDate, setNoteDate] = useState("");
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
-  const [monuments, setMonuments] = useState<Record<string, MonumentDesign>>({});
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
-  const [ownedShopIds, setOwnedShopIds] = useState<string[]>([]);
   const [selectedFastId, setSelectedFastId] = useState<string | null>(null);
   const [showFastCreator, setShowFastCreator] = useState(false);
   const [isEditingFast, setIsEditingFast] = useState(false);
@@ -182,34 +174,21 @@ export default function ProfileScreen() {
   const [draftFastStartDate, setDraftFastStartDate] = useState(formatIsoToMmDdYyyy(today));
   const [draftFastDuration, setDraftFastDuration] = useState<number>(40);
   const [draftFastType, setDraftFastType] = useState<FastType>("Health");
+  const [draftFastWhy, setDraftFastWhy] = useState("");
   const [draftFastFocusInput, setDraftFastFocusInput] = useState("");
   const [draftFastFocusItems, setDraftFastFocusItems] = useState<string[]>([]);
   const [currentBibleBook, setCurrentBibleBook] = useState<string | null>(null);
   const [lastBibleReadDate, setLastBibleReadDate] = useState<string | null>(null);
   const [bookStatuses, setBookStatuses] = useState<Record<string, string>>({});
   const [profileLevel, setProfileLevel] = useState(1);
-  const { pawnId, setPawnId } = useFastPawn();
-  const { name: pawnName, setName: setPawnName } = usePawnName();
-  const { unlocked: petUnlocked, unlock: unlockPet } = usePawnPetUnlocked();
   const [customPawn, setCustomPawn] = useState<CustomPawn | null>(null);
   const profileScrollRef = useRef<ScrollView>(null);
-  const fastTodayTileRef = useRef<View | null>(null);
-  const fastBoardContainerRef = useRef<View | null>(null);
-  const fastBoardY = useRef<number>(0);
-  const [showFastDayPill, setShowFastDayPill] = useState(true);
-  const [boardVisibleRange, setBoardVisibleRange] = useState<{ top: number; bottom: number } | null>(null);
   const [activeQuarter, setActiveQuarter] = useState(0);
   const [quarterAutoSet, setQuarterAutoSet] = useState(false);
-  const scrollYRef = useRef(0);
-  const viewportHRef = useRef(800);
-
-  const boardColors: FastBoardColors = useMemo(() => ({
-    foreground: colors.foreground,
-    muted: colors.muted,
-    border: colors.border,
-    primary: colors.primary,
-    surface: colors.surface,
-  }), [colors]);
+  // v276 tracker surfaces: the day sheet and the recap viewer.
+  const [sheetDate, setSheetDate] = useState<string | null>(null);
+  const [recapTarget, setRecapTarget] = useState<FastRecapTarget | null>(null);
+  const [savedRecapKeys, setSavedRecapKeys] = useState<Record<string, boolean>>({});
 
   const awardBonusXP = useCallback(async (points: number, idempotencyKey: string, position?: XpGainPosition) => {
     try {
@@ -221,23 +200,11 @@ export default function ProfileScreen() {
     }
   }, []);
 
-  const scrollToFastToday = () => {
-    const scroll = profileScrollRef.current;
-    if (!scroll) return;
-    const todayRow = selectedFast ? Math.floor(getFastCalendarDays(selectedFast).indexOf(today) / 5) : 0;
-    const tileYInBoard = 14 + todayRow * 112;
-    // Use cached layout Y if available, otherwise fall back to measureLayout
-    const targetY = Math.max(0, fastBoardY.current + tileYInBoard - 140);
-    scroll.scrollTo({ y: targetY, animated: true });
-  };
-
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
       loadXPState().then((state) => { if (isActive) setProfileLevel(state.level); }).catch(() => undefined);
-      AsyncStorage.getItem(MONUMENT_STORAGE_KEY).then(v => { try { setMonuments(parseMonuments(v ? JSON.parse(v) : {})); } catch {} }).catch(() => undefined);
       AsyncStorage.getItem(COINS_STORAGE_KEY).then(v => { try { setCoins(parseCoins(v ? JSON.parse(v) : {})); } catch {} }).catch(() => undefined);
-      AsyncStorage.getItem(SHOP_OWNED_KEY).then(v => { try { setOwnedShopIds(parseOwnedItems(v ? JSON.parse(v) : [])); } catch {} }).catch(() => undefined);
       loadCustomPawn().then((p) => { if (isActive) setCustomPawn(p); }).catch(() => undefined);
       Promise.all([
         AsyncStorage.getItem(PROFILE_STORAGE_KEY),
@@ -336,18 +303,40 @@ export default function ProfileScreen() {
     [fasts],
   );
 
+  // v276 tracker read-models (lib/fast-tracker): weeks chunked from
+  // Day 1, quarters with the existing 80+ day behavior (ceil(d/4),
+  // month-range labels, today's quarter auto-opened by the effect
+  // above). The record shows the active quarter's weeks; the Recaps
+  // card always reasons over the whole fast.
+  const trackerWeeks = useMemo(
+    () => (selectedFast ? getFastWeeks(selectedFast, today) : []),
+    [selectedFast, today],
+  );
+  const trackerQuarters = useMemo(
+    () => (selectedFast && selectedFast.durationDays >= 80 ? getFastQuarters(selectedFast) : null),
+    [selectedFast],
+  );
+  const activeQuarterIndex = trackerQuarters ? Math.min(activeQuarter, trackerQuarters.length - 1) : 0;
+  const recordWeeks = useMemo(
+    () => (trackerQuarters ? getFastWeeksForQuarter(trackerWeeks, trackerQuarters[activeQuarterIndex] ?? null) : trackerWeeks),
+    [trackerWeeks, trackerQuarters, activeQuarterIndex],
+  );
+  const finalRecapReady = selectedFast ? isFinalRecapReady(selectedFast, today) : false;
+
   const persistFasts = (nextFasts: PersonalFast[]) => {
     setFasts(nextFasts);
     AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify(nextFasts)).catch(() => undefined);
   };
 
-  const setFastStatus = (dateString: string, status: FastDayStatus, position?: { x: number; y: number }) => {
-    if (!selectedFast) {
-      setShowFastCreator(true);
-      return;
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const previousStatus = selectedFast.dayStatuses[dateString];
+  // The day-status engine — UNCHANGED by the v276 re-presentation.
+  // Every transition fires the same side effects it always has (XP
+  // award/revoke, the Hometown coin via the canonical ledger, the
+  // special-space bonus, heart lose/restore); only the surfaces that
+  // call it changed (hero segmented control + day sheet, not the
+  // board). The effects are factored out so marking and un-marking
+  // share them exactly.
+  const applyFastStatusEffects = (dateString: string, status: FastDayStatus | null, previousStatus: FastDayStatus | undefined, position?: { x: number; y: number }) => {
+    if (!selectedFast) return;
     const heartKey = `fasting-day-missed:${selectedFast.id}:${dateString}`;
     if (status === "completed" && previousStatus !== "completed") {
       void awardXP("fasting-day", `${selectedFast.id}:${dateString}`, position).catch(() => undefined);
@@ -363,10 +352,12 @@ export default function ProfileScreen() {
     }
     if (status !== "completed" && previousStatus === "completed") void revokeXP("fasting-day", `${selectedFast.id}:${dateString}`, position).catch(() => undefined);
     if (status === "missed" && previousStatus !== "missed") void loseHeart(heartKey, today, position).catch(() => undefined);
-    const updatedFasts = upsertFastDayStatus(fasts, selectedFast.id, dateString, status);
-    persistFasts(updatedFasts);
+    if (status === null && previousStatus === "missed") void restoreHeart(heartKey, today, position).catch(() => undefined);
+  };
+
+  const maybeGenerateFastSummary = (updatedFasts: PersonalFast[]) => {
     // Auto-generate summary if fast is complete and no summary yet
-    const updatedFast = updatedFasts.find(f => f.id === selectedFast.id);
+    const updatedFast = updatedFasts.find(f => f.id === selectedFast?.id);
     if (updatedFast && !updatedFast.summary) {
       const days = getFastCalendarDays(updatedFast);
       const allMarked = days.every(d => updatedFast.dayStatuses[d]);
@@ -377,65 +368,83 @@ export default function ProfileScreen() {
     }
   };
 
-  const saveDailyNote = () => {
-    if (!selectedFast || !noteDate) return;
-    const updatedFast = {
-      ...selectedFast,
-      dailyNotes: { ...(selectedFast.dailyNotes || {}), [noteDate]: noteText.trim() },
-    };
-    const nextFasts = fasts.map(f => f.id === selectedFast.id ? updatedFast : f);
-    persistFasts(nextFasts);
-    setShowNoteInput(false);
-    setNoteText("");
-    setNoteDate("");
+  const setFastStatus = (dateString: string, status: FastDayStatus, position?: { x: number; y: number }) => {
+    if (!selectedFast) {
+      setShowFastCreator(true);
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    applyFastStatusEffects(dateString, status, selectedFast.dayStatuses[dateString], position);
+    const updatedFasts = upsertFastDayStatus(fasts, selectedFast.id, dateString, status);
+    persistFasts(updatedFasts);
+    maybeGenerateFastSummary(updatedFasts);
   };
 
-
-
-  const updateFocusItemStatusForFast = (focusItem: string, status: FocusItemStatus) => {
+  const unmarkFastDay = (dateString: string) => {
     if (!selectedFast) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const updatedStatuses = updateFocusItemStatus(
-      selectedFast.focusItemDailyStatuses,
-      focusItem,
-      today,
-      status,
-    );
-    const updatedFast: PersonalFast = {
-      ...selectedFast,
-      focusItemDailyStatuses: updatedStatuses,
-    };
-    const nextFasts = fasts.map((f) => (f.id === selectedFast.id ? updatedFast : f));
+    applyFastStatusEffects(dateString, null, selectedFast.dayStatuses[dateString]);
+    persistFasts(removeFastDayStatus(fasts, selectedFast.id, dateString));
+  };
+
+  // v276 day sheet save: the state and the day's note land in ONE
+  // persist, so the two can never clobber each other. The note is the
+  // existing dailyNotes record (the board's note field, now reached
+  // through the sheet); an emptied note removes the key.
+  const saveDaySheet = (dateString: string, status: FastDayStatus | null, note: string) => {
+    if (!selectedFast) return;
+    const previousStatus = selectedFast.dayStatuses[dateString];
+    let nextFasts = fasts;
+    if (status !== previousStatus) {
+      applyFastStatusEffects(dateString, status, previousStatus);
+      nextFasts = status
+        ? upsertFastDayStatus(nextFasts, selectedFast.id, dateString, status)
+        : removeFastDayStatus(nextFasts, selectedFast.id, dateString);
+    }
+    const trimmedNote = note.trim();
+    nextFasts = nextFasts.map((fast) => {
+      if (fast.id !== selectedFast.id) return fast;
+      const dailyNotes = { ...(fast.dailyNotes ?? {}) };
+      if (trimmedNote) dailyNotes[dateString] = trimmedNote;
+      else delete dailyNotes[dateString];
+      return { ...fast, dailyNotes };
+    });
     persistFasts(nextFasts);
+    maybeGenerateFastSummary(nextFasts);
+    setSheetDate(null);
   };
 
-  const chooseStatusForDate = (dateString: string) => {
-    Alert.alert("Track fasting day", formatIsoToMmDdYyyy(dateString), [
-      { text: "Successful", onPress: () => setFastStatus(dateString, "completed") },
-      { text: "Skipped", onPress: () => setFastStatus(dateString, "skipped") },
-      { text: "Missed", style: "destructive", onPress: () => setFastStatus(dateString, "missed") },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  };
+  // v276 recaps: composed on-device from the record + his notes
+  // (lib/fast-tracker), saved through the existing Journal path.
+  const activeRecap: FastRecap | null = useMemo(() => {
+    if (!selectedFast || !recapTarget || recapTarget.kind === "all") return null;
+    if (recapTarget.kind === "final") return composeFinalRecap(selectedFast);
+    const week = trackerWeeks.find((w) => w.weekNumber === recapTarget.weekNumber);
+    return week ? composeWeeklyRecap(selectedFast, week) : null;
+  }, [selectedFast, recapTarget, trackerWeeks]);
 
-  const handleCancelFastForToday = () => {
-    Alert.alert(
-      "Cancel",
-      "Remove today's fast mark?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes, Remove",
-          style: "destructive",
-          onPress: () => {
-            if (!selectedFast) return;
-            if (selectedFast.dayStatuses[today] === "completed") void revokeXP("fasting-day", `${selectedFast.id}:${today}`).catch(() => undefined);
-            if (selectedFast.dayStatuses[today] === "missed") void restoreHeart(`fasting-day-missed:${selectedFast.id}:${today}`, today).catch(() => undefined);
-            persistFasts(removeFastDayStatus(fasts, selectedFast.id, today));
-          },
-        },
-      ]
-    );
+  const recapSavedKey = recapTarget
+    ? recapTarget.kind === "week"
+      ? `week:${recapTarget.weekNumber}`
+      : recapTarget.kind === "final"
+        ? "final"
+        : null
+    : null;
+
+  const saveRecapToJournal = async (recap: FastRecap) => {
+    try {
+      const raw = await AsyncStorage.getItem(JOURNAL_STORAGE_KEY);
+      const entries = raw ? normalizePrayerJournalEntries(JSON.parse(raw)) : [];
+      const next = createPrayerJournalEntry(
+        entries,
+        { title: recap.title, body: recapToJournalBody(recap), taggedPeople: [] },
+        `journal-fast-recap-${Date.now()}`,
+      );
+      await AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(next));
+      if (recapSavedKey) setSavedRecapKeys((keys) => ({ ...keys, [recapSavedKey]: true }));
+    } catch {
+      // A failed journal write must never interrupt the fast page.
+    }
   };
 
   const addDraftFocus = () => {
@@ -451,6 +460,7 @@ export default function ProfileScreen() {
       setDraftFastStartDate(formatIsoToMmDdYyyy(selectedFast.startDate));
       setDraftFastDuration(selectedFast.durationDays);
       setDraftFastType(selectedFast.type);
+      setDraftFastWhy(selectedFast.why ?? "");
       setDraftFastFocusInput("");
       setDraftFastFocusItems(selectedFast.focusItems || []);
     } else {
@@ -458,9 +468,30 @@ export default function ProfileScreen() {
       setDraftFastStartDate(formatIsoToMmDdYyyy(today));
       setDraftFastDuration(40);
       setDraftFastType("Health");
+      setDraftFastWhy("");
       setDraftFastFocusInput("");
       setDraftFastFocusItems([]);
     }
+  };
+
+  // Opens the creator in edit mode with every draft field seeded —
+  // the header edit button and the Why card's Edit both land here, so
+  // the why is edited where the fast itself is edited.
+  const openFastEditor = () => {
+    if (selectedFast) {
+      setIsEditingFast(true);
+      setDraftFastName(selectedFast.name);
+      setDraftFastStartDate(formatIsoToMmDdYyyy(selectedFast.startDate));
+      setDraftFastDuration(selectedFast.durationDays);
+      setDraftFastType(selectedFast.type);
+      setDraftFastWhy(selectedFast.why ?? "");
+      setDraftFastFocusInput("");
+      setDraftFastFocusItems(selectedFast.focusItems || []);
+    } else {
+      setIsEditingFast(false);
+      resetFastCreator();
+    }
+    setShowFastCreator(true);
   };
 
   const createFast = async () => {
@@ -478,6 +509,7 @@ export default function ProfileScreen() {
         name: draftFastName || `${draftFastDuration}-Day ${draftFastType} Fast`,
         startDate: draftFastStartDate,
         durationDays: draftFastDuration,
+        why: draftFastWhy.trim() || undefined,
         type: draftFastType,
         focusItems,
       };
@@ -491,6 +523,7 @@ export default function ProfileScreen() {
         durationDays: draftFastDuration,
         type: draftFastType,
         focusItems,
+        why: draftFastWhy,
         existingCount: fasts.length,
       });
       if (!fast) {
@@ -568,27 +601,7 @@ export default function ProfileScreen() {
         ref={profileScrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        scrollEventThrottle={100}
         removeClippedSubviews={true}
-        onLayout={(e) => { viewportHRef.current = e.nativeEvent.layout.height; }}
-        onScroll={(e) => {
-          const y = e.nativeEvent.contentOffset.y;
-          scrollYRef.current = y;
-          const viewportH = viewportHRef.current;
-          // Board virtualization: visible Y range relative to board top
-          const boardTop = fastBoardY.current;
-          setBoardVisibleRange({
-            top: y - boardTop,
-            bottom: y + viewportH - boardTop,
-          });
-          if (selectedFast) {
-            const todayRow = Math.floor(getFastCalendarDays(selectedFast).indexOf(today) / 5);
-            const tileY = fastBoardY.current + 14 + todayRow * 112;
-            // Show pill only when today's tile is off-screen
-            const visible = tileY >= y && tileY <= y + viewportH;
-            setShowFastDayPill(!visible);
-          }
-        }}
       >
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }, pressed && styles.pressed]}>
@@ -619,21 +632,7 @@ export default function ProfileScreen() {
                 <MaterialIcons name="delete" size={24} color="#C75265" />
               </Pressable>
             )}
-            <Pressable onPress={() => {
-              if (selectedFast) {
-                setIsEditingFast(true);
-                setDraftFastName(selectedFast.name);
-                setDraftFastStartDate(formatIsoToMmDdYyyy(selectedFast.startDate));
-                setDraftFastDuration(selectedFast.durationDays);
-                setDraftFastType(selectedFast.type);
-                setDraftFastFocusInput("");
-                setDraftFastFocusItems(selectedFast.focusItems || []);
-              } else {
-                setIsEditingFast(false);
-                resetFastCreator();
-              }
-              setShowFastCreator(true);
-            }} style={({ pressed }) => [dynamicStyles.headerFastButton, pressed && styles.pressed]}>
+            <Pressable onPress={openFastEditor} style={({ pressed }) => [dynamicStyles.headerFastButton, pressed && styles.pressed]}>
               <MaterialIcons name={selectedFast ? "edit" : iconName("add")} size={24} color="#FFFFFF" />
             </Pressable>
           </View>
@@ -802,206 +801,38 @@ export default function ProfileScreen() {
             </BitSettle>
 </PaperSettle>
 
-            <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>FASTING FOCUS</Text>
-            <View style={styles.focusWrap}>
-              {(selectedFast.focusItems.length ? selectedFast.focusItems : ["Add a focus when you create your next fast"]).map((item) => {
-                const focusStatus = getTodayFocusItemStatus(selectedFast.focusItemDailyStatuses, item, today);
-                const focusColor = focusStatus === "completed" ? "#31C48D" : focusStatus === "missed" ? "#D3384A" : colors.primary;
-                return (
-                  <Pressable
-                    key={item}
-                    onPress={() => updateFocusItemStatusForFast(item, "completed")}
-                    onLongPress={() => updateFocusItemStatusForFast(item, "missed")}
-                    delayLongPress={420}
-                    style={({ pressed }) => [styles.focusChip, { backgroundColor: focusColor }, pressed && { opacity: 0.7 }]}
-                  >
-                    <Text style={[{ color: "#FFFFFF", fontSize: 13, fontWeight: "900" }]}>{item}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>TODAY</Text>
-            <View style={styles.todayActions}>
-              <Pressable onPress={(event) => setFastStatus(today, "completed", { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })} onLongPress={() => chooseStatusForDate(today)} delayLongPress={420} style={({ pressed }) => [styles.todayButton, { backgroundColor: getStatusColor(selectedFast.dayStatuses[today]) }, pressed && styles.pressed]}>
-                <MaterialIcons name={iconName(getStatusIcon(selectedFast.dayStatuses[today]))} size={24} color="#FFFFFF" />
-                <Text style={styles.todayButtonText}>{getFastDayButtonLabel(selectedFast.dayStatuses[today])}</Text>
-              </Pressable>
-              <Pressable onPress={() => handleCancelFastForToday()} style={({ pressed }) => [styles.cancelButton, { backgroundColor: colors.error }, pressed && styles.pressed]}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </Pressable>
-            </View>
-            <Pressable
-              onPress={() => {
-                setNoteDate(today);
-                setNoteText(selectedFast?.dailyNotes?.[today] || "");
-                setShowNoteInput(true);
-              }}
-              style={{ marginTop: 8, padding: 12, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 12, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, alignItems: "center", ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <MaterialIcons name="edit-note" size={18} color={colors.primary} />
-                <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 14 }}>
-                  {selectedFast?.dailyNotes?.[today] ? "Edit today's note" : "Add a note for today"}
-                </Text>
-              </View>
-              {selectedFast?.dailyNotes?.[today] && (
-                <Text style={{ fontSize: 12, color: colors.muted, marginTop: 4, fontStyle: "italic" }}>
-                  "{selectedFast.dailyNotes[today]}"
-                </Text>
-              )}
-            </Pressable>
-
-            {(() => {
-              // Calculate streak for mood; pet unlocks on 40+ day fasts (not streak)
-              let streak = 0;
-              let mood: "celebrating" | "happy" | "content" | "sleepy" | "encouraging" | "building" = "sleepy";
-              if (selectedFast) {
-                const days = getFastCalendarDays(selectedFast);
-                const todayIdx = days.indexOf(today);
-                const todayStatus = todayIdx >= 0 ? selectedFast.dayStatuses[days[todayIdx]] : undefined;
-                // Count streak from yesterday if today isn't marked yet — otherwise
-                // the pawn reads "sleepy" all day until you tap today complete.
-                const streakStartIdx = todayStatus === "completed" ? todayIdx : todayIdx - 1;
-                for (let i = streakStartIdx; i >= 0; i--) {
-                  const s = selectedFast.dayStatuses[days[i]];
-                  if (s === "completed") streak++;
-                  else break;
-                }
-                // Unlock pet when a 40+ day fast is created (matches Hometown gate: > 40 days)
-                if (hometownUnlockedForFastLength(selectedFast.durationDays) && !petUnlocked) unlockPet();
-                const yesterdayIdx = todayIdx - 1;
-                const yesterdayStatus = yesterdayIdx >= 0 ? selectedFast.dayStatuses[days[yesterdayIdx]] : undefined;
-                if (monuments[today]) mood = "building";
-                else if (todayStatus === "completed") mood = "celebrating";
-                else if (streak >= 7) mood = "happy";
-                else if (streak >= 3) mood = "content";
-                else if (yesterdayStatus === "missed") mood = "encouraging";
-              }
-              if (!petUnlocked) {
-                // Locked hint
-                return (
-                  <View style={{ alignItems: "center", paddingVertical: 12, opacity: 0.6 }}>
-                    <Text style={{ fontSize: 32 }}>🔒</Text>
-                    <Text style={{ color: boardColors.muted, fontSize: 13, marginTop: 8, textAlign: "center" }}>
-                      Create a fast longer than {HOMETOWN_MIN_FAST_DAYS} days to unlock your pawn pet!
-                    </Text>
-                    <Text style={{ color: boardColors.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>
-                      This fast: {selectedFast?.durationDays ?? 0} days
-                    </Text>
-                  </View>
-                );
-              }
-              const todayStatusForPet = (() => {
-                if (!selectedFast) return undefined;
-                const days = getFastCalendarDays(selectedFast);
-                const idx = days.indexOf(today);
-                return idx >= 0 ? selectedFast.dayStatuses[days[idx]] as "completed" | "missed" | "skipped" | undefined : undefined;
-              })();
-              return (
-                <PawnCompanion
-                  pawnId={pawnId}
-                  pawnName={pawnName}
-                  onNameChange={setPawnName}
-                  mood={mood}
-                  colors={boardColors}
-                  status={todayStatusForPet}
-                  customPawn={customPawn}
-                />
-              );
-            })()}
-            {selectedFast && selectedFast.durationDays >= 80 && (
-              <>
-              <Text style={[styles.sectionLabel, { color: colors.foreground, marginBottom: 8 }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>SEASONS — TAP TO SWITCH</Text>
-              <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-                {[0, 1, 2, 3].map((q) => {
-                  const quarterSize = Math.ceil(selectedFast.durationDays / 4);
-                  const qStart = q * quarterSize + 1;
-                  const qEnd = Math.min((q + 1) * quarterSize, selectedFast.durationDays);
-                  const isActive = activeQuarter === q;
-                  // Date range label (e.g., "Jan-Mar")
-                  const qStartDate = new Date(selectedFast.startDate + "T00:00:00Z");
-                  qStartDate.setUTCDate(qStartDate.getUTCDate() + qStart - 1);
-                  const qEndDate = new Date(selectedFast.startDate + "T00:00:00Z");
-                  qEndDate.setUTCDate(qEndDate.getUTCDate() + qEnd - 1);
-                  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-                  const dateLabel = `${monthNames[qStartDate.getUTCMonth()]}-${monthNames[qEndDate.getUTCMonth()]}`;
-                  // Season for theming (based on END month so Dec-ending quarters get Winter)
-                  const qMidDate = new Date(selectedFast.startDate + "T00:00:00Z");
-                  qMidDate.setUTCDate(qMidDate.getUTCDate() + qEnd - 1);
-                  const qMonth = qMidDate.getUTCMonth();
-                  const seasonColors = (qMonth === 11 || qMonth <= 1)
-                    ? { bg: "#DBEAFE", accent: "#3B82F6", text: "#1E40AF" }
-                    : (qMonth >= 2 && qMonth <= 4)
-                    ? { bg: "#DCFCE7", accent: "#22C55E", text: "#166534" }
-                    : (qMonth >= 5 && qMonth <= 7)
-                    ? { bg: "#FEF3C7", accent: "#F59E0B", text: "#92400E" }
-                    : { bg: "#FFEDD5", accent: "#EA580C", text: "#9A3412" };
-                  return (
-                    <Pressable
-                      key={q}
-                      onPress={() => setActiveQuarter(q)}
-                      style={{
-                        flex: 1,
-                        paddingVertical: 12,
-                        borderRadius: 16,
-                        alignItems: "center",
-                        backgroundColor: isActive ? seasonColors.accent : seasonColors.bg,
-                        borderWidth: isActive ? 0 : 1,
-                        borderColor: seasonColors.accent,
-                      }}
-                    >
-                      <Text style={{ fontSize: 13, fontWeight: "700", color: isActive ? "#FFFFFF" : seasonColors.text }}>
-                        Q{q + 1}
-                      </Text>
-                      <Text style={{ fontSize: 10, color: isActive ? "#FFFFFF" : seasonColors.text, opacity: 0.75 }}>
-                        {dateLabel}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              </>
-            )}
-            <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>BOARD</Text>
-            <View
-              ref={fastBoardContainerRef}
-              collapsable={false}
-              onLayout={(e) => { fastBoardY.current = e.nativeEvent.layout.y; }}
-            >
-            {(() => {
-              // Quarter filtering for long fasts (80+ days): show only active quarter
-              let boardFast = selectedFast;
-              let seasonalBoardColors = boardColors;
-              if (selectedFast.durationDays >= 80) {
-                const quarterSize = Math.ceil(selectedFast.durationDays / 4);
-                // Seasonal board theming (calendar-based)
-                // Theme by END month so Q4 (ending Dec) gets Winter, not Fall
-                const qEndOff = (activeQuarter * quarterSize) + Math.min(quarterSize, selectedFast.durationDays - activeQuarter * quarterSize) - 1;
-                const qMidD = new Date(selectedFast.startDate + "T00:00:00Z");
-                qMidD.setUTCDate(qMidD.getUTCDate() + qEndOff);
-                const qM = qMidD.getUTCMonth();
-                const sKey = (qM === 11 || qM <= 1) ? "winter" : (qM >= 2 && qM <= 4) ? "spring" : (qM >= 5 && qM <= 7) ? "summer" : "fall";
-                const seasonalThemes: Record<string, { primary: string; surface: string; border: string }> = {
-                  winter: { primary: "#3B82F6", surface: "#EFF6FF", border: "#BFDBFE" },
-                  spring: { primary: "#22C55E", surface: "#F0FDF4", border: "#BBF7D0" },
-                  summer: { primary: "#F59E0B", surface: "#FFFBEB", border: "#FDE68A" },
-                  fall: { primary: "#EA580C", surface: "#FFF7ED", border: "#FDBA74" },
-                };
-                const st = seasonalThemes[sKey];
-                seasonalBoardColors = { ...boardColors, primary: st.primary, surface: st.surface, border: st.border };
-                const qStartDay = activeQuarter * quarterSize; // 0-indexed offset
-                const qDays = Math.min(quarterSize, selectedFast.durationDays - qStartDay);
-                const startDate = new Date(selectedFast.startDate + "T00:00:00Z");
-                startDate.setUTCDate(startDate.getUTCDate() + qStartDay);
-                boardFast = {
-                  ...selectedFast,
-                  startDate: startDate.toISOString().split("T")[0],
-                  durationDays: qDays,
-                };
-              }
-              return (
-            <>
+            {/* v276 "The Fast, As a Tracker" — the board-era surfaces
+                (focus chips, today button, pawn companion, seasons,
+                board, pawn picker) are replaced by the tracker the
+                mockup drew: Why card, Today hero, Record, Recaps.
+                Presentation only: every write still runs through the
+                same engine (setFastStatus / saveDaySheet), and the
+                focus data stays stored on the fast record. */}
+            <FastWhyCard family={trackerFamily} fast={selectedFast} onEdit={openFastEditor} />
+            <FastTodayHero
+              family={trackerFamily}
+              fast={selectedFast}
+              today={today}
+              onMark={(status, position) => setFastStatus(today, status, position)}
+              onOpenDay={(date) => setSheetDate(date)}
+            />
+            <FastRecordCard
+              family={trackerFamily}
+              fast={selectedFast}
+              today={today}
+              weeks={recordWeeks}
+              quarters={trackerQuarters}
+              activeQuarter={activeQuarterIndex}
+              onQuarterChange={setActiveQuarter}
+              onOpenDay={(date) => setSheetDate(date)}
+            />
+            <FastRecapsCard
+              family={trackerFamily}
+              fast={selectedFast}
+              weeks={trackerWeeks}
+              finalReady={finalRecapReady}
+              onOpenRecap={setRecapTarget}
+            />
             {hometownUnlocked ? (
             <Pressable
               onPress={() => router.push("/hometown")}
@@ -1030,24 +861,6 @@ export default function ProfileScreen() {
               <MaterialIcons name="lock" size={20} color={colors.muted} />
             </View>
             )}
-            <FastBoard
-              fast={boardFast}
-              today={today}
-              colors={seasonalBoardColors}
-              pawnId={pawnId}
-              visibleYRange={boardVisibleRange}
-              todayTileRef={fastTodayTileRef}
-              onPressTile={(date, _dayNum, position) => setFastStatus(date, "completed", position)}
-              onLongPressTile={(date) => chooseStatusForDate(date)}
-              onTriviaCorrect={(points, dayNum) =>
-                awardBonusXP(points, `fast-trivia:${selectedFast.id}:day${dayNum}`)
-              }
-              monuments={monuments}
-            />
-              </>
-              );
-            })()}
-            </View>
             {/* End-of-fast "Begin Again?" prestige prompt (shows once per completed fast) */}
             <PrestigePrompt fasts={fasts} />
             {hometownUnlocked ? (
@@ -1106,14 +919,6 @@ export default function ProfileScreen() {
               </View>
               <Text style={{ fontSize: 20, color: "#A78BFA" }}>→</Text>
             </Pressable>
-            <FastPawnPicker
-              level={profileLevel}
-              prayerStreak={profile.personalPrayerStreak}
-              pawnId={pawnId}
-              onSelect={setPawnId}
-              colors={boardColors}
-              ownedShopIds={ownedShopIds}
-            />
           </>
         ) : (
           <View style={styles.emptyState}>
@@ -1169,31 +974,52 @@ export default function ProfileScreen() {
       </ScrollView>
       <AvatarPicker visible={showAvatarPicker} initialAvatarAsset={profile.avatarAsset} unlockedBookIds={unlockedBookIds} onClose={() => setShowAvatarPicker(false)} onUpload={handleUploadProfileAvatar} onSelect={handleSelectProfileAvatar} />
 
-      <Modal transparent visible={showNoteInput} animationType={isPaper ? "fade" : "slide"} onRequestClose={() => setShowNoteInput(false)}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
-          <PaperSettle style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 16, padding: 20, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }}>
-<BitSettle>
-            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 8 }}>Daily Note</Text>
-            <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 12 }}>
-              Why did you {selectedFast?.dayStatuses?.[noteDate] === "completed" ? "complete" : "miss"} this day?
-            </Text>
-            <TextInput
-              value={noteText}
-              onChangeText={setNoteText}
-              placeholder="A short sentence..."
-              multiline
-              style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 80, color: colors.foreground, marginBottom: 16 }}
-            />
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <Pressable onPress={() => setShowNoteInput(false)} style={{ flex: 1, padding: 12, borderRadius: 10, backgroundColor: colors.border, alignItems: "center" }}>
-                <Text>Cancel</Text>
-              </Pressable>
-              <Pressable onPress={saveDailyNote} style={{ flex: 1, padding: 12, borderRadius: 10, backgroundColor: colors.primary, alignItems: "center" }}>
-                <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Save</Text>
-              </Pressable>
-            </View>
-          </BitSettle>
-</PaperSettle>
+      {/* v276 day sheet — a Material bottom sheet (28px top radius,
+          drag handle) over the dimmed page: the day's state, its
+          note, and the encouragement fitted to the selected state.
+          It replaces the old centered Daily Note modal; the note it
+          saves is the same dailyNotes record. */}
+      <Modal transparent visible={sheetDate !== null && !!selectedFast} animationType={isPaper ? "fade" : "slide"} onRequestClose={() => setSheetDate(null)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(20,16,40,0.5)", justifyContent: "flex-end" }}>
+          <Pressable style={{ flex: 1 }} onPress={() => setSheetDate(null)} />
+          <View style={{ backgroundColor: trackerFamily.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 28, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }}>
+            {sheetDate && selectedFast ? (
+              <FastDaySheetContent
+                key={sheetDate}
+                family={trackerFamily}
+                fast={selectedFast}
+                date={sheetDate}
+                onSave={(status, note) => saveDaySheet(sheetDate, status, note)}
+                onClose={() => setSheetDate(null)}
+              />
+            ) : null}
+          </View>
+        </View>
+      </Modal>
+
+      {/* v276 recap viewer — the weekly/final recap document (and
+          the all-recaps list) as a full page over the profile. */}
+      <Modal visible={recapTarget !== null && !!selectedFast} animationType={isPaper ? "fade" : "slide"} onRequestClose={() => setRecapTarget(null)}>
+        <View style={{ flex: 1, backgroundColor: trackerFamily.ground }}>
+          <View style={{ height: 64, flexDirection: "row", alignItems: "center", paddingHorizontal: 8, gap: 4 }}>
+            <Pressable onPress={() => setRecapTarget(null)} style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }} accessibilityRole="button" accessibilityLabel="Close recaps">
+              <MaterialIcons name="arrow-back" size={24} color={trackerFamily.ink} />
+            </Pressable>
+            <Text style={{ flex: 1, fontSize: 22, lineHeight: 28, fontWeight: "500", color: trackerFamily.ink }}>Recaps</Text>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+            {recapTarget?.kind === "all" || !activeRecap ? (
+              <FastAllRecapsList family={trackerFamily} weeks={trackerWeeks} onOpenRecap={setRecapTarget} />
+            ) : (
+              <FastRecapDocument
+                family={trackerFamily}
+                recap={activeRecap}
+                saved={!!(recapSavedKey && savedRecapKeys[recapSavedKey])}
+                onSaveToJournal={() => void saveRecapToJournal(activeRecap)}
+                onClose={() => setRecapTarget(null)}
+              />
+            )}
+          </ScrollView>
         </View>
       </Modal>
 
@@ -1222,6 +1048,8 @@ export default function ProfileScreen() {
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.fieldLabel}>FAST NAME</Text>
               <TextInput value={draftFastName} onChangeText={setDraftFastName} placeholder="e.g., 40-Day Prayer Fast" placeholderTextColor="#73808B" returnKeyType="done" style={styles.textInput} />
+              <Text style={styles.fieldLabel}>WHY ARE YOU FASTING?</Text>
+              <TextInput value={draftFastWhy} onChangeText={setDraftFastWhy} placeholder="e.g., To stay close to God, and to be fully here for my family." placeholderTextColor="#73808B" multiline style={[styles.textInput, { minHeight: 64, textAlignVertical: "top" }]} />
               <Text style={styles.fieldLabel}>START DATE</Text>
               <TextInput value={draftFastStartDate} onChangeText={setDraftFastStartDate} placeholder="MM-DD-YYYY" placeholderTextColor="#73808B" keyboardType="numbers-and-punctuation" returnKeyType="done" style={styles.textInput} />
               <Text style={styles.fieldLabel}>DURATION</Text>

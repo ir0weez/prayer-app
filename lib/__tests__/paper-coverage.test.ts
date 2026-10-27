@@ -338,7 +338,12 @@ describe("Paper coverage — v202 animation pass", () => {
     expect(profile).toContain("<PaperSettle index={0} style={{ position: 'relative' }}>");
     expect(profile).toContain("<PaperSettle index={1} style={styles.statsGrid}>");
     expect(profile).toContain("<PaperSettle index={2} style={[styles.previousFastCard,");
-    expect(profile).toContain("<PaperSettle index={3} style={[styles.fastCard,");
+    // v280 re-base: the fastCard wrapper retired — amendment 2
+    // (mockup fidelity) took the enclosing card off; the section
+    // head is now a plain row on the page ground (trackerSection)
+    // and the tracker cards stand on the ground themselves. The
+    // settle still lands at index 3.
+    expect(profile).toContain("<PaperSettle index={3} style={styles.trackerSection}>");
     // v276 re-base: 2 -> 3. The centered Daily Note modal retired;
     // the tracker adds the day-sheet modal and the recap-viewer
     // modal, both in the same fade-under-Paper dress (creator +

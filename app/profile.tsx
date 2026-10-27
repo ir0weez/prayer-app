@@ -11,8 +11,7 @@ import { PaperGrainOverlay } from "@/components/paper-grain";
 import { PaperSettle } from "@/components/paper-motion";
 import { BitSettle } from "@/components/bit-motion";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
-import { getSpecialSpace, getSpecialSpaceXP } from "@/components/fast-board";
-import { FastAllRecapsList, FastDaySheetContent, FastRecapDocument, FastRecapsCard, FastRecordCard, FastTodayHero, FastWhyCard, type FastRecapTarget } from "@/components/fast-tracker";
+import { FastDaySheetContent, FastRecapDocument, FastRecapsCard, FastRecordCard, FastTodayHero, FastWhyCard, type FastRecapTarget } from "@/components/fast-tracker";
 import { PrestigePrompt } from "@/components/prestige-prompt";
 import { COINS_STORAGE_KEY, parseCoins, type HometownCoins, HOMETOWN_MIN_FAST_DAYS, hometownUnlockedForFastLength,
   formatCoins, applyCoinsDelta,
@@ -328,13 +327,13 @@ export default function ProfileScreen() {
     AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify(nextFasts)).catch(() => undefined);
   };
 
-  // The day-status engine — UNCHANGED by the v276 re-presentation.
-  // Every transition fires the same side effects it always has (XP
-  // award/revoke, the Hometown coin via the canonical ledger, the
-  // special-space bonus, heart lose/restore); only the surfaces that
-  // call it changed (hero segmented control + day sheet, not the
-  // board). The effects are factored out so marking and un-marking
-  // share them exactly.
+  // The day-status engine. v276 changed only the surfaces that call
+  // it (hero segmented control + day sheet, not the board). v280
+  // removed the board's special-space bonus (Grace/Wilderness/
+  // Trivia) with the board itself: a kept day now pays the fast's
+  // own loop only — the +25 XP award/revoke and the Hometown coin
+  // via the canonical ledger — and hearts lose/restore exactly as
+  // before (hearts are fast-core engine, lib/xp-engine.ts).
   const applyFastStatusEffects = (dateString: string, status: FastDayStatus | null, previousStatus: FastDayStatus | undefined, position?: { x: number; y: number }) => {
     if (!selectedFast) return;
     const heartKey = `fasting-day-missed:${selectedFast.id}:${dateString}`;
@@ -343,10 +342,6 @@ export default function ProfileScreen() {
       // Hometown: 1 coin per fast green day — via the canonical ledger
       // (v167), never this screen's snapshot.
       void applyCoinsDelta(1, "none").then((next) => setCoins(next));
-      // Special-space bonus, scaled by streak tier.
-      const dayNum = selectedFastDays.indexOf(dateString) + 1;
-      const special = dayNum > 0 ? getSpecialSpace(dayNum, selectedFast.durationDays) : null;
-      if (special) void awardBonusXP(getSpecialSpaceXP(special, dayNum), `fast-bonus:${selectedFast.id}:${dateString}:${special}`, position);
       // Marking successful after a miss gives the heart back.
       void restoreHeart(heartKey, today, position).catch(() => undefined);
     }
@@ -417,7 +412,7 @@ export default function ProfileScreen() {
   // v276 recaps: composed on-device from the record + his notes
   // (lib/fast-tracker), saved through the existing Journal path.
   const activeRecap: FastRecap | null = useMemo(() => {
-    if (!selectedFast || !recapTarget || recapTarget.kind === "all") return null;
+    if (!selectedFast || !recapTarget) return null;
     if (recapTarget.kind === "final") return composeFinalRecap(selectedFast);
     const week = trackerWeeks.find((w) => w.weekNumber === recapTarget.weekNumber);
     return week ? composeWeeklyRecap(selectedFast, week) : null;
@@ -426,9 +421,7 @@ export default function ProfileScreen() {
   const recapSavedKey = recapTarget
     ? recapTarget.kind === "week"
       ? `week:${recapTarget.weekNumber}`
-      : recapTarget.kind === "final"
-        ? "final"
-        : null
+      : "final"
     : null;
 
   const saveRecapToJournal = async (recap: FastRecap) => {
@@ -780,24 +773,23 @@ export default function ProfileScreen() {
 
         {selectedFast ? (
           <>
-            <View style={styles.currentFastHeader}>
-              <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>CURRENT FAST</Text>
-              {selectedFastStreak > 0 && (
-                <View style={[styles.currentFastBadge, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
-                  <Text style={styles.currentFastBadgeText}>🔥 {selectedFastStreak}</Text>
-                </View>
-              )}
-            </View>
-            <PaperSettle index={3} style={[styles.fastCard, skinCardShadow, paperSurfaceStyle, isPaper ? { borderRadius: 6 } : null, hasTypeScale(skinTokens) ? { padding: 16 + skinTokens.type.padBoost } : null]}>
+            {/* v280: the mockup's app-bar row is the section head —
+                the fast's name as the title, the fasting streak as
+                a chip with a drawn flame (tracker family). The old
+                "CURRENT FAST" label + emoji badge, the type icon
+                disc, the meta line, and the enclosing fastCard are
+                gone: the tracker surfaces stand on the page ground
+                exactly as the mockup draws them. */}
+            <PaperSettle index={3} style={styles.trackerSection}>
 <BitSettle index={3} style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
               {isSkinned ? <PaperGrainOverlay /> : null}
-              <View style={[styles.fastIcon, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
-                <MaterialIcons name={iconName(selectedFastType?.icon ?? "local-fire-department")} size={28} color="#FFFFFF" />
-              </View>
-              <View style={styles.fastCardText}>
-                <Text style={[styles.fastTitle, skinText(skinTokens, skinTokens.type.cardTitle, 25)]}>{selectedFast.name}</Text>
-                <Text style={[styles.fastMeta, skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight)]}>{selectedFast.type} • {selectedFast.durationDays} days • starts {formatIsoToMmDdYyyy(selectedFast.startDate)}</Text>
-              </View>
+              <Text style={[styles.fastTitle, { color: colors.foreground, flex: 1 }, skinText(skinTokens, skinTokens.type.cardTitle, 25)]} numberOfLines={1}>{selectedFast.name}</Text>
+              {selectedFastStreak > 0 && (
+                <View style={[styles.streakChip, { backgroundColor: trackerFamily.wash }]}>
+                  <MaterialIcons name="local-fire-department" size={18} color={trackerFamily.deep} />
+                  <Text style={[styles.streakChipText, { color: trackerFamily.deep }]}>{selectedFastStreak}-day streak</Text>
+                </View>
+              )}
             </BitSettle>
 </PaperSettle>
 
@@ -805,9 +797,11 @@ export default function ProfileScreen() {
                 (focus chips, today button, pawn companion, seasons,
                 board, pawn picker) are replaced by the tracker the
                 mockup drew: Why card, Today hero, Record, Recaps.
-                Presentation only: every write still runs through the
-                same engine (setFastStatus / saveDaySheet), and the
-                focus data stays stored on the fast record. */}
+                Every write still runs through the same engine
+                (setFastStatus / saveDaySheet), and the focus data
+                stays stored on the fast record. v280: the board
+                layer itself is now deleted (see the engine note) —
+                nothing of it remains to switch back on. */}
             <FastWhyCard family={trackerFamily} fast={selectedFast} onEdit={openFastEditor} />
             <FastTodayHero
               family={trackerFamily}
@@ -833,34 +827,12 @@ export default function ProfileScreen() {
               finalReady={finalRecapReady}
               onOpenRecap={setRecapTarget}
             />
-            {hometownUnlocked ? (
-            <Pressable
-              onPress={() => router.push("/hometown")}
-              style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 14, marginBottom: 12 }, pressed && styles.pressed]}
-            >
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary + "1A", alignItems: "center", justifyContent: "center" }}>
-                <MaterialIcons name="home" size={22} color={colors.primary} />
-              </View>
-              <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={{ fontWeight: "700", fontSize: 16, color: colors.foreground }}>Hometown</Text>
-                <Text style={{ fontSize: 12, color: colors.muted }}>Build your town with fast coins • 🪙{formatCoins(coins.balance)}</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={22} color={colors.muted} />
-            </Pressable>
-            ) : (
-            <View
-              style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 14, marginBottom: 12, opacity: 0.6 }}
-            >
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.border + "55", alignItems: "center", justifyContent: "center" }}>
-                <MaterialIcons name="home" size={22} color={colors.muted} />
-              </View>
-              <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={{ fontWeight: "700", fontSize: 16, color: colors.muted }}>Hometown</Text>
-                <Text style={{ fontSize: 12, color: colors.muted }}>Unlocks on fasts longer than {HOMETOWN_MIN_FAST_DAYS} days</Text>
-              </View>
-              <MaterialIcons name="lock" size={20} color={colors.muted} />
-            </View>
-            )}
+            {/* v280: the Hometown entry card that stood here in v276
+                is removed — the mockup's fasting page has no such
+                surface, and its dress was the profile chrome, not
+                the tracker's. Hometown stays one tap away from the
+                People page's nav row (and its unlock rule is
+                unchanged — it still gates the Forge card below). */}
             {/* End-of-fast "Begin Again?" prestige prompt (shows once per completed fast) */}
             <PrestigePrompt fasts={fasts} />
             {hometownUnlocked ? (
@@ -997,8 +969,10 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* v276 recap viewer — the weekly/final recap document (and
-          the all-recaps list) as a full page over the profile. */}
+      {/* v276 recap viewer — the weekly/final recap document as a
+          full page over the profile. (v280: the all-recaps list
+          went with the See-all row — the mockup's card opens only
+          the latest closed week and the Final recap.) */}
       <Modal visible={recapTarget !== null && !!selectedFast} animationType={isPaper ? "fade" : "slide"} onRequestClose={() => setRecapTarget(null)}>
         <View style={{ flex: 1, backgroundColor: trackerFamily.ground }}>
           <View style={{ height: 64, flexDirection: "row", alignItems: "center", paddingHorizontal: 8, gap: 4 }}>
@@ -1008,9 +982,7 @@ export default function ProfileScreen() {
             <Text style={{ flex: 1, fontSize: 22, lineHeight: 28, fontWeight: "500", color: trackerFamily.ink }}>Recaps</Text>
           </View>
           <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-            {recapTarget?.kind === "all" || !activeRecap ? (
-              <FastAllRecapsList family={trackerFamily} weeks={trackerWeeks} onOpenRecap={setRecapTarget} />
-            ) : (
+            {activeRecap ? (
               <FastRecapDocument
                 family={trackerFamily}
                 recap={activeRecap}
@@ -1018,7 +990,7 @@ export default function ProfileScreen() {
                 onSaveToJournal={() => void saveRecapToJournal(activeRecap)}
                 onClose={() => setRecapTarget(null)}
               />
-            )}
+            ) : null}
           </ScrollView>
         </View>
       </Modal>
@@ -1414,6 +1386,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 16,
+  },
+  // v280: the tracker section head — a plain row on the page
+  // ground (the mockup's app-bar row), no enclosing card.
+  trackerSection: {
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  streakChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  streakChipText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
+    letterSpacing: 0.5,
   },
   fastCard: {
     padding: 16,

@@ -13,7 +13,7 @@ import {
   type ShopItem,
   formatCoins,
 } from "@/lib/hometown";
-import { FastPawnShape } from "@/components/fast-board";
+import { FastPawnShape } from "@/components/pawn-preview";
 import { useSkin } from "@/hooks/use-skin";
 
 export default function HometownShopScreen() {

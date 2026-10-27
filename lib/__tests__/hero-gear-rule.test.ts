@@ -64,14 +64,13 @@ describe("gear rule — the forest keeps its full composition", () => {
   });
 
   it("no world surface opts into the forest context", () => {
-    // The town wanderer and the Today companion render the default —
-    // neither may pass the forest context (or a weapon angle, the old
-    // mood-scene habit of carrying his blade at rest).
+    // The town wanderer renders the default — it may not pass the
+    // forest context (or a weapon angle). (v280: the mood scene,
+    // the second surface this pin once covered, was deleted with
+    // the board layer; the rule survives on the wanderer.)
     const wanderer = readSrc("components/player-pawn.tsx");
-    const mood = readSrc("components/pawn-mood-scene.tsx");
     expect(wanderer).not.toContain('context="forest"');
-    expect(mood).not.toContain('context="forest"');
-    expect(mood).not.toContain('weaponAngle="8deg"');
+    expect(wanderer).not.toContain('weaponAngle="8deg"');
   });
 
   it("the paper hero (paper kit) never draws armor or weapons", () => {

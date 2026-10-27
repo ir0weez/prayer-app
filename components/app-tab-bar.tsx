@@ -158,7 +158,7 @@ export function AppTabBar({
   const isClassicSkin = skinTokens.id === "classic";
   const pmf: PeopleFrontDoorFamily = isClassicSkin
     ? frontDoorFamily
-    : { ...pm, washSub: pm.inkSoft, queueTeal: pm.tealDeep, navGround: pm.card, navInk: pm.inkSoft, navActiveInk: pm.deep, navInd: pm.wash2, navTick: pm.seed };
+    : { ...pm, washSub: pm.inkSoft, queueTeal: pm.tealDeep, navGround: pm.card, navInk: pm.inkSoft, navActiveInk: pm.deep, navInd: pm.wash2, navTick: pm.seed, container: pm.wash };
 
   // ---- Expressive glass tab bar: the active pill slides between
   // tabs (withTiming, Material easing — no spring) ----

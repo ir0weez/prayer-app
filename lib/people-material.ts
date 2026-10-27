@@ -139,6 +139,14 @@ export interface PeopleMaterialFamily {
 export interface PeopleFrontDoorFamily extends PeopleMaterialFamily {
   /** The don't-slip card's quiet sub-line ink (#6D5BA6 at the violet seed). */
   washSub: string;
+  /**
+   * The container tone between ground and wash (#F1EBFB at the violet
+   * seed) — the fasting tracker's Record card surface, from
+   * fasting-tracker-design-v3.html's --cont role (v280: added when
+   * the tracker was conformed to the mockup exactly; no People
+   * surface consumes it).
+   */
+  container: string;
   /** The queue bar gradient's far end — the mockup's fixed teal #0F766E. */
   queueTeal: string;
   /** Expressive tab bar surface (Concept 2: #EFE9FC light / #1D1730 dark). */
@@ -159,6 +167,7 @@ const FRONT_DOOR_SEED = "#7C3AED";
 /** The mockup's seed-family roles, verbatim from the concept file. */
 const FRONT_DOOR_ROLES = {
   ground: "#F8F5FE",
+  container: "#F1EBFB",
   wash: "#EDE9FE",
   wash2: "#DDD6FE",
   line: "#E6DFF6",
@@ -180,6 +189,9 @@ const FRONT_DOOR_ROLES = {
 const FRONT_DOOR_DARK_ROLES = {
   ground: "#161126",
   card: "#201A38",
+  // The light ladder's container step (ground -> container -> wash)
+  // at night strength: one step above the card toward the wash.
+  container: "#251D40",
   wash: "#2B2149",
   wash2: "#3A2A66",
   line: "#372C59",
@@ -208,6 +220,7 @@ export function derivePeopleFrontDoor(primary: string, scheme: "light" | "dark" 
     const amberWash = mix(card, PEOPLE_REACH_AMBER, 0.26);
     return {
       ground: rotateRole(FRONT_DOOR_DARK_ROLES.ground, hueDelta),
+      container: rotateRole(FRONT_DOOR_DARK_ROLES.container, hueDelta),
       card,
       wash,
       wash2: rotateRole(FRONT_DOOR_DARK_ROLES.wash2, hueDelta),
@@ -240,6 +253,7 @@ export function derivePeopleFrontDoor(primary: string, scheme: "light" | "dark" 
   const inkSeed = rotateRole(FRONT_DOOR_ROLES.inkSeed, hueDelta);
   return {
     ground: rotateRole(FRONT_DOOR_ROLES.ground, hueDelta),
+    container: rotateRole(FRONT_DOOR_ROLES.container, hueDelta),
     card: "#FFFFFF",
     wash: rotateRole(FRONT_DOOR_ROLES.wash, hueDelta),
     wash2: rotateRole(FRONT_DOOR_ROLES.wash2, hueDelta),

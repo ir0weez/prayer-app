@@ -23,11 +23,10 @@ describe("hero scale (Rider B)", () => {
     expect(src).not.toContain("unit={PAWN_SIZE / PAPER_HERO_W}");
   });
 
-  it("mood scenes divide by the hero HEIGHT, not the old /9", () => {
-    const src = read("components/pawn-mood-scene.tsx");
-    expect(src).toContain("unit={pawnSize / PAPER_HERO_H}");
-    expect(src).not.toContain("unit={pawnSize / 9}");
-  });
+  // v280: the "mood scenes divide by the hero HEIGHT" pin retired
+  // with components/pawn-mood-scene.tsx — the mood scenes were
+  // deleted with the board layer, so the /9 habit has no home left
+  // to guard. The height-based previews pin below still stands.
 
   it("previews size the hero by height so he fits his box", () => {
     const src = read("components/pawn-preview.tsx");

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { View } from "react-native";
 import type {
   CustomPawn,
@@ -10,7 +11,7 @@ import type {
   PawnMouthStyle,
 } from "@/lib/pawn";
 import type { GearItem } from "@/lib/gear";
-import { HeroForPawn, type HeroContext } from "@/components/hero-sprite";
+import { HeroForPawn, HeroThumbnail, type HeroContext } from "@/components/hero-sprite";
 import { PAPER_HERO_H, PaperHeroFigure } from "@/components/paper-interior";
 
 /**
@@ -122,3 +123,84 @@ export function PaperHeroThumbnail({
     </View>
   );
 }
+
+// ─── FastPawnShape — relocated from the deleted board file (v280) ──
+// The Town Shop's three "Hero Skins" (Shadow / Rainbow / Diamond
+// Pebble) are little Hero figures in the skin's colors, rendered
+// through here. The board pawn system that originally owned this
+// table — the 24-piece catalog, its unlock conditions, the picker,
+// the Prayer pawn — was deleted with the board in v280 (Jonathan,
+// Oct 26: "Why would we keep it?"). What survives is only the
+// presentation the shop still needs: the base pebble's style and
+// the three purchasable variants. Unknown ids fall back to the
+// base pebble, exactly as getPawnDef did.
+type ShopPawnHeroStyle = {
+  tunic: string;
+  hair: string;
+  hairStyle: PawnHairStyle;
+  skin?: string;
+  eyeStyle?: PawnEyeStyle;
+  accessory?: PawnAccessory;
+};
+
+const SHOP_PAWN_HERO_STYLES: Record<string, ShopPawnHeroStyle> = {
+  pebble: { tunic: "#FFD54F", hair: "#6B4423", hairStyle: "short" },
+  "pebble-shadow": { tunic: "#1F2937", hair: "#030712", hairStyle: "long", skin: "#9CA3AF" },
+  "pebble-rainbow": { tunic: "#FACC15", hair: "#111827", hairStyle: "curly", eyeStyle: "happy" },
+  "pebble-diamond": { tunic: "#F0FDFA", hair: "#99F6E4", hairStyle: "bun", skin: "#F8FAFC" },
+};
+
+/** Rainbow-striped sprite art for the Rainbow Pebble hero (letters R/O/Y/G/U/V
+ * are palette keys — see RAINBOW_HERO_PALETTE). */
+const RAINBOW_HERO_ART: string[] = [
+  ".....KKKK.....",
+  "....KHHHHK....",
+  "....KHSSHK....",
+  "....KSEESK....",
+  "....KSSSSK....",
+  ".....KSSK.....",
+  "....KRRRRK....",
+  "...KOOOOOOK...",
+  "...KYBBBBYK...",
+  "...KGGGGGGK...",
+  "....KUUUK.....",
+  "....KUUUK.....",
+  "...KVVKKVVK...",
+  "..............",
+];
+
+const RAINBOW_HERO_PALETTE: Record<string, string> = {
+  R: "#EF4444",
+  O: "#F97316",
+  Y: "#FACC15",
+  G: "#22C55E",
+  U: "#3B82F6",
+  V: "#8B5CF6",
+};
+
+export const FastPawnShape = memo(function FastPawnShape({
+  id,
+  size = 20,
+  color,
+}: {
+  id: string;
+  size?: number;
+  color?: string;
+}) {
+  const hs = SHOP_PAWN_HERO_STYLES[id] ?? SHOP_PAWN_HERO_STYLES.pebble;
+  const rainbow = id === "pebble-rainbow";
+  return (
+    <HeroThumbnail
+      size={size}
+      tunicColor={rainbow ? hs.tunic : color ?? hs.tunic}
+      skinColor={hs.skin}
+      hairStyle={hs.hairStyle}
+      hairColor={hs.hair}
+      eyeStyle={hs.eyeStyle ?? "round"}
+      mouthStyle="smile"
+      accessory={hs.accessory ?? "none"}
+      artOverride={rainbow ? RAINBOW_HERO_ART : undefined}
+      paletteExtra={rainbow ? RAINBOW_HERO_PALETTE : undefined}
+    />
+  );
+});

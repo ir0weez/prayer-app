@@ -6,8 +6,9 @@
 // fasting profile, the Journal, People/Family art, empty states,
 // celebration art. These pins hold the surfaces converted in v186
 // and the standing exemptions: the Dark Forest (pixel), the
-// Hometown world, the FastBoard game board, and the avatars keep
-// their own art under every skin, Terminal included.
+// Hometown world, and the avatars keep their own art under every
+// skin, Terminal included. (The FastBoard game board was a fourth
+// exemption until v280 deleted the board layer outright.)
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -126,9 +127,10 @@ describe("exemptions hold under Terminal", () => {
     }
   });
 
-  it("the FastBoard game board and the energy flames keep their own art (shared with the exempt worlds)", () => {
-    const board = read("components/fast-board.tsx");
-    expect(board).not.toContain("useSkin");
+  it("the energy flames keep their own art (shared with the exempt worlds)", () => {
+    // v280: the FastBoard half of this pin retired — the board
+    // file was deleted with the board layer, so there is no board
+    // art left to exempt. The flames half stands.
     const flames = read("components/energy-flames.tsx");
     expect(flames).not.toContain("TERM_PHOS");
     expect(flames).not.toContain("isTerminal");

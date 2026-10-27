@@ -85,7 +85,8 @@ import {
 } from "@/modules/expo-prayer-timer/src/index";
 import { AnimatedTodoItem } from "@/components/animated-todo-item";
 import { DailySummaryCard } from "@/components/daily-summary-card";
-import { FastFlame, FastSummaryCard, getPreviousFast, getSpecialSpace, getSpecialSpaceXP } from "@/components/fast-board";
+import { FastFlame, FastSummaryCard } from "@/components/fast-tracker";
+import { getPreviousFast } from "@/lib/fast-tracker";
 import {
   addPerson,
   addEmergencyPrayer,
@@ -1660,7 +1661,7 @@ export default function HomeScreen() {
   const isClassicSkin = skinTokens.id === "classic";
   const pmf: PeopleFrontDoorFamily = isClassicSkin
     ? frontDoorFamily
-    : { ...pm, washSub: pm.inkSoft, queueTeal: pm.tealDeep, navGround: pm.card, navInk: pm.inkSoft, navActiveInk: pm.deep, navInd: pm.wash2, navTick: pm.seed };
+    : { ...pm, washSub: pm.inkSoft, queueTeal: pm.tealDeep, navGround: pm.card, navInk: pm.inkSoft, navActiveInk: pm.deep, navInd: pm.wash2, navTick: pm.seed, container: pm.wash };
 
   // Emergency notification "Dismiss" button: clear the active emergency prayer.
   // Uses a ref so the listener always sees the latest people list.
@@ -2204,12 +2205,9 @@ export default function HomeScreen() {
     delete undoTimers.current['fast'];
     if (action === "completed") {
       void awardExperience("fasting-day", `${activeFast.id}:${today}`);
-      // Special-space bonus, scaled by streak tier.
-      const dayNum = getCurrentFastDay(activeFast, today);
-      const special = getSpecialSpace(dayNum, activeFast.durationDays);
-      if (special) {
-        void awardBonusXP(getSpecialSpaceXP(special, dayNum), `fast-bonus:${activeFast.id}:${today}:${special}`);
-      }
+      // v280: the board's special-space bonus (Grace/Wilderness/
+      // Trivia) is gone with the board — a kept day pays the fast's
+      // own +25 XP only, here as on the fasting page.
       // Marking successful after a miss gives the heart back.
       void restoreHeartExperience(`fasting-day-missed:${activeFast.id}:${today}`);
     }

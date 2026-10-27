@@ -4,11 +4,14 @@
  * Every world-context render of the hero routes to the paper figure;
  * the pixel hero (HeroFigure/HeroForPawn/HeroThumbnail) survives ONLY
  * in the Dark Forest composition, its definition file, the shelved
- * pixel kit, PawnPreview's unused forest branch, and fast-board's
- * FastPawnShape — the COLLECTIBLE pawn pieces (24 designed characters,
- * his approved collection art), which are not the hero himself. His
- * live board token is TodayPawn, which renders his saved pawn through
- * PawnPreview and is therefore paper.
+ * pixel kit, PawnPreview's unused forest branch, and FastPawnShape.
+ *
+ * v280 note: the board and its 24-piece collectible pawn catalog
+ * were deleted with the board layer (Jonathan, Oct 26 19:00).
+ * FastPawnShape moved into pawn-preview.tsx and now renders only
+ * the Town Shop's three hero skins (Shadow/Rainbow/Diamond Pebble)
+ * plus the base pebble — purchasable Hometown cosmetics, not a
+ * collection. The board token (TodayPawn) is gone with the board.
  */
 import { readdirSync, readFileSync } from "fs";
 import { join } from "path";
@@ -34,15 +37,13 @@ describe("world hero renders route to the paper figure", () => {
     }
   });
 
-  it("the fasting profile hero card + board token go through PawnPreview", () => {
+  it("the fasting profile hero card goes through PawnPreview", () => {
     expect(read("app/profile.tsx")).toContain("<PawnPreview");
-    expect(read("components/fast-board.tsx")).toContain("<PawnPreview pawn={customPawn}");
     expect(read("app/opera-house-interior.tsx")).toContain("<PawnPreview");
   });
 
-  it("the map hero and mood scene are paper figures", () => {
+  it("the map hero is a paper figure", () => {
     expect(read("components/player-pawn.tsx")).toContain("PaperHeroFigure");
-    expect(read("components/pawn-mood-scene.tsx")).toContain("PaperHeroFigure");
   });
 });
 
@@ -52,7 +53,9 @@ describe("no pixel hero renders remain in world surfaces", () => {
     "components/dark-forest.tsx", // the forest composition itself
     "components/pawn-preview.tsx", // the unused context=forest branch
     "components/pixel-taco-room.tsx", // shelved pixel kit, unreachable
-    "components/fast-board.tsx", // FastPawnShape collectible pieces
+    // v280: components/fast-board.tsx was deleted with the board;
+    // FastPawnShape lives in pawn-preview.tsx now (already allowed
+    // above for its forest branch).
   ]);
   const PIXEL_JSX = /<(HeroFigure|HeroForPawn|HeroThumbnail)[\s>]/;
 

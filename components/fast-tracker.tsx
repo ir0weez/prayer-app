@@ -1,25 +1,24 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Pressable, StyleSheet, Text, TextInput, View, type ViewStyle } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import type { PeopleFrontDoorFamily } from "@/lib/people-material";
 import {
   FAST_KEPT,
+  FAST_KEPT_DEEP,
   FAST_MISSED_DEEP,
   FAST_MISSED_WASH,
-  FAST_RECAP_GOLD,
   FAST_SKIPPED_DEEP,
   FAST_SKIPPED_WASH,
   getFastEncouragement,
   getFastNoteStream,
-  getFastWeekKeptLabel,
   type FastRecap,
   type FastWeek,
 } from "@/lib/fast-tracker";
 import {
-  formatIsoToMmDdYyyy,
   getFastCalendarDays,
+  getFastProgress,
   type FastDayStatus,
   type PersonalFast,
 } from "@/lib/prayercircle-fasting";
@@ -40,6 +39,20 @@ import {
  * through profile.tsx's engine callbacks (setFastStatus & friends),
  * so XP/hearts/coins side effects and storage stay exactly where
  * they have always lived.
+ *
+ * v280 (Jonathan, Oct 26 19:00–19:01: "Why would we keep it? …
+ * Everything else should be done in the approved material design
+ * mockup."): the board game layer is DELETED, not unmounted —
+ * components/fast-board.tsx, components/pawn-mood-scene.tsx and
+ * lib/fast-pawns.ts are gone, board specials no longer pay out
+ * anywhere, and this page conforms to the mockup exactly (Record
+ * on the container tone, no quarter caption, no Clear-mark button
+ * — re-tapping the selected segment unmarks — no See-all row, the
+ * day sheet's sub carries no date). Two fast-core readers that
+ * lived in the board file moved here so the People page's fasting
+ * card survives the deletion untouched: FastFlame and
+ * FastSummaryCard (their model, getPreviousFast, moved to
+ * lib/fast-tracker.ts).
  */
 
 export type FastTrackerFamily = PeopleFrontDoorFamily;
@@ -81,8 +94,9 @@ function FastSegmentedControl<T extends string>(props: {
   onHero?: boolean;
   /** Per-value selected paints (the day sheet: Missed wears the error container). */
   selectedPaints?: Partial<Record<T, { backgroundColor: string; color: string }>>;
+  style?: ViewStyle;
 }) {
-  const { family, options, value, onChange, onHero, selectedPaints } = props;
+  const { family, options, value, onChange, onHero, selectedPaints, style } = props;
   return (
     <View
       style={[
@@ -90,6 +104,7 @@ function FastSegmentedControl<T extends string>(props: {
         onHero
           ? { borderColor: "rgba(255,255,255,0.55)", backgroundColor: "rgba(255,255,255,0.10)" }
           : { borderColor: family.line, backgroundColor: family.card },
+        style,
       ]}
     >
       {options.map((option, index) => {
@@ -144,7 +159,7 @@ export function FastWhyCard(props: { family: FastTrackerFamily; fast: PersonalFa
   const { family, fast, onEdit } = props;
   const why = fast.why?.trim();
   return (
-    <View style={[styles.card, { backgroundColor: family.wash2, shadowColor: family.shadow }]}>
+    <View style={[styles.card, styles.cardShadowless, { backgroundColor: family.wash2 }]}>
       <View style={styles.cardHead}>
         <Text style={[styles.kicker, { color: family.deep }]}>WHY I&rsquo;M FASTING</Text>
         <Pressable onPress={onEdit} hitSlop={8} style={styles.textButton}>
@@ -181,7 +196,7 @@ export function FastTodayHero(props: {
   const todayStatus = fast.dayStatuses[today];
   const circumference = 2 * Math.PI * 50;
   return (
-    <View style={[styles.hero, { backgroundColor: family.seed }]}>
+    <View style={[styles.hero, { backgroundColor: family.seed, shadowColor: family.deep }]}>
       <Text style={styles.heroKicker}>TODAY</Text>
       <View style={styles.heroTop}>
         <Pressable onPress={() => onOpenDay(today)} style={styles.ringWrap} accessibilityRole="button" accessibilityLabel="Open today">
@@ -221,6 +236,7 @@ export function FastTodayHero(props: {
         options={STATUS_OPTIONS}
         value={todayStatus ?? null}
         onHero
+        style={{ marginTop: 18 }}
         onChange={(status, position) => {
           // One tap marks; tapping the standing mark reopens the day
           // sheet to change it (the mockup's hero note).
@@ -246,29 +262,23 @@ export function FastRecordCard(props: {
 }) {
   const { family, fast, today, weeks, quarters, activeQuarter, onQuarterChange, onOpenDay } = props;
   const notes = getFastNoteStream(fast, 3);
-  const activeQ = quarters?.[activeQuarter];
   const shownWeeks = [...weeks].reverse();
   return (
-    <View style={[styles.card, { backgroundColor: family.card, shadowColor: family.shadow }]}>
+    <View style={[styles.card, { backgroundColor: family.container, shadowColor: family.shadow }]}>
       <View style={styles.cardHead}>
         <Text style={[styles.kicker, { color: family.deep }]}>THE RECORD</Text>
         <Text style={[styles.cardHeadSub, { color: family.inkSoft }]}>Weeks · notes · recaps</Text>
       </View>
 
-      {quarters && activeQ ? (
-        <>
-          <View style={{ marginTop: 12 }}>
-            <FastSegmentedControl
-              family={family}
-              options={quarters.map((q) => ({ value: String(q.index), label: q.label }))}
-              value={String(activeQuarter)}
-              onChange={(value) => onQuarterChange(Number(value))}
-            />
-          </View>
-          <Text style={[styles.quarterCaption, { color: family.inkSoft }]}>
-            {activeQ.monthRange} · Days {activeQ.startDay}–{activeQ.endDay}
-          </Text>
-        </>
+      {quarters ? (
+        <View style={{ marginTop: 12 }}>
+          <FastSegmentedControl
+            family={family}
+            options={quarters.map((q) => ({ value: String(q.index), label: q.label }))}
+            value={String(activeQuarter)}
+            onChange={(value) => onQuarterChange(Number(value))}
+          />
+        </View>
       ) : null}
 
       {shownWeeks.map((week) => (
@@ -282,8 +292,10 @@ export function FastRecordCard(props: {
               </Text>
             </View>
             <Text style={[styles.weekKept, { color: family.inkSoft }]}>
-              <Text style={{ color: "#1E9E6A", fontWeight: "600" }}>{week.kept}</Text>
-              {getFastWeekKeptLabel(week).slice(String(week.kept).length)}
+              <Text style={{ color: FAST_KEPT_DEEP, fontWeight: "600" }}>
+                {week.kept} of {week.current ? week.elapsed : week.days.length}
+              </Text>
+              {week.current ? " so far" : " kept"}
             </Text>
           </View>
           <View style={styles.dots}>
@@ -307,9 +319,8 @@ export function FastRecordCard(props: {
                     : day.status === "missed"
                       ? FAST_MISSED_DEEP
                       : family.inkSoft;
-              return (
+              const dot = (
                 <Pressable
-                  key={day.date}
                   onPress={() => onOpenDay(day.date)}
                   style={[styles.dot, dotStyle]}
                   accessibilityRole="button"
@@ -318,15 +329,26 @@ export function FastRecordCard(props: {
                   <Text style={[styles.dotNum, { color: numColor }]}>{day.dayNumber}</Text>
                 </Pressable>
               );
+              // The mockup rings today with a 3px wash2 halo — an
+              // absolute ring behind the dot, so the row's columns
+              // never shift.
+              return (
+                <View key={day.date} style={styles.dotCell}>
+                  {isToday && <View style={[styles.dotHalo, { backgroundColor: family.wash2 }]} />}
+                  {dot}
+                </View>
+              );
             })}
           </View>
-          <View style={styles.dots}>
-            {week.days.map((day) => (
-              <Text key={day.date} style={[styles.dotLabel, { color: family.inkSoft }]}>
-                {weekdayShort(day.date)}
-              </Text>
-            ))}
-          </View>
+          {week.current ? (
+            <View style={styles.dots}>
+              {week.days.map((day) => (
+                <Text key={day.date} style={[styles.dotLabel, { color: family.inkSoft }]}>
+                  {weekdayShort(day.date)}
+                </Text>
+              ))}
+            </View>
+          ) : null}
         </View>
       ))}
 
@@ -359,7 +381,7 @@ export function FastRecordCard(props: {
 }
 
 // ─── 5 · Recaps ──────────────────────────────────────────────────────
-export type FastRecapTarget = { kind: "week"; weekNumber: number } | { kind: "final" } | { kind: "all" };
+export type FastRecapTarget = { kind: "week"; weekNumber: number } | { kind: "final" };
 
 export function FastRecapsCard(props: {
   family: FastTrackerFamily;
@@ -371,7 +393,9 @@ export function FastRecapsCard(props: {
   const { family, weeks, finalReady, fast, onOpenRecap } = props;
   const currentWeek = weeks.find((w) => w.current);
   const endedWeeks = weeks.filter((w) => w.ended).reverse();
-  const shownEnded = endedWeeks.slice(0, 3);
+  // The mockup's set is exactly three rows: the pending week, the
+  // most recent closed week, and the Final recap (v280).
+  const shownEnded = endedWeeks.slice(0, 1);
   return (
     <View style={[styles.card, styles.cardFlush, { backgroundColor: family.card, shadowColor: family.shadow }]}>
       <View style={[styles.cardBand, { backgroundColor: family.wash }]}>
@@ -387,6 +411,7 @@ export function FastRecapsCard(props: {
               <Text style={[styles.rowTitle, { color: family.ink }]}>Week {currentWeek.weekNumber} recap</Text>
               <Text style={[styles.rowSub, { color: family.inkSoft }]}>Arrives when the week closes</Text>
             </View>
+            <MaterialIcons name="chevron-right" size={20} color={family.inkSoft} />
           </View>
         ) : null}
         {shownEnded.map((week) => {
@@ -414,15 +439,6 @@ export function FastRecapsCard(props: {
             </Pressable>
           );
         })}
-        {endedWeeks.length > shownEnded.length && (
-          <Pressable onPress={() => onOpenRecap({ kind: "all" })} style={[styles.listRow, { borderBottomColor: family.line }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rowTitle, { color: family.deep }]}>See all recaps</Text>
-              <Text style={[styles.rowSub, { color: family.inkSoft }]}>{endedWeeks.length} weekly recaps</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={20} color={family.inkSoft} />
-          </Pressable>
-        )}
         <Pressable
           onPress={() => finalReady && onOpenRecap({ kind: "final" })}
           style={[styles.listRow, { borderBottomColor: "transparent" }]}
@@ -436,46 +452,9 @@ export function FastRecapsCard(props: {
               {finalReady ? "Your fast, in your words" : `Crowns the fast on Day ${fast.durationDays}`}
             </Text>
           </View>
-          {finalReady && <MaterialIcons name="chevron-right" size={20} color={family.inkSoft} />}
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-/** Every ended week, for the recap viewer's "all" list. */
-export function FastAllRecapsList(props: {
-  family: FastTrackerFamily;
-  weeks: FastWeek[];
-  onOpenRecap: (target: FastRecapTarget) => void;
-}) {
-  const { family, weeks, onOpenRecap } = props;
-  const endedWeeks = weeks.filter((w) => w.ended).reverse();
-  return (
-    <View>
-      {endedWeeks.map((week) => (
-        <Pressable
-          key={week.weekNumber}
-          onPress={() => onOpenRecap({ kind: "week", weekNumber: week.weekNumber })}
-          style={[styles.listRow, { borderBottomColor: family.line }]}
-        >
-          <View style={[styles.leadCircle, { backgroundColor: family.wash }]}>
-            <MaterialIcons name="description" size={20} color={family.deep} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.rowTitle, { color: family.ink }]}>Week {week.weekNumber} recap</Text>
-            <Text style={[styles.rowSub, { color: family.inkSoft }]}>
-              Days {week.days[0].dayNumber}–{week.days[week.days.length - 1].dayNumber}
-            </Text>
-          </View>
           <MaterialIcons name="chevron-right" size={20} color={family.inkSoft} />
         </Pressable>
-      ))}
-      {endedWeeks.length === 0 && (
-        <Text style={[styles.noteText, { color: family.inkSoft, paddingVertical: 12 }]}>
-          No week has closed yet — the first recap arrives when Week 1 ends.
-        </Text>
-      )}
+      </View>
     </View>
   );
 }
@@ -500,7 +479,7 @@ export function FastDaySheetContent(props: {
       <View style={[styles.handle, { backgroundColor: family.line }]} />
       <Text style={[styles.sheetTitle, { color: family.ink }]}>Day {dayNumber}</Text>
       <Text style={[styles.sheetSub, { color: family.inkSoft }]}>
-        {weekdayName(date)} · {formatIsoToMmDdYyyy(date)} · Week {weekNumber} of the fast
+        {weekdayName(date)} · Week {weekNumber} of the fast
       </Text>
 
       <View style={{ marginTop: 16 }}>
@@ -508,18 +487,15 @@ export function FastDaySheetContent(props: {
           family={family}
           options={STATUS_OPTIONS}
           value={status}
-          onChange={(next) => setStatus(next)}
+          // The mockup's sheet carries no Clear-mark button: tapping
+          // the standing segment again unmarks the day (v280).
+          onChange={(next) => setStatus(next === status ? null : next)}
           selectedPaints={{
             missed: { backgroundColor: FAST_MISSED_WASH, color: FAST_MISSED_DEEP },
             skipped: { backgroundColor: FAST_SKIPPED_WASH, color: FAST_SKIPPED_DEEP },
           }}
         />
       </View>
-      {status !== null && (
-        <Pressable onPress={() => setStatus(null)} hitSlop={6} style={{ alignSelf: "flex-start", marginTop: 6 }}>
-          <Text style={[styles.textButtonLabel, { color: family.deep }]}>Clear mark</Text>
-        </Pressable>
-      )}
 
       <View style={[styles.field, { borderColor: family.inkSoft }]}>
         <Text style={[styles.fieldLabel, { backgroundColor: family.card, color: family.deep }]}>Note for this day</Text>
@@ -560,21 +536,21 @@ export function FastRecapDocument(props: {
   onClose: () => void;
 }) {
   const { family, recap, saved, onSaveToJournal, onClose } = props;
+  // The mockup's counts list is exactly Kept / Skipped / Missed —
+  // the longest streak lives in the Journal text, not on this
+  // document (v280).
   const countRows: { label: string; value: number; dot: string }[] = [
     { label: "Kept", value: recap.counts.kept, dot: FAST_KEPT },
     { label: "Skipped", value: recap.counts.skipped, dot: "#F59E0B" },
     { label: "Missed", value: recap.counts.missed, dot: "#E57373" },
   ];
-  if (recap.longestStreak !== undefined) {
-    countRows.push({ label: "Longest streak", value: recap.longestStreak, dot: FAST_RECAP_GOLD });
-  }
   return (
     <View style={[styles.docCard, { backgroundColor: family.card, shadowColor: family.shadow }]}>
       <View style={[styles.docBand, { backgroundColor: family.wash2 }]}>
         <Text style={[styles.kicker, { color: family.deep }]}>
           {recap.kind === "final" ? "FINAL RECAP" : "WEEKLY RECAP"}
         </Text>
-        <Text style={[styles.docTitle, { color: family.inkSeed }]}>{recap.title.replace(/ recap$/, "")}</Text>
+        <Text style={[styles.docTitle, { color: family.inkSeed }]}>{recap.headline}</Text>
         <Text style={[styles.rowSub, { color: family.washSub, marginTop: 2 }]}>{recap.subtitle}</Text>
       </View>
       <View style={styles.docBody}>
@@ -583,10 +559,7 @@ export function FastRecapDocument(props: {
             <View key={row.label} style={[styles.countRow, { borderBottomColor: family.line }]}>
               <View style={[styles.countDot, { backgroundColor: row.dot }]} />
               <Text style={[styles.countLabel, { color: family.ink }]}>{row.label}</Text>
-              <Text style={[styles.countValue, { color: family.ink }]}>
-                {row.value}
-                {row.label === "Longest streak" ? " days" : ""}
-              </Text>
+              <Text style={[styles.countValue, { color: family.ink }]}>{row.value}</Text>
             </View>
           ))}
         </View>
@@ -614,6 +587,89 @@ export function FastRecapDocument(props: {
   );
 }
 
+// ─── Relocated from the deleted board file (v280) ───────────────────
+// Fast-core readers the People page's fasting card depends on. Their
+// code is byte-identical to the board-era originals; only the home
+// changed, so People's fasting card renders exactly as before.
+
+/** Small flickering flame (opacity + scale only), echoing the Prayer candle. */
+export function FastFlame({ size = 16, color = "#FFB300" }: { size?: number; color?: string }) {
+  const op = useRef(new Animated.Value(0.8)).current;
+  const s = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const glow = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.95, duration: 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.7, duration: 450, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.9, duration: 750, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.8, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    const flame = Animated.loop(
+      Animated.sequence([
+        Animated.timing(s, { toValue: 1.1, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(s, { toValue: 0.95, duration: 620, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    glow.start();
+    flame.start();
+    return () => {
+      glow.stop();
+      flame.stop();
+    };
+  }, [op, s]);
+
+  return (
+    <Animated.View style={{ width: size * 0.7, height: size, opacity: op, transform: [{ scale: s }] }}>
+      <View
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          width: size * 0.7,
+          height: size,
+          borderRadius: size * 0.35,
+          backgroundColor: color,
+        }}
+      />
+      <View
+        style={{
+          position: "absolute",
+          left: size * 0.18,
+          top: size * 0.34,
+          width: size * 0.34,
+          height: size * 0.5,
+          borderRadius: size * 0.17,
+          backgroundColor: "#FFF8E1",
+        }}
+      />
+    </Animated.View>
+  );
+}
+
+/** Calm end-of-fast summary — no win/lose language, no confetti. */
+export function FastSummaryCard({
+  fast,
+  colors,
+}: {
+  fast: PersonalFast;
+  colors: { foreground: string; muted: string };
+}) {
+  const progress = getFastProgress(fast);
+  return (
+    <View style={{ alignItems: "center", paddingVertical: 8 }}>
+      <FastFlame size={22} />
+      <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "800", marginTop: 10, textAlign: "center" }}>
+        You completed {progress.completed} of {fast.durationDays} days
+      </Text>
+      <Text style={{ color: colors.muted, fontSize: 13, marginTop: 6, textAlign: "center" }}>
+        Ready for the next one?
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
@@ -625,6 +681,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardFlush: { padding: 0, overflow: "hidden" },
+  // The mockup's why card is a flat tonal container — no shadow.
+  cardShadowless: { shadowOpacity: 0, elevation: 0 },
   cardBand: { paddingHorizontal: 16, paddingTop: 13, paddingBottom: 11 },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   cardHeadSub: { fontSize: 12, lineHeight: 16, letterSpacing: 0.4 },
@@ -641,9 +699,10 @@ const styles = StyleSheet.create({
     paddingTop: 22,
     paddingBottom: 20,
     marginTop: 14,
-    shadowColor: "rgba(76,29,149,0.38)",
+    // The mockup's hero shadow is the deep seed at ~38% — derived
+    // from the family, never the mockup's violet rgba (v280).
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 1,
+    shadowOpacity: 0.38,
     shadowRadius: 24,
     elevation: 6,
   },
@@ -658,17 +717,18 @@ const styles = StyleSheet.create({
   heroSub: { fontSize: 14, lineHeight: 20, letterSpacing: 0.25, color: "rgba(255,255,255,0.85)", marginTop: 4 },
   heroNote: { fontSize: 12, lineHeight: 16, letterSpacing: 0.4, color: "rgba(255,255,255,0.78)", marginTop: 12 },
 
-  seg: { flexDirection: "row", height: 40, borderWidth: 1, borderRadius: 20, overflow: "hidden", marginTop: 16 },
+  seg: { flexDirection: "row", height: 40, borderWidth: 1, borderRadius: 20, overflow: "hidden" },
   segItem: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   segLabel: { fontSize: 14, lineHeight: 20, fontWeight: "500", letterSpacing: 0.1 },
 
-  quarterCaption: { fontSize: 12, lineHeight: 16, letterSpacing: 0.4, marginTop: 8 },
   weekRow: { paddingTop: 12, paddingBottom: 8, borderBottomWidth: 1 },
   weekMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 },
   weekTitle: { fontSize: 14, lineHeight: 20, fontWeight: "500", letterSpacing: 0.1 },
   weekDates: { fontSize: 12, lineHeight: 16, letterSpacing: 0.4, marginLeft: 8 },
   weekKept: { fontSize: 12, lineHeight: 16, fontWeight: "500", letterSpacing: 0.5 },
   dots: { flexDirection: "row", justifyContent: "space-between" },
+  dotCell: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  dotHalo: { position: "absolute", width: 42, height: 42, borderRadius: 21, left: -3, top: -3 },
   dot: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   dotNum: { fontSize: 12, lineHeight: 16, fontWeight: "500", letterSpacing: 0.5 },
   dotLabel: { width: 36, textAlign: "center", fontSize: 11, lineHeight: 16, fontWeight: "500", letterSpacing: 0.5, textTransform: "uppercase", marginTop: 4 },

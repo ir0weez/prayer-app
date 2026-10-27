@@ -1,6 +1,8 @@
 /**
- * Fasting Profile Material 3 restyle guard pins (2026-10-21), incl.
- * rider 3a (Hometown entry card) and the mood-scene figure fix.
+ * Fasting Profile Material 3 restyle guard pins (2026-10-21).
+ * (Rider 3a's Hometown entry card and the mood-scene figure were
+ * guarded here once; both surfaces were removed in v280 — see the
+ * v280 re-base note below.)
  *
  * v276 re-base (2026-10-26, "The Fast, As a Tracker" — Jonathan
  * approved fasting-tracker-design-v3.html verbatim): the page's
@@ -11,9 +13,20 @@
  * hero segmented control + saveDaySheet over the SAME engine
  * (setFastStatus / unmarkFastDay), and quarters carry month-range
  * labels with no season names (the season tint dressed the board,
- * which is no longer mounted on the page). The board component
- * itself is untouched in the repo — the companion-chrome pins
- * below still guard it where it lives.
+ * which is no longer mounted on the page).
+ *
+ * v280 re-base (2026-10-26, Jonathan 19:00: "Why would we keep
+ * it?"): the board game layer is DELETED — components/fast-
+ * board.tsx, components/pawn-mood-scene.tsx and lib/fast-pawns.ts
+ * no longer exist. The two describes that guarded the board's own
+ * chrome (companion mood chip/bubble/streak pill, and the
+ * mood-scene figure) are removed with the files they read; their
+ * contracts died with the board. The hero rules those files
+ * participated in remain pinned where the hero actually lives
+ * (hero-paper-sweep, hero-gear-rule, hero-scale). Rider 3a's
+ * Hometown-entry describe is likewise removed: amendment 2
+ * (19:01) took the card off the fasting page — the mockup has
+ * no such surface (Hometown stays reachable from People).
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -32,7 +45,12 @@ describe("profile chrome is Material 3 (theme tokens, no one-off hex)", () => {
     expect(profile).toContain("<FastDaySheetContent");
     expect(read("components/fast-tracker.tsx")).toContain("Note for this day");
     expect(profile).not.toContain("📝");
-    expect(profile).toContain("borderColor: colors.border");
+    // v280: the borderColor: colors.border pin guarded the
+    // Hometown entry card's M3 border — the card itself is removed
+    // (amendment 2: the mockup's fasting page has no such
+    // surface), so pin its absence instead.
+    expect(profile).not.toContain("Build your town with fast coins");
+    expect(profile).not.toContain(">Hometown<");
   });
 
   it("missed wears the meaning red from the tracker constants, never a hardcoded bright red", () => {
@@ -63,24 +81,6 @@ describe("profile chrome is Material 3 (theme tokens, no one-off hex)", () => {
   });
 });
 
-describe("rider 3a: Hometown entry is an M3 navigation card", () => {
-  const profile = read("app/profile.tsx");
-
-  it("no yellow fill, no house emoji; themed surface card with a drawn home icon", () => {
-    expect(profile).not.toContain("🏘️");
-    expect(profile).not.toContain('FEF3C7", borderRadius: 12, padding: 12');
-    expect(profile).toContain('name="home"');
-    expect(profile).toContain('name="chevron-right"');
-  });
-
-  it("label, coin total and tap target are unchanged", () => {
-    expect(profile).toContain('router.push("/hometown")');
-    expect(profile).toContain("Build your town with fast coins");
-    expect(profile).toContain("formatCoins(coins.balance)");
-    expect(profile).toContain("Unlocks on fasts longer than");
-  });
-});
-
 describe("quarters: month-range labels, no season names (v276)", () => {
   const profile = read("app/profile.tsx");
 
@@ -102,53 +102,3 @@ describe("quarters: month-range labels, no season names (v276)", () => {
   });
 });
 
-describe("companion chrome: mood chip + speech bubble on theme tokens", () => {
-  const board = read("components/fast-board.tsx");
-
-  it("speech bubble uses the themed surface, not hardcoded white", () => {
-    expect(board).toContain("borderTopColor: colors.surface");
-    expect(board).not.toContain('borderTopColor: "#FFFFFF"');
-    expect(board).toContain("tap for more");
-    const companion = board.slice(
-      board.indexOf("export function PawnCompanion"),
-      board.indexOf("export function FastStreakPill")
-    );
-    expect(companion).not.toContain("#FFFFFF");
-    expect(companion).not.toContain("#1F2937");
-    expect(companion).not.toContain("#9CA3AF");
-    expect(companion).toContain("backgroundColor: colors.surface");
-  });
-
-  it("mood chip is label-only M3 (no emoji map)", () => {
-    expect(board).not.toContain("moodEmoji");
-    expect(board).toContain("moodLabel");
-  });
-
-  it("streak pill and legend are M3 chips on surface tokens", () => {
-    expect(board).toContain("FastStreakPill");
-    expect(board).toContain("Grace +25");
-    expect(board).toContain("Wilderness +50");
-    expect(board).toContain("Trivia +15");
-  });
-});
-
-describe("mood-scene figure: paper hero, gear-free, real hair cap", () => {
-  const scene = read("components/pawn-mood-scene.tsx");
-
-  it("renders the paper hero figure from the pawn own look", () => {
-    expect(scene).toContain("PaperHeroFigure");
-    expect(scene).toContain("customPawn");
-  });
-
-  it("no pixel-renderer figure and no gear in the scene", () => {
-    expect(scene).not.toContain("PawnPreview");
-    expect(scene).not.toContain("HeroThumbnail");
-    expect(scene).not.toContain("weaponId");
-    expect(scene).not.toContain("armorId");
-  });
-
-  it("the twilight swing scene itself is unchanged", () => {
-    expect(scene).toContain("MissedDayScene");
-    expect(scene).toContain("swing");
-  });
-});

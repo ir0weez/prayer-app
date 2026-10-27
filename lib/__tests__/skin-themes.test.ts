@@ -1587,7 +1587,11 @@ describe("v190 — Paper, Bigger", () => {
     // the tracker re-presentation (the tracker cards carry their
     // own Material kickers); BOSS BADGES, PREVIOUS FAST, CURRENT
     // FAST and FAST HISTORY remain.
-    expect(profile.split("skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)").length - 1).toBe(4);
+    // v280 re-base: 4 -> 3 — amendment 2 (mockup fidelity) retired
+    // the CURRENT FAST label too: the section head is the mockup's
+    // app-bar row (fast name + streak chip), no kicker label.
+    // BOSS BADGES, PREVIOUS FAST and FAST HISTORY remain.
+    expect(profile.split("skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)").length - 1).toBe(3);
     expect(profile).toContain("padding: 16 + skinTokens.type.padBoost");
   });
 

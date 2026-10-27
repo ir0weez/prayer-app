@@ -1,6 +1,7 @@
 import { getTodayISOString } from "./prayercircle-data";
 import {
   getFastCalendarDays,
+  getFastEndDate,
   getFastProgress,
   type FastDayStatus,
   type PersonalFast,
@@ -194,6 +195,8 @@ export function getFastNoteStream(fast: PersonalFast, limit = 3): FastNoteEntry[
 export type FastRecap = {
   kind: "week" | "final";
   title: string;
+  /** The recap document's band headline ("Week 43" / "Your 365 days"). */
+  headline: string;
   subtitle: string;
   counts: { kept: number; skipped: number; missed: number; unmarked: number };
   longestStreak?: number;
@@ -236,6 +239,7 @@ export function composeWeeklyRecap(fast: PersonalFast, week: FastWeek): FastReca
   return {
     kind: "week",
     title: `Week ${week.weekNumber} recap`,
+    headline: `Week ${week.weekNumber}`,
     subtitle: `${fast.name} · Days ${week.days[0].dayNumber}–${week.days[week.days.length - 1].dayNumber}`,
     counts,
     paragraphs,
@@ -268,6 +272,7 @@ export function composeFinalRecap(fast: PersonalFast): FastRecap {
   return {
     kind: "final",
     title: `Final recap — your ${fast.durationDays} days`,
+    headline: `Your ${fast.durationDays} days`,
     subtitle: fast.name,
     counts,
     longestStreak: getFastLongestStreak(fast),
@@ -282,6 +287,24 @@ export function isFinalRecapReady(fast: PersonalFast, today: string = getTodayIS
   if (dates.length === 0) return false;
   const allMarked = dates.every((d) => fast.dayStatuses[d]);
   return allMarked || today > dates[dates.length - 1];
+}
+
+/**
+ * Most recent ended fast of the same type, excluding the current
+ * one. (Relocated from components/fast-board.tsx in v280 when the
+ * board was deleted — the People page's fasting card reads the
+ * previous fast through here; behavior unchanged.)
+ */
+export function getPreviousFast(
+  fasts: PersonalFast[],
+  current: PersonalFast,
+  today: string,
+): PersonalFast | null {
+  return (
+    fasts
+      .filter((f) => f.id !== current.id && f.type === current.type && getFastEndDate(f) < today)
+      .sort((a, b) => getFastEndDate(b).localeCompare(getFastEndDate(a)))[0] ?? null
+  );
 }
 
 /** Plain-text form for "Save to Journal" — counts header + paragraphs. */

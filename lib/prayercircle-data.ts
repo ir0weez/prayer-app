@@ -58,6 +58,18 @@ export type Person = {
   lastPrayedDate: string | null; // Last reached date as an ISO date string (YYYY-MM-DD) or null.
   lastMeetingLocation?: string; // Optional place where the contact was most recently met.
   lastPrayerCompletedDate?: string | null; // The date this person was prayed for in the daily Pray Today flow.
+  /** v279: the forward log of days this person was prayed for (ISO
+   *  YYYY-MM-DD, ascending, deduped). Written ONLY by markPersonPrayed
+   *  — the one choke point every prayer-completion path flows through
+   *  (Pray Today session, tap-to-pray, profile Mark as Prayed) — and
+   *  unwound by unmarkPersonPrayed. It starts EMPTY for everyone: no
+   *  backfill, no inferred history. Before v279 the app kept only the
+   *  single lastPrayerCompletedDate, so earlier days are simply not
+   *  recorded anywhere; this log makes per-person history truthful
+   *  from the day it ships forward. The app's own record is the only
+   *  authority — displays that read this log must say only what it
+   *  (plus lastPrayerCompletedDate) actually proves. */
+  prayedDates?: string[];
   reminderDaysOfWeek: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
   reminderFrequency?: ReminderFrequency;
   reminderDayOfMonth?: number;
@@ -417,6 +429,23 @@ export function resetDailyPrayerCompletionsIfNeeded(people: Person[], dateString
   });
 }
 
+/** v279: the prayed-dates log is bounded so a lifetime of daily prayer
+ *  stays a small field: a little over a year of days is kept (the
+ *  displays read the last 7; the cap only guards storage size). */
+export const PRAYED_DATES_CAP = 400;
+
+/** Append a day to a person's prayed-dates log (deduped, ascending). */
+export function appendPrayedDate(dates: string[] | undefined, date: string): string[] {
+  const set = new Set((dates ?? []).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)));
+  set.add(date);
+  return [...set].sort().slice(-PRAYED_DATES_CAP);
+}
+
+/** Remove a day from a person's prayed-dates log (an un-mark unwinds it). */
+export function removePrayedDate(dates: string[] | undefined, date: string): string[] {
+  return (dates ?? []).filter((d) => d !== date);
+}
+
 // Action: Mark every prayer item for this person as prayed today
 export function markPersonPrayed(people: Person[], personId: string): Person[] {
   const today = getTodayISOString();
@@ -425,6 +454,7 @@ export function markPersonPrayed(people: Person[], personId: string): Person[] {
       ? {
           ...p,
           lastPrayerCompletedDate: today,
+          prayedDates: appendPrayedDate(p.prayedDates, today),
           prayerItems: p.prayerItems.map((item) => ({ ...item, isDone: true })),
         }
       : p,
@@ -433,11 +463,13 @@ export function markPersonPrayed(people: Person[], personId: string): Person[] {
 
 // Action: Undo today's prayer completion for one person
 export function unmarkPersonPrayed(people: Person[], personId: string): Person[] {
+  const today = getTodayISOString();
   return people.map((p) =>
     p.id === personId
       ? {
           ...p,
           lastPrayerCompletedDate: null,
+          prayedDates: removePrayedDate(p.prayedDates, today),
           prayerItems: p.prayerItems.map((item) => ({ ...item, isDone: false })),
         }
       : p,

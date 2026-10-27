@@ -119,6 +119,11 @@ export type LightInfo = {
   /** The person's saved accent color, when they have one — it becomes
    *  their shirt, on the map and in the interiors alike. */
   accentColor?: string;
+  /** v279 (the Street & The Café): the faithful-week star — set only
+   *  when the person's real record proves prayer on 4+ of the last 7
+   *  days (lib/cafe-street hasFaithfulWeek). A small gold star rides
+   *  beside the figure; it is earned by the record, never decorative. */
+  star?: boolean;
 };
 
 type NpcDef = {
@@ -132,6 +137,8 @@ type NpcDef = {
   prayerId?: string;
   /** The person's accent color — their paper figure's shirt. */
   accentColor?: string;
+  /** v279: the faithful-week star (see LightInfo). */
+  star?: boolean;
 };
 
 type NpcLogic = {
@@ -142,6 +149,8 @@ type NpcLogic = {
   name?: string;
   prayerId?: string;
   accentColor?: string;
+  /** v279: the faithful-week star (see LightInfo). */
+  star?: boolean;
   pos: Animated.ValueXY;
   bob: Animated.Value;
   snore: Animated.Value;
@@ -422,6 +431,7 @@ function TownNPCsImpl({
         name: p.name,
         prayerId: String(p.personId),
         accentColor: p.accentColor,
+        star: p.star || undefined,
       });
     }
     return defs;
@@ -1115,6 +1125,7 @@ function TownNPCsImpl({
         existing.color = def.color;
         existing.name = def.name;
         existing.prayerId = def.prayerId;
+        existing.star = def.star;
         if (existing.state === "idle") {
           existing.anim?.stop();
           existing.anim = null;
@@ -1167,6 +1178,7 @@ function TownNPCsImpl({
           name: def.name,
           prayerId: def.prayerId,
           accentColor: def.accentColor,
+          star: def.star,
           pos: new Animated.ValueXY(homePx),
           bob,
           snore,
@@ -1353,6 +1365,35 @@ function TownNPCsImpl({
                   }}
                 >
                   <MaterialIcons name="help-outline" size={12} color="#7C3AED" />
+                </View>
+              </Animated.View>
+            ) : null}
+            {/* v279 (the Street & The Café): the faithful-week star —
+                this light's record proves prayer on 4+ of the last 7
+                days. It rides the figure's other side so it never
+                fights the work/activity/mission badges. */}
+            {npc.star && !asleep ? (
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  top: -22,
+                  left: -13,
+                  transform: [{ translateY: floatY }],
+                }}
+              >
+                <View
+                  style={{
+                    width: 17,
+                    height: 17,
+                    borderRadius: 8.5,
+                    backgroundColor: "#FFFBEB",
+                    borderWidth: 1.5,
+                    borderColor: "#F59E0B",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <MaterialIcons name="star" size={11} color="#F59E0B" />
                 </View>
               </Animated.View>
             ) : null}

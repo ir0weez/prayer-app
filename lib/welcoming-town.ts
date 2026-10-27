@@ -97,6 +97,13 @@ export type AwayReportInput = {
   missedXP: number;
   /** Every coin now sitting uncollected in the town's buildings. */
   totalWaiting: number;
+  /** v279: today's café orders (the Street & Café loop) — how many of
+   *  today's prayer-list orders were served / are still waiting, from
+   *  the real prayer record. The caller passes it ONLY when the town
+   *  is unlocked and today's list is non-empty; the line is omitted
+   *  otherwise. The report still moves no money: served was settled
+   *  by prayer, never by coins. */
+  orders?: { served: number; waiting: number };
 };
 
 export type AwayReport = {
@@ -164,6 +171,23 @@ export function buildAwayReport(input: AwayReportInput): AwayReport | null {
         ? `Plus ${formatWholeCoins(input.missedCoins)} coins and ${formatWholeCoins(input.missedXP)} XP from the days between`
         : `Plus ${formatWholeCoins(input.missedCoins)} coins from the days between`,
     );
+  }
+  // v279: the café's day, in one line — but only as a line of its own
+  // story (it never makes an otherwise-empty report worthwhile: the
+  // gates above already decided this return is worth a card).
+  if (input.orders && input.orders.served + input.orders.waiting > 0) {
+    const { served, waiting } = input.orders;
+    if (waiting === 0) {
+      lines.push("Every one of today's café orders was served");
+    } else if (served === 0) {
+      lines.push(
+        waiting === 1
+          ? "Today's café order is still waiting to be served"
+          : `Today's café orders are still waiting to be served — ${waiting} of them`,
+      );
+    } else {
+      lines.push(`Today's café orders: ${served} served · ${waiting} still waiting`);
+    }
   }
   if (lines.length === 0) return null;
   return { lines, totalEarned, totalWaiting: Math.max(0, Math.floor(input.totalWaiting)) };

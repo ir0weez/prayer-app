@@ -208,7 +208,18 @@ import {
 import { refreshHouseBonusCache } from "@/lib/pawn-house";
 import { isEnterableRestaurant, restaurantInteriorBonus } from "@/lib/restaurant-interior";
 import { maybeGrantRestitution, RESTITUTION_MESSAGE } from "@/lib/restitution";
-import { getTodayISOString } from "@/lib/prayercircle-data";
+import { getTodayISOString, type Person } from "@/lib/prayercircle-data";
+import {
+  buildCafeBoard,
+  CAFE_HOME_LOT_ID,
+  CAFE_WEEK_LOT,
+  flourishTierFor,
+  hasFaithfulWeek,
+  loadCafeStreetData,
+  ovenStateFor,
+  weekStripFor,
+} from "@/lib/cafe-street";
+import { CafeStreetOverlay, CafeWeekLot, type CafeAnchor } from "@/components/cafe-street";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, BASE_CRIT_CHANCE, type CombatStats } from "@/lib/gear";
 import { MINI_GAME_CAPS, TRAINING_BONUS_MULT, SET_BONUS_RATE, loadSetCompletedDates, loadTodaySetStatus, loadTrainingBonus, playsLeftToday, recordPlay, scaleMiniGamePayout, type TodaySetStatus } from "@/lib/mini-games";
@@ -4035,6 +4046,16 @@ export default function HometownScreen() {
   /** The Welcoming Town (v271): the while-you-were-gone report card,
    *  built once at mount from the away accrual's own numbers. */
   const [awayReport, setAwayReport] = useState<AwayReport | null>(null);
+  /** The Street & The Café (v279): the café's inputs, read from the
+   *  app's own stores on open and refreshed on focus (the same settle-
+   *  on-open pattern as the coin chip) — the full people record, the
+   *  active fast, the settled week-lot count, and the day they were
+   *  read for. All café dress derives from these; nothing here is
+   *  written back except the week-lot settle inside the loader. */
+  const [cafePeople, setCafePeople] = useState<Person[]>([]);
+  const [cafeFast, setCafeFast] = useState<PersonalFast | null>(null);
+  const [cafeWeekLots, setCafeWeekLots] = useState(0);
+  const [cafeDay, setCafeDay] = useState<string>(() => getTodayISOString());
   /** The Welcoming Town (v271): the entry greeting — set once per
    *  Hometown entry (this screen mounting); the villagers nearest the
    *  hero's arrival tile wave for a few seconds. Never re-armed while
@@ -4355,6 +4376,28 @@ export default function HometownScreen() {
   // the collected-amount crossfade after a Collect All (collectFade,
   // opacity only) and the native balance pulse on the outer view.
 
+  // The Street & The Café (v279): the board, the ovens, and the
+  // per-person flourishing record — all derived from the café inputs
+  // settled on open/focus. The board is the People page's own pray-
+  // today derivation wearing tickets; the ovens read the active
+  // fast's real day states.
+  const cafeBoard = useMemo(
+    () => (cafePeople.length > 0 ? buildCafeBoard(cafePeople, cafeDay) : null),
+    [cafePeople, cafeDay],
+  );
+  const cafeOven = useMemo(() => ovenStateFor(cafeFast, cafeDay), [cafeFast, cafeDay]);
+  const cafePersonById = useMemo(
+    () => new Map(cafePeople.map((p) => [String(p.id), p])),
+    [cafePeople],
+  );
+  /** The faithful-week stars: people whose record proves prayer on
+   *  4+ of the last 7 days (the v279 forward log earns this over
+   *  time; it is never claimed from thinner air). */
+  const faithfulIds = useMemo(
+    () => new Set(cafePeople.filter((p) => hasFaithfulWeek(p, cafeDay)).map((p) => String(p.id))),
+    [cafePeople, cafeDay],
+  );
+
   // Prayer lights: everyone prayed for today appears as a golden light.
   // Gone by midnight — each day brings a new set.
   const lightInfos = useMemo<LightInfo[]>(() => {
@@ -4362,8 +4405,9 @@ export default function HometownScreen() {
       personId: String(p.id),
       name: p.name,
       accentColor: p.accentColor,
+      star: faithfulIds.has(String(p.id)) || undefined,
     }));
-  }, [prayedPeople]);
+  }, [prayedPeople, faithfulIds]);
 
   // Lights actually out walking (field-mission lights are away). Memoized
   // + a stable tap handler so the memoized TownNPCs can skip re-renders
@@ -4984,10 +5028,26 @@ export default function HometownScreen() {
   // Re-read the balance whenever the map comes back into focus, so the
   // chip can never show a stale copy after another screen earned or
   // spent — the display half of the v167 vanishing-coins fix.
+  /** The Street & The Café (v279): re-read the café's inputs — prayers
+   *  prayed and fast days marked since this screen opened must be on
+   *  the board when he comes back to the map. Same focus-refresh
+   *  pattern as the coin chip above; the loader settles the week-lot
+   *  milestone as it reads. */
+  const refreshCafeStreet = useCallback(async () => {
+    try {
+      const data = await loadCafeStreetData();
+      setCafePeople(data.people);
+      setCafeFast(data.fast);
+      setCafeWeekLots(data.weekLots);
+      setCafeDay(data.today);
+    } catch {}
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       void refreshCoins();
-    }, [refreshCoins])
+      void refreshCafeStreet();
+    }, [refreshCoins, refreshCafeStreet])
   );
 
   /** Jonathan taps "Help" on a villager request — the light heads to its target. */
@@ -5480,9 +5540,15 @@ export default function HometownScreen() {
         let fellowshipState: FellowshipState | null = null;
         let gardenVisitState = emptyGardenVisits();
         let houseCoinMultPre = 0;
+        // The Street & The Café (v279): the away report below tells the
+        // café's day too, so the café inputs ride this same fan-out and
+        // land in locals the report block can read.
+        let cafePeopleLocal: Person[] = [];
+        let cafeFastLocal: PersonalFast | null = null;
         const [
           remembranceR, fieldMissionsR, plotsR, bellR, frenzyR, tapsR, shiftsR,
           bankR, restR, statR, prayedR, houseR, fellowshipR, lighthouseR, gardenVisitsR,
+          cafeR,
         ] = await Promise.all([
           attempt(() => loadRemembrance()),
           attempt(() => loadFieldMissions()),
@@ -5528,6 +5594,9 @@ export default function HometownScreen() {
           attempt(() => loadFellowship()),
           attempt(() => loadLighthouse()),
           attempt(() => loadGardenVisits()),
+          // The Street & The Café (v279): people + fasts + the settled
+          // week-lot state, for the board/ovens and the report's café line.
+          attempt(() => loadCafeStreetData()),
         ]);
         // Apply the fan-out, in the old chain's order. Fallbacks match
         // the old try/catch behavior one for one.
@@ -5583,6 +5652,16 @@ export default function HometownScreen() {
           prayedCount = people.length;
           prayedIdSet = new Set(people.map((p) => String(p.id)));
           prayedList = people.map((p) => ({ id: p.id, name: p.name }));
+        }
+        // The Street & The Café (v279): the café inputs land — states
+        // for the map dress, locals for the away report below.
+        if (cafeR.ok) {
+          cafePeopleLocal = cafeR.value.people;
+          cafeFastLocal = cafeR.value.fast;
+          setCafePeople(cafeR.value.people);
+          setCafeFast(cafeR.value.fast);
+          setCafeWeekLots(cafeR.value.weekLots);
+          setCafeDay(cafeR.value.today);
         }
         setPrayedToday(prayedCount);
         if (houseR.ok) houseCoinMultPre = houseR.value.coinMult;
@@ -5876,6 +5955,18 @@ export default function HometownScreen() {
               }
             }
           }
+          // The Street & The Café (v279): the report gains the café's
+          // day — how many of today's orders were served / still wait —
+          // from the real prayer record, and ONLY when the town is
+          // unlocked by his fast and today actually has orders.
+          const cafeOrders = (() => {
+            if (!cafeFastLocal || !hometownUnlockedForFastLength(cafeFastLocal.durationDays)) return undefined;
+            if (cafePeopleLocal.length === 0) return undefined;
+            const board = buildCafeBoard(cafePeopleLocal, today, new Date());
+            return board.ordersTotal > 0
+              ? { served: board.ordersServed, waiting: board.ordersWaiting }
+              : undefined;
+          })();
           const report = buildAwayReport({
             absenceMs: lastVisitMs === null ? null : awayNow - lastVisitMs,
             deltas: awayDeltas,
@@ -5883,6 +5974,7 @@ export default function HometownScreen() {
             missedCoins: missed?.earnedCoins ?? 0,
             missedXP: missed?.earnedXP ?? 0,
             totalWaiting: awayWaiting,
+            orders: cafeOrders,
           });
           if (report) {
             setAwayReport(report);
@@ -7764,6 +7856,37 @@ export default function HometownScreen() {
   const gridSize = mapGridSize(activeMap);
   const gridW = gridSize.w;
   const gridH = gridSize.h;
+  // The Street & The Café (v279): where the café frontage stands on the
+  // town map. The café IS the diner, re-dressed — the layer follows the
+  // first diner standing on the town map (north-most, then west-most);
+  // until a diner is built, the order board alone anchors at the
+  // diner's home lot (Chapel Shops, the preset diner lot at the head
+  // of the neighborhood), so the loop is visible from the first day.
+  const cafeAnchor = useMemo<CafeAnchor | null>(() => {
+    if (activeMap !== "town" || hometownLocked) return null;
+    const diner = town.maps.town.buildings
+      .filter((b) => b.type === "diner")
+      .sort((a, b) => a.y - b.y || a.x - b.x)[0];
+    if (diner) {
+      const fp = buildingFootprint(diner.level || 1, diner.type, hasFixedFootprint(diner));
+      return {
+        left: diner.x * cellSize,
+        top: diner.y * cellSize,
+        width: fp.w * cellSize,
+        height: fp.h * cellSize,
+        hasBuilding: true,
+      };
+    }
+    const lot = TOWN_LOTS.find((l) => l.id === CAFE_HOME_LOT_ID);
+    if (!lot) return null;
+    return {
+      left: lot.x * cellSize,
+      top: lot.y * cellSize,
+      width: lot.w * cellSize,
+      height: lot.h * cellSize,
+      hasBuilding: false,
+    };
+  }, [activeMap, hometownLocked, town, cellSize]);
   // The base grid (340 tappable cells on the town map) is memoized: it
   // depends only on the map data + selection, so unrelated state changes
   // (modals, clocks, collect FX) no longer rebuild hundreds of Pressables
@@ -8393,10 +8516,23 @@ export default function HometownScreen() {
             // tap uses); with nobody home it reads ASLEEP — gently: a
             // dimmed house and a small "z", never a warning. Null for
             // every non-cottage building.
-            const cottageAwake =
+            const cottageResidentsHere =
               b.type === "villager-cottage"
-                ? cottageResidents(map.buildings, b.id, lightInfos).length > 0
+                ? cottageResidents(map.buildings, b.id, lightInfos)
                 : null;
+            const cottageAwake = cottageResidentsHere ? cottageResidentsHere.length > 0 : null;
+            // The Street & The Café (v279): a cottage BLOOMS when one of
+            // its residents is flourishing — prayed for today, the full
+            // warm tier of their real record (lib/cafe-street). The
+            // v271 wake dress stays exactly as it was underneath: glow
+            // for awake, veil + "z" for asleep; the bloom is the extra
+            // truth the record adds on top.
+            const cottageBloom =
+              cottageAwake === true &&
+              (cottageResidentsHere ?? []).some((r) => {
+                const resident = cafePersonById.get(String(r.personId));
+                return !!resident && flourishTierFor(resident, cafeDay) === "flourishing";
+              });
             return (
               <View
                 key={`bldg-${b.id}`}
@@ -8451,6 +8587,25 @@ export default function HometownScreen() {
                       borderRadius: 6,
                     }}
                   />
+                )}
+                {/* The Street & The Café (v279): the flourishing bloom —
+                    a row of cut-paper flowers along the cottage's base
+                    when a resident's record is in the full warm tier. */}
+                {cottageBloom && (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: "absolute",
+                      bottom: 1,
+                      alignSelf: "center",
+                      flexDirection: "row",
+                      gap: 2.5,
+                    }}
+                  >
+                    {["#F472B6", "#F9A8D4", "#FB7185", "#F9A8D4", "#F472B6"].map((c, i) => (
+                      <View key={i} style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: c }} />
+                    ))}
+                  </View>
                 )}
                 {cottageAwake === false && (
                   <>
@@ -8643,6 +8798,25 @@ export default function HometownScreen() {
               bare: entities render directly in the depth layer so villagers walk
               BEHIND tall buildings (zIndex by Y). */}
           <TownNPCs mapState={map} cellSize={cellSize} bare positionsRef={townNpcPositionsRef} onBankVisit={handleBankVisit} lights={lightsForActiveMap} onVillagerTap={handleVillagerTap} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} scheduleGuides={scheduleGuides} scheduleMap={scheduleMap} scheduleKind={scheduleActivity?.kind} greet={activeMap === "town" ? greetRef.current : null} />
+          {/* The Street & The Café (v279): the café frontage on the town
+              map — the order board with today's real prayer list as
+              tickets, the served at their tables, the slipping at the
+              door, the ovens breathing with the fast. Pure dress over
+              settled state (pointer-events none; the diner keeps its
+              tap), town map only, and only while the town is unlocked. */}
+          {activeMap === "town" && cafeAnchor && cafeBoard && (
+            <CafeStreetOverlay anchor={cafeAnchor} cellSize={cellSize} board={cafeBoard} oven={cafeOven} night={isNight} />
+          )}
+          {/* The fast-week lot: roped ground at the street's end once a
+              kept week inside the current fast has opened it. */}
+          {activeMap === "town" && !hometownLocked && cafeWeekLots >= 1 && (
+            <CafeWeekLot
+              left={CAFE_WEEK_LOT.x * cellSize}
+              top={CAFE_WEEK_LOT.y * cellSize}
+              size={CAFE_WEEK_LOT.w * cellSize}
+              weeks={cafeWeekLots}
+            />
+          )}
           {/* City life: commuters from town (depth-sorted, bare). The
               traffic layer is ambient — it mounts after first paint. */}
           {activeMap === "city" && ambientReady && (
@@ -10289,6 +10463,38 @@ export default function HometownScreen() {
             <Text style={{ color: pt.subtext, fontSize: 14, marginTop: 8, textAlign: "center" }}>
               Walking with you in Hometown
             </Text>
+            {/* The Street & The Café (v279): his real week with this
+                person, dotted — the sheet's Step 6. Only what the
+                record proves is filled (the prayed-dates log + the
+                last completion date); before the log grows, the strip
+                honestly shows the one day it can prove. */}
+            {(() => {
+              const person = prayerVillagerInfo ? cafePersonById.get(String(prayerVillagerInfo.id)) : undefined;
+              if (!person) return null;
+              const strip = weekStripFor(person, cafeDay);
+              return (
+                <View style={{ marginTop: 14, alignItems: "center" }}>
+                  <View style={{ flexDirection: "row", gap: 6 }}>
+                    {strip.days.map((day) => (
+                      <View
+                        key={day.date}
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: 6,
+                          backgroundColor: day.prayed ? "#31C48D" : "transparent",
+                          borderWidth: 1.5,
+                          borderColor: day.prayed ? "#31C48D" : pt.subtext,
+                        }}
+                      />
+                    ))}
+                  </View>
+                  <Text style={{ color: pt.subtext, fontSize: 12, marginTop: 6 }}>
+                    Prayed {strip.count} of the last 7 days
+                  </Text>
+                </View>
+              );
+            })()}
             {(() => {
               const lightId = prayerVillagerInfo ? String(prayerVillagerInfo.id) : "";
               const canThank = lightId && canThankLight(lightTaps, lightId);

@@ -8520,7 +8520,13 @@ export default function HometownScreen() {
               b.type === "villager-cottage"
                 ? cottageResidents(map.buildings, b.id, lightInfos)
                 : null;
-            const cottageAwake = cottageResidentsHere ? cottageResidentsHere.length > 0 : null;
+            // Kept in the v271 shape verbatim (its source pin reads
+            // this exact expression): the wake state derives from the
+            // same residents call, never from a second source.
+            const cottageAwake =
+              b.type === "villager-cottage"
+                ? cottageResidents(map.buildings, b.id, lightInfos).length > 0
+                : null;
             // The Street & The Café (v279): a cottage BLOOMS when one of
             // its residents is flourishing — prayed for today, the full
             // warm tier of their real record (lib/cafe-street). The

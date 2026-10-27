@@ -333,6 +333,176 @@ export function hasActiveEmergencyPrayer(person: Person, now = new Date()): bool
   });
 }
 
+// ─── v284 "Renew" — lapsed timed prayers ────────────────────────────────
+// Jonathan (Oct 27 08:35): "Add some sort of 'Renew' prayer button for
+// emergency and praise prayers. After the 24 hours is up, you can press
+// renew and it adds the color and information back to the card. Until
+// then, it shrinks to a skinnier card and asks to renew or delete."
+//
+// Liveness is ONE partition over the stored stamps, shared by every
+// surface: a timed prayer (an emergency item, the person-level praise,
+// a legacy item-level praise) whose stored expiry is still ahead is
+// LIVE (hasActiveEmergencyPrayer / hasActivePraise — Pray Today, the
+// bell, the café board, the tray sync); the same record with its
+// expiry behind it is LAPSED — derived here from the very fields a
+// fresh post stores, never migrated, never grandfathered, so a prayer
+// that lapsed before this build shipped still surfaces for Renew or
+// Delete. A lapsed record leaves only by his hand
+// (clearEmergencyPrayerItem / clearPraise / clearPraisedItem) — the
+// load path no longer sweeps expired emergencies away.
+
+export type TimedPrayerKind = "emergency" | "praise";
+
+export interface LapsedTimedPrayer {
+  person: Person;
+  kind: TimedPrayerKind;
+  /** The emergency or praised item, when the record rides an item;
+   *  undefined for the person-level praise state. */
+  item?: PrayerItem;
+  /** The prayer's own title: the emergency item's title, the praise
+   *  title (praiseTitle), or a legacy praised item's title. Displays
+   *  that want the full praise fallback chain use getPraiseDisplay. */
+  title?: string;
+  /** His note under the title, when he wrote one. */
+  note?: string;
+  /** The stored expiry that has passed (ISO). */
+  expiredAt: string;
+}
+
+function expiryMillis(iso?: string): number | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/** An emergency item whose stored 24 hours have run out. */
+export function isLapsedEmergencyItem(item: PrayerItem, now = new Date()): boolean {
+  if (!item.isEmergency) return false;
+  const ms = expiryMillis(item.emergencyExpiresAt);
+  return ms !== null && ms <= now.getTime();
+}
+
+/** A praised item (legacy item-level praise) whose window has closed. */
+export function isLapsedPraisedItem(item: PrayerItem, now = new Date()): boolean {
+  if (!item.isPraised) return false;
+  const ms = expiryMillis(item.praiseExpiresAt);
+  return ms !== null && ms <= now.getTime();
+}
+
+/** Emergency items whose 24 hours have run out (record intact). */
+export function getLapsedEmergencyItems(person: Person, now = new Date()): PrayerItem[] {
+  return person.prayerItems.filter((item) => isLapsedEmergencyItem(item, now));
+}
+
+/** Whether any of a person's emergency prayers has lapsed. */
+export function hasLapsedEmergencyPrayer(person: Person, now = new Date()): boolean {
+  return getLapsedEmergencyItems(person, now).length > 0;
+}
+
+/**
+ * The person-level praise state with its 24 hours behind it: the
+ * flag, expiry, title, and note are all still stored (clearPraise is
+ * the only door that removes them) — only its liveness has ended.
+ */
+export function hasLapsedPraise(person: Person, now = new Date()): boolean {
+  if (!person.isPraised) return false;
+  const ms = expiryMillis(person.praiseExpiresAt);
+  return ms !== null && ms <= now.getTime();
+}
+
+/** Legacy item-level praised prayers whose window has closed. */
+export function getLapsedPraisedItems(person: Person, now = new Date()): PrayerItem[] {
+  return person.prayerItems.filter((item) => isLapsedPraisedItem(item, now));
+}
+
+/**
+ * Every lapsed timed prayer across the roster, in roster order —
+ * the front door's skinny Renew cards read this one derivation. A
+ * person-level lapsed praise is the canonical praise record: legacy
+ * praised items on the same person are not listed twice beside it.
+ */
+export function getLapsedTimedPrayers(people: Person[], now = new Date()): LapsedTimedPrayer[] {
+  const lapsed: LapsedTimedPrayer[] = [];
+  for (const person of people) {
+    for (const item of getLapsedEmergencyItems(person, now)) {
+      lapsed.push({
+        person,
+        kind: "emergency",
+        item,
+        title: item.title,
+        note: item.note,
+        expiredAt: item.emergencyExpiresAt as string,
+      });
+    }
+    if (hasLapsedPraise(person, now)) {
+      lapsed.push({
+        person,
+        kind: "praise",
+        title: normalizeOptionalText(person.praiseTitle),
+        note: normalizeOptionalText(person.praiseNote),
+        expiredAt: person.praiseExpiresAt as string,
+      });
+    } else {
+      for (const item of getLapsedPraisedItems(person, now)) {
+        lapsed.push({
+          person,
+          kind: "praise",
+          item,
+          title: item.title,
+          expiredAt: item.praiseExpiresAt as string,
+        });
+      }
+    }
+  }
+  return lapsed;
+}
+
+/**
+ * Renew an emergency: the lapsed item is cleared and the SAME title +
+ * note are posted again through the fresh-post path
+ * (addEmergencyPrayer) — a fresh 24 hours, and every surface a fresh
+ * post enters (Pray Today, the bell face, the profile, the café
+ * board, the one-per-person tray card) picks it up from the stamp.
+ */
+export function renewEmergencyPrayer(person: Person, itemId: string, now = new Date()): Person {
+  const item = person.prayerItems.find((entry) => entry.id === itemId);
+  if (!item || !item.isEmergency) return person;
+  return addEmergencyPrayer(clearEmergencyPrayerItem(person, itemId), item.title, 24, item.note, now);
+}
+
+/**
+ * Renew the person-level praise: re-activation through the fresh-post
+ * path (activatePraise), carrying his stored title + note into a
+ * fresh 24 hours.
+ */
+export function renewPraise(person: Person, now = new Date()): Person {
+  if (!person.isPraised) return person;
+  return activatePraise(person, person.praiseTitle, person.praiseNote, now);
+}
+
+/** Renew a legacy item-level praise: re-stamp its own 24 hours. */
+export function renewPraisedItem(person: Person, itemId: string, now = new Date()): Person {
+  return {
+    ...person,
+    prayerItems: person.prayerItems.map((item) =>
+      item.id === itemId && item.isPraised
+        ? { ...item, praiseExpiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString() }
+        : item,
+    ),
+  };
+}
+
+/** Delete a legacy item-level praise: its flags clear; the item itself
+ *  (his prayer) stays. */
+export function clearPraisedItem(person: Person, itemId: string): Person {
+  return {
+    ...person,
+    prayerItems: person.prayerItems.map((item) =>
+      item.id === itemId ? { ...item, isPraised: false, praiseExpiresAt: undefined } : item,
+    ),
+  };
+}
+
 // Helper: Get list of people to pray for today
 export function getPrayTodayList(people: Person[], todayDayOfWeek: number, todayDayOfMonth = new Date().getDate()): Person[] {
   const now = new Date();
@@ -944,11 +1114,12 @@ export function getInitialState() {
 // Helper: Add emergency prayer to a person.
 // v258: the optional note is the quick sentence under the title
 // (title + note form); omitted/blank stores no note at all.
-export function addEmergencyPrayer(person: Person, title: string, durationHours: number = 24, note?: string): Person {
-  const now = new Date().toISOString();
-  const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
+// v284: the optional `now` is the post's clock (tests, and Renew —
+// which re-posts a lapsed prayer through this very path).
+export function addEmergencyPrayer(person: Person, title: string, durationHours: number = 24, note?: string, now: Date = new Date()): Person {
+  const expiresAt = new Date(now.getTime() + durationHours * 60 * 60 * 1000).toISOString();
   const emergencyItem: PrayerItem = {
-    id: `emergency-${Date.now()}`,
+    id: `emergency-${now.getTime()}`,
     title,
     note: normalizeOptionalText(note),
     isUrgent: true,

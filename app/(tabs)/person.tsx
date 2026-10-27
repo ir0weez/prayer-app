@@ -39,6 +39,11 @@ import {
   addEmergencyPrayer,
   activatePraise,
   clearPraise,
+  hasActivePraise,
+  hasLapsedPraise,
+  isLapsedEmergencyItem,
+  renewEmergencyPrayer,
+  renewPraise,
   addPersonalTodo,
   completePersonalTodo,
   removePersonalTodo,
@@ -478,7 +483,11 @@ export default function PersonScreen() {
   // (praise is never blocked on typing: both fields may stay blank).
   const handlePraise = () => {
     if (!currentPerson) return;
-    if (currentPerson.isPraised) {
+    // v284: the toggle-off belongs to a LIVE praise. A lapsed praise
+    // is waiting for Renew or Delete on its card — tapping Praise
+    // opens the form (prefilled with his words) instead of silently
+    // clearing the record he hasn't decided on yet.
+    if (currentPerson.isPraised && hasActivePraise(currentPerson)) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPeople((previousPeople) => {
         const updatedPeople = previousPeople.map((person) =>
@@ -522,6 +531,31 @@ export default function PersonScreen() {
       AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
       return updatedPeople;
     });
+  };
+
+  // v284: Renew on the profile's lapsed states — the same shared
+  // fresh-post path the front door's skinny cards use (renewPraise /
+  // renewEmergencyPrayer in prayercircle-data). Delete on the praise
+  // card is the standing handleUndoPraise (clearPraise); on an
+  // emergency item it is the row's standing remove (handleRemoveItem).
+  const handleRenewPraise = () => {
+    if (!currentPerson) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setPeople((previousPeople) => {
+      const updatedPeople = previousPeople.map((person) =>
+        person.id === currentPerson.id ? renewPraise(person) : person,
+      );
+      AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
+      return updatedPeople;
+    });
+  };
+
+  const handleRenewEmergencyItem = (itemId: string) => {
+    if (!personId) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    updatePeople((previousPeople) =>
+      previousPeople.map((person) => (person.id === personId ? renewEmergencyPrayer(person, itemId) : person)),
+    );
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -979,7 +1013,12 @@ export default function PersonScreen() {
               {!!getPraiseDisplay(currentPerson).note && (
                 <Text numberOfLines={2} style={{ fontSize: 12.5, color: !isSkinned ? pm.goldDeep : "#1E40AF", marginTop: 2 }}>{getPraiseDisplay(currentPerson).note}</Text>
               )}
-              <Text style={{ fontSize: 12, color: !isSkinned ? pm.goldDeep : "#3B82F6", marginTop: 4 }}>24-hour praise{!isSkinned && currentPerson.praiseExpiresAt ? ` · ${formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(currentPerson.praiseExpiresAt))} left` : ""}</Text>
+              <Text style={{ fontSize: 12, color: !isSkinned ? pm.goldDeep : "#3B82F6", marginTop: 4 }}>24-hour praise{hasLapsedPraise(currentPerson) ? " · ended" : !isSkinned && currentPerson.praiseExpiresAt ? ` · ${formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(currentPerson.praiseExpiresAt))} left` : ""}</Text>
+              {hasLapsedPraise(currentPerson) && (
+                <Pressable onPress={() => handleRenewPraise()} style={({ pressed }) => [{ alignSelf: "flex-start", backgroundColor: !isSkinned ? pm.gold : colors.primary, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, marginTop: 8 }, pressed && styles.pressed]}>
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: !isSkinned ? "#2A1B02" : "#FFFFFF" }}>Renew</Text>
+                </Pressable>
+              )}
             </View>
             <MaterialIcons name={iconName("thumb-up")} size={20} color={!isSkinned ? pm.goldDeep : "#3B82F6"} />
             <Pressable onPress={() => handleUndoPraise()} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: !isSkinned ? pm.goldWash : getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
@@ -1012,7 +1051,12 @@ export default function PersonScreen() {
                     <Text numberOfLines={2} style={{ fontSize: 12.5, color: colors.muted, marginTop: 2 }}>{item.note}</Text>
                   )}
                   {item.isEmergency && item.emergencyExpiresAt && (
-                    <Text style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>24-hour emergency prayer{!isSkinned ? ` · ${formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt))} left` : ""}</Text>
+                    <Text style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>24-hour emergency prayer{isLapsedEmergencyItem(item) ? " · ended" : !isSkinned ? ` · ${formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt))} left` : ""}</Text>
+                  )}
+                  {isLapsedEmergencyItem(item) && (
+                    <Pressable onPress={() => handleRenewEmergencyItem(item.id)} style={({ pressed }) => [{ alignSelf: "flex-start", backgroundColor: "#EF4444", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, marginTop: 8 }, pressed && styles.pressed]}>
+                      <Text style={{ fontSize: 12, fontWeight: "800", color: "#FFFFFF" }}>Renew</Text>
+                    </Pressable>
                   )}
                   {!isSkinned && !item.isEmergency && item.isUrgent && !item.isDone && (
                     <Text style={{ fontSize: 11.5, fontWeight: "700", color: "#B97A0C", marginTop: 3 }}>Urgent</Text>

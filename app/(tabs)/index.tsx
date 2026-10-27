@@ -37,7 +37,8 @@ import {
 import { PeopleEntrance, EmergencyLiveDot, EmergencyBreathGlow, PEOPLE_ENTRANCE_EASING, PEOPLE_ENTRANCE_RISE, PEOPLE_ENTRANCE_STAGGER_CAP } from "@/components/people-entrance";
 import { usePeopleFrontDoor, usePeopleMaterial } from "@/hooks/use-people-material";
 import { queueFaceStatus, queueFirstName, sortQueueFaces } from "@/lib/people-queue";
-import { PEOPLE_GOLD_PILL_INK } from "@/lib/people-material";
+import { PEOPLE_EMERGENCY_RED, PEOPLE_GOLD_PILL_INK } from "@/lib/people-material";
+import { bibleAccentInk } from "@/lib/bible-v205/palette-accents";
 import type { PeopleFrontDoorFamily } from "@/lib/people-material";
 import { CarouselDots, FrontDoorCarousel } from "@/components/front-door-carousel";
 import { PeopleStreakCard } from "@/components/people-streak-card";
@@ -121,7 +122,12 @@ import {
   sortFamilyMembers,
   ungroupFromFamily,
   removePerson,
-  removeExpiredEmergencyPrayersFromAll,
+  getLapsedTimedPrayers,
+  renewEmergencyPrayer,
+  renewPraise,
+  renewPraisedItem,
+  clearPraisedItem,
+  type LapsedTimedPrayer,
   getEmergencyPrayerTimeRemaining,
   formatEmergencyPrayerCountdown,
   getEmergencyPrayerProgress,
@@ -1446,8 +1452,13 @@ export default function HomeScreen() {
           if (storedPeople) {
             const parsedPeople = JSON.parse(storedPeople) as Person[];
             if (Array.isArray(parsedPeople)) {
-              const cleanedPeople = removeExpiredEmergencyPrayersFromAll(parsedPeople);
-              setPeople(resetDailyPrayerCompletionsIfNeeded(normalizePeopleForStorage(cleanedPeople), today));
+              // v284: expired emergency items are NO LONGER swept
+              // away on this reload — a lapsed emergency/praise is
+              // derived from its stored stamp (getLapsedTimedPrayers)
+              // and waits on People for his Renew or Delete. Deleting
+              // the record here would destroy the very thing the
+              // skinny card shows.
+              setPeople(resetDailyPrayerCompletionsIfNeeded(normalizePeopleForStorage(parsedPeople), today));
             }
           }
           if (storedFasts) {
@@ -1637,6 +1648,10 @@ export default function HomeScreen() {
     return () => animation.stop();
   }, [xpShimmer]);
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek, todayDayOfMonth), [people, todayDayOfMonth, todayDayOfWeek]);
+  // v284: the lapsed timed prayers (emergency/praise past their 24
+  // hours), derived from the stored stamps — these wait on the front
+  // door as skinny Renew/Delete cards until he acts.
+  const lapsedTimedPrayers = useMemo(() => getLapsedTimedPrayers(people), [people]);
   const personalContacts = useMemo(() => getPersonalContacts(people), [people]);
   const visiblePrayTodayList = useMemo(
     () => sortPrayTodayListByPriority(
@@ -2234,6 +2249,42 @@ export default function HomeScreen() {
     void awardExperience("scheduled-prayer", `${today}:${personId}`);
   };
 
+  // v284: Renew / Delete on a lapsed timed prayer's skinny card.
+  // Renew re-posts through the shared fresh-post path (renewEmergency
+  // Prayer / renewPraise / renewPraisedItem in prayercircle-data);
+  // Delete is the standing clear for that record. The people persist
+  // effect carries the change to storage, and every derived surface
+  // (queue, bell, tray, café board) settles from the new stamps.
+  const handleRenewLapsed = (entry: LapsedTimedPrayer) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setPeople((previousPeople) =>
+      previousPeople.map((person) => {
+        if (person.id !== entry.person.id) return person;
+        if (entry.item) {
+          return entry.kind === "emergency"
+            ? renewEmergencyPrayer(person, entry.item.id)
+            : renewPraisedItem(person, entry.item.id);
+        }
+        return renewPraise(person);
+      }),
+    );
+  };
+
+  const handleDeleteLapsed = (entry: LapsedTimedPrayer) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPeople((previousPeople) =>
+      previousPeople.map((person) => {
+        if (person.id !== entry.person.id) return person;
+        if (entry.item) {
+          return entry.kind === "emergency"
+            ? clearEmergencyPrayerItem(person, entry.item.id)
+            : clearPraisedItem(person, entry.item.id);
+        }
+        return clearPraise(person);
+      }),
+    );
+  };
+
   const handleRemoveEmergencyPrayer = (personId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     void revokeExperience("scheduled-prayer", `${today}:${personId}`);
@@ -2823,6 +2874,56 @@ export default function HomeScreen() {
     </View>
   );
 
+  // v284: the skinny cards — a lapsed emergency/praise waits in its
+  // own slot (under the live banner of its kind) at a fraction of the
+  // full card's height: face, name, kind + title, and his two doors,
+  // Renew and Delete. The dress is the kind's own family washed over
+  // the card (redWash / goldTint from the derived People family —
+  // seed × appearance, never a pinned full-strength card), muted the
+  // way a waiting thing should be. The swap on Renew/Delete is
+  // instant and state-derived: renew the stamp and the full banner
+  // above takes the person back; the skinny card simply stops
+  // deriving. No animation gate stands between him and the record.
+  const renderLapsedCards = (kind: "emergency" | "praise") => {
+    const entries = lapsedTimedPrayers.filter((entry) => entry.kind === kind);
+    if (entries.length === 0) return null;
+    return (
+      <View style={{ marginHorizontal: 16, marginTop: 12, gap: 8 }}>
+        {entries.map((entry) => {
+          const isEmergency = entry.kind === "emergency";
+          const deep = isEmergency ? bibleAccentInk(PEOPLE_EMERGENCY_RED, pmf.redWash) : pmf.goldDeep;
+          const title = isEmergency ? entry.title : getPraiseDisplay(entry.person).headline;
+          return (
+            <View
+              key={`${entry.person.id}:${entry.kind}:${entry.item?.id ?? "person"}`}
+              style={{ backgroundColor: isEmergency ? pmf.redWash : pmf.goldTint, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 11, flexDirection: "row", alignItems: "center", gap: 11 }}
+            >
+              <AvatarImage id={entry.person.id} name={entry.person.name} gender={entry.person.gender} avatarAsset={entry.person.avatarAsset} photoUri={entry.person.photoUri} size={36} thumbnail fallbackColor={entry.person.accentColor} style={{ borderRadius: 18 }} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: "800", color: pmf.ink }}>{entry.person.name}</Text>
+                <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: "700", color: deep, marginTop: 1 }}>
+                  {isEmergency ? "Emergency" : "Praise"} · {title}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => handleRenewLapsed(entry)}
+                style={({ pressed }) => [{ backgroundColor: isEmergency ? PEOPLE_EMERGENCY_RED : pmf.gold, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={{ fontSize: 12.5, fontWeight: "800", color: isEmergency ? "#FFFFFF" : PEOPLE_GOLD_PILL_INK }}>Renew</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleDeleteLapsed(entry)}
+                style={({ pressed }) => [{ backgroundColor: pmf.card, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={{ fontSize: 12.5, fontWeight: "800", color: pmf.inkSoft }}>Delete</Text>
+              </Pressable>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
   const renderEmergencyBanner = () => {
     const emergencies = getAllActiveEmergencyPrayers(people)
       .slice()
@@ -3374,9 +3475,11 @@ export default function HomeScreen() {
     <View>
       {renderPeopleAppBar()}
       {renderEmergencyBanner()}
+      {renderLapsedCards("emergency")}
       {renderQueueCard()}
       {renderStreakCard()}
       {renderPraiseCard()}
+      {renderLapsedCards("praise")}
       {renderSlipCard()}
       {renderRosterHead()}
     </View>

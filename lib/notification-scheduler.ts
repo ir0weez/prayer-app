@@ -2,7 +2,7 @@ import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import type { Person, ReminderFrequency } from "./prayercircle-data";
-import { getPersonReminderFrequency } from "./prayercircle-data";
+import { getPersonReminderFrequency, hasActiveEmergencyPrayer, hasActivePraise } from "./prayercircle-data";
 import { getPrayerNotificationBody } from "./notification-content";
 import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from "./schedule-data";
 import { SCHEDULE_EVENTS_KEY, SCHEDULE_MINISTRIES_KEY, SCHEDULE_TODOS_KEY } from "./schedule-data";
@@ -604,7 +604,7 @@ export async function clearPrayerTrayNotification(kind: "emergency" | "praise", 
 }
 
 /** Reconciles sticky tray notifications with the current people list. */
-async function syncPrayerTrayNotificationsNow(people: Array<{ id: string; name: string; isPraised?: boolean; praiseExpiresAt?: string; prayerItems: Array<{ isEmergency?: boolean; emergencyExpiresAt?: string }> }>): Promise<void> {
+async function syncPrayerTrayNotificationsNow(people: Person[]): Promise<void> {
   if (Platform.OS === "web") return;
   try {
     if (!(await ensureNotificationPermission())) return;
@@ -623,12 +623,13 @@ async function syncPrayerTrayNotificationsNow(people: Array<{ id: string; name: 
     const now = Date.now();
     const wanted = new Map<string, { kind: "emergency" | "praise"; personId: string; personName: string }>();
     for (const person of people) {
-      const hasEmergency = person.prayerItems.some((item) => {
-        if (!item.isEmergency || !item.emergencyExpiresAt) return false;
-        const expiresAt = new Date(item.emergencyExpiresAt).getTime();
-        return Number.isFinite(expiresAt) && expiresAt > now;
-      });
-      const hasPraise = !!person.isPraised && !!person.praiseExpiresAt && Number.isFinite(new Date(person.praiseExpiresAt).getTime()) && new Date(person.praiseExpiresAt).getTime() > now;
+      // v284: the wanted set reads the ONE shared liveness definition
+      // (prayercircle-data) — a lapsed prayer wants no card, and a
+      // renewed one wants exactly its one card back, same as a fresh
+      // post. (Before v284 this block re-derived the expiry check
+      // inline; the semantics were identical, the fork was the risk.)
+      const hasEmergency = hasActiveEmergencyPrayer(person, new Date(now));
+      const hasPraise = hasActivePraise(person, new Date(now));
       if (hasEmergency) {
         const key = prayerTrayKey("emergency", person.id);
         wanted.set(key, { kind: "emergency", personId: person.id, personName: person.name });
@@ -684,7 +685,7 @@ let prayerTraySyncQueue: Promise<void> = Promise.resolve();
 // every people change; unserialized runs raced — each snapshotted the
 // shade while another run's post was still in flight, read it as missing,
 // and posted another copy. Serialized runs see each other's posts.
-export function syncPrayerTrayNotifications(people: Array<{ id: string; name: string; isPraised?: boolean; praiseExpiresAt?: string; prayerItems: Array<{ isEmergency?: boolean; emergencyExpiresAt?: string }> }>): Promise<void> {
+export function syncPrayerTrayNotifications(people: Person[]): Promise<void> {
   prayerTraySyncQueue = prayerTraySyncQueue
     .catch(() => undefined)
     .then(() => syncPrayerTrayNotificationsNow(people));

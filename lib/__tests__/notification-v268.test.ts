@@ -138,6 +138,15 @@ describe("v268: the tray contract is unchanged", () => {
   it("one wanted card per person per kind, from unexpired items only", () => {
     expect(syncNowBlock).toContain('wanted.set(key, { kind: "emergency", personId: person.id, personName: person.name });');
     expect(syncNowBlock).toContain('wanted.set(key, { kind: "praise", personId: person.id, personName: person.name });');
-    expect(syncNowBlock).toContain("expiresAt > now");
+    // v284 re-base (the Renew build's ruling: ONE shared liveness
+    // definition): the "unexpired only" test no longer lives inline
+    // in this block — the wanted set is computed from the shared
+    // hasActiveEmergencyPrayer / hasActivePraise in
+    // prayercircle-data, whose own expiry comparison is pinned by
+    // people-v284 (lapsed excluded, renewed re-enters). The contract
+    // this pin guards — wanted cards come only from unexpired
+    // records — is unchanged.
+    expect(syncNowBlock).toContain("hasActiveEmergencyPrayer(person");
+    expect(syncNowBlock).toContain("hasActivePraise(person");
   });
 });

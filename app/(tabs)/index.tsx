@@ -251,131 +251,67 @@ type RelationshipSection = {
   familyGroups?: Person[][];
 };
 
-// Panel that visibly unfurls downward when it mounts: the content
-// measures itself (onLayout inside the window) and the window's
-// maxHeight animates to that REAL height, so rows are revealed
-// top-down on the family's one interactive clock — 320ms on the
-// Material standard easing, the queue tray's clock
-// (QUEUE_TRAY_DURATION_MS). Once the open settles, the window
-// drops the cap entirely (auto height) so the content can breathe;
-// closing re-locks the cap at the measured height and folds.
-// While the motion runs the panel rasterizes
-// (renderToHardwareTextureAndroid / shouldRasterizeIOS) so the
-// clip composites on the GPU; the texture releases at settle.
-// Reduced motion keeps the tray's contract: the panel is simply
-// there, no travel.
+// Panel that shows a household's members under its card.
+// It is PLAIN LAYOUT — no animated window, no clipping, no
+// measurement. When the family row mounts it (expanded or
+// closing), the members are simply in the layout at their
+// natural height, in the same commit as the header above them.
 //
-// v275 — "Unfurl Works Again" (his Oct 26 17:26 report: "When I
-// try to unfurl the group cards, it doesn't work..." — chevron
-// up, panel mounted, zero members): v267 had replaced this
-// maxHeight window with a DEFINITE animated height window that
-// measured its content from inside itself — a livelock. Yoga
-// clamps an in-flow child's computed height to a definite
-// parent's height, so inside the height:0 window the content's
-// onLayout reported 0 forever; the guards read that as "not
-// measured yet" and the open target stayed 0. maxHeight is a
-// CAP, not a definite height: the child is laid out at its
-// natural height, the window's own height is min(content,
-// maxHeight), and the measurement is always real. What v267
-// rightly killed stays dead — the animation target is the
-// MEASURED height, never the old 1200 ceiling (with a fixed 1200
-// ceiling the easing mapped onto a height the panel never
-// reaches, so the reveal rushed, stalled, and rushed — the lag
-// he filmed). Measured height makes the curve BE the motion.
+// v282 — "Unfurl, For Real This Time" (his Oct 27 08:29 report,
+// WITH v280 installed: Roberts Family chevron UP, zero members
+// — the v275 fix failed on his phone): two animated windows
+// died on this panel in a row. v267 animated a DEFINITE height
+// and measured its content from inside the height:0 box (a
+// livelock — the measurement clamped to 0 forever). v275
+// animated a maxHeight CAP to the measured height and passed a
+// source-model suite — but the model simulated the panel in
+// isolation, and the panel does not live in isolation: it is
+// content inside a VirtualizedList CELL, and the roster's
+// FlatList ran with removeClippedSubviews on Android. On
+// device the panel's visible height is decided by that whole
+// chain — Reanimated UI-thread maxHeight/opacity updates, a
+// hardware texture rasterized from the panel's 0-height first
+// frame (renderToHardwareTextureAndroid starts true), an
+// exiting layout animation, and a settle step that only runs
+// if a withTiming completion callback crosses back to JS —
+// while Android's clipped-subview machinery works from the
+// cell's recorded frame, which was the header alone. The
+// members were laid out but never survived the chain into
+// pixels; the gate stack had four places to lose them and the
+// model tested none of them.
+//
+// THE FIX removes the gate stack: no shared values, no
+// useAnimatedStyle, no maxHeight, no opacity gate, no hardware
+// texture, no exiting animation, no onLayout measurement, no
+// settle state — and the roster FlatList no longer removes
+// clipped subviews (people screen only). The panel's height is
+// whatever Yoga says its children are, in the same layout pass
+// as everything else on the page. The trade-off, stated
+// plainly: expand/collapse is INSTANT — the panel does not
+// travel. The motion that remains is the chrome around it,
+// which never broke: the chevron still turns on the 320ms
+// Material clock and the header card's fill still pours on
+// close. If a future verdict wants the travel back, it has to
+// be proven on a device inside this list first — not modeled
+// at a desk again.
 function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactNode; outerStyle?: { paddingTop?: number; paddingBottom?: number; [key: string]: unknown }; closing?: boolean }) {
-  // The frame's vertical padding rides INSIDE the measured content,
-  // so the animated height is the panel's true full height.
+  // The frame's vertical padding rides INSIDE the content box,
+  // so the panel's layout height is its true full height —
+  // the same accounting the animated window needed a
+  // measurement to learn.
   const { paddingTop, paddingBottom, ...frameStyle } = outerStyle ?? {};
-  const reveal = useSharedValue(0);
-  const opacity = useSharedValue(0);
-  const contentHeight = useSharedValue(0);
-  const closingRef = useRef(false);
-  closingRef.current = !!closing;
-  const openedRef = useRef(false);
-  const settledRef = useRef(false);
-  const [settled, setSettled] = useState(false);
-  const [rasterize, setRasterize] = useState(true);
-  const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => {
-    let live = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((value) => { if (live) setReducedMotion(value); })
-      .catch(() => undefined);
-    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReducedMotion);
-    return () => { live = false; subscription.remove(); };
-  }, []);
-
-  const settleOpen = () => { settledRef.current = true; setSettled(true); setRasterize(false); };
-  const runOpen = () => {
-    if (openedRef.current || closingRef.current || contentHeight.value <= 0) return;
-    openedRef.current = true;
-    if (reducedMotion) {
-      opacity.value = 1;
-      settleOpen();
-      return;
-    }
-    setRasterize(true);
-    opacity.value = withTiming(1, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
-    reveal.value = withTiming(contentHeight.value, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) }, (finished) => {
-      "worklet";
-      if (finished) runOnJS(settleOpen)();
-    });
-  };
-
-  // Closing folds from wherever the panel stands; re-opening
-  // mid-fold reverses from the current height (the tray's rule).
-  useEffect(() => {
-    if (closing === undefined) return;
-    if (closing) {
-      // From a settled (auto-height) panel, re-lock the cap at the
-      // content's current measured height before the fold begins —
-      // no jump.
-      if (settledRef.current) reveal.value = contentHeight.value;
-      settledRef.current = false;
-      setSettled(false);
-      if (reducedMotion) {
-        reveal.value = 0;
-        opacity.value = 0;
-        return;
-      }
-      setRasterize(true);
-      opacity.value = withTiming(0, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
-      reveal.value = withTiming(0, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
-    } else if (openedRef.current) {
-      settledRef.current = false;
-      setSettled(false);
-      setRasterize(true);
-      opacity.value = withTiming(1, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
-      reveal.value = withTiming(contentHeight.value, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) }, (finished) => {
-        "worklet";
-        if (finished) runOnJS(settleOpen)();
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closing]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    maxHeight: reveal.value,
-    opacity: opacity.value,
-  }));
-
-  const handleContentLayout = (layoutHeight: number) => {
-    if (layoutHeight > 0) contentHeight.value = layoutHeight;
-    runOpen();
-  };
-
+  // `closing` is accepted so both dress call sites stand
+  // unchanged; the panel renders identically either way — it is
+  // mounted for exactly the expanded-or-closing window the
+  // family row already gates on, and unmounts when the
+  // toggle's close timeout clears that state.
+  void closing;
   return (
-    <ReAnimated.View
-      style={[frameStyle, settled ? { opacity: 1 } : animatedStyle, { overflow: "hidden" }]}
-      renderToHardwareTextureAndroid={rasterize}
-      shouldRasterizeIOS={rasterize}
-      exiting={FadeOut.duration(180)}
-    >
-      <View style={{ paddingTop, paddingBottom }} onLayout={(event) => handleContentLayout(event.nativeEvent.layout.height)}>
+    <View style={frameStyle}>
+      <View style={{ paddingTop, paddingBottom }}>
         {children}
       </View>
-    </ReAnimated.View>
+    </View>
   );
 }
 
@@ -3658,7 +3594,15 @@ export default function HomeScreen() {
         maxToRenderPerBatch={4}
         windowSize={5}
         updateCellsBatchingPeriod={40}
-        removeClippedSubviews={Platform.OS === "android"}
+        // v282: clipped-subview removal is OFF for the roster.
+        // A household cell's height changes when its panel
+        // mounts; on Android the clipped-subview machinery works
+        // from the cell's recorded frame and clipped the grown
+        // panel away (his Oct 27 report — chevron up, members
+        // laid out, nothing visible). The list is windowed and
+        // its rows are memo-shelled (v267), so the scroll cost
+        // this was bought for is already paid elsewhere.
+        removeClippedSubviews={false}
         keyboardShouldPersistTaps="handled"
       />
     </View>

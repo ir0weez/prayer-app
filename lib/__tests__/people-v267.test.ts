@@ -26,6 +26,10 @@
  *     inside a height:0 box, Yoga clamped the measurement to 0,
  *     and the panel livelocked shut on device (his Oct 26 17:26
  *     report). See people-v275.test.ts for the full trace.]
+ *     [Re-based again by v282: the maxHeight window ALSO failed
+ *     on his phone (Oct 27 08:29, v280 installed — chevron up,
+ *     zero members). The animated window is retired altogether;
+ *     the panel is plain layout now. See people-v282.test.ts.]
  *  3. The v262 tray rasterizes its clipping window while animating
  *     (320ms timing and interruptibility stand).
  *  4. One interactive clock: unfurl, tray, chevron, and the skinned
@@ -94,32 +98,33 @@ describe("v267 — the emergency card lives (people-entrance kit + banner)", () 
 });
 
 describe("v267 — the household unfurl is smooth (index.tsx)", () => {
-  it("the panel animates to a MEASURED height — the 1200 guess is gone (window shape re-based by v275)", () => {
-    expect(unfurl).toContain("handleContentLayout");
-    expect(unfurl).toContain("onLayout={(event) => handleContentLayout(event.nativeEvent.layout.height)}");
-    // v275: the target is still the measured height, but it rides
-    // a maxHeight cap — a definite animated height window clamps
-    // its own measurement to 0 and the panel never opens.
-    expect(unfurl).toContain("maxHeight: reveal.value");
-    expect(unfurl).toContain("reveal.value = withTiming(contentHeight.value");
+  it("v282: the panel carries NO animated height at all — the window lineage (1200 guess → definite height → measured cap) is retired", () => {
+    // v267's measured animation and v275's maxHeight cap both
+    // failed on his phone; the panel is a plain View whose
+    // height is its children's layout height. Nothing to
+    // measure, nothing to clamp, nothing to animate shut.
+    expect(unfurl).toContain("<View style={frameStyle}>");
+    expect(unfurl).not.toContain("handleContentLayout");
+    expect(unfurl).not.toContain("maxHeight: reveal.value");
+    expect(unfurl).not.toContain("reveal.value = withTiming(contentHeight.value");
     expect(unfurl).not.toContain("height: height.value");
     expect(unfurl).not.toContain("1200");
   });
 
-  it("the panel rasterizes while it moves and releases at settle", () => {
-    expect(unfurl).toContain("renderToHardwareTextureAndroid={rasterize}");
-    expect(unfurl).toContain("shouldRasterizeIOS={rasterize}");
-    expect(unfurl).toContain("const settleOpen = () => { settledRef.current = true; setSettled(true); setRasterize(false); };");
+  it("v282: no rasterize-while-moving — the hardware texture left with the window", () => {
+    expect(unfurl).not.toContain("renderToHardwareTextureAndroid={rasterize}");
+    expect(unfurl).not.toContain("shouldRasterizeIOS={rasterize}");
+    expect(unfurl).not.toContain("const settleOpen = () => { settledRef.current = true; setSettled(true); setRasterize(false); };");
   });
 
-  it("settled panels return to auto height; closing re-locks at the measured height first", () => {
-    expect(unfurl).toContain("settled ? { opacity: 1 } : animatedStyle");
-    expect(unfurl).toContain("if (settledRef.current) reveal.value = contentHeight.value;");
+  it("v282: no settle swap, no closing re-lock — plain height needs neither", () => {
+    expect(unfurl).not.toContain("settled ? { opacity: 1 } : animatedStyle");
+    expect(unfurl).not.toContain("if (settledRef.current) reveal.value = contentHeight.value;");
   });
 
-  it("reduced motion folds with no travel (the tray's contract)", () => {
-    expect(unfurl).toContain("AccessibilityInfo.isReduceMotionEnabled()");
-    expect(unfurl).toContain("if (reducedMotion) {");
+  it("v282: the panel needs no reduced-motion branch — it is instant at every setting", () => {
+    expect(unfurl).not.toContain("AccessibilityInfo.isReduceMotionEnabled()");
+    expect(unfurl).not.toContain("if (reducedMotion) {");
   });
 });
 
@@ -156,8 +161,8 @@ describe("v267 — tray rasterization + the one interactive clock", () => {
     expect(index).toContain("setQueueTrayRasterize(false);");
   });
 
-  it("unfurl, chevron, and card-fill all ride the tray's 320ms clock on the Material easing", () => {
-    expect(unfurl).toContain("duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1)");
+  it("chevron and card-fill still ride the tray's 320ms clock on the Material easing (the panel itself is instant since v282)", () => {
+    expect(unfurl).not.toContain("withTiming");
     const chevron = index.slice(index.indexOf("function FamilyChevron"), index.indexOf("export default function HomeScreen"));
     expect(chevron).toContain("duration: QUEUE_TRAY_DURATION_MS,");
     expect(index).toContain("cardFillProgress.value = withTiming(1, { duration: QUEUE_TRAY_DURATION_MS, easing: fillEasing });");

@@ -39,6 +39,25 @@
  * are untouched — the failure predates v274 (the component is
  * byte-identical from v267's 3da2a7d through v274's fbf44f0;
  * v274's type-scale spreads never reach the panel).
+ *
+ * [SUPERSEDED by v282 — "Unfurl, For Real This Time" (his
+ * Oct 27 08:29 device report, WITH v280 installed): the
+ * maxHeight fix above passed this suite and STILL failed on
+ * his phone — same screenshot, chevron up, zero members. The
+ * model below simulated the panel in isolation (Yoga inside
+ * the window) and resolved a real open target; the device
+ * exercises the whole chain — the panel is content inside a
+ * VirtualizedList cell whose list ran removeClippedSubviews
+ * on Android, wrapped in a hardware texture rasterized from
+ * its 0-height first frame, an exiting layout animation, and
+ * a settle swap gated on a withTiming completion callback
+ * reaching JS. Any gate in that chain loses the members;
+ * this suite tested none of them. v282 removes the gate
+ * stack: the panel is a plain View at natural layout height
+ * and the roster list no longer clips subviews. The
+ * panel-shape pins below are re-based to that ruling;
+ * people-v282.test.ts carries the integration model. The
+ * regression sweep at the bottom stands unmoved.]
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -51,27 +70,29 @@ const index = read("app/(tabs)/index.tsx");
 const unfurl = index.slice(index.indexOf("function UnfurlPanel"), index.indexOf("const QUEUE_TRAY_DURATION_MS"));
 
 /**
- * The panel's target-resolution model, at the level the house
- * people tests operate: the window shape is EXTRACTED from the
- * shipped source, then the toggle is simulated under Yoga's
- * layout rule — an in-flow child of a definite-height window
- * reports its height clamped to the window (0 at rest); a child
- * under a maxHeight cap is laid out at its natural height.
- * runOpen's guard then resolves the open target exactly as the
- * component does: a non-positive measurement is "not ready yet"
- * and the target stays 0.
+ * The panel's target-resolution model, kept from the v275
+ * suite: the window shape is EXTRACTED from the shipped
+ * source, then the toggle is simulated under Yoga's layout
+ * rule. Under v282 there is no window at all — no animated
+ * style exists in the slice — so the content's layout height
+ * is its natural height by construction, and the "target" is
+ * simply that height. The model now passes trivially, which
+ * is the point: visibility no longer depends on a target
+ * resolving at all. (The discriminating integration model —
+ * the one that calls the v275 shape NOT visible — lives in
+ * people-v282.test.ts.)
  */
 function simulateUnfurlTarget(source: string, naturalHeight: number): { reportedLayout: number; openTarget: number; membersVisible: boolean } {
-  const animated = source.slice(source.indexOf("useAnimatedStyle"));
+  const animatedIdx = source.indexOf("useAnimatedStyle");
+  const animated = animatedIdx >= 0 ? source.slice(animatedIdx) : "";
   const windowIsDefiniteHeight = /height:\s*\w+\.value/.test(animated);
   const reportedLayout = windowIsDefiniteHeight ? 0 : naturalHeight;
-  // handleContentLayout + runOpen, as written in the component:
   const recorded = reportedLayout > 0 ? reportedLayout : 0;
   const openTarget = recorded <= 0 ? 0 : recorded;
   return { reportedLayout, openTarget, membersVisible: openTarget > 0 };
 }
 
-describe("v275 — the unfurl target resolves after a toggle (the livelock pin)", () => {
+describe("v275 — the unfurl target resolves after a toggle (the livelock pin, re-based by v282)", () => {
   it("with a household's real content height, the panel's open target is that height and members are visible", () => {
     // A six-member household panel: progress head + 6 rows + the
     // Mark as Complete bar — several hundred points tall.
@@ -81,50 +102,49 @@ describe("v275 — the unfurl target resolves after a toggle (the livelock pin)"
     expect(result.membersVisible).toBe(true);
   });
 
-  it("the window is a measured CAP — maxHeight carries the reveal value, never a definite animated height", () => {
-    expect(unfurl).toContain("maxHeight: reveal.value");
+  it("v282: there is no window left to clamp or cap — no animated style in the panel at all", () => {
+    expect(unfurl).not.toContain("useAnimatedStyle");
+    expect(unfurl).not.toContain("maxHeight: reveal.value");
     expect(unfurl).not.toContain("height: height.value");
     expect(unfurl).not.toContain("height: reveal.value");
-  });
-
-  it("the animation target is the MEASURED height — the 1200 ceiling stays dead", () => {
-    expect(unfurl).toContain("reveal.value = withTiming(contentHeight.value, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) }");
     expect(unfurl).not.toContain("1200");
   });
 
-  it("the measurement path is unchanged and now fed by a sound window", () => {
-    expect(unfurl).toContain("onLayout={(event) => handleContentLayout(event.nativeEvent.layout.height)}");
-    expect(unfurl).toContain("if (layoutHeight > 0) contentHeight.value = layoutHeight;");
-    expect(unfurl).toContain("contentHeight.value <= 0");
+  it("v282: the measured-target machinery is gone — no onLayout measurement, no runOpen guard", () => {
+    expect(unfurl).not.toContain("handleContentLayout");
+    expect(unfurl).not.toContain("onLayout={(event) => handleContentLayout(event.nativeEvent.layout.height)}");
+    expect(unfurl).not.toContain("contentHeight.value <= 0");
+    expect(unfurl).toContain("<View style={frameStyle}>");
   });
 });
 
-describe("v275 — the v267 motion contract survives the mechanism swap", () => {
-  it("one clock: 320ms on the Material standard easing, no springs", () => {
-    expect(unfurl).toContain("duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1)");
+describe("v275 — the v267 motion contract (retired by v282: the panel is instant; the chrome keeps the clock)", () => {
+  it("the panel itself carries no timing at all now — no 320ms travel, no springs, nothing to interrupt", () => {
+    expect(unfurl).not.toContain("withTiming");
     expect(unfurl).not.toContain("withSpring");
     expect(unfurl).not.toContain("bounce");
+    expect(unfurl).not.toContain("duration: QUEUE_TRAY_DURATION_MS");
   });
 
-  it("the panel rasterizes while it moves and releases at settle", () => {
-    expect(unfurl).toContain("renderToHardwareTextureAndroid={rasterize}");
-    expect(unfurl).toContain("shouldRasterizeIOS={rasterize}");
-    expect(unfurl).toContain("const settleOpen = () => { settledRef.current = true; setSettled(true); setRasterize(false); };");
+  it("no rasterize-while-moving: the hardware texture is gone with the motion", () => {
+    expect(unfurl).not.toContain("renderToHardwareTextureAndroid={rasterize}");
+    expect(unfurl).not.toContain("shouldRasterizeIOS={rasterize}");
+    expect(unfurl).not.toContain("settleOpen");
   });
 
-  it("settled panels return to auto height (no cap in the settled style); closing re-locks at the measured height first", () => {
-    expect(unfurl).toContain("settled ? { opacity: 1 } : animatedStyle");
-    expect(unfurl).toContain("if (settledRef.current) reveal.value = contentHeight.value;");
+  it("no settle swap and no closing re-lock — the panel is auto height because it is plain height", () => {
+    expect(unfurl).not.toContain("settled ? { opacity: 1 } : animatedStyle");
+    expect(unfurl).not.toContain("reveal.value = contentHeight.value");
   });
 
-  it("closing folds the cap to zero; reduced motion keeps the instant swap", () => {
-    expect(unfurl).toContain("reveal.value = withTiming(0, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });");
-    expect(unfurl).toContain("AccessibilityInfo.isReduceMotionEnabled()");
-    expect(unfurl).toContain("if (reducedMotion) {");
+  it("reduced motion needs no branch in the panel — instant is the only speed, for everyone", () => {
+    expect(unfurl).not.toContain("AccessibilityInfo.isReduceMotionEnabled()");
+    expect(unfurl).not.toContain("if (reducedMotion) {");
   });
 
-  it("the exit stays the quiet fade", () => {
-    expect(unfurl).toContain("exiting={FadeOut.duration(180)}");
+  it("the FadeOut exit is gone — the panel unmounts plainly with its row state", () => {
+    expect(unfurl).not.toContain("exiting={FadeOut.duration(180)}");
+    expect(unfurl).not.toContain("FadeOut");
   });
 });
 

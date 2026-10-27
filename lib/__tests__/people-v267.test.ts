@@ -20,6 +20,12 @@
  *     memoized shells keyed on a semantic fingerprint, so a toggle
  *     (or the 1Hz countdown tick) no longer re-renders the whole
  *     visible roster. The stylesheet is memoized too.
+ *     [Re-based by v275: the measured target stands, but the
+ *     window that carries it is a maxHeight CAP again — v267's
+ *     definite animated height window measured its content from
+ *     inside a height:0 box, Yoga clamped the measurement to 0,
+ *     and the panel livelocked shut on device (his Oct 26 17:26
+ *     report). See people-v275.test.ts for the full trace.]
  *  3. The v262 tray rasterizes its clipping window while animating
  *     (320ms timing and interruptibility stand).
  *  4. One interactive clock: unfurl, tray, chevron, and the skinned
@@ -88,11 +94,15 @@ describe("v267 — the emergency card lives (people-entrance kit + banner)", () 
 });
 
 describe("v267 — the household unfurl is smooth (index.tsx)", () => {
-  it("the panel animates a MEASURED height — the maxHeight guess is gone", () => {
+  it("the panel animates to a MEASURED height — the 1200 guess is gone (window shape re-based by v275)", () => {
     expect(unfurl).toContain("handleContentLayout");
     expect(unfurl).toContain("onLayout={(event) => handleContentLayout(event.nativeEvent.layout.height)}");
-    expect(unfurl).toContain("height: height.value");
-    expect(unfurl).not.toContain("maxHeight");
+    // v275: the target is still the measured height, but it rides
+    // a maxHeight cap — a definite animated height window clamps
+    // its own measurement to 0 and the panel never opens.
+    expect(unfurl).toContain("maxHeight: reveal.value");
+    expect(unfurl).toContain("reveal.value = withTiming(contentHeight.value");
+    expect(unfurl).not.toContain("height: height.value");
     expect(unfurl).not.toContain("1200");
   });
 
@@ -104,7 +114,7 @@ describe("v267 — the household unfurl is smooth (index.tsx)", () => {
 
   it("settled panels return to auto height; closing re-locks at the measured height first", () => {
     expect(unfurl).toContain("settled ? { opacity: 1 } : animatedStyle");
-    expect(unfurl).toContain("if (settledRef.current) height.value = contentHeight.value;");
+    expect(unfurl).toContain("if (settledRef.current) reveal.value = contentHeight.value;");
   });
 
   it("reduced motion folds with no travel (the tray's contract)", () => {

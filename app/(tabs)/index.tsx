@@ -251,26 +251,41 @@ type RelationshipSection = {
 };
 
 // Panel that visibly unfurls downward when it mounts: the content
-// measures itself (onLayout inside the clip) and the window animates
-// to that REAL height, so rows are revealed top-down on the family's
-// one interactive clock — 320ms on the Material standard easing, the
-// queue tray's clock (QUEUE_TRAY_DURATION_MS). v267 replaced the old
-// maxHeight 0→1200 guess: with a fixed 1200 ceiling the easing mapped
-// onto a height the panel never reaches, so the visible reveal
-// rushed then "animated" invisibly, and closing sat still for half
-// its run before rushing shut — the lag he filmed. Measured height
-// makes the curve BE the motion. Once the open settles, the window
-// returns to auto height so the content can breathe; closing
-// re-locks at the measured height and folds. While the motion runs
-// the panel rasterizes (renderToHardwareTextureAndroid /
-// shouldRasterizeIOS) so the clip composites on the GPU; the texture
-// releases at settle. Reduced motion keeps the tray's contract: the
-// panel is simply there, no travel.
+// measures itself (onLayout inside the window) and the window's
+// maxHeight animates to that REAL height, so rows are revealed
+// top-down on the family's one interactive clock — 320ms on the
+// Material standard easing, the queue tray's clock
+// (QUEUE_TRAY_DURATION_MS). Once the open settles, the window
+// drops the cap entirely (auto height) so the content can breathe;
+// closing re-locks the cap at the measured height and folds.
+// While the motion runs the panel rasterizes
+// (renderToHardwareTextureAndroid / shouldRasterizeIOS) so the
+// clip composites on the GPU; the texture releases at settle.
+// Reduced motion keeps the tray's contract: the panel is simply
+// there, no travel.
+//
+// v275 — "Unfurl Works Again" (his Oct 26 17:26 report: "When I
+// try to unfurl the group cards, it doesn't work..." — chevron
+// up, panel mounted, zero members): v267 had replaced this
+// maxHeight window with a DEFINITE animated height window that
+// measured its content from inside itself — a livelock. Yoga
+// clamps an in-flow child's computed height to a definite
+// parent's height, so inside the height:0 window the content's
+// onLayout reported 0 forever; the guards read that as "not
+// measured yet" and the open target stayed 0. maxHeight is a
+// CAP, not a definite height: the child is laid out at its
+// natural height, the window's own height is min(content,
+// maxHeight), and the measurement is always real. What v267
+// rightly killed stays dead — the animation target is the
+// MEASURED height, never the old 1200 ceiling (with a fixed 1200
+// ceiling the easing mapped onto a height the panel never
+// reaches, so the reveal rushed, stalled, and rushed — the lag
+// he filmed). Measured height makes the curve BE the motion.
 function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactNode; outerStyle?: { paddingTop?: number; paddingBottom?: number; [key: string]: unknown }; closing?: boolean }) {
   // The frame's vertical padding rides INSIDE the measured content,
   // so the animated height is the panel's true full height.
   const { paddingTop, paddingBottom, ...frameStyle } = outerStyle ?? {};
-  const height = useSharedValue(0);
+  const reveal = useSharedValue(0);
   const opacity = useSharedValue(0);
   const contentHeight = useSharedValue(0);
   const closingRef = useRef(false);
@@ -301,7 +316,7 @@ function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactN
     }
     setRasterize(true);
     opacity.value = withTiming(1, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
-    height.value = withTiming(contentHeight.value, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) }, (finished) => {
+    reveal.value = withTiming(contentHeight.value, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) }, (finished) => {
       "worklet";
       if (finished) runOnJS(settleOpen)();
     });
@@ -312,25 +327,26 @@ function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactN
   useEffect(() => {
     if (closing === undefined) return;
     if (closing) {
-      // From a settled (auto-height) panel, re-lock at the content's
-      // current measured height before the fold begins — no jump.
-      if (settledRef.current) height.value = contentHeight.value;
+      // From a settled (auto-height) panel, re-lock the cap at the
+      // content's current measured height before the fold begins —
+      // no jump.
+      if (settledRef.current) reveal.value = contentHeight.value;
       settledRef.current = false;
       setSettled(false);
       if (reducedMotion) {
-        height.value = 0;
+        reveal.value = 0;
         opacity.value = 0;
         return;
       }
       setRasterize(true);
       opacity.value = withTiming(0, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
-      height.value = withTiming(0, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
+      reveal.value = withTiming(0, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
     } else if (openedRef.current) {
       settledRef.current = false;
       setSettled(false);
       setRasterize(true);
       opacity.value = withTiming(1, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) });
-      height.value = withTiming(contentHeight.value, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) }, (finished) => {
+      reveal.value = withTiming(contentHeight.value, { duration: QUEUE_TRAY_DURATION_MS, easing: Easing.bezier(0.2, 0, 0, 1) }, (finished) => {
         "worklet";
         if (finished) runOnJS(settleOpen)();
       });
@@ -339,7 +355,7 @@ function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactN
   }, [closing]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    height: height.value,
+    maxHeight: reveal.value,
     opacity: opacity.value,
   }));
 

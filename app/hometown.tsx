@@ -17,6 +17,7 @@ import {
   TOWN_MAP_IDS,
   dailyIncomeForMap,
   accrueAwayIncome,
+  cafeAnchorDiner,
   missedDaysIncome,
   presenceMultiplierFor,
   grantFlyers,
@@ -321,7 +322,7 @@ import {
   type VillagerLocations,
 } from "@/lib/villager-locations";
 import { SeasonalBorder } from "@/components/seasonal-border";
-import { GreatPeakArt } from "@/components/great-peak";
+
 import { MapSigns } from "@/components/map-signs";
 import { MissionField } from "@/components/mission-field";
 import { DarkForest } from "@/components/dark-forest";
@@ -352,7 +353,6 @@ import {
   buildAwayReport,
   formatWholeCoins,
   HOMETOWN_LAST_VISIT_KEY,
-  HORIZON_DRESS,
   phaseForTimeOfDay,
   phaseWindowsLit,
   PHASE_WASH,
@@ -376,7 +376,21 @@ import {
 } from "@/lib/schedule-sync";
 import { PlayerPawnWanderer } from "@/components/player-pawn";
 import { WalkableTownShell } from "@/components/walkable-town";
-import { planWalkTo, type WalkTile } from "@/lib/walkable-town";
+import { type WalkTile } from "@/lib/walkable-town";
+import { StreetWorldView } from "@/components/wide-street";
+import { StreetVillagers } from "@/components/street-villagers";
+import {
+  defaultWideStreetState,
+  deriveStreetWorld,
+  loadWideStreetState,
+  planStreetWalk,
+  saveWideStreetState,
+  settleWideStreetMigration,
+  streetPlaceAt,
+  streetPlaceByBuildingId,
+  type StreetPlace,
+  type WideStreetState,
+} from "@/lib/wide-street";
 import { GardenOfRemembrance } from "@/components/garden-of-remembrance";
 import { TheWell } from "@/components/the-well";
 import { FireworksOverlay } from "@/components/fireworks";
@@ -780,44 +794,9 @@ function lampForTile(x: number, y: number): boolean {
   return (x * 7 + y * 13) % 9 === 0;
 }
 
-/** The rooftop silhouette along the horizon strip: width/height as
- * fractions, some with a chimney nub seated on top. */
-const HORIZON_ROOFLINE: Array<{ w: number; h: number; chimney?: boolean }> = [
-  { w: 0.07, h: 0.3 }, { w: 0.05, h: 0.22, chimney: true }, { w: 0.08, h: 0.34 },
-  { w: 0.06, h: 0.26 }, { w: 0.07, h: 0.31, chimney: true }, { w: 0.05, h: 0.24 },
-  { w: 0.08, h: 0.33 }, { w: 0.06, h: 0.27, chimney: true }, { w: 0.07, h: 0.3 },
-];
-
-/** v285 — the Horizon: layers of paper hills and the town's own
- * rooftops between the Great Peak and the streets, dressed by the
- * same day phase as everything else in the scene (lib/welcoming-town
- * HORIZON_DRESS). Presentation only; nothing here takes a tap. */
-function TownHorizon({ width, phase }: { width: number; phase: DayPhase }) {
-  const d = HORIZON_DRESS[phase];
-  const h = Math.max(26, width * 0.09);
-  return (
-    <View pointerEvents="none" style={{ width, height: h, overflow: "hidden", marginBottom: 2 }}>
-      {/* far hills */}
-      <View style={{ position: "absolute", bottom: h * 0.34, left: -width * 0.1, width: width * 1.2, height: h * 0.95, borderRadius: width * 0.6, backgroundColor: d.far }} />
-      {/* near hills, shouldering in from both sides */}
-      <View style={{ position: "absolute", bottom: h * 0.12, left: -width * 0.28, width: width * 1.05, height: h * 0.78, borderRadius: width * 0.55, backgroundColor: d.near }} />
-      <View style={{ position: "absolute", bottom: h * 0.12, right: -width * 0.28, width: width * 1.05, height: h * 0.78, borderRadius: width * 0.55, backgroundColor: d.near }} />
-      {/* the town's own rooftops along the strip's foot */}
-      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: h * 0.36, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: width * 0.04 }}>
-        {HORIZON_ROOFLINE.map((r, i) => (
-          <View key={i} style={{ width: width * r.w, height: h * r.h, backgroundColor: d.roofs, borderTopLeftRadius: 3, borderTopRightRadius: 3 }}>
-            {r.chimney && (
-              <View style={{ position: "absolute", top: -3, right: 2, width: 3, height: 5, backgroundColor: d.roofs }} />
-            )}
-            {d.windowsLit && (
-              <View style={{ position: "absolute", top: "38%", left: "30%", width: 3, height: 4, backgroundColor: "#FDE68A", borderRadius: 1 }} />
-            )}
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
+/* v291: the Horizon strip that crowned the old grid retired with
+ * it — the skyline now rides at the Wide Street's head, in the same
+ * HORIZON_DRESS (components/street-places-art, StreetSkyline). */
 
 function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH, blessed = false, night = false }: { type: string; size: number; level?: number; floors?: number; prayedCount?: number; artH?: number; blessed?: boolean; night?: boolean }) {
   const s = size;
@@ -4110,6 +4089,14 @@ export default function HometownScreen() {
   const [cafePeople, setCafePeople] = useState<Person[]>([]);
   const [cafeFast, setCafeFast] = useState<PersonalFast | null>(null);
   const [cafeWeekLots, setCafeWeekLots] = useState(0);
+  // v291 (the Wide Street): the retirement migration's stored state —
+  // its flag, and any swept coins still waiting for a diner to land
+  // on (they wait at the café as its register pile; lib/wide-street).
+  const [wideStreetState, setWideStreetState] = useState<WideStreetState>(() =>
+    defaultWideStreetState()
+  );
+  const wideStreetStateRef = useRef(wideStreetState);
+  wideStreetStateRef.current = wideStreetState;
   const [cafeDay, setCafeDay] = useState<string>(() => getTodayISOString());
   /** The Welcoming Town (v271): the entry greeting — set once per
    *  Hometown entry (this screen mounting); the villagers nearest the
@@ -5848,6 +5835,18 @@ export default function HometownScreen() {
           const parsedVisit = rawVisit ? Number(rawVisit) : NaN;
           lastVisitMs = Number.isFinite(parsedVisit) && parsedVisit > 0 ? parsedVisit : null;
         } catch {}
+        // v291 (the Wide Street): the retirement migration's state,
+        // read before the accrual commit so the sweep can ride the
+        // same atomic write (see settleWideStreetMigration below).
+        let wideStreetOnLoad = defaultWideStreetState();
+        try {
+          wideStreetOnLoad = await loadWideStreetState();
+        } catch {}
+        // The town as the accrual left it, before the sweep — the
+        // return report below reads THIS, so the one-time sweep is
+        // never told as earnings (the sweep moves waiting coins; it
+        // earns nothing).
+        let preMigrationTown: TownState | null = null;
         let awayPresenceCounts: Record<string, number> | null = null;
         try {
           const [storedLocations, workNow, missionsNow] = await Promise.all([
@@ -5954,10 +5953,23 @@ export default function HometownScreen() {
         // at this point (whether or not an award fired — including a
         // fresh town's null anchor). Same fold here, inside the commit.
         t = { ...t, lastIncomeDate: today };
+        // v291 (the Wide Street): the retirement sweep — every coin
+        // still waiting on a retired town building lands on the
+        // café's register pile (the anchor diner's accumulated). It
+        // rides THIS commit: one write, so the sweep can never land
+        // twice or strand half-moved. Idempotent — after the first
+        // sweep the sources stand at zero (lib/wide-street).
+        preMigrationTown = t;
+        const mig = settleWideStreetMigration(t, wideStreetOnLoad);
+        t = mig.town;
         try {
           await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(t));
         } catch {}
         setTown(t);
+        if (mig.changed) {
+          saveWideStreetState(mig.state).catch(() => undefined);
+        }
+        setWideStreetState(mig.state);
         // The missed-days award lands right after the commit — the
         // same position relative to the town paint the old chain gave
         // it. The day count itself can never double-award:
@@ -5990,7 +6002,11 @@ export default function HometownScreen() {
           const awayDeltas: { buildingId: string; name: string; coins: number }[] = [];
           let awayWaiting = 0;
           for (const mid of TOWN_MAP_IDS) {
-            for (const b of t.maps[mid]?.buildings ?? []) {
+            // v291: read the PRE-sweep town (when there was a sweep)
+            // so the migration is never reported as earnings; the
+            // total waiting is the same either way — the sweep
+            // conserves it, it only moves where it waits.
+            for (const b of (preMigrationTown ?? t).maps[mid]?.buildings ?? []) {
               awayWaiting += b.accumulated || 0;
               const delta = (b.accumulated || 0) - (preAccrualPiles.get(b.id) ?? 0);
               if (delta > 0) {
@@ -6212,6 +6228,16 @@ export default function HometownScreen() {
             }
           }
         }
+        // v291 (the Wide Street): on the town map, presence for the
+        // café — the town's only earner now — is measured where the
+        // café stands on the street (its doorstep tile) against the
+        // street villagers' positions, in the street's own
+        // coordinates. The same engine function, the same reach.
+        const tickStreet = deriveStreetWorld(prev.maps.town);
+        const tickCafeDoor =
+          tickStreet.cafe && tickStreet.cafeBuildingId
+            ? { id: tickStreet.cafeBuildingId, x: tickStreet.cafe.door.x, y: tickStreet.cafe.door.y }
+            : null;
         for (const mapId of TOWN_MAP_IDS) {
           const m = newMaps[mapId];
           if (!m) continue;
@@ -6242,11 +6268,18 @@ export default function HometownScreen() {
             // uses the away proxy — but counting only the villagers
             // located on THAT map, so a crowd in town no longer feeds
             // presence on the school or city maps (single-location truth).
+            // v291: the café's presence is measured at its street
+            // doorstep (above); every other building keeps its own
+            // record coordinates.
+            const presenceBuilding =
+              mapId === "town" && tickCafeDoor && b.id === tickCafeDoor.id
+                ? { x: tickCafeDoor.x, y: tickCafeDoor.y }
+                : b;
             const presenceMult =
               mapId === activeMapRef.current
-                ? presenceMultiplierFor(b, positions, prayedTodayRef.current, true)
+                ? presenceMultiplierFor(presenceBuilding, positions, prayedTodayRef.current, true)
                 : presenceMultiplierFor(
-                    b,
+                    presenceBuilding,
                     [],
                     locatedCountOnMap(
                       villagerLocationsRef.current,
@@ -7530,22 +7563,34 @@ export default function HometownScreen() {
   }, []);
 
   /** Walk the Hero to a tile, then run `action` (a null action is a
-   *  pure stroll — the tap just moves him). */
+   *  pure stroll — the tap just moves him).
+   *
+   *  v291 (the Wide Street): the plan is the street's own BFS
+   *  (planStreetWalk — never crosses a footprint). The never-swallow
+   *  contract is unchanged and now pinned: when walking isn't
+   *  possible (night, the pawn not on the map yet, a building being
+   *  moved, no street, no route, already there) the action runs
+   *  IMMEDIATELY; when a walk starts, arrival runs it — and if
+   *  arrival never reports, the watchdog runs it anyway, on a
+   *  budget sized to the pawn's real pace (~0.87s a tile at
+   *  46px/s, plus grace) — never the v290 budget that could leave
+   *  a tap hanging for the better part of a minute. */
   const dispatchWalkTo = (target: WalkTile, action: (() => void) | null) => {
+    const sw = streetWorldRef.current;
     if (!action) {
-      if (isNight || !heroReadyRef.current) return;
+      if (isNight || !heroReadyRef.current || !sw) return;
       const from = {
         x: Math.floor(heroPosRef.current.x / cellSize),
         y: Math.floor(heroPosRef.current.y / cellSize),
       };
-      const plan = planWalkTo(map, from, target);
+      const plan = planStreetWalk(sw, from, target);
       if (!plan || plan.tiles.length <= 1) return;
       const seq = ++walkSeqRef.current;
       setWalkCmd({ tiles: plan.tiles, seq });
       setWalkNonce(seq);
       return;
     }
-    if (activeMap !== "town" || isNight || !heroReadyRef.current || movingBuilding) {
+    if (activeMap !== "town" || isNight || !heroReadyRef.current || movingBuilding || !sw) {
       action();
       return;
     }
@@ -7553,7 +7598,7 @@ export default function HometownScreen() {
       x: Math.floor(heroPosRef.current.x / cellSize),
       y: Math.floor(heroPosRef.current.y / cellSize),
     };
-    const plan = planWalkTo(map, from, target);
+    const plan = planStreetWalk(sw, from, target);
     if (!plan || plan.tiles.length <= 1) {
       action();
       return;
@@ -7562,49 +7607,135 @@ export default function HometownScreen() {
     const seq = ++walkSeqRef.current;
     pendingWalkRef.current = { seq, run: action };
     // Watchdog: if arrival never reports (night falls mid-walk, the
-    // pawn unmounts), the tap's action still lands.
+    // pawn unmounts, a walk segment is interrupted), the tap's
+    // action still lands — sized to the walk itself, not a minute.
     walkWatchdogRef.current = setTimeout(
       () => firePendingWalk(seq),
-      plan.tiles.length * 1400 + 5000
+      plan.tiles.length * 1050 + 2500
     );
     setWalkCmd({ tiles: plan.tiles, seq });
     setWalkNonce(seq);
   };
 
-  const tileFromWorldPx = (px: { x: number; y: number }): WalkTile => ({
-    x: Math.max(0, Math.min(gridW - 1, Math.floor(px.x / cellSize))),
-    y: Math.max(0, Math.min(gridH - 1, Math.floor(px.y / cellSize))),
-  });
+  const tileFromWorldPx = (px: { x: number; y: number }): WalkTile => {
+    const sw = streetWorldRef.current;
+    const w = sw ? sw.w : gridW;
+    const h = sw ? sw.h : gridH;
+    return {
+      x: Math.max(0, Math.min(w - 1, Math.floor(px.x / cellSize))),
+      y: Math.max(0, Math.min(h - 1, Math.floor(px.y / cellSize))),
+    };
+  };
 
-  /** A tap on the walkable town's ground (world pixel coordinates).
-   *  Buildings, landmarks and lots act through the existing tile
-   *  press once the Hero reaches their door; a building with coins
-   *  waiting collects them on arrival (the existing collect flow),
-   *  then opens as it always has. Open ground just walks him there. */
+  /** Collect the migration's waiting sum in person: coins that were
+   *  swept before any diner stood land in the balance only here, at
+   *  the café, by his own tap — never silently, never automatically. */
+  const collectPendingRegister = () => {
+    const amount = wideStreetStateRef.current.pendingRegister || 0;
+    if (amount <= 0) return;
+    const next: WideStreetState = { migrated: true, pendingRegister: 0 };
+    wideStreetStateRef.current = next;
+    setWideStreetState(next);
+    saveWideStreetState(next).catch(() => undefined);
+    addCoins(amount);
+    try {
+      pulseBalance();
+      showCollectReceipt(`+${formatCoins(amount)}`);
+    } catch {}
+  };
+
+  /** What arriving at a street place does — the SAME handlers the
+   *  town has always run, reached through the street's doors. The
+   *  café collects what waits at its register first (the existing
+   *  collect flow), then opens the café scene, exactly as its door
+   *  always has. */
+  const runStreetPlace = (place: StreetPlace) => {
+    const townMapNow = townRef.current?.maps.town;
+    switch (place.kind) {
+      case "cafe": {
+        const anchor = townMapNow ? cafeAnchorDiner(townMapNow) : null;
+        if (anchor && (anchor.accumulated || 0) > 0 && !isUnderConstruction(anchor, Date.now())) {
+          handleCollectBuilding(anchor.id);
+        }
+        if ((wideStreetStateRef.current.pendingRegister || 0) > 0) {
+          collectPendingRegister();
+        }
+        if (anchor) handleTownLotBuildingPress(anchor);
+        else router.push("/cafe-street-scene");
+        break;
+      }
+      case "mine":
+        router.push("/mine-mouth");
+        break;
+      case "forest":
+        handleMapSignSelect("forest");
+        break;
+      case "gate":
+        if (place.landmark) handleMapSignSelect(place.landmark.targetMap);
+        break;
+      case "house":
+        router.push("/pawn-house");
+        break;
+      case "home": {
+        const b = place.buildingId
+          ? townMapNow?.buildings.find((bb) => bb.id === place.buildingId)
+          : undefined;
+        if (b) handleTownLotBuildingPress(b);
+        break;
+      }
+    }
+  };
+
+  /** A tap on a place's own doorstep Pressable (components/
+   *  wide-street renders one per place, above its art): the walk
+   *  starts on THIS tap, synchronously, and the place opens on
+   *  arrival — or at once when he's already at the door, or via the
+   *  watchdog if arrival never reports. A tap is never swallowed. */
+  const handleStreetPlacePress = (place: StreetPlace) => {
+    dispatchWalkTo(place.door, () => runStreetPlace(place));
+  };
+
+  /** A tap on the register pile itself: collect in person, at once —
+   *  the pile's only mover, never gated behind a walk. */
+  const handleCollectPilePress = () => {
+    const anchor = cafeAnchorDiner(town.maps.town);
+    if (anchor && (anchor.accumulated || 0) > 0 && !isUnderConstruction(anchor, Date.now())) {
+      handleCollectBuilding(anchor.id);
+    }
+    if ((wideStreetStateRef.current.pendingRegister || 0) > 0) {
+      collectPendingRegister();
+    }
+  };
+
+  /** A tap on the street's ground (world pixel coordinates, from
+   *  the street's own ground Pressable inside its subtree). Open
+   *  ground just walks him there; a place under the tap — its art
+   *  is pointer-events-none, so a tap can land here even inside a
+   *  footprint's margin — walks him to its door and opens it. */
   const handleWalkTapWorld = (px: { x: number; y: number }) => {
+    const sw = streetWorldRef.current;
+    if (!sw) return;
     const { x, y } = tileFromWorldPx(px);
-    const building = buildingAt(x, y);
-    const landmark = !building ? townLandmarkAt(x, y) : undefined;
-    const lot = !building && !landmark ? townLotAt(x, y) : undefined;
-    if (!building && !landmark && !lot) {
+    const place = streetPlaceAt(sw, x, y);
+    if (!place || place.kind === "empty-lot") {
       dispatchWalkTo({ x, y }, null);
       return;
     }
-    dispatchWalkTo({ x, y }, () => {
-      if (building && (building.accumulated || 0) > 0 && !isUnderConstruction(building, Date.now())) {
-        handleCollectBuilding(building.id);
-      }
-      handleTilePress(x, y);
-    });
+    dispatchWalkTo(place.door, () => runStreetPlace(place));
   };
 
   const handleWalkLongPressWorld = (px: { x: number; y: number }) => {
+    const sw = streetWorldRef.current;
+    if (!sw) return;
     const { x, y } = tileFromWorldPx(px);
-    const b = buildingAt(x, y);
-    if (b) setPopupBuilding(b);
+    const place = streetPlaceAt(sw, x, y);
+    if (place?.buildingId) {
+      const b = town.maps.town.buildings.find((bb) => bb.id === place.buildingId);
+      if (b) setPopupBuilding(b);
+    }
   };
 
-  /** On the walkable town, tapping a villager sends the Hero to them
+  /** On the street, tapping a villager sends the Hero to them
    *  first; their sheet opens when he arrives. */
   const handleVillagerTapWalk = (p: { id: string; name: string; tile?: { x: number; y: number } }) => {
     if (activeMap !== "town" || !p.tile) {
@@ -7612,12 +7743,6 @@ export default function HometownScreen() {
       return;
     }
     dispatchWalkTo(p.tile, () => handleVillagerTap(p));
-  };
-
-  /** The Mountain: the Hero walks to the lane's end under the
-   *  Schoolhouse, then steps up to the cave mouth as always. */
-  const handlePeakPress = () => {
-    dispatchWalkTo({ x: 4, y: 2 }, () => router.push("/mine-mouth"));
   };
 
   const handleBuild = (type: BuildingType) => {
@@ -8080,6 +8205,67 @@ export default function HometownScreen() {
       hasBuilding: false,
     };
   }, [activeMap, hometownLocked, town, cellSize]);
+  // v291 (the Wide Street): the town map's street derivation — the
+  // record stays canonical; the street is derived from it (plus the
+  // migration's waiting sum), deterministically, every render. The
+  // walk handlers read it through the ref so a tap always plans
+  // against the street as it stands NOW.
+  const streetWorld = useMemo(
+    () =>
+      activeMap === "town" && !hometownLocked
+        ? deriveStreetWorld(town.maps.town, {
+            pendingRegister: wideStreetState.pendingRegister,
+            weekLots: cafeWeekLots,
+          })
+        : null,
+    [activeMap, hometownLocked, town, wideStreetState, cafeWeekLots]
+  );
+  const streetWorldRef = useRef(streetWorld);
+  streetWorldRef.current = streetWorld;
+  /** The street's roads under the pawn's feet (his stroll network). */
+  const streetMapState = useMemo(
+    () =>
+      streetWorld
+        ? {
+            ...town.maps.town,
+            roads: streetWorld.roads.map((t) => ({ id: `street-road-${t.x}-${t.y}`, x: t.x, y: t.y })),
+          }
+        : town.maps.town,
+    [streetWorld, town]
+  );
+  /** Where the schedule asks the Hero to be, in street coordinates:
+   *  the doorstep of the place that building became. Buildings with
+   *  no street place retire from the schedule's map life — he just
+   *  strolls the street. */
+  const streetDestTile = useMemo(() => {
+    if (!streetWorld || !scheduleTarget?.buildingId) return null;
+    return streetPlaceByBuildingId(streetWorld, scheduleTarget.buildingId)?.door ?? null;
+  }, [streetWorld, scheduleTarget]);
+  /** Homes whose dealt residents include someone prayed for today —
+   *  their warm dress on the street. */
+  const awakeHomeIds = useMemo(() => {
+    const out = new Set<string>();
+    if (activeMap !== "town") return out;
+    for (const b of town.maps.town.buildings) {
+      if (b.type !== "villager-cottage" && b.type !== "house") continue;
+      if (cottageResidents(town.maps.town.buildings, b.id, lightInfos).length > 0) out.add(b.id);
+    }
+    return out;
+  }, [activeMap, town, lightInfos]);
+  /** personId → the doorstep of the home the record deals them. */
+  const streetHomeDoors = useMemo(() => {
+    const out = new Map<string, WalkTile>();
+    if (!streetWorld) return out;
+    for (const b of town.maps.town.buildings) {
+      if (b.type !== "villager-cottage") continue;
+      const place = streetPlaceByBuildingId(streetWorld, b.id);
+      if (!place) continue;
+      for (const r of cottageResidents(town.maps.town.buildings, b.id, lightInfos)) {
+        out.set(String(r.personId), place.door);
+      }
+    }
+    return out;
+  }, [streetWorld, town, lightInfos]);
   // The base grid (340 tappable cells on the town map) is memoized: it
   // depends only on the map data + selection, so unrelated state changes
   // (modals, clocks, collect FX) no longer rebuild hundreds of Pressables
@@ -8647,26 +8833,12 @@ export default function HometownScreen() {
         </SeasonalBorder>
       ) : (
       <View style={{ alignItems: "center", marginBottom: 16 }}>
-        {/* The Mountain (v168): the Great Peak crowns the TOP edge
-            of the town map, above the grid, so no lot, road or
-            landmark moves. One tap target: the peak opens on the
-            cave MOUTH (v172) — the entrance setup area (rest, tool
-            check, sell the satchel) — and only from there does the
-            hero step down into the cave. The mountain has no name —
-            it should FEEL safe (refuge, warm light at the door),
-            never say so (v169). Town map only — never city or school. */}
-        {activeMap === "town" && (
-          <Pressable
-            onPress={handlePeakPress}
-            accessibilityLabel="The Mine — the cave mouth"
-            style={{ marginBottom: 10 }}
-          >
-            <GreatPeakArt width={gridW * cellSize} night={isNight || timeOfDay === "evening"} />
-          </Pressable>
-        )}
-        {/* The Horizon (v285): hills and rooftops between the Peak and
-            the streets, in the day phase's own dress. */}
-        {activeMap === "town" && <TownHorizon width={gridW * cellSize} phase={dayPhase} />}
+        {/* v291 (the Wide Street): the Great Peak banner and the
+            horizon strip that crowned the old grid are gone — the
+            Mine is a place ON the street now (its rock face at the
+            east end, its own doorstep Pressable), and the skyline
+            rides at the street's head in the same horizon dress
+            (components/street-places-art). */}
         <SeasonalBorder
           variant={activeMap === "city" ? "city" : activeMap === "school" ? "school" : "town"}
           lighthouse={
@@ -8682,19 +8854,56 @@ export default function HometownScreen() {
         >
         <WalkableTownShell
           enabled={activeMap === "town"}
-          worldW={gridW * cellSize}
-          worldH={gridH * cellSize}
-          viewportH={TOWN_VIEWPORT_H}
+          worldW={activeMap === "town" && streetWorld ? streetWorld.w * cellSize : gridW * cellSize}
+          worldH={activeMap === "town" && streetWorld ? streetWorld.h * cellSize : gridH * cellSize}
+          viewportH={activeMap === "town" && streetWorld ? streetWorld.h * cellSize : TOWN_VIEWPORT_H}
+          viewportW={gridW * cellSize}
           heroPosRef={heroPosRef}
           followNonce={walkNonce}
-          onTapWorld={handleWalkTapWorld}
-          onLongPressWorld={handleWalkLongPressWorld}
         >
-        <View ref={mapGridRef} style={{ position: "relative" }}>
-          {/* On the walkable town the ground cells are pure art: the
-              shell's ground surface hears the taps (cells would eat
-              them cell-by-cell and the walk would never start). */}
-          <View pointerEvents={activeMap === "town" ? "none" : "auto"}>{rows}</View>
+        {activeMap === "town" && streetWorld ? (
+          <View ref={mapGridRef} style={{ position: "relative", width: streetWorld.w * cellSize, height: streetWorld.h * cellSize }}>
+            {/* v291: the Wide Street itself — its places, its people,
+                its ground, all carrying their own Pressables inside
+                this subtree (the v290 lesson: a tap must land on a
+                real Pressable in the same tree as the art). */}
+            <StreetWorldView
+              world={streetWorld}
+              cellSize={cellSize}
+              phase={dayPhase}
+              ovenLit={cafeOven === "lit"}
+              cafeAlert={!!cafeBoard?.tickets.some((t) => t.kind === "emergency")}
+              awakeHomeIds={awakeHomeIds}
+              onGroundPress={handleWalkTapWorld}
+              onGroundLongPress={handleWalkLongPressWorld}
+              onPlacePress={handleStreetPlacePress}
+              onCollectPile={handleCollectPilePress}
+              villagers={
+                <StreetVillagers
+                  world={streetWorld}
+                  cellSize={cellSize}
+                  lights={lightsForActiveMap}
+                  homeDoorByPerson={streetHomeDoors}
+                  positionsRef={townNpcPositionsRef}
+                  missionWaitingIds={vmWaitingIds}
+                  onVillagerTap={handleVillagerTapWalk}
+                />
+              }
+            >
+              <PlayerPawnWanderer
+                cellSize={cellSize}
+                destTile={streetDestTile}
+                mapState={streetMapState}
+                commandPath={walkCmd}
+                onCommandArrive={handleCommandArrive}
+                positionRef={heroPosRef}
+                onReady={() => { heroReadyRef.current = true; }}
+              />
+            </StreetWorldView>
+          </View>
+        ) : (
+          <View ref={mapGridRef} style={{ position: "relative" }}>
+          <View>{rows}</View>
           {/* Street lamps (v285): a post stands IN the lane's edge on
               its rhythm tiles; at dusk and through the night the lamp
               lights and pools its glow on the paper street. */}
@@ -9378,7 +9587,8 @@ export default function HometownScreen() {
             spec={celebrationQueue[0] ?? null}
             onDone={dismissCelebration}
           />
-        </View>
+          </View>
+        )}
         </WalkableTownShell>
         </SeasonalBorder>
         {/* The Welcoming Town (v271): the while-you-were-gone report —

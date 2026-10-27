@@ -480,7 +480,15 @@ describe("v285 dress — renderer wiring (source pins)", () => {
   });
 
   it("the map wears the horizon, the lamps and the dusk long shadows", () => {
-    expect(town).toContain("TownHorizon");
+    // v291 re-base: the horizon strip retired with the old grid —
+    // the Wide Street wears the same horizon dress at its head
+    // (StreetSkyline, components/street-places-art, from the same
+    // HORIZON_DRESS). The lamps and dusk shadows still pin the town
+    // screen's own source (they dress the other maps' grids).
+    expect(town).toContain("StreetWorldView");
+    const skyline = read("components/street-places-art.tsx");
+    expect(skyline).toContain("StreetSkyline");
+    expect(skyline).toContain("HORIZON_DRESS");
     expect(town).toContain("lampForTile(");
     expect(town).toContain('dayPhase === "dusk"');
     expect(town).toContain("longShadow");

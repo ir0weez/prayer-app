@@ -44,6 +44,7 @@ import {
   planWalkTo,
   walkBlockedTiles,
 } from "@/lib/walkable-town";
+import { deriveStreetWorld } from "@/lib/wide-street";
 import { buildCafeBoard } from "@/lib/cafe-street";
 import type { Person, PrayerItem } from "@/lib/prayercircle-data";
 
@@ -130,8 +131,12 @@ describe("v290 (b) — no auto-collect: income waits in piles, balance untouched
   }
 
   function churchTown(): TownState {
+    // v291 re-base: the fixture church stands on the CITY map — Part
+    // 2 retired the town map's building set (the café alone earns
+    // there now), so the settle contract is pinned where a church
+    // still earns. The arithmetic and the contract are unchanged.
     const town = emptyTownState();
-    town.maps.town.buildings = [
+    town.maps.city.buildings = [
       {
         id: "church-1",
         type: "church",
@@ -148,7 +153,7 @@ describe("v290 (b) — no auto-collect: income waits in piles, balance untouched
 
   it("the settle grows the building's pile and nothing else — the record holds no balance", () => {
     const { town: out, rates } = accrueAwayIncome(churchTown(), inputs());
-    const b = out.maps.town.buildings[0];
+    const b = out.maps.city.buildings[0];
     // The coins are all still AT the building, waiting.
     expect(b.accumulated).toBeGreaterThan(0);
     // The accrual result carries no wallet for them to leak into.
@@ -177,18 +182,22 @@ describe("v290 (b) — no auto-collect: income waits in piles, balance untouched
     expect(pawn).not.toContain("handleCollectBuilding");
   });
 
-  it("the one new collect trigger is in person: walk up, then the existing collect fires before the building opens", () => {
+  it("the collect triggers are in person: the café's arrival collects before it opens", () => {
+    // v291 re-base: the walk-up collect lives in runStreetPlace —
+    // the street's arrival action for the café — through the same
+    // existing collect flow, before the café opens; the register
+    // pile's own Pressable collects directly (wide-street-v291 (f)).
     const src = read("app/hometown.tsx");
-    const tapAt = src.indexOf("const handleWalkTapWorld");
-    expect(tapAt).toBeGreaterThan(-1);
-    const block = src.slice(tapAt, src.indexOf("const handleWalkLongPressWorld", tapAt));
-    const collectAt = block.indexOf("handleCollectBuilding(building.id)");
-    const pressAt = block.indexOf("handleTilePress(x, y)");
+    const at = src.indexOf("const runStreetPlace");
+    expect(at).toBeGreaterThan(-1);
+    const block = src.slice(at, src.indexOf("const handleStreetPlacePress", at));
+    const collectAt = block.indexOf("handleCollectBuilding(anchor.id)");
+    const openAt = block.indexOf("handleTownLotBuildingPress(anchor)");
     expect(collectAt).toBeGreaterThan(-1);
-    expect(pressAt).toBeGreaterThan(collectAt);
-    // And it only fires for a building actually holding a pile — the
-    // guard rides in the same block.
-    expect(block).toContain("(building.accumulated || 0) > 0");
+    expect(openAt).toBeGreaterThan(collectAt);
+    // And it only fires for a register actually holding a pile —
+    // the guard rides in the same block.
+    expect(block).toContain("(anchor.accumulated || 0) > 0");
   });
 });
 
@@ -234,9 +243,11 @@ describe("v290 (c) — the café board is buildCafeBoard's own output, untouched
       new Set(["p-gabriel", "p-cody"])
     );
     const peopleSnapshot = JSON.stringify(people);
-    // Everything the walkable mount does with its day:
+    // Everything the walkable mount does with its day (v291: the
+    // street derivation joins the Part 1 walk derivation):
     const map = fixtureTownMap();
     deriveWalkSpots(map);
+    deriveStreetWorld(map);
     planWalkTo(map, { x: 5, y: 5 }, { x: 6, y: 0 });
     const after = buildCafeBoard(people, TODAY, NOW);
     expect(after).toEqual(before);
@@ -250,6 +261,8 @@ describe("v290 (c) — the café board is buildCafeBoard's own output, untouched
     expect(anchor).toBe(map.buildings.find((b) => b.id === "b-diner"));
     // the walk derivation carries that same building by identity
     expect(deriveWalkSpots(map).some((s) => s.buildingId === anchor!.id)).toBe(true);
+    // v291: the street derivation anchors its café on it too.
+    expect(deriveStreetWorld(map).cafeBuildingId).toBe("b-diner");
   });
 });
 
@@ -307,14 +320,21 @@ describe("v290 (d) — pathing reaches the door without crossing a footprint", (
 describe("v290 — the mount: the town wears the walkable shell, the other maps don't change", () => {
   const src = read("app/hometown.tsx");
 
-  it("the shell wraps the map only for the town, fed by the walk handlers", () => {
+  it("the shell wraps the map only for the town; the street subtree carries the presses", () => {
+    // v291 re-base (the v290 device verdict — "nothing is really
+    // tappable"): the shell is the camera ONLY now. Its v290 ground
+    // Pressable was a sibling under the map subtree — outside every
+    // tap's ancestor chain, unreachable on device. The presses live
+    // inside the street subtree (components/wide-street), each
+    // element's own Pressable above its art.
     expect(src).toContain("<WalkableTownShell");
     expect(src).toContain('enabled={activeMap === "town"}');
-    expect(src).toContain("onTapWorld={handleWalkTapWorld}");
-    expect(src).toContain("onLongPressWorld={handleWalkLongPressWorld}");
     expect(src).toContain("followNonce={walkNonce}");
-    // the ground cells go quiet on the town — the shell hears the taps
-    expect(src).toContain('pointerEvents={activeMap === "town" ? "none" : "auto"}');
+    expect(src).not.toContain("onTapWorld={handleWalkTapWorld}");
+    expect(src).toContain("<StreetWorldView");
+    expect(src).toContain("onGroundPress={handleWalkTapWorld}");
+    expect(src).toContain("onPlacePress={handleStreetPlacePress}");
+    expect(src).toContain("onCollectPile={handleCollectPilePress}");
   });
 
   it("the Hero takes commands, reports his position, and says when he's ready", () => {
@@ -345,8 +365,15 @@ describe("v290 — the mount: the town wears the walkable shell, the other maps 
     expect(block).toContain("firePendingWalk(seq)");
   });
 
-  it("the mine stays a door: the peak sends the Hero up the lane, then opens the cave mouth", () => {
-    expect(src).toContain("onPress={handlePeakPress}");
-    expect(src).toContain('dispatchWalkTo({ x: 4, y: 2 }, () => router.push("/mine-mouth"))');
+  it("the mine stays a door: a place at the street's end, opening the cave mouth", () => {
+    // v291 re-base: the above-map peak banner retired with the old
+    // grid; the Mine is a place ON the street whose arrival opens
+    // the same cave mouth (the mine's own screens, mechanics
+    // untouched — wide-street-v291 (c)).
+    expect(src).not.toContain("handlePeakPress");
+    const at = src.indexOf("const runStreetPlace");
+    const block = src.slice(at, src.indexOf("const handleStreetPlacePress", at));
+    expect(block).toContain('router.push("/mine-mouth")');
+    expect(deriveStreetWorld(fixtureTownMap()).places.some((p) => p.kind === "mine")).toBe(true);
   });
 });

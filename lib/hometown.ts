@@ -3401,12 +3401,38 @@ export function dailyXPForMap(map: MapState, nowMs: number = Date.now()): number
   );
 }
 
+/**
+ * The café's anchor: the diner the café hangs on — the first diner
+ * standing on the town map (north-most, then west-most). The same
+ * rule lib/walkable-town's cafeAnchorBuilding has always followed;
+ * it lives here now because the economy itself keys on it (v291).
+ */
+export function cafeAnchorDiner(map: MapState): PlacedBuilding | null {
+  const diner = map.buildings
+    .filter((b) => b.type === "diner")
+    .sort((a, b) => a.y - b.y || a.x - b.x)[0];
+  return diner ?? null;
+}
+
+/**
+ * v291 (the Wide Street): the town map's old building set has
+ * retired and the café is the town's only producing building. This
+ * is the view of the town map the income aggregators price: the
+ * anchor diner alone. Every other map prices in full, as always.
+ */
+function cafeOnlyTownMap(map: MapState): MapState {
+  const anchor = cafeAnchorDiner(map);
+  if (!anchor) return { ...map, buildings: [] };
+  if (map.buildings.length === 1) return map;
+  return { ...map, buildings: map.buildings.filter((b) => b.id === anchor.id) };
+}
+
 export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1, nowMs: number = Date.now(), depthBlessingMult: number = 1): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus, prestigeMult, nowMs, depthBlessingMult), 0) * houseMult;
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(id === "town" ? cafeOnlyTownMap(town.maps[id]) : town.maps[id], town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus, prestigeMult, nowMs, depthBlessingMult), 0) * houseMult;
 }
 
 export function dailyXPForTown(town: TownState, nowMs: number = Date.now()): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyXPForMap(town.maps[id], nowMs), 0);
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyXPForMap(id === "town" ? cafeOnlyTownMap(town.maps[id]) : town.maps[id], nowMs), 0);
 }
 
 // ---- Time-away accrual (extracted from the hometown mount effect, v164) ----
@@ -3553,6 +3579,11 @@ export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): Aw
   const stockedDates: Record<string, string> = { ...(town.stockedDateByBuilding ?? {}) };
   for (const id of TOWN_MAP_IDS) {
     const m = newMaps[id];
+    // v291 (the Wide Street): on the town map the old building set
+    // has retired — the café (the anchor diner) is the only building
+    // that still produces there. Null when no diner stands yet: then
+    // nothing on the town map produces, exactly as ruled.
+    const townAnchorId = id === "town" ? cafeAnchorDiner(m)?.id ?? null : null;
     const updatedBuildings = m.buildings.map(b => {
       const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : nowMs;
       const minutesElapsed = Math.floor((nowMs - lastTick) / 60000);
@@ -3560,6 +3591,14 @@ export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): Aw
       // accrual. Advance lastTick so the finished building doesn't
       // "earn" for its building time later.
       if (isUnderConstruction(b, nowMs)) {
+        return { ...b, lastTick: nowIso };
+      }
+      // Retired (v291): a non-café building on the town map — its
+      // anchor advances so the waiting window is consumed, but no
+      // stock drains, no rate is cached, and nothing accrues. Any
+      // coins already waiting on it stay exactly where they are (the
+      // wide-street migration moves them to the café's register).
+      if (id === "town" && b.id !== townAnchorId) {
         return { ...b, lastTick: nowIso };
       }
       if (isStockedBuildingType(b.type)) {

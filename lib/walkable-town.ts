@@ -19,6 +19,7 @@
 import {
   TOWN_LANDMARKS,
   buildingFootprint,
+  cafeAnchorDiner,
   hasFixedFootprint,
   isBridgeTile,
   isStreamTile,
@@ -204,12 +205,11 @@ export function deriveWalkSpots(map: MapState): WalkSpot[] {
 }
 
 /** The building the café scene hangs on: the same diner the town map's
- *  café anchor follows (north-most, then west-most standing diner). */
+ *  café anchor follows (north-most, then west-most standing diner).
+ *  The rule itself lives in lib/hometown (cafeAnchorDiner) since
+ *  v291, when the economy began keying on it too. */
 export function cafeAnchorBuilding(map: MapState): PlacedBuilding | null {
-  const diner = map.buildings
-    .filter((b) => b.type === "diner")
-    .sort((a, b) => a.y - b.y || a.x - b.x)[0];
-  return diner ?? null;
+  return cafeAnchorDiner(map);
 }
 
 /** Desired camera scroll offset (px) that centers the Hero in the

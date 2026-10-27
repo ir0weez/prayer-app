@@ -75,11 +75,18 @@ function inputs(over: Partial<AwayAccrualInputs> = {}): AwayAccrualInputs {
   };
 }
 
-/** One level-1 church on the town map, last ticked exactly 5 minutes
- *  before the fixed clock, nothing accumulated yet. (Five minutes
- *  keeps the expected add — 15.27 — under the level-1 church's
- *  25-coin storage cap, so the raw arithmetic is what gets pinned;
- *  the cap itself is asserted in the arithmetic test.) */
+/** One level-1 church, last ticked exactly 5 minutes before the
+ *  fixed clock, nothing accumulated yet. (Five minutes keeps the
+ *  expected add — 15.27 — under the level-1 church's 25-coin
+ *  storage cap, so the raw arithmetic is what gets pinned; the cap
+ *  itself is asserted in the arithmetic test.)
+ *
+ *  v291 re-base: the church stands on the CITY map now. Part 2
+ *  retired the town map's building set (the café alone produces
+ *  there), so a town-map church no longer accrues by design — the
+ *  accrual arithmetic this file pins is unchanged, and the city is
+ *  where a church still earns it. The café-only town behavior has
+ *  its own pins (wide-street-v291.test.ts). */
 function churchTown(): TownState {
   const town = emptyTownState();
   const church: PlacedBuilding = {
@@ -91,7 +98,7 @@ function churchTown(): TownState {
     accumulated: 0,
     lastTick: new Date(NOW - 5 * 60000).toISOString(),
   };
-  town.maps.town.buildings = [church];
+  town.maps.city.buildings = [church];
   town.lastIncomeDate = THREE_DAYS_AGO;
   return town;
 }
@@ -107,7 +114,7 @@ function pendingTotal(town: TownState): number {
 describe("accrueAwayIncome — arithmetic (hand-computed fixture)", () => {
   it("accrues minutes × rate and advances the anchor", () => {
     const town = churchTown();
-    const map = town.maps.town;
+    const map = town.maps.city;
     const church = map.buildings[0];
     // Pin the primitives the hand computation relies on: a roadless,
     // shop-less map leaves every spatial factor at exactly 1.
@@ -124,7 +131,7 @@ describe("accrueAwayIncome — arithmetic (hand-computed fixture)", () => {
     // prayedCount 8) = min(1, 8/8) = 1.
     const perMinute = 183.2 / 60;
     expect(rates["church-1"].coins).toBeCloseTo(perMinute, 8);
-    const b = out.maps.town.buildings[0];
+    const b = out.maps.city.buildings[0];
     expect(b.accumulated).toBeCloseTo(5 * perMinute, 2); // 15.27 after the cents round
     expect(b.lastTick).toBe(NOW_ISO);
   });
@@ -138,26 +145,26 @@ describe("accrueAwayIncome — arithmetic (hand-computed fixture)", () => {
 
   it("under construction: anchor advances, nothing accrues, no rate cached", () => {
     const town = churchTown();
-    town.maps.town.buildings[0].constructionEndsAt = NOW + 3600_000;
+    town.maps.city.buildings[0].constructionEndsAt = NOW + 3600_000;
     const { town: out, rates } = accrueAwayIncome(town, inputs());
-    const b = out.maps.town.buildings[0];
+    const b = out.maps.city.buildings[0];
     expect(b.accumulated).toBe(0);
     expect(b.lastTick).toBe(NOW_ISO);
     expect(rates["church-1"]).toBeUndefined();
   });
 
   it("presence: per-map villager counts gate the accrual; absence falls back to prayed count", () => {
-    // Nobody located on the town map → presence 0 → no accrual, but
-    // the anchor still advances (the window is consumed).
-    const none = accrueAwayIncome(churchTown(), inputs({ presenceCounts: { town: 0 } }));
-    expect(none.town.maps.town.buildings[0].accumulated).toBe(0);
-    expect(none.town.maps.town.buildings[0].lastTick).toBe(NOW_ISO);
+    // Nobody located on the church's map → presence 0 → no accrual,
+    // but the anchor still advances (the window is consumed).
+    const none = accrueAwayIncome(churchTown(), inputs({ presenceCounts: { city: 0 } }));
+    expect(none.town.maps.city.buildings[0].accumulated).toBe(0);
+    expect(none.town.maps.city.buildings[0].lastTick).toBe(NOW_ISO);
     // Four located → presence min(1, 4/8) = 0.5 → half the full add.
-    const half = accrueAwayIncome(churchTown(), inputs({ presenceCounts: { town: 4 } }));
-    expect(half.town.maps.town.buildings[0].accumulated).toBeCloseTo(2.5 * (183.2 / 60), 2); // 7.63
+    const half = accrueAwayIncome(churchTown(), inputs({ presenceCounts: { city: 4 } }));
+    expect(half.town.maps.city.buildings[0].accumulated).toBeCloseTo(2.5 * (183.2 / 60), 2); // 7.63
     // prayedCount 0 with no per-map counts → presence 0.
     const zero = accrueAwayIncome(churchTown(), inputs({ prayedCount: 0 }));
-    expect(zero.town.maps.town.buildings[0].accumulated).toBe(0);
+    expect(zero.town.maps.city.buildings[0].accumulated).toBe(0);
   });
 });
 

@@ -543,19 +543,27 @@ describe("prestige reset — the gear precedent", () => {
 });
 
 describe("the mountain on the town map", () => {
-  it("the Great Peak is mounted on the town map only, and opens the mine", () => {
+  it("the Mine stands on the town's street only, and opens the mine", () => {
+    // v291 re-base: the Great Peak banner above the old grid
+    // retired — the Mine is now a place ON the Wide Street (its
+    // rock face at the street's east end), and the street renders
+    // on the town map only. Its door opens on the Mouth, as the
+    // peak's tap did; the cave is entered from there.
     const src = readFileSync(join(process.cwd(), "app/hometown.tsx"), "utf8");
     expect(src).toContain('activeMap === "town"');
-    expect(src).toContain("GreatPeakArt");
-    // v172: the peak opens on the Mouth; the cave is entered from there.
+    expect(src).not.toContain("GreatPeakArt");
+    // v172: the mine opens on the Mouth; the cave is entered from there.
     expect(src).toContain('router.push("/mine-mouth")');
     expect(src).not.toContain('router.push("/mine-interior")');
-    // Town only: the peak must not leak onto city or school — the one
-    // render is gated on the town map.
-    const peakAt = src.indexOf("<GreatPeakArt");
-    const gateAt = src.lastIndexOf('activeMap === "town"', peakAt);
-    expect(gateAt).toBeGreaterThan(-1);
-    expect(peakAt - gateAt).toBeLessThan(600);
+    // The place itself: derived on the street, drawn in paper.
+    const street = readFileSync(join(process.cwd(), "lib/wide-street.ts"), "utf8");
+    expect(street).toContain('kind: "mine"');
+    const art = readFileSync(join(process.cwd(), "components/street-places-art.tsx"), "utf8");
+    expect(art).toContain("MineArt");
+    // And the mine's place carries no name but its own — "Safety"
+    // is never a name or label (v169 holds on the street too).
+    expect(art).not.toContain("Safety");
+    expect(art).not.toContain("SAFETY");
   });
 
   it("the peak carries NO name — the safe feeling is rendered, not spelled (v169)", () => {

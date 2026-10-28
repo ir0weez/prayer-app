@@ -30,6 +30,12 @@ import {
   type StudyState,
 } from '@/lib/bible-v205/study';
 import { bookIsComplete, groupBooksByStudy } from '@/lib/bible-v205/rewards';
+import {
+  bookReadCount,
+  readingTotals,
+  resetReadingProgress,
+} from '@/lib/bible-v205/reading-progress';
+import { BookReadingThread, ReadingProgressCard } from '@/components/bible-v205/reading-progress-card';
 import { Ornament, StatusChip } from '@/components/bible-v205/blocks';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
@@ -86,6 +92,7 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     if (inPane && !paneFocused) {
       setBookNavOpen(false);
       setLabelEditor(false);
+      setResetOpen(false);
     }
   }, [inPane, paneFocused]);
   // v207: the top safe-area inset the rest of the app applies — without
@@ -101,6 +108,9 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   const [handwritten, setHandwritten] = useState<HandwrittenEntry[]>([]);
   const [labelEditor, setLabelEditor] = useState(false);
   const [labelDraft, setLabelDraft] = useState('');
+  // v305: the reading reset's confirmation — the card's quiet door
+  // opens this; nothing clears until he confirms here.
+  const [resetOpen, setResetOpen] = useState(false);
 
   // v263: focus reloads the STUDY STATE only — Read/Complete marks
   // made on the book/chapter screens must be fresh when he lands
@@ -151,6 +161,10 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   // Started, so the list is complete from the first paint.
   const effectiveState = studyState ?? seedStudyState();
   const groups = useMemo(() => groupBooksByStudy(effectiveState, CANON), [effectiveState]);
+  // v305: the READING aggregate over the same state — the v228 read
+  // track counted by lib/bible-v205/reading-progress, a different
+  // track from the study counts the sections and rows below carry.
+  const reading = useMemo(() => readingTotals(effectiveState, CANON), [effectiveState]);
   // v241: the canon is 66 books — a grouping with zero books across
   // all three sections is impossible in a healthy build, so it gets a
   // visible word (below) instead of an empty page.
@@ -210,6 +224,19 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     setStudyState(next);
   };
 
+  // v305: the whole-Bible reading reset, confirmed in the modal
+  // below. It reloads the freshest state (read marks are written
+  // from other screens too), empties ONLY the read track via
+  // resetReadingProgress, and saves — notes, queues, study states,
+  // current book and position all ride through untouched.
+  const resetReading = async () => {
+    const fresh = await loadStudyState();
+    const next = resetReadingProgress(fresh);
+    await saveStudyState(next);
+    setStudyState(next);
+    setResetOpen(false);
+  };
+
   const content = (
     <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
       <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: inPane ? 8 : insets.top + 8 }]}>
@@ -243,6 +270,18 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
             The states you set in the app, and the books your notes live in — nothing here is marked for you.
             The ✎ marks books that also live in handwriting.
           </Text>
+        </View>
+
+        {/* v305: the overall READING card — his whole-Bible read
+            bar, seated ahead of the study legend because it is a
+            different track from everything the legend explains. */}
+        <View style={{ marginTop: 18 }}>
+          <ReadingProgressCard
+            read={reading.read}
+            total={reading.total}
+            palette={palette}
+            onResetPress={() => setResetOpen(true)}
+          />
         </View>
 
         <View style={styles.legend}>
@@ -331,6 +370,32 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
                 }}
               >
                 <Text style={styles.editorSaveText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+
+        {/* v305: the reset's one explicit confirmation — it names
+            exactly what clears (every chapter's read mark) and what
+            never does (notes, study queue, study states). */}
+        <Modal visible={resetOpen} transparent animationType="fade" onRequestClose={() => setResetOpen(false)}>
+          <Pressable style={styles.scrim} onPress={() => setResetOpen(false)} />
+          <View style={[styles.editorCard, { backgroundColor: palette.paper2 }, palette.sheetDress]}>
+            <Text style={[styles.editorTitle, { color: palette.ink }]}>Reset reading progress?</Text>
+            <Text style={[styles.editorSub, { color: palette.inkSoft }]}>
+              Every chapter&rsquo;s read mark will clear, so you can start reading the Bible again from
+              the beginning. Your notes, your study queue, and your chapters&rsquo; study states stay
+              exactly as they are.
+            </Text>
+            <View style={styles.editorBtns}>
+              <Pressable onPress={() => setResetOpen(false)}>
+                <Text style={{ color: palette.inkSoft, fontWeight: '600', fontSize: 13.5 }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.editorSave, { backgroundColor: palette.rasp }, palette.btnDress]}
+                onPress={resetReading}
+              >
+                <Text style={styles.editorSaveText}>Reset reading</Text>
               </Pressable>
             </View>
           </View>
@@ -463,6 +528,11 @@ function BookRow({
   }
   const pct = total ? Math.round((100 * complete) / total) : 0;
   const ppct = total ? Math.round((100 * prog) / total) : 0;
+  // v305: the READING count — the v228 read track, counted on its
+  // own (lib/bible-v205/reading-progress), never derived from the
+  // study counts above: Leviticus can read 0 complete here while
+  // its reading thread fills.
+  const readCount = studyState ? bookReadCount(studyState, book) : 0;
   const paper = paperNote ? `handwritten notes, ${paperNote}` : null;
   const parts: string[] = [];
   parts.push(`${complete} of ${total} complete`);
@@ -495,6 +565,9 @@ function BookRow({
           />
         ) : null}
       </View>
+      {/* v305: the reading thread — slimmer and deeper than the
+          study thread above it, with its own count. */}
+      <BookReadingThread read={readCount} total={total} palette={palette} />
     </Pressable>
   );
 }

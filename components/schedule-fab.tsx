@@ -5,7 +5,7 @@
  * (Ministry · Event · Todo · Worship · Time Off, his order, his colours).
  * The form is the v31 drawing's: the button does not sit beside a menu
  * card — the button BECOMES the menu. One surface morphs from the FAB
- * (56×56, radius 16, seed) to the menu (220×278, radius 20, tonal
+ * (56×56, radius 16, seed) to the menu (218×276, radius 20, tonal
  * container) on Material's emphasized decelerate, and closes on the
  * emphasized accelerate; the + rotates 135° into a × as it goes; the
  * five rows stagger-rise inside; a deep scrim fades with the state; a
@@ -33,6 +33,15 @@ export type FabMenuItem = {
   color: string;
   /** Icon colour on the tile; defaults to white. */
   iconColor?: string;
+  /**
+   * v295: the v32 drawing's tile dress — a TONAL tile (pale step of
+   * the row's colour) with the deep step as the glyph. Supplied for
+   * the Classic dress; skins that don't supply it keep the saturated
+   * tile + iconColor glyph they shipped with.
+   */
+  tileColor?: string;
+  /** Glyph colour when tileColor is supplied; defaults to color. */
+  glyphColor?: string;
   onPress: () => void;
 };
 
@@ -109,12 +118,12 @@ function FabRow({
             width: 40,
             height: 40,
             borderRadius: 12,
-            backgroundColor: item.color,
+            backgroundColor: item.tileColor ?? item.color,
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <MaterialIcons name={item.icon as any} size={20} color={item.iconColor ?? "#FFFFFF"} />
+          <MaterialIcons name={item.icon as any} size={20} color={item.tileColor ? (item.glyphColor ?? item.color) : (item.iconColor ?? "#FFFFFF")} />
         </View>
         <Text style={{ fontSize: 14, fontWeight: "600", color: labelColor }}>{item.label}</Text>
       </Pressable>
@@ -166,8 +175,8 @@ export function ScheduleFab({
   }));
 
   const surfaceStyle = useAnimatedStyle(() => ({
-    width: interpolate(progress.value, [0, 1], [56, 220]),
-    height: interpolate(progress.value, [0, 1], [56, 278]),
+    width: interpolate(progress.value, [0, 1], [56, 218]),
+    height: interpolate(progress.value, [0, 1], [56, 276]),
     borderRadius: interpolate(progress.value, [0, 1], [16, 20]),
     backgroundColor: interpolateColor(progress.value, [0, 1], [fabColor, menuSurface]),
   }));

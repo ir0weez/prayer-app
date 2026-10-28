@@ -23,6 +23,7 @@ import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { PrayerSession } from "@/components/prayer-session";
 import { AttentionBell } from "@/components/attention-bell";
 import { AppTabBar, type AppNavTab } from "@/components/app-tab-bar";
+import { ScheduleFabHost } from "@/components/schedule-fab-host";
 import { BiblePane } from "@/components/bible-pane";
 import {
   biblePanePop,
@@ -5435,6 +5436,13 @@ export default function HomeScreen() {
         hidden={journalComposing && activeTab === "journal"}
         onPressTab={handleNavPress}
       />
+
+      {/* v295: the schedule FAB renders HERE, as a shell child after
+          the tab bar — inside the schedule tab's own subtree the bar
+          painted over its lower half (v294's device defect). The tab
+          registers its config through the bridge; the host renders
+          nothing when the schedule tab isn't mounted. */}
+      <ScheduleFabHost />
 
       <Modal
         transparent

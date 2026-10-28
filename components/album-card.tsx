@@ -4,7 +4,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/use-colors';
 import { useSkin } from '@/hooks/use-skin';
-import { skinText } from '@/lib/skin-themes';
+import { mix } from '@/lib/color-themes';
+import { TERM_PHOS, skinText } from '@/lib/skin-themes';
 
 export interface AlbumCardProps {
   title: string;
@@ -27,6 +28,16 @@ export interface AlbumCardProps {
   sectionIcon?: keyof typeof MaterialIcons.glyphMap;
 }
 
+/**
+ * v295: the worship card recomposed to the approved v19-fixed drawing —
+ * header ("This week's music" + the Saved Albums text button), the
+ * album cover as the card's art at 80px with title / artist / heard
+ * count / progress thread beside it, and the songs as an always-visible
+ * checklist: number, title, Key, and the M3 checkbox in the seed.
+ * Heard rows strike through and quiet down. NO caption, NO label pill.
+ * The management actions (Open / Edit / Save / Delete) stay behind the
+ * header chevron — the drawing's face stays clean; nothing is lost.
+ */
 export function AlbumCard({
   title,
   artist,
@@ -45,89 +56,102 @@ export function AlbumCard({
   isExpanded,
   onToggleExpanded,
   sectionTitle,
-  sectionIcon = 'music-note',
 }: AlbumCardProps) {
   const colors = useColors();
   const { isSkinned, tokens: skinTokens } = useSkin();
   const [imageError, setImageError] = useState(false);
   const [internalExpanded, setInternalExpanded] = useState(false);
   const expanded = isExpanded ?? internalExpanded;
-  const hasActions = tracks.length > 0 || onEdit || onToggleSaved || onDelete || onOpen;
+  const hasActions = Boolean(onOpen || onEdit || onToggleSaved || onDelete);
   const toggleExpanded = () => {
     const nextExpanded = !expanded;
     if (onToggleExpanded) onToggleExpanded(nextExpanded);
     else setInternalExpanded(nextExpanded);
   };
+  const heardCount = tracks.filter((track) => completedTracks[track.id]).length;
+  const heardPct = tracks.length > 0 ? Math.round((heardCount / tracks.length) * 100) : 0;
+  const deepPrimary = skinTokens.isTerminal ? TERM_PHOS : mix(colors.primary, "#000000", 0.15);
 
   return (
-    <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, overflow: 'hidden', borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, marginBottom: 12 + skinTokens.type.gapBoost, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }}>
+    <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 22 : 22, overflow: 'hidden', borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : mix(colors.primary, colors.surface, 0.85), marginBottom: 12 + skinTokens.type.gapBoost, padding: 16, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }}>
       {sectionTitle && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 + skinTokens.type.padBoost, paddingTop: 14 + skinTokens.type.padBoost, paddingBottom: 4 }}>
-          <MaterialIcons name={sectionIcon} size={20} color={colors.primary} />
-          <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '600', ...skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) }}>{sectionTitle}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800', ...skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) }}>{sectionTitle}</Text>
           {onOpenLibrary && (
-            <Pressable accessibilityRole="button" accessibilityLabel="Open saved albums" onPress={onOpenLibrary} style={({ pressed }) => [{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}>
-              <MaterialIcons name="collections-bookmark" size={17} color={colors.primary} />
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700', ...skinText(skinTokens, skinTokens.type.labelText) }}>Saved Albums</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Open saved albums" onPress={onOpenLibrary} style={({ pressed }) => [{ marginLeft: 'auto', paddingVertical: 4, opacity: pressed ? 0.65 : 1 }]}>
+              <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : colors.primary, fontSize: 12.5, fontWeight: '800', ...skinText(skinTokens, skinTokens.type.labelText) }}>Saved Albums</Text>
+            </Pressable>
+          )}
+          {hasActions && (
+            <Pressable accessibilityRole="button" accessibilityLabel={expanded ? "Hide album actions" : "Show album actions"} onPress={() => (onOpenDetails ? onOpenDetails() : toggleExpanded())} style={({ pressed }) => [{ padding: 2, opacity: pressed ? 0.65 : 1 }]}>
+              <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
             </Pressable>
           )}
         </View>
       )}
-      <Pressable accessibilityRole="button" accessibilityLabel={`${title}${tracks.length ? ', show tracks' : ''}`} onPress={() => onOpenDetails ? onOpenDetails() : hasActions && toggleExpanded()} style={{ flexDirection: 'row', alignItems: 'center', padding: 12 + skinTokens.type.padBoost, gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: sectionTitle ? 12 : 0 }}>
         <Pressable
           accessibilityRole={onCoverPress ? "button" : undefined}
           accessibilityLabel={onCoverPress ? `Open ${title} album` : undefined}
           disabled={!onCoverPress}
           onPress={onCoverPress}
-          style={({ pressed }) => [{ width: 56, height: 56, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}
+          style={({ pressed }) => [{ width: 80, height: 80, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.muted, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : mix(colors.primary, colors.surface, 0.85), opacity: pressed ? 0.72 : 1 }]}
         >
           {!imageError && coverUrl ? (
             <Image source={{ uri: coverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" onError={() => setImageError(true)} />
           ) : (
             <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: colors.muted }}>
-              <MaterialIcons name="music-note" size={28} color={colors.foreground} />
+              <MaterialIcons name="music-note" size={34} color={colors.foreground} />
             </View>
           )}
         </Pressable>
         <View style={{ flex: 1, gap: 3 }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, ...skinText(skinTokens, skinTokens.type.barTitle) }} numberOfLines={2}>{title}</Text>
-          <Text style={{ fontSize: 18, lineHeight: 23, fontWeight: '700', color: colors.muted, ...skinText(skinTokens, skinTokens.type.cardTitle) }} numberOfLines={2}>{artist}</Text>
+          <Text style={{ fontSize: 16.5, fontWeight: '800', color: colors.foreground, ...skinText(skinTokens, skinTokens.type.cardTitle) }} numberOfLines={2}>{title}</Text>
+          <Text style={{ fontSize: 12.5, color: colors.muted, ...skinText(skinTokens, skinTokens.type.cardMeta) }} numberOfLines={1}>{artist}</Text>
+          {tracks.length > 0 && (
+            <>
+              <Text style={{ fontSize: 11.5, fontWeight: '700', color: deepPrimary, marginTop: 2 }}>
+                {heardCount} of {tracks.length} heard
+              </Text>
+              <View style={{ height: 5, borderRadius: 3, backgroundColor: mix(colors.primary, colors.surface, 0.82), maxWidth: 150, width: '100%', overflow: 'hidden', marginTop: 3 }}>
+                <View style={{ height: '100%', width: `${heardPct}%`, backgroundColor: colors.primary, borderRadius: 3 }} />
+              </View>
+            </>
+          )}
         </View>
-        {hasActions && <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={22} color={colors.muted} />}
-      </Pressable>
-      {expanded && hasActions && (
-        <View style={{ paddingHorizontal: 16, paddingBottom: 14, gap: 8 }}>
-          <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 4, marginBottom: 2 }} />
+      </View>
+      {tracks.length > 0 ? (
+        <View style={{ marginTop: 10 }}>
           {tracks.map((track, index) => {
             const isCompleted = Boolean(completedTracks[track.id]);
-            const trackContent = (
-              <>
-                <Text style={{ width: 20, color: isCompleted ? colors.primary : colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>{index + 1}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: isCompleted ? colors.muted : colors.foreground, fontSize: 14, fontWeight: '500', textDecorationLine: isCompleted ? 'line-through' : 'none', ...skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) }} numberOfLines={1}>{track.title}</Text>
-                  {track.key && <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2, textDecorationLine: isCompleted ? 'line-through' : 'none', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>Key of {track.key}</Text>}
+            return (
+              <Pressable
+                key={track.id}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isCompleted }}
+                accessibilityLabel={`${isCompleted ? 'Mark' : 'Complete'} ${track.title}`}
+                onPress={(e) => onToggleTrack?.(track.id, e)}
+                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, paddingHorizontal: 2, opacity: pressed ? 0.65 : 1 }]}
+              >
+                <Text style={{ width: 14, color: colors.muted, fontSize: 11.5, fontWeight: '600' }}>{index + 1}</Text>
+                <Text style={{ flex: 1, color: isCompleted ? colors.muted : colors.foreground, fontSize: 13.5, fontWeight: '600', textDecorationLine: isCompleted ? 'line-through' : 'none', opacity: isCompleted ? 0.55 : 1, ...skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) }} numberOfLines={1}>{track.title}</Text>
+                {track.key && <Text style={{ color: colors.muted, fontSize: 11.5, ...skinText(skinTokens, skinTokens.type.cardMeta) }}>Key of {track.key}</Text>}
+                <View style={{ width: 22, height: 22, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 7, borderWidth: 2, borderColor: isCompleted ? colors.primary : mix(colors.primary, colors.surface, 0.55), backgroundColor: isCompleted ? colors.primary : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                  {isCompleted && <MaterialIcons name="check" size={13} color="#FFFFFF" />}
                 </View>
-              </>
-            );
-            return onToggleTrack ? (
-              <Pressable key={track.id} accessibilityRole="button" accessibilityLabel={`${isCompleted ? 'Mark' : 'Complete'} ${track.title}`} onPress={(e) => onToggleTrack(track.id, e)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 30, borderRadius: 8, opacity: pressed ? 0.65 : 1 }]}>
-                {trackContent}
               </Pressable>
-            ) : (
-              <View key={track.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 30 }}>
-                {trackContent}
-              </View>
             );
           })}
-          {tracks.length === 0 && <Text style={{ color: colors.muted, fontSize: 13, paddingVertical: 4 }}>No songs added yet.</Text>}
-          {(onOpen || onEdit || onToggleSaved || onDelete) && (
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 4, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border }}>
-              {onOpen && <Pressable accessibilityRole="button" accessibilityLabel="Open album link" onPress={onOpen} style={({ pressed }) => [{ flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: pressed ? 0.65 : 1 }]}><MaterialIcons name="open-in-new" size={19} color={colors.primary} /><Text style={{ color: colors.primary, fontSize: 13, fontWeight: '700' }}>Open</Text></Pressable>}
-              {onEdit && <Pressable accessibilityRole="button" accessibilityLabel="Edit album" onPress={onEdit} style={({ pressed }) => [{ width: 56, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.65 : 1 }]}><MaterialIcons name="edit" size={20} color={colors.foreground} /></Pressable>}
-              {onToggleSaved && <Pressable accessibilityRole="button" accessibilityLabel={isSaved ? "Remove album from saved" : "Save album"} onPress={onToggleSaved} style={({ pressed }) => [{ width: 56, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: isSaved ? colors.primary : colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.65 : 1 }]}><MaterialIcons name={isSaved ? 'star' : 'star-border'} size={21} color={isSaved ? colors.primary : colors.foreground} /></Pressable>}
-              {onDelete && <Pressable accessibilityRole="button" accessibilityLabel="Delete album" onPress={onDelete} style={({ pressed }) => [{ flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: colors.error, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: pressed ? 0.65 : 1 }]}><MaterialIcons name="delete-outline" size={20} color="#FFFFFF" /><Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Delete</Text></Pressable>}
-            </View>
-          )}
+        </View>
+      ) : (
+        <Text style={{ color: colors.muted, fontSize: 13, marginTop: 12 }}>No songs added yet.</Text>
+      )}
+      {expanded && hasActions && (
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border }}>
+          {onOpen && <Pressable accessibilityRole="button" accessibilityLabel="Open album link" onPress={onOpen} style={({ pressed }) => [{ flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: pressed ? 0.65 : 1 }]}><MaterialIcons name="open-in-new" size={19} color={colors.primary} /><Text style={{ color: colors.primary, fontSize: 13, fontWeight: '700' }}>Open</Text></Pressable>}
+          {onEdit && <Pressable accessibilityRole="button" accessibilityLabel="Edit album" onPress={onEdit} style={({ pressed }) => [{ width: 56, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.65 : 1 }]}><MaterialIcons name="edit" size={20} color={colors.foreground} /></Pressable>}
+          {onToggleSaved && <Pressable accessibilityRole="button" accessibilityLabel={isSaved ? "Remove album from saved" : "Save album"} onPress={onToggleSaved} style={({ pressed }) => [{ width: 56, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: isSaved ? colors.primary : colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.65 : 1 }]}><MaterialIcons name={isSaved ? 'star' : 'star-border'} size={21} color={isSaved ? colors.primary : colors.foreground} /></Pressable>}
+          {onDelete && <Pressable accessibilityRole="button" accessibilityLabel="Delete album" onPress={onDelete} style={({ pressed }) => [{ flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: colors.error, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: pressed ? 0.65 : 1 }]}><MaterialIcons name="delete-outline" size={20} color="#FFFFFF" /><Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Delete</Text></Pressable>}
         </View>
       )}
     </View>

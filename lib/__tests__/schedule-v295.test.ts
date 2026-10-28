@@ -1,0 +1,194 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// v295 — THE SCHEDULE FIDELITY BUILD. v294 shipped a schedule that did
+// not match the approved v32 drawing; Jonathan called it out ("nothing
+// like the mockups I approved", Oct 27 18:06). These pins hold the
+// fidelity repairs:
+//
+//  (a) FAB MOUNT — the FAB renders from the SHELL, after <AppTabBar/>,
+//      through the bridge host; schedule-tab registers its config and
+//      never renders <ScheduleFab> itself (v294's in-subtree mount let
+//      the tab bar paint over the button's lower half). The morph
+//      target is the drawing's 218×276.
+//  (b) TODO ROWS — no tag text anywhere on a todo row or in a
+//      todo-pair rectangle (his ruling: the colour carries the
+//      category); the drawn checkbox and the "N MIN" chip are present.
+//  (c) EVENT CARDS — Classic wears the drawing's composition: a 64px
+//      art band (34px colour band without artwork) over a body. The
+//      old full-bleed illustrated card survives for the skins.
+//  (d) SUMMARY — the Classic composition is the saturated panel with
+//      the REACH row and the fast clause; schedule-tab wires the due
+//      people and the fast line through.
+//  (e) STUDY + WORSHIP — the study card carries the progress thread;
+//      the worship card is the v19-fixed drawing (80px art, heard
+//      count + thread, always-visible checklist) under the header
+//      "This week's music".
+//  (f) MINISTRY + TIME OFF — the ticket carries ONE chips row (the
+//      DISPATCH strip is gone from that dress; exactly one strip
+//      render remains, in the skinned card); the square's time is the
+//      30px hero with the seed bar; the trip band is saturated with
+//      the TIME OFF · TYPE label.
+//  (g) END OF THE DAY — the divider item is pushed before the worship
+//      card, heading the completed stack.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
+
+const root = join(__dirname, "..", "..");
+const read = (rel: string) => readFileSync(join(root, rel), "utf8");
+
+const shell = read("app/(tabs)/index.tsx");
+const scheduleTab = read("components/schedule-tab.tsx");
+const fab = read("components/schedule-fab.tsx");
+const bridge = read("lib/schedule-fab-bridge.ts");
+const host = read("components/schedule-fab-host.tsx");
+const summaryCard = read("components/daily-summary-card.tsx");
+const albumCard = read("components/album-card.tsx");
+const timeOffTravel = read("components/time-off-travel.tsx");
+
+const sliceBetween = (src: string, from: string, to: string) => {
+  const a = src.indexOf(from);
+  const b = src.indexOf(to, a);
+  expect(a).toBeGreaterThanOrEqual(0);
+  expect(b).toBeGreaterThan(a);
+  return src.slice(a, b);
+};
+
+describe("v295 FAB mount — the shell owns the paint layer", () => {
+  it("the shell renders ScheduleFabHost AFTER the tab bar", () => {
+    const tabBarAt = shell.indexOf("<AppTabBar");
+    const hostAt = shell.indexOf("<ScheduleFabHost />");
+    expect(tabBarAt).toBeGreaterThanOrEqual(0);
+    expect(hostAt).toBeGreaterThan(tabBarAt);
+  });
+
+  it("schedule-tab registers its config and never renders the FAB itself", () => {
+    expect(scheduleTab).toContain("setScheduleFabConfig({");
+    expect(scheduleTab).toContain("setScheduleFabConfig(null)");
+    expect(scheduleTab).not.toContain("<ScheduleFab");
+  });
+
+  it("the bridge + host carry the config to the component", () => {
+    expect(bridge).toContain("useSyncExternalStore");
+    expect(bridge).toContain("export function setScheduleFabConfig");
+    expect(host).toContain("useScheduleFabConfig");
+    expect(host).toContain("<ScheduleFab {...config} />");
+  });
+
+  it("the morph target is the drawing's 218×276", () => {
+    expect(fab).toContain("[56, 218]");
+    expect(fab).toContain("[56, 276]");
+  });
+
+  it("Classic menu rows wear tonal tiles (pale tile, deep glyph)", () => {
+    expect(fab).toContain("item.tileColor ?? item.color");
+    expect(scheduleTab).toContain('tileColor: "#E0D8FF", glyphColor: "#5B3DF0"');
+    expect(scheduleTab).toContain('tileColor: "#FAEECD", glyphColor: "#A87C14"');
+  });
+});
+
+describe("v295 todo rows — the colour carries the category", () => {
+  it("no tag pill renders on the single row or the group header", () => {
+    expect(scheduleTab).not.toContain("linkedEvent?.title || linkedMinistry?.title");
+    expect(scheduleTab).not.toContain("{todo.tag &&");
+  });
+
+  it("the todo-pair rectangles carry no tag chip", () => {
+    const pair = sliceBetween(scheduleTab, 'case "todo-pair":', 'case "todo":');
+    expect(pair).not.toContain("t.tag");
+    expect(pair).toContain("} MIN");
+  });
+
+  it("the drawn checkbox and the N MIN chip dress the single row", () => {
+    expect(scheduleTab).toContain("borderWidth: 2.5, borderColor: todo.color || colors.primary");
+    expect(scheduleTab).toContain("} MIN");
+    expect(scheduleTab).toContain("borderRadius: 18, marginHorizontal: 12, marginBottom: 8, paddingVertical: 10, paddingHorizontal: 12, gap: 10");
+  });
+});
+
+describe("v295 event cards — band + body under Classic", () => {
+  it("the Classic branch bands keyword art at 64 and colour at 34", () => {
+    expect(scheduleTab).toContain("height: keyword ? 64 : 34");
+    expect(scheduleTab).toContain("const bandColor = event.color || keyword?.bgColor || colors.primary");
+    expect(scheduleTab).toContain("const pillColor = event.color || keyword?.accentColor || colors.primary");
+  });
+
+  it("the band branch is gated to Classic and sits before the Rest fallthrough", () => {
+    const bandAt = scheduleTab.indexOf("ART BAND");
+    const restAt = scheduleTab.indexOf('if (keyword?.label === "Rest")');
+    expect(bandAt).toBeGreaterThanOrEqual(0);
+    expect(restAt).toBeGreaterThan(bandAt);
+  });
+
+  it("the skins' full-bleed illustrated card survives untouched", () => {
+    expect(scheduleTab).toContain("eventStyles.illustratedCard");
+    expect(scheduleTab).toContain("KeywordAmbientAnimation label={keyword.label}");
+  });
+});
+
+describe("v295 summary — the saturated panel, complete", () => {
+  it("the Classic composition is the seed-deep panel with REACH and the fast clause", () => {
+    expect(summaryCard).toContain('mix(colors.primary, "#000000", 0.12)');
+    expect(summaryCard).toContain("REACH OUT — DUE TODAY");
+    expect(summaryCard).toContain("Your fast —");
+    expect(summaryCard).toContain("borderRadius: 24");
+  });
+
+  it("schedule-tab wires the due people, the Reach out action, and the fast line", () => {
+    expect(scheduleTab).toContain("reachPeople={prayerCheckInPeople}");
+    expect(scheduleTab).toContain("onReachOutPress={() => {");
+    expect(scheduleTab).toContain("calculateFastStreak(activeFast, selectedDate)");
+    expect(scheduleTab).toContain("getFastCalendarDays(activeFast)");
+  });
+});
+
+describe("v295 study + worship compositions", () => {
+  it("the study card derives and renders the progress thread", () => {
+    expect(scheduleTab).toContain("progress: studyProgress");
+    expect(scheduleTab).toContain("item.data.progress != null");
+  });
+
+  it("the worship card is the drawing: 80px art, heard count + thread, checklist rows", () => {
+    expect(albumCard).toContain("width: 80, height: 80, borderRadius: 16");
+    expect(albumCard).toContain("of {tracks.length} heard");
+    expect(albumCard).toContain("maxWidth: 150");
+    expect(albumCard).toContain("Key of {track.key}");
+    expect(scheduleTab).toContain('sectionTitle="This week\'s music"');
+  });
+});
+
+describe("v295 ministry ticket + squares, time-off band", () => {
+  it("the ticket dress carries ONE chips row; the strip survives only in the skinned card", () => {
+    expect(scheduleTab).toContain("ticketChips");
+    expect(scheduleTab.match(/<MinistryTicket/g)?.length).toBe(1);
+  });
+
+  it("the ministry square's time is the 30px hero with the seed bar", () => {
+    const square = sliceBetween(scheduleTab, "function MinistrySquare(", "// ─── Birthday Card Component");
+    expect(square).toContain("fontSize: 30");
+    expect(square).toContain("width: 26, height: 4, borderRadius: 2");
+    expect(square).not.toContain("to {format12HourTime(ministry.endTime)}");
+  });
+
+  it("the trip band is saturated with the TIME OFF · TYPE label under Classic", () => {
+    const band = sliceBetween(timeOffTravel, "export function TripBand", "const ROUTE_RE");
+    expect(band).toContain("TIME OFF · ${getTimeOffLabel(timeOff.type).toUpperCase()}");
+    expect(band).toContain("backgroundColor: base, borderRadius: 22");
+  });
+
+  it("the travel card's head is the 38px band with pill and kind label", () => {
+    expect(timeOffTravel).toContain("height: 38, backgroundColor: base");
+    expect(timeOffTravel).toContain("entry.kind.toUpperCase()");
+  });
+});
+
+describe("v295 end of day — the divider heads the completed stack", () => {
+  it("the divider item is pushed before the worship card", () => {
+    const dividerAt = scheduleTab.indexOf('type: "end-of-day"');
+    const worshipAt = scheduleTab.indexOf('type: "worship-display"');
+    expect(dividerAt).toBeGreaterThanOrEqual(0);
+    expect(worshipAt).toBeGreaterThan(dividerAt);
+    expect(scheduleTab).toContain("END OF THE DAY");
+  });
+});

@@ -814,7 +814,11 @@ describe("v185 floating cards: under 8-bit the sheet is gone and every row float
   });
 
   it("the todo-pair tiles and the empty state no longer paint the sheet under 8-bit", () => {
-    expect(schedule).toContain('backgroundColor: skinTokens.isEightBit ? "transparent" : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface');
+    // RE-BASED in v295 (the fidelity build): the pair wrapper is now
+    // transparent under EVERY skin — the v32 drawing sits the
+    // rectangles on the page ground — so the 8-bit rule (never paint
+    // the sheet) holds a fortiori; the pin follows the new wrapper.
+    expect(schedule).toContain('gap: 12, paddingHorizontal: 12, marginBottom: 8, backgroundColor: "transparent"');
     expect(schedule).toContain("skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted");
   });
 
@@ -1382,7 +1386,11 @@ describe("v189 — Paper, Not Buttons", () => {
     expect(index).toContain("borderRadius: skin?.isPaper ? 6 : skin?.isEightBit ? 2 : 10");
     expect(index).toContain("borderBottomLeftRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 8");
     expect(read("components/prayer-journal-tab.tsx")).toContain("borderRadius: skinTokens.cardRadius ?? 12");
-    expect(read("components/album-card.tsx")).toContain("borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12");
+    // RE-BASED in v295 (the fidelity build): the worship card was
+    // recomposed to the approved v19-fixed drawing, whose card radius
+    // is 22 — the Classic fallback follows the drawing. Skinned radii
+    // still derive from cardRadius exactly as this pin intends.
+    expect(read("components/album-card.tsx")).toContain("borderRadius: isSkinned ? skinTokens.cardRadius ?? 22 : 22");
   });
 
   it("the date header is a solid paper panel with the full date (v192: no longer pinned; v193: the sheet's head)", () => {

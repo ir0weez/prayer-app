@@ -266,7 +266,14 @@ describe("Paper coverage — v202 animation pass", () => {
     // delay. The FAB is now the morph (components/schedule-fab.tsx) —
     // its five rows stagger-rise on the morph's progress per the
     // approved v31 motion frame, so the stagger pin moved with it.
-    expect(schedule).toContain("<ScheduleFab");
+    // RE-BASED again in v295 (the fidelity build): the morph's MOUNT
+    // moved to the shell — v294's in-tab mount let the tab bar paint
+    // over the button (his device report) — so schedule-tab registers
+    // its config through the bridge and the shell hosts the component.
+    // The Paper lift wiring (getFacePressedStyles) still lives in the
+    // registration below; the stagger pin is unchanged.
+    expect(schedule).toContain("setScheduleFabConfig({");
+    expect(read("app/(tabs)/index.tsx")).toContain("<ScheduleFabHost />");
     expect(read("components/schedule-fab.tsx")).toContain("0.3 + index * 0.07");
     // All six slide-over forms (event/todo/ministry/bible-study/
     // worship/album library) fade under Paper and their sheets are

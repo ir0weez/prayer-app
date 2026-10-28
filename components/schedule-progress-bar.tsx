@@ -12,6 +12,7 @@ import Animated, {
 import Svg, { Circle, ClipPath, Defs, G, Line, LinearGradient, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
+import { mix } from "@/lib/color-themes";
 import { usePaperFill } from "./paper-motion";
 import { useBitFill } from "./bit-motion";
 import { DAY_CAP_STARS, dayCapArc, dayCapFaceFor, dayCapSky, type DayCapFace, type DayCapSky } from "@/lib/day-cap";
@@ -284,7 +285,7 @@ function DayCapGlyph({ face, isTerminal, isEightBit, isPaper }: { face: DayCapFa
 
 export function ScheduleProgressBar({ completed, total, label = "Progress" }: ScheduleProgressBarProps) {
   const colors = useColors();
-  const { tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   // Terminal (v186): the bar speaks phosphor — track in dim green,
   // fill in bright. v242: its end cap is a phosphor line-art sky
   // window on the panel; only the COLORS change per skin, the
@@ -357,7 +358,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
           {label}
         </Text>
         <Text style={{ fontSize: 13, color: isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK_SOFT : colors.muted, ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
-          {completed} of {total}
+          {completed} of {total}{!isSkinned && total > 0 ? ` · ${Math.round(percentage)}%` : ""}
         </Text>
       </View>
 
@@ -369,7 +370,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
             {
               position: "relative",
               height: 6,
-              backgroundColor: isTerminal ? TERM_DIM : skinTokens.isEightBit ? "#6E5BB5" : colors.border,
+              backgroundColor: isTerminal ? TERM_DIM : skinTokens.isEightBit ? "#6E5BB5" : !isSkinned ? mix(colors.primary, colors.surface, 0.82) : colors.border,
               borderRadius: (skinTokens.isEightBit || isTerminal) ? 0 : 3,
               overflow: "hidden",
             },

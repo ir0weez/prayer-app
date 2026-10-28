@@ -304,8 +304,14 @@ describe("v294 FAB (source pins)", () => {
   const fab = read("components/schedule-fab.tsx");
 
   it("schedule-tab wires the morph with his five items in his order and colours", () => {
-    const start = tab.indexOf("<ScheduleFab");
-    const region = tab.slice(start, start + 2600);
+    // v295 re-base (citation): the FAB's MOUNT moved out of
+    // schedule-tab to the shell (the tab bar painted over it —
+    // lib/schedule-fab-bridge.ts); schedule-tab now wires the same
+    // five items through setScheduleFabConfig. The pin's intent —
+    // his items, his order, his colours, wired from schedule-tab —
+    // is unchanged; only the anchor moved to the registration call.
+    const start = tab.indexOf("setScheduleFabConfig({");
+    const region = tab.slice(start, start + 3200);
     const order = ["Ministry", "Event", "Todo", "Worship", "Time Off"].map((label) => region.indexOf(`label: "${label}"`));
     expect(order.every((i) => i > -1)).toBe(true);
     expect(order).toEqual([...order].sort((a, b) => a - b));

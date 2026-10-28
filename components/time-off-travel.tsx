@@ -41,10 +41,39 @@ function formatRange(startDate: string, endDate: string): string {
 /** The trip band at the head of a time-off day. A door, never a checkbox. */
 export function TripBand({ timeOff, date, onPress }: { timeOff: TimeOff; date: string; onPress: () => void }) {
   const colors = useColors();
-  const { tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const base = tripBaseColor(timeOff);
   const day = tripDayNumber(timeOff, date);
   const bandBg = skinTokens.isTerminal ? undefined : mix(colors.surface, base, hexLuminance(colors.surface) < 0.5 ? 0.34 : 0.22);
+  // v295 (Classic): the Friday drawing's band — SATURATED in the
+  // trip's colour (flat step; the app has no gradient dress), white
+  // type stack: the TIME OFF · TYPE label, the title, the range with
+  // the day count, and the chevron. A door, never a checkbox.
+  if (!isSkinned) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${timeOff.title}. Tap to open Time Off.`}
+        onPress={onPress}
+        style={({ pressed }) => [{ marginHorizontal: 12, marginBottom: 12, opacity: pressed ? 0.75 : 1 }]}
+      >
+        <View style={{ backgroundColor: base, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 13 }}>
+          <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 1.6, color: "rgba(255,255,255,0.75)" }}>
+            {`TIME OFF · ${getTimeOffLabel(timeOff.type).toUpperCase()}`}
+          </Text>
+          <Text style={{ fontSize: 17, fontWeight: "800", color: "#FFFFFF", marginTop: 2 }} numberOfLines={1}>
+            {timeOff.title}
+          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.85)", flex: 1 }} numberOfLines={1}>
+              {formatRange(timeOff.startDate, timeOff.endDate)}{day ? ` · Day ${day.day} of ${day.total}` : ""}
+            </Text>
+            <MaterialIcons name="chevron-right" size={20} color="rgba(255,255,255,0.8)" />
+          </View>
+        </View>
+      </Pressable>
+    );
+  }
   return (
     <Pressable
       accessibilityRole="button"
@@ -95,10 +124,83 @@ const ROUTE_RE = /([A-Za-z]{3})\s*→\s*([A-Za-z]{3})/;
 /** One itinerary entry as it appears in the day's flow — a travel card. */
 export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; timeOff: TimeOff }) {
   const colors = useColors();
-  const { tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   const base = tripBaseColor(timeOff);
   const route = entry.kind === "travel" ? entry.detail?.match(ROUTE_RE) : null;
   const surface = mix(colors.surface, base, hexLuminance(colors.surface) < 0.5 ? 0.2 : 0.1);
+
+  // v295 (Classic): the Friday drawing's travel card — a white card
+  // whose head is a 38px band in the trip's colour: the time pill at
+  // its left (translucent white), the kind label at its right; the
+  // route read or the plan row in the body below.
+  if (!isSkinned) {
+    return (
+      <View
+        style={{
+          marginHorizontal: 12,
+          marginBottom: 12,
+          backgroundColor: colors.surface,
+          borderRadius: 22,
+          borderWidth: 1,
+          borderColor: mix(colors.primary, colors.surface, 0.85),
+          overflow: "hidden",
+        }}
+      >
+        <View style={{ height: 38, backgroundColor: base, flexDirection: "row", alignItems: "center", paddingHorizontal: 12, gap: 8 }}>
+          {entry.time && (
+            <View style={{ backgroundColor: "rgba(255,255,255,0.22)", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
+              <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "800" }}>{format12HourTime(entry.time)}</Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }} />
+          <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "800", letterSpacing: 1.2 }}>
+            {entry.kind.toUpperCase()}
+          </Text>
+        </View>
+        <View style={{ paddingHorizontal: 14, paddingVertical: 11 }}>
+          {route ? (
+            <>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Text style={{ fontSize: 21, fontWeight: "800", color: colors.foreground, letterSpacing: 0.4 }}>{route[1].toUpperCase()}</Text>
+                <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: base }} />
+                  <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: base }} />
+                  <MaterialIcons name="flight" size={16} color={base} style={{ transform: [{ rotate: "90deg" }] }} />
+                  <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: base }} />
+                  <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: base }} />
+                </View>
+                <Text style={{ fontSize: 21, fontWeight: "800", color: colors.foreground, letterSpacing: 0.4 }}>{route[2].toUpperCase()}</Text>
+              </View>
+              <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, marginTop: 8 }} numberOfLines={1}>
+                {entry.title}
+              </Text>
+            </>
+          ) : (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <MaterialIcons
+                name={entry.kind === "stay" ? "hotel" : entry.kind === "travel" ? "directions-car" : "place"}
+                size={18}
+                color={base}
+              />
+              <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, flex: 1 }} numberOfLines={1}>
+                {entry.title}
+              </Text>
+            </View>
+          )}
+          {entry.address && (
+            <Text style={{ fontSize: 12.5, color: colors.foreground, marginTop: 7, fontWeight: "600" }} numberOfLines={2}>
+              {entry.address}
+            </Text>
+          )}
+          {entry.detail && (
+            <Text style={{ fontSize: 12, color: colors.muted, marginTop: 3 }} numberOfLines={1}>
+              {entry.detail}
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View
@@ -199,7 +301,42 @@ export function ClaimedRestBlock({
   onPress: () => void;
 }) {
   const colors = useColors();
+  const { isSkinned } = useSkin();
   const base = tripBaseColor(timeOff);
+  // v295 (Classic): the Friday drawing's claimed block — the trip's
+  // icon and name CENTRED over the claimed range, in the trip's
+  // colour family. Skins keep the left/right row.
+  if (!isSkinned) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${timeOff.title}, time off. Tap to open Time Off.`}
+        onPress={onPress}
+        style={({ pressed }) => [{ marginHorizontal: 12, marginBottom: 12, opacity: pressed ? 0.75 : 1 }]}
+      >
+        <View
+          style={{
+            height,
+            borderRadius: 22,
+            backgroundColor: mix(colors.surface, base, 0.16),
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 2,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+            <MaterialIcons name={getTimeOffIcon(timeOff.type) as any} size={16} color={base} />
+            <Text style={{ fontSize: 13, fontWeight: "700", color: base }}>
+              Time off — {timeOff.title}
+            </Text>
+          </View>
+          <Text style={{ fontSize: 11.5, fontWeight: "500", color: mix(base, colors.muted, 0.4) }}>
+            {format12HourTime(startTime)} → {format12HourTime(endTime)}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  }
   return (
     <Pressable
       accessibilityRole="button"

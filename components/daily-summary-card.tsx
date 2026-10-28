@@ -1,5 +1,6 @@
 import { Animated, View, Text, Pressable, ScrollView, Modal } from "react-native";
 import { formatCoins } from "@/lib/hometown";
+import { mix } from "@/lib/color-themes";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_BG, TERM_MID, TERM_PHOS, TERM_SOFT, skinText } from "@/lib/skin-themes";
@@ -35,6 +36,16 @@ interface DailySummaryCardProps {
   /** Bottom padding of the card; defaults to 24. Schedule passes 0 (its inner
       block already carries a 16px bottom margin). */
   bottomPadding?: number;
+  /** v295: the drawing's REACH row — the people due for reach-out today. */
+  reachPeople?: Array<{ id: string; name: string }>;
+  /** v295: the Reach out button — opens the Reach Out event editor. */
+  onReachOutPress?: () => void;
+  /** v295: the drawing's fast clause ("day 300 of 365 · streak 2"), when a fast is live. */
+  fastLine?: string | null;
+}
+
+function initialsOf(name: string): string {
+  return name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 }
 
 // Map icon names from getIconForTodo to Material Icons
@@ -82,10 +93,13 @@ export function DailySummaryCard({
   availableHours = 0,
   availableTimeString = "0h",
   prayerStreak = 0,
+  reachPeople = [],
+  onReachOutPress,
+  fastLine = null,
 
 }: DailySummaryCardProps) {
   const colors = useColors();
-  const { tokens: skinTokens } = useSkin();
+  const { isSkinned, tokens: skinTokens } = useSkin();
   // 8-bit (v184): this card renders directly on the dusk page (the
   // summary zone), so its inks flip to the mockup's on-dusk text —
   // #EDE8FF body, #CFC6F2 soft — instead of the palette's dark inks.
@@ -186,114 +200,10 @@ export function DailySummaryCard({
   };
   const displayDay = getDefaultDay();
 
-  return (
-    <Animated.View
-      style={{
-        paddingHorizontal: 24 + skinTokens.type.padBoost,
-        paddingTop: 16 + skinTokens.type.gapBoost,
-        paddingBottom: bottomPadding,
-        transform: [{ translateY: slideAnim }],
-        opacity: opacityAnim,
-      }}
-    >
-      {/* Summary with greeting and profile badge */}
-      <View style={{ marginBottom: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 18, color: inkSoft, fontWeight: "500", ...skinText(skinTokens, skinTokens.type.greeting) }}>
-            {getTimeBasedGreeting()}, 
-          </Text>
-          
-          {/* Profile Badge */}
-          <View
-            style={[{
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 12,
-              // Terminal (v188): the name chip is the mockup's inverted
-              // selection block — phosphor face, tube-dark text — not
-              // the palette's fasting-status badge color (which read as
-              // a purple straggler on the tube).
-              backgroundColor: skinTokens.isTerminal ? TERM_PHOS : getBadgeColor(),
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              marginLeft: 4,
-            }, null]}
-          >
-            <Text style={[{ fontWeight: "700", color: skinTokens.isTerminal ? TERM_BG : "#FFFFFF", fontSize: 16, ...skinText(skinTokens, skinTokens.type.summaryName) }, null]}>
-              {userName}
-            </Text>
-            {prayerStreak > 0 && (
-              <View
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 11,
-                  backgroundColor: "#EF4444",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderWidth: 2,
-                  borderColor: "#FFFFFF",
-                }}
-              >
-                <Text style={{ fontWeight: "700", color: "#FFFFFF", fontSize: 11 }}>
-                  {prayerStreak}
-                </Text>
-              </View>
-            )}
-          </View>
-          <Text style={{ fontSize: 18, color: inkSoft, fontWeight: "500", marginLeft: 4, ...skinText(skinTokens, skinTokens.type.greeting) }}>.</Text>
-        </View>
-
-        {/* Summary text */}
-        <Text style={{ fontSize: 16, lineHeight: 24, color: ink, fontWeight: "400", ...skinText(skinTokens, skinTokens.type.summaryBody, skinTokens.type.summaryLineHeight) }}>
-          You have{' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="task-alt" size={summaryIconSize} color={ink} /> {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}
-          </Text>
-          , last{' '}
-          {bibleStudyDays.length > 0 ? (
-            <Text
-              onPress={() => setShowDayDropdown(true)}
-              style={{
-                fontWeight: "700",
-                color: ink,
-                textDecorationLine: "underline",
-                textDecorationStyle: "dashed",
-                textDecorationColor: skinTokens.isTerminal ? TERM_MID : colors.primary,
-              }}
-            >
-              {displayDay}
-            </Text>
-          ) : (
-            <Text style={{ fontWeight: "700" }}>{displayDay}</Text>
-          )}
-          {' '}bible study{' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="school" size={summaryIconSize} color={ink} /> {currentBibleStudy || 'none'}
-          </Text>
-          , have{' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="favorite" size={summaryIconSize} color={ink} /> {remainingPrayers} prayer{remainingPrayers !== 1 ? "s" : ""}
-          </Text>
-          , <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="account-balance-wallet" size={summaryIconSize} color={ink} /> ${formatCoins(budgetAmount)}
-          </Text> to budget,{' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="people" size={summaryIconSize} color={ink} /> {peopleToReach} people
-          </Text> to reach, {' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="event" size={summaryIconSize} color={ink} /> {eventCount} event{eventCount !== 1 ? "s" : ""}
-          </Text>, and{' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="volunteer-activism" size={summaryIconSize} color={ink} /> {ministryCount} ministries
-          </Text> to lead. You have{' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="schedule" size={summaryIconSize} color={ink} /> {availableTimeString}
-          </Text>{' '}available.
-        </Text>
-      </View>
-
+  // Extracted (v295) so both dresses — the legacy layout and the
+  // Classic blend composition — share the one day-selector modal.
+  const daySelectorModal = (
+    <>
       {/* Bible Study Day Selector Modal - rendered OUTSIDE the Text element */}
       {bibleStudyDays.length > 0 && (
         <Modal
@@ -405,6 +315,250 @@ export function DailySummaryCard({
           </Pressable>
         </Modal>
       )}
+    </>
+  );
+
+  // v295 (CLASSIC ONLY): the approved blend composition from the v32
+  // drawing — the summary as ONE saturated card in the seed's deep
+  // step: greeting with the name chip and streak badge, the prose
+  // paragraph (every fact the legacy layout carries, plus the fast
+  // clause), and the REACH row with the due people's faces. The
+  // skins keep the legacy layout below, untouched.
+  if (!isSkinned) {
+    const panel = mix(colors.primary, "#000000", 0.12);
+    const panelDeep = mix(panel, "#000000", 0.25);
+    const chipBg = mix(panel, "#FFFFFF", 0.18);
+    const faceBg = mix(panel, "#FFFFFF", 0.28);
+    const onPanel = "#FFFFFF";
+    const onPanelSoft = "rgba(255,255,255,0.85)";
+    return (
+      <Animated.View
+        style={{
+          paddingTop: 14,
+          paddingBottom: bottomPadding,
+          transform: [{ translateY: slideAnim }],
+          opacity: opacityAnim,
+        }}
+      >
+        <View style={{ backgroundColor: panel, borderRadius: 24, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginBottom: 10 }}>
+            <Text style={{ fontSize: 15.5, color: onPanelSoft, fontWeight: "500" }}>
+              {getTimeBasedGreeting()},
+            </Text>
+            <View style={{ backgroundColor: chipBg, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 4 }}>
+              <Text style={{ fontWeight: "800", color: onPanel, fontSize: 14.5 }}>
+                {userName}
+              </Text>
+            </View>
+            {prayerStreak > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: "#F59E0B", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+                <MaterialIcons name="local-fire-department" size={12} color="#3B2A00" />
+                <Text style={{ fontWeight: "800", color: "#3B2A00", fontSize: 11.5 }}>
+                  {prayerStreak}
+                </Text>
+              </View>
+            )}
+            <Text style={{ fontSize: 15.5, color: onPanelSoft, fontWeight: "500" }}>.</Text>
+          </View>
+
+          <Text style={{ fontSize: 15, lineHeight: 23.5, color: onPanel, fontWeight: "400" }}>
+            You have{' '}
+            <Text style={{ fontWeight: "700" }}>
+              <MaterialIcons name="task-alt" size={15} color={onPanel} /> {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}
+            </Text>
+            , last{' '}
+            {bibleStudyDays.length > 0 ? (
+              <Text
+                onPress={() => setShowDayDropdown(true)}
+                style={{
+                  fontWeight: "700",
+                  color: onPanel,
+                  textDecorationLine: "underline",
+                  textDecorationStyle: "dashed",
+                  textDecorationColor: "rgba(255,255,255,0.6)",
+                }}
+              >
+                {displayDay}
+              </Text>
+            ) : (
+              <Text style={{ fontWeight: "700" }}>{displayDay}</Text>
+            )}
+            {' '}bible study{' '}
+            <Text style={{ fontWeight: "700" }}>
+              <MaterialIcons name="school" size={15} color={onPanel} /> {currentBibleStudy || 'none'}
+            </Text>
+            , have{' '}
+            <Text style={{ fontWeight: "700" }}>
+              <MaterialIcons name="favorite" size={15} color={onPanel} /> {remainingPrayers} prayer{remainingPrayers !== 1 ? "s" : ""}
+            </Text>
+            , <Text style={{ fontWeight: "700" }}>
+              <MaterialIcons name="account-balance-wallet" size={15} color={onPanel} /> ${formatCoins(budgetAmount)}
+            </Text> to budget,{' '}
+            <Text style={{ fontWeight: "700" }}>
+              <MaterialIcons name="people" size={15} color={onPanel} /> {peopleToReach} people
+            </Text> to reach, {' '}
+            <Text style={{ fontWeight: "700" }}>
+              <MaterialIcons name="event" size={15} color={onPanel} /> {eventCount} event{eventCount !== 1 ? "s" : ""}
+            </Text>, and{' '}
+            <Text style={{ fontWeight: "700" }}>
+              <MaterialIcons name="volunteer-activism" size={15} color={onPanel} /> {ministryCount} ministries
+            </Text> to lead. You have{' '}
+            <Text style={{ fontWeight: "700" }}>
+              <MaterialIcons name="schedule" size={15} color={onPanel} /> {availableTimeString}
+            </Text>{' '}available.
+            {fastLine ? (
+              <Text>
+                {' '}Your fast —{' '}
+                <Text style={{ fontWeight: "700" }}>
+                  <MaterialIcons name="local-fire-department" size={15} color={onPanel} /> {fastLine}
+                </Text>.
+              </Text>
+            ) : null}
+          </Text>
+
+          {reachPeople.length > 0 && (
+            <>
+              <View style={{ height: 1, backgroundColor: "rgba(255,255,255,0.22)", marginTop: 14, marginBottom: 10 }} />
+              <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 1.6, color: "rgba(255,255,255,0.75)", marginBottom: 8 }}>REACH OUT — DUE TODAY</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {reachPeople.slice(0, 4).map((person) => (
+                  <View key={person.id} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: faceBg, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: onPanel, fontSize: 11, fontWeight: '800' }}>{initialsOf(person.name)}</Text>
+                  </View>
+                ))}
+                {reachPeople.length > 4 && (
+                  <View style={{ height: 30, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: onPanel, fontSize: 11, fontWeight: '800' }}>+{reachPeople.length - 4}</Text>
+                  </View>
+                )}
+                <View style={{ flex: 1 }} />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Reach out"
+                  onPress={onReachOutPress}
+                  style={({ pressed }) => [{ backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, opacity: pressed ? 0.8 : 1 }]}
+                >
+                  <Text style={{ color: panelDeep, fontSize: 12.5, fontWeight: '800' }}>Reach out</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
+        </View>
+
+        {daySelectorModal}
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View
+      style={{
+        paddingHorizontal: 24 + skinTokens.type.padBoost,
+        paddingTop: 16 + skinTokens.type.gapBoost,
+        paddingBottom: bottomPadding,
+        transform: [{ translateY: slideAnim }],
+        opacity: opacityAnim,
+      }}
+    >
+      {/* Summary with greeting and profile badge */}
+      <View style={{ marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+          <Text style={{ fontSize: 18, color: inkSoft, fontWeight: "500", ...skinText(skinTokens, skinTokens.type.greeting) }}>
+            {getTimeBasedGreeting()}, 
+          </Text>
+          
+          {/* Profile Badge */}
+          <View
+            style={[{
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 12,
+              // Terminal (v188): the name chip is the mockup's inverted
+              // selection block — phosphor face, tube-dark text — not
+              // the palette's fasting-status badge color (which read as
+              // a purple straggler on the tube).
+              backgroundColor: skinTokens.isTerminal ? TERM_PHOS : getBadgeColor(),
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              marginLeft: 4,
+            }, null]}
+          >
+            <Text style={[{ fontWeight: "700", color: skinTokens.isTerminal ? TERM_BG : "#FFFFFF", fontSize: 16, ...skinText(skinTokens, skinTokens.type.summaryName) }, null]}>
+              {userName}
+            </Text>
+            {prayerStreak > 0 && (
+              <View
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  backgroundColor: "#EF4444",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 2,
+                  borderColor: "#FFFFFF",
+                }}
+              >
+                <Text style={{ fontWeight: "700", color: "#FFFFFF", fontSize: 11 }}>
+                  {prayerStreak}
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={{ fontSize: 18, color: inkSoft, fontWeight: "500", marginLeft: 4, ...skinText(skinTokens, skinTokens.type.greeting) }}>.</Text>
+        </View>
+
+        {/* Summary text */}
+        <Text style={{ fontSize: 16, lineHeight: 24, color: ink, fontWeight: "400", ...skinText(skinTokens, skinTokens.type.summaryBody, skinTokens.type.summaryLineHeight) }}>
+          You have{' '}
+          <Text style={{ fontWeight: "700" }}>
+            <MaterialIcons name="task-alt" size={summaryIconSize} color={ink} /> {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}
+          </Text>
+          , last{' '}
+          {bibleStudyDays.length > 0 ? (
+            <Text
+              onPress={() => setShowDayDropdown(true)}
+              style={{
+                fontWeight: "700",
+                color: ink,
+                textDecorationLine: "underline",
+                textDecorationStyle: "dashed",
+                textDecorationColor: skinTokens.isTerminal ? TERM_MID : colors.primary,
+              }}
+            >
+              {displayDay}
+            </Text>
+          ) : (
+            <Text style={{ fontWeight: "700" }}>{displayDay}</Text>
+          )}
+          {' '}bible study{' '}
+          <Text style={{ fontWeight: "700" }}>
+            <MaterialIcons name="school" size={summaryIconSize} color={ink} /> {currentBibleStudy || 'none'}
+          </Text>
+          , have{' '}
+          <Text style={{ fontWeight: "700" }}>
+            <MaterialIcons name="favorite" size={summaryIconSize} color={ink} /> {remainingPrayers} prayer{remainingPrayers !== 1 ? "s" : ""}
+          </Text>
+          , <Text style={{ fontWeight: "700" }}>
+            <MaterialIcons name="account-balance-wallet" size={summaryIconSize} color={ink} /> ${formatCoins(budgetAmount)}
+          </Text> to budget,{' '}
+          <Text style={{ fontWeight: "700" }}>
+            <MaterialIcons name="people" size={summaryIconSize} color={ink} /> {peopleToReach} people
+          </Text> to reach, {' '}
+          <Text style={{ fontWeight: "700" }}>
+            <MaterialIcons name="event" size={summaryIconSize} color={ink} /> {eventCount} event{eventCount !== 1 ? "s" : ""}
+          </Text>, and{' '}
+          <Text style={{ fontWeight: "700" }}>
+            <MaterialIcons name="volunteer-activism" size={summaryIconSize} color={ink} /> {ministryCount} ministries
+          </Text> to lead. You have{' '}
+          <Text style={{ fontWeight: "700" }}>
+            <MaterialIcons name="schedule" size={summaryIconSize} color={ink} /> {availableTimeString}
+          </Text>{' '}available.
+        </Text>
+      </View>
+
+{daySelectorModal}
 
     </Animated.View>
   );

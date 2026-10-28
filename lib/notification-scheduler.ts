@@ -2,7 +2,7 @@ import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import type { Person, ReminderFrequency } from "./prayercircle-data";
-import { getPersonReminderFrequency, hasActiveEmergencyPrayer, hasActivePraise } from "./prayercircle-data";
+import { getPersonReminderFrequency } from "./prayercircle-data";
 import { getPrayerNotificationBody } from "./notification-content";
 import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from "./schedule-data";
 import { SCHEDULE_EVENTS_KEY, SCHEDULE_MINISTRIES_KEY, SCHEDULE_TODOS_KEY } from "./schedule-data";
@@ -31,6 +31,7 @@ export const SCHEDULE_NOTIFICATION_CATEGORY = "schedule-actions";
 
 export type NotificationPreferences = {
   prayerRemindersEnabled: boolean;
+  emergencyPraiseNotificationsEnabled: boolean;
   eventRemindersEnabled: boolean;
   defaultEventReminderMinutes: number;
   budgetRemindersEnabled: boolean;
@@ -39,6 +40,7 @@ export type NotificationPreferences = {
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   prayerRemindersEnabled: true,
+  emergencyPraiseNotificationsEnabled: true,
   eventRemindersEnabled: true,
   defaultEventReminderMinutes: 0,
   budgetRemindersEnabled: true,
@@ -52,6 +54,7 @@ export function normalizeNotificationPreferences(value: unknown): NotificationPr
   const minutes = Number(parsed.defaultEventReminderMinutes);
   return {
     prayerRemindersEnabled: parsed.prayerRemindersEnabled !== false,
+    emergencyPraiseNotificationsEnabled: parsed.emergencyPraiseNotificationsEnabled !== false,
     eventRemindersEnabled: parsed.eventRemindersEnabled !== false,
     defaultEventReminderMinutes: VALID_ADVANCE_MINUTES.includes(minutes) ? minutes : 0,
     budgetRemindersEnabled: parsed.budgetRemindersEnabled !== false,
@@ -526,172 +529,56 @@ export const notificationKinds = { prayer: PRAYER_KIND, event: EVENT_KIND, todo:
 export { parseTime };
 
 // ---------------------------------------------------------------------------
-// Sticky tray notifications for active emergency prayers and praise reports.
-// These sit in the Android notification shade (the "pill" area) until the
-// prayer is done or expires. Tapping one opens the app to that person.
-// Reconciliation is based on what's actually in the shade, so pills
-// reliably appear and survive app restarts.
+// v309 — the sticky tray cards are GONE. Until now an emergency prayer
+// posted TWO shade cards: this plain sticky tray card ("Urgent prayer
+// for X — tap to pray", and "Praise God for X — tap to view" for praise)
+// AND the native timer pill from modules/expo-prayer-timer (countdown
+// text, progress bar, Pray now / Dismiss). Jonathan: "I'm still kind of
+// tired of getting two notifications for emergency and praise prayers.
+// Just give me the timer one." So the plain card's posting path is
+// deleted for BOTH kinds — the native timer pill is the only emergency
+// notification, and praise posts no shade card at all. What remains
+// here is the cleanup: tray cards an older build left sitting in the
+// shade (or still pending) are dismissed/cancelled so the shade heals
+// itself on the first run of the new build. The "Emergency & praise
+// notifications" preference gates the native pill in the People tab
+// (which also calls this cleanup when the toggle flips off).
 // ---------------------------------------------------------------------------
 
-const PRAYER_TRAY_KEY_PREFIX = "prayer-tray:";
-export const PRAYER_TRAY_CHANNEL_ID = "prayer-tray";
+const PRAYER_TRAY_KIND = "prayer-tray";
 
-function prayerTrayKey(kind: "emergency" | "praise", personId: string): string {
-  return `${PRAYER_TRAY_KEY_PREFIX}${kind}:${personId}`;
+type PrayerTrayData = { kind?: unknown } | null;
+
+function isPrayerTrayData(data: PrayerTrayData): boolean {
+  return data?.kind === PRAYER_TRAY_KIND;
 }
 
-async function ensurePrayerTrayChannel(): Promise<void> {
-  if (Platform.OS !== "android") return;
-  try {
-    await Notifications.setNotificationChannelAsync(PRAYER_TRAY_CHANNEL_ID, {
-      name: "PrayerCircle prayer tray",
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0],
-      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-    });
-  } catch {
-    // Best-effort
-  }
-}
-
-type PrayerTrayData = { kind?: unknown; trayKind?: unknown; personId?: unknown } | null;
-
-function presentedTrayKey(data: PrayerTrayData): string | null {
-  if (data?.kind === "prayer-tray" && typeof data.trayKind === "string" && typeof data.personId === "string") {
-    return prayerTrayKey(data.trayKind as "emergency" | "praise", data.personId);
-  }
-  return null;
-}
-
-export async function showPrayerTrayNotification(kind: "emergency" | "praise", personId: string, personName: string): Promise<void> {
+/**
+ * Dismisses every presented legacy tray card and cancels every pending
+ * one. Other notification kinds are untouched. Best-effort: a card the
+ * OS already removed is not an error.
+ */
+export async function dismissPrayerTrayNotifications(): Promise<void> {
   if (Platform.OS === "web") return;
   try {
-    const preferences = await getNotificationPreferences();
-    if (!preferences.prayerRemindersEnabled) return;
-    await ensurePrayerTrayChannel();
-    const title = kind === "emergency" ? "🚨 Emergency prayer" : "🙌 Praise report";
-    const body = kind === "emergency"
-      ? `Urgent prayer for ${personName} — tap to pray`
-      : `Praise God for ${personName} — tap to view`;
-    await Notifications.scheduleNotificationAsync({
-      // v268 MARK: stable tray identifier — Android presents notifications
-      // keyed by (tag = identifier, fixed id), so re-posting the same tray
-      // card REPLACES the one in the shade instead of stacking a new copy.
-      identifier: prayerTrayKey(kind, personId),
-      content: {
-        title,
-        body,
-        sticky: true,
-        priority: Notifications.AndroidNotificationPriority.HIGH,
-        data: { kind: "prayer-tray", trayKind: kind, personId },
-      },
-      trigger: { channelId: PRAYER_TRAY_CHANNEL_ID },
-    });
-  } catch {
-    // Best-effort
-  }
-}
-
-export async function clearPrayerTrayNotification(kind: "emergency" | "praise", personId: string): Promise<void> {
-  if (Platform.OS === "web") return;
-  try {
-    const key = prayerTrayKey(kind, personId);
     const presented = await Notifications.getPresentedNotificationsAsync();
-    for (const n of presented) {
-      if (presentedTrayKey(n.request.content.data as PrayerTrayData) === key) {
-        try { await Notifications.dismissNotificationAsync(n.request.identifier); } catch { /* already gone */ }
-      }
-    }
+    await Promise.all(
+      presented
+        .filter((n) => isPrayerTrayData(n.request.content.data as PrayerTrayData))
+        .map((n) => Notifications.dismissNotificationAsync(n.request.identifier).catch(() => undefined)),
+    );
   } catch {
     // Best-effort
   }
-}
-
-/** Reconciles sticky tray notifications with the current people list. */
-async function syncPrayerTrayNotificationsNow(people: Person[]): Promise<void> {
-  if (Platform.OS === "web") return;
   try {
-    if (!(await ensureNotificationPermission())) return;
-    await ensurePrayerTrayChannel();
-    // If prayer reminders are off, clear any sticky tray cards and stop.
-    const preferences = await getNotificationPreferences();
-    const presented = await Notifications.getPresentedNotificationsAsync();
-    if (!preferences.prayerRemindersEnabled) {
-      await Promise.all(
-        presented
-          .filter((n) => presentedTrayKey(n.request.content.data as PrayerTrayData) != null)
-          .map((n) => Notifications.dismissNotificationAsync(n.request.identifier).catch(() => undefined)),
-      );
-      return;
-    }
-    const now = Date.now();
-    const wanted = new Map<string, { kind: "emergency" | "praise"; personId: string; personName: string }>();
-    for (const person of people) {
-      // v284: the wanted set reads the ONE shared liveness definition
-      // (prayercircle-data) — a lapsed prayer wants no card, and a
-      // renewed one wants exactly its one card back, same as a fresh
-      // post. (Before v284 this block re-derived the expiry check
-      // inline; the semantics were identical, the fork was the risk.)
-      const hasEmergency = hasActiveEmergencyPrayer(person, new Date(now));
-      const hasPraise = hasActivePraise(person, new Date(now));
-      if (hasEmergency) {
-        const key = prayerTrayKey("emergency", person.id);
-        wanted.set(key, { kind: "emergency", personId: person.id, personName: person.name });
-      }
-      if (hasPraise) {
-        const key = prayerTrayKey("praise", person.id);
-        wanted.set(key, { kind: "praise", personId: person.id, personName: person.name });
-      }
-    }
-    // What's actually sitting in the shade right now? (fetched above)
-    // v268: key → ALL identifiers. Copies of the same card can already be
-    // stacked from before the stable-identifier fix; a one-identifier map
-    // hid the extras from cleanup. Every identifier is tracked so the
-    // shade can heal itself back to exactly one card per person + kind.
-    const presentedTray = new Map<string, string[]>();
-    for (const n of presented) {
-      const key = presentedTrayKey(n.request.content.data as PrayerTrayData);
-      if (!key) continue;
-      const identifiers = presentedTray.get(key) ?? [];
-      identifiers.push(n.request.identifier);
-      presentedTray.set(key, identifiers);
-    }
-    // Post whatever should be there but isn't.
-    for (const [key, info] of wanted) {
-      if (!presentedTray.has(key)) {
-        await showPrayerTrayNotification(info.kind, info.personId, info.personName);
-      }
-    }
-    // Clear whatever is there but no longer wanted, and any duplicate
-    // copies of cards that are still wanted: keep exactly one per key —
-    // the copy carrying the stable tray identifier when there is one
-    // (that is the card future re-posts replace), otherwise the first.
-    for (const [key, identifiers] of presentedTray) {
-      const keep = wanted.has(key)
-        ? identifiers.includes(key)
-          ? key
-          : identifiers[0]
-        : null;
-      for (const id of identifiers) {
-        if (id === keep) continue;
-        try { await Notifications.dismissNotificationAsync(id); } catch { /* already gone */ }
-      }
-    }
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(
+      scheduled
+        .filter((n) => isPrayerTrayData(n.content.data as PrayerTrayData))
+        .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => undefined)),
+    );
   } catch {
     // Best-effort
   }
 }
 
-let prayerTraySyncQueue: Promise<void> = Promise.resolve();
-
-// v268 MARK: the exported tray sync is queue-serialized, exactly like the
-// prayer/schedule/budget syncs above. The People-page effect fires this on
-// every people change; unserialized runs raced — each snapshotted the
-// shade while another run's post was still in flight, read it as missing,
-// and posted another copy. Serialized runs see each other's posts.
-export function syncPrayerTrayNotifications(people: Person[]): Promise<void> {
-  prayerTraySyncQueue = prayerTraySyncQueue
-    .catch(() => undefined)
-    .then(() => syncPrayerTrayNotificationsNow(people));
-  return prayerTraySyncQueue;
-}

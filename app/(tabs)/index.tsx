@@ -61,11 +61,11 @@ import {
   cancelPersonReminderNotifications,
   cancelScheduledEventNotifications,
   clearAllScheduledNotifications,
+  dismissPrayerTrayNotifications,
   getNotificationPermissionStatus,
   scheduleTestNotification,
   syncBudgetReminderNotifications,
   syncPrayerReminderNotifications,
-  syncPrayerTrayNotifications,
 } from "@/lib/notification-scheduler";
 
 import { PulsingGlow } from "@/components/pulsing-glow";
@@ -329,6 +329,7 @@ type AppSettings = {
   whiteSpaceEnabled: boolean;
   holidaysEnabled: boolean;
   prayerRemindersEnabled: boolean;
+  emergencyPraiseNotificationsEnabled: boolean;
   eventRemindersEnabled: boolean;
   defaultEventReminderMinutes: number;
   budgetRemindersEnabled: boolean;
@@ -366,6 +367,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   whiteSpaceEnabled: true,
   holidaysEnabled: true,
   prayerRemindersEnabled: true,
+  emergencyPraiseNotificationsEnabled: true,
   eventRemindersEnabled: true,
   defaultEventReminderMinutes: 0,
   budgetRemindersEnabled: true,
@@ -447,6 +449,7 @@ function parseStoredSettings(value: string | null): AppSettings {
       whiteSpaceEnabled: parsed.whiteSpaceEnabled !== false,
       holidaysEnabled: parsed.holidaysEnabled !== false,
       prayerRemindersEnabled: parsed.prayerRemindersEnabled !== false,
+      emergencyPraiseNotificationsEnabled: parsed.emergencyPraiseNotificationsEnabled !== false,
       eventRemindersEnabled: parsed.eventRemindersEnabled !== false,
       defaultEventReminderMinutes: validAdvanceMinutes.includes(defaultEventReminderMinutes) ? defaultEventReminderMinutes : 0,
       budgetRemindersEnabled: parsed.budgetRemindersEnabled !== false,
@@ -1309,6 +1312,11 @@ export default function HomeScreen() {
   const [emergencyCountdowns, setEmergencyCountdowns] = useState<Record<string, number>>({});
   // Tracks the native emergency pill: last posted key + last progress update.
   const emergencyPillRef = useRef<{ key: string | null; lastUpdate: number }>({ key: null, lastUpdate: 0 });
+  // v309: mirrors the "Emergency & praise notifications" setting into the
+  // 1Hz pill interval (whose deps are just [people]) so flipping the
+  // toggle stops the pill on the next tick, and the toggle-off effect
+  // below stops it immediately.
+  const emergencyPraiseEnabledRef = useRef(true);
   const [praiseCountdowns, setPraiseCountdowns] = useState<Record<string, number>>({});
   const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
   const [closingFamilyId, setClosingFamilyId] = useState<string | null>(null);
@@ -1578,7 +1586,15 @@ export default function HomeScreen() {
         if (isNativePrayerTimerAvailable()) {
           const active = getAllActiveEmergencyPrayers(people);
           const pill = emergencyPillRef.current;
-          if (active.length === 0) {
+          if (!emergencyPraiseEnabledRef.current) {
+            // v309: "Emergency & praise notifications" is off — the
+            // timer pill is the only emergency notification, so off
+            // means the pill comes down and stays down.
+            if (pill.key !== null) {
+              stopEmergencyNotification();
+              pill.key = null;
+            }
+          } else if (active.length === 0) {
             if (pill.key !== null) {
               stopEmergencyNotification();
               pill.key = null;
@@ -1632,6 +1648,7 @@ export default function HomeScreen() {
   // Uses a ref so the listener always sees the latest people list.
   const peopleRef = useRef(people);
   peopleRef.current = people;
+  emergencyPraiseEnabledRef.current = settings.emergencyPraiseNotificationsEnabled;
   const setPeopleRef = useRef(setPeople);
   setPeopleRef.current = setPeople;
   useEffect(() => {
@@ -1822,11 +1839,27 @@ export default function HomeScreen() {
     syncPrayerReminderNotifications(people).catch(() => undefined);
   }, [hasHydratedPeople, people, settings.prayerRemindersEnabled]);
 
-  // Sticky tray pills for active emergency prayers and praise reports.
+  // v309: the plain sticky tray cards no longer exist — the native
+  // timer pill is the only emergency notification and praise posts
+  // none. This just heals the shade: any tray card an older build left
+  // presented (or pending) is dismissed/cancelled.
   useEffect(() => {
     if (!hasHydratedPeople) return;
-    syncPrayerTrayNotifications(people).catch(() => undefined);
-  }, [hasHydratedPeople, people, settings.prayerRemindersEnabled]);
+    dismissPrayerTrayNotifications().catch(() => undefined);
+  }, [hasHydratedPeople]);
+
+  // v309: flipping "Emergency & praise notifications" off takes the
+  // native pill down right away (the 1Hz interval also honors the
+  // toggle via emergencyPraiseEnabledRef) and clears any pending
+  // legacy tray notifications.
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    if (!settings.emergencyPraiseNotificationsEnabled) {
+      stopEmergencyNotification();
+      emergencyPillRef.current.key = null;
+      dismissPrayerTrayNotifications().catch(() => undefined);
+    }
+  }, [hasHydratedPeople, settings.emergencyPraiseNotificationsEnabled]);
 
   // The Schedule tab is lazily mounted, so its own re-sync effect doesn't run
   // when the toggle is flipped from Settings. Cancel immediately on toggle-off;
@@ -4678,6 +4711,7 @@ export default function HomeScreen() {
       <PaperSettle index={4} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
 <BitSettle index={4}>
         {renderSettingsRow("notifications-active", "Prayer reminders", "Notify me when scheduled prayers are due", "normal", <M3Switch value={settings.prayerRemindersEnabled} onValueChange={(prayerRemindersEnabled) => setSettings((previous) => ({ ...previous, prayerRemindersEnabled }))} />)}
+        {renderSettingsRow("emergency", "Emergency & praise notifications", "Notify me about emergency prayers and praise reports", "normal", <M3Switch value={settings.emergencyPraiseNotificationsEnabled} onValueChange={(emergencyPraiseNotificationsEnabled) => setSettings((previous) => ({ ...previous, emergencyPraiseNotificationsEnabled }))} />)}
         {renderSettingsRow("event", "Scheduled event reminders", "Notify me about events on my schedule", "normal", <M3Switch value={settings.eventRemindersEnabled} onValueChange={(eventRemindersEnabled) => setSettings((previous) => ({ ...previous, eventRemindersEnabled }))} />)}
         {renderSettingsRow("attach-money", "Budget due reminders", "Notify me one day before unpaid bills are due", "normal", <M3Switch value={settings.budgetRemindersEnabled} onValueChange={(budgetRemindersEnabled) => setSettings((previous) => ({ ...previous, budgetRemindersEnabled }))} />)}
           <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 }}>

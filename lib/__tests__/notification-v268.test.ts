@@ -1,28 +1,26 @@
 /**
- * v268 — "One Emergency, One Notification": Jonathan's Oct 26
- * notification-shade screenshot showed THREE identical
- * "🚨 Emergency prayer — Urgent prayer for Gabriel Gutierrez" cards
- * stacked at once. Three compounding causes in the tray mechanism
- * (lib/notification-scheduler.ts):
- *  1. syncPrayerTrayNotifications had NO promise queue, unlike the
- *     prayer/schedule/budget syncs in the same file. The People page
- *     fires it on every `people` change, so runs raced: each one
- *     snapshotted getPresentedNotificationsAsync() while another run's
- *     post was still in flight, read the card as missing, and posted
- *     another copy.
- *  2. showPrayerTrayNotification passed no `identifier`, so every post
- *     was a brand-new notification. expo-notifications on Android
- *     presents via NotificationManagerCompat.notify(tag = identifier,
- *     fixed id): the same identifier REPLACES, a fresh one stacks.
- *  3. The reconcile kept key → ONE identifier, so duplicate copies of a
- *     WANTED key were invisible to cleanup and never healed.
- * The fix (all in the tray path; praise shares it): the exported sync
- * is queue-serialized like its siblings, posts carry the stable
- * prayerTrayKey as their identifier, and the reconcile tracks key →
- * ALL identifiers, keeping exactly one per wanted key (the stable-id
- * copy when present) and dismissing every extra. Copy, channel,
- * sticky/HIGH presentation, tap routing, the reminders gate, and
- * expiry semantics are unchanged.
+ * v268 — "One Emergency, One Notification" — SUPERSEDED BY v309.
+ *
+ * What v268 fixed (Oct 26): the sticky tray mechanism in
+ * lib/notification-scheduler.ts could stack THREE identical
+ * "🚨 Emergency prayer" tray cards at once — the sync had no promise
+ * queue, posts carried no stable identifier, and the reconcile tracked
+ * only one identifier per key. v268 queue-serialized the sync, gave
+ * posts the stable prayerTrayKey identifier, and made the reconcile
+ * track ALL identifiers per key so the shade self-healed to exactly
+ * one tray card per person + kind.
+ *
+ * Why this file is now a tombstone (v309, Oct 28): Jonathan was still
+ * getting TWO notifications per emergency prayer — the (now singular)
+ * tray card AND the native timer pill (modules/expo-prayer-timer:
+ * countdown text, progress bar, Pray now / Dismiss). His ruling:
+ * "Just give me the timer one." v309 deleted the tray posting path
+ * entirely, for emergency AND praise; the timer pill is the only
+ * emergency notification and praise posts no shade card. A mechanism
+ * that no longer exists has no contract left to pin — the pins below
+ * assert the removal stuck, and the live v309 contract (timer pill
+ * untouched, the "Emergency & praise notifications" toggle, legacy
+ * tray cleanup) is pinned in notification-v309.test.ts.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -34,119 +32,21 @@ const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 const scheduler = read("lib/notification-scheduler.ts");
 const index = read("app/(tabs)/index.tsx");
 
-const showBlock = scheduler.slice(
-  scheduler.indexOf("export async function showPrayerTrayNotification"),
-  scheduler.indexOf("export async function clearPrayerTrayNotification"),
-);
-const syncNowBlock = scheduler.slice(
-  scheduler.indexOf("async function syncPrayerTrayNotificationsNow"),
-  scheduler.indexOf("let prayerTraySyncQueue"),
-);
-const wrapperBlock = scheduler.slice(scheduler.indexOf("let prayerTraySyncQueue"));
-
-describe("v268: tray sync is queue-serialized", () => {
-  it("declares a promise queue for the tray sync", () => {
-    expect(scheduler).toContain("let prayerTraySyncQueue: Promise<void> = Promise.resolve();");
+describe("v268 tombstone: the tray mechanism v268 repaired no longer exists", () => {
+  it("the tray posting path is deleted from the scheduler", () => {
+    expect(scheduler).not.toContain("showPrayerTrayNotification");
+    expect(scheduler).not.toContain("clearPrayerTrayNotification");
+    expect(scheduler).not.toContain("syncPrayerTrayNotifications");
+    expect(scheduler).not.toContain("prayerTrayKey");
   });
 
-  it("the exported syncPrayerTrayNotifications is the queued wrapper", () => {
-    expect(wrapperBlock).toContain("export function syncPrayerTrayNotifications(");
-    expect(wrapperBlock).toContain("prayerTraySyncQueue = prayerTraySyncQueue");
-    expect(wrapperBlock).toContain(".catch(() => undefined)");
-    expect(wrapperBlock).toContain(".then(() => syncPrayerTrayNotificationsNow(people))");
-    expect(wrapperBlock).toContain("return prayerTraySyncQueue;");
+  it("the plain tray copy is never scheduled again", () => {
+    expect(scheduler).not.toContain("`Urgent prayer for ${personName} — tap to pray`");
+    expect(scheduler).not.toContain("`Praise God for ${personName} — tap to view`");
+    expect(scheduler).not.toContain('PRAYER_TRAY_KEY_PREFIX = "prayer-tray:"');
   });
 
-  it("the reconcile body is the internal Now function, not exported directly", () => {
-    expect(scheduler).toContain("async function syncPrayerTrayNotificationsNow(");
-    expect(scheduler).not.toContain("export async function syncPrayerTrayNotifications(");
-  });
-
-  it("the People-page call site still uses the exported name", () => {
-    expect(index).toContain("syncPrayerTrayNotifications(people)");
-  });
-});
-
-describe("v268: tray posts carry the stable identifier", () => {
-  it("prayerTrayKey builds the deterministic tray key", () => {
-    expect(scheduler).toContain('const PRAYER_TRAY_KEY_PREFIX = "prayer-tray:";');
-    expect(scheduler).toContain("return `${PRAYER_TRAY_KEY_PREFIX}${kind}:${personId}`;");
-  });
-
-  it("showPrayerTrayNotification passes identifier: prayerTrayKey(kind, personId)", () => {
-    expect(showBlock).toContain("identifier: prayerTrayKey(kind, personId),");
-  });
-
-  it("the identifier is on the schedule request, before the content", () => {
-    const identifierAt = showBlock.indexOf("identifier: prayerTrayKey(kind, personId),");
-    const scheduleAt = showBlock.indexOf("Notifications.scheduleNotificationAsync({");
-    const contentAt = showBlock.indexOf("content: {");
-    expect(scheduleAt).toBeGreaterThanOrEqual(0);
-    expect(identifierAt).toBeGreaterThan(scheduleAt);
-    expect(identifierAt).toBeLessThan(contentAt);
-  });
-});
-
-describe("v268: self-healing dedupe keeps exactly one card per key", () => {
-  it("the presented map tracks ALL identifiers per key", () => {
-    expect(syncNowBlock).toContain("const presentedTray = new Map<string, string[]>();");
-    expect(syncNowBlock).toContain("identifiers.push(n.request.identifier)");
-  });
-
-  it("a wanted key keeps the stable-identifier copy when present, else the first", () => {
-    expect(syncNowBlock).toContain("identifiers.includes(key)");
-    expect(syncNowBlock).toContain("? key");
-    expect(syncNowBlock).toContain(": identifiers[0]");
-  });
-
-  it("every non-kept identifier is dismissed, including all copies of unwanted keys", () => {
-    expect(syncNowBlock).toContain(": null;");
-    expect(syncNowBlock).toContain("if (id === keep) continue;");
-    expect(syncNowBlock).toContain("await Notifications.dismissNotificationAsync(id)");
-  });
-
-  it("posting still happens only for wanted keys missing from the shade", () => {
-    expect(syncNowBlock).toContain("if (!presentedTray.has(key)) {");
-    expect(syncNowBlock).toContain("await showPrayerTrayNotification(info.kind, info.personId, info.personName);");
-  });
-});
-
-describe("v268: the tray contract is unchanged", () => {
-  it("notification copy is untouched", () => {
-    expect(showBlock).toContain('"🚨 Emergency prayer"');
-    expect(showBlock).toContain('"🙌 Praise report"');
-    expect(showBlock).toContain("`Urgent prayer for ${personName} — tap to pray`");
-    expect(showBlock).toContain("`Praise God for ${personName} — tap to view`");
-  });
-
-  it("channel, stickiness, and priority are untouched", () => {
-    expect(scheduler).toContain('const PRAYER_TRAY_CHANNEL_ID = "prayer-tray";');
-    expect(showBlock).toContain("sticky: true,");
-    expect(showBlock).toContain("priority: Notifications.AndroidNotificationPriority.HIGH,");
-    expect(showBlock).toContain("trigger: { channelId: PRAYER_TRAY_CHANNEL_ID },");
-  });
-
-  it("tap-to-person routing data is untouched", () => {
-    expect(showBlock).toContain('data: { kind: "prayer-tray", trayKind: kind, personId },');
-  });
-
-  it("the reminders-off branch still dismisses every presented tray card", () => {
-    expect(syncNowBlock).toContain("if (!preferences.prayerRemindersEnabled) {");
-    expect(syncNowBlock).toContain("presentedTrayKey(n.request.content.data as PrayerTrayData) != null");
-  });
-
-  it("one wanted card per person per kind, from unexpired items only", () => {
-    expect(syncNowBlock).toContain('wanted.set(key, { kind: "emergency", personId: person.id, personName: person.name });');
-    expect(syncNowBlock).toContain('wanted.set(key, { kind: "praise", personId: person.id, personName: person.name });');
-    // v284 re-base (the Renew build's ruling: ONE shared liveness
-    // definition): the "unexpired only" test no longer lives inline
-    // in this block — the wanted set is computed from the shared
-    // hasActiveEmergencyPrayer / hasActivePraise in
-    // prayercircle-data, whose own expiry comparison is pinned by
-    // people-v284 (lapsed excluded, renewed re-enters). The contract
-    // this pin guards — wanted cards come only from unexpired
-    // records — is unchanged.
-    expect(syncNowBlock).toContain("hasActiveEmergencyPrayer(person");
-    expect(syncNowBlock).toContain("hasActivePraise(person");
+  it("the People page no longer syncs tray cards", () => {
+    expect(index).not.toContain("syncPrayerTrayNotifications");
   });
 });

@@ -21,10 +21,13 @@ import {
   getTimeOffIcon,
   getTimeOffLabel,
   itineraryKindColor,
+  itineraryDetailLine,
+  resolveItineraryKeyword,
   tripDayNumber,
   type ItineraryEntry,
   type TimeOff,
 } from "@/lib/time-off";
+import { KeywordAmbientAnimation } from "./schedule-tab";
 
 export function tripBaseColor(timeOff: TimeOff): string {
   // Stored colours range over the shared palette and the older pastels;
@@ -135,6 +138,22 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
   // Food stop reads as Food here exactly as it does on the timeline.
   const kindIcon = getItineraryKindIcon(entry.kind);
   const kindColor = itineraryKindColor(entry.kind, base);
+  // v303 (his ask, Oct 28): the entry's keyword, resolved exactly as an
+  // event's is — a stored label wins, else detection over title +
+  // address + detail (the detail line is the notes surface: a show
+  // named there picks its own scene, like event notes do). The card
+  // STAYS a time-off card: the trip-colour band and the kind label
+  // ride untouched above; the artwork fills the BODY beneath them,
+  // never the whole card. No keyword → the card renders as it always
+  // has, byte for byte.
+  const keyword = resolveItineraryKeyword(entry);
+  const detailLine = itineraryDetailLine(entry);
+  // The artwork body's one sub-line, composed the event way:
+  // [S/E read · detail · address].
+  const artSubLine = keyword ? [detailLine, entry.address].filter(Boolean).join(" · ") : "";
+  const inkShadow = keyword
+    ? { textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }
+    : {};
 
   // v295 (Classic): the Friday drawing's travel card — a white card
   // whose head is a 38px band in the trip's colour: the time pill at
@@ -165,23 +184,43 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
             {getItineraryKindLabel(entry.kind).toUpperCase()}
           </Text>
         </View>
-        <View style={{ paddingHorizontal: 14, paddingVertical: 11 }}>
+        <View style={{ paddingHorizontal: 14, paddingVertical: 11, ...(keyword ? { position: "relative" as const } : {}) }}>
+          {keyword && (
+            <>
+              <KeywordAmbientAnimation label={keyword.label} title={entry.title} location={entry.address} notes={entry.detail} />
+              <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.22)" }} />
+            </>
+          )}
           {route ? (
             <>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <Text style={{ fontSize: 21, fontWeight: "800", color: colors.foreground, letterSpacing: 0.4 }}>{route[1].toUpperCase()}</Text>
+                <Text style={{ fontSize: 21, fontWeight: "800", color: keyword ? "#FFFFFF" : colors.foreground, letterSpacing: 0.4, ...inkShadow }}>{route[1].toUpperCase()}</Text>
                 <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: base }} />
-                  <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: base }} />
-                  <MaterialIcons name="flight" size={16} color={base} style={{ transform: [{ rotate: "90deg" }] }} />
-                  <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: base }} />
-                  <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: base }} />
+                  <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: keyword ? "rgba(255,255,255,0.9)" : base }} />
+                  <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: keyword ? "rgba(255,255,255,0.7)" : base }} />
+                  <MaterialIcons name="flight" size={16} color={keyword ? "#FFFFFF" : base} style={{ transform: [{ rotate: "90deg" }] }} />
+                  <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: keyword ? "rgba(255,255,255,0.7)" : base }} />
+                  <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: keyword ? "rgba(255,255,255,0.9)" : base }} />
                 </View>
-                <Text style={{ fontSize: 21, fontWeight: "800", color: colors.foreground, letterSpacing: 0.4 }}>{route[2].toUpperCase()}</Text>
+                <Text style={{ fontSize: 21, fontWeight: "800", color: keyword ? "#FFFFFF" : colors.foreground, letterSpacing: 0.4, ...inkShadow }}>{route[2].toUpperCase()}</Text>
               </View>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, marginTop: 8 }} numberOfLines={1}>
+              <Text style={{ fontSize: 14, fontWeight: "700", color: keyword ? "#FFFFFF" : colors.foreground, marginTop: 8, ...inkShadow }} numberOfLines={1}>
                 {entry.title}
               </Text>
+            </>
+          ) : keyword ? (
+            <>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <MaterialIcons name={kindIcon as any} size={18} color="#FFFFFF" />
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#FFFFFF", flex: 1, ...inkShadow }} numberOfLines={1}>
+                  {entry.title}
+                </Text>
+              </View>
+              {artSubLine ? (
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.92)", marginTop: 3, textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} numberOfLines={1}>
+                  {artSubLine}
+                </Text>
+              ) : null}
             </>
           ) : (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -191,16 +230,26 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
               </Text>
             </View>
           )}
-          {entry.address && (
+          {!keyword && entry.address && (
             <Text style={{ fontSize: 12.5, color: colors.foreground, marginTop: 7, fontWeight: "600" }} numberOfLines={2}>
               {entry.address}
             </Text>
           )}
-          {entry.detail && (
+          {!keyword && entry.detail && (
             <Text style={{ fontSize: 12, color: colors.muted, marginTop: 3 }} numberOfLines={1}>
               {entry.detail}
             </Text>
           )}
+          {keyword && route && entry.address ? (
+            <Text style={{ fontSize: 12.5, color: "rgba(255,255,255,0.95)", marginTop: 7, fontWeight: "600", ...inkShadow }} numberOfLines={2}>
+              {entry.address}
+            </Text>
+          ) : null}
+          {keyword && route && detailLine ? (
+            <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 3, ...inkShadow }} numberOfLines={1}>
+              {detailLine}
+            </Text>
+          ) : null}
         </View>
       </View>
     );
@@ -216,20 +265,27 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
         paddingHorizontal: 16,
         paddingVertical: 13,
         ...(skinTokens.frame ?? {}),
+        ...(keyword ? { overflow: "hidden" as const } : {}),
       }}
     >
+      {keyword && (
+        <>
+          <KeywordAmbientAnimation label={keyword.label} title={entry.title} location={entry.address} notes={entry.detail} />
+          <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.22)" }} />
+        </>
+      )}
       {route ? (
         <>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Text style={{ fontSize: 21, fontWeight: "800", color: colors.foreground, letterSpacing: 0.4 }}>{route[1].toUpperCase()}</Text>
+            <Text style={{ fontSize: 21, fontWeight: "800", color: keyword ? "#FFFFFF" : colors.foreground, letterSpacing: 0.4, ...inkShadow }}>{route[1].toUpperCase()}</Text>
             <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: base }} />
-              <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: base }} />
-              <MaterialIcons name="flight" size={16} color={base} style={{ transform: [{ rotate: "90deg" }] }} />
-              <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: base }} />
-              <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: base }} />
+              <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: keyword ? "rgba(255,255,255,0.9)" : base }} />
+              <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: keyword ? "rgba(255,255,255,0.7)" : base }} />
+              <MaterialIcons name="flight" size={16} color={keyword ? "#FFFFFF" : base} style={{ transform: [{ rotate: "90deg" }] }} />
+              <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: keyword ? "rgba(255,255,255,0.7)" : base }} />
+              <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: keyword ? "rgba(255,255,255,0.9)" : base }} />
             </View>
-            <Text style={{ fontSize: 21, fontWeight: "800", color: colors.foreground, letterSpacing: 0.4 }}>{route[2].toUpperCase()}</Text>
+            <Text style={{ fontSize: 21, fontWeight: "800", color: keyword ? "#FFFFFF" : colors.foreground, letterSpacing: 0.4, ...inkShadow }}>{route[2].toUpperCase()}</Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 9 }}>
             {entry.time && (
@@ -237,42 +293,42 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
                 <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "800" }}>{format12HourTime(entry.time)}</Text>
               </View>
             )}
-            <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, flex: 1 }} numberOfLines={1}>
+            <Text style={{ fontSize: 14, fontWeight: "700", color: keyword ? "#FFFFFF" : colors.foreground, flex: 1, ...inkShadow }} numberOfLines={1}>
               {entry.title}
             </Text>
           </View>
           {entry.address && (
-            <Text style={{ fontSize: 12, color: colors.muted, marginTop: 5 }} numberOfLines={1}>
+            <Text style={{ fontSize: 12, color: keyword ? "rgba(255,255,255,0.95)" : colors.muted, marginTop: 5, ...inkShadow }} numberOfLines={1}>
               {entry.address}
             </Text>
           )}
-          {entry.detail && (
-            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted, marginTop: 2 }} numberOfLines={1}>
-              {entry.detail}
+          {(keyword ? detailLine : entry.detail) && (
+            <Text style={{ fontSize: 12, fontWeight: "600", color: keyword ? "rgba(255,255,255,0.85)" : colors.muted, marginTop: 2, ...inkShadow }} numberOfLines={1}>
+              {keyword ? detailLine : entry.detail}
             </Text>
           )}
         </>
       ) : (
         <>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <MaterialIcons name={kindIcon as any} size={18} color={kindColor} />
+            <MaterialIcons name={kindIcon as any} size={18} color={keyword ? "#FFFFFF" : kindColor} />
             {entry.time && (
               <View style={{ backgroundColor: base, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
                 <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "800" }}>{format12HourTime(entry.time)}</Text>
               </View>
             )}
-            <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, flex: 1 }} numberOfLines={1}>
+            <Text style={{ fontSize: 14, fontWeight: "700", color: keyword ? "#FFFFFF" : colors.foreground, flex: 1, ...inkShadow }} numberOfLines={1}>
               {entry.title}
             </Text>
           </View>
           {entry.address && (
-            <Text style={{ fontSize: 12.5, color: colors.foreground, marginTop: 7, fontWeight: "600" }} numberOfLines={2}>
+            <Text style={{ fontSize: 12.5, color: keyword ? "rgba(255,255,255,0.95)" : colors.foreground, marginTop: 7, fontWeight: "600", ...inkShadow }} numberOfLines={2}>
               {entry.address}
             </Text>
           )}
-          {entry.detail && (
-            <Text style={{ fontSize: 12, color: colors.muted, marginTop: 3 }} numberOfLines={1}>
-              {entry.detail}
+          {(keyword ? detailLine : entry.detail) && (
+            <Text style={{ fontSize: 12, color: keyword ? "rgba(255,255,255,0.85)" : colors.muted, marginTop: 3, ...inkShadow }} numberOfLines={1}>
+              {keyword ? detailLine : entry.detail}
             </Text>
           )}
         </>

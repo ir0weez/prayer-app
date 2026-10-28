@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { generateId } from './schedule-data';
+import { generateId, EVENT_KEYWORD_MAP, detectEventKeyword, type EventKeyword } from './schedule-data';
 import { mix } from './color-themes';
 
 export const TIME_OFF_STORAGE_KEY = 'prayercircle.timeoff.v1';
@@ -83,6 +83,58 @@ export interface ItineraryEntry {
   title: string;
   address?: string;
   detail?: string; // the one detail line (flight no., confirmation, pass…)
+  /**
+   * v303 — the keyword system, the same one events carry (his ask,
+   * Oct 28): the bound keyword's label (EVENT_KEYWORD_MAP), set in the
+   * entry form by picking a suggestion or by title detection at save —
+   * exactly how ScheduleEvent.keyword is bound by createScheduleEvent.
+   */
+  keyword?: string;
+  /** v303 — TV Show entries: season / episode numbers, like events. */
+  season?: number;
+  episode?: number;
+}
+
+/**
+ * v303 — an entry's keyword, resolved the way the event card resolves
+ * its own (schedule-tab's EventCard): a stored label wins outright
+ * (a stale label resolves to nothing, as it does for events); with no
+ * stored label, detection runs over title + address + detail — the
+ * entry's location and notes surfaces — so a keyword that appears
+ * only in the detail line still summons its artwork.
+ */
+export function resolveItineraryKeyword(entry: ItineraryEntry): EventKeyword | null {
+  if (entry.keyword) return EVENT_KEYWORD_MAP.find((k) => k.label === entry.keyword) ?? null;
+  return detectEventKeyword(entry.title, entry.address, entry.detail);
+}
+
+/** v303 — is this entry a TV Show? (The event forms' test, mirrored.) */
+export function isItineraryTVShow(entry: ItineraryEntry): boolean {
+  if (resolveItineraryKeyword(entry)?.label === "TV Show") return true;
+  return entry.title.trim().toLowerCase() === "tv show";
+}
+
+/**
+ * v303 — the season/episode read, composed exactly as event cards
+ * compose it: "S1 E6" (either number may stand alone). Null when the
+ * entry is not a TV Show or carries neither number.
+ */
+export function itinerarySeasonEpisodeRead(entry: ItineraryEntry): string | null {
+  if (!isItineraryTVShow(entry)) return null;
+  if (!entry.season && !entry.episode) return null;
+  return `${entry.season ? `S${entry.season}` : ""}${entry.season && entry.episode ? " " : ""}${entry.episode ? `E${entry.episode}` : ""}`;
+}
+
+/**
+ * v303 — the entry's detail line as the cards speak it: the TV read
+ * leads, then the detail itself — "S1 E6 · The Bear", the event card's
+ * composition (its sub-line is [S/E read, notes, location]; the
+ * entry's detail is its notes surface). Plain details pass through
+ * untouched; null when there is nothing to say.
+ */
+export function itineraryDetailLine(entry: ItineraryEntry): string | null {
+  const parts = [itinerarySeasonEpisodeRead(entry), entry.detail].filter(Boolean) as string[];
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 export interface TimeOff {

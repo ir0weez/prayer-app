@@ -46,6 +46,8 @@ import {
   SCHEDULE_EVENTS_KEY,
   SCHEDULE_MINISTRIES_KEY,
   SCHEDULE_TODOS_KEY,
+  EVENT_KEYWORD_MAP,
+  detectEventKeyword,
 } from "@/lib/schedule-data";
 import {
   createTimeOff,
@@ -58,6 +60,8 @@ import {
   getTimeOffIcon,
   getTimeOffLabel,
   itineraryKindColor,
+  itineraryDetailLine,
+  resolveItineraryKeyword,
   ITINERARY_KINDS as ALL_ITINERARY_KINDS,
   groupItineraryByDate,
   heroTrip,
@@ -76,6 +80,7 @@ import {
 import { generateId } from "@/lib/schedule-data";
 import { format12HourTime } from "@/lib/utils";
 import { tripBaseColor } from "./time-off-travel";
+import { KeywordAmbientAnimation } from "./schedule-tab";
 
 const TIME_OFF_TYPES: TimeOffType[] = ["vacation", "sick", "personal", "sabbatical", "other"];
 // v302: the six kinds come from the model (lib/time-off) — one source
@@ -147,6 +152,37 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
   const [entryTitle, setEntryTitle] = useState("");
   const [entryAddress, setEntryAddress] = useState("");
   const [entryDetail, setEntryDetail] = useState("");
+  // v303: the entry form speaks the event keyword system — a picked
+  // keyword label binds to the entry (as events store theirs), and a
+  // TV Show entry trades its address box for Season + Episode.
+  const [entryKeyword, setEntryKeyword] = useState<string | undefined>(undefined);
+  const [entrySeason, setEntrySeason] = useState("");
+  const [entryEpisode, setEntryEpisode] = useState("");
+  const [entryTitleFocused, setEntryTitleFocused] = useState(false);
+
+  // The event form's TV Show test, mirrored: a picked label wins,
+  // else the title is keyword-detected; the bare title counts too.
+  const entryDetectedKeyword = entryKeyword
+    ? EVENT_KEYWORD_MAP.find((k) => k.label === entryKeyword)
+    : detectEventKeyword(entryTitle);
+  const entryIsTVShow =
+    entryDetectedKeyword?.label === "TV Show" || entryTitle.trim().toLowerCase() === "tv show";
+  // The event form's title autocomplete, same rules: focused, 2+
+  // chars, label or keyword matches, label matches first, top five.
+  const entryTitleSuggestions = (() => {
+    const q = entryTitle.trim().toLowerCase();
+    if (q.length < 2 || !entryTitleFocused) return [];
+    const matches = EVENT_KEYWORD_MAP.filter((k) => {
+      if (k.label.toLowerCase().includes(q)) return true;
+      return k.keywords.some((kw) => kw.toLowerCase().includes(q));
+    });
+    matches.sort((a, b) => {
+      const aLabel = a.label.toLowerCase().includes(q) ? 0 : 1;
+      const bLabel = b.label.toLowerCase().includes(q) ? 0 : 1;
+      return aLabel - bLabel;
+    });
+    return matches.slice(0, 5);
+  })();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -278,6 +314,13 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
       title: entryTitle.trim(),
       address: entryAddress.trim() || undefined,
       detail: entryDetail.trim() || undefined,
+      // v303: the keyword binds at save the way createScheduleEvent
+      // binds an event's — a picked label first, else the title's own
+      // detection. Season/episode ride only for TV Show entries,
+      // exactly as the event form saves them.
+      keyword: entryKeyword ?? detectEventKeyword(entryTitle.trim())?.label,
+      season: entryIsTVShow && entrySeason ? parseInt(entrySeason, 10) || undefined : undefined,
+      episode: entryIsTVShow && entryEpisode ? parseInt(entryEpisode, 10) || undefined : undefined,
     };
     const itinerary = sortItinerary([...(activeTrip.itinerary ?? []), entry]);
     await updateTimeOff(activeTrip.id, { itinerary });
@@ -695,6 +738,10 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
               setEntryTitle("");
               setEntryAddress("");
               setEntryDetail("");
+              setEntryKeyword(undefined);
+              setEntrySeason("");
+              setEntryEpisode("");
+              setEntryTitleFocused(false);
               setView("entry");
             }}
             style={({ pressed }) => [{ backgroundColor: colors.primary, borderRadius: 999, paddingVertical: 13, alignItems: "center", opacity: pressed ? 0.8 : 1 }]}
@@ -761,27 +808,79 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
           <TextInput
             value={entryTitle}
             onChangeText={setEntryTitle}
+            onFocus={() => setEntryTitleFocused(true)}
+            onBlur={() => setTimeout(() => setEntryTitleFocused(false), 150)}
             placeholder={entryKind === "travel" ? "e.g., Flight to Denver" : entryKind === "stay" ? "e.g., Check in — Canyon Inn" : entryKind === "food" ? "e.g., Dinner at Carmine's" : entryKind === "ride" ? "e.g., Ride to the airport" : entryKind === "view" ? "e.g., Sunset over the canyon" : "e.g., Arches National Park"}
             placeholderTextColor={colors.muted}
             style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, color: colors.foreground, fontSize: 15, backgroundColor: colors.surface }}
           />
+          {entryTitleSuggestions.length > 0 && (
+            <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, overflow: "hidden", backgroundColor: colors.surface, marginTop: 8 }}>
+              {entryTitleSuggestions.map((s) => (
+                <Pressable
+                  key={s.label}
+                  onPress={() => {
+                    setEntryTitle(s.label);
+                    setEntryKeyword(s.label);
+                    setEntryTitleFocused(false);
+                  }}
+                  style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, paddingVertical: 10, opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <MaterialIcons name={s.icon as any} size={18} color={colors.primary} />
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground, flex: 1 }}>{s.label}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <MaterialIcons name="auto-awesome" size={12} color={colors.primary} />
+                    <Text style={{ fontSize: 11, fontWeight: "600", color: colors.primary }}>Animated</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
-        <View>
-          <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, marginBottom: 6 }}>ADDRESS (optional)</Text>
-          <TextInput
-            value={entryAddress}
-            onChangeText={setEntryAddress}
-            placeholder="e.g., 412 Mesa Rd, Moab, UT"
-            placeholderTextColor={colors.muted}
-            style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, color: colors.foreground, fontSize: 15, backgroundColor: colors.surface }}
-          />
-        </View>
+        {!entryIsTVShow && (
+          <View>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, marginBottom: 6 }}>ADDRESS (optional)</Text>
+            <TextInput
+              value={entryAddress}
+              onChangeText={setEntryAddress}
+              placeholder="e.g., 412 Mesa Rd, Moab, UT"
+              placeholderTextColor={colors.muted}
+              style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, color: colors.foreground, fontSize: 15, backgroundColor: colors.surface }}
+            />
+          </View>
+        )}
+        {entryIsTVShow && (
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, marginBottom: 6 }}>SEASON</Text>
+              <TextInput
+                value={entrySeason}
+                onChangeText={(t) => setEntrySeason(t.replace(/[^0-9]/g, ""))}
+                placeholder="e.g. 2"
+                placeholderTextColor={colors.muted}
+                keyboardType="numeric"
+                style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, color: colors.foreground, fontSize: 15, backgroundColor: colors.surface }}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, marginBottom: 6 }}>EPISODE</Text>
+              <TextInput
+                value={entryEpisode}
+                onChangeText={(t) => setEntryEpisode(t.replace(/[^0-9]/g, ""))}
+                placeholder="e.g. 5"
+                placeholderTextColor={colors.muted}
+                keyboardType="numeric"
+                style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, color: colors.foreground, fontSize: 15, backgroundColor: colors.surface }}
+              />
+            </View>
+          </View>
+        )}
         <View>
           <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, marginBottom: 6 }}>DETAIL (optional)</Text>
           <TextInput
             value={entryDetail}
             onChangeText={setEntryDetail}
-            placeholder={entryKind === "travel" ? "e.g., LAX → DEN · Flight UA 1847" : entryKind === "stay" ? "e.g., Check-out Mon, Nov 23 · Conf. #A7K2Q" : entryKind === "food" ? "e.g., Reservation for 4 · Conf. #D221" : entryKind === "ride" ? "e.g., Pickup at the lobby · 6 seats" : entryKind === "view" ? "e.g., Best light before 7 PM" : "e.g., Timed-entry pass in the app"}
+            placeholder={entryIsTVShow ? "e.g., The Bear" : entryKind === "travel" ? "e.g., LAX → DEN · Flight UA 1847" : entryKind === "stay" ? "e.g., Check-out Mon, Nov 23 · Conf. #A7K2Q" : entryKind === "food" ? "e.g., Reservation for 4 · Conf. #D221" : entryKind === "ride" ? "e.g., Pickup at the lobby · 6 seats" : entryKind === "view" ? "e.g., Best light before 7 PM" : "e.g., Timed-entry pass in the app"}
             placeholderTextColor={colors.muted}
             style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, color: colors.foreground, fontSize: 15, backgroundColor: colors.surface }}
           />
@@ -868,8 +967,22 @@ function TimelineEntry({ entry, base, onDelete }: { entry: ItineraryEntry; base:
   // own colour step, its label in that same colour.
   const kindColor = itineraryKindColor(entry.kind, base);
   const kindLabel = getItineraryKindLabel(entry.kind).toUpperCase();
+  // v303: the entry's keyword artwork, resolved as an event's is. It
+  // shows in a media band at the entry's head; the kind tile and label
+  // below are preserved untouched, and an entry with no keyword keeps
+  // its plain card exactly. The detail line speaks the composed read
+  // ("S1 E6 · The Bear") when the entry carries one.
+  const keyword = resolveItineraryKeyword(entry);
+  const detailLine = itineraryDetailLine(entry);
   return (
-    <View style={{ backgroundColor: colors.surface, borderRadius: 20, padding: 15, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+    <View style={{ backgroundColor: colors.surface, borderRadius: 20, ...(keyword ? { overflow: "hidden" as const } : { padding: 15 }), shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+      {keyword && (
+        <View style={{ height: 96 }}>
+          <KeywordAmbientAnimation label={keyword.label} title={entry.title} location={entry.address} notes={entry.detail} />
+          <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.22)" }} />
+        </View>
+      )}
+      <View style={keyword ? { padding: 15 } : undefined}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <View style={{ width: 26, height: 26, borderRadius: 9, backgroundColor: mix(colors.surface, kindColor, 0.16), alignItems: "center", justifyContent: "center" }}>
           <MaterialIcons name={getItineraryKindIcon(entry.kind) as any} size={15} color={kindColor} />
@@ -902,9 +1015,10 @@ function TimelineEntry({ entry, base, onDelete }: { entry: ItineraryEntry; base:
           <Text style={{ fontSize: 12.5, fontWeight: "600", color: colors.foreground }}>{entry.address}</Text>
         </View>
       )}
-      {entry.detail && (
-        <Text style={{ fontSize: 12.5, color: colors.muted, marginTop: 7 }}>{entry.detail}</Text>
+      {detailLine && (
+        <Text style={{ fontSize: 12.5, color: colors.muted, marginTop: 7 }}>{detailLine}</Text>
       )}
+      </View>
     </View>
   );
 }

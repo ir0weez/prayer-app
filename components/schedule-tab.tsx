@@ -7226,7 +7226,10 @@ function detectRestaurantScene(location: string | undefined | null): React.React
 }
 
 /** Picks the ambient animation for a keyword card. */
-function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" }: { label: string; title?: string; location?: string; notes?: string }) {
+// v303: exported so the Time Off itinerary cards (time-off-travel,
+// time-off-experience) render the SAME keyword artwork events do.
+// Referenced only at render time by those modules.
+export function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" }: { label: string; title?: string; location?: string; notes?: string }) {
   // Paper skin (v174, completed v176): EVERY keyword scene has a
   // paper rendition — cut pieces with the kit's offset shadow,
   // settling on sine — routed by lib/paper-keywords.ts to mirror this
@@ -11931,12 +11934,17 @@ export function ScheduleTab({
       return selDateObj >= toStart && selDateObj <= toEnd;
     });
     dayTimeOff.forEach((to) => items.push({ type: "time-off", id: to.id, data: to }));
-    // v294: untimed itinerary entries ride directly under their trip's
-    // band; timed ones join the chronological flow below as travel cards.
+    // v303 (his ruling, Oct 28 09:40): itinerary entries with NO time
+    // close the day's flow — they are pushed after every timed item
+    // (below, once the chronological flow is in), never at the
+    // beginning under the band where v294 seated them. Collected
+    // here in day order, stable among themselves; timed entries
+    // join the chronological flow further down as travel cards.
+    const untimedItineraryItems: Array<{ type: string; id: string; data: any; sortTime?: string }> = [];
     dayTimeOff.forEach((to) => {
       getItineraryForDate(to, selectedDate)
         .filter((entry) => !entry.time)
-        .forEach((entry) => items.push({ type: "itinerary", id: entry.id, data: { entry, timeOff: to } }));
+        .forEach((entry) => untimedItineraryItems.push({ type: "itinerary", id: entry.id, data: { entry, timeOff: to } }));
     });
 
     // Birthdays next
@@ -12238,6 +12246,11 @@ export function ScheduleTab({
     } else {
       finalTimedItems.forEach((item) => items.push(item));
     }
+
+    // v303: the untimed itinerary entries land here — the end of the
+    // day's flow, after every timed item (and after the NOW line on
+    // today), ahead of the completed stack that closes the day.
+    untimedItineraryItems.forEach((item) => items.push(item));
 
     // v296: the v32 drawing's order — the END OF THE DAY divider
     // HEADS the completed stack (divider, then the done bars, then

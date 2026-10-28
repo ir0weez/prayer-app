@@ -233,8 +233,13 @@ const bubblesSrc = read('components/bible-v205/bubbles.tsx');
 
 describe('v251 WS1 — the chapter header clearance is measured, not guessed', () => {
   it('the estimate is the derived part-sum, and the landing gap is small and fixed', () => {
-    expect(estimateChapterHeaderHeight(0)).toBe(164);
-    expect(estimateChapterHeaderHeight(24)).toBe(188);
+    // v304 re-base (with citation): the header slimmed — the v250
+    // progress card and the old mode row collapsed into one slim
+    // meta row + a 4px thread — so the derived part-sum is 102 now
+    // (was 164). The measured-clearance contract this pin guards
+    // (estimate = part-sum, spacer = measured height) is unchanged.
+    expect(estimateChapterHeaderHeight(0)).toBe(102);
+    expect(estimateChapterHeaderHeight(24)).toBe(126);
     expect(CHAPTER_HEADER_LAND_GAP).toBe(8);
   });
 
@@ -273,7 +278,9 @@ describe('v251 WS1 — the chapter header clearance is measured, not guessed', (
     // The mocked insets are top: 24, so the first-frame spacer is
     // the estimate for that inset; on device the header's onLayout
     // replaces it with the measured height in the first frame.
-    expect(html).toContain('height:188px');
+    // (v304 re-base: the estimate at inset 24 is 126 now — the
+    // slimmed header's part-sum; see the estimate pin above.)
+    expect(html).toContain('height:126px');
     // (RNW serializes position into an atomic class, not an inline
     // style — the overlay itself is held by the source pin above.)
     expect(html).toContain('Genesis');

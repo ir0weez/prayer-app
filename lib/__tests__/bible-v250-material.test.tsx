@@ -30,7 +30,8 @@
  *      hold), its root carries NO skin sheet treatment in any skin
  *      (the v250 supersession of v248's pin (c)), the first section
  *      card paints THIS palette's derived section ground, and the
- *      progress card is on the page.
+ *      progress card is on the page. (v304: the card was compressed
+ *      into the header's progress thread; the pin follows it.)
  *  (5) source contracts for what the synchronous harness cannot
  *      paint (study state and marks load async, so the Mark as
  *      Read pill and the filled self-note card never render here —
@@ -296,8 +297,11 @@ describe('v250 — source contracts (async-surfaces the harness cannot paint)', 
     expect(src).toContain('>+25 XP<');
     expect(src).toContain('palette.readPill');
     expect(src).toContain('palette.xpGold');
-    expect(src).toContain('Chapter progress');
     expect(src).toContain('palette.flashTint');
+    // v304 re-base (with citation): the v250 progress CARD was
+    // compressed into the header's bottom-edge thread — the pin
+    // now holds the thread's presence where the card's stood.
+    expect(src).toContain('chapter-progress-thread');
     expect(src).not.toContain('rgba(230,73,128');
     expect(src).toContain('sectionToneFor(palette, sIdx)');
   });
@@ -368,7 +372,9 @@ describe('v250 — the render matrix: Material dress, every skin, seed from the 
           expect(root, `${label}: no skin sheet radius in the Material dress`).not.toContain(
             'border-top-left-radius',
           );
-          expect(chapter, `${label}: the progress card is on the page`).toContain('Chapter progress');
+          // v304 re-base: the progress card is a slim thread now —
+          // its testID is what paints where the card's label did.
+          expect(chapter, `${label}: the progress thread is on the page`).toContain('chapter-progress-thread');
           expect(
             chapter.includes(`background-color:${hexToRgbaCss(family.sections[0].bg)}`),
             `${label}: first section card paints the derived ground ${family.sections[0].bg}`,

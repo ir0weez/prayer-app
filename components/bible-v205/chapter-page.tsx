@@ -20,6 +20,17 @@
 // the filled seed card (SelfLineBlock); Mark as Read is the seed's
 // near-black pill with the gold +25 XP chip. Behavior — scroll,
 // bubbles, marks, the two tracks — is untouched.
+//
+// ─── v304 "Room to Read" ─────────────────────────────────────────────
+// His word (Oct 28 10:05, Leviticus 23): the header stack "is taking
+// up a lot of space... clean this up a bit so I have more room to
+// read." Compression, not redesign: the v250 progress CARD collapses
+// into a 4px thread at the header's bottom edge (same scroll
+// fraction, same seed fill, same shimmer), and its verse-range label
+// moves onto ONE slim row shared with a slimmed With notes / Read
+// only segmented control. The title row is untouched, every control
+// survives, and the v251 measured-header machinery is untouched —
+// it simply measures a shorter header now.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -166,9 +177,12 @@ export const READ_MODE_KEY = 'prayercircle.bible.v205.readmode.v1';
  * frame, before the header's own onLayout lands the true height.
  */
 export function estimateChapterHeaderHeight(insetsTop: number): number {
-  // topbar (insets + 8 pad + ~37 row + 4 pad) + progress card
-  // (10 margin + ~52) + mode row (~52) + the 1px rule ≈ insets + 164.
-  return insetsTop + 164;
+  // topbar (insets + 8 pad + ~37 row + 4 pad = 49) + the slim meta
+  // row (8 pad + 32 segmented control + 8 pad = 48) + the 4px
+  // progress thread + the 1px rule ≈ insets + 102. (v304: the
+  // progress card's ~62 and the old mode row's ~52 collapse into
+  // the 48 meta row + 4 thread — 62px given back to the reading.)
+  return insetsTop + 102;
 }
 
 /** Where a scrollToY landing stops, relative to the header's
@@ -176,21 +190,21 @@ export function estimateChapterHeaderHeight(insetsTop: number): number {
 export const CHAPTER_HEADER_LAND_GAP = 8;
 
 /**
- * v250: the mockup's progress bar, as a card under the app bar.
- * Everything on it is real data: the fill is the ScrollView's
- * measured read fraction; the label names the section at the scroll
- * head against the chapter's verse count. The shimmer is a pale
- * band sweeping the track on the native driver (calm 1.5s pass,
- * long rest), still under reduce-motion.
+ * v250: the mockup's progress bar, born as a card under the app bar.
+ * v304: the same progress, compressed to a 4px thread at the
+ * header's bottom edge — the fill is still the ScrollView's measured
+ * read fraction in the seed colour, the shimmer still sweeps it
+ * (calm 1.5s pass, long rest, still under reduce-motion); only the
+ * card chrome and its label row are gone. The label's information
+ * (the verse range at the scroll head) rides the slim meta row
+ * beside the mode control instead.
  */
-function ChapterProgressCard({
+function ChapterProgressThread({
   palette,
   progress,
-  label,
 }: {
   palette: BiblePalette;
   progress: number;
-  label: string;
 }) {
   const shimmer = useRef(new Animated.Value(0)).current;
   const [trackW, setTrackW] = useState(0);
@@ -225,34 +239,29 @@ function ChapterProgressCard({
   }, [reduced, trackW, shimmer]);
   const pct = Math.max(0, Math.min(100, Math.round(progress * 100)));
   return (
-    <View style={[styles.progCard, { backgroundColor: palette.paper2 }, palette.cardDress]}>
-      <View style={styles.progLabRow}>
-        <Text style={[styles.progLab, { color: palette.raspDeep }]}>Chapter progress</Text>
-        {label ? <Text style={[styles.progLab, { color: palette.raspDeep }]}>{label}</Text> : null}
-      </View>
-      <View
-        style={[styles.progTrack, { backgroundColor: palette.raspTint }]}
-        onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}
-      >
-        <View style={[styles.progFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />
-        {!reduced && trackW > 0 ? (
-          <Animated.View
-            style={[
-              styles.progShimmer,
-              {
-                transform: [
-                  {
-                    translateX: shimmer.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [-trackW * 0.55, trackW * 1.08],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
-        ) : null}
-      </View>
+    <View
+      testID="chapter-progress-thread"
+      style={[styles.progThread, { backgroundColor: palette.raspTint }]}
+      onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}
+    >
+      <View style={[styles.progThreadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />
+      {!reduced && trackW > 0 ? (
+        <Animated.View
+          style={[
+            styles.progShimmer,
+            {
+              transform: [
+                {
+                  translateX: shimmer.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-trackW * 0.55, trackW * 1.08],
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
+      ) : null}
     </View>
   );
 }
@@ -730,21 +739,21 @@ export function ChapterPageView(props: ChapterPageProps) {
             </Pressable>
           </View>
         </View>
-        {/* v250: the hairline progress track becomes the mockup's
-            progress CARD — raised, labelled, shimmering. The fill is
-            the scroll fraction (real read position); the label names
-            the section at the scroll head against the chapter's
-            verse count. */}
-        <ChapterProgressCard
-          palette={palette}
-          progress={progress}
-          label={
-            verseCount > 0
+        {/* v304: ONE slim row under the title bar. The progress
+            card's verse-range label sits at its left (compact,
+            muted); the mode control — the same tonal segmented
+            pill, slimmed — at its right. The progress card itself
+            is gone; its fill lives on as the thread below. */}
+        <View style={styles.metaRow}>
+          <Text
+            testID="chapter-verse-range"
+            style={[styles.metaRange, { color: palette.inkSoft }]}
+            numberOfLines={1}
+          >
+            {verseCount > 0
               ? `Ver. 1–${headSectionEnd ?? sections[0]?.end ?? verseCount} of ${verseCount} verses`
-              : ''
-          }
-        />
-        <View style={styles.modeRow}>
+              : ''}
+          </Text>
           <View style={[styles.modeSeg, { backgroundColor: palette.band }]}>
             <Pressable
               style={[styles.modeBtn, !readOnly ? [{ backgroundColor: palette.rasp }, palette.btnDress] : null]}
@@ -760,6 +769,9 @@ export function ChapterPageView(props: ChapterPageProps) {
             </Pressable>
           </View>
         </View>
+        {/* v304: the progress thread — the card's scroll-fraction
+            fill on a 4px line spanning the header's bottom edge. */}
+        <ChapterProgressThread palette={palette} progress={progress} />
       </View>
 
       <ScrollView
@@ -1637,19 +1649,22 @@ const styles = StyleSheet.create({
   iconBtn: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   keptPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
   keptPillText: { fontSize: 11.5, fontWeight: '800' },
-  // v250 progress card (the mockup's pwrap numbers).
-  progCard: { marginHorizontal: 16, marginTop: 10, borderRadius: 18, paddingVertical: 10, paddingHorizontal: 14 },
-  progLabRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
-  progLab: { fontSize: 12, fontWeight: '700' },
-  progTrack: { height: 9, borderRadius: 999, overflow: 'hidden', position: 'relative' },
-  progFill: { height: 9, borderRadius: 999 },
+  // v304: the card's chrome is gone — the progress is a 4px thread
+  // spanning the header's full width at its bottom edge (track and
+  // fill colors inline, as the card's were); the shimmer survives.
+  progThread: { height: 4, overflow: 'hidden', position: 'relative' },
+  progThreadFill: { height: 4 },
   progShimmer: { position: 'absolute', top: 0, bottom: 0, width: '45%', backgroundColor: 'rgba(255,255,255,0.45)' },
-  modeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 10, paddingBottom: 4 },
+  // v304: the slim row the range label and the mode control share —
+  // the label left and muted at 11.5, the control right.
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
+  metaRange: { flex: 1, fontSize: 11.5, fontWeight: '600' },
   // v250: the segmented control is a tonal pill — wash track (its
   // background is inline), the chosen half filled with the seed.
-  modeSeg: { flexDirection: 'row', borderRadius: 999, padding: 4, gap: 2 },
+  // v304: slimmed — tighter track and button padding.
+  modeSeg: { flexDirection: 'row', borderRadius: 999, padding: 3, gap: 2 },
   doorBtnTextLight: { color: '#FFFFFF', fontSize: 13.5, fontWeight: '700' },
-  modeBtn: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 16 },
+  modeBtn: { borderRadius: 999, paddingVertical: 5, paddingHorizontal: 13 },
   modeBtnText: { fontSize: 12, fontWeight: '700' },
   page: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 8 },
   strip: { flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 16, marginTop: 12 },

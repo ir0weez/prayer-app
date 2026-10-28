@@ -1497,8 +1497,11 @@ function TownNPCsImpl({
                 style={{
                   position: "absolute",
                   top: -30,
-                  left: -37,
-                  width: 90,
+                  // v307: widened from 90 — the fixed strip clipped
+                  // longer names to an ellipsis; 200px keeps the label
+                  // centred on the figure and fits names whole.
+                  left: -92,
+                  width: 200,
                   textAlign: "center",
                   fontSize: 10,
                   fontWeight: "700",

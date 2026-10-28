@@ -174,7 +174,10 @@ function StreetVillager({
         const target = { x: (t.x + 0.5) * cellSize, y: (t.y + 0.5) * cellSize - 4 };
         const anim = Animated.timing(pos, {
           toValue: target,
-          duration: Math.max(160, (cellSize / STROLL_PX_PER_SEC) * 1000),
+          // v307: the stroll pace scales with the fitted street cell
+          // (40–64px) so a tile takes the same time at any draw size —
+          // at the legacy 40px cell this is exactly the old duration.
+          duration: Math.max(160, (cellSize / (STROLL_PX_PER_SEC * (cellSize / 40))) * 1000),
           easing: Easing.linear,
           useNativeDriver: true,
         });

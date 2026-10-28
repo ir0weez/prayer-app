@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Text } from "react-native";
+import { Animated, Easing, Text, View } from "react-native";
 import { PAPER_HERO_W, PaperHeroFigure } from "@/components/paper-interior";
 import { buildPath } from "@/components/town-npcs";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
@@ -16,6 +16,11 @@ const MAP_HERO_FIGURE_W = 13.7;
 /** Walk speed, px per second. The villagers stroll at ~42; the Hero
  *  keeps a touch brisker pace so a cross-town road trip stays watchable. */
 const WALK_PX_PER_SEC = 46;
+/** The cell size that pace was tuned at. v307 draws the street at a
+ *  fitted cell size (40–64px); the effective speed scales with the
+ *  cell so a tile always takes the same time — the walk watchdog's
+ *  budget (tiles × 1050 + 2500, v291) is sized in tiles, not pixels. */
+const WALK_REF_CELL = 40;
 
 /**
  * The Hero — the player's own character, walking the hometown during
@@ -174,7 +179,7 @@ export function PlayerPawnWanderer({
       }
       const anim = Animated.timing(pos, {
         toValue: { x: p.x, y: p.y },
-        duration: Math.max(90, (dist / WALK_PX_PER_SEC) * 1000),
+        duration: Math.max(90, (dist / (WALK_PX_PER_SEC * (cellSize / WALK_REF_CELL))) * 1000),
         easing: Easing.linear,
         useNativeDriver: true,
       });
@@ -307,24 +312,31 @@ export function PlayerPawnWanderer({
         zIndex: Math.round((tileY + 0.5) * cellSize),
       }}
     >
-      {/* name label */}
-      <Text
-        numberOfLines={1}
-        style={{
-          fontSize: 9,
-          fontWeight: "800",
-          color: "#FFF7ED",
-          backgroundColor: "rgba(0,0,0,0.45)",
-          borderRadius: 6,
-          paddingHorizontal: 5,
-          paddingVertical: 1,
-          marginBottom: 1,
-          maxWidth: 64,
-          textAlign: "center",
-        }}
+      {/* name label — v307: the chip used to sit in this 34px-wide
+          container with maxWidth 64, so any real name clipped to an
+          ellipsis ("Pe…"). It now rides a wide invisible strip centred
+          on the pawn (the town-npcs pattern, widened): the Text sizes
+          to its content, so the name always fits whole. */}
+      <View
+        pointerEvents="none"
+        style={{ position: "absolute", top: -2, left: -(200 - PAWN_SIZE) / 2, width: 200, alignItems: "center" }}
       >
-        {pawn.name || "You"}
-      </Text>
+        <Text
+          numberOfLines={1}
+          style={{
+            fontSize: 9,
+            fontWeight: "800",
+            color: "#FFF7ED",
+            backgroundColor: "rgba(0,0,0,0.45)",
+            borderRadius: 6,
+            paddingHorizontal: 5,
+            paddingVertical: 1,
+            textAlign: "center",
+          }}
+        >
+          {pawn.name || "You"}
+        </Text>
+      </View>
       {/* the Hero as a paper figure in the world — normal clothes,
           equipped hair, live-grown beard (PaperHeroFigure reads the
           pawn's saved appearance) */}

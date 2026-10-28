@@ -380,7 +380,13 @@ import { type WalkTile } from "@/lib/walkable-town";
 import { StreetWorldView } from "@/components/wide-street";
 import { StreetErrorBoundary } from "@/components/street-error-boundary";
 import { StreetVillagers } from "@/components/street-villagers";
+import { LotPlayPoint, NoticeBoardPoint, ShopStallPoint, TestimonyStonesPoint } from "@/components/street-world-points";
 import {
+  STREET_H,
+  STREET_NORTH_DOOR_Y,
+  STREET_NORTH_Y,
+  STREET_SOUTH_DOOR_Y,
+  STREET_SOUTH_Y,
   defaultWideStreetState,
   deriveStreetWorld,
   loadWideStreetState,
@@ -7619,8 +7625,8 @@ export default function HometownScreen() {
     if (!action) {
       if (isNight || !heroReadyRef.current || !sw) return;
       const from = {
-        x: Math.floor(heroPosRef.current.x / cellSize),
-        y: Math.floor(heroPosRef.current.y / cellSize),
+        x: Math.floor(heroPosRef.current.x / streetCell),
+        y: Math.floor(heroPosRef.current.y / streetCell),
       };
       const plan = planStreetWalk(sw, from, target);
       if (!plan || plan.tiles.length <= 1) return;
@@ -7634,8 +7640,8 @@ export default function HometownScreen() {
       return;
     }
     const from = {
-      x: Math.floor(heroPosRef.current.x / cellSize),
-      y: Math.floor(heroPosRef.current.y / cellSize),
+      x: Math.floor(heroPosRef.current.x / streetCell),
+      y: Math.floor(heroPosRef.current.y / streetCell),
     };
     const plan = planStreetWalk(sw, from, target);
     if (!plan || plan.tiles.length <= 1) {
@@ -7660,9 +7666,10 @@ export default function HometownScreen() {
     const sw = streetWorldRef.current;
     const w = sw ? sw.w : gridW;
     const h = sw ? sw.h : gridH;
+    const cs = sw ? streetCell : cellSize;
     return {
-      x: Math.max(0, Math.min(w - 1, Math.floor(px.x / cellSize))),
-      y: Math.max(0, Math.min(h - 1, Math.floor(px.y / cellSize))),
+      x: Math.max(0, Math.min(w - 1, Math.floor(px.x / cs))),
+      y: Math.max(0, Math.min(h - 1, Math.floor(px.y / cs))),
     };
   };
 
@@ -8271,6 +8278,30 @@ export default function HometownScreen() {
     if (streetAttempt.failed) markStreetBroken();
   }, [streetAttempt.failed, markStreetBroken]);
   const streetWorld = streetBroken ? null : streetAttempt.world;
+
+  // v307 — THE TOWN IS THE SCREEN. When the wide street stands, the
+  // Hometown screen IS the world: no page column around it, no furniture
+  // cards — the frame stretches to the screen, the street is drawn at a
+  // cell size fitted to the space it gets, and the old page furniture
+  // lives inside the world instead (components/street-world-points).
+  // The street-down fallback and every other map keep the page exactly
+  // as it was.
+  const isTownWorld = activeMap === "town" && !!streetWorld;
+  const [worldBox, setWorldBox] = useState<{ w: number; h: number } | null>(null);
+  const handleWorldLayout = (e: { nativeEvent: { layout: { width: number; height: number } } }) => {
+    const { width, height } = e.nativeEvent.layout;
+    setWorldBox((prev) =>
+      prev && Math.abs(prev.w - width) < 2 && Math.abs(prev.h - height) < 2 ? prev : { w: width, h: height }
+    );
+  };
+  // The SeasonalBorder frame eats 26 top + 44 bottom + 26 per side.
+  const worldInnerW = Math.max(280, (worldBox?.w ?? windowW) - 52);
+  const worldInnerH = Math.max(320, (worldBox?.h ?? windowH - insets.top - insets.bottom) - 70);
+  // The street grows to fill the frame's height (its world is always
+  // STREET_H tiles tall), capped so a place still reads as a place and
+  // floored at the size it has always been drawn at.
+  const streetCell = Math.max(40, Math.min(64, Math.floor(worldInnerH / STREET_H)));
+
   const streetWorldRef = useRef(streetWorld);
   streetWorldRef.current = streetWorld;
   /** The street's roads under the pawn's feet (his stroll network). */
@@ -8421,9 +8452,14 @@ export default function HometownScreen() {
     );
   }
 
-  return (
-    <View style={{ flex: 1, backgroundColor: pt.bg }}>
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16 }}>
+  // v307: the town page's header block — the title row with the coin
+  // pill, the summary chips, the live-event banners and the
+  // mission-field home notice — has two homes now: in flow at the top
+  // of the page (every other map, and the street-down fallback), and
+  // as the HUD overlay when the town stands full-screen. One
+  // definition; only one of the two ever mounts at a time.
+  const renderTownHeader = () => (
+    <>
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
         <Pressable onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: 12, minHeight: 44, justifyContent: "center" }}>
           <Text style={{ fontSize: 24, color: pt.text }}>←</Text>
@@ -8635,7 +8671,19 @@ export default function HometownScreen() {
           </Pressable>
         );
       })()}
+    </>
+  );
 
+  return (
+    <View style={{ flex: 1, backgroundColor: pt.bg }}>
+    <ScrollView
+      style={{ flex: 1 }}
+      scrollEnabled={!isTownWorld}
+      contentContainerStyle={isTownWorld ? { flexGrow: 1, paddingTop: insets.top, paddingBottom: insets.bottom } : { padding: 16, paddingTop: insets.top + 16 }}
+    >
+      {!isTownWorld && renderTownHeader()}
+
+      {!isTownWorld && (<>
       {/* Map selector */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
         {TOWN_MAP_IDS.map((id) => {
@@ -8719,6 +8767,7 @@ export default function HometownScreen() {
           </Text>
         </View>
       </View>
+      </>)}
 
       {activeMap === "mall" ? (
         <SeasonalBorder variant="garden">
@@ -8883,7 +8932,7 @@ export default function HometownScreen() {
         </View>
         </SeasonalBorder>
       ) : (
-      <View style={{ alignItems: "center", marginBottom: 16 }}>
+      <View onLayout={isTownWorld ? handleWorldLayout : undefined} style={isTownWorld ? { flex: 1 } : { alignItems: "center", marginBottom: 16 }}>
         {/* v291 (the Wide Street): the Great Peak banner and the
             horizon strip that crowned the old grid are gone — the
             Mine is a place ON the street now (its rock face at the
@@ -8892,6 +8941,7 @@ export default function HometownScreen() {
             (components/street-places-art). */}
         <SeasonalBorder
           variant={activeMap === "city" ? "city" : activeMap === "school" ? "school" : "town"}
+          fill={isTownWorld}
           lighthouse={
             activeMap === "town"
               ? {
@@ -8905,15 +8955,15 @@ export default function HometownScreen() {
         >
         <WalkableTownShell
           enabled={activeMap === "town"}
-          worldW={activeMap === "town" && streetWorld ? streetWorld.w * cellSize : gridW * cellSize}
-          worldH={activeMap === "town" && streetWorld ? streetWorld.h * cellSize : gridH * cellSize}
-          viewportH={activeMap === "town" && streetWorld ? streetWorld.h * cellSize : TOWN_VIEWPORT_H}
-          viewportW={gridW * cellSize}
+          worldW={activeMap === "town" && streetWorld ? streetWorld.w * streetCell : gridW * cellSize}
+          worldH={activeMap === "town" && streetWorld ? streetWorld.h * streetCell : gridH * cellSize}
+          viewportH={activeMap === "town" && streetWorld ? streetWorld.h * streetCell : TOWN_VIEWPORT_H}
+          viewportW={activeMap === "town" && streetWorld ? worldInnerW : gridW * cellSize}
           heroPosRef={heroPosRef}
           followNonce={walkNonce}
         >
         {activeMap === "town" && streetWorld ? (
-          <View ref={mapGridRef} style={{ position: "relative", width: streetWorld.w * cellSize, height: streetWorld.h * cellSize }}>
+          <View ref={mapGridRef} style={{ position: "relative", width: streetWorld.w * streetCell, height: streetWorld.h * streetCell }}>
             {/* v291: the Wide Street itself — its places, its people,
                 its ground, all carrying their own Pressables inside
                 this subtree (the v290 lesson: a tap must land on a
@@ -8926,7 +8976,7 @@ export default function HometownScreen() {
             <StreetErrorBoundary onError={markStreetBroken}>
             <StreetWorldView
               world={streetWorld}
-              cellSize={cellSize}
+              cellSize={streetCell}
               phase={dayPhase}
               ovenLit={cafeOven === "lit"}
               cafeAlert={!!cafeBoard?.tickets.some((t) => t.kind === "emergency")}
@@ -8938,7 +8988,7 @@ export default function HometownScreen() {
               villagers={
                 <StreetVillagers
                   world={streetWorld}
-                  cellSize={cellSize}
+                  cellSize={streetCell}
                   lights={lightsForActiveMap}
                   homeDoorByPerson={streetHomeDoors}
                   positionsRef={townNpcPositionsRef}
@@ -8948,7 +8998,7 @@ export default function HometownScreen() {
               }
             >
               <PlayerPawnWanderer
-                cellSize={cellSize}
+                cellSize={streetCell}
                 destTile={streetDestTile}
                 mapState={streetMapState}
                 commandPath={walkCmd}
@@ -8958,6 +9008,68 @@ export default function HometownScreen() {
               />
             </StreetWorldView>
             </StreetErrorBoundary>
+            {/* v307 — the retired page furniture, standing in the world:
+                the notice board (missions) and the testimony stones in
+                the gaps of the north apron, the shop stall in the gap
+                beside the café, and the two mini-games on the street's
+                empty lots. Board and stall answer a direct tap, like the
+                register pile; the stones only speak. The gap columns are
+                read off the derived places, so the furniture follows the
+                street wherever the houses land. */}
+            {(() => {
+              const cs = streetCell;
+              const north = streetWorld.places.filter((p) => p.y === STREET_NORTH_Y).sort((a, b) => a.x - b.x);
+              const south = streetWorld.places.filter((p) => p.y === STREET_SOUTH_Y).sort((a, b) => a.x - b.x);
+              const lots = streetWorld.places.filter((p) => p.kind === "empty-lot").sort((a, b) => a.x - b.x);
+              const boardX = north.length >= 2 ? north[1].x - 1 : 7;
+              const stonesX = north.length >= 3 ? north[2].x - 1 : boardX + 5;
+              const stallX = south.length >= 2 ? south[1].x - 1 : 9;
+              const northFeet = (STREET_NORTH_DOOR_Y + 1) * cs;
+              const southFeet = (STREET_SOUTH_DOOR_Y + 1) * cs;
+              return (
+                <>
+                  <NoticeBoardPoint
+                    left={boardX * cs + 2}
+                    top={northFeet - 54}
+                    pendingCount={pendingMissions(missions).length}
+                    onPress={() => setMissionsVisible(true)}
+                  />
+                  <TestimonyStonesPoint left={stonesX * cs} top={northFeet - 43} count={monumentCount} />
+                  <ShopStallPoint
+                    left={stallX * cs - 2}
+                    top={southFeet - 56}
+                    onPress={() => router.push("/hometown-shop")}
+                  />
+                  {lots[0] ? (
+                    <LotPlayPoint
+                      left={lots[0].x * cs}
+                      top={lots[0].y * cs}
+                      width={lots[0].w * cs}
+                      height={lots[0].h * cs}
+                      icon="local-florist"
+                      label="Garden Tending"
+                      playsLeft={gardenPlaysLeft}
+                      cap={MINI_GAME_CAPS.garden}
+                      onPlay={() => { gardenBloomKindsRef.current = []; setPlayingGarden(true); }}
+                    />
+                  ) : null}
+                  {lots[1] ? (
+                    <LotPlayPoint
+                      left={lots[1].x * cs}
+                      top={lots[1].y * cs}
+                      width={lots[1].w * cs}
+                      height={lots[1].h * cs}
+                      icon="waves"
+                      label="Tide Pools"
+                      playsLeft={tidePlaysLeft}
+                      cap={MINI_GAME_CAPS.tide}
+                      onPlay={() => setPlayingTide(true)}
+                    />
+                  ) : null}
+                </>
+              );
+            })()}
+
           </View>
         ) : (
           <View ref={mapGridRef} style={{ position: "relative" }}>
@@ -9701,7 +9813,7 @@ export default function HometownScreen() {
             )}
           </View>
         )}
-        {activeMap === "town" && (
+        {activeMap === "town" && !isTownWorld && (
           <MapSigns
             activeMap={activeMap}
             unlockedMaps={unlockedMaps}
@@ -9714,7 +9826,7 @@ export default function HometownScreen() {
 
       {/* Town mini-games: the Community Garden and Mercy's Shore live on
           the map itself, so their Play entries sit right below it. */}
-      {activeMap === "town" && (
+      {activeMap === "town" && !isTownWorld && (
         <>
           <PlayCard
             icon="local-florist"
@@ -9875,165 +9987,6 @@ export default function HometownScreen() {
           <Pressable onPress={() => setSelectedTile(null)} style={{ marginTop: 8, alignItems: "center" }}>
             <Text style={{ color: pt.subtext }}>Cancel</Text>
           </Pressable>
-        </View>
-      )}
-
-      {/* Missions modal */}
-      {missionsVisible && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 50 }}>
-          <View style={{ backgroundColor: pt.card, borderRadius: 16, padding: 16, width: "100%", maxHeight: "80%" }}>
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-              <Text style={{ fontSize: 20, fontWeight: "800", flex: 1, color: pt.text }}>Missions</Text>
-              <Pressable onPress={() => setMissionsVisible(false)}>
-                <Text style={{ fontSize: 20, color: pt.subtext }}>✕</Text>
-              </Pressable>
-            </View>
-            <ScrollView>
-              {missions.filter((m) => !m.completed).length === 0 && (
-                <Text style={{ color: pt.subtext, textAlign: "center", paddingVertical: 16 }}>
-                  No missions right now. Check back tomorrow!
-                </Text>
-              )}
-              {missions.filter((m) => !m.completed).map((m) => (
-                <View key={m.id} style={{ backgroundColor: pt.bg, borderRadius: 12, padding: 12, marginBottom: 10 }}>
-                  <Text style={{ fontWeight: "700", fontSize: 15, color: pt.text }}>{m.title}</Text>
-                  <Text style={{ fontSize: 13, color: pt.subtext, marginTop: 4 }}>{m.description}</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
-                    <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
-                      {m.rewardCoins > 0 && (
-                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {formatCoins(scaledCoins(m.rewardCoins))}</Text>
-                      )}
-                      {m.rewardXP > 0 && (
-                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {m.rewardXP} XP</Text>
-                      )}
-                    </View>
-                    <Pressable
-                      onPress={async () => {
-                        const next = await completeMission(m.id);
-                        setMissions(next);
-                        // Refresh coin display
-                        try {
-                          const coinsRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
-                          setCoins(parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {}));
-                        } catch {}
-                      }}
-                      style={{ backgroundColor: "#22C55E", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 }}
-                    >
-                      <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Done</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
-              {missions.filter((m) => m.completed).length > 0 && (
-                <>
-                  <Text style={{ fontWeight: "700", fontSize: 13, color: "#9CA3AF", marginTop: 4, marginBottom: 8 }}>
-                    Completed
-                  </Text>
-                  {missions.filter((m) => m.completed).map((m) => (
-                    <View key={m.id} style={{ paddingVertical: 6, opacity: 0.5 }}>
-                      <Text style={{ fontSize: 13, textDecorationLine: "line-through" }}>{m.title}</Text>
-                    </View>
-                  ))}
-                </>
-              )}
-              {/* Villager Requests — missions that come from the lights themselves */}
-              {(() => {
-                const requests = activeVillagerMissions(vmState?.missions ?? []);
-                if (requests.length === 0) return null;
-                return (
-                  <>
-                    <Text style={{ fontWeight: "700", fontSize: 16, color: pt.text, marginTop: 12, marginBottom: 8 }}>
-                      Villager Requests
-                    </Text>
-                    {requests.map((m) => (
-                      <View key={m.id} style={{ backgroundColor: pt.bg, borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: "#DDD6FE" }}>
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <View
-                            style={{
-                              width: 22, height: 22, borderRadius: 11, backgroundColor: "#FFFFFF",
-                              borderWidth: 1.5, borderColor: "#7C3AED",
-                              alignItems: "center", justifyContent: "center", marginRight: 8,
-                            }}
-                          >
-                            <Text style={{ fontSize: 12, fontWeight: "800", color: "#7C3AED" }}>?</Text>
-                          </View>
-                          <Text style={{ fontWeight: "700", fontSize: 15, color: pt.text, flex: 1 }}>{m.personName}</Text>
-                        </View>
-                        <Text style={{ fontSize: 13, color: pt.subtext, marginTop: 6, fontStyle: "italic" }}>
-                          &ldquo;{m.message}&rdquo;
-                        </Text>
-                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
-                          <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
-                            <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {m.rewardCoins}</Text>
-                            <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {m.rewardXP} XP</Text>
-                          </View>
-                          <Text style={{ fontSize: 12, color: pt.subtext, fontStyle: "italic" }}>
-                            {m.status === "waiting" ? "Waiting in Hometown — tap them" : "On the way…"}
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
-                  </>
-                );
-              })()}
-              {/* Work Assignments — shifts Jonathan sent lights on */}
-              {(() => {
-                const jobs = activeWorkAssignments(workState?.assignments ?? []);
-                if (jobs.length === 0) return null;
-                return (
-                  <>
-                    <Text style={{ fontWeight: "700", fontSize: 16, color: pt.text, marginTop: 12, marginBottom: 8 }}>
-                      Work Assignments
-                    </Text>
-                    {jobs.map((a) => {
-                      const def = WORK_KINDS[a.kind];
-                      const done = a.status === "done";
-                      return (
-                        <View key={a.id} style={{ backgroundColor: pt.bg, borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: "#A7F3D0" }}>
-                          <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <View
-                              style={{
-                                width: 22, height: 22, borderRadius: 11, backgroundColor: "#FFFFFF",
-                                borderWidth: 1.5, borderColor: "#059669",
-                                alignItems: "center", justifyContent: "center", marginRight: 8,
-                              }}
-                            >
-                              <MaterialIcons name={def.badgeIcon as any} size={13} color="#059669" />
-                            </View>
-                            <Text style={{ fontWeight: "700", fontSize: 15, color: pt.text, flex: 1 }}>{a.personName}</Text>
-                          </View>
-                          <Text style={{ fontSize: 13, color: pt.subtext, marginTop: 6 }}>
-                            {def.label}
-                            {a.kind === "deliver-meal" && a.recipientName ? ` — for ${a.recipientName}` : ""}
-                            {a.kind === "restock" ? ` — ${(a.boxesDelivered ?? 0)} ${(a.boxesDelivered ?? 0) === 1 ? "box" : "boxes"} delivered` : ""}
-                          </Text>
-                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
-                            <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
-                              <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {formatCoins(def.rewardCoins + (a.bonusCoins ?? 0))}</Text>
-                              <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {def.rewardXP} XP</Text>
-                            </View>
-                            {done ? (
-                              <Pressable
-                                onPress={() => collectWorkReward(a)}
-                                style={{ backgroundColor: "#059669", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 }}
-                              >
-                                <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Collect</Text>
-                              </Pressable>
-                            ) : (
-                              <Text style={{ fontSize: 12, color: pt.subtext, fontStyle: "italic" }}>
-                                {a.status === "en-route" ? "On the way… " : "Working… "}
-                                {workCountdownText(a.endsAt, nowMs)}
-                              </Text>
-                            )}
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </>
-                );
-              })()}
-            </ScrollView>
-          </View>
         </View>
       )}
 
@@ -11577,6 +11530,187 @@ export default function HometownScreen() {
         </Pressable>
       </Modal>
     </ScrollView>
+    {/* v307 HUD — when the town stands full-screen, the header block
+        rides as an overlay: back, title, the coin pill (Collect All
+        still lives there) and the summary chips, with the open sky
+        between them tap-through to the world. */}
+    {isTownWorld && (
+      <View pointerEvents="box-none" style={{ position: "absolute", top: 0, left: 0, right: 0, paddingTop: insets.top + 8, paddingHorizontal: 12, zIndex: 40 }}>
+        {renderTownHeader()}
+      </View>
+    )}
+    {/* v307 — the two mini-games, opened from their lots in the
+        world, take the whole screen while they run. */}
+    {isTownWorld && playingGarden && (
+      <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: pt.bg, paddingTop: insets.top, zIndex: 60 }}>
+        <GardenGame accent="#65A30D" onComplete={handleGardenGameComplete} onExit={() => setPlayingGarden(false)} onBloom={handleGardenBloom} />
+      </View>
+    )}
+    {isTownWorld && playingTide && (
+      <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: pt.bg, paddingTop: insets.top, zIndex: 60 }}>
+        <TideGame accent="#0284C7" onComplete={handleTideGameComplete} onExit={() => setPlayingTide(false)} onShellUpdate={handleTideShellUpdate} />
+      </View>
+    )}
+    {/* Missions modal — v307: hoisted to the screen root, so it anchors
+        to the screen and paints above the world HUD in both the page
+        and the full-screen town. */}
+      {missionsVisible && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 50 }}>
+          <View style={{ backgroundColor: pt.card, borderRadius: 16, padding: 16, width: "100%", maxHeight: "80%" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+              <Text style={{ fontSize: 20, fontWeight: "800", flex: 1, color: pt.text }}>Missions</Text>
+              <Pressable onPress={() => setMissionsVisible(false)}>
+                <Text style={{ fontSize: 20, color: pt.subtext }}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView>
+              {missions.filter((m) => !m.completed).length === 0 && (
+                <Text style={{ color: pt.subtext, textAlign: "center", paddingVertical: 16 }}>
+                  No missions right now. Check back tomorrow!
+                </Text>
+              )}
+              {missions.filter((m) => !m.completed).map((m) => (
+                <View key={m.id} style={{ backgroundColor: pt.bg, borderRadius: 12, padding: 12, marginBottom: 10 }}>
+                  <Text style={{ fontWeight: "700", fontSize: 15, color: pt.text }}>{m.title}</Text>
+                  <Text style={{ fontSize: 13, color: pt.subtext, marginTop: 4 }}>{m.description}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+                    <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
+                      {m.rewardCoins > 0 && (
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {formatCoins(scaledCoins(m.rewardCoins))}</Text>
+                      )}
+                      {m.rewardXP > 0 && (
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {m.rewardXP} XP</Text>
+                      )}
+                    </View>
+                    <Pressable
+                      onPress={async () => {
+                        const next = await completeMission(m.id);
+                        setMissions(next);
+                        // Refresh coin display
+                        try {
+                          const coinsRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
+                          setCoins(parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {}));
+                        } catch {}
+                      }}
+                      style={{ backgroundColor: "#22C55E", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 }}
+                    >
+                      <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Done</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+              {missions.filter((m) => m.completed).length > 0 && (
+                <>
+                  <Text style={{ fontWeight: "700", fontSize: 13, color: "#9CA3AF", marginTop: 4, marginBottom: 8 }}>
+                    Completed
+                  </Text>
+                  {missions.filter((m) => m.completed).map((m) => (
+                    <View key={m.id} style={{ paddingVertical: 6, opacity: 0.5 }}>
+                      <Text style={{ fontSize: 13, textDecorationLine: "line-through" }}>{m.title}</Text>
+                    </View>
+                  ))}
+                </>
+              )}
+              {/* Villager Requests — missions that come from the lights themselves */}
+              {(() => {
+                const requests = activeVillagerMissions(vmState?.missions ?? []);
+                if (requests.length === 0) return null;
+                return (
+                  <>
+                    <Text style={{ fontWeight: "700", fontSize: 16, color: pt.text, marginTop: 12, marginBottom: 8 }}>
+                      Villager Requests
+                    </Text>
+                    {requests.map((m) => (
+                      <View key={m.id} style={{ backgroundColor: pt.bg, borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: "#DDD6FE" }}>
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <View
+                            style={{
+                              width: 22, height: 22, borderRadius: 11, backgroundColor: "#FFFFFF",
+                              borderWidth: 1.5, borderColor: "#7C3AED",
+                              alignItems: "center", justifyContent: "center", marginRight: 8,
+                            }}
+                          >
+                            <Text style={{ fontSize: 12, fontWeight: "800", color: "#7C3AED" }}>?</Text>
+                          </View>
+                          <Text style={{ fontWeight: "700", fontSize: 15, color: pt.text, flex: 1 }}>{m.personName}</Text>
+                        </View>
+                        <Text style={{ fontSize: 13, color: pt.subtext, marginTop: 6, fontStyle: "italic" }}>
+                          &ldquo;{m.message}&rdquo;
+                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+                          <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
+                            <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {m.rewardCoins}</Text>
+                            <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {m.rewardXP} XP</Text>
+                          </View>
+                          <Text style={{ fontSize: 12, color: pt.subtext, fontStyle: "italic" }}>
+                            {m.status === "waiting" ? "Waiting in Hometown — tap them" : "On the way…"}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                );
+              })()}
+              {/* Work Assignments — shifts Jonathan sent lights on */}
+              {(() => {
+                const jobs = activeWorkAssignments(workState?.assignments ?? []);
+                if (jobs.length === 0) return null;
+                return (
+                  <>
+                    <Text style={{ fontWeight: "700", fontSize: 16, color: pt.text, marginTop: 12, marginBottom: 8 }}>
+                      Work Assignments
+                    </Text>
+                    {jobs.map((a) => {
+                      const def = WORK_KINDS[a.kind];
+                      const done = a.status === "done";
+                      return (
+                        <View key={a.id} style={{ backgroundColor: pt.bg, borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: "#A7F3D0" }}>
+                          <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            <View
+                              style={{
+                                width: 22, height: 22, borderRadius: 11, backgroundColor: "#FFFFFF",
+                                borderWidth: 1.5, borderColor: "#059669",
+                                alignItems: "center", justifyContent: "center", marginRight: 8,
+                              }}
+                            >
+                              <MaterialIcons name={def.badgeIcon as any} size={13} color="#059669" />
+                            </View>
+                            <Text style={{ fontWeight: "700", fontSize: 15, color: pt.text, flex: 1 }}>{a.personName}</Text>
+                          </View>
+                          <Text style={{ fontSize: 13, color: pt.subtext, marginTop: 6 }}>
+                            {def.label}
+                            {a.kind === "deliver-meal" && a.recipientName ? ` — for ${a.recipientName}` : ""}
+                            {a.kind === "restock" ? ` — ${(a.boxesDelivered ?? 0)} ${(a.boxesDelivered ?? 0) === 1 ? "box" : "boxes"} delivered` : ""}
+                          </Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+                            <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
+                              <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {formatCoins(def.rewardCoins + (a.bonusCoins ?? 0))}</Text>
+                              <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {def.rewardXP} XP</Text>
+                            </View>
+                            {done ? (
+                              <Pressable
+                                onPress={() => collectWorkReward(a)}
+                                style={{ backgroundColor: "#059669", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 }}
+                              >
+                                <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Collect</Text>
+                              </Pressable>
+                            ) : (
+                              <Text style={{ fontSize: 12, color: pt.subtext, fontStyle: "italic" }}>
+                                {a.status === "en-route" ? "On the way… " : "Working… "}
+                                {workCountdownText(a.endsAt, nowMs)}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </>
+                );
+              })()}
+            </ScrollView>
+          </View>
+        </View>
+      )}
     {/* Coin-fly overlay: coins burst from collected buildings and fly up to
         the balance in the header. Lives outside the ScrollView so the coins
         can cross into the header; isolated in its own memoized component

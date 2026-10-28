@@ -722,11 +722,16 @@ function BeachStrip({ scene }: { scene: SceneTheme }) {
 /* The border                                                          */
 /* ------------------------------------------------------------------ */
 
-export function SeasonalBorder({ children, variant = "town", lighthouse }: {
+export function SeasonalBorder({ children, variant = "town", lighthouse, fill }: {
   children: ReactNode;
   variant?: BorderVariant;
   /** When set (town map), the right gutter shows the lighthouse instead of the forest. */
   lighthouse?: BorderLighthouse;
+  /** v307: stretch the frame to fill its parent (the full-screen town);
+   *  the sky strip and beach pin to the ends, the side scenery stretches,
+   *  and the map centres in the taller middle. Default off — every other
+   *  map keeps the shrink-wrapped frame it has always had. */
+  fill?: boolean;
 }) {
   // Re-evaluate time of day every 5 minutes so the border shifts
   // if the hour boundary passes while the app is open.
@@ -801,7 +806,7 @@ export function SeasonalBorder({ children, variant = "town", lighthouse }: {
     <ForestStrip scene={scene} />;
 
   return (
-    <View style={{ position: "relative", backgroundColor: sky.bg, borderRadius: 16, overflow: "hidden" }}>
+    <View style={{ position: "relative", backgroundColor: sky.bg, borderRadius: 16, overflow: "hidden", ...(fill ? { flex: 1 } : null) }}>
       {/* Animated sky life — behind everything; shows through the
           top strip and the upper halves of the side gutters */}
       <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
@@ -873,14 +878,14 @@ export function SeasonalBorder({ children, variant = "town", lighthouse }: {
           The map must size to its content (flexShrink: 0) — a plain
           flex: 1 collapses to ~0 in this shrink-wrapped row (regression
           that squished every map into a thin strip). */}
-      <View style={{ flexDirection: "row" }}>
+      <View style={{ flexDirection: "row", ...(fill ? { flex: 1 } : null) }}>
         <View style={{ width: SIDE_W, overflow: "hidden" }}>
           <View style={{ flex: 0.45 }} />
           <View style={{ flex: 0.55, overflow: "hidden" }}>
             {leftScene}
           </View>
         </View>
-        <View style={{ flexGrow: 1, flexShrink: 0 }}>
+        <View style={{ flexGrow: 1, flexShrink: 0, ...(fill ? { justifyContent: "center" } : null) }}>
           {children}
         </View>
         <View style={{ width: SIDE_W, overflow: "hidden" }}>

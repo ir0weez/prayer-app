@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { getDaysSinceLastPrayedOnDate, getIconForTodo } from "@/lib/prayercircle-data";
 import { ScheduleProgressBar } from "@/components/schedule-progress-bar";
+import { schedulePanelStep } from "@/lib/schedule-material";
 import { getChapterCount } from "@/lib/bible-books";
 
 
@@ -440,10 +441,17 @@ export function DailySummaryCard({
     // night too. (In light appearance seedPrimary === colors.primary,
     // so the light panel is byte-identical to v295's.)
     const seedPrimary = getAccentThemeDefinition(accentTheme).light?.primary ?? colors.primary;
-    const panel = mix(seedPrimary, "#000000", 0.12);
-    const chipBg = mix(panel, "#FFFFFF", 0.18);
+    // v298: the panel step is the drawing's own step, derived in HSL
+    // (schedulePanelStep) — v297's 12% RGB black-mix rendered visibly
+    // LIGHTER and greyer than the drawing's deep saturated panel from
+    // his seed (his Oct 28 side-by-side). The greeting and prose take
+    // the drawing's pale steps of the panel (its #E4DBFF / #F5F2FF
+    // against #6D28D9), and the name chip its rgba(255,255,255,.16).
+    const panel = schedulePanelStep(seedPrimary);
+    const chipBg = mix(panel, "#FFFFFF", 0.16);
     const onPanel = "#FFFFFF";
-    const onPanelSoft = "rgba(255,255,255,0.85)";
+    const onPanelSoft = mix(panel, "#FFFFFF", 0.82);
+    const proseColor = mix(panel, "#FFFFFF", 0.94);
     return (
       <Animated.View
         style={{
@@ -473,9 +481,9 @@ export function DailySummaryCard({
             <Text style={{ fontSize: 16, color: onPanelSoft, fontWeight: "500" }}>.</Text>
           </View>
 
-          <Text style={{ fontSize: 15, lineHeight: 24, color: onPanel, fontWeight: "400", marginTop: 8 }}>
+          <Text style={{ fontSize: 15, lineHeight: 24, color: proseColor, fontWeight: "400", marginTop: 8 }}>
             You have{' '}
-            <Text style={{ fontWeight: "700" }}>
+            <Text style={{ fontWeight: "800" }}>
               <MaterialIcons name="task-alt" size={15} color={onPanel} /> {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}
             </Text>
             , last{' '}
@@ -483,8 +491,8 @@ export function DailySummaryCard({
               <Text
                 onPress={() => setShowDayDropdown(true)}
                 style={{
-                  fontWeight: "700",
-                  color: onPanel,
+                  fontWeight: "800",
+                  color: proseColor,
                   textDecorationLine: "underline",
                   textDecorationStyle: "dashed",
                   textDecorationColor: "rgba(255,255,255,0.6)",
@@ -493,35 +501,35 @@ export function DailySummaryCard({
                 {displayDay}
               </Text>
             ) : (
-              <Text style={{ fontWeight: "700" }}>{displayDay}</Text>
+              <Text style={{ fontWeight: "800" }}>{displayDay}</Text>
             )}
             {' '}bible study{' '}
-            <Text style={{ fontWeight: "700" }}>
+            <Text style={{ fontWeight: "800" }}>
               <MaterialIcons name="school" size={15} color={onPanel} /> {currentBibleStudy || 'none'}
             </Text>
             , have{' '}
-            <Text style={{ fontWeight: "700" }}>
+            <Text style={{ fontWeight: "800" }}>
               <MaterialIcons name="favorite" size={15} color={onPanel} /> {remainingPrayers} prayer{remainingPrayers !== 1 ? "s" : ""}
             </Text>
-            , <Text style={{ fontWeight: "700" }}>
+            , <Text style={{ fontWeight: "800" }}>
               <MaterialIcons name="account-balance-wallet" size={15} color={onPanel} /> ${formatCoins(budgetAmount)}
             </Text> to budget,{' '}
-            <Text style={{ fontWeight: "700" }}>
+            <Text style={{ fontWeight: "800" }}>
               <MaterialIcons name="people" size={15} color={onPanel} /> {peopleToReach} people
             </Text> to reach, {' '}
-            <Text style={{ fontWeight: "700" }}>
+            <Text style={{ fontWeight: "800" }}>
               <MaterialIcons name="event" size={15} color={onPanel} /> {eventCount} event{eventCount !== 1 ? "s" : ""}
             </Text>, and{' '}
-            <Text style={{ fontWeight: "700" }}>
+            <Text style={{ fontWeight: "800" }}>
               <MaterialIcons name="volunteer-activism" size={15} color={onPanel} /> {ministryCount} ministries
             </Text> to lead. You have{' '}
-            <Text style={{ fontWeight: "700" }}>
+            <Text style={{ fontWeight: "800" }}>
               <MaterialIcons name="schedule" size={15} color={onPanel} /> {availableTimeString.replace(" ", "\u00A0")}
             </Text>{' '}available.
             {fastLine ? (
               <Text>
                 {' '}Your fast —{' '}
-                <Text style={{ fontWeight: "700" }}>
+                <Text style={{ fontWeight: "800" }}>
                   <MaterialIcons name="local-fire-department" size={15} color={onPanel} /> {fastLine}
                 </Text>.
               </Text>

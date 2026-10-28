@@ -1558,9 +1558,15 @@ describe("v190 — Paper, Bigger", () => {
     const progress = read("components/schedule-progress-bar.tsx");
     expect(progress).toContain("...skinText(skinTokens, skinTokens.type.barTitle)");
     // The worship album card consumes the scale too.
+    // RE-BASED in v298 (his Oct 28 worship verdict): the spreads are
+    // now GATED behind scaleText (hasTypeScale && isSkinned) — under
+    // Classic the same spreads were the defect (track titles at the
+    // scale's 15px rowBody instead of the drawing's 13.5). The card
+    // still consumes the scale wherever a skin is worn, Paper
+    // included, which is what this v190 pin protects.
     const album = read("components/album-card.tsx");
-    expect(album).toContain("...skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)");
-    expect(album).toContain("...skinText(skinTokens, skinTokens.type.cardTitle)");
+    expect(album).toContain("...(scaleText ? skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) : null)");
+    expect(album).toContain("...(scaleText ? skinText(skinTokens, skinTokens.type.cardTitle) : null)");
   });
 
   it("People, Journal, Settings and the fasting profile consume the same table", () => {

@@ -9292,6 +9292,7 @@ function RestSquare({
     <Pressable
       onPress={(e) => onPress?.({ x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
       onLongPress={onLongPress}
+      delayLongPress={500}
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
       <View style={{ flex: 1, borderRadius: skinTokens.isTerminal ? 16 : 22, backgroundColor: skinTokens.isTerminal ? TERM_PANEL : mc.bg, borderWidth: 1.5, borderColor: skinTokens.isTerminal ? TERM_MID : mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
@@ -9376,19 +9377,20 @@ function MinistrySquare({
     contextMenuActions.push({ label: 'Delete', icon: 'delete', onPress: onDelete, isDestructive: true });
   }
 
+  // v298: the menu renders as a SIBLING of the Pressable, not inside
+  // it — EventCard's proven anatomy. A Modal nested inside the very
+  // Pressable whose long-press opens it can swallow the gesture's
+  // state on device (his Oct 28 report: hold-for-options dead on the
+  // squares while the full-width cards work). Both squares also take
+  // EventCard's explicit delayLongPress={500}.
   return (
+    <>
     <Pressable
       onPress={(e) => onToggle({ x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
       onLongPress={handleLongPress}
+      delayLongPress={500}
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
-      <ContextMenu
-        visible={contextMenuVisible}
-        x={contextMenuPos.x}
-        y={contextMenuPos.y}
-        actions={contextMenuActions}
-        onDismiss={() => setContextMenuVisible(false)}
-      />
       {/* v294: Classic + Paper wear the v28 tonal ramp — three stepped
           fields of the ministry's own colour: MINISTRY letterspaced in
           the deep band with the flat speech-bubble motif, the time large
@@ -9495,6 +9497,14 @@ function MinistrySquare({
       </View>
       )}
     </Pressable>
+    <ContextMenu
+      visible={contextMenuVisible}
+      x={contextMenuPos.x}
+      y={contextMenuPos.y}
+      actions={contextMenuActions}
+      onDismiss={() => setContextMenuVisible(false)}
+    />
+    </>
   );
 }
 
@@ -10373,7 +10383,7 @@ export function ScheduleTab({
   // v207: the chapterSummary / isLoadingSummary state is gone with the
   // live fetch it served — the storyteller preview is baked local data
   // now (lib/bible-v205/preview), read synchronously in the items memo.
-  const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(false); // Expandable Personal Study card state
+  const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(true); // Expandable Personal Study card state — v298: the drawn resting face is the EXPANDED face (previews, last-read, nav buttons); collapse stays on the chevron.
   const [celebratedBook, setCelebratedBook] = useState<string | null>(null); // Book just completed — drives celebration UI
   const [bibleFullyComplete, setBibleFullyComplete] = useState(false); // All 66 books done
   const [isMissedTodosOpen, setIsMissedTodosOpen] = useState(false);
@@ -10556,10 +10566,14 @@ export function ScheduleTab({
   }, [currentDisplayAlbumId, isAlbumStateHydrated]);
 
   // Persist Personal Study expanded state
+  // v298: the storage key is versioned — the pre-v298 default rested
+  // COLLAPSED, so a stored 'false' may be the old default rather than
+  // his choice. The drawn face rests expanded; from v298 his toggles
+  // persist under the new key.
   useEffect(() => {
     const loadExpandedState = async () => {
       try {
-        const saved = await AsyncStorage.getItem('personalStudyExpanded');
+        const saved = await AsyncStorage.getItem('personalStudyExpanded.v298');
         if (saved !== null) {
           setIsPersonalStudyExpanded(saved === 'true');
         }
@@ -10572,7 +10586,7 @@ export function ScheduleTab({
 
   const togglePersonalStudyExpanded = (newState: boolean) => {
     setIsPersonalStudyExpanded(newState);
-    AsyncStorage.setItem('personalStudyExpanded', newState ? 'true' : 'false').catch(e =>
+    AsyncStorage.setItem('personalStudyExpanded.v298', newState ? 'true' : 'false').catch(e =>
       console.error('Error saving Personal Study expanded state:', e)
     );
   };
@@ -12306,6 +12320,31 @@ export function ScheduleTab({
       items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: personalStudyHeadline(position, studyDoorway?.line ?? "Your Books"), sub: studyDoorway?.sub ?? null, lastRead, preview, readTarget, targetRead, currentBook: position.currentBook, backChapter, progress: studyProgress } });
     }
 
+    // v298: the drawing's UP NEXT strip (v32 .nextstrip), Classic
+    // only, seated directly under the study card, before the
+    // timeline. It names the next timed item still ahead TODAY —
+    // the earliest uncompleted todo / event / ministry whose start
+    // is still in the future — and is absent on other days and once
+    // nothing remains today. (His Oct 27 ruling confining Up Next
+    // to the Pray Today complete card is superseded for THIS
+    // surface: he approved v32 with the strip in the day page —
+    // "Love it, build it", Oct 27 — and named its absence a
+    // mismatch on Oct 28.)
+    if (!isSkinned && selectedDate === today) {
+      const nowMin = clockNow.getHours() * 60 + clockNow.getMinutes();
+      const nextCandidate = [
+        ...dayTodos.filter((t: any) => t.startTime && !t.isCompleted).map((t: any) => ({ kind: "todo" as const, item: t })),
+        ...dayEvents.filter((e: any) => e.startTime && !e.isCompleted && !e.isHoliday).map((e: any) => ({ kind: "event" as const, item: e })),
+        ...dayMinistries.filter((m: any) => m.startTime && !m.isCompleted).map((m: any) => ({ kind: "ministry" as const, item: m })),
+      ]
+        .filter((c) => timeToMinutes(c.item.startTime) > nowMin)
+        .sort((a, b) => timeToMinutes(a.item.startTime) - timeToMinutes(b.item.startTime))[0];
+      if (nextCandidate) {
+        const studyIdx = items.findIndex((i) => i.type === "personal-study-card");
+        items.splice(studyIdx >= 0 ? studyIdx + 1 : 0, 0, { type: "up-next", id: "up-next", data: nextCandidate });
+      }
+    }
+
     // (The END OF THE DAY divider is pushed earlier, heading the
     // completed stack — see the v296 note above the completed
     // pushes. The worship card still closes the day.)
@@ -12314,7 +12353,7 @@ export function ScheduleTab({
     items.push({ type: "worship-display", id: "worship-section", data: null });
 
     return items;
-  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, currentAlbum, clockNow, studyDoorway, studySnap]);
+  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, currentAlbum, clockNow, studyDoorway, studySnap, isSkinned]);
 
   // Joi-style sheet: the date header leads the sheet; an empty-state item
   // preserves the "no items" message now that data always carries the header.
@@ -12735,10 +12774,24 @@ export function ScheduleTab({
           // the button and the unmark one tap away. The plain Books
           // doorway leaves the card; the queue button beside it
           // still opens Books with its picker.
+          // v298: the card is re-measured against the drawing's
+          // .astudy (his Oct 28 verdict: "the personal study box is
+          // way bigger"). Under Classic the drawing's metrics rule:
+          // radius 24, padding 14/15, the drawn margins between rows,
+          // 15.5/800 header, the chevron in its 32px circle, previews
+          // at 13/20.5, and NO type-scale spreads (the same inflation
+          // family v297/v298 removed from todos and worship). The
+          // Read Chapter pill takes the drawing's DEEP step in both
+          // appearances — the tones' primaryDeep mixes the dark
+          // appearance's lightened primary only 10% toward black, so
+          // at night the pill rendered pale lavender with dark text.
+          const classicStudy = !isSkinned;
+          const scaleStudy = hasTypeScale(skinTokens) && isSkinned;
+          const studyTonesNow = scheduleMaterialTones(colors.primary, colors.surface);
           return (
             <Pressable
               onPress={() => togglePersonalStudyExpanded(!isPersonalStudyExpanded)}
-              style={({ pressed }) => [{ marginBottom: 12, marginHorizontal: 12, opacity: pressed ? 0.7 : 1, ...(hasTypeScale(skinTokens) ? { marginBottom: 12 + skinTokens.type.gapBoost } : {}) }]}
+              style={({ pressed }) => [{ marginBottom: 12, marginHorizontal: 12, opacity: pressed ? 0.7 : 1, ...((hasTypeScale(skinTokens) && isSkinned) ? { marginBottom: 12 + skinTokens.type.gapBoost } : {}) }]}
             >
               {/* v250: the Personal Study card wears the Bible's new
                   Material dress like the section it opens — a big
@@ -12746,12 +12799,12 @@ export function ScheduleTab({
                   (the same seed the Bible derives from), radius 28,
                   a soft seed-tinted shadow, no border and no skin
                   frame: under every skin, the Bible dresses alike. */}
-              <View style={{ backgroundColor: mix(colors.surface, colors.primary, hexLuminance(colors.background) < 0.5 ? 0.22 : 0.12), borderRadius: 28, overflow: 'hidden', shadowColor: colors.primary, shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 4 }}>
-                <View style={{ padding: 16, gap: 12, ...(hasTypeScale(skinTokens) ? { padding: 16 + skinTokens.type.padBoost, gap: 12 + skinTokens.type.gapBoost } : {}) }}>
+              <View style={{ backgroundColor: mix(colors.surface, colors.primary, hexLuminance(colors.background) < 0.5 ? 0.22 : 0.12), borderRadius: classicStudy ? 24 : 28, overflow: 'hidden', shadowColor: colors.primary, shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 4 }}>
+                <View style={{ ...(classicStudy ? { paddingTop: 14, paddingBottom: 14, paddingHorizontal: 15, gap: 0 } : { padding: 16, gap: 12 }), ...((hasTypeScale(skinTokens) && isSkinned) ? { padding: 16 + skinTokens.type.padBoost, gap: 12 + skinTokens.type.gapBoost } : {}) }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                      <MaterialIcons name="menu-book" size={20} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
-                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600', ...bitDisplay(skinTokens, 10), ...skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) }}>Personal Study</Text>
+                      <MaterialIcons name="menu-book" size={classicStudy ? 19 : 20} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} />
+                      <Text style={{ color: colors.foreground, fontSize: classicStudy ? 15.5 : 14, fontWeight: classicStudy ? '800' : '600', ...bitDisplay(skinTokens, 10), ...(scaleStudy ? skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) : null) }}>Personal Study</Text>
                     </View>
                     {/* v209: the Read Chapter button lives in the header,
                         top right, left of the chevron — where it sat on
@@ -12763,9 +12816,9 @@ export function ScheduleTab({
                       <Pressable
                         onPress={() => onOpenBible?.({ name: 'chapter', book: item.data.readTarget.book, chapter: item.data.readTarget.chapter })}
                         style={({ pressed }) => [{
-                          paddingHorizontal: 14,
-                          paddingVertical: 9,
-                          backgroundColor: isSkinned ? colors.primary : scheduleMaterialTones(colors.primary, colors.surface).primaryDeep,
+                          paddingHorizontal: classicStudy ? 13 : 14,
+                          paddingVertical: classicStudy ? 8 : 9,
+                          backgroundColor: isSkinned ? colors.primary : mix(colors.primary, "#000000", 0.62),
                           borderRadius: 999,
                           opacity: pressed ? 0.8 : 1,
                           ...(bitButtonStyle(skinTokens, "primary") ?? {}),
@@ -12774,7 +12827,7 @@ export function ScheduleTab({
                         accessibilityRole="button"
                         accessibilityLabel={`Read Chapter — ${item.data.readTarget.book} ${item.data.readTarget.chapter}`}
                       >
-                        <Text style={{ color: skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : colors.background, fontSize: 12, fontWeight: '700', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 14 : 8) : {}), ...skinText(skinTokens, skinTokens.type.labelText) }}>
+                        <Text style={{ color: skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : classicStudy ? "#FFFFFF" : colors.background, fontSize: classicStudy ? 12.5 : 12, fontWeight: '700', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 14 : 8) : {}), ...(scaleStudy ? skinText(skinTokens, skinTokens.type.labelText) : null) }}>
                           Read Chapter
                         </Text>
                       </Pressable>
@@ -12782,19 +12835,19 @@ export function ScheduleTab({
                     <Pressable
                       onPress={() => togglePersonalStudyExpanded(!isPersonalStudyExpanded)}
                       hitSlop={10}
-                      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 2 }]}
+                      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, ...(classicStudy ? { width: 32, height: 32, borderRadius: 16, backgroundColor: studyTonesNow.primaryContainer, alignItems: 'center' as const, justifyContent: 'center' as const } : { padding: 2 }) }]}
                       accessibilityRole="button"
                       accessibilityLabel={isPersonalStudyExpanded ? "Collapse Personal Study" : "Expand Personal Study"}
                     >
-                      <MaterialIcons name={isPersonalStudyExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
+                      <MaterialIcons name={isPersonalStudyExpanded ? 'expand-less' : 'expand-more'} size={20} color={classicStudy ? studyTonesNow.primaryDeep : colors.muted} />
                     </Pressable>
                   </View>
-                  <View style={{ gap: 4 }}>
+                  <View style={{ gap: classicStudy ? 0 : 4, marginTop: classicStudy ? 11 : 0 }}>
                     <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700', ...(skinTokens.isEightBit ? bitDisplay(skinTokens, 11) : {}), ...skinText(skinTokens, skinTokens.type.cardTitle), ...(!isSkinned ? { fontSize: 19, fontWeight: "800" } : {}) }}>
                       {item.data.display}
                     </Text>
                     {item.data.sub ? (
-                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
+                      <Text style={{ color: colors.muted, fontSize: classicStudy ? 12.5 : 12, fontWeight: classicStudy ? '600' : '500', marginTop: classicStudy ? 3 : 0, ...(scaleStudy ? skinText(skinTokens, skinTokens.type.cardMeta) : null) }}>
                         {item.data.sub}
                       </Text>
                     ) : null}
@@ -12802,25 +12855,25 @@ export function ScheduleTab({
                   {/* v295: the drawing's progress thread under the
                       meta line — his progress through the book. */}
                   {item.data.progress != null ? (
-                    <View style={{ height: 6, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 0 : 3, backgroundColor: mix(colors.surface, colors.primary, 0.25), overflow: 'hidden' }}>
+                    <View style={{ height: 6, marginTop: classicStudy ? 10 : 0, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 0 : 3, backgroundColor: mix(colors.surface, colors.primary, 0.25), overflow: 'hidden' }}>
                       <View style={{ height: '100%', width: `${Math.round(item.data.progress * 100)}%`, backgroundColor: colors.primary, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 0 : 3 }} />
                     </View>
                   ) : null}
                   {isPersonalStudyExpanded && (item.data.preview || item.data.lastRead || item.data.readTarget) ? (
-                    <View style={{ gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
+                    <View style={{ gap: 10, borderTopWidth: 1, borderTopColor: classicStudy ? mix(colors.primary, colors.surface, 0.72) : colors.border, paddingTop: classicStudy ? 10 : 12, marginTop: classicStudy ? 11 : 0 }}>
                       {item.data.preview ? (
                         <View style={{ gap: 8 }}>
                           {item.data.preview.lastLabel ? (
-                            <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 20, ...skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) }}>
-                              <Text style={{ color: colors.foreground, fontWeight: '700' }}>{item.data.preview.lastLabel}</Text>
+                            <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 20, ...(scaleStudy ? skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) : null) }}>
+                              <Text style={{ color: colors.foreground, fontWeight: classicStudy ? '800' : '700' }}>{item.data.preview.lastLabel}</Text>
                               {' '}{item.data.preview.lastText}
                             </Text>
                           ) : null}
-                          <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 20, ...skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) }}>
-                            <Text style={{ color: colors.foreground, fontWeight: '700' }}>{item.data.preview.thisLabel}</Text>
+                          <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 20, ...(scaleStudy ? skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) : null) }}>
+                            <Text style={{ color: colors.foreground, fontWeight: classicStudy ? '800' : '700' }}>{item.data.preview.thisLabel}</Text>
                             {' '}{item.data.preview.thisText}
                           </Text>
-                          <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : colors.primary, fontSize: 13, fontWeight: '700', fontStyle: 'italic', lineHeight: 20, ...skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) }}>
+                          <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : classicStudy ? studyTonesNow.primaryDeep : colors.primary, fontSize: 13, fontWeight: classicStudy ? '600' : '700', fontStyle: 'italic', lineHeight: 20, ...(scaleStudy ? skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) : null) }}>
                             {item.data.preview.question}
                           </Text>
                         </View>
@@ -12830,7 +12883,7 @@ export function ScheduleTab({
                           record. Shown whenever a record exists, with
                           or without a baked preview. */}
                       {item.data.lastRead ? (
-                        <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
+                        <Text style={{ color: colors.muted, fontSize: classicStudy ? 11.5 : 12, fontWeight: classicStudy ? '600' : '500', ...(scaleStudy ? skinText(skinTokens, skinTokens.type.cardMeta) : null) }}>
                           {item.data.lastRead}
                         </Text>
                       ) : null}
@@ -12883,7 +12936,7 @@ export function ScheduleTab({
                             accessibilityLabel={item.data.targetRead ? `${item.data.readTarget.book} ${item.data.readTarget.chapter} is read — tap to clear the read mark` : `Mark ${item.data.readTarget.book} ${item.data.readTarget.chapter} as read`}
                             style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.7 : 1 }]}
                           >
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: item.data.targetRead ? colors.border : colors.primary, borderRadius: 8, ...(bitButtonStyle(skinTokens, item.data.targetRead ? "secondary" : "primary") ?? {}), ...(termButtonStyle(skinTokens, item.data.targetRead ? "secondary" : "primary") ?? {}), ...(hasTypeScale(skinTokens) ? { paddingVertical: 10 + skinTokens.type.gapBoost, paddingHorizontal: 12 + skinTokens.type.padBoost } : {}) }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: item.data.targetRead ? colors.border : colors.primary, borderRadius: 8, ...(bitButtonStyle(skinTokens, item.data.targetRead ? "secondary" : "primary") ?? {}), ...(termButtonStyle(skinTokens, item.data.targetRead ? "secondary" : "primary") ?? {}), ...((hasTypeScale(skinTokens) && isSkinned) ? { paddingVertical: 10 + skinTokens.type.gapBoost, paddingHorizontal: 12 + skinTokens.type.padBoost } : {}) }}>
                               <MaterialIcons name={item.data.targetRead ? "bookmark" : "bookmark-border"} size={18} color={item.data.targetRead ? (skinTokens.isTerminal ? termButtonInk("secondary") : skinTokens.isEightBit ? bitButtonInk("secondary") : colors.foreground) : (skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF")} />
                               <Text style={{ color: item.data.targetRead ? (skinTokens.isTerminal ? termButtonInk("secondary") : skinTokens.isEightBit ? bitButtonInk("secondary") : colors.foreground) : (skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : '#FFFFFF'), fontSize: 14, fontWeight: '600', ...((skinTokens.isEightBit || skinTokens.isTerminal) ? bitDisplay(skinTokens, skinTokens.isTerminal ? 15 : 9) : {}) }}>{item.data.targetRead ? "Read" : "Mark as Read"}</Text>
                             </View>
@@ -12894,6 +12947,67 @@ export function ScheduleTab({
                   ) : null}
                 </View>
               </View>
+            </Pressable>
+          );
+        }
+        case "up-next": {
+          // v298: the v32 drawing's .nextstrip, measured — height 74,
+          // radius 20, tonal container step, 44px seed icon tile,
+          // UP NEXT pill in the deep step beside the item's time,
+          // title 17.5/800, sub 11.5/700 (type · detail · duration),
+          // and the drawing's empty ring at the right. The whole
+          // strip is the tap (his no-bubbles model): it toggles the
+          // named item through the same handlers its own card uses.
+          const nextData = item.data as { kind: "todo" | "event" | "ministry"; item: any };
+          const nd = nextData.item;
+          const stripTones = scheduleMaterialTones(colors.primary, colors.surface);
+          const kindLabel = nextData.kind === "todo" ? "Todo" : nextData.kind === "event" ? "Event" : "Ministry";
+          const kindIcon = nextData.kind === "todo" ? "task-alt" : nextData.kind === "event" ? "event" : "volunteer-activism";
+          const subParts: string[] = [kindLabel];
+          if (nextData.kind === "todo" && nd.notes) subParts.push(nd.notes);
+          if (nextData.kind === "event" && nd.location) subParts.push(nd.location);
+          if (nextData.kind === "ministry") { const detail = nd.location || nd.type; if (detail) subParts.push(detail); }
+          if (nd.endTime && nd.startTime) {
+            const dur = timeToMinutes(nd.endTime) - timeToMinutes(nd.startTime);
+            if (dur > 0) subParts.push(dur >= 60 ? `${Math.floor(dur / 60)}h${dur % 60 ? ` ${dur % 60}m` : ""}` : `${dur} min`);
+          }
+          const toggleNext = (e: any) => {
+            const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
+            if (nextData.kind === "todo") {
+              if (!nd.isCompleted) onAwardXP?.(xpActionForDate(nd.date), nd.id, position);
+              else revokeTodoXP(nd.id, position);
+              setTodos((prev) => toggleTodoCompleted(prev, nd.id));
+            } else if (nextData.kind === "event") {
+              if (!nd.isCompleted) onAwardXP?.(xpActionForDate(nd.date), nd.id, position);
+              else revokeTodoXP(nd.id, position);
+              setEvents((prev) => toggleEventCompleted(prev, nd.id));
+            } else {
+              if (!nd.isCompleted) onAwardXP?.("ministry-task", nd.id, position);
+              else onRevokeXP?.("ministry-task", nd.id, position);
+              setMinistries((prev) => toggleMinistryCompleted(prev, nd.id));
+            }
+          };
+          return (
+            <Pressable
+              onPress={toggleNext}
+              accessibilityRole="button"
+              accessibilityLabel={`Up next: ${nd.title} at ${format12HourTime(nd.startTime)}`}
+              style={({ pressed }) => [{ marginHorizontal: 12, marginBottom: 12, height: 74, borderRadius: 20, backgroundColor: stripTones.primaryContainer, flexDirection: "row", alignItems: "center", gap: 11, paddingLeft: 15, paddingRight: 13, opacity: pressed ? 0.75 : 1 }]}
+            >
+              <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
+                <MaterialIcons name={kindIcon as any} size={22} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+                  <View style={{ backgroundColor: stripTones.primaryDeep, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <Text style={{ color: "#FFFFFF", fontSize: 9.5, fontWeight: "800", letterSpacing: 1 }}>UP NEXT</Text>
+                  </View>
+                  <Text style={{ color: stripTones.primaryDeep, fontSize: 11, fontWeight: "800" }}>{format12HourTime(nd.startTime)}</Text>
+                </View>
+                <Text style={{ color: colors.foreground, fontSize: 17.5, fontWeight: "800", lineHeight: 20, marginTop: 1 }} numberOfLines={1}>{nd.title}</Text>
+                <Text style={{ color: colors.muted, fontSize: 11.5, fontWeight: "700", marginTop: 1 }} numberOfLines={1}>{subParts.join(" · ")}</Text>
+              </View>
+              <View style={{ width: 27, height: 27, borderRadius: 13.5, borderWidth: 2.5, borderColor: mix(colors.primary, colors.surface, 0.4), backgroundColor: mix(stripTones.primaryContainer, "#FFFFFF", 0.45) }} />
             </Pressable>
           );
         }

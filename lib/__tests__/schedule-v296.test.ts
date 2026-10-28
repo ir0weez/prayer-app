@@ -174,6 +174,10 @@ describe("v296 end of day — the divider heads the completed stack", () => {
 describe("v296 summary panel — the same saturated panel in dark and light", () => {
   it("the panel derives from the accent theme's saturated (light) primary", () => {
     expect(summaryCard).toContain("getAccentThemeDefinition(accentTheme).light?.primary");
-    expect(summaryCard).toContain('mix(seedPrimary, "#000000", 0.12)');
+    // RE-BASED in v298 (his Oct 28 panel-colour verdict): the step
+    // from that saturated primary is now schedulePanelStep — the
+    // drawing's HSL step — in both appearances, replacing the 12%
+    // RGB black-mix that rendered visibly lighter than drawn.
+    expect(summaryCard).toContain("schedulePanelStep(seedPrimary)");
   });
 });

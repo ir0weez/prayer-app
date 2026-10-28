@@ -49,3 +49,51 @@ export function tonalRamp(base: string, surface: string): { deep: string; mid: s
     pale: mix(surface, base, dark ? 0.3 : 0.13),
   };
 }
+
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16) / 255;
+  const g = parseInt(clean.slice(2, 4), 16) / 255;
+  const b = parseInt(clean.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l };
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+  else if (max === g) h = ((b - r) / d + 2) * 60;
+  else h = ((r - g) / d + 4) * 60;
+  return { h, s, l };
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let rgb: [number, number, number];
+  if (h < 60) rgb = [c, x, 0];
+  else if (h < 120) rgb = [x, c, 0];
+  else if (h < 180) rgb = [0, c, x];
+  else if (h < 240) rgb = [0, x, c];
+  else if (h < 300) rgb = [x, 0, c];
+  else rgb = [c, 0, x];
+  const channel = (v: number) => Math.min(255, Math.max(0, Math.round((v + m) * 255))).toString(16).padStart(2, "0");
+  return `#${channel(rgb[0])}${channel(rgb[1])}${channel(rgb[2])}`.toUpperCase();
+}
+
+/**
+ * v298: the summary panel's step. The v32 drawing's panel (#6D28D9) is
+ * its seed (#7C3AED) stepped in HSL — lightness ×0.875, saturation
+ * ×0.87, hue kept. v295–v297 instead mixed the seed 12% toward black
+ * in RGB, which mostly darkens: from his softer default seed the
+ * panel rendered a visibly LIGHTER, greyer violet than the drawing's
+ * (his Oct 28 report). This step reproduces the drawing's panel from
+ * the drawing's seed within a few units per channel and follows any
+ * seed he picks — derived, never pinned.
+ */
+export function schedulePanelStep(seed: string): string {
+  const { h, s, l } = hexToHsl(seed);
+  return hslToHex(h, Math.min(1, s * 0.87), l * 0.875);
+}

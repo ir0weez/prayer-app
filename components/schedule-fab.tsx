@@ -14,6 +14,8 @@
 
 import React, { useEffect } from "react";
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { useTabBarOccupiedHeight } from "@/components/app-tab-bar";
+import { useSkin } from "@/hooks/use-skin";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import ReAnimated, {
   Easing,
@@ -162,6 +164,16 @@ export function ScheduleFab({
 }) {
   const scrimColor = scrimTone === "dark" ? "rgba(10,6,24,0.52)" : "rgba(38,18,82,0.52)";
   const progress = useSharedValue(0);
+  // v298: the seat derives from the shell's own tab-bar metric. The
+  // fixed bottom:60 straddled his attached Classic bar (13 + 58 + 20
+  // = 91 tall with its pads — his Oct 28 screenshot: "the plus fab is
+  // now literally over the tab bar"). Under Classic the FAB's bottom
+  // edge now clears the bar's top edge by 12. The skins' bar FLOATS
+  // (left 18 / right 83), leaving the FAB's right-hand notch open —
+  // its seat is unchanged.
+  const tabBarOccupied = useTabBarOccupiedHeight();
+  const { tokens: fabSkinTokens } = useSkin();
+  const fabBottom = fabSkinTokens.id === "classic" ? tabBarOccupied + 12 : 60;
 
   useEffect(() => {
     progress.value = withTiming(open ? 1 : 0, {
@@ -210,7 +222,7 @@ export function ScheduleFab({
           {
             position: "absolute",
             right: 15,
-            bottom: 60,
+            bottom: fabBottom,
             zIndex: 95,
             overflow: "hidden",
             shadowColor: "#2E1065",

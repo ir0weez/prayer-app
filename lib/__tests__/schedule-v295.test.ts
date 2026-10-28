@@ -160,7 +160,12 @@ describe("v295 summary — the saturated panel, complete", () => {
     // Oct 25 ruling), and the Reach out button, carried by
     // SummaryReachRow (schedule-v297.test.ts holds its pins).
     expect(summaryCard).toContain("getAccentThemeDefinition(accentTheme).light?.primary");
-    expect(summaryCard).toContain('mix(seedPrimary, "#000000", 0.12)');
+    // RE-BASED in v298 (his Oct 28 verdict: the light panel rendered
+    // visibly LIGHTER than the drawing's #6D28D9): the derivation
+    // still starts from the accent theme's saturated light primary,
+    // but the step is now schedulePanelStep (the drawing's own HSL
+    // step) instead of the 12% RGB black-mix.
+    expect(summaryCard).toContain("schedulePanelStep(seedPrimary)");
     expect(summaryCard).toContain("export function SummaryReachRow");
     expect(summaryCard).not.toContain("REACH OUT — DUE TODAY");
     expect(summaryCard).toContain("Your fast —");
@@ -185,7 +190,11 @@ describe("v295 study + worship compositions", () => {
   });
 
   it("the worship card is the drawing: 80px art, heard count + thread, checklist rows", () => {
-    expect(albumCard).toContain("width: 80, height: 80, borderRadius: 16");
+    // v298 re-base: the cover radius pin moves 16 → the drawing's 10
+    // (both schedule-material-concepts-v19 and v32 draw .cover at
+    // border-radius:10px; v295's 16 was a deviation his Oct 28
+    // screenshot caught). Classic takes 10; skins keep 16.
+    expect(albumCard).toContain("width: 80, height: 80, borderRadius: classic ? 10 : 16");
     expect(albumCard).toContain("of {tracks.length} heard");
     expect(albumCard).toContain("maxWidth: 150");
     expect(albumCard).toContain("Key of {track.key}");

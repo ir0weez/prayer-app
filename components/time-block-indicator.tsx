@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Pressable, Animated, Easing, type GestureResponderEvent } from "react-native";
 import { useColors } from "@/hooks/use-colors";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useSkin } from "@/hooks/use-skin";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BIT_DUSK, BIT_GOLD, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PHOS } from "@/lib/skin-themes";
@@ -53,9 +54,16 @@ function blockCardHeight(block: TimeBlock, nowMinutes?: number | null): number {
 
 export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, onPressOut }: TimeBlockIndicatorProps) {
   const colors = useColors();
+  const colorScheme = useColorScheme();
   const { isSkinned, tokens: skinTokens, monoFont } = useSkin();
   const isNow = blockContainsNow(block, nowMinutes);
   const isTerminal = skinTokens.isTerminal;
+  // v298 (his ruling, Oct 28): the whites derive by appearance —
+  // literally white in light, BLACK in dark (they glared bright
+  // white against his dark page). The dashed border steps up in
+  // dark so the box still reads on black. Skins keep their dress.
+  const classicSurface = colorScheme === "dark" ? "#000000" : "#FFFFFF";
+  const classicBorder = colorScheme === "dark" ? mix(colors.primary, "#FFFFFF", 0.45) : mix(colors.primary, "#FFFFFF", 0.72);
 
   return (
     <Pressable
@@ -76,8 +84,8 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
           // Terminal (v186): the mockup's prompt row — a dashed
           // mid-green edge on the panel green, a ">" for the plus,
           // and the duration as a bracketed [ 30m ] outline pill.
-          backgroundColor: isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : "#FFFFFF",
-          borderColor: isTerminal ? TERM_MID : skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : mix(colors.primary, "#FFFFFF", 0.72),
+          backgroundColor: isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : classicSurface,
+          borderColor: isTerminal ? TERM_MID : skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : classicBorder,
           borderRadius: isSkinned ? undefined : 22,
           borderStyle: isTerminal ? "dashed" : isSkinned ? "solid" : "dashed",
           opacity: pressed ? 0.65 : 1,
@@ -129,8 +137,12 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
  */
 export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPressOut }: TimeBlockGroupProps) {
   const colors = useColors();
+  const colorScheme = useColorScheme();
   const { isSkinned, tokens: skinTokens, monoFont } = useSkin();
   const isTerminal = skinTokens.isTerminal;
+  // v298: same appearance derivation as the standalone block.
+  const classicSurface = colorScheme === "dark" ? "#000000" : "#FFFFFF";
+  const classicBorder = colorScheme === "dark" ? mix(colors.primary, "#FFFFFF", 0.45) : mix(colors.primary, "#FFFFFF", 0.72);
   if (blocks.length === 0) return null;
 
   return (
@@ -139,8 +151,8 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
       style={[
         styles.groupContainer,
         {
-          backgroundColor: isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : "#FFFFFF",
-          borderColor: isTerminal ? TERM_MID : skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : mix(colors.primary, "#FFFFFF", 0.72),
+          backgroundColor: isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : classicSurface,
+          borderColor: isTerminal ? TERM_MID : skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : classicBorder,
           borderRadius: isSkinned ? undefined : 22,
           borderStyle: isTerminal ? "dashed" : isSkinned ? "solid" : "dashed",
           ...(skinTokens.isEightBit ? { borderWidth: 3, borderRadius: 2 } : {}),

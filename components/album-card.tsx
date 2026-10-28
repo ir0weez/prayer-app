@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { useColors } from '@/hooks/use-colors';
 import { useSkin } from '@/hooks/use-skin';
 import { mix } from '@/lib/color-themes';
-import { TERM_PHOS, skinText } from '@/lib/skin-themes';
+import { TERM_PHOS, hasTypeScale, skinText } from '@/lib/skin-themes';
 
 export interface AlbumCardProps {
   title: string;
@@ -59,6 +59,13 @@ export function AlbumCard({
 }: AlbumCardProps) {
   const colors = useColors();
   const { isSkinned, tokens: skinTokens } = useSkin();
+  // v298: under Classic the v32 drawing's metrics rule — the
+  // CLASSIC_TYPE_SCALE spreads (15px rowBody, 20px cardTitle, 18px
+  // sectionTitle…) inflated every worship row on his phone (the same
+  // spread family v297 removed from the todo rows). The type scale
+  // now applies only where it belongs: the skinned dresses.
+  const classic = !isSkinned;
+  const scaleText = hasTypeScale(skinTokens) && isSkinned;
   const [imageError, setImageError] = useState(false);
   const [internalExpanded, setInternalExpanded] = useState(false);
   const expanded = isExpanded ?? internalExpanded;
@@ -73,13 +80,13 @@ export function AlbumCard({
   const deepPrimary = skinTokens.isTerminal ? TERM_PHOS : mix(colors.primary, "#000000", 0.15);
 
   return (
-    <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 22 : 22, overflow: 'hidden', borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : mix(colors.primary, colors.surface, 0.85), marginBottom: 12 + skinTokens.type.gapBoost, padding: 16, ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }}>
+    <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 22 : 22, overflow: 'hidden', borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : mix(colors.primary, colors.surface, 0.85), marginBottom: isSkinned ? 12 + skinTokens.type.gapBoost : 12, ...(classic ? { paddingTop: 13, paddingHorizontal: 15, paddingBottom: 11 } : { padding: 16 }), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }}>
       {sectionTitle && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800', ...skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) }}>{sectionTitle}</Text>
+          <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800', ...(scaleText ? skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) : null) }}>{sectionTitle}</Text>
           {onOpenLibrary && (
             <Pressable accessibilityRole="button" accessibilityLabel="Open saved albums" onPress={onOpenLibrary} style={({ pressed }) => [{ marginLeft: 'auto', paddingVertical: 4, opacity: pressed ? 0.65 : 1 }]}>
-              <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : colors.primary, fontSize: 12.5, fontWeight: '800', ...skinText(skinTokens, skinTokens.type.labelText) }}>Saved Albums</Text>
+              <Text style={{ color: classic ? deepPrimary : skinTokens.isTerminal ? TERM_PHOS : colors.primary, fontSize: classic ? 12 : 12.5, fontWeight: classic ? '700' : '800', ...(scaleText ? skinText(skinTokens, skinTokens.type.labelText) : null) }}>Saved Albums</Text>
             </Pressable>
           )}
           {hasActions && (
@@ -89,13 +96,13 @@ export function AlbumCard({
           )}
         </View>
       )}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: sectionTitle ? 12 : 0 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: classic ? 12 : 13, marginTop: sectionTitle ? 12 : 0 }}>
         <Pressable
           accessibilityRole={onCoverPress ? "button" : undefined}
           accessibilityLabel={onCoverPress ? `Open ${title} album` : undefined}
           disabled={!onCoverPress}
           onPress={onCoverPress}
-          style={({ pressed }) => [{ width: 80, height: 80, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.muted, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : mix(colors.primary, colors.surface, 0.85), opacity: pressed ? 0.72 : 1 }]}
+          style={({ pressed }) => [{ width: 80, height: 80, borderRadius: classic ? 10 : 16, overflow: 'hidden', backgroundColor: colors.muted, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : mix(colors.primary, colors.surface, 0.85), opacity: pressed ? 0.72 : 1 }]}
         >
           {!imageError && coverUrl ? (
             <Image source={{ uri: coverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" onError={() => setImageError(true)} />
@@ -105,15 +112,15 @@ export function AlbumCard({
             </View>
           )}
         </Pressable>
-        <View style={{ flex: 1, gap: 3 }}>
-          <Text style={{ fontSize: 16.5, fontWeight: '800', color: colors.foreground, ...skinText(skinTokens, skinTokens.type.cardTitle) }} numberOfLines={2}>{title}</Text>
-          <Text style={{ fontSize: 12.5, color: colors.muted, ...skinText(skinTokens, skinTokens.type.cardMeta) }} numberOfLines={1}>{artist}</Text>
+        <View style={{ flex: 1, gap: classic ? 0 : 3 }}>
+          <Text style={{ fontSize: 16.5, fontWeight: '800', color: colors.foreground, ...(scaleText ? skinText(skinTokens, skinTokens.type.cardTitle) : null) }} numberOfLines={2}>{title}</Text>
+          <Text style={{ fontSize: 12.5, fontWeight: classic ? '700' : '400', color: colors.muted, marginTop: classic ? 2 : 0, ...(scaleText ? skinText(skinTokens, skinTokens.type.cardMeta) : null) }} numberOfLines={1}>{artist}</Text>
           {tracks.length > 0 && (
             <>
-              <Text style={{ fontSize: 11.5, fontWeight: '700', color: deepPrimary, marginTop: 2 }}>
+              <Text style={{ fontSize: 11.5, fontWeight: classic ? '600' : '700', color: classic ? colors.muted : deepPrimary, marginTop: classic ? 5 : 2 }}>
                 {heardCount} of {tracks.length} heard
               </Text>
-              <View style={{ height: 5, borderRadius: 3, backgroundColor: mix(colors.primary, colors.surface, 0.82), maxWidth: 150, width: '100%', overflow: 'hidden', marginTop: 3 }}>
+              <View style={{ height: 5, borderRadius: 3, backgroundColor: mix(colors.primary, colors.surface, 0.82), maxWidth: 150, width: '100%', overflow: 'hidden', marginTop: classic ? 6 : 3 }}>
                 <View style={{ height: '100%', width: `${heardPct}%`, backgroundColor: colors.primary, borderRadius: 3 }} />
               </View>
             </>
@@ -131,12 +138,22 @@ export function AlbumCard({
                 accessibilityState={{ checked: isCompleted }}
                 accessibilityLabel={`${isCompleted ? 'Mark' : 'Complete'} ${track.title}`}
                 onPress={(e) => onToggleTrack?.(track.id, e)}
-                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, paddingHorizontal: 2, opacity: pressed ? 0.65 : 1 }]}
+                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: classic ? 9 : 10, paddingVertical: classic ? 6 : 7, paddingHorizontal: 2, opacity: pressed ? 0.65 : 1 }]}
               >
-                <Text style={{ width: 14, color: colors.muted, fontSize: 11.5, fontWeight: '600' }}>{index + 1}</Text>
-                <Text style={{ flex: 1, color: isCompleted ? colors.muted : colors.foreground, fontSize: 13.5, fontWeight: '600', textDecorationLine: isCompleted ? 'line-through' : 'none', opacity: isCompleted ? 0.55 : 1, ...skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) }} numberOfLines={1}>{track.title}</Text>
-                {track.key && <Text style={{ color: colors.muted, fontSize: 11.5, ...skinText(skinTokens, skinTokens.type.cardMeta) }}>Key of {track.key}</Text>}
-                <View style={{ width: 22, height: 22, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 7, borderWidth: 2, borderColor: isCompleted ? colors.primary : mix(colors.primary, colors.surface, 0.55), backgroundColor: isCompleted ? colors.primary : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                {/* v298: the drawing's number cell — 18px wide,
+                    right-aligned, 12/800, never wraps (his 10–16
+                    stacked vertically in the old 14px cell). Done
+                    rows take the seed; open rows the muted step. */}
+                <Text numberOfLines={1} style={classic ? { width: 18, textAlign: 'right', color: isCompleted ? colors.primary : mix(colors.primary, colors.surface, 0.45), fontSize: 12, fontWeight: '800' } : { width: 14, color: colors.muted, fontSize: 11.5, fontWeight: '600' }}>{index + 1}</Text>
+                {/* v298: title + key as the drawing's column — the key
+                    is a quiet sub-line under the title, rendered only
+                    when the song carries one (his Oct 28 ruling: no
+                    key entered, no line). */}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: isCompleted ? (classic ? mix(colors.primary, colors.surface, 0.35) : colors.muted) : colors.foreground, fontSize: 13.5, fontWeight: '600', textDecorationLine: isCompleted ? 'line-through' : 'none', opacity: isCompleted ? (classic ? 1 : 0.55) : 1, ...(scaleText ? skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) : null) }} numberOfLines={1}>{track.title}</Text>
+                  {track.key ? <Text style={{ color: isCompleted ? (classic ? mix(colors.primary, colors.surface, 0.35) : colors.muted) : colors.muted, fontSize: 11.5, marginTop: 1, ...(scaleText ? skinText(skinTokens, skinTokens.type.cardMeta) : null) }} numberOfLines={1}>Key of {track.key}</Text> : null}
+                </View>
+                <View style={{ width: 22, height: 22, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : classic ? 6 : 7, borderWidth: classic ? 2.5 : 2, borderColor: isCompleted ? colors.primary : classic ? colors.primary : mix(colors.primary, colors.surface, 0.55), backgroundColor: isCompleted ? colors.primary : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                   {isCompleted && <MaterialIcons name="check" size={13} color="#FFFFFF" />}
                 </View>
               </Pressable>

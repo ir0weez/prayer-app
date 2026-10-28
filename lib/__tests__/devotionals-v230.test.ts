@@ -1,5 +1,10 @@
-// v230 — Devotionals pilot ("Listen: Genesis 1").
-// Registry-driven button, character-weighted paragraph following.
+// v230 — Devotionals pilot ("Listen: Genesis 1"), updated for v293.
+// The pilot shipped one registry entry (his own Genesis 1 recording,
+// with its verbatim script); v293 replaced the registry with all 50
+// NotebookLM narrations of his Genesis commentary and moved the door
+// beside Stories. The registry-driven contract and the paragraph
+// window math are unchanged — the math is exercised here on synthetic
+// paragraphs, since the narrations carry no transcript yet.
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -13,47 +18,41 @@ import {
 
 const read = (p: string) => readFileSync(join(__dirname, '..', '..', p), 'utf8');
 
-describe('v230 registry', () => {
-  it('Genesis 1 hits; everything else misses (button is registry-driven)', () => {
+describe('v230 registry (as grown by v293)', () => {
+  it('Genesis 1 hits with the NotebookLM entry; non-Genesis misses', () => {
     const d = getDevotional('Genesis', 1);
     expect(d).not.toBeNull();
-    expect(d!.title).toBe('Devotional — Genesis 1');
-    expect(d!.durationSec).toBe(84);
-    expect(d!.paragraphs.length).toBe(4);
-    expect(getDevotional('Genesis', 2)).toBeNull();
+    expect(d!.title).toBe('How Genesis 1 Points to the Gospel');
+    expect(d!.durationSec).toBe(89);
+    expect(d!.audioFile).toBe('devotional-genesis-1.m4a');
+    // No transcript exists for the narrations — no invented words.
+    expect(d!.paragraphs).toEqual([]);
     expect(getDevotional('Exodus', 1)).toBeNull();
-    expect(devotionalRegistry().length).toBe(1);
-  });
-
-  it("his script rides verbatim — banana and potato included", () => {
-    const d = getDevotional('Genesis', 1)!;
-    expect(d.paragraphs[1]).toContain("can't cross-breed a banana with a potato to get a potato");
-    expect(d.paragraphs[3]).toContain('perfect habitat, specifically for us');
+    expect(devotionalRegistry().length).toBe(50);
   });
 });
 
 describe('v230 paragraph window (proportion-follow, char-weighted)', () => {
-  const paras = getDevotional('Genesis', 1)!.paragraphs;
-  const totalChars = paras.reduce((s, p) => s + p.length, 0);
+  const paras = ['aaaa bbbb', 'cc', 'dddd eeee ffff gggg', 'hh'];
+  const totalChars = paras.reduce((s, p) => s + Math.max(1, p.length), 0);
+  const dur = 84;
 
   it('0s → paragraph 1; unknown duration → paragraph 1', () => {
-    expect(activeParagraphIndex(0, 84, paras)).toBe(0);
+    expect(activeParagraphIndex(0, dur, paras)).toBe(0);
     expect(activeParagraphIndex(30, 0, paras)).toBe(0);
   });
 
   it('midpoint lands by character weight, not by paragraph count', () => {
-    // Position the playhead exactly at the START of paragraph 3 by weight:
-    // (chars of ¶1+¶2) / total — should be ¶3's first instant (index 2).
-    const through2 = paras[0].length + paras[1].length;
-    const at = (through2 / totalChars) * 84;
-    expect(activeParagraphIndex(at + 0.01, 84, paras)).toBe(2);
-    expect(activeParagraphIndex(at - 0.5, 84, paras)).toBe(1);
+    const through2 = Math.max(1, paras[0].length) + Math.max(1, paras[1].length);
+    const at = (through2 / totalChars) * dur;
+    expect(activeParagraphIndex(at + 0.01, dur, paras)).toBe(2);
+    expect(activeParagraphIndex(at - 0.5, dur, paras)).toBe(1);
   });
 
   it('end → last paragraph; empty list → -1', () => {
-    expect(activeParagraphIndex(84, 84, paras)).toBe(3);
-    expect(activeParagraphIndex(500, 84, paras)).toBe(3);
-    expect(activeParagraphIndex(10, 84, [])).toBe(-1);
+    expect(activeParagraphIndex(dur, dur, paras)).toBe(3);
+    expect(activeParagraphIndex(500, dur, paras)).toBe(3);
+    expect(activeParagraphIndex(10, dur, [])).toBe(-1);
   });
 
   it('clock format', () => {
@@ -62,30 +61,24 @@ describe('v230 paragraph window (proportion-follow, char-weighted)', () => {
   });
 });
 
-describe('v230 wiring', () => {
-  it('the chapter page renders Listen ONLY from the registry + handler', () => {
+describe('v230 wiring (as moved by v293)', () => {
+  it('the chapter page renders the Devotional door ONLY from the registry + handler', () => {
     const page = read('components/bible-v205/chapter-page.tsx');
     expect(page).toContain('getDevotional(book, chapter)');
     expect(page).toMatch(/props\.onListen && devotional/);
-    expect(page).toContain('>Listen</Text>');
+    expect(page).toContain('>Devotional</Text>');
   });
 
-  it('the route exists and the listen screen uses expo-audio + keep-awake', () => {
+  it('the route exists and the player uses the shared controller + keep-awake', () => {
     const route = read('app/devotional.tsx');
     expect(route).toContain('DevotionalListenView');
     const screen = read('components/devotional-listen.tsx');
-    expect(screen).toContain("from 'expo-audio'");
     expect(screen).toContain('activateKeepAwakeAsync');
     expect(screen).toContain('activeParagraphIndex');
+    expect(screen).toContain('openDevotional');
     const audio = read('lib/devotional-audio.ts');
     expect(audio).toContain("require('@/assets/audio/devotional-genesis-1.m4a')");
     // The registry names the same file the audio module requires.
     expect(getDevotional('Genesis', 1)!.audioFile).toBe('devotional-genesis-1.m4a');
-  });
-
-  it('the audio asset is the real recording (size matches the source file)', () => {
-    const { statSync } = require('fs');
-    const stat = statSync(join(__dirname, '..', '..', 'assets', 'audio', 'devotional-genesis-1.m4a'));
-    expect(stat.size).toBe(2694141);
   });
 });

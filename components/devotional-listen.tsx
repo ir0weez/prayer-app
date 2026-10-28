@@ -1,21 +1,31 @@
-// ─── Devotional listen screen (v230) ────────────────────────────────────────
-// "Something on the screen that will keep people occupied" while the
-// devotional plays: his words, in large readable paragraphs, following the
-// audio by PROPORTION (character-length-weighted — see lib/devotionals.ts;
-// this is deliberately NOT word-sync, and no UI copy claims otherwise).
+// ─── Devotional player screen (v230 → v293) ────────────────────────────────
+// The full player for a chapter's devotional: title, chapter, big
+// play/pause, progress, a STOP that ends the session entirely — and a
+// swipe down (or the chevron) that MINIMIZES it to the pill
+// (components/devotional-pill.tsx) without stopping the narration.
 //
-// Playback is FOREGROUND-ONLY in this build: no background audio mode is
-// configured; leaving the screen unloads the player. Keep-awake holds while
-// the screen is open and playing, and is released on pause/unmount.
+// Playback lives in the shared controller (lib/devotional-player.ts),
+// not in this screen: leaving the screen never unloads the player.
+// The words on screen, where a transcript exists, follow the audio by
+// PROPORTION (character-length-weighted — see lib/devotionals.ts; NOT
+// word-sync, and no UI copy claims otherwise). The Genesis narrations
+// carry no transcript yet, so for them the screen is player-only.
 
-import { useEffect, useRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { activeParagraphIndex, formatClock, type Devotional } from '@/lib/devotionals';
+import { activeParagraphIndex, devotionalKey, formatClock, type Devotional } from '@/lib/devotionals';
 import { devotionalAudioFor } from '@/lib/devotional-audio';
+import {
+  devotionalEnded,
+  openDevotional,
+  seekDevotional,
+  stopDevotional,
+  toggleDevotionalPlayback,
+  useDevotionalPlayerState,
+} from '@/lib/devotional-player';
 import { useBiblePalette } from './bible-v205/palette';
 import { Ornament } from './bible-v205/blocks';
 
@@ -25,20 +35,28 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const { devotional } = props;
   const insets = useSafeAreaInsets();
   const palette = useBiblePalette();
-  const player = useAudioPlayer(devotionalAudioFor(devotional.book, devotional.chapter) ?? undefined, {
-    updateInterval: 250,
-  });
-  const status = useAudioPlayerStatus(player);
+  const playerState = useDevotionalPlayerState();
 
-  const duration = status.duration > 0 ? status.duration : devotional.durationSec;
-  const position = Math.min(status.currentTime, duration);
-  const ended = duration > 0 && position >= duration - 0.25 && !status.playing;
+  // Load this chapter's devotional into the shared player. A different
+  // chapter replaces the source and plays; the same chapter (a reopen
+  // from the pill) is left exactly as it is.
+  useEffect(() => {
+    openDevotional(devotional, devotionalAudioFor(devotional.book, devotional.chapter));
+  }, [devotional]);
+
+  const mine =
+    playerState.devotional &&
+    devotionalKey(playerState.devotional.book, playerState.devotional.chapter) ===
+      devotionalKey(devotional.book, devotional.chapter);
+  const playing = mine ? playerState.playing : false;
+  const duration = mine && playerState.durationSec > 0 ? playerState.durationSec : devotional.durationSec;
+  const position = mine ? Math.min(playerState.positionSec, duration) : 0;
+  const ended = mine ? devotionalEnded(playerState) : false;
   const activeIdx = activeParagraphIndex(position, duration, devotional.paragraphs);
 
-  // Keep the screen awake while listening; release the moment we pause,
-  // finish, or leave.
+  // Keep the screen awake while listening; release on pause/finish.
   useEffect(() => {
-    if (status.playing) {
+    if (playing) {
       void activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => undefined);
     } else {
       deactivateKeepAwake(KEEP_AWAKE_TAG);
@@ -46,7 +64,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     return () => {
       void deactivateKeepAwake(KEEP_AWAKE_TAG);
     };
-  }, [status.playing]);
+  }, [playing]);
 
   // Follow the voice: bring the active paragraph into view as it changes.
   const scrollRef = useRef<ScrollView>(null);
@@ -59,26 +77,39 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     }
   }, [activeIdx]);
 
-  const toggle = () => {
-    if (status.playing) {
-      player.pause();
-    } else if (ended) {
-      player.seekTo(0);
-      player.play();
-    } else {
-      player.play();
-    }
+  // Swipe down to minimize to the pill. Only a clear downward drag
+  // claims the gesture, so taps, the seek bar, and ordinary scrolling
+  // keep working.
+  const pan = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponderCapture: (_e, g) => g.dy > 24 && g.dy > Math.abs(g.dx) * 1.6,
+        onPanResponderRelease: (_e, g) => {
+          if (g.dy > 60) props.onBack();
+        },
+      }),
+    [props],
+  );
+
+  const stop = () => {
+    stopDevotional();
+    props.onBack();
   };
 
   const seek = (fraction: number) => {
-    if (duration > 0) player.seekTo(Math.max(0, Math.min(1, fraction)) * duration);
+    if (duration > 0) seekDevotional(Math.max(0, Math.min(1, fraction)) * duration);
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.paper }}>
+    <View style={{ flex: 1, backgroundColor: palette.paper }} {...pan.panHandlers}>
       <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={props.onBack} hitSlop={10} style={styles.topBtn}>
-          <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
+        <Pressable
+          onPress={props.onBack}
+          hitSlop={10}
+          style={styles.topBtn}
+          accessibilityLabel="Minimize player"
+        >
+          <MaterialIcons name="keyboard-arrow-down" size={24} color={palette.ink} />
         </Pressable>
         <Text style={[styles.topTitle, { color: palette.ink }]} numberOfLines={1}>
           {devotional.book} · Chapter {devotional.chapter}
@@ -87,25 +118,25 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
       </View>
 
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={styles.page}>
-        {/* Header card — calm, skin-dressed; no bespoke art in this pilot. */}
+        {/* Header card — calm, skin-dressed; no bespoke art. */}
         <View style={styles.header}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>Devotional</Text>
           <Text style={[styles.title, { color: palette.ink }]}>{devotional.title}</Text>
           <Ornament palette={palette} />
           <Text style={[styles.sub, { color: palette.inkSoft }]}>
-            {formatClock(devotional.durationSec)} · in his own voice
+            {formatClock(devotional.durationSec)} · a reading of his commentary
           </Text>
         </View>
 
-        {/* Controls */}
+        {/* Controls: play/pause, the seek track, and Stop. */}
         <View style={styles.controls}>
           <Pressable
-            onPress={toggle}
+            onPress={toggleDevotionalPlayback}
             style={[styles.playBtn, { backgroundColor: palette.rasp }]}
-            accessibilityLabel={status.playing ? 'Pause' : ended ? 'Play again' : 'Play'}
+            accessibilityLabel={playing ? 'Pause' : ended ? 'Play again' : 'Play'}
           >
             <MaterialIcons
-              name={status.playing ? 'pause' : ended ? 'replay' : 'play-arrow'}
+              name={playing ? 'pause' : ended ? 'replay' : 'play-arrow'}
               size={30}
               color="#FFFFFF"
             />
@@ -132,9 +163,18 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               <Text style={[styles.time, { color: palette.inkSoft }]}>{formatClock(duration)}</Text>
             </View>
           </View>
+          <Pressable
+            onPress={stop}
+            style={[styles.stopBtn, { borderColor: palette.lineDark }]}
+            accessibilityLabel="Stop"
+          >
+            <MaterialIcons name="stop" size={22} color={palette.ink} />
+            <Text style={[styles.stopText, { color: palette.ink }]}>Stop</Text>
+          </Pressable>
         </View>
 
-        {/* The words — proportion-follow, honestly not word-sync. */}
+        {/* The words — only where a transcript exists (none yet for the
+            Genesis narrations; the follow-along arrives with them). */}
         {devotional.paragraphs.map((text, i) => {
           const state = i === activeIdx ? 'active' : i < activeIdx ? 'done' : 'next';
           return (
@@ -161,8 +201,13 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
             </View>
           );
         })}
-        <Text style={[styles.foot, { color: palette.inkSoft }]}>
-          The words follow the reading by proportion — listen, and read along.
+        {devotional.paragraphs.length > 0 ? (
+          <Text style={[styles.foot, { color: palette.inkSoft }]}>
+            The words follow the reading by proportion — listen, and read along.
+          </Text>
+        ) : null}
+        <Text style={[styles.hint, { color: palette.inkFaint }]}>
+          Swipe down to keep listening while you study
         </Text>
       </ScrollView>
     </View>
@@ -178,8 +223,10 @@ const styles = StyleSheet.create({
   kicker: { fontSize: 11, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase' },
   title: { fontSize: 24, fontWeight: '800', textAlign: 'center', marginTop: 6 },
   sub: { fontSize: 12, marginTop: 6 },
-  controls: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 },
+  controls: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 },
   playBtn: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  stopBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 10 },
+  stopText: { fontSize: 12, fontWeight: '700' },
   seekWrap: { flex: 1 },
   track: { height: 8, borderRadius: 4, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 4 },
@@ -188,4 +235,5 @@ const styles = StyleSheet.create({
   para: { borderLeftWidth: 3, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 10 },
   paraText: { fontSize: 17, lineHeight: 26 },
   foot: { fontSize: 11, textAlign: 'center', marginTop: 10, fontStyle: 'italic' },
+  hint: { fontSize: 11, textAlign: 'center', marginTop: 18 },
 });

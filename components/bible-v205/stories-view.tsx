@@ -27,6 +27,7 @@ import {
   type ProfileIdentity,
 } from '@/lib/bible-v205/bubbles';
 import type { Person } from '@/lib/prayercircle-data';
+import type { Devotional } from '@/lib/devotionals';
 import { BlockView, CategoryTag, Ornament, SectionBand, SelfLineBlock } from './blocks';
 import { AuthorFace, BubbleChatRow, spanLabelFor } from './bubbles';
 import { entrySourceCategory } from '@/lib/bible-v205/categories';
@@ -62,6 +63,12 @@ export interface StoriesViewProps {
    * hides with it. */
   readDate: string | null;
   onToggleRead: (() => void) | null;
+  /** v293: this chapter's devotional (registry-driven — null when the
+   * chapter has none) and its door. The cover — the first Stories
+   * slide — carries the button, so the narration is one tap from the
+   * start of the slides, same player as the chapter-top door. */
+  devotional?: Devotional | null;
+  onListenDevotional?: () => void;
 }
 
 const screenTypeLabel = (s: StoryScreen): string =>
@@ -137,6 +144,18 @@ export function StoriesView(props: StoriesViewProps) {
           <Pressable style={[styles.beginBtn, { backgroundColor: palette.rasp }, palette.btnDress]} onPress={() => go(1)}>
             <Text style={styles.beginBtnText}>Begin reading</Text>
           </Pressable>
+          {/* v293: the second devotional door — at the very beginning
+              of the slides, only for chapters that have a devotional. */}
+          {props.devotional && props.onListenDevotional ? (
+            <Pressable
+              style={[styles.devotionalBtn, { backgroundColor: palette.raspTint }]}
+              onPress={props.onListenDevotional}
+              accessibilityLabel={`Devotional — ${props.devotional.title}`}
+            >
+              <MaterialIcons name="play-arrow" size={18} color={palette.raspDeep} />
+              <Text style={[styles.devotionalBtnText, { color: palette.raspDeep }]}>Listen to the devotional</Text>
+            </Pressable>
+          ) : null}
           <View style={[styles.coverSecs, { borderTopColor: palette.line }]}>
             {sections.map((s, i) => (
               <View key={s.start} style={styles.coverSecRow}>
@@ -594,6 +613,8 @@ const styles = StyleSheet.create({
   doorNote: { paddingHorizontal: 6, textAlign: 'center', fontSize: 13.5, lineHeight: 21.5, marginTop: 16 },
   beginBtn: { alignSelf: 'center', borderRadius: 999, paddingVertical: 13, paddingHorizontal: 30, marginTop: 22 },
   beginBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  devotionalBtn: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 20, marginTop: 12 },
+  devotionalBtnText: { fontSize: 13.5, fontWeight: '700' },
   coverSecs: { marginTop: 24, borderTopWidth: 1, paddingTop: 6 },
   coverSecRow: { flexDirection: 'row', alignItems: 'baseline', gap: 9, paddingVertical: 7 },
   coverSecNum: { fontWeight: '800', fontSize: 12.5, width: 22 },

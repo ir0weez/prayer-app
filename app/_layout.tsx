@@ -34,6 +34,7 @@ import {
   snoozeScheduleNotification,
 } from "@/lib/notification-scheduler";
 import { XpGainIndicator } from "@/components/xp-gain-indicator";
+import { DevotionalPill } from "@/components/devotional-pill";
 import { SetCompleteAnnouncer } from "@/components/set-complete-announcer";
 import { SplashOverlay } from "@/components/splash-overlay";
 import { SPLASH_MAX_DISPLAY_MS } from "@/lib/splash";
@@ -207,6 +208,10 @@ function RootLayoutContent() {
           </Stack>
           <XpGainIndicator />
           <SetCompleteAnnouncer />
+          {/* v293: the minimized devotional player — renders only
+              while a devotional session is live (see
+              components/devotional-pill.tsx). */}
+          <DevotionalPill />
           {Platform.OS !== "web" && <SplashOverlay ready={appReady} />}
           <StatusBar hidden={false} />
         </QueryClientProvider>

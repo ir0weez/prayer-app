@@ -126,8 +126,10 @@ export interface ChapterPageProps {
   onOpenBook: () => void;
   onOpenQueue: () => void;
   onNavigateChapter: (chapter: number) => void;
-  /** v230: open the devotional listen screen (only wired when the
-   * devotional registry has an entry for this chapter). */
+  /** v230 → v293: open this chapter's devotional in the player (only
+   * wired when the devotional registry has an entry for this
+   * chapter). Doors: beside "Read as Stories" at the chapter's top,
+   * and at the start of the Stories slides — both registry-driven. */
   onListen?: () => void;
   /** v259: the app tab bar rides over the reader now — the height
    * it occupies at the screen's foot. The scroll's end spacer
@@ -675,6 +677,8 @@ export function ChapterPageView(props: ChapterPageProps) {
       possessive={labels?.possessive ?? 'Your'}
       possessiveLower={labels?.possessiveLower ?? 'your'}
       bottomInset={props.tabBarHeight}
+      devotional={devotional}
+      onListenDevotional={props.onListen}
       onExit={() => setStories(false)}
       onNextChapter={chapter < totalChapters ? () => props.onNavigateChapter(chapter + 1) : null}
       readDate={readDate}
@@ -755,19 +759,6 @@ export function ChapterPageView(props: ChapterPageProps) {
               <Text style={[styles.modeBtnText, { color: readOnly ? '#FFFFFF' : palette.bandInk }]}>Read only</Text>
             </Pressable>
           </View>
-          {/* v230: the Listen door — exists ONLY when the devotional
-              registry carries this chapter (purely registry-driven). */}
-          {props.onListen && devotional ? (
-            <Pressable
-              onPress={props.onListen}
-              hitSlop={8}
-              style={[styles.listenBtn, { backgroundColor: palette.rasp }, palette.btnDress]}
-              accessibilityLabel={`Listen — ${devotional.title}`}
-            >
-              <MaterialIcons name="play-arrow" size={15} color="#FFFFFF" />
-              <Text style={styles.listenBtnText}>Listen</Text>
-            </Pressable>
-          ) : null}
         </View>
       </View>
 
@@ -909,6 +900,19 @@ export function ChapterPageView(props: ChapterPageProps) {
               <MaterialIcons name="list" size={18} color={palette.accentAmber.deep} />
               <Text style={[styles.doorBtnText, { color: palette.accentAmber.deep }]}>Read as Stories</Text>
             </Pressable>
+            {/* v293: the Devotional door — right beside Stories at the
+                chapter's top, and ONLY when the devotional registry
+                carries this chapter (purely registry-driven). */}
+            {props.onListen && devotional ? (
+              <Pressable
+                style={[styles.doorBtn, { backgroundColor: palette.rasp }, palette.btnDress]}
+                onPress={props.onListen}
+                accessibilityLabel={`Devotional — ${devotional.title}`}
+              >
+                <MaterialIcons name="play-arrow" size={18} color="#FFFFFF" />
+                <Text style={styles.doorBtnTextLight}>Devotional</Text>
+              </Pressable>
+            ) : null}
             <Pressable
               style={[styles.doorBtn, { backgroundColor: palette.accentTeal.bg }]}
               onPress={() => {
@@ -1644,8 +1648,7 @@ const styles = StyleSheet.create({
   // v250: the segmented control is a tonal pill — wash track (its
   // background is inline), the chosen half filled with the seed.
   modeSeg: { flexDirection: 'row', borderRadius: 999, padding: 4, gap: 2 },
-  listenBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, borderRadius: 999, paddingVertical: 5, paddingLeft: 8, paddingRight: 12 },
-  listenBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  doorBtnTextLight: { color: '#FFFFFF', fontSize: 13.5, fontWeight: '700' },
   modeBtn: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 16 },
   modeBtnText: { fontSize: 12, fontWeight: '700' },
   page: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 8 },

@@ -12,9 +12,13 @@
 //  (b) TODO ROWS — no tag text anywhere on a todo row or in a
 //      todo-pair rectangle (his ruling: the colour carries the
 //      category); the drawn checkbox and the "N MIN" chip are present.
-//  (c) EVENT CARDS — Classic wears the drawing's composition: a 64px
+//  (c) EVENT CARDS — Classic wore the drawing's composition: a 64px
 //      art band (34px colour band without artwork) over a body. The
-//      old full-bleed illustrated card survives for the skins.
+//      old full-bleed illustrated card survived for the skins.
+//      RE-BASED in v296: Jonathan rejected the band on device
+//      (Oct 27, 22:44 — "Why aren't the artworks filling the whole
+//      card?!"); the Classic card is full-bleed now, and the pins
+//      below were rewritten to say so. See schedule-v296.test.ts.
 //  (d) SUMMARY — the Classic composition is the saturated panel with
 //      the REACH row and the fast clause; schedule-tab wires the due
 //      people and the fast line through.
@@ -107,18 +111,27 @@ describe("v295 todo rows — the colour carries the category", () => {
   });
 });
 
-describe("v295 event cards — band + body under Classic", () => {
-  it("the Classic branch bands keyword art at 64 and colour at 34", () => {
-    expect(scheduleTab).toContain("height: keyword ? 64 : 34");
-    expect(scheduleTab).toContain("const bandColor = event.color || keyword?.bgColor || colors.primary");
+describe("v295 event cards — band + body under Classic (RE-BASED in v296)", () => {
+  // RE-BASED in v296 (his ruling, Oct 27 22:44, on the shipped band
+  // cards): "Why aren't the artworks filling the whole card?! Also
+  // this still isn't the mockup I agreed on!!" The band composition
+  // is REPLACED by the full-bleed card — the scene fills the whole
+  // card face (schedule-v296.test.ts carries the new pins). What
+  // survives of the v295 composition is the pill: the event's own
+  // colour, one spot, shared-meridiem range — and the branch order
+  // flipped: Rest now precedes the Classic branch, so Rest keeps
+  // its living sky under Classic again, as it did before v295.
+  it("the band geometry is gone; the pill colour derivation survives", () => {
+    expect(scheduleTab).not.toContain("height: keyword ? 64 : 34");
+    expect(scheduleTab).not.toContain("const bandColor = event.color || keyword?.bgColor || colors.primary");
     expect(scheduleTab).toContain("const pillColor = event.color || keyword?.accentColor || colors.primary");
   });
 
-  it("the band branch is gated to Classic and sits before the Rest fallthrough", () => {
-    const bandAt = scheduleTab.indexOf("ART BAND");
+  it("the Classic branch now sits AFTER the Rest fallthrough (Rest keeps its living sky)", () => {
     const restAt = scheduleTab.indexOf('if (keyword?.label === "Rest")');
-    expect(bandAt).toBeGreaterThanOrEqual(0);
-    expect(restAt).toBeGreaterThan(bandAt);
+    const classicAt = scheduleTab.indexOf("v296 (CLASSIC ONLY): the full-bleed event card");
+    expect(restAt).toBeGreaterThanOrEqual(0);
+    expect(classicAt).toBeGreaterThan(restAt);
   });
 
   it("the skins' full-bleed illustrated card survives untouched", () => {
@@ -129,7 +142,14 @@ describe("v295 event cards — band + body under Classic", () => {
 
 describe("v295 summary — the saturated panel, complete", () => {
   it("the Classic composition is the seed-deep panel with REACH and the fast clause", () => {
-    expect(summaryCard).toContain('mix(colors.primary, "#000000", 0.12)');
+    // RE-BASED in v296: v295 mixed the panel down from
+    // colors.primary — under dark appearance that is the LIGHTENED
+    // step, so the panel rendered pale lavender on his phone. The
+    // panel now derives from the accent theme's saturated (light)
+    // primary in both appearances (in light they are the same hex,
+    // so the light panel is unchanged).
+    expect(summaryCard).toContain("getAccentThemeDefinition(accentTheme).light?.primary");
+    expect(summaryCard).toContain('mix(seedPrimary, "#000000", 0.12)');
     expect(summaryCard).toContain("REACH OUT — DUE TODAY");
     expect(summaryCard).toContain("Your fast —");
     expect(summaryCard).toContain("borderRadius: 24");

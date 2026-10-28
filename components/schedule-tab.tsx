@@ -259,6 +259,18 @@ const WORSHIP_TRACK_COMPLETION_STATE_KEY = 'prayercircle.schedule.worship.track-
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const DAY_HEADER_HEIGHT = 160; // Height of summary card
+// v296: the v32 drawing's slide-over overlap — the day sheet rests
+// 120px up over the summary panel (the drawing's mainsheet carries
+// margin-top: -120px over the summary). Under Classic the list
+// OPENS at that offset, so the page's resting composition is the
+// drawing's: panel at the top, the sheet riding over its tail. The
+// v197 mechanism is untouched — the summary stays fixed and whole
+// behind the sheet (the spacer still carries its full measured
+// height), and one scroll down from the rest reveals it whole,
+// Reach row and all. Applied on the tab's first mount of the
+// session only; the scroll-restore contract owns later arrivals.
+const SCHEDULE_SHEET_REST_OVERLAP = 120;
+let classicSheetRestApplied = false;
 // The custom bottom navigation is 74px tall and sits 52px above the screen edge.
 // Keep the overdue control fully above that surface, with a small visual gap.
 const SCHEDULE_BOTTOM_NAV_CLEARANCE = 198;
@@ -7741,100 +7753,6 @@ function EventCardInner({
     );
   }
 
-  // v295 (CLASSIC ONLY): the approved blend composition from the v32
-  // drawing — the event as a Material card, not a full-bleed scene.
-  // Keyword artwork rides as a saturated ART BAND at the head (the
-  // scene itself, cropped by the band); an event with no artwork gets
-  // the plain colour band in its own colour. The body below carries
-  // the title and one details line; the time pill sits in the ONE
-  // spot — top-left, over the band — and becomes the NowPill while
-  // the event is live (the live strip then keeps only its bar).
-  // Skins keep their own event dialects below; off-events (above)
-  // and Rest (below) keep their settled faces.
-  if (!isSkinned) {
-    const bandColor = event.color || keyword?.bgColor || colors.primary;
-    const pillColor = event.color || keyword?.accentColor || colors.primary;
-    const durationMins = event.startTime && event.endTime ? timeToMinutes(event.endTime) - timeToMinutes(event.startTime) : null;
-    const durationLabel = durationMins != null && durationMins > 0 ? (durationMins < 60 ? `${durationMins} min` : whiteBlockBadge(durationMins)) : null;
-    let pillLabel: string | null = null;
-    if (event.startTime) {
-      const startLabel = format12HourTime(event.startTime);
-      if (event.endTime) {
-        const endLabel = format12HourTime(event.endTime);
-        // "2:00 – 2:20 PM": the start drops its meridiem when both share it.
-        pillLabel = endLabel.slice(-2) === startLabel.slice(-2)
-          ? `${startLabel.replace(/ (AM|PM)$/, "")} – ${endLabel}`
-          : `${startLabel} – ${endLabel}`;
-      } else {
-        pillLabel = startLabel;
-      }
-    }
-    const subParts: string[] = [];
-    if (keyword?.label === "TV Show" && (event.season || event.episode)) {
-      subParts.push(`${event.season ? `S${event.season}` : ""}${event.season && event.episode ? " " : ""}${event.episode ? `E${event.episode}` : ""}`);
-    }
-    const detailLine = [event.notes, event.location].filter(Boolean).join(" · ");
-    if (detailLine) subParts.push(detailLine);
-    if (durationLabel) subParts.push(durationLabel);
-    return (
-      <>
-        <Pressable
-          onPress={(event) => {
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            handleTap(event);
-          }}
-          onLongPress={handleLongPress}
-          delayLongPress={500}
-          style={({ pressed }) => [pressed && { opacity: 0.85 }]}
-        >
-          <View style={{ marginHorizontal: 12, marginBottom: 12, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: mix(colors.primary, colors.surface, 0.85), overflow: "hidden", shadowColor: "#4C1D95", shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2, ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }}>
-            <View style={{ height: keyword ? 64 : 34, backgroundColor: bandColor, overflow: "hidden" }}>
-              {keyword ? (
-                <>
-                  {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
-                  {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} location={event.location} notes={event.notes} />}
-                </>
-              ) : (
-                <>
-                  <View style={{ position: "absolute", right: -14, top: -16, width: 54, height: 54, borderRadius: 27, backgroundColor: "rgba(255,255,255,0.16)" }} />
-                  <View style={{ position: "absolute", right: 34, top: 12, width: 26, height: 26, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.12)" }} />
-                </>
-              )}
-              {pillLabel && (isLiveScheduledBlock ? (
-                <View style={{ position: "absolute", top: 8, left: 12 }}><NowPill /></View>
-              ) : (
-                <View style={{ position: "absolute", top: 8, left: 12, backgroundColor: pillColor, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
-                  <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "800" }}>{pillLabel}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={{ paddingHorizontal: 12, paddingTop: 11, paddingBottom: isLiveScheduledBlock ? 30 : 11 }}>
-              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-                <Text style={{ flex: 1, fontSize: 16, fontWeight: "800", color: colors.foreground }} numberOfLines={2}>{event.title}</Text>
-                {linkedPeople.length > 0 && <StackedAvatar people={linkedPeople} size={22} />}
-              </View>
-              {subParts.length > 0 && (
-                <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted, marginTop: 2 }} numberOfLines={1}>{subParts.join(" · ")}</Text>
-              )}
-              {isLiveScheduledBlock && (
-                <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 12, right: 12, bottom: 9, height: 5, backgroundColor: mix(pillColor, colors.surface, 0.8), borderRadius: 3, overflow: 'hidden' }}>
-                  <View style={{ height: '100%', width: `${Math.max(4, Math.round((liveCursor?.progress ?? 0) * 100))}%`, backgroundColor: pillColor, borderRadius: 3 }} />
-                </View>
-              )}
-            </View>
-          </View>
-        </Pressable>
-        <ContextMenu
-          visible={contextMenuVisible}
-          x={contextMenuPos.x}
-          y={contextMenuPos.y}
-          actions={contextMenuActions}
-          onDismiss={() => setContextMenuVisible(false)}
-        />
-      </>
-    );
-  }
-
   // Rest: a living sky that follows the time of day — sunrise, sunny midday,
   // sunset, or starry night — each with its own gentle animation.
   // Same shape and tap behavior as every other event card.
@@ -7919,6 +7837,113 @@ function EventCardInner({
               </View>
             )}
             <MaterialIcons name={mc.icon as any} size={44} color={mc.iconColor} style={{ opacity: 0.95 }} />
+          </View>
+        </Pressable>
+        <ContextMenu
+          visible={contextMenuVisible}
+          x={contextMenuPos.x}
+          y={contextMenuPos.y}
+          actions={contextMenuActions}
+          onDismiss={() => setContextMenuVisible(false)}
+        />
+      </>
+    );
+  }
+
+  // v296 (CLASSIC ONLY): the full-bleed event card. Jonathan's
+  // verdict on v295's band cards (Oct 27, 22:44): "Why aren't the
+  // artworks filling the whole card?!" — the v32 drawing bands the
+  // artwork at 64px, but his ruling that night outranks the drawing:
+  // the keyword artwork FILLS THE WHOLE CARD, the way his
+  // pre-redesign app rendered keyword events (this same scene, the
+  // content riding over it). The card's furniture rides over the
+  // scene: the time pill in the ONE spot (top 8, left 12, the
+  // event's own colour, shared-meridiem range) becoming the
+  // NowPill while the event is live, the title and one details
+  // line under it over a legibility scrim, linked faces at the top
+  // right, and the live progress bar alone at the foot. An event
+  // with no artwork fills the card with its own colour the same
+  // way (his colour ruling), wearing the drawing's translucent
+  // circle motif. Rest events never reach this branch — the Rest
+  // branch above keeps their living sky under every dress, as it
+  // did before v295 moved them. Every behaviour preserved: tap
+  // toggles done, long-press opens the menu, the completed bar
+  // (above), the travel ticker's squareTop seat.
+  if (!isSkinned) {
+    const pillColor = event.color || keyword?.accentColor || colors.primary;
+    const fillColor = event.color || keyword?.bgColor || colors.primary;
+    const isHolidayCard = keyword ? isHolidayKeywordLabel(keyword.label) : false;
+    const durationMins = event.startTime && event.endTime ? timeToMinutes(event.endTime) - timeToMinutes(event.startTime) : null;
+    const durationLabel = durationMins != null && durationMins > 0 ? (durationMins < 60 ? `${durationMins} min` : whiteBlockBadge(durationMins)) : null;
+    let pillLabel: string | null = null;
+    if (event.startTime) {
+      const startLabel = format12HourTime(event.startTime);
+      if (event.endTime) {
+        const endLabel = format12HourTime(event.endTime);
+        // "2:00 – 2:20 PM": the start drops its meridiem when both share it.
+        pillLabel = endLabel.slice(-2) === startLabel.slice(-2)
+          ? `${startLabel.replace(/ (AM|PM)$/, "")} – ${endLabel}`
+          : `${startLabel} – ${endLabel}`;
+      } else {
+        pillLabel = startLabel;
+      }
+    }
+    const subParts: string[] = [];
+    if (keyword?.label === "TV Show" && (event.season || event.episode)) {
+      subParts.push(`${event.season ? `S${event.season}` : ""}${event.season && event.episode ? " " : ""}${event.episode ? `E${event.episode}` : ""}`);
+    }
+    const detailLine = [event.notes, event.location].filter(Boolean).join(" · ");
+    if (detailLine) subParts.push(detailLine);
+    if (durationLabel) subParts.push(durationLabel);
+    const minHeight = isLiveScheduledBlock ? (keyword ? 140 : 118) : keyword ? (isHolidayCard ? 148 : 124) : 104;
+    return (
+      <>
+        <Pressable
+          onPress={(event) => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            handleTap(event);
+          }}
+          onLongPress={handleLongPress}
+          delayLongPress={500}
+          style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+        >
+          <View style={{ marginHorizontal: 12, marginBottom: 12, borderRadius: 22, backgroundColor: fillColor, overflow: "hidden", minHeight, shadowColor: "#4C1D95", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2, ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }}>
+            {keyword ? (
+              <>
+                {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
+                {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} location={event.location} notes={event.notes} />}
+                <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.22)" }} />
+              </>
+            ) : (
+              <>
+                <View pointerEvents="none" style={{ position: "absolute", right: -22, top: -26, width: 88, height: 88, borderRadius: 44, backgroundColor: "rgba(255,255,255,0.14)" }} />
+                <View pointerEvents="none" style={{ position: "absolute", right: 52, bottom: -24, width: 56, height: 56, borderRadius: 28, backgroundColor: "rgba(255,255,255,0.10)" }} />
+                <View pointerEvents="none" style={{ position: "absolute", left: -16, bottom: -22, width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,0.08)" }} />
+              </>
+            )}
+            {pillLabel && (isLiveScheduledBlock ? (
+              <View style={{ position: "absolute", top: 8, left: 12 }}><NowPill /></View>
+            ) : (
+              <View style={{ position: "absolute", top: 8, left: 12, backgroundColor: pillColor, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, shadowColor: "#140828", shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 }}>
+                <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "800", letterSpacing: 0.5 }}>{pillLabel}</Text>
+              </View>
+            ))}
+            {linkedPeople.length > 0 && (
+              <View style={{ position: "absolute", top: 8, right: 12 }}>
+                <StackedAvatar people={linkedPeople} size={22} />
+              </View>
+            )}
+            <View pointerEvents="none" style={{ position: "absolute", left: 12, right: 12, top: 40 }}>
+              <Text style={{ fontSize: 16, fontWeight: "800", color: "#FFFFFF", textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} numberOfLines={2}>{event.title}</Text>
+              {subParts.length > 0 && (
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.92)", marginTop: 2, textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} numberOfLines={1}>{subParts.join(" · ")}</Text>
+              )}
+            </View>
+            {isLiveScheduledBlock && (
+              <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 12, right: 12, bottom: 9, height: 5, backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 3, overflow: 'hidden' }}>
+                <View style={{ height: '100%', width: `${Math.max(4, Math.round((liveCursor?.progress ?? 0) * 100))}%`, backgroundColor: '#FFFFFF', borderRadius: 3 }} />
+              </View>
+            )}
           </View>
         </Pressable>
         <ContextMenu
@@ -10024,6 +10049,12 @@ export function ScheduleTab({
   const colors = useColors();
   const scheduleTones = scheduleMaterialTones(colors.primary, colors.surface);
   const { isSkinned, tokens: skinTokens, motion: skinMotion } = useSkin();
+  // v296: a live mirror of the dress for the mount effect below —
+  // the effect's closure captures the first render's value, but the
+  // skin can settle a frame later (provider hydration), and the
+  // Classic rest must key off the dress actually on screen.
+  const isSkinnedRef = useRef(isSkinned);
+  isSkinnedRef.current = isSkinned;
   // v202: the FAB / white-block popup menus settle as paper under
   // the Paper skin (small sheets laid over the schedule, sine settle
   // from the skin's motion tokens); every other skin keeps the
@@ -10574,6 +10605,21 @@ export function ScheduleTab({
     if (initialScrollY > 0 && mainListRef.current) {
       const t = setTimeout(() => {
         mainListRef.current?.scrollToOffset({ offset: initialScrollY, animated: false });
+      }, 100);
+      return () => clearTimeout(t);
+    }
+    // v296: no saved position, first mount of the session, Classic
+    // dress — open at the drawing's rest: the sheet 120px over the
+    // summary (see SCHEDULE_SHEET_REST_OVERLAP). The dress is read
+    // from the live ref when the scroll fires, so a skin settling
+    // after mount is never scrolled as Classic. Skins keep the
+    // flush v197 rest.
+    if (!classicSheetRestApplied) {
+      const t = setTimeout(() => {
+        if (!isSkinnedRef.current && mainListRef.current) {
+          classicSheetRestApplied = true;
+          mainListRef.current.scrollToOffset({ offset: SCHEDULE_SHEET_REST_OVERLAP, animated: false });
+        }
       }, 100);
       return () => clearTimeout(t);
     }
@@ -12145,6 +12191,16 @@ export function ScheduleTab({
       finalTimedItems.forEach((item) => items.push(item));
     }
 
+    // v296: the v32 drawing's order — the END OF THE DAY divider
+    // HEADS the completed stack (divider, then the done bars, then
+    // the worship card). v295 pushed it after the completed items,
+    // immediately before worship; the drawing puts it over the
+    // stack. Pushed here, before every completed item, whenever the
+    // day has anything completed in it.
+    if (dayTodos.some((t) => t.isCompleted) || dayEvents.some((e) => e.isCompleted) || dayMinistries.some((m) => m.isCompleted)) {
+      items.push({ type: "end-of-day", id: "end-of-day", data: null });
+    }
+
     // Add completed events at the end (after current-time-indicator if present)
     const completedEvents = dayEvents.filter((e) => e.isCompleted);
     completedEvents.forEach((e) => items.push({ type: "event", id: e.id, data: e }));
@@ -12228,12 +12284,9 @@ export function ScheduleTab({
       items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: personalStudyHeadline(position, studyDoorway?.line ?? "Your Books"), sub: studyDoorway?.sub ?? null, lastRead, preview, readTarget, targetRead, currentBook: position.currentBook, backChapter, progress: studyProgress } });
     }
 
-    // v295: the drawing's END OF THE DAY divider heads the completed
-    // stack (which sits above the worship card) whenever the day has
-    // anything completed in it.
-    if (dayTodos.some((t) => t.isCompleted) || dayEvents.some((e) => e.isCompleted) || dayMinistries.some((m) => m.isCompleted)) {
-      items.push({ type: "end-of-day", id: "end-of-day", data: null });
-    }
+    // (The END OF THE DAY divider is pushed earlier, heading the
+    // completed stack — see the v296 note above the completed
+    // pushes. The worship card still closes the day.)
 
     // Add worship section as a direct display (not expandable)
     items.push({ type: "worship-display", id: "worship-section", data: null });
@@ -12243,11 +12296,19 @@ export function ScheduleTab({
 
   // Joi-style sheet: the date header leads the sheet; an empty-state item
   // preserves the "no items" message now that data always carries the header.
+  // v296 (Classic): the sheet no longer leads with the date hero —
+  // the day name and week strip moved into the fixed zone (the
+  // drawing's app bar + slim strip above the panel). The sheet leads
+  // with its own head instead: the rounded top and grab handle from
+  // the drawing's mainsheet, then the study card. Skins keep the
+  // date-header item and its masthead exactly as settled.
   const scheduleSheetData = useMemo(() => {
-    const headerItem = { type: "date-header", id: "schedule-date-header", data: null };
+    const headerItem = isSkinned
+      ? { type: "date-header", id: "schedule-date-header", data: null }
+      : { type: "sheet-head", id: "schedule-sheet-head", data: null };
     if (listData.length === 0) return [headerItem, { type: "schedule-empty", id: "schedule-empty", data: null }];
     return [headerItem, ...listData];
-  }, [listData]);
+  }, [listData, isSkinned]);
 
   // Joi-style sheet: summary sits fixed behind; the schedule card slides up over it.
   // v295: the FAB's mount moved to the shell (ScheduleFabHost, after
@@ -12291,6 +12352,57 @@ export function ScheduleTab({
     plain View they always have. */}
 <PaperSettle style={[scheduleStyles.summaryContainer, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background, paddingBottom: 8 }]}>
 <BitSettle>
+  {!isSkinned && (
+    /* v296 (Classic): the week strip in the v32 drawing's slim form,
+       seated in the fixed summary zone ABOVE the panel (the drawing:
+       app bar, week strip, summary panel, then the sheet). Number
+       16/800, day letters 9.5 letterspaced, a 4.5px dot under
+       time-off days, the selected day held by a 2px outline ring in
+       the seed's deep step — no fill, no box. Tap switches the day
+       and the strip keeps its week-swipe; the compact date picker
+       rides at the row's end (the hero card's "Jump to date" seat,
+       preserved now that the hero is gone). The skins keep their
+       strip inside the date header, untouched. */
+    <View style={{ marginBottom: 4 }} {...weekStripPanResponder.panHandlers}>
+      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+        {weekDates.map((date) => {
+          const isSelected = date === selectedDate;
+          const isTodayCell = date === today;
+          return (
+            <Pressable
+              key={date}
+              onPress={() => setSelectedDate(date)}
+              style={({ pressed }) => [{
+                flex: 1,
+                alignItems: "center",
+                paddingVertical: 7,
+                borderRadius: 14,
+                borderWidth: 2,
+                borderColor: isSelected ? scheduleMaterialTones(colors.primary, colors.surface).primaryDeep : "transparent",
+              }, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 20, color: isSelected ? colors.foreground : isTodayCell ? colors.primary : colors.muted }}>
+                {getDayNumber(date)}
+              </Text>
+              <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.8, marginTop: 1, color: isSelected ? colors.primary : colors.muted }}>
+                {getShortDayName(date)}
+              </Text>
+              <View style={{ width: 4.5, height: 4.5, borderRadius: 2.25, marginTop: 4, backgroundColor: isDateDuringTimeOff(timeOffList, date) ? colors.primary : "transparent" }} />
+            </Pressable>
+          );
+        })}
+        <View style={{ justifyContent: "center", paddingLeft: 6, minHeight: 52 }}>
+          <DateTimePicker
+            value={selectedDate}
+            onChange={(d) => { setWeekSlideDir(0); setSelectedDate(d); }}
+            mode="date"
+            label="Jump to date"
+            compact
+          />
+        </View>
+      </View>
+    </View>
+  )}
   {(() => {
     // The summary counts only time still left available: completed items free
     // up their time (it gets added back unless that time has already passed
@@ -12530,6 +12642,18 @@ export function ScheduleTab({
       const isToday = selectedDate === todayISO;
       const nowMinutesRender = clockNow.getHours() * 60 + clockNow.getMinutes();
       switch (item.type) {
+        case "sheet-head": {
+          // v296 (Classic): the drawing's mainsheet head — just the
+          // grab handle (38×4.5, the seed's soft step) centered on
+          // the sheet's surface; the wrapper in the list prop gives
+          // this row the sheet's rounded top (28, the drawing's
+          // mainsheet radius). It carries no content of its own.
+          return (
+            <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 2 }}>
+              <View style={{ width: 38, height: 4.5, borderRadius: 3, backgroundColor: scheduleMaterialTones(colors.primary, colors.surface).primarySoft }} />
+            </View>
+          );
+        }
         case "date-header": {
           return renderDateHeaderCard();
         }
@@ -13312,9 +13436,13 @@ export function ScheduleTab({
       {skinTokens.isEightBit ? <BitBackground /> : skinTokens.isTerminal ? <TerminalBackground /> : isSkinned ? <PaperGrainOverlay /> : null}
       {/* Pill-style floating header (see-through, like People tab) */}
       <Animated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, opacity: scrollY.interpolate({ inputRange: [200, 320], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: scrollY.interpolate({ inputRange: [200, 320], outputRange: [0, -60], extrapolate: 'clamp' }) }] }]}>
-        <View style={{ backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(hasTypeScale(skinTokens) ? { paddingHorizontal: 16 + skinTokens.type.padBoost, paddingVertical: 10 + skinTokens.type.gapBoost } : {}) }}>
+        <View style={{ backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(hasTypeScale(skinTokens) ? { paddingHorizontal: 16 + skinTokens.type.padBoost, paddingVertical: 10 + skinTokens.type.gapBoost } : {}), ...(!isSkinned ? { backgroundColor: "transparent", paddingHorizontal: 2, paddingVertical: 2 } : {}) }}>
           <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, fontSize: 20, fontWeight: "800", ...bitDisplay(skinTokens, 12), ...skinText(skinTokens, skinTokens.type.screenTitle) }}>Schedule</Text>
-          <Text style={{ color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12, ...skinText(skinTokens, skinTokens.type.screenSubtitle) }}>{(() => { const total = dayEvents.length; const remaining = dayEvents.filter((e) => !e.isCompleted).length; return remaining === total ? `${total} events today` : `${remaining} of ${total} events left`; })()}</Text>
+          {/* v296 (Classic): the app bar wears the v32 drawing's sub —
+              the selected day spelled out ("Tuesday, October 27") —
+              not the legacy "N of M events left" count (the summary
+              prose carries the counts). Skins keep the count. */}
+          <Text style={{ color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12, ...skinText(skinTokens, skinTokens.type.screenSubtitle) }}>{!isSkinned ? `${dateHeader.dayName}, ${dateHeader.monthName} ${dateHeader.dayNum}` : (() => { const total = dayEvents.length; const remaining = dayEvents.filter((e) => !e.isCompleted).length; return remaining === total ? `${total} events today` : `${remaining} of ${total} events left`; })()}</Text>
         </View>
         <ReAnimated.View
           style={{
@@ -13327,6 +13455,7 @@ export function ScheduleTab({
             overflow: 'hidden',
             padding: missedTodos.length > 0 ? 4 : 0,
             ...(skinTokens.frame ?? {}),
+            ...(!isSkinned ? { borderRadius: 999 } : {}),
           }}>
           {missedTodos.length > 0 && (
             <Pressable
@@ -13353,7 +13482,7 @@ export function ScheduleTab({
             style={({ pressed }) => [{
               paddingHorizontal: 12,
               paddingVertical: 6,
-              borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 16,
+              borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : isSkinned ? 16 : 999,
               backgroundColor: missedTodos.length > 0 ? 'transparent' : skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
               opacity: pressed ? 0.7 : 1,
               flexDirection: 'row',
@@ -13461,6 +13590,16 @@ export function ScheduleTab({
                 // own branch in renderDateHeaderCard carries the panel
                 // fill + frame, no margins, no separate shadow).
                 if (skinTokens.isEightBit || skinTokens.isTerminal) return element;
+                // v296 (Classic only): the sheet-head row carries the
+                // sheet's rounded top at the drawing's mainsheet
+                // radius (28) — the surface the grab handle rides on.
+                if (info.item.type === "sheet-head") {
+                  return (
+                    <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden" }}>
+                      {element}
+                    </View>
+                  );
+                }
                 // v193: the date header is the sheet's own HEAD — it
                 // renders inside the same full-bleed surface wrapper as
                 // every other row, and its wrapper carries the sheet's

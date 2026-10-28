@@ -1,6 +1,7 @@
 import { Animated, View, Text, Pressable, ScrollView, Modal } from "react-native";
 import { formatCoins } from "@/lib/hometown";
-import { mix } from "@/lib/color-themes";
+import { getAccentThemeDefinition, mix } from "@/lib/color-themes";
+import { useThemeContext } from "@/lib/theme-provider";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_BG, TERM_MID, TERM_PHOS, TERM_SOFT, skinText } from "@/lib/skin-themes";
@@ -99,6 +100,7 @@ export function DailySummaryCard({
 
 }: DailySummaryCardProps) {
   const colors = useColors();
+  const { accentTheme } = useThemeContext();
   const { isSkinned, tokens: skinTokens } = useSkin();
   // 8-bit (v184): this card renders directly on the dusk page (the
   // summary zone), so its inks flip to the mockup's on-dusk text —
@@ -325,7 +327,17 @@ export function DailySummaryCard({
   // clause), and the REACH row with the due people's faces. The
   // skins keep the legacy layout below, untouched.
   if (!isSkinned) {
-    const panel = mix(colors.primary, "#000000", 0.12);
+    // v296: the panel derives from the seed's SATURATED step (the
+    // accent theme's light primary) in BOTH appearances. v295 mixed
+    // down from colors.primary, which under dark appearance is the
+    // lightened step — so on his phone (dark) the panel rendered
+    // pale lavender under white text: a different, lower-contrast
+    // panel than the drawing's deep saturated one. The drawing's
+    // panel is the saturated seed deepened 12%; that now holds at
+    // night too. (In light appearance seedPrimary === colors.primary,
+    // so the light panel is byte-identical to v295's.)
+    const seedPrimary = getAccentThemeDefinition(accentTheme).light?.primary ?? colors.primary;
+    const panel = mix(seedPrimary, "#000000", 0.12);
     const panelDeep = mix(panel, "#000000", 0.25);
     const chipBg = mix(panel, "#FFFFFF", 0.18);
     const faceBg = mix(panel, "#FFFFFF", 0.28);

@@ -533,7 +533,9 @@ function BookRow({
   const readCount = studyState ? bookReadCount(studyState, book) : 0;
   const paper = paperNote ? `handwritten notes, ${paperNote}` : null;
   const parts: string[] = [];
-  parts.push(`${complete} of ${total} complete`);
+  // v313: the drawing's counts word — "0 of 27 written", his word
+  // for the writing track everywhere in the approved drawing.
+  parts.push(`${complete} of ${total} written`);
   if (write) parts.push(`${write} to write`);
   if (prog) parts.push(total === prog ? `all ${prog} in progress` : `${prog} in progress`);
   if (notStarted && complete === 0 && !write && !prog) parts.push('not started');
@@ -571,43 +573,48 @@ function BookRow({
       </View>
       {/* v305: the reading thread — slimmer and deeper than the
           study thread above it, with its own count. */}
-      <BookReadingThread read={readCount} total={total} palette={palette} />
+      <View style={{ marginTop: 8 }}>
+        <BookReadingThread read={readCount} total={total} palette={palette} />
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 9, borderBottomWidth: 1 },
-  topTitle: { fontSize: 14.5, fontWeight: '800', flex: 1 },
+  topTitle: { fontSize: 16, fontWeight: '700', flex: 1 },
   // v250: topbar actions are tonal pills, not outlines.
-  queueBtn: { borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12 },
-  queueBtnText: { fontSize: 12, fontWeight: '800' },
-  page: { paddingHorizontal: 18, paddingBottom: 10 },
+  queueBtn: { borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
+  queueBtnText: { fontSize: 13, fontWeight: '600' },
+  page: { paddingHorizontal: 16, paddingBottom: 10 },
   vhead: { alignItems: 'center', paddingTop: 26 },
-  kicker: { fontSize: 10.5, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '800', textAlign: 'center' },
-  h2: { fontSize: 32, fontWeight: '800', letterSpacing: -0.8, marginTop: 8, textAlign: 'center' },
+  kicker: { fontSize: 11, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '700', textAlign: 'center' },
+  h2: { fontSize: 34, fontWeight: '700', letterSpacing: -0.6, marginTop: 8, textAlign: 'center' },
   vsub: { fontSize: 13.5, lineHeight: 21, textAlign: 'center', marginTop: 14, paddingHorizontal: 6 },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, justifyContent: 'center', marginTop: 18 },
   chip: { borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
   chipText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
-  subhead: { fontSize: 12, letterSpacing: 1.7, textTransform: 'uppercase', fontWeight: '800', paddingTop: 24, paddingBottom: 4 },
+  subhead: { fontSize: 12, letterSpacing: 1.8, textTransform: 'uppercase', fontWeight: '700', paddingTop: 26, paddingBottom: 12 },
   emptyGuard: { alignItems: 'center', paddingTop: 34, paddingHorizontal: 8 },
   emptyTitle: { fontSize: 19, fontWeight: '800', letterSpacing: -0.4, textAlign: 'center' },
   emptyBody: { fontSize: 13.5, lineHeight: 21, textAlign: 'center', marginTop: 10 },
   emptyBack: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 18, marginTop: 18 },
   emptyBackText: { fontSize: 13, fontWeight: '800' },
   // v311: the drawing's book card measure — radius 16 (applied over
-  // cardDress at the row), 18px padding, 12px between rows.
-  bookrow: { paddingVertical: 18, paddingHorizontal: 18, marginBottom: 12, gap: 8 },
+  // cardDress at the row), 18px padding, 12px between rows. v313:
+  // the drawing's internal rhythm — counts 4 under the name, the
+  // writing bar 16 under the counts, the reading bar 8 under it
+  // (margins on the children, no uniform gap).
+  bookrow: { paddingVertical: 18, paddingHorizontal: 18, marginBottom: 12 },
   bnameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   // v311: the name at 22/700 on its own line — flex 1 and NO
   // numberOfLines, so it wraps whole instead of truncating.
   bname: { fontSize: 22, fontWeight: '700', flex: 1 },
   papermark: { fontSize: 12.5, fontWeight: '600' },
-  bcount: { fontSize: 13.5, lineHeight: 19 },
+  bcount: { fontSize: 13.5, lineHeight: 19, fontWeight: '500', marginTop: 4 },
   bcountLead: { fontWeight: '700' },
-  thread: { height: 9, borderRadius: 999, overflow: 'hidden', position: 'relative' },
-  threadFill: { height: 9, borderRadius: 999 },
+  thread: { height: 8, borderRadius: 999, overflow: 'hidden', position: 'relative', marginTop: 16 },
+  threadFill: { height: 8, borderRadius: 999 },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,16,20,.45)' },
   editorCard: { position: 'absolute', left: 20, right: 20, top: '30%', borderRadius: 28, padding: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   editorTitle: { fontSize: 16, fontWeight: '800' },

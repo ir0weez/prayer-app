@@ -135,17 +135,19 @@ export function StoriesView(props: StoriesViewProps) {
       // chip — the v293 door, behavior untouched).
       return (
         <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: 24 }}>
-          <View style={{ alignItems: 'flex-start', paddingTop: 8 }}>
-            <Text style={[styles.kicker, { color: 'rgba(255,255,255,0.75)' }]}>Read as Stories</Text>
+          {/* v313: the drawing's cover head is CENTERED — kicker,
+              title, and the one-line sub ("{n} verses · in his own
+              words") — where the shipped cover left-aligned the head
+              over an explanatory paragraph (his no-captions rule). */}
+          <View style={{ alignItems: 'center', paddingTop: 8 }}>
+            <Text style={[styles.kicker, { color: 'rgba(255,255,255,0.75)', textAlign: 'center' }]}>Read as Stories</Text>
             <Text style={[styles.coverH, { color: '#FFFFFF' }]}>
               {book} {chapter}
             </Text>
+            <Text style={styles.coverSub}>
+              {verseCount} verses · in his own words
+            </Text>
           </View>
-          <Text style={[styles.doorNote, { color: 'rgba(255,255,255,0.78)', textAlign: 'left', paddingHorizontal: 0 }]}>
-            A verse, then your notes on it, then the next verse —{' '}
-            <Text style={{ fontWeight: '700', color: '#FFFFFF' }}>{screens.length} screens</Text>, at your pace. Tap
-            right to keep going, left to go back.
-          </Text>
           <View style={styles.coverCard}>
             <Text style={styles.coverCardLabel}>What&rsquo;s inside</Text>
             {sections.map((s, i) => (
@@ -157,7 +159,8 @@ export function StoriesView(props: StoriesViewProps) {
               </View>
             ))}
           </View>
-          <Pressable style={[styles.beginBtn, { backgroundColor: palette.raspTint }, palette.btnDress]} onPress={() => go(1)}>
+          <Pressable style={[styles.beginBtn, { backgroundColor: palette.primCont }, palette.btnDress]} onPress={() => go(1)}>
+            <MaterialIcons name="play-arrow" size={18} color={palette.raspDeep} />
             <Text style={[styles.beginBtnText, { color: palette.raspDeep }]}>Start the Stories</Text>
           </Pressable>
           {/* v293: the second devotional door — at the very beginning
@@ -168,11 +171,11 @@ export function StoriesView(props: StoriesViewProps) {
               onPress={props.onListenDevotional}
               accessibilityLabel={`Devotional — ${props.devotional.title}`}
             >
-              <MaterialIcons name="play-arrow" size={18} color={palette.raspDeep} />
+              <MaterialIcons name="volume-up" size={18} color={palette.raspDeep} />
               <Text style={[styles.devotionalBtnText, { color: palette.ink }]}>Listen to the devotional</Text>
-              <View style={[styles.devotionalDurChip, { backgroundColor: palette.raspTint }]}>
+              <View style={[styles.devotionalDurChip, { backgroundColor: palette.band }]}>
                 <Text style={[styles.devotionalDurText, { color: palette.raspDeep }]}>
-                  {Math.max(1, Math.round(props.devotional.durationSec / 60))} min
+                  {`${Math.floor(props.devotional.durationSec / 60)}:${String(Math.round(props.devotional.durationSec % 60)).padStart(2, '0')}`}
                 </Text>
               </View>
             </Pressable>
@@ -650,18 +653,21 @@ const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: 26, paddingTop: 24, paddingBottom: 18 },
   centerScreen: { justifyContent: 'center' },
   kicker: { fontSize: 10.5, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '800' },
-  coverH: { fontSize: 38, fontWeight: '800', letterSpacing: -0.8, marginTop: 10, textAlign: 'left' },
+  coverH: { fontSize: 38, fontWeight: '700', letterSpacing: -0.6, marginTop: 10, textAlign: 'center' },
+  // v313: the drawing's cover sub — one quiet line under the title.
+  coverSub: { color: 'rgba(255,255,255,0.78)', fontSize: 15, fontWeight: '500', textAlign: 'center', marginTop: 6 },
   doorNote: { paddingHorizontal: 6, textAlign: 'center', fontSize: 13.5, lineHeight: 21.5, marginTop: 16 },
-  // v311: the cover's doors are full-width pills stacked under the card.
-  beginBtn: { alignSelf: 'stretch', alignItems: 'center', borderRadius: 999, paddingVertical: 13, paddingHorizontal: 30, marginTop: 22 },
-  beginBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  devotionalBtn: { alignSelf: 'stretch', justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 20, marginTop: 12 },
-  devotionalBtnText: { fontSize: 13.5, fontWeight: '700' },
+  // v313: the drawing's doors — full-width pills, 15px vertical,
+  // 15.5/700 (the play/volume glyphs ride inline).
+  beginBtn: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 999, paddingVertical: 15, paddingHorizontal: 30, marginTop: 22 },
+  beginBtnText: { color: '#FFFFFF', fontSize: 15.5, fontWeight: '700' },
+  devotionalBtn: { alignSelf: 'stretch', justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingVertical: 15, paddingHorizontal: 20, marginTop: 12 },
+  devotionalBtnText: { fontSize: 15.5, fontWeight: '700' },
   devotionalDurChip: { borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8, marginLeft: 4 },
   devotionalDurText: { fontSize: 11.5, fontWeight: '800' },
   // v311: the cover's translucent sections card on the deep field.
-  coverCard: { backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 18, marginTop: 22 },
-  coverCardLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 6 },
+  coverCard: { backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 16, paddingVertical: 18, paddingHorizontal: 18, marginTop: 22 },
+  coverCardLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase', marginBottom: 6 },
   coverSecRow: { flexDirection: 'row', alignItems: 'baseline', gap: 9, paddingVertical: 7 },
   coverSecNum: { fontWeight: '800', fontSize: 12.5, width: 22 },
   coverSecTitle: { fontWeight: '600', fontSize: 14.5 },

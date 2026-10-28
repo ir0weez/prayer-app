@@ -238,7 +238,8 @@ describe('v304 — the progress card is gone; the thread carries its fill', () =
 describe('v304 — one slim row: the verse range and the mode control share it', () => {
   it('the range survives as compact muted text at the row’s left', () => {
     expect(page).toContain('testID="chapter-verse-range"');
-    expect(page).toContain("metaRange: { flex: 1, fontSize: 11.5, fontWeight: '600' }");
+    // v313 re-base: the range takes the drawing's 12px (was 11.5).
+    expect(page).toContain("metaRange: { flex: 1, fontSize: 12, fontWeight: '600' }");
     expect(page).toContain('style={[styles.metaRange, { color: palette.inkSoft }]}');
     // The same real label the card carried — the section at the
     // scroll head against the chapter's verse count.
@@ -251,8 +252,10 @@ describe('v304 — one slim row: the verse range and the mode control share it',
   });
 
   it('the segmented control is slimmed, and the toggle is wired both ways', () => {
-    expect(page).toContain("modeSeg: { flexDirection: 'row', borderRadius: 999, padding: 3, gap: 2 }");
-    expect(page).toContain("modeBtn: { borderRadius: 999, paddingVertical: 5, paddingHorizontal: 13 }");
+    // v313 re-base: the control takes the drawing's dress — an
+    // outline track (borderWidth 1, color inline) and 7/14 spans.
+    expect(page).toContain("modeSeg: { flexDirection: 'row', borderRadius: 999, borderWidth: 1, padding: 3, gap: 2 }");
+    expect(page).toContain("modeBtn: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 }");
     expect(page).not.toContain("modeBtn: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 16 }");
     expect(page).toContain('onPress={() => chooseReadMode(false)}');
     expect(page).toContain('onPress={() => chooseReadMode(true)}');

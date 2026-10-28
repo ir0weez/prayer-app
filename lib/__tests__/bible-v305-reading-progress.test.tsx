@@ -221,7 +221,9 @@ describe('v305 — the Books screen wiring (source pins)', () => {
   });
 
   it('the study bar and its counts are unchanged', () => {
-    expect(screen).toContain('parts.push(`${complete} of ${total} complete`)');
+    // v313 re-base: the counts lead takes the drawing's word —
+    // "written" (was "complete"); the bar itself is untouched.
+    expect(screen).toContain('parts.push(`${complete} of ${total} written`)');
     expect(screen).toContain('backgroundColor: palette.rasp, width: `${pct}%`');
   });
 

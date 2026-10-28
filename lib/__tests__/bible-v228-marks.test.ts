@@ -308,7 +308,9 @@ describe('surfaces — the reader carries no notes-state control; the grid shows
     expect(src).toContain('Mark as Read');
     expect(src).toContain('markChapterRead');
     expect(src).toContain('unmarkChapterRead');
-    expect(src).toContain('✓ Read ·');
+    // v313 re-base: the foot's done state is the drawing's pill —
+    // a bookmark glyph + "Read · {date}" (the ✓ text line retired).
+    expect(src).toContain('Read · {formatReadDate(readDate)}');
     expect(src).not.toContain('Mark Complete');
     expect(src).not.toContain('handleSetStatus');
     expect(src).not.toContain('transitionChapterStatus');

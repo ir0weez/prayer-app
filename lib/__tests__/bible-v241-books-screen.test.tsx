@@ -242,7 +242,8 @@ describe('v241 — Books screen first paint, dark scheme + Classic (his phone st
     expect(canon.length).toBe(66);
     for (const book of canon) expect(html, `row for ${book}`).toContain(book);
     expect(html).toContain('Not Started');
-    expect(html).toContain('0 of 150 complete');
+    // v313 re-base: the counts lead says "written" (the drawing).
+    expect(html).toContain('0 of 150 written');
   });
 
   it('the paper is the dark page and the book ink clears 4.5:1 on it', () => {

@@ -56,6 +56,7 @@ import { BIT_DUSK, BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK
 import { setScheduleFabConfig } from "@/lib/schedule-fab-bridge";
 import { scheduleMaterialTones, tonalRamp } from "@/lib/schedule-material";
 import { detectShowFont } from "@/lib/show-fonts";
+import { stripSpelledSeasonEpisode } from "@/lib/season-episode";
 import { showNameSegments } from "./show-sub-line";
 import { mix } from "@/lib/color-themes";
 import type { SkinTokens } from "@/lib/skin-themes";
@@ -7590,6 +7591,15 @@ function EventCardInner({
   const timeOffCardColor = getTimeOffEventColor(event);
   const timeOffTextColor = readableTextColor(timeOffCardColor);
   const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title, event.location, event.notes);
+  // v313: on the branches that ALSO render the compact S/E read, a
+  // note spelling out that same "Season {n} Episode {m}" says the
+  // fact twice (his Dexter screenshot, Oct 28) — the display copy
+  // of the notes strips the spelled-out pair when it matches the
+  // fields (lib/season-episode.ts). His stored notes never change.
+  const tvNotes =
+    event.notes && keyword?.label === "TV Show"
+      ? stripSpelledSeasonEpisode(event.notes, event.season, event.episode)
+      : event.notes;
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
   const liveCursor = event.startTime && liveNow ? getLiveCursorPosition([event], liveNow) : null;
@@ -7701,9 +7711,9 @@ function EventCardInner({
           <View style={[eventStyles.defaultCard, { backgroundColor: timeOffCardColor, borderColor: timeOffCardColor, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : 96, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(hasTypeScale(skinTokens) ? { paddingTop: 14 + skinTokens.type.padBoost, paddingLeft: 14 + skinTokens.type.padBoost, paddingRight: 14 + skinTokens.type.padBoost, marginBottom: 10 + skinTokens.type.gapBoost } : {}) }]}>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={[eventStyles.defaultTitle, { color: timeOffTextColor, ...bitDisplay(skinTokens, 12), ...skinText(skinTokens, skinTokens.type.cardTitle) }]} numberOfLines={2}>{event.title}</Text>
-              {event.notes && (
+              {tvNotes && (
                 <Text style={[eventStyles.defaultDescription, { color: `${timeOffTextColor}EE`, ...skinText(skinTokens, skinTokens.type.cardBody, skinTokens.type.cardBodyLineHeight) }]} numberOfLines={2}>
-                  {event.notes}
+                  {tvNotes}
                 </Text>
               )}
               {event.startTime && (
@@ -7898,7 +7908,18 @@ function EventCardInner({
     if (keyword?.label === "TV Show" && (event.season || event.episode)) {
       subParts.push(`${event.season ? `S${event.season}` : ""}${event.season && event.episode ? " " : ""}${event.episode ? `E${event.episode}` : ""}`);
     }
-    const detailLine = [event.notes, event.location].filter(Boolean).join(" · ");
+    // v313: the detail line may carry the spelled-out twin of the
+    // read above ("Dexter Resurrection · Season 2 Episode 1") —
+    // strip it when it matches the fields so the line says the
+    // season/episode once (lib/season-episode.ts).
+    const detailLine =
+      keyword?.label === "TV Show"
+        ? stripSpelledSeasonEpisode(
+            [event.notes, event.location].filter(Boolean).join(" · "),
+            event.season,
+            event.episode,
+          )
+        : [event.notes, event.location].filter(Boolean).join(" · ");
     if (detailLine) subParts.push(detailLine);
     if (durationLabel) subParts.push(durationLabel);
     // v308: the show's NAME in the sub-line wears the show's title
@@ -8067,9 +8088,9 @@ function EventCardInner({
             {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} location={event.location} notes={event.notes} />}
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF', ...bitDisplay(skinTokens, 13), ...skinText(skinTokens, skinTokens.type.cardTitle) }]}>{event.title}</Text>
-              {event.notes && (
+              {tvNotes && (
                 <Text style={[eventStyles.illustratedDescription, { color: '#FFFFFF', ...skinText(skinTokens, skinTokens.type.cardLead, skinTokens.type.cardLeadLineHeight) }]} numberOfLines={2}>
-                  {event.notes}
+                  {tvNotes}
                 </Text>
               )}
               {event.startTime && (

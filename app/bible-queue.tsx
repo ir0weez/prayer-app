@@ -92,11 +92,11 @@ export default function BibleQueueScreen(props: { pane?: BibleQueuePaneProps } =
         style={[styles.qitem, { backgroundColor: palette.paper2 }, palette.cardDress, { borderRadius: 16 }]}
         onPress={() => open(item)}
       >
-        {isRead ? <MaterialIcons name="bookmark" size={14} color={palette.raspDeep} /> : null}
+        {isRead ? <MaterialIcons name="bookmark" size={15} color={palette.raspDeep} /> : null}
         <Text style={[styles.qname, { color: palette.ink }]}>
           {item.book} {item.chapter}
         </Text>
-        <Text style={[styles.qopen, { color: palette.raspDeep }]}>Open ›</Text>
+        <Text style={[styles.qopen, { color: palette.rasp }]}>Open ›</Text>
       </Pressable>
     );
   };
@@ -119,13 +119,16 @@ export default function BibleQueueScreen(props: { pane?: BibleQueuePaneProps } =
         <View style={styles.pipe}>
           <PipeNode label="Write" palette={palette} color={palette.paper2} border={palette.bandBorder} text={palette.raspDeep} />
           <Text style={[styles.pipeArrow, { color: palette.inkFaint }]}>→</Text>
-          <PipeNode label="Complete" palette={palette} color={palette.rasp} border={palette.rasp} text="#FFFFFF" />
+          <PipeNode label="Complete" palette={palette} color={palette.rasp} border={palette.rasp} text="#FFFFFF" strong />
           <Text style={[styles.pipeArrow, { color: palette.inkFaint }]}>→</Text>
           <PipeNode label="ReStudy" palette={palette} color={palette.accentTeal.bg} border={palette.accentTeal.bg} text={palette.accentTeal.deep} />
         </View>
 
+        {/* v313: the drawing's band words — NEXT · TO WRITE and
+            CURRENT · TO RE-STUDY (the pipeline's own names for his
+            Next and Current lists). */}
         <View style={[styles.bandHead, { backgroundColor: palette.band }]}>
-          <Text style={[styles.bandTitle, { color: palette.bandInk }]}>To Write</Text>
+          <Text style={[styles.bandTitle, { color: palette.bandInk }]}>Next · To Write</Text>
           <View style={[styles.bandCountPill, { backgroundColor: palette.paper2 }]}>
             <Text style={[styles.bandCount, { color: palette.ink }]}>{writeQueue.length}</Text>
           </View>
@@ -138,8 +141,8 @@ export default function BibleQueueScreen(props: { pane?: BibleQueuePaneProps } =
 
         {/* v250: the second queue family wears the harmonized teal —
             the two families read apart at a glance. */}
-        <View style={[styles.bandHead, { backgroundColor: palette.accentTeal.bg, marginTop: 22 }]}>
-          <Text style={[styles.bandTitle, { color: palette.accentTeal.deep }]}>To ReStudy</Text>
+        <View style={[styles.bandHead, { backgroundColor: palette.accentTeal.bg }]}>
+          <Text style={[styles.bandTitle, { color: palette.accentTeal.deep }]}>Current · To Re-Study</Text>
           <View style={[styles.bandCountPill, { backgroundColor: palette.paper2 }]}>
             <Text style={[styles.bandCount, { color: palette.ink }]}>{restudyQueue.length}</Text>
           </View>
@@ -177,39 +180,42 @@ function PipeNode({
   color,
   border,
   text,
+  strong,
 }: {
   label: string;
   palette: BiblePalette;
   color: string;
   border: string;
   text: string;
+  /** The drawing's Complete node is the one filled, bold node. */
+  strong?: boolean;
 }) {
   return (
     <View style={[styles.pipeNode, { backgroundColor: color, borderColor: border }]}>
-      <Text style={[styles.pipeNodeText, { color: text }]}>{label}</Text>
+      <Text style={[styles.pipeNodeText, { color: text }, strong ? { fontWeight: '700' } : null]}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 9, borderBottomWidth: 1 },
-  topTitle: { fontSize: 14.5, fontWeight: '800', flex: 1 },
-  page: { paddingHorizontal: 22, paddingBottom: 10 },
+  topTitle: { fontSize: 16, fontWeight: '700', flex: 1 },
+  page: { paddingHorizontal: 16, paddingBottom: 10 },
   vhead: { alignItems: 'center', paddingTop: 26 },
-  kicker: { fontSize: 10.5, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '800', textAlign: 'center' },
-  h2: { fontSize: 32, fontWeight: '800', letterSpacing: -0.8, marginTop: 8, textAlign: 'center' },
+  kicker: { fontSize: 11, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '700', textAlign: 'center' },
+  h2: { fontSize: 32, fontWeight: '700', letterSpacing: -0.6, marginTop: 8, textAlign: 'center' },
   vsub: { fontSize: 13.5, lineHeight: 21, textAlign: 'center', marginTop: 14, paddingHorizontal: 6 },
   pipe: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 22 },
-  pipeNode: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 15 },
-  pipeNodeText: { fontSize: 13, fontWeight: '800' },
+  pipeNode: { borderWidth: 1, borderRadius: 999, paddingVertical: 9, paddingHorizontal: 17 },
+  pipeNodeText: { fontSize: 13.5, fontWeight: '600' },
   pipeArrow: { fontSize: 15, fontWeight: '700' },
   pipecount: { textAlign: 'center', fontSize: 12.5, lineHeight: 19, marginTop: 12, paddingHorizontal: 8 },
-  bandHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, marginTop: 18, marginBottom: 10 },
-  bandTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
-  bandCountPill: { borderRadius: 999, paddingVertical: 2, paddingHorizontal: 9 },
-  bandCount: { fontSize: 12.5, fontWeight: '800' },
-  qitem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, paddingHorizontal: 16, marginBottom: 10 },
+  bandHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 16, marginTop: 24, marginBottom: 12 },
+  bandTitle: { fontSize: 12.5, fontWeight: '700', letterSpacing: 1.3, textTransform: 'uppercase' },
+  bandCountPill: { borderRadius: 999, paddingVertical: 3, paddingHorizontal: 11 },
+  bandCount: { fontSize: 13.5, fontWeight: '700' },
+  qitem: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 16, paddingHorizontal: 16, marginBottom: 10 },
   qname: { fontSize: 16, fontWeight: '600', flex: 1 },
-  qopen: { fontSize: 13, fontWeight: '800' },
+  qopen: { fontSize: 14, fontWeight: '600' },
   empty: { fontSize: 13.5, fontStyle: 'italic', paddingVertical: 6 },
 });

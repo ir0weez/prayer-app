@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateId, EVENT_KEYWORD_MAP, detectEventKeyword, type EventKeyword } from './schedule-data';
+import { stripSpelledSeasonEpisode } from './season-episode';
 import { mix } from './color-themes';
 
 export const TIME_OFF_STORAGE_KEY = 'prayercircle.timeoff.v1';
@@ -133,7 +134,14 @@ export function itinerarySeasonEpisodeRead(entry: ItineraryEntry): string | null
  * untouched; null when there is nothing to say.
  */
 export function itineraryDetailLine(entry: ItineraryEntry): string | null {
-  const parts = [itinerarySeasonEpisodeRead(entry), entry.detail].filter(Boolean) as string[];
+  // v313: the detail may spell out the very season/episode the read
+  // already states ("… · Season 2 Episode 1" beside "S2 E1") — the
+  // spelled-out copy is stripped when it matches the fields, the
+  // same dedupe the event cards apply (lib/season-episode.ts).
+  const detail = entry.detail
+    ? stripSpelledSeasonEpisode(entry.detail, entry.season, entry.episode)
+    : entry.detail;
+  const parts = [itinerarySeasonEpisodeRead(entry), detail].filter(Boolean) as string[];
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 

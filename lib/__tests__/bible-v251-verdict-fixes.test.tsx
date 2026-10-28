@@ -314,7 +314,8 @@ describe('v251 WS2 — the Books row shrinks its texts, never its chip', () => {
     const html = renderToString(React.createElement(BibleBooksScreen)).replace(/<!-- -->/g, '');
     // The row from his screenshot: Hebrews, notes in every chapter.
     expect(html).toContain('Hebrews');
-    expect(html).toContain('0 of 13 complete');
+    // v313 re-base: the counts lead says "written" (the drawing).
+    expect(html).toContain('0 of 13 written');
     expect(html).toContain('notes in 13 chapters');
     // The longest book name in the canon.
     expect(html).toContain('1 Thessalonians');

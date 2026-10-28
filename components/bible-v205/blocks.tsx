@@ -315,17 +315,20 @@ const styles = StyleSheet.create({
   // v311 typed-kind box (the drawing's nbox): radius 12, no border,
   // family ground, small uppercase kind tag over the words.
   nbox: { borderRadius: 12, paddingVertical: 13, paddingHorizontal: 15, marginTop: 12, marginBottom: 12 },
-  ktag: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 5 },
+  ktag: { fontSize: 10.5, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 },
   nboxText: { fontSize: 15, lineHeight: 23.5 },
   nboxTextBig: { fontSize: 20.5, lineHeight: 31, fontWeight: '700' },
   // v311 unboxed note flow: attribution head over bare text.
   flowWrap: { marginTop: 14, marginBottom: 12 },
   flowHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
   flowName: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
-  flowSpan: { fontSize: 12.5, fontWeight: '600' },
+  flowSpan: { fontSize: 12.5, fontWeight: '500' },
   flowText: { fontSize: 15.5, lineHeight: 24 },
   para: { fontSize: 15, lineHeight: 25.5, marginBottom: 12, paddingHorizontal: 5, marginLeft: -5 },
-  notePara: { marginLeft: 8 },
+  // v313: his Notion rule in its final form — the note's main text
+  // sits at the SAME width as the verses it belongs to; the old 8px
+  // inset (a v5-era narrowing he ruled against) is gone.
+  notePara: {},
   callout: { borderRadius: 6, paddingVertical: 15, paddingHorizontal: 17, marginVertical: 14, borderWidth: 1 },
   scripture: { borderLeftWidth: 3, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
   scriptureQuote: { fontStyle: 'italic', fontSize: 14, lineHeight: 23 },

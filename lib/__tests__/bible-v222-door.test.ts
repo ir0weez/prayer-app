@@ -128,7 +128,9 @@ describe('v222 WS1 — the foot of the chapter page (v228: Mark as Read only)', 
     expect(src).not.toContain('footComplete');
     expect(src).toContain('Mark as Read');
     expect(src).toContain('markChapterRead');
-    expect(src).toContain('✓ Read ·');
+    // v313 re-base: the foot's done state is the drawing's pill —
+    // bookmark glyph + "Read · {date}" (the ✓ text line retired).
+    expect(src).toContain('Read · {formatReadDate(readDate)}');
     // After the last entry (footNote) and before the prev/next nav —
     // measured on the foot button's own style hook, since the words
     // "Mark as Read" also appear in the page's handler comments.
@@ -498,7 +500,8 @@ describe('v222 WS3 — Books list: all 66, three sections', () => {
     expect(src).toContain('>Not Started<');
     expect(src).toContain('CurrentPill');
     expect(src).toContain('✎ on paper');
-    expect(src).toContain('of ${total} complete');
+    // v313 re-base: the counts lead takes the drawing's word.
+    expect(src).toContain('of ${total} written');
     expect(src).toContain('notes in ${notesCount}');
     expect(src).not.toContain('The rest of the canon');
   });

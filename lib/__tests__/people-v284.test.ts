@@ -313,9 +313,19 @@ describe("v284 wiring — source pins", () => {
     expect(person).toContain("renewEmergencyPrayer");
   });
 
-  it("the tray sync reads the shared liveness helpers, not a fork", () => {
+  it("the tray sync read the shared liveness helpers, not a fork — v309: the tray sync is gone entirely", () => {
+    // v284's pin: syncPrayerTrayNotificationsNow computed its wanted
+    // set from hasActiveEmergencyPrayer / hasActivePraise in
+    // prayercircle-data, never an inline expiry fork. v309 deleted
+    // the tray mechanism wholesale (the plain duplicate notification;
+    // the native timer pill is the only one left), so the scheduler
+    // carries no tray liveness logic at all — the fork this pin
+    // guarded against has no consumer left. The helpers themselves
+    // remain the one shared definition, exercised by the behavioral
+    // tests above and pinned as prayercircle-data exports there.
     const scheduler = read("lib/notification-scheduler.ts");
-    expect(scheduler).toContain("hasActiveEmergencyPrayer");
-    expect(scheduler).toContain("hasActivePraise");
+    expect(scheduler).not.toContain("syncPrayerTrayNotifications");
+    expect(scheduler).not.toContain("hasActiveEmergencyPrayer");
+    expect(scheduler).not.toContain("hasActivePraise");
   });
 });

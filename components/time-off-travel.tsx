@@ -16,8 +16,11 @@ import { mix } from "@/lib/color-themes";
 import { hexLuminance } from "@/lib/skin-themes";
 import { format12HourTime } from "@/lib/utils";
 import {
+  getItineraryKindIcon,
+  getItineraryKindLabel,
   getTimeOffIcon,
   getTimeOffLabel,
+  itineraryKindColor,
   tripDayNumber,
   type ItineraryEntry,
   type TimeOff,
@@ -128,6 +131,10 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
   const base = tripBaseColor(timeOff);
   const route = entry.kind === "travel" ? entry.detail?.match(ROUTE_RE) : null;
   const surface = mix(colors.surface, base, hexLuminance(colors.surface) < 0.5 ? 0.2 : 0.1);
+  // v302: the kind's own icon + colour step ride the day card too, so a
+  // Food stop reads as Food here exactly as it does on the timeline.
+  const kindIcon = getItineraryKindIcon(entry.kind);
+  const kindColor = itineraryKindColor(entry.kind, base);
 
   // v295 (Classic): the Friday drawing's travel card — a white card
   // whose head is a 38px band in the trip's colour: the time pill at
@@ -153,8 +160,9 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
             </View>
           )}
           <View style={{ flex: 1 }} />
+          <MaterialIcons name={kindIcon as any} size={13} color="rgba(255,255,255,0.9)" />
           <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "800", letterSpacing: 1.2 }}>
-            {entry.kind.toUpperCase()}
+            {getItineraryKindLabel(entry.kind).toUpperCase()}
           </Text>
         </View>
         <View style={{ paddingHorizontal: 14, paddingVertical: 11 }}>
@@ -177,11 +185,7 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
             </>
           ) : (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <MaterialIcons
-                name={entry.kind === "stay" ? "hotel" : entry.kind === "travel" ? "directions-car" : "place"}
-                size={18}
-                color={base}
-              />
+              <MaterialIcons name={kindIcon as any} size={18} color={kindColor} />
               <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, flex: 1 }} numberOfLines={1}>
                 {entry.title}
               </Text>
@@ -251,11 +255,7 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
       ) : (
         <>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <MaterialIcons
-              name={entry.kind === "stay" ? "hotel" : entry.kind === "travel" ? "directions-car" : "place"}
-              size={18}
-              color={base}
-            />
+            <MaterialIcons name={kindIcon as any} size={18} color={kindColor} />
             {entry.time && (
               <View style={{ backgroundColor: base, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
                 <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "800" }}>{format12HourTime(entry.time)}</Text>

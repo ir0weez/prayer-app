@@ -223,7 +223,9 @@ describe("v295 ministry ticket + squares, time-off band", () => {
 
   it("the travel card's head is the 38px band with pill and kind label", () => {
     expect(timeOffTravel).toContain("height: 38, backgroundColor: base");
-    expect(timeOffTravel).toContain("entry.kind.toUpperCase()");
+    // v302 re-base: the head label now comes from the model's kind
+    // label getter (same rendered text — TRAVEL/STAY/PLAN/FOOD/…).
+    expect(timeOffTravel).toContain("getItineraryKindLabel(entry.kind).toUpperCase()");
   });
 });
 

@@ -53,8 +53,12 @@ import {
   deriveRouteRead,
   getAllTimeOff,
   getItineraryForDate,
+  getItineraryKindIcon,
+  getItineraryKindLabel,
   getTimeOffIcon,
   getTimeOffLabel,
+  itineraryKindColor,
+  ITINERARY_KINDS as ALL_ITINERARY_KINDS,
   groupItineraryByDate,
   heroTrip,
   pastTrips,
@@ -74,11 +78,10 @@ import { format12HourTime } from "@/lib/utils";
 import { tripBaseColor } from "./time-off-travel";
 
 const TIME_OFF_TYPES: TimeOffType[] = ["vacation", "sick", "personal", "sabbatical", "other"];
-const ITINERARY_KINDS: Array<{ kind: ItineraryKind; label: string; icon: string }> = [
-  { kind: "travel", label: "Travel", icon: "flight" },
-  { kind: "stay", label: "Stay", icon: "hotel" },
-  { kind: "plan", label: "Plan", icon: "place" },
-];
+// v302: the six kinds come from the model (lib/time-off) — one source
+// for the list, the labels, and the icons, chips and cards alike.
+const ITINERARY_KINDS: Array<{ kind: ItineraryKind; label: string; icon: string }> =
+  ALL_ITINERARY_KINDS.map((kind) => ({ kind, label: getItineraryKindLabel(kind), icon: getItineraryKindIcon(kind) }));
 
 function todayISO(): string {
   const n = new Date();
@@ -660,23 +663,30 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
 
         <View style={{ backgroundColor: tones.containerLow, borderRadius: 22, padding: 16, marginTop: 4 }}>
           <Text style={{ fontSize: 13, fontWeight: "800", color: colors.foreground, marginBottom: 10 }}>Add to the timeline</Text>
-          <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-            {ITINERARY_KINDS.map(({ kind, label, icon }) => (
-              <Pressable
-                key={kind}
-                onPress={() => setEntryKind(kind)}
-                style={({ pressed }) => [{
-                  flexDirection: "row", alignItems: "center", gap: 6,
-                  paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999,
-                  backgroundColor: entryKind === kind ? base : colors.surface,
-                  borderWidth: 1, borderColor: entryKind === kind ? base : colors.border,
-                  opacity: pressed ? 0.8 : 1,
-                }]}
-              >
-                <MaterialIcons name={icon as any} size={15} color={entryKind === kind ? "#FFFFFF" : colors.foreground} />
-                <Text style={{ fontSize: 12.5, fontWeight: "700", color: entryKind === kind ? "#FFFFFF" : colors.foreground }}>{label}</Text>
-              </Pressable>
-            ))}
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+            {ITINERARY_KINDS.map(({ kind, label, icon }) => {
+              // v302: a chip wears its KIND's colour (a step of the
+              // trip's own colour) — picked, it fills with it; unpicked,
+              // its icon still carries it. Never six grey chips.
+              const kindColor = itineraryKindColor(kind, base);
+              const picked = entryKind === kind;
+              return (
+                <Pressable
+                  key={kind}
+                  onPress={() => setEntryKind(kind)}
+                  style={({ pressed }) => [{
+                    flexDirection: "row", alignItems: "center", gap: 6,
+                    paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999,
+                    backgroundColor: picked ? kindColor : colors.surface,
+                    borderWidth: 1, borderColor: picked ? kindColor : colors.border,
+                    opacity: pressed ? 0.8 : 1,
+                  }]}
+                >
+                  <MaterialIcons name={icon as any} size={15} color={picked ? "#FFFFFF" : kindColor} />
+                  <Text style={{ fontSize: 12.5, fontWeight: "700", color: picked ? "#FFFFFF" : colors.foreground }}>{label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
           <Pressable
             onPress={() => {
@@ -714,23 +724,29 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
   const renderEntryForm = () => (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
       <View style={{ backgroundColor: tones.containerLow, borderRadius: 24, padding: 16, gap: 16 }}>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          {ITINERARY_KINDS.map(({ kind, label, icon }) => (
-            <Pressable
-              key={kind}
-              onPress={() => setEntryKind(kind)}
-              style={({ pressed }) => [{
-                flexDirection: "row", alignItems: "center", gap: 6,
-                paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999,
-                backgroundColor: entryKind === kind ? colors.primary : colors.surface,
-                borderWidth: 1, borderColor: entryKind === kind ? colors.primary : colors.border,
-                opacity: pressed ? 0.8 : 1,
-              }]}
-            >
-              <MaterialIcons name={icon as any} size={15} color={entryKind === kind ? "#FFFFFF" : colors.foreground} />
-              <Text style={{ fontSize: 12.5, fontWeight: "700", color: entryKind === kind ? "#FFFFFF" : colors.foreground }}>{label}</Text>
-            </Pressable>
-          ))}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          {ITINERARY_KINDS.map(({ kind, label, icon }) => {
+            // v302: same kind dressing as the trip's add row, stepped
+            // from the app's seed here (the form speaks the app's colour).
+            const kindColor = itineraryKindColor(kind, colors.primary);
+            const picked = entryKind === kind;
+            return (
+              <Pressable
+                key={kind}
+                onPress={() => setEntryKind(kind)}
+                style={({ pressed }) => [{
+                  flexDirection: "row", alignItems: "center", gap: 6,
+                  paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999,
+                  backgroundColor: picked ? kindColor : colors.surface,
+                  borderWidth: 1, borderColor: picked ? kindColor : colors.border,
+                  opacity: pressed ? 0.8 : 1,
+                }]}
+              >
+                <MaterialIcons name={icon as any} size={15} color={picked ? "#FFFFFF" : kindColor} />
+                <Text style={{ fontSize: 12.5, fontWeight: "700", color: picked ? "#FFFFFF" : colors.foreground }}>{label}</Text>
+              </Pressable>
+            );
+          })}
         </View>
         <View>
           <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, marginBottom: 6 }}>DATE</Text>
@@ -745,7 +761,7 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
           <TextInput
             value={entryTitle}
             onChangeText={setEntryTitle}
-            placeholder={entryKind === "travel" ? "e.g., Flight to Denver" : entryKind === "stay" ? "e.g., Check in — Canyon Inn" : "e.g., Arches National Park"}
+            placeholder={entryKind === "travel" ? "e.g., Flight to Denver" : entryKind === "stay" ? "e.g., Check in — Canyon Inn" : entryKind === "food" ? "e.g., Dinner at Carmine's" : entryKind === "ride" ? "e.g., Ride to the airport" : entryKind === "view" ? "e.g., Sunset over the canyon" : "e.g., Arches National Park"}
             placeholderTextColor={colors.muted}
             style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, color: colors.foreground, fontSize: 15, backgroundColor: colors.surface }}
           />
@@ -765,7 +781,7 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
           <TextInput
             value={entryDetail}
             onChangeText={setEntryDetail}
-            placeholder={entryKind === "travel" ? "e.g., LAX → DEN · Flight UA 1847" : entryKind === "stay" ? "e.g., Check-out Mon, Nov 23 · Conf. #A7K2Q" : "e.g., Timed-entry pass in the app"}
+            placeholder={entryKind === "travel" ? "e.g., LAX → DEN · Flight UA 1847" : entryKind === "stay" ? "e.g., Check-out Mon, Nov 23 · Conf. #A7K2Q" : entryKind === "food" ? "e.g., Reservation for 4 · Conf. #D221" : entryKind === "ride" ? "e.g., Pickup at the lobby · 6 seats" : entryKind === "view" ? "e.g., Best light before 7 PM" : "e.g., Timed-entry pass in the app"}
             placeholderTextColor={colors.muted}
             style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, color: colors.foreground, fontSize: 15, backgroundColor: colors.surface }}
           />
@@ -848,14 +864,20 @@ const ROUTE_RE = /([A-Za-z]{3})\s*→\s*([A-Za-z]{3})/;
 function TimelineEntry({ entry, base, onDelete }: { entry: ItineraryEntry; base: string; onDelete: () => void }) {
   const colors = useColors();
   const route = entry.kind === "travel" ? entry.detail?.match(ROUTE_RE) : null;
-  const kindLabel = entry.kind === "travel" ? "TRAVEL" : entry.kind === "stay" ? "STAY" : "PLAN";
+  // v302: the entry's kind identity — its icon on a tonal tile of its
+  // own colour step, its label in that same colour.
+  const kindColor = itineraryKindColor(entry.kind, base);
+  const kindLabel = getItineraryKindLabel(entry.kind).toUpperCase();
   return (
     <View style={{ backgroundColor: colors.surface, borderRadius: 20, padding: 15, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View style={{ width: 26, height: 26, borderRadius: 9, backgroundColor: mix(colors.surface, kindColor, 0.16), alignItems: "center", justifyContent: "center" }}>
+          <MaterialIcons name={getItineraryKindIcon(entry.kind) as any} size={15} color={kindColor} />
+        </View>
         {entry.time && (
           <Text style={{ fontSize: 13, fontWeight: "800", color: colors.foreground }}>{format12HourTime(entry.time)}</Text>
         )}
-        <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 1.2, color: base }}>{kindLabel}</Text>
+        <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 1.2, color: kindColor }}>{kindLabel}</Text>
         <View style={{ flex: 1 }} />
         <Pressable onPress={onDelete} accessibilityLabel={`Remove ${entry.title}`} style={({ pressed }) => [{ padding: 2, opacity: pressed ? 0.5 : 1 }]}>
           <MaterialIcons name="close" size={16} color={colors.muted} />

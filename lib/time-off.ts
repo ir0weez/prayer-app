@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateId } from './schedule-data';
+import { mix } from './color-themes';
 
 export const TIME_OFF_STORAGE_KEY = 'prayercircle.timeoff.v1';
 
@@ -12,11 +13,67 @@ export type TimeOffType = 'vacation' | 'sick' | 'personal' | 'sabbatical' | 'oth
 
 /**
  * v294 — a trip itinerary entry (his Tripsy-inspired ask, Oct 27): a light
- * field set only — a time, a title, a place/address, and ONE detail line —
- * in three kinds. Entries are stored with the trip and projected into the
- * schedule days they fall on as travel cards.
+ * field set only — a time, a title, a place/address, and ONE detail line.
+ * Entries are stored with the trip and projected into the schedule days
+ * they fall on as travel cards.
+ * v302 — three more kinds at his ask (Oct 28): Food, Ride, View join
+ * Travel / Stay / Plan. Same light fields, stored the same way; older
+ * entries need no migration — the kind is just a wider union.
  */
-export type ItineraryKind = 'travel' | 'stay' | 'plan';
+export type ItineraryKind = 'travel' | 'stay' | 'plan' | 'food' | 'ride' | 'view';
+
+/** All itinerary kinds, in the order the add row offers them. */
+export const ITINERARY_KINDS: ItineraryKind[] = ['travel', 'stay', 'plan', 'food', 'ride', 'view'];
+
+const ITINERARY_KIND_LABELS: Record<ItineraryKind, string> = {
+  travel: 'Travel',
+  stay: 'Stay',
+  plan: 'Plan',
+  food: 'Food',
+  ride: 'Ride',
+  view: 'View',
+};
+
+const ITINERARY_KIND_ICONS: Record<ItineraryKind, string> = {
+  travel: 'flight',
+  stay: 'hotel',
+  plan: 'place',
+  food: 'restaurant',
+  ride: 'directions-car',
+  view: 'landscape',
+};
+
+/** Chip/card label for an itinerary kind ("Food", "Ride", "View", …). */
+export function getItineraryKindLabel(kind: ItineraryKind): string {
+  return ITINERARY_KIND_LABELS[kind] ?? ITINERARY_KIND_LABELS.plan;
+}
+
+/** Material icon name for an itinerary kind — each kind has its own. */
+export function getItineraryKindIcon(kind: ItineraryKind): string {
+  return ITINERARY_KIND_ICONS[kind] ?? ITINERARY_KIND_ICONS.plan;
+}
+
+/**
+ * v302 — a kind's own colour: a tonal step of the TRIP's colour, never a
+ * foreign hue dropped in. Travel keeps the trip colour itself (it is the
+ * journey's anchor, as before); every other kind steps from that colour
+ * toward a kindred Material anchor — violet for the stay's evening rest,
+ * teal for plans, warm orange for food, indigo for the road, green for
+ * scenery — so the six read as one family and never as one grey.
+ */
+const ITINERARY_KIND_ANCHORS: Record<ItineraryKind, string | null> = {
+  travel: null,
+  stay: '#7E57C2',
+  plan: '#26A69A',
+  food: '#EF6C00',
+  ride: '#5C6BC0',
+  view: '#43A047',
+};
+
+export function itineraryKindColor(kind: ItineraryKind, tripBase: string): string {
+  const anchor = ITINERARY_KIND_ANCHORS[kind];
+  return anchor ? mix(tripBase, anchor, 0.38) : tripBase;
+}
 
 export interface ItineraryEntry {
   id: string;

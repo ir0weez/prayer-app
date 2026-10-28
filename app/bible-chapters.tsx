@@ -7,6 +7,13 @@
 // (every chapter Complete), Not Started (no chapter states). A book
 // with notes but no states lands in Not Started with its notes count on
 // the row — notes no longer earn a book its own section.
+// v311 "The Bible, to the Drawing" (approved Oct 28, 12:42): the rows
+// go quiet and spacious at the drawing's measure — the book name at
+// 22px on its OWN line, NOTHING truncating (the clipped "Hebrew…"
+// was a named defect), the counts line beneath it in full; the
+// status-chip legend is retired and only the ✎ notes-source door
+// stays. v305's ReadingProgressCard and reset stand exactly as
+// shipped.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -20,7 +27,6 @@ import {
   CHAPTER_COUNTS,
   notesChapterCount,
 } from '@/lib/bible-v205/index';
-import type { StudyStatus } from '@/lib/bible-v205/types';
 import {
   chapterStatus,
   loadStudyState,
@@ -36,7 +42,6 @@ import {
   resetReadingProgress,
 } from '@/lib/bible-v205/reading-progress';
 import { BookReadingThread, ReadingProgressCard } from '@/components/bible-v205/reading-progress-card';
-import { Ornament, StatusChip } from '@/components/bible-v205/blocks';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
@@ -265,11 +270,6 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
         <View style={styles.vhead}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
           <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{possessive} Books</Text>
-          <Ornament palette={palette} />
-          <Text style={[styles.vsub, { color: palette.inkSoft }]}>
-            The states you set in the app, and the books your notes live in — nothing here is marked for you.
-            The ✎ marks books that also live in handwriting.
-          </Text>
         </View>
 
         {/* v305: the overall READING card — his whole-Bible read
@@ -284,13 +284,11 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
           />
         </View>
 
+        {/* v311: the legend is reduced to the drawing's quiet form —
+            no status chips at all. Only the ✎ door stays: it is not
+            a legend entry but the notes-source label editor's home
+            (v222), and it keeps its words. */}
         <View style={styles.legend}>
-          {(['complete', 'in-progress', 'write', 'restudy', 'none'] as StudyStatus[]).map((s) => (
-            <StatusChip key={s} status={s} palette={palette} />
-          ))}
-          {/* v222: the notes-source label editor lost its old home (the
-              Handwritten-only header) when the sections merged — it
-              lives on the ✎ chip now. */}
           <Pressable
             style={[styles.chip, { backgroundColor: palette.band }]}
             accessibilityLabel="Name your notes source"
@@ -323,17 +321,17 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
         ) : null}
 
         {groups.current.length ? (
-          <Text style={[styles.subhead, { color: palette.rasp }]}>Current</Text>
+          <Text style={[styles.subhead, { color: palette.inkSoft }]}>Current</Text>
         ) : null}
         {groups.current.map(renderBookRow)}
 
         {groups.finished.length ? (
-          <Text style={[styles.subhead, { color: palette.rasp }]}>Finished</Text>
+          <Text style={[styles.subhead, { color: palette.inkSoft }]}>Finished</Text>
         ) : null}
         {groups.finished.map(renderBookRow)}
 
         {groups.notStarted.length ? (
-          <Text style={[styles.subhead, { color: palette.rasp }]}>Not Started</Text>
+          <Text style={[styles.subhead, { color: palette.inkSoft }]}>Not Started</Text>
         ) : null}
         {groups.notStarted.map(renderBookRow)}
 
@@ -543,20 +541,26 @@ function BookRow({
   if (paper) parts.push(paper);
 
   return (
-    <Pressable style={[styles.bookrow, { backgroundColor: palette.paper2 }, palette.cardDress]} onPress={onPress}>
-      <View style={styles.btop}>
-        <Text style={[styles.bname, { color: palette.ink }]} numberOfLines={1}>
+    <Pressable
+      style={[styles.bookrow, { backgroundColor: palette.paper2 }, palette.cardDress, { borderRadius: 16 }]}
+      onPress={onPress}
+    >
+      {/* v311: the name takes its OWN line at 22px and never
+          truncates — it wraps if it must; the counts line sits
+          beneath it in full (the v251 shrink arrangement that
+          clipped "Hebrew…" and ellipsized the counts is retired).
+          The Current pill rides the name row's right edge. */}
+      <View style={styles.bnameRow}>
+        <Text style={[styles.bname, { color: palette.ink }]}>
           {book} <Text style={{ color: palette.rasp }}>›</Text>
           {paperNote ? <Text style={[styles.papermark, { color: palette.inkSoft }]}>  ✎ on paper</Text> : null}
         </Text>
-        {/* v251: this side shrinks too (minWidth 0 lets it) — the
-            stats text ellipsizes to one line and the chip, which
-            never shrinks, stays whole inside the card. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, minWidth: 0 }}>
-          <Text style={[styles.bcount, { color: palette.inkSoft }]} numberOfLines={1}>{parts.join(' · ')}</Text>
-          <CurrentPill book={book} studyState={studyState} palette={palette} onMakeCurrent={onMakeCurrent} />
-        </View>
+        <CurrentPill book={book} studyState={studyState} palette={palette} onMakeCurrent={onMakeCurrent} />
       </View>
+      <Text style={[styles.bcount, { color: palette.inkSoft }]}>
+        <Text style={[styles.bcountLead, { color: palette.ink }]}>{parts[0]}</Text>
+        {parts.length > 1 ? ` · ${parts.slice(1).join(' · ')}` : ''}
+      </Text>
       <View style={[styles.thread, { backgroundColor: palette.raspTint }]}>
         <View style={[styles.threadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />
         {ppct ? (
@@ -586,23 +590,22 @@ const styles = StyleSheet.create({
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, justifyContent: 'center', marginTop: 18 },
   chip: { borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
   chipText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
-  subhead: { fontSize: 11, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '800', paddingTop: 24, paddingBottom: 4 },
+  subhead: { fontSize: 12, letterSpacing: 1.7, textTransform: 'uppercase', fontWeight: '800', paddingTop: 24, paddingBottom: 4 },
   emptyGuard: { alignItems: 'center', paddingTop: 34, paddingHorizontal: 8 },
   emptyTitle: { fontSize: 19, fontWeight: '800', letterSpacing: -0.4, textAlign: 'center' },
   emptyBody: { fontSize: 13.5, lineHeight: 21, textAlign: 'center', marginTop: 10 },
   emptyBack: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 18, marginTop: 18 },
   emptyBackText: { fontSize: 13, fontWeight: '800' },
-  // v250: a book is a card now — raised surface, big radius, the
-  // 9px seed progress thread inside it.
-  bookrow: { borderRadius: 24, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 10, gap: 8 },
-  btop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
-  // v251: the name SHRINKS (and ellipsizes to one line) — with no
-  // flexShrink anywhere in this row, a long stats string pushed
-  // the whole right side past the card's edge and the CURRENT chip
-  // was clipped mid-word by the screen (his Hebrews screenshot).
-  bname: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
-  papermark: { fontSize: 11, fontWeight: '600' },
-  bcount: { fontSize: 12, flexShrink: 1, textAlign: 'right' },
+  // v311: the drawing's book card measure — radius 16 (applied over
+  // cardDress at the row), 18px padding, 12px between rows.
+  bookrow: { paddingVertical: 18, paddingHorizontal: 18, marginBottom: 12, gap: 8 },
+  bnameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  // v311: the name at 22/700 on its own line — flex 1 and NO
+  // numberOfLines, so it wraps whole instead of truncating.
+  bname: { fontSize: 22, fontWeight: '700', flex: 1 },
+  papermark: { fontSize: 12.5, fontWeight: '600' },
+  bcount: { fontSize: 13.5, lineHeight: 19 },
+  bcountLead: { fontWeight: '700' },
   thread: { height: 9, borderRadius: 999, overflow: 'hidden', position: 'relative' },
   threadFill: { height: 9, borderRadius: 999 },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,16,20,.45)' },

@@ -1,12 +1,14 @@
-// ─── v234 "Two Families" — pins ─────────────────────────────────────────────
+// ─── v234 "Two Families" — pins ─────────────────────────────────────
 // Jonathan's ruling (2026-10-24): "separate what is commentary buttons
-// and what is personal study buttons." The chapter detail panel (book
-// view) and the chapter page's status strip now carry the two families
-// under their own headers — YOUR STUDY (Read Chapter · Read as Stories ·
-// Mark as Read · Add to ReStudy Queue) and YOUR COMMENTARY (the
-// notes-written pipeline: Write · In Progress · Complete · ReStudy ·
-// Not Started · None). Presentation only: the v233 display model
-// (chapterDisplayMarks) still decides what shows, untouched.
+// and what is personal study buttons." v311 (approved drawing,
+// 2026-10-28 12:42) carries the same separation into the chapter
+// SHEET under the drawing's group names — READING (Read Chapter ·
+// Read as Stories · the read-mark switch) and MY WRITING (the
+// notes-written pipeline chips) — ReStudy standing ONCE, as a chip
+// in My Writing (the old second door, the Your Study "Add to
+// ReStudy Queue" button, is retired). Presentation only: the v233
+// display model (chapterDisplayMarks) still decides what shows,
+// untouched.
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,75 +16,48 @@ import { describe, expect, it } from 'vitest';
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 
-describe('the book panel — two labeled groups', () => {
+describe('the chapter sheet — two labeled groups', () => {
   const src = read('app/bible-book.tsx');
-  const studyAt = src.indexOf('>Your Study</Text>');
-  const commentaryAt = src.indexOf('>Your Commentary</Text>');
+  const readingAt = src.indexOf('>Reading</Text>');
+  const writingAt = src.indexOf('>My Writing</Text>');
 
-  it('both group headers render, study first', () => {
-    expect(studyAt).toBeGreaterThanOrEqual(0);
-    expect(commentaryAt).toBeGreaterThan(studyAt);
+  it('both group headers render, reading first', () => {
+    expect(readingAt).toBeGreaterThanOrEqual(0);
+    expect(writingAt).toBeGreaterThan(readingAt);
   });
 
-  it('the study controls live under YOUR STUDY', () => {
-    // Distinctive wiring for each study-family control, all between
-    // the two headers.
+  it('the reading controls live under READING', () => {
+    // Distinctive wiring for each reading-family control, all
+    // between the two headers.
     const controls: Array<[string, string]> = [
-      ['Read Chapter', 'onPress={() => openChapter(false)}'],
-      ['Read as Stories', 'onPress={() => openChapter(true)}'],
-      ['the read row (Mark as Read)', 'onPress={applyRead}'],
-      ['the read date line', '✓ Read · {formatReadDate(selReadDate)}'],
-      ['Add to ReStudy Queue', '>Add to ReStudy Queue</Text>'],
+      ['Read Chapter', 'openChapter(false)'],
+      ['Read as Stories', 'openChapter(true)'],
+      ['the read-mark switch', '<Switch'],
+      ['the switch wired to the read door', 'v ? applyRead() : clearRead()'],
+      ['the read date line', 'formatReadDate(selReadDate)'],
     ];
     for (const [name, needle] of controls) {
       const at = src.indexOf(needle);
-      expect(at, name).toBeGreaterThan(studyAt);
-      expect(at, name).toBeLessThan(commentaryAt);
+      expect(at, name).toBeGreaterThan(readingAt);
+      expect(at, name).toBeLessThan(writingAt);
     }
-    // The study header itself is unconditional — every chapter,
-    // noted or not, has a study life.
-    expect(studyAt).toBeLessThan(src.indexOf("selDisplay.showNotesEditor || selStatus !== 'none'"));
   });
 
-  it('the notes-state buttons render under YOUR COMMENTARY for a noted chapter', () => {
-    // The full six-state editor row, its framing label, the hint,
-    // and the commentary quick moves all sit below the header.
-    for (const needle of [
-      'Notes state — the notes-written mark',
-      'STATUS_EDITOR_ORDER.map',
-      'Notes: {STATUS_LABEL[selStatus]}',
-      '>Start Writing</Text>',
-      '>Mark Complete</Text>',
-      '>Add to Write Queue</Text>',
-    ]) {
-      expect(src.indexOf(needle), needle).toBeGreaterThan(commentaryAt);
+  it('the writing chips render under MY WRITING — every chapter, noted or not', () => {
+    // The chip row walks the one applyStatus door, in the drawing's
+    // order; it renders unconditionally (v278's guarantee: a stored
+    // state on a noteless chapter stays changeable — study-v278
+    // carries the model pins).
+    for (const needle of ['SHEET_STATUS_ORDER.map', 'sheetChipDress', 'applyStatus(s)']) {
+      expect(src.indexOf(needle, writingAt), needle).toBeGreaterThan(writingAt);
     }
-    // …and this branch of the editor row is gated on the v233
-    // display model: it renders when the chapter is noted
-    // (showNotesEditor). (v278: the not-editor branch below the
-    // on-file line carries the same row for a noteless chapter with
-    // a stored state — study-v278 pins it; this branch is unmoved.)
-    expect(src).toContain('{selDisplay.showNotesEditor ? (');
-  });
-
-  it('a noteless chapter: the study group intact, the on-file line inside the commentary group', () => {
-    // The commentary GROUP renders only when there is something
-    // commentary-shaped to say: the editor (noted) or a stored state.
-    expect(src).toContain("selDisplay.showNotesEditor || selStatus !== 'none'");
-    // The on-file line lives below the YOUR COMMENTARY header…
-    const onFileAt = src.indexOf('Notes state on file');
-    expect(onFileAt).toBeGreaterThan(commentaryAt);
-    // …in the not-editor branch: the editor row's FIRST render sits
-    // in the showNotesEditor branch ABOVE the on-file line.
-    // (v278 re-base: a second render of the same row now stands
-    // BELOW the on-file line, inside the same group gate, so a
-    // stored state on a noteless chapter can be changed where it is
-    // shown — study-v278 carries those pins. Nothing here moves:
-    // the first render is still above the line, and a stateless
-    // noteless chapter still opens no group at all.)
-    expect(src.indexOf('STATUS_EDITOR_ORDER.map')).toBeLessThan(onFileAt);
-    // The study group is untouched by the gate: it closes before the
-    // commentary group opens (pinned by the ordering tests above).
+    // Not Started and None are one unset state with one clear path.
+    expect(src).toContain("applyStatus('none')");
+    expect(src).toContain('Clear state');
+    // ReStudy stands ONCE in the whole sheet: its chip label is the
+    // only ReStudy action (no separate queue button survives).
+    expect(src).not.toContain('Add to ReStudy Queue');
+    expect(src.split("restudy: 'Restudy'").length - 1).toBe(1);
   });
 });
 

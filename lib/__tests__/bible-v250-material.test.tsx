@@ -306,11 +306,19 @@ describe('v250 — source contracts (async-surfaces the harness cannot paint)', 
     expect(src).toContain('sectionToneFor(palette, sIdx)');
   });
 
-  it('his own note is the filled seed card in blocks.tsx', () => {
+  it('his own note flows unboxed in blocks.tsx (v311 supersedes the filled card)', () => {
+    // v311 re-base (with citation): his Oct 28 rulings (11:52 the
+    // Notion layout — "It has a square around it" — and 12:42's
+    // approval of bible-pages-expressive-v7) retired the v250 filled
+    // seed card on the reading surfaces: the note is bare text under
+    // a small attribution head, and the typed kinds wear the nbox.
+    // The derivation itself (noteFill/noteInk above) stands — the
+    // Stories cover field wears noteFill now.
     const src = read('components/bible-v205/blocks.tsx');
-    expect(src).toContain('palette.noteFill');
-    expect(src).toContain('palette.noteTagBg');
-    expect(src).toContain('>NOTE<');
+    expect(src).not.toContain('palette.noteFill');
+    expect(src).not.toContain('>NOTE<');
+    expect(src).toContain('styles.flowWrap');
+    expect(src).toContain('styles.nbox');
   });
 
   it('the palette resolves the Material family from colors.primary', () => {

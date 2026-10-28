@@ -1,20 +1,20 @@
 // ─── v205 Book view ──────────────────────────────────────────────────────────
 // One book: the chapter grid in the states HE set in the app, an honest
-// sumline, and a detail strip for the selected chapter — Read, Read as
-// Stories, the quick queue move, and (v206) the FULL status editor:
-// all six states as chips, so any chapter can be set — or set back to
-// None — right here. v205 offered no way down from the grid ("I can't
-// seem to undo them"); v206's editor is the fix. The v205 tracked-
-// subset note is gone with the seed it described. v234: the detail
-// strip's controls sit under two headers — YOUR STUDY (read, stories,
-// the read mark, the re-read queue) and YOUR COMMENTARY (the
-// notes-written pipeline) — his "separate what is commentary buttons
-// and what is personal study buttons." v243: the screen's content
-// moved into BibleBookContent under the boundary (see the shell at
-// the foot of this file) so its computes render protected.
+// countline, and a chapter SHEET for the tapped chapter — Read, Read
+// as Stories, the read-mark switch, and the full status editor.
+// v311 "The Bible, to the Drawing" (approved Oct 28, 12:42): the grid
+// encodes TWO channels — the cell's fill carries the WRITING status,
+// a bookmark carries the READ mark (v228's dot is retired); the old
+// inline detail strip becomes a bottom sheet with two groups,
+// READING and MY WRITING (the drawing's names for the v234 two
+// families), ReStudy standing ONCE (its chip), Not Started and None
+// merged into one unset state with one Clear path, and no explanatory
+// captions anywhere in the sheet (his standing rule). The v233
+// display model still decides what shows — the bookmark IS its
+// displayRead, the sheet's headline pill IS its headline.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -39,28 +39,29 @@ import {
   type StudioImportsMap,
 } from '@/lib/bible-v205/studio-import';
 import { markChapterRead, transitionChapterStatus, unmarkChapterRead } from '@/lib/bible-v205/rewards';
-import { Ornament, ReadChip, StatusChip, STATUS_LABEL } from '@/components/bible-v205/blocks';
+import { loadHandwritten, type HandwrittenEntry } from '@/lib/bible-v205/handwritten';
+import { STATUS_LABEL } from '@/components/bible-v205/blocks';
 import { BookCompleteCelebration } from '@/components/bible-v205/celebration';
-import { chapterLabel, useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
+import {
+  cellDressFor,
+  chapterLabel,
+  sheetChipDress,
+  useBiblePalette,
+} from '@/components/bible-v205/palette';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 
-/** v206: the detail strip's full status editor — every state a chapter
- * can wear, in pipeline order, None last (the way back down). */
-const STATUS_EDITOR_ORDER: StudyStatus[] = ['write', 'in-progress', 'complete', 'restudy', 'not-started', 'none'];
-
-/** Chip colors mirror the StatusChip in components/bible-v205/blocks. */
-function editorChipColors(palette: BiblePalette, s: StudyStatus) {
-  return s === 'complete'
-    ? { backgroundColor: palette.rasp, borderColor: palette.rasp, color: '#FFFFFF' }
-    : s === 'in-progress'
-      ? { backgroundColor: palette.yellowBg, borderColor: palette.yellowBorder, color: palette.yellowInk }
-      : s === 'write'
-        ? { backgroundColor: palette.paper, borderColor: palette.rasp, color: palette.raspDeep }
-        : s === 'restudy'
-          ? { backgroundColor: palette.band, borderColor: palette.bandBorder, color: palette.bandInk }
-          : { backgroundColor: palette.greyBg, borderColor: palette.greyBorder, color: palette.greyLabel };
-}
+/** v311: the sheet's writing-pipeline chips, in the drawing's order
+ * and words. Not Started and None are NOT chips — they are the one
+ * unset state, left through the sheet's single Clear state action. */
+const SHEET_STATUS_ORDER = ['in-progress', 'write', 'complete', 'restudy'] as const;
+type SheetStatus = (typeof SHEET_STATUS_ORDER)[number];
+const SHEET_STATUS_LABEL: Record<SheetStatus, string> = {
+  'in-progress': 'Writing now',
+  write: 'Write next',
+  complete: 'Complete',
+  restudy: 'Restudy',
+};
 
 /** v265: pane mode (the shell's Study tab) hands this screen its
  * book, the pane's focus flag, and navigation callbacks; route
@@ -88,12 +89,16 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
   const [studyState, setStudyState] = useState<StudyState | null>(null);
   const [studioImports, setStudioImports] = useState<StudioImportsMap>({});
   const [selected, setSelected] = useState(1);
+  // v311: the chapter sheet (a bottom-sheet Modal) opens on a cell tap.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [handwritten, setHandwritten] = useState<HandwrittenEntry[]>([]);
   const [celebration, setCelebration] = useState<{ book: string; bibleComplete: boolean } | null>(null);
 
   const reloadFocusData = useCallback(() => {
     let live = true;
     loadStudyState().then((s) => live && setStudyState(s));
     loadStudioImports().then((m) => live && setStudioImports(m));
+    loadHandwritten().then((h) => live && setHandwritten(h));
     return () => {
       live = false;
     };
@@ -157,6 +162,10 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
   const selStatus = statusOf(selected);
   const selReadDate = readDateOf(selected);
   const selDisplay = displayOf(selected);
+  // v311: the sheet's On-paper chip — real data (the handwritten
+  // archive's chapter ranges), shown only when this chapter is
+  // covered. It is a fact, not a state: nothing sets it here.
+  const selOnPaper = handwritten.some((e) => e.book === book && selected >= e.from && selected <= e.to);
   const applyRead = async () => {
     if (!studyState) return;
     const result = await markChapterRead(studyState, book, selected, undefined, studioImports);
@@ -201,17 +210,6 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
     }
   };
 
-  const cellStyle = (s: StudyStatus) =>
-    s === 'complete'
-      ? { backgroundColor: palette.rasp, borderColor: palette.rasp, color: '#FFFFFF' }
-      : s === 'in-progress'
-        ? { backgroundColor: palette.yellowBg, borderColor: palette.yellowBorder, color: palette.yellowInk }
-        : s === 'write'
-          ? { backgroundColor: palette.paper, borderColor: palette.rasp, color: palette.raspDeep }
-          : s === 'restudy'
-            ? { backgroundColor: palette.band, borderColor: palette.bandBorder, color: palette.bandInk }
-            : { backgroundColor: palette.greyBg, borderColor: palette.greyBorder, color: palette.greyLabel };
-
   const content = (
     <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
       <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: inPane ? 8 : insets.top + 8 }]}>
@@ -231,52 +229,62 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
         <View style={styles.vhead}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
           <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{book}</Text>
-          <Ornament palette={palette} />
         </View>
 
-        <View style={styles.sumline}>
-          {(['complete', 'in-progress', 'write', 'restudy', 'not-started', 'none'] as StudyStatus[])
-            .filter((s) => (counts.get(s) ?? 0) > 0)
-            .map((s) => (
-              <View key={s} style={[styles.sumChip, { backgroundColor: palette.band }]}>
-                <StatusChip status={s} palette={palette} />
-                <Text style={[styles.sumN, { color: palette.ink }]}>{counts.get(s)}</Text>
-              </View>
-            ))}
-          <View style={[styles.sumChip, { backgroundColor: palette.band }]}>
-            <Text style={[styles.sumN, { color: palette.ink }]}>
-              {total} {total === 1 ? 'chapter' : 'chapters'}
-            </Text>
-          </View>
-          {readCount > 0 ? (
-            <View style={[styles.sumChip, { backgroundColor: palette.band }]}>
-              <View style={[styles.readDot, { backgroundColor: palette.rasp }]} />
-              <Text style={[styles.sumN, { color: palette.ink }]}>{readCount} read</Text>
-            </View>
+        {/* v311: the drawing's countline — one centered line of
+            counts replaces the chip pile. Written = Complete,
+            in hand = In progress, read rides the read channel. */}
+        <Text style={[styles.countText, { color: palette.inkSoft }]}>
+          {(counts.get('complete') ?? 0) > 0 ? (
+            <>
+              <Text style={[styles.countStrong, { color: palette.ink }]}>{counts.get('complete')} written</Text>
+              {'  ·  '}
+            </>
           ) : null}
-        </View>
+          {(counts.get('in-progress') ?? 0) > 0 ? (
+            <>
+              <Text style={[styles.countStrong, { color: palette.ink }]}>{counts.get('in-progress')} in hand</Text>
+              {'  ·  '}
+            </>
+          ) : null}
+          {readCount > 0 ? (
+            <>
+              <Text style={[styles.countStrong, { color: palette.raspDeep }]}>{readCount} read</Text>
+              {'  ·  '}
+            </>
+          ) : null}
+          {total} {total === 1 ? 'chapter' : 'chapters'}
+        </Text>
         <View style={styles.grid}>
           {Array.from({ length: total }, (_, i) => i + 1).map((c) => {
-            const s = statusOf(c);
             const d = displayOf(c);
-            // v233: a noteless chapter's cell follows its READ state;
-            // a noted chapter's cell wears its notes state, as before.
-            const st = cellStyle(!d.noted && d.displayRead ? 'complete' : s);
+            // v311 two channels: the FILL is the writing status
+            // (chapterDisplayMarks.status — the stored state, always);
+            // the BOOKMARK is the read mark (displayRead, the v233
+            // presentation — a noteless Complete reads as read).
+            const st = cellDressFor(palette, d.status);
             const isSel = c === selected;
             return (
               <Pressable
                 key={c}
                 style={[
                   styles.cell,
-                  palette.frameDress,
-                  { backgroundColor: st.backgroundColor, borderColor: st.borderColor },
+                  { backgroundColor: st.backgroundColor, borderColor: st.borderColor ?? st.backgroundColor },
                   isSel ? { borderColor: palette.ink, borderWidth: 2 } : null,
                 ]}
-                onPress={() => setSelected(c)}
+                onPress={() => {
+                  setSelected(c);
+                  setSheetOpen(true);
+                }}
               >
                 <Text style={[styles.cellN, { color: st.color }]}>{c}</Text>
                 {d.displayRead ? (
-                  <View style={[styles.cellReadDot, { backgroundColor: palette.rasp }]} />
+                  <MaterialIcons
+                    name="bookmark"
+                    size={17}
+                    color={d.status === 'complete' ? palette.readPill : palette.raspDeep}
+                    style={styles.cellBookmark}
+                  />
                 ) : null}
               </Pressable>
             );
@@ -297,167 +305,122 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
           </View>
         ) : null}
 
-        <View style={[styles.detail, { backgroundColor: palette.paper2 }, palette.cardDress]}>
-          <View style={styles.detailHead}>
-            <Text style={[styles.detailTitle, { color: palette.ink }]}>{chapterLabel(selected)}</Text>
-            {selDisplay.headline === 'read' ? (
-              <ReadChip palette={palette} />
-            ) : (
-              <StatusChip status={selStatus} palette={palette} />
-            )}
-          </View>
-          <Text style={[styles.detailSub, { color: palette.inkSoft }]}>
-            {!selDisplay.noted
-              ? selDisplay.displayRead
-                ? 'Read — this chapter has no notes, so reading is the whole mark here.'
-                : 'No notes for this chapter — Mark as Read is the mark for it.'
-              : selStatus === 'complete'
-                ? 'Notes finished — read it, walk it as Stories, or queue it for another pass.'
-                : selStatus === 'restudy'
-                  ? 'In your Current list — due another read.'
-                  : selStatus === 'write'
-                    ? 'In your Next list — waiting to be written.'
-                    : selStatus === 'in-progress'
-                      ? 'Notes under way.'
-                      : 'No recorded state — it reads as a plain chapter.'}
-          </Text>
-          {/* v234 — Two Families (his ruling): the panel's controls
-              split under two headers. YOUR STUDY holds the reading
-              life of the chapter — open it, walk it as Stories, mark
-              it read, queue a re-read. YOUR COMMENTARY holds the
-              notes-written pipeline and nothing else. The v233
-              display model still decides what shows (showNotesEditor,
-              headline); this only moves each control under its own
-              family's header — no semantics moved. */}
-          <Text style={[styles.groupLabel, { color: palette.inkSoft }]}>Your Study</Text>
-          <View style={styles.detailBtns}>
-            <Pressable style={[styles.btn, styles.btnPrimary, { backgroundColor: palette.rasp }, palette.btnDress]} onPress={() => openChapter(false)}>
-              <Text style={styles.btnPrimaryText}>Read Chapter</Text>
-            </Pressable>
-            <Pressable style={[styles.btn, { backgroundColor: palette.band }, palette.btnDress]} onPress={() => openChapter(true)}>
-              <Text style={[styles.btnText, { color: palette.raspDeep }]}>Read as Stories</Text>
-            </Pressable>
-            {selStatus === 'complete' ? (
-              <Pressable style={[styles.btn, { backgroundColor: palette.band }, palette.btnDress]} onPress={() => applyStatus('restudy')}>
-                <Text style={[styles.btnText, { color: palette.raspDeep }]}>Add to ReStudy Queue</Text>
-              </Pressable>
-            ) : null}
-          </View>
-          {/* v228: the READ mark — set and cleared here (in Your
-              Study) and in the reader, nowhere else. */}
-          <View style={styles.readRow}>
-            {selReadDate ? (
-              <>
-                <Text style={[styles.readLine, { color: palette.ink }]}>✓ Read · {formatReadDate(selReadDate)}</Text>
-                <Pressable onPress={clearRead} hitSlop={8} accessibilityLabel={`Clear the read mark for ${book} ${selected}`}>
-                  <Text style={[styles.readAction, { color: palette.inkFaint, textDecorationLine: 'underline' }]}>Clear</Text>
-                </Pressable>
-              </>
-            ) : (
-              <Pressable onPress={applyRead} hitSlop={8} accessibilityLabel={`Mark ${book} ${selected} as read`}>
-                <Text style={[styles.readAction, { color: palette.raspDeep }]}>Mark as Read</Text>
-              </Pressable>
-            )}
-          </View>
-          {selDisplay.showNotesEditor || selStatus !== 'none' ? (
-            <>
-              <Text style={[styles.groupLabel, { color: palette.inkSoft }]}>Your Commentary</Text>
-              {selDisplay.showNotesEditor ? (
-                <>
-                  {selStatus !== 'complete' ? (
-                    // The old mixed row's quick move, now at home in
-                    // its own family: it sets a notes state, so it
-                    // stands with the commentary controls. (Complete's
-                    // quick move — Add to ReStudy Queue — is a study
-                    // action and lives under Your Study above.)
-                    <View style={styles.detailBtns}>
-                      {selStatus === 'restudy' || selStatus === 'in-progress' ? (
-                        <Pressable style={[styles.btn, { backgroundColor: palette.band }, palette.btnDress]} onPress={() => applyStatus('complete')}>
-                          <Text style={[styles.btnText, { color: palette.raspDeep }]}>Mark Complete</Text>
-                        </Pressable>
-                      ) : selStatus === 'write' ? (
-                        <Pressable style={[styles.btn, { backgroundColor: palette.band }, palette.btnDress]} onPress={() => applyStatus('in-progress')}>
-                          <Text style={[styles.btnText, { color: palette.raspDeep }]}>Start Writing</Text>
-                        </Pressable>
-                      ) : (
-                        <Pressable style={[styles.btn, { backgroundColor: palette.band }, palette.btnDress]} onPress={() => applyStatus('write')}>
-                          <Text style={[styles.btnText, { color: palette.raspDeep }]}>Add to Write Queue</Text>
-                        </Pressable>
-                      )}
-                    </View>
-                  ) : null}
-                  <Text style={[styles.editorLabel, { color: palette.inkSoft }]}>Notes state — the notes-written mark; any state, including back to none</Text>
-                  <View style={styles.editorRow}>
-                    {STATUS_EDITOR_ORDER.map((s) => {
-                      const cs = editorChipColors(palette, s);
-                      const isCurrent = s === selStatus;
-                      return (
-                        <Pressable
-                          key={s}
-                          onPress={() => applyStatus(s)}
-                          style={[
-                            styles.editorChip,
-                            { backgroundColor: cs.backgroundColor, borderColor: isCurrent ? palette.ink : cs.borderColor },
-                            isCurrent ? styles.editorChipCurrent : null,
-                          ]}
-                        >
-                          <Text style={[styles.editorChipText, { color: cs.color }]}>
-                            {isCurrent ? '● ' : ''}{STATUS_LABEL[s]}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
-                    Notes: {STATUS_LABEL[selStatus]} — it changes only when you change it.
-                  </Text>
-                </>
-              ) : (
-                // v233: noteless chapter — a stored notes state is never
-                // hidden from him: it stays on file inside the commentary
-                // group and counts again the day notes exist for this
-                // chapter. v278: the state on file is CHANGEABLE here
-                // too — before this, the hint was a dead end: a stored
-                // ReStudy on a noteless chapter (his Leviticus 1) could
-                // not be removed anywhere in the app, because the only
-                // editor in the app was gated on notes existing. The
-                // same editor row stands under the hint, walking the
-                // same applyStatus door as the noted branch.
-                <>
-                  <Text style={[styles.detailHint, { color: palette.inkFaint }]}>
-                    Notes state on file: {STATUS_LABEL[selStatus]} — it counts again if notes arrive for this chapter.
-                  </Text>
-                  <Text style={[styles.editorLabel, { color: palette.inkSoft }]}>Notes state — the notes-written mark; any state, including back to none</Text>
-                  <View style={styles.editorRow}>
-                    {STATUS_EDITOR_ORDER.map((s) => {
-                      const cs = editorChipColors(palette, s);
-                      const isCurrent = s === selStatus;
-                      return (
-                        <Pressable
-                          key={s}
-                          onPress={() => applyStatus(s)}
-                          style={[
-                            styles.editorChip,
-                            { backgroundColor: cs.backgroundColor, borderColor: isCurrent ? palette.ink : cs.borderColor },
-                            isCurrent ? styles.editorChipCurrent : null,
-                          ]}
-                        >
-                          <Text style={[styles.editorChipText, { color: cs.color }]}>
-                            {isCurrent ? '● ' : ''}{STATUS_LABEL[s]}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </>
-              )}
-            </>
-          ) : null}
-        </View>
         {/* v265: in the pane, the pane container carries the tab
             bar's clearance once — only the breathing room stays. */}
         <View style={{ height: inPane ? 27 : tabBarHeight + 27 }} />
       </ScrollView>
+
+      {/* ── v311: the chapter sheet — a standard bottom sheet over
+          the dimmed grid. Two groups: READING (the read-mark switch
+          and the two doors) and MY WRITING (the pipeline chips,
+          ReStudy standing once, Not Started/None merged into the
+          single Clear state). No explanatory captions. ── */}
+      <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
+        <Pressable style={styles.sheetScrim} onPress={() => setSheetOpen(false)}>
+          <Pressable
+            style={[styles.sheet, { backgroundColor: palette.paper2 }, palette.sheetDress]}
+            onPress={() => {}}
+          >
+            <View style={[styles.sheetHandle, { backgroundColor: palette.line }]} />
+            <View style={styles.sheetHead}>
+              <Text style={[styles.sheetTitle, { color: palette.ink }]}>{chapterLabel(selected)}</Text>
+              {selDisplay.headline === 'read' ? (
+                <View style={[styles.sheetPill, { backgroundColor: palette.raspDeep }]}>
+                  <Text style={styles.sheetPillText}>Read</Text>
+                </View>
+              ) : selStatus !== 'none' && selStatus !== 'not-started' ? (
+                <View
+                  style={[
+                    styles.sheetPill,
+                    {
+                      backgroundColor: cellDressFor(palette, selStatus).backgroundColor,
+                      borderColor: cellDressFor(palette, selStatus).borderColor ?? 'transparent',
+                      borderWidth: cellDressFor(palette, selStatus).borderColor ? 1 : 0,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.sheetPillText, { color: cellDressFor(palette, selStatus).color }]}>
+                    {STATUS_LABEL[selStatus]}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            <Text style={[styles.groupLabel, { color: palette.inkSoft, marginTop: 20 }]}>Reading</Text>
+            <View style={[styles.readCard, { backgroundColor: palette.band }]}>
+              <View style={[styles.readIconChip, { backgroundColor: palette.primCont }]}>
+                <MaterialIcons name="bookmark" size={19} color={palette.raspDeep} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.readCardTitle, { color: palette.ink }]}>Read</Text>
+                <Text style={[styles.readCardSub, { color: palette.inkSoft }]}>
+                  {selReadDate ? formatReadDate(selReadDate) : 'Not read yet'}
+                </Text>
+              </View>
+              <Switch
+                value={!!selReadDate}
+                onValueChange={(v) => (v ? applyRead() : clearRead())}
+                trackColor={{ false: palette.line, true: palette.rasp }}
+                thumbColor={palette.paper2}
+                accessibilityLabel={`Mark ${book} ${selected} as read`}
+              />
+            </View>
+            <View style={styles.sheetBtns}>
+              <Pressable
+                style={[styles.btn, styles.sheetBtn, { backgroundColor: palette.rasp }, palette.btnDress]}
+                onPress={() => {
+                  setSheetOpen(false);
+                  openChapter(false);
+                }}
+              >
+                <Text style={styles.btnPrimaryText}>Read Chapter</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.btn, styles.sheetBtn, { backgroundColor: palette.band }, palette.btnDress]}
+                onPress={() => {
+                  setSheetOpen(false);
+                  openChapter(true);
+                }}
+              >
+                <Text style={[styles.btnText, { color: palette.raspDeep }]}>Read as Stories</Text>
+              </Pressable>
+            </View>
+
+            <Text style={[styles.groupLabel, { color: palette.inkSoft }]}>My Writing</Text>
+            <View style={styles.chipRow}>
+              {SHEET_STATUS_ORDER.map((s) => {
+                const isCurrent = s === selStatus;
+                const cd = sheetChipDress(palette, s, isCurrent);
+                return (
+                  <Pressable
+                    key={s}
+                    onPress={() => applyStatus(s)}
+                    style={[
+                      styles.stateChip,
+                      { backgroundColor: cd.backgroundColor, borderColor: cd.borderColor },
+                    ]}
+                  >
+                    <Text style={[styles.stateChipText, { color: cd.color }]}>
+                      {isCurrent && s === 'complete' ? '✓ ' : ''}
+                      {SHEET_STATUS_LABEL[s]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              {selOnPaper ? (
+                <View style={[styles.stateChip, { backgroundColor: palette.paperBg, borderColor: palette.paperBg }]}>
+                  <Text style={[styles.stateChipText, { color: palette.paperInk }]}>✎ On paper</Text>
+                </View>
+              ) : null}
+            </View>
+            {selStatus !== 'none' && selStatus !== 'not-started' ? (
+              <Pressable style={styles.clearRow} onPress={() => applyStatus('none')} hitSlop={8}>
+                <Text style={[styles.clearText, { color: palette.raspDeep }]}>Clear state</Text>
+              </Pressable>
+            ) : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* v259: same app, same bar — Study is the active slot.
           v265: no per-screen bar in the pane (the shell's stands);
@@ -502,33 +465,35 @@ const styles = StyleSheet.create({
   vhead: { alignItems: 'center', paddingTop: 26 },
   kicker: { fontSize: 10.5, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '800', textAlign: 'center' },
   h2: { fontSize: 32, fontWeight: '800', letterSpacing: -0.8, marginTop: 8, textAlign: 'center' },
-  sumline: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, justifyContent: 'center', marginTop: 18 },
-  sumChip: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
-  sumN: { fontSize: 12.5, fontWeight: '800' },
+  countText: { fontSize: 13.5, textAlign: 'center', marginTop: 16 },
+  countStrong: { fontWeight: '800' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 20 },
-  cell: { width: '17.9%', aspectRatio: 1.15, borderWidth: 1.5, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  cellN: { fontSize: 16, fontWeight: '800' },
-  cellReadDot: { position: 'absolute', bottom: 4, width: 5, height: 5, borderRadius: 3 },
-  readDot: { width: 7, height: 7, borderRadius: 4 },
-  readRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14 },
-  readLine: { fontSize: 13.5, fontWeight: '800' },
-  readAction: { fontSize: 13.5, fontWeight: '800' },
-  detail: { borderRadius: 28, padding: 18, marginTop: 20 },
-  detailHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  detailTitle: { fontSize: 19, fontWeight: '800' },
-  detailSub: { fontSize: 13.5, lineHeight: 20, marginTop: 8 },
-  detailBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 13 },
+  // v311: the drawing's cell measure — radius 12, aspect 1.05,
+  // the number at 17/700; the bookmark rides the top-right corner.
+  cell: { width: '17.9%', aspectRatio: 1.05, borderWidth: 1.5, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  cellN: { fontSize: 17, fontWeight: '700' },
+  cellBookmark: { position: 'absolute', top: -2, right: 5 },
   btn: { borderRadius: 999, paddingVertical: 9, paddingHorizontal: 15 },
-  btnPrimary: { borderWidth: 0 },
   btnPrimaryText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 },
   btnText: { fontWeight: '700', fontSize: 13.5 },
-  detailHint: { fontSize: 11.5, marginTop: 12 },
-  // v234: the two family headers — the editor label's own voice
-  // (small caps, letterspaced), one size up so a group reads as a group.
+  // v311: the chapter sheet's furniture.
+  sheetScrim: { flex: 1, backgroundColor: 'rgba(15,8,25,0.45)', justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 30 },
+  sheetHandle: { width: 32, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 14 },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  sheetTitle: { fontSize: 24, fontWeight: '800' },
+  sheetPill: { borderRadius: 999, paddingVertical: 5, paddingHorizontal: 12 },
+  sheetPillText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  readCard: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 16, paddingVertical: 13, paddingHorizontal: 15, marginTop: 10 },
+  readIconChip: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  readCardTitle: { fontSize: 16, fontWeight: '700' },
+  readCardSub: { fontSize: 12.5, marginTop: 1 },
+  sheetBtns: { flexDirection: 'row', gap: 9, marginTop: 12 },
+  sheetBtn: { flex: 1, alignItems: 'center', paddingVertical: 13 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  stateChip: { height: 36, borderRadius: 8, borderWidth: 1.5, paddingHorizontal: 15, alignItems: 'center', justifyContent: 'center' },
+  stateChipText: { fontSize: 13, fontWeight: '600' },
+  clearRow: { alignSelf: 'flex-end', marginTop: 14, paddingVertical: 4 },
+  clearText: { fontSize: 13.5, fontWeight: '600' },
   groupLabel: { fontSize: 11.5, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 18 },
-  editorLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 10 },
-  editorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 9 },
-  editorChip: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 11 },
-  editorChipCurrent: { borderWidth: 2.5 },
-  editorChipText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase' },
 });

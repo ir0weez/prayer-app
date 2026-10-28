@@ -355,11 +355,17 @@ describe('v206 — the Notion seed is cleared; only app progress counts', () => 
 
   it('(c) the book grid detail strip offers all six statuses, none included', () => {
     const src = readFileSync(join(process.cwd(), 'app', 'bible-book.tsx'), 'utf8');
-    expect(src).toContain('STATUS_EDITOR_ORDER');
+    // v311 re-base (with citation): the detail strip is now the
+    // chapter SHEET (approved drawing, Oct 28 12:42) — its chip row
+    // is SHEET_STATUS_ORDER (the four pipeline states), and None is
+    // reached through the sheet's Clear state (applyStatus('none')),
+    // Not Started merged into that same unset state by his ruling.
+    expect(src).toContain('SHEET_STATUS_ORDER');
     for (const s of ['write', 'in-progress', 'complete', 'restudy', 'not-started', 'none']) {
       expect(src).toContain(`'${s}'`);
     }
     expect(src).toContain('applyStatus(s)');
+    expect(src).toContain("applyStatus('none')");
     // The v205 "database tracks" note died with the seed it described.
     expect(src).not.toContain('database tracks');
     expect(src).not.toContain('STUDY_SEED');

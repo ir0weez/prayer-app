@@ -21,6 +21,17 @@
 // noteless chapter with NO stored state opens no group and no
 // editor appears from nothing; a stored state was never hidden —
 // now it is never a dead end either.
+//
+// v311 re-base (with citation): the panel is now the chapter SHEET
+// (approved drawing, 2026-10-28 12:42), and the guarantee this file
+// exists for is carried further, not weakened: the sheet's My
+// Writing chip row (SHEET_STATUS_ORDER on the same applyStatus →
+// transitionChapterStatus door) renders for EVERY chapter — no
+// showNotesEditor gate, no stored-state gate — and the merged
+// unset state leaves through the one Clear state action
+// (applyStatus('none')). A stored ReStudy on a noteless chapter is
+// changeable in the sheet exactly as it was in the panel; the
+// on-file hint and its dead end are gone with the captions.
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -69,41 +80,33 @@ describe('the gap, exactly as the display model computes it', () => {
   });
 });
 
-describe('the book panel — the editor stands under the on-file hint', () => {
+describe('the chapter sheet — the editor stands for every chapter (v311)', () => {
   const src = read('app/bible-book.tsx');
-  const onFileAt = src.indexOf('Notes state on file');
 
-  it('(a) the not-editor branch renders the same editor row, below the on-file line, on the same door', () => {
-    expect(onFileAt).toBeGreaterThanOrEqual(0);
-    // Two renders of the one editor row: the noted branch's (above
-    // the on-file line) and the noteless branch's (below it).
-    const renders = src.split('STATUS_EDITOR_ORDER.map').length - 1;
-    expect(renders).toBe(2);
-    expect(src.lastIndexOf('STATUS_EDITOR_ORDER.map')).toBeGreaterThan(onFileAt);
-    // The second row is no lookalike: it walks the same applyStatus
-    // door (its chip wiring stands in the same branch, after the
-    // on-file line)…
-    expect(src.indexOf('onPress={() => applyStatus(s)}', onFileAt)).toBeGreaterThan(onFileAt);
-    // …inside the same ternary — the noted branch still opens it.
-    expect(src).toContain('{selDisplay.showNotesEditor ? (');
+  it('(a) the sheet renders its one chip row unconditionally, on the same door', () => {
+    // One render of the chip row — no noted/noteless branches.
+    const renders = src.split('SHEET_STATUS_ORDER.map').length - 1;
+    expect(renders).toBe(1);
+    // The row walks the same applyStatus door…
+    expect(src).toContain('onPress={() => applyStatus(s)}');
+    // …and no gate from the old panel survives around it: neither
+    // the display model's editor gate nor a stored-state condition.
+    expect(src).not.toContain("selDisplay.showNotesEditor || selStatus !== 'none'");
+    expect(src).not.toContain('Notes state on file');
   });
 
-  it('(c) no editor from nothing: the commentary group still opens only on the editor or a stored state', () => {
-    expect(src).toContain("selDisplay.showNotesEditor || selStatus !== 'none'");
-    // Model side of the same gate: a stateless noteless chapter is
-    // 'none' with the editor gate shut, so the group never opens
-    // and neither editor render can appear for it.
+  it('(c) the way back down is one clear path, offered whenever a state stands', () => {
+    expect(src).toContain("applyStatus('none')");
+    expect(src).toContain('Clear state');
+    // Offered exactly when a state is set (none/not-started = the
+    // one unset state, by his merge ruling).
+    expect(src).toContain("selStatus !== 'none' && selStatus !== 'not-started'");
+    // Model side unchanged: a stateless noteless chapter is 'none'
+    // with the editor gate shut — the model still says so; the
+    // sheet simply no longer needs the gate to protect him.
     const d = chapterDisplayMarks(seedStudyState(), 'Leviticus', 1, false);
     expect(d.status).toBe('none');
     expect(d.showNotesEditor).toBe(false);
-  });
-
-  it('(d) the noted branch is unchanged: quick moves, editor row, and its own hint', () => {
-    const branchAt = src.indexOf('{selDisplay.showNotesEditor ? (');
-    for (const needle of ['>Mark Complete</Text>', '>Start Writing</Text>', '>Add to Write Queue</Text>', 'Notes: {STATUS_LABEL[selStatus]}']) {
-      expect(src.indexOf(needle, branchAt), needle).toBeGreaterThan(branchAt);
-    }
-    expect(chapterDisplayMarks(seedStudyState(), 'Leviticus', 1, true).showNotesEditor).toBe(true);
   });
 });
 

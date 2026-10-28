@@ -28,7 +28,7 @@ import {
 } from '@/lib/bible-v205/bubbles';
 import type { Person } from '@/lib/prayercircle-data';
 import type { Devotional } from '@/lib/devotionals';
-import { BlockView, CategoryTag, Ornament, SectionBand, SelfLineBlock } from './blocks';
+import { BlockView, CategoryTag, SectionBand, SelfLineBlock } from './blocks';
 import { AuthorFace, BubbleChatRow, spanLabelFor } from './bubbles';
 import { entrySourceCategory } from '@/lib/bible-v205/categories';
 import { chapterLabel, rangeLabel, sectionToneFor, tintWashFor, verseTintFor, type BiblePalette } from './palette';
@@ -128,44 +128,55 @@ export function StoriesView(props: StoriesViewProps) {
 
   const renderScreen = () => {
     if (screen.t === 'cover') {
+      // v311: the drawing's Stories cover — a solid deep-seed field
+      // (noteFill, the derived deep step), white words, the sections
+      // in a translucent card, then the two doors: Start (the light
+      // tonal pill) and Listen (the white pill with its duration
+      // chip — the v293 door, behavior untouched).
       return (
         <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: 24 }}>
-          <View style={{ alignItems: 'center', paddingTop: 8 }}>
-            <Text style={[styles.kicker, { color: palette.rasp }]}>Personal Study · Stories</Text>
-            <Text style={[styles.coverH, { color: palette.ink }]}>Stories</Text>
-            <Text style={[styles.coverBook, { color: palette.inkSoft }]}>{book} · {chapterLabel(chapter)}</Text>
-            <Ornament palette={palette} />
+          <View style={{ alignItems: 'flex-start', paddingTop: 8 }}>
+            <Text style={[styles.kicker, { color: 'rgba(255,255,255,0.75)' }]}>Read as Stories</Text>
+            <Text style={[styles.coverH, { color: '#FFFFFF' }]}>
+              {book} {chapter}
+            </Text>
           </View>
-          <Text style={[styles.doorNote, { color: palette.inkSoft }]}>
+          <Text style={[styles.doorNote, { color: 'rgba(255,255,255,0.78)', textAlign: 'left', paddingHorizontal: 0 }]}>
             A verse, then your notes on it, then the next verse —{' '}
-            <Text style={{ fontWeight: '700', color: palette.ink }}>{screens.length} screens</Text>, at your pace. Tap
+            <Text style={{ fontWeight: '700', color: '#FFFFFF' }}>{screens.length} screens</Text>, at your pace. Tap
             right to keep going, left to go back.
           </Text>
-          <Pressable style={[styles.beginBtn, { backgroundColor: palette.rasp }, palette.btnDress]} onPress={() => go(1)}>
-            <Text style={styles.beginBtnText}>Begin reading</Text>
+          <View style={styles.coverCard}>
+            <Text style={styles.coverCardLabel}>What&rsquo;s inside</Text>
+            {sections.map((s, i) => (
+              <View key={s.start} style={styles.coverSecRow}>
+                <Text style={[styles.coverSecNum, { color: 'rgba(255,255,255,0.55)' }]}>{i + 1}</Text>
+                <Text style={[styles.coverSecTitle, { color: '#FFFFFF' }]}>{s.title ?? rangeLabel(s.start, s.end)}</Text>
+                <View style={[styles.leader, { borderBottomColor: 'rgba(255,255,255,0.25)' }]} />
+                <Text style={[styles.coverSecRange, { color: 'rgba(255,255,255,0.55)' }]}>{rangeLabel(s.start, s.end)}</Text>
+              </View>
+            ))}
+          </View>
+          <Pressable style={[styles.beginBtn, { backgroundColor: palette.raspTint }, palette.btnDress]} onPress={() => go(1)}>
+            <Text style={[styles.beginBtnText, { color: palette.raspDeep }]}>Start the Stories</Text>
           </Pressable>
           {/* v293: the second devotional door — at the very beginning
               of the slides, only for chapters that have a devotional. */}
           {props.devotional && props.onListenDevotional ? (
             <Pressable
-              style={[styles.devotionalBtn, { backgroundColor: palette.raspTint }]}
+              style={[styles.devotionalBtn, { backgroundColor: '#FFFFFF' }]}
               onPress={props.onListenDevotional}
               accessibilityLabel={`Devotional — ${props.devotional.title}`}
             >
               <MaterialIcons name="play-arrow" size={18} color={palette.raspDeep} />
-              <Text style={[styles.devotionalBtnText, { color: palette.raspDeep }]}>Listen to the devotional</Text>
+              <Text style={[styles.devotionalBtnText, { color: palette.ink }]}>Listen to the devotional</Text>
+              <View style={[styles.devotionalDurChip, { backgroundColor: palette.raspTint }]}>
+                <Text style={[styles.devotionalDurText, { color: palette.raspDeep }]}>
+                  {Math.max(1, Math.round(props.devotional.durationSec / 60))} min
+                </Text>
+              </View>
             </Pressable>
           ) : null}
-          <View style={[styles.coverSecs, { borderTopColor: palette.line }]}>
-            {sections.map((s, i) => (
-              <View key={s.start} style={styles.coverSecRow}>
-                <Text style={[styles.coverSecNum, { color: palette.rasp }]}>{i + 1}</Text>
-                <Text style={[styles.coverSecTitle, { color: palette.ink }]}>{s.title ?? rangeLabel(s.start, s.end)}</Text>
-                <View style={[styles.leader, { borderBottomColor: palette.lineDark }]} />
-                <Text style={[styles.coverSecRange, { color: palette.inkSoft }]}>{rangeLabel(s.start, s.end)}</Text>
-              </View>
-            ))}
-          </View>
         </ScrollView>
       );
     }
@@ -467,33 +478,56 @@ export function StoriesView(props: StoriesViewProps) {
     );
   };
 
+  // v311: on the cover, the whole Stories surface — chrome and
+  // navbar included — sits on the drawing's deep-seed field.
+  const onCover = screen.t === 'cover';
+
   return (
-    <View style={[styles.root, { backgroundColor: palette.paper, paddingBottom: props.bottomInset ?? 0 }, palette.screenDress]}>
-      <View style={[styles.chrome, { borderBottomColor: palette.line, paddingTop: insets.top + 13 }]}>
+    <View
+      style={[
+        styles.root,
+        { backgroundColor: onCover ? palette.noteFill : palette.paper, paddingBottom: props.bottomInset ?? 0 },
+        palette.screenDress,
+      ]}
+    >
+      <View
+        style={[
+          styles.chrome,
+          { borderBottomColor: onCover ? 'rgba(255,255,255,0.18)' : palette.line, paddingTop: insets.top + 13 },
+        ]}
+      >
         <View style={styles.segs}>
           {screens.map((s, i) => (
             <View
               key={i}
               style={[
                 styles.seg,
-                { backgroundColor: i <= idx ? palette.rasp : palette.bandLine },
-                i === idx ? [styles.segNow, { shadowColor: palette.rasp }] : null,
+                {
+                  backgroundColor: onCover
+                    ? i <= idx
+                      ? '#FFFFFF'
+                      : 'rgba(255,255,255,0.30)'
+                    : i <= idx
+                      ? palette.rasp
+                      : palette.bandLine,
+                },
+                i === idx ? [styles.segNow, { shadowColor: onCover ? '#FFFFFF' : palette.rasp }] : null,
               ]}
             />
           ))}
         </View>
         <View style={styles.chromebar}>
-          <Text style={[styles.secLabel, { color: palette.ink }]} numberOfLines={1}>{chromeLabel}</Text>
+          <Text style={[styles.secLabel, { color: onCover ? '#FFFFFF' : palette.ink }]} numberOfLines={1}>{chromeLabel}</Text>
           <View style={styles.chromeActions}>
-            <Text style={[styles.counter, { color: palette.inkSoft }]}>
+            <Text style={[styles.counter, { color: onCover ? 'rgba(255,255,255,0.75)' : palette.inkSoft }]}>
               <Text style={{ color: palette.rose }}>♥</Text> {keptTotal} kept
             </Text>
-            <Text style={[styles.counter, { color: palette.inkSoft }]}>Screen {idx + 1} / {screens.length}</Text>
+            <Text style={[styles.counter, { color: onCover ? 'rgba(255,255,255,0.75)' : palette.inkSoft }]}>Screen {idx + 1} / {screens.length}</Text>
             <Pressable onPress={() => setOverview(true)} hitSlop={8}>
-              <MaterialIcons name="grid-view" size={19} color={palette.ink} />
+              <MaterialIcons name="grid-view" size={19} color={onCover ? '#FFFFFF' : palette.ink} />
             </Pressable>
             <Pressable onPress={props.onExit} hitSlop={8}>
-              <MaterialIcons name="close" size={20} color={palette.ink} />
+              <MaterialIcons name="close" size={20} color={onCover ? '#FFFFFF' : palette.ink} />
             </Pressable>
           </View>
         </View>
@@ -509,21 +543,29 @@ export function StoriesView(props: StoriesViewProps) {
         </View>
       </Pressable>
 
-      <View style={[styles.navbar, { borderTopColor: palette.line, backgroundColor: palette.paper }]}>
+      <View
+        style={[
+          styles.navbar,
+          {
+            borderTopColor: onCover ? 'rgba(255,255,255,0.18)' : palette.line,
+            backgroundColor: onCover ? palette.noteFill : palette.paper,
+          },
+        ]}
+      >
         <Pressable
           style={[styles.navbtn, idx === 0 ? styles.navbtnOff : null]}
           onPress={() => go(idx - 1)}
           disabled={idx === 0}
         >
-          <Text style={[styles.navbtnText, { color: palette.inkSoft }]}>‹ Back</Text>
+          <Text style={[styles.navbtnText, { color: onCover ? 'rgba(255,255,255,0.75)' : palette.inkSoft }]}>‹ Back</Text>
         </Pressable>
-        <Text style={[styles.navhint, { color: palette.inkFaint }]}>Tap right side for next</Text>
+        <Text style={[styles.navhint, { color: onCover ? 'rgba(255,255,255,0.55)' : palette.inkFaint }]}>Tap right side for next</Text>
         <Pressable
           style={[styles.navbtn, idx >= screens.length - 1 ? styles.navbtnOff : null]}
           onPress={() => go(idx + 1)}
           disabled={idx >= screens.length - 1}
         >
-          <Text style={[styles.navbtnText, { color: palette.inkSoft }]}>Next ›</Text>
+          <Text style={[styles.navbtnText, { color: onCover ? 'rgba(255,255,255,0.75)' : palette.inkSoft }]}>Next ›</Text>
         </Pressable>
       </View>
 
@@ -608,14 +650,18 @@ const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: 26, paddingTop: 24, paddingBottom: 18 },
   centerScreen: { justifyContent: 'center' },
   kicker: { fontSize: 10.5, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '800' },
-  coverH: { fontSize: 40, fontWeight: '800', letterSpacing: -1, marginTop: 10, textAlign: 'center' },
-  coverBook: { fontStyle: 'italic', fontSize: 17, marginTop: 8, textAlign: 'center' },
+  coverH: { fontSize: 38, fontWeight: '800', letterSpacing: -0.8, marginTop: 10, textAlign: 'left' },
   doorNote: { paddingHorizontal: 6, textAlign: 'center', fontSize: 13.5, lineHeight: 21.5, marginTop: 16 },
-  beginBtn: { alignSelf: 'center', borderRadius: 999, paddingVertical: 13, paddingHorizontal: 30, marginTop: 22 },
+  // v311: the cover's doors are full-width pills stacked under the card.
+  beginBtn: { alignSelf: 'stretch', alignItems: 'center', borderRadius: 999, paddingVertical: 13, paddingHorizontal: 30, marginTop: 22 },
   beginBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  devotionalBtn: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 20, marginTop: 12 },
+  devotionalBtn: { alignSelf: 'stretch', justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 20, marginTop: 12 },
   devotionalBtnText: { fontSize: 13.5, fontWeight: '700' },
-  coverSecs: { marginTop: 24, borderTopWidth: 1, paddingTop: 6 },
+  devotionalDurChip: { borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8, marginLeft: 4 },
+  devotionalDurText: { fontSize: 11.5, fontWeight: '800' },
+  // v311: the cover's translucent sections card on the deep field.
+  coverCard: { backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 18, marginTop: 22 },
+  coverCardLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 6 },
   coverSecRow: { flexDirection: 'row', alignItems: 'baseline', gap: 9, paddingVertical: 7 },
   coverSecNum: { fontWeight: '800', fontSize: 12.5, width: 22 },
   coverSecTitle: { fontWeight: '600', fontSize: 14.5 },

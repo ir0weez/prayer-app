@@ -287,15 +287,27 @@ describe('v251 WS1 — the chapter header clearance is measured, not guessed', (
   });
 });
 describe('v251 WS2 — the Books row shrinks its texts, never its chip', () => {
-  it('the shrink contract is in the styles', () => {
-    expect(books).toContain("bname: { fontSize: 16, fontWeight: '700', flexShrink: 1 }");
-    expect(books).toContain('flexShrink: 1, minWidth: 0');
+  // v311 re-base (with citation): the shrink arrangement itself is
+  // superseded by the approved drawing (bible-pages-expressive-v7,
+  // his "Also better. Let's do it.", Oct 28 12:42) — the SAME defect
+  // (his "Hebrew…" screenshot, Oct 28 11:12) is now fixed by layout
+  // instead of shrinking: the name takes its own line at 22px with
+  // flex 1 and NO numberOfLines (it wraps whole, never truncates),
+  // the counts sit on their own full-width line unclamped, and the
+  // chip — which never shrank — keeps its flexShrink: 0.
+  it('the no-truncation contract is in the styles', () => {
+    expect(books).toContain("bname: { fontSize: 22, fontWeight: '700', flex: 1 }");
     expect(books).toContain(
       'currentPill: { borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9, flexShrink: 0 }',
     );
     expect(books).toContain('navName: { fontSize: 15, flexShrink: 1 }');
-    // name, stats, and nav name all clamp to one line.
-    expect(books.split('numberOfLines={1}').length - 1).toBeGreaterThanOrEqual(3);
+    // The BookRow's name and counts carry NO one-line clamp (the
+    // Jump-to-Book sheet's nav rows keep theirs — a picker list,
+    // untouched by the drawing).
+    const rowAt = books.indexOf('function BookRow');
+    const row = books.slice(rowAt);
+    expect(row).not.toContain('numberOfLines={');
+    expect(books).not.toContain('flexShrink: 1, minWidth: 0');
   });
 
   it('rendered long-content fixture: longest rows paint whole stats and a whole chip', () => {
@@ -309,14 +321,11 @@ describe('v251 WS2 — the Books row shrinks its texts, never its chip', () => {
     // A Current chip renders (the seed state puts every book in
     // Not Started, so the make-current pill paints on the rows).
     expect(html).toContain('Current');
-    // The shrink contract reaches the rendered styles: the right
-    // container serializes flex-shrink:1 + min-width:0 inline, the
-    // name/stats texts carry RNW's flex-shrink:1 atomic class
-    // (r-flexShrink-1wbh5a2), and the chip carries the flex-shrink:0
-    // atomic class (r-flexShrink-1q142lx) — never the shrink class.
-    expect(html).toContain('flex-shrink:1;min-width:0px');
-    expect(html).toContain('r-flexShrink-1wbh5a2');
+    // v311: the chip still carries the flex-shrink:0 atomic class
+    // (r-flexShrink-1q142lx); the retired shrink container's inline
+    // signature is gone from the render.
     expect(html).toContain('r-flexShrink-1q142lx');
+    expect(html).not.toContain('flex-shrink:1;min-width:0px');
   });
 });
 

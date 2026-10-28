@@ -219,6 +219,16 @@ export interface BibleMaterialFamily {
   /** Mark as Read: the seed's near-black (light) / near-white (dark) pill. */
   readPill: string;
   readPillInk: string;
+  /** v311: the in-progress tonal container — the seed stepped INTO
+   * the page at container weight (the approved drawing's prog-cont).
+   * Grid in-progress cells and the chapter sheet's Writing-now chip
+   * wear it; progInk is its pair, the seed walked to ≥4.5:1 on it. */
+  progBg: string;
+  progInk: string;
+  /** v311: the primary container — one tonal step of the seed into
+   * the page, deeper than band, lighter than the primary. The
+   * chapter sheet's read-row icon chip wears it. */
+  primCont: string;
   xpGold: string;
   xpGoldInk: string;
   /** Soft seed-colored shadows, as CSS strings for the dress fragments. */
@@ -287,6 +297,7 @@ export function deriveBibleMaterial(primary: string, paper: string): BibleMateri
   const noteFill = fillForNoteInks(primary);
   const noteInk = noteInkFor(noteFill);
   const noteTagBg = mix(paper, primary, dark ? 0.3 : 0.2);
+  const progBg = mix(paper, primary, dark ? 0.38 : 0.28);
   return {
     sections: BIBLE_SECTION_HUE_OFFSETS.map((o) => sectionTone(primary, paper, o)),
     accentAmber: sectionTone(primary, paper, BIBLE_ACCENT_AMBER_OFFSET),
@@ -298,6 +309,9 @@ export function deriveBibleMaterial(primary: string, paper: string): BibleMateri
     noteTagInk: bibleAccentInk(primary, noteTagBg),
     readPill: hslToHex({ h, s: Math.min(sat, 0.45), l: dark ? 0.88 : 0.1 }),
     readPillInk: dark ? hslToHex({ h, s: sat, l: 0.12 }) : mix('#FFFFFF', primary, 0.03),
+    progBg,
+    progInk: bibleAccentInk(primary, progBg),
+    primCont: mix(paper, primary, dark ? 0.3 : 0.16),
     xpGold: BIBLE_XP_GOLD,
     xpGoldInk: BIBLE_XP_GOLD_INK,
     shadowCard: `0 4px 14px ${hexToRgba(primary, dark ? 0.45 : 0.13)}`,

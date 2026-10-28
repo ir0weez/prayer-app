@@ -326,10 +326,19 @@ describe('surfaces — the reader carries no notes-state control; the grid shows
   it('book grid: both marks on the surface, the editor framed as notes', () => {
     const src = read('app/bible-book.tsx');
     expect(src).toContain('chapterMarks');
-    expect(src).toContain('cellReadDot');
-    expect(src).toContain('Mark as Read');
-    expect(src).toContain('Notes state — the notes-written mark');
-    expect(src).toContain('Notes: {STATUS_LABEL[selStatus]}');
+    // v311 re-base (with citation): the read channel's mark is the
+    // BOOKMARK now, not the v228 dot (approved drawing, Oct 28
+    // 12:42 — fill carries writing, a bookmark carries read); the
+    // read mark itself is set/cleared by the sheet's Switch through
+    // the same applyRead/clearRead door, and the writing states
+    // live under the sheet's MY WRITING group.
+    expect(src).toContain('name="bookmark"');
+    expect(src).not.toContain('cellReadDot');
+    expect(src).toContain('<Switch');
+    expect(src).toContain('applyRead');
+    expect(src).toContain('clearRead');
+    expect(src).toContain('>My Writing</Text>');
+    expect(src).toContain('SHEET_STATUS_ORDER');
   });
 
   it('the DATA export carries studioStates next to the other studio sections', () => {

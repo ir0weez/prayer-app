@@ -99,6 +99,14 @@ export interface BiblePalette {
   noteTagInk: string;
   readPill: string;
   readPillInk: string;
+  /** v311: the in-progress tonal container pair + primary container. */
+  progBg: string;
+  progInk: string;
+  primCont: string;
+  /** v311: the on-paper meaning family (handwriting tones — a
+   * meaning, not an accent, so constant like the keeper yellow). */
+  paperBg: string;
+  paperInk: string;
   xpGold: string;
   xpGoldInk: string;
   flashTint: string;
@@ -190,6 +198,11 @@ export function useBiblePalette(): BiblePalette {
     noteTagInk: material.noteTagInk,
     readPill: material.readPill,
     readPillInk: material.readPillInk,
+    progBg: material.progBg,
+    progInk: material.progInk,
+    primCont: material.primCont,
+    paperBg: '#F5ECD2',
+    paperInk: '#7A5C14',
     xpGold: material.xpGold,
     xpGoldInk: material.xpGoldInk,
     flashTint: material.flashTint,
@@ -272,4 +285,76 @@ export function rangeLabel(start: number, end: number): string {
 /** "Chapter 01" — zero-padded like his Notion cover banners. */
 export function chapterLabel(chapter: number): string {
   return `Chapter ${String(chapter).padStart(2, '0')}`;
+}
+
+// ─── v311 "The Bible, to the Drawing" — the two-channel dresses ─────
+// The approved drawing (bible-pages-expressive-v7.html, his "Also
+// better. Let's do it.", Oct 28 12:42) encodes a chapter in TWO
+// channels: the square's FILL carries the writing status, a BOOKMARK
+// carries the read mark. These helpers own the fill half — the grid
+// cell and the chapter sheet's status chips share them, so the two
+// surfaces can never drift apart. Every color is a derived palette
+// role (seed × appearance); the drawing's Classic-light hexes were
+// roles, never values.
+
+export interface CellDress {
+  backgroundColor: string;
+  color: string;
+  borderColor?: string;
+}
+
+/** The chapter grid cell's dress for one writing status. */
+export function cellDressFor(
+  palette: BiblePalette,
+  status: 'complete' | 'in-progress' | 'write' | 'restudy' | 'not-started' | 'none',
+): CellDress {
+  switch (status) {
+    case 'complete':
+      return { backgroundColor: palette.rasp, color: '#FFFFFF' };
+    case 'in-progress':
+      return { backgroundColor: palette.progBg, color: palette.progInk };
+    case 'write':
+      return { backgroundColor: palette.paper2, color: palette.raspDeep, borderColor: palette.bandBorder };
+    case 'restudy':
+      return { backgroundColor: palette.accentTeal.bg, color: palette.accentTeal.deep };
+    default:
+      return { backgroundColor: palette.raspTint, color: palette.inkSoft };
+  }
+}
+
+export interface ChipDress {
+  backgroundColor: string;
+  color: string;
+  borderColor: string;
+}
+
+/** The chapter sheet's status-chip dress: each chip rests in its
+ * family tint; the CURRENT state deepens (Complete fills solid). */
+export function sheetChipDress(
+  palette: BiblePalette,
+  status: 'complete' | 'in-progress' | 'write' | 'restudy',
+  current: boolean,
+): ChipDress {
+  switch (status) {
+    case 'complete':
+      return current
+        ? { backgroundColor: palette.rasp, color: '#FFFFFF', borderColor: palette.rasp }
+        : { backgroundColor: palette.paper2, color: palette.inkSoft, borderColor: palette.bandBorder };
+    case 'in-progress':
+      return {
+        backgroundColor: palette.progBg,
+        color: palette.progInk,
+        borderColor: current ? palette.progInk : palette.progBg,
+      };
+    case 'write':
+      return current
+        ? { backgroundColor: palette.raspTint, color: palette.raspDeep, borderColor: palette.rasp }
+        : { backgroundColor: palette.paper2, color: palette.inkSoft, borderColor: palette.bandBorder };
+    case 'restudy':
+      return {
+        backgroundColor: palette.accentTeal.bg,
+        color: palette.accentTeal.deep,
+        borderColor: current ? palette.accentTeal.deep : palette.accentTeal.bg,
+      };
+  }
 }

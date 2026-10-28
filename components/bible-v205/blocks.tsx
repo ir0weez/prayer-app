@@ -1,17 +1,24 @@
 // ─── v205 shared rendering: his blocks, bands, callouts, status chips ───────
 // v250 "The Bible, Material": the section band is now the head of a
 // big tonal section CARD (the card itself is laid out by the chapter
-// page / Stories), wearing the section's own derived hue; and his
-// own plain Note line is the mockup's filled seed card — face, name,
-// NOTE tag, span — the most colorful object on the page. The meaning
-// surfaces (Highlight gold, Main Thought grey, the category code)
-// keep their dress exactly.
+// page / Stories), wearing the section's own derived hue. The meaning
+// surfaces (Highlight gold, the category code) keep their dress.
+//
+// v311 "The Bible, to the Drawing" (approved Oct 28, 12:42 — his
+// Notion layout, ruled 11:52 the same day): his note is NO LONGER the
+// v250 filled seed card. Main note text flows as bare text at the
+// full verse-column width; the four typed kinds — Highlight,
+// Definition, Quote, Personal Story — sit BETWEEN stretches of that
+// text in their family-coloured boxes with a small kind tag; Main
+// Thought flows as plain text too (it was never in his boxed list).
+// The v250 filled-card dress survives only in the palette derivation
+// (the Stories cover field wears noteFill now).
 
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NoteCategory, StudyStatus, V205Block } from '@/lib/bible-v205/types';
-import { CATEGORY_META } from '@/lib/bible-v205/categories';
+import { CATEGORY_META, blockCategory, type CategoryMeta } from '@/lib/bible-v205/categories';
 import { rangeLabel, useBiblePalette, type BiblePalette, type BibleSectionTone } from './palette';
 
 /**
@@ -74,6 +81,35 @@ export function SectionBand({
   );
 }
 
+/**
+ * v311: one of the four typed kinds in its family box — the drawing's
+ * nbox: radius 12, no border, the family ground, a small uppercase
+ * kind tag in the family's ink, the words in plain ink. (Highlight's
+ * ground is the palette's keeper yellow — the same #FFF3BF the
+ * category code itself names for good-thought.)
+ */
+function CategoryBox({
+  meta,
+  tag,
+  text,
+  palette,
+  big,
+}: {
+  meta: CategoryMeta;
+  tag: string;
+  text: string;
+  palette: BiblePalette;
+  big?: boolean;
+}) {
+  const bg = meta.id === 'good-thought' ? palette.yellowBg : meta.bg;
+  return (
+    <View style={[styles.nbox, { backgroundColor: bg }]}>
+      <Text style={[styles.ktag, { color: meta.ink }]}>{tag}</Text>
+      <Text style={[styles.nboxText, { color: palette.ink }, big ? styles.nboxTextBig : null]}>{text}</Text>
+    </View>
+  );
+}
+
 /** One content block of an entry: paragraph, cross-reference, or a keeper callout. */
 export function BlockView({
   block,
@@ -84,12 +120,23 @@ export function BlockView({
   palette: BiblePalette;
   big?: boolean;
 }) {
-  if (block.kind === 'para' || block.kind === 'conversation') {
+  if (block.kind === 'para' || block.kind === 'conversation' || block.kind === 'note') {
+    // v311: a block carrying one of his four categories (a Studio
+    // Definition / Personal Story / Quote / Good-thought box arrives
+    // as a categorized paragraph) sits in its family box; everything
+    // else flows as bare text — the note kind included (v210's
+    // no-box ruling, now the whole flow's rule).
+    const cat = blockCategory(block);
+    if (cat) {
+      const meta = CATEGORY_META[cat];
+      return <CategoryBox meta={meta} tag={meta.label} text={block.text} palette={palette} big={big} />;
+    }
     return (
       <Text
         style={[
           styles.para,
           { color: palette.ink },
+          block.kind === 'note' ? styles.notePara : null,
           block.kind === 'conversation' ? { fontStyle: 'italic' } : null,
         ]}
       >
@@ -97,11 +144,6 @@ export function BlockView({
         {block.text}
       </Text>
     );
-  }
-  if (block.kind === 'note') {
-    // v210: his plain personal note — inset body text like a commentary
-    // paragraph, with NO box: no background, no border, no label.
-    return <Text style={[styles.para, styles.notePara, { color: palette.ink }]}>{block.text}</Text>;
   }
   if (block.kind === 'scripture') {
     return (
@@ -118,48 +160,43 @@ export function BlockView({
     );
   }
   if (block.kind === 'highlight') {
+    // v311: the Highlight wears the drawing's yellow box (his yellow
+    // class by construction — blockCategory reads it as good-thought).
     return (
-      <View style={[styles.callout, { backgroundColor: palette.yellowBg, borderColor: palette.yellowBorder }]}>
-        <Text style={[styles.calloutLabel, { color: palette.yellowLabel }]}>✦ Highlight</Text>
-        <Text style={[styles.calloutText, { color: '#54420A' }, big ? styles.calloutTextBig : null]}>{block.text}</Text>
-      </View>
+      <CategoryBox meta={CATEGORY_META['good-thought']} tag="Highlight" text={block.text} palette={palette} big={big} />
     );
   }
   // v223: a quote is someone else's words, shown WITH the author's name —
   // never rendered as a plain note, never dropped. v245 (his ruling,
-  // 2026-10-25: "Quote should be red"): the callout wears the quote
-  // category's red family, like every other Quote surface — it sat in
-  // the grey family until now.
+  // 2026-10-25: "Quote should be red"): the red family. v311: the
+  // drawing's red box, the author riding the tag line.
   if (block.kind === 'quote') {
     const quoteMeta = CATEGORY_META.quote;
     return (
-      <View style={[styles.callout, { backgroundColor: quoteMeta.bg, borderColor: quoteMeta.color }]}>
-        <Text style={[styles.calloutLabel, { color: quoteMeta.ink }]}>❝ Quote — {block.authorName || 'Someone'}</Text>
-        <Text style={[styles.calloutText, { color: palette.greyInk }]}>{block.text}</Text>
-      </View>
+      <CategoryBox
+        meta={quoteMeta}
+        tag={block.authorName ? `Quote — ${block.authorName}` : 'Quote'}
+        text={block.text}
+        palette={palette}
+        big={big}
+      />
     );
   }
-  // thought
-  return (
-    <View style={[styles.callout, { backgroundColor: palette.greyBg, borderColor: palette.greyBorder }]}>
-      <Text style={[styles.calloutLabel, { color: palette.greyLabel }]}>Main Thought</Text>
-      <Text style={[styles.calloutText, { color: palette.greyInk }]}>{block.text}</Text>
-    </View>
-  );
+  // thought — v311: a Main Thought flows as plain text in the note
+  // flow (his Oct 28 ruling: it was not in the boxed list). The grey
+  // callout is retired.
+  return <Text style={[styles.para, { color: palette.ink }]}>{block.text}</Text>;
 }
 
 /**
  * v217: one of HIS OWN marks lines, rendered in the text flow (the
  * author split: his words live in the text; other people's words are
- * bubbles). Kind styling: a Main Thought keeps the pre-v214 grey
- * callout (a meaning dress) and the Highlight wears the approved
- * in-flow mockup's block: pale yellow, radius 10, no border, the
- * small ✦ HIGHLIGHT label over 15.5px words. v250: a plain Note —
- * when the caller supplies its author's face — wears the Material
- * makeover's filled seed card (below); without one it falls back
- * to the v210 bare inset text. (This dresses his MARKS lines only;
- * imported commentary note BLOCKS keep the v210 bare-text ruling
- * in BlockView.)
+ * bubbles). v311 (his Notion layout, ruled Oct 28): a Note — and a
+ * Main Thought, which flows as text too — renders UNBOXED: a small
+ * attribution head (face + name + "on v. N", no badge chips) over
+ * bare text at the full column width. A Highlight keeps its yellow
+ * box (the drawing's bubble-highlight: the head rides inside the
+ * box). Without a face, lines fall back to BlockView's dresses.
  */
 export function SelfLineBlock({
   kind,
@@ -172,43 +209,49 @@ export function SelfLineBlock({
   kind: 'note' | 'highlight' | 'thought';
   text: string;
   palette: BiblePalette;
-  /** v250: the author's name for the filled card's head. The face
-   * itself arrives as a rendered node — this module stays out of
-   * the bubbles component tree (its reanimated import is not every
+  /** v250: the author's name for the flow head. The face itself
+   * arrives as a rendered node — this module stays out of the
+   * bubbles component tree (its reanimated import is not every
    * surface's to carry); both callers already render AuthorFace. */
   authorName?: string;
   face?: ReactNode;
-  /** v250: "on v. 11" — the span the line rides on, as drawn. */
+  /** "on v. 11" — the span the line rides on, as drawn. */
   spanText?: string;
 }) {
   if (kind === 'highlight') {
+    // v311: the drawing's bubble-highlight — the yellow box with the
+    // attribution head inside it; without a face, the kind tag alone.
     return (
-      <View style={[styles.selfHighlight, { backgroundColor: palette.yellowBg }]}>
-        <Text style={[styles.selfHighlightLabel, { color: palette.yellowLabel }]}>✦ Highlight</Text>
-        <Text style={[styles.selfHighlightText, { color: palette.yellowInk }]}>{text}</Text>
+      <View style={[styles.nbox, { backgroundColor: palette.yellowBg }]}>
+        {face ? (
+          <View style={styles.flowHead}>
+            {face}
+            <Text style={[styles.flowName, { color: palette.ink }]} numberOfLines={1}>
+              {authorName ?? ''}
+            </Text>
+            {spanText ? <Text style={[styles.flowSpan, { color: palette.yellowInk }]}>{spanText}</Text> : null}
+          </View>
+        ) : (
+          <Text style={[styles.ktag, { color: CATEGORY_META['good-thought'].ink }]}>Highlight</Text>
+        )}
+        <Text style={[styles.nboxText, { color: palette.ink }]}>{text}</Text>
       </View>
     );
   }
-  if (kind === 'note' && face) {
-    // v250: his own Note is the mockup's filled card — the seed
-    // itself, his face ringed in white, his name, the NOTE tag in
-    // pale seed tonal, the span in the card's softer ink. The most
-    // colorful object on the page, in every palette he picks.
+  if (face) {
+    // v311: the unboxed note flow — attribution head, then the words
+    // as bare text. No card, no background, no tag chip (the v250
+    // filled seed card is retired by his Oct 28 ruling).
     return (
-      <View style={[styles.selfNote, { backgroundColor: palette.noteFill }, palette.noteDress]}>
-        <View style={styles.selfNoteHead}>
-          <View style={styles.selfNoteFaceRing}>{face}</View>
-          <Text style={[styles.selfNoteName, { color: palette.noteInk }]} numberOfLines={1}>
+      <View style={styles.flowWrap}>
+        <View style={styles.flowHead}>
+          {face}
+          <Text style={[styles.flowName, { color: palette.ink }]} numberOfLines={1}>
             {authorName ?? ''}
           </Text>
-          <View style={[styles.selfNoteTag, { backgroundColor: palette.noteTagBg }]}>
-            <Text style={[styles.selfNoteTagText, { color: palette.noteTagInk }]}>NOTE</Text>
-          </View>
-          {spanText ? (
-            <Text style={[styles.selfNoteSpan, { color: palette.noteInkSoft }]}>{spanText}</Text>
-          ) : null}
+          {spanText ? <Text style={[styles.flowSpan, { color: palette.inkSoft }]}>{spanText}</Text> : null}
         </View>
-        <Text style={[styles.selfNoteText, { color: palette.noteInk }]}>{text}</Text>
+        <Text style={[styles.flowText, { color: palette.ink }]}>{text}</Text>
       </View>
     );
   }
@@ -238,15 +281,18 @@ export function ReadChip({ palette }: { palette: BiblePalette }) {
 }
 
 export function StatusChip({ status, palette }: { status: StudyStatus; palette: BiblePalette }) {
+  // v311: the chip families match the drawing's two-channel system —
+  // in-progress wears the tonal seed container (it was keeper
+  // yellow), ReStudy the teal family, Write the outlined card.
   const style =
     status === 'complete'
       ? { backgroundColor: palette.rasp, borderColor: palette.rasp, color: '#FFFFFF' }
       : status === 'in-progress'
-        ? { backgroundColor: palette.yellowBg, borderColor: palette.yellowBorder, color: palette.yellowInk }
+        ? { backgroundColor: palette.progBg, borderColor: palette.progBg, color: palette.progInk }
         : status === 'write'
-          ? { backgroundColor: palette.paper, borderColor: palette.rasp, color: palette.raspDeep }
+          ? { backgroundColor: palette.paper2, borderColor: palette.bandBorder, color: palette.raspDeep }
           : status === 'restudy'
-            ? { backgroundColor: palette.band, borderColor: palette.bandBorder, color: palette.bandInk }
+            ? { backgroundColor: palette.accentTeal.bg, borderColor: palette.accentTeal.bg, color: palette.accentTeal.deep }
             : { backgroundColor: palette.greyBg, borderColor: palette.greyBorder, color: palette.greyLabel };
   return (
     <View style={[styles.chip, { backgroundColor: style.backgroundColor, borderColor: style.borderColor }]}>
@@ -262,28 +308,22 @@ const styles = StyleSheet.create({
   // v250 section-card head (the mockup's sechead): hue dot, strong
   // range, title, quiet chevron — the card around it carries the tone.
   secHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 4 },
-  secDot: { width: 11, height: 11, borderRadius: 6 },
+  secDot: { width: 9, height: 9, borderRadius: 5 },
   secRange: { fontWeight: '800', fontSize: 15 },
   secTitle: { fontWeight: '700', fontSize: 15, flexShrink: 1 },
   secChev: { marginLeft: 'auto', opacity: 0.45 },
-  // v250 filled self-note card (the mockup's notecard numbers).
-  selfNote: { borderRadius: 24, paddingVertical: 14, paddingHorizontal: 16, marginTop: 12, marginBottom: 14 },
-  selfNoteHead: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  selfNoteFaceRing: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.65)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  selfNoteName: { fontSize: 13.5, fontWeight: '700', flexShrink: 1 },
-  selfNoteTag: { borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8 },
-  selfNoteTagText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.6 },
-  selfNoteSpan: { fontSize: 13, fontWeight: '600' },
-  selfNoteText: { fontSize: 15, lineHeight: 22.5, marginTop: 9 },
+  // v311 typed-kind box (the drawing's nbox): radius 12, no border,
+  // family ground, small uppercase kind tag over the words.
+  nbox: { borderRadius: 12, paddingVertical: 13, paddingHorizontal: 15, marginTop: 12, marginBottom: 12 },
+  ktag: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 5 },
+  nboxText: { fontSize: 15, lineHeight: 23.5 },
+  nboxTextBig: { fontSize: 20.5, lineHeight: 31, fontWeight: '700' },
+  // v311 unboxed note flow: attribution head over bare text.
+  flowWrap: { marginTop: 14, marginBottom: 12 },
+  flowHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
+  flowName: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  flowSpan: { fontSize: 12.5, fontWeight: '600' },
+  flowText: { fontSize: 15.5, lineHeight: 24 },
   para: { fontSize: 15, lineHeight: 25.5, marginBottom: 12, paddingHorizontal: 5, marginLeft: -5 },
   notePara: { marginLeft: 8 },
   callout: { borderRadius: 6, paddingVertical: 15, paddingHorizontal: 17, marginVertical: 14, borderWidth: 1 },
@@ -293,11 +333,6 @@ const styles = StyleSheet.create({
   calloutLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 6 },
   calloutText: { fontSize: 14.5, lineHeight: 23, fontWeight: '600' },
   calloutTextBig: { fontSize: 20.5, lineHeight: 31, fontWeight: '700' },
-  // v217 in-flow Highlight (approved mockup numbers): pale-yellow
-  // inset, radius 10, NO border, label over the words.
-  selfHighlight: { borderRadius: 10, paddingTop: 11, paddingHorizontal: 13, paddingBottom: 12, marginTop: 12, marginBottom: 12 },
-  selfHighlightLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 5 },
-  selfHighlightText: { fontSize: 15.5, lineHeight: 23, fontWeight: '600' },
   chip: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9, alignSelf: 'flex-start' },
   chipText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
   catTag: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9, alignSelf: 'flex-start' },

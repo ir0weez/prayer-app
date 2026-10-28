@@ -252,9 +252,14 @@ describe('v243 — the Book screen mounts whole with the poison in storage', () 
     expect(html).toContain('50 chapters');
   });
 
-  it('paints the chapter grid and the detail strip through the new shell', () => {
-    expect(html).toContain('Your Study');
-    expect(html).toContain('Read Chapter');
-    expect(html).toContain('Mark as Read');
+  it('paints the chapter grid through the new shell (the sheet opens on tap — a closed Modal paints nothing)', () => {
+    // v311 re-base (with citation): the v243 detail strip is now the
+    // chapter SHEET — a Modal, closed at first paint, so its groups
+    // (READING / MY WRITING) are source-pinned in bible-v234 and
+    // bible-v311 instead of render-pinned here. What SSR can hold:
+    // the grid paints with its cells.
+    expect(html).toContain('1');
+    expect(html).toContain('50');
+    expect(html).not.toContain('Your Study');
   });
 });

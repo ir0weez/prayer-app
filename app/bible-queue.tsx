@@ -3,6 +3,12 @@
 // ReStudy (his Current list). v206: the lists are built in the app
 // (the v205 Notion seeding was cleared by his ruling) and stay editable
 // from any chapter's status menu — reading alone never moves a chapter.
+// v311 "The Bible, to the Drawing" (approved Oct 28, 12:42): the
+// screen quiets to the drawing's frame — pipeline chips in the
+// two-channel families (Write outlined, Complete filled, ReStudy
+// teal), band heads with the count in a white pill, rows at radius
+// 16 carrying a small plum bookmark when the chapter is read, and
+// the explanatory note box + count paragraph retired (no captions).
 
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -14,8 +20,7 @@ import { useSkin } from '@/hooks/use-skin';
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import type { QueueItem } from '@/lib/bible-v205/types';
-import { loadStudyState, type StudyState } from '@/lib/bible-v205/study';
-import { Ornament, StatusChip } from '@/components/bible-v205/blocks';
+import { chapterReadDate, loadStudyState, type StudyState } from '@/lib/bible-v205/study';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
@@ -76,19 +81,25 @@ export default function BibleQueueScreen(props: { pane?: BibleQueuePaneProps } =
     else router.back();
   };
 
-  const renderItem = (item: QueueItem, kind: 'write' | 'restudy') => (
-    <Pressable
-      key={`${item.book}-${item.chapter}`}
-      style={[styles.qitem, { backgroundColor: palette.paper2 }, palette.cardDress]}
-      onPress={() => open(item)}
-    >
-      <Text style={[styles.qname, { color: palette.ink }]}>
-        {item.book} {item.chapter}
-      </Text>
-      <StatusChip status={kind} palette={palette} />
-      <Text style={[styles.qopen, { color: palette.raspDeep }]}>Open ›</Text>
-    </Pressable>
-  );
+  const renderItem = (item: QueueItem, kind: 'write' | 'restudy') => {
+    // v311: a queued chapter that is also READ carries the read
+    // channel's small plum bookmark before its name (the drawing's
+    // queue rows) — the read mark itself stays state.reads data.
+    const isRead = studyState ? chapterReadDate(studyState, item.book, item.chapter) !== null : false;
+    return (
+      <Pressable
+        key={`${item.book}-${item.chapter}`}
+        style={[styles.qitem, { backgroundColor: palette.paper2 }, palette.cardDress, { borderRadius: 16 }]}
+        onPress={() => open(item)}
+      >
+        {isRead ? <MaterialIcons name="bookmark" size={14} color={palette.raspDeep} /> : null}
+        <Text style={[styles.qname, { color: palette.ink }]}>
+          {item.book} {item.chapter}
+        </Text>
+        <Text style={[styles.qopen, { color: palette.raspDeep }]}>Open ›</Text>
+      </Pressable>
+    );
+  };
 
   const content = (
     <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
@@ -103,30 +114,21 @@ export default function BibleQueueScreen(props: { pane?: BibleQueuePaneProps } =
         <View style={styles.vhead}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
           <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>The Study Queue</Text>
-          <Ornament palette={palette} />
-          <Text style={[styles.vsub, { color: palette.inkSoft }]}>
-            The pipeline — a chapter is written, it rests complete, and when its turn comes it is read again.
-          </Text>
         </View>
 
         <View style={styles.pipe}>
-          <PipeNode label="Write" palette={palette} color={palette.paper} border={palette.rasp} text={palette.raspDeep} />
+          <PipeNode label="Write" palette={palette} color={palette.paper2} border={palette.bandBorder} text={palette.raspDeep} />
           <Text style={[styles.pipeArrow, { color: palette.inkFaint }]}>→</Text>
           <PipeNode label="Complete" palette={palette} color={palette.rasp} border={palette.rasp} text="#FFFFFF" />
           <Text style={[styles.pipeArrow, { color: palette.inkFaint }]}>→</Text>
-          <PipeNode label="ReStudy" palette={palette} color={palette.band} border={palette.bandBorder} text={palette.bandInk} />
+          <PipeNode label="ReStudy" palette={palette} color={palette.accentTeal.bg} border={palette.accentTeal.bg} text={palette.accentTeal.deep} />
         </View>
-        <Text style={[styles.pipecount, { color: palette.inkSoft }]}>
-          Right now:{' '}
-          <Text style={{ color: palette.ink, fontWeight: '800' }}>{writeQueue.length} chapters</Text> waiting to
-          write ·{' '}
-          <Text style={{ color: palette.ink, fontWeight: '800' }}>{restudyQueue.length} chapters</Text> waiting to
-          re-study
-        </Text>
 
         <View style={[styles.bandHead, { backgroundColor: palette.band }]}>
-          <Text style={[styles.bandTitle, { color: palette.bandInk }]}>Next · To Write</Text>
-          <Text style={[styles.bandCount, { color: palette.bandInk }]}>{writeQueue.length}</Text>
+          <Text style={[styles.bandTitle, { color: palette.bandInk }]}>To Write</Text>
+          <View style={[styles.bandCountPill, { backgroundColor: palette.paper2 }]}>
+            <Text style={[styles.bandCount, { color: palette.ink }]}>{writeQueue.length}</Text>
+          </View>
         </View>
         {writeQueue.length ? (
           writeQueue.map((item) => renderItem(item, 'write'))
@@ -137,8 +139,10 @@ export default function BibleQueueScreen(props: { pane?: BibleQueuePaneProps } =
         {/* v250: the second queue family wears the harmonized teal —
             the two families read apart at a glance. */}
         <View style={[styles.bandHead, { backgroundColor: palette.accentTeal.bg, marginTop: 22 }]}>
-          <Text style={[styles.bandTitle, { color: palette.accentTeal.deep }]}>Current · To Re-Study</Text>
-          <Text style={[styles.bandCount, { color: palette.accentTeal.deep }]}>{restudyQueue.length}</Text>
+          <Text style={[styles.bandTitle, { color: palette.accentTeal.deep }]}>To ReStudy</Text>
+          <View style={[styles.bandCountPill, { backgroundColor: palette.paper2 }]}>
+            <Text style={[styles.bandCount, { color: palette.ink }]}>{restudyQueue.length}</Text>
+          </View>
         </View>
         {restudyQueue.length ? (
           restudyQueue.map((item) => renderItem(item, 'restudy'))
@@ -146,19 +150,6 @@ export default function BibleQueueScreen(props: { pane?: BibleQueuePaneProps } =
           <Text style={[styles.empty, { color: palette.inkSoft }]}>Nothing waiting to be re-studied.</Text>
         )}
 
-        <View
-          style={[
-            styles.qnote,
-            { backgroundColor: palette.calloutPaper, borderColor: palette.greyBorder, borderLeftColor: palette.rasp },
-          ]}
-        >
-          <Text style={[styles.qnoteText, { color: palette.greyInk }]}>
-            Both lists are yours, kept here in the app — the <Text style={{ fontWeight: '800' }}>Next</Text> list
-            (the notes to write) and the <Text style={{ fontWeight: '800' }}>Current</Text> list (the finished
-            chapters queued to read again). Chapters move only when you move them — from a chapter's status
-            strip or its book page.
-          </Text>
-        </View>
         {/* v265: in the pane, the pane container carries the tab
             bar's clearance once — only the breathing room stays. */}
         <View style={{ height: inPane ? 27 : tabBarHeight + 27 }} />
@@ -213,13 +204,12 @@ const styles = StyleSheet.create({
   pipeNodeText: { fontSize: 13, fontWeight: '800' },
   pipeArrow: { fontSize: 15, fontWeight: '700' },
   pipecount: { textAlign: 'center', fontSize: 12.5, lineHeight: 19, marginTop: 12, paddingHorizontal: 8 },
-  bandHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 20, paddingVertical: 12, paddingHorizontal: 16, marginTop: 18, marginBottom: 10 },
+  bandHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, marginTop: 18, marginBottom: 10 },
   bandTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
-  bandCount: { fontSize: 13, fontWeight: '800' },
-  qitem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 24, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 10 },
-  qname: { fontSize: 15, fontWeight: '700', flex: 1 },
+  bandCountPill: { borderRadius: 999, paddingVertical: 2, paddingHorizontal: 9 },
+  bandCount: { fontSize: 12.5, fontWeight: '800' },
+  qitem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, paddingHorizontal: 16, marginBottom: 10 },
+  qname: { fontSize: 16, fontWeight: '600', flex: 1 },
   qopen: { fontSize: 13, fontWeight: '800' },
   empty: { fontSize: 13.5, fontStyle: 'italic', paddingVertical: 6 },
-  qnote: { borderWidth: 1, borderLeftWidth: 3, borderRadius: 20, paddingVertical: 13, paddingHorizontal: 16, marginTop: 22 },
-  qnoteText: { fontSize: 13, lineHeight: 20.5 },
 });

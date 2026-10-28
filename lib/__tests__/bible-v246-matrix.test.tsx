@@ -312,7 +312,10 @@ describe('v246 — the Bible matrix: skin × accent × scheme', () => {
           const stories = renderToString(chapterEl('Genesis', 1, true)).replace(/<!-- -->/g, '');
           expectRootUngated(stories, `${label} Stories`);
           expect(stories).toContain('Genesis 1 · Stories');
-          expect(stories).toContain('Begin reading');
+          // v311 re-base (with citation): the Stories cover's door
+          // wears the approved drawing's words — "Start the Stories"
+          // (bible-pages-expressive-v7, Oct 28 12:42).
+          expect(stories).toContain('Start the Stories');
         });
       }
     }

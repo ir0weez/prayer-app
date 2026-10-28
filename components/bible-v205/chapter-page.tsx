@@ -953,16 +953,21 @@ export function ChapterPageView(props: ChapterPageProps) {
           </View>
         ) : null}
 
-        {/* ── Introduction ── */}
+        {/* ── Chapter opener (v311: the drawing's opener — his face
+            and name, the plain CHAPTER OPENER word at the right, no
+            badge chip, no drop cap; his words flow full width) ── */}
         {!readOnly && chapterData?.intro.length ? (
           <View style={styles.block}>
-            <Text style={[styles.label, { color: palette.inkFaint }]}>Introduction</Text>
+            <View style={styles.openerHead}>
+              <AuthorFace author={resolveBubbleAuthor(null, people, profile)} size={30} palette={palette} />
+              <Text style={[styles.openerName, { color: palette.ink }]} numberOfLines={1}>
+                {resolveBubbleAuthor(null, people, profile).name}
+              </Text>
+              <Text style={[styles.openerTag, { color: palette.inkSoft }]}>Chapter opener</Text>
+            </View>
             {chapterData.intro.map((b, i) =>
-              i === 0 && b.kind === 'para' ? (
-                <Text key={i} style={[styles.bodyPara, { color: palette.ink }]}>
-                  <Text style={[styles.dropCap, { color: palette.raspDeep }]}>{b.text.charAt(0)}</Text>
-                  {b.text.slice(1)}
-                </Text>
+              b.kind === 'para' ? (
+                <Text key={i} style={[styles.openerPara, { color: palette.ink }]}>{b.text}</Text>
               ) : (
                 <BlockView key={i} block={b} palette={palette} />
               ),
@@ -1031,7 +1036,12 @@ export function ChapterPageView(props: ChapterPageProps) {
           return (
           <View
             key={section.start}
-            style={[styles.sectionCard, { backgroundColor: tone.bg }]}
+            style={[
+              styles.sectionCard,
+              readOnly
+                ? { backgroundColor: palette.paper2, borderWidth: 1, borderColor: palette.line }
+                : { backgroundColor: tone.bg },
+            ]}
             onLayout={(e) => yByKey.current.set(`secwrap-${section.start}`, e.nativeEvent.layout.y)}
           >
             <SectionBand start={section.start} end={section.end} title={section.title} palette={palette} tone={tone} />
@@ -1698,7 +1708,12 @@ const styles = StyleSheet.create({
   block: { marginTop: 30 },
   label: { fontSize: 10.5, letterSpacing: 2.2, textTransform: 'uppercase', fontWeight: '800', marginBottom: 12 },
   bodyPara: { fontSize: 15, lineHeight: 25.5, marginBottom: 12 },
-  dropCap: { fontSize: 44, fontWeight: '800' },
+  // v311: the chapter opener's head — face + name, the plain
+  // CHAPTER OPENER word right-aligned (text, never a badge chip).
+  openerHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 10 },
+  openerName: { fontSize: 13.5, fontWeight: '700', flexShrink: 1 },
+  openerTag: { marginLeft: 'auto', fontSize: 11, fontWeight: '700', letterSpacing: 1.6, textTransform: 'uppercase' },
+  openerPara: { fontSize: 16, lineHeight: 25, marginBottom: 12 },
   refCallout: { borderLeftWidth: 3, borderRadius: 4, paddingVertical: 12, paddingHorizontal: 15, marginVertical: 12 },
   refQuote: { fontStyle: 'italic', fontSize: 14, lineHeight: 23 },
   contentsHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
@@ -1708,8 +1723,9 @@ const styles = StyleSheet.create({
   tocTitle: { fontWeight: '600', fontSize: 14.5 },
   leader: { flex: 1, borderBottomWidth: 1, borderStyle: 'dotted', minWidth: 14 },
   tocRange: { fontSize: 11.5 },
-  // v250: the tonal section card (the mockup's seccard numbers).
-  sectionCard: { borderRadius: 28, paddingTop: 16, paddingHorizontal: 12, paddingBottom: 8, marginTop: 18 },
+  // v311: the section card at the drawing's measure (r16, 18px
+  // padding) — tonal in With-notes, plain card in Read-only.
+  sectionCard: { borderRadius: 16, paddingTop: 18, paddingHorizontal: 18, paddingBottom: 10, marginTop: 18 },
   entry: { borderRadius: 10 },
   // v214: an entry whose bubbles are open lifts above its neighbours
   // so the bloomed cards paint over the verses below, mockup-style.

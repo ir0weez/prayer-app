@@ -812,6 +812,23 @@ function rosterRefId(target: object): number {
   return id;
 }
 
+// v300: the Classic roster's household gap. The two card kinds
+// carry their spacing on opposite edges: the household card owns
+// its gap as marginTop (gap-before, this value) and no
+// marginBottom, while a single-person card owns its gap as
+// marginBottom (styles.singlePersonCard) and no marginTop. RN
+// margins never collapse, so the card-to-card gap is
+// prev.marginBottom + next.marginTop — household→household 9,
+// single→single 8, but household→single 0: at the seam neither
+// side owned the gap and the first single tucked flush against
+// the last household (his Oct 28 report: Madrid Family → Eva
+// Sandoval, Palacios Family → William Fren). The seam single
+// supplies the household's own gap value as its marginTop, so
+// the seam gap equals the household-run gap by construction.
+// An expanded household needs no seam margin: its unfurl panel
+// already trails marginBottom 10.
+const ROSTER_HOUSEHOLD_GAP = 9;
+
 type RosterRowShellProps = {
   rowKey: string;
   fingerprint: string;
@@ -2480,7 +2497,7 @@ export default function HomeScreen() {
       // day pill v254 carried here is gone; the reach reads in the
       // sub-line's words, as drawn.
       return (
-        <View key={familyId} style={{ backgroundColor: pmf.card, borderRadius: 24, marginHorizontal: 12, marginTop: 9, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2, overflow: "hidden" }}>
+        <View key={familyId} style={{ backgroundColor: pmf.card, borderRadius: 24, marginHorizontal: 12, marginTop: ROSTER_HOUSEHOLD_GAP, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2, overflow: "hidden" }}>
           <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 14, paddingVertical: 12 }, pressed && { opacity: 0.85 }]}>
             <View style={{ flexDirection: "row", flex: 0 }}>
               {stackMembers.map((member, stackIdx) => (
@@ -2570,7 +2587,7 @@ export default function HomeScreen() {
     );
   };
 
-  const renderPersonCard = (person: Person, index?: number, array?: Person[]) => {
+  const renderPersonCard = (person: Person, index?: number, array?: Person[], seamAfterFamily = false) => {
     const activeEmergencies = getAllActiveEmergencyPrayers(people);
     const personEmergency = activeEmergencies.find((ep) => ep.person.id === person.id);
     const emergencyCountdown = personEmergency ? emergencyCountdowns[personEmergency.item.id] : undefined;
@@ -2586,7 +2603,7 @@ export default function HomeScreen() {
     const relationshipStyle = relationshipColors[person.relationship] ?? relationshipColors.Friends;
 
     return (
-      <ReAnimated.View key={person.id} style={[isDragged && { opacity: 0.6 }]} entering={isSkinned ? FadeInUp.duration(skinMotion.settle.duration).delay(personIndex * 50).easing(skinMotion.settle.easing) : FadeInUp.duration(300).delay(Math.min(personIndex, 6) * 35).easing(Easing.bezier(0.2, 0, 0, 1))}>
+      <ReAnimated.View key={person.id} style={[isDragged && { opacity: 0.6 }, seamAfterFamily && { marginTop: ROSTER_HOUSEHOLD_GAP }]} entering={isSkinned ? FadeInUp.duration(skinMotion.settle.duration).delay(personIndex * 50).easing(skinMotion.settle.easing) : FadeInUp.duration(300).delay(Math.min(personIndex, 6) * 35).easing(Easing.bezier(0.2, 0, 0, 1))}>
         <Pressable
           onLongPress={() => handleContactLongPress(person)}
           onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
@@ -3644,11 +3661,20 @@ export default function HomeScreen() {
     if (item.kind === "person") {
       const personEmergency = getAllActiveEmergencyPrayers(people).find((ep) => ep.person.id === item.person.id);
       const countdown = personEmergency ? emergencyCountdowns[personEmergency.item.id] : undefined;
+      // v300: the household→single seam (see ROSTER_HOUSEHOLD_GAP).
+      // This row is the seam single when it is the section's first
+      // single and households precede it. The margin is owed only
+      // while the household directly above rests collapsed: when
+      // that household is expanded or closing, its unfurl panel
+      // trails marginBottom 10 and already carries the gap.
+      const sectionFamilies = item.section.familyGroups ?? [];
+      const seamFamilyId = sectionFamilies.length > 0 ? sectionFamilies[sectionFamilies.length - 1]?.[0]?.familyId || "" : "";
+      const seamAfterFamily = !isSkinned && item.index === 0 && sectionFamilies.length > 0 && expandedFamilyId !== seamFamilyId && closingFamilyId !== seamFamilyId;
       return (
         <RosterRowShell
           rowKey={item.key}
-          fingerprint={`p|${rosterRefId(item.person)}|${draggedPersonId === item.person.id ? 1 : 0}|${expandedPersonId === item.person.id ? 1 : 0}|${countdown ?? ""}|${themeKey}`}
-          renderRow={() => renderPersonCard(item.person, item.index, item.section.people)}
+          fingerprint={`p|${rosterRefId(item.person)}|${draggedPersonId === item.person.id ? 1 : 0}|${expandedPersonId === item.person.id ? 1 : 0}|${seamAfterFamily ? 1 : 0}|${countdown ?? ""}|${themeKey}`}
+          renderRow={() => renderPersonCard(item.person, item.index, item.section.people, seamAfterFamily)}
         />
       );
     }

@@ -138,7 +138,10 @@ describe("v267 — roster rows are memo shells (index.tsx)", () => {
   it("renderItem routes every row kind through the shell", () => {
     const renderItem = index.slice(index.indexOf("const renderPeopleRow = "), index.indexOf("const renderPeopleScreen"));
     expect(renderItem).toContain("renderRow={() => renderPeopleSectionRow(item)}");
-    expect(renderItem).toContain("renderRow={() => renderPersonCard(item.person, item.index, item.section.people)}");
+    // Re-based in v300: the person row now also carries the
+    // household→single seam flag (see people-v300.test.ts) — the
+    // call gained its fourth argument, seamAfterFamily.
+    expect(renderItem).toContain("renderRow={() => renderPersonCard(item.person, item.index, item.section.people, seamAfterFamily)}");
     expect(renderItem).toContain("renderRow={() => renderPeopleFamilyRow(item)}");
     expect(renderItem).toContain("fingerprint={`f|${rosterRefId(item.familyMembers)}|");
   });

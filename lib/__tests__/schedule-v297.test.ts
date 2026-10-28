@@ -233,8 +233,14 @@ describe("v297 todos — the drawing's row metrics under Classic", () => {
 });
 
 describe("v297 event cards — his pre-redesign geometry", () => {
-  it("min heights are his old classes (holiday-live 155 / holiday 140 / live 112 / plain 80)", () => {
-    expect(scheduleTab).toContain("keyword ? (isHolidayCard ? 155 : 112) : 118) : keyword ? (isHolidayCard ? 140 : 80) : 104");
+  it("min heights are his old classes (re-based to the drawing's measure in v301)", () => {
+    // v301 re-base (his Oct 28 verdict: the keyword cards ran ~25%
+    // skinnier than the mockup): the Classic keyword classes now
+    // stand at the drawing's measured art-card height — plain 121
+    // (.artband 64 + .ebody 57), his live/holiday steps (+32/+60/
+    // +75) re-based on it: live 153 / holiday 181 / holiday-live
+    // 196. The no-keyword classes (104/118) are unchanged.
+    expect(scheduleTab).toContain("keyword ? (isHolidayCard ? 196 : 153) : 118) : keyword ? (isHolidayCard ? 181 : 121) : 104");
     // The same classes still stand in the skins' illustrated branch —
     // the geometry's source, untouched.
     expect(scheduleTab).toContain("minHeight: isHolidayCard ? (isLiveScheduledBlock ? 155 : 140) : (isLiveScheduledBlock ? 112 : 80)");

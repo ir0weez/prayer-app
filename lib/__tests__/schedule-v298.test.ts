@@ -74,8 +74,8 @@ describe("v298 worship — the drawing's rows under Classic", () => {
     expect(albumCard).toContain("...(scaleText ? skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) : null)");
   });
 
-  it("the number cell is 18px, right-aligned, 12/800, and never wraps", () => {
-    expect(albumCard).toContain("numberOfLines={1} style={classic ? { width: 18, textAlign: 'right'");
+  it("the number cell is 26px (v301: widened from the drawing's 18 so two digits cannot wrap at his font scale), right-aligned, 12/800, and never wraps", () => {
+    expect(albumCard).toContain("numberOfLines={1} style={classic ? { width: 26, flexShrink: 0, textAlign: 'right'");
     expect(albumCard).toContain("fontSize: 12, fontWeight: '800' }");
     expect(albumCard).not.toContain("width: 14, color: colors.muted, fontSize: 11.5, fontWeight: '600' }}>{index + 1}</Text>\n                <Text");
   });

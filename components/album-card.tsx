@@ -37,6 +37,18 @@ export interface AlbumCardProps {
  * Heard rows strike through and quiet down. NO caption, NO label pill.
  * The management actions (Open / Edit / Save / Delete) stay behind the
  * header chevron — the drawing's face stays clean; nothing is lost.
+ *
+ * v301: the collapse is restored. Before v295 the header chevron's
+ * `expanded` gated the card BODY — the track list (and the actions
+ * row beneath it). The v295
+ * recomposition made the checklist unconditional and left `expanded`
+ * gating only the small actions row at the very bottom of a 16-track
+ * card, so on device the chevron appeared dead ("I can't collapse
+ * this anymore?", Oct 28 09:06): the state wiring was intact end to
+ * end (tap → onToggleExpanded → persisted per-date state → render),
+ * only nothing visible was behind it anymore. The track list is
+ * gated on `expanded` again, exactly as before; the caller's
+ * persisted per-date state is honoured unchanged.
  */
 export function AlbumCard({
   title,
@@ -89,8 +101,8 @@ export function AlbumCard({
               <Text style={{ color: classic ? deepPrimary : skinTokens.isTerminal ? TERM_PHOS : colors.primary, fontSize: classic ? 12 : 12.5, fontWeight: classic ? '700' : '800', ...(scaleText ? skinText(skinTokens, skinTokens.type.labelText) : null) }}>Saved Albums</Text>
             </Pressable>
           )}
-          {hasActions && (
-            <Pressable accessibilityRole="button" accessibilityLabel={expanded ? "Hide album actions" : "Show album actions"} onPress={() => (onOpenDetails ? onOpenDetails() : toggleExpanded())} style={({ pressed }) => [{ padding: 2, opacity: pressed ? 0.65 : 1 }]}>
+          {(hasActions || tracks.length > 0) && (
+            <Pressable accessibilityRole="button" accessibilityLabel={expanded ? "Collapse album" : "Expand album"} onPress={() => (onOpenDetails ? onOpenDetails() : toggleExpanded())} hitSlop={8} style={({ pressed }) => [{ padding: 2, opacity: pressed ? 0.65 : 1 }]}>
               <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
             </Pressable>
           )}
@@ -127,7 +139,9 @@ export function AlbumCard({
           )}
         </View>
       </View>
-      {tracks.length > 0 ? (
+      {tracks.length === 0 ? (
+        <Text style={{ color: colors.muted, fontSize: 13, marginTop: 12 }}>No songs added yet.</Text>
+      ) : expanded ? (
         <View style={{ marginTop: 10 }}>
           {tracks.map((track, index) => {
             const isCompleted = Boolean(completedTracks[track.id]);
@@ -140,11 +154,15 @@ export function AlbumCard({
                 onPress={(e) => onToggleTrack?.(track.id, e)}
                 style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: classic ? 9 : 10, paddingVertical: classic ? 6 : 7, paddingHorizontal: 2, opacity: pressed ? 0.65 : 1 }]}
               >
-                {/* v298: the drawing's number cell — 18px wide,
-                    right-aligned, 12/800, never wraps (his 10–16
-                    stacked vertically in the old 14px cell). Done
-                    rows take the seed; open rows the muted step. */}
-                <Text numberOfLines={1} style={classic ? { width: 18, textAlign: 'right', color: isCompleted ? colors.primary : mix(colors.primary, colors.surface, 0.45), fontSize: 12, fontWeight: '800' } : { width: 14, color: colors.muted, fontSize: 11.5, fontWeight: '600' }}>{index + 1}</Text>
+                {/* v298: the drawing's number cell — right-aligned,
+                    12/800. Done rows take the seed; open rows the
+                    muted step. v301: the cell widens 18 → 26 with
+                    flexShrink 0 — at his device font scale the glyphs
+                    outgrew the fixed 18px box and "10" wrapped onto
+                    two lines on his phone (screenshot 10807); 26px
+                    holds two digits whole at scale, right-aligned
+                    and quiet, exactly as drawn otherwise. */}
+                <Text numberOfLines={1} style={classic ? { width: 26, flexShrink: 0, textAlign: 'right', color: isCompleted ? colors.primary : mix(colors.primary, colors.surface, 0.45), fontSize: 12, fontWeight: '800' } : { width: 14, color: colors.muted, fontSize: 11.5, fontWeight: '600' }}>{index + 1}</Text>
                 {/* v298: title + key as the drawing's column — the key
                     is a quiet sub-line under the title, rendered only
                     when the song carries one (his Oct 28 ruling: no
@@ -160,9 +178,7 @@ export function AlbumCard({
             );
           })}
         </View>
-      ) : (
-        <Text style={{ color: colors.muted, fontSize: 13, marginTop: 12 }}>No songs added yet.</Text>
-      )}
+      ) : null}
       {expanded && hasActions && (
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border }}>
           {onOpen && <Pressable accessibilityRole="button" accessibilityLabel="Open album link" onPress={onOpen} style={({ pressed }) => [{ flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: pressed ? 0.65 : 1 }]}><MaterialIcons name="open-in-new" size={19} color={colors.primary} /><Text style={{ color: colors.primary, fontSize: 13, fontWeight: '700' }}>Open</Text></Pressable>}

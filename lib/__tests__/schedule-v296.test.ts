@@ -72,7 +72,13 @@ describe("v296 event cards — the artwork fills the whole card", () => {
     // 140 / live 112 / plain 80) with the content back in flow, so
     // the card grows with its content past the minimum. The
     // no-keyword card (a v296 invention) keeps 104/118.
-    expect(scheduleTab).toContain("keyword ? (isHolidayCard ? 155 : 112) : 118) : keyword ? (isHolidayCard ? 140 : 80) : 104");
+    // RE-BASED AGAIN in v301 (his Oct 28 verdict: the keyword cards
+    // ran ~25% skinnier than the drawing): the keyword classes now
+    // stand at the drawing's measured art-card height — plain 121
+    // (.artband 64 + .ebody 57 in schedule-material-concepts-v32)
+    // with his own live/holiday steps (+32/+60/+75) re-based on
+    // it: live 153 / holiday 181 / holiday-live 196.
+    expect(scheduleTab).toContain("keyword ? (isHolidayCard ? 196 : 153) : 118) : keyword ? (isHolidayCard ? 181 : 121) : 104");
     expect(scheduleTab).not.toContain("isHolidayCard ? 148 : 124");
     expect(scheduleTab).not.toContain("keyword ? 140 : 118");
   });

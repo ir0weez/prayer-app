@@ -7895,18 +7895,30 @@ function EventCardInner({
     if (durationLabel) subParts.push(durationLabel);
     // v297: the card's height returns to HIS pre-redesign geometry
     // (the illustrated card this branch replaced — still live below
-    // for the skins): min-height classes holiday-live 155 / holiday
-    // 140 / live 112 / plain 80, with the content IN FLOW below, so
-    // taller content grows the card past the minimum. v296 fixed
+    // for the skins): min-height classes with the content IN FLOW,
+    // so taller content grows the card past the minimum. v296 fixed
     // the height (124/148/140) with the title floated absolute —
     // his verdict: the cards "still don't look quite right". His
     // cards were never duration-proportioned (no minutes term
     // exists anywhere in the old geometry — a card's size follows
     // its CONTENT between those minimums; the duration rides in
     // the text). The no-keyword full-colour card is a v296
-    // invention off his colour ruling and keeps its 104/118
-    // minimums, gaining the same in-flow growth.
-    const minHeight = isLiveScheduledBlock ? (keyword ? (isHolidayCard ? 155 : 112) : 118) : keyword ? (isHolidayCard ? 140 : 80) : 104;
+    // invention off his colour ruling and keeps its minimums,
+    // gaining the same in-flow growth.
+    // v301: the keyword classes are re-based on the DRAWING's own
+    // measure (his Oct 28 09:06 verdict on v298: "do the event
+    // cards look skinnier to you than the mockup?" — the Dinner /
+    // TV Show cards ran ~25% short). Measured from
+    // schedule-material-concepts-v32.html: the drawn art card is
+    // .artband 64 + .ebody 57 (padding 11+11 around a 16px title
+    // and a 12px sub at line-height 1.2 with the sub's 1px step)
+    // = 121 total. The live / holiday / holiday-live steps are his
+    // own app's (+32 / +60 / +75 over plain, from the pre-redesign
+    // classes), preserved and re-based: 153 / 181 / 196. The
+    // no-keyword classes stand unchanged: the drawing's colour
+    // card measures .colorband 34 + .ebody 57 = 91, and his
+    // full-colour cards (104 / 118) already stand at or above it.
+    const minHeight = isLiveScheduledBlock ? (keyword ? (isHolidayCard ? 196 : 153) : 118) : keyword ? (isHolidayCard ? 181 : 121) : 104;
     return (
       <>
         <Pressable

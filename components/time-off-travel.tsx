@@ -28,6 +28,8 @@ import {
   type TimeOff,
 } from "@/lib/time-off";
 import { KeywordAmbientAnimation } from "./schedule-tab";
+import { detectShowFont } from "@/lib/show-fonts";
+import { showNameSegments } from "./show-sub-line";
 
 export function tripBaseColor(timeOff: TimeOff): string {
   // Stored colours range over the shared palette and the older pastels;
@@ -51,11 +53,19 @@ export function TripBand({ timeOff, date, onPress }: { timeOff: TimeOff; date: s
   const base = tripBaseColor(timeOff);
   const day = tripDayNumber(timeOff, date);
   const bandBg = skinTokens.isTerminal ? undefined : mix(colors.surface, base, hexLuminance(colors.surface) < 0.5 ? 0.34 : 0.22);
-  // v295 (Classic): the Friday drawing's band — SATURATED in the
-  // trip's colour (flat step; the app has no gradient dress), white
-  // type stack: the TIME OFF · TYPE label, the title, the range with
-  // the day count, and the chevron. A door, never a checkbox.
+  // v308 (his Oct 28 verdict on the v295 band: too big, "just
+  // looks like another event card", and its eyebrow doubled —
+  // "TIME OFF · TIME OFF"): the slim day-state band from
+  // schedule-upnext-timeoff-v1.html, measured — height 46, radius
+  // 12 (the day's cards are 22), solid trip colour, ONE line: a
+  // sun-glyph chip, the trip's title, a dot, the day's own short
+  // date with the day count, and a chevron. The eyebrow is
+  // deleted entirely. Still a door, never a checkbox. (The
+  // in-flow claimed-block chips below are a different element he
+  // likes — untouched here.)
   if (!isSkinned) {
+    const [dy, dm, dd] = date.split("-").map(Number);
+    const dayLabel = new Date(dy, dm - 1, dd).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
     return (
       <Pressable
         accessibilityRole="button"
@@ -63,19 +73,18 @@ export function TripBand({ timeOff, date, onPress }: { timeOff: TimeOff; date: s
         onPress={onPress}
         style={({ pressed }) => [{ marginHorizontal: 12, marginBottom: 12, opacity: pressed ? 0.75 : 1 }]}
       >
-        <View style={{ backgroundColor: base, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 13 }}>
-          <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 1.6, color: "rgba(255,255,255,0.75)" }}>
-            {`TIME OFF · ${getTimeOffLabel(timeOff.type).toUpperCase()}`}
-          </Text>
-          <Text style={{ fontSize: 17, fontWeight: "800", color: "#FFFFFF", marginTop: 2 }} numberOfLines={1}>
+        <View style={{ height: 46, borderRadius: 12, backgroundColor: base, flexDirection: "row", alignItems: "center", gap: 10, paddingLeft: 11, paddingRight: 13, shadowColor: base, shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 }}>
+          <View style={{ width: 26, height: 26, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.20)", alignItems: "center", justifyContent: "center" }}>
+            <MaterialIcons name="wb-sunny" size={15} color="#FFFFFF" />
+          </View>
+          <Text style={{ fontSize: 15, fontWeight: "800", color: "#FFFFFF", letterSpacing: 0.15 }} numberOfLines={1}>
             {timeOff.title}
           </Text>
-          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.85)", flex: 1 }} numberOfLines={1}>
-              {formatRange(timeOff.startDate, timeOff.endDate)}{day ? ` · Day ${day.day} of ${day.total}` : ""}
-            </Text>
-            <MaterialIcons name="chevron-right" size={20} color="rgba(255,255,255,0.8)" />
-          </View>
+          <View style={{ width: 3.5, height: 3.5, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.55)" }} />
+          <Text style={{ fontSize: 12.5, fontWeight: "600", color: "rgba(255,255,255,0.88)", flex: 1 }} numberOfLines={1}>
+            {dayLabel}{day ? ` · Day ${day.day} of ${day.total}` : ""}
+          </Text>
+          <MaterialIcons name="chevron-right" size={16} color="rgba(255,255,255,0.85)" />
         </View>
       </Pressable>
     );
@@ -151,6 +160,15 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
   // The artwork body's one sub-line, composed the event way:
   // [S/E read · detail · address].
   const artSubLine = keyword ? [detailLine, entry.address].filter(Boolean).join(" · ") : "";
+  // v308: the show's name in that sub-line wears its title font,
+  // exactly as on the event card (lib/show-fonts.ts). Detection
+  // runs over the detail (the notes surface) + title; the segments
+  // engage only when the name is present in the composed line —
+  // otherwise the node below is the plain string, byte-identical.
+  const showFont = keyword?.label === "TV Show" ? detectShowFont(entry.detail, entry.title) : null;
+  const detailSegments = showFont && detailLine ? showNameSegments(detailLine, showFont) : null;
+  const hasShowSegments = Array.isArray(detailSegments);
+  const artSubLineNode = hasShowSegments ? <>{detailSegments}{entry.address ? ` · ${entry.address}` : ""}</> : artSubLine;
   const inkShadow = keyword
     ? { textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }
     : {};
@@ -218,7 +236,7 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
               </View>
               {artSubLine ? (
                 <Text style={{ fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.92)", marginTop: 3, textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} numberOfLines={1}>
-                  {artSubLine}
+                  {artSubLineNode}
                 </Text>
               ) : null}
             </>
@@ -304,7 +322,7 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
           )}
           {(keyword ? detailLine : entry.detail) && (
             <Text style={{ fontSize: 12, fontWeight: "600", color: keyword ? "rgba(255,255,255,0.85)" : colors.muted, marginTop: 2, ...inkShadow }} numberOfLines={1}>
-              {keyword ? detailLine : entry.detail}
+              {hasShowSegments ? detailSegments : (keyword ? detailLine : entry.detail)}
             </Text>
           )}
         </>
@@ -328,7 +346,7 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
           )}
           {(keyword ? detailLine : entry.detail) && (
             <Text style={{ fontSize: 12, color: keyword ? "rgba(255,255,255,0.85)" : colors.muted, marginTop: 3, ...inkShadow }} numberOfLines={1}>
-              {keyword ? detailLine : entry.detail}
+              {hasShowSegments ? detailSegments : (keyword ? detailLine : entry.detail)}
             </Text>
           )}
         </>

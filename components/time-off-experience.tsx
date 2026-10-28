@@ -77,6 +77,8 @@ import {
   type TimeOff,
   type TimeOffType,
 } from "@/lib/time-off";
+import { detectShowFont } from "@/lib/show-fonts";
+import { showNameSegments } from "./show-sub-line";
 import { generateId } from "@/lib/schedule-data";
 import { format12HourTime } from "@/lib/utils";
 import { tripBaseColor } from "./time-off-travel";
@@ -974,6 +976,11 @@ function TimelineEntry({ entry, base, onDelete }: { entry: ItineraryEntry; base:
   // ("S1 E6 · The Bear") when the entry carries one.
   const keyword = resolveItineraryKeyword(entry);
   const detailLine = itineraryDetailLine(entry);
+  // v308: the show's name in the composed read ("S1 E6 · The Bear")
+  // wears its title font, as on the day-page cards — segments only
+  // when the name is present, else the plain line renders as today.
+  const showFont = keyword?.label === "TV Show" ? detectShowFont(entry.detail, entry.title) : null;
+  const detailSegments = showFont && detailLine ? showNameSegments(detailLine, showFont) : null;
   return (
     <View style={{ backgroundColor: colors.surface, borderRadius: 20, ...(keyword ? { overflow: "hidden" as const } : { padding: 15 }), shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
       {keyword && (
@@ -1016,7 +1023,7 @@ function TimelineEntry({ entry, base, onDelete }: { entry: ItineraryEntry; base:
         </View>
       )}
       {detailLine && (
-        <Text style={{ fontSize: 12.5, color: colors.muted, marginTop: 7 }}>{detailLine}</Text>
+        <Text style={{ fontSize: 12.5, color: colors.muted, marginTop: 7 }}>{Array.isArray(detailSegments) ? detailSegments : detailLine}</Text>
       )}
       </View>
     </View>

@@ -251,6 +251,39 @@ export default function RootLayout() {
     // Terminal skin (v186): VT323 (SIL OFL 1.1, see
     // assets/fonts/VT323-OFL.txt) for the terminal's display type.
     VT323: require("@/assets/fonts/VT323-Regular.ttf"),
+    // v308: the TV shows' title-lettering lookalikes (Google Fonts,
+    // subsetted; each show's font + license is recorded in
+    // lib/show-fonts.ts). Fire-and-forget like the skin fonts above —
+    // a show name falls back to the app font until its face lands.
+    ShowAnton: require("@/assets/fonts/show-anton.ttf"),
+    ShowCinzel: require("@/assets/fonts/show-cinzel.ttf"),
+    ShowCinzelDecorative: require("@/assets/fonts/show-cinzel-decorative.ttf"),
+    ShowOswaldMedium: require("@/assets/fonts/show-oswald-medium.ttf"),
+    ShowOswaldLight: require("@/assets/fonts/show-oswald-light.ttf"),
+    ShowArchivo: require("@/assets/fonts/show-archivo.ttf"),
+    ShowArchivoItalic: require("@/assets/fonts/show-archivo-italic.ttf"),
+    ShowArchivoBlack: require("@/assets/fonts/show-archivo-black.ttf"),
+    ShowArchivoNarrow: require("@/assets/fonts/show-archivo-narrow.ttf"),
+    ShowNunito: require("@/assets/fonts/show-nunito.ttf"),
+    ShowPassionOne: require("@/assets/fonts/show-passion-one.ttf"),
+    ShowZillaSlab: require("@/assets/fonts/show-zilla-slab.ttf"),
+    ShowBarlowCondensed: require("@/assets/fonts/show-barlow-condensed.ttf"),
+    ShowMarcellus: require("@/assets/fonts/show-marcellus.ttf"),
+    ShowBebasNeue: require("@/assets/fonts/show-bebas-neue.ttf"),
+    ShowPoppins: require("@/assets/fonts/show-poppins.ttf"),
+    ShowYellowtail: require("@/assets/fonts/show-yellowtail.ttf"),
+    ShowGraduate: require("@/assets/fonts/show-graduate.ttf"),
+    ShowPirataOne: require("@/assets/fonts/show-pirata-one.ttf"),
+    ShowPlayfair: require("@/assets/fonts/show-playfair.ttf"),
+    ShowPlayfairBlack: require("@/assets/fonts/show-playfair-black.ttf"),
+    ShowBaloo2: require("@/assets/fonts/show-baloo2.ttf"),
+    ShowFredoka: require("@/assets/fonts/show-fredoka.ttf"),
+    ShowAlfaSlab: require("@/assets/fonts/show-alfa-slab.ttf"),
+    ShowCormorant: require("@/assets/fonts/show-cormorant.ttf"),
+    ShowGochiHand: require("@/assets/fonts/show-gochi-hand.ttf"),
+    ShowBlackOps: require("@/assets/fonts/show-black-ops.ttf"),
+    ShowImFell: require("@/assets/fonts/show-im-fell.ttf"),
+    ShowGrenzeGotisch: require("@/assets/fonts/show-grenze-gotisch.ttf"),
   });
   return (
     <ThemeProvider>

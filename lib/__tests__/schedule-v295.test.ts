@@ -215,10 +215,17 @@ describe("v295 ministry ticket + squares, time-off band", () => {
     expect(square).not.toContain("to {format12HourTime(ministry.endTime)}");
   });
 
-  it("the trip band is saturated with the TIME OFF · TYPE label under Classic", () => {
+  it("the trip band under Classic is the slim day-state band (v308 re-pin)", () => {
+    // v308: the v295 saturated stack — with its TIME OFF · TYPE
+    // eyebrow, which doubled on his Day Off ("TIME OFF · TIME
+    // OFF") and read as another event card — is replaced by the
+    // slim 46px band from schedule-upnext-timeoff-v1.html: no
+    // eyebrow at all, one line, radius 12 against the cards' 22.
     const band = sliceBetween(timeOffTravel, "export function TripBand", "const ROUTE_RE");
-    expect(band).toContain("TIME OFF · ${getTimeOffLabel(timeOff.type).toUpperCase()}");
-    expect(band).toContain("backgroundColor: base, borderRadius: 22");
+    expect(band).not.toContain("TIME OFF · ${getTimeOffLabel(timeOff.type).toUpperCase()}");
+    expect(band).toContain("height: 46, borderRadius: 12, backgroundColor: base");
+    expect(band).toContain("Day ${day.day} of ${day.total}");
+    expect(band).toContain('name="wb-sunny"');
   });
 
   it("the travel card's head is the 38px band with pill and kind label", () => {

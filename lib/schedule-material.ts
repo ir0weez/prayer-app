@@ -50,6 +50,28 @@ export function tonalRamp(base: string, surface: string): { deep: string; mid: s
   };
 }
 
+/**
+ * v308 (approved by Jonathan, Oct 28 12:18): the white blocks'
+ * PAPER. The blocks filled literal #FFFFFF / #000000 through
+ * v298–v307; the fill now derives from the palette like every
+ * other schedule surface. In light it is the palette's own
+ * lightest surface tone — the surface-container-lowest
+ * equivalent: the theme surface stepped a whisper toward the
+ * seed, so the paper takes the seed's temperature (a warm white
+ * under a warm seed, cool white under violet) while staying
+ * LIGHTER than the page ground's step (0.06). In dark it is the
+ * palette's darkest surface — the theme surface stepped toward
+ * black: a near-black with the palette's own temperature, which
+ * keeps his Oct 28 "black in dark" ruling in spirit (never a
+ * grey, never a seed tint). Either way the block remains the
+ * emptiest-looking thing on the page — blank paper, never
+ * seed-coloured.
+ */
+export function schedulePaperSurface(seed: string, surface: string): string {
+  const dark = hexLuminance(surface) < 0.5;
+  return dark ? mix(surface, "#000000", 0.4) : mix(surface, seed, 0.035);
+}
+
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
   const clean = hex.replace("#", "");
   const r = parseInt(clean.slice(0, 2), 16) / 255;

@@ -6,6 +6,7 @@ import { useSkin } from "@/hooks/use-skin";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BIT_DUSK, BIT_GOLD, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PHOS } from "@/lib/skin-themes";
 import { TimeBlock, timeToMinutes, minutesToTime, whiteBlockHeight, whiteBlockBadge } from "@/lib/time-blocks";
+import { schedulePaperSurface } from "@/lib/schedule-material";
 import { mix } from "@/lib/color-themes";
 import { format12HourTime } from "@/lib/utils";
 import { NowPill } from "./now-indicator";
@@ -58,11 +59,15 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
   const { isSkinned, tokens: skinTokens, monoFont } = useSkin();
   const isNow = blockContainsNow(block, nowMinutes);
   const isTerminal = skinTokens.isTerminal;
-  // v298 (his ruling, Oct 28): the whites derive by appearance —
-  // literally white in light, BLACK in dark (they glared bright
-  // white against his dark page). The dashed border steps up in
-  // dark so the box still reads on black. Skins keep their dress.
-  const classicSurface = colorScheme === "dark" ? "#000000" : "#FFFFFF";
+  // v308 (approved Oct 28, 12:18): the fill is palette-derived
+  // paper — schedulePaperSurface steps the theme's own surface
+  // (lightest surface tone in light, darkest surface in dark;
+  // lib/schedule-material.ts). v298's literal fills (#FFFFFF in
+  // light, #000000 in dark — his "black in dark" ruling) are
+  // gone; the ruling survives in spirit in the dark step. The
+  // dashed border still steps up in dark so the box reads on the
+  // near-black paper. Skins keep their dress.
+  const classicSurface = schedulePaperSurface(colors.primary, colors.surface);
   const classicBorder = colorScheme === "dark" ? mix(colors.primary, "#FFFFFF", 0.45) : mix(colors.primary, "#FFFFFF", 0.72);
 
   return (
@@ -140,8 +145,8 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
   const colorScheme = useColorScheme();
   const { isSkinned, tokens: skinTokens, monoFont } = useSkin();
   const isTerminal = skinTokens.isTerminal;
-  // v298: same appearance derivation as the standalone block.
-  const classicSurface = colorScheme === "dark" ? "#000000" : "#FFFFFF";
+  // v308: same palette-derived paper as the standalone block.
+  const classicSurface = schedulePaperSurface(colors.primary, colors.surface);
   const classicBorder = colorScheme === "dark" ? mix(colors.primary, "#FFFFFF", 0.45) : mix(colors.primary, "#FFFFFF", 0.72);
   if (blocks.length === 0) return null;
 

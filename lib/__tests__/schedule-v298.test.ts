@@ -104,7 +104,12 @@ describe("v298 worship — the drawing's rows under Classic", () => {
 describe("v298 whites — black in dark mode (his ruling)", () => {
   it("both white components derive their Classic surface by appearance", () => {
     expect(whites).toContain('import { useColorScheme } from "@/hooks/use-color-scheme"');
-    expect(whites.match(/classicSurface = colorScheme === "dark" \? "#000000" : "#FFFFFF"/g) ?? []).toHaveLength(2);
+    // v308 re-pin: the literal fills are gone — the surface is
+    // palette-derived paper now (schedulePaperSurface; the dark
+    // step keeps this v298 ruling in spirit). The border still
+    // derives by appearance, unchanged.
+    expect(whites.match(/classicSurface = schedulePaperSurface\(colors\.primary, colors\.surface\)/g) ?? []).toHaveLength(2);
+    expect(whites).not.toContain('colorScheme === "dark" ? "#000000" : "#FFFFFF"');
     expect(whites.match(/: classicSurface,/g) ?? []).toHaveLength(2);
     expect(whites.match(/: classicBorder,/g) ?? []).toHaveLength(2);
   });
@@ -192,10 +197,15 @@ describe("v298 up next — the drawing's strip, built", () => {
 
   it("the case seats after the study card and takes the drawing's metrics", () => {
     expect(scheduleTab.indexOf('case "up-next"')).toBeGreaterThan(scheduleTab.indexOf('case "personal-study-card"'));
-    expect(upNextCase).toContain("height: 74, borderRadius: 20");
-    expect(upNextCase).toContain("width: 44, height: 44, borderRadius: 14");
+    // v308 re-pin: the v298 strip was the fat card he called "meh"
+    // (Oct 28, 10:59) — the case now takes the SLIM PILL's metrics
+    // from schedule-upnext-timeoff-v1.html: 44px, fully rounded,
+    // no icon tile, no sub-line, no empty ring.
+    expect(upNextCase).toContain("height: 44, borderRadius: 999");
     expect(upNextCase).toContain(">UP NEXT</Text>");
-    expect(upNextCase).toContain("fontSize: 17.5, fontWeight: \"800\"");
+    expect(upNextCase).toContain("fontSize: 15, fontWeight: \"700\"");
+    expect(upNextCase).not.toContain("width: 44, height: 44, borderRadius: 14");
+    expect(upNextCase).not.toContain("subParts.join");
   });
 
   it("BEHAVIOUR: the strip toggles its item through the cards' own handlers", () => {

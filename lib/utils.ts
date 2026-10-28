@@ -23,7 +23,12 @@ export function cn(...inputs: ClassValue[]) {
 export function format12HourTime(timeStr: string): string {
   if (!timeStr) return "";
   const [hourStr, minuteStr] = timeStr.split(":");
-  const hour = parseInt(hourStr, 10);
+  // v308: the day's window ends at "24:00" (lib/whites.ts
+  // WHITES_WINDOW_END) — hour 24 is midnight, 12:00 AM, not the
+  // "12:00 PM" the raw >= 12 test produced on claimed-block chips.
+  // Normalise at the source so every range that formats a midnight
+  // end reads right; noon stays "12:00 PM".
+  const hour = parseInt(hourStr, 10) % 24;
   const minute = parseInt(minuteStr || "0", 10);
 
   const period = hour >= 12 ? "PM" : "AM";

@@ -189,7 +189,10 @@ describe("v303 surfaces — special, not copies (source pins)", () => {
     expect(artAt).toBeGreaterThan(-1);
     expect(experience).toContain("<View style={{ height: 96 }}>");
     expect(tileAt).toBeGreaterThan(artAt);
-    expect(experience).toContain("{detailLine}");
+    // v308 re-pin: the timeline's detail line now renders through
+    // the show-font segments — the plain line survives verbatim as
+    // the fallback when no show font engages.
+    expect(experience).toContain("Array.isArray(detailSegments) ? detailSegments : detailLine");
   });
 
   it("no-keyword rendering survives: the plain bodies are still there", () => {

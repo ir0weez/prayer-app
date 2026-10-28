@@ -22,7 +22,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
-import Svg, { Circle, Ellipse, Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Defs, Ellipse, Line, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -55,6 +55,8 @@ import { TerminalRestSky, terminalKeywordSceneFor } from "./terminal-keyword-sce
 import { BIT_DUSK, BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, hasTypeScale, hexLuminance, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint, skinText, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
 import { setScheduleFabConfig } from "@/lib/schedule-fab-bridge";
 import { scheduleMaterialTones, tonalRamp } from "@/lib/schedule-material";
+import { detectShowFont } from "@/lib/show-fonts";
+import { showNameSegments } from "./show-sub-line";
 import { mix } from "@/lib/color-themes";
 import type { SkinTokens } from "@/lib/skin-themes";
 
@@ -258,7 +260,6 @@ const WORSHIP_EXPANSION_STATE_KEY = 'prayercircle.schedule.worship.expansion.v1'
 const WORSHIP_TRACK_COMPLETION_STATE_KEY = 'prayercircle.schedule.worship.track-completions.v1';
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const DAY_HEADER_HEIGHT = 160; // Height of summary card
 // v296 shipped a 120px standing sheet overlap here (the list opened
 // scrolled 120px into the summary zone). v297 REMOVES it — his
 // Oct 27 verdict on v296 ("the summary doesn't match it either",
@@ -7860,9 +7861,13 @@ function EventCardInner({
   // content riding over it). The card's furniture rides over the
   // scene: the time pill in the ONE spot (top 8, left 12, the
   // event's own colour, shared-meridiem range) becoming the
-  // NowPill while the event is live, the title and one details
-  // line under it over a legibility scrim, linked faces at the top
-  // right, and the live progress bar alone at the foot. An event
+  // NowPill while the event is live, linked faces at the top
+  // right, and the live progress bar alone at the foot. (v308:
+  // on artwork cards the title + details line now rest at the
+  // BOTTOM of the card over a bottom-weighted scrim — TV Show
+  // cards with stepped-up type, the other scene cards with the
+  // old pre-redesign format's type; plain colour cards keep the
+  // top seat — his Oct 28 rulings.) An event
   // with no artwork fills the card with its own colour the same
   // way (his colour ruling), wearing the drawing's translucent
   // circle motif. Rest events never reach this branch — the Rest
@@ -7896,6 +7901,41 @@ function EventCardInner({
     const detailLine = [event.notes, event.location].filter(Boolean).join(" · ");
     if (detailLine) subParts.push(detailLine);
     if (durationLabel) subParts.push(durationLabel);
+    // v308: the show's NAME in the sub-line wears the show's title
+    // font (his ruling, Oct 28 — the name, never the card header,
+    // and at the same small size). Detection mirrors the scene
+    // dispatch (lib/show-fonts.ts); the segments engage only when
+    // the name actually appears in the detail line — otherwise the
+    // sub-line stays the plain joined string, byte-identical.
+    const seRead = keyword?.label === "TV Show" && (event.season || event.episode)
+      ? `${event.season ? `S${event.season}` : ""}${event.season && event.episode ? " " : ""}${event.episode ? `E${event.episode}` : ""}`
+      : null;
+    const showFont = keyword?.label === "TV Show" ? detectShowFont(event.notes, event.title) : null;
+    const detailSegments = showFont && detailLine ? showNameSegments(detailLine, showFont) : null;
+    const hasShowSegments = Array.isArray(detailSegments);
+    const scrimId = `v308scrim-${event.id.replace(/[^a-zA-Z0-9]/g, "")}`;
+    // v308 steering (his refinement, Oct 28 12:11): the type split.
+    // TV Show cards keep the stepped-up v308 type (title 20.5/800,
+    // sub 13/600). Every OTHER scene card takes the OLD pre-redesign
+    // format's metrics — pulled from git 0b5a3cd (the illustrated
+    // card the skins still render, eventStyles): title 16/700, and
+    // the note at 20/600 with lineHeight 25. The note is the
+    // load-bearing one: the redo shrank it to 12 and the cards read
+    // "just kind of sad" to him. Placement stays the v308 bottom
+    // anchor for both — the old format's top seat does not return.
+    // Rest cards never reach this branch (their own above) and are
+    // untouched; the time pill above keeps its one spot on all.
+    const isTVShowCard = keyword?.label === "TV Show";
+    const cardTitleType = !keyword
+      ? { fontSize: 16, fontWeight: "800" as const }
+      : isTVShowCard
+        ? { fontSize: 20.5, fontWeight: "800" as const }
+        : { fontSize: 16, fontWeight: "700" as const };
+    const cardSubType = !keyword
+      ? { fontSize: 12, fontWeight: "600" as const }
+      : isTVShowCard
+        ? { fontSize: 13, fontWeight: "600" as const }
+        : { fontSize: 20, fontWeight: "600" as const, lineHeight: 25 };
     // v297: the card's height returns to HIS pre-redesign geometry
     // (the illustrated card this branch replaced — still live below
     // for the skins): min-height classes with the content IN FLOW,
@@ -7939,6 +7979,22 @@ function EventCardInner({
                 {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
                 {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} location={event.location} notes={event.notes} />}
                 <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.22)" }} />
+                {/* v308: a bottom-weighted scrim under the words —
+                    since the title + sub-line moved to the foot of
+                    the card (his ruling below), the uniform scrim no
+                    longer keeps white type legible over bright
+                    scenes. One gradient, this card only. */}
+                <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "68%" }}>
+                  <Svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <Defs>
+                      <LinearGradient id={scrimId} x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0" stopColor="#000000" stopOpacity="0" />
+                        <Stop offset="1" stopColor="#000000" stopOpacity="0.38" />
+                      </LinearGradient>
+                    </Defs>
+                    <Rect x="0" y="0" width="100" height="100" fill={`url(#${scrimId})`} />
+                  </Svg>
+                </View>
               </>
             ) : (
               <>
@@ -7959,10 +8015,18 @@ function EventCardInner({
                 <StackedAvatar people={linkedPeople} size={22} />
               </View>
             )}
-            <View pointerEvents="none" style={{ paddingTop: 40, paddingHorizontal: 12, paddingBottom: isLiveScheduledBlock ? 34 : 12 }}>
-              <Text style={{ fontSize: 16, fontWeight: "800", color: "#FFFFFF", textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} numberOfLines={2}>{event.title}</Text>
+            {/* v308 (his ruling, Oct 28 11:58, refined 12:11): on
+                the full-bleed artwork cards the words REST AT THE
+                BOTTOM of the card over the bottom scrim above —
+                TV Show cards with the stepped-up type, the other
+                scene cards with the old pre-redesign format's type
+                (cardTitleType / cardSubType above). The plain
+                colour cards keep the layout they have always had
+                (top, under the pill). */}
+            <View pointerEvents="none" style={keyword ? { flex: 1, justifyContent: "flex-end", paddingHorizontal: 12, paddingBottom: isLiveScheduledBlock ? 34 : 12 } : { paddingTop: 40, paddingHorizontal: 12, paddingBottom: isLiveScheduledBlock ? 34 : 12 }}>
+              <Text style={{ ...cardTitleType, color: "#FFFFFF", textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} numberOfLines={2}>{event.title}</Text>
               {subParts.length > 0 && (
-                <Text style={{ fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.92)", marginTop: 2, textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} numberOfLines={1}>{subParts.join(" · ")}</Text>
+                <Text style={{ ...cardSubType, color: "rgba(255,255,255,0.92)", marginTop: 2, textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} numberOfLines={1}>{hasShowSegments ? <>{seRead ? `${seRead} · ` : ""}{detailSegments}{durationLabel ? ` · ${durationLabel}` : ""}</> : subParts.join(" · ")}</Text>
               )}
             </View>
             {isLiveScheduledBlock && (
@@ -10704,14 +10768,35 @@ export function ScheduleTab({
   // row's rect relative to the summary card's root.
   const [classicStripHeight, setClassicStripHeight] = useState(60);
   const [classicReachRect, setClassicReachRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, DAY_HEADER_HEIGHT / 2],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-  const headerTranslateY = scrollY.interpolate({
-    inputRange: [0, DAY_HEADER_HEIGHT],
-    outputRange: [0, -DAY_HEADER_HEIGHT],
+  // v308 (his Oct 28, 12:15, screenshot mid-scroll): "is there a
+  // way to make the Date line slide up like the headers, rather
+  // than shrink to the center awkwardly?" The header block's
+  // collapse used to SHRINK: the overlay twins carried a scroll
+  // gate that scaled them to 0.01 toward their centres as the
+  // sheet's edge reached them (the week numbers visibly
+  // compressed), and the app bar ghosted — opacity 1 → 0 with a
+  // token 60px rise over scroll 200–320. All of that is replaced
+  // by ONE slide: the app bar and both overlay twins share this
+  // translateY, moving up 1:1 with the sheet's scroll until the
+  // block has cleared the top edge — no scale transform, no fade.
+  // The geometry is self-keeping: an element's clearance above
+  // the sheet's rising edge (its seat bottom vs the zone's full
+  // height) is constant under a 1:1 slide, so a twin can never be
+  // caught floating over the sheet's cards; and once its seat
+  // bottom has scrolled past, the element sits wholly above the
+  // screen's top edge — its transformed frame takes no touches,
+  // so nothing invisible stays tappable. The summary panel does
+  // not move: the sheet still slides over it, as the blend drew.
+  // (The dead headerOpacity / DAY_HEADER_HEIGHT translate that
+  // stood here unused are gone with the shrink.)
+  const headerSlideFull = Math.max(
+    96,
+    84 + classicStripHeight,
+    classicReachRect ? 84 + classicStripHeight + classicReachRect.y + classicReachRect.height : 0,
+  ) + 16;
+  const headerSlideY = scrollY.interpolate({
+    inputRange: [0, headerSlideFull],
+    outputRange: [0, -headerSlideFull],
     extrapolate: "clamp",
   });
 
@@ -12976,26 +13061,19 @@ export function ScheduleTab({
           );
         }
         case "up-next": {
-          // v298: the v32 drawing's .nextstrip, measured — height 74,
-          // radius 20, tonal container step, 44px seed icon tile,
-          // UP NEXT pill in the deep step beside the item's time,
-          // title 17.5/800, sub 11.5/700 (type · detail · duration),
-          // and the drawing's empty ring at the right. The whole
-          // strip is the tap (his no-bubbles model): it toggles the
+          // v308 (his Oct 28 verdict on the v298 strip: the fat card
+          // "looks meh"): the slim pill from
+          // schedule-upnext-timeoff-v1.html, measured — height 44,
+          // fully rounded, pale tonal violet fill (primaryContainer)
+          // with a tonal border: the UP NEXT mini-pill in the deep
+          // step, the item's time bold in the deep step, a dot, the
+          // title at 15/700, and a small chevron. NO icon tile, NO
+          // sub-line, NO empty ring at the right. The whole pill is
+          // still the tap (his no-bubbles model): it toggles the
           // named item through the same handlers its own card uses.
           const nextData = item.data as { kind: "todo" | "event" | "ministry"; item: any };
           const nd = nextData.item;
           const stripTones = scheduleMaterialTones(colors.primary, colors.surface);
-          const kindLabel = nextData.kind === "todo" ? "Todo" : nextData.kind === "event" ? "Event" : "Ministry";
-          const kindIcon = nextData.kind === "todo" ? "task-alt" : nextData.kind === "event" ? "event" : "volunteer-activism";
-          const subParts: string[] = [kindLabel];
-          if (nextData.kind === "todo" && nd.notes) subParts.push(nd.notes);
-          if (nextData.kind === "event" && nd.location) subParts.push(nd.location);
-          if (nextData.kind === "ministry") { const detail = nd.location || nd.type; if (detail) subParts.push(detail); }
-          if (nd.endTime && nd.startTime) {
-            const dur = timeToMinutes(nd.endTime) - timeToMinutes(nd.startTime);
-            if (dur > 0) subParts.push(dur >= 60 ? `${Math.floor(dur / 60)}h${dur % 60 ? ` ${dur % 60}m` : ""}` : `${dur} min`);
-          }
           const toggleNext = (e: any) => {
             const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
             if (nextData.kind === "todo") {
@@ -13017,22 +13095,15 @@ export function ScheduleTab({
               onPress={toggleNext}
               accessibilityRole="button"
               accessibilityLabel={`Up next: ${nd.title} at ${format12HourTime(nd.startTime)}`}
-              style={({ pressed }) => [{ marginHorizontal: 12, marginBottom: 12, height: 74, borderRadius: 20, backgroundColor: stripTones.primaryContainer, flexDirection: "row", alignItems: "center", gap: 11, paddingLeft: 15, paddingRight: 13, opacity: pressed ? 0.75 : 1 }]}
+              style={({ pressed }) => [{ marginHorizontal: 12, marginBottom: 12, height: 44, borderRadius: 999, backgroundColor: stripTones.primaryContainer, borderWidth: 1, borderColor: mix(colors.primary, colors.surface, 0.72), flexDirection: "row", alignItems: "center", gap: 9, paddingLeft: 8, paddingRight: 13, opacity: pressed ? 0.75 : 1 }]}
             >
-              <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
-                <MaterialIcons name={kindIcon as any} size={22} color="#FFFFFF" />
+              <View style={{ backgroundColor: stripTones.primaryDeep, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Text style={{ color: "#FFFFFF", fontSize: 9.5, fontWeight: "800", letterSpacing: 1.1 }}>UP NEXT</Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-                  <View style={{ backgroundColor: stripTones.primaryDeep, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-                    <Text style={{ color: "#FFFFFF", fontSize: 9.5, fontWeight: "800", letterSpacing: 1 }}>UP NEXT</Text>
-                  </View>
-                  <Text style={{ color: stripTones.primaryDeep, fontSize: 11, fontWeight: "800" }}>{format12HourTime(nd.startTime)}</Text>
-                </View>
-                <Text style={{ color: colors.foreground, fontSize: 17.5, fontWeight: "800", lineHeight: 20, marginTop: 1 }} numberOfLines={1}>{nd.title}</Text>
-                <Text style={{ color: colors.muted, fontSize: 11.5, fontWeight: "700", marginTop: 1 }} numberOfLines={1}>{subParts.join(" · ")}</Text>
-              </View>
-              <View style={{ width: 27, height: 27, borderRadius: 13.5, borderWidth: 2.5, borderColor: mix(colors.primary, colors.surface, 0.4), backgroundColor: mix(stripTones.primaryContainer, "#FFFFFF", 0.45) }} />
+              <Text style={{ color: stripTones.primaryDeep, fontSize: 13, fontWeight: "800" }}>{format12HourTime(nd.startTime)}</Text>
+              <View style={{ width: 3.5, height: 3.5, borderRadius: 2, backgroundColor: mix(colors.primary, colors.surface, 0.35) }} />
+              <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700", flex: 1 }} numberOfLines={1}>{nd.title}</Text>
+              <MaterialIcons name="chevron-right" size={16} color={mix(colors.primary, colors.surface, 0.3)} />
             </Pressable>
           );
         }
@@ -13595,8 +13666,12 @@ export function ScheduleTab({
           Under 8-bit (v184) the page is the mockup's dusk world: the
           three-stop indigo gradient + checker dither, behind everything. */}
       {skinTokens.isEightBit ? <BitBackground /> : skinTokens.isTerminal ? <TerminalBackground /> : isSkinned ? <PaperGrainOverlay /> : null}
-      {/* Pill-style floating header (see-through, like People tab) */}
-      <Animated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, opacity: scrollY.interpolate({ inputRange: [200, 320], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: scrollY.interpolate({ inputRange: [200, 320], outputRange: [0, -60], extrapolate: 'clamp' }) }] }]}>
+      {/* Pill-style floating header (see-through, like People tab).
+          v308 (Classic): the bar rides the header block's slide
+          (headerSlideY) — it translates up and off the top edge
+          1:1 with the sheet's scroll, no ghosting. The skins keep
+          their late fade + token rise exactly as settled. */}
+      <Animated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }, isSkinned ? { opacity: scrollY.interpolate({ inputRange: [200, 320], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: scrollY.interpolate({ inputRange: [200, 320], outputRange: [0, -60], extrapolate: 'clamp' }) }] } : { transform: [{ translateY: headerSlideY }] }]}>
         <View style={{ backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PANEL : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(hasTypeScale(skinTokens) ? { paddingHorizontal: 16 + skinTokens.type.padBoost, paddingVertical: 10 + skinTokens.type.gapBoost } : {}), ...(!isSkinned ? { backgroundColor: "transparent", paddingHorizontal: 2, paddingVertical: 2 } : {}) }}>
           <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, fontSize: 20, fontWeight: "800", ...bitDisplay(skinTokens, 12), ...skinText(skinTokens, skinTokens.type.screenTitle) }}>Schedule</Text>
           {/* v296 (Classic): the app bar wears the v32 drawing's sub —
@@ -13832,10 +13907,14 @@ export function ScheduleTab({
                 none spacer does NOT pass touches through — the
                 ScrollView under it still claims them), so anything
                 interactive seated in the zone must live up here to
-                be tappable. Each element carries a scroll gate: as
-                the sheet slides up over the zone, the element fades
-                and shrinks away the moment the sheet's edge reaches
-                it, so a covered element never takes a ghost tap.
+                be tappable. v308: the scroll gate that used to fade
+                and SHRINK each element away as the sheet's edge
+                reached it is replaced by the header block's slide —
+                both elements carry headerSlideY (see its note at
+                scrollY), translating up 1:1 with the scroll and off
+                the top edge, so what's drawn is what's tappable at
+                every scroll position, and a fully-slid element's
+                frame sits above the screen and takes no touches.
                 The host is pointerEvents="box-none": only the
                 elements themselves take touches; everything else
                 falls through to the sheet. Their seats are the
@@ -13851,8 +13930,7 @@ export function ScheduleTab({
                     top: 84,
                     left: 20,
                     right: 20,
-                    opacity: scrollY.interpolate({ inputRange: [Math.max(0, scheduleSummaryHeight - (84 + classicStripHeight)), Math.max(1, scheduleSummaryHeight - 84)], outputRange: [1, 0], extrapolate: "clamp" }),
-                    transform: [{ scale: scrollY.interpolate({ inputRange: [Math.max(0, scheduleSummaryHeight - (84 + classicStripHeight)), Math.max(1, scheduleSummaryHeight - 84)], outputRange: [1, 0.01], extrapolate: "clamp" }) }],
+                    transform: [{ translateY: headerSlideY }],
                   }}
                 >
                   {/* The week strip — v296's JSX, verbatim: the v32
@@ -13916,8 +13994,7 @@ export function ScheduleTab({
                       left: 20 + classicReachRect.x,
                       top: 84 + classicStripHeight + classicReachRect.y,
                       width: classicReachRect.width,
-                      opacity: scrollY.interpolate({ inputRange: [Math.max(0, scheduleSummaryHeight - (84 + classicStripHeight + classicReachRect.y + classicReachRect.height)), Math.max(1, scheduleSummaryHeight - (84 + classicStripHeight + classicReachRect.y))], outputRange: [1, 0], extrapolate: "clamp" }),
-                      transform: [{ scale: scrollY.interpolate({ inputRange: [Math.max(0, scheduleSummaryHeight - (84 + classicStripHeight + classicReachRect.y + classicReachRect.height)), Math.max(1, scheduleSummaryHeight - (84 + classicStripHeight + classicReachRect.y))], outputRange: [1, 0.01], extrapolate: "clamp" }) }],
+                      transform: [{ translateY: headerSlideY }],
                     }}
                   >
                     <SummaryReachRow people={prayerCheckInPeople} selectedDate={selectedDate} onReachOutPress={handleSummaryReachOut} />

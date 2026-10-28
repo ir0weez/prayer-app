@@ -8,10 +8,11 @@ name: Build test APK
 #
 # NOTE: this must be a *release* build (assembleRelease). A debug build does
 # not bundle the JS, so the app would crash on launch looking for a dev
-# server. The APK is signed with a throwaway test key generated fresh on each
-# run, so before installing an update, uninstall the previous "PrayerCircle
-# Test" first. (A permanent key stored as a GitHub secret would allow
-# seamless updates; the repo token currently lacks secrets permission.)
+# server. The APK is built UNSIGNED (android/ is gitignored and regenerated
+# by expo prebuild, so a workflow step patches the generated build.gradle:
+# versionCode = this run's number, release signingConfig removed). The
+# unsigned APK is signed locally with the permanent PrayerCircle key before
+# release, so every build installs over the previous one.
 
 on:
   push:
@@ -52,6 +53,45 @@ jobs:
       - name: Generate Android project
         run: npx expo prebuild --platform android --non-interactive
 
+      - name: Prepare unsigned release build
+        run: |
+          python3 - <<'PYEOF'
+          import re, sys
+          path = "android/app/build.gradle"
+          src = open(path).read()
+
+          version_code = "${{ github.run_number }}"
+          src, n = re.subn(r"versionCode\s+\d+", "versionCode " + version_code, src, count=1)
+          if n != 1:
+              sys.exit("versionCode not found in generated build.gradle")
+
+          lines = src.splitlines(keepends=True)
+          out = []
+          in_release = False
+          depth = 0
+          removed = 0
+          for line in lines:
+              if not in_release and re.match(r"\s*release\s*\{\s*$", line):
+                  in_release = True
+                  depth = 1
+                  out.append(line)
+                  continue
+              if in_release:
+                  depth += line.count("{") - line.count("}")
+                  if depth <= 0:
+                      in_release = False
+                      out.append(line)
+                      continue
+                  if line.strip() == "signingConfig signingConfigs.debug":
+                      removed += 1
+                      continue
+              out.append(line)
+          if removed != 1:
+              sys.exit("expected exactly 1 release signingConfig to remove, got %d" % removed)
+          open(path, "w").write("".join(out))
+          print("build.gradle patched: versionCode=" + version_code + ", release signingConfig removed")
+          PYEOF
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -61,22 +101,14 @@ jobs:
       # Note: ubuntu-latest runners already ship with the Android SDK
       # (ANDROID_SDK_ROOT is pre-set), so no SDK setup step is needed.
 
-      - name: Build release APK
+      - name: Build release APK (unsigned)
         run: |
           chmod +x android/gradlew
-          keytool -genkeypair -keystore /tmp/test-release.keystore \
-            -alias prayercircle-test -keyalg RSA -keysize 2048 -validity 10950 \
-            -storepass android -keypass android \
-            -dname "CN=PrayerCircle Test, OU=Test, O=PrayerCircle, L=Lancaster, ST=CA, C=US"
-          cd android && ./gradlew assembleRelease --no-daemon \
-            -Pandroid.injected.signing.store.file=/tmp/test-release.keystore \
-            -Pandroid.injected.signing.store.password=android \
-            -Pandroid.injected.signing.key.alias=prayercircle-test \
-            -Pandroid.injected.signing.key.password=android
+          cd android && ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: prayercircle-test-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
           if-no-files-found: error

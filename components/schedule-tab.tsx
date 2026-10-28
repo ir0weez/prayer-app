@@ -52,7 +52,9 @@ import { PaperGrainOverlay } from "./paper-grain";
 import { BitBackground } from "./bit-background";
 import { TerminalBackground } from "./terminal-background";
 import { TerminalRestSky, terminalKeywordSceneFor } from "./terminal-keyword-scenes";
-import { BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, hasTypeScale, hexLuminance, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint, skinText, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
+import { BIT_DUSK, BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, hasTypeScale, hexLuminance, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint, skinText, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
+import { ScheduleFab } from "./schedule-fab";
+import { scheduleMaterialTones, tonalRamp } from "@/lib/schedule-material";
 import { mix } from "@/lib/color-themes";
 import type { SkinTokens } from "@/lib/skin-themes";
 
@@ -152,11 +154,13 @@ import { MinistryDetailCard } from "./ministry-detail-card";
 import { AlbumCard } from "./album-card";
 import { getAlbumPalette, WorshipAlbumDetail } from "./worship-album-detail";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
-import { TimeOffModal } from "./time-off-modal";
+import { TimeOffExperience } from "./time-off-experience";
+import { TripBand, ItineraryDayCard, ClaimedRestBlock } from "./time-off-travel";
 import { ReachedStampRow } from "./reached-stamp-row";
-import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
+import { getAllTimeOff, getItineraryForDate, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
+import { calculateWhites } from "@/lib/whites";
 import { extractPosterColor, getTimeOffEventColor, isTimeOffEventVisible, readableTextColor } from "@/lib/poster-color";
-import { calculateActiveAvailableTimeBlocks, calculateAvailableTimeBlocks, getCurrentTimeInsertionIndex, getLiveCursorPosition, splitGapIntoHourlyBlocks, timeToMinutes, minutesToTime, type TimeBlock } from "@/lib/time-blocks";
+import { calculateActiveAvailableTimeBlocks, getCurrentTimeInsertionIndex, getLiveCursorPosition, timeToMinutes, minutesToTime, whiteBlockHeight, whiteBlockBadge, type TimeBlock } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
 import { removeReachedStamp, updateReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { parseSpotifyUrl, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
@@ -222,7 +226,7 @@ import { format12HourTime, normalizeTimeFormat } from "@/lib/utils";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worship-list";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
-import { TimeOffCard } from '@/components/time-off-card';
+// v294: TimeOffCard retired from the day — the trip band (time-off-travel) is the day's time-off block now.
 import { syncScheduledEventNotifications } from '@/lib/notification-scheduler';
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
@@ -8300,20 +8304,24 @@ function TodoItem({
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
-          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(cartridgeShadow ?? {}) } : null, hasTypeScale(skinTokens) ? { paddingVertical: 12 + skinTokens.type.padBoost, paddingHorizontal: 16 + skinTokens.type.padBoost } : null, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(cartridgeShadow ?? {}) } : { backgroundColor: mix(todo.color || colors.primary, colors.surface, 0.9), borderRadius: 16, marginHorizontal: 12, marginBottom: 8 }, hasTypeScale(skinTokens) ? { paddingVertical: 12 + skinTokens.type.padBoost, paddingHorizontal: 16 + skinTokens.type.padBoost } : null, pressed && { opacity: 0.7 }]}
         >
           {skinTokens.isTerminal ? (
             <View style={{ marginRight: 12, alignSelf: "center" }}>
               <TermCheckbox checked={todo.isCompleted} size={22} />
             </View>
-          ) : (
+          ) : skinTokens.isEightBit ? (
           <ReAnimated.View
             key={`checkbox-${todo.isCompleted}`}
             entering={todo.isCompleted ? FadeIn.duration(200) : undefined}
-            style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle, skinTokens.isEightBit ? { borderRadius: 2, borderWidth: 2, borderColor: BIT_INK_HEX } : null]}
+            style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle, { borderRadius: 2, borderWidth: 2, borderColor: BIT_INK_HEX }]}
           >
             <MaterialIcons name={todo.isCompleted ? "check" : (iconNameStr as any)} size={16} color="#FFFFFF" />
           </ReAnimated.View>
+          ) : (
+          <View style={{ marginRight: 12, alignSelf: "center" }}>
+            <MaterialIcons name={todo.isCompleted ? "check-box" : "check-box-outline-blank"} size={24} color={todo.color || colors.primary} />
+          </View>
           )}
           <View style={{ flex: 1, alignItems: 'flex-start' }}>
             <Text style={[todoStyles.title, { color: colors.foreground }, todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted }, skinTokens.isEightBit ? bitDisplay(skinTokens, 10) : null, hasTypeScale(skinTokens) ? skinText(skinTokens, skinTokens.type.cardTitle) : null]} numberOfLines={1}>{todo.title}</Text>
@@ -8327,6 +8335,13 @@ function TodoItem({
           {linkedPeople.length > 0 && <StackedAvatar people={linkedPeople} size={24} />}
           {isOverdue && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 8, backgroundColor: colors.error, marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>Overdue</Text></View>}
           {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>{linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}</Text></View>}
+          {!skinTokens.isEightBit && !skinTokens.isTerminal && todo.startTime && todo.endTime && timeToMinutes(todo.endTime) > timeToMinutes(todo.startTime) ? (
+            <View style={{ backgroundColor: mix(todo.color || colors.primary, colors.surface, 0.78), borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, marginLeft: 8 }}>
+              <Text style={{ fontSize: 10.5, fontWeight: "700", color: mix(todo.color || colors.primary, "#000000", 0.15) }}>
+                {whiteBlockBadge(timeToMinutes(todo.endTime) - timeToMinutes(todo.startTime))}
+              </Text>
+            </View>
+          ) : null}
           {isLiveScheduledBlock && (
             <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={{ width: 70, flexShrink: 0 }}><NowPill /></View>
@@ -9215,6 +9230,41 @@ function MinistrySquare({
         actions={contextMenuActions}
         onDismiss={() => setContextMenuVisible(false)}
       />
+      {/* v294: Classic + Paper wear the v28 tonal ramp — three stepped
+          fields of the ministry's own colour: MINISTRY letterspaced in
+          the deep band with the flat speech-bubble motif, the time large
+          as hero type in the mid band, title + sub on the pale field.
+          8-bit and Terminal keep their own square dress below. */}
+      {!skinTokens.isTerminal && !skinTokens.isEightBit ? (
+        <View style={{ flex: 1, borderRadius: 22, overflow: "hidden", ...(skinTokens.frame ?? {}) }}>
+          <View style={{ flex: 38, backgroundColor: tonalRamp(accent, colors.surface).deep, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14 }}>
+            <Text style={{ color: "#FFFFFF", fontSize: 10.5, fontWeight: "800", letterSpacing: 2.2 }}>MINISTRY</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View style={{ width: 17, height: 17, borderRadius: 9, backgroundColor: "rgba(255,255,255,0.30)" }} />
+              <View style={{ width: 17, height: 17, borderRadius: 9, backgroundColor: "rgba(255,255,255,0.5)", marginLeft: -6 }} />
+            </View>
+          </View>
+          <View style={{ flex: 58, backgroundColor: tonalRamp(accent, colors.surface).mid, justifyContent: "center", paddingHorizontal: 14 }}>
+            <Text style={{ color: "#FFFFFF", fontSize: 21, fontWeight: "800" }} numberOfLines={1}>
+              {ministry.startTime ? format12HourTime(ministry.startTime) : ministry.type}
+            </Text>
+            {ministry.endTime ? (
+              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 11, fontWeight: "600" }}>to {format12HourTime(ministry.endTime)}</Text>
+            ) : null}
+          </View>
+          <View style={{ flex: 75, backgroundColor: tonalRamp(accent, colors.surface).pale, paddingHorizontal: 14, paddingTop: 10 }}>
+            <Text style={{ fontSize: 16.5, fontWeight: "800", color: colors.foreground }} numberOfLines={2}>{ministry.title}</Text>
+            <Text style={{ fontSize: 11.5, color: colors.muted, marginTop: 3 }} numberOfLines={1}>
+              {[ministry.type, ministry.location].filter(Boolean).join(" · ")}
+            </Text>
+            {ministry.bibleBook ? (
+              <Text style={{ fontSize: 11, color: colors.primary, fontWeight: "600", marginTop: 3 }}>
+                {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      ) : (
       <View
         style={{
           flex: 1,
@@ -9283,6 +9333,7 @@ function MinistrySquare({
           </View>
         )}
       </View>
+      )}
     </Pressable>
   );
 }
@@ -9293,12 +9344,15 @@ function MinistryCard({
   onEdit,
   onDelete,
   people = [],
+  showActiveNow = false,
 }: {
   ministry: ScheduleMinistry;
   onToggle: (position?: XpGainPosition) => void;
   onEdit?: (updatedMinistry?: ScheduleMinistry) => void;
   onDelete?: () => void;
   people?: Person[];
+  /** v294: the time pill's spot wears the NowPill while the ministry is live. */
+  showActiveNow?: boolean;
 }) {
   const colors = useColors();
   const { isSkinned, tokens: skinTokens } = useSkin();
@@ -9445,6 +9499,70 @@ function MinistryCard({
         style={({ pressed }) => [pressed && { opacity: 0.7 }]}
       >
         <ReAnimated.View style={[animatedCardStyle, glowAnimatedStyle]}>
+          {!skinTokens.isTerminal && !skinTokens.isEightBit ? (
+            <View>
+              {/* Mission Ticket - travel info (rides above the ticket) */}
+              {ministry.travelTimeMinutes != null && ministry.travelTimeMinutes > 0 && ministry.startTime && (
+                <MinistryTicket ministry={ministry} colors={colors} />
+              )}
+              {/* v294: THE TICKET (Concept 1 proportions) — a 55px stub in
+                  the ministry's colour with the type set vertical, a
+                  dashed seam, and a pale body. The time pill sits in the
+                  one spot (top-left of the body) and becomes the NowPill
+                  at the ministry's time. Whole-card tap still toggles. */}
+              <View style={{ flexDirection: "row", borderRadius: 22, overflow: "hidden", minHeight: 128, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
+                <View style={{ width: 55, backgroundColor: ministry.color || "#7C5CFF", alignItems: "center", justifyContent: "center", borderRightWidth: 1.5, borderRightColor: "rgba(255,255,255,0.75)", borderStyle: "dashed" }}>
+                  <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "800", letterSpacing: 2.4, width: 150, textAlign: "center", transform: [{ rotate: "-90deg" }] }} numberOfLines={1}>
+                    {ministry.type.toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: mix(ministry.color || "#7C5CFF", colors.surface, 0.88), paddingLeft: 16, paddingRight: 14, paddingTop: 36, paddingBottom: 14 }}>
+                  {ministry.startTime ? (
+                    showActiveNow ? (
+                      <View style={{ position: "absolute", top: 8, left: 12 }}><NowPill /></View>
+                    ) : (
+                      <View style={{ position: "absolute", top: 8, left: 12, backgroundColor: ministry.color || "#7C5CFF", borderRadius: 9, paddingHorizontal: 8, paddingVertical: 3 }}>
+                        <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "800" }}>
+                          {format12HourTime(ministry.startTime)}{ministry.endTime ? ` – ${format12HourTime(ministry.endTime)}` : ""}
+                        </Text>
+                      </View>
+                    )
+                  ) : null}
+                  {linkedPeople.length > 0 && (
+                    <View style={{ position: "absolute", top: 30, right: 10 }}>
+                      <StackedAvatar people={linkedPeople} size={22} />
+                    </View>
+                  )}
+                  <Text style={{ fontSize: 19.5, fontWeight: "800", color: colors.foreground, paddingRight: linkedPeople.length > 0 ? 30 : 0 }} numberOfLines={2}>
+                    {ministry.title}
+                  </Text>
+                  {(ministry.location || ministry.dueDate) ? (
+                    <Text style={{ fontSize: 12.5, color: colors.muted, marginTop: 3 }} numberOfLines={1}>
+                      {[ministry.location, ministry.dueDate ? `Due ${ministry.dueDate}` : null].filter(Boolean).join(" · ")}
+                    </Text>
+                  ) : null}
+                  {(ministry.bibleBook || linkedPeople.length > 0) ? (
+                    <View style={{ flexDirection: "row", gap: 6, marginTop: 9, flexWrap: "wrap" }}>
+                      {ministry.bibleBook ? (
+                        <View style={{ backgroundColor: colors.primary + "22", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                          <Text style={{ fontSize: 10.5, color: colors.primary, fontWeight: "700" }}>
+                            {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
+                          </Text>
+                        </View>
+                      ) : null}
+                      {linkedPeople.length > 0 ? (
+                        <View style={{ backgroundColor: colors.primary + "14", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                          <Text style={{ fontSize: 10.5, color: colors.muted, fontWeight: "600" }}>
+                            {linkedPeople.map((p) => p.name.split(" ")[0]).slice(0, 3).join(", ")}{linkedPeople.length > 3 ? ` +${linkedPeople.length - 3}` : ""}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            </View>
+          ) : (
           <View style={[ministryStyles.card, {
             // Paper: OPAQUE tinted paper stock + the kit shadow (v179);
             // completed cards go paper-white.
@@ -9505,6 +9623,7 @@ function MinistryCard({
               </View>
             </View>
           </View>
+          )}
         </ReAnimated.View>
       </Pressable>
       <ContextMenu
@@ -9680,6 +9799,32 @@ function ExpandableSection({
 }
 
 // ─── Main Schedule Tab Component ─────────────────────────────────────────────
+/**
+ * v294 — a creator page's tonal section card. The five creators share one
+ * derived Material theme: fields group into named container-tone cards on
+ * the seed's page tone; each creator's identity colour rides only as an
+ * accent. Mirrors the Event form's sections (components/event-edit-form).
+ */
+function CreatorSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const colors = useColors();
+  const { tokens: skinTokens, isSkinned } = useSkin();
+  const tones = scheduleMaterialTones(colors.primary, colors.surface);
+  return (
+    <View
+      style={{
+        backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : tones.containerLow,
+        borderRadius: 22,
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+        marginBottom: 14,
+      }}
+    >
+      <Text style={{ fontSize: 15, fontWeight: "700", color: colors.foreground, marginTop: 14, marginBottom: 2 }}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
 export function ScheduleTab({
   people,
   fasts,
@@ -9746,6 +9891,7 @@ export function ScheduleTab({
   onScrollYChange?: (y: number) => void;
 }) {
   const colors = useColors();
+  const scheduleTones = scheduleMaterialTones(colors.primary, colors.surface);
   const { isSkinned, tokens: skinTokens, motion: skinMotion } = useSkin();
   // v202: the FAB / white-block popup menus settle as paper under
   // the Paper skin (small sheets laid over the schedule, sine settle
@@ -10002,6 +10148,9 @@ export function ScheduleTab({
   const [formStartTime, setFormStartTime] = useState("");
   const [formEndTime, setFormEndTime] = useState("");
   const [formTodoNotificationsEnabled, setFormTodoNotificationsEnabled] = useState(true);
+  // v294: Notify on every creator (his ruling) — ministry + worship states.
+  const [formMinistryNotify, setFormMinistryNotify] = useState(true);
+  const [formWorshipNotify, setFormWorshipNotify] = useState(true);
   const [formReminderMinutesBefore, setFormReminderMinutesBefore] = useState(0);
   const [formLocation, setFormLocation] = useState("");
   const [formTravelTimeMinutes, setFormTravelTimeMinutes] = useState("");
@@ -10047,8 +10196,14 @@ export function ScheduleTab({
   const [activeMissedTodoId, setActiveMissedTodoId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Calendar view mode toggle
   const [showViewMenu, setShowViewMenu] = useState(false); // Dropdown menu toggle
-  const [showTimeOffModal, setShowTimeOffModal] = useState(false); // Time-off modal visibility
-  const [timeOffEditId, setTimeOffEditId] = useState<string | null>(null);
+  // v294: the Time Off experience (list/book/trip) replaces the old modal;
+  // timeOffExperienceTripId opens it straight into one trip's timeline.
+  const [showTimeOffExperience, setShowTimeOffExperience] = useState(false);
+  const [timeOffExperienceTripId, setTimeOffExperienceTripId] = useState<string | null>(null);
+  const openTimeOffExperience = useCallback((tripId: string | null) => {
+    setTimeOffExperienceTripId(tripId);
+    setShowTimeOffExperience(true);
+  }, []);
   const [timeOffList, setTimeOffList] = useState<TimeOff[]>([]); // List of time-off periods
   const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>(null);
   const [albumHistory, setAlbumHistory] = useState<StoredWorshipAlbum[]>([]);
@@ -10983,6 +11138,8 @@ export function ScheduleTab({
     setFormStartTime("");
     setFormEndTime("");
     setFormTodoNotificationsEnabled(true);
+    setFormMinistryNotify(true);
+    setFormWorshipNotify(true);
     setFormReminderMinutesBefore(defaultEventReminderMinutes);
     setFormLocation("");
     setFormTravelTimeMinutes("");
@@ -11185,6 +11342,7 @@ export function ScheduleTab({
         linkedPeopleIds: formLinkedPeopleIds.length > 0 ? formLinkedPeopleIds : undefined,
         bibleBook: formBibleBook || undefined,
         bibleChapter: formBibleChapter || undefined,
+        notificationsEnabled: formMinistryNotify,
       };
 
       setMinistries((prev) => prev.map((m) => m.id === editingMinistry.id ? updatedMinistry : m));
@@ -11201,6 +11359,7 @@ export function ScheduleTab({
         location: formLocation || undefined,
         travelTimeMinutes: formTravelTimeMinutes ? parseInt(formTravelTimeMinutes, 10) || undefined : undefined,
         notes: formNotes || undefined,
+        notificationsEnabled: formMinistryNotify,
       });
       if (formLinkedPeopleIds.length > 0) {
         newMinistry.linkedPeopleIds = formLinkedPeopleIds;
@@ -11265,6 +11424,7 @@ export function ScheduleTab({
     setFormReleaseDate(album.releaseDate ?? album.createdAt?.slice(0, 10) ?? '');
     setFormTracks(album.tracks?.map((track) => ({ title: track.title, key: track.key ?? '' })) ?? []);
     setFormDate(album.date ?? selectedDate);
+    setFormWorshipNotify(album.notify !== false);
     if (album.coverUrl?.startsWith('file:') || album.coverUrl?.startsWith('content:')) {
       setFormAlbumCoverImage(album.coverUrl);
     } else {
@@ -11361,6 +11521,7 @@ export function ScheduleTab({
         date: formDate || selectedDate,
         releaseDate: formReleaseDate || undefined,
         isSaved: existingAlbum?.isSaved ?? false,
+        notify: formWorshipNotify,
         createdAt: existingAlbum?.createdAt ?? now,
         addedAt: existingAlbum?.addedAt ?? now,
       };
@@ -11545,6 +11706,13 @@ export function ScheduleTab({
       return selDateObj >= toStart && selDateObj <= toEnd;
     });
     dayTimeOff.forEach((to) => items.push({ type: "time-off", id: to.id, data: to }));
+    // v294: untimed itinerary entries ride directly under their trip's
+    // band; timed ones join the chronological flow below as travel cards.
+    dayTimeOff.forEach((to) => {
+      getItineraryForDate(to, selectedDate)
+        .filter((entry) => !entry.time)
+        .forEach((entry) => items.push({ type: "itinerary", id: entry.id, data: { entry, timeOff: to } }));
+    });
 
     // Birthdays next
     dayBirthdays.forEach((b) => items.push({ type: "birthday", id: b.id, data: b }));
@@ -11607,6 +11775,21 @@ export function ScheduleTab({
       });
     }
 
+    // v294: the day's itinerary entries (flights, check-ins, plans) join
+    // the timed flow as travel cards, in time order among the day's items.
+    dayTimeOff.forEach((to) => {
+      getItineraryForDate(to, selectedDate)
+        .filter((entry) => entry.time)
+        .forEach((entry) => {
+          timedItems.push({
+            type: "itinerary",
+            id: entry.id,
+            data: { entry, timeOff: to },
+            sortTime: entry.time!,
+          });
+        });
+    });
+
     // Calculate available time blocks from every reserved commitment. Completion
     // does not reopen the scheduled time, which keeps the total stable.
     const now = clockNow;
@@ -11646,36 +11829,21 @@ export function ScheduleTab({
 
     let activeBlocks: TimeBlock[] = [];
     if (isTodayOrFuture && whiteSpaceEnabled) {
-      // White-space gaps: completed items free up their time.
-      // Todos block 30 minutes max (longer = event). Point-in-time todos get 30min default.
-      const whiteSpaceItems = [
-        ...dayTodos.filter((t) => t.startTime && !t.isCompleted).map((t) => ({
-          ...t,
-          // Cap todo duration at 30 minutes for white space
-          endTime: t.endTime || (() => {
-            const [h, m] = t.startTime!.split(":").map(Number);
-            const endM = m + 30;
-            const endH = h + Math.floor(endM / 60);
-            return `${String(endH).padStart(2, "0")}:${String(endM % 60).padStart(2, "0")}`;
-          })(),
-        })),
-        ...dayEvents.filter((e) => e.startTime && !e.isCompleted),
-        ...dayMinistries.filter((m) => m.startTime && !m.isCompleted),
-        ...dayBibleStudies.filter((study) => study.startTime && !study.isCompleted),
-      ];
-      const rawBlocks = calculateAvailableTimeBlocks(whiteSpaceItems, "06:00", "23:00");
-      // Split each gap into hourly blocks + a 30-min block for 30-59m remainders.
-      const hourlyBlocks = rawBlocks.flatMap(splitGapIntoHourlyBlocks);
-      // Today only: drop each hourly block once its own hour has fully passed.
-      // No trimming or countdown — a block shows its fixed hour until it is gone.
+      // v294: the whites come from lib/whites — his settled structure in
+      // one place: the 05:00–24:00 window (he settled 5 AM–midnight),
+      // uncompleted items only (checking off frees the time), todos
+      // capped at 30 minutes, 30/60/90 splits with the remainder
+      // absorbed, and on today any block with <15 minutes left dropped.
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      activeBlocks = selectedDate === todayISO
-        ? hourlyBlocks.filter((b) => {
-            const remaining = timeToMinutes(b.endTime) - currentMinutes;
-            // Drop blocks with less than 15 minutes remaining — not enough time to plan anything
-            return remaining >= 15;
-          })
-        : hourlyBlocks;
+      activeBlocks = calculateWhites(
+        [
+          ...dayTodos.filter((t) => t.startTime).map((t) => ({ ...t, kind: "todo" as const })),
+          ...dayEvents.filter((e) => e.startTime).map((e) => ({ ...e, kind: "event" as const })),
+          ...dayMinistries.filter((m) => m.startTime).map((m) => ({ ...m, kind: "ministry" as const })),
+          ...dayBibleStudies.filter((study) => study.startTime).map((study) => ({ ...study, kind: "study" as const })),
+        ],
+        { isToday: selectedDate === todayISO, nowMinutes: currentMinutes },
+      );
     }
 
     // Merge time blocks with timed items for chronological intertwining
@@ -11959,7 +12127,9 @@ export function ScheduleTab({
       ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
       ...getBibleStudiesForDate(bibleStudies, selectedDate).filter((study) => study.startTime && !study.isCompleted),
     ];
-    const activeSummaryBlocks = calculateActiveAvailableTimeBlocks(scheduledItems, selectedDate, clockNow);
+    // v294: the summary's available time reads over the same settled
+    // window as the whites — 05:00–24:00.
+    const activeSummaryBlocks = calculateActiveAvailableTimeBlocks(scheduledItems, selectedDate, clockNow, "05:00", "24:00");
     const todoSummaryCounts = getTodoSummaryCounts(getTodosForDate(todos, selectedDate));
 
     const totalAvailableMinutes = activeSummaryBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
@@ -12152,6 +12322,7 @@ export function ScheduleTab({
       // Live "now" badges only make sense for today — never on future/past days.
       const todayISO = `${clockNow.getFullYear()}-${String(clockNow.getMonth() + 1).padStart(2, "0")}-${String(clockNow.getDate()).padStart(2, "0")}`;
       const isToday = selectedDate === todayISO;
+      const nowMinutesRender = clockNow.getHours() * 60 + clockNow.getMinutes();
       switch (item.type) {
         case "date-header": {
           return renderDateHeaderCard();
@@ -12368,16 +12539,19 @@ export function ScheduleTab({
           );
         }
         case "time-off":
+          // v294: the time-off block is the trip band — it is never
+          // completable (no toggle exists for it anywhere); tapping it
+          // opens the Time Off page at this trip.
           return (
-            <View>
-              <TimeOffCard
-                timeOff={item.data}
-                onPress={() => {
-                  setTimeOffEditId(item.data.id);
-                  setShowTimeOffModal(true);
-                }}
-              />
-            </View>
+            <TripBand
+              timeOff={item.data}
+              date={selectedDate}
+              onPress={() => openTimeOffExperience(item.data.id)}
+            />
+          );
+        case "itinerary":
+          return (
+            <ItineraryDayCard entry={item.data.entry} timeOff={item.data.timeOff} />
           );
         case "birthday":
           return <BirthdayCard birthday={item.data} />;
@@ -12386,10 +12560,11 @@ export function ScheduleTab({
             <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 4, backgroundColor: skinTokens.isEightBit ? "transparent" : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }}>
               {item.data.todos.map((t: any) => {
                 const todoColor = t.color || colors.primary;
+                const tonalRect = !skinTokens.isEightBit && !skinTokens.isTerminal;
                 return (
                   <Pressable
                     key={t.id}
-                    style={{ flex: 1, backgroundColor: todoColor, borderRadius: 12, padding: 12, minHeight: 68, justifyContent: "center", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(hasTypeScale(skinTokens) ? { padding: 12 + skinTokens.type.padBoost, minHeight: 68 + skinTokens.type.padBoost * 2 } : {}) }}
+                    style={{ flex: 1, backgroundColor: tonalRect ? mix(todoColor, colors.surface, 0.86) : todoColor, borderRadius: tonalRect ? 16 : 12, padding: 12, minHeight: 68, justifyContent: "center", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(hasTypeScale(skinTokens) ? { padding: 12 + skinTokens.type.padBoost, minHeight: 68 + skinTokens.type.padBoost * 2 } : {}) }}
                     onPress={(e) => {
                       const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
                       if (!t.isCompleted) onAwardXP?.(xpActionForDate(t.date), t.id, position);
@@ -12398,6 +12573,9 @@ export function ScheduleTab({
                     }}
                   >
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      {tonalRect ? (
+                        <MaterialIcons name={t.isCompleted ? "check-box" : "check-box-outline-blank"} size={22} color={todoColor} />
+                      ) : (
                       <View
                         style={{
                           width: 28, height: 28, borderRadius: skinTokens.isEightBit ? 2 : 8,
@@ -12412,13 +12590,14 @@ export function ScheduleTab({
                           <MaterialIcons name={getIconForTodo(t.title) as any} size={16} color="#FFFFFF" />
                         )}
                       </View>
-                      <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "700", flex: 1, ...skinText(skinTokens, skinTokens.type.rowBody) }} numberOfLines={2}>
+                      )}
+                      <Text style={{ color: tonalRect ? colors.foreground : "#FFFFFF", fontSize: 13, fontWeight: "700", flex: 1, ...(t.isCompleted && tonalRect ? { textDecorationLine: "line-through" as const } : {}), ...skinText(skinTokens, skinTokens.type.rowBody) }} numberOfLines={2}>
                         {t.title}
                       </Text>
                     </View>
                     <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 6 }}>
                       {t.startTime && (
-                        <Text style={{ color: "#FFFFFF", fontSize: 11, opacity: 0.85 }}>
+                        <Text style={{ color: tonalRect ? colors.muted : "#FFFFFF", fontSize: 11, opacity: 0.85 }}>
                           {(() => {
                             const [h, m] = t.startTime.split(":").map(Number);
                             const ampm = h >= 12 ? "PM" : "AM";
@@ -12428,8 +12607,8 @@ export function ScheduleTab({
                         </Text>
                       )}
                       {t.tag && (
-                        <View style={{ backgroundColor: "rgba(255,255,255,0.22)", borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2 }}>
-                          <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "600" }}>
+                        <View style={{ backgroundColor: tonalRect ? mix(todoColor, colors.surface, 0.7) : "rgba(255,255,255,0.22)", borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2 }}>
+                          <Text style={{ color: tonalRect ? mix(todoColor, "#000000", 0.15) : "#FFFFFF", fontSize: 10, fontWeight: "600" }}>
                             {t.tag}
                           </Text>
                         </View>
@@ -12523,6 +12702,7 @@ export function ScheduleTab({
         case "ministry": {
           return (
             <MinistryCard
+              showActiveNow={Boolean(item.data.startTime && isToday && nowMinutesRender >= timeToMinutes(item.data.startTime) && nowMinutesRender < (item.data.endTime ? timeToMinutes(item.data.endTime) : timeToMinutes(item.data.startTime) + 60))}
               ministry={item.data}
               people={people}
               onToggle={(position) => {
@@ -12544,6 +12724,7 @@ export function ScheduleTab({
                 setFormBibleBook(item.data.bibleBook || "");
                 setFormBibleChapter(item.data.bibleChapter || "");
                 setFormColor(item.data.color || "#6366F1");
+                setFormMinistryNotify(item.data.notificationsEnabled !== false);
                 setFormLinkedPeopleIds(item.data.linkedPeopleIds || []);
                 setAddType("ministry");
                 setShowAddModal(true);
@@ -12606,6 +12787,7 @@ export function ScheduleTab({
                     setFormNotes(m.notes || "");
                     setFormBibleBook(m.bibleBook || "");
                     setFormBibleChapter(m.bibleChapter || "");
+                    setFormMinistryNotify(m.notificationsEnabled !== false);
                     setFormColor(m.color || "#6366F1");
                     setFormLinkedPeopleIds(m.linkedPeopleIds || []);
                     setAddType("ministry");
@@ -12821,7 +13003,26 @@ export function ScheduleTab({
               )}
             </ExpandableSection>
           );
-        case "time-block":
+        case "time-block": {
+          // v294: on a time-off day the open stretch is claimed rest,
+          // not a white block — no add menu, nothing to fill.
+          const dayTrip = timeOffList.find((to) => selectedDate >= to.startDate && selectedDate <= to.endDate);
+          if (dayTrip) {
+            const b = item.data.block as TimeBlock;
+            const nm = item.data.nowMinutes ?? null;
+            const remaining = nm != null && timeToMinutes(b.startTime) <= nm && nm < timeToMinutes(b.endTime)
+              ? timeToMinutes(b.endTime) - nm
+              : null;
+            return (
+              <ClaimedRestBlock
+                timeOff={dayTrip}
+                startTime={b.startTime}
+                endTime={b.endTime}
+                height={whiteBlockHeight(b.durationMinutes, remaining)}
+                onPress={() => openTimeOffExperience(dayTrip.id)}
+              />
+            );
+          }
           return (
             <TimeBlockIndicator
               block={item.data.block}
@@ -12831,7 +13032,31 @@ export function ScheduleTab({
               onPressOut={handleWhiteBlockPressOut}
             />
           );
-        case "time-block-group":
+        }
+        case "time-block-group": {
+          const dayTrip = timeOffList.find((to) => selectedDate >= to.startDate && selectedDate <= to.endDate);
+          if (dayTrip) {
+            const nm = item.data.nowMinutes ?? null;
+            return (
+              <View>
+                {(item.data.blocks as TimeBlock[]).map((b) => {
+                  const remaining = nm != null && timeToMinutes(b.startTime) <= nm && nm < timeToMinutes(b.endTime)
+                    ? timeToMinutes(b.endTime) - nm
+                    : null;
+                  return (
+                    <ClaimedRestBlock
+                      key={b.id}
+                      timeOff={dayTrip}
+                      startTime={b.startTime}
+                      endTime={b.endTime}
+                      height={whiteBlockHeight(b.durationMinutes, remaining)}
+                      onPress={() => openTimeOffExperience(dayTrip.id)}
+                    />
+                  );
+                })}
+              </View>
+            );
+          }
           return (
             <TimeBlockGroup
               blocks={item.data.blocks}
@@ -12841,13 +13066,14 @@ export function ScheduleTab({
               onPressOut={handleWhiteBlockPressOut}
             />
           );
+        }
         case "current-time-indicator":
           return <NowIndicator />;
         default:
           return null;
       }
     },
-    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded, isWorshipExpanded, selectedWorshipDate, clockNow, renderDateHeaderCard, celebratedBook, bibleFullyComplete, isSkinned, skinTokens]
+    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded, isWorshipExpanded, selectedWorshipDate, clockNow, renderDateHeaderCard, celebratedBook, bibleFullyComplete, isSkinned, skinTokens, timeOffList, openTimeOffExperience]
   );
 
   return (
@@ -13262,19 +13488,31 @@ export function ScheduleTab({
         </View>
       )}
 
-      {/* FAB Button with Google Calendar-style popup menu */}
-      <Pressable
-        onPress={() => setShowAddModal(!showAddModal)}
-        style={({ pressed }) => [scheduleStyles.fab, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.frame, (skinTokens.isEightBit || skinTokens.isTerminal) ? skinTokens.cardShadow ?? {} : null, pressed && { transform: [{ scale: 0.95 }], opacity: 0.9 }, paperPressedLift(skinTokens, pressed, [{ scale: 0.95 }]), bitPressedSnap(skinTokens, pressed, [{ scale: 0.95 }])]}
-      >
-        <ReAnimated.View
-          style={useAnimatedStyle(() => ({
-            transform: [{ rotate: withTiming(showAddModal ? "135deg" : "0deg", { duration: 250, easing: Easing.out(Easing.quad) }) }],
-          }))}
-        >
-          <MaterialIcons name="add" size={32} color={skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF"} />
-        </ReAnimated.View>
-      </Pressable>
+      {/* v294: the FAB is one morphing surface (components/schedule-fab) —
+          his five-option menu in Material 3 form and motion. The button
+          becomes the menu; the + rotates 135° into a ×; rows stagger-rise;
+          the scrim fades with the state. */}
+      <ScheduleFab
+        open={showAddModal}
+        onToggle={() => setShowAddModal(!showAddModal)}
+        fabColor={skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary}
+        menuSurface={skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_DUSK : scheduleMaterialTones(colors.primary, colors.surface).primaryContainer}
+        labelColor={skinTokens.isTerminal ? TERM_SOFT : colors.foreground}
+        iconColorClosed={skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF"}
+        iconColorOpen={skinTokens.isTerminal ? TERM_PHOS : mix(colors.primary, "#000000", 0.25)}
+        scrimTone={skinTokens.isTerminal || skinTokens.isEightBit ? "dark" : "violet"}
+        getFacePressedStyles={(pressed) => [
+          paperPressedLift(skinTokens, pressed, [{ scale: 0.95 }]),
+          bitPressedSnap(skinTokens, pressed, [{ scale: 0.95 }]),
+        ]}
+        items={[
+          { key: "ministry", label: "Ministry", icon: "volunteer-activism", color: "#7C5CFF", onPress: () => { setAddType("ministry"); setShowAddModal(false); } },
+          { key: "event", label: "Event", icon: "event", color: "#3DAA78", onPress: () => { openNewEventEditor(); } },
+          { key: "todo", label: "Todo", icon: "check-box", color: "#E3B341", onPress: () => { setAddType("todo"); setShowAddModal(false); } },
+          { key: "worship", label: "Worship", icon: "music-note", color: "#9C27B0", onPress: () => { setAddType("worship"); setShowAddModal(false); } },
+          { key: "timeoff", label: "Time Off", icon: "beach-access", color: "#E1F5FE", iconColor: "#01579B", onPress: () => { openTimeOffExperience(null); setShowAddModal(false); } },
+        ]}
+      />
 
       {/* Floating Today Button - Over Tab Bar */}
       {selectedDate !== today && (
@@ -13292,88 +13530,6 @@ export function ScheduleTab({
           <MaterialIcons name="today" size={14} color="#FFFFFF" />
           <Text style={scheduleStyles.floatingTodayButtonText}>Today</Text>
         </Pressable>
-      )}
-
-      {/* Google Calendar-style popup menu */}
-      {showAddModal && (
-        <>
-          <Pressable style={scheduleStyles.fabOverlay} onPress={() => setShowAddModal(false)} />
-          <ReAnimated.View
-            entering={menuEntering(0)}
-            style={[scheduleStyles.fabMenu, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }]}
-          >
-            <ReAnimated.View entering={menuEntering(30)}>
-            <Pressable
-              onPress={() => {
-                setAddType("ministry");
-                setShowAddModal(false);
-              }}
-              style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
-            >
-              <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#7C5CFF" }]}>
-                <MaterialIcons name="volunteer-activism" size={20} color="#FFFFFF" />
-              </View>
-              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Ministry</Text>
-            </Pressable>
-            </ReAnimated.View>
-            <ReAnimated.View entering={menuEntering(60)}>
-            <Pressable
-              onPress={() => {
-                openNewEventEditor();
-              }}
-              style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
-            >
-              <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#3DAA78" }]}>
-                <MaterialIcons name="event" size={20} color="#FFFFFF" />
-              </View>
-              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Event</Text>
-            </Pressable>
-            </ReAnimated.View>
-            <ReAnimated.View entering={menuEntering(90)}>
-            <Pressable
-              onPress={() => {
-                setAddType("todo");
-                setShowAddModal(false);
-              }}
-              style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
-            >
-              <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#E3B341" }]}>
-                <MaterialIcons name="check-box" size={20} color="#FFFFFF" />
-              </View>
-              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Todo</Text>
-            </Pressable>
-            </ReAnimated.View>
-            <ReAnimated.View entering={menuEntering(120)}>
-            <Pressable
-              onPress={() => {
-                setAddType("worship");
-                setShowAddModal(false);
-              }}
-              style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
-            >
-              <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#9C27B0" }]}>
-                <MaterialIcons name="music-note" size={20} color="#FFFFFF" />
-              </View>
-              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Worship</Text>
-            </Pressable>
-            </ReAnimated.View>
-            <ReAnimated.View entering={menuEntering(150)}>
-            <Pressable
-              onPress={() => {
-                setShowTimeOffModal(true);
-                setShowAddModal(false);
-              }}
-              style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
-            >
-              <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#E1F5FE" }]}>
-                <MaterialIcons name="beach-access" size={20} color="#01579B" />
-              </View>
-              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Time Off</Text>
-            </Pressable>
-            </ReAnimated.View>
-
-          </ReAnimated.View>
-        </>
       )}
 
       {/* White-block hour menu: pick Event / Todo / Ministry for the tapped hour */}
@@ -13435,7 +13591,7 @@ export function ScheduleTab({
       {/* Add Modal - Event Form */}
       <Modal transparent visible={addType === "event"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
-          <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
+          <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
@@ -13581,7 +13737,7 @@ export function ScheduleTab({
       {/* Add Modal - Todo Form */}
       <Modal transparent visible={addType === "todo"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
-          <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
+          <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
@@ -13593,6 +13749,7 @@ export function ScheduleTab({
               </Pressable>
             </View>
             <ScrollView style={scheduleStyles.formContent} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+              <CreatorSection title="Task">
               <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>WHAT DO YOU NEED TO DO?</Text>
               <TextInput
                 value={formTitle}
@@ -13648,6 +13805,8 @@ export function ScheduleTab({
                   />
                 ))}
               </View>
+              </CreatorSection>
+              <CreatorSection title="Notes & steps">
               <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>NOTES (optional)</Text>
               <TextInput
                 value={formTodoNotes}
@@ -13713,6 +13872,8 @@ export function ScheduleTab({
                 ))}
                 <Text style={{ color: colors.muted, fontSize: 11, marginTop: 8 }}>Add a title and optional details, then tap +.</Text>
               </View>
+              </CreatorSection>
+              <CreatorSection title="Tag & link">
               <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TAG (optional)</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                 {['Ministry', 'Event', 'Family', 'Therapy', 'Personal'].map((tag) => (
@@ -13828,6 +13989,7 @@ export function ScheduleTab({
                   );
                 })()}
               </View>
+                          </CreatorSection>
             </ScrollView>
           </BitSettle>
 </PaperSettle>
@@ -13837,7 +13999,7 @@ export function ScheduleTab({
       {/* Add Modal - Ministry Form */}
       <Modal transparent visible={addType === "ministry"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
-          <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
+          <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
@@ -13853,6 +14015,7 @@ export function ScheduleTab({
               keyExtractor={(item) => item.key}
               renderItem={() => (
                 <View style={scheduleStyles.formContent}>
+                  <CreatorSection title="Ministry">
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>MINISTRY NAME</Text>
                   <TextInput
                     value={formTitle}
@@ -13881,6 +14044,8 @@ export function ScheduleTab({
                       </Pressable>
                     ))}
                   </View>
+                  </CreatorSection>
+                  <CreatorSection title="Schedule">
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DATE</Text>
                   <DateTimePicker
                     value={formDate || selectedDate}
@@ -13916,6 +14081,20 @@ export function ScheduleTab({
                       />
                     </View>
                   </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <MaterialIcons name="notifications-active" size={18} color={formMinistryNotify ? colors.primary : colors.muted} />
+                      <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }}>Notify</Text>
+                    </View>
+                    <Switch
+                      value={formMinistryNotify}
+                      onValueChange={setFormMinistryNotify}
+                      trackColor={{ false: colors.border, true: colors.primary }}
+                      thumbColor={formMinistryNotify ? colors.primary : colors.muted}
+                    />
+                  </View>
+                  </CreatorSection>
+                  <CreatorSection title="Place & passage">
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>LOCATION</Text>
                   <TextInput
                     value={formLocation}
@@ -13985,6 +14164,7 @@ export function ScheduleTab({
                       );
                     }}
                   />
+                  </CreatorSection>
                 </View>
               )}
               showsVerticalScrollIndicator={false}
@@ -13997,7 +14177,7 @@ export function ScheduleTab({
       {/* Add Modal - Bible Study Form */}
       <Modal transparent visible={addType === "bible-study"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
-          <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
+          <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
@@ -14084,7 +14264,7 @@ export function ScheduleTab({
       {/* Add/Edit Worship Album */}
       <Modal transparent visible={addType === "worship"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
-          <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
+          <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => { setAddType(null); resetForm(); setShowAddModal(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
@@ -14096,6 +14276,7 @@ export function ScheduleTab({
               </Pressable>
             </View>
             <ScrollView style={scheduleStyles.formContent} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+              <CreatorSection title="Setlist">
               {/* Album Preview */}
               {(formTitle || formNotes || formAlbumCoverImage || formSongLink) && (
                 <View style={[{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border, alignItems: 'center', gap: 12 }]}>
@@ -14235,24 +14416,6 @@ export function ScheduleTab({
                 </Pressable>
               )}
 
-              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DATE</Text>
-              <DateTimePicker
-                value={formDate || selectedDate}
-                onChange={setFormDate}
-                mode="date"
-                label="Select Date"
-              />
-
-              <Text style={[scheduleStyles.formLabel, { color: colors.muted, marginTop: 14 }]}>RELEASE DATE (OPTIONAL)</Text>
-              <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: -4, marginBottom: 6 }}>
-                Use the album’s original release date to keep older worship music organized. Existing albums fall back to their first-created date.
-              </Text>
-              <DateTimePicker
-                value={formReleaseDate}
-                onChange={setFormReleaseDate}
-                mode="date"
-                label="Select Release Date"
-              />
 
               <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Album Cover URL (optional)</Text>
               <TextInput
@@ -14290,6 +14453,39 @@ export function ScheduleTab({
               <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: 6 }}>
                 Import fills the title and cover when Spotify provides them. You can always enter or correct the details manually.
               </Text>
+              </CreatorSection>
+              <CreatorSection title="Dates">
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DATE</Text>
+              <DateTimePicker
+                value={formDate || selectedDate}
+                onChange={setFormDate}
+                mode="date"
+                label="Select Date"
+              />
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <MaterialIcons name="notifications-active" size={18} color={formWorshipNotify ? colors.primary : colors.muted} />
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }}>Notify</Text>
+                </View>
+                <Switch
+                  value={formWorshipNotify}
+                  onValueChange={setFormWorshipNotify}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={formWorshipNotify ? colors.primary : colors.muted}
+                />
+              </View>
+
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted, marginTop: 14 }]}>RELEASE DATE (OPTIONAL)</Text>
+              <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: -4, marginBottom: 6 }}>
+                Use the album’s original release date to keep older worship music organized. Existing albums fall back to their first-created date.
+              </Text>
+              <DateTimePicker
+                value={formReleaseDate}
+                onChange={setFormReleaseDate}
+                mode="date"
+                label="Select Release Date"
+              />
+              </CreatorSection>
             </ScrollView>
           </BitSettle>
 </PaperSettle>
@@ -14467,15 +14663,15 @@ export function ScheduleTab({
         canGoNext={bibleChapter < 50}
       />
 
-      {/* Time-Off Modal */}
-      <TimeOffModal
-        visible={showTimeOffModal}
-        initialEditId={timeOffEditId}
+      {/* Time Off — v294: the experience (list / book / trip timeline) */}
+      <TimeOffExperience
+        visible={showTimeOffExperience}
+        initialTripId={timeOffExperienceTripId}
         onClose={() => {
-          setShowTimeOffModal(false);
-          setTimeOffEditId(null);
+          setShowTimeOffExperience(false);
+          setTimeOffExperienceTripId(null);
         }}
-        onTimeOffUpdated={async () => {
+        onChanged={async () => {
           const updated = await getAllTimeOff();
           setTimeOffList(updated);
         }}

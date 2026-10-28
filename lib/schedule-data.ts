@@ -7,6 +7,21 @@ export const SCHEDULE_MINISTRIES_KEY = "prayercircle.schedule.ministries.v1";
 export const SCHEDULE_BIBLE_STUDIES_KEY = "prayercircle.schedule.biblestudies.v1";
 export const SCHEDULE_WORSHIP_LINKS_KEY = "prayercircle.schedule.worship.links.v1";
 
+// ─── Shared colour palette ──────────────────────────────────────────────────
+// v294: ONE palette for every creator (Event, Todo, Ministry, Worship,
+// Time Off) — his ruling, Oct 27: every creator page picks from the same
+// seven circles. Item colours chosen from it are DATA and ride through
+// every redesign untouched.
+export const SCHEDULE_COLOR_PALETTE: Array<{ name: string; hex: string }> = [
+  { name: "Gray", hex: "#6B7280" },
+  { name: "Red", hex: "#EF4444" },
+  { name: "Orange", hex: "#F97316" },
+  { name: "Yellow", hex: "#FBBF24" },
+  { name: "Green", hex: "#10B981" },
+  { name: "Blue", hex: "#3B82F6" },
+  { name: "Purple", hex: "#A855F7" },
+];
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type ScheduleItemType = "event" | "todo" | "ministry" | "birthday";
@@ -21,6 +36,7 @@ export type ScheduleEvent = {
   startTime?: string; // HH:mm
   endTime?: string; // HH:mm
   reminderMinutesBefore?: number; // Optional local notification lead time
+  notify?: boolean; // v294: the creator's Notify toggle — false silences this event's reminder
   travelTimeMinutes?: number; // "Time to leave" — minutes to get there, shown as dashed outline above event
   location?: string;
   notes?: string;
@@ -89,6 +105,7 @@ export type ScheduleMinistry = {
   location?: string;
   travelTimeMinutes?: number; // "Time to leave" — minutes to get there
   notes?: string;
+  notificationsEnabled?: boolean; // v294: the creator's Notify toggle — false silences this ministry's reminder
   isCompleted: boolean;
   completedAt?: string;
   color?: string;

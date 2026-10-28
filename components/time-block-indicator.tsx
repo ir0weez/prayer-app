@@ -4,7 +4,8 @@ import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BIT_DUSK, BIT_GOLD, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PHOS } from "@/lib/skin-themes";
-import { TimeBlock, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
+import { TimeBlock, timeToMinutes, minutesToTime, whiteBlockHeight, whiteBlockBadge } from "@/lib/time-blocks";
+import { mix } from "@/lib/color-themes";
 import { format12HourTime } from "@/lib/utils";
 import { NowPill } from "./now-indicator";
 
@@ -44,13 +45,10 @@ function blockContainsNow(block: TimeBlock, nowMinutes?: number | null): boolean
  *  A "now" block shrinks as time passes: >60m left = tall, 31-60m = medium,
  *  1-30m = compact. Disappears at 0 (handled by block filtering). */
 function blockCardHeight(block: TimeBlock, nowMinutes?: number | null): number {
-  if (nowMinutes != null && blockContainsNow(block, nowMinutes)) {
-    const remaining = timeToMinutes(block.endTime) - nowMinutes;
-    if (remaining <= 30) return 52;
-    if (remaining <= 60) return 64;
-    return 76;
-  }
-  return block.durationMinutes <= 30 ? 52 : block.durationMinutes <= 60 ? 64 : 76;
+  const remaining = nowMinutes != null && blockContainsNow(block, nowMinutes)
+    ? timeToMinutes(block.endTime) - nowMinutes
+    : null;
+  return whiteBlockHeight(block.durationMinutes, remaining);
 }
 
 export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, onPressOut }: TimeBlockIndicatorProps) {
@@ -78,8 +76,9 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
           // Terminal (v186): the mockup's prompt row — a dashed
           // mid-green edge on the panel green, a ">" for the plus,
           // and the duration as a bracketed [ 30m ] outline pill.
-          backgroundColor: isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
-          borderColor: isTerminal ? TERM_MID : skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : colors.border,
+          backgroundColor: isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : "#FFFFFF",
+          borderColor: isTerminal ? TERM_MID : skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : mix(colors.primary, "#FFFFFF", 0.72),
+          borderRadius: isSkinned ? undefined : 22,
           borderStyle: isTerminal ? "dashed" : isSkinned ? "solid" : "dashed",
           opacity: pressed ? 0.65 : 1,
           minHeight: blockCardHeight(block, nowMinutes),
@@ -104,8 +103,7 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, on
         </Text>
         {(() => {
           if (isNow) return <NowPill />;
-          const mins = block.durationMinutes;
-          const label = mins === 30 ? "30m" : mins === 60 ? "1h" : mins % 60 === 0 ? `${mins / 60}h` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+          const label = whiteBlockBadge(block.durationMinutes);
           if (isTerminal) {
             return (
               <View style={{ backgroundColor: "transparent", borderWidth: 1.5, borderColor: TERM_PHOS, borderRadius: 2, paddingHorizontal: 6, paddingVertical: 2 }}>
@@ -141,8 +139,9 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
       style={[
         styles.groupContainer,
         {
-          backgroundColor: isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : colors.surface,
-          borderColor: isTerminal ? TERM_MID : skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : colors.border,
+          backgroundColor: isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_DUSK : isSkinned ? skinTokens.surface ?? colors.surface : "#FFFFFF",
+          borderColor: isTerminal ? TERM_MID : skinTokens.isEightBit ? "#6E5BB5" : isSkinned ? skinTokens.border ?? colors.border : mix(colors.primary, "#FFFFFF", 0.72),
+          borderRadius: isSkinned ? undefined : 22,
           borderStyle: isTerminal ? "dashed" : isSkinned ? "solid" : "dashed",
           ...(skinTokens.isEightBit ? { borderWidth: 3, borderRadius: 2 } : {}),
           ...(isTerminal ? { borderWidth: 1.5, borderRadius: 2 } : {}),
@@ -189,9 +188,8 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
             {(() => {
               const isNow = blockContainsNow(block, nowMinutes);
               if (isNow) return <NowPill />;
-              // Duration badge: 30m, 1h, 1.5h, 2h, etc.
-              const mins = block.durationMinutes;
-              const label = mins === 30 ? "30m" : mins === 60 ? "1h" : mins % 60 === 0 ? `${mins / 60}h` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+              // Duration badge: 30m, 1h, 1h 30m (shared formatter).
+              const label = whiteBlockBadge(block.durationMinutes);
               if (isTerminal) {
                 return (
                   <View style={{ backgroundColor: "transparent", borderWidth: 1.5, borderColor: TERM_PHOS, borderRadius: 2, paddingHorizontal: 6, paddingVertical: 2 }}>
@@ -233,49 +231,11 @@ function TermPromptLabel({ startIndex }: { startIndex: number }) {
   );
 }
 
-/** One letter gently floating up and down (sine, no bounce). */
-function WavyLetter({ ch, index, color }: { ch: string; index: number; color: string }) {
-  const translateY = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateY, { toValue: -3, duration: 380, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 380, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    // Stagger the start so the letters ripple; identical loop lengths keep
-    // the wave in phase forever.
-    const startTimeout = setTimeout(() => loop.start(), index * 130);
-    return () => {
-      clearTimeout(startTimeout);
-      loop.stop();
-    };
-  }, [index, translateY]);
-
-  return (
-    <Animated.Text style={{ transform: [{ translateY }], color, fontWeight: "800" }}>
-      {ch}
-    </Animated.Text>
-  );
-}
-
-/** The keyword with each letter floating in a gentle wave. */
-function WavyWord({ word, color }: { word: string; color: string }) {
-  return (
-    <Text>
-      {word.split("").map((ch, i) => (
-        <WavyLetter key={`${word}-${i}`} ch={ch} index={i} color={color} />
-      ))}
-    </Text>
-  );
-}
-
 /**
  * "add <event|todo|ministry|rest>?" — each row starts on a different word of
  * the loop and they all cycle together, so neighboring rows always say
  * something different. The switch is a soft fade with a slight rise — calm,
- * no bounce. Letters keep their gentle float throughout.
+ * no bounce. The word itself sits still (his ruling: no letter wave).
  */
 function CyclingAddLabel({ startIndex, mutedColor, accentColor }: { startIndex: number; mutedColor: string; accentColor: string }) {
   const [wordIndex, setWordIndex] = useState(startIndex);
@@ -300,8 +260,8 @@ function CyclingAddLabel({ startIndex, mutedColor, accentColor }: { startIndex: 
       <MaterialIcons name="add" size={18} color={mutedColor} />
       <Text style={[styles.label, { color: mutedColor }]}>add </Text>
       <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-        <Text style={styles.label}>
-          <WavyWord word={ADD_WORDS[wordIndex % ADD_WORDS.length]} color={accentColor} />
+        <Text style={[styles.label, { color: accentColor, fontWeight: "800" }]}>
+          {ADD_WORDS[wordIndex % ADD_WORDS.length]}
         </Text>
       </Animated.View>
       <Text style={[styles.label, { color: mutedColor }]}>?</Text>

@@ -10,6 +10,24 @@ export const TIME_OFF_STORAGE_KEY = 'prayercircle.timeoff.v1';
 
 export type TimeOffType = 'vacation' | 'sick' | 'personal' | 'sabbatical' | 'other';
 
+/**
+ * v294 — a trip itinerary entry (his Tripsy-inspired ask, Oct 27): a light
+ * field set only — a time, a title, a place/address, and ONE detail line —
+ * in three kinds. Entries are stored with the trip and projected into the
+ * schedule days they fall on as travel cards.
+ */
+export type ItineraryKind = 'travel' | 'stay' | 'plan';
+
+export interface ItineraryEntry {
+  id: string;
+  kind: ItineraryKind;
+  date: string; // ISO YYYY-MM-DD
+  time?: string; // HH:mm
+  title: string;
+  address?: string;
+  detail?: string; // the one detail line (flight no., confirmation, pass…)
+}
+
 export interface TimeOff {
   id: string;
   title: string;
@@ -18,6 +36,10 @@ export interface TimeOff {
   endDate: string; // ISO YYYY-MM-DD
   notes?: string;
   color?: string;
+  /** v294: every creator carries a Notify toggle; time off's is stored here. */
+  notify?: boolean;
+  /** v294: the trip's itinerary, in the order he added it. */
+  itinerary?: ItineraryEntry[];
   createdAt: string;
   updatedAt: string;
 }
@@ -64,7 +86,8 @@ export async function createTimeOff(
   startDate: string,
   endDate: string,
   notes?: string,
-  color?: string
+  color?: string,
+  extras?: { notify?: boolean; itinerary?: ItineraryEntry[] }
 ): Promise<TimeOff> {
   const now = new Date().toISOString();
   const timeOff: TimeOff = {
@@ -75,6 +98,8 @@ export async function createTimeOff(
     endDate,
     notes,
     color: color || TIME_OFF_COLORS[type],
+    notify: extras?.notify,
+    itinerary: extras?.itinerary,
     createdAt: now,
     updatedAt: now,
   };
@@ -203,6 +228,134 @@ export function getTimeOffIcon(type: TimeOffType): string {
     other: 'event-busy',
   };
   return icons[type];
+}
+
+/** Sort itinerary entries the way the timeline and the day page read: by date, then time. */
+export function sortItinerary(entries: ItineraryEntry[]): ItineraryEntry[] {
+  return [...entries].sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return (a.time || "99:99").localeCompare(b.time || "99:99");
+  });
+}
+
+/** The trip's itinerary entries that fall on one date, in time order. */
+export function getItineraryForDate(timeOff: TimeOff, date: string): ItineraryEntry[] {
+  if (!timeOff.itinerary) return [];
+  return sortItinerary(timeOff.itinerary.filter((entry) => entry.date === date));
+}
+
+/** Group a trip's itinerary by date for the timeline: [{ date, entries }] in date order. */
+export function groupItineraryByDate(timeOff: TimeOff): Array<{ date: string; entries: ItineraryEntry[] }> {
+  const sorted = sortItinerary(timeOff.itinerary ?? []);
+  const groups: Array<{ date: string; entries: ItineraryEntry[] }> = [];
+  for (const entry of sorted) {
+    const last = groups[groups.length - 1];
+    if (last && last.date === entry.date) last.entries.push(entry);
+    else groups.push({ date: entry.date, entries: [entry] });
+  }
+  return groups;
+}
+
+/**
+ * Where a date sits inside a trip: { day: 1-based day number, total } or
+ * null when the date is outside the trip. Drives the "Day N of M" band.
+ */
+export function tripDayNumber(timeOff: TimeOff, date: string): { day: number; total: number } | null {
+  if (date < timeOff.startDate || date > timeOff.endDate) return null;
+  const total = calculateTimeOffDuration(timeOff.startDate, timeOff.endDate);
+  const day = calculateTimeOffDuration(timeOff.startDate, date);
+  return { day, total };
+}
+
+/** Whole days from `todayISO` until the trip starts (0 when it starts today, negative once begun). */
+export function daysUntilTrip(timeOff: TimeOff, todayISO: string): number {
+  const [sy, sm, sd] = timeOff.startDate.split('-').map(Number);
+  const [ty, tm, td] = todayISO.split('-').map(Number);
+  const start = Date.UTC(sy, sm - 1, sd);
+  const today = Date.UTC(ty, tm - 1, td);
+  return Math.round((start - today) / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * The list's hero: the trip happening now if one is, else the next one
+ * coming. Past trips never headline.
+ */
+export function heroTrip(timeOffList: TimeOff[], todayISO: string): TimeOff | null {
+  const active = getActiveTimeOff(timeOffList);
+  const ongoing = active.find((t) => t.startDate <= todayISO && todayISO <= t.endDate);
+  if (ongoing) return ongoing;
+  const upcoming = active
+    .filter((t) => t.startDate > todayISO)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  return upcoming[0] ?? null;
+}
+
+/** Upcoming + ongoing trips for the list, soonest first (the hero excluded by the caller if wanted). */
+export function upcomingTrips(timeOffList: TimeOff[], todayISO: string): TimeOff[] {
+  return getActiveTimeOff(timeOffList).sort((a, b) => a.startDate.localeCompare(b.startDate));
+}
+
+/** Past trips for the collapsed "Earlier" section, most recent first. */
+export function pastTrips(timeOffList: TimeOff[], todayISO: string): TimeOff[] {
+  return timeOffList
+    .filter((t) => t.endDate < todayISO)
+    .sort((a, b) => b.startDate.localeCompare(a.startDate));
+}
+
+/**
+ * The route read for the hero — "Los Angeles → Denver → Moab" — derived
+ * from the itinerary in order: a travel entry contributes its route's two
+ * ends when its detail carries an airport-code route ("LAX → DEN"),
+ * resolved against the addresses/titles around it; a stay contributes its
+ * town. Best-effort and silent when nothing can be read: the hero stands
+ * without it.
+ */
+export function deriveRouteRead(timeOff: TimeOff): string | null {
+  const entries = sortItinerary(timeOff.itinerary ?? []);
+  if (entries.length === 0) return null;
+  const places: string[] = [];
+  const push = (place?: string | null) => {
+    const clean = (place || "").trim();
+    if (clean && places[places.length - 1] !== clean) places.push(clean);
+  };
+  const townOf = (address?: string): string | null => {
+    if (!address) return null;
+    const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+    // "412 Mesa Rd, Moab, UT" → Moab; "1 World Way, Los Angeles" → Los Angeles
+    if (parts.length >= 2) return parts[parts.length - 2].replace(/\s+(Intl|International)\s+Airport.*$/i, "") || parts[parts.length - 2];
+    return parts[0] ?? null;
+  };
+  for (const entry of entries) {
+    if (entry.kind === 'travel') {
+      const route = entry.detail?.match(/([A-Za-z]{3})\s*→\s*([A-Za-z]{3})/);
+      if (route) {
+        // Origin reads from this entry's own address when it names a place.
+        push(townOf(entry.address) ?? route[1]);
+        const destTitle = entry.title.replace(/^Flight to\s+/i, "").trim();
+        push(destTitle && !/^[A-Za-z]{3}$/.test(destTitle) ? destTitle : route[2]);
+      } else if (entry.title) {
+        const drive = entry.title.replace(/^Drive to\s+/i, "").trim();
+        if (drive !== entry.title) push(drive);
+      }
+    } else if (entry.kind === 'stay') {
+      push(townOf(entry.address));
+    }
+  }
+  if (places.length < 2) return null;
+  return places.join(" → ");
+}
+
+/**
+ * Book's live coverage line: how many already-scheduled items fall inside
+ * a candidate range. Counts come from the caller's schedule data so this
+ * stays a pure read.
+ */
+export function coverageForRange(
+  startDate: string,
+  endDate: string,
+  items: Array<{ date: string }>,
+): number {
+  return items.filter((item) => item.date >= startDate && item.date <= endDate).length;
 }
 
 /**

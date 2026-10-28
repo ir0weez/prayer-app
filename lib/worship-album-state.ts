@@ -7,6 +7,8 @@ export type StoredWorshipAlbum = {
   spotifyUrl?: string;
   date?: string;
   releaseDate?: string;
+  /** v294: the worship creator's Notify toggle (his ruling: every creator has one). */
+  notify?: boolean;
   isSaved?: boolean;
   createdAt?: string;
   addedAt?: string;

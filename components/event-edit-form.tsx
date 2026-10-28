@@ -10,12 +10,10 @@ import {
   Switch,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import * as ImagePicker from "expo-image-picker";
-import { Image } from "expo-image";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { ScheduleEvent, EVENT_KEYWORD_MAP, detectEventKeyword } from "@/lib/schedule-data";
-import { extractPosterColor } from "@/lib/poster-color";
+import { ScheduleEvent, EVENT_KEYWORD_MAP, detectEventKeyword, SCHEDULE_COLOR_PALETTE } from "@/lib/schedule-data";
+import { scheduleMaterialTones } from "@/lib/schedule-material";
 import { DateTimePicker } from "./date-time-picker";
 import { PaperSettle } from "./paper-motion";
 import { BitSettle } from "./bit-motion";
@@ -53,9 +51,9 @@ export function EventEditForm({
   const [formTravelTime, setFormTravelTime] = useState(event.travelTimeMinutes ? String(event.travelTimeMinutes) : "");
   const [formNotes, setFormNotes] = useState(event.notes || "");
   const [formColor, setFormColor] = useState(event.color || "#6B7280");
-  const [formOffEvent, setFormOffEvent] = useState(event.isOffEvent === true);
-  const [formPosterImage, setFormPosterImage] = useState(event.posterImageUri || "");
-  const [formPosterColor, setFormPosterColor] = useState(event.posterColor);
+  // v294: every creator carries a Notify toggle (his ruling). Default ON;
+  // OFF is stored on the event and silences its reminder in the scheduler.
+  const [formNotify, setFormNotify] = useState(event.notify !== false);
   const [formSeason, setFormSeason] = useState(event.season ? String(event.season) : "");
   const [formEpisode, setFormEpisode] = useState(event.episode ? String(event.episode) : "");
   const [titleFocused, setTitleFocused] = useState(false);
@@ -97,9 +95,7 @@ export function EventEditForm({
     setFormTravelTime(event.travelTimeMinutes ? String(event.travelTimeMinutes) : "");
     setFormNotes(event.notes || "");
     setFormColor(event.color || "#6B7280");
-    setFormOffEvent(event.isOffEvent === true);
-    setFormPosterImage(event.posterImageUri || "");
-    setFormPosterColor(event.posterColor);
+    setFormNotify(event.notify !== false);
     setFormSeason(event.season ? String(event.season) : "");
     setFormEpisode(event.episode ? String(event.episode) : "");
     setTitleFocused(false);
@@ -122,9 +118,10 @@ export function EventEditForm({
       location: formLocation || undefined,
       notes: formNotes || undefined,
       color: formColor,
-      isOffEvent: formOffEvent,
-      posterImageUri: formPosterImage || undefined,
-      posterColor: formPosterColor,
+      notify: formNotify,
+      // v294: the retired off-event toggle is gone from this form (his
+      // ruling) — an existing event's flag and poster ride through
+      // untouched via the base spread above; the form no longer edits them.
       season: isTVShow && formSeason ? parseInt(formSeason, 10) || undefined : undefined,
       episode: isTVShow && formEpisode ? parseInt(formEpisode, 10) || undefined : undefined,
     };
@@ -142,20 +139,20 @@ export function EventEditForm({
     setFormTravelTime(event.travelTimeMinutes ? String(event.travelTimeMinutes) : "");
     setFormNotes(event.notes || "");
     setFormColor(event.color || "#6B7280");
-    setFormOffEvent(event.isOffEvent === true);
-    setFormPosterImage(event.posterImageUri || "");
-    setFormPosterColor(event.posterColor);
+    setFormNotify(event.notify !== false);
     setFormSeason(event.season ? String(event.season) : "");
     setFormEpisode(event.episode ? String(event.episode) : "");
   };
 
-  const pickPoster = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
-    if (result.canceled || !result.assets?.[0]?.uri) return;
-    const uri = result.assets[0].uri;
-    setFormPosterImage(uri);
-    setFormPosterColor(await extractPosterColor(uri, formColor));
-  };
+  // v294: the derived Material tones for this page (seed × surface).
+  const tones = scheduleMaterialTones(colors.primary, colors.surface);
+  const sectionCard = {
+    backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : tones.containerLow,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    marginBottom: 14,
+  } as const;
 
   return (
     <Modal
@@ -166,7 +163,7 @@ export function EventEditForm({
     >
       {/* v202: under Paper the editor is a page laid down (fade +
           settle) instead of a slide-up. */}
-      <PaperSettle style={[styles.overlay, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
+      <PaperSettle style={[styles.overlay, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : tones.page }]}>
 <BitSettle style={{ flex: 1 }}>
         <View style={styles.header}>
           <Pressable onPress={onClose}>
@@ -187,6 +184,9 @@ export function EventEditForm({
           contentContainerStyle={{ paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
         >
+          {/* v294: fields grouped into tonal section cards, as drawn. */}
+          <View style={sectionCard}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>What &amp; when</Text>
           {/* Title */}
           <Text style={[styles.label, { color: colors.muted }]}>TITLE</Text>
           <TextInput
@@ -223,20 +223,6 @@ export function EventEditForm({
             </View>
           )}
 
-          <View style={[styles.offEventRow, { borderColor: formColor + "45", backgroundColor: formColor + "10" }]}>
-            <View style={styles.offEventCopy}>
-              <Text style={[styles.label, { color: colors.foreground, marginTop: 0, marginBottom: 2 }]}>OFF EVENT</Text>
-              <Text style={[styles.offEventHint, { color: colors.muted }]}>Show this event only on time-off days</Text>
-            </View>
-            <Switch value={formOffEvent} onValueChange={setFormOffEvent} trackColor={{ false: colors.border, true: formColor }} thumbColor="#FFFFFF" />
-          </View>
-
-          {formOffEvent && (
-            <Pressable onPress={pickPoster} style={[styles.posterPicker, { borderColor: formColor, backgroundColor: formColor + "10" }]}>
-              {formPosterImage ? <Image source={{ uri: formPosterImage }} style={styles.posterImage} contentFit="cover" /> : <><MaterialIcons name="add-photo-alternate" size={32} color={formColor} /><Text style={[styles.posterPrompt, { color: formColor }]}>Add poster</Text></>}
-            </Pressable>
-          )}
-
           {/* Date */}
           <Text style={[styles.label, { color: colors.muted }]}>DATE</Text>
           <DateTimePicker
@@ -268,6 +254,16 @@ export function EventEditForm({
             label="Select End Time"
           />
 
+          </View>
+          <View style={sectionCard}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Remind &amp; place</Text>
+          <View style={styles.notifyRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[styles.label, { color: colors.foreground, marginTop: 0, marginBottom: 2 }]}>NOTIFY</Text>
+              <Text style={[styles.notifyHint, { color: colors.muted }]}>Get a reminder for this event</Text>
+            </View>
+            <Switch value={formNotify} onValueChange={setFormNotify} trackColor={{ false: colors.border, true: colors.primary }} thumbColor="#FFFFFF" />
+          </View>
           <Text style={[styles.label, { color: colors.muted }]}>REMIND ME BEFORE</Text>
           <View style={styles.reminderOptions}>
             {[0, 5, 15, 30, 60].map((minutes) => (
@@ -358,6 +354,9 @@ export function EventEditForm({
             ]}
           />
 
+          </View>
+          <View style={sectionCard}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Details</Text>
           {/* Notes */}
           <Text style={[styles.label, { color: colors.muted }]}>
             NOTES (optional)
@@ -383,15 +382,7 @@ export function EventEditForm({
           {/* Color */}
           <Text style={[styles.label, { color: colors.muted }]}>COLOR</Text>
           <View style={styles.colorGrid}>
-            {[
-              "#6B7280",
-              "#EF4444",
-              "#F97316",
-              "#FBBF24",
-              "#10B981",
-              "#3B82F6",
-              "#A855F7",
-            ].map((color) => (
+            {SCHEDULE_COLOR_PALETTE.map((c) => c.hex).map((color) => (
               <Pressable
                 key={color}
                 onPress={() => setFormColor(color)}
@@ -407,6 +398,7 @@ export function EventEditForm({
             ))}
           </View>
 
+          </View>
           {/* Action Buttons */}
           <View style={styles.actions}>
             <Pressable
@@ -479,29 +471,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 8,
   },
-  offEventRow: {
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginTop: 14,
+    marginBottom: 2,
+  },
+  notifyRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 10,
+    paddingTop: 10,
   },
-  offEventCopy: { flex: 1, paddingRight: 12 },
-  offEventHint: { fontSize: 12 },
-  posterPicker: {
-    height: 120,
-    borderWidth: 1,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    marginTop: 12,
-  },
-  posterImage: { width: "100%", height: "100%" },
-  posterPrompt: { fontWeight: "700", marginTop: 6 },
+  notifyHint: { fontSize: 12 },
   colorGrid: {
     flexDirection: "row",
     gap: 12,

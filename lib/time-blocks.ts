@@ -35,7 +35,7 @@ export function timeToMinutes(time: string): number {
   const minutes = parseInt(parts[1], 10);
   
   // Validate ranges
-  if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+  if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 24 || minutes < 0 || minutes > 59 || (hours === 24 && minutes !== 0)) {
     console.warn(`Invalid time values: hours=${hours}, minutes=${minutes}`);
     return 0;
   }
@@ -158,6 +158,27 @@ export function splitGapIntoHourlyBlocks(block: TimeBlock): TimeBlock[] {
     if (cursor >= end) break;
   }
   return chunks;
+}
+
+/**
+ * v294 — the whites' stepped row heights (his true structure): a 30-minute
+ * block stands 52 tall, 60 stands 64, 90+ stands 76. A block holding "now"
+ * steps by the time REMAINING in it instead: >60 left → 76, 31–60 → 64,
+ * 1–30 → 52.
+ */
+export function whiteBlockHeight(durationMinutes: number, remainingMinutes?: number | null): number {
+  const measure = remainingMinutes != null ? remainingMinutes : durationMinutes;
+  if (measure <= 30) return 52;
+  if (measure <= 60) return 64;
+  return 76;
+}
+
+/** The whites' duration badge: 30m / 1h / 1h 30m. */
+export function whiteBlockBadge(durationMinutes: number): string {
+  if (durationMinutes === 30) return "30m";
+  if (durationMinutes === 60) return "1h";
+  if (durationMinutes % 60 === 0) return `${durationMinutes / 60}h`;
+  return `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`;
 }
 
 /**

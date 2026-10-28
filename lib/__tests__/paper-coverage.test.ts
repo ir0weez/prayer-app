@@ -261,7 +261,13 @@ describe("Paper coverage — v202 animation pass", () => {
     expect(schedule).toContain("FadeInUp.duration(skinMotion.settle.duration).delay(delay).easing(skinMotion.settle.easing)");
     expect(schedule).not.toContain("entering={FadeIn.duration(180)");
     expect(schedule).toContain("menuEntering(0)");
-    expect(schedule).toContain("menuEntering(150)");
+    // RE-BASED in v294 (the schedule build, ordered Oct 27): the
+    // menuEntering(150) call was the retired FAB popup's last stagger
+    // delay. The FAB is now the morph (components/schedule-fab.tsx) —
+    // its five rows stagger-rise on the morph's progress per the
+    // approved v31 motion frame, so the stagger pin moved with it.
+    expect(schedule).toContain("<ScheduleFab");
+    expect(read("components/schedule-fab.tsx")).toContain("0.3 + index * 0.07");
     // All six slide-over forms (event/todo/ministry/bible-study/
     // worship/album library) fade under Paper and their sheets are
     // PaperSettle sheets.

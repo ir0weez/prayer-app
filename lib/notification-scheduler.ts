@@ -173,6 +173,8 @@ export function buildScheduledEventPlans(
 ): NotificationPlan[] {
   return events.flatMap((event) => {
     if (event.isCompleted) return [];
+    // v294: the Event creator's Notify toggle — off means no reminder.
+    if (event.notify === false) return [];
     const date = eventDate(event);
     if (!date) return [];
     const reminderMinutes = event.reminderMinutesBefore ?? defaultReminderMinutes;
@@ -224,6 +226,8 @@ export function buildScheduledMinistryPlans(
 ): NotificationPlan[] {
   return ministries.flatMap((ministry) => {
     if (ministry.isCompleted || !ministry.startTime) return [];
+    // v294: the Ministry creator's Notify toggle — off means no reminder.
+    if (ministry.notificationsEnabled === false) return [];
     const date = eventDate({ ...ministry, title: ministry.title, isCompleted: ministry.isCompleted });
     if (!date) return [];
     const notificationDate = new Date(date.getTime() - Math.max(0, defaultReminderMinutes) * 60_000);

@@ -818,7 +818,10 @@ describe("v185 floating cards: under 8-bit the sheet is gone and every row float
     // transparent under EVERY skin — the v32 drawing sits the
     // rectangles on the page ground — so the 8-bit rule (never paint
     // the sheet) holds a fortiori; the pin follows the new wrapper.
-    expect(schedule).toContain('gap: 12, paddingHorizontal: 12, marginBottom: 8, backgroundColor: "transparent"');
+    // RE-BASED in v297: the wrapper's bottom margin is dress-split —
+    // the drawing's rows sit 12 apart under Classic (8 under the
+    // skins, unchanged) — per his "the todos are also huge" verdict.
+    expect(schedule).toContain('gap: 12, paddingHorizontal: 12, marginBottom: isSkinned ? 8 : 12, backgroundColor: "transparent"');
     expect(schedule).toContain("skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted");
   });
 

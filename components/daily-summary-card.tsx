@@ -7,7 +7,8 @@ import { useSkin } from "@/hooks/use-skin";
 import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_BG, TERM_MID, TERM_PHOS, TERM_SOFT, skinText } from "@/lib/skin-themes";
 import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { getIconForTodo } from "@/lib/prayercircle-data";
+import { getDaysSinceLastPrayedOnDate, getIconForTodo } from "@/lib/prayercircle-data";
+import { ScheduleProgressBar } from "@/components/schedule-progress-bar";
 import { getChapterCount } from "@/lib/bible-books";
 
 
@@ -37,16 +38,103 @@ interface DailySummaryCardProps {
   /** Bottom padding of the card; defaults to 24. Schedule passes 0 (its inner
       block already carries a 16px bottom margin). */
   bottomPadding?: number;
-  /** v295: the drawing's REACH row — the people due for reach-out today. */
-  reachPeople?: Array<{ id: string; name: string }>;
+  /** v295: the drawing's REACH row — the people due for reach-out today.
+      v297: widened to carry the fields the rotating chip needs (the same
+      Person fields PrayerCheckInNotice reads). */
+  reachPeople?: Array<{ id: string; name: string; lastPrayedDate?: string | null; avatarColor?: string }>;
   /** v295: the Reach out button — opens the Reach Out event editor. */
   onReachOutPress?: () => void;
   /** v295: the drawing's fast clause ("day 300 of 365 · streak 2"), when a fast is live. */
   fastLine?: string | null;
+  /** v297: when provided (Schedule does), the Classic panel carries the
+      day-progress bar as its LAST row, per the drawing — the bar used to
+      sit below the panel. The People tab passes neither and is unchanged. */
+  progressCompleted?: number;
+  progressTotal?: number;
+  /** v297: in the Schedule day view the fixed summary zone sits UNDER the
+      scrolling sheet, which swallows its touches (see schedule-tab's
+      overlay host). When this callback is provided, the Classic reach row
+      renders as an invisible layout twin and reports its rect (relative
+      to the card root) so the host can render the live row in its overlay
+      layer. Not provided elsewhere (People tab) — the row renders live. */
+  onReachRect?: (rect: { x: number; y: number; width: number; height: number }) => void;
 }
 
-function initialsOf(name: string): string {
-  return name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+/**
+ * v297: the drawing's REACH row (schedule-material-concepts-v32.html,
+ * `.faces`, lines 544–548): a small REACH label, ONE facechip at a time —
+ * Jonathan's Oct 25 ruling (one reach item at a time, rotating) — and the
+ * white Reach out button right after it. The rotation is the same one his
+ * PrayerCheckInNotice below the panel already runs (3200ms cadence, a
+ * 220/260ms fade swap); the chip text is the notice's own wording
+ * ("not reached in N days", from getDaysSinceLastPrayedOnDate) in the
+ * drawing's short form. The chip's disc wears the person's own
+ * avatarColor, one initial, as drawn (24px disc, 10.5px initial).
+ * Exported: schedule-tab renders this row in its overlay layer (the
+ * fixed summary zone's touches are swallowed by the sheet — see the
+ * v297 notes there) as well as through this card's layout twin.
+ */
+export function SummaryReachRow({
+  people: reachPeople,
+  selectedDate,
+  onReachOutPress,
+}: {
+  people: Array<{ id: string; name: string; lastPrayedDate?: string | null; avatarColor?: string }>;
+  selectedDate?: string;
+  onReachOutPress?: () => void;
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [reachPeople]);
+  useEffect(() => {
+    if (reachPeople.length <= 1) return;
+    let cancelled = false;
+    let fadeIn: Animated.CompositeAnimation | null = null;
+    const timer = setInterval(() => {
+      Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: true }).start(({ finished }) => {
+        if (!finished || cancelled) return;
+        setActiveIndex((current) => (current + 1) % reachPeople.length);
+        fadeIn = Animated.timing(opacity, { toValue: 1, duration: 260, useNativeDriver: true });
+        fadeIn.start();
+      });
+    }, 3200);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      fadeIn?.stop();
+      opacity.stopAnimation();
+      opacity.setValue(1);
+    };
+  }, [opacity, reachPeople.length]);
+  if (reachPeople.length === 0) return null;
+  const person = reachPeople[activeIndex % reachPeople.length];
+  const firstName = person.name.trim().split(/\s+/)[0] || person.name;
+  const days = person.lastPrayedDate && selectedDate
+    ? getDaysSinceLastPrayedOnDate(person.lastPrayedDate, selectedDate)
+    : null;
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 0.9, color: "#D9CCFF" }}>REACH</Text>
+      <Animated.View style={{ opacity, flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(255,255,255,0.14)", borderRadius: 999, paddingVertical: 4, paddingRight: 12, paddingLeft: 4 }}>
+        <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: person.avatarColor || "#7C3AED", alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ color: "#FFFFFF", fontSize: 10.5, fontWeight: "800" }}>{(firstName[0] || "?").toUpperCase()}</Text>
+        </View>
+        <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "700" }}>
+          {firstName}{days != null ? ` · not reached in ${days} days` : ""}
+        </Text>
+      </Animated.View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Reach out"
+        onPress={onReachOutPress}
+        style={({ pressed }) => ({ backgroundColor: "#FFFFFF", borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12, opacity: pressed ? 0.75 : 1 })}
+      >
+        <Text style={{ color: "#5B21B6", fontSize: 11.5, fontWeight: "800" }}>Reach out</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 // Map icon names from getIconForTodo to Material Icons
@@ -97,6 +185,9 @@ export function DailySummaryCard({
   reachPeople = [],
   onReachOutPress,
   fastLine = null,
+  progressCompleted,
+  progressTotal,
+  onReachRect,
 
 }: DailySummaryCardProps) {
   const colors = useColors();
@@ -326,6 +417,18 @@ export function DailySummaryCard({
   // paragraph (every fact the legacy layout carries, plus the fast
   // clause), and the REACH row with the due people's faces. The
   // skins keep the legacy layout below, untouched.
+  // v297: the branch is re-measured against the drawing (his Oct 27
+  // verdict: "the summary doesn't match it either"): panel padding
+  // 16/17/13 and a −6 side margin (the drawing's 14px page margin
+  // against the strip's 20px), greeting 16px with the streak as the
+  // drawing's red disc INSIDE the name chip, prose at the drawing's
+  // 15/24 with no-break joins in the time and fast clauses (his
+  // screenshot orphaned "2." onto its own line), the REACH row as
+  // ONE rotating facechip per his Oct 25 ruling, and the progress
+  // bar as the panel's last row. The reach row renders through
+  // SummaryReachRow; when onReachRect is provided it renders as an
+  // invisible layout twin (the host re-renders it live in its
+  // overlay — the sheet swallows this zone's touches).
   if (!isSkinned) {
     // v296: the panel derives from the seed's SATURATED step (the
     // accent theme's light primary) in BOTH appearances. v295 mixed
@@ -338,42 +441,39 @@ export function DailySummaryCard({
     // so the light panel is byte-identical to v295's.)
     const seedPrimary = getAccentThemeDefinition(accentTheme).light?.primary ?? colors.primary;
     const panel = mix(seedPrimary, "#000000", 0.12);
-    const panelDeep = mix(panel, "#000000", 0.25);
     const chipBg = mix(panel, "#FFFFFF", 0.18);
-    const faceBg = mix(panel, "#FFFFFF", 0.28);
     const onPanel = "#FFFFFF";
     const onPanelSoft = "rgba(255,255,255,0.85)";
     return (
       <Animated.View
         style={{
-          paddingTop: 14,
+          paddingTop: 8,
           paddingBottom: bottomPadding,
           transform: [{ translateY: slideAnim }],
           opacity: opacityAnim,
         }}
       >
-        <View style={{ backgroundColor: panel, borderRadius: 24, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginBottom: 10 }}>
-            <Text style={{ fontSize: 15.5, color: onPanelSoft, fontWeight: "500" }}>
+        <View style={{ backgroundColor: panel, borderRadius: 24, marginHorizontal: -6, paddingHorizontal: 17, paddingTop: 16, paddingBottom: 13 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 }}>
+            <Text style={{ fontSize: 16, color: onPanelSoft, fontWeight: "500" }}>
               {getTimeBasedGreeting()},
             </Text>
-            <View style={{ backgroundColor: chipBg, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 4 }}>
-              <Text style={{ fontWeight: "800", color: onPanel, fontSize: 14.5 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: chipBg, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 4 }}>
+              <Text style={{ fontWeight: "800", color: onPanel, fontSize: 15 }}>
                 {userName}
               </Text>
+              {prayerStreak > 0 && (
+                <View style={{ minWidth: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: "#FFFFFF", backgroundColor: "#EF4444", alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }}>
+                  <Text style={{ fontWeight: "800", color: "#FFFFFF", fontSize: 10.5 }}>
+                    {prayerStreak}
+                  </Text>
+                </View>
+              )}
             </View>
-            {prayerStreak > 0 && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: "#F59E0B", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
-                <MaterialIcons name="local-fire-department" size={12} color="#3B2A00" />
-                <Text style={{ fontWeight: "800", color: "#3B2A00", fontSize: 11.5 }}>
-                  {prayerStreak}
-                </Text>
-              </View>
-            )}
-            <Text style={{ fontSize: 15.5, color: onPanelSoft, fontWeight: "500" }}>.</Text>
+            <Text style={{ fontSize: 16, color: onPanelSoft, fontWeight: "500" }}>.</Text>
           </View>
 
-          <Text style={{ fontSize: 15, lineHeight: 23.5, color: onPanel, fontWeight: "400" }}>
+          <Text style={{ fontSize: 15, lineHeight: 24, color: onPanel, fontWeight: "400", marginTop: 8 }}>
             You have{' '}
             <Text style={{ fontWeight: "700" }}>
               <MaterialIcons name="task-alt" size={15} color={onPanel} /> {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}
@@ -416,7 +516,7 @@ export function DailySummaryCard({
               <MaterialIcons name="volunteer-activism" size={15} color={onPanel} /> {ministryCount} ministries
             </Text> to lead. You have{' '}
             <Text style={{ fontWeight: "700" }}>
-              <MaterialIcons name="schedule" size={15} color={onPanel} /> {availableTimeString}
+              <MaterialIcons name="schedule" size={15} color={onPanel} /> {availableTimeString.replace(" ", "\u00A0")}
             </Text>{' '}available.
             {fastLine ? (
               <Text>
@@ -429,31 +529,32 @@ export function DailySummaryCard({
           </Text>
 
           {reachPeople.length > 0 && (
-            <>
-              <View style={{ height: 1, backgroundColor: "rgba(255,255,255,0.22)", marginTop: 14, marginBottom: 10 }} />
-              <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 1.6, color: "rgba(255,255,255,0.75)", marginBottom: 8 }}>REACH OUT — DUE TODAY</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                {reachPeople.slice(0, 4).map((person) => (
-                  <View key={person.id} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: faceBg, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: onPanel, fontSize: 11, fontWeight: '800' }}>{initialsOf(person.name)}</Text>
-                  </View>
-                ))}
-                {reachPeople.length > 4 && (
-                  <View style={{ height: 30, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: onPanel, fontSize: 11, fontWeight: '800' }}>+{reachPeople.length - 4}</Text>
-                  </View>
-                )}
-                <View style={{ flex: 1 }} />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Reach out"
-                  onPress={onReachOutPress}
-                  style={({ pressed }) => [{ backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, opacity: pressed ? 0.8 : 1 }]}
-                >
-                  <Text style={{ color: panelDeep, fontSize: 12.5, fontWeight: '800' }}>Reach out</Text>
-                </Pressable>
+            onReachRect ? (
+              // v297: layout twin — invisible, keeps the panel's
+              // composition and reports the row's rect (converted to
+              // card-root coordinates: the panel sits at x −6, y 8
+              // inside the card root) so schedule-tab can render the
+              // live row in its overlay layer, above the sheet.
+              <View
+                style={{ marginTop: 12, opacity: 0 }}
+                onLayout={(e) => {
+                  const { x, y, width, height } = e.nativeEvent.layout;
+                  onReachRect({ x: x - 6, y: y + 8, width, height });
+                }}
+              >
+                <SummaryReachRow people={reachPeople} selectedDate={selectedDate} onReachOutPress={onReachOutPress} />
               </View>
-            </>
+            ) : (
+              <View style={{ marginTop: 12 }}>
+                <SummaryReachRow people={reachPeople} selectedDate={selectedDate} onReachOutPress={onReachOutPress} />
+              </View>
+            )
+          )}
+
+          {progressTotal != null && (
+            <View style={{ marginTop: 14 }}>
+              <ScheduleProgressBar variant="panel" completed={progressCompleted ?? 0} total={progressTotal} />
+            </View>
           )}
         </View>
 

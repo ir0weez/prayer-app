@@ -144,22 +144,29 @@ describe("v274 — wiring: the gated roominess spreads follow the scale, not Pap
     expect(schedule).toContain(
       "hasTypeScale(skinTokens) ? { paddingTop: 16 + skinTokens.type.padBoost, paddingLeft: 16 + skinTokens.type.padBoost, paddingRight: 16 + skinTokens.type.padBoost, marginBottom: 12 + skinTokens.type.gapBoost }",
     );
-    // Completed bars and todo rows.
+    // Completed bars.
     expect(schedule).toContain(
       "hasTypeScale(skinTokens) ? { paddingVertical: 10 + skinTokens.type.gapBoost }",
     );
+    // RE-BASED in v297 (his Oct 27 verdict: "the todos are also
+    // huge"): the TODO rows' spreads and text levels now gate on
+    // hasTypeScale AND isSkinned — under Classic the rows follow
+    // the drawing's own metrics (title 15, padding 8/12) instead of
+    // the scale's (title 20, padding 16/20). The scale itself is
+    // unchanged (hasTypeScale is still true under Classic; event
+    // and ministry cards above keep their spreads under every
+    // scaled dress) — only the todo rows' exemption moved.
     expect(schedule).toContain(
-      "hasTypeScale(skinTokens) ? { paddingVertical: 12 + skinTokens.type.padBoost, paddingHorizontal: 16 + skinTokens.type.padBoost }",
+      "(hasTypeScale(skinTokens) && isSkinned) ? { paddingVertical: 12 + skinTokens.type.padBoost, paddingHorizontal: 16 + skinTokens.type.padBoost }",
     );
-    // The gated text levels ride the same predicate.
     expect(schedule).toContain(
-      "hasTypeScale(skinTokens) ? skinText(skinTokens, skinTokens.type.cardTitle) : null",
+      "(hasTypeScale(skinTokens) && isSkinned) ? skinText(skinTokens, skinTokens.type.cardTitle) : null",
     );
     expect(schedule).toContain(
-      "hasTypeScale(skinTokens) ? skinText(skinTokens, skinTokens.type.barTitle) : null",
+      "(hasTypeScale(skinTokens) && isSkinned) ? skinText(skinTokens, skinTokens.type.barTitle) : null",
     );
     expect(schedule).toContain(
-      "hasTypeScale(skinTokens) ? skinText(skinTokens, skinTokens.type.cardMeta, 18) : null",
+      "(hasTypeScale(skinTokens) && isSkinned) ? skinText(skinTokens, skinTokens.type.cardMeta, 18) : null",
     );
     // No type consumer in the schedule is left gated on Paper alone.
     expect(schedule).not.toContain("skinTokens.isPaper ? skinText(skinTokens, skinTokens.type");

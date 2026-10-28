@@ -107,7 +107,12 @@ describe("v295 todo rows — the colour carries the category", () => {
   it("the drawn checkbox and the N MIN chip dress the single row", () => {
     expect(scheduleTab).toContain("borderWidth: 2.5, borderColor: todo.color || colors.primary");
     expect(scheduleTab).toContain("} MIN");
-    expect(scheduleTab).toContain("borderRadius: 18, marginHorizontal: 12, marginBottom: 8, paddingVertical: 10, paddingHorizontal: 12, gap: 10");
+    // RE-BASED in v297 (his Oct 27 verdict: "the todos are also
+    // huge"): the row's own metrics are dress-split now — under
+    // Classic the drawing's padding 8 / row gap 12; under the
+    // skins the v295 values stand. The drawing's base v295 set
+    // (paddingVertical 10) remains the skins' half of the split.
+    expect(scheduleTab).toContain("borderRadius: 18, marginHorizontal: 12, marginBottom: isSkinned ? 8 : 12, paddingVertical: isSkinned ? 10 : 8, paddingHorizontal: 12, gap: 10");
   });
 });
 
@@ -148,16 +153,26 @@ describe("v295 summary — the saturated panel, complete", () => {
     // panel now derives from the accent theme's saturated (light)
     // primary in both appearances (in light they are the same hex,
     // so the light panel is unchanged).
+    // RE-BASED in v297 (his Oct 27 verdict: "the summary doesn't
+    // match it either"): the REACH row is no longer a "REACH OUT —
+    // DUE TODAY" header over up to 4 face chips — it is the
+    // drawing's row: a REACH label, ONE rotating facechip (his
+    // Oct 25 ruling), and the Reach out button, carried by
+    // SummaryReachRow (schedule-v297.test.ts holds its pins).
     expect(summaryCard).toContain("getAccentThemeDefinition(accentTheme).light?.primary");
     expect(summaryCard).toContain('mix(seedPrimary, "#000000", 0.12)');
-    expect(summaryCard).toContain("REACH OUT — DUE TODAY");
+    expect(summaryCard).toContain("export function SummaryReachRow");
+    expect(summaryCard).not.toContain("REACH OUT — DUE TODAY");
     expect(summaryCard).toContain("Your fast —");
     expect(summaryCard).toContain("borderRadius: 24");
   });
 
   it("schedule-tab wires the due people, the Reach out action, and the fast line", () => {
+    // RE-BASED in v297: the Reach out action is the hoisted
+    // handleSummaryReachOut (shared by the card's row and its live
+    // overlay copy), no longer an inline closure.
     expect(scheduleTab).toContain("reachPeople={prayerCheckInPeople}");
-    expect(scheduleTab).toContain("onReachOutPress={() => {");
+    expect(scheduleTab).toContain("onReachOutPress={handleSummaryReachOut}");
     expect(scheduleTab).toContain("calculateFastStreak(activeFast, selectedDate)");
     expect(scheduleTab).toContain("getFastCalendarDays(activeFast)");
   });

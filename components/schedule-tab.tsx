@@ -228,7 +228,7 @@ import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worsh
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 // v294: TimeOffCard retired from the day — the trip band (time-off-travel) is the day's time-off block now.
 import { syncScheduledEventNotifications } from '@/lib/notification-scheduler';
-import { DailySummaryCard } from "@/components/daily-summary-card";
+import { DailySummaryCard, SummaryReachRow } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
@@ -259,18 +259,16 @@ const WORSHIP_TRACK_COMPLETION_STATE_KEY = 'prayercircle.schedule.worship.track-
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const DAY_HEADER_HEIGHT = 160; // Height of summary card
-// v296: the v32 drawing's slide-over overlap — the day sheet rests
-// 120px up over the summary panel (the drawing's mainsheet carries
-// margin-top: -120px over the summary). Under Classic the list
-// OPENS at that offset, so the page's resting composition is the
-// drawing's: panel at the top, the sheet riding over its tail. The
-// v197 mechanism is untouched — the summary stays fixed and whole
-// behind the sheet (the spacer still carries its full measured
-// height), and one scroll down from the rest reveals it whole,
-// Reach row and all. Applied on the tab's first mount of the
-// session only; the scroll-restore contract owns later arrivals.
-const SCHEDULE_SHEET_REST_OVERLAP = 120;
-let classicSheetRestApplied = false;
+// v296 shipped a 120px standing sheet overlap here (the list opened
+// scrolled 120px into the summary zone). v297 REMOVES it — his
+// Oct 27 verdict on v296 ("the summary doesn't match it either",
+// with the panel's Reach row covered at rest): the drawing's −120
+// is a mid-slide FREEZE — its own caption says "in the app the
+// sheet slides for real, and the summary sits whole behind it" —
+// and the v193/v197 settlement he approved is the slide-over IN
+// MOTION with the summary whole at rest. The list opens flush
+// (offset 0); the saved-position restore below still owns later
+// arrivals.
 // The custom bottom navigation is 74px tall and sits 52px above the screen edge.
 // Keep the overdue control fully above that surface, with a small visual gap.
 const SCHEDULE_BOTTOM_NAV_CLEARANCE = 198;
@@ -7895,7 +7893,20 @@ function EventCardInner({
     const detailLine = [event.notes, event.location].filter(Boolean).join(" · ");
     if (detailLine) subParts.push(detailLine);
     if (durationLabel) subParts.push(durationLabel);
-    const minHeight = isLiveScheduledBlock ? (keyword ? 140 : 118) : keyword ? (isHolidayCard ? 148 : 124) : 104;
+    // v297: the card's height returns to HIS pre-redesign geometry
+    // (the illustrated card this branch replaced — still live below
+    // for the skins): min-height classes holiday-live 155 / holiday
+    // 140 / live 112 / plain 80, with the content IN FLOW below, so
+    // taller content grows the card past the minimum. v296 fixed
+    // the height (124/148/140) with the title floated absolute —
+    // his verdict: the cards "still don't look quite right". His
+    // cards were never duration-proportioned (no minutes term
+    // exists anywhere in the old geometry — a card's size follows
+    // its CONTENT between those minimums; the duration rides in
+    // the text). The no-keyword full-colour card is a v296
+    // invention off his colour ruling and keeps its 104/118
+    // minimums, gaining the same in-flow growth.
+    const minHeight = isLiveScheduledBlock ? (keyword ? (isHolidayCard ? 155 : 112) : 118) : keyword ? (isHolidayCard ? 140 : 80) : 104;
     return (
       <>
         <Pressable
@@ -7924,7 +7935,7 @@ function EventCardInner({
             {pillLabel && (isLiveScheduledBlock ? (
               <View style={{ position: "absolute", top: 8, left: 12 }}><NowPill /></View>
             ) : (
-              <View style={{ position: "absolute", top: 8, left: 12, backgroundColor: pillColor, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, shadowColor: "#140828", shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 }}>
+              <View style={{ position: "absolute", top: 8, left: 12, backgroundColor: pillColor, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, shadowColor: "#140828", shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 }}>
                 <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "800", letterSpacing: 0.5 }}>{pillLabel}</Text>
               </View>
             ))}
@@ -7933,7 +7944,7 @@ function EventCardInner({
                 <StackedAvatar people={linkedPeople} size={22} />
               </View>
             )}
-            <View pointerEvents="none" style={{ position: "absolute", left: 12, right: 12, top: 40 }}>
+            <View pointerEvents="none" style={{ paddingTop: 40, paddingHorizontal: 12, paddingBottom: isLiveScheduledBlock ? 34 : 12 }}>
               <Text style={{ fontSize: 16, fontWeight: "800", color: "#FFFFFF", textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} numberOfLines={2}>{event.title}</Text>
               {subParts.length > 0 && (
                 <Text style={{ fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.92)", marginTop: 2, textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} numberOfLines={1}>{subParts.join(" · ")}</Text>
@@ -8301,17 +8312,17 @@ function TodoItem({
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
-          style={({ pressed }) => [todoStyles.row, { marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(cartridgeShadow ?? {}) } : null, hasTypeScale(skinTokens) ? { paddingVertical: 12 + skinTokens.type.padBoost, paddingHorizontal: 16 + skinTokens.type.padBoost } : null]}
+          style={({ pressed }) => [todoStyles.row, { marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(cartridgeShadow ?? {}) } : null, (hasTypeScale(skinTokens) && isSkinned) ? { paddingVertical: 12 + skinTokens.type.padBoost, paddingHorizontal: 16 + skinTokens.type.padBoost } : null]}
         >
           {skinTokens.isTerminal ? <TermCheckbox checked size={20} /> : <MaterialIcons name={iconName(iconNameStr)} size={20} color={colors.success} />}
           <View style={{ flex: 1, gap: 1 }}>
-            <Text numberOfLines={1} style={[todoStyles.title, { color: colors.muted, textDecorationLine: 'line-through' }, skinTokens.isEightBit ? bitDisplay(skinTokens, 9) : null, hasTypeScale(skinTokens) ? skinText(skinTokens, skinTokens.type.barTitle) : null]}>{todo.title}</Text>
+            <Text numberOfLines={1} style={[todoStyles.title, { color: colors.muted, textDecorationLine: 'line-through' }, skinTokens.isEightBit ? bitDisplay(skinTokens, 9) : null, (hasTypeScale(skinTokens) && isSkinned) ? skinText(skinTokens, skinTokens.type.barTitle) : null]}>{todo.title}</Text>
             <Text style={{ color: colors.muted, fontSize: 10, fontWeight: '600' }}>{subtaskProgress.total} steps complete</Text>
           </View>
           <MaterialIcons name="folder" size={18} color={colors.muted} />
         </Pressable>
       ) : isGroupedTodo ? (
-        <View style={{ marginBottom: 12, marginHorizontal: 12, ...(hasTypeScale(skinTokens) ? { marginBottom: 12 + skinTokens.type.gapBoost } : {}) }}>
+        <View style={{ marginBottom: 12, marginHorizontal: 12, ...((hasTypeScale(skinTokens) && isSkinned) ? { marginBottom: 12 + skinTokens.type.gapBoost } : {}) }}>
           <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: groupBorderColor, overflow: 'hidden', ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? cartridgeShadow ?? {} : {}) }}>
             <Pressable
               accessibilityRole="button"
@@ -8322,7 +8333,7 @@ function TodoItem({
               }}
               onLongPress={handleLongPress}
               delayLongPress={500}
-              style={({ pressed }) => [{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: todo.isGroupExpanded ? 10 : 16, gap: 12, opacity: pressed ? 0.7 : 1, ...(hasTypeScale(skinTokens) ? { paddingHorizontal: 16 + skinTokens.type.padBoost, paddingTop: 16 + skinTokens.type.padBoost, paddingBottom: (todo.isGroupExpanded ? 10 : 16) + skinTokens.type.padBoost } : {}) }]}
+              style={({ pressed }) => [{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: todo.isGroupExpanded ? 10 : 16, gap: 12, opacity: pressed ? 0.7 : 1, ...((hasTypeScale(skinTokens) && isSkinned) ? { paddingHorizontal: 16 + skinTokens.type.padBoost, paddingTop: 16 + skinTokens.type.padBoost, paddingBottom: (todo.isGroupExpanded ? 10 : 16) + skinTokens.type.padBoost } : {}) }]}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -8339,14 +8350,14 @@ function TodoItem({
                   >
                     {skinTokens.isTerminal ? <TermCheckbox checked={todo.isCompleted} size={22} /> : <MaterialIcons name={iconName(iconNameStr)} size={22} color={groupAccentColor} />}
                   </Pressable>
-                  <Text numberOfLines={1} style={{ flex: 1, color: todo.isCompleted ? colors.muted : colors.foreground, fontSize: 14, fontWeight: '600', textDecorationLine: todo.isCompleted ? 'line-through' : 'none', ...bitDisplay(skinTokens, 10), ...skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) }}>
+                  <Text numberOfLines={1} style={{ flex: 1, color: todo.isCompleted ? colors.muted : colors.foreground, fontSize: 14, fontWeight: '600', textDecorationLine: todo.isCompleted ? 'line-through' : 'none', ...bitDisplay(skinTokens, 10), ...(isSkinned ? skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) : { fontSize: 15, fontWeight: "700" }) }}>
                     {todo.title}
                   </Text>
                 </View>
                 <MaterialIcons name={todo.isGroupExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
               </View>
               {todo.notes && (
-                <Text numberOfLines={2} style={{ color: colors.foreground, fontSize: 16, fontWeight: '700', lineHeight: 21, ...skinText(skinTokens, skinTokens.type.cardBody, skinTokens.type.cardBodyLineHeight) }}>
+                <Text numberOfLines={2} style={{ color: colors.foreground, fontSize: 16, fontWeight: '700', lineHeight: 21, ...(isSkinned ? skinText(skinTokens, skinTokens.type.cardBody, skinTokens.type.cardBodyLineHeight) : {}) }}>
                   {todo.notes}
                 </Text>
               )}
@@ -8386,7 +8397,7 @@ function TodoItem({
                   >
                     {skinTokens.isTerminal ? <TermCheckbox checked={subtask.isCompleted} size={19} /> : <MaterialIcons name={subtask.isCompleted ? 'check-box' : 'check-box-outline-blank'} size={19} color={groupAccentColor} />}
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: subtask.isCompleted ? colors.muted : colors.foreground, fontSize: 13, fontWeight: '700', lineHeight: 18, textDecorationLine: subtask.isCompleted ? 'line-through' : 'none', ...skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) }}>
+                      <Text style={{ color: subtask.isCompleted ? colors.muted : colors.foreground, fontSize: 13, fontWeight: '700', lineHeight: 18, textDecorationLine: subtask.isCompleted ? 'line-through' : 'none', ...(isSkinned ? skinText(skinTokens, skinTokens.type.rowBody, skinTokens.type.rowBodyLineHeight) : {}) }}>
                         {index + 1}. {subtask.title}
                       </Text>
                       {subtask.description && (
@@ -8406,7 +8417,7 @@ function TodoItem({
                   }}
                   style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: skinTokens.isTerminal ? "transparent" : skinTokens.isEightBit ? BIT_GOLD : groupAccentColor, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 8, ...(skinTokens.isEightBit ? { borderWidth: 3, borderColor: BIT_INK_HEX } : skinTokens.isTerminal ? { borderWidth: 2, borderColor: TERM_PHOS } : {}), ...(hasTypeScale(skinTokens) ? { paddingVertical: 10 + skinTokens.type.gapBoost, paddingHorizontal: 12 + skinTokens.type.padBoost } : {}) }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: skinTokens.isTerminal ? "transparent" : skinTokens.isEightBit ? BIT_GOLD : groupAccentColor, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 2 : 8, ...(skinTokens.isEightBit ? { borderWidth: 3, borderColor: BIT_INK_HEX } : skinTokens.isTerminal ? { borderWidth: 2, borderColor: TERM_PHOS } : {}), ...((hasTypeScale(skinTokens) && isSkinned) ? { paddingVertical: 10 + skinTokens.type.gapBoost, paddingHorizontal: 12 + skinTokens.type.padBoost } : {}) }}>
                     <MaterialIcons name="check" size={18} color={skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? "#3A2703" : "#FFFFFF"} />
                     <Text style={{ color: skinTokens.isTerminal ? TERM_PHOS : skinTokens.isEightBit ? "#3A2703" : '#FFFFFF', fontSize: 14, fontWeight: '600', ...bitDisplay(skinTokens, 10) }}>Mark as Complete</Text>
                   </View>
@@ -8416,6 +8427,17 @@ function TodoItem({
           </View>
         </View>
       ) : (
+        // v297 (Classic): the row returns to the drawing's own
+        // metrics (schedule-material-concepts-v32.html `.todo`:
+        // padding 8/12, title 15/700 at line-height 1.25, sub
+        // 11.5/600, chip padding 4/8, rows 12 apart). v295 set the
+        // row's BASE to the drawing but left the Classic type
+        // scale's spreads in its style chain (title 20, meta 14,
+        // padding 16/20) — his verdict: "the todos are also huge".
+        // The bigger global scale is his standing preference and
+        // stays (it still drives Paper's derivation and every other
+        // surface); the correction is the row's own metrics — under
+        // Classic the scale spreads no longer apply to todo rows.
         <Pressable
           onPress={(event) => {
             if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -8423,7 +8445,7 @@ function TodoItem({
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
-          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(cartridgeShadow ?? {}) } : { backgroundColor: mix(todo.color || colors.primary, colors.surface, 0.9), borderRadius: 18, marginHorizontal: 12, marginBottom: 8, paddingVertical: 10, paddingHorizontal: 12, gap: 10 }, hasTypeScale(skinTokens) ? { paddingVertical: 12 + skinTokens.type.padBoost, paddingHorizontal: 16 + skinTokens.type.padBoost } : null, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(cartridgeShadow ?? {}) } : { backgroundColor: mix(todo.color || colors.primary, colors.surface, 0.9), borderRadius: 18, marginHorizontal: 12, marginBottom: isSkinned ? 8 : 12, paddingVertical: isSkinned ? 10 : 8, paddingHorizontal: 12, gap: 10 }, (hasTypeScale(skinTokens) && isSkinned) ? { paddingVertical: 12 + skinTokens.type.padBoost, paddingHorizontal: 16 + skinTokens.type.padBoost } : null, pressed && { opacity: 0.7 }]}
         >
           {skinTokens.isTerminal ? (
             <View style={{ marginRight: 12, alignSelf: "center" }}>
@@ -8446,11 +8468,11 @@ function TodoItem({
           </View>
           )}
           <View style={{ flex: 1, alignItems: 'flex-start' }}>
-            <Text style={[todoStyles.title, { color: colors.foreground }, todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted }, (!skinTokens.isEightBit && !skinTokens.isTerminal) ? { fontWeight: "700" } : null, skinTokens.isEightBit ? bitDisplay(skinTokens, 10) : null, hasTypeScale(skinTokens) ? skinText(skinTokens, skinTokens.type.cardTitle) : null]} numberOfLines={1}>{todo.title}</Text>
+            <Text style={[todoStyles.title, { color: colors.foreground }, todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted }, (!skinTokens.isEightBit && !skinTokens.isTerminal) ? { fontWeight: "700" } : null, skinTokens.isEightBit ? bitDisplay(skinTokens, 10) : null, (hasTypeScale(skinTokens) && isSkinned) ? skinText(skinTokens, skinTokens.type.cardTitle) : null, !isSkinned ? { lineHeight: 19 } : null]} numberOfLines={1}>{todo.title}</Text>
             {(todo.startTime || todo.notes) && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 }}>
-                {todo.startTime && <Text style={{ fontSize: 11, color: todo.isCompleted ? colors.muted : (skinTokens.isEightBit || skinTokens.isTerminal) ? colors.primary : scheduleMaterialTones(colors.primary, colors.surface).primaryDeep, fontWeight: '600', ...skinText(skinTokens, skinTokens.type.cardMeta) }}>{format12HourTime(todo.startTime)}</Text>}
-                {todo.notes && <Text style={[todoStyles.notes, { color: colors.muted, marginTop: 0 }, todo.isCompleted && { textDecorationLine: "line-through" }, hasTypeScale(skinTokens) ? skinText(skinTokens, skinTokens.type.cardMeta, 18) : null]} numberOfLines={1}>{todo.notes}</Text>}
+                {todo.startTime && <Text style={{ fontSize: isSkinned ? 11 : 11.5, color: todo.isCompleted ? colors.muted : (skinTokens.isEightBit || skinTokens.isTerminal) ? colors.primary : scheduleMaterialTones(colors.primary, colors.surface).primaryDeep, fontWeight: '600', ...(isSkinned ? skinText(skinTokens, skinTokens.type.cardMeta) : {}) }}>{format12HourTime(todo.startTime)}</Text>}
+                {todo.notes && <Text style={[todoStyles.notes, { color: colors.muted, marginTop: 0 }, todo.isCompleted && { textDecorationLine: "line-through" }, (hasTypeScale(skinTokens) && isSkinned) ? skinText(skinTokens, skinTokens.type.cardMeta, 18) : null, !isSkinned ? { fontSize: 11.5, lineHeight: 15 } : null]} numberOfLines={1}>{todo.notes}</Text>}
               </View>
             )}
           </View>
@@ -8460,7 +8482,7 @@ function TodoItem({
               don't need to be said; the todo's colour carries them.
               The drawing's row ends with the minutes chip only. */}
           {!skinTokens.isEightBit && !skinTokens.isTerminal && todo.startTime && todo.endTime && timeToMinutes(todo.endTime) > timeToMinutes(todo.startTime) ? (
-            <View style={{ backgroundColor: mix(todo.color || colors.primary, colors.surface, 0.78), borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 }}>
+            <View style={{ backgroundColor: mix(todo.color || colors.primary, colors.surface, 0.78), borderRadius: 999, paddingHorizontal: 8, paddingVertical: isSkinned ? 3 : 4, marginLeft: 8 }}>
               <Text style={{ fontSize: 10, fontWeight: "800", color: mix(todo.color || colors.primary, "#000000", 0.15) }}>
                 {timeToMinutes(todo.endTime) - timeToMinutes(todo.startTime)} MIN
               </Text>
@@ -10608,21 +10630,10 @@ export function ScheduleTab({
       }, 100);
       return () => clearTimeout(t);
     }
-    // v296: no saved position, first mount of the session, Classic
-    // dress — open at the drawing's rest: the sheet 120px over the
-    // summary (see SCHEDULE_SHEET_REST_OVERLAP). The dress is read
-    // from the live ref when the scroll fires, so a skin settling
-    // after mount is never scrolled as Classic. Skins keep the
-    // flush v197 rest.
-    if (!classicSheetRestApplied) {
-      const t = setTimeout(() => {
-        if (!isSkinnedRef.current && mainListRef.current) {
-          classicSheetRestApplied = true;
-          mainListRef.current.scrollToOffset({ offset: SCHEDULE_SHEET_REST_OVERLAP, animated: false });
-        }
-      }, 100);
-      return () => clearTimeout(t);
-    }
+    // v297: no standing rest offset under any dress — the sheet
+    // rests flush below the summary (see the note where v296's
+    // rest-overlap constant stood). Its Classic-only 120px opening
+    // scroll is gone with it.
   }, []);
   // Joi-style sheet: the day-view schedule slides up as a card over the fixed summary.
   // v193: the sheet's head used to start 68px before the summary's
@@ -10653,6 +10664,17 @@ export function ScheduleTab({
   // still carries the full height, so no summary text is covered),
   // and the slide-over in motion is untouched.
   const [scheduleSummaryHeight, setScheduleSummaryHeight] = useState(360);
+  // v297: the Classic week strip and the summary's reach row render
+  // LIVE in an overlay layer above the sheet (see the overlay host
+  // below the day FlatList) because the sheet's pointerEvents-none
+  // spacer does NOT let touches fall through — the ScrollView itself
+  // stays the hit target over the whole fixed zone and swallowed
+  // every tap under it (his Oct 27 report: "I can't switch days").
+  // These two states carry the in-summary layout twins' measures:
+  // the strip's block height (row + its 4px seat gap) and the reach
+  // row's rect relative to the summary card's root.
+  const [classicStripHeight, setClassicStripHeight] = useState(60);
+  const [classicReachRect, setClassicReachRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, DAY_HEADER_HEIGHT / 2],
     outputRange: [1, 0],
@@ -12344,6 +12366,38 @@ export function ScheduleTab({
   });
   useEffect(() => () => setScheduleFabConfig(null), []);
 
+  // v297: the summary's Reach out handler, hoisted out of the
+  // summary IIFE so the card's reach row AND its live overlay copy
+  // (below the day FlatList) share the one behaviour: the white-block
+  // Reach Out in another seat — the event editor, pre-filled at the
+  // current time today, else at the day's first open block (the same
+  // 05:00–24:00 settled-window computation the summary prose uses).
+  const handleSummaryReachOut = () => {
+    if (selectedDate === today) {
+      const n = new Date();
+      openNewEventEditorAtTime(`${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}`, "Reach Out");
+    } else {
+      const reachItems = [
+        ...getTodosForDate(todos, selectedDate)
+          .filter((t) => t.startTime && !t.isCompleted)
+          .map((t) => ({
+            ...t,
+            endTime: t.endTime || (() => {
+              const [h, m] = t.startTime!.split(":").map(Number);
+              const endM = m + 30;
+              const endH = h + Math.floor(endM / 60);
+              return `${String(endH).padStart(2, "0")}:${String(endM % 60).padStart(2, "0")}`;
+            })(),
+          })),
+        ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && !e.isCompleted),
+        ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
+        ...getBibleStudiesForDate(bibleStudies, selectedDate).filter((study) => study.startTime && !study.isCompleted),
+      ];
+      const reachBlocks = calculateActiveAvailableTimeBlocks(reachItems, selectedDate, clockNow, "05:00", "24:00");
+      openNewEventEditorAtTime(reachBlocks[0]?.startTime ?? "09:00", "Reach Out");
+    }
+  };
+
   const renderScheduleSummary = () => (
     <>
 {/* Summary Card - Sticky Header Index 0 */}
@@ -12353,55 +12407,19 @@ export function ScheduleTab({
 <PaperSettle style={[scheduleStyles.summaryContainer, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : isSkinned ? skinTokens.background ?? colors.background : colors.background, paddingBottom: 8 }]}>
 <BitSettle>
   {!isSkinned && (
-    /* v296 (Classic): the week strip in the v32 drawing's slim form,
-       seated in the fixed summary zone ABOVE the panel (the drawing:
-       app bar, week strip, summary panel, then the sheet). Number
-       16/800, day letters 9.5 letterspaced, a 4.5px dot under
-       time-off days, the selected day held by a 2px outline ring in
-       the seed's deep step — no fill, no box. Tap switches the day
-       and the strip keeps its week-swipe; the compact date picker
-       rides at the row's end (the hero card's "Jump to date" seat,
-       preserved now that the hero is gone). The skins keep their
-       strip inside the date header, untouched. */
-    <View style={{ marginBottom: 4 }} {...weekStripPanResponder.panHandlers}>
-      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-        {weekDates.map((date) => {
-          const isSelected = date === selectedDate;
-          const isTodayCell = date === today;
-          return (
-            <Pressable
-              key={date}
-              onPress={() => setSelectedDate(date)}
-              style={({ pressed }) => [{
-                flex: 1,
-                alignItems: "center",
-                paddingVertical: 7,
-                borderRadius: 14,
-                borderWidth: 2,
-                borderColor: isSelected ? scheduleMaterialTones(colors.primary, colors.surface).primaryDeep : "transparent",
-              }, pressed && { opacity: 0.7 }]}
-            >
-              <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 20, color: isSelected ? colors.foreground : isTodayCell ? colors.primary : colors.muted }}>
-                {getDayNumber(date)}
-              </Text>
-              <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.8, marginTop: 1, color: isSelected ? colors.primary : colors.muted }}>
-                {getShortDayName(date)}
-              </Text>
-              <View style={{ width: 4.5, height: 4.5, borderRadius: 2.25, marginTop: 4, backgroundColor: isDateDuringTimeOff(timeOffList, date) ? colors.primary : "transparent" }} />
-            </Pressable>
-          );
-        })}
-        <View style={{ justifyContent: "center", paddingLeft: 6, minHeight: 52 }}>
-          <DateTimePicker
-            value={selectedDate}
-            onChange={(d) => { setWeekSlideDir(0); setSelectedDate(d); }}
-            mode="date"
-            label="Jump to date"
-            compact
-          />
-        </View>
-      </View>
-    </View>
+    /* v297 (Classic): the strip's LAYOUT TWIN. v296 seated the live
+       strip here, in the fixed summary zone — and the zone sits
+       UNDER the scrolling sheet, whose pointerEvents-none spacer
+       does not pass touches through: the ScrollView itself stays
+       the hit target over the whole zone, so every tap on the
+       strip (and on the panel's reach row) died in the sheet (his
+       Oct 27 report: "I can't switch days or anything"). The strip
+       now renders LIVE in the overlay layer above the sheet (see
+       the overlay host below the day FlatList) — same JSX, same
+       handlers, same drawn form, seated at these same pixels; this
+       placeholder only holds its height in the summary's flow so
+       the measured zone (and the sheet's spacer) is unchanged. */
+    <View style={{ height: classicStripHeight }} />
   )}
   {(() => {
     // The summary counts only time still left available: completed items free
@@ -12480,25 +12498,24 @@ export function ScheduleTab({
         prayerStreak={prayerStreak}
         bottomPadding={0}
         reachPeople={prayerCheckInPeople}
-        onReachOutPress={() => {
-          // The summary's Reach out button is the white-block Reach
-          // Out in another seat: the event editor, pre-filled — at
-          // the current time today, else the day's first open block.
-          if (selectedDate === today) {
-            const n = new Date();
-            openNewEventEditorAtTime(`${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}`, "Reach Out");
-          } else {
-            openNewEventEditorAtTime(activeSummaryBlocks[0]?.startTime ?? "09:00", "Reach Out");
-          }
+        onReachOutPress={handleSummaryReachOut}
+        progressCompleted={todoSummaryCounts.completed + getEventsForDate(events, selectedDate).filter(e => e.isCompleted).length}
+        progressTotal={todoSummaryCounts.total + getEventsForDate(events, selectedDate).length}
+        onReachRect={(rect) => {
+          setClassicReachRect((prev) => (prev && prev.x === rect.x && prev.y === rect.y && prev.width === rect.width && prev.height === rect.height ? prev : rect));
         }}
         fastLine={(() => {
           // v295: the drawing's fast clause — his fast's own numbers
           // for the viewed day, from the fast record itself.
+          // v297: the clause's joins are non-breaking — his v296
+          // screenshot wrapped it so "2." orphaned onto its own
+          // line ("…· streak" / "2."); the clause now wraps whole
+          // or not at all.
           if (!activeFast) return null;
           const days = getFastCalendarDays(activeFast);
           const idx = days.indexOf(selectedDate);
           if (idx < 0) return null;
-          return `day ${idx + 1} of ${activeFast.durationDays} · streak ${calculateFastStreak(activeFast, selectedDate)}`;
+          return `day ${idx + 1} of ${activeFast.durationDays}\u00A0·\u00A0streak\u00A0${calculateFastStreak(activeFast, selectedDate)}`;
         })()}
       />
     );
@@ -12508,12 +12525,17 @@ export function ScheduleTab({
       into the summary background */}
   <PrayerCheckInNotice people={prayerCheckInPeople} selectedDate={selectedDate} />
 
-  {/* Progress Bar */}
+  {/* Progress Bar — v297: under Classic the bar now lives INSIDE the
+      panel as its last row (the drawing's seat; DailySummaryCard
+      renders it from the progress props above). The standalone bar
+      remains for the skins, whose summary composition is unchanged. */}
+  {isSkinned && (
   <ScheduleProgressBar
     completed={getTodoSummaryCounts(getTodosForDate(todos, selectedDate)).completed + getEventsForDate(events, selectedDate).filter(e => e.isCompleted).length}
     total={getTodoSummaryCounts(getTodosForDate(todos, selectedDate)).total + getEventsForDate(events, selectedDate).length}
     label="Tasks & Events"
   />
+  )}
 </BitSettle>
 </PaperSettle>
     </>
@@ -12896,14 +12918,14 @@ export function ScheduleTab({
           return (
             // v295: the pair sits on the page ground like the drawing —
             // no surface strip behind the rectangles.
-            <View style={{ flexDirection: "row", gap: 12, paddingHorizontal: 12, marginBottom: 8, backgroundColor: "transparent" }}>
+            <View style={{ flexDirection: "row", gap: 12, paddingHorizontal: 12, marginBottom: isSkinned ? 8 : 12, backgroundColor: "transparent" }}>
               {item.data.todos.map((t: any) => {
                 const todoColor = t.color || colors.primary;
                 const tonalRect = !skinTokens.isEightBit && !skinTokens.isTerminal;
                 return (
                   <Pressable
                     key={t.id}
-                    style={{ flex: 1, backgroundColor: tonalRect ? mix(todoColor, colors.surface, 0.86) : todoColor, borderRadius: tonalRect ? 18 : 12, padding: 11, minHeight: 68, justifyContent: "center", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(hasTypeScale(skinTokens) ? { padding: 12 + skinTokens.type.padBoost, minHeight: 68 + skinTokens.type.padBoost * 2 } : {}) }}
+                    style={{ flex: 1, backgroundColor: tonalRect ? mix(todoColor, colors.surface, 0.86) : todoColor, borderRadius: tonalRect ? 18 : 12, padding: 11, minHeight: 68, justifyContent: "center", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...((hasTypeScale(skinTokens) && isSkinned) ? { padding: 12 + skinTokens.type.padBoost, minHeight: 68 + skinTokens.type.padBoost * 2 } : {}) }}
                     onPress={(e) => {
                       const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
                       if (!t.isCompleted) onAwardXP?.(xpActionForDate(t.date), t.id, position);
@@ -12932,7 +12954,7 @@ export function ScheduleTab({
                         )}
                       </View>
                       )}
-                      <Text style={{ color: tonalRect ? colors.foreground : "#FFFFFF", fontSize: 13.5, fontWeight: "700", flex: 1, ...(t.isCompleted && tonalRect ? { textDecorationLine: "line-through" as const } : {}), ...skinText(skinTokens, skinTokens.type.rowBody) }} numberOfLines={2}>
+                      <Text style={{ color: tonalRect ? colors.foreground : "#FFFFFF", fontSize: 13.5, fontWeight: "700", flex: 1, ...(t.isCompleted && tonalRect ? { textDecorationLine: "line-through" as const } : {}), ...(isSkinned ? skinText(skinTokens, skinTokens.type.rowBody) : {}) }} numberOfLines={2}>
                         {t.title}
                       </Text>
                     </View>
@@ -13662,6 +13684,108 @@ export function ScheduleTab({
               />
             }
           />
+            {/* v297 (Classic only): the fixed-zone OVERLAY — the live
+                week strip and the live reach row, rendered ABOVE the
+                sheet (zIndex 2 over the list's 1; the app bar still
+                rides above both). In the summary itself they are
+                layout twins now: the sheet's ScrollView is the hit
+                target over the whole fixed zone (a pointerEvents-
+                none spacer does NOT pass touches through — the
+                ScrollView under it still claims them), so anything
+                interactive seated in the zone must live up here to
+                be tappable. Each element carries a scroll gate: as
+                the sheet slides up over the zone, the element fades
+                and shrinks away the moment the sheet's edge reaches
+                it, so a covered element never takes a ghost tap.
+                The host is pointerEvents="box-none": only the
+                elements themselves take touches; everything else
+                falls through to the sheet. Their seats are the
+                summary flow's own coordinates (the summary container
+                pads 84 top / 20 sides; the strip's block is
+                classicStripHeight), so the pixels do not move —
+                only the touch path changes. */}
+            {!isSkinned && scheduleSummaryHeight > 0 && (
+              <View pointerEvents="box-none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 2 }}>
+                <Animated.View
+                  style={{
+                    position: "absolute",
+                    top: 84,
+                    left: 20,
+                    right: 20,
+                    opacity: scrollY.interpolate({ inputRange: [Math.max(0, scheduleSummaryHeight - (84 + classicStripHeight)), Math.max(1, scheduleSummaryHeight - 84)], outputRange: [1, 0], extrapolate: "clamp" }),
+                    transform: [{ scale: scrollY.interpolate({ inputRange: [Math.max(0, scheduleSummaryHeight - (84 + classicStripHeight)), Math.max(1, scheduleSummaryHeight - 84)], outputRange: [1, 0.01], extrapolate: "clamp" }) }],
+                  }}
+                >
+                  {/* The week strip — v296's JSX, verbatim: the v32
+                      drawing's slim form seated above the panel
+                      (number 16/800, day letters 9.5 letterspaced,
+                      a 4.5px dot under time-off days, the selected
+                      day held by a 2px outline ring in the seed's
+                      deep step — no fill, no box). Tap switches the
+                      day; the row keeps its week-swipe; the compact
+                      "Jump to date" picker rides at the row's end. */}
+                  <View
+                    onLayout={(e) => {
+                      const h = Math.round(e.nativeEvent.layout.height) + 4;
+                      setClassicStripHeight((prev) => (prev === h ? prev : h));
+                    }}
+                    {...weekStripPanResponder.panHandlers}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                      {weekDates.map((date) => {
+                        const isSelected = date === selectedDate;
+                        const isTodayCell = date === today;
+                        return (
+                          <Pressable
+                            key={date}
+                            onPress={() => setSelectedDate(date)}
+                            style={({ pressed }) => [{
+                              flex: 1,
+                              alignItems: "center",
+                              paddingVertical: 7,
+                              borderRadius: 14,
+                              borderWidth: 2,
+                              borderColor: isSelected ? scheduleMaterialTones(colors.primary, colors.surface).primaryDeep : "transparent",
+                            }, pressed && { opacity: 0.7 }]}
+                          >
+                            <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 20, color: isSelected ? colors.foreground : isTodayCell ? colors.primary : colors.muted }}>
+                              {getDayNumber(date)}
+                            </Text>
+                            <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.8, marginTop: 1, color: isSelected ? colors.primary : colors.muted }}>
+                              {getShortDayName(date)}
+                            </Text>
+                            <View style={{ width: 4.5, height: 4.5, borderRadius: 2.25, marginTop: 4, backgroundColor: isDateDuringTimeOff(timeOffList, date) ? colors.primary : "transparent" }} />
+                          </Pressable>
+                        );
+                      })}
+                      <View style={{ justifyContent: "center", paddingLeft: 6, minHeight: 52 }}>
+                        <DateTimePicker
+                          value={selectedDate}
+                          onChange={(d) => { setWeekSlideDir(0); setSelectedDate(d); }}
+                          mode="date"
+                          label="Jump to date"
+                          compact
+                        />
+                      </View>
+                    </View>
+                  </View>
+                </Animated.View>
+                {classicReachRect && prayerCheckInPeople.length > 0 && (
+                  <Animated.View
+                    style={{
+                      position: "absolute",
+                      left: 20 + classicReachRect.x,
+                      top: 84 + classicStripHeight + classicReachRect.y,
+                      width: classicReachRect.width,
+                      opacity: scrollY.interpolate({ inputRange: [Math.max(0, scheduleSummaryHeight - (84 + classicStripHeight + classicReachRect.y + classicReachRect.height)), Math.max(1, scheduleSummaryHeight - (84 + classicStripHeight + classicReachRect.y))], outputRange: [1, 0], extrapolate: "clamp" }),
+                      transform: [{ scale: scrollY.interpolate({ inputRange: [Math.max(0, scheduleSummaryHeight - (84 + classicStripHeight + classicReachRect.y + classicReachRect.height)), Math.max(1, scheduleSummaryHeight - (84 + classicStripHeight + classicReachRect.y))], outputRange: [1, 0.01], extrapolate: "clamp" }) }],
+                    }}
+                  >
+                    <SummaryReachRow people={prayerCheckInPeople} selectedDate={selectedDate} onReachOutPress={handleSummaryReachOut} />
+                  </Animated.View>
+                )}
+              </View>
+            )}
           </View>
         ) : viewMode === 'week' ? (
           <WeeklyCalendarView

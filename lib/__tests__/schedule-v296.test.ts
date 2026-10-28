@@ -23,6 +23,9 @@
 //      still carries the summary's FULL measured height), and the
 //      list opens at the drawing's overlap: 120px (the mainsheet's
 //      margin-top: -120px in the drawing), first mount only.
+//      [v297: the standing overlap is REMOVED on his Oct 27 verdict
+//      — the sheet opens flush, the summary whole at rest; the
+//      re-based pins below carry the citation.]
 //  (d) END OF THE DAY — the divider HEADS the completed stack (the
 //      drawing's order: divider, done bars, worship), pushed before
 //      every completed item, not after them.
@@ -61,8 +64,17 @@ describe("v296 event cards — the artwork fills the whole card", () => {
   });
 
   it("the card stands at scene height (holidays taller), not band + body", () => {
-    expect(scheduleTab).toContain("isHolidayCard ? 148 : 124");
-    expect(scheduleTab).toContain("keyword ? 140 : 118");
+    // RE-BASED in v297 (his Oct 27 verdict: the event cards "still
+    // don't look quite right"): v296's FIXED heights (124/148/140)
+    // with the title floated absolute are replaced by HIS
+    // pre-redesign geometry — the min-height classes the skins'
+    // illustrated branch still carries (holiday-live 155 / holiday
+    // 140 / live 112 / plain 80) with the content back in flow, so
+    // the card grows with its content past the minimum. The
+    // no-keyword card (a v296 invention) keeps 104/118.
+    expect(scheduleTab).toContain("keyword ? (isHolidayCard ? 155 : 112) : 118) : keyword ? (isHolidayCard ? 140 : 80) : 104");
+    expect(scheduleTab).not.toContain("isHolidayCard ? 148 : 124");
+    expect(scheduleTab).not.toContain("keyword ? 140 : 118");
   });
 
   it("the pill sits in the one spot (top 8, left 12) and becomes the NowPill live", () => {
@@ -102,10 +114,21 @@ describe("v296 day-page composition — the sheet leads with its own head", () =
   });
 
   it("the Classic week strip rides above the panel, in the drawing's slim form", () => {
-    const stripAt = scheduleTab.indexOf("the week strip in the v32 drawing's slim form");
+    // RE-BASED in v297 (his Oct 27 report: "I can't switch days or
+    // anything to schedule ahead"): the strip v296 seated in the
+    // fixed summary zone was UNDER the scrolling sheet, whose
+    // pointerEvents-none spacer does not pass touches through —
+    // every tap died in the sheet. The strip's drawn form and seat
+    // are unchanged, but the LIVE strip now renders in the overlay
+    // layer above the sheet (its summary seat holds a layout
+    // twin). The pins follow the strip to its live host; the
+    // behavioural pins live in schedule-v297.test.ts.
+    const twinAt = scheduleTab.indexOf("the strip's LAYOUT TWIN");
     const panelAt = scheduleTab.indexOf("<DailySummaryCard");
+    expect(twinAt).toBeGreaterThanOrEqual(0);
+    expect(panelAt).toBeGreaterThan(twinAt);
+    const stripAt = scheduleTab.indexOf("The week strip — v296's JSX, verbatim");
     expect(stripAt).toBeGreaterThanOrEqual(0);
-    expect(panelAt).toBeGreaterThan(stripAt);
     // Number 16/800, selected held by the seed-deep outline ring,
     // 4.5px time-off dot.
     expect(scheduleTab).toContain("borderColor: isSelected ? scheduleMaterialTones(colors.primary, colors.surface).primaryDeep : \"transparent\"");
@@ -119,8 +142,17 @@ describe("v296 day-page composition — the sheet leads with its own head", () =
 
 describe("v296 slide-over rest — the drawing's overlap, the v197 mechanism", () => {
   it("the rest overlap is the drawing's measured 120", () => {
-    expect(scheduleTab).toContain("const SCHEDULE_SHEET_REST_OVERLAP = 120");
-    expect(scheduleTab).toContain("scrollToOffset({ offset: SCHEDULE_SHEET_REST_OVERLAP, animated: false })");
+    // RE-BASED in v297 (his Oct 27 verdict on v296, with the
+    // panel's Reach row covered at rest: "the summary doesn't
+    // match it either"): the standing 120px overlap is REMOVED —
+    // the sheet opens flush and the summary sits whole at rest.
+    // The drawing's −120 is a mid-slide freeze (its own caption:
+    // "in the app the sheet slides for real, and the summary sits
+    // whole behind it"), and the v193/v197 settlement he approved
+    // is the slide-over IN MOTION with the summary whole. The
+    // mechanism pins below (full-height spacer) are unchanged.
+    expect(scheduleTab).not.toContain("SCHEDULE_SHEET_REST_OVERLAP");
+    expect(scheduleTab).not.toContain("classicSheetRestApplied");
   });
 
   it("the spacer still carries the summary's full measured height (no text is covered by construction)", () => {

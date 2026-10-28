@@ -1,5 +1,5 @@
 import { View, Text } from "react-native";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -22,6 +22,11 @@ interface ScheduleProgressBarProps {
   completed: number;
   total: number;
   label?: string;
+  /** v297: "panel" = the drawing's in-panel last row (schedule summary,
+      Classic only): the bar and its day cap on the panel's own colours
+      with the count caption at its right. Default "standard" is the
+      long-standing standalone bar, byte-identical. */
+  variant?: "standard" | "panel";
 }
 
 /* ── the day cap (v240, Jonathan's pick ruling the held A46 item):
@@ -283,7 +288,7 @@ function DayCapGlyph({ face, isTerminal, isEightBit, isPaper }: { face: DayCapFa
   );
 }
 
-export function ScheduleProgressBar({ completed, total, label = "Progress" }: ScheduleProgressBarProps) {
+export function ScheduleProgressBar({ completed, total, label = "Progress", variant = "standard" }: ScheduleProgressBarProps) {
   const colors = useColors();
   const { isSkinned, tokens: skinTokens } = useSkin();
   // Terminal (v186): the bar speaks phosphor — track in dim green,
@@ -302,6 +307,10 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
   const bitFillStyle = useBitFill(percentage / 100);
 
   const glowAnimation = useSharedValue(0);
+  // v297 (panel variant): the cap's travel is clamped inside the bar —
+  // its centre runs from 15 to width−15 — so at 0% and 100% it never
+  // spills onto the caption beside it.
+  const [panelBarWidth, setPanelBarWidth] = useState(0);
 
   // Trigger pulsing glow animation when completion status changes.
   // Elevation is animated too so the pulse is actually visible on Android
@@ -349,6 +358,56 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
       elevation,
     };
   });
+
+  // v297: the drawing's bar-row (schedule-material-concepts-v32.html,
+  // `.bar-row`): the progress bar as the summary panel's LAST row, on
+  // the panel — a 14px translucent-white track, a flat amber fill, the
+  // SAME day cap riding the fill tip (30px here, the drawing's size,
+  // with its 2.5px white border; gold ring when the day is done), and
+  // the count caption at the right in the panel's soft violet-white.
+  // The day-cap component itself is untouched — same face, same sky,
+  // same completion rule; only its seat moved.
+  if (variant === "panel") {
+    const capTravel = Math.max(0, panelBarWidth - 30);
+    const capLeft = (percentage / 100) * capTravel;
+    return (
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View
+          style={{ flex: 1, height: 30, justifyContent: "center", position: "relative" }}
+          onLayout={(e) => setPanelBarWidth(e.nativeEvent.layout.width)}
+        >
+          <View style={{ height: 14, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.30)", overflow: "hidden" }}>
+            <View style={{ height: "100%", width: `${percentage}%`, backgroundColor: "#F59E0B", borderRadius: 999 }} />
+          </View>
+          {total > 0 && panelBarWidth > 0 && (
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: capLeft,
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                backgroundColor: colors.surface,
+                borderWidth: 2.5,
+                borderColor: isComplete ? "#E9B949" : "#FFFFFF",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+              }}
+            >
+              <DayCapGlyph face={capFace} isTerminal={false} isEightBit={false} isPaper={false} />
+              {dayCapSky(capFace) === "night" ? <TwinkleStars /> : null}
+            </View>
+          )}
+        </View>
+        <Text style={{ fontSize: 11, fontWeight: "700", color: "#E4DBFF" }}>
+          {completed} of {total} · {Math.round(percentage)}%
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={{ paddingHorizontal: 16 + skinTokens.type.padBoost, paddingVertical: 12 + skinTokens.type.gapBoost, gap: 8 }}>

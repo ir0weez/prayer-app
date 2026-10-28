@@ -39,6 +39,7 @@ import { MOODS, MoodPicker, type JournalMood } from "@/components/mood-picker";
 import { useColors } from "@/hooks/use-colors";
 import { useKeyboardHeight } from "@/hooks/use-keyboard-height";
 import { useSkin } from "@/hooks/use-skin";
+import { useTabBarOccupiedHeight } from "@/components/app-tab-bar";
 import {
   activeTokenAt,
   addDaysToIso,
@@ -170,6 +171,16 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
   const { isSkinned, tokens: skinTokens, motion: skinMotion } = useSkin();
+  // v306: the composer FAB's resting seat derives from the tab
+  // bar's own occupied height under Classic (the schedule FAB's
+  // v298 rule, + the same 12 clearance) — the legacy flat seat was
+  // drawn for the skins' floating bar and left the FAB's lower
+  // half sunk behind the attached Classic bar (Oct 28, screenshot
+  // 10825). The skins keep their notch seat (60, beside the
+  // floating bar); because the seat reads the same metric the bar
+  // reports, the two can never drift apart again.
+  const tabBarOccupied = useTabBarOccupiedHeight();
+  const journalFabRestBottom = skinTokens.id === "classic" ? tabBarOccupied + 12 : 60;
   // v252: the Journal's Material family (seed-derived, lib/journal-material).
   const jm = useJournalMaterial();
   const { width: windowWidth } = useWindowDimensions();
@@ -290,7 +301,11 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
       width: 58 + (windowWidth - 20 - 58) * progress,
       height: 58 + (Math.max(morphContentHeight.value, 58) - 58) * progress,
       marginRight: 15 - 5 * progress,
-      marginBottom: 60 - 8 * progress + morphKeyboardLift.value * progress,
+      // v306: rest at journalFabRestBottom; as the morph opens the
+      // bar steps aside and the box settles to its open seat (52)
+      // on every skin — under the skins that's the same 60 → 52
+      // travel the flat constants always drew.
+      marginBottom: journalFabRestBottom + (52 - journalFabRestBottom) * progress + morphKeyboardLift.value * progress,
       borderRadius: 29 - 3 * progress,
     };
   });

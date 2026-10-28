@@ -184,9 +184,14 @@ describe("v259 source pins — no bell, no Pray Today pill in the section", () =
 // ─── Clearance — content never hides behind the bar ─────────────────
 
 describe("v259 source pins — clearance", () => {
-  it("the occupied height is the bar's real geometry (91 Classic / 126 floating skins)", () => {
+  // v306 re-based: the occupied height is no longer the flat
+  // constant — it derives in lib/tab-bar-metrics (13 + 58 + the
+  // inset-aware bottom pad), which still yields 91 Classic at zero
+  // inset and 126 for the floating skins, and rises past both on
+  // gesture-nav devices.
+  it("the occupied height is the bar's real geometry, derived (91 Classic at zero inset / 126 floating skins)", () => {
     expect(bar).toContain("useTabBarOccupiedHeight");
-    expect(bar).toContain('tokens.id === "classic" ? 91 : 126');
+    expect(bar).toContain('tabBarOccupiedHeight(tokens.id === "classic", insets.bottom)');
   });
 
   it("Books, Book, and Queue scrolls end past the bar (v265: in the pane the pane itself carries the clearance)", () => {

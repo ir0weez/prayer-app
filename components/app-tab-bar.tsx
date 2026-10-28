@@ -31,6 +31,7 @@ import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ReAnimated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { PaperGrainOverlay } from "@/components/paper-grain";
@@ -38,6 +39,7 @@ import { useColors } from "@/hooks/use-colors";
 import { usePeopleFrontDoor, usePeopleMaterial } from "@/hooks/use-people-material";
 import { useSkin } from "@/hooks/use-skin";
 import type { PeopleFrontDoorFamily } from "@/lib/people-material";
+import { classicTabBarBottomPad, tabBarOccupiedHeight } from "@/lib/tab-bar-metrics";
 import {
   BIT_ON_DUSK_FAINT,
   BIT_PANEL,
@@ -70,13 +72,17 @@ function iconName(name: string) {
  * The vertical space the bar occupies at the foot of the screen —
  * content on bar-carrying screens clears it by this much (plus its
  * own breathing room). Classic: the attached Expressive bar is
- * 13 (top pad) + 58 (tab cell) + 20 (bottom pad) = 91. The skins'
+ * 13 (top pad) + 58 (tab cell) + its bottom pad. v306: that pad
+ * honours the bottom safe-area inset (lib/tab-bar-metrics), so the
+ * occupied height rises on gesture-nav devices and every derived
+ * seat (schedule FAB, devotional pill) rises with it. The skins'
  * floating bar sits at bottom 52 with height 74, so its top edge
- * rides 126 from the screen's foot.
+ * rides 126 from the screen's foot, inset or not.
  */
 export function useTabBarOccupiedHeight(): number {
   const { tokens } = useSkin();
-  return tokens.id === "classic" ? 91 : 126;
+  const insets = useSafeAreaInsets();
+  return tabBarOccupiedHeight(tokens.id === "classic", insets.bottom);
 }
 
 function createStyles(colors: ReturnType<typeof useColors>, skin?: SkinTokens | null) {
@@ -146,6 +152,7 @@ export function AppTabBar({
   hidden?: boolean;
 }) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const { tokens: skinTokens, motion: skinMotion } = useSkin();
   const pm = usePeopleMaterial();
   const frontDoorFamily = usePeopleFrontDoor();
@@ -261,7 +268,10 @@ export function AppTabBar({
           borderWidth: 0,
           backgroundColor: pmf.navGround,
           paddingTop: 13,
-          paddingBottom: 20,
+          // v306: the bottom pad spends the safe-area inset first
+          // (lib/tab-bar-metrics) — the labels stand clear of the
+          // gesture line instead of crowding the screen's edge.
+          paddingBottom: classicTabBarBottomPad(insets.bottom),
           paddingHorizontal: 10,
           alignItems: "flex-start" as const,
           shadowColor: pmf.shadow,

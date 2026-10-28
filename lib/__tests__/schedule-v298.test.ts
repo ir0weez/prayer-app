@@ -37,6 +37,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { schedulePanelStep } from "../schedule-material";
+import { tabBarOccupiedHeight } from "../tab-bar-metrics";
 
 const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
@@ -213,8 +214,13 @@ describe("v298 FAB — seated clear of the tab bar", () => {
     expect(fab).not.toContain("bottom: 60,");
   });
 
-  it("the metric it derives from: the Classic bar occupies 91, so the FAB bottom (103) clears it", () => {
-    expect(tabBar).toContain('return tokens.id === "classic" ? 91 : 126');
-    expect(91 + 12).toBeGreaterThan(91);
+  // v306 re-based: the metric is derived now (lib/tab-bar-metrics —
+  // 13 + 58 + max(20, inset + 10)), not the flat constant this pin
+  // was written against. At zero inset it is still 91 and the FAB's
+  // 103 still clears it; on his gesture-nav Pixel both rise together.
+  it("the metric it derives from: the Classic bar's occupied height, so the FAB bottom clears it", () => {
+    expect(tabBar).toContain('tabBarOccupiedHeight(tokens.id === "classic", insets.bottom)');
+    expect(tabBarOccupiedHeight(true, 0)).toBe(91);
+    expect(tabBarOccupiedHeight(true, 0) + 12).toBeGreaterThan(tabBarOccupiedHeight(true, 0));
   });
 });

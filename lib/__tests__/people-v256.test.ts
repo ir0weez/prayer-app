@@ -200,10 +200,15 @@ describe("v256 source pins — tab bar = Concept 2, Expressive (v259: components
     expect(tabBar).toContain('export const APP_TAB_ORDER: AppNavTab[] = ["people", "schedule", "bible", "journal", "more"]');
   });
 
-  it("attached, taller, seed-tinted from the derivation — the navGround surface, 13/20 padding", () => {
+  // v306 re-based: the bottom pad is no longer the flat drawn 20 —
+  // it is that 20 floored against the safe-area inset
+  // (classicTabBarBottomPad: max(20, inset + 10), lib/tab-bar-metrics),
+  // so the labels clear the gesture line. Top pad and the rest of
+  // the drawn geometry stand as pinned.
+  it("attached, taller, seed-tinted from the derivation — the navGround surface, 13 top pad / inset-aware bottom pad (v306)", () => {
     expect(bar).toContain("backgroundColor: pmf.navGround");
     expect(bar).toContain("paddingTop: 13");
-    expect(bar).toContain("paddingBottom: 20");
+    expect(bar).toContain("paddingBottom: classicTabBarBottomPad(insets.bottom)");
     expect(bar).toContain("paddingHorizontal: 10");
   });
 

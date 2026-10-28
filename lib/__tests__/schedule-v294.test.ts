@@ -236,7 +236,10 @@ describe("v294 time off — the block is never completable (source pins)", () =>
   });
 
   it("claimed rest replaces whites on trip days", () => {
-    expect(tab).toMatch(/<ClaimedRestBlock/);
+    // v314 re-pin: claimed rest now renders through the claimed
+    // GROUP (adjacent blocks connected like the whites) — the
+    // never-completable rule this pin guards is unchanged.
+    expect(tab).toMatch(/<ClaimedRestGroup/);
   });
 });
 

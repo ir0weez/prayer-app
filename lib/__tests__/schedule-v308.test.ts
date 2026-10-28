@@ -2,9 +2,14 @@
 // v308 — five Jonathan-directed fixes (Oct 28):
 //  1. UP NEXT: the v298 fat strip ("looks meh", 10:59) becomes the
 //     slim 44px pill from schedule-upnext-timeoff-v1.html.
+//     → SUPERSEDED by v314 (his correction, Oct 28 14:54: size was
+//     never the ask — the pill becomes a proper Material card; the
+//     pins below are v314's).
 //  2. DAY OFF BAND: the v295 saturated stack (with the doubled
 //     "TIME OFF · TIME OFF" eyebrow) becomes the drawing's slim
 //     46px one-line band, radius 12.
+//     → SUPERSEDED by v314 (same 14:54 correction — the band
+//     becomes a proper tonal Material card; pins below are v314's).
 //  3. EVENT CARD TEXT (11:58, refined 12:11): the words rest at the
 //     BOTTOM of full-bleed artwork cards over a bottom scrim. TV
 //     Show cards take the stepped-up type (title 20.5/800, sub
@@ -12,6 +17,11 @@
 //     format's type (git 0b5a3cd eventStyles: title 16/700, the
 //     note at 20/600, lineHeight 25). Plain colour cards and the
 //     Rest branch are untouched; the pill keeps its one spot.
+//     → The non-TV half is RESTRUCTURED by v314 (14:50–14:53: his
+//     old screenshot is the source — note biggest AND heaviest,
+//     time/location as quiet lines of their own; see
+//     schedule-v314.test.ts). The bottom anchor, the scrim, the
+//     TV type, and the pill pins below still stand.
 //  4. MIDNIGHT: a claimed block ending at the window's "24:00"
 //     rendered "12:00 PM" — format12HourTime now normalises hour
 //     24 at the source; midnight is "12:00 AM", noon "12:00 PM".
@@ -59,29 +69,25 @@ const classicEventBranch = scheduleTab.slice(
   scheduleTab.indexOf("// Active: illustrated card if keyword matches"),
 );
 
-describe("v308 up next — the slim pill", () => {
-  it("takes the drawing's metrics: 44px, fully rounded, tonal fill + border", () => {
-    expect(upNextCase).toContain("height: 44, borderRadius: 999");
-    expect(upNextCase).toContain("backgroundColor: stripTones.primaryContainer");
-    expect(upNextCase).toContain("borderWidth: 1");
+describe("v308 up next — the slim pill → v314: a proper Material card", () => {
+  it("v314: full-width tonal card, radius 22, comfortable padding — NOT the 44px pill", () => {
+    expect(upNextCase).not.toContain("height: 44, borderRadius: 999");
+    expect(upNextCase).toContain("borderRadius: 22, backgroundColor: stripTones.primaryContainer");
+    expect(upNextCase).toContain("paddingHorizontal: 16, paddingVertical: 15");
   });
 
-  it("has NO icon tile, NO sub-line, NO empty ring", () => {
-    expect(upNextCase).not.toContain("width: 44, height: 44, borderRadius: 14");
-    expect(upNextCase).not.toContain("width: 27, height: 27");
-    expect(upNextCase).not.toContain("subParts");
-    expect(upNextCase).not.toContain("kindIcon");
-  });
-
-  it("is one line: UP NEXT pill, bold time, dot, title, chevron", () => {
+  it("v314: eyebrow, title at card weight, time in the deep step, chevron in a tonal circle", () => {
     expect(upNextCase).toContain(">UP NEXT</Text>");
-    expect(upNextCase).toContain("fontSize: 13, fontWeight: \"800\"");
-    expect(upNextCase).toContain("width: 3.5, height: 3.5, borderRadius: 2");
-    expect(upNextCase).toContain("fontSize: 15, fontWeight: \"700\"");
-    expect(upNextCase).toContain('name="chevron-right" size={16}');
+    expect(upNextCase).toContain("fontSize: 10.5, fontWeight: \"800\", letterSpacing: 1.2");
+    expect(upNextCase).toContain("fontSize: 16.5, fontWeight: \"800\"");
+    expect(upNextCase).toContain("fontSize: 13.5, fontWeight: \"700\"");
+    expect(upNextCase).toContain("width: 34, height: 34, borderRadius: 17");
+    expect(upNextCase).toContain('name="chevron-right" size={19}');
+    // The title is never truncated on the card.
+    expect(upNextCase).not.toContain("numberOfLines");
   });
 
-  it("BEHAVIOUR: the whole pill still toggles the item through the cards' handlers", () => {
+  it("BEHAVIOUR: the whole card still toggles the item through the cards' handlers", () => {
     expect(upNextCase).toContain("onPress={toggleNext}");
     expect(upNextCase).toContain("setTodos((prev) => toggleTodoCompleted(prev, nd.id))");
     expect(upNextCase).toContain("setEvents((prev) => toggleEventCompleted(prev, nd.id))");
@@ -89,31 +95,33 @@ describe("v308 up next — the slim pill", () => {
   });
 });
 
-describe("v308 day off band — slim, one line, no eyebrow", () => {
+describe("v308 day off band — slim band → v314: a proper tonal card", () => {
   const band = timeOffTravel.slice(
     timeOffTravel.indexOf("export function TripBand"),
     timeOffTravel.indexOf("const ROUTE_RE"),
   );
 
-  it("is a 46px band at radius 12 in the trip's colour", () => {
-    expect(band).toContain("height: 46, borderRadius: 12, backgroundColor: base");
+  it("v314: NOT the 46px slim band — a tonal card at radius 22 in the trip's colour family", () => {
+    expect(band).not.toContain("height: 46, borderRadius: 12, backgroundColor: base");
+    expect(band).toContain("borderRadius: 22, backgroundColor: mix(colors.surface, base");
+    expect(band).toContain("paddingHorizontal: 15, paddingVertical: 14");
   });
 
-  it("the doubled eyebrow is deleted entirely", () => {
+  it("the doubled eyebrow stays deleted entirely", () => {
     expect(band).not.toContain("TIME OFF · ${getTimeOffLabel(timeOff.type).toUpperCase()}");
     expect(band).not.toContain("letterSpacing: 1.6");
   });
 
-  it("one line: sun chip, title, dot, the day's date + day count, chevron", () => {
-    expect(band).toContain('name="wb-sunny" size={15}');
-    expect(band).toContain("fontSize: 15, fontWeight: \"800\"");
+  it("v314: sun tile, title, the day's date + day count, chevron", () => {
+    expect(band).toContain('name="wb-sunny" size={21}');
+    expect(band).toContain("fontSize: 16, fontWeight: \"800\"");
     expect(band).toContain("Day ${day.day} of ${day.total}");
-    expect(band).toContain('name="chevron-right" size={16}');
+    expect(band).toContain('name="chevron-right" size={20}');
     // The date is the SELECTED day, not the trip's whole range.
     expect(band).toContain("const dayLabel = new Date(dy, dm - 1, dd)");
   });
 
-  it("the claimed-block chips are a different element — untouched", () => {
+  it("the claimed-block chips are a different element — their face is untouched", () => {
     const chips = timeOffTravel.slice(timeOffTravel.indexOf("export function ClaimedRestBlock"));
     expect(chips).toContain("Time off — {timeOff.title}");
     expect(chips).toContain("format12HourTime(startTime)} → {format12HourTime(endTime)");

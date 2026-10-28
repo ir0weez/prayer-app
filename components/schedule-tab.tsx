@@ -158,10 +158,10 @@ import { AlbumCard } from "./album-card";
 import { getAlbumPalette, WorshipAlbumDetail } from "./worship-album-detail";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { TimeOffExperience } from "./time-off-experience";
-import { TripBand, ItineraryDayCard, ClaimedRestBlock } from "./time-off-travel";
+import { TripBand, ItineraryDayCard, ClaimedRestGroup } from "./time-off-travel";
 import { ReachedStampRow } from "./reached-stamp-row";
 import { getAllTimeOff, getItineraryForDate, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
-import { calculateWhites } from "@/lib/whites";
+import { calculateWhites, groupAdjacentClaimed } from "@/lib/whites";
 import { extractPosterColor, getTimeOffEventColor, isTimeOffEventVisible, readableTextColor } from "@/lib/poster-color";
 import { calculateActiveAvailableTimeBlocks, getCurrentTimeInsertionIndex, getLiveCursorPosition, timeToMinutes, minutesToTime, whiteBlockHeight, whiteBlockBadge, type TimeBlock } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
@@ -7946,6 +7946,21 @@ function EventCardInner({
     // anchor for both — the old format's top seat does not return.
     // Rest cards never reach this branch (their own above) and are
     // untouched; the time pill above keeps its one spot on all.
+    //
+    // v314 (his correction, Oct 28 14:50–14:53, with his OLD
+    // pre-redesign screenshot — Family Photos / Lunch "Melody" —
+    // as the source of truth, not git): the v308 restoration got
+    // the SIZES but not the hierarchy. In his cards the NOTE line
+    // is the biggest AND heaviest text on the card, the title sits
+    // above it smaller, and the time range and location run as
+    // their OWN quiet lines in the stack — v308 glued them into
+    // the note line at note size with the title outweighing it.
+    // So for non-TV scene cards the joined sub-line is gone: title
+    // 16/700, note 20/800 (lineHeight 25), time range 13/600 and
+    // location 12.5/600 as separate quiet lines, measured from his
+    // screenshot. TV cards keep the v308 composition exactly; the
+    // bottom anchor and the time pill (his 14:53 confirmation) are
+    // unchanged — fonts and line structure only.
     const isTVShowCard = keyword?.label === "TV Show";
     const cardTitleType = !keyword
       ? { fontSize: 16, fontWeight: "800" as const }
@@ -7957,6 +7972,15 @@ function EventCardInner({
       : isTVShowCard
         ? { fontSize: 13, fontWeight: "600" as const }
         : { fontSize: 20, fontWeight: "600" as const, lineHeight: 25 };
+    // v314: the non-TV scene stack's own types (see the note above).
+    const sceneNoteType = { fontSize: 20, fontWeight: "800" as const, lineHeight: 25 };
+    const sceneTimeType = { fontSize: 13, fontWeight: "600" as const };
+    const sceneLocationType = { fontSize: 12.5, fontWeight: "600" as const };
+    // The old cards' time line, full form both ends ("10:00 AM –
+    // 11:00 AM") — a quiet stack line, NOT the pill's short form.
+    const timeRangeLine = event.startTime
+      ? `${format12HourTime(event.startTime)}${event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}`
+      : null;
     // v297: the card's height returns to HIS pre-redesign geometry
     // (the illustrated card this branch replaced — still live below
     // for the skins): min-height classes with the content IN FLOW,
@@ -8043,11 +8067,36 @@ function EventCardInner({
                 scene cards with the old pre-redesign format's type
                 (cardTitleType / cardSubType above). The plain
                 colour cards keep the layout they have always had
-                (top, under the pill). */}
+                (top, under the pill).
+                v314: the non-TV scene stack is RESTRUCTURED to his
+                reference screenshot — the note stands alone as the
+                biggest, heaviest line; the time range and location
+                follow as quiet lines of their own (the Family
+                Photos stack: title / time / location; the Lunch
+                stack: title / Melody / time / location). The TV and
+                plain-colour compositions below are byte-identical
+                to v308/v313. */}
             <View pointerEvents="none" style={keyword ? { flex: 1, justifyContent: "flex-end", paddingHorizontal: 12, paddingBottom: isLiveScheduledBlock ? 34 : 12 } : { paddingTop: 40, paddingHorizontal: 12, paddingBottom: isLiveScheduledBlock ? 34 : 12 }}>
               <Text style={{ ...cardTitleType, color: "#FFFFFF", textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} numberOfLines={2}>{event.title}</Text>
-              {subParts.length > 0 && (
-                <Text style={{ ...cardSubType, color: "rgba(255,255,255,0.92)", marginTop: 2, textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} numberOfLines={1}>{hasShowSegments ? <>{seRead ? `${seRead} · ` : ""}{detailSegments}{durationLabel ? ` · ${durationLabel}` : ""}</> : subParts.join(" · ")}</Text>
+              {isTVShowCard || !keyword ? (
+                subParts.length > 0 && (
+                  <Text style={{ ...cardSubType, color: "rgba(255,255,255,0.92)", marginTop: 2, textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} numberOfLines={1}>{hasShowSegments ? <>{seRead ? `${seRead} · ` : ""}{detailSegments}{durationLabel ? ` · ${durationLabel}` : ""}</> : subParts.join(" · ")}</Text>
+                )
+              ) : (
+                <>
+                  {event.notes ? (
+                    <Text style={{ ...sceneNoteType, color: "#FFFFFF", marginTop: 2, textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{event.notes}</Text>
+                  ) : null}
+                  {timeRangeLine ? (
+                    <Text style={{ ...sceneTimeType, color: "rgba(255,255,255,0.92)", marginTop: 5, textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{timeRangeLine}</Text>
+                  ) : null}
+                  {event.location ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 3 }}>
+                      <MaterialIcons name="location-on" size={13} color="rgba(255,255,255,0.88)" />
+                      <Text style={{ ...sceneLocationType, color: "rgba(255,255,255,0.88)", textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{event.location}</Text>
+                    </View>
+                  ) : null}
+                </>
               )}
             </View>
             {isLiveScheduledBlock && (
@@ -13082,16 +13131,20 @@ export function ScheduleTab({
           );
         }
         case "up-next": {
-          // v308 (his Oct 28 verdict on the v298 strip: the fat card
-          // "looks meh"): the slim pill from
-          // schedule-upnext-timeoff-v1.html, measured — height 44,
-          // fully rounded, pale tonal violet fill (primaryContainer)
-          // with a tonal border: the UP NEXT mini-pill in the deep
-          // step, the item's time bold in the deep step, a dot, the
-          // title at 15/700, and a small chevron. NO icon tile, NO
-          // sub-line, NO empty ring at the right. The whole pill is
-          // still the tap (his no-bubbles model): it toggles the
-          // named item through the same handlers its own card uses.
+          // v314 (his correction, Oct 28 14:54): "I didn't want you
+          // to make the 'Up Next' line in the schedule smaller. I
+          // just wanted it to look better. It didn't look like an
+          // appropriate material design style card." The v308 slim
+          // 44px pill is replaced by a REAL Material card — full
+          // width in the same seat (today only, after the study
+          // card), tonal primary-container fill (derived), radius
+          // 22, comfortable padding: the UP NEXT eyebrow, the item's
+          // title at full card weight, its time under it in the deep
+          // step, and a chevron riding in a tonal circle. Not the
+          // old fat event-card clone either — a deliberate card.
+          // The whole card is still the tap (his no-bubbles model):
+          // it toggles the named item through the same handlers its
+          // own card uses.
           const nextData = item.data as { kind: "todo" | "event" | "ministry"; item: any };
           const nd = nextData.item;
           const stripTones = scheduleMaterialTones(colors.primary, colors.surface);
@@ -13116,15 +13169,16 @@ export function ScheduleTab({
               onPress={toggleNext}
               accessibilityRole="button"
               accessibilityLabel={`Up next: ${nd.title} at ${format12HourTime(nd.startTime)}`}
-              style={({ pressed }) => [{ marginHorizontal: 12, marginBottom: 12, height: 44, borderRadius: 999, backgroundColor: stripTones.primaryContainer, borderWidth: 1, borderColor: mix(colors.primary, colors.surface, 0.72), flexDirection: "row", alignItems: "center", gap: 9, paddingLeft: 8, paddingRight: 13, opacity: pressed ? 0.75 : 1 }]}
+              style={({ pressed }) => [{ marginHorizontal: 12, marginBottom: 12, borderRadius: 22, backgroundColor: stripTones.primaryContainer, paddingHorizontal: 16, paddingVertical: 15, flexDirection: "row", alignItems: "center", gap: 12, shadowColor: colors.primary, shadowOpacity: 0.10, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2, opacity: pressed ? 0.75 : 1 }]}
             >
-              <View style={{ backgroundColor: stripTones.primaryDeep, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
-                <Text style={{ color: "#FFFFFF", fontSize: 9.5, fontWeight: "800", letterSpacing: 1.1 }}>UP NEXT</Text>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ color: stripTones.primaryDeep, fontSize: 10.5, fontWeight: "800", letterSpacing: 1.2 }}>UP NEXT</Text>
+                <Text style={{ color: colors.foreground, fontSize: 16.5, fontWeight: "800", marginTop: 3 }}>{nd.title}</Text>
+                <Text style={{ color: stripTones.primaryDeep, fontSize: 13.5, fontWeight: "700", marginTop: 2 }}>{format12HourTime(nd.startTime)}</Text>
               </View>
-              <Text style={{ color: stripTones.primaryDeep, fontSize: 13, fontWeight: "800" }}>{format12HourTime(nd.startTime)}</Text>
-              <View style={{ width: 3.5, height: 3.5, borderRadius: 2, backgroundColor: mix(colors.primary, colors.surface, 0.35) }} />
-              <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700", flex: 1 }} numberOfLines={1}>{nd.title}</Text>
-              <MaterialIcons name="chevron-right" size={16} color={mix(colors.primary, colors.surface, 0.3)} />
+              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: mix(colors.primary, colors.surface, 0.78), alignItems: "center", justifyContent: "center" }}>
+                <MaterialIcons name="chevron-right" size={19} color={stripTones.primaryDeep} />
+              </View>
             </Pressable>
           );
         }
@@ -13611,6 +13665,8 @@ export function ScheduleTab({
         case "time-block": {
           // v294: on a time-off day the open stretch is claimed rest,
           // not a white block — no add menu, nothing to fill.
+          // v314: a lone claimed block renders through the claimed
+          // GROUP (one box, no divider) so its face matches a run's.
           const dayTrip = timeOffList.find((to) => selectedDate >= to.startDate && selectedDate <= to.endDate);
           if (dayTrip) {
             const b = item.data.block as TimeBlock;
@@ -13619,12 +13675,10 @@ export function ScheduleTab({
               ? timeToMinutes(b.endTime) - nm
               : null;
             return (
-              <ClaimedRestBlock
+              <ClaimedRestGroup
                 timeOff={dayTrip}
-                startTime={b.startTime}
-                endTime={b.endTime}
-                height={whiteBlockHeight(b.durationMinutes, remaining)}
-                onPress={() => openTimeOffExperience(dayTrip.id)}
+                blocks={[{ block: b, height: whiteBlockHeight(b.durationMinutes, remaining) }]}
+                onPressBlock={() => openTimeOffExperience(dayTrip.id)}
               />
             );
           }
@@ -13641,24 +13695,31 @@ export function ScheduleTab({
         case "time-block-group": {
           const dayTrip = timeOffList.find((to) => selectedDate >= to.startDate && selectedDate <= to.endDate);
           if (dayTrip) {
+            // v314 (his ruling, Oct 28 14:35): adjacent claimed
+            // blocks CONNECT like the whites — one outer box,
+            // hairline dividers, each block still its own tap
+            // target into the Time Off page. The run is re-grouped
+            // here by the whites' own adjacency rule
+            // (groupAdjacentClaimed) so the claimed face can never
+            // drift from the whites' grouping; non-adjacent blocks
+            // stay in separate boxes.
             const nm = item.data.nowMinutes ?? null;
+            const runs = groupAdjacentClaimed(item.data.blocks as TimeBlock[]);
             return (
               <View>
-                {(item.data.blocks as TimeBlock[]).map((b) => {
-                  const remaining = nm != null && timeToMinutes(b.startTime) <= nm && nm < timeToMinutes(b.endTime)
-                    ? timeToMinutes(b.endTime) - nm
-                    : null;
-                  return (
-                    <ClaimedRestBlock
-                      key={b.id}
-                      timeOff={dayTrip}
-                      startTime={b.startTime}
-                      endTime={b.endTime}
-                      height={whiteBlockHeight(b.durationMinutes, remaining)}
-                      onPress={() => openTimeOffExperience(dayTrip.id)}
-                    />
-                  );
-                })}
+                {runs.map((run) => (
+                  <ClaimedRestGroup
+                    key={run[0].id}
+                    timeOff={dayTrip}
+                    blocks={run.map((b) => {
+                      const remaining = nm != null && timeToMinutes(b.startTime) <= nm && nm < timeToMinutes(b.endTime)
+                        ? timeToMinutes(b.endTime) - nm
+                        : null;
+                      return { block: b, height: whiteBlockHeight(b.durationMinutes, remaining) };
+                    })}
+                    onPressBlock={() => openTimeOffExperience(dayTrip.id)}
+                  />
+                ))}
               </View>
             );
           }

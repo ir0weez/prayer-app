@@ -195,15 +195,19 @@ describe("v298 up next — the drawing's strip, built", () => {
     expect(scheduleTab).toContain('items.splice(studyIdx >= 0 ? studyIdx + 1 : 0, 0, { type: "up-next", id: "up-next", data: nextCandidate })');
   });
 
-  it("the case seats after the study card and takes the drawing's metrics", () => {
+  it("the case seats after the study card and takes the current card's metrics", () => {
     expect(scheduleTab.indexOf('case "up-next"')).toBeGreaterThan(scheduleTab.indexOf('case "personal-study-card"'));
     // v308 re-pin: the v298 strip was the fat card he called "meh"
-    // (Oct 28, 10:59) — the case now takes the SLIM PILL's metrics
-    // from schedule-upnext-timeoff-v1.html: 44px, fully rounded,
-    // no icon tile, no sub-line, no empty ring.
-    expect(upNextCase).toContain("height: 44, borderRadius: 999");
+    // (Oct 28, 10:59) — the case took the SLIM PILL's metrics.
+    // v314 re-pin (his correction, Oct 28 14:54 — "I didn't want
+    // you to make the 'Up Next' line smaller… it didn't look like
+    // an appropriate material design style card"): the pill gives
+    // way to a proper Material card — radius 22, tonal container
+    // fill, comfortable padding, the title at card weight.
+    expect(upNextCase).not.toContain("height: 44, borderRadius: 999");
+    expect(upNextCase).toContain("borderRadius: 22, backgroundColor: stripTones.primaryContainer");
     expect(upNextCase).toContain(">UP NEXT</Text>");
-    expect(upNextCase).toContain("fontSize: 15, fontWeight: \"700\"");
+    expect(upNextCase).toContain("fontSize: 16.5, fontWeight: \"800\"");
     expect(upNextCase).not.toContain("width: 44, height: 44, borderRadius: 14");
     expect(upNextCase).not.toContain("subParts.join");
   });

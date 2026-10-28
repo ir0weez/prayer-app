@@ -15,6 +15,25 @@
  *
  * Nothing here completes anything: time off is booked, edited, and
  * planned — never checked off.
+ *
+ * v314 — the LIST rebuilt to the blend DRAWING itself (artifact
+ * "time-off-style-concepts", the blend frame at the top), after his
+ * Oct 28 verdict that the v294 build "doesn't look even close to
+ * the mockup I agreed to": the hero takes the drawing's asymmetric
+ * shape (36px corners, one 14px corner), its kind PILL (a warm step
+ * of the trip's colour, not bare text), the 96/900 countdown with
+ * NO second count anywhere on the card (one number story per trip:
+ * what, when, how long), and the sun/hills scenic band across its
+ * foot with the route read standing on it ("The route, at a
+ * glance"). The other trips are SOLID trip-colour cards in the
+ * drawing's mirrored shape, each carrying its own single number
+ * (its days). Book time off is the drawing's solid seed pill at
+ * the foot of the list. The TRIP face drops its colour header card
+ * and its caption ("the whole trip, in order" — captions are not
+ * UI) for the drawing's title block (32/900 on the surface, the
+ * facts as one sub-line) and its day heads (44/900 numeral, weekday,
+ * month, a rule) — the entries themselves keep the v302/v303
+ * mechanics untouched.
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -32,6 +51,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import Svg, { Circle, Path } from "react-native-svg";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperSettle } from "./paper-motion";
@@ -39,7 +59,6 @@ import { BitSettle } from "./bit-motion";
 import { DateTimePicker } from "./date-time-picker";
 import { TimeOffExport } from "./time-off-export";
 import { mix } from "@/lib/color-themes";
-import { hexLuminance } from "@/lib/skin-themes";
 import { scheduleMaterialTones } from "@/lib/schedule-material";
 import {
   SCHEDULE_COLOR_PALETTE,
@@ -357,17 +376,20 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
   const bookDays = calculateTimeOffDuration(fStart, fEnd);
   const bookColor = tripBaseColor({ color: fColor } as TimeOff);
 
-  const header = (title: string, opts?: { back?: () => void; right?: React.ReactNode }) => (
+  // v314: the blend's app bar — 38px rounded-square tonal tiles with
+  // deep-seed glyphs and a 22/900 title; the trip face's back button
+  // is the drawing's filled seed circle instead (backFilled).
+  const header = (title: string, opts?: { back?: () => void; right?: React.ReactNode; backFilled?: boolean }) => (
     <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, gap: 8 }}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={opts?.back ? "Back" : "Close"}
         onPress={opts?.back ?? onClose}
-        style={({ pressed }) => [{ width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: tones.containerLow, opacity: pressed ? 0.7 : 1 }]}
+        style={({ pressed }) => [{ width: 38, height: 38, borderRadius: opts?.backFilled ? 19 : 14, alignItems: "center", justifyContent: "center", backgroundColor: opts?.backFilled ? colors.primary : tones.containerLow, opacity: pressed ? 0.7 : 1 }]}
       >
-        <MaterialIcons name={opts?.back ? "arrow-back" : "close"} size={22} color={colors.foreground} />
+        <MaterialIcons name={opts?.back ? "arrow-back" : "close"} size={21} color={opts?.backFilled ? "#FFFFFF" : tones.primaryDeep} />
       </Pressable>
-      <Text style={{ flex: 1, fontSize: 20, fontWeight: "800", color: colors.foreground }} numberOfLines={1}>
+      <Text style={{ flex: 1, fontSize: 22, fontWeight: "900", color: colors.foreground }}>
         {title}
       </Text>
       {opts?.right}
@@ -375,8 +397,8 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
   );
 
   const renderList = () => (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-      <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: colors.muted, marginBottom: 10 }}>UPCOMING</Text>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+      <Text style={{ fontSize: 11, fontWeight: "900", letterSpacing: 1.5, color: colors.muted, marginBottom: 10 }}>UPCOMING</Text>
       {hero ? (
         <>
           <Pressable onPress={() => { setActiveTripId(hero.id); setView("trip"); }} style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}>
@@ -384,35 +406,52 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
               const base = tripBaseColor(hero);
               const until = daysUntilTrip(hero, today);
               const ongoing = until <= 0;
-              const big = ongoing ? (tripDayNumber(hero, today)?.day ?? 1) : until;
+              const dayNum = tripDayNumber(hero, today);
+              const big = ongoing ? (dayNum?.day ?? 1) : until;
               const route = deriveRouteRead(hero);
+              // v314: the kind pill — the drawing's warm accent,
+              // derived as a step of the trip's own colour toward
+              // it, its ink a dark warm mix of the pill itself.
+              // Never the drawing's pinned hexes.
+              const pillBg = mix(base, "#FFD60A", 0.82);
+              const pillInk = mix(pillBg, "#000000", 0.78);
               return (
-                <View style={{ backgroundColor: base, borderRadius: 28, padding: 22, overflow: "hidden", marginBottom: 14 }}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 11, fontWeight: "800", letterSpacing: 1.6 }}>
+                <View style={{ backgroundColor: base, borderTopLeftRadius: 36, borderTopRightRadius: 36, borderBottomRightRadius: 36, borderBottomLeftRadius: 14, paddingTop: 20, paddingHorizontal: 20, overflow: "hidden", marginBottom: 14 }}>
+                  <View style={{ alignSelf: "flex-start", backgroundColor: pillBg, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
+                    <Text style={{ color: pillInk, fontSize: 12, fontWeight: "900", letterSpacing: 0.4 }}>
                       {getTimeOffLabel(hero.type).toUpperCase()}
                     </Text>
-                    <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "700" }}>
-                      {calculateTimeOffDuration(hero.startDate, hero.endDate)} days off
+                  </View>
+                  {/* v314: ONE number story — the countdown (or the
+                      day count, once the trip is on). No duration
+                      rides anywhere else on this card. */}
+                  <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 4 }}>
+                    <Text style={{ color: "#FFFFFF", fontSize: 96, lineHeight: 88, fontWeight: "900", letterSpacing: -2 }}>{big}</Text>
+                    <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700", lineHeight: 20, marginTop: 12 }}>
+                      {ongoing ? `of ${dayNum?.total ?? ""}\ndays` : "days\nto go"}
                     </Text>
                   </View>
-                  <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, marginTop: 6 }}>
-                    <Text style={{ color: "#FFFFFF", fontSize: 76, lineHeight: 80, fontWeight: "800" }}>{big}</Text>
-                    <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700", paddingBottom: 12 }}>
-                      {ongoing ? `of ${tripDayNumber(hero, today)?.total ?? ""}\ndays` : "days\nto go"}
-                    </Text>
-                  </View>
-                  <Text style={{ color: "#FFFFFF", fontSize: 24, fontWeight: "800", marginTop: 2 }}>{hero.title}</Text>
-                  <Text style={{ color: "rgba(255,255,255,0.88)", fontSize: 13.5, fontWeight: "600", marginTop: 3 }}>
+                  <Text style={{ color: "#FFFFFF", fontSize: 27, fontWeight: "900", marginTop: 10 }}>{hero.title}</Text>
+                  <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: "500", marginTop: 2 }}>
                     {fmtRange(hero)}
                   </Text>
-                  {route && (
-                    <Text style={{ color: "#FFFFFF", fontSize: 14.5, fontWeight: "700", marginTop: 10 }}>
-                      {route}
-                    </Text>
-                  )}
-                  {/* one quiet hill band at the foot */}
-                  <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 26, backgroundColor: "rgba(0,0,0,0.13)", borderTopLeftRadius: 40, borderTopRightRadius: 90 }} />
+                  {/* v314: the scenic band — a sun and two hill
+                      steps of the trip's own colour across the
+                      card's foot; the route read stands on it when
+                      the itinerary yields one. */}
+                  <View style={{ marginHorizontal: -20, marginTop: 14, height: 64 }}>
+                    <Svg width="100%" height="100%" viewBox="0 0 354 64" preserveAspectRatio="none" style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+                      <Circle cx={292} cy={20} r={15} fill={mix(base, "#FFD60A", 0.85)} />
+                      <Path d="M0 44 Q 70 22 150 40 T 354 34 V64 H0 Z" fill={mix(base, "#000000", 0.22)} />
+                      <Path d="M0 54 Q 90 36 190 50 T 354 48 V64 H0 Z" fill={mix(base, "#000000", 0.38)} />
+                    </Svg>
+                    {route && (
+                      <View style={{ position: "absolute", left: 20, bottom: 12 }}>
+                        <Text style={{ color: "#FFFFFF", fontSize: 13.5, fontWeight: "700", letterSpacing: 0.3, textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>{route}</Text>
+                        <Text style={{ color: "rgba(255,255,255,0.92)", fontSize: 11.5, fontWeight: "500", marginTop: 1 }}>The route, at a glance</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
               );
             })()}
@@ -424,15 +463,28 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
               <Pressable
                 key={t.id}
                 onPress={() => { setActiveTripId(t.id); setView("trip"); }}
-                style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
+                style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
               >
-                <View style={{ backgroundColor: mix(colors.surface, base, hexLuminance(colors.surface) < 0.5 ? 0.3 : 0.16), borderRadius: 24, padding: 18, marginBottom: 12, flexDirection: "row", alignItems: "center" }}>
+                {/* v314: the drawing's trip card — SOLID trip
+                    colour in the hero's mirrored shape (the small
+                    corner travels to the top-left), title, kind
+                    pill in a deep step of the same colour, dates,
+                    and the trip's ONE number at the right: its
+                    days, display size, with DAYS under it. */}
+                <View style={{ backgroundColor: base, borderTopLeftRadius: 14, borderTopRightRadius: 36, borderBottomRightRadius: 36, borderBottomLeftRadius: 36, paddingVertical: 18, paddingHorizontal: 20, marginBottom: 14, flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ fontSize: 18, fontWeight: "800", color: colors.foreground }} numberOfLines={1}>{t.title}</Text>
-                    <Text style={{ fontSize: 12.5, fontWeight: "600", color: colors.muted, marginTop: 3 }}>{fmtRange(t)}</Text>
+                    <Text style={{ fontSize: 23, fontWeight: "900", color: "#FFFFFF" }}>{t.title}</Text>
+                    <View style={{ alignSelf: "flex-start", backgroundColor: mix(base, "#000000", 0.42), borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginTop: 8 }}>
+                      <Text style={{ color: mix(base, "#FFFFFF", 0.82), fontSize: 11, fontWeight: "900", letterSpacing: 0.5 }}>
+                        {getTimeOffLabel(t.type).toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 13.5, fontWeight: "500", color: "rgba(255,255,255,0.88)", marginTop: 8 }}>{fmtRange(t)}</Text>
                   </View>
-                  <Text style={{ fontSize: 30, fontWeight: "800", color: base }}>{days}</Text>
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, marginLeft: 4 }}>days</Text>
+                  <View style={{ alignItems: "center" }}>
+                    <Text style={{ fontSize: 58, lineHeight: 54, fontWeight: "900", color: "#FFFFFF" }}>{days}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "900", letterSpacing: 1.5, color: "#FFFFFF" }}>DAYS</Text>
+                  </View>
                 </View>
               </Pressable>
             );
@@ -452,18 +504,20 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
         <>
           <Pressable
             onPress={() => setEarlierOpen((o) => !o)}
-            style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", paddingVertical: 12, opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 16, paddingHorizontal: 6, paddingBottom: earlierOpen ? 10 : 0, opacity: pressed ? 0.7 : 1 }]}
           >
-            <Text style={{ flex: 1, fontSize: 13, fontWeight: "700", color: colors.muted }}>
-              Earlier · {earlier.length} trip{earlier.length !== 1 ? "s" : ""}
+            <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground }}>Earlier</Text>
+            <Text style={{ fontSize: 14, fontWeight: "500", color: colors.muted }}>
+              · {earlier.length} trip{earlier.length !== 1 ? "s" : ""}
             </Text>
+            <View style={{ flex: 1 }} />
             <MaterialIcons name={earlierOpen ? "expand-less" : "expand-more"} size={20} color={colors.muted} />
           </Pressable>
           {earlierOpen && earlier.map((t) => (
             <Pressable key={t.id} onPress={() => { setActiveTripId(t.id); setView("trip"); }} style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}>
               <View style={{ backgroundColor: tones.containerLow, borderRadius: 18, padding: 14, marginBottom: 10, flexDirection: "row", alignItems: "center" }}>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={{ fontSize: 15, fontWeight: "700", color: colors.foreground }} numberOfLines={1}>{t.title}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: colors.foreground }}>{t.title}</Text>
                   <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
                     {getTimeOffLabel(t.type)} · {fmtRange(t)}
                   </Text>
@@ -476,6 +530,24 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
           ))}
         </>
       )}
+
+      {/* v314: the drawing's Book time off — a solid seed pill at
+          the foot of the list, in flow (the v294 floating pill is
+          retired with the rest of that build). */}
+      <Pressable
+        onPress={() => openBook()}
+        style={({ pressed }) => [{
+          marginTop: 18,
+          flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9,
+          backgroundColor: colors.primary, borderRadius: 999,
+          paddingHorizontal: 22, paddingVertical: 16,
+          shadowColor: colors.primary, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 5,
+          opacity: pressed ? 0.85 : 1,
+        }]}
+      >
+        <MaterialIcons name="add" size={20} color="#FFFFFF" />
+        <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>Book time off</Text>
+      </Pressable>
     </ScrollView>
   );
 
@@ -665,17 +737,25 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
     if (!activeTrip) return null;
     const base = tripBaseColor(activeTrip);
     const groups = groupItineraryByDate(activeTrip);
+    const duration = calculateTimeOffDuration(activeTrip.startDate, activeTrip.endDate);
+    const until = daysUntilTrip(activeTrip, today);
+    const dayNum = tripDayNumber(activeTrip, today);
+    // v314: the sub-line's state read — the facts only (range,
+    // length, where today sits in it), no caption.
+    const stateRead = until > 0
+      ? ` · starts in ${until} day${until !== 1 ? "s" : ""}`
+      : dayNum
+        ? ` · Day ${dayNum.day} of ${dayNum.total}`
+        : "";
     return (
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <View style={{ backgroundColor: base, borderRadius: 26, padding: 20, marginBottom: 18 }}>
-          <Text style={{ color: "#FFFFFF", fontSize: 24, fontWeight: "800" }}>{activeTrip.title}</Text>
-          <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 13.5, fontWeight: "600", marginTop: 4 }}>
-            {fmtRange(activeTrip)} · {calculateTimeOffDuration(activeTrip.startDate, activeTrip.endDate)} days
-          </Text>
-          <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, fontWeight: "700", marginTop: 2 }}>
-            {getTimeOffLabel(activeTrip.type)} · the whole trip, in order
-          </Text>
-        </View>
+        {/* v314: the drawing's trip head — the title at display
+            weight on the surface and the facts as ONE sub-line.
+            The v294 colour header card (and its caption) is gone. */}
+        <Text style={{ fontSize: 32, fontWeight: "900", letterSpacing: -0.5, color: colors.foreground, marginTop: 2 }}>{activeTrip.title}</Text>
+        <Text style={{ fontSize: 14, fontWeight: "500", color: colors.muted, marginTop: 2 }}>
+          {fmtRange(activeTrip)} · {duration} day{duration !== 1 ? "s" : ""}{stateRead}
+        </Text>
 
         {groups.length === 0 && (
           <View style={{ alignItems: "center", paddingVertical: 26 }}>
@@ -689,15 +769,24 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
         {groups.map((group) => {
           const d = parseISO(group.date);
           return (
-            <View key={group.date} style={{ flexDirection: "row", gap: 14, marginBottom: 18 }}>
-              <View style={{ width: 52, alignItems: "center" }}>
-                <Text style={{ fontSize: 32, fontWeight: "800", color: base, lineHeight: 36 }}>{d.getDate()}</Text>
-                <Text style={{ fontSize: 11, fontWeight: "800", color: colors.muted, textTransform: "uppercase" }}>
-                  {d.toLocaleDateString("en-US", { weekday: "short" })}
-                </Text>
-                <View style={{ flex: 1, width: 2, backgroundColor: mix(colors.surface, base, 0.4), marginTop: 8, borderRadius: 1 }} />
+            <View key={group.date} style={{ marginBottom: 6 }}>
+              {/* v314: the drawing's day head — a 44/900 numeral in
+                  the seed, the weekday at full weight, the month
+                  quiet under it, and a rule running to the edge.
+                  The v294 left rail is gone. */}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 24, marginBottom: 12 }}>
+                <Text style={{ fontSize: 44, fontWeight: "900", lineHeight: 46, letterSpacing: -0.5, color: colors.primary }}>{d.getDate()}</Text>
+                <View>
+                  <Text style={{ fontSize: 15, fontWeight: "900", color: colors.foreground }}>
+                    {d.toLocaleDateString("en-US", { weekday: "long" })}
+                  </Text>
+                  <Text style={{ fontSize: 12, fontWeight: "500", color: colors.muted }}>
+                    {d.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                  </Text>
+                </View>
+                <View style={{ flex: 1, height: 2, borderRadius: 1, backgroundColor: tones.container }} />
               </View>
-              <View style={{ flex: 1, gap: 10, paddingBottom: 4 }}>
+              <View style={{ gap: 12, paddingBottom: 4 }}>
                 {group.entries.map((entry) => (
                   <TimelineEntry key={entry.id} entry={entry} base={base} onDelete={() => handleDeleteEntry(entry)} />
                 ))}
@@ -916,14 +1005,14 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
                   accessibilityRole="button"
                   accessibilityLabel="Share or export time off"
                   onPress={() => setShowExport(true)}
-                  style={({ pressed }) => [{ width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: tones.containerLow, opacity: pressed ? 0.7 : 1 }]}
+                  style={({ pressed }) => [{ width: 38, height: 38, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: tones.containerLow, opacity: pressed ? 0.7 : 1 }]}
                 >
-                  <MaterialIcons name="share" size={20} color={colors.foreground} />
+                  <MaterialIcons name="share" size={19} color={tones.primaryDeep} />
                 </Pressable>
               ) : undefined,
             })}
             {view === "book" && header(editingId ? "Edit time off" : "Book time off", { back: () => setView("list") })}
-            {view === "trip" && header(activeTrip?.title ?? "Trip", { back: () => setView("list") })}
+            {view === "trip" && header(activeTrip?.title ?? "Trip", { back: () => setView("list"), backFilled: true })}
             {view === "entry" && header("Add to timeline", { back: () => setView("trip") })}
 
             {loading && trips.length === 0 ? (
@@ -934,23 +1023,6 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
               : view === "book" ? renderBook()
               : view === "trip" ? renderTrip()
               : renderEntryForm()}
-
-            {view === "list" && (
-              <Pressable
-                onPress={() => openBook()}
-                style={({ pressed }) => [{
-                  position: "absolute", bottom: 26, alignSelf: "center",
-                  flexDirection: "row", alignItems: "center", gap: 8,
-                  backgroundColor: tones.primaryContainer, borderRadius: 999,
-                  paddingHorizontal: 22, paddingVertical: 15,
-                  shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5,
-                  opacity: pressed ? 0.85 : 1,
-                }]}
-              >
-                <MaterialIcons name="add" size={20} color={colors.primary} />
-                <Text style={{ fontSize: 15, fontWeight: "800", color: colors.primary }}>Book time off</Text>
-              </Pressable>
-            )}
 
             <TimeOffExport visible={showExport} onClose={() => setShowExport(false)} timeOffList={trips} />
           </SafeAreaView>

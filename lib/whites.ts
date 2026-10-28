@@ -140,3 +140,29 @@ export function groupAdjacentWhites(blocks: TimeBlock[]): TimeBlock[][] {
   }
   return groups;
 }
+
+/**
+ * v314 — the CLAIMED blocks on a time-off day group by the same rule
+ * (his ruling, Oct 28 14:35: "Time off blocks that are close to each
+ * other should work the same as the white blocks… these two should be
+ * connected to each other"). On a time-off day the day's white blocks
+ * are claimed by the trip; consecutive claimed blocks (one ends where
+ * the next starts) merge into ONE connected group — one outer box,
+ * hairline dividers, each block still its own tap target opening the
+ * Time Off page. Non-adjacent blocks stay separate. The rule is the
+ * whites' rule, verbatim: adjacency is end == next start, order is
+ * preserved, and the input is never mutated.
+ */
+export function groupAdjacentClaimed(blocks: TimeBlock[]): TimeBlock[][] {
+  const groups: TimeBlock[][] = [];
+  for (const block of blocks) {
+    const last = groups[groups.length - 1];
+    const lastBlock = last?.[last.length - 1];
+    if (lastBlock && block.startTime === lastBlock.endTime) {
+      last.push(block);
+    } else {
+      groups.push([block]);
+    }
+  }
+  return groups;
+}

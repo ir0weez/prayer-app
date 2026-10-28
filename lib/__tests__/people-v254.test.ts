@@ -438,9 +438,13 @@ describe("v254 source pins — editor + profile inventory is unchanged (surfaces
 describe("v254 source pins — FIRST in the session (prayer-session.tsx)", () => {
   const session = read("components/prayer-session.tsx");
 
-  it("the lead need renders as the amber FIRST card; other needs are quiet rows", () => {
+  it("the lead need renders as the FIRST headline on the flat hero; other needs are quiet rows", () => {
     expect(session).toContain("getLeadNeed");
-    expect(session).toContain("FIRST_CARD");
+    // v310 re-base: the amber FIRST card is retired by his
+    // ruling — FIRST is a dot, a word, and the headline on the
+    // tonal hero; FIRST_CARD no longer enters the session.
+    expect(session).not.toContain("FIRST_CARD");
+    expect(session).toContain("backgroundColor: mix(pm.card, pm.seed, 0.16)");
     expect(session).toContain(">FIRST<");
     // v264 re-base (audit §c item 10; his ruling Oct 26 09:28 —
     // "one glowing FIRST per person, other needs fully quiet"):
@@ -542,19 +546,19 @@ describe("v254 motion layer — Material, native-driver, no springs", () => {
     expect(index).toContain("fromX={builderStep === 2 ? 30 : -30}");
   });
 
-  it("the FIRST card breathes while it is being prayed — in its warm shadow (v264 re-base, audit D9)", () => {
-    // v264: the breath moved from v254's deep-amber BORDER overlay
-    // (which read on device as a heavy tan outline) into the soft
-    // warm shadow the drawing itself specifies (.lead.active),
-    // carried by a wrapper outside the card's overflow:hidden clip.
-    // v288: the wrapper now takes the lead's halo paint as a prop
-    // and renders the glow as a real layer — Android ignores RN
-    // shadow props, so v264's carrier never painted on his Pixel
-    // (audit v2 §0.1; the layer itself is pinned in v288's tests).
-    expect(session).toContain("function FirstWarmShadow");
-    expect(session).toContain('<FirstWarmShadow paint="#D9A420">');
+  it("nothing breathes on the hero anymore — the warm shadow is retired (v310 re-base)", () => {
+    // v254→v264→v288 lineage: the breath lived in the FIRST
+    // card's warm shadow, carried latterly by FirstWarmShadow's
+    // rendered halo layer. v310's approved drawing deals a flat
+    // hero: the wrapper, the halo, and the breath are all gone.
+    // What motion remains is the app's standing language — the
+    // sky's drift under skins, entrances, and the deepening's
+    // one native-driver timing reveal; still no springs.
+    expect(session).not.toContain("FirstWarmShadow");
+    expect(session).not.toContain('paint="#D9A420"');
     expect(session).toContain("Animated.loop");
     expect(session).toContain("isReduceMotionEnabled");
+    expect(session).toContain("function DeepeningReveal");
     expect(session).not.toContain("FirstGlowBorder");
     expect(session).not.toContain("Animated.spring");
   });

@@ -153,35 +153,46 @@ describe("v269 source pins — the focused session (prayer-session.tsx)", () => 
   });
 
   it("a focused praise leg deals the gold lead: praise-display words, PRAISE_CARD paints, the FIRST grammar", () => {
-    expect(session).toContain('import { FIRST_CARD, PRAISE_CARD } from "@/lib/people-material";');
+    // v310 re-base: FIRST_CARD left the session with its card;
+    // the praise lead keeps its slot and words, flattened.
+    expect(session).toContain('import { PRAISE_CARD } from "@/lib/people-material";');
+    expect(session).not.toContain("FIRST_CARD");
     expect(session).toContain('import { getPraiseDisplay } from "@/lib/praise-display";');
     expect(session).toContain('const praiseFocus = sessionFocusKind === "praise";');
     expect(session).toContain("const praiseDisplay = praiseFocus ? getPraiseDisplay(currentPerson) : null;");
     const praiseLead = session.slice(session.indexOf("{praiseFocus && praiseDisplay ? ("), session.indexOf("{/* The other needs"));
-    // v288: the wrapper takes the lead family's halo paint — the
-    // praise lead glows in its own deep gold (audit v2 fix 1).
-    expect(praiseLead).toContain("<FirstWarmShadow paint={PRAISE_CARD.deep}>");
+    // v310: the halo and the gradient retire — the praise lead
+    // is its family's flat solid fill inside its line border.
+    expect(praiseLead).not.toContain("FirstWarmShadow");
+    expect(praiseLead).not.toContain('id="v269PraiseGrad"');
     expect(praiseLead).toContain("backgroundColor: PRAISE_CARD.bgTo");
-    expect(praiseLead).toContain('id="v269PraiseGrad"');
-    expect(praiseLead).toContain("stopColor={PRAISE_CARD.bgFrom}");
+    expect(praiseLead).toContain("borderColor: PRAISE_CARD.line");
     expect(praiseLead).toContain(">PRAISE</Text>");
     expect(praiseLead).toContain("{praiseDisplay.headline}");
     expect(praiseLead).toContain("{praiseDisplay.note}");
-    // The session row rides INSIDE the praise lead, like the FIRST card.
-    expect(praiseLead).toContain("{sessionRow}");
+    // The session row no longer rides inside ANY lead — the
+    // Complete bar stands beneath the scroll, exactly once.
+    expect(session).not.toContain("{sessionRow}");
   });
 
-  it("the need-lead stands down only on the praise leg; the standalone row never doubles", () => {
+  it("the need-lead stands down only on the praise leg; the Complete bar never doubles", () => {
     expect(session).toContain("const lead = praiseFocus ? null : getLeadNeed(currentPerson);");
-    expect(session).toContain("praiseFocus ? null : (");
+    // v310: there is no standalone in-card row left to double —
+    // one bar, one Complete button, for every leg.
+    expect(session.match(/>Complete prayer<\/Text>/g) ?? []).toHaveLength(1);
+    expect(session.match(/onPress=\{handlePray\}/g) ?? []).toHaveLength(1);
     // v264's shape survives around it: every need shows, fully quiet.
     expect(session).toContain("const shownOthers = otherItems;");
     expect(session).toContain('{lead?.kind === "first" ? (');
   });
 
-  it("the timer ring wears the lead's family — gold on a praise leg", () => {
-    expect(session).toContain("hexToRgba(PRAISE_CARD.ink, 0.25)");
-    expect(session).toContain("praiseFocus ? PRAISE_CARD.deep");
+  it("the timer ring is retired — the bar's thread wears the seed family on every leg", () => {
+    // v310: no ring remains to wear a family. The Complete
+    // bar's clock and thread are the seed family's for first,
+    // praise, and plain legs alike.
+    expect(session).not.toContain("hexToRgba(PRAISE_CARD.ink, 0.25)");
+    expect(session).not.toContain("ringStroke");
+    expect(session).toContain("backgroundColor: pm.seed, width: `${Math.round(getTimeBonusProgress(elapsedSeconds) * 100)}%`");
   });
 
   it("the focused complete screen: Keep praying only when others were waiting at launch", () => {

@@ -114,6 +114,7 @@ import {
   normalizePeopleForStorage,
   resetDailyPrayerCompletionsIfNeeded,
   type Person,
+  type LifeVerseRef,
   type RelationshipType,
   type FamilyType,
   relationshipColors,
@@ -142,6 +143,14 @@ import {
   togglePrayerItemDone,
   togglePrayerItemUrgent,
 } from "@/lib/prayercircle-data";
+import {
+  LIFE_VERSE_BOOKS,
+  formatLifeVerseReference,
+  normalizeLifeVerse,
+  resolveLifeVerseText,
+} from "@/lib/life-verse";
+import { chapterCountFor } from "@/lib/bible-v205/index";
+import { loadChapterVerses } from "@/lib/bible-v205/verses";
 import { SCHEDULE_EVENTS_KEY, SCHEDULE_MINISTRIES_KEY, SCHEDULE_TODOS_KEY } from "@/lib/schedule-data";
 import { getBudgetMonthTotals, normalizeRecurringExpenses } from "@/lib/budget-data";
 import {
@@ -1080,6 +1089,17 @@ export default function HomeScreen() {
   const [newPersonShowInPrayerCheckIns, setNewPersonShowInPrayerCheckIns] = useState(true);
   const [selectedFamilyMemberIds, setSelectedFamilyMemberIds] = useState<string[]>([]);
   const [newPersonFamilyType, setNewPersonFamilyType] = useState<"Spouse" | "Child" | "Other" | undefined>(undefined);
+  // v310: the Life Verse draft (drawing frame 3) — a reference
+  // only; the text always resolves from the KJV data. A null book
+  // means no life verse. lifeVerseVerseCount is the loaded
+  // chapter's real verse count once it lands (the FROM/TO
+  // pickers' ceiling); 60 stands in while it loads.
+  const [newPersonLifeVerseBook, setNewPersonLifeVerseBook] = useState<string | null>(null);
+  const [newPersonLifeVerseChapter, setNewPersonLifeVerseChapter] = useState(1);
+  const [newPersonLifeVerseStart, setNewPersonLifeVerseStart] = useState(1);
+  const [newPersonLifeVerseEnd, setNewPersonLifeVerseEnd] = useState(1);
+  const [lifeVersePreviewText, setLifeVersePreviewText] = useState<string | null>(null);
+  const [lifeVerseVerseCount, setLifeVerseVerseCount] = useState<number | null>(null);
   const [familyRolesByPersonId, setFamilyRolesByPersonId] = useState<Record<string, FamilyType | undefined>>({});
   const [showCustomRelationshipInput, setShowCustomRelationshipInput] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
@@ -1945,6 +1965,12 @@ export default function HomeScreen() {
     setNewPersonPhotoUri(undefined);
     setNewPersonAvatarAsset(undefined);
     setNewPersonShowInPrayerCheckIns(true);
+    setNewPersonLifeVerseBook(null);
+    setNewPersonLifeVerseChapter(1);
+    setNewPersonLifeVerseStart(1);
+    setNewPersonLifeVerseEnd(1);
+    setLifeVersePreviewText(null);
+    setLifeVerseVerseCount(null);
     setSelectedFamilyMemberIds([]);
     setNewPersonFamilyType(undefined);
     setFamilyRolesByPersonId({});
@@ -1960,6 +1986,10 @@ export default function HomeScreen() {
     setNewPersonBirthday(person.birthday ? formatIsoDateForDisplay(person.birthday) : "");
     setNewPersonPhotoUri(person.photoUri);
     setNewPersonAvatarAsset(person.avatarAsset);
+    setNewPersonLifeVerseBook(person.lifeVerse?.book ?? null);
+    setNewPersonLifeVerseChapter(person.lifeVerse?.chapter ?? 1);
+    setNewPersonLifeVerseStart(person.lifeVerse?.verseStart ?? 1);
+    setNewPersonLifeVerseEnd(person.lifeVerse?.verseEnd ?? 1);
     setNewPersonShowInPrayerCheckIns(person.showInPrayerCheckIns !== false);
     setShowCustomRelationshipInput(!RELATIONSHIP_ORDER.includes(person.relationship));
     const familyMembers = people.filter((candidate) => candidate.familyId && candidate.familyId === person.familyId);
@@ -1983,6 +2013,45 @@ export default function HomeScreen() {
     openPersonEditor(person);
     router.setParams({ editPersonId: undefined });
   }, [editPersonIdParam, hasHydratedPeople, people, router, showAddPerson]);
+
+  // v310: the Life Verse editor's live text. The chapter loads
+  // through the Bible's own loader; its verse count becomes the
+  // FROM/TO pickers' ceiling (clamping any pick past the end),
+  // and the picked range resolves to the words shown beneath the
+  // pickers — the same resolve the session's quiet line uses.
+  useEffect(() => {
+    if (!showAddPerson || !newPersonLifeVerseBook) {
+      setLifeVerseVerseCount(null);
+      setLifeVersePreviewText(null);
+      return;
+    }
+    let live = true;
+    loadChapterVerses(newPersonLifeVerseBook, newPersonLifeVerseChapter)
+      .then((verses) => {
+        if (live && verses.length > 0) setLifeVerseVerseCount(verses.length);
+      })
+      .catch(() => undefined);
+    const draft = normalizeLifeVerse({
+      book: newPersonLifeVerseBook,
+      chapter: newPersonLifeVerseChapter,
+      verseStart: newPersonLifeVerseStart,
+      verseEnd: newPersonLifeVerseEnd,
+    });
+    if (draft) {
+      resolveLifeVerseText(draft).then((text) => {
+        if (live) setLifeVersePreviewText(text);
+      });
+    } else {
+      setLifeVersePreviewText(null);
+    }
+    return () => { live = false; };
+  }, [showAddPerson, newPersonLifeVerseBook, newPersonLifeVerseChapter, newPersonLifeVerseStart, newPersonLifeVerseEnd]);
+
+  useEffect(() => {
+    if (lifeVerseVerseCount == null) return;
+    if (newPersonLifeVerseStart > lifeVerseVerseCount) setNewPersonLifeVerseStart(lifeVerseVerseCount);
+    if (newPersonLifeVerseEnd > lifeVerseVerseCount) setNewPersonLifeVerseEnd(lifeVerseVerseCount);
+  }, [lifeVerseVerseCount, newPersonLifeVerseStart, newPersonLifeVerseEnd]);
 
   const handlePickNewPersonPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -2008,10 +2077,15 @@ export default function HomeScreen() {
 
     // Use custom relationship if provided, otherwise use selected preset
     const finalRelationship = newPersonCustomRelationship.trim() || newPersonRelationship;
+    // v310: the life verse draft, validated against the canon —
+    // a malformed pick saves as no verse rather than a bad record.
+    const draftLifeVerse: LifeVerseRef | undefined = newPersonLifeVerseBook
+      ? normalizeLifeVerse({ book: newPersonLifeVerseBook, chapter: newPersonLifeVerseChapter, verseStart: newPersonLifeVerseStart, verseEnd: newPersonLifeVerseEnd })
+      : undefined;
     let updatedPeople: Person[];
     if (editingPersonId) {
       updatedPeople = people.map((person) => person.id === editingPersonId
-        ? { ...person, name: newPersonName.trim(), relationship: finalRelationship as RelationshipType, birthday: normalizedBirthday || undefined, photoUri: newPersonAvatarAsset ? undefined : newPersonPhotoUri, avatarAsset: newPersonPhotoUri ? undefined : newPersonAvatarAsset, avatarLabel: newPersonName.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2), familyType: newPersonFamilyType, showInPrayerCheckIns: newPersonShowInPrayerCheckIns }
+        ? { ...person, name: newPersonName.trim(), relationship: finalRelationship as RelationshipType, birthday: normalizedBirthday || undefined, photoUri: newPersonAvatarAsset ? undefined : newPersonPhotoUri, avatarAsset: newPersonPhotoUri ? undefined : newPersonAvatarAsset, avatarLabel: newPersonName.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2), familyType: newPersonFamilyType, showInPrayerCheckIns: newPersonShowInPrayerCheckIns, lifeVerse: draftLifeVerse }
         : person);
       updatedPeople = selectedFamilyMemberIds.length > 0
         ? groupIntoFamily(updatedPeople, [editingPersonId, ...selectedFamilyMemberIds], Object.fromEntries([editingPersonId, ...selectedFamilyMemberIds].map((id) => [id, id === editingPersonId ? newPersonFamilyType : familyRolesByPersonId[id] ?? updatedPeople.find((person) => person.id === id)?.familyType])))
@@ -2024,6 +2098,7 @@ export default function HomeScreen() {
         photoUri: newPersonAvatarAsset ? undefined : newPersonPhotoUri,
         avatarAsset: newPersonPhotoUri ? undefined : newPersonAvatarAsset,
         showInPrayerCheckIns: newPersonShowInPrayerCheckIns,
+        lifeVerse: draftLifeVerse,
         avatarLabel: newPersonName.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2),
       });
       const createdPerson = updatedPeople.find((person) => !people.some((existing) => existing.id === person.id));
@@ -5439,6 +5514,97 @@ export default function HomeScreen() {
             style={[styles.textInput, !isSkinned && { backgroundColor: pm.wash, borderBottomWidth: 2, borderBottomColor: pm.line, borderTopLeftRadius: 14, borderTopRightRadius: 14, borderBottomLeftRadius: 4, borderBottomRightRadius: 4 }]}
           />
           <Text style={styles.fieldHint}>Format: MM-DD-YYYY (e.g., 03-15-1990)</Text>
+
+          {/* v310 (drawing frame 3): the LIFE VERSE pickers — the
+              book, chapter, and verse range in the form's own pill
+              language. The text under the pickers resolves live
+              from the KJV data; the session's quiet line shows
+              this verse for this person. "None" clears it. */}
+          <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>LIFE VERSE (optional)</Text>
+          <Text style={styles.fieldHint}>Shown in Pray Now while you pray for them.</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 8 }}>
+            <Pressable
+              onPress={() => { setNewPersonLifeVerseBook(null); setLifeVersePreviewText(null); setLifeVerseVerseCount(null); }}
+              style={({ pressed }) => [styles.relationshipPill, { borderColor: colors.primary }, !newPersonLifeVerseBook && { backgroundColor: colors.primary }, pressed && styles.pressed]}
+            >
+              <Text style={[styles.relationshipPillText, { color: colors.primary }, !newPersonLifeVerseBook && styles.relationshipPillTextActive]}>None</Text>
+            </Pressable>
+            {LIFE_VERSE_BOOKS.map((book) => {
+              const isActive = book === newPersonLifeVerseBook;
+              return (
+                <Pressable
+                  key={book}
+                  onPress={() => {
+                    setNewPersonLifeVerseBook(book);
+                    setNewPersonLifeVerseChapter(1);
+                    setNewPersonLifeVerseStart(1);
+                    setNewPersonLifeVerseEnd(1);
+                    setLifeVerseVerseCount(null);
+                  }}
+                  style={({ pressed }) => [styles.relationshipPill, { borderColor: colors.primary }, isActive && { backgroundColor: colors.primary }, pressed && styles.pressed]}
+                >
+                  <Text style={[styles.relationshipPillText, { color: colors.primary }, isActive && styles.relationshipPillTextActive]}>{book}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          {newPersonLifeVerseBook ? (
+            <>
+              <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>CHAPTER</Text>
+              <View style={styles.relationshipPills}>
+                {Array.from({ length: chapterCountFor(newPersonLifeVerseBook) }, (_, i) => i + 1).map((chapter) => {
+                  const isActive = chapter === newPersonLifeVerseChapter;
+                  return (
+                    <Pressable
+                      key={chapter}
+                      onPress={() => { setNewPersonLifeVerseChapter(chapter); setNewPersonLifeVerseStart(1); setNewPersonLifeVerseEnd(1); setLifeVerseVerseCount(null); }}
+                      style={({ pressed }) => [styles.relationshipPill, { borderColor: colors.primary }, isActive && { backgroundColor: colors.primary }, pressed && styles.pressed]}
+                    >
+                      <Text style={[styles.relationshipPillText, { color: colors.primary }, isActive && styles.relationshipPillTextActive]}>{chapter}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>VERSES — FROM</Text>
+              <View style={styles.relationshipPills}>
+                {Array.from({ length: lifeVerseVerseCount ?? 60 }, (_, i) => i + 1).map((verse) => {
+                  const isActive = verse === newPersonLifeVerseStart;
+                  return (
+                    <Pressable
+                      key={verse}
+                      onPress={() => { setNewPersonLifeVerseStart(verse); if (newPersonLifeVerseEnd < verse) setNewPersonLifeVerseEnd(verse); }}
+                      style={({ pressed }) => [styles.relationshipPill, { borderColor: colors.primary }, isActive && { backgroundColor: colors.primary }, pressed && styles.pressed]}
+                    >
+                      <Text style={[styles.relationshipPillText, { color: colors.primary }, isActive && styles.relationshipPillTextActive]}>{verse}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={[styles.fieldLabel, !isSkinned && { color: pm.inkSoft }]}>VERSES — TO</Text>
+              <View style={styles.relationshipPills}>
+                {Array.from({ length: lifeVerseVerseCount ?? 60 }, (_, i) => i + 1).map((verse) => {
+                  const isActive = verse === newPersonLifeVerseEnd;
+                  return (
+                    <Pressable
+                      key={verse}
+                      onPress={() => { setNewPersonLifeVerseEnd(verse); if (newPersonLifeVerseStart > verse) setNewPersonLifeVerseStart(verse); }}
+                      style={({ pressed }) => [styles.relationshipPill, { borderColor: colors.primary }, isActive && { backgroundColor: colors.primary }, pressed && styles.pressed]}
+                    >
+                      <Text style={[styles.relationshipPillText, { color: colors.primary }, isActive && styles.relationshipPillTextActive]}>{verse}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, marginTop: 4, marginBottom: 6 }}>
+                <Text style={{ fontSize: 13, fontWeight: "800", letterSpacing: 0.8, color: colors.primary }}>
+                  {formatLifeVerseReference({ book: newPersonLifeVerseBook, chapter: newPersonLifeVerseChapter, verseStart: newPersonLifeVerseStart, verseEnd: newPersonLifeVerseEnd })} · KJV
+                </Text>
+                <Text style={{ fontSize: 14, fontStyle: "italic", lineHeight: 20, color: colors.foreground, marginTop: 5 }}>
+                  {lifeVersePreviewText ?? "Loading the verse text…"}
+                </Text>
+              </View>
+            </>
+          ) : null}
 
           <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.createFastButton, { marginTop: 18, marginBottom: 20 }, !isSkinned && { borderRadius: 999 }, pressed && styles.pressed]}>
             <Text style={styles.createFastButtonText}>{editingPersonId ? "Save Changes" : "Create Contact"}</Text>

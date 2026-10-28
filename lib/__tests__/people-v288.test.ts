@@ -61,68 +61,59 @@ const summary = session.slice(
   session.indexOf("</ScrollView>"),
 );
 
-describe("v288 — the glow is a rendered layer, not shadow props (audit v2 fix 1)", () => {
-  it("the halo is a real painted layer standing proud of the card", () => {
-    // An absolutely-positioned rounded rect UNDER the card,
-    // painted with the lead family's halo paint, breathing opacity.
-    expect(halo).toContain("position: \"absolute\", top: -10, left: -10, right: -10, bottom: -10");
-    expect(halo).toContain("borderRadius: 32");
-    expect(halo).toContain("backgroundColor: paint");
-    expect(halo).toContain("opacity: breath");
-    // The visible band is the audit's 8–16dp window: 10dp proud.
-    expect(halo).toContain("top: -10");
+describe("v288 — the glow is a rendered layer, not shadow props (audit v2 fix 1) — RETIRED by v310", () => {
+  // v310 re-base: the approved Pray Now drawing (v2, Oct 28)
+  // deals ONE flat tonal hero — no gradient, no halo, no breath.
+  // The glow this describe pinned is gone by his ruling, and
+  // these pins now hold its absence.
+  it("no painted halo layer stands anywhere in the session", () => {
+    expect(session).not.toContain("FirstWarmShadow");
+    expect(session).not.toContain("backgroundColor: paint");
+    expect(session).not.toContain("opacity: breath");
+    // The hero is the flat primary-container step instead.
+    expect(session).toContain("backgroundColor: mix(pm.card, pm.seed, 0.16)");
   });
 
-  it("the Android-blind carrier is gone from the wrapper", () => {
-    expect(halo).not.toContain("shadowColor");
-    expect(halo).not.toContain("shadowOpacity");
-    expect(halo).not.toContain("shadowRadius");
-    expect(halo).not.toContain("elevation");
+  it("the halo wrapper and its carrier are gone entirely", () => {
+    expect(session).not.toContain("function FirstWarmShadow");
+    expect(halo).toBe("");
   });
 
-  it("the breath rides the native driver on the drawing's 4.5s loop", () => {
-    expect(halo).toContain("duration: 2250");
-    expect(halo).toContain("toValue: 0.3");
-    expect(halo).toContain("toValue: 0.16");
-    expect(halo).toContain("useNativeDriver: true");
-    expect(halo).not.toContain("useNativeDriver: false");
-    // Reduced motion still holds a steady glow.
-    expect(halo).toContain("isReduceMotionEnabled");
-    expect(halo).toContain("breath.setValue(0.2)");
+  it("no breathing loop remains — the 4.5s glow cycle is retired", () => {
+    expect(session).not.toContain("duration: 2250");
+    expect(session).not.toContain("breath.setValue(0.2)");
+    expect(session).not.toContain("toValue: 0.16");
   });
 
-  it("each lead glows in its OWN family", () => {
-    // FIRST: the drawing's shadow paint. Praise: its deep gold.
-    expect(session).toContain('<FirstWarmShadow paint="#D9A420">');
-    expect(session).toContain("<FirstWarmShadow paint={PRAISE_CARD.deep}>");
+  it("each lead is dealt flat in its OWN family", () => {
+    // FIRST: type on the hero (dot + word + headline). Praise:
+    // its flat solid gold fill (v310 flattened the gradient).
+    expect(session).toContain(">FIRST</Text>");
+    expect(session).toContain("backgroundColor: PRAISE_CARD.bgTo");
+    expect(session).not.toContain("v269PraiseGrad");
   });
 });
 
-describe("v288 — the timer words stay inside their circle (audit v2 fix 2)", () => {
-  it("both disc labels refuse device font scaling", () => {
-    const guards = session.match(/allowFontScaling=\{false\}/g) ?? [];
-    expect(guards.length).toBeGreaterThanOrEqual(2);
-    const caps = session.match(/maxFontSizeMultiplier=\{1\}/g) ?? [];
-    expect(caps.length).toBeGreaterThanOrEqual(2);
+describe("v288 — the timer words stay inside their circle (audit v2 fix 2) — RETIRED by v310", () => {
+  // v310 re-base: the timer DISC is retired with the in-card
+  // session row. The clock now stands as plain type in the
+  // fixed Complete bar, where no chord can fence it — the
+  // font-scaling fences and the pulse dot went with the disc.
+  it("the disc and its scaling fences are gone", () => {
+    expect(session).not.toContain("allowFontScaling={false}");
+    expect(session).not.toContain("maxFontSizeMultiplier={1}");
+    expect(session).not.toContain("adjustsFontSizeToFit");
+    expect(session).not.toContain("ringInk");
   });
 
-  it("the labels stepped down a half-step so the chord holds them", () => {
-    expect(session).toContain('fontSize: 10.5, fontWeight: "800", lineHeight: 12, color: ringInk');
-    expect(session).toContain('fontSize: 7, fontWeight: "800", letterSpacing: 0.4, color: ringSub');
-    // The drawing's unguarded sizes are gone from the disc.
-    expect(session).not.toContain('fontSize: 11, fontWeight: "800", lineHeight: 12, color: ringInk');
-    expect(session).not.toContain('fontSize: 7.5, fontWeight: "800", letterSpacing: 0.6, color: ringSub');
-    // The time may shrink-to-fit on its one line, never wrap/spill.
-    expect(session).toContain("adjustsFontSizeToFit");
+  it("the clock is plain tabular type in the Complete bar", () => {
+    expect(session).toContain('fontSize: 16, fontWeight: "700", fontVariant: ["tabular-nums"], color: pm.deep');
+    expect(session).toContain('letterSpacing: 1.6, color: pm.inkSoft, marginLeft: 8 }}>PRAYING</Text>');
   });
 
-  it("the pulse dot pulses again, still on the ring at 45°", () => {
-    expect(session).toContain("function TimerPulseDot");
-    expect(session).toContain("<TimerPulseDot color={ringStroke} />");
-    expect(session).toContain("top: 4, right: 4, width: 8, height: 8");
-    const dot = session.slice(session.indexOf("function TimerPulseDot"), session.indexOf("type PrayerSkyBucket"));
-    expect(dot).toContain("Animated.loop");
-    expect(dot).toContain("useNativeDriver: true");
+  it("the pulse dot is retired; the progress thread carries the motion", () => {
+    expect(session).not.toContain("TimerPulseDot");
+    expect(session).toContain("getTimeBonusProgress(elapsedSeconds)");
   });
 });
 
@@ -134,17 +125,17 @@ describe("v288 — the session consumes the house type scale (audit v2 fix 3 + 4
   });
 
   it("the scale-mapped targets: name, lead, note, needs, complete", () => {
-    // Person name → cardTitle (20 under the scale).
-    expect(session).toContain("...skinText(skinTokens, type.cardTitle)");
-    // Lead title → cardLead (22/27); lead note → rowBody (15/21).
-    expect(session).toContain("...skinText(skinTokens, type.cardLead, type.cardLeadLineHeight)");
-    expect(session).toContain("...skinText(skinTokens, type.rowBody, type.rowBodyLineHeight)");
-    // Quiet-row subline → cardMeta over the drawing's 11/600 base.
-    expect(session).toContain("...skinText(skinTokens, type.cardMeta)");
-    expect(session).toContain('fontSize: 11, fontWeight: "600"');
-    // Card roominess grows with the scale, front-door style.
+    // v310 re-base: the hero's sizes are the approved drawing's
+    // own fixed M3 steps now (name 21, headline 31, needs 15.5)
+    // — the scale spreads no longer ride the active card. What
+    // still holds from v288: the hero's roominess grows with
+    // padBoost, and the finished state (next describe) still
+    // consumes the scale.
     expect(session).toContain("paddingHorizontal: 16 + padBoost");
-    expect(session).toContain("paddingHorizontal: 15 + padBoost");
+    expect(session).not.toContain("...skinText(skinTokens, type.cardLead, type.cardLeadLineHeight)");
+    expect(session).not.toContain("paddingHorizontal: 15 + padBoost");
+    expect(session).toContain("fontSize: 31, fontWeight: \"700\", lineHeight: 35");
+    expect(session).toContain("fontSize: 21, fontWeight: \"700\", letterSpacing: -0.2, color: pm.ink");
   });
 
   it("the stage takes the drawing's inset, so the lead card widens", () => {

@@ -79,44 +79,51 @@ describe("v289 — the drawing's stacked composition renders settled / active / 
   });
 
   it("the stack fills the stage at the drawing's card rhythm", () => {
-    // Person cards stack with the drawing's 18dp gaps; the first
-    // card of the stack sits close under the progress row.
-    expect(stackCard).toContain("marginTop: stackFirst ? 4 : 18");
+    // v310 re-base: the slim rows stack tighter than the old
+    // full cards — the first settled sits 16 under the segments,
+    // settled rows 10 apart, the next row 14 below Skip. The
+    // active hero still takes its 18 when a settled card stands
+    // above it.
+    expect(stackCard).toContain("marginTop: settled ? (stackFirst ? 16 : 10) : 14");
     expect(session).toContain("marginTop: settledPeople.length > 0 ? 18 : 0");
   });
 });
 
-describe("v289 — the settled dress is the drawing's (green check, lead at rest, needs dimmed)", () => {
-  it("the settled header: prayed-green check disc and the drawing's meta words", () => {
-    expect(stackCard).toContain('backgroundColor: "#31C48D", alignItems: "center", justifyContent: "center"');
-    expect(stackCard).toContain('<MaterialIcons name="check" size={16} color="#FFFFFF" />');
-    expect(stackCard).toContain('settled ? "Prayed today" : "Up next"');
-    // The settled face ring tints toward the prayed green.
-    expect(stackCard).toContain('mix(pm.card, "#31C48D", 0.25)');
-    // The settled card's shadow rests softer than the active's.
-    expect(stackCard).toContain("shadowRadius: settled ? 9 : 13");
-    expect(stackCard).toContain("elevation: settled ? 2 : 4");
+describe("v289 — the settled dress is the drawing's (green check, lead at rest, needs dimmed) — v310: slim rows", () => {
+  // v310 re-base: the new drawing deals the stack as ONE-LINE
+  // rows — no lead panel, no needs, no ring. These pins hold
+  // the slim dress and the absence of the old full-card one.
+  it("the settled row: prayed-green check in its quiet disc, the lead named, +10 XP", () => {
+    expect(stackCard).toContain('name="check" size={14} color="#2E7D4F"');
+    expect(stackCard).toContain("`Prayed · ${lead.item.title}`");
+    expect(stackCard).toContain('color: pm.deep }}>+10 XP</Text>');
+    expect(stackCard).toContain("backgroundColor: settled ? pm.card : mix(pm.card, pm.seed, 0.07)");
+    // The settled row's shadow rests softer than the next row's.
+    expect(stackCard).toContain("shadowRadius: settled ? 9 : 7");
+    expect(stackCard).toContain("elevation: settled ? 2 : 1");
   });
 
-  it("the settled/next lead is the FIRST card at rest — no halo, no session row, no timer", () => {
+  it("the stack rows carry faces and no lead panel at all", () => {
+    expect(stackCard).toContain("photoUri={person.photoUri} size={40}");
+    expect(stackCard).toContain("UP NEXT");
     expect(stackCard).not.toContain("FirstWarmShadow");
     expect(stackCard).not.toContain("sessionRow");
     expect(stackCard).not.toContain("TimerPulseDot");
     expect(stackCard).not.toContain("Complete prayer");
-    // Its gradient is its own — never the active card's id.
-    expect(stackCard).toContain("v289StackGrad-${person.id}");
+    expect(stackCard).not.toContain("v289StackGrad");
     expect(stackCard).not.toContain("v254FirstGrad");
+    expect(stackCard).not.toContain("prayerItems");
   });
 
-  it("the settled person's other needs dim, as drawn", () => {
-    expect(stackCard).toContain("opacity: settled ? 0.75 : 1");
+  it("the settled person's needs do not render in the stack at all", () => {
+    expect(stackCard).not.toContain("opacity: settled ? 0.75 : 1");
+    expect(stackCard).not.toContain("shownOthers");
   });
 
-  it("only the ACTIVE lead glows: the halo still wraps exactly two cards in the file", () => {
+  it("nothing glows anywhere: the halo wraps zero cards in the file", () => {
     const halos = session.match(/<FirstWarmShadow/g) ?? [];
-    expect(halos).toHaveLength(2);
-    expect(session).toContain('<FirstWarmShadow paint="#D9A420">');
-    expect(session).toContain("<FirstWarmShadow paint={PRAISE_CARD.deep}>");
+    expect(halos).toHaveLength(0);
+    expect(session).not.toContain('paint="#D9A420"');
   });
 });
 

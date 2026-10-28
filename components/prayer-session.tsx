@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AccessibilityInfo, Animated, AppState, BackHandler, Dimensions, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
-import Svg, { Circle, Defs, LinearGradient, Path, Rect as SvgRect, Stop } from "react-native-svg";
+import Svg, { Defs, LinearGradient, Rect as SvgRect, Stop } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
@@ -23,12 +23,23 @@ import { useSkin } from "@/hooks/use-skin";
 import { skinText } from "@/lib/skin-themes";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PeopleEntrance, PEOPLE_ENTRANCE_EASING } from "@/components/people-entrance";
-import { FIRST_CARD, PRAISE_CARD } from "@/lib/people-material";
+import { PRAISE_CARD } from "@/lib/people-material";
 import { getPraiseDisplay } from "@/lib/praise-display";
 import { mix } from "@/lib/color-themes";
 import { hexToRgba } from "@/lib/bible-v205/palette-accents";
 import { getLeadNeed, isActiveEmergencyItem } from "@/lib/prayer-lead";
-import { formatEmergencyPrayerCountdown, getEmergencyPrayerTimeRemaining } from "@/lib/prayercircle-data";
+import { formatEmergencyPrayerCountdown, getEmergencyPrayerTimeRemaining, getTodayISOString } from "@/lib/prayercircle-data";
+import {
+  FALLBACK_QUIET_VERSE_TEXT,
+  getSessionQuietLine,
+  resolveLifeVerseText,
+} from "@/lib/life-verse";
+import {
+  DEEPEN_THRESHOLD_SECONDS,
+  getAccruedTimeBonusXp,
+  getDeepeningRows,
+  getTimeBonusProgress,
+} from "@/lib/prayer-deepening";
 
 /** A window-coordinate rect the morph grows out of (v261). */
 export type PrayerSessionMorphOrigin = { x: number; y: number; width: number; height: number };
@@ -76,93 +87,37 @@ type Props = {
  * curve family (Material emphasized), no springs, no bounce. */
 const MORPH_DURATION_MS = 380;
 
-/** The FIRST card's warmth at rest (v264, audit D9; rebuilt v288,
- * audit v2 §0.1 / fix 1). The drawing (praytoday-urgent-feel-v1,
- * .lead.active) breathes a soft WARM SHADOW — #D9A420 at .16 → .30
- * on a 4.5s breath. v264 carried that breath in React Native
- * shadow props on this wrapper — but Android IGNORES
- * shadowColor/shadowOpacity/shadowRadius entirely (only
- * `elevation` renders, a faint GREY shadow), so on Jonathan's
- * Pixel the one device that makes the pale amber card read as
- * LIT never rendered: the card sat flat and washed inside the
- * person card (his Oct 27 screenshot, 09:11). The glow is now a
- * RENDERED LAYER: a rounded rect in the lead's own family paint,
- * standing ~10dp proud of the card on every side (a visible
- * 8–16dp warm band), breathing on the same 4.5s loop — opacity
- * rides the NATIVE driver (the shadow breath had to ride JS).
- * The wrapper still stands OUTSIDE the card's overflow:hidden
- * clip, and the card's own static border is unchanged. Reduced
- * motion holds a steady glow. The component keeps its v264 name:
- * it is still the warm-shadow wrapper, now painted for real. */
-function FirstWarmShadow({ paint, children }: { paint: string; children: ReactNode }) {
-  const breath = useRef(new Animated.Value(0.16)).current;
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    let live = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((value) => { if (live) setReduced(value); })
-      .catch(() => undefined);
-    return () => { live = false; };
-  }, []);
+/** v310: the deepening's reveal — the hero's quiet rows fade and
+ * settle in on the app's own entrance curve (Material
+ * emphasized, native driver, no springs, no bounce) when time
+ * on the person crosses the threshold. Reduced motion mounts
+ * them plainly. The block mounts per person (keyed at the use
+ * site), so each person's deepening earns its own reveal. */
+function DeepeningReveal({ reduced, children }: { reduced: boolean; children: ReactNode }) {
+  const reveal = useRef(new Animated.Value(reduced ? 1 : 0)).current;
   useEffect(() => {
     if (reduced) {
-      breath.setValue(0.2);
+      reveal.setValue(1);
       return;
     }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(breath, { toValue: 0.3, duration: 2250, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(breath, { toValue: 0.16, duration: 2250, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [reduced, breath]);
-  return (
-    <View style={{ marginTop: 14, position: "relative" }}>
-      <Animated.View
-        pointerEvents="none"
-        style={{ position: "absolute", top: -10, left: -10, right: -10, bottom: -10, borderRadius: 32, backgroundColor: paint, opacity: breath }}
-      />
-      {children}
-    </View>
-  );
-}
-
-/** v288 (audit v2 fix 2): the timer ring's pulse dot PULSES again —
- * the drawing animates it; v264 left it static on the ring. It
- * stays exactly where v264 put it (on the ring at its 45° point,
- * clear of the Complete button); only the breath is restored.
- * Opacity on the native driver; reduced motion holds it steady. */
-function TimerPulseDot({ color }: { color: string }) {
-  const pulse = useRef(new Animated.Value(1)).current;
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    let live = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((value) => { if (live) setReduced(value); })
-      .catch(() => undefined);
-    return () => { live = false; };
-  }, []);
-  useEffect(() => {
-    if (reduced) {
-      pulse.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 0.35, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [reduced, pulse]);
+    const anim = Animated.timing(reveal, {
+      toValue: 1,
+      duration: 380,
+      easing: Easing.bezier(...PEOPLE_ENTRANCE_EASING),
+      useNativeDriver: true,
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [reduced, reveal]);
   return (
     <Animated.View
-      pointerEvents="none"
-      style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: color, opacity: pulse }}
-    />
+      style={{
+        opacity: reveal,
+        transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
+      }}
+    >
+      {children}
+    </Animated.View>
   );
 }
 
@@ -400,6 +355,23 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
   // Session-local render state only: onPray stays the sole write
   // path, and no mechanic reads this set.
   const [prayedIds, setPrayedIds] = useState<ReadonlySet<string>>(() => new Set());
+  // v310: per-person time. The session clock (elapsedSeconds)
+  // stays the session's — the bonus cadence, the finished
+  // screen's total, and the notification all read it as before.
+  // The DEEPENING reads the time spent on the ACTIVE person:
+  // the session elapsed captured when that person took the
+  // stage. elapsedRef mirrors the state so the capture effect
+  // reads the live value, never a stale closure.
+  const elapsedRef = useRef(0);
+  elapsedRef.current = elapsedSeconds;
+  const personStartElapsedRef = useRef(0);
+  const lastPersonIndexRef = useRef(0);
+  // v310: the quiet line's resolved KJV text for the active
+  // person (their life verse, or the Colossians 4:2 fallback) —
+  // resolved through the app's chapter loader, keyed to the
+  // person so a stale resolution never lands on the next card.
+  const [quietText, setQuietText] = useState<string | null>(null);
+  const [quietTextFor, setQuietTextFor] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastBonusMinute = useRef(0);
   const sessionStartRef = useRef<number>(0);
@@ -527,6 +499,12 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
       // v289: a fresh session has nobody settled and no settle
       // scroll owed.
       setPrayedIds(new Set());
+      // v310: the first person's deepening clock starts with
+      // the session's.
+      personStartElapsedRef.current = 0;
+      lastPersonIndexRef.current = 0;
+      setQuietText(null);
+      setQuietTextFor(null);
       scrolledForIndexRef.current = 0;
       activeCardYRef.current = 0;
       // Lock in the time-of-day backdrop once per session (no live switching).
@@ -625,6 +603,38 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
     }
   }, [elapsedSeconds, onTimeBonus]);
 
+  // v310: a new person takes the stage — their deepening clock
+  // starts from the session elapsed at this moment. (Advances
+  // and skips both land here; the reset zeroes it above.)
+  useEffect(() => {
+    if (lastPersonIndexRef.current !== currentIndex) {
+      lastPersonIndexRef.current = currentIndex;
+      personStartElapsedRef.current = elapsedRef.current;
+    }
+  }, [currentIndex]);
+
+  // v310: resolve the active person's quiet line. The choice of
+  // WHAT goes in the slot is pure (getSessionQuietLine); this
+  // only fetches its KJV text through the app's chapter loader.
+  // The fallback's text is pinned as a last resort so its slot
+  // never sits empty; a life verse whose text can't be reached
+  // leaves the slot undealt rather than showing a bare reference.
+  const quietPerson = sessionPeople[currentIndex];
+  const quietLine = quietPerson ? getSessionQuietLine(quietPerson) : null;
+  const quietKey = quietPerson && quietLine ? `${quietPerson.id}|${quietLine.reference}` : null;
+  useEffect(() => {
+    if (!quietLine || !quietKey) return;
+    let live = true;
+    resolveLifeVerseText(quietLine.verse).then((text) => {
+      if (!live) return;
+      const resolved = text ?? (quietLine.kind === "fallback" ? FALLBACK_QUIET_VERSE_TEXT : null);
+      setQuietText(resolved);
+      setQuietTextFor(quietKey);
+    });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quietKey]);
+
   const currentPerson = sessionPeople[currentIndex];
   const isLast = currentIndex >= totalCount - 1;
 
@@ -639,6 +649,17 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
   const settledPeople = sessionPeople.slice(0, currentIndex).filter((person) => prayedIds.has(person.id));
   const nextPerson = sessionPeople[currentIndex + 1];
 
+  // v310: the dress's derivations. The deepening keys off the
+  // per-person clock; the Complete bar's bonus label reads the
+  // SESSION clock's accrual (the grant effect's own arithmetic,
+  // via lib/prayer-deepening — display only); the quiet line
+  // shows only its own person's resolved text.
+  const personElapsedSeconds = Math.max(0, elapsedSeconds - personStartElapsedRef.current);
+  const deepened = !!currentPerson && personElapsedSeconds >= DEEPEN_THRESHOLD_SECONDS;
+  const accruedTimeBonusXp = getAccruedTimeBonusXp(elapsedSeconds);
+  const activeQuietLine = quietLine && quietTextFor === quietKey ? quietLine : null;
+  const activeQuietText = activeQuietLine ? quietText : null;
+
   // v289: settle the scroll ONCE per advance, to the active
   // wrapper's measured place in the stack (a few dp of air above
   // the card). Called from the wrapper's onLayout (the common
@@ -652,133 +673,62 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
     scrollRef.current?.scrollTo({ y: Math.max(0, activeCardYRef.current - 6), animated: !reducedMotion });
   };
 
-  // v289: one stack card in the drawing's quieter dresses — the
-  // SETTLED person (already prayed this session: green check,
-  // "Prayed today", face ring tinted to the prayed green, the
-  // lead card at rest with NO halo and no session row, the other
-  // needs dimmed to .75 as drawn) and the NEXT person (lead
-  // already visible, "Up next" in the meta line, no halo —
-  // only the active person's lead glows). The lead grammar is
-  // the active card's own: a FIRST lead in its warm card, an
-  // emergency lead in its standing red row (the D11 exception),
-  // the rest quiet rows. The focused-praise lead never appears
-  // here: a focused session holds exactly one person, so it has
-  // no stack neighbours.
+  // v310: one stack card in the new drawing's slim rows — the
+  // SETTLED person (already prayed this session: the prayed-
+  // green check in its quiet disc, their face, "Prayed · {their
+  // lead}" and the +10 XP their completion granted) and the
+  // NEXT person (their face, "UP NEXT", their name) on the
+  // container-low step. Neither card carries a lead panel or
+  // needs any more — the drawing keeps the stack quiet so the
+  // hero stands alone. Who stands settled is still exactly who
+  // handlePray has prayed (v289's record); a focused session
+  // holds one person, so it has no stack neighbours.
   const renderStackCard = (person: Person, variant: "settled" | "next", stackFirst: boolean) => {
     const settled = variant === "settled";
     const lead = getLeadNeed(person);
-    const activeItems = person.prayerItems.filter((item) => !item.isDone);
-    const otherItems = lead ? activeItems.filter((item) => item.id !== lead.item.id) : activeItems;
-    // The quiet rows' whisper dress, same derivation as the
-    // active card's (v264/D10).
-    const quietFill = mix(pm.card, pm.seed, 0.05);
-    const quietInk = mix(pm.ink, pm.inkSoft, 0.45);
     return (
       <View
         key={person.id}
         style={{
           width: "100%",
-          marginTop: stackFirst ? 4 : 18,
-          backgroundColor: pm.card,
-          borderRadius: 28,
-          paddingHorizontal: 16 + padBoost,
-          paddingVertical: 18 + padBoost,
+          marginTop: settled ? (stackFirst ? 16 : 10) : 14,
+          backgroundColor: settled ? pm.card : mix(pm.card, pm.seed, 0.07),
+          borderRadius: 16,
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 11,
           shadowColor: pm.shadow,
           shadowOpacity: 1,
-          shadowRadius: settled ? 9 : 13,
-          shadowOffset: { width: 0, height: settled ? 3 : 5 },
-          elevation: settled ? 2 : 4,
+          shadowRadius: settled ? 9 : 7,
+          shadowOffset: { width: 0, height: settled ? 3 : 2 },
+          elevation: settled ? 2 : 1,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 3, borderColor: settled ? mix(pm.card, "#31C48D", 0.25) : pm.wash, alignItems: "center", justifyContent: "center" }}>
-            <AvatarImage id={person.id} name={person.name} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={46} />
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text numberOfLines={1} style={{ fontSize: 17.5, fontWeight: "800", letterSpacing: -0.2, color: pm.ink, ...skinText(skinTokens, type.cardTitle) }}>{person.name}</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
-              <View style={{ backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
-                <Text style={{ fontSize: 10.5, fontWeight: "800", color: pm.deep }}>{person.relationship}</Text>
-              </View>
-              {/* The drawing's meta word for the stack positions:
-                  the settled person reads "Prayed today", the
-                  next "Up next" — where the active card carries
-                  its household line. */}
-              <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: "600", color: pm.inkSoft }}>{settled ? "Prayed today" : "Up next"}</Text>
-            </View>
-          </View>
-          {settled ? (
-            <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: "#31C48D", alignItems: "center", justifyContent: "center" }}>
-              <MaterialIcons name="check" size={16} color="#FFFFFF" />
-            </View>
-          ) : null}
-        </View>
-
-        {/* The lead at rest — the FIRST card's own dress with no
-            halo wrapper and no session row inside it. */}
-        {lead?.kind === "first" ? (
-          <View style={{ marginTop: 14 }}>
-            <View style={{ borderRadius: 22, borderWidth: 1.5, borderColor: FIRST_CARD.line, overflow: "hidden", backgroundColor: FIRST_CARD.bgTo, paddingHorizontal: 15 + padBoost, paddingTop: 14 + padBoost, paddingBottom: 15 + padBoost }}>
-              <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
-                <Defs>
-                  <LinearGradient id={`v289StackGrad-${person.id}`} x1="0" y1="0" x2="1" y2="1">
-                    <Stop offset="0" stopColor={FIRST_CARD.bgFrom} />
-                    <Stop offset="1" stopColor={FIRST_CARD.bgTo} />
-                  </LinearGradient>
-                </Defs>
-                <SvgRect x="0" y="0" width="100%" height="100%" fill={`url(#v289StackGrad-${person.id})`} />
-              </Svg>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: FIRST_CARD.deep, borderRadius: 999, paddingLeft: 9, paddingRight: 11, paddingVertical: 5, shadowColor: FIRST_CARD.deep, shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-                  <Svg width={12} height={12} viewBox="0 0 24 24">
-                    <Path d="M11 21.2C7.7 20.4 5.8 18 5.8 14.7c0-3.9 2.5-8.5 5.2-11.6v18.1z" fill={FIRST_CARD.pillInk} />
-                    <Path d="M13 21.2c3.3-.8 5.2-3.2 5.2-6.5 0-3.9-2.5-8.5-5.2-11.6v18.1z" fill={FIRST_CARD.pillInk} />
-                  </Svg>
-                  <Text style={{ fontSize: 10, fontWeight: "900", letterSpacing: 1.4, color: FIRST_CARD.pillInk }}>FIRST</Text>
-                </View>
-              </View>
-              <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 21, letterSpacing: -0.1, color: FIRST_CARD.ink, marginTop: 10, ...skinText(skinTokens, type.cardLead, type.cardLeadLineHeight) }}>{lead.item.title}</Text>
-              {!!lead.item.note && (
-                <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 17, color: FIRST_CARD.sub, marginTop: 4, ...skinText(skinTokens, type.rowBody, type.rowBodyLineHeight) }}>{lead.item.note}</Text>
-              )}
-            </View>
+        {settled ? (
+          <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: pm.wash, alignItems: "center", justifyContent: "center" }}>
+            <MaterialIcons name="check" size={14} color="#2E7D4F" />
           </View>
         ) : null}
-
-        {/* The remaining needs, quiet — dimmed on the settled
-            card, as drawn (.person.settled .quiet). */}
-        {otherItems.length > 0 || lead?.kind === "emergency" ? (
-          <View style={{ marginTop: 10, gap: 7, opacity: settled ? 0.75 : 1 }}>
-            {lead?.kind === "emergency" ? (
-              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: pm.redWash, borderWidth: 1, borderColor: "#EF4444", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 }}>
-                <MaterialIcons name="local-fire-department" size={17} color="#EF4444" style={{ marginTop: 1 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13.5, fontWeight: "700", lineHeight: 18, color: "#991B1B" }}>{lead.item.title}</Text>
-                  {!!lead.item.note && (
-                    <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 16, color: "#991B1B", marginTop: 1 }}>{lead.item.note}</Text>
-                  )}
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#DC2626", marginTop: 1 }}>Emergency · {formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(lead.item.emergencyExpiresAt))} left</Text>
-                </View>
-              </View>
-            ) : null}
-            {otherItems.map((item) => {
-              const emergency = isActiveEmergencyItem(item);
-              return (
-                <View key={item.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: quietFill, borderWidth: 1, borderColor: pm.line, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 }}>
-                  <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: pm.wash, marginTop: 1 }} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13.5, fontWeight: "600", lineHeight: 18, color: quietInk, ...skinText(skinTokens, type.rowBody, type.rowBodyLineHeight) }}>{item.title}</Text>
-                    {!!item.note && (
-                      <Text style={{ fontSize: 11, fontWeight: "600", lineHeight: type.cardMeta ? 19 : 16, color: emergency ? "#DC2626" : pm.inkSoft, marginTop: 1, ...skinText(skinTokens, type.cardMeta) }}>{item.note}</Text>
-                    )}
-                    {emergency ? (
-                      <Text style={{ fontSize: 11, fontWeight: "600", color: "#DC2626", marginTop: 1 }}>Emergency · {formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt))} left</Text>
-                    ) : null}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+        <AvatarImage id={person.id} name={person.name} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={40} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          {settled ? (
+            <>
+              <Text numberOfLines={1} style={{ fontSize: 15.5, fontWeight: "700", color: pm.ink }}>{person.name}</Text>
+              <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: "500", color: pm.inkSoft, marginTop: 1 }}>
+                {lead ? `Prayed · ${lead.item.title}` : "Prayed"}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={{ fontSize: 11, fontWeight: "700", letterSpacing: 1.4, color: pm.inkSoft }}>UP NEXT</Text>
+              <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: "700", color: pm.ink, marginTop: 1 }}>{person.name}</Text>
+            </>
+          )}
+        </View>
+        {settled ? (
+          <Text style={{ fontSize: 13, fontWeight: "700", color: pm.deep }}>+10 XP</Text>
         ) : null}
       </View>
     );
@@ -890,16 +840,33 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
         {/* v254 (praytoday-urgent-feel-v1): the session's head — title,
             count chip, and the queue dots. The big timer moved into
             the lead card's ring; the timer itself is unchanged. */}
+        {/* v310: the head, per the drawing — title and date quiet
+            on the left, the person count on the right, and the
+            queue as SEGMENTS beneath (settled segments rest at
+            the seed's 45%, the active segment full seed, the
+            waiting ones on the container step). The v254 dots
+            row and the seed count chip are retired. */}
         <View style={{ width: "100%", flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 4 }}>
           <View>
-            <Text style={{ color: colors.foreground, fontSize: 21, fontWeight: "800", letterSpacing: -0.2 }}>Pray Today</Text>
-            <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "600", marginTop: 1 }}>
+            <Text style={{ color: pm.ink, fontSize: 26, fontWeight: "700", letterSpacing: -0.4 }}>Pray Today</Text>
+            <Text style={{ color: pm.inkSoft, fontSize: 13.5, fontWeight: "500", marginTop: 3 }}>
               {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
             </Text>
           </View>
-          <View style={{ backgroundColor: pm.seed, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
-            <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "800" }}>{totalCount} {totalCount === 1 ? "person" : "people"}</Text>
-          </View>
+          <Text style={{ fontSize: 12, fontWeight: "700", letterSpacing: 1.2, color: pm.inkSoft, paddingTop: 8 }}>PERSON {currentIndex + 1} OF {totalCount}</Text>
+        </View>
+        <View style={{ width: "100%", flexDirection: "row", gap: 5, marginTop: 12 }}>
+          {sessionPeople.map((person, idx) => (
+            <View
+              key={person.id}
+              style={{
+                flex: 1,
+                height: 6,
+                borderRadius: 99,
+                backgroundColor: isFinished || idx < currentIndex ? hexToRgba(pm.seed, 0.45) : idx === currentIndex ? pm.seed : pm.wash2,
+              }}
+            />
+          ))}
         </View>
 
         {!isFinished && currentPerson ? (
@@ -920,119 +887,22 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
               // behind "+N more" was unreachable for the whole
               // session. The page scrolls instead (audit D5).
               const shownOthers = otherItems;
-              // v264 (audit D10): the quiet rows' whisper dress —
-              // the card mixed a breath toward the seed (the
-              // drawing's near-white #FAF8FE at the violet seed),
-              // the title softened from full ink toward the
-              // drawing's soft ink. Derived, never pinned.
-              const quietFill = mix(pm.card, pm.seed, 0.05);
-              const quietInk = mix(pm.ink, pm.inkSoft, 0.45);
-              // v288 (audit v2 fix 3 + 7): the quiet rows join the
-              // type scale too — title at rowBody, and the subline
-              // back to the drawing's 11/600 at base, cardMeta
-              // under the scale (it had drifted to 12/500).
-              const timerFraction = (elapsedSeconds % 60) / 60;
-              const timerCircumference = 2 * Math.PI * 20.5;
-              // v269: the session row's ring wears the lead's family
-              // — the praise gold on a focused praise leg, the FIRST
-              // warmth on a first lead, the seed family otherwise.
-              const ringTrack = praiseFocus ? hexToRgba(PRAISE_CARD.ink, 0.25) : lead?.kind === "first" ? hexToRgba(FIRST_CARD.ink, 0.25) : pm.wash;
-              const ringStroke = praiseFocus ? PRAISE_CARD.deep : lead?.kind === "first" ? FIRST_CARD.deep : pm.deep;
-              const ringInk = praiseFocus ? PRAISE_CARD.ink : lead?.kind === "first" ? FIRST_CARD.ink : colors.foreground;
-              const ringSub = praiseFocus ? PRAISE_CARD.sub : lead?.kind === "first" ? FIRST_CARD.sub : colors.muted;
-              const sessionRow = (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                  <View
-                    ref={timerRef2}
-                    onLayout={() => {
-                      timerRef2.current?.measure((x, y, width, height, pageX, pageY) => {
-                        setTimerPos({ x: pageX + width / 2, y: pageY + height });
-                      });
-                    }}
-                    style={{ width: 48, height: 48 }}
-                  >
-                    <Svg width={48} height={48} style={{ transform: [{ rotate: "-90deg" }] }}>
-                      {/* v264 (audit D4): the drawn track #EFE3BC is
-                          near-invisible on the amber fill at 00:05 —
-                          the track is now the warm ink at 25%, an
-                          engraved groove the eye can find from the
-                          first second. */}
-                      <Circle cx={24} cy={24} r={20.5} fill="none" stroke={ringTrack} strokeWidth={3.5} />
-                      <Circle cx={24} cy={24} r={20.5} fill="none" stroke={ringStroke} strokeWidth={3.5} strokeLinecap="round" strokeDasharray={timerCircumference} strokeDashoffset={timerCircumference * (1 - timerFraction)} />
-                    </Svg>
-                    {/* v288 (audit v2 fix 2): the two labels are
-                        FENCED inside the ring. The disc is fixed
-                        SVG geometry; unguarded RN Text follows the
-                        device font scale, and at the drawing's
-                        sizes the words already filled the ring's
-                        inner chord with zero headroom — in his
-                        screenshot "00:05" crossed the stroke and
-                        "PRAYING" spilled past both edges toward
-                        the button. Font scaling is now refused
-                        (the disc cannot grow, so its words may
-                        not), the sizes step down a half-step
-                        (11 → 10.5, 7.5 → 7, tracking .6 → .4), and
-                        the time may shrink-to-fit on one line —
-                        both labels hold ≥2dp clearance inside the
-                        inner chord at font scales 1.0 and 1.3. */}
-                    <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
-                      <Text allowFontScaling={false} maxFontSizeMultiplier={1} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: 10.5, fontWeight: "800", lineHeight: 12, color: ringInk, fontVariant: ["tabular-nums"] }}>{formatTime(elapsedSeconds)}</Text>
-                      <Text allowFontScaling={false} maxFontSizeMultiplier={1} numberOfLines={1} style={{ fontSize: 7, fontWeight: "800", letterSpacing: 0.4, color: ringSub }}>PRAYING</Text>
-                    </View>
-                    {/* v264 (audit D4): the pulse dot sits ON the
-                        ring at its 45° point, inset from the corner
-                        — out of the gap where it crowded the
-                        Complete button's left edge. v288: it pulses
-                        again, as drawn (TimerPulseDot). */}
-                    <TimerPulseDot color={ringStroke} />
-                  </View>
-                  <Pressable
-                    onPress={handlePray}
-                    ref={prayButtonRef}
-                    onLayout={() => {
-                      prayButtonRef.current?.measure((x, y, width, height, pageX, pageY) => {
-                        setPrayButtonPos({ x: pageX + width / 2, y: pageY });
-                      });
-                    }}
-                    style={({ pressed }) => [{ flex: 1, backgroundColor: pm.deep, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, shadowColor: pm.deep, shadowOpacity: 0.28, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 4 }, pressed && { opacity: 0.85 }]}
-                  >
-                    <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "800" }}>Complete prayer</Text>
-                    <View style={{ backgroundColor: "#FFC53D", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 }}>
-                      <Text style={{ color: "#4A2F00", fontSize: 11, fontWeight: "900" }}>+10 XP</Text>
-                    </View>
-                  </Pressable>
-                </View>
-              );
+              // v310: the hero's ink — the drawing's
+              // on-primary-container step: the family's deep end
+              // walked toward the ink, derived from the seed so
+              // every palette keeps the hero's quiet text legible.
+              const containerInk = mix(pm.deep, pm.ink, 0.3);
               return (
                 <>
-                  {/* Queue progress */}
-                  <View style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12 }}>
-                    {/* v264 (audit D12): the dots WRAP — a count
-                        past one row's width used to clip silently
-                        behind overflow:hidden. */}
-                    <View style={{ flexDirection: "row", gap: 5, rowGap: 5, alignItems: "center", flex: 1, flexWrap: "wrap" }}>
-                      {sessionPeople.map((person, idx) => (
-                        <View key={person.id} style={{ width: idx === currentIndex ? 20 : 7, height: 7, borderRadius: 99, backgroundColor: idx < currentIndex ? "#31C48D" : idx === currentIndex ? pm.seed : pm.wash2 }} />
-                      ))}
-                    </View>
-                    <Text style={{ fontSize: 11.5, fontWeight: "800", letterSpacing: 0.4, color: colors.muted }}>PERSON {currentIndex + 1} OF {totalCount}</Text>
-                  </View>
-
-                  {/* v289 (audit v2 §5 / D8 — his Oct 27 11:02
-                      ruling): the stack. The people already
-                      prayed this session stand SETTLED above the
-                      active person, in the drawing's settled
-                      dress; the lone card parked over ~40% dead
-                      space (his screenshot 10766) is gone — the
-                      stack fills the screen, and it scrolls. */}
                   {settledPeople.map((person, i) => renderStackCard(person, "settled", i === 0))}
 
                   {/* Person card */}
-                  {/* v289: the active person, exactly the v288
-                      dress. The wrapper measures the card's
-                      place in the stack so the settle can keep
-                      it at the top when a settled card grows
-                      above it (see settleScrollToActive). */}
+                  {/* v310: the active person, re-dressed to the
+                      approved drawing — the flat tonal hero (see
+                      the card itself). The wrapper still measures
+                      the card's place in the stack so the settle
+                      can keep it at the top when a settled card
+                      grows above it (see settleScrollToActive). */}
                   <View
                     style={{ width: "100%", marginTop: settledPeople.length > 0 ? 18 : 0 }}
                     onLayout={(e) => {
@@ -1041,109 +911,70 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                     }}
                   >
                   <PeopleEntrance key={currentPerson.id} emphasis style={{ width: "100%" }}>
-                  <View style={{ width: "100%", backgroundColor: pm.card, borderRadius: 28, paddingHorizontal: 16 + padBoost, paddingVertical: 18 + padBoost, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 13, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                      <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 3, borderColor: pm.wash, alignItems: "center", justifyContent: "center" }}>
-                        <AvatarImage id={currentPerson.id} name={currentPerson.name} avatarAsset={currentPerson.avatarAsset} photoUri={currentPerson.photoUri} size={46} />
-                      </View>
+                  <View style={{ width: "100%", backgroundColor: mix(pm.card, pm.seed, 0.16), borderRadius: 28, paddingHorizontal: 16 + padBoost, paddingVertical: 18 + padBoost, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 13, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
+                    {/* v310 identity: their face, LARGE — the
+                        roster's own avatar at the drawing's 60 —
+                        then name, the relationship on its white
+                        chip, and the household name. */}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 13 }}>
+                      <AvatarImage id={currentPerson.id} name={currentPerson.name} avatarAsset={currentPerson.avatarAsset} photoUri={currentPerson.photoUri} size={60} />
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text numberOfLines={1} style={{ fontSize: 17.5, fontWeight: "800", letterSpacing: -0.2, color: pm.ink, ...skinText(skinTokens, type.cardTitle) }}>{currentPerson.name}</Text>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
-                          <View style={{ backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
-                            <Text style={{ fontSize: 10.5, fontWeight: "800", color: pm.deep }}>{currentPerson.relationship}</Text>
+                        <Text numberOfLines={1} style={{ fontSize: 21, fontWeight: "700", letterSpacing: -0.2, color: pm.ink }}>{currentPerson.name}</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 4 }}>
+                          <View style={{ backgroundColor: pm.card, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
+                            <Text style={{ fontSize: 12, fontWeight: "700", color: containerInk }}>{currentPerson.relationship}</Text>
                           </View>
                           {currentPerson.familyName ? (
-                            <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: "600", color: pm.inkSoft }}>{currentPerson.familyName} household</Text>
-                          ) : currentPerson.prayerNote ? (
-                            <Text numberOfLines={1} style={{ flex: 1, fontSize: 11.5, fontWeight: "600", color: pm.inkSoft }}>{currentPerson.prayerNote}</Text>
+                            <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, fontWeight: "500", color: containerInk }}>{currentPerson.familyName}</Text>
                           ) : null}
                         </View>
                       </View>
                     </View>
 
-                    {/* The lead need — the FIRST card (warm, never alarmed) */}
+                    {/* The lead need — the FIRST headline, straight
+                        on the hero (v310): a dot-and-word marker
+                        and the headline at display size. The tan
+                        gradient card is retired by his ruling —
+                        one glowing FIRST per person, dealt as type,
+                        never as a glow box. */}
                     {lead?.kind === "first" ? (
-                      <FirstWarmShadow paint="#D9A420">
-                      {/* v264 (audit D1): the amber fill is the card's
-                          OWN background (bgTo under the gradient) —
-                          v254 painted it with a percentage-sized SVG
-                          and no fallback, and on device the paint
-                          stopped at ~84% of the card, leaving a hard
-                          white strip inside the border. */}
-                      <View style={{ borderRadius: 22, borderWidth: 1.5, borderColor: FIRST_CARD.line, overflow: "hidden", backgroundColor: FIRST_CARD.bgTo, paddingHorizontal: 15 + padBoost, paddingTop: 14 + padBoost, paddingBottom: 15 + padBoost }}>
-                        <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
-                          <Defs>
-                            <LinearGradient id="v254FirstGrad" x1="0" y1="0" x2="1" y2="1">
-                              <Stop offset="0" stopColor={FIRST_CARD.bgFrom} />
-                              <Stop offset="1" stopColor={FIRST_CARD.bgTo} />
-                            </LinearGradient>
-                          </Defs>
-                          <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254FirstGrad)" />
-                        </Svg>
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: FIRST_CARD.deep, borderRadius: 999, paddingLeft: 9, paddingRight: 11, paddingVertical: 5, shadowColor: FIRST_CARD.deep, shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-                            <Svg width={12} height={12} viewBox="0 0 24 24">
-                              <Path d="M11 21.2C7.7 20.4 5.8 18 5.8 14.7c0-3.9 2.5-8.5 5.2-11.6v18.1z" fill={FIRST_CARD.pillInk} />
-                              <Path d="M13 21.2c3.3-.8 5.2-3.2 5.2-6.5 0-3.9-2.5-8.5-5.2-11.6v18.1z" fill={FIRST_CARD.pillInk} />
-                            </Svg>
-                            <Text style={{ fontSize: 10, fontWeight: "900", letterSpacing: 1.4, color: FIRST_CARD.pillInk }}>FIRST</Text>
-                          </View>
+                      <View style={{ marginTop: 16 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+                          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: pm.seed }} />
+                          <Text style={{ fontSize: 11, fontWeight: "700", letterSpacing: 1.6, color: pm.deep }}>FIRST</Text>
                         </View>
-                        <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 21, letterSpacing: -0.1, color: FIRST_CARD.ink, marginTop: 10, ...skinText(skinTokens, type.cardLead, type.cardLeadLineHeight) }}>{lead.item.title}</Text>
-                        {/* v264 (audit D2): the subline is the need's
-                            own note sentence, as drawn — content, not
-                            a status label. No note, no subline. */}
+                        <Text style={{ fontSize: 31, fontWeight: "700", lineHeight: 35, letterSpacing: -0.3, color: pm.ink, marginTop: 8 }}>{lead.item.title}</Text>
                         {!!lead.item.note && (
-                          <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 17, color: FIRST_CARD.sub, marginTop: 4, ...skinText(skinTokens, type.rowBody, type.rowBodyLineHeight) }}>{lead.item.note}</Text>
+                          <Text style={{ fontSize: 14, fontWeight: "500", lineHeight: 20, color: containerInk, marginTop: 6 }}>{lead.item.note}</Text>
                         )}
-                        <View style={{ marginTop: 15, paddingTop: 14, borderTopWidth: 1.5, borderTopColor: "rgba(234,212,156,0.85)" }}>
-                          {sessionRow}
-                        </View>
                       </View>
-                      </FirstWarmShadow>
                     ) : null}
 
-                    {/* v269: the focused praise lead — the FIRST
-                        card's slot and grammar in the praise gold
-                        (PRAISE_CARD: the front-door praise card's
-                        own paints), the session row inside it like
-                        the FIRST card carries it. The headline is
-                        his praise title, the sentence under it his
-                        praise note (praise-display's fallbacks) —
-                        never words he didn't write. */}
+                    {/* v310: the focused praise lead keeps the
+                        FIRST slot and his praise words
+                        (praise-display's fallbacks), in the praise
+                        family's flat gold — the gradient and the
+                        halo retire with the FIRST card's. */}
                     {praiseFocus && praiseDisplay ? (
-                      <FirstWarmShadow paint={PRAISE_CARD.deep}>
-                      <View style={{ borderRadius: 22, borderWidth: 1.5, borderColor: PRAISE_CARD.line, overflow: "hidden", backgroundColor: PRAISE_CARD.bgTo, paddingHorizontal: 15 + padBoost, paddingTop: 14 + padBoost, paddingBottom: 15 + padBoost }}>
-                        <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
-                          <Defs>
-                            <LinearGradient id="v269PraiseGrad" x1="0" y1="0" x2="1" y2="1">
-                              <Stop offset="0" stopColor={PRAISE_CARD.bgFrom} />
-                              <Stop offset="1" stopColor={PRAISE_CARD.bgTo} />
-                            </LinearGradient>
-                          </Defs>
-                          <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v269PraiseGrad)" />
-                        </Svg>
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: PRAISE_CARD.deep, borderRadius: 999, paddingLeft: 9, paddingRight: 11, paddingVertical: 5, shadowColor: PRAISE_CARD.deep, shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-                            <MaterialIcons name="star" size={11} color={PRAISE_CARD.pillInk} />
-                            <Text style={{ fontSize: 10, fontWeight: "900", letterSpacing: 1.4, color: PRAISE_CARD.pillInk }}>PRAISE</Text>
-                          </View>
+                      <View style={{ marginTop: 14, borderRadius: 16, borderWidth: 1, borderColor: PRAISE_CARD.line, backgroundColor: PRAISE_CARD.bgTo, paddingHorizontal: 14, paddingVertical: 12 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", backgroundColor: PRAISE_CARD.deep, borderRadius: 999, paddingLeft: 9, paddingRight: 11, paddingVertical: 5 }}>
+                          <MaterialIcons name="star" size={11} color={PRAISE_CARD.pillInk} />
+                          <Text style={{ fontSize: 10, fontWeight: "900", letterSpacing: 1.4, color: PRAISE_CARD.pillInk }}>PRAISE</Text>
                         </View>
-                        <Text style={{ fontSize: 16, fontWeight: "800", lineHeight: 21, letterSpacing: -0.1, color: PRAISE_CARD.ink, marginTop: 10, ...skinText(skinTokens, type.cardLead, type.cardLeadLineHeight) }}>{praiseDisplay.headline}</Text>
+                        <Text style={{ fontSize: 20, fontWeight: "700", lineHeight: 26, letterSpacing: -0.2, color: PRAISE_CARD.ink, marginTop: 8 }}>{praiseDisplay.headline}</Text>
                         {!!praiseDisplay.note && (
-                          <Text style={{ fontSize: 12, fontWeight: "600", lineHeight: 17, color: PRAISE_CARD.sub, marginTop: 4, ...skinText(skinTokens, type.rowBody, type.rowBodyLineHeight) }}>{praiseDisplay.note}</Text>
+                          <Text style={{ fontSize: 13.5, fontWeight: "500", lineHeight: 19, color: PRAISE_CARD.sub, marginTop: 3 }}>{praiseDisplay.note}</Text>
                         )}
-                        <View style={{ marginTop: 15, paddingTop: 14, borderTopWidth: 1.5, borderTopColor: hexToRgba(PRAISE_CARD.line, 0.85) }}>
-                          {sessionRow}
-                        </View>
                       </View>
-                      </FirstWarmShadow>
                     ) : null}
 
-                    {/* The other needs — quiet rows; an emergency lead
-                        keeps its own red treatment, never the FIRST card */}
+                    {/* The other needs — quiet white rows on the
+                        hero; an emergency lead keeps its standing
+                        red row first (the D11 exception), never
+                        the FIRST headline. A 2nd+ urgent item wears
+                        no marker of any kind (his Oct 26 ruling). */}
                     {shownOthers.length > 0 || lead?.kind === "emergency" ? (
-                      <View style={{ marginTop: 10, gap: 7 }}>
+                      <View style={{ marginTop: 12, gap: 8 }}>
                         {lead?.kind === "emergency" ? (
                           <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: pm.redWash, borderWidth: 1, borderColor: "#EF4444", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 }}>
                             <MaterialIcons name="local-fire-department" size={17} color="#EF4444" style={{ marginTop: 1 }} />
@@ -1159,24 +990,16 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                         {shownOthers.map((item) => {
                           const emergency = isActiveEmergencyItem(item);
                           return (
-                            <View key={item.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: quietFill, borderWidth: 1, borderColor: pm.line, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 }}>
-                              <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: pm.wash, marginTop: 1 }} />
+                            <View key={item.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: pm.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
+                              <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: mix(pm.card, pm.seed, 0.32), marginTop: 1 }} />
                               <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 13.5, fontWeight: "600", lineHeight: 18, color: quietInk, ...skinText(skinTokens, type.rowBody, type.rowBodyLineHeight) }}>{item.title}</Text>
+                                <Text style={{ fontSize: 15.5, fontWeight: "600", lineHeight: 21, color: pm.ink }}>{item.title}</Text>
                                 {!!item.note && (
-                                  <Text style={{ fontSize: 11, fontWeight: "600", lineHeight: type.cardMeta ? 19 : 16, color: emergency ? "#DC2626" : pm.inkSoft, marginTop: 1, ...skinText(skinTokens, type.cardMeta) }}>{item.note}</Text>
+                                  <Text style={{ fontSize: 12.5, fontWeight: "500", lineHeight: 17, color: emergency ? "#DC2626" : pm.inkSoft, marginTop: 1 }}>{item.note}</Text>
                                 )}
                                 {emergency ? (
                                   <Text style={{ fontSize: 11, fontWeight: "600", color: "#DC2626", marginTop: 1 }}>Emergency · {formatEmergencyPrayerCountdown(getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt))} left</Text>
                                 ) : null}
-                                {/* v264 (audit §c item 10, his ruling
-                                    Oct 26 09:28 — "one glowing FIRST
-                                    per person, other needs fully
-                                    quiet"): the unsanctioned 11px
-                                    flagged-urgent caption is GONE.
-                                    A 2nd+ urgent item wears no marker
-                                    of any kind; urgent lives only in
-                                    the FIRST card, as drawn. */}
                               </View>
                             </View>
                           );
@@ -1184,14 +1007,43 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                       </View>
                     ) : null}
 
-                    {/* No FIRST card (no needs, or the lead is an
-                        emergency): the session row stands on its own.
-                        v269: on a focused praise leg the row already
-                        rides inside the praise lead — never twice. */}
-                    {lead?.kind !== "first" ? (
-                      praiseFocus ? null : (
-                        <View style={{ marginTop: 15 }}>{sessionRow}</View>
-                      )
+                    {/* v310: the deepening — once a minute has been
+                        spent with this person, the hero opens
+                        quietly onto their record: when he last
+                        reached them, the run of days prayed, his
+                        note for them. getDeepeningRows reads the
+                        record only; a row it can't support is
+                        never dealt. */}
+                    {deepened ? (() => {
+                      const rows = getDeepeningRows(currentPerson, getTodayISOString());
+                      return rows.length > 0 ? (
+                        <DeepeningReveal key={currentPerson.id} reduced={reducedMotion}>
+                          <View style={{ marginTop: 16, paddingTop: 13, borderTopWidth: 1, borderTopColor: hexToRgba(pm.deep, 0.14), gap: 5 }}>
+                            {rows.map((row) => (
+                              <Text key={row.key} style={{ fontSize: 14, lineHeight: 20, color: containerInk }}>
+                                {row.segments.map((segment, i) => (
+                                  <Text key={i} style={segment.strong ? { fontWeight: "700", color: pm.deep } : undefined}>{segment.text}</Text>
+                                ))}
+                              </Text>
+                            ))}
+                          </View>
+                        </DeepeningReveal>
+                      ) : null;
+                    })() : null}
+
+                    {/* v310: the quiet line — the person's own
+                        life verse when they have one, Colossians
+                        4:2 when they don't, and nothing else ever
+                        (his ruling: no café line, no Hometown
+                        line). The slot deals only once its KJV
+                        text has resolved for THIS person. */}
+                    {activeQuietLine && activeQuietText ? (
+                      <View style={{ marginTop: 16, backgroundColor: pm.card, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14 }}>
+                        <Text style={{ fontSize: 14.5, fontStyle: "italic", lineHeight: 22, color: pm.ink }}>{activeQuietText}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: "700", letterSpacing: 1.2, color: pm.deep, marginTop: 7 }}>
+                          {activeQuietLine.kind === "life" ? `${currentPerson.gender === "f" ? "HER LIFE VERSE" : currentPerson.gender === "m" ? "HIS LIFE VERSE" : "LIFE VERSE"} · ${activeQuietLine.reference} · KJV` : `${activeQuietLine.reference} · KJV`}
+                        </Text>
+                      </View>
                     ) : null}
                   </View>
 
@@ -1202,11 +1054,9 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                     <Text style={{ color: colors.muted, fontSize: 14, fontWeight: "700" }}>Skip</Text>
                   </Pressable>
 
-                  {/* v289: the NEXT person waits below with
-                      their lead already visible and the
-                      drawing's "Up next" note — the third card
-                      of the stack. On the last person there is
-                      no card below, as drawn. */}
+                  {/* v310: the NEXT person waits below in the
+                      stack's slim row — on the last person there
+                      is no card below, as drawn. */}
                   {nextPerson ? renderStackCard(nextPerson, "next", false) : null}
                 </>
               );
@@ -1261,6 +1111,60 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
           </View>
         )}
         </ScrollView>
+
+        {/* v310: the Complete bar, fixed beneath the scroll — the
+            drawing deals the session's controls outside the card:
+            the elapsed clock with the time bonus ACCRUING beside
+            it (read from the engine's own accrual — display only;
+            the grant still lands on the session's 5-minute
+            effect), the progress thread filling toward the next
+            bonus, and the Complete pill carrying its +10 XP and,
+            once earned, the time bonus too. The timer measure
+            rides the clock row, so the bonus floater still falls
+            from the timer's place. */}
+        {!isFinished && currentPerson ? (
+          <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: Math.max(22, insets.bottom + 12) }}>
+            <View
+              ref={timerRef2}
+              onLayout={() => {
+                timerRef2.current?.measure((x, y, width, height, pageX, pageY) => {
+                  setTimerPos({ x: pageX + width / 2, y: pageY + height });
+                });
+              }}
+              style={{ flexDirection: "row", alignItems: "baseline", marginBottom: 9 }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: "700", fontVariant: ["tabular-nums"], color: pm.deep }}>{formatTime(elapsedSeconds)}</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", letterSpacing: 1.6, color: pm.inkSoft, marginLeft: 8 }}>PRAYING</Text>
+              {accruedTimeBonusXp > 0 ? (
+                <Text style={{ flex: 1, textAlign: "right", fontSize: 13.5, fontWeight: "700", color: pm.deep }}>+{accruedTimeBonusXp} for time so far</Text>
+              ) : null}
+            </View>
+            <View style={{ height: 6, borderRadius: 99, backgroundColor: pm.wash2, overflow: "hidden", marginBottom: 12 }}>
+              <View style={{ height: "100%", borderRadius: 99, backgroundColor: pm.seed, width: `${Math.round(getTimeBonusProgress(elapsedSeconds) * 100)}%` }} />
+            </View>
+            <Pressable
+              onPress={handlePray}
+              ref={prayButtonRef}
+              onLayout={() => {
+                prayButtonRef.current?.measure((x, y, width, height, pageX, pageY) => {
+                  setPrayButtonPos({ x: pageX + width / 2, y: pageY });
+                });
+              }}
+              style={({ pressed }) => [{ backgroundColor: pm.seed, borderRadius: 999, paddingVertical: 17, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, shadowColor: pm.seed, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 }, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700" }}>Complete prayer</Text>
+              <View style={{ backgroundColor: "rgba(255,255,255,0.22)", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
+                <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "800" }}>+10 XP</Text>
+              </View>
+              {accruedTimeBonusXp > 0 ? (
+                <View style={{ backgroundColor: pm.card, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
+                  <Text style={{ color: pm.deep, fontSize: 12, fontWeight: "800" }}>+{accruedTimeBonusXp} for time</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </View>
+        ) : null}
+
         {/* v215: the visible word on a blocked back press — once
             per session, along the bottom, gone on its own. */}
         {backHintVisible ? (

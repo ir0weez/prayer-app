@@ -50,6 +50,19 @@ export type BudgetTransaction = {
   date: string; // ISO date string
 };
 
+/** v310: a person's LIFE VERSE — a Scripture reference (book,
+ *  chapter, verse range) Jonathan sets once in the person editor.
+ *  The verse TEXT is never stored on the person; it resolves from
+ *  the app's KJV data (lib/bible-v205) wherever it displays (the
+ *  editor preview, the prayer session's quiet line). Ships empty
+ *  for everyone — no seeding, no backfill. */
+export type LifeVerseRef = {
+  book: string;
+  chapter: number;
+  verseStart: number;
+  verseEnd: number;
+};
+
 export type Person = {
   id: string;
   name: string;
@@ -104,6 +117,7 @@ export type Person = {
    *  are cleared wherever the praise state is cleared (clearPraise). */
   praiseTitle?: string;
   showInPrayerCheckIns?: boolean; // Whether overdue 14-day check-ins appear on the schedule
+  lifeVerse?: LifeVerseRef; // v310: the person's life verse reference (text resolves from KJV data)
 };
 
 export type AddPersonOptions = {
@@ -119,6 +133,7 @@ export type AddPersonOptions = {
   avatarAsset?: string;
   gender?: "m" | "f";
   showInPrayerCheckIns?: boolean;
+  lifeVerse?: LifeVerseRef;
 };
 
 export type JournalEntry = {
@@ -846,6 +861,19 @@ export function updatePersonPrayerNote(
   );
 }
 
+/** v310: shape-only sanitation for a stored life verse — the
+ *  canon/range validation lives in lib/life-verse.ts (the editor
+ *  and the session both normalize through it); storage just
+ *  refuses malformed shapes so a corrupt record can't ride. */
+function sanitizeLifeVerseRef(value: Person["lifeVerse"]): LifeVerseRef | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const { book, chapter, verseStart, verseEnd } = value;
+  if (typeof book !== "string" || !book.trim()) return undefined;
+  if (![chapter, verseStart, verseEnd].every((n) => Number.isInteger(n))) return undefined;
+  if (chapter < 1 || verseStart < 1 || verseEnd < verseStart || verseEnd > 176) return undefined;
+  return { book: book.trim(), chapter, verseStart, verseEnd };
+}
+
 export function normalizePeopleForStorage(people: Person[]): Person[] {
   const seenIds = new Set<string>();
 
@@ -884,6 +912,7 @@ export function normalizePeopleForStorage(people: Person[]): Person[] {
       showInPrayerCheckIns: person.showInPrayerCheckIns ?? true,
       isPraised: person.isPraised ?? false,
       praiseExpiresAt: person.praiseExpiresAt ?? undefined,
+      lifeVerse: sanitizeLifeVerseRef(person.lifeVerse),
     };
   });
 }
@@ -936,6 +965,7 @@ export function addPerson(
       reminderDaysOfWeek: reminderFrequency === "weekly" ? reminderDaysOfWeek : [],
       isPersonal: false,
       gender: options.gender,
+      lifeVerse: options.lifeVerse,
     },
   ];
 }

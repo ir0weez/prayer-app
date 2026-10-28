@@ -27,50 +27,50 @@ const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 
 const session = read("components/prayer-session.tsx");
+// v310 re-base: the FIRST "card" is now the headline block on the
+// flat hero; the needs zone ends where the deepening begins.
 const firstCard = session.slice(
   session.indexOf('{lead?.kind === "first" ? ('),
-  session.indexOf("</FirstWarmShadow>"),
+  session.indexOf("{praiseFocus && praiseDisplay ? ("),
 );
 const quietZone = session.slice(
   session.indexOf("shownOthers.map((item)"),
-  session.indexOf("{lead?.kind !== \"first\" ? ("),
+  session.indexOf("{deepened ? (() => {"),
 );
 
-describe("v264 source pins — the FIRST card (audit D1, D2, D9)", () => {
-  it("the amber fill is the card's OWN background paint, edge to edge (D1)", () => {
-    // Not only a percentage-sized SVG sibling with no fallback:
-    // the card View itself carries the fill under the gradient.
-    expect(firstCard).toContain("backgroundColor: FIRST_CARD.bgTo");
-    expect(firstCard).toContain('id="v254FirstGrad"');
+describe("v264 source pins — the FIRST card (audit D1, D2, D9) — the card RETIRED by v310", () => {
+  it("no fill to mis-paint: the FIRST headline paints nothing of its own (D1's heir)", () => {
+    // v310: the amber gradient card Jonathan rejected is gone.
+    // The headline is type straight on the hero's one flat fill,
+    // so D1's edge-to-edge failure mode cannot recur.
+    expect(firstCard).not.toContain("LinearGradient");
+    expect(firstCard).not.toContain("overflow: \"hidden\"");
+    expect(firstCard).not.toContain("borderRadius: 22");
+    expect(session).not.toContain("FIRST_CARD");
+    expect(session).toContain("backgroundColor: mix(pm.card, pm.seed, 0.16)");
   });
 
   it("the subline is the need's own note sentence — no note, no subline (D2)", () => {
     expect(firstCard).toContain("{!!lead.item.note && (");
-    expect(firstCard).toContain("color: FIRST_CARD.sub");
+    expect(firstCard).toContain("color: containerInk");
     expect(firstCard).toContain("{lead.item.note}");
     // The metadata label the drawing never carried is gone.
     expect(session).not.toContain("Flagged urgent · Waiting");
     expect(session).not.toContain('"Waiting"');
   });
 
-  it("the border rests: no breathing deep-amber border overlay (D9)", () => {
+  it("no border, no overlay: the headline has no card chrome at all (D9's heir)", () => {
     expect(session).not.toContain("FirstGlowBorder");
-    expect(session).toContain("borderColor: FIRST_CARD.line");
+    expect(session).not.toContain("borderColor: FIRST_CARD.line");
+    expect(firstCard).not.toContain("borderWidth");
   });
 
-  it("the breath lives in a soft warm shadow on a wrapper outside the clip (D9)", () => {
-    expect(session).toContain("function FirstWarmShadow");
-    expect(session).toContain("<FirstWarmShadow");
-    // v288 re-base (audit v2 §0.1 / fix 1): the warm shadow's PAINT
-    // is unchanged — #D9A420, the drawing's shadow color, now
-    // handed to the wrapper as its halo paint — but the CARRIER
-    // changed: v264's RN shadow props are ignored on Android, so
-    // the glow is a rendered layer (see people-v288.test.ts). The
-    // wrapper still stands outside the card's overflow:hidden view.
-    expect(session).toContain('<FirstWarmShadow paint="#D9A420">');
-    expect(session.indexOf("<FirstWarmShadow>")).toBeLessThan(
-      session.indexOf('overflow: "hidden", backgroundColor: FIRST_CARD.bgTo'),
-    );
+  it("the breath is retired with the glow (D9's heir)", () => {
+    // v310: nothing breathes on the hero. The only entrance
+    // motion left is the deepening's one quiet reveal.
+    expect(session).not.toContain("FirstWarmShadow");
+    expect(session).not.toContain('paint="#D9A420"');
+    expect(session).toContain("function DeepeningReveal");
   });
 });
 
@@ -87,19 +87,26 @@ describe("v264 source pins — backdrop, anchoring, timer (audit D3, D5, D4)", (
     expect(session).not.toContain('alignItems: "center", justifyContent: "center", padding: 24');
   });
 
-  it("the timer track reads at 00:05: warm-ink groove on the amber (D4)", () => {
-    expect(session).toContain("hexToRgba(FIRST_CARD.ink, 0.25)");
+  it("the timer ring is retired: no track, no groove (D4's heir)", () => {
+    // v310: the clock left the card for the Complete bar, where
+    // the progress THREAD (container track, seed fill) carries
+    // time's passing — nothing to misread at 00:05.
+    expect(session).not.toContain("hexToRgba(FIRST_CARD.ink, 0.25)");
     expect(session).not.toContain('"#EFE3BC"');
+    expect(session).not.toContain("timerCircumference");
+    expect(session).toContain("backgroundColor: pm.wash2, overflow: \"hidden\"");
   });
 
-  it("the pulse dot sits inset on the ring, clear of the Complete button (D4)", () => {
-    expect(session).toContain("top: 4, right: 4, width: 8, height: 8");
+  it("the pulse dot is retired with the ring (D4's heir)", () => {
+    expect(session).not.toContain("TimerPulseDot");
+    expect(session).not.toContain("top: 4, right: 4, width: 8, height: 8");
   });
 
-  it("the progress dots wrap instead of silently clipping (D12)", () => {
-    const dots = session.slice(session.indexOf("{/* Queue progress */}"), session.indexOf("{/* Person card */}"));
-    expect(dots).toContain('flexWrap: "wrap"');
-    expect(dots).not.toContain('overflow: "hidden"');
+  it("the queue is segments now — they flex, never clip (D12's heir)", () => {
+    const segments = session.slice(session.indexOf("{/* v310: the head"), session.indexOf("{settledPeople.map("));
+    expect(segments).toContain("hexToRgba(pm.seed, 0.45)");
+    expect(segments).toContain("flex: 1");
+    expect(segments).not.toContain('flexWrap: "wrap"');
   });
 });
 
@@ -110,11 +117,15 @@ describe("v264 source pins — every need shows, fully quiet (audit D6, D10, §c
     expect(session).not.toContain("hiddenCount");
   });
 
-  it("quiet rows wear the whisper dress, derived from the family (D10)", () => {
-    expect(session).toContain("const quietFill = mix(pm.card, pm.seed, 0.05);");
-    expect(session).toContain("const quietInk = mix(pm.ink, pm.inkSoft, 0.45);");
-    expect(quietZone).toContain("backgroundColor: quietFill");
-    expect(quietZone).toContain("color: quietInk");
+  it("quiet rows are white on the hero, radio ring walked from the seed (D10's heir)", () => {
+    // v310: the whisper fill/ink derivations retire — the
+    // drawing deals the needs as plain white rows on the tonal
+    // hero, full-ink titles, the radio ring a seed-walked step.
+    expect(session).not.toContain("const quietFill = mix(pm.card, pm.seed, 0.05);");
+    expect(session).not.toContain("const quietInk = mix(pm.ink, pm.inkSoft, 0.45);");
+    expect(quietZone).toContain("backgroundColor: pm.card, borderRadius: 12");
+    expect(quietZone).toContain("borderColor: mix(pm.card, pm.seed, 0.32)");
+    expect(quietZone).toContain("color: pm.ink");
     expect(quietZone).not.toContain("backgroundColor: pm.ground");
   });
 

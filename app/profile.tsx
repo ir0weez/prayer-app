@@ -19,6 +19,7 @@ import { COINS_STORAGE_KEY, parseCoins, type HometownCoins, HOMETOWN_MIN_FAST_DA
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useSkin } from "@/hooks/use-skin";
+import { useKeyboardHeight } from "@/hooks/use-keyboard-height";
 import { derivePeopleFrontDoor } from "@/lib/people-material";
 import {
   FAST_KEPT_DEEP,
@@ -187,6 +188,13 @@ export default function ProfileScreen() {
   // v276 tracker surfaces: the day sheet and the recap viewer.
   const [sheetDate, setSheetDate] = useState<string | null>(null);
   const [recapTarget, setRecapTarget] = useState<FastRecapTarget | null>(null);
+  // v299: the real keyboard height (0 when hidden) — the fasting
+  // sheets pad their modal roots by it so they ride above the
+  // keyboard (the Journal's v196 pattern; a transparent Modal's
+  // window does not resize with the activity, so adjustResize
+  // alone leaves a bottom sheet buried — Jonathan, Oct 28:
+  // "Can't read what I'm typing for the fast...").
+  const keyboardHeight = useKeyboardHeight();
   const [savedRecapKeys, setSavedRecapKeys] = useState<Record<string, boolean>>({});
 
   const awardBonusXP = useCallback(async (points: number, idempotencyKey: string, position?: XpGainPosition) => {
@@ -782,7 +790,13 @@ export default function ProfileScreen() {
           It replaces the old centered Daily Note modal; the note it
           saves is the same dailyNotes record. */}
       <Modal transparent visible={sheetDate !== null && !!selectedFast} animationType={isPaper ? "fade" : "slide"} onRequestClose={() => setSheetDate(null)}>
-        <View style={{ flex: 1, backgroundColor: "rgba(20,16,40,0.5)", justifyContent: "flex-end" }}>
+        {/* v299: paddingBottom = the live keyboard height, so when
+            the note field raises the keyboard the whole sheet rides
+            up and seats directly above it — note input, status
+            control and Save/Cancel all stay visible; when the
+            keyboard dismisses the height returns to 0 and the sheet
+            settles back to the bottom edge. */}
+        <View style={{ flex: 1, backgroundColor: "rgba(20,16,40,0.5)", justifyContent: "flex-end", paddingBottom: keyboardHeight }}>
           <Pressable style={{ flex: 1 }} onPress={() => setSheetDate(null)} />
           <View style={{ backgroundColor: trackerFamily.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 28, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }}>
             {sheetDate && selectedFast ? (
@@ -830,7 +844,11 @@ export default function ProfileScreen() {
         setIsEditingFast(false);
         resetFastCreator();
       }}>
-        <View style={styles.sheetOverlay}>
+        {/* v299: same keyboard lift as the day sheet — this editor
+            (fast name / "Why are you fasting?" / start date / focus)
+            is the same bottom-sheet class and buried its lower
+            fields and Save under the keyboard the same way. */}
+        <View style={[styles.sheetOverlay, { paddingBottom: keyboardHeight }]}>
           <Pressable style={styles.sheetBackdrop} onPress={() => {
             setShowFastCreator(false);
             setIsEditingFast(false);

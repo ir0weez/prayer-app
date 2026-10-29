@@ -11024,6 +11024,15 @@ export function ScheduleTab({
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
   const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
   const [timeBlockColors, setTimeBlockColors] = useState<Record<string, string>>({}); // Map of time block ID to color
+  // v346: hydration guard for the five schedule stores (events / todos /
+  // ministries / bibleStudies / timeBlockColors). This tab unmounts and
+  // remounts on every tab entry, and the save effects below run on mount
+  // with the initial empty state — before this flag they wrote that empty
+  // state over storage ahead of the async load, wiping imported events
+  // (the events save, declared first, lost the race almost every time).
+  // Same pattern as isWorshipExpansionHydrated below: saves early-return
+  // until the mount load has finished, then behave exactly as before.
+  const [isScheduleHydrated, setIsScheduleHydrated] = useState(false);
   const [selectedBibleStudyDay, setSelectedBibleStudyDay] = useState<string | null>(null); // Day name for multi-day Bible study tracker
   // v207: the chapterSummary / isLoadingSummary state is gone with the
   // live fetch it served — the storyteller preview is baked local data
@@ -11740,6 +11749,7 @@ export function ScheduleTab({
       } catch (e) {
         // Silent fail
       } finally {
+        setIsScheduleHydrated(true);
         setIsWorshipExpansionHydrated(true);
         setIsWorshipTrackCompletionsHydrated(true);
       }
@@ -11749,8 +11759,9 @@ export function ScheduleTab({
 
   // Save data
   useEffect(() => {
+    if (!isScheduleHydrated) return;
     AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(events)).catch(() => undefined);
-  }, [events]);
+  }, [isScheduleHydrated, events]);
 
   useEffect(() => {
     syncScheduledEventNotifications(events, todos, ministries).catch(() => undefined);
@@ -11760,21 +11771,25 @@ export function ScheduleTab({
     AsyncStorage.setItem('WORSHIP_LIST_LINKS_KEY', JSON.stringify(worshipListLinks)).catch(() => undefined);
   }, [worshipListLinks]);
   useEffect(() => {
+    if (!isScheduleHydrated) return;
     AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(todos)).catch(() => undefined);
-  }, [todos]);
+  }, [isScheduleHydrated, todos]);
 
   useEffect(() => {
     AsyncStorage.setItem('PRAYERS_KEY', JSON.stringify(prayers)).catch(() => undefined);
   }, [prayers]);
   useEffect(() => {
+    if (!isScheduleHydrated) return;
     AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(ministries)).catch(() => undefined);
-  }, [ministries]);
+  }, [isScheduleHydrated, ministries]);
   useEffect(() => {
+    if (!isScheduleHydrated) return;
     AsyncStorage.setItem(SCHEDULE_BIBLE_STUDIES_KEY, JSON.stringify(bibleStudies)).catch(() => undefined);
-  }, [bibleStudies]);
+  }, [isScheduleHydrated, bibleStudies]);
   useEffect(() => {
+    if (!isScheduleHydrated) return;
     AsyncStorage.setItem('SCHEDULE_TIME_BLOCK_COLORS_KEY', JSON.stringify(timeBlockColors)).catch(() => undefined);
-  }, [timeBlockColors]);
+  }, [isScheduleHydrated, timeBlockColors]);
 
   useEffect(() => {
     if (!isWorshipExpansionHydrated) return;

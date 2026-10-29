@@ -6,27 +6,50 @@
  * "Add everything that's missing. I want it all." This module is
  * the mechanism.
  *
- * THE AUDIT (why it is built this way):
- *  - There is no shared Text component in this codebase — 220+
- *    files import Text straight from "react-native", and there are
- *    ~2,450 literal fontSize values across app/ and components/.
- *  - The skin type scales (CLASSIC_TYPE_SCALE & friends in
- *    lib/skin-themes.ts) are real, but only a dozen files consume
- *    them; threading a factor through thousands of literal style
- *    sites by hand would be unverifiable and would still miss
- *    every surface nobody touched.
- *  - The ONE seam that reaches all of it is the Text component
- *    itself. React Native 0.81's public export is a getter that
- *    re-reads `require('react-native/Libraries/Text/Text').default`
- *    on EVERY access, and no file in the app destructures Text at
- *    module scope — so substituting that one default export puts a
- *    single, tested transform in front of every <Text> the app
- *    renders, on every surface (People, Schedule, Study/Bible,
- *    Journal, Fasting, More, Settings, and every stack screen),
- *    for every skin. The transform multiplies the style's fontSize
- *    and lineHeight by the live factor; rows grow because line
- *    heights scale with the type, and nothing is pinned to a fixed
- *    height by this layer.
+ * v321 — WHY v316 NEVER REACHED THE DEVICE (his verdict,
+ * 2026-10-28 20:18, screenshots 10867/10868: XL and Default render
+ * identically, Settings' own labels included). The v316 installer
+ * patched the wrong objects and never checked the one expression
+ * every screen evaluates:
+ *  - App code compiled by this repo's Babel reads Text as a
+ *    property access on the REAL exports object of
+ *    `require("react-native")` at render time (`_reactNative.Text`
+ *    — verified against babel.config.js). Whoever owns that
+ *    object's `Text` property owns every screen.
+ *  - v316's fallback seam instead ran Object.defineProperty on
+ *    a namespace import of the package — which Babel compiles to
+ *    `_interopRequireWildcard(require("react-native"))`, a
+ *    per-module SNAPSHOT COPY of the exports. Redefining `Text`
+ *    on the copy changed nothing any other module reads, yet the
+ *    installer latched `textScalePatchInstalled = true` and
+ *    reported success.
+ *  - v316's primary seam assigned the deep Text module's
+ *    `.default` on the object its own require resolved, but never
+ *    verified that `require("react-native").Text` — the public
+ *    getter every consumer goes through — had actually changed.
+ *    On device it had not.
+ * The v321 installer therefore (a) patches the deep module,
+ * (b) redefines `Text` on the REAL public exports object obtained
+ * by a direct require (never the wildcard copy), (c) installs
+ * from the first import of the app entry (app/_layout.tsx), and
+ * (d) only calls itself installed after READING
+ * `require("react-native").Text` back and finding ScaledText.
+ *
+ * THE MECHANISM (unchanged in shape): there is no shared Text
+ * component in this codebase — 220+ files import Text straight
+ * from "react-native", and there are ~2,450 literal fontSize
+ * values across app/ and components/, most delivered through
+ * StyleSheet styles (registered ids and arrays), not inline
+ * props. The skin type scales (CLASSIC_TYPE_SCALE & friends in
+ * lib/skin-themes.ts) are real, but only a dozen files consume
+ * them; threading a factor through thousands of literal style
+ * sites by hand would be unverifiable and would still miss every
+ * surface nobody touched. The ONE seam that reaches all of it is
+ * the Text component itself, via the public exports object above.
+ * The substitute multiplies the FLATTENED style's fontSize and
+ * lineHeight by the live factor (StyleSheet.flatten resolves
+ * registered ids and arrays first), so StyleSheet-delivered type
+ * scales exactly like inline type.
  *
  * The factor lives in a tiny external store. The theme provider
  * owns the persisted preference (prayercircle.app-settings.v1,
@@ -56,7 +79,6 @@
  * rather than the app failing to start. It can never throw.
  */
 import * as React from "react";
-import * as ReactNativeNamespace from "react-native";
 import { StyleSheet, Text as CapturedPublicText } from "react-native";
 import type { StyleProp, TextProps, TextStyle } from "react-native";
 
@@ -169,10 +191,7 @@ let textScalePatchInstalled = false;
  * The substitution itself, as a pure operation on a Text
  * module object: replace its default export with ScaledText.
  * False when the object carries no patchable default. Split
- * out so the tests can pin the operation exactly; the module
- * RESOLUTION (which object is the app's Text module) is the
- * environment's business — Metro's registry on device, proven
- * by the getter in react-native's index.js.
+ * out so the tests can pin the operation exactly.
  */
 export function patchTextModuleDefault(textModule: unknown): boolean {
   if (!textModule || (typeof textModule !== "object" && typeof textModule !== "function")) {
@@ -195,46 +214,112 @@ export function patchTextModuleDefault(textModule: unknown): boolean {
 }
 
 /**
- * Points React Native's Text export at ScaledText. Primary seam:
- * the public getter re-reads the deep module's `.default` on
- * every access, so replacing it reaches every importer, however
- * their imports were compiled. Fallback seam: redefine the
- * property on the public namespace object itself. Idempotent;
- * returns whether the patch is in place; never throws.
+ * The REAL public exports object of "react-native", obtained by
+ * a direct require. This distinction is the v321 fix: an ESM
+ * namespace import (`import * as RN from "react-native"`) is
+ * compiled by Babel to `_interopRequireWildcard(...)`, a
+ * per-module snapshot copy — redefining a property on the copy
+ * (v316's fallback seam) is invisible to every other module.
+ * A plain require returns the one object every consumer's
+ * compiled code reads (`_reactNative.Text` at render time).
+ */
+function realReactNativeExports(): Record<string, unknown> | null {
+  try {
+    const rn = require("react-native") as Record<string, unknown> | null;
+    return rn && (typeof rn === "object" || typeof rn === "function") ? rn : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Redefines `Text` on the real public exports object so it
+ * resolves to ScaledText. The stock export is a getter (an
+ * object-literal accessor: configurable), so defineProperty can
+ * replace it with a plain data property. Verified by the
+ * caller through a fresh read, never assumed.
+ */
+export function patchPublicTextExport(rnExports: unknown): boolean {
+  if (!rnExports || (typeof rnExports !== "object" && typeof rnExports !== "function")) {
+    return false;
+  }
+  const target = rnExports as Record<string, unknown>;
+  try {
+    if (target.Text === (ScaledText as unknown)) return true;
+  } catch {
+    // A getter that throws on read (unresolvable deep module in
+    // a test environment) — the defineProperty below is still
+    // the right move; it replaces the getter outright.
+  }
+  try {
+    Object.defineProperty(target, "Text", {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: ScaledText,
+    });
+  } catch {
+    return false;
+  }
+  try {
+    return target.Text === (ScaledText as unknown);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The live check v316 never ran: does the public expression
+ * every screen evaluates — `require("react-native").Text` —
+ * resolve to the substitute RIGHT NOW? Never throws.
+ */
+export function isTextScalePatchLive(): boolean {
+  const rn = realReactNativeExports();
+  if (!rn) return false;
+  try {
+    return rn.Text === (ScaledText as unknown);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Points React Native's Text export at ScaledText, on BOTH real
+ * seams (the deep module the public getter reads, and the public
+ * exports object itself), then VERIFIES by reading the public
+ * export back. Only a verified install latches the idempotent
+ * flag — an environment where the patch cannot take reports
+ * false and may be retried, instead of v316's false success.
+ * Never throws.
  */
 export function installTextScalePatch(): boolean {
   if (textScalePatchInstalled) return true;
+  // Seam 1: the deep Text module (the public getter in
+  // react-native's index.js re-reads its `.default`).
   try {
     const textModule = require("react-native/Libraries/Text/Text") as { default?: unknown } | null;
-    if (patchTextModuleDefault(textModule)) {
-      textScalePatchInstalled = true;
-      return true;
-    }
+    patchTextModuleDefault(textModule);
   } catch {
     // The deep module is unreachable in this environment (test
-    // doubles, exotic bundlers) — try the namespace seam below.
+    // doubles, exotic bundlers) — seam 2 is the load-bearing one.
   }
-  try {
-    const namespace = ReactNativeNamespace as unknown as Record<string, unknown>;
-    const descriptor = Object.getOwnPropertyDescriptor(namespace, "Text");
-    if (descriptor && (descriptor.configurable || descriptor.writable)) {
-      Object.defineProperty(namespace, "Text", {
-        configurable: true,
-        enumerable: true,
-        writable: true,
-        value: ScaledText,
-      });
-      textScalePatchInstalled = true;
-      return true;
-    }
-  } catch {
-    // A frozen namespace (pure-ESM interop) — the stock Text
-    // stays, and the app runs exactly as it did before v316.
+  // Seam 2: the real public exports object — the object every
+  // compiled consumer reads at render time.
+  const rn = realReactNativeExports();
+  if (rn) patchPublicTextExport(rn);
+  // Verify against the public expression, not the seams' local
+  // reports. A throwing read (unresolvable getter in a test
+  // environment whose patch also could not land) is a failed
+  // install, reported honestly.
+  if (isTextScalePatchLive()) {
+    textScalePatchInstalled = true;
+    return true;
   }
-  return textScalePatchInstalled;
+  return false;
 }
 
-// Installed at module scope: this module is imported by the theme
-// provider (and by the Settings screen for the preference type),
-// both of which evaluate before any screen renders.
+// Installed at module scope, and this module is the FIRST import
+// of the app entry (app/_layout.tsx), ahead of the theme provider
+// (which also imports it) — the patch is in place before any
+// screen module evaluates, let alone renders.
 installTextScalePatch();

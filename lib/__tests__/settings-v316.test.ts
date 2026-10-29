@@ -6,13 +6,22 @@
  * control because no mechanism existed. lib/text-scale.tsx is
  * the mechanism: the persisted preference (this file pins the
  * parse + the factor mapping + the provider exposure), a pure
- * style transform (real behaviour), the substitution operation
- * pinned pure against a module object, and a server render
- * through the substitute — which is what every screen's <Text>
- * now flows through. The device-side binding (Metro resolving
- * the deep Text module whose .default the public getter
- * re-reads) is read from react-native's own package source,
- * not reproducible under vitest, and the test says so.
+ * style transform (real behaviour), and the substitution.
+ * v321 CORRECTED THE SUBSTITUTION after Jonathan's phone
+ * disproved v316 (2026-10-28 20:18, screenshots 10867/10868: XL
+ * and Default rendered identically, Settings' own labels
+ * included): v316's installer patched a Babel wildcard SNAPSHOT
+ * COPY of the react-native exports (invisible to every other
+ * module) and never verified the public export, yet latched
+ * itself "installed". The v321 installer redefines Text on the
+ * REAL public exports object (plus the deep module), installs
+ * from the first import of app/_layout.tsx, and only latches
+ * after reading require("react-native").Text back as the
+ * substitute. The end-to-end proof — a consumer reading Text
+ * through the public getter, a StyleSheet-REGISTERED style
+ * scaling 16 → 19.52 — lives in text-scale-v321.test.ts; this
+ * file keeps the preference/store pins and the pure-operation
+ * pins.
  *
  * ITEM 2 — QUIET HOURS, FULL ENFORCEMENT. v315 pinned the
  * weekly/monthly EVENING half as "left as scheduled" and
@@ -38,10 +47,11 @@ const personScreen = read("app/(tabs)/person.tsx");
 const settingsSlice = index.slice(index.indexOf("const renderSettingsScreen"), index.indexOf("const [bibleChapters"));
 
 // ─── Harness: a fake RN Text + a mocked deep Text module ───────
-// The deep-module mock IS the seam the patch installs on: the
-// real react-native package resolves 'react-native/Libraries/
-// Text/Text' through its "./*" export, and the public Text
-// getter re-reads that module's .default on every access.
+// The deep-module mock is one of the two seams the patch
+// installs on (the other is the public exports object itself);
+// react-native 0.81's public Text getter re-reads this module's
+// .default on every access, and v321's installer also redefines
+// Text on the real exports object and verifies the public read.
 
 const rig = vi.hoisted(() => {
   const ReactHoisted = require("react") as typeof React;
@@ -224,16 +234,16 @@ describe("v316 text size — the store drives live re-render", () => {
   });
 });
 
-describe("v316 text size — the Text substitution reaches every renderer", () => {
+describe("v316 text size — the Text substitution (v321: installed on the real exports, verified)", () => {
   it("the patch operation replaces a Text module's default export, idempotently", () => {
     // The operation is pinned pure: given the module object,
-    // its default becomes the substitute. (Resolving WHICH
-    // object is the app's Text module is the bundler's side —
-    // on device, Metro's registry plus the getter in
-    // react-native's index.js that re-reads this very default;
-    // under vitest a bare require bypasses the mock registry
-    // and hits the Flow-typed source, which is exactly the
-    // failure the installer's try/catch exists to absorb.)
+    // its default becomes the substitute. v321 keeps this seam
+    // and adds the load-bearing one — patchPublicTextExport on
+    // the real require("react-native") result — plus the
+    // read-back verification (isTextScalePatchLive). The full
+    // chain against a Metro-faithful rig (public getter +
+    // registry-backed StyleSheet) is proven in
+    // text-scale-v321.test.ts.
     const moduleObject: { default: unknown } = { default: rig.FakeText };
     expect(patchTextModuleDefault(moduleObject)).toBe(true);
     expect(moduleObject.default).toBe(ScaledText);
@@ -241,6 +251,22 @@ describe("v316 text size — the Text substitution reaches every renderer", () =
     expect(patchTextModuleDefault(null)).toBe(false);
     expect(patchTextModuleDefault({})).toBe(false);
     expect(patchTextModuleDefault({ default: null })).toBe(false);
+  });
+
+  it("v321 wiring: the installer patches the public export, verifies the public read, and installs from the entry's first import", () => {
+    const textScale = read("lib/text-scale.tsx");
+    const layout = read("app/_layout.tsx");
+    // Both seams + the verification v316 never ran.
+    expect(textScale).toContain("export function patchPublicTextExport(");
+    expect(textScale).toContain("export function isTextScalePatchLive()");
+    expect(textScale).toContain('require("react-native")');
+    // The v316 false seam is gone: the module no longer imports
+    // the Babel wildcard namespace copy to patch it.
+    expect(textScale).not.toContain("import * as ReactNativeNamespace");
+    // Earliest entry: text-scale is _layout's first import, so
+    // the patch lands before any screen module evaluates.
+    expect(layout.indexOf('import "@/lib/text-scale";')).toBeGreaterThanOrEqual(0);
+    expect(layout.indexOf('import "@/lib/text-scale";')).toBeLessThan(layout.indexOf('import "@/global.css";'));
   });
 
   it("installing in this environment never throws and reports a boolean", () => {

@@ -1,3 +1,10 @@
+// v321: the text-scale substitution installs FIRST, before any
+// other app module evaluates — lib/text-scale.tsx patches the
+// real react-native exports object at its module scope, and this
+// side-effect import is what guarantees it runs ahead of every
+// screen (v316 installed only via the theme provider and never
+// verified the public export; the device rendered unscaled).
+import "@/lib/text-scale";
 import "@/global.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";

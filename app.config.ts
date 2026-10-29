@@ -39,17 +39,30 @@ const env = {
 };
 
 // The default app icon is the single source for the launch splash too
-// (v166): the splash draws ICON_ART on ICON_FIELD_COLOR — the icon's own
-// art on the icon's own field — so the two can never drift apart again.
-// The previous splash had a private asset (a flame emblem with a
-// checkerboard baked into its "transparent" background) on the old
-// icon era's dark purple, and it silently stopped matching the icon
-// when the icon changed. ICON_FIELD_COLOR is the cream paper field
-// sampled from the icon art itself (#F7F0DE at every corner/edge); it
-// is mirrored by SPLASH_BACKGROUND_COLOR in lib/splash.ts and the pair
-// is pinned by lib/__tests__/splash.test.ts.
+// (v166): the splash draws the icon's art on the icon's own field —
+// ICON_FIELD_COLOR, the cream paper field sampled from the icon art
+// itself (#F7F0DE at every corner/edge) — so the two can never drift
+// apart again. The previous splash had a private asset (a flame emblem
+// with a checkerboard baked into its "transparent" background) on the
+// old icon era's dark purple, and it silently stopped matching the icon
+// when the icon changed.
+//
+// v340 narrows the splash's image from the whole icon painting to the
+// EMBLEM: icon.png is a full-bleed square painting and the native
+// splash drew it as one — a visible square tile behind the logo
+// (Jonathan's report, Oct 29). SPLASH_EMBLEM_ART is the circular
+// paper-disc emblem on a fully transparent canvas, generated from the
+// adaptive icon's foreground art by scripts/generate-splash-emblem.mjs
+// and pinned byte-identical to it, so the anti-drift discipline
+// survives. SPLASH_DARK_FIELD_COLOR is the app's own dark ground
+// (theme.config.js background.dark) — before v340 the splash's dark
+// block pointed at the cream, so the splash blazed white at night.
+// Both constants are mirrored in lib/splash.ts and the pairs are
+// pinned by lib/__tests__/splash.test.ts.
 const ICON_ART = "./assets/images/icon.png";
 const ICON_FIELD_COLOR = "#F7F0DE";
+const SPLASH_EMBLEM_ART = "./assets/images/splash-emblem.png";
+const SPLASH_DARK_FIELD_COLOR = "#171022";
 
 // Build variant: set APP_VARIANT=test (e.g. in CI) to produce a separately
 // installable test build. It gets its own app name and package id so it
@@ -133,14 +146,17 @@ const config: ExpoConfig = {
     [
       "expo-splash-screen",
       {
-        // The splash IS the app icon (v166): same art file, same field
-        // color, full-bleed background — no private splash asset.
-        image: ICON_ART,
+        // The splash IS the app icon's emblem (v166, narrowed v340):
+        // the circular disc on a transparent canvas — never the
+        // square icon painting — on the icon's field color in light
+        // mode and the app's dark ground at night.
+        image: SPLASH_EMBLEM_ART,
         imageWidth: 200,
         resizeMode: "contain",
         backgroundColor: ICON_FIELD_COLOR,
         dark: {
-          backgroundColor: ICON_FIELD_COLOR,
+          image: SPLASH_EMBLEM_ART,
+          backgroundColor: SPLASH_DARK_FIELD_COLOR,
         },
       },
     ],

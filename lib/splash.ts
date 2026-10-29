@@ -1,10 +1,10 @@
-// Splash screen constants and timing (v166).
+// Splash screen constants and timing (v166, revised v340).
 //
 // The launch splash must be indistinguishable from the app icon: the
-// native splash (app.config.ts, expo-splash-screen) draws the SAME art
-// file as the default launcher icon on the icon's own field color, and
-// this module is the single source the in-app animated splash reads so
-// the two can't drift apart again.
+// native splash (app.config.ts, expo-splash-screen) and this module's
+// in-app animated splash both draw the icon's emblem on the icon's own
+// field color, and this module is the single source they read so the
+// two can't drift apart again.
 //
 // Why this exists: the old splash used a standalone splash-icon.png —
 // an AI-generated flame emblem whose "transparent" background was a
@@ -12,7 +12,18 @@
 // the pre-paper icon era's dark purple (#201334). Neither the art nor
 // the color had anything to do with the current icon, and because the
 // splash referenced its own private asset, nothing noticed when the
-// icon changed in v160. The splash now points at the icon asset itself.
+// icon changed in v160.
+//
+// v166 pointed the splash at the icon asset itself (icon.png). v340
+// narrows that to the emblem: icon.png is a full-bleed SQUARE painting
+// and the native splash draws it as one, which on his phone read as a
+// square tile behind the logo (Jonathan's reports, Oct 29). The splash
+// now draws assets/images/splash-emblem.png — the circular paper-disc
+// emblem on a fully transparent canvas, generated from the adaptive
+// icon's foreground art by scripts/generate-splash-emblem.mjs and
+// pinned byte-identical to it by lib/__tests__/splash.test.ts, so the
+// anti-drift discipline survives in the new form. A transparent-canvas
+// emblem can only ever render as the circle.
 //
 // This module stays dependency-free (no AsyncStorage, no image
 // requires) so it is importable from tests; the overlay component wires
@@ -62,12 +73,63 @@ export function splashBackgroundForIcon(
   return SPLASH_BACKGROUND_COLOR;
 }
 
+/**
+ * Dark-scheme splash ground for the DEFAULT icon (v340) — the app's own
+ * dark background (theme.config.js `background.dark`, the deep
+ * violet-dark the first screen paints at night). Before v340 the
+ * splash had no dark variant at all: the native config's dark block
+ * pointed at the cream field color, so the launch splash blazed cream
+ * at night (Jonathan's report, Oct 29). Mirrored by
+ * SPLASH_DARK_FIELD_COLOR in app.config.ts; the splash test pins the
+ * pair together and against theme.config.js.
+ */
+export const SPLASH_DARK_BACKGROUND_COLOR = "#171022";
+
+/**
+ * Splash ground for an icon selection under an appearance scheme.
+ * Dark scheme: the unlockable icons' fields are already deep colors
+ * (see APP_ICON_SPLASH_BACKGROUNDS), so a picked icon keeps its own
+ * field; the default icon — and any unknown id — takes the app's dark
+ * ground instead of the cream. Light scheme is exactly
+ * splashBackgroundForIcon.
+ */
+export function splashBackgroundForIconInScheme(
+  iconId: string | undefined | null,
+  scheme: "light" | "dark",
+): string {
+  if (scheme === "dark") {
+    if (iconId && iconId !== "original" && APP_ICON_SPLASH_BACKGROUNDS[iconId]) {
+      return APP_ICON_SPLASH_BACKGROUNDS[iconId];
+    }
+    return SPLASH_DARK_BACKGROUND_COLOR;
+  }
+  return splashBackgroundForIcon(iconId);
+}
+
 /** Emblem size on the in-app splash — matches the native splash's
  *  imageWidth (200) in app.config.ts so the handoff doesn't jump. */
 export const SPLASH_EMBLEM_SIZE = 200;
 
-/** Breathing period (one direction) for the emblem's slow sine pulse. */
-export const SPLASH_BREATHE_MS = 2600;
+/**
+ * Breathing period (one direction) for the emblem's sine pulse. v166
+ * shipped 2600ms at a 4.5% scale amplitude: within the splash's short
+ * visible window (600ms minimum + fade) that reads as no motion at
+ * all — Jonathan's "it's not animated" report (Oct 29). v340 shortens
+ * the period and raises the amplitude (SPLASH_BREATHE_SCALE below) so
+ * one clear swell lands inside the minimum display, WITHOUT touching
+ * the display bounds — startup is no slower than before.
+ */
+export const SPLASH_BREATHE_MS = 1900;
+
+/** Peak scale swell of the breathing emblem (1 + this at full breath). */
+export const SPLASH_BREATHE_SCALE = 0.06;
+
+/** Halo opacity at rest / at full breath (the soft gold glow, v166). */
+export const SPLASH_GLOW_OPACITY_MIN = 0.14;
+export const SPLASH_GLOW_OPACITY_MAX = 0.4;
+
+/** Peak scale swell of the halo, moving with the breath. */
+export const SPLASH_GLOW_SCALE = 0.14;
 
 /** The splash never fades before this long — the animation gets a beat
  *  and a fast load doesn't flash. */

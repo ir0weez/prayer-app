@@ -11,21 +11,43 @@ import Animated, {
 import { getAppIconDef, loadSelectedAppIconId } from "@/lib/app-icons";
 import {
   SPLASH_BREATHE_MS,
+  SPLASH_BREATHE_SCALE,
   SPLASH_EMBLEM_SIZE,
   SPLASH_FADE_MS,
+  SPLASH_GLOW_OPACITY_MAX,
+  SPLASH_GLOW_OPACITY_MIN,
+  SPLASH_GLOW_SCALE,
   shouldStartSplashFade,
-  splashBackgroundForIcon,
+  splashBackgroundForIconInScheme,
 } from "@/lib/splash";
+import { useThemeContext } from "@/lib/theme-provider";
+
+// The default icon's emblem: the circular paper disc on a transparent
+// canvas (generated from the adaptive icon's foreground art — see
+// scripts/generate-splash-emblem.mjs). The same asset the native
+// splash draws, so the handoff twin matches pixel for pixel.
+const SPLASH_EMBLEM_SOURCE = require("@/assets/images/splash-emblem.png");
 
 /**
- * Animated in-app splash (v166).
+ * Animated in-app splash (v166, restored v340).
  *
- * The native splash (static, configured in app.config.ts) shows the app
- * icon's own art on the icon's field color; the moment the root layout
- * mounts, this overlay takes over with a pixel-matched twin — same
- * background, same emblem at the same 200dp — so the handoff is
- * seamless, and the emblem breathes (a slow sine scale + glow, native
- * driver, no bounce) while the app finishes loading.
+ * The native splash (static, configured in app.config.ts) shows the
+ * app icon's emblem — the circular paper disc on transparency — on the
+ * icon's field color; the moment the root layout mounts, this overlay
+ * takes over with a pixel-matched twin — same background, same emblem
+ * at the same 200dp — so the handoff is seamless, and the emblem
+ * breathes (a sine scale + glow, native driver, no bounce) while the
+ * app finishes loading.
+ *
+ * v340 (Jonathan's reports, Oct 29): the splash he actually saw was
+ * the square icon painting sitting static on cream, day and night.
+ * Three repairs — the emblem is the transparent-canvas disc, never
+ * the square painting (the default draws SPLASH_EMBLEM_SOURCE; a
+ * picked icon's full-bleed art is clipped to the same circle); the
+ * ground follows the appearance scheme (dark scheme = the app's dark
+ * ground for the default icon, a picked icon's own deep field
+ * otherwise); and the breath is sized to be seen inside the splash's
+ * short visible window (see SPLASH_BREATHE_MS in lib/splash.ts).
  *
  * It never delays the app: it fades on opacity as soon as the root
  * layout reports ready (with a ~600ms minimum so it doesn't flash, and
@@ -40,6 +62,7 @@ import {
  * while the scene is otherwise identical.
  */
 export function SplashOverlay({ ready }: { ready: boolean }) {
+  const { colorScheme } = useThemeContext();
   const [iconId, setIconId] = useState<string>("original");
   const [fading, setFading] = useState(false);
   const [gone, setGone] = useState(false);
@@ -107,11 +130,13 @@ export function SplashOverlay({ ready }: { ready: boolean }) {
 
   const containerStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
   const emblemStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + breathe.value * 0.045 }],
+    transform: [{ scale: 1 + breathe.value * SPLASH_BREATHE_SCALE }],
   }));
   const glowStyle = useAnimatedStyle(() => ({
-    opacity: 0.16 + breathe.value * 0.2,
-    transform: [{ scale: 1 + breathe.value * 0.1 }],
+    opacity:
+      SPLASH_GLOW_OPACITY_MIN +
+      breathe.value * (SPLASH_GLOW_OPACITY_MAX - SPLASH_GLOW_OPACITY_MIN),
+    transform: [{ scale: 1 + breathe.value * SPLASH_GLOW_SCALE }],
   }));
 
   if (gone) return null;
@@ -123,18 +148,33 @@ export function SplashOverlay({ ready }: { ready: boolean }) {
       pointerEvents={fading ? "none" : "auto"}
       style={[
         styles.container,
-        { backgroundColor: splashBackgroundForIcon(iconId) },
+        { backgroundColor: splashBackgroundForIconInScheme(iconId, colorScheme) },
         containerStyle,
       ]}
     >
       <View style={styles.center}>
         <Animated.View style={[styles.glow, glowStyle]} />
         <Animated.View style={emblemStyle}>
-          <Image
-            source={iconDef.file}
-            style={{ width: SPLASH_EMBLEM_SIZE, height: SPLASH_EMBLEM_SIZE }}
-            resizeMode="contain"
-          />
+          {iconId === "original" ? (
+            <Image
+              source={SPLASH_EMBLEM_SOURCE}
+              style={{ width: SPLASH_EMBLEM_SIZE, height: SPLASH_EMBLEM_SIZE }}
+              resizeMode="contain"
+            />
+          ) : (
+            // A picked icon's art is a full-bleed square painting;
+            // clip it to the emblem's circle so the splash never
+            // shows a square behind the logo (v340). The ring between
+            // the disc and the clip edge is the art's own field color,
+            // identical to the splash ground behind it.
+            <View style={styles.emblemClip}>
+              <Image
+                source={iconDef.file}
+                style={{ width: SPLASH_EMBLEM_SIZE, height: SPLASH_EMBLEM_SIZE }}
+                resizeMode="cover"
+              />
+            </View>
+          )}
         </Animated.View>
       </View>
     </Animated.View>
@@ -152,6 +192,12 @@ const styles = StyleSheet.create({
   center: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  emblemClip: {
+    width: SPLASH_EMBLEM_SIZE,
+    height: SPLASH_EMBLEM_SIZE,
+    borderRadius: SPLASH_EMBLEM_SIZE / 2,
+    overflow: "hidden",
   },
   glow: {
     position: "absolute",

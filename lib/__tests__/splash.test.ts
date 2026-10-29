@@ -1,14 +1,27 @@
-// Splash pins (v166): the launch splash IS the app icon.
+// Splash pins (v166, revised v340): the launch splash IS the app icon.
 //
-// What shipped before: the native splash drew a private asset
+// What shipped before v166: the native splash drew a private asset
 // (assets/images/splash-icon.png) — a flame emblem whose "transparent"
 // background was a checkerboard of opaque #FEFEFE/#F2F2F2 pixels baked
 // into the PNG — centered on #201334, the pre-paper icon era's purple.
 // Jonathan's screenshot showed exactly that: a white checkerboard disc
-// on dark purple, matching nothing. The splash now references the
-// default icon's own art file on the icon's own field color, and this
-// suite pins the wiring AND the asset pixels so a corrupt or drifted
-// splash asset fails loudly instead of shipping quietly again.
+// on dark purple, matching nothing. v166 pointed the splash at the
+// default icon's own art file on the icon's own field color.
+//
+// v340 (Jonathan's reports, Oct 29) narrows the image from the whole
+// icon painting to the emblem and gives the splash a dark variant:
+// icon.png is a full-bleed square painting and the native splash drew
+// it as one (a square tile behind the logo); the splash had no dark
+// variant at all (its dark block pointed at the cream — a white blast
+// at night); and the v166 breath (2600ms at 4.5%) was imperceptible
+// inside the splash's short visible window ("it's not animated"). The
+// splash now draws splash-emblem.png — the circular disc on a
+// transparent canvas, generated from the adaptive icon's foreground
+// art and pinned byte-identical to it below — on the cream field in
+// light mode and the app's dark ground at night, breathing at a
+// visible amplitude. This suite pins the wiring AND the asset pixels
+// so a corrupt or drifted splash asset fails loudly instead of
+// shipping quietly again.
 
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -18,12 +31,18 @@ import { describe, expect, it } from "vitest";
 import {
   APP_ICON_SPLASH_BACKGROUNDS,
   SPLASH_BACKGROUND_COLOR,
+  SPLASH_BREATHE_MS,
+  SPLASH_BREATHE_SCALE,
+  SPLASH_DARK_BACKGROUND_COLOR,
   SPLASH_EMBLEM_SIZE,
   SPLASH_FADE_MS,
+  SPLASH_GLOW_OPACITY_MAX,
+  SPLASH_GLOW_OPACITY_MIN,
   SPLASH_MAX_DISPLAY_MS,
   SPLASH_MIN_DISPLAY_MS,
   shouldStartSplashFade,
   splashBackgroundForIcon,
+  splashBackgroundForIconInScheme,
 } from "../splash";
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
@@ -102,23 +121,43 @@ const hexToRgb = (hex: string): number[] => [
   parseInt(hex.slice(5, 7), 16),
 ];
 
-describe("splash config is the app icon (app.config.ts)", () => {
+describe("splash config is the app icon's emblem (app.config.ts)", () => {
   const config = read("app.config.ts");
 
-  it("splash and launcher icon share one art constant", () => {
+  it("the launcher icon keeps the full painting; the splash draws the emblem", () => {
     expect(config).toContain('const ICON_ART = "./assets/images/icon.png"');
     expect(config).toContain("icon: ICON_ART,");
-    expect(config).toContain("image: ICON_ART,");
+    // v340 supersedes the v166 pin "image: ICON_ART" (the splash drew
+    // the square painting itself): the splash image is now the
+    // transparent-canvas emblem, in light AND dark blocks.
+    expect(config).toContain(
+      'const SPLASH_EMBLEM_ART = "./assets/images/splash-emblem.png"',
+    );
+    const splashBlock = config.slice(config.indexOf('"expo-splash-screen"'));
+    expect(splashBlock).toContain("image: SPLASH_EMBLEM_ART,");
+    expect(splashBlock).toContain("image: SPLASH_EMBLEM_ART,");
+    expect(splashBlock).not.toContain("image: ICON_ART");
   });
 
-  it("splash background is the icon field color, in light and dark", () => {
+  it("splash background is the icon field color in light, the app dark ground at night", () => {
     expect(config).toContain('const ICON_FIELD_COLOR = "#F7F0DE"');
     const splashBlock = config.slice(config.indexOf('"expo-splash-screen"'));
     expect(splashBlock).toContain("backgroundColor: ICON_FIELD_COLOR,");
-    expect(splashBlock).toContain("backgroundColor: ICON_FIELD_COLOR");
     // the adaptive icon's fallback field is the same constant
     expect(config).toContain("backgroundColor: ICON_FIELD_COLOR,");
     expect(SPLASH_BACKGROUND_COLOR).toBe("#F7F0DE");
+    // v340: the dark block no longer points at the cream — it carries
+    // the dark ground constant, mirrored in lib/splash.ts and equal
+    // to the app theme's own dark background.
+    expect(config).toContain('const SPLASH_DARK_FIELD_COLOR = "#171022"');
+    expect(splashBlock).toContain("backgroundColor: SPLASH_DARK_FIELD_COLOR");
+    expect(SPLASH_DARK_BACKGROUND_COLOR).toBe("#171022");
+    const themeConfig = requireCjs("../../theme.config.js") as {
+      themeColors: Record<string, { light: string; dark: string }>;
+    };
+    expect(SPLASH_DARK_BACKGROUND_COLOR).toBe(themeConfig.themeColors.background.dark);
+    expect(SPLASH_DARK_BACKGROUND_COLOR).not.toBe(SPLASH_BACKGROUND_COLOR);
+    expect(SPLASH_DARK_BACKGROUND_COLOR).not.toBe("#000000");
   });
 
   it("the old private splash asset is gone and unreferenced", () => {
@@ -170,6 +209,63 @@ describe("the icon asset itself is clean (pixel evidence)", () => {
   });
 });
 
+describe("the splash emblem asset is the icon's disc on transparency (v340)", () => {
+  const emblem = decodePng("assets/images/splash-emblem.png");
+
+  it("is byte-identical to the adaptive icon's foreground art", () => {
+    // The anti-drift pin in its v340 form: the emblem is generated
+    // from the launcher's foreground art by
+    // scripts/generate-splash-emblem.mjs — regenerate, never hand-edit.
+    const a = readFileSync(join(process.cwd(), "assets/images/splash-emblem.png"));
+    const b = readFileSync(
+      join(process.cwd(), "assets/images/android-icon-foreground.png"),
+    );
+    expect(a.equals(b)).toBe(true);
+    expect(existsSync(join(process.cwd(), "scripts/generate-splash-emblem.mjs"))).toBe(true);
+  });
+
+  it("corners and surround are fully transparent — no square can show", () => {
+    const { width, height } = emblem;
+    const at = (fx: number, fy: number) =>
+      emblem.pixel(Math.floor(width * fx), Math.floor(height * fy));
+    for (const [fx, fy] of [
+      [0, 0],
+      [0.999, 0],
+      [0, 0.999],
+      [0.999, 0.999],
+      [0.5, 0.02],
+      [0.02, 0.5],
+      [0.98, 0.5],
+      [0.5, 0.98],
+      // the disc's own bounding-box corners are transparent too —
+      // the opaque shape is a circle, not a rounded square
+      [0.11, 0.11],
+      [0.89, 0.11],
+      [0.11, 0.89],
+      [0.89, 0.89],
+    ]) {
+      expect(at(fx, fy)[3], `alpha at ${fx},${fy}`).toBe(0);
+    }
+  });
+
+  it("the disc itself is opaque at its edge midpoints and center", () => {
+    const { width, height } = emblem;
+    const at = (fx: number, fy: number) =>
+      emblem.pixel(Math.floor(width * fx), Math.floor(height * fy));
+    for (const [fx, fy] of [
+      [0.5, 0.12],
+      [0.12, 0.5],
+      [0.88, 0.5],
+      [0.5, 0.88],
+      [0.5, 0.5],
+    ]) {
+      expect(at(fx, fy)[3], `alpha at ${fx},${fy}`).toBe(255);
+    }
+    // the disc's paper matches the icon art's inner paper (#FCF6E7)
+    expect(at(0.5, 0.5).slice(0, 3)).toEqual([252, 246, 231]);
+  });
+});
+
 describe("per-icon splash backgrounds", () => {
   it("original is the default field color; unknown ids fall back to it", () => {
     expect(splashBackgroundForIcon("original")).toBe(SPLASH_BACKGROUND_COLOR);
@@ -190,6 +286,20 @@ describe("per-icon splash backgrounds", () => {
     for (const m of registry.matchAll(/\{\s*id: "([a-z]+)"/g)) {
       expect(APP_ICON_SPLASH_BACKGROUNDS[m[1]], m[1]).toBeTruthy();
     }
+  });
+
+  it("scheme-aware grounds (v340): dark swaps only the default icon to the dark ground", () => {
+    // light scheme is exactly the v166 behavior
+    expect(splashBackgroundForIconInScheme("original", "light")).toBe(SPLASH_BACKGROUND_COLOR);
+    expect(splashBackgroundForIconInScheme("ember", "light")).toBe(APP_ICON_SPLASH_BACKGROUNDS.ember);
+    expect(splashBackgroundForIconInScheme(undefined, "light")).toBe(SPLASH_BACKGROUND_COLOR);
+    // dark scheme: default + unknown ids take the app's dark ground…
+    expect(splashBackgroundForIconInScheme("original", "dark")).toBe(SPLASH_DARK_BACKGROUND_COLOR);
+    expect(splashBackgroundForIconInScheme(undefined, "dark")).toBe(SPLASH_DARK_BACKGROUND_COLOR);
+    expect(splashBackgroundForIconInScheme("no-such-icon", "dark")).toBe(SPLASH_DARK_BACKGROUND_COLOR);
+    // …while picked icons keep their own (already deep) field colors
+    expect(splashBackgroundForIconInScheme("ember", "dark")).toBe(APP_ICON_SPLASH_BACKGROUNDS.ember);
+    expect(splashBackgroundForIconInScheme("gold", "dark")).toBe(APP_ICON_SPLASH_BACKGROUNDS.gold);
   });
 });
 
@@ -220,6 +330,15 @@ describe("splash display rule", () => {
     expect(shouldStartSplashFade(SPLASH_MAX_DISPLAY_MS, false)).toBe(true);
     expect(shouldStartSplashFade(SPLASH_MAX_DISPLAY_MS + 5000, false)).toBe(true);
   });
+
+  it("the breath is sized to be seen inside the visible window (v340)", () => {
+    // v166 shipped 2600ms at 4.5% and read as static. The display
+    // bounds above are unchanged — startup is no slower — but one
+    // full swell (period × amplitude) now lands well inside them.
+    expect(SPLASH_BREATHE_MS).toBe(1900);
+    expect(SPLASH_BREATHE_SCALE).toBe(0.06);
+    expect(SPLASH_GLOW_OPACITY_MAX).toBeGreaterThan(SPLASH_GLOW_OPACITY_MIN);
+  });
 });
 
 describe("root layout wires the handoff (source pins)", () => {
@@ -247,6 +366,23 @@ describe("root layout wires the handoff (source pins)", () => {
     // the selected icon's art drives the scene when one is stored
     expect(overlay).toContain("loadSelectedAppIconId()");
     expect(overlay).toContain("getAppIconDef(iconId)");
-    expect(overlay).toContain("splashBackgroundForIcon(iconId)");
+    // v340: the ground follows the appearance scheme (dark variant),
+    // superseding the v166 pin on splashBackgroundForIcon(iconId)
+    expect(overlay).toContain("useThemeContext()");
+    expect(overlay).toContain("splashBackgroundForIconInScheme(iconId, colorScheme)");
+    // the breath runs on the shared amplitude constants, not literals
+    expect(overlay).toContain("breathe.value * SPLASH_BREATHE_SCALE");
+  });
+
+  it("the overlay's emblem is the transparent disc, never a square (v340)", () => {
+    const overlay = read("components/splash-overlay.tsx");
+    // the default icon draws the same emblem asset as the native splash
+    expect(overlay).toContain('require("@/assets/images/splash-emblem.png")');
+    expect(overlay).toContain('iconId === "original"');
+    expect(overlay).toContain("source={SPLASH_EMBLEM_SOURCE}");
+    // a picked icon's full-bleed art is clipped to the emblem's circle
+    expect(overlay).toContain("styles.emblemClip");
+    expect(overlay).toContain("borderRadius: SPLASH_EMBLEM_SIZE / 2");
+    expect(overlay).toContain('overflow: "hidden"');
   });
 });

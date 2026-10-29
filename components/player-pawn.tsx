@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Text, View } from "react-native";
-import { PAPER_HERO_W, PaperHeroFigure } from "@/components/paper-interior";
+import { PAPER_HERO_H, PAPER_HERO_W, PaperHeroFigure } from "@/components/paper-interior";
 import { buildPath } from "@/components/town-npcs";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { getTimeOfDay } from "@/lib/daynight";
@@ -42,8 +42,14 @@ export function PlayerPawnWanderer({
   onCommandArrive,
   positionRef,
   onReady,
+  figureHeightPx,
 }: {
   cellSize: number;
+  /** v333 (the fixed stage): the Hero's figure height in px,
+   *  derived from the stage's cell by the caller (1.4 rows). When
+   *  absent, the figure keeps its legacy map size
+   *  (MAP_HERO_FIGURE_W wide) — the old-town fallback is untouched. */
+  figureHeightPx?: number;
   destTile?: { x: number; y: number } | null;
   mapState: MapState;
   /** v290 (walkable town): an explicit tile path the Hero must walk —
@@ -295,6 +301,12 @@ export function PlayerPawnWanderer({
   if (!pawn || isNight) return null;
 
   const bobY = bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
+  // The figure's unit: from the caller's stage-derived height when
+  // given, else the legacy map width exactly as before.
+  const heroUnit = figureHeightPx
+    ? figureHeightPx / PAPER_HERO_H
+    : MAP_HERO_FIGURE_W / PAPER_HERO_W;
+  const heroFigH = figureHeightPx ?? (MAP_HERO_FIGURE_W * PAPER_HERO_H) / PAPER_HERO_W;
 
   return (
     <Animated.View
@@ -319,7 +331,7 @@ export function PlayerPawnWanderer({
           to its content, so the name always fits whole. */}
       <View
         pointerEvents="none"
-        style={{ position: "absolute", top: -2, left: -(200 - PAWN_SIZE) / 2, width: 200, alignItems: "center" }}
+        style={{ position: "absolute", top: Math.min(-2, 32 - heroFigH), left: -(200 - PAWN_SIZE) / 2, width: 200, alignItems: "center" }}
       >
         <Text
           numberOfLines={1}
@@ -340,7 +352,7 @@ export function PlayerPawnWanderer({
       {/* the Hero as a paper figure in the world — normal clothes,
           equipped hair, live-grown beard (PaperHeroFigure reads the
           pawn's saved appearance) */}
-      <PaperHeroFigure pawn={pawn} unit={MAP_HERO_FIGURE_W / PAPER_HERO_W} />
+      <PaperHeroFigure pawn={pawn} unit={heroUnit} />
     </Animated.View>
   );
 }

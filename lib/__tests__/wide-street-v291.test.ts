@@ -367,15 +367,18 @@ describe("v291 (e) — street pathing reaches every place's doorstep", () => {
     // is the north run's end, not the world's — the south run can
     // run longer. Drawing: hometown-street-concepts-v1.html
     // Concept 2 — The Diorama, approved 2026-10-28 22:45.)
+    // v333 re-pin: the stage is FIXED (11×16) and the mine's seat
+    // is a measured constant of the drawing — the hill spanning
+    // x 0.664–0.99 of the stage, its mouth's doorstep at (10, 6)
+    // — never a function of the roster. The full v333 contract is
+    // pinned in hometown-v333-stage.test.ts. (Rebuild authorized
+    // by Jonathan 2026-10-29 after the fourth rejection.)
     const forest = world.places.find((p) => p.kind === "forest")!;
     expect(forest.x).toBe(0);
     const mine = world.places.find((p) => p.kind === "mine")!;
-    expect(mine.y).toBe(0);
-    expect(mine.door.y).toBe(3);
-    const northEnds = world.places
-      .filter((p) => p !== mine && (p.kind === "house" || p.kind === "home" || p.kind === "gate") && p.plot.y + p.plot.h <= 9)
-      .map((p) => p.x + p.w);
-    expect(Math.max(...northEnds)).toBeLessThanOrEqual(mine.x + 1);
+    expect(mine.x).toBe(7.3);
+    expect(mine.y).toBe(0.97);
+    expect(mine.door).toEqual({ x: 10, y: 6 });
     // The retired shop became NO place at all — it produces nothing
     // and stands nowhere on the street.
     expect(streetPlaceByBuildingId(world, "shop-1")).toBeNull();
@@ -407,7 +410,11 @@ describe("v291 (e) — street pathing reaches every place's doorstep", () => {
     expect(streetPlaceAt(world, cafe.door.x, cafe.door.y)?.kind).toBe("cafe");
     const mine = world.places.find((p) => p.kind === "mine")!;
     expect(streetPlaceAt(world, mine.door.x, mine.door.y)?.kind).toBe("mine");
-    expect(streetPlaceAt(world, 1, 5)?.kind).toBe("forest");
+    // v333 re-pin: the forest is the treeline on the hill band
+    // (rows 1.9–3.85), not the old full-height west wall — a tile
+    // among its trees names it; the ground below the treeline is
+    // open stage now.
+    expect(streetPlaceAt(world, 1, 3)?.kind).toBe("forest");
     expect(streetPlaceAt(world, world.w - 1, 0)).toBeNull(); // the skyline row
   });
 });
@@ -429,8 +436,11 @@ describe("v291 (f) — tappability: every element a real Pressable, no tap swall
   it("the street's ground Pressable is the street root's first child — inside the tap's ancestor chain", () => {
     const groundAt = street.indexOf("onGroundPress({");
     expect(groundAt).toBeGreaterThan(-1);
-    // It renders before the skyline, the places and the pile.
-    expect(groundAt).toBeLessThan(street.indexOf("<StreetSkyline"));
+    // It renders before the stage picture, the places and the pile.
+    // (v333 re-pin: the v327 skyline strip is gone — the sky is the
+    // stage SVG's own band now, so the ordering witness is the SVG
+    // layer itself.)
+    expect(groundAt).toBeLessThan(street.indexOf("<Svg"));
     expect(groundAt).toBeLessThan(street.indexOf("onPlacePress(p)"));
     expect(street).toContain("nativeEvent.locationX");
   });

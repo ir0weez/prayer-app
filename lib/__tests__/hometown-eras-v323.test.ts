@@ -278,8 +278,12 @@ describe("v323 (d) — labels stand wide enough to speak", () => {
     expect(points).toContain("width: NOTICE_BOARD_W");
     expect(points).toContain("width: SHOP_STALL_W");
     expect(points).toContain("width: TESTIMONY_STONES_W");
-    // the board's art keeps its drawn size, centered in the stand
-    expect(points).toContain("<View style={{ width: 46, height: 34 }}>");
+    // the board's art keeps its drawn size, centered in the stand.
+    // v333 re-pin: the drawn size is now expressed through the
+    // point's stage scale (46×34 at scale 1 — the 40px reference
+    // cell), because the fixed stage scales its furniture from the
+    // cell (R13). The stands' widths scale the same way.
+    expect(points).toContain("<View style={{ width: 46 * s, height: 34 * s }}>");
   });
 });
 

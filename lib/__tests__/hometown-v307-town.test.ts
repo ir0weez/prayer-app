@@ -95,8 +95,12 @@ describe("v307 (a) — composition: the town is the screen", () => {
   });
 
   it("the street is drawn at a cell size fitted to the frame's inner height, floored at today's 40", () => {
+    // v333 re-pin: the fixed stage fits on BOTH axes (the whole
+    // 11×16 stage in one viewport — the drawing's contract, R1);
+    // the v307 height-only fit belonged to the roster-width world.
+    // The floor is a legibility floor only (16), never a fit-breaker.
     expect(screen).toContain(
-      "const streetCell = Math.max(40, Math.min(64, Math.floor(worldInnerH / STREET_H)));"
+      "const streetCell = Math.max(16, Math.floor(Math.min(worldInnerW / STREET_W, worldInnerH / STREET_H)));"
     );
     expect(screen).toContain("streetWorld.w * streetCell");
     expect(screen).toContain("streetWorld.h * streetCell");
@@ -157,7 +161,10 @@ describe("v307 (c) — every retired destination, reachable in the world", () =>
   it("the furniture stands inside the street subtree, after the boundary", () => {
     expect(furniture).toContain("<NoticeBoardPoint");
     expect(furniture).toContain("<TestimonyStonesPoint");
-    expect(furniture).toContain("<ShopStallPoint");
+    // v333 re-pin: the ShopStallPoint stood down — the Town Shop
+    // is a street PLACE on the front stratum now, drawn by the
+    // street view (ShopArt) and opened by its own doorstep.
+    expect(furniture).not.toContain("<ShopStallPoint");
     expect(furniture.match(/<LotPlayPoint/g)?.length).toBe(2);
   });
 
@@ -166,8 +173,14 @@ describe("v307 (c) — every retired destination, reachable in the world", () =>
     expect(furniture).toContain("onPress={() => setMissionsVisible(true)}");
   });
 
-  it("the stall opens the Town Shop; the stones carry the plaza's count", () => {
-    expect(furniture).toContain('onPress={() => router.push("/hometown-shop")}');
+  it("the shop place opens the Town Shop; the stones carry the plaza's count", () => {
+    // v333 re-pin: the stall's direct route became the shop
+    // place's arrival action in runStreetPlace — same door, same
+    // destination, reached by walking to the shop as drawn.
+    const at = screen.indexOf("const runStreetPlace");
+    const block = screen.slice(at, screen.indexOf("const handleStreetPlacePress", at));
+    expect(block).toContain('case "shop":');
+    expect(block).toContain('router.push("/hometown-shop")');
     expect(furniture).toContain("count={monumentCount}");
   });
 
@@ -219,27 +232,38 @@ describe("v307 (c) — every retired destination, reachable in the world", () =>
     // walkable street, and the corner is open ground.
     // Drawing: hometown-street-concepts-v1.html Concept 2 (+ the
     // Concept 3 corner), approved by Jonathan 2026-10-28 22:45.
+    // v333 re-pin: the free-column rule belonged to the scrolling
+    // world's packing. On the FIXED stage the cottages pack at a
+    // sub-column pitch (the roster must fit the frame — that is
+    // the contract now), so what survives is the walkability
+    // heart of the pin: every door stands on walkable street, the
+    // whole corner is open ground, and no two places' drawn rects
+    // overlap. The full stage contract (pitch, strata, lane) is
+    // pinned in hometown-v333-stage.test.ts. (Rebuild authorized
+    // by Jonathan 2026-10-29 after the fourth rejection.)
     const world = deriveStreetWorld(hisTown().maps.town);
     expect(world.board).not.toBeNull();
-    for (let dx = 0; dx < world.corner.w; dx++) {
-      expect(isStreetWalkable(world, { x: world.corner.x + dx, y: world.corner.y })).toBe(true);
+    for (let dy = 0; dy < world.corner.h; dy++) {
+      for (let dx = 0; dx < world.corner.w; dx++) {
+        expect(isStreetWalkable(world, { x: world.corner.x + dx, y: world.corner.y + dy })).toBe(true);
+      }
     }
     for (const p of world.places) {
       expect(isStreetWalkable(world, p.door)).toBe(true);
     }
-    const sideOf = (p: (typeof world.places)[number]) =>
-      p.door.y < dioramaCenterY(p.door.x, world.w) ? "north" : "south";
-    for (const side of ["north", "south"] as const) {
-      const row = world.places
-        .filter((p) => p.kind !== "forest" && p.kind !== "board" && sideOf(p) === side)
-        .sort((a, b2) => a.x - b2.x);
-      for (let i = 0; i + 1 < row.length; i++) {
-        // At least one free column between neighbours (the stall,
-        // the lamps and the fences live in them)…
-        expect(row[i + 1].x - (row[i].x + row[i].w)).toBeGreaterThanOrEqual(1);
-        // …and the column right after a place, at its door's
-        // height, is street the hero can stand on.
-        expect(isStreetWalkable(world, { x: row[i].x + row[i].w, y: row[i].door.y })).toBe(true);
+    // Building masses never overlap (slim gate poles carry tap
+    // rects wider than their posts, so gates stand outside this
+    // pin — the back-stratum schoolhouse, a true building, is in).
+    const buildings = world.places.filter(
+      (p) => ["house", "home", "cafe", "shop", "mine"].includes(p.kind) || (p.kind === "gate" && p.depth === "back")
+    );
+    for (let i = 0; i < buildings.length; i++) {
+      for (let j = i + 1; j < buildings.length; j++) {
+        const a = buildings[i];
+        const b2 = buildings[j];
+        const overlap =
+          a.x < b2.x + b2.w && b2.x < a.x + a.w && a.y < b2.y + b2.h && b2.y < a.y + a.h;
+        expect(overlap, `${a.kind} vs ${b2.kind}`).toBe(false);
       }
     }
   });

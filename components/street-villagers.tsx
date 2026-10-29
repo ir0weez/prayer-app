@@ -33,7 +33,11 @@ import {
 import type { WalkTile } from "@/lib/walkable-town";
 import type { LightInfo } from "@/components/town-npcs";
 
-const FIGURE_W = 13;
+/** v333: a figure stands 1.4 rows tall (±0.2 by the drawing's
+ *  measure), scaled from the stage's cell — the paper kit is
+ *  10×16, so width = 0.875 cells gives height = width × 1.6 =
+ *  exactly 1.4 rows. No fixed-pixel figures on the fixed stage. */
+const FIGURE_W_PER_CELL = 0.875;
 /** The villagers' stroll — the pace the town has always used. */
 const STROLL_PX_PER_SEC = 42;
 
@@ -48,6 +52,7 @@ export const StreetVillagers = memo(function StreetVillagers({
   cellSize,
   lights,
   homeDoorByPerson,
+  standByPerson,
   positionsRef,
   missionWaitingIds,
   onVillagerTap,
@@ -58,6 +63,11 @@ export const StreetVillagers = memo(function StreetVillagers({
   lights: LightInfo[];
   /** personId → the doorstep of the home the record deals them. */
   homeDoorByPerson: Map<string, WalkTile>;
+  /** v333: personId → an assigned stand-point in the gathering
+   *  corner (the derivation's cornerStands, dealt by the screen).
+   *  A villager with a stand starts there, strolls biased to it,
+   *  and rests there at night if they have no home door. */
+  standByPerson?: Map<string, WalkTile>;
   /** Live tile positions for presence-gated income (the parent's
    *  income tick reads this, exactly as it read TownNPCs'). */
   positionsRef?: React.MutableRefObject<Array<{ x: number; y: number }>>;
@@ -77,6 +87,7 @@ export const StreetVillagers = memo(function StreetVillagers({
           worldRef={worldRef}
           cellSize={cellSize}
           homeDoor={homeDoorByPerson.get(light.personId) ?? null}
+          stand={standByPerson?.get(light.personId) ?? null}
           positionsRef={positionsRef}
           missionWaiting={missionWaitingIds.has(light.personId)}
           onVillagerTap={onVillagerTap}
@@ -93,6 +104,7 @@ function StreetVillager({
   worldRef,
   cellSize,
   homeDoor,
+  stand,
   positionsRef,
   missionWaiting,
   onVillagerTap,
@@ -103,13 +115,14 @@ function StreetVillager({
   worldRef: React.MutableRefObject<StreetWorld>;
   cellSize: number;
   homeDoor: WalkTile | null;
+  stand: WalkTile | null;
   positionsRef?: React.MutableRefObject<Array<{ x: number; y: number }>>;
   missionWaiting: boolean;
   onVillagerTap: (p: VillagerTap) => void;
   eraDress?: EraDress | null;
 }) {
   const startTile = useRef<WalkTile>(
-    homeDoor ?? worldRef.current.cafe?.door ?? worldRef.current.roads[0] ?? { x: 5, y: 9 }
+    stand ?? homeDoor ?? worldRef.current.cafe?.door ?? worldRef.current.roads[0] ?? { x: 5, y: 9 }
   ).current;
   const pos = useRef(
     new Animated.ValueXY({
@@ -126,6 +139,8 @@ function StreetVillager({
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
   const homeDoorRef = useRef(homeDoor);
   homeDoorRef.current = homeDoor;
+  const standRef = useRef(stand);
+  standRef.current = stand;
   const onTapRef = useRef(onVillagerTap);
   onTapRef.current = onVillagerTap;
 
@@ -201,7 +216,11 @@ function StreetVillager({
       if (!mountedRef.current) return;
       const world = worldRef.current;
       const night = getTimeOfDay() === "night";
-      const home = homeDoorRef.current ?? world.cafe?.door ?? world.roads[0] ?? { x: 5, y: 9 };
+      // Night rest: their own doorstep, else their corner stand,
+      // else the café's door. The stroll below biases the other
+      // way — a stand-holder's day gathers at the corner.
+      const home = homeDoorRef.current ?? standRef.current ?? world.cafe?.door ?? world.roads[0] ?? { x: 5, y: 9 };
+      const anchor = standRef.current ?? home;
       if (night) {
         // Home for the night: walk to the doorstep and rest there.
         if (tileRef.current.x === home.x && tileRef.current.y === home.y) {
@@ -219,11 +238,11 @@ function StreetVillager({
         return;
       }
       // A stroll: somewhere along the road network — the climbing
-      // lane, the spurs, the gathering corner (v327: the network
-      // IS the street now; the straight band rows are gone) —
-      // biased toward home.
+      // lane, the spurs, the gathering corner (v333: the network
+      // IS the stage now) — biased toward the villager's anchor:
+      // their gathering-corner stand when they hold one, else home.
       const span = 7;
-      const near = world.roads.filter((t) => Math.abs(t.x - home.x) <= span);
+      const near = world.roads.filter((t) => Math.abs(t.x - anchor.x) <= span);
       const pool = near.length > 0 ? near : world.roads;
       const target = pool[Math.floor(Math.random() * pool.length)] ?? home;
       if (!isStreetWalkable(world, target) || (target.x === tileRef.current.x && target.y === tileRef.current.y)) {
@@ -251,15 +270,23 @@ function StreetVillager({
 
   const bobY = bob.interpolate({ inputRange: [0, 1], outputRange: [0, -1.6] });
 
+  // v333: the figure and its container scale from the stage cell —
+  // 1.4 rows tall, its feet riding the same +14 anchor the legacy
+  // 48px container kept under the position point.
+  const figW = cellSize * FIGURE_W_PER_CELL;
+  const figH = figW * 1.6;
+  const boxW = figW + 18;
+  const boxH = figH + 12;
+
   return (
     <Animated.View
       pointerEvents="box-none"
       style={{
         position: "absolute",
-        left: -17,
-        top: -34,
-        width: 34,
-        height: 48,
+        left: -boxW / 2,
+        top: -boxH + 14,
+        width: boxW,
+        height: boxH,
         alignItems: "center",
         justifyContent: "flex-end",
         transform: [...pos.getTranslateTransform(), { translateY: bobY }],
@@ -271,11 +298,11 @@ function StreetVillager({
           onTapRef.current({ id: light.personId, name: light.name, tile: { ...tileRef.current } })
         }
         accessibilityLabel={light.name}
-        style={{ width: 34, height: 48, alignItems: "center", justifyContent: "flex-end" }}
+        style={{ width: boxW, height: boxH, alignItems: "center", justifyContent: "flex-end" }}
       >
         {/* the v89 glow — a person prayed for today, warm in the town */}
         <View style={{ position: "absolute", bottom: -2, alignSelf: "center" }}>
-          <PaperGlowDisc size={34} opacity={0.5} />
+          <PaperGlowDisc size={figW + 8} opacity={0.5} />
         </View>
         {light.star && (
           <View style={{ position: "absolute", top: 2, right: 1 }}>
@@ -312,7 +339,7 @@ function StreetVillager({
               pants: mixHex(base.pants, eraDress.pants, eraDress.mix),
             };
           })()}
-          width={FIGURE_W}
+          width={figW}
         />
       </Pressable>
     </Animated.View>

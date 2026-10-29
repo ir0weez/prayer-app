@@ -304,6 +304,13 @@ export function MineArt({ w, h, night }: { w: number; h: number; night: boolean 
         <Polygon points={`0,${h} 0,${Math.round(h * 0.52)} ${Math.round(w * 0.3)},${Math.round(h * 0.3)} ${Math.round(w * 0.62)},${Math.round(h * 0.22)} ${w},${Math.round(h * 0.55)} ${w},${h}`} fill="#7A7062" />
         <Polygon points={`${Math.round(w * 0.12)},${h} ${Math.round(w * 0.3)},${Math.round(h * 0.55)} ${Math.round(w * 0.55)},${Math.round(h * 0.62)} ${Math.round(w * 0.7)},${h}`} fill="#6B6053" />
       </Svg>
+      {/* v333: a snow cap on the hill's apex, as drawn */}
+      <Svg width={w} height={h} style={{ position: "absolute", top: 0, left: 0 }}>
+        <Polygon
+          points={`${Math.round(w * 0.43)},${Math.round(h * 0.07)} ${Math.round(w * 0.52)},0 ${Math.round(w * 0.61)},${Math.round(h * 0.08)} ${Math.round(w * 0.56)},${Math.round(h * 0.12)} ${Math.round(w * 0.49)},${Math.round(h * 0.1)}`}
+          fill="#F4F7F5"
+        />
+      </Svg>
       {/* the mouth — a dark arch with a timber lintel */}
       <View
         style={{
@@ -389,6 +396,99 @@ export function ForestArt({ w, h, phase }: { w: number; h: number; phase: DayPha
             <Circle key={`ff${i}`} cx={x} cy={Math.round(h * (0.3 + (i % 3) * 0.22))} r={1.8} fill="#FDE68A" opacity={0.85} />
           ))}
       </Svg>
+    </View>
+  );
+}
+
+/**
+ * v333 — the forest as the drawing has it: INDIVIDUAL trees on the
+ * hill baseline, each its own pine at its own scale — never a wall,
+ * never a filled block. Rendered inside the street's one SVG layer;
+ * `trees` are tile units (x = centre, y = base row, s = height in
+ * rows) and `cellSize` is the stage's tile size in px, so the
+ * treeline scales with the stage like everything else on it.
+ */
+export function ForestTreesArt({
+  trees,
+  cellSize,
+  phase,
+}: {
+  trees: Array<{ x: number; y: number; s: number }>;
+  cellSize: number;
+  phase: DayPhase;
+}) {
+  const deep = phase === "night" ? "#22331F" : phase === "dusk" ? "#2E4429" : "#33502C";
+  const mid = phase === "night" ? "#2C4227" : phase === "dusk" ? "#3A5633" : "#40663A";
+  return (
+    <G>
+      {trees.map((t, i) => {
+        // PaperTree's geometry: total height 26 units, width 13.4,
+        // trunk centred at +6.7 — scale the unit so the tree stands
+        // exactly s rows tall, centred on its seat.
+        const unit = (t.s * cellSize) / 26;
+        return (
+          <PaperTree
+            key={i}
+            x={t.x * cellSize - 6.7 * unit}
+            base={t.y * cellSize}
+            s={unit}
+            dark={i % 2 === 0 ? mid : deep}
+          />
+        );
+      })}
+    </G>
+  );
+}
+
+// ── The Town Shop (v333: a real place on the front stratum) ─────────────────
+
+export function ShopArt({
+  w,
+  h,
+  windowsLit,
+  dress,
+}: {
+  w: number;
+  h: number;
+  windowsLit: boolean;
+  /** v323: a fully dressed era's papers (Millennium / New Earth). */
+  dress?: EraPlaceDress;
+}) {
+  const awning = dress?.roof ?? "#4E7A5A";
+  const wall = dress?.wall ?? "#F1E4C8";
+  const foundation = dress?.foundation ?? "#C9AE7E";
+  const scallops = Math.max(4, Math.floor(w / 16));
+  return (
+    <View pointerEvents="none" style={{ width: w, height: h }}>
+      {/* the back wall between the posts */}
+      <View style={{ position: "absolute", left: Math.round(w * 0.1), right: Math.round(w * 0.1), top: Math.round(h * 0.3), bottom: 3, backgroundColor: wall, borderRadius: 3 }} />
+      <View style={{ position: "absolute", left: Math.round(w * 0.05), right: Math.round(w * 0.05), bottom: 0, height: 4, backgroundColor: foundation, borderRadius: 2 }} />
+      {/* a lit window in the back wall */}
+      <LitWindow left={Math.round(w * 0.6)} top={Math.round(h * 0.42)} size={Math.max(9, Math.round(w * 0.09))} lit={windowsLit} />
+      {/* posts */}
+      <View style={{ position: "absolute", left: Math.round(w * 0.07), top: Math.round(h * 0.26), width: Math.max(4, Math.round(w * 0.035)), height: Math.round(h * 0.72), backgroundColor: "#6B4A2E", borderRadius: 2 }} />
+      <View style={{ position: "absolute", right: Math.round(w * 0.07), top: Math.round(h * 0.26), width: Math.max(4, Math.round(w * 0.035)), height: Math.round(h * 0.72), backgroundColor: "#6B4A2E", borderRadius: 2 }} />
+      {/* the awning roof, with its scalloped edge */}
+      <Svg width={w} height={Math.round(h * 0.34)} style={{ position: "absolute", top: 0, left: 0 }}>
+        <Polygon
+          points={`${Math.round(w * 0.06)},${Math.round(h * 0.3)} ${Math.round(w * 0.16)},${Math.round(h * 0.06)} ${Math.round(w * 0.84)},${Math.round(h * 0.06)} ${Math.round(w * 0.94)},${Math.round(h * 0.3)}`}
+          fill={awning}
+        />
+      </Svg>
+      <View style={{ position: "absolute", left: Math.round(w * 0.06), top: Math.round(h * 0.28), width: Math.round(w * 0.88), flexDirection: "row", justifyContent: "space-between" }}>
+        {Array.from({ length: scallops }).map((_, i) => (
+          <View key={i} style={{ width: Math.round(w * 0.09), height: Math.round(w * 0.09), borderRadius: Math.round(w * 0.045), backgroundColor: awning }} />
+        ))}
+      </View>
+      {/* the counter, with its goods laid out */}
+      <View style={{ position: "absolute", left: Math.round(w * 0.16), right: Math.round(w * 0.16), bottom: 4, height: Math.round(h * 0.2), backgroundColor: "#B45309", borderRadius: 3 }}>
+        <View style={{ height: Math.round(h * 0.06), backgroundColor: "#D97706", borderTopLeftRadius: 3, borderTopRightRadius: 3 }} />
+      </View>
+      <View style={{ position: "absolute", left: Math.round(w * 0.2), bottom: 4 + Math.round(h * 0.2), flexDirection: "row", gap: Math.round(w * 0.03) }}>
+        {[ "#F59E0B", "#22C55E", "#3B82F6", "#C2503C" ].map((c, i) => (
+          <View key={i} style={{ width: Math.round(w * 0.075), height: Math.round(h * 0.07), backgroundColor: c, borderRadius: 2 }} />
+        ))}
+      </View>
     </View>
   );
 }
@@ -657,19 +757,21 @@ export function EmptyLotArt({ w, h, weekLot }: { w: number; h: number; weekLot?:
 
 /** Coins waiting at the café's register — gold stacks that grow with
  *  the pile. The amount itself rides a whole-number pill beside it
- *  (the renderer draws that; coins are whole in this app). */
-export function RegisterPileArt({ amount }: { amount: number }) {
+ *  (the renderer draws that; coins are whole in this app). v333:
+ *  `scale` sizes the pile from the stage's cell (scale 1 = the
+ *  legacy 44×30 art at a 40px cell). */
+export function RegisterPileArt({ amount, scale = 1 }: { amount: number; scale?: number }) {
   const big = amount >= 100;
   const mid = amount >= 25;
   const coin = (left: number, bottom: number, s: number) => (
     <View
       style={{
         position: "absolute",
-        left,
-        bottom,
-        width: s,
-        height: s,
-        borderRadius: s / 2,
+        left: left * scale,
+        bottom: bottom * scale,
+        width: s * scale,
+        height: s * scale,
+        borderRadius: (s * scale) / 2,
         backgroundColor: "#F2B33D",
         borderWidth: 1.6,
         borderColor: "#C9963C",
@@ -677,7 +779,7 @@ export function RegisterPileArt({ amount }: { amount: number }) {
     />
   );
   return (
-    <View pointerEvents="none" style={{ width: 44, height: 30 }}>
+    <View pointerEvents="none" style={{ width: 44 * scale, height: 30 * scale }}>
       {coin(2, 0, 13)}
       {coin(14, 0, 13)}
       {coin(26, 0, 13)}

@@ -384,9 +384,10 @@ import { type WalkTile } from "@/lib/walkable-town";
 import { StreetWorldView } from "@/components/wide-street";
 import { StreetErrorBoundary } from "@/components/street-error-boundary";
 import { StreetVillagers } from "@/components/street-villagers";
-import { LotPlayPoint, NoticeBoardPoint, NOTICE_BOARD_W, ShopStallPoint, SHOP_STALL_W, TestimonyStonesPoint, TESTIMONY_STONES_W } from "@/components/street-world-points";
+import { LotPlayPoint, NoticeBoardPoint, NOTICE_BOARD_W, TestimonyStonesPoint } from "@/components/street-world-points";
 import {
   STREET_H,
+  STREET_W,
   defaultWideStreetState,
   deriveStreetWorld,
   loadWideStreetState,
@@ -7791,6 +7792,12 @@ export default function HometownScreen() {
       case "mine":
         router.push("/mine-mouth");
         break;
+      case "shop":
+        // v333: the Town Shop is a street place on the front
+        // stratum — arriving at its door opens the shop, the same
+        // route the retired stall point used to open directly.
+        router.push("/hometown-shop");
+        break;
       case "forest":
         handleMapSignSelect("forest");
         break;
@@ -8381,10 +8388,12 @@ export default function HometownScreen() {
   // The SeasonalBorder frame eats 26 top + 44 bottom + 26 per side.
   const worldInnerW = Math.max(280, (worldBox?.w ?? windowW) - 52);
   const worldInnerH = Math.max(320, (worldBox?.h ?? windowH - insets.top - insets.bottom) - 70);
-  // The street grows to fill the frame's height (its world is always
-  // STREET_H tiles tall), capped so a place still reads as a place and
-  // floored at the size it has always been drawn at.
-  const streetCell = Math.max(40, Math.min(64, Math.floor(worldInnerH / STREET_H)));
+  // v333 — the fixed stage fits the frame on BOTH axes: the whole
+  // 11×16 stage is visible in one viewport, no horizontal scrolling
+  // for the composition. The old height-only fit (floored at 40,
+  // capped at 64) belonged to the roster-width world; on the fixed
+  // stage the smaller axis rules, so the stage can never overflow.
+  const streetCell = Math.max(16, Math.floor(Math.min(worldInnerW / STREET_W, worldInnerH / STREET_H)));
 
   const streetWorldRef = useRef(streetWorld);
   streetWorldRef.current = streetWorld;
@@ -8432,6 +8441,19 @@ export default function HometownScreen() {
     }
     return out;
   }, [streetWorld, town, lightInfos]);
+  /** v333: the gathering corner's assigned stand-points, dealt to
+   *  the street's people in lights order — the corner's seats are
+   *  the derivation's (world.cornerStands); the first villagers in
+   *  town hold them, in addition to strolling. */
+  const streetCornerStands = useMemo(() => {
+    const out = new Map<string, WalkTile>();
+    if (!streetWorld) return out;
+    streetWorld.cornerStands.forEach((tile, i) => {
+      const light = lightsForActiveMap[i];
+      if (light) out.set(light.personId, tile);
+    });
+    return out;
+  }, [streetWorld, lightsForActiveMap]);
   // The base grid (340 tappable cells on the town map) is memoized: it
   // depends only on the map data + selection, so unrelated state changes
   // (modals, clocks, collect FX) no longer rebuild hundreds of Pressables
@@ -9084,6 +9106,7 @@ export default function HometownScreen() {
                   cellSize={streetCell}
                   lights={lightsForActiveMap}
                   homeDoorByPerson={streetHomeDoors}
+                  standByPerson={streetCornerStands}
                   positionsRef={townNpcPositionsRef}
                   missionWaitingIds={vmWaitingIds}
                   onVillagerTap={handleVillagerTapWalk}
@@ -9097,6 +9120,7 @@ export default function HometownScreen() {
             >
               <PlayerPawnWanderer
                 cellSize={streetCell}
+                figureHeightPx={streetCell * 1.4}
                 destTile={streetDestTile}
                 mapState={streetMapState}
                 commandPath={walkCmd}
@@ -9107,47 +9131,42 @@ export default function HometownScreen() {
             </StreetWorldView>
             </StreetErrorBoundary>
             {/* v307 — the retired page furniture, standing in the world:
-                the notice board (missions) and the testimony stones in
-                the gaps of the north apron, the shop stall in the gap
-                beside the café, and the two mini-games on the street's
-                empty lots. Board and stall answer a direct tap, like the
-                register pile; the stones only speak. The gap columns are
-                read off the derived places, so the furniture follows the
-                street wherever the houses land.
-                v327 — the Diorama seats the furniture by the new
-                composition: the notice board stands ON its place,
-                mid-lane at the bend; the testimony stones gather at
-                the corner beside it (the town's plaza heart); the
-                shop stall keeps its gap beside the café, on the
-                café's own ground line; the games keep their lots. */}
+                the notice board (missions), the testimony stones, and
+                the two mini-games on the street's empty lots. The board
+                answers a direct tap, like the register pile; the stones
+                only speak. The seats are read off the derived places,
+                so the furniture follows the stage wherever it stands.
+                v333 — the fixed stage seats the furniture by the
+                drawing: the notice board stands ON its place at
+                mid-stage with its "Missions" pill at its base; the
+                testimony stones stand at the gathering corner's west
+                edge; the games keep their riverbank lots. The Town
+                Shop is a street PLACE now (its door opens the shop),
+                so the stall point stands down. Every point sizes
+                from the stage's cell. */}
             {(() => {
               const cs = streetCell;
+              const scale = cs / 40;
               const board = streetWorld.board;
               const corner = streetWorld.corner;
-              const cafe = streetWorld.cafe;
               const lots = streetWorld.places.filter((p) => p.kind === "empty-lot").sort((a, b) => a.x - b.x);
               return (
                 <>
                   {board ? (
                     <NoticeBoardPoint
-                      left={(board.x + board.w / 2) * cs - NOTICE_BOARD_W / 2}
-                      top={(board.y + 1) * cs - 58}
+                      left={(board.x + board.w / 2) * cs - (NOTICE_BOARD_W * scale) / 2}
+                      top={(board.y + board.h) * cs - 58 * scale}
                       pendingCount={pendingMissions(missions).length}
                       onPress={() => setMissionsVisible(true)}
+                      scale={scale}
                     />
                   ) : null}
                   <TestimonyStonesPoint
-                    left={(corner.x + 1) * cs - TESTIMONY_STONES_W / 2}
-                    top={(corner.y + 1) * cs - 43}
+                    left={corner.x * cs + 2}
+                    top={(corner.y + corner.h) * cs - 46 * scale}
                     count={monumentCount}
+                    scale={scale}
                   />
-                  {cafe ? (
-                    <ShopStallPoint
-                      left={(cafe.x + cafe.w) * cs + (cs - SHOP_STALL_W) / 2}
-                      top={(cafe.door.y + 1) * cs - 56}
-                      onPress={() => router.push("/hometown-shop")}
-                    />
-                  ) : null}
                   {lots[0] ? (
                     <LotPlayPoint
                       left={lots[0].x * cs}
@@ -9159,6 +9178,7 @@ export default function HometownScreen() {
                       playsLeft={gardenPlaysLeft}
                       cap={MINI_GAME_CAPS.garden}
                       onPlay={() => { gardenBloomKindsRef.current = []; setPlayingGarden(true); }}
+                      scale={scale}
                     />
                   ) : null}
                   {lots[1] ? (
@@ -9172,6 +9192,7 @@ export default function HometownScreen() {
                       playsLeft={tidePlaysLeft}
                       cap={MINI_GAME_CAPS.tide}
                       onPlay={() => setPlayingTide(true)}
+                      scale={scale}
                     />
                   ) : null}
                 </>

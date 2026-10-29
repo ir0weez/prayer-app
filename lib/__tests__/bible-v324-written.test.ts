@@ -236,7 +236,10 @@ describe('v324 — the screens carry the unified count', () => {
     const src = readFileSync(join(process.cwd(), 'app', 'bible-chapters.tsx'), 'utf8');
     expect(src).toContain('loadStudioImports');
     expect(src).toContain('groupBooksByStudy(effectiveState, CANON, studioImports)');
-    expect(src).toContain('chapterHasNotes(book, c, imports)');
+    // v325 re-base: the row's written count (and every sibling
+    // tally) comes from the shared ledger, whose per-chapter rule
+    // is this same chapterIsWritten union over the imports.
+    expect(src).toContain('bookChapterTallies(studyState ?? seedStudyState(), book, imports)');
     expect(src).toContain('`${writtenCount} of ${total} written`');
   });
 

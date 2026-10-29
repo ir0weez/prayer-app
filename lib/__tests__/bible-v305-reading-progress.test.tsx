@@ -23,11 +23,15 @@
 //  - the reset empties `reads` and ONLY `reads` — overrides,
 //    queues, currentBook and the lastRead stamp survive deep-equal,
 //    and the input state is not mutated;
-//  - the overall card and the per-book thread render their counts;
-//  - the Books screen wires it all: card seated from readingTotals,
-//    the quiet door opening a confirmation that names what clears
-//    and what stays, the confirm running resetReadingProgress
-//    through load/save, and the study bar + counts untouched.
+//  - the overall card and the per-book thread render their counts
+//    (v325 re-base: the overall card is now the approved Study
+//    progress header — Concept 3, Two Structured Rows — rendering
+//    BOTH tracks; its full pin set lives in the v325 suite);
+//  - the Books screen wires it all: header seated from
+//    studyProgressTotals, the quiet door opening a confirmation
+//    that names what clears and what stays, the confirm running
+//    resetReadingProgress through load/save, and the study bar +
+//    counts untouched.
 
 import React from 'react';
 import { renderToString } from 'react-dom/server';
@@ -74,7 +78,7 @@ import {
   readingTotals,
   resetReadingProgress,
 } from '@/lib/bible-v205/reading-progress';
-import { BookReadingThread, ReadingProgressCard } from '@/components/bible-v205/reading-progress-card';
+import { BookReadingThread, StudyProgressHeader } from '@/components/bible-v205/reading-progress-card';
 import type { BiblePalette } from '@/components/bible-v205/palette';
 
 const CANON = Object.keys(CHAPTER_COUNTS);
@@ -102,9 +106,11 @@ const palette = {
   paper2: '#FFFFFF',
   ink: '#1A1020',
   inkSoft: '#6B5A72',
+  line: '#D9CFE8',
   rasp: '#7C3AED',
   raspDeep: '#5B21B6',
   raspTint: '#EDE9FE',
+  accentAmber: { bg: '#F7ECD7', deep: '#8A5A00', hue: '#D97706' },
   cardDress: {},
 } as unknown as BiblePalette;
 
@@ -179,20 +185,38 @@ describe('v305 — the reset clears exactly the read store', () => {
 });
 
 describe('v305 — the furniture renders its counts', () => {
-  it('the overall card: label, N of 1,189 chapters read, percent, reset door', () => {
+  // v325 re-base: the v305 overall card ("Bible reading" + its lone
+  // bar) is retired — the approved progress header renders both
+  // tracks in its seat. The read track's rendering is pinned here
+  // at the same fixtures; the header's full pin set is v325's.
+  const progressOf = (readChapters: number) => ({
+    totalBooks: 66,
+    totalChapters: 1189,
+    readChapters,
+    readBooks: 0,
+    writtenChapters: 0,
+    writtenBooks: 0,
+    chaptersToRead: 1189 - readChapters,
+    chaptersToWrite: 1189,
+  });
+
+  it('the header’s READ row: numeral, of 1,189 chapters, percent, reset door', () => {
     const html = renderToString(
-      React.createElement(ReadingProgressCard, { read: 595, total: 1189, palette, onResetPress: () => {} }),
+      React.createElement(StudyProgressHeader, { progress: progressOf(595), palette, onResetPress: () => {} }),
     );
-    expect(html).toContain('Bible reading');
-    expect(html).toContain('595 of 1,189 chapters read · 50%');
+    expect(html).toContain('READ');
+    expect(html).toContain('595');
+    expect(html).toContain('of 1,189 chapters');
+    expect(html).toContain('50%');
     expect(html).toContain('Reset reading progress');
   });
 
-  it('the overall card at zero reads 0 of 1,189 · 0%', () => {
+  it('the header at zero reads 0 · 0%', () => {
     const html = renderToString(
-      React.createElement(ReadingProgressCard, { read: 0, total: 1189, palette, onResetPress: () => {} }),
-    );
-    expect(html).toContain('0 of 1,189 chapters read · 0%');
+      React.createElement(StudyProgressHeader, { progress: progressOf(0), palette, onResetPress: () => {} }),
+    ).replace(/<!-- -->/g, '');
+    expect(html).toContain('READ');
+    expect(html).toContain('0%');
   });
 
   it('the per-book thread: empty, partial, and full all carry their count', () => {
@@ -208,11 +232,15 @@ describe('v305 — the furniture renders its counts', () => {
 describe('v305 — the Books screen wiring (source pins)', () => {
   const screen = readFileSync(join(process.cwd(), 'app/bible-chapters.tsx'), 'utf8');
 
-  it('the overall card is seated from the reading aggregate over the canon', () => {
-    expect(screen).toContain('readingTotals(effectiveState, CANON)');
-    expect(screen).toContain('<ReadingProgressCard');
-    expect(screen).toContain('read={reading.read}');
-    expect(screen).toContain('total={reading.total}');
+  it('the progress header is seated from the study aggregate over the canon (v325 re-base)', () => {
+    // v305 seated the card from readingTotals; v325's header takes
+    // BOTH tracks from studyProgressTotals (reads + the v324 union
+    // written rule, imports included) — the read numbers the reset
+    // governs still derive from the same StudyState.reads.
+    expect(screen).toContain('studyProgressTotals(effectiveState, CANON, studioImports)');
+    expect(screen).toContain('<StudyProgressHeader');
+    expect(screen).toContain('progress={progress}');
+    expect(screen).not.toContain('<ReadingProgressCard');
   });
 
   it('every book row carries the reading thread under its study thread', () => {

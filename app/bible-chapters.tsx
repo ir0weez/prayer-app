@@ -12,8 +12,8 @@
 // 22px on its OWN line, NOTHING truncating (the clipped "Hebrew…"
 // was a named defect), the counts line beneath it in full; the
 // status-chip legend is retired and only the ✎ notes-source door
-// stays. v305's ReadingProgressCard and reset stand exactly as
-// shipped.
+// stays. (v325 supersedes the card half of that sentence — the
+// reset stands, the card is replaced below.)
 // v322 (his ruling, 2026-10-28 20:12): the sections re-sort by
 // channel — Finished now counts the READ ones only (Genesis sat
 // there at 50 of 50 written, 0 read), and writing-complete books
@@ -26,6 +26,14 @@
 // included). The screen loads the imports map on focus and hands
 // it to both the grouping and every row, so the count a row prints
 // and the section it sits in are the same fact.
+// v325: the v305 overall reading card is replaced by the approved
+// progress header (study-progress-concepts-v3.html, Concept 3 —
+// Two Structured Rows): both tracks, their book counts and their
+// remainders in one radius-24 card, with the reset line under it
+// (the reset itself is unchanged — it still clears only reads).
+// The rows' tallies all come from rewards.ts bookChapterTallies,
+// whose written + toWrite = chapter count invariant retires the
+// "1 of 4 written · 4 to write" double count.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -40,25 +48,27 @@ import {
   notesChapterCount,
 } from '@/lib/bible-v205/index';
 import {
-  chapterStatus,
   loadStudyState,
   saveStudyState,
   seedStudyState,
   setCurrentBook as setStudyCurrentBook,
   type StudyState,
 } from '@/lib/bible-v205/study';
-import { bookIsComplete, groupBooksByStudy } from '@/lib/bible-v205/rewards';
 import {
-  chapterHasNotes,
+  bookChapterTallies,
+  bookIsComplete,
+  groupBooksByStudy,
+  studyProgressTotals,
+} from '@/lib/bible-v205/rewards';
+import {
   loadStudioImports,
   type StudioImportsMap,
 } from '@/lib/bible-v205/studio-import';
 import {
   bookReadCount,
-  readingTotals,
   resetReadingProgress,
 } from '@/lib/bible-v205/reading-progress';
-import { BookReadingThread, ReadingProgressCard } from '@/components/bible-v205/reading-progress-card';
+import { BookReadingThread, StudyProgressHeader } from '@/components/bible-v205/reading-progress-card';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
@@ -197,7 +207,10 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   // v305: the READING aggregate over the same state — the v228 read
   // track counted by lib/bible-v205/reading-progress, a different
   // track from the study counts the sections and rows below carry.
-  const reading = useMemo(() => readingTotals(effectiveState, CANON), [effectiveState]);
+  const progress = useMemo(
+    () => studyProgressTotals(effectiveState, CANON, studioImports),
+    [effectiveState, studioImports],
+  );
   // v241: the canon is 66 books — a grouping with zero books across
   // all four sections is impossible in a healthy build, so it gets a
   // visible word (below) instead of an empty page.
@@ -301,13 +314,14 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
           <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{possessive} Books</Text>
         </View>
 
-        {/* v305: the overall READING card — his whole-Bible read
-            bar, seated ahead of the study legend because it is a
-            different track from everything the legend explains. */}
+        {/* v325: the approved progress header replaces the v305
+            reading card in its seat — both tracks live here now,
+            so no read statistic is duplicated on a second surface.
+            The reset line under the card still opens the same
+            confirmation below and clears only reads. */}
         <View style={{ marginTop: 18 }}>
-          <ReadingProgressCard
-            read={reading.read}
-            total={reading.total}
+          <StudyProgressHeader
+            progress={progress}
             palette={palette}
             onResetPress={() => setResetOpen(true)}
           />
@@ -554,28 +568,22 @@ function BookRow({
   // Complete OR the resolved chapter data (shipped + imports)
   // carries his notes — the same rule that seats the book in the
   // Written section, so the countline and the section never
-  // disagree. The other tallies stay pure status facts.
-  const total = CHAPTER_COUNTS[book] ?? 0;
-  let writtenCount = 0;
-  let prog = 0;
-  let progOpen = 0;
-  let write = 0;
-  let notStarted = 0;
-  for (let c = 1; c <= total; c++) {
-    const s = studyState ? chapterStatus(studyState, book, c) : 'none';
-    const isWritten = s === 'complete' || chapterHasNotes(book, c, imports);
-    if (isWritten) writtenCount++;
-    if (s === 'in-progress') {
-      prog++;
-      // The thread's in-progress segment starts where the written
-      // fill ends; a Writing-now chapter already counted as written
-      // (it carries notes) must not paint twice.
-      if (!isWritten) progOpen++;
-    } else if (s === 'write') write++;
-    else if (s === 'not-started') notStarted++;
-  }
+  // disagree.
+  // v325: every tally on this row comes from the one shared ledger
+  // (rewards.ts bookChapterTallies): "to write" is the RESIDUAL
+  // (total - written), never the count of Write-next stamps, and
+  // the in-progress / not-started tallies skip chapters the union
+  // rule already counts as written. The thread's in-progress
+  // segment uses the same non-double-counted figure, so the words
+  // and the bar finally agree.
+  const tallies = bookChapterTallies(studyState ?? seedStudyState(), book, imports);
+  const total = tallies.total;
+  const writtenCount = tallies.written;
+  const toWrite = tallies.toWrite;
+  const prog = tallies.inProgress;
+  const notStarted = tallies.notStarted;
   const pct = total ? Math.round((100 * writtenCount) / total) : 0;
-  const ppct = total ? Math.round((100 * progOpen) / total) : 0;
+  const ppct = total ? Math.round((100 * prog) / total) : 0;
   // v305: the READING count — the v228 read track, counted on its
   // own (lib/bible-v205/reading-progress), never derived from the
   // study counts above: Leviticus can read 0 complete here while
@@ -586,9 +594,9 @@ function BookRow({
   // v313: the drawing's counts word — "0 of 27 written", his word
   // for the writing track everywhere in the approved drawing.
   parts.push(`${writtenCount} of ${total} written`);
-  if (write) parts.push(`${write} to write`);
+  if (toWrite) parts.push(`${toWrite} to write`);
   if (prog) parts.push(total === prog ? `all ${prog} in progress` : `${prog} in progress`);
-  if (notStarted && writtenCount === 0 && !write && !prog) parts.push('not started');
+  if (notStarted && writtenCount === 0 && !prog) parts.push('not started');
   if (notesCount) parts.push(`notes in ${notesCount} ${notesCount === 1 ? 'chapter' : 'chapters'}`);
   if (paper) parts.push(paper);
 

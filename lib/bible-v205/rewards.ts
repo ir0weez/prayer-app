@@ -129,6 +129,52 @@ export function bookIsWritten(
   return bookWrittenCount(state, book, imports) === total;
 }
 
+export interface BookChapterTallies {
+  /** Chapters in the book, from CHAPTER_COUNTS. */
+  total: number;
+  /** Chapters written under the v324 union rule. */
+  written: number;
+  /** Every chapter not yet written — by definition total - written. */
+  toWrite: number;
+  /** Chapters still in progress and not already counted as written. */
+  inProgress: number;
+  /** Chapters explicitly marked Not Started and not already counted
+   * as written. */
+  notStarted: number;
+}
+
+/**
+ * v325 — the per-book tally every printed count shares. Its one
+ * accounting rule is that a chapter lands in exactly one side of the
+ * written ledger: once the union rule counts it as written, it can
+ * no longer inflate the to-write, in-progress, or not-started
+ * tallies from its stored pipeline state. (His phone's evidence:
+ * Colossians read "1 of 4 written · 4 to write" — one noted chapter
+ * plus four Write-next stamps summed to five chapters in a
+ * four-chapter book.) Hence the invariant written + toWrite = total
+ * holds for every book and every state.
+ */
+export function bookChapterTallies(
+  state: StudyState,
+  book: string,
+  imports: StudioImportsMap = {},
+): BookChapterTallies {
+  const total = chapterCountFor(book);
+  let written = 0;
+  let inProgress = 0;
+  let notStarted = 0;
+  for (let c = 1; c <= total; c++) {
+    if (chapterIsWritten(state, book, c, imports)) {
+      written += 1;
+      continue;
+    }
+    const status = chapterStatus(state, book, c);
+    if (status === 'in-progress') inProgress += 1;
+    else if (status === 'not-started') notStarted += 1;
+  }
+  return { total, written, toWrite: total - written, inProgress, notStarted };
+}
+
 /** v233: every chapter of the book carries a read mark. */
 export function bookAllRead(state: StudyState, book: string): boolean {
   const total = chapterCountFor(book);
@@ -137,6 +183,66 @@ export function bookAllRead(state: StudyState, book: string): boolean {
     if (chapterReadDate(state, book, c) === null) return false;
   }
   return true;
+}
+
+export interface StudyProgressTotals {
+  /** Books in the supplied canon, counted from CHAPTER_COUNTS. */
+  totalBooks: number;
+  /** Chapters in the supplied canon, summed from CHAPTER_COUNTS. */
+  totalChapters: number;
+  /** Chapters carrying a read mark (the v228/v305 read track). */
+  readChapters: number;
+  /** Books whose every chapter carries a read mark. */
+  readBooks: number;
+  /** Chapters written under the v324 union rule. */
+  writtenChapters: number;
+  /** Books whose every chapter is written under the union rule. */
+  writtenBooks: number;
+  /** totalChapters - readChapters. */
+  chaptersToRead: number;
+  /** totalChapters - writtenChapters. */
+  chaptersToWrite: number;
+}
+
+/**
+ * v325 — the Books page progress header's one aggregate. Every
+ * number derives live from the same two tracks the rest of the page
+ * already trusts: reads come from StudyState.reads alone, written
+ * counts and book membership from the v324 union rule over the
+ * resolved data (studio imports included). Only the supplied canon
+ * is counted, and its book/chapter totals are read out of
+ * CHAPTER_COUNTS — never hardcoded.
+ */
+export function studyProgressTotals(
+  state: StudyState,
+  canon: string[],
+  imports: StudioImportsMap = {},
+): StudyProgressTotals {
+  let totalChapters = 0;
+  let readChapters = 0;
+  let readBooks = 0;
+  let writtenChapters = 0;
+  let writtenBooks = 0;
+  for (const book of canon) {
+    const total = chapterCountFor(book);
+    totalChapters += total;
+    for (let c = 1; c <= total; c++) {
+      if (chapterReadDate(state, book, c) !== null) readChapters += 1;
+    }
+    if (bookAllRead(state, book)) readBooks += 1;
+    writtenChapters += bookWrittenCount(state, book, imports);
+    if (bookIsWritten(state, book, imports)) writtenBooks += 1;
+  }
+  return {
+    totalBooks: canon.length,
+    totalChapters,
+    readChapters,
+    readBooks,
+    writtenChapters,
+    writtenBooks,
+    chaptersToRead: totalChapters - readChapters,
+    chaptersToWrite: totalChapters - writtenChapters,
+  };
 }
 
 /**

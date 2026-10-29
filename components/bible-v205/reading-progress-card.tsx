@@ -1,44 +1,134 @@
 // ─── v305 reading progress — the Books screen's reading furniture ──────────
-// The overall "Bible reading" card (bar + count + the quiet reset
-// door) and the per-book reading thread. Both speak the Books
-// screen's own Material/Bible language — the book cards' tonal
-// surface (paper2 + cardDress, radius 24) and the seed thread
-// (rasp over raspTint, 9px). The reading thread is deliberately the
-// study thread's slimmer, deeper sibling: 4px, filled with the
-// seed's deep step (raspDeep), carrying its own caption, so the two
-// tracks read as two tracks at a glance. Pure presentation — the
-// counts arrive as props from lib/bible-v205/reading-progress.ts.
+// v325 supersedes the v305 overall "Bible reading" card with the
+// approved Study progress header (study-progress-concepts-v3.html,
+// Concept 3 — Two Structured Rows, picked 2026-10-28 22:21): one
+// tonal radius-24 card carrying BOTH tracks as two structured rows,
+// their book counts and remainders as its footer, and the quiet
+// reset line directly underneath. The per-book reading thread below
+// is unchanged. Pure presentation — every count arrives as props
+// from lib/bible-v205/rewards.ts (studyProgressTotals), which counts
+// the v228 read track and the v324 written union rule.
 
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { StudyProgressTotals } from '@/lib/bible-v205/rewards';
 import type { BiblePalette } from './palette';
 
-/** The overall card: "Bible reading" over "N of 1,189 chapters
- * read · P%", the seed bar, and the reset door — a quiet text
- * control under the bar whose tap only OPENS the confirmation (the
- * screen owns the modal); it clears nothing by itself. */
-export function ReadingProgressCard({
-  read,
+const formatCount = (n: number) => n.toLocaleString('en-US');
+
+/** One of the header's two tracks, at Concept 3's measure: the caps
+ * label and percentage in the track's family colour, the chapter
+ * count at 26/800 with its quiet "of N chapters", and the track's
+ * 6px thread filled to the track's exact share. */
+function StudyProgressRow({
+  label,
+  count,
   total,
+  labelColor,
+  trackColor,
+  fillColor,
+  inkColor,
+  quietColor,
+  lineColor,
+  divided,
+}: {
+  label: string;
+  count: number;
+  total: number;
+  labelColor: string;
+  trackColor: string;
+  fillColor: string;
+  inkColor: string;
+  quietColor: string;
+  lineColor: string;
+  divided?: boolean;
+}) {
+  const pct = total ? Math.round((100 * count) / total) : 0;
+  const share = total ? (100 * count) / total : 0;
+  return (
+    <View
+      style={[
+        styles.progressRow,
+        divided ? styles.progressRowDivided : null,
+        divided ? { borderTopColor: lineColor } : null,
+      ]}
+    >
+      <View style={styles.progressRowTop}>
+        <View>
+          <Text style={[styles.progressCap, { color: labelColor }]}>{label}</Text>
+          <View style={styles.progressNumberLine}>
+            <Text style={[styles.progressNumber, { color: inkColor }]}>{formatCount(count)}</Text>
+            <Text style={[styles.progressOf, { color: quietColor }]}>{` of ${formatCount(total)} chapters`}</Text>
+          </View>
+        </View>
+        <Text style={[styles.progressPct, { color: labelColor }]}>{`${pct}%`}</Text>
+      </View>
+      <View style={[styles.progressThread, { backgroundColor: trackColor }]}>
+        <View style={[styles.progressThreadFill, { backgroundColor: fillColor, width: `${share}%` }]} />
+      </View>
+    </View>
+  );
+}
+
+/** The Books page's progress header — Concept 3, verbatim in
+ * structure: the WRITTEN row over the READ row in one tonal card,
+ * the two-line footer (books, then remainders), and the reset line
+ * under the card. The reset only OPENS the screen's confirmation
+ * (the screen owns the modal); it clears nothing by itself, and the
+ * reset it leads to still clears only the read track. Both family
+ * colours are palette roles derived from the active seed — the
+ * written track wears the harmonized accent family, the read track
+ * the seed family itself. */
+export function StudyProgressHeader({
+  progress,
   palette,
   onResetPress,
 }: {
-  read: number;
-  total: number;
+  progress: StudyProgressTotals;
   palette: BiblePalette;
   onResetPress: () => void;
 }) {
-  const pct = total ? Math.round((100 * read) / total) : 0;
-  const barPct = total ? (100 * read) / total : 0;
+  const writtenTone = palette.accentAmber;
   return (
-    <View style={[styles.card, { backgroundColor: palette.paper2 }, palette.cardDress]}>
-      <View style={styles.cardTop}>
-        <Text style={[styles.cardTitle, { color: palette.ink }]}>Bible reading</Text>
-        <Text style={[styles.cardCount, { color: palette.inkSoft }]} numberOfLines={1}>
-          {`${read} of ${total.toLocaleString('en-US')} chapters read · ${pct}%`}
-        </Text>
-      </View>
-      <View style={[styles.thread, { backgroundColor: palette.raspTint }]}>
-        <View style={[styles.threadFill, { backgroundColor: palette.rasp, width: `${barPct}%` }]} />
+    <View>
+      <View
+        style={[
+          styles.progressCard,
+          { backgroundColor: palette.paper2 },
+          palette.cardDress,
+          styles.progressCardRadius,
+        ]}
+      >
+        <StudyProgressRow
+          label="WRITTEN"
+          count={progress.writtenChapters}
+          total={progress.totalChapters}
+          labelColor={writtenTone.deep}
+          trackColor={writtenTone.bg}
+          fillColor={writtenTone.hue}
+          inkColor={palette.ink}
+          quietColor={palette.inkSoft}
+          lineColor={palette.line}
+        />
+        <StudyProgressRow
+          label="READ"
+          count={progress.readChapters}
+          total={progress.totalChapters}
+          labelColor={palette.raspDeep}
+          trackColor={palette.raspTint}
+          fillColor={palette.rasp}
+          inkColor={palette.ink}
+          quietColor={palette.inkSoft}
+          lineColor={palette.line}
+          divided
+        />
+        <View style={[styles.progressFooter, { borderTopColor: palette.line }]}>
+          <Text style={[styles.progressFooterText, { color: palette.inkSoft }]}>
+            {`${formatCount(progress.writtenBooks)} of ${formatCount(progress.totalBooks)} books written · ${formatCount(progress.readBooks)} of ${formatCount(progress.totalBooks)} books read`}
+          </Text>
+          <Text style={[styles.progressFooterText, { color: palette.inkSoft }]}>
+            {`${formatCount(progress.chaptersToWrite)} to write · ${formatCount(progress.chaptersToRead)} to read`}
+          </Text>
+        </View>
       </View>
       <Pressable
         onPress={onResetPress}
@@ -79,15 +169,27 @@ export function BookReadingThread({
 }
 
 const styles = StyleSheet.create({
-  // A book card's dress: same radius, padding, and tonal surface.
-  card: { borderRadius: 24, paddingVertical: 14, paddingHorizontal: 16, gap: 8 },
-  cardTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
-  cardTitle: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
-  cardCount: { fontSize: 12, flexShrink: 1, textAlign: 'right' },
-  thread: { height: 9, borderRadius: 999, overflow: 'hidden', position: 'relative' },
-  threadFill: { height: 9, borderRadius: 999 },
-  resetBtn: { alignSelf: 'flex-start', paddingVertical: 2 },
-  resetText: { fontSize: 12, fontWeight: '700' },
+  // Concept 3's measure, taken from the approved drawing: the card
+  // itself carries only the radius — its 28px cardDress radius is
+  // overridden back to the drawing's 24 after the dress spreads.
+  progressCard: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 8 },
+  progressCardRadius: { borderRadius: 24 },
+  progressRow: { paddingTop: 7, paddingBottom: 4 },
+  progressRowDivided: { borderTopWidth: 1 },
+  progressRowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  progressCap: { fontSize: 10, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase' },
+  progressNumberLine: { flexDirection: 'row', alignItems: 'baseline' },
+  progressNumber: { fontSize: 26, fontWeight: '800', lineHeight: 29, marginTop: 1 },
+  progressOf: { fontSize: 13, fontWeight: '600' },
+  progressPct: { fontSize: 20, fontWeight: '800' },
+  progressThread: { height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 6 },
+  progressThreadFill: { height: 6, borderRadius: 3 },
+  progressFooter: { borderTopWidth: 1, paddingTop: 7 },
+  progressFooterText: { fontSize: 11.5, lineHeight: 17, fontWeight: '500' },
+  // The reset line sits under the card, exactly as drawn — a quiet
+  // 13px text control in the seed's deep step.
+  resetBtn: { alignSelf: 'flex-start', paddingVertical: 2, marginTop: 11, marginLeft: 2 },
+  resetText: { fontSize: 13, fontWeight: '600' },
   threadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   readThread: { flex: 1, height: 4, borderRadius: 999, overflow: 'hidden' },
   readThreadFill: { height: 4, borderRadius: 999 },

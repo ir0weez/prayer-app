@@ -48,7 +48,13 @@ import {
   loadStudioImports,
   type StudioImportsMap,
 } from '@/lib/bible-v205/studio-import';
-import { markChapterRead, transitionChapterStatus, unmarkChapterRead } from '@/lib/bible-v205/rewards';
+import {
+  bookChapterTallies,
+  bookWrittenCount,
+  markChapterRead,
+  transitionChapterStatus,
+  unmarkChapterRead,
+} from '@/lib/bible-v205/rewards';
 import { loadHandwritten, type HandwrittenEntry } from '@/lib/bible-v205/handwritten';
 import { STATUS_LABEL } from '@/components/bible-v205/blocks';
 import { BookCompleteCelebration } from '@/components/bible-v205/celebration';
@@ -154,28 +160,30 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studyState, studioImports, book, total]);
 
-  const counts = useMemo(() => {
-    const m = new Map<StudyStatus, number>();
-    for (let c = 1; c <= total; c++) {
-      const d = displayOf(c);
-      // A noteless chapter presenting as Read is counted as read
-      // (readCount above), not as a notes-Complete it never claimed.
-      if (!d.noted && d.status === 'complete') continue;
-      m.set(d.status, (m.get(d.status) ?? 0) + 1);
-    }
-    return m;
+  // v325: the countline's tallies come from the one shared ledger
+  // (rewards.ts bookChapterTallies). "In hand" counts only chapters
+  // whose Writing-now state is NOT already counted as written by
+  // the union rule — a noted chapter being polished is written,
+  // not also in hand; before this the two tallies double-counted
+  // it. The grid's display marks (chapterDisplayMarks) are
+  // untouched — this is the countline's arithmetic only.
+  const inHandCount = useMemo(
+    () => (studyState ? bookChapterTallies(studyState, book, studioImports).inProgress : 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studyState, studioImports, book, total]);
+    [studyState, studioImports, book, total],
+  );
 
   // v324: the countline's "written" is the shared union rule
-  // (rewards.ts chapterIsWritten) — stored Complete OR noted in the
-  // resolved data — so this page's number agrees with the Books
-  // page's countline and its Written section. The grid's display
-  // marks (chapterDisplayMarks) are untouched.
+  // (rewards.ts bookWrittenCount / chapterIsWritten) — stored
+  // Complete OR noted in the resolved data — so this page's number
+  // agrees with the Books page's countline and its Written
+  // section. Before the state loads, the notes half of the union
+  // is all that can be counted.
   const writtenCount = useMemo(() => {
+    if (studyState) return bookWrittenCount(studyState, book, studioImports);
     let n = 0;
     for (let c = 1; c <= total; c++) {
-      if (statusOf(c) === 'complete' || chapterHasNotes(book, c, studioImports)) n += 1;
+      if (chapterHasNotes(book, c, studioImports)) n += 1;
     }
     return n;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -270,9 +278,9 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
               {'  ·  '}
             </>
           ) : null}
-          {(counts.get('in-progress') ?? 0) > 0 ? (
+          {inHandCount > 0 ? (
             <>
-              <Text style={[styles.countStrong, { color: palette.ink }]}>{counts.get('in-progress')} in hand</Text>
+              <Text style={[styles.countStrong, { color: palette.ink }]}>{inHandCount} in hand</Text>
               {'  ·  '}
             </>
           ) : null}

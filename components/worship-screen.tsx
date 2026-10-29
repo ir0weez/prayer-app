@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, Modal, TextInput, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, StyleSheet } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColors } from '@/hooks/use-colors';
 import { ScreenContainer } from '@/components/screen-container';
 import { WorshipListCard } from '@/components/worship-list-card';
 import { AddWorshipSongModal } from '@/components/add-worship-song-modal';
+import { AnchoredSheet, measureEventAnchor, type AnchorRect } from '@/components/anchored-sheet';
 import { createWorshipList, addSongToList, WORSHIP_LISTS_KEY, type WorshipList } from '@/lib/worship-list';
 
 export function WorshipScreen() {
@@ -15,6 +16,8 @@ export function WorshipScreen() {
   const [selectedWorshipListId, setSelectedWorshipListId] = useState<string | null>(null);
   const [newWorshipListName, setNewWorshipListName] = useState('');
   const [showCreateListModal, setShowCreateListModal] = useState(false);
+  // v330: the measured rect of the button that summoned a sheet.
+  const [sheetAnchor, setSheetAnchor] = useState<AnchorRect | null>(null);
 
   // Load worship lists
   useEffect(() => {
@@ -64,7 +67,7 @@ export function WorshipScreen() {
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.foreground }]}>Worship Lists</Text>
           <Pressable
-            onPress={() => setShowCreateListModal(true)}
+            onPress={(event) => { measureEventAnchor(event, (rect) => { setSheetAnchor(rect); setShowCreateListModal(true); }); }}
             style={({ pressed }) => [styles.createButton, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
           >
             <MaterialIcons name="add" size={24} color="#FFFFFF" />
@@ -95,9 +98,7 @@ export function WorshipScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={showCreateListModal} transparent animationType="slide" onRequestClose={() => setShowCreateListModal(false)}>
-        <View style={[styles.modalOverlay, { backgroundColor: colors.background }]}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setShowCreateListModal(false)} />
+      <AnchoredSheet visible={showCreateListModal} onClose={() => setShowCreateListModal(false)} anchor={sheetAnchor} scrimColor={colors.background} containerStyle={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Create Worship List</Text>
             <TextInput
@@ -123,8 +124,7 @@ export function WorshipScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
-      </Modal>
+      </AnchoredSheet>
 
       <AddWorshipSongModal
         visible={showAddSongModal}

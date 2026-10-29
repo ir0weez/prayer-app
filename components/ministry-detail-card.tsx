@@ -18,6 +18,7 @@ import { BitSettle } from "./bit-motion";
 import { ScheduleMinistry } from "@/lib/schedule-data";
 import { Person } from "@/lib/prayercircle-data";
 import { MinistryEditForm } from "./ministry-edit-form";
+import { measureEventAnchor, type AnchorRect } from "@/components/anchored-sheet";
 import { AvatarImage } from "./avatar-system";
 
 interface MinistryDetailCardProps {
@@ -48,6 +49,8 @@ export function MinistryDetailCard({
   const colors = useColors();
   const { isPaper } = useSkin();
   const [editFormVisible, setEditFormVisible] = useState(false);
+  // v330: the Edit button's measured rect — the editor grows out of it.
+  const [editAnchor, setEditAnchor] = useState<AnchorRect | null>(null);
 
   const linkedPeople = ministry.linkedPeopleIds
     ? ministry.linkedPeopleIds
@@ -126,7 +129,7 @@ export function MinistryDetailCard({
             )}
             {onEdit && (
               <Pressable
-                onPress={() => setEditFormVisible(true)}
+                onPress={(event) => { measureEventAnchor(event, (rect) => { setEditAnchor(rect); setEditFormVisible(true); }); }}
                 style={({ pressed }) => [
                   styles.editButton,
                   { opacity: pressed ? 0.6 : 1 },
@@ -224,6 +227,7 @@ export function MinistryDetailCard({
             <MinistryEditForm
               ministry={ministry}
               visible={editFormVisible}
+              anchor={editAnchor}
               onClose={() => setEditFormVisible(false)}
               onSave={(updated) => {
                 onEdit?.(updated);

@@ -12,6 +12,7 @@ import { PaperSettle } from "@/components/paper-motion";
 import { BitSettle } from "@/components/bit-motion";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { FastDaySheetContent, FastRecapDocument, FastRecapsCard, FastRecordCard, FastTodayHero, FastWhyCard, type FastRecapTarget } from "@/components/fast-tracker";
+import { AnchoredSheet } from "@/components/anchored-sheet";
 import { PrestigePrompt } from "@/components/prestige-prompt";
 import { COINS_STORAGE_KEY, parseCoins, type HometownCoins, HOMETOWN_MIN_FAST_DAYS, hometownUnlockedForFastLength,
   formatCoins, applyCoinsDelta,
@@ -806,15 +807,13 @@ export default function ProfileScreen() {
           note, and the encouragement fitted to the selected state.
           It replaces the old centered Daily Note modal; the note it
           saves is the same dailyNotes record. */}
-      <Modal transparent visible={sheetDate !== null && !!selectedFast} animationType={isPaper ? "fade" : "slide"} onRequestClose={() => setSheetDate(null)}>
+      <AnchoredSheet visible={sheetDate !== null && !!selectedFast} onClose={() => setSheetDate(null)} scrimColor="rgba(20,16,40,0.5)" containerStyle={{ flex: 1, justifyContent: "flex-end", paddingBottom: keyboardHeight }}>
         {/* v299: paddingBottom = the live keyboard height, so when
             the note field raises the keyboard the whole sheet rides
             up and seats directly above it — note input, status
             control and Save/Cancel all stay visible; when the
             keyboard dismisses the height returns to 0 and the sheet
             settles back to the bottom edge. */}
-        <View style={{ flex: 1, backgroundColor: "rgba(20,16,40,0.5)", justifyContent: "flex-end", paddingBottom: keyboardHeight }}>
-          <Pressable style={{ flex: 1 }} onPress={() => setSheetDate(null)} />
           <View style={{ backgroundColor: trackerFamily.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 28, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }}>
             {sheetDate && selectedFast ? (
               <FastDaySheetContent
@@ -827,8 +826,7 @@ export default function ProfileScreen() {
               />
             ) : null}
           </View>
-        </View>
-      </Modal>
+      </AnchoredSheet>
 
       {/* v276 recap viewer — the weekly/final recap document as a
           full page over the profile. (v280: the all-recaps list

@@ -153,6 +153,7 @@ import { ContextMenu, type ContextMenuAction } from "./context-menu";
 import { SlideQuickAddPicker, QA_BTN, QA_GAP, QA_PAD, QA_ROW_WIDTH, type QuickAddOption } from "./slide-quick-add";
 import { playPop, playTick } from "@/lib/pop-sound";
 import { EventEditForm } from "./event-edit-form";
+import { AnchoredSheet } from "@/components/anchored-sheet";
 import { MinistryDetailCard } from "./ministry-detail-card";
 import { AlbumCard } from "./album-card";
 import { getAlbumPalette, WorshipAlbumDetail } from "./worship-album-detail";
@@ -14608,11 +14609,8 @@ export function ScheduleTab({
       )}
 
       {/* White-block hour menu: pick Event / Todo / Ministry for the tapped hour */}
-      <Modal transparent visible={whiteBlockMenu !== null} animationType="fade" onRequestClose={() => setWhiteBlockMenu(null)}>
-        <Pressable style={[scheduleStyles.fabOverlay, { backgroundColor: "rgba(0,0,0,0.4)" }]} onPress={() => setWhiteBlockMenu(null)} />
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center", zIndex: 101 }} pointerEvents="box-none">
-          <ReAnimated.View
-            entering={menuEntering(0)}
+      <AnchoredSheet visible={whiteBlockMenu !== null} onClose={() => setWhiteBlockMenu(null)} scrimColor="rgba(0,0,0,0.4)" containerStyle={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <View
             style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: 28, paddingHorizontal: 22, paddingVertical: 16, alignItems: "center", gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: isSkinned ? 0 : 0.3, shadowRadius: 8, elevation: 8, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}), ...(skinTokens.frame ?? {}) }}
           >
             <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700", letterSpacing: 0.5 }}>
@@ -14635,9 +14633,8 @@ export function ScheduleTab({
                 <WhiteBlockCircleButton label="Reach Out" icon="chat" color="#FF8A65" onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewEventEditorAtTime(b.startTime, "Reach Out"); }} />
               </ReAnimated.View>
             </View>
-          </ReAnimated.View>
-        </View>
-      </Modal>
+          </View>
+      </AnchoredSheet>
 
       {/* Facebook-style hold-and-slide quick-add picker */}
       {slidePicker && (
@@ -14810,8 +14807,7 @@ export function ScheduleTab({
       </Modal>
 
       {/* Add Modal - Todo Form */}
-      <Modal transparent visible={addType === "todo"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
-        <View style={scheduleStyles.formOverlay}>
+      <AnchoredSheet visible={addType === "todo"} onClose={() => { setAddType(null); resetForm(); }} scrimColor="rgba(0,0,0,0.3)" containerStyle={{ flex: 1, justifyContent: "flex-end" }} fill>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
@@ -15068,12 +15064,11 @@ export function ScheduleTab({
             </ScrollView>
           </BitSettle>
 </PaperSettle>
-        </View>
-      </Modal>
+        
+      </AnchoredSheet>
 
       {/* Add Modal - Ministry Form */}
-      <Modal transparent visible={addType === "ministry"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
-        <View style={scheduleStyles.formOverlay}>
+      <AnchoredSheet visible={addType === "ministry"} onClose={() => { setAddType(null); resetForm(); }} scrimColor="rgba(0,0,0,0.3)" containerStyle={{ flex: 1, justifyContent: "flex-end" }} fill>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
@@ -15246,12 +15241,11 @@ export function ScheduleTab({
             />
           </BitSettle>
 </PaperSettle>
-        </View>
-      </Modal>
+        
+      </AnchoredSheet>
 
       {/* Add Modal - Bible Study Form */}
-      <Modal transparent visible={addType === "bible-study"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
-        <View style={scheduleStyles.formOverlay}>
+      <AnchoredSheet visible={addType === "bible-study"} onClose={() => { setAddType(null); resetForm(); }} scrimColor="rgba(0,0,0,0.3)" containerStyle={{ flex: 1, justifyContent: "flex-end" }} fill>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
@@ -15333,12 +15327,11 @@ export function ScheduleTab({
             />
           </BitSettle>
 </PaperSettle>
-        </View>
-      </Modal>
+        
+      </AnchoredSheet>
 
       {/* Add/Edit Worship Album */}
-      <Modal transparent visible={addType === "worship"} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => { setAddType(null); resetForm(); }}>
-        <View style={scheduleStyles.formOverlay}>
+      <AnchoredSheet visible={addType === "worship"} onClose={() => { setAddType(null); resetForm(); }} scrimColor="rgba(0,0,0,0.3)" containerStyle={{ flex: 1, justifyContent: "flex-end" }} fill>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
             <View style={scheduleStyles.formHeader}>
@@ -15564,8 +15557,8 @@ export function ScheduleTab({
             </ScrollView>
           </BitSettle>
 </PaperSettle>
-        </View>
-      </Modal>
+        
+      </AnchoredSheet>
 
       <WorshipAlbumDetail
         album={worshipDetailAlbum}

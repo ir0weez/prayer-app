@@ -278,7 +278,15 @@ describe("Paper coverage — v202 animation pass", () => {
     // All six slide-over forms (event/todo/ministry/bible-study/
     // worship/album library) fade under Paper and their sheets are
     // PaperSettle sheets.
-    expect(count(schedule, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(6);
+    // RE-BASED in v330 Part 1 (the end of slide-up sheets): the
+    // todo/ministry/bible-study/worship creators no longer ride a
+    // slide/fade Modal at all — they are AnchoredSheets (container
+    // transform out of the summoning control, every skin). Only
+    // the Event creator and the album library still carry the
+    // string (2): the Event creator is Part 2 by his ruling, and
+    // the library is a full-screen page, also Part 2.
+    expect(count(schedule, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(2);
+    expect(count(schedule, "<AnchoredSheet")).toBe(5);
     expect(schedule).toContain("<PaperSettle style={[scheduleStyles.formSheet,");
     // The schedule FAB lifts as paper while pressed.
     expect(schedule).toContain("paperPressedLift(skinTokens, pressed, [{ scale: 0.95 }])");
@@ -348,7 +356,13 @@ describe("Paper coverage — v202 animation pass", () => {
     const person = read("app/(tabs)/person.tsx");
     expect(person).toContain("<PaperSettle style={[styles.profileSection, !isSkinned &&");
     // v258: the praise form modal joins the family (6 sheets, 7 modal cards).
-    expect(count(person, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(6);
+    // RE-BASED in v330 Part 1: six of the seven person modals
+    // (family/reminder/date/emergency/praise/personal-todo) are
+    // AnchoredSheets now — the slide/fade Modal string survives
+    // only on the Edit Person modal (1), which is Part 2 by his
+    // ruling. The PaperSettle modal cards are unchanged (7).
+    expect(count(person, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(1);
+    expect(count(person, "<AnchoredSheet")).toBe(6);
     expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned &&")).toBe(7);
   });
 
@@ -374,7 +388,12 @@ describe("Paper coverage — v202 animation pass", () => {
     // modal, both in the same fade-under-Paper dress (creator +
     // day sheet + recap viewer). The above-fold PaperSettle
     // indices 0-3 above are untouched.
-    expect(count(profile, 'animationType={isPaper ? "fade" : "slide"}')).toBe(3);
+    // RE-BASED in v330 Part 1: the fast day sheet is an
+    // AnchoredSheet now; the string survives on the recap viewer
+    // and the fast creator (2 — the creator is Part 2 by his
+    // ruling, the recap viewer is a full-page document).
+    expect(count(profile, 'animationType={isPaper ? "fade" : "slide"}')).toBe(2);
+    expect(count(profile, "<AnchoredSheet")).toBe(1);
     expect(profile).toContain("<PaperSettle style={styles.sheet}>");
   });
 
@@ -390,13 +409,19 @@ describe("Paper coverage — v202 animation pass", () => {
     expect(timeOff).toContain("<PaperSettle style={{ flex: 1 }}>");
     for (const file of [
       "components/event-edit-form.tsx",
-      "components/ministry-edit-form.tsx",
       "components/ministry-detail-card.tsx",
     ]) {
       const src = read(file);
       expect(src, file).toContain("PaperSettle");
       expect(src, file).toContain('? "fade" : "slide"');
     }
+    // v330 Part 1: the ministry editor left the slide/fade Modal
+    // family — it is an AnchoredSheet (its PaperSettle page and
+    // BitSettle chain ride inside, unchanged).
+    const ministryForm = read("components/ministry-edit-form.tsx");
+    expect(ministryForm).toContain("PaperSettle");
+    expect(ministryForm).toContain("<AnchoredSheet");
+    expect(ministryForm).not.toContain('? "fade" : "slide"');
   });
 
   it("tappable paper lifts in the shared game chrome", () => {

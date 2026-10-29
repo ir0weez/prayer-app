@@ -1,9 +1,10 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState, useMemo } from "react";
-import { Pressable, ScrollView, Text, View, Image, FlatList, Alert, StyleSheet, TextInput, Modal } from "react-native";
+import { Pressable, ScrollView, Text, View, Image, FlatList, Alert, StyleSheet, TextInput } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ScreenContainer } from "@/components/screen-container";
+import { AnchoredSheet, measureEventAnchor, type AnchorRect } from "@/components/anchored-sheet";
 import { AvatarImage } from "@/components/avatar-system";
 import { sortFamilyMembers, type Person } from "@/lib/prayercircle-data";
 import { useColors } from "@/hooks/use-colors";
@@ -21,6 +22,8 @@ export default function FamilyScreen() {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [newPrayerTitle, setNewPrayerTitle] = useState("");
   const [showAddPrayerModal, setShowAddPrayerModal] = useState(false);
+  // v330: the measured rect of the + button — the sheet grows out of it.
+  const [sheetAnchor, setSheetAnchor] = useState<AnchorRect | null>(null);
 
   const colors = useColors();
   const { isSkinned, tokens: skinTokens } = useSkin();
@@ -397,7 +400,7 @@ export default function FamilyScreen() {
         {/* Add Prayer Input */}
         <View style={[styles.addPrayerContainer, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
           <Pressable
-            onPress={() => setShowAddPrayerModal(true)}
+            onPress={(event) => { measureEventAnchor(event, (rect) => { setSheetAnchor(rect); setShowAddPrayerModal(true); }); }}
             style={[styles.addPrayerInput, { backgroundColor: paperSurface, borderColor: isSkinned ? skinTokens.border ?? colors.border : colors.border }]}
           >
             <Text style={[styles.addPrayerPlaceholder, { color: colors.muted }]}>Add prayer item...</Text>
@@ -411,8 +414,7 @@ export default function FamilyScreen() {
         </View>
 
         {/* Add Prayer Modal */}
-        <Modal visible={showAddPrayerModal} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+        <AnchoredSheet visible={showAddPrayerModal} onClose={() => setShowAddPrayerModal(false)} anchor={sheetAnchor} scrimColor="rgba(0, 0, 0, 0.5)" containerStyle={[styles.modalOverlay, { backgroundColor: "transparent" }]}>
             <View style={[styles.modalContent, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.foreground }]}>Add Prayer Item</Text>
@@ -445,8 +447,7 @@ export default function FamilyScreen() {
                 </Pressable>
               </View>
             </View>
-          </View>
-        </Modal>
+        </AnchoredSheet>
 
         <View style={{ height: 40 }} />
       </ScrollView>

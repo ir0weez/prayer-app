@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
+import { AnchoredSheet, type AnchorRect } from "@/components/anchored-sheet";
 import {
-  Modal,
   View,
   Text,
   TextInput,
@@ -15,6 +15,8 @@ import { useColors } from '@/hooks/use-colors';
 import type { WorshipSong } from '@/lib/worship-list';
 
 interface AddWorshipSongModalProps {
+  /** v330: the measured rect of the control that summoned the sheet. */
+  anchor?: AnchorRect | null;
   visible: boolean;
   onClose: () => void;
   onAdd: (song: Omit<WorshipSong, 'id'>) => void;
@@ -24,6 +26,7 @@ export function AddWorshipSongModal({
   visible,
   onClose,
   onAdd,
+  anchor,
 }: AddWorshipSongModalProps) {
   const colors = useColors();
 
@@ -64,12 +67,7 @@ export function AddWorshipSongModal({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
-    >
+    <AnchoredSheet visible={visible} onClose={handleClose} anchor={anchor} fill>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={[styles.container, { backgroundColor: colors.background }]}
@@ -177,7 +175,7 @@ export function AddWorshipSongModal({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </Modal>
+    </AnchoredSheet>
   );
 }
 

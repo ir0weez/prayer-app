@@ -184,7 +184,6 @@ describe("8-bit coverage — v203 animation pass", () => {
     expect(menu).toContain("<BitSettle>");
     for (const file of [
       "components/event-edit-form.tsx",
-      "components/ministry-edit-form.tsx",
       "components/ministry-detail-card.tsx",
     ]) {
       const src = read(file);
@@ -192,6 +191,13 @@ describe("8-bit coverage — v203 animation pass", () => {
       // Paper's own entrance strings are untouched in each.
       expect(src, file).toContain('? "fade" : "slide"');
     }
+    // v330 Part 1: the ministry editor is an AnchoredSheet now —
+    // the slide/fade string is gone with its Modal; its BitSettle
+    // chain rides inside the anchored surface, unchanged.
+    const ministryForm = read("components/ministry-edit-form.tsx");
+    expect(ministryForm).toContain("BitSettle");
+    expect(ministryForm).toContain("<AnchoredSheet");
+    expect(ministryForm).not.toContain('? "fade" : "slide"');
   });
 
   it("tappable bit chrome depresses in the shared game chrome", () => {

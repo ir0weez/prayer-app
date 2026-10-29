@@ -1,6 +1,6 @@
 import React, { useState } from "react";
+import { AnchoredSheet, type AnchorRect } from "@/components/anchored-sheet";
 import {
-  Modal,
   View,
   Text,
   Pressable,
@@ -21,6 +21,8 @@ interface MinistryEditFormProps {
   visible: boolean;
   onClose: () => void;
   onSave: (updatedMinistry: ScheduleMinistry) => void;
+  /** v330: the measured rect of the control that summoned the editor. */
+  anchor?: AnchorRect | null;
 }
 
 export function MinistryEditForm({
@@ -28,6 +30,7 @@ export function MinistryEditForm({
   visible,
   onClose,
   onSave,
+  anchor,
 }: MinistryEditFormProps) {
   const colors = useColors();
   const { isPaper } = useSkin();
@@ -79,12 +82,7 @@ export function MinistryEditForm({
   };
 
   return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType={isPaper ? "fade" : "slide"}
-      onRequestClose={onClose}
-    >
+    <AnchoredSheet visible={visible} onClose={onClose} anchor={anchor} fill>
       {/* v202: under Paper the editor is a page laid down (fade +
           settle) instead of a slide-up. */}
       <PaperSettle style={[styles.overlay, { backgroundColor: colors.background }]}>
@@ -294,7 +292,7 @@ export function MinistryEditForm({
         </ScrollView>
       </BitSettle>
 </PaperSettle>
-    </Modal>
+    </AnchoredSheet>
   );
 }
 

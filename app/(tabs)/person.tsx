@@ -10,6 +10,7 @@ import { Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSh
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage } from "@/components/avatar-system";
 import { PaperSettle } from "@/components/paper-motion";
+import { AnchoredSheet, measureEventAnchor, type AnchorRect } from "@/components/anchored-sheet";
 import { BitSettle } from "@/components/bit-motion";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
@@ -337,6 +338,9 @@ export default function PersonScreen() {
   const [praiseNoteText, setPraiseNoteText] = useState("");
   const [draftIsPersonal, setDraftIsPersonal] = useState(false);
   const [showPersonalTodoModal, setShowPersonalTodoModal] = useState(false);
+  // v330: the measured rect of the control that summoned a sheet —
+  // the anchored sheets grow out of it and collapse back into it.
+  const [sheetAnchor, setSheetAnchor] = useState<AnchorRect | null>(null);
   const [personalTodoTitle, setPersonalTodoTitle] = useState("");
   const [personalTodoDescription, setPersonalTodoDescription] = useState("");
   const [personalTodoTime, setPersonalTodoTime] = useState("09:00");
@@ -504,7 +508,7 @@ export default function PersonScreen() {
   // v258: the Praise button — with a praise running it keeps today's
   // toggle-off; with none running it opens the title + note form
   // (praise is never blocked on typing: both fields may stay blank).
-  const handlePraise = () => {
+  const handlePraise = (event?: unknown) => {
     if (!currentPerson) return;
     // v284: the toggle-off belongs to a LIVE praise. A lapsed praise
     // is waiting for Renew or Delete on its card — tapping Praise
@@ -523,7 +527,8 @@ export default function PersonScreen() {
     }
     setPraiseTitleText(currentPerson.praiseTitle ?? "");
     setPraiseNoteText(currentPerson.praiseNote ?? "");
-    setShowPraiseModal(true);
+    // v330: the praise sheet grows out of the Praise button.
+    measureEventAnchor(event, (rect) => { setSheetAnchor(rect); setShowPraiseModal(true); });
   };
 
   const handleActivatePraise = () => {
@@ -722,13 +727,14 @@ export default function PersonScreen() {
     );
   };
 
-  const openReminderModal = () => {
+  const openReminderModal = (event?: unknown) => {
     if (!currentPerson) return;
     setDraftReminderFrequency(currentPerson.reminderFrequency ?? (currentPerson.reminderDaysOfWeek.length > 0 ? "weekly" : "none"));
     setDraftReminderDays(currentPerson.reminderDaysOfWeek);
     setDraftReminderMonthDay(String(currentPerson.reminderDayOfMonth ?? new Date().getDate()));
     setDraftReminderTime(currentPerson.reminderTime ?? "08:00");
-    setShowReminderModal(true);
+    // v330: the reminder sheet grows out of the reminder chip.
+    measureEventAnchor(event, (rect) => { setSheetAnchor(rect); setShowReminderModal(true); });
   };
 
   const toggleDraftReminderDay = (day: number) => {
@@ -789,12 +795,13 @@ export default function PersonScreen() {
     setShowReminderModal(false);
   };
 
-  const openLastReachedDateModal = () => {
+  const openLastReachedDateModal = (event?: unknown) => {
     if (!currentPerson) return;
     setDraftLastReachedDate(currentPerson.lastPrayedDate ?? getTodayISOString());
     setDraftLastMeetingLocation(currentPerson.lastMeetingLocation ?? "");
     setDraftReachedStampNote(reachedStamps.find((stamp) => stamp.personId === currentPerson.id && stamp.date === getTodayISOString())?.note ?? "");
-    setShowDateModal(true);
+    // v330: the last-reached sheet grows out of the Last Reached button.
+    measureEventAnchor(event, (rect) => { setSheetAnchor(rect); setShowDateModal(true); });
   };
 
   const handleSaveLastReachedDate = () => {
@@ -996,7 +1003,7 @@ export default function PersonScreen() {
 
         <View style={!isSkinned ? { flexDirection: "row", gap: 9, marginHorizontal: 16 } : undefined}>
           <Pressable
-            onPress={() => setShowEmergencyPrayerModal(true)}
+            onPress={(event) => { measureEventAnchor(event, (rect) => { setSheetAnchor(rect); setShowEmergencyPrayerModal(true); }); }}
             style={({ pressed }) => [styles.actionButton, { backgroundColor: "#EF4444" }, !isSkinned && { flex: 1, marginHorizontal: 0, borderRadius: 999, backgroundColor: "#FDECEA", shadowOpacity: 0, elevation: 0, minHeight: 48, paddingVertical: 12 }, pressed && styles.pressed]}
           >
             <MaterialIcons name={iconName("local-fire-department")} size={20} color={!isSkinned ? "#C23325" : "#FFFFFF"} />
@@ -1004,7 +1011,7 @@ export default function PersonScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => handlePraise()}
+            onPress={(event) => handlePraise(event)}
             style={({ pressed }) => [styles.actionButton, { backgroundColor: "#3B82F6" }, !isSkinned && { flex: 1, marginHorizontal: 0, marginTop: 10, borderRadius: 999, backgroundColor: "#FDF3D7", shadowOpacity: 0, elevation: 0, minHeight: 48, paddingVertical: 12 }, pressed && styles.pressed]}
           >
             <MaterialIcons name={iconName("thumb-up")} size={20} color={!isSkinned ? "#8A5F06" : "#FFFFFF"} />
@@ -1204,12 +1211,13 @@ export default function PersonScreen() {
                       {item.description && <Text numberOfLines={1} style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>{item.description}</Text>}
                       <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>Due: {item.scheduledTime}</Text>
                     </View>
-                    <Pressable onPress={() => {
+                    <Pressable onPress={(event) => {
                       setEditingTodoId(item.id);
                       setPersonalTodoTime(item.scheduledTime);
                       setSelectedDaysOfWeek(item.daysOfWeek || []);
                       setSelectedTodoColor(item.color || "#8B5CF6");
-                      setShowPersonalTodoModal(true);
+                      // v330: the time-and-days sheet grows out of its alarm button.
+                      measureEventAnchor(event, (rect) => { setSheetAnchor(rect); setShowPersonalTodoModal(true); });
                     }} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
                       <MaterialIcons name={iconName("alarm")} size={18} color={colors.primary} />
                     </Pressable>
@@ -1355,8 +1363,7 @@ export default function PersonScreen() {
         </View>
       </Modal>
 
-      <Modal transparent visible={showFamilyModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowFamilyModal(false)}>
-        <View style={styles.modalOverlay}>
+      <AnchoredSheet visible={showFamilyModal} onClose={() => setShowFamilyModal(false)} anchor={sheetAnchor} scrimColor="rgba(20, 19, 38, 0.28)" containerStyle={[styles.modalOverlay, { backgroundColor: "transparent" }]}>
           <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
 <BitSettle>
             <View style={styles.modalHeader}>
@@ -1417,11 +1424,10 @@ export default function PersonScreen() {
             </View>
           </BitSettle>
 </PaperSettle>
-        </View>
-      </Modal>
+        
+      </AnchoredSheet>
 
-      <Modal transparent visible={showReminderModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowReminderModal(false)}>
-        <View style={styles.modalOverlay}>
+      <AnchoredSheet visible={showReminderModal} onClose={() => setShowReminderModal(false)} anchor={sheetAnchor} scrimColor="rgba(20, 19, 38, 0.28)" containerStyle={[styles.modalOverlay, { backgroundColor: "transparent" }]}>
           <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
 <BitSettle>
             <View style={styles.modalHeader}>
@@ -1494,11 +1500,10 @@ export default function PersonScreen() {
             </Pressable>
           </BitSettle>
 </PaperSettle>
-        </View>
-      </Modal>
+        
+      </AnchoredSheet>
 
-      <Modal transparent visible={showDateModal} animationType="fade" onRequestClose={() => setShowDateModal(false)}>
-        <View style={styles.modalOverlay}>
+      <AnchoredSheet visible={showDateModal} onClose={() => setShowDateModal(false)} anchor={sheetAnchor} scrimColor="rgba(20, 19, 38, 0.28)" containerStyle={[styles.modalOverlay, { backgroundColor: "transparent" }]}>
           <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
 <BitSettle>
             <View style={styles.modalHeader}>
@@ -1544,11 +1549,10 @@ export default function PersonScreen() {
             </Pressable>
           </BitSettle>
 </PaperSettle>
-        </View>
-      </Modal>
+        
+      </AnchoredSheet>
 
-      <Modal transparent visible={showEmergencyPrayerModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowEmergencyPrayerModal(false)}>
-        <View style={styles.modalOverlay}>
+      <AnchoredSheet visible={showEmergencyPrayerModal} onClose={() => setShowEmergencyPrayerModal(false)} anchor={sheetAnchor} scrimColor="rgba(20, 19, 38, 0.28)" containerStyle={[styles.modalOverlay, { backgroundColor: "transparent" }]}>
           <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
 <BitSettle>
             <View style={styles.modalHeader}>
@@ -1617,11 +1621,10 @@ export default function PersonScreen() {
             </Pressable>
           </BitSettle>
 </PaperSettle>
-        </View>
-      </Modal>
+        
+      </AnchoredSheet>
 
-      <Modal transparent visible={showPraiseModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowPraiseModal(false)}>
-        <View style={styles.modalOverlay}>
+      <AnchoredSheet visible={showPraiseModal} onClose={() => setShowPraiseModal(false)} anchor={sheetAnchor} scrimColor="rgba(20, 19, 38, 0.28)" containerStyle={[styles.modalOverlay, { backgroundColor: "transparent" }]}>
           <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
 <BitSettle>
             <View style={styles.modalHeader}>
@@ -1655,11 +1658,10 @@ export default function PersonScreen() {
             </Pressable>
           </BitSettle>
 </PaperSettle>
-        </View>
-      </Modal>
+        
+      </AnchoredSheet>
 
-      <Modal transparent visible={showPersonalTodoModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowPersonalTodoModal(false)}>
-        <View style={styles.modalOverlay}>
+      <AnchoredSheet visible={showPersonalTodoModal} onClose={() => setShowPersonalTodoModal(false)} anchor={sheetAnchor} scrimColor="rgba(20, 19, 38, 0.28)" containerStyle={[styles.modalOverlay, { backgroundColor: "transparent" }]}>
           <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
 <BitSettle>
             <View style={styles.modalHeader}>
@@ -1737,8 +1739,8 @@ export default function PersonScreen() {
             </Pressable>
           </BitSettle>
 </PaperSettle>
-        </View>
-      </Modal>
+        
+      </AnchoredSheet>
     </ScreenContainer>
   );
 }

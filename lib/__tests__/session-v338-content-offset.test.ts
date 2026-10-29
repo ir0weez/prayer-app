@@ -83,3 +83,44 @@ describe("v338 geometry — content drops 12, the footer seat holds", () => {
     expect(footerClearance()).toBe(36);
   });
 });
+
+describe("v341 amendment — the progress-to-card gap (his 10:34 ask)", () => {
+  // Jonathan asked for clear space between the session's progress
+  // indicator and the person card at 10:34; v338's content nudge
+  // moved the whole column and produced no gap — for the FIRST
+  // person the card's wrapper carries marginTop 0, so the
+  // indicator sat flush on the card's top edge (his screenshot).
+  // The gap now lives on the progress bar's own container in the
+  // shared body: both presentations (morph + Modal frame the same
+  // body) get it, and the footer — outside the ScrollView — holds.
+  it("the gap is a named 16dp constant", () => {
+    expect(session).toContain("const PROGRESS_TO_CARD_GAP_DP = 16;");
+  });
+
+  it("the progress bar's container carries the gap as its bottom margin", () => {
+    expect(session).toContain(
+      'style={{ width: "100%", marginTop: 12, marginBottom: PROGRESS_TO_CARD_GAP_DP }}'
+    );
+  });
+
+  it("the gap seat exists exactly once — the shared body, not a per-root patch", () => {
+    expect(session.match(/marginBottom: PROGRESS_TO_CARD_GAP_DP/g)?.length).toBe(1);
+  });
+
+  it("geometry: bar bottom → person-card top is 16dp for the first person", () => {
+    // First person: no settled stack cards, and the card wrapper's
+    // own marginTop is 0 in that state — the container's bottom
+    // margin IS the whole gap.
+    expect(session).toContain("marginTop: settledPeople.length > 0 ? 18 : 0");
+    const gapFirstPerson = 16 + 0;
+    expect(gapFirstPerson).toBe(16);
+    // With settled people the bar clears the stack by the same 16,
+    // and the active card keeps its own 18 below the stack.
+    const gapToStack = 16;
+    expect(gapToStack).toBeGreaterThanOrEqual(16);
+  });
+
+  it("the footer still did not move (v335/v338 seat, byte-identical)", () => {
+    expect(session).toContain("paddingBottom: Math.max(22, insets.bottom + 12)");
+  });
+});

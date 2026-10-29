@@ -99,6 +99,17 @@ const MORPH_DURATION_MS = 380;
  * (morphActive false) keeps the v335 spacing byte-for-byte. */
 const MORPH_CONTENT_TOP_SHIFT_DP = 12;
 
+/** v341 (his Oct 29 ruling, asked at 10:34 and still missing after
+ * v338): a REAL, visible gap between the session's progress
+ * indicator and the top of the person card. The card's own wrapper
+ * carries marginTop 0 for the first person, so the segments sat
+ * flush on the card's top edge; the gap therefore lives on the
+ * progress bar's own container as its bottom margin — one seat in
+ * the shared body, so the morph and Modal presentations get the
+ * identical space, and the fixed footer (outside the ScrollView)
+ * cannot move. */
+const PROGRESS_TO_CARD_GAP_DP = 16;
+
 /** v310: the deepening's reveal — the hero's quiet rows fade and
  * settle in on the app's own entrance curve (Material
  * emphasized, native driver, no springs, no bounce) when time
@@ -873,7 +884,7 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
             the active person (the share the segments read as
             settled + active), full when the session is finished.
             The per-person segment colours retire with the segments. */}
-        <View style={{ width: "100%", marginTop: 12 }}>
+        <View style={{ width: "100%", marginTop: 12, marginBottom: PROGRESS_TO_CARD_GAP_DP }}>
           <WavyProgress
             value={totalCount > 0 ? (isFinished ? 1 : (currentIndex + 1) / totalCount) : 0}
             color={pm.seed}

@@ -36,6 +36,9 @@ export type NotificationPreferences = {
   defaultEventReminderMinutes: number;
   budgetRemindersEnabled: boolean;
   budgetReminderDaysBefore: number;
+  // v315: quiet hours (the Settings page's switch + range chips).
+  quietHoursEnabled: boolean;
+  quietHoursRange: QuietHoursRange;
 };
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
@@ -45,9 +48,107 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   defaultEventReminderMinutes: 0,
   budgetRemindersEnabled: true,
   budgetReminderDaysBefore: 1,
+  quietHoursEnabled: false,
+  quietHoursRange: "10-7",
 };
 
 const VALID_ADVANCE_MINUTES = [0, 5, 15, 30, 60];
+
+// ─── v315: quiet hours ──────────────────────────────────────────────────────
+// Three overnight ranges, picked from chips on the Settings page.
+// The window always wraps midnight (start in the evening, end the
+// next morning). Enforcement is honest about what each trigger kind
+// can express — see applyQuietHoursToPlans.
+
+export type QuietHoursRange = "9-6" | "10-7" | "11-7";
+
+export const QUIET_HOURS_RANGES: { id: QuietHoursRange; chip: string; display: string; startHour: number; endHour: number }[] = [
+  { id: "9-6", chip: "9–6", display: "9 PM – 6 AM", startHour: 21, endHour: 6 },
+  { id: "10-7", chip: "10–7", display: "10 PM – 7 AM", startHour: 22, endHour: 7 },
+  { id: "11-7", chip: "11–7", display: "11 PM – 7 AM", startHour: 23, endHour: 7 },
+];
+
+export function normalizeQuietHoursRange(value: unknown): QuietHoursRange {
+  return value === "9-6" || value === "11-7" ? value : "10-7";
+}
+
+export function quietHoursRangeDef(range: QuietHoursRange): (typeof QUIET_HOURS_RANGES)[number] {
+  return QUIET_HOURS_RANGES.find((entry) => entry.id === range) ?? QUIET_HOURS_RANGES[1];
+}
+
+/** Is this wall-clock moment inside the quiet window? */
+export function isInQuietHours(date: Date, range: QuietHoursRange): boolean {
+  const { startHour, endHour } = quietHoursRangeDef(range);
+  const minutes = date.getHours() * 60 + date.getMinutes();
+  return minutes >= startHour * 60 || minutes < endHour * 60;
+}
+
+/**
+ * The end of the quiet window a moment falls in: a moment in the
+ * evening part lands on the NEXT morning's end hour; a moment in the
+ * morning part lands on THAT morning's end hour. A moment outside
+ * the window comes back unchanged.
+ */
+export function deferDatePastQuietHours(date: Date, range: QuietHoursRange): Date {
+  if (!isInQuietHours(date, range)) return date;
+  const { startHour, endHour } = quietHoursRangeDef(range);
+  const deferred = new Date(date);
+  deferred.setHours(endHour, 0, 0, 0);
+  if (date.getHours() * 60 + date.getMinutes() >= startHour * 60) {
+    deferred.setDate(deferred.getDate() + 1);
+  }
+  return deferred;
+}
+
+/**
+ * v315: hold a batch of plans until quiet hours end.
+ *
+ *  - DATE triggers (events, todos, ministries, budget): the fire
+ *    date moves to the window's end — exact.
+ *  - DAILY triggers (daily prayer reminders): an in-window time
+ *    moves to the end hour. A daily trigger fires every day, so
+ *    shifting the time-of-day is a true deferral in both halves of
+ *    the window.
+ *  - WEEKLY / MONTHLY triggers (weekly/monthly prayer reminders):
+ *    only a MORNING in-window time moves to the end hour (same day,
+ *    later — a real deferral). An EVENING in-window time cannot be
+ *    deferred by a time-of-day shift without changing the day the
+ *    reminder belongs to, so it is left as scheduled. PARTIAL — the
+ *    Settings build report carries this; nothing is faked here.
+ *  - Everything else (the test notification's TIME_INTERVAL, …) is
+ *    not a plan this function is given and would pass through.
+ */
+export function applyQuietHoursToPlans(
+  plans: NotificationPlan[],
+  preferences: Pick<NotificationPreferences, "quietHoursEnabled" | "quietHoursRange">,
+): NotificationPlan[] {
+  if (!preferences.quietHoursEnabled) return plans;
+  const range = preferences.quietHoursRange;
+  const { endHour } = quietHoursRangeDef(range);
+  const types = Notifications.SchedulableTriggerInputTypes;
+  return plans.map((plan) => {
+    const trigger = plan.trigger as { type?: string; date?: Date; hour?: number; minute?: number } | null;
+    if (!trigger || typeof trigger !== "object") return plan;
+    if (trigger.type === types.DATE && trigger.date instanceof Date) {
+      const deferred = deferDatePastQuietHours(trigger.date, range);
+      if (deferred.getTime() === trigger.date.getTime()) return plan;
+      return { ...plan, trigger: { ...trigger, date: deferred } as Notifications.NotificationTriggerInput };
+    }
+    if (trigger.type === types.DAILY && typeof trigger.hour === "number") {
+      const probe = new Date();
+      probe.setHours(trigger.hour, trigger.minute ?? 0, 0, 0);
+      if (!isInQuietHours(probe, range)) return plan;
+      return { ...plan, trigger: { ...trigger, hour: endHour, minute: 0 } as Notifications.NotificationTriggerInput };
+    }
+    if ((trigger.type === types.WEEKLY || trigger.type === types.MONTHLY) && typeof trigger.hour === "number") {
+      const minutes = trigger.hour * 60 + (trigger.minute ?? 0);
+      // Morning half only: still before the window's end today.
+      if (minutes >= endHour * 60) return plan;
+      return { ...plan, trigger: { ...trigger, hour: endHour, minute: 0 } as Notifications.NotificationTriggerInput };
+    }
+    return plan;
+  });
+}
 
 export function normalizeNotificationPreferences(value: unknown): NotificationPreferences {
   const parsed = (value && typeof value === "object" ? value : {}) as Partial<NotificationPreferences>;
@@ -59,6 +160,8 @@ export function normalizeNotificationPreferences(value: unknown): NotificationPr
     defaultEventReminderMinutes: VALID_ADVANCE_MINUTES.includes(minutes) ? minutes : 0,
     budgetRemindersEnabled: parsed.budgetRemindersEnabled !== false,
     budgetReminderDaysBefore: Number(parsed.budgetReminderDaysBefore) === 0 ? 0 : 1,
+    quietHoursEnabled: parsed.quietHoursEnabled === true,
+    quietHoursRange: normalizeQuietHoursRange(parsed.quietHoursRange),
   };
 }
 
@@ -407,7 +510,7 @@ async function syncPrayerReminderNotificationsNow(people: Person[]): Promise<voi
   await cancelKind(PRAYER_KIND);
   const preferences = await getNotificationPreferences();
   if (!preferences.prayerRemindersEnabled) return;
-  const plans = buildPrayerReminderPlans(people);
+  const plans = applyQuietHoursToPlans(buildPrayerReminderPlans(people), preferences);
   if (plans.length === 0 || !(await ensureNotificationPermission())) return;
   await schedulePlans(plans);
 }
@@ -429,7 +532,7 @@ async function syncScheduledEventNotificationsNow(events: ScheduleEvent[], todos
   const plans = buildScheduledEventPlans(events, new Date(), preferences.defaultEventReminderMinutes);
   const todoPlans = buildScheduledTodoPlans(todos, new Date(), preferences.defaultEventReminderMinutes);
   const ministryPlans = buildScheduledMinistryPlans(ministries, new Date(), preferences.defaultEventReminderMinutes);
-  const allPlans = [...plans, ...todoPlans, ...ministryPlans];
+  const allPlans = applyQuietHoursToPlans([...plans, ...todoPlans, ...ministryPlans], preferences);
   if (allPlans.length === 0 || !(await ensureNotificationPermission())) return;
   await schedulePlans(allPlans);
 }
@@ -448,7 +551,7 @@ async function syncBudgetReminderNotificationsNow(expenses: MonthlyExpenseRecord
   await cancelKind(BUDGET_KIND);
   const preferences = await getNotificationPreferences();
   if (!preferences.budgetRemindersEnabled) return;
-  const plans = buildBudgetReminderPlans(expenses, new Date(), preferences.budgetReminderDaysBefore);
+  const plans = applyQuietHoursToPlans(buildBudgetReminderPlans(expenses, new Date(), preferences.budgetReminderDaysBefore), preferences);
   if (plans.length === 0 || !(await ensureNotificationPermission())) return;
   await schedulePlans(plans);
 }

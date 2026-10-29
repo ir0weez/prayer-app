@@ -324,9 +324,14 @@ describe("Paper coverage — v202 animation pass", () => {
   it("shell: settings cards settle in a stack, sheets are laid down, the FAB lifts", () => {
     const shell = read("app/(tabs)/index.tsx");
     expect(shell).toContain('import { PaperSettle, paperPressedLift } from "@/components/paper-motion";');
-    // Profile card + all seven settings section cards.
-    expect(shell).toContain("<PaperSettle index={0} style={[styles.profileSettingsCard,");
-    expect((shell.match(/<PaperSettle index=\{\d+\} style=\{\[styles\.settingsCard,/g) ?? []).length).toBe(7);
+    // v315 re-pin: the Settings rebuild replaced the profile card +
+    // seven section cards with the drawing's stack — hero band,
+    // four group cards, Warning door — and all six still settle as
+    // a Paper stack, in order, inside the settings screen.
+    const settingsSlice = shell.slice(shell.indexOf("const renderSettingsScreen"), shell.indexOf("const [bibleChapters"));
+    expect(settingsSlice).toContain("<PaperSettle index={0}");
+    expect((settingsSlice.match(/<PaperSettle index=\{\d+\}/g) ?? []).length).toBe(6);
+    expect((settingsSlice.match(/style=\{\[styles\.settingsGroupCard,/g) ?? []).length).toBe(4);
     // The five slide-up sheets fade under Paper.
     expect(count(shell, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(5);
     expect(shell).toContain("<PaperSettle style={styles.themeSheet}>");

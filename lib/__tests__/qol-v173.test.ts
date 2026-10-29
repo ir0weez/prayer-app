@@ -132,34 +132,22 @@ function rosterFor(args: {
 }
 
 // ---- 1. Settings XP line (source pins) ------------------------------
+// v315 RETIRED: this block pinned the XP readout that lived in the
+// Settings profile card (the badge squeeze fix, the totals on their
+// own line, the readout's exact words). The Settings rebuild
+// removed the whole profile/stats card by Jonathan's ruling — XP
+// and fasting readouts live on the Profile and fasting pages, not
+// in Settings — so the pins' subject no longer exists. What remains
+// worth pinning is the absence itself.
 
-describe("Settings XP line — the header can no longer squeeze the badge", () => {
+describe("Settings XP line — retired with the profile card (v315)", () => {
   const src = read("app/(tabs)/index.tsx");
-  const styleBlock = (name: string, next: string) =>
-    src.slice(src.indexOf(`${name}: {`), src.indexOf(`${next}: {`));
+  const settingsSlice = src.slice(src.indexOf("const renderSettingsScreen"), src.indexOf("const [bibleChapters"));
 
-  it("the header stacks vertically instead of forcing one row", () => {
-    const header = styleBlock("fastProgressHeader", "fastProgressLabel");
-    expect(header).toContain('flexDirection: "column"');
-    expect(header).not.toContain('justifyContent: "space-between"');
-  });
-
-  it("the badge slot no longer flex-grows, and both texts can shrink", () => {
-    const slot = styleBlock("levelBadgeFrameSlot", "levelBadgeFrame");
-    expect(slot).not.toContain("flex: 1");
-    expect(slot).toContain('maxWidth: "100%"');
-    const label = styleBlock("fastProgressLabel", "fastProgressType");
-    expect(label).toContain("flexShrink: 1");
-  });
-
-  it("the XP totals render on their own single line", () => {
-    expect(src).toContain("numberOfLines={1} style={[styles.fastProgressType");
-  });
-
-  it("the readout itself is unchanged — same numbers, same words", () => {
-    expect(src).toContain("{xpState.totalXP} XP · {xpProgress.requiredXP - xpProgress.currentXP} to Level {xpProgress.nextLevel}");
-    expect(src).toContain("{xpProgress.currentXP} / {xpProgress.requiredXP} XP to next level");
-    expect(src).toContain("Level {xpProgress.level} · {getXPLevelTitle(xpProgress.level)}");
+  it("no XP readout renders anywhere in the rebuilt Settings screen", () => {
+    expect(settingsSlice).not.toContain("fastProgressType");
+    expect(settingsSlice).not.toContain("xpState.totalXP");
+    expect(settingsSlice).not.toContain("XP to next level");
   });
 });
 

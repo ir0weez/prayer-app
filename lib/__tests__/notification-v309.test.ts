@@ -183,9 +183,14 @@ describe("v309: the Emergency & praise notifications preference", () => {
 });
 
 describe("v309: the Settings switch and its wiring", () => {
-  it("the switch row exists with Jonathan's exact label", () => {
-    expect(index).toContain('"Emergency & praise notifications"');
-    expect(index).toContain("value={settings.emergencyPraiseNotificationsEnabled}");
+  it("the switch row exists (v315: the row wears the approved Settings drawing's shorter label)", () => {
+    // v315 re-pin: the Settings rebuild to the approved v7-final
+    // drawing renamed the ROW to the drawing's "Emergency & praise".
+    // The preference key, default, and every behaviour this file
+    // guards are unchanged — only the visible label follows the
+    // newer approved drawing.
+    expect(index).toContain('"Emergency & praise"');
+    expect(index).toContain("value: settings.emergencyPraiseNotificationsEnabled");
     expect(index).toContain("emergencyPraiseNotificationsEnabled: parsed.emergencyPraiseNotificationsEnabled !== false,");
   });
 

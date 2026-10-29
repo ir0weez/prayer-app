@@ -10848,8 +10848,10 @@ export function ScheduleTab({
   // token 60px rise over scroll 200–320. All of that is replaced
   // by ONE slide: the app bar and both overlay twins share this
   // translateY, moving up 1:1 with the sheet's scroll until the
-  // block has cleared the top edge — no scale transform, no fade.
-  // The geometry is self-keeping: an element's clearance above
+  // block has cleared the top edge — no scale transform. (v315
+  // adds the fade back on TOP of this slide — see stripFade and
+  // headerFade below; the slide itself is unchanged.) The
+  // geometry is self-keeping: an element's clearance above
   // the sheet's rising edge (its seat bottom vs the zone's full
   // height) is constant under a 1:1 slide, so a twin can never be
   // caught floating over the sheet's cards; and once its seat
@@ -10867,6 +10869,42 @@ export function ScheduleTab({
   const headerSlideY = scrollY.interpolate({
     inputRange: [0, headerSlideFull],
     outputRange: [0, -headerSlideFull],
+    extrapolate: "clamp",
+  });
+  // v315 (his Oct 28, 16:28 + 16:30, on v313/v314): the strip was
+  // still "sitting at the top like a creep" while the list scrolled
+  // under it — the shared slide's full travel is keyed to the WHOLE
+  // header block (app bar + strip + reach row + margins), so on his
+  // phone the strip's exit read as a linger at the top edge — and
+  // he missed the fade the old shrink gate had: "I also liked that
+  // it faded away as it was sliding out of the frame." So the strip
+  // now completes its exit on its OWN measure: a 1:1 slide keyed to
+  // its own seat (84 top + its height + 12), reaching the top edge
+  // exactly as its travel ends — never further, never left hanging —
+  // and a fade on the same scroll: solid through the first 45% of
+  // the travel, dissolved to fully transparent exactly as the slide
+  // completes. The reach twin keeps the shared headerSlideY and
+  // takes the same-shaped fade keyed to the shared slide. NO scale
+  // anywhere (the shrink was his actual v308 complaint; the fade
+  // was never the problem). Fully gone is fully gone: opacity 0
+  // AND the frame wholly above the screen, so the strip neither
+  // lingers visibly nor takes touches; at every earlier position
+  // what is drawn is what is tappable, and day-switching works at
+  // every scroll position exactly as the twins were built for.
+  const stripSlideFull = 84 + classicStripHeight + 12;
+  const stripSlideY = scrollY.interpolate({
+    inputRange: [0, stripSlideFull],
+    outputRange: [0, -stripSlideFull],
+    extrapolate: "clamp",
+  });
+  const stripFade = scrollY.interpolate({
+    inputRange: [stripSlideFull * 0.45, stripSlideFull],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+  const headerFade = scrollY.interpolate({
+    inputRange: [headerSlideFull * 0.45, headerSlideFull],
+    outputRange: [1, 0],
     extrapolate: "clamp",
   });
 
@@ -13992,11 +14030,16 @@ export function ScheduleTab({
                 be tappable. v308: the scroll gate that used to fade
                 and SHRINK each element away as the sheet's edge
                 reached it is replaced by the header block's slide —
-                both elements carry headerSlideY (see its note at
+                both elements carried headerSlideY (see its note at
                 scrollY), translating up 1:1 with the scroll and off
                 the top edge, so what's drawn is what's tappable at
                 every scroll position, and a fully-slid element's
                 frame sits above the screen and takes no touches.
+                v315: the strip now rides its OWN slide (stripSlideY,
+                keyed to its own seat) and both twins FADE as they
+                slide (stripFade / headerFade) — his word that the
+                strip lingered at the top "like a creep" and that he
+                liked the fade; the reach twin keeps headerSlideY.
                 The host is pointerEvents="box-none": only the
                 elements themselves take touches; everything else
                 falls through to the sheet. Their seats are the
@@ -14012,7 +14055,8 @@ export function ScheduleTab({
                     top: 84,
                     left: 20,
                     right: 20,
-                    transform: [{ translateY: headerSlideY }],
+                    opacity: stripFade,
+                    transform: [{ translateY: stripSlideY }],
                   }}
                 >
                   {/* The week strip — v296's JSX, verbatim: the v32
@@ -14076,6 +14120,7 @@ export function ScheduleTab({
                       left: 20 + classicReachRect.x,
                       top: 84 + classicStripHeight + classicReachRect.y,
                       width: classicReachRect.width,
+                      opacity: headerFade,
                       transform: [{ translateY: headerSlideY }],
                     }}
                   >

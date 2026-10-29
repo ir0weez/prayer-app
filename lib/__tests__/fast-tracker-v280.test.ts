@@ -135,9 +135,13 @@ describe("v280 seam: the board layer is deleted, not hidden", () => {
     const people = read("app/(tabs)/index.tsx");
     expect(people).toContain('import { FastFlame, FastSummaryCard } from "@/components/fast-tracker";');
     expect(people).toContain('import { getPreviousFast } from "@/lib/fast-tracker";');
-    // People's FASTING card still renders all three, byte-preserved.
-    expect(people).toContain("<FastFlame size={16} />");
-    expect(people).toContain("<FastSummaryCard fast={activeFast} colors={colors} />");
+    // v315 re-pin: the Settings FASTING card that rendered
+    // FastFlame/FastSummaryCard here is GONE by Jonathan's ruling
+    // (the fast lives on the identity line in Settings and in full
+    // on Profile/fasting). The pieces themselves stay exported and
+    // intact in components/fast-tracker.tsx (pinned just above),
+    // and the imports remain in this file for its other surfaces.
+    expect(people).not.toContain("<FastSummaryCard fast={activeFast} colors={colors} />");
   });
 
   it("the shop's hero skins survive as cosmetics through pawn-preview", () => {

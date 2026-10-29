@@ -9,7 +9,7 @@ import * as Sharing from "expo-sharing";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useThemeContext } from "@/lib/theme-provider";
+import { useThemeContext, normalizeAppearancePreference, type AppearancePreference } from "@/lib/theme-provider";
 import { APP_ICONS, getAppIconDef, isIconUnlocked, loadSelectedAppIconId, saveSelectedAppIconId } from "@/lib/app-icons";
 import { setAppIcon as setNativeAppIcon, getAppIcon as getNativeAppIcon, isAppIconSwitchingAvailable } from "@/modules/expo-app-icon/src/index";
 import { useColors } from "@/hooks/use-colors";
@@ -63,10 +63,17 @@ import {
   clearAllScheduledNotifications,
   dismissPrayerTrayNotifications,
   getNotificationPermissionStatus,
+  normalizeQuietHoursRange,
+  quietHoursRangeDef,
+  QUIET_HOURS_RANGES,
   scheduleTestNotification,
   syncBudgetReminderNotifications,
   syncPrayerReminderNotifications,
+  type QuietHoursRange,
 } from "@/lib/notification-scheduler";
+import { deriveSettingsMaterial } from "@/lib/settings-material";
+import Constants from "expo-constants";
+import * as Linking from "expo-linking";
 
 import { PulsingGlow } from "@/components/pulsing-glow";
 import { EntranceAnimation } from "@/components/entrance-animation";
@@ -172,7 +179,7 @@ import {
   type PersonalFast,
   upsertFastDayStatus,
 } from "@/lib/prayercircle-fasting";
-import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, LAST_EXPORT_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { loadStudyState, saveStudyState } from "@/lib/bible-v205/study";
 import { applyStudioStatesReads, collectStudioStates } from "@/lib/bible-v205/studio-states";
@@ -335,6 +342,10 @@ type AppSettings = {
   demoMode: boolean;
   colorTheme: AccentThemeId;
   skinTheme: SkinThemeId;
+  // v315: the appearance preference (Light / System / Dark on the
+  // Settings page's palette wall), mirrored into the theme provider
+  // and read back by it at launch from this same blob.
+  appearance: AppearancePreference;
   whiteSpaceEnabled: boolean;
   holidaysEnabled: boolean;
   prayerRemindersEnabled: boolean;
@@ -343,6 +354,10 @@ type AppSettings = {
   defaultEventReminderMinutes: number;
   budgetRemindersEnabled: boolean;
   budgetReminderDaysBefore: number;
+  // v315: quiet hours — persisted here, enforced (honestly, per
+  // trigger kind) in lib/notification-scheduler.ts.
+  quietHoursEnabled: boolean;
+  quietHoursRange: QuietHoursRange;
 };
 
 type PersonalProfile = {
@@ -373,6 +388,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   demoMode: false,
   colorTheme: "default",
   skinTheme: "classic",
+  appearance: "system",
   whiteSpaceEnabled: true,
   holidaysEnabled: true,
   prayerRemindersEnabled: true,
@@ -381,6 +397,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   defaultEventReminderMinutes: 0,
   budgetRemindersEnabled: true,
   budgetReminderDaysBefore: 1,
+  quietHoursEnabled: false,
+  quietHoursRange: "10-7",
 };
 const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, avatarAsset: undefined, auraId: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined, statusColor: "#0A86B8", statusExpiresAt: null };
 
@@ -455,6 +473,7 @@ function parseStoredSettings(value: string | null): AppSettings {
       demoMode: Boolean(parsed.demoMode),
       colorTheme,
       skinTheme,
+      appearance: normalizeAppearancePreference(parsed.appearance),
       whiteSpaceEnabled: parsed.whiteSpaceEnabled !== false,
       holidaysEnabled: parsed.holidaysEnabled !== false,
       prayerRemindersEnabled: parsed.prayerRemindersEnabled !== false,
@@ -463,6 +482,8 @@ function parseStoredSettings(value: string | null): AppSettings {
       defaultEventReminderMinutes: validAdvanceMinutes.includes(defaultEventReminderMinutes) ? defaultEventReminderMinutes : 0,
       budgetRemindersEnabled: parsed.budgetRemindersEnabled !== false,
       budgetReminderDaysBefore: Number(parsed.budgetReminderDaysBefore) === 0 ? 0 : 1,
+      quietHoursEnabled: parsed.quietHoursEnabled === true,
+      quietHoursRange: normalizeQuietHoursRange(parsed.quietHoursRange),
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -1169,7 +1190,8 @@ export default function HomeScreen() {
   });
   const scheduleScrollY = useRef(0);
   // M3 dialog state for Danger Zone confirmations.
-  const [dangerDialog, setDangerDialog] = useState<"reset" | "notifications" | "clear" | null>(null);
+  // v315: the old dangerDialog state is retired — the Warning door's
+  // two-step confirm (dangerArmed) replaced the three dialogs.
 
   const [showWorshipAlbumForm, setShowWorshipAlbumForm] = useState(false);
   const [showStampCollection, setShowStampCollection] = useState(false);
@@ -1242,6 +1264,31 @@ export default function HomeScreen() {
   const [showThemeSheet, setShowThemeSheet] = useState(false);
   const [showSkinSheet, setShowSkinSheet] = useState(false);
   const [showAppIconSheet, setShowAppIconSheet] = useState(false);
+  // v315: the rebuilt Settings page's in-place expansions — the
+  // palette wall inside its row, the Drive expander, the Warning
+  // door, and the one destructive action currently armed for its
+  // second confirming tap.
+  const [settingsColorExpanded, setSettingsColorExpanded] = useState(false);
+  const [driveExpanded, setDriveExpanded] = useState(false);
+  const [warningExpanded, setWarningExpanded] = useState(false);
+  const [dangerArmed, setDangerArmed] = useState<"reset" | "notifications" | "clear" | null>(null);
+  // v315: the real last-export stamp (LAST_EXPORT_STORAGE_KEY) — null
+  // until the first export this build records.
+  const [lastExportAt, setLastExportAt] = useState<string | null>(null);
+  useEffect(() => {
+    AsyncStorage.getItem(LAST_EXPORT_STORAGE_KEY).then(setLastExportAt).catch(() => undefined);
+  }, []);
+  // v315: the update check's honest state — "current"/"available" are
+  // only ever set from a real release comparison; anything else is
+  // idle, checking, unknown (fetched but uncomparable), or failed.
+  const [updateCheck, setUpdateCheck] = useState<
+    | { status: "idle" }
+    | { status: "checking" }
+    | { status: "current"; latestBuild: number }
+    | { status: "available"; latestBuild: number; latestTag: string }
+    | { status: "unknown"; latestBuild: number }
+    | { status: "failed" }
+  >({ status: "idle" });
   const [selectedAppIconId, setSelectedAppIconId] = useState("original");
   const [iconSwitchError, setIconSwitchError] = useState<string | null>(null);
   const [iconToast, setIconToast] = useState<string | null>(null);
@@ -1385,7 +1432,7 @@ export default function HomeScreen() {
   const pendingPrayerPositions = useRef<Record<string, XpGainPosition | undefined>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
   const xpShimmer = useRef(new Animated.Value(0)).current;
-  const { colorScheme, setAccentTheme, setSkinTheme } = useThemeContext();
+  const { colorScheme, setAccentTheme, setSkinTheme, setAppearance } = useThemeContext();
 
   const awardExperience = useCallback(async (action: XpAction, idempotencyKey: string, position?: XpGainPosition) => {
     try {
@@ -1444,6 +1491,13 @@ export default function HomeScreen() {
   useEffect(() => {
     if (hasHydratedPeople) setSkinTheme(settings.skinTheme);
   }, [hasHydratedPeople, setSkinTheme, settings.skinTheme]);
+
+  // v315: appearance mirrors into the provider the same way accent
+  // and skin do; the provider also reads it straight from the blob
+  // at launch, so the two never disagree for long.
+  useEffect(() => {
+    if (hasHydratedPeople) setAppearance(settings.appearance);
+  }, [hasHydratedPeople, setAppearance, settings.appearance]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1854,10 +1908,15 @@ export default function HomeScreen() {
     }
   }, [activeFast, today, hasHydratedPeople, profile.fastingStreak]);
 
+  // v315: quiet-hours fields ride along so flipping them re-runs the
+  // sync (the persist effect above has already landed the new blob —
+  // it is declared before this one — so the scheduler reads the fresh
+  // window). Event/todo/ministry plans pick the window up at the
+  // Schedule tab's next sync; budget below re-syncs the same way.
   useEffect(() => {
     if (!hasHydratedPeople) return;
     syncPrayerReminderNotifications(people).catch(() => undefined);
-  }, [hasHydratedPeople, people, settings.prayerRemindersEnabled]);
+  }, [hasHydratedPeople, people, settings.prayerRemindersEnabled, settings.quietHoursEnabled, settings.quietHoursRange]);
 
   // v309: the plain sticky tray cards no longer exist — the native
   // timer pill is the only emergency notification and praise posts
@@ -1909,7 +1968,7 @@ export default function HomeScreen() {
         if (Array.isArray(parsed)) void syncBudgetReminderNotifications(normalizeRecurringExpenses(parsed));
       })
       .catch(() => undefined);
-  }, [hasHydratedPeople, settings.budgetRemindersEnabled, settings.budgetReminderDaysBefore]);
+  }, [hasHydratedPeople, settings.budgetRemindersEnabled, settings.budgetReminderDaysBefore, settings.quietHoursEnabled, settings.quietHoursRange]);
 
   // Separate family groups from individual people
   const familyGroups = useMemo(() => {
@@ -4028,6 +4087,16 @@ export default function HomeScreen() {
     return true;
   };
 
+  // v315: every completed export stamps the last-export record the
+  // Settings Backup row reads. Called only on paths where the backup
+  // actually left the app (written to Drive, or written to a file and
+  // handed to the share sheet) — never on the failure path.
+  const recordLastExport = () => {
+    const stamp = new Date().toISOString();
+    setLastExportAt(stamp);
+    AsyncStorage.setItem(LAST_EXPORT_STORAGE_KEY, stamp).catch(() => undefined);
+  };
+
   const handleExportData = async () => {
     try {
       const keys = await AsyncStorage.getAllKeys();
@@ -4104,6 +4173,7 @@ export default function HomeScreen() {
       // hint about the folder after it completes.
       const driveExport = await writeExportToDriveFolder(payload);
       if (driveExport.status === "written") {
+        recordLastExport();
         notifyAlert("Export saved", `Export saved to ${driveExport.folderName} — ${DRIVE_EXPORT_FILENAME}, overwritten in place. The same file is replaced every time you export.`);
         return;
       }
@@ -4116,12 +4186,13 @@ export default function HomeScreen() {
         await Share.share({ title: filename, message: payload });
       }
       if (driveExport.status === "unlinked") {
-        notifyAlert("Export shared", `Tip: link your Drive folder under Drive Folder in DATA and Export overwrites one file there (${DRIVE_EXPORT_FILENAME}) instead of making a new file each time.`);
+        notifyAlert("Export shared", `Tip: link your Drive folder under Drive folder in DATA & BACKUP and Export overwrites one file there (${DRIVE_EXPORT_FILENAME}) instead of making a new file each time.`);
       } else if (driveExport.status === "not-enabled") {
-        notifyAlert("Export shared", `Tip: tap "Enable export writing" under Drive Folder in DATA and Export overwrites one file there (${DRIVE_EXPORT_FILENAME}) instead of making a new file each time.`);
+        notifyAlert("Export shared", `Tip: tap "Enable export writing" under Drive folder in DATA & BACKUP and Export overwrites one file there (${DRIVE_EXPORT_FILENAME}) instead of making a new file each time.`);
       } else if (driveExport.status === "failed") {
-        notifyAlert("Export shared", "PrayerCircle could not write to the linked folder, so this export was shared instead. The folder link in DATA may need a refresh.");
+        notifyAlert("Export shared", "PrayerCircle could not write to the linked folder, so this export was shared instead. The folder link in DATA & BACKUP may need a refresh.");
       }
+      recordLastExport();
     } catch (error) {
       console.error("PrayerCircle export failed", error);
       notifyAlert("Export failed", "PrayerCircle could not create the backup file. Please try again.");
@@ -4590,375 +4661,467 @@ export default function HomeScreen() {
     return `Last check: ${when} · Applied ${applied} · Held ${held} · Skipped ${skipped}`;
   };
 
-  const renderSettingsScreen = () => (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
-      <Text style={[styles.settingsTitle, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 16, lineHeight: 26 } : null, skinTokens.isTerminal ? { color: TERM_PHOS } : skinTokens.isEightBit ? { color: "#EDE8FF" } : null]}>Settings</Text>
-      <PaperSettle index={0} style={[styles.profileSettingsCard, { borderColor: profileAura?.glowColor || colors.border, backgroundColor: profileAura ? auraWashColor(profileAura, "20") : (isSkinned ? skinTokens.surface ?? colors.surface : colors.surface) }, skinTokens.frame]}>
-<BitSettle index={0}>
-        {isSkinned ? <PaperGrainOverlay /> : null}
-        <View style={styles.profileCardTop}>
-          <View style={styles.profileCardTopLeft}>
-            <View style={styles.profileAvatarContainer}>
-              <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
-                <AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" profileLevel={xpProgress.level} photoUri={profile.photoUri} size={64} fallbackColor={colors.primary} />
-              </Pressable>
-            </View>
-            <View style={styles.profileNameAndBirthdayContainer}>
-              <Text style={styles.profileNameText}>{profile.name}</Text>
-              {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
-              {/* Bible Reading Info Pill */}
-              <View style={{ marginTop: 6, position: 'relative', alignSelf: 'flex-start' }}>
-                {(() => {
-                  const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
-                  const daysAgo = bibleLastReadDate ? Math.max(0, Math.floor((Date.now() - new Date(bibleLastReadDate).getTime()) / (1000 * 60 * 60 * 24))) : null;
-                  const bookName = currentBook ? currentBook[0] : 'No book set';
-                  const pillColor = currentBook ? colors.primary : colors.muted;
-                  return (
-                    <>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: pillColor + '20', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1.5, borderColor: pillColor + '40' }}>
-                        <MaterialIcons name="menu-book" size={16} color={pillColor} />
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: pillColor, marginLeft: 5 }}>{bookName}</Text>
-                      </View>
-                      {/* Days-ago badge overlapping bottom-left */}
-                      <View style={{ position: 'absolute', bottom: -8, left: 4, backgroundColor: colors.surface, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                        <Text style={{ fontSize: 9, fontWeight: '700', color: colors.muted }}>
-                          {daysAgo !== null ? `${daysAgo}d ago` : 'No reads'}
-                        </Text>
-                      </View>
-                    </>
-                  );
-                })()}
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 13, backgroundColor: colors.primary + '16', borderWidth: 1, borderColor: colors.primary + '35' }}>
-                <MaterialIcons name="collections-bookmark" size={14} color={colors.primary} />
-                <Text style={{ marginLeft: 5, fontSize: 11, fontWeight: '800', color: colors.primary }}>{unlockedBookIds.length}/66 Books collected</Text>
-              </View>
-            </View>
+  // v315 "Settings, To the Drawing" — the page rebuilt to the
+  // approved blend drawing (settings-expressive-blend-v7-final.html):
+  // the v5 app bar, ONE wide low tonal hero band carrying the LIVE
+  // roster count and the identity line, then Look / Schedule &
+  // Alerts (slim) / Data & Backup / App, and the three destructive
+  // actions behind a single Warning door with a two-step confirm.
+  // The old profile/stats card and the FASTING card are GONE (his
+  // ruling: the fast lives on the identity line here and in full on
+  // Profile). Every control that existed before the rebuild exists
+  // here, wired to the same state and handlers. All colour derives
+  // from the palette via deriveSettingsMaterial (seed × appearance ×
+  // skin) — the drawing's violets are roles, never values.
+  const renderSettingsScreen = () => {
+    const sm = deriveSettingsMaterial(colors.primary, {
+      background: colors.background,
+      surface: colors.surface,
+      foreground: colors.foreground,
+      muted: colors.muted,
+      border: colors.border,
+    });
+    const themeDef = getAccentThemeDefinition(settings.colorTheme);
+    const skinDef = getSkinThemeDefinition(settings.skinTheme);
+    const appIconDef = getAppIconDef(selectedAppIconId);
+    const rosterCount = people.filter((person) => !person.isPersonal).length;
+    const quietDef = quietHoursRangeDef(settings.quietHoursRange);
+    const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+    const nativeBuild = Constants.nativeBuildVersion ? Number.parseInt(Constants.nativeBuildVersion, 10) : Number.NaN;
+    const currentBuild = Number.isFinite(nativeBuild) ? nativeBuild : null;
+    const buildLabel = currentBuild !== null ? `Build v${currentBuild}` : `Version ${appVersion}`;
+    const lastExportLabel = lastExportAt
+      ? `Last export: ${new Date(lastExportAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+      : "Not exported yet";
+
+    // The update check is a REAL comparison or it says nothing:
+    // "current" / "available" are only set from the repo's latest
+    // release tag against this build's true number; a build number
+    // the device can't report makes the outcome "unknown" (latest
+    // shown, nothing claimed), and any fetch failure is "failed".
+    const checkForUpdates = async () => {
+      if (updateCheck.status === "checking") return;
+      if (updateCheck.status === "available") {
+        Linking.openURL(`https://github.com/ir0weez/prayer-app/releases/tag/${updateCheck.latestTag}`).catch(() => undefined);
+        return;
+      }
+      setUpdateCheck({ status: "checking" });
+      try {
+        const response = await fetch("https://api.github.com/repos/ir0weez/prayer-app/releases/latest", { headers: { Accept: "application/vnd.github+json" } });
+        if (!response.ok) throw new Error("release check failed");
+        const data = (await response.json()) as { tag_name?: unknown };
+        const tag = typeof data.tag_name === "string" ? data.tag_name : "";
+        const match = /-v(\d+)$/.exec(tag);
+        if (!match) throw new Error("release tag carries no build number");
+        const latestBuild = Number.parseInt(match[1], 10);
+        if (currentBuild === null) {
+          setUpdateCheck({ status: "unknown", latestBuild });
+        } else if (latestBuild <= currentBuild) {
+          setUpdateCheck({ status: "current", latestBuild });
+        } else {
+          setUpdateCheck({ status: "available", latestBuild, latestTag: tag });
+        }
+      } catch {
+        setUpdateCheck({ status: "failed" });
+      }
+    };
+    const updateSub = updateCheck.status === "checking"
+      ? "Checking…"
+      : updateCheck.status === "unknown"
+        ? `Latest build: v${updateCheck.latestBuild}`
+        : updateCheck.status === "failed"
+          ? "Couldn't check — tap to try again"
+          : buildLabel;
+    const updateChip = updateCheck.status === "current"
+      ? { label: "Up to date", backgroundColor: sm.goodChipBg, color: sm.goodChipInk }
+      : updateCheck.status === "available"
+        ? { label: `v${updateCheck.latestBuild} available`, backgroundColor: sm.primaryContainer, color: sm.onPrimaryContainer }
+        : null;
+
+    // The Warning door's three actions — the exact handlers the old
+    // DANGER ZONE dialogs confirmed, now behind the door's own
+    // two-step "Tap again to confirm".
+    const doResetTodaysPrayers = () => {
+      const todayIso = getTodayISOString();
+      const updated = people.map((p) => ({
+        ...p,
+        lastPrayerCompletedDate: p.lastPrayerCompletedDate === todayIso ? null : p.lastPrayerCompletedDate,
+      }));
+      setPeople(updated);
+      AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updated))).catch(() => undefined);
+    };
+    const doClearAllNotifications = () => {
+      clearAllScheduledNotifications().catch(() => undefined);
+    };
+    const doClearAllData = () => {
+      setPeople([]);
+      setJournal([]);
+      setFasts([]);
+      setStreakRecord({ streak: 0, lastCompletedDate: null });
+      setProfile(DEFAULT_PROFILE);
+      AsyncStorage.removeItem("prayercircle.xp.v1").catch(() => undefined);
+      AsyncStorage.removeItem("prayercircle.xp-awards.v1").catch(() => undefined);
+      AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
+      AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
+      AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
+      AsyncStorage.setItem(PRAYER_STREAK_STORAGE_KEY, JSON.stringify({ streak: 0, lastCompletedDate: null })).catch(() => undefined);
+      AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(DEFAULT_PROFILE)).catch(() => undefined);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    };
+
+    // ── Row furniture, in the drawing's measures ──
+    const rowTitleStyle = { fontSize: 16, fontWeight: "600", color: sm.ink } as const;
+    const rowSubStyle = { fontSize: 12.5, fontWeight: "500", color: sm.inkSoft, marginTop: 1 } as const;
+    const tile = (icon: string, filled = false) => (
+      <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: filled ? sm.primaryContainer : sm.containerLow, alignItems: "center", justifyContent: "center" }}>
+        <MaterialIcons name={iconName(icon)} size={22} color={filled ? sm.onPrimaryContainer : sm.deep} />
+      </View>
+    );
+    const groupLabel = (label: string) => (
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 4, paddingTop: 26, paddingBottom: 11 }}>
+        <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: colors.primary }} />
+        <Text style={{ fontSize: 12, fontWeight: "800", letterSpacing: 2.2, color: sm.deep }}>{label}</Text>
+      </View>
+    );
+    const groupCardStyle = { backgroundColor: sm.card, borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border };
+    const navRow = (opts: { icon: string; filled?: boolean; title: string; sub?: string; value?: string; onPress?: () => void; first?: boolean; chevron?: boolean }) => {
+      const rowStyle = { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: opts.first ? 0 : 1, borderTopColor: sm.line } as const;
+      const body = (
+        <>
+          {tile(opts.icon, opts.filled)}
+          <View style={{ flex: 1 }}>
+            <Text style={rowTitleStyle}>{opts.title}</Text>
+            {opts.sub ? <Text style={rowSubStyle}>{opts.sub}</Text> : null}
           </View>
-          <View style={styles.profileCardTopRight}>
-            <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.isEightBit ? (skinTokens.frame ?? {}) : null, pressed && styles.pressed]}>
-              {activeFastTypeInfo ? (
-                <MaterialIcons name={iconName(activeFastTypeInfo.icon)} size={32} color="#FFFFFF" />
-              ) : (
-                <MaterialIcons name={iconName("add")} size={32} color="#FFFFFF" />
-              )}
-              {profile.fastingStreak > 0 && (
-                <View style={[styles.streakBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.streakBadgeText}>🔥{profile.fastingStreak}</Text>
-                </View>
-              )}
+          {opts.value ? <Text style={{ fontSize: 14, fontWeight: "600", color: sm.inkSoft }}>{opts.value}</Text> : null}
+          {opts.chevron === false ? null : <MaterialIcons name="chevron-right" size={22} color={sm.inkSoft} />}
+        </>
+      );
+      return opts.onPress ? (
+        <Pressable onPress={opts.onPress} style={({ pressed }) => [rowStyle, pressed && { opacity: 0.7 }]}>{body}</Pressable>
+      ) : (
+        <View style={rowStyle}>{body}</View>
+      );
+    };
+    const slimSwitchRow = (opts: { title: string; value: boolean; onChange: (next: boolean) => void; first?: boolean }) => (
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 16, borderTopWidth: opts.first ? 0 : 1, borderTopColor: sm.line }}>
+        <Text style={{ flex: 1, fontSize: 15, fontWeight: "500", color: sm.ink }}>{opts.title}</Text>
+        <M3Switch value={opts.value} onValueChange={opts.onChange} />
+      </View>
+    );
+    const segRow = <T extends string | number,>(opts: { options: { value: T; label: string }[]; selected: T; onSelect: (next: T) => void; onPanel?: boolean }) => (
+      <View style={{ flexDirection: "row", backgroundColor: opts.onPanel ? sm.card : sm.containerLow, borderRadius: 999, padding: 4, gap: 2 }}>
+        {opts.options.map((option) => {
+          const selected = option.value === opts.selected;
+          return (
+            <Pressable
+              key={String(option.value)}
+              onPress={() => opts.onSelect(option.value)}
+              style={({ pressed }) => [
+                { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 8, paddingHorizontal: 6, borderRadius: 999, backgroundColor: selected ? (opts.onPanel ? sm.primaryContainer : sm.card) : "transparent" },
+                selected && !opts.onPanel ? { shadowColor: sm.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2 } : null,
+                pressed && { opacity: 0.75 },
+              ]}
+            >
+              <Text style={{ fontSize: 13.5, fontWeight: selected ? "700" : "500", color: selected ? (opts.onPanel ? sm.onPrimaryContainer : sm.ink) : sm.inkSoft }}>{option.label}</Text>
             </Pressable>
+          );
+        })}
+      </View>
+    );
+    const dangerRow = (key: "reset" | "notifications" | "clear", title: string, sub: string | undefined, onConfirm: () => void) => {
+      const armed = dangerArmed === key;
+      return (
+        <View key={key} style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 12, paddingVertical: 13, paddingHorizontal: 18, borderTopWidth: 1, borderTopColor: sm.dangerLine }}>
+          <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: sm.dangerTile, alignItems: "center", justifyContent: "center" }}>
+            <MaterialIcons name="warning" size={19} color={sm.dangerInk} />
           </View>
-        </View>
-
-        <View style={[styles.fastProgressInCard, { backgroundColor: profileAura ? auraWashColor(profileAura, "18") : colors.background, borderColor: colors.border, borderWidth: 1 }]}>
-          <View style={styles.fastProgressHeader}>
-            <View style={styles.levelBadgeFrameSlot}>
-              {levelBadgeFrame === "plain" ? (
-                <Text style={[styles.fastProgressLabel, { color: colors.foreground }]}>Level {xpProgress.level} · {getXPLevelTitle(xpProgress.level)}</Text>
-              ) : (
-                <View style={[styles.levelBadgeFrame, { borderColor: levelBadgeFrameColor, borderWidth: levelBadgeFrame === "double-ring" ? 2 : 1.5 }] }>
-                  {(levelBadgeFrame === "double-ring" || levelBadgeFrame === "ornate") && <View style={[styles.levelBadgeFrameInner, { borderColor: levelBadgeFrameColor }]} />}
-                  {levelBadgeFrame === "ornate" && <>
-                    <View style={[styles.levelBadgeOrnament, styles.levelBadgeOrnamentTop, { backgroundColor: levelBadgeFrameColor }]} />
-                    <View style={[styles.levelBadgeOrnament, styles.levelBadgeOrnamentBottom, { backgroundColor: levelBadgeFrameColor }]} />
-                  </>}
-                  {levelBadgeFrame === "radiant" && <Animated.View pointerEvents="none" style={[styles.levelBadgeRadiant, { borderColor: levelBadgeFrameColor, opacity: xpShimmer.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.55, 1, 0.55] }) }]} />}
-                  <Text style={[styles.fastProgressLabel, { color: colors.foreground }]}>Level {xpProgress.level} · {getXPLevelTitle(xpProgress.level)}</Text>
-                </View>
-              )}
-            </View>
-            <Text numberOfLines={1} style={[styles.fastProgressType, { color: colors.muted }]}>{xpState.totalXP} XP · {xpProgress.requiredXP - xpProgress.currentXP} to Level {xpProgress.nextLevel}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 15, fontWeight: "600", color: sm.dangerInk }}>{title}</Text>
+            {sub ? <Text style={{ fontSize: 12.5, fontWeight: "500", color: sm.dangerInk, opacity: 0.75, marginTop: 1 }}>{sub}</Text> : null}
           </View>
-          <View style={[styles.fastProgressBarContainer, { backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border, ...(skinTokens.isTerminal ? { borderRadius: 0 } : {}) }]}>
-            <View style={{ width: `${xpProgress.percentage}%`, height: "100%", overflow: "hidden", backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, borderRadius: skinTokens.isTerminal ? 0 : 6 }}>
-              <Animated.View style={{ width: 70, height: "100%", backgroundColor: "rgba(255,255,255,0.42)", transform: [{ translateX: xpShimmer.interpolate({ inputRange: [0, 1], outputRange: [-70, 260] }) }] }} />
-            </View>
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
-            <Text style={{ color: colors.muted, fontSize: 11 }}>{xpProgress.currentXP} / {xpProgress.requiredXP} XP to next level</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-              {Array.from({ length: maxHeartsForLevel(xpProgress.level) }, (_, heartIndex) => (
-                <MaterialIcons
-                  key={heartIndex}
-                  name={heartIndex < xpState.hearts ? "favorite" : "favorite-border"}
-                  size={15}
-                  color={heartIndex < xpState.hearts ? "#EF4444" : colors.muted}
-                />
-              ))}
-            </View>
-          </View>
-        </View>
-
-        <View style={[styles.fastingStatsRow, { borderTopColor: colors.border }]}>
-          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#22C55E" }]}>{activeFastProgress?.completed ?? 0}</Text><Text style={styles.settingsStatLabel}>Completed</Text></View>
-          <View style={styles.settingsStatDivider} />
-          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#F59E0B" }]}>{activeFastProgress?.skipped ?? 0}</Text><Text style={styles.settingsStatLabel}>Skipped</Text></View>
-          <View style={styles.settingsStatDivider} />
-          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#EF4444" }]}>{activeFastProgress?.missed ?? 0}</Text><Text style={styles.settingsStatLabel}>Missed</Text></View>
-        </View>
-
-      </BitSettle>
-</PaperSettle>
-
-      <Text style={styles.settingsSectionLabel}>FASTING</Text>
-      <PaperSettle index={1} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border, padding: 16 + skinTokens.type.padBoost }]}>
-<BitSettle index={1}>
-        {activeFast ? (
-          isActiveFastEnded ? (
-            <FastSummaryCard fast={activeFast} colors={colors} />
+          {armed ? (
+            <Pressable onPress={() => { setDangerArmed(null); onConfirm(); }} style={({ pressed }) => [{ backgroundColor: sm.dangerFill, borderRadius: 999, paddingVertical: 9, paddingHorizontal: 15, marginLeft: "auto" }, pressed && { opacity: 0.8 }]}>
+              <Text style={{ fontSize: 13, fontWeight: "800", color: sm.dangerFillInk }}>Tap again to confirm</Text>
+            </Pressable>
           ) : (
-            <>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "800", ...(skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : {}) }}>{activeFast.name}</Text>
-                  <Text style={{ color: colors.muted, fontSize: 12, marginTop: 3 }}>{activeFast.type} · {activeFast.durationDays} days</Text>
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <FastFlame size={16} />
-                  <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "800" }}>Day {getCurrentFastDay(activeFast)} of {activeFast.durationDays}</Text>
-                </View>
+            <Pressable onPress={() => setDangerArmed(key)} style={({ pressed }) => [{ width: 36, height: 36, borderRadius: 999, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.6 }]}>
+              <MaterialIcons name="chevron-right" size={22} color={sm.dangerInk} />
+            </Pressable>
+          )}
+        </View>
+      );
+    };
+
+    return (
+    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: sm.ground }} contentContainerStyle={styles.settingsContent}>
+      {/* The app bar — the drawing's v5 form: tonal back tile +
+          title, nothing else (the build lives in the App group). */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingBottom: 4 }}>
+        <Pressable onPress={() => setActiveTab("more")} style={({ pressed }) => [{ width: 40, height: 40, borderRadius: 14, backgroundColor: sm.containerLow, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.7 }]}>
+          <MaterialIcons name="chevron-left" size={20} color={sm.deep} />
+        </Pressable>
+        <Text style={[{ flex: 1, fontSize: 29, fontWeight: "800", letterSpacing: -0.6, color: sm.ink }, skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 16, lineHeight: 26 } : null]}>Settings</Text>
+      </View>
+
+      {/* The hero — a wide, LOW tonal band: the live roster count is
+          the one hero element; the identity line rides inside it. */}
+      <PaperSettle index={0} style={{ marginTop: 14 }}>
+        <BitSettle index={0}>
+          <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [{ backgroundColor: sm.primaryContainer, borderRadius: 28, paddingVertical: 16, paddingHorizontal: 20 }, pressed && { opacity: 0.85 }]}>
+            <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 2.6, color: colors.primary }}>YOUR ROSTER</Text>
+            <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 14, marginTop: 6 }}>
+              <Text style={{ fontSize: 56, fontWeight: "900", lineHeight: 54, letterSpacing: -2, color: sm.heroInk }}>{rosterCount}</Text>
+              <Text style={{ fontSize: 17, fontWeight: "600", lineHeight: 22, color: sm.onPrimaryContainer, paddingBottom: 7, flexShrink: 1 }}>people you pray for</Text>
+            </View>
+            <View style={{ height: 1, backgroundColor: sm.heroInk, opacity: 0.14, marginTop: 14 }} />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 12 }}>
+              <AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="static" profileLevel={xpProgress.level} photoUri={profile.photoUri} size={34} fallbackColor={sm.deep} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: sm.onPrimaryContainer }}>{profile.name}{activeFast ? ` · ${activeFast.name}` : ""}</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: "500", color: sm.onPrimaryContainer, opacity: 0.75, marginTop: 1 }}>{activeFast ? `Day ${getCurrentFastDay(activeFast)} of ${activeFast.durationDays} · tap to open Profile` : "Tap to open Profile"}</Text>
               </View>
-              {prevFast && prevFastProgress ? (
-                <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>
-                  Last fast: {prevFastProgress.completed} of {prevFast.durationDays} days · beat your last run
-                </Text>
-              ) : (
-                <View style={{ height: 10 }} />
-              )}
-              {activeFastProgress && (() => {
-                // Progress = how far into the fast chronologically (elapsed days), not completed count
-                const start = new Date(activeFast.startDate + "T00:00:00");
-                const now = new Date();
-                const elapsed = Math.min(activeFast.durationDays, Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86400000) + 1));
-                return (
-                <View style={{ marginTop: 4 }}>
-                  <View style={{ height: 8, borderRadius: skinTokens.isTerminal ? 0 : 4, backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border, overflow: "hidden" }}>
-                    <View
-                      style={{
-                        height: 8,
-                        borderRadius: skinTokens.isTerminal ? 0 : 4,
-                        backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary,
-                        width: `${Math.min(100, (elapsed / activeFast.durationDays) * 100)}%`,
+              <MaterialIcons name="chevron-right" size={20} color={sm.onPrimaryContainer} />
+            </View>
+          </Pressable>
+        </BitSettle>
+      </PaperSettle>
+
+      {groupLabel("LOOK")}
+      <PaperSettle index={1} style={[styles.settingsGroupCard, groupCardStyle]}>
+        <BitSettle index={1}>
+          <Pressable onPress={() => setSettingsColorExpanded((prev) => !prev)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 18 }, pressed && { opacity: 0.7 }]}>
+            <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: sm.primaryContainer, alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: 20, height: 20, borderRadius: 999, backgroundColor: colors.primary, borderWidth: 2, borderColor: sm.card }} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={rowTitleStyle}>Color theme</Text>
+              <Text style={rowSubStyle}>{themeDef.name} · {skinDef.name} skin</Text>
+            </View>
+            <MaterialIcons name={settingsColorExpanded ? "expand-less" : "expand-more"} size={22} color={sm.inkSoft} />
+          </Pressable>
+          {settingsColorExpanded ? (
+            <View style={{ marginHorizontal: 12, marginBottom: 10, backgroundColor: sm.containerLow, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16 }}>
+              <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+                <Text style={{ fontSize: 17, fontWeight: "700", color: sm.onContainerLow }}>{themeDef.name}</Text>
+                <Text style={{ fontSize: 10.5, fontWeight: "800", letterSpacing: 1.8, color: sm.onContainerLow, opacity: 0.65 }}>COLOUR</Text>
+              </View>
+              {/* The palette wall — every seed from ACCENT_THEMES,
+                  level-gated exactly as the theme sheet gates it;
+                  picking re-tints the app live, sheet and all. */}
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12 }}>
+                {ACCENT_THEMES.map((theme) => {
+                  const unlocked = xpProgress.level >= theme.unlockLevel;
+                  const selected = settings.colorTheme === theme.id;
+                  return (
+                    <Pressable
+                      key={theme.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: !unlocked, selected }}
+                      onPress={() => {
+                        if (!unlocked) return;
+                        const nextTheme = normalizeAccentThemeId(theme.id);
+                        setSettings((prev) => ({ ...prev, colorTheme: nextTheme }));
+                        setAccentTheme(nextTheme);
                       }}
-                    />
-                  </View>
-                  <Text style={{ color: colors.muted, fontSize: 12, marginTop: 6 }}>
-                    Day {elapsed} of {activeFast.durationDays}
-                  </Text>
-                </View>
-                );
-              })()}
-            </>
-          )
-        ) : (
-          <Text style={{ color: colors.muted, fontSize: 13 }}>No active fast. Start one from your profile.</Text>
-        )}
-      </BitSettle>
-</PaperSettle>
+                      style={({ pressed }) => [{ width: 30, height: 30, borderRadius: 999, backgroundColor: theme.swatch, alignItems: "center", justifyContent: "center", borderWidth: selected ? 2 : 0, borderColor: sm.onContainerLow, opacity: unlocked ? 1 : 0.35 }, pressed && unlocked && { opacity: 0.7 }]}
+                    >
+                      {selected ? <MaterialIcons name="check" size={16} color="#FFFFFF" /> : !unlocked ? <MaterialIcons name="lock" size={13} color="#FFFFFF" /> : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={{ marginTop: 14 }}>
+                {segRow({
+                  options: [
+                    { value: "light" as AppearancePreference, label: "Light" },
+                    { value: "system" as AppearancePreference, label: "System" },
+                    { value: "dark" as AppearancePreference, label: "Dark" },
+                  ],
+                  selected: settings.appearance,
+                  onSelect: (appearance) => setSettings((previous) => ({ ...previous, appearance })),
+                  onPanel: true,
+                })}
+              </View>
+            </View>
+          ) : null}
+          {navRow({ icon: "layers", title: "App skin", value: skinDef.name, onPress: () => setShowSkinSheet(true) })}
+          {navRow({ icon: "image", title: "App icon", value: appIconDef.name, onPress: () => { setIconSwitchError(null); setShowAppIconSheet(true); } })}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 1, borderTopColor: sm.line }}>
+            {tile("visibility-off")}
+            <View style={{ flex: 1 }}>
+              <Text style={rowTitleStyle}>Demo mode</Text>
+              <Text style={rowSubStyle}>Blur names & photos for screenshots</Text>
+            </View>
+            <M3Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} />
+          </View>
+        </BitSettle>
+      </PaperSettle>
 
-      <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
-      <PaperSettle index={2} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
-<BitSettle index={2}>
-        <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("palette", "Color Theme", getAccentThemeDefinition(settings.colorTheme).name)}
-        </Pressable>
-        <Pressable onPress={() => setShowSkinSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("layers", "App Skin", getSkinThemeDefinition(settings.skinTheme).name)}
-        </Pressable>
-        <Pressable onPress={() => { setIconSwitchError(null); setShowAppIconSheet(true); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("image", "App Icon", getAppIconDef(selectedAppIconId).name)}
-        </Pressable>
-        {renderSettingsRow("visibility-off", "Demo Mode", "Blur names & photos for screenshots", "normal", <M3Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} />)}
-      </BitSettle>
-</PaperSettle>
-
-
-      <Text style={styles.settingsSectionLabel}>SCHEDULE</Text>
-      <PaperSettle index={3} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
-<BitSettle index={3}>
-        {renderSettingsRow("hourglass-empty", "White Space", "Show tappable free-hour blocks on the schedule", "normal", <M3Switch value={settings.whiteSpaceEnabled} onValueChange={(whiteSpaceEnabled) => setSettings((previous) => ({ ...previous, whiteSpaceEnabled }))} />)}
-        {renderSettingsRow("event", "Holidays", "Show US holidays on the schedule", "normal", <M3Switch value={settings.holidaysEnabled} onValueChange={(holidaysEnabled) => setSettings((previous) => ({ ...previous, holidaysEnabled }))} />)}
-      </BitSettle>
-</PaperSettle>
-
-      <Text style={styles.settingsSectionLabel}>NOTIFICATIONS</Text>
-      <PaperSettle index={4} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
-<BitSettle index={4}>
-        {renderSettingsRow("notifications-active", "Prayer reminders", "Notify me when scheduled prayers are due", "normal", <M3Switch value={settings.prayerRemindersEnabled} onValueChange={(prayerRemindersEnabled) => setSettings((previous) => ({ ...previous, prayerRemindersEnabled }))} />)}
-        {renderSettingsRow("emergency", "Emergency & praise notifications", "Notify me about emergency prayers and praise reports", "normal", <M3Switch value={settings.emergencyPraiseNotificationsEnabled} onValueChange={(emergencyPraiseNotificationsEnabled) => setSettings((previous) => ({ ...previous, emergencyPraiseNotificationsEnabled }))} />)}
-        {renderSettingsRow("event", "Scheduled event reminders", "Notify me about events on my schedule", "normal", <M3Switch value={settings.eventRemindersEnabled} onValueChange={(eventRemindersEnabled) => setSettings((previous) => ({ ...previous, eventRemindersEnabled }))} />)}
-        {renderSettingsRow("attach-money", "Budget due reminders", "Notify me one day before unpaid bills are due", "normal", <M3Switch value={settings.budgetRemindersEnabled} onValueChange={(budgetRemindersEnabled) => setSettings((previous) => ({ ...previous, budgetRemindersEnabled }))} />)}
-          <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 }}>
-          <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700", marginBottom: 4 }}>Default event alert</Text>
-          <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>Use this lead time for new scheduled events</Text>
-          <View style={{ flexDirection: "row", borderWidth: 1, borderColor: colors.border, borderRadius: 20, overflow: "hidden" }}>
-            {[0, 5, 15, 30, 60].map((minutes, index) => {
-              const isSelected = settings.defaultEventReminderMinutes === minutes;
-              return (
-                <Pressable
-                  key={minutes}
-                  onPress={() => setSettings((previous) => ({ ...previous, defaultEventReminderMinutes: minutes }))}
-                  style={({ pressed }) => [{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingVertical: 10,
-                    paddingHorizontal: 4,
-                    backgroundColor: isSelected ? `${colors.primary}22` : colors.surface,
-                    borderLeftWidth: index > 0 ? 1 : 0,
-                    borderLeftColor: colors.border,
-                  }, pressed && { opacity: 0.7 }]}
-                >
-                  {isSelected && <MaterialIcons name="check" size={14} color={colors.primary} style={{ marginRight: 4 }} />}
-                  <Text
-                    numberOfLines={1}
-                    style={{ color: isSelected ? colors.primary : colors.foreground, fontWeight: "600", fontSize: 12 }}
-                  >
-                    {minutes === 0 ? "At start" : `${minutes}m`}
-                  </Text>
-                </Pressable>
-              );
+      {groupLabel("SCHEDULE & ALERTS")}
+      <PaperSettle index={2} style={[styles.settingsGroupCard, styles.settingsGroupCardSlim, groupCardStyle]}>
+        <BitSettle index={2}>
+          {slimSwitchRow({ title: "White space", value: settings.whiteSpaceEnabled, onChange: (whiteSpaceEnabled) => setSettings((previous) => ({ ...previous, whiteSpaceEnabled })), first: true })}
+          {slimSwitchRow({ title: "Holidays", value: settings.holidaysEnabled, onChange: (holidaysEnabled) => setSettings((previous) => ({ ...previous, holidaysEnabled })) })}
+          {slimSwitchRow({ title: "Prayer reminders", value: settings.prayerRemindersEnabled, onChange: (prayerRemindersEnabled) => setSettings((previous) => ({ ...previous, prayerRemindersEnabled })) })}
+          {slimSwitchRow({ title: "Emergency & praise", value: settings.emergencyPraiseNotificationsEnabled, onChange: (emergencyPraiseNotificationsEnabled) => setSettings((previous) => ({ ...previous, emergencyPraiseNotificationsEnabled })) })}
+          {slimSwitchRow({ title: "Scheduled event reminders", value: settings.eventRemindersEnabled, onChange: (eventRemindersEnabled) => setSettings((previous) => ({ ...previous, eventRemindersEnabled })) })}
+          {slimSwitchRow({ title: "Budget due reminders", value: settings.budgetRemindersEnabled, onChange: (budgetRemindersEnabled) => setSettings((previous) => ({ ...previous, budgetRemindersEnabled })) })}
+          <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, borderTopWidth: 1, borderTopColor: sm.line }}>
+            <Text style={{ fontSize: 15, fontWeight: "500", color: sm.ink, marginBottom: 9 }}>Default event alert</Text>
+            {segRow({
+              options: [
+                { value: 0, label: "At start" },
+                { value: 5, label: "5m" },
+                { value: 15, label: "15m" },
+                { value: 30, label: "30m" },
+                { value: 60, label: "1h" },
+              ],
+              selected: settings.defaultEventReminderMinutes,
+              onSelect: (defaultEventReminderMinutes) => setSettings((previous) => ({ ...previous, defaultEventReminderMinutes })),
             })}
           </View>
-        </View>
-      </BitSettle>
-</PaperSettle>
-
-      <Text style={styles.settingsSectionLabel}>DATA</Text>
-      <PaperSettle index={5} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
-<BitSettle index={5}> 
-        <Pressable onPress={() => setShowStampCollection(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
-          {renderSettingsRow("collections-bookmark", "Stamp Collection", "View your stamps grouped by month and personal bests")}
-        </Pressable>
-        <Pressable onPress={handleExportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
-          {renderSettingsRow("file-download", "Export Data", "Save a complete PrayerCircle backup as a JSON file")}
-        </Pressable>
-        <Pressable onPress={handleImportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("file-upload", "Import Data", "Restore a PrayerCircle backup from a JSON file")}
-        </Pressable>
-        <Pressable onPress={handleImportStudioPack} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("note-add", "Import Studio Pack", "Bring in notes, states, schedule, people, or ministries from the Commentary Studio — one file can carry them all")}
-        </Pressable>
-        <Pressable onPress={handleDriveRowPress} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("folder-shared", "Drive Folder", driveLink ? driveFolderCanWrite(driveLink) ? `Linked: ${driveLink.name} · exports overwrite one file here` : `Linked: ${driveLink.name} · read-only, checked on launch` : Platform.OS === "android" ? "Link a Drive folder once — PrayerCircle checks it on its own" : "Drive folders need the Android app")}
-        </Pressable>
-        {driveLink && !driveFolderCanWrite(driveLink) && Platform.OS === "android" ? (
-          <Pressable onPress={() => { void handleEnableExportWriting(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-            {renderSettingsRow("edit", "Enable export writing", `Let Export Data overwrite ${DRIVE_EXPORT_FILENAME} in this folder — one file, no new copies`)}
-          </Pressable>
-        ) : null}
-        <Pressable onPress={() => { void runDriveCheck(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("sync", "Check Drive now", driveChecking ? "Checking…" : driveLink ? "Read the linked folder now" : "Link a folder first, then check it")}
-        </Pressable>
-        {driveHeld.length > 0 ? (
-          <Pressable onPress={() => setDriveHeldExpanded((prev) => !prev)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-            {renderSettingsRow("hourglass-top", `Drive updates waiting (${driveHeld.length})`, "These would move things backward or double-book — your call, not automatic")}
-          </Pressable>
-        ) : null}
-        {driveHeldExpanded && driveHeld.map((item) => (
-          <View key={item.id} style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-            <Text style={[styles.settingsRowSubtitle, { marginBottom: 6 }]}>{heldItemLabel(item)}</Text>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <Pressable onPress={() => { void handleApplyHeld(item); }} style={({ pressed }) => [pressed && { opacity: 0.7 }, { backgroundColor: colors.primary, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6 }]}>
-                <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 13 }}>Apply</Text>
-              </Pressable>
-              <Pressable onPress={() => { void handleDismissHeld(item.id); }} style={({ pressed }) => [pressed && { opacity: 0.7 }, { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: colors.border }]}>
-                <Text style={{ color: colors.foreground, fontWeight: "700", fontSize: 13 }}>Dismiss</Text>
-              </Pressable>
+          {slimSwitchRow({ title: "Quiet hours", value: settings.quietHoursEnabled, onChange: (quietHoursEnabled) => setSettings((previous) => ({ ...previous, quietHoursEnabled })) })}
+          {settings.quietHoursEnabled ? (
+            <View style={{ marginHorizontal: 16, marginTop: 4, marginBottom: 8, backgroundColor: sm.containerLow, borderRadius: 16, paddingVertical: 10, paddingHorizontal: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                <Text style={{ fontSize: 12.5, fontWeight: "600", color: sm.inkSoft }}>Silence alerts between</Text>
+                <Text style={{ fontSize: 13, fontWeight: "800", color: sm.onPrimaryContainer }}>{quietDef.display}</Text>
+              </View>
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                {QUIET_HOURS_RANGES.map((entry) => {
+                  const selected = settings.quietHoursRange === entry.id;
+                  return (
+                    <Pressable key={entry.id} onPress={() => setSettings((previous) => ({ ...previous, quietHoursRange: entry.id }))} style={({ pressed }) => [{ flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 999, backgroundColor: selected ? sm.primaryContainer : sm.card, borderWidth: selected ? 1.5 : 0, borderColor: sm.seed }, pressed && { opacity: 0.75 }]}>
+                      <Text style={{ fontSize: 13.5, fontWeight: selected ? "800" : "600", color: selected ? sm.onPrimaryContainer : sm.inkSoft }}>{entry.chip}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
+          ) : null}
+        </BitSettle>
+      </PaperSettle>
+
+      {groupLabel("DATA & BACKUP")}
+      <PaperSettle index={3} style={[styles.settingsGroupCard, groupCardStyle]}>
+        <BitSettle index={3}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 18 }}>
+            {tile("cloud-upload")}
+            <View style={{ flex: 1 }}>
+              <Text style={rowTitleStyle}>Backup</Text>
+              <Text style={rowSubStyle}>{lastExportLabel}</Text>
+            </View>
+            <Pressable onPress={handleExportData} style={({ pressed }) => [{ backgroundColor: sm.primaryContainer, borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16 }, pressed && { opacity: 0.75 }]}>
+              <Text style={{ fontSize: 13.5, fontWeight: "800", color: sm.onPrimaryContainer }}>Export</Text>
+            </Pressable>
           </View>
-        ))}
-        <Pressable onPress={() => setDriveJournalExpanded((prev) => !prev)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("history", "Drive journal", driveJournalSummary())}
-        </Pressable>
-        {driveJournalExpanded && Object.entries(driveJournal.files).map(([name, record]) => (
-          <View key={name} style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-            <Text style={styles.settingsRowSubtitle}>
-              {name} · Applied {record.applied} · Held {record.held}{record.skipped ? " · Skipped (unchanged)" : ""}{record.error ? ` · ${record.error}` : ""}{record.note ? ` · ${record.note}` : ""}
-            </Text>
-          </View>
-        ))}
+          {navRow({ icon: "file-upload", title: "Import data", sub: "Restore a PrayerCircle backup", onPress: handleImportData })}
+          {navRow({ icon: "note-add", title: "Import Studio Pack", sub: "Notes, people & schedule from the Studio", onPress: handleImportStudioPack })}
+          {navRow({ icon: "collections-bookmark", title: "Stamp Collection", sub: "Stamps by month & personal bests", onPress: () => setShowStampCollection(true) })}
+          <Pressable onPress={() => setDriveExpanded((prev) => !prev)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 1, borderTopColor: sm.line }, pressed && { opacity: 0.7 }]}>
+            {tile("folder-shared")}
+            <View style={{ flex: 1 }}>
+              <Text style={rowTitleStyle}>Drive folder</Text>
+              <Text style={rowSubStyle}>{driveLink ? driveLink.name : Platform.OS === "android" ? "Link a Drive folder once" : "Drive folders need the Android app"}</Text>
+            </View>
+            {driveLink ? (
+              <View style={{ backgroundColor: sm.goodChipBg, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11 }}>
+                <Text style={{ fontSize: 12, fontWeight: "800", color: sm.goodChipInk }}>Linked</Text>
+              </View>
+            ) : null}
+            <MaterialIcons name={driveExpanded ? "expand-less" : "expand-more"} size={22} color={sm.inkSoft} />
+          </Pressable>
+          {driveExpanded ? (
+            <View style={{ marginHorizontal: 12, marginBottom: 10, backgroundColor: sm.containerLow, borderRadius: 20, paddingVertical: 6 }}>
+              <Pressable onPress={handleDriveRowPress} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                {renderSettingsRow("folder-shared", "Drive Folder", driveLink ? driveFolderCanWrite(driveLink) ? `Linked: ${driveLink.name} · exports overwrite one file here` : `Linked: ${driveLink.name} · read-only, checked on launch` : Platform.OS === "android" ? "Link a Drive folder once — PrayerCircle checks it on its own" : "Drive folders need the Android app")}
+              </Pressable>
+              {driveLink && !driveFolderCanWrite(driveLink) && Platform.OS === "android" ? (
+                <Pressable onPress={() => { void handleEnableExportWriting(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                  {renderSettingsRow("edit", "Enable export writing", `Let Export Data overwrite ${DRIVE_EXPORT_FILENAME} in this folder — one file, no new copies`)}
+                </Pressable>
+              ) : null}
+              <Pressable onPress={() => { void runDriveCheck(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                {renderSettingsRow("sync", "Check Drive now", driveChecking ? "Checking…" : driveLink ? "Read the linked folder now" : "Link a folder first, then check it")}
+              </Pressable>
+              {driveHeld.length > 0 ? (
+                <Pressable onPress={() => setDriveHeldExpanded((prev) => !prev)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                  {renderSettingsRow("hourglass-top", `Drive updates waiting (${driveHeld.length})`, "These would move things backward or double-book — your call, not automatic")}
+                </Pressable>
+              ) : null}
+              {driveHeldExpanded && driveHeld.map((item) => (
+                <View key={item.id} style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                  <Text style={[styles.settingsRowSubtitle, { marginBottom: 6 }]}>{heldItemLabel(item)}</Text>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <Pressable onPress={() => { void handleApplyHeld(item); }} style={({ pressed }) => [pressed && { opacity: 0.7 }, { backgroundColor: colors.primary, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6 }]}>
+                      <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 13 }}>Apply</Text>
+                    </Pressable>
+                    <Pressable onPress={() => { void handleDismissHeld(item.id); }} style={({ pressed }) => [pressed && { opacity: 0.7 }, { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: colors.border }]}>
+                      <Text style={{ color: colors.foreground, fontWeight: "700", fontSize: 13 }}>Dismiss</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+              <Pressable onPress={() => setDriveJournalExpanded((prev) => !prev)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                {renderSettingsRow("history", "Drive journal", driveJournalSummary())}
+              </Pressable>
+              {driveJournalExpanded && Object.entries(driveJournal.files).map(([name, record]) => (
+                <View key={name} style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+                  <Text style={styles.settingsRowSubtitle}>
+                    {name} · Applied {record.applied} · Held {record.held}{record.skipped ? " · Skipped (unchanged)" : ""}{record.error ? ` · ${record.error}` : ""}{record.note ? ` · ${record.note}` : ""}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </BitSettle>
+      </PaperSettle>
 
+      {groupLabel("APP")}
+      <PaperSettle index={4} style={[styles.settingsGroupCard, groupCardStyle]}>
+        <BitSettle index={4}>
+          <Pressable onPress={() => { void checkForUpdates(); }} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 18 }, pressed && { opacity: 0.7 }]}>
+            {tile("system-update")}
+            <View style={{ flex: 1 }}>
+              <Text style={rowTitleStyle}>Check for updates</Text>
+              <Text style={rowSubStyle}>{updateSub}</Text>
+            </View>
+            {updateChip ? (
+              <View style={{ backgroundColor: updateChip.backgroundColor, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11 }}>
+                <Text style={{ fontSize: 12, fontWeight: "800", color: updateChip.color }}>{updateChip.label}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+          {navRow({ icon: "favorite", title: "PrayerCircle", sub: `Version ${appVersion} · Pray for the people you love`, chevron: false })}
+        </BitSettle>
+      </PaperSettle>
 
-
-
-      </BitSettle>
-</PaperSettle>
-
-      <Text style={[styles.settingsSectionLabel, { color: "#EF4444" }]}>DANGER ZONE</Text>
-      <PaperSettle index={6} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? "#EF444440") : "#EF444440" }]}>
-<BitSettle index={6}>
-        <Pressable onPress={() => setDangerDialog("reset")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("cancel", "Reset Today's Prayers", "Uncheck all items for today", "danger")}
-        </Pressable>
-        <Pressable onPress={() => setDangerDialog("notifications")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("notifications", "Clear All Notifications", "Remove all scheduled notifications", "danger")}
-        </Pressable>
-        <Pressable onPress={() => setDangerDialog("clear")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("delete-forever", "Clear All Data", "Delete all people, families, and prayer items", "danger")}
-        </Pressable>
-      </BitSettle>
-</PaperSettle>
-
-      <Text style={styles.settingsSectionLabel}>ABOUT</Text>
-      <PaperSettle index={7} style={[styles.settingsCard, { borderColor: skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border }]}>
-<BitSettle index={7}>
-        {renderSettingsRow("favorite", "PrayerCircle", "Version 1.0.0 · Pray for the people you love")}
-      </BitSettle>
-</PaperSettle>
-      <M3Dialog
-        visible={dangerDialog === "reset"}
-        title="Reset Today's Prayers"
-        message="Uncheck all items for today?"
-        confirmLabel="Reset"
-        destructive
-        onDismiss={() => setDangerDialog(null)}
-        onConfirm={() => {
-          const today = getTodayISOString();
-          const updated = people.map((p) => ({
-            ...p,
-            lastPrayerCompletedDate: p.lastPrayerCompletedDate === today ? null : p.lastPrayerCompletedDate,
-          }));
-          setPeople(updated);
-          AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updated))).catch(() => undefined);
-        }}
-      />
-      <M3Dialog
-        visible={dangerDialog === "notifications"}
-        title="Clear Notifications"
-        message="Remove all scheduled notifications?"
-        confirmLabel="Clear"
-        destructive
-        onDismiss={() => setDangerDialog(null)}
-        onConfirm={() => { clearAllScheduledNotifications().catch(() => undefined); }}
-      />
-      <M3Dialog
-        visible={dangerDialog === "clear"}
-        title="Clear All Data"
-        message="This will permanently delete all people, families, prayer items, reminders, and journal entries. This action cannot be undone."
-        confirmLabel="Delete All"
-        destructive
-        onDismiss={() => setDangerDialog(null)}
-        onConfirm={() => {
-          setPeople([]);
-          setJournal([]);
-          setFasts([]);
-          setStreakRecord({ streak: 0, lastCompletedDate: null });
-          setProfile(DEFAULT_PROFILE);
-          AsyncStorage.removeItem("prayercircle.xp.v1").catch(() => undefined);
-          AsyncStorage.removeItem("prayercircle.xp-awards.v1").catch(() => undefined);
-          AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
-          AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
-          AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
-          AsyncStorage.setItem(PRAYER_STREAK_STORAGE_KEY, JSON.stringify({ streak: 0, lastCompletedDate: null })).catch(() => undefined);
-          AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(DEFAULT_PROFILE)).catch(() => undefined);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }}
-      />
+      {/* The Warning door — nothing destructive is visible until
+          it opens, and each action still needs its second tap. */}
+      <View style={{ marginTop: 30 }}>
+        <PaperSettle index={5}>
+          <BitSettle index={5}>
+            <View style={{ backgroundColor: sm.dangerWash, borderRadius: 24, borderWidth: 1, borderColor: sm.dangerLine, overflow: "hidden" }}>
+              <Pressable onPress={() => { setWarningExpanded((prev) => !prev); setDangerArmed(null); }} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 15, paddingHorizontal: 18 }, pressed && { opacity: 0.75 }]}>
+                <MaterialIcons name="warning" size={21} color={sm.dangerInk} />
+                <Text style={{ flex: 1, fontSize: 15.5, fontWeight: "700", color: sm.dangerInk }}>Warning</Text>
+                <MaterialIcons name={warningExpanded ? "expand-less" : "expand-more"} size={22} color={sm.dangerInk} />
+              </Pressable>
+              {warningExpanded ? (
+                <View>
+                  {dangerRow("reset", "Reset today's prayers", undefined, doResetTodaysPrayers)}
+                  {dangerRow("notifications", "Clear all notifications", undefined, doClearAllNotifications)}
+                  {dangerRow("clear", "Clear all data", "People, families & prayer items", doClearAllData)}
+                </View>
+              ) : null}
+            </View>
+          </BitSettle>
+        </PaperSettle>
+      </View>
     </ScrollView>
-  );
+    );
+  };
 
   const [bibleChapters, setBibleChapters] = useState<any[]>([]);
   const [budgetCategories, setBudgetCategories] = useState<any[]>([]);
@@ -7514,6 +7677,21 @@ function createStyles(colors: any, skin?: SkinTokens | null) {
     overflow: "hidden",
     backgroundColor: paperSurface ?? colors.surface,
     ...cardShadow,
+  },
+  // v315: the rebuilt Settings page's group cards, in the approved
+  // drawing's measures (radius 24, hairline edge, rows carry their
+  // own padding). The skins still square the corners their own way;
+  // background and border colour arrive from the derived settings
+  // material at the call site.
+  settingsGroupCard: {
+    borderRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 24,
+    borderWidth: skin?.isEightBit ? 3 : 1,
+    overflow: "hidden",
+    paddingVertical: 8,
+    ...cardShadow,
+  },
+  settingsGroupCardSlim: {
+    paddingVertical: 6,
   },
   settingsRow: {
     minHeight: 68 + padBoost * 2,

@@ -8,9 +8,23 @@ import { APP_SETTINGS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DEFAULT_ACCENT_THEME, getThemedPalette, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
 import { DEFAULT_SKIN_THEME, normalizeSkinThemeId, type SkinThemeId } from "@/lib/skin-themes";
 
+// v315: appearance is a real tri-state preference ("light" | "system"
+// | "dark"), persisted inside the app-settings blob
+// (prayercircle.app-settings.v1) and mirrored in by the Settings
+// screen, the same way accent and skin are. Before this, a manual
+// setColorScheme lived only in memory and the app fell back to the
+// system scheme on every cold start.
+export type AppearancePreference = "light" | "system" | "dark";
+
+export function normalizeAppearancePreference(value: unknown): AppearancePreference {
+  return value === "light" || value === "dark" || value === "system" ? value : "system";
+}
+
 type ThemeContextValue = {
   colorScheme: ColorScheme;
   setColorScheme: (scheme: ColorScheme) => void;
+  appearance: AppearancePreference;
+  setAppearance: (appearance: AppearancePreference) => void;
   accentTheme: AccentThemeId;
   setAccentTheme: (theme: AccentThemeId) => void;
   skinTheme: SkinThemeId;
@@ -21,19 +35,19 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useSystemColorScheme() ?? "light";
-  const [colorScheme, setColorSchemeState] = useState<ColorScheme>(systemScheme);
+  const [appearance, setAppearanceState] = useState<AppearancePreference>("system");
   const [accentTheme, setAccentThemeState] = useState<AccentThemeId>(DEFAULT_ACCENT_THEME);
   const [skinTheme, setSkinThemeState] = useState<SkinThemeId>(DEFAULT_SKIN_THEME);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isManuallySet, setIsManuallySet] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY).then((stored) => {
       if (!stored) return;
       try {
-        const parsed = JSON.parse(stored) as { colorTheme?: unknown; skinTheme?: unknown };
+        const parsed = JSON.parse(stored) as { colorTheme?: unknown; skinTheme?: unknown; appearance?: unknown };
         setAccentThemeState(normalizeAccentThemeId(parsed.colorTheme));
         setSkinThemeState(normalizeSkinThemeId(parsed.skinTheme));
+        setAppearanceState(normalizeAppearancePreference(parsed.appearance));
       } catch {
         // Keep the default accent when settings are malformed.
       }
@@ -54,11 +68,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [accentTheme]);
 
+  // v315: an explicit scheme pick IS an appearance pick now — the
+  // dev theme lab's Light/Dark buttons keep working through this,
+  // and the choice persists via the Settings screen's mirror.
   const setColorScheme = useCallback((scheme: ColorScheme) => {
-    setColorSchemeState(scheme);
-    setIsManuallySet(true);
-    applyScheme(scheme);
-  }, [applyScheme]);
+    setAppearanceState(scheme);
+  }, []);
+
+  const setAppearance = useCallback((next: AppearancePreference) => {
+    setAppearanceState(normalizeAppearancePreference(next));
+  }, []);
 
   const setAccentTheme = useCallback((theme: AccentThemeId) => {
     setAccentThemeState(normalizeAccentThemeId(theme));
@@ -74,24 +93,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // pairs with dark-scheme inks). The user's own scheme preference
   // stays untouched in state and returns the moment another skin is
   // picked; every other skin sees exactly the scheme it always saw.
-  const effectiveColorScheme: ColorScheme = skinTheme === "terminal" ? "dark" : colorScheme;
+  // v315: the base scheme is DERIVED from the appearance preference —
+  // "system" follows the device live, "light"/"dark" hold. There is
+  // no separate scheme state to drift out of sync.
+  const baseScheme: ColorScheme = appearance === "system" ? systemScheme : appearance;
+  const effectiveColorScheme: ColorScheme = skinTheme === "terminal" ? "dark" : baseScheme;
 
-  // Initialize with system color scheme on mount
+  // Initialize on mount — the apply effect below takes it from here.
   useEffect(() => {
     if (!isInitialized) {
-      setColorSchemeState(systemScheme);
-      applyScheme(systemScheme);
       setIsInitialized(true);
     }
-  }, [isInitialized, applyScheme, systemScheme]);
-
-  // Only sync with system color scheme if user hasn't manually set it
-  useEffect(() => {
-    if (isInitialized && !isManuallySet) {
-      setColorSchemeState(systemScheme);
-      applyScheme(systemScheme);
-    }
-  }, [systemScheme, isInitialized, isManuallySet, applyScheme]);
+  }, [isInitialized]);
 
   useEffect(() => {
     if (isInitialized) applyScheme(effectiveColorScheme);
@@ -117,12 +130,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     () => ({
       colorScheme: effectiveColorScheme,
       setColorScheme,
+      appearance,
+      setAppearance,
       accentTheme,
       setAccentTheme,
       skinTheme,
       setSkinTheme,
     }),
-    [accentTheme, effectiveColorScheme, setAccentTheme, setColorScheme, setSkinTheme, skinTheme],
+    [accentTheme, appearance, effectiveColorScheme, setAccentTheme, setAppearance, setColorScheme, setSkinTheme, skinTheme],
   );
 
   return (

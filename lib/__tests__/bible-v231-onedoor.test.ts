@@ -347,12 +347,18 @@ describe('surfaces — Settings keeps exactly one studio door', () => {
     expect(src).toContain('handleImportStudioPack');
     expect(src).toContain('parseStudioFileFull');
     expect(src).toContain('formatStudioImportSummary(plan, counts)');
-    expect(src).toContain('one file can carry them all');
+    // v315 re-pin: the "one file can carry them all" subtitle copy
+    // was replaced by the approved Settings drawing's shorter line;
+    // the door it described is the same one, wired the same way.
+    expect(src).toContain('sub: "Notes, people & schedule from the Studio"');
   });
 
   it('Import Data — the legacy whole-backup restore — stands untouched beside it', () => {
-    expect(src).toContain('"Import Data"');
+    // v315 re-pin: the drawing sentence-cases the row ("Import
+    // data") and folds export into the Backup row's Export pill —
+    // both flows keep their exact handlers.
+    expect(src).toContain('"Import data"');
     expect(src).toContain('handleImportData');
-    expect(src).toContain('"Export Data"');
+    expect(src).toContain('onPress={handleExportData}');
   });
 });

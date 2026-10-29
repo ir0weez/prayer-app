@@ -33,8 +33,10 @@
 //     overlay twins' scale-to-0.01 scroll gate, the app bar's
 //     ghosting fade — is replaced by ONE shared slide: app bar +
 //     strip twin + reach twin translate up 1:1 with the sheet
-//     scroll (headerSlideY) and off the top edge. No scale, no
-//     fade; the summary panel and the sheet's slide-over stay.
+//     scroll (headerSlideY) and off the top edge. (v315 refines
+//     the strip's exit — its own slide + the fade returns; see
+//     settings-v315 / schedule pins in lib/__tests__/settings-v315
+//     and the re-pinned twin test below.)
 //  7. WHITE BLOCKS (12:18, approved): the fill is palette-derived
 //     paper (schedulePaperSurface) — lightest surface tone in
 //     light, darkest surface in dark — never literal #FFF/#000,
@@ -252,8 +254,19 @@ describe("v308 header slide — the collapse is a slide, not a shrink", () => {
     expect(scheduleTab).toContain("84 + classicStripHeight + classicReachRect.y + classicReachRect.height");
   });
 
-  it("both overlay twins ride the identical translation — no scale, no fade gate", () => {
-    expect(overlaySlice.match(/translateY: headerSlideY/g) ?? []).toHaveLength(2);
+  it("both overlay twins ride the slide — no scale (v315 re-pin: the strip has its own slide, and the fade is back by his word)", () => {
+    // v315 SUPERSEDES the "identical translation / no fade gate"
+    // half of this pin. Jonathan on v313/v314 (Oct 28, 16:28/16:30):
+    // the strip stayed parked at the top "like a creep" under the
+    // shared slide, and he liked that the old gate FADED as it slid
+    // out. So the strip now rides stripSlideY (a 1:1 slide keyed to
+    // its own seat) with opacity stripFade, and the reach twin
+    // keeps headerSlideY with opacity headerFade. The no-scale /
+    // no-0.01 half of the original pin stands untouched.
+    expect(overlaySlice.match(/translateY: headerSlideY/g) ?? []).toHaveLength(1);
+    expect(overlaySlice.match(/translateY: stripSlideY/g) ?? []).toHaveLength(1);
+    expect(overlaySlice).toContain("opacity: stripFade");
+    expect(overlaySlice).toContain("opacity: headerFade");
     expect(overlaySlice).not.toContain("scale: scrollY.interpolate");
     expect(overlaySlice).not.toContain("0.01");
     expect(overlaySlice).not.toContain("opacity: scrollY.interpolate");

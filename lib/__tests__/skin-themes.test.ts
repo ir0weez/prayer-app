@@ -373,7 +373,10 @@ describe("persistence + picker wiring (source pins)", () => {
     expect(index).toContain("SKIN_THEMES.map");
     expect(index).toContain("xpProgress.level >= theme.unlockLevel");
     expect(index).toContain("Unlocks at Level {theme.unlockLevel}");
-    expect(index).toContain("getSkinThemeDefinition(settings.skinTheme).name");
+    // v315 re-pin: the rebuilt Settings screen hoists the definition
+    // (const skinDef = …) for its App skin row instead of calling it
+    // inline in the row's subtitle.
+    expect(index).toContain("const skinDef = getSkinThemeDefinition(settings.skinTheme);");
   });
 });
 
@@ -984,7 +987,10 @@ describe("Terminal skin tokens (v186)", () => {
 
   it("Terminal resolves the dark palette in the provider — the tube is dark even in light mode", () => {
     const provider = read("lib/theme-provider.tsx");
-    expect(provider).toContain('skinTheme === "terminal" ? "dark" : colorScheme');
+    // v315 re-pin: the operand is baseScheme now — the scheme derived
+    // from the stored appearance preference (system → device). The
+    // rule itself is unchanged: under Terminal the palette is dark.
+    expect(provider).toContain('skinTheme === "terminal" ? "dark" : baseScheme');
   });
 });
 
@@ -1200,8 +1206,10 @@ describe("v187 — 8-bit, everywhere it claims to be", () => {
     // they were why it stayed round through v184/v185 (v189: Paper
     // cuts its corners to 6 as well).
     expect(index).toContain("borderTopLeftRadius: skin?.isEightBit ? 2 : skin?.isPaper ? 6 : 20");
-    // Every settingsCard call site passes the ink border under 8-bit.
-    expect(index.split("skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border").length - 1).toBe(6);
+    // v315 re-pin: the Settings rebuild's four group cards share ONE
+    // border expression (groupCardStyle) instead of six per-card
+    // call sites — the 8-bit ink border still reaches every card.
+    expect(index.split("skinTokens.isEightBit ? (skinTokens.border ?? colors.border) : colors.border").length - 1).toBe(1);
     // Journal titles + section headers speak the pixel face via bitText.
     const journal = read("components/prayer-journal-tab.tsx");
     expect(journal).toContain("bitText(11)");
@@ -1313,10 +1321,13 @@ describe("v188 — Terminal, finished properly", () => {
     expect(tabBar).toContain("numberOfLines={skinTokens.isTerminal ? 1 : undefined}");
     // The v186 every-tab bracket string that overflowed is gone.
     expect(index).not.toContain("[ ${label.toUpperCase()} ]");
-    // People's primary button and the Settings progress bars converted.
+    // People's primary button converted.
     expect(index).toContain('...(termButtonStyle(skinTokens, "primary") ?? {})');
-    expect(index).toContain("backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, borderRadius: skinTokens.isTerminal ? 0 : 6");
-    expect(index).toContain("backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border");
+    // v315: the two Settings progress-bar assertions that stood here
+    // (the XP bar's TERM_PHOS fill / TERM_DIM track) guarded the old
+    // Settings profile card — deleted by his ruling in the Settings
+    // rebuild (the stats card is out; the fast/XP surfaces live on
+    // the Profile and fasting pages now, not in Settings).
   });
 
   it("the journal's entry actions are terminal windows under Terminal", () => {

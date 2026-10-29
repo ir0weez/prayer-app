@@ -125,9 +125,11 @@ describe("8-bit coverage — v203 animation pass", () => {
   it("shell: settings cards snap in a stack, sheets drop as cartridges, the FAB depresses", () => {
     const shell = read("app/(tabs)/index.tsx");
     expect(shell).toContain('import { BitSettle, bitPressedSnap } from "@/components/bit-motion";');
-    // Profile card (0) + all seven settings section cards keep
-    // their cascade indices in the bit dialect too.
-    expect((shell.match(/<BitSettle index=\{\d+\}>/g) ?? []).length).toBe(8);
+    // v315 re-pin: the Settings rebuild's stack is hero band (0) +
+    // four group cards (1–4) + the Warning door (5) — six settles,
+    // still a cascade in the bit dialect too. (Was 8: the old
+    // profile card + seven section cards.)
+    expect((shell.match(/<BitSettle index=\{\d+\}>/g) ?? []).length).toBe(6);
     // v216 gave the six slide-up sheets (profile editor, fast
     // creator, family actions, theme, skin, app icon) definite-
     // height boxes so they rise; v219 restored the flex:1

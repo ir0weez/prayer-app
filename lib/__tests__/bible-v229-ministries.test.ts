@@ -299,7 +299,11 @@ describe('surfaces — the backup and the DATA rows carry ministries', () => {
     expect(src).toContain('counts.ministriesAdded = result.summary.added');
     expect(src).not.toContain('Import Ministries Pack');
     expect(src).not.toContain('handleImportMinistriesPack');
-    expect(src).toContain('Import Studio Pack", "Bring in notes, states, schedule, people, or ministries from the Commentary Studio — one file can carry them all');
+    // v315 re-pin: the door, its handler, and the combined summary
+    // are untouched — the row's SUBTITLE copy now follows the
+    // approved Settings drawing ("Notes, people & schedule from the
+    // Studio") instead of the v229-era sentence.
+    expect(src).toContain('title: "Import Studio Pack", sub: "Notes, people & schedule from the Studio"');
     expect(src).toContain('formatStudioImportSummary');
   });
 });

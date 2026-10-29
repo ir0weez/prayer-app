@@ -137,13 +137,14 @@ describe("v242 — the sky window is drawn, per skin, in the bar", () => {
   });
 
   it("the fill and its glow are exactly as v240 left them", () => {
-    // RE-BASED in v339 (Jonathan's wavy ruling): the Paper soak and
-    // 8-bit stepped fills retired — the fill is the shared wavy bar
-    // in this seat's per-skin colours. The completion glow and its
-    // green are exactly as v240 left them.
-    expect(bar).toContain("WavyProgress");
-    expect(bar).not.toContain("usePaperFill(percentage / 100)");
-    expect(bar).not.toContain("useBitFill(percentage / 100)");
+    // RE-BASED in v342 (Jonathan's principle, Oct 29 14:45 — bars
+    // that aren't live go regular; the summary day bar named at
+    // 14:32): v339's wavy conversion is reverted — the Paper soak
+    // and 8-bit stepped fills stand again. The completion glow
+    // and its green are exactly as v240 left them.
+    expect(bar).toContain("usePaperFill(percentage / 100)");
+    expect(bar).toContain("useBitFill(percentage / 100)");
+    expect(bar).not.toContain("WavyProgress");
     expect(bar).toContain("glowAnimation");
     expect(bar).toContain('"#10B981"');
   });

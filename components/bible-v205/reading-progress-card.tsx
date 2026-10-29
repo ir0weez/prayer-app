@@ -158,12 +158,15 @@ export function BookReadingThread({
   total: number;
   palette: BiblePalette;
 }) {
-  const barPct = total ? read / total : 0;
+  const barPct = total ? (100 * read) / total : 0;
   return (
     <View style={styles.threadRow}>
-      {/* v339: the per-book reading thread wears the wavy fill too. */}
-      <View style={styles.readThread}>
-        <WavyProgress value={barPct} color={palette.raspDeep} trackColor={palette.raspTint} height={8} />
+      {/* v342 (his ruling, Oct 29 14:46): the per-book reading
+          thread is a RECORD bar — v341's wavy conversion reverted
+          to its pre-v341 straight form. Only the Study header's
+          two threads at the top of the Books page stay wavy. */}
+      <View style={[styles.readThread, { backgroundColor: palette.raspTint }]}>
+        <View style={[styles.readThreadFill, { backgroundColor: palette.raspDeep, width: `${barPct}%` }]} />
       </View>
       <Text style={[styles.threadCount, { color: palette.inkSoft }]} numberOfLines={1}>
         {`${read} of ${total} read`}
@@ -194,6 +197,7 @@ const styles = StyleSheet.create({
   resetBtn: { alignSelf: 'flex-start', paddingVertical: 2, marginTop: 11, marginLeft: 2 },
   resetText: { fontSize: 13, fontWeight: '600' },
   threadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  readThread: { flex: 1 },
+  readThread: { flex: 1, height: 4, borderRadius: 999, overflow: 'hidden' },
+  readThreadFill: { height: 4, borderRadius: 999 },
   threadCount: { fontSize: 10.5, fontWeight: '600' },
 });

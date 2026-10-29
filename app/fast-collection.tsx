@@ -5,7 +5,6 @@ import { useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { FASTS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import {
   FAST_TYPES,
@@ -337,7 +336,6 @@ function FastTrophyCard({
 }
 
 export default function FastCollectionScreen() {
-  const fadeScrollY = useTopFadeScrollY();
   const router = useRouter();
   const colors = useColors();
   const { isSkinned, tokens: skinTokens } = useSkin();
@@ -367,8 +365,6 @@ export default function FastCollectionScreen() {
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingTop: 48 }}
-        onScroll={topFadeScrollHandler(fadeScrollY)}
-        scrollEventThrottle={16}
       >
         <View
           style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}
@@ -418,7 +414,8 @@ export default function FastCollectionScreen() {
       {/* v334: the top fade (his Oct 29 ruling, all pages) — the
           collection dissolves under the ground this root paints
           at the top edge instead of cutting off hard. */}
-      <TopFade color={isSkinned ? skinTokens.background ?? colors.background : colors.background} scrollY={fadeScrollY} />
+      {/* v342: no top fade — detail screen with a definite
+          header (fade scope ruling, Oct 29). */}
     </View>
   );
 }

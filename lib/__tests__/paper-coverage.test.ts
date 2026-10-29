@@ -260,7 +260,13 @@ describe("Paper coverage — v202 animation pass", () => {
     expect(schedule).toContain("menuEntering");
     expect(schedule).toContain("FadeInUp.duration(skinMotion.settle.duration).delay(delay).easing(skinMotion.settle.easing)");
     expect(schedule).not.toContain("entering={FadeIn.duration(180)");
-    expect(schedule).toContain("menuEntering(0)");
+    // RE-BASED in v342 (Part E — the white-block menu's glide
+    // surface): the five circles' staggered entrances now route
+    // through WhiteBlockMenuRow's enteringFor, which the menu
+    // passes as menuEntering itself; the row applies it per index
+    // (i * 40). The helper and its Paper branch are unchanged.
+    expect(schedule).toContain("enteringFor={(delay) => menuEntering(delay)}");
+    expect(schedule).toContain("enteringFor(i * 40)");
     // RE-BASED in v294 (the schedule build, ordered Oct 27): the
     // menuEntering(150) call was the retired FAB popup's last stagger
     // delay. The FAB is now the morph (components/schedule-fab.tsx) —
@@ -294,13 +300,12 @@ describe("Paper coverage — v202 animation pass", () => {
 
   it("schedule progress fill soaks across the sheet — A46 ruled in v240: the sprout's springs are GONE", () => {
     const bar = read("components/schedule-progress-bar.tsx");
-    // RE-BASED in v339 (Jonathan's wavy ruling, 2026-10-29: every
-    // progress bar wears the sine fill): the Paper soak fill retired
-    // in this bar — the shared wavy sweep is the motion now, in the
-    // bar's own per-skin colours. usePaperFill still lives in
-    // paper-motion for its other seats.
-    expect(bar).toContain("WavyProgress");
-    expect(bar).not.toContain("usePaperFill(percentage / 100)");
+    // RE-BASED in v342 (Jonathan's principle, Oct 29 14:45 — bars
+    // that aren't live go regular; the summary day bar named at
+    // 14:32): v339's wavy conversion of this bar is reverted and
+    // the Paper soak fill stands again exactly as v202 left it.
+    expect(bar).toContain("usePaperFill(percentage / 100)");
+    expect(bar).not.toContain("WavyProgress");
     // RE-BASED in v240 (Jonathan ruled A46 on 2026-10-24: "I'm
     // really not a fan of that plant animation" — his pick was the
     // sun/moon cap). The original pin froze the sprout's spring

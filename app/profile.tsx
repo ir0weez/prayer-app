@@ -7,7 +7,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, findNodeHandle, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
-import { WavyProgress } from "@/components/wavy-progress";
 import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 import { PaperSettle } from "@/components/paper-motion";
@@ -30,6 +29,7 @@ import {
   composeFinalRecap,
   composeWeeklyRecap,
   getFastQuarters,
+  getFastRecapWeeks,
   getFastWeeks,
   getFastWeeksForQuarter,
   isFinalRecapReady,
@@ -38,7 +38,7 @@ import {
 } from "@/lib/fast-tracker";
 import { createPrayerJournalEntry, normalizePrayerJournalEntries } from "@/lib/prayer-journal";
 import { hasTypeScale, skinText } from "@/lib/skin-themes";
-import { getTodayISOString } from "@/lib/prayercircle-data";
+import { getTodayISOString, normalizePeopleForStorage, type Person } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
   createPersonalFast,
@@ -64,7 +64,9 @@ import {
   upsertFastDayStatus,
   removeFastDayStatus,
 } from "@/lib/prayercircle-fasting";
-import { FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { SCHEDULE_EVENTS_KEY, type ScheduleEvent } from "@/lib/schedule-data";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { loadStudyState } from "@/lib/bible-v205/study";
@@ -200,6 +202,7 @@ export default function ProfileScreen() {
   // alone leaves a bottom sheet buried — Jonathan, Oct 28:
   // "Can't read what I'm typing for the fast...").
   const keyboardHeight = useKeyboardHeight();
+  const insets = useSafeAreaInsets();
   const [savedRecapKeys, setSavedRecapKeys] = useState<Record<string, boolean>>({});
 
   const awardBonusXP = useCallback(async (points: number, idempotencyKey: string, position?: XpGainPosition) => {
@@ -332,6 +335,12 @@ export default function ProfileScreen() {
     () => (selectedFast ? getFastWeeks(selectedFast, today) : []),
     [selectedFast, today],
   );
+  // v342: the Recaps card + documents reason over CALENDAR weeks
+  // (getFastRecapWeeks) — the Record keeps the block weeks above.
+  const recapWeeks = useMemo(
+    () => (selectedFast ? getFastRecapWeeks(selectedFast, today) : []),
+    [selectedFast, today],
+  );
   const trackerQuarters = useMemo(
     () => (selectedFast && selectedFast.durationDays >= 80 ? getFastQuarters(selectedFast) : null),
     [selectedFast],
@@ -432,16 +441,60 @@ export default function ProfileScreen() {
 
   // v276 recaps: composed on-device from the record + his notes
   // (lib/fast-tracker), saved through the existing Journal path.
+  // v342: the weekly recap resolves a CALENDAR week by its Sunday,
+  // and draws on two more real stores — the people (prayer window
+  // facts + who's coming due) and the schedule (the Week Ahead's
+  // calendar) — loaded lazily, only while a recap is open: the
+  // fasting page itself never needed them before.
+  const [recapPeople, setRecapPeople] = useState<Person[]>([]);
+  const [recapEvents, setRecapEvents] = useState<ScheduleEvent[]>([]);
+  useEffect(() => {
+    if (!recapTarget) return;
+    let live = true;
+    (async () => {
+      try {
+        const [peopleRaw, eventsRaw] = await Promise.all([
+          AsyncStorage.getItem(PEOPLE_STORAGE_KEY),
+          AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
+        ]);
+        if (!live) return;
+        if (peopleRaw) {
+          const parsed = JSON.parse(peopleRaw) as Person[];
+          if (Array.isArray(parsed)) setRecapPeople(normalizePeopleForStorage(parsed));
+        }
+        if (eventsRaw) {
+          const parsed = JSON.parse(eventsRaw) as ScheduleEvent[];
+          if (Array.isArray(parsed)) setRecapEvents(parsed);
+        }
+      } catch {
+        // A recap composes fine without them — fasting facts only.
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [recapTarget]);
+
   const activeRecap: FastRecap | null = useMemo(() => {
     if (!selectedFast || !recapTarget) return null;
     if (recapTarget.kind === "final") return composeFinalRecap(selectedFast);
-    const week = trackerWeeks.find((w) => w.weekNumber === recapTarget.weekNumber);
-    return week ? composeWeeklyRecap(selectedFast, week) : null;
-  }, [selectedFast, recapTarget, trackerWeeks]);
+    const week = recapWeeks.find((w) => w.startDate === recapTarget.startDate);
+    return week
+      ? composeWeeklyRecap(selectedFast, week, {
+          people: recapPeople,
+          scheduleItems: recapEvents.map((e) => ({
+            date: e.date,
+            title: e.title,
+            startTime: e.startTime,
+            endTime: e.endTime,
+          })),
+        })
+      : null;
+  }, [selectedFast, recapTarget, recapWeeks, recapPeople, recapEvents]);
 
   const recapSavedKey = recapTarget
     ? recapTarget.kind === "week"
-      ? `week:${recapTarget.weekNumber}`
+      ? `week:${recapTarget.startDate}`
       : "final"
     : null;
 
@@ -729,7 +782,7 @@ export default function ProfileScreen() {
             <FastRecapsCard
               family={trackerFamily}
               fast={selectedFast}
-              weeks={trackerWeeks}
+              recapWeeks={recapWeeks}
               finalReady={finalRecapReady}
               onOpenRecap={setRecapTarget}
             />
@@ -790,10 +843,14 @@ export default function ProfileScreen() {
                           <Text style={[styles.historyStatusText, { color: isCompleted ? FAST_KEPT_DEEP : trackerFamily.deep }]}>{isCompleted ? "Complete" : `${percentage}%`}</Text>
                         </View>
                       </View>
-                      {/* v339: the past-fast bar wears the wavy fill
-                          (his Oct 29 ruling) — same seat and colours. */}
-                      <View style={styles.historyProgressSeat}>
-                        <WavyProgress value={percentage / 100} color={trackerFamily.seed} trackColor={trackerFamily.wash} height={8} />
+                      {/* v342 (his principle, Oct 29 14:45 — "bars
+                          that aren't live go regular"): the
+                          fast-history bar is a RECORD of a finished
+                          fast, so v341's wavy conversion is reverted
+                          — its pre-v341 straight form, same seat and
+                          colours. */}
+                      <View style={[styles.historyProgressTrack, { backgroundColor: trackerFamily.wash }]}>
+                        <View style={[styles.historyProgressFill, { width: `${percentage}%`, backgroundColor: trackerFamily.seed }]} />
                       </View>
                       <Text style={[styles.historyDays, { color: trackerFamily.inkSoft }, skinText(skinTokens, skinTokens.type.labelText)]}>{progress.completed}/{progress.total} completed • {progress.missed} missed • {progress.skipped} skipped</Text>
                       {fast.focusItems.length > 0 && (
@@ -811,7 +868,7 @@ export default function ProfileScreen() {
           profile dissolves under its own ground at the top edge.
           The pickers and sheets after this are Modals and paint
           in their own windows, above the fade. */}
-      <TopFade color={skinTokens.background ?? colors.background} scrollY={fadeScrollY} />
+      <TopFade color={skinTokens.background ?? colors.background} scrollY={fadeScrollY} topInset={insets.top} />
       <AvatarPicker visible={showAvatarPicker} initialAvatarAsset={profile.avatarAsset} unlockedBookIds={unlockedBookIds} onClose={() => setShowAvatarPicker(false)} onUpload={handleUploadProfileAvatar} onSelect={handleSelectProfileAvatar} />
 
       {/* v276 day sheet — a Material bottom sheet (28px top radius,
@@ -846,11 +903,26 @@ export default function ProfileScreen() {
           the latest closed week and the Final recap.) */}
       <Modal visible={recapTarget !== null && !!selectedFast} animationType={isPaper ? "fade" : "slide"} onRequestClose={() => setRecapTarget(null)}>
         <View style={{ flex: 1, backgroundColor: trackerFamily.ground }}>
-          <View style={{ height: 64, flexDirection: "row", alignItems: "center", paddingHorizontal: 8, gap: 4 }}>
-            <Pressable onPress={() => setRecapTarget(null)} style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }} accessibilityRole="button" accessibilityLabel="Close recaps">
-              <MaterialIcons name="arrow-back" size={24} color={trackerFamily.ink} />
+          {/* v342 header fit (his screenshot: the old fixed 64px row
+              collided with the status bar): the header now seats
+              BELOW the top inset, and wears the v5 document's
+              chrome — a circular back button on the wash, the
+              kicker over the title. */}
+          <View style={{ paddingTop: insets.top + 8, paddingBottom: 10, flexDirection: "row", alignItems: "center", paddingHorizontal: 16, gap: 12 }}>
+            <Pressable
+              onPress={() => setRecapTarget(null)}
+              style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: trackerFamily.wash, alignItems: "center", justifyContent: "center" }}
+              accessibilityRole="button"
+              accessibilityLabel="Close recaps"
+            >
+              <MaterialIcons name="arrow-back" size={21} color={trackerFamily.deep} />
             </Pressable>
-            <Text style={{ flex: 1, fontSize: 22, lineHeight: 28, fontWeight: "500", color: trackerFamily.ink }}>Recaps</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 2, color: trackerFamily.washSub }}>
+                {activeRecap?.kind === "final" ? "FINAL RECAP" : "WEEKLY RECAP"}
+              </Text>
+              <Text style={{ fontSize: 26, lineHeight: 31, fontWeight: "800", color: trackerFamily.inkSeed, marginTop: 1 }}>Recaps</Text>
+            </View>
           </View>
           <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
             {activeRecap ? (
@@ -1199,8 +1271,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900" as const,
   },
-  historyProgressSeat: {
+  historyProgressTrack: {
+    height: 7,
     marginTop: 12,
+    borderRadius: 4,
+    overflow: "hidden" as const,
+  },
+  historyProgressFill: {
+    height: "100%" as const,
+    borderRadius: 4,
   },
   historyDays: {
     marginTop: 6,

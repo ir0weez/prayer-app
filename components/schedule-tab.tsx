@@ -25,7 +25,7 @@ import { Image } from "expo-image";
 import Svg, { Circle, Defs, Ellipse, Line, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import ReAnimated, {
   FadeIn,
   FadeInUp,
@@ -7607,19 +7607,144 @@ function Firefly({ left, top, delay }: { left: `${number}%`; top: number; delay:
   );
 }
 
-/** Compact circle icon button for the white-block tap menu (Pray Today style). */
-function WhiteBlockCircleButton({ label, icon, color, onPress }: { label: string; icon: string; color: string; onPress: () => void }) {
+/** The white-block menu's circle diameter and row gap — the glide
+ *  surface's hit math is built on these exact layout numbers. */
+export const WHITE_MENU_BTN = 54;
+export const WHITE_MENU_GAP = 12;
+
+/** One circle of the white-block tap menu — presentational only
+ *  since v342: the row below owns every touch (see WhiteBlockMenuRow). */
+function WhiteBlockCircleButton({ label, icon, color, highlighted }: { label: string; icon: string; color: string; highlighted?: boolean }) {
   return (
-    <Pressable
+    <View
       accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => [
-        { width: 54, height: 54, borderRadius: 27, backgroundColor: color, alignItems: "center", justifyContent: "center" },
-        pressed && { opacity: 0.75 },
-      ]}
+      accessibilityRole="button"
+      style={{
+        width: WHITE_MENU_BTN,
+        height: WHITE_MENU_BTN,
+        borderRadius: WHITE_MENU_BTN / 2,
+        backgroundColor: color,
+        alignItems: "center",
+        justifyContent: "center",
+        transform: [{ scale: highlighted ? 1.16 : 1 }],
+        opacity: highlighted ? 1 : 0.92,
+      }}
     >
       <MaterialIcons name={icon as any} size={25} color="#FFFFFF" />
-    </Pressable>
+    </View>
+  );
+}
+
+/**
+ * v342 — the white-block menu's ONE continuous gesture surface
+ * (Jonathan's report, Oct 29 13:51: picking from the five circles
+ * was "really finicky… it doesn't glide over the buttons very
+ * well. Almost like I have to have my finger under it").
+ *
+ * The five circles used to be five separate Pressables inside the
+ * AnchoredSheet's container transform: a sliding finger never
+ * crossed from one press target to the next, and the sheet's
+ * grow-in transform left each target's hit area offset from the
+ * circle as drawn — the finger had to sit UNDER the button to
+ * land on it. Now the whole row is a single PanResponder surface:
+ *  · at grant, the row measures itself IN WINDOW (measureInWindow
+ *    reads the rect as actually painted, open transform and all),
+ *    and every hit test runs against that live frame;
+ *  · the highlight follows the finger exactly across the circles
+ *    (a light haptic tick when the highlighted circle changes,
+ *    the slide picker's own precedent);
+ *  · releasing on a circle selects it — and a plain tap is just a
+ *    grant + release on the same circle, so taps select exactly
+ *    as they did before.
+ * The menu's look, seat and options are unchanged.
+ */
+export function WhiteBlockMenuRow({
+  options,
+  onSelect,
+  enteringFor,
+}: {
+  options: QuickAddOption[];
+  onSelect: (index: number) => void;
+  /** The menu's staggered entrance builder (the caller's skin-aware helper). */
+  enteringFor?: (index: number) => any;
+}) {
+  const [hovered, setHovered] = useState(-1);
+  const hoveredRef = useRef(-1);
+  const rowRef = useRef<View>(null);
+  const frameRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+
+  const measureRow = () => {
+    rowRef.current?.measureInWindow((x, y, width, height) => {
+      frameRef.current = { x, y, width, height };
+    });
+  };
+
+  /** Which circle a window point falls on — centres from the
+   *  measured frame and the layout constants, with a generous
+   *  vertical band around the row (a gliding thumb rides high). */
+  const indexAt = (pageX: number, pageY: number): number => {
+    const f = frameRef.current;
+    if (!f) return -1;
+    if (pageY < f.y - 22 || pageY > f.y + f.height + 22) return -1;
+    for (let i = 0; i < options.length; i++) {
+      const cx = f.x + WHITE_MENU_BTN / 2 + i * (WHITE_MENU_BTN + WHITE_MENU_GAP);
+      if (Math.abs(pageX - cx) <= (WHITE_MENU_BTN + WHITE_MENU_GAP) / 2) return i;
+    }
+    return -1;
+  };
+
+  const setHover = (index: number) => {
+    if (index === hoveredRef.current) return;
+    hoveredRef.current = index;
+    setHovered(index);
+    if (index >= 0 && Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const responder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e) => {
+        const { pageX, pageY } = e.nativeEvent;
+        // Measure at grant, against the sheet as it stands NOW —
+        // the open transform has settled by the time a finger
+        // lands, and measureInWindow reports the painted rect,
+        // so the hit frame can never drift from the drawing.
+        rowRef.current?.measureInWindow((x, y, width, height) => {
+          frameRef.current = { x, y, width, height };
+          setHover(indexAt(pageX, pageY));
+        });
+      },
+      onPanResponderMove: (e) => {
+        setHover(indexAt(e.nativeEvent.pageX, e.nativeEvent.pageY));
+      },
+      onPanResponderRelease: (e) => {
+        const at = indexAt(e.nativeEvent.pageX, e.nativeEvent.pageY);
+        const index = at >= 0 ? at : hoveredRef.current;
+        setHover(-1);
+        if (index >= 0) onSelect(index);
+      },
+      onPanResponderTerminate: () => setHover(-1),
+    }),
+  ).current;
+
+  return (
+    <View ref={rowRef} {...responder.panHandlers} onLayout={measureRow} style={{ flexDirection: "row", gap: WHITE_MENU_GAP }}>
+      {options.map((option, i) => {
+        const circle = (
+          <WhiteBlockCircleButton label={option.label} icon={option.icon} color={option.color} highlighted={hovered === i} />
+        );
+        return enteringFor ? (
+          <ReAnimated.View key={option.label} entering={enteringFor(i * 40)}>
+            {circle}
+          </ReAnimated.View>
+        ) : (
+          <View key={option.label}>{circle}</View>
+        );
+      })}
+    </View>
   );
 }
 
@@ -11166,6 +11291,8 @@ export function ScheduleTab({
   // native driver and its direct onScroll event below, exactly
   // as before the hotfix.
   const fadeScrollY = useTopFadeScrollY();
+  // v342: the tray height for the fade's edge-to-edge anchoring.
+  const safeInsets = useSafeAreaInsets();
   useEffect(() => {
     const sub = scrollY.addListener(({ value }) => {
       fadeScrollY.setValue(value);
@@ -13547,10 +13674,16 @@ export function ScheduleTab({
                   {/* v295: the drawing's progress thread under the
                       meta line — his progress through the book. */}
                   {item.data.progress != null ? (
-                    /* v339: the study thread wears the wavy fill (his
-                       Oct 29 ruling) — same seat and colours. */
-                    <View style={{ marginTop: classicStudy ? 10 : 0 }}>
-                      <WavyProgress value={item.data.progress} color={colors.primary} trackColor={mix(colors.surface, colors.primary, 0.25)} height={8} />
+                    /* v342 (his ruling, Oct 29 14:15): the Personal
+                       Study thread is REGULAR — a straight bar, its
+                       pre-v341 form. "Personal study bar should be
+                       regular, seeing as it's not live": this bar
+                       reports stored progress through a book; it
+                       does not move in the moment, so the wave (and
+                       its travel) does not belong on it. Every other
+                       wavy seat keeps the wave. */
+                    <View style={{ height: 6, marginTop: classicStudy ? 10 : 0, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 0 : 3, backgroundColor: mix(colors.surface, colors.primary, 0.25), overflow: 'hidden' }}>
+                      <View style={{ height: '100%', width: `${Math.round(item.data.progress * 100)}%`, backgroundColor: colors.primary, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 0 : 3 }} />
                     </View>
                   ) : null}
                   {isPersonalStudyExpanded && (item.data.preview || item.data.lastRead || item.data.readTarget) ? (
@@ -14440,7 +14573,7 @@ export function ScheduleTab({
           through a listener — never the native-driven scrollY
           itself (see the note at fadeScrollY). Colour = the
           ground this root paints. */}
-      <TopFade color={isSkinned ? skinTokens.background ?? colors.background : colors.background} zIndex={3} scrollY={fadeScrollY} />
+      <TopFade color={isSkinned ? skinTokens.background ?? colors.background : colors.background} zIndex={3} scrollY={fadeScrollY} topInset={safeInsets.top} />
       {/* Pill-style floating header (see-through, like People tab).
           v308 (Classic): the bar rides the header block's slide
           (headerSlideY) — it translates up and off the top edge
@@ -15037,23 +15170,17 @@ export function ScheduleTab({
             <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700", letterSpacing: 0.5 }}>
               {whiteBlockMenu ? `${format12HourTime(whiteBlockMenu.startTime)} → ${format12HourTime(whiteBlockMenu.endTime)}` : ""}
             </Text>
-            <View style={{ flexDirection: "row", gap: 12 }}>
-              <ReAnimated.View entering={menuEntering(0)}>
-                <WhiteBlockCircleButton label="Event" icon="event" color="#3DAA78" onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewEventEditorAtTime(b.startTime); }} />
-              </ReAnimated.View>
-              <ReAnimated.View entering={menuEntering(40)}>
-                <WhiteBlockCircleButton label="Todo" icon="check-box" color="#E3B341" onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewTodoEditorAtTime(b.startTime); }} />
-              </ReAnimated.View>
-              <ReAnimated.View entering={menuEntering(80)}>
-                <WhiteBlockCircleButton label="Ministry" icon="volunteer-activism" color="#7C5CFF" onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewMinistryEditorAtTime(b.startTime); }} />
-              </ReAnimated.View>
-              <ReAnimated.View entering={menuEntering(120)}>
-                <WhiteBlockCircleButton label="Rest" icon="bedtime" color="#4DABF7" onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewEventEditorAtTime(b.startTime, "Rest"); }} />
-              </ReAnimated.View>
-              <ReAnimated.View entering={menuEntering(160)}>
-                <WhiteBlockCircleButton label="Reach Out" icon="chat" color="#FF8A65" onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewEventEditorAtTime(b.startTime, "Reach Out"); }} />
-              </ReAnimated.View>
-            </View>
+            {/* v342: ONE gesture surface for the five options —
+                press, glide, release (see WhiteBlockMenuRow). */}
+            <WhiteBlockMenuRow
+              options={QUICK_ADD_OPTIONS}
+              enteringFor={(delay) => menuEntering(delay)}
+              onSelect={(index) => {
+                const b = whiteBlockMenu;
+                setWhiteBlockMenu(null);
+                if (b) runQuickAddAction(b, index);
+              }}
+            />
           </View>
       </AnchoredSheet>
 

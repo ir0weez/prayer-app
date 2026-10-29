@@ -65,10 +65,14 @@ describe("the Record: begun weeks, current first, future weeks silent", () => {
     const dates = getFastCalendarDays(fast);
     const weeks = getFastWeeks(fast, dates[299]); // today = Day 300
     const current = weeks.find((w) => w.current);
-    const future = weeks.find((w) => w.weekNumber === 44);
-    const ended = weeks.find((w) => w.weekNumber === 42);
-    expect(current?.weekNumber).toBe(43);
-    expect(getFastWeekKeptLabel(current!)).toMatch(/of 6 so far$/);
+    const future = weeks.find((w) => w.weekNumber === 45);
+    const ended = weeks.find((w) => w.weekNumber === 43);
+    // RE-BASED (v342, amendment #6): calendar weeks — Day 300
+    // (Tue Oct 27) sits in week 44 (Sun Oct 25 – Sat Oct 31), with
+    // 3 days elapsed in it; under 7-day blocks it was week 43
+    // with 6 elapsed.
+    expect(current?.weekNumber).toBe(44);
+    expect(getFastWeekKeptLabel(current!)).toMatch(/of 3 so far$/);
     expect(getFastWeekKeptLabel(ended!)).toMatch(/of 7 kept$/);
     expect(future!.elapsed).toBe(0);
     expect(getFastWeekKeptLabel(future!)).toBeNull();
@@ -81,7 +85,9 @@ describe("the Record: begun weeks, current first, future weeks silent", () => {
     const q4 = getFastWeeksForQuarter(weeks, getFastQuarters(fast)[3]);
     expect(q4.map((w) => w.weekNumber)).toContain(53); // the quarter really holds future weeks
     const shown = getFastRecordWeeks(q4);
-    expect(shown.map((w) => w.weekNumber)).toEqual([43, 42, 41, 40]);
+    // RE-BASED (v342): the begun calendar weeks of Q4 at Day 300
+    // are 41–44 (was 40–43 under 7-day blocks).
+    expect(shown.map((w) => w.weekNumber)).toEqual([44, 43, 42, 41]);
     expect(shown[0].current).toBe(true);
   });
 
@@ -163,9 +169,11 @@ describe("source pins — the three defects and the ruling", () => {
     expect(timelineStyles).not.toContain('"#FFFFFF"');
     expect(timelineStyles).not.toContain('"#E5DDF2"');
     expect(timelineStyles).not.toContain('"#DED4EC"');
-    // v339: the history bar is a WavyProgress in a plain seat now;
-    // the pin scopes to that seat's style block.
-    const trackStyle = profile.slice(profile.indexOf("historyProgressSeat: {"), profile.indexOf("historyDays: {"));
+    // RE-BASED in v342 (his principle, Oct 29 14:45 — bars that
+    // aren't live go regular): the history bar is its pre-v341
+    // straight track + fill again; the pin scopes to that track's
+    // style block.
+    const trackStyle = profile.slice(profile.indexOf("historyProgressTrack: {"), profile.indexOf("historyDays: {"));
     expect(trackStyle).not.toContain('"#EEE9F7"');
     // The function stands: tapping a history card still selects it.
     expect(profile).toContain("onPress={() => setSelectedFastId(fast.id)}");

@@ -33,6 +33,7 @@ import {
   getFastNoteStream,
   getFastQuarterForDay,
   getFastQuarters,
+  getFastRecapWeeks,
   getFastWeekKeptLabel,
   getFastWeeks,
   isFinalRecapReady,
@@ -86,13 +87,16 @@ describe("state mapping: the record renders 1:1 from the stored fast", () => {
     expect(getFastDayDotState(fast, dates[2])).toBe("missed");
   });
 
-  it("week rows chunk from Day 1 and count kept among elapsed days only", () => {
+  it("week rows are Sun–Sat calendar weeks and count kept among elapsed days only", () => {
+    // RE-BASED (v342, amendment #6): rows no longer chunk from
+    // Day 1 — the seed fast starts Monday Jan 5, so its first
+    // calendar week (Sun Jan 4 – Sat Jan 10) holds Days 1–6.
     const fast = seedFast();
     const dates = getFastCalendarDays(fast);
     const weeks = getFastWeeks(fast, dates[4]); // today = Day 5
-    expect(weeks).toHaveLength(6); // 40 days -> 5 full weeks + 5
+    expect(weeks).toHaveLength(6); // 40 days across 6 calendar weeks
     const week1 = weeks[0];
-    expect(week1.days.map((d) => d.dayNumber)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(week1.days.map((d) => d.dayNumber)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(week1.elapsed).toBe(5);
     expect(week1.kept).toBe(3); // Days 1, 2, 5 completed; Day 8 is a later week
     expect(week1.current).toBe(true);
@@ -105,7 +109,9 @@ describe("state mapping: the record renders 1:1 from the stored fast", () => {
     const dates = getFastCalendarDays(fast);
     const weeks = getFastWeeks(fast, dates[20]); // today = Day 21
     expect(weeks[0].ended).toBe(true);
-    expect(getFastWeekKeptLabel(weeks[0])).toBe("3 of 7 kept");
+    // RE-BASED (v342): the first calendar week holds 6 fast days,
+    // so the ended label is "3 of 6 kept" (was "3 of 7 kept").
+    expect(getFastWeekKeptLabel(weeks[0])).toBe("3 of 6 kept");
   });
 
   it("quarters: 80+ day fasts split in four with month-range labels; today auto-opens its quarter", () => {
@@ -188,27 +194,45 @@ describe("encouragement: fitted to the selected state", () => {
 
 describe("recaps: quote and count only what exists", () => {
   it("a week with no notes gets an honest counts-only recap", () => {
+    // RE-BASED (v342): recaps compose over CALENDAR weeks
+    // (getFastRecapWeeks) — the seed fast starts Monday Jan 5, so
+    // its first recap week is Sun Jan 4 – Sat Jan 10, holding six
+    // fast days (Jan 5–10), not the old block Week 1 (Jan 5–11).
     const fast = seedFast();
-    const weeks = getFastWeeks(fast, "2026-02-20");
+    const weeks = getFastRecapWeeks(fast, "2026-02-20");
     const recap = composeWeeklyRecap(fast, weeks[0]);
-    expect(recap.counts).toEqual({ kept: 3, skipped: 1, missed: 1, unmarked: 2 });
-    expect(recap.paragraphs).toHaveLength(1);
-    expect(recap.paragraphs[0]).toContain("3 kept");
-    expect(recap.paragraphs[0]).toContain("1 missed");
+    expect(recap.counts).toEqual({ kept: 3, skipped: 1, missed: 1, unmarked: 1 });
+    expect(recap.title).toBe("Jan 4 – 10 recap");
+    expect(recap.heroLine).toBe("Three of six days held.");
+    expect(recap.paragraphs[1]).toContain("3 kept");
+    expect(recap.paragraphs[1]).toContain("1 missed");
+    // No notes → no quote rows anywhere in the document.
+    const quotes = recap.blocks.flatMap((b) => b.rows).filter((r) => r.kind === "quote");
+    expect(quotes).toHaveLength(0);
   });
 
   it("a week with notes quotes them verbatim, in day order", () => {
+    // RE-BASED (v342): the notes ride the Highs/Lows blocks as
+    // quote rows (flattening into the journal paragraphs with
+    // their "Weekday · Day N" labels) — the old "On Day N you
+    // wrote:" paragraph form belongs to the final recap only.
     const fast = seedFast();
     const dates = getFastCalendarDays(fast);
     fast.dailyNotes = {
       [dates[4]]: "Second note, later day.",
       [dates[1]]: "First note, earlier day.",
     };
-    const weeks = getFastWeeks(fast, "2026-02-20");
+    const weeks = getFastRecapWeeks(fast, "2026-02-20");
     const recap = composeWeeklyRecap(fast, weeks[0]);
-    expect(recap.paragraphs).toHaveLength(3);
-    expect(recap.paragraphs[1]).toBe("On Day 2 you wrote: “First note, earlier day.”");
-    expect(recap.paragraphs[2]).toBe("On Day 5 you wrote: “Second note, later day.”");
+    const quoteTexts = recap.blocks
+      .flatMap((b) => b.rows)
+      .filter((r) => r.kind === "quote")
+      .map((r) => (r as { text: string }).text);
+    expect(quoteTexts).toEqual(["First note, earlier day.", "Second note, later day."]);
+    const body = recap.paragraphs.join("\n");
+    expect(body).toContain("Tuesday · Day 2: “First note, earlier day.”");
+    expect(body).toContain("Friday · Day 5: “Second note, later day.”");
+    expect(body.indexOf("First note")).toBeLessThan(body.indexOf("Second note"));
   });
 
   it("the final recap opens with his why in his words and counts the whole fast", () => {

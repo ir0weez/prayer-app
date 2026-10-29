@@ -34,9 +34,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   Animated,
   BackHandler,
   Dimensions,
+  Easing as RNEasing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -49,8 +51,6 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Easing } from 'react-native-reanimated';
 import type { Person } from '@/lib/prayercircle-data';
-import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from '@/components/top-fade';
-import { WavyProgress } from '@/components/wavy-progress';
 import {
   buildDisplaySections,
   buildReadOnlySections,
@@ -206,14 +206,74 @@ function ChapterProgressThread({
   palette: BiblePalette;
   progress: number;
 }) {
-  // v339: the thread wears the wavy fill (his Oct 29 ruling) in the
-  // seed colour on its tint track — same seat at the header's bottom
-  // edge, still the ScrollView's measured read fraction. The old
-  // perpetual shimmer loop is retired: the wave ripples as the fill
-  // moves and rests static, per the ruling's motion spec.
+  // v342 (his ruling, Oct 29 14:47, on the Leviticus 23 reader
+  // screenshot — the wavy thread "is obviously glitched out"):
+  // the chapter thread leaves the wavy set entirely and returns
+  // to its pre-v341 form below — a REGULAR straight 4px thread
+  // whose fill is the ScrollView's measured read fraction, with
+  // the v304 shimmer sweep (calm 1.5s pass, long rest, still
+  // under reduce-motion). The wavy rendering also explains the
+  // screenshot's sliced labels: the shared component paints an
+  // 8px canvas centred on a 4px seat and renders nothing until
+  // its width measures, so in this slim header the wave spilled
+  // over the meta row and popped in late. The straight thread
+  // paints inside its seat from the first frame.
+  const shimmer = useRef(new Animated.Value(0)).current;
+  const [trackW, setTrackW] = useState(0);
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((r) => {
+        if (live) setReduced(r);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (reduced || trackW === 0) return;
+    shimmer.setValue(0);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, {
+          toValue: 1,
+          duration: 1500,
+          easing: RNEasing.inOut(RNEasing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.delay(2400),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, trackW, shimmer]);
+  const pct = Math.max(0, Math.min(100, Math.round(progress * 100)));
   return (
-    <View testID="chapter-progress-thread" style={styles.progThread}>
-      <WavyProgress value={progress} color={palette.rasp} trackColor={palette.raspTint} height={8} />
+    <View
+      testID="chapter-progress-thread"
+      style={[styles.progThread, { backgroundColor: palette.raspTint }]}
+      onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}
+    >
+      <View style={[styles.progThreadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />
+      {!reduced && trackW > 0 ? (
+        <Animated.View
+          style={[
+            styles.progShimmer,
+            {
+              transform: [
+                {
+                  translateX: shimmer.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-trackW * 0.55, trackW * 1.08],
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
+      ) : null}
     </View>
   );
 }
@@ -272,10 +332,6 @@ export function ChapterPageView(props: ChapterPageProps) {
   const [headSectionEnd, setHeadSectionEnd] = useState<number | null>(null);
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const flashAnim = useRef(new Animated.Value(0)).current;
-  // v338: the header fade's scroll link — fed from this page's own
-  // onScroll below (the handler that already tracks the offset).
-  const fadeScrollY = useTopFadeScrollY();
-  const fadeOnScroll = topFadeScrollHandler(fadeScrollY);
   const scrollRef = useRef<ScrollView>(null);
   const yByKey = useRef(new Map<string, number>());
   const viewHeight = useRef(0);
@@ -657,7 +713,7 @@ export function ChapterPageView(props: ChapterPageProps) {
           ScrollView below opens its content with a spacer of
           exactly that height — the hero can never slide under it. */}
       <View
-        style={[styles.topwrap, { borderBottomColor: palette.line }]}
+        style={[styles.topwrap, { backgroundColor: palette.paper, borderBottomColor: palette.line }]}
         onLayout={(e) => {
           const h = e.nativeEvent.layout.height;
           if (Math.abs(h - headerHRef.current) > 0.5) {
@@ -757,7 +813,6 @@ export function ChapterPageView(props: ChapterPageProps) {
         // thread's own region still scrolls internally when a
         // conversation is tall.
         onScroll={(e) => {
-          fadeOnScroll(e);
           const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
           viewHeight.current = layoutMeasurement.height;
           contentHeight.current = contentSize.height;
@@ -1141,16 +1196,13 @@ export function ChapterPageView(props: ChapterPageProps) {
         <View style={{ height: Math.max(96, (props.tabBarHeight ?? 0) + 24) }} />
       </ScrollView>
 
-      {/* ── v334: the top fade ── his Oct 29 ruling (all pages):
-          the header's solid paper fill is GONE from the topwrap
-          above — the header text and pills now float over this
-          fade, and the verses dissolve under the Bible palette's
-          paper as they scroll into the header zone instead of
-          vanishing at a hard edge. The fade is exactly the
-          header's measured height and sits below the topwrap
-          (zIndex 30) and above the scroll content; the progress
-          thread still rides the header's bottom edge. */}
-      <TopFade color={palette.paper} height={headerH} zIndex={20} scrollY={fadeScrollY} />
+      {/* ── v342: NO top fade on the reader — the fade belongs
+          on main tab screens and headerless scrollers only (his
+          Oct 29 scope ruling); the chapter page has a definite
+          header, so the topwrap's solid paper fill (removed in
+          v334 for the fade) is restored above: the header stands
+          solid and the verses end at its edge, as they did
+          before v334. ── */}
 
       {/* ── Verses FAB ── */}
       {!sheet ? (
@@ -1646,7 +1698,9 @@ const styles = StyleSheet.create({
   // v304: the card's chrome is gone — the progress is a 4px thread
   // spanning the header's full width at its bottom edge (track and
   // fill colors inline, as the card's were); the shimmer survives.
-  progThread: { position: 'relative' },
+  progThread: { height: 4, overflow: 'hidden', position: 'relative' },
+  progThreadFill: { height: 4 },
+  progShimmer: { position: 'absolute', top: 0, bottom: 0, width: '45%', backgroundColor: 'rgba(255,255,255,0.45)' },
   // v304: the slim row the range label and the mode control share —
   // the label left and muted at 11.5, the control right.
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },

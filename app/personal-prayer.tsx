@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
-import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
@@ -22,7 +21,6 @@ interface PrayerItem {
 }
 
 export default function PersonalPrayerScreen() {
-  const fadeScrollY = useTopFadeScrollY();
   const { isSkinned, tokens: skinTokens } = useSkin();
   const colors = useColors();
   const router = useRouter();
@@ -98,7 +96,7 @@ export default function PersonalPrayerScreen() {
       </View>
 
       <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }} onScroll={topFadeScrollHandler(fadeScrollY)} scrollEventThrottle={16}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         <View style={styles.content}>
           {prayerItems.length === 0 ? (
             <View style={styles.emptyState}>
@@ -152,7 +150,8 @@ export default function PersonalPrayerScreen() {
           the scroll view, below the fixed header. Colour = the
           ScreenContainer ground (skin token background, else the
           themed palette background). */}
-      <TopFade color={skinTokens.background ?? colors.background} scrollY={fadeScrollY} />
+      {/* v342: no top fade — detail screen with a definite
+          header (fade scope ruling, Oct 29). */}
       </View>
 
       <Pressable onPress={() => setShowAddModal(true)} style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}>

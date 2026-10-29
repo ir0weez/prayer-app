@@ -204,9 +204,11 @@ describe("the session's dress (source)", () => {
 
   it("the segments replace the dots; the count rides the header", () => {
     expect(session).toContain("PERSON {currentIndex + 1} OF {totalCount}");
-    // v339: the segments themselves became one wavy bar (his Oct 29
-    // ruling) — settled + active share as its fill, full at finish.
-    expect(session).toContain("isFinished ? 1 : (currentIndex + 1) / totalCount");
+    // RE-BASED in v342 (his correction, Oct 29 14:06): the segments
+    // are the person counter and stay SEGMENTS — v339's one-wavy-bar
+    // conversion of this element is reversed.
+    expect(session).toContain("sessionPeople.map((person, idx)");
+    expect(session).not.toContain("isFinished ? 1 : (currentIndex + 1) / totalCount");
     expect(session).not.toContain("{totalCount} {totalCount === 1 ? \"person\" : \"people\"}");
   });
 

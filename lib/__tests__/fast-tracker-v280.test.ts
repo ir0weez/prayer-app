@@ -62,7 +62,7 @@ import {
   upsertFastDayStatus,
   type PersonalFast,
 } from "@/lib/prayercircle-fasting";
-import { composeWeeklyRecap, getFastWeeks, getPreviousFast } from "@/lib/fast-tracker";
+import { composeWeeklyRecap, getFastRecapWeeks, getFastWeeks, getPreviousFast } from "@/lib/fast-tracker";
 import { maxHeartsForLevel, normalizeXPState } from "@/lib/xp-engine";
 import { parseMonuments } from "@/lib/monuments";
 
@@ -214,10 +214,15 @@ describe("v280 fidelity: the fasting section is the mockup", () => {
   });
 
   it("Recaps shows exactly the pending week, one ended week, and the Final row — all with chevrons", () => {
-    expect(tracker).toContain("endedWeeks.slice(0, 1)");
+    // RE-BASED (v342): the rows are CALENDAR weeks now — the
+    // pending current week ("Arrives Saturday": a week's recap
+    // presents on its Saturday), the latest presented week, and
+    // the Final row. The row set's shape is unchanged.
+    expect(tracker).toContain("recapWeeks.filter((w) => w.available)");
     expect(tracker).not.toContain("See all recaps");
     expect(tracker).not.toContain("FastAllRecapsList");
-    expect(tracker).toContain("Arrives when the week closes");
+    expect(tracker).toContain("Arrives Saturday");
+    expect(tracker).toContain("formatRecapWeekLabel(latestWeek.startDate, latestWeek.endDate)");
   });
 
   it("the day sheet: no Clear-mark button, no date in the sub-line; re-tap toggles off", () => {
@@ -227,11 +232,17 @@ describe("v280 fidelity: the fasting section is the mockup", () => {
     expect(tracker).toContain("onChange={(next) => setStatus(next === status ? null : next)}");
   });
 
-  it("the recap document: 'Week N' headline and exactly the three count rows", () => {
-    expect(tracker).toContain("{recap.headline}");
+  it("the recap document: the week's DATES as its headline; counts as shaped tiles", () => {
+    // RE-BASED (v342, the approved v5 drawing): the document
+    // headlines the week's dates (heroDates) and carries the
+    // counts as shaped stat tiles — the streak among them as the
+    // arch tile. The model never titles a week by number again.
+    expect(tracker).toContain("{recap.heroDates}");
+    expect(tracker).toContain('label="DAY STREAK"');
     expect(tracker).not.toContain("Longest streak");
     const model = read("lib/fast-tracker.ts");
-    expect(model).toContain("headline: `Week ${week.weekNumber}`");
+    expect(model).toContain("formatRecapHeroDates(week.startDate, week.endDate)");
+    expect(model).not.toContain("headline: `Week ${week.weekNumber}`");
     expect(model).toContain("headline: `Your ${fast.durationDays} days`");
   });
 
@@ -303,13 +314,21 @@ describe("v280 save safety: board-state orphans never touch the fast itself", ()
     const weeks = getFastWeeks(fast, days[299]);
     const week43 = weeks.find((w) => w.weekNumber === 43)!;
     expect(week43.current).toBe(true);
-    expect(week43.days[5].dayNumber).toBe(300);
-    expect(week43.days[5].date).toBe(days[299]); // the component's today test is date === today
+    // RE-BASED (v342, amendment #6): calendar weeks — this fixture
+    // starts Mon Jan 5, so week 43 is Sun Oct 25 – Sat Oct 31
+    // holding Days 294–300; Day 300 is its SEVENTH dot (was the
+    // sixth under 7-day blocks from Day 1).
+    expect(week43.days[6].dayNumber).toBe(300);
+    expect(week43.days[6].date).toBe(days[299]); // the component's today test is date === today
     const week1 = weeks[0];
     expect(week1.days.every((d) => d.status === fixture.dayStatuses[d.date])).toBe(true);
-    const recap = composeWeeklyRecap(fast, week1);
-    expect(recap.counts.kept + recap.counts.skipped + recap.counts.missed).toBe(7);
-    expect(recap.counts.kept).toBe(week1.days.filter((d) => d.status === "completed").length);
+    // RE-BASED (v342): the recap composes over the CALENDAR week —
+    // the first (Sun Jan 4 – Sat Jan 10) holds the fast's first
+    // six days, all completed in this fixture.
+    const recapWeeks = getFastRecapWeeks(fast, days[299]);
+    const recap = composeWeeklyRecap(fast, recapWeeks[0]);
+    expect(recap.counts.kept + recap.counts.skipped + recap.counts.missed).toBe(6);
+    expect(recap.counts.kept).toBe(recapWeeks[0].days.filter((d) => d.status === "completed").length);
   });
 
   it("a tracker save (one new day + one note) leaves every other day untouched", () => {

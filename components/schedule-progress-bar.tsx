@@ -13,7 +13,8 @@ import Svg, { Circle, ClipPath, Defs, G, Line, LinearGradient, Path, RadialGradi
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { mix } from "@/lib/color-themes";
-import { WavyProgress } from "./wavy-progress";
+import { usePaperFill } from "./paper-motion";
+import { useBitFill } from "./bit-motion";
 import { DAY_CAP_STARS, dayCapArc, dayCapFaceFor, dayCapSky, type DayCapFace, type DayCapSky } from "@/lib/day-cap";
 import { BIT_GOLD, BIT_ON_DUSK, BIT_ON_DUSK_SOFT, TERM_DIM, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, skinText } from "@/lib/skin-themes";
 
@@ -298,6 +299,12 @@ export function ScheduleProgressBar({ completed, total, label = "Progress", vari
   const percentage = total > 0 ? (completed / total) * 100 : 0;
   const isComplete = total > 0 && completed >= total;
   const capFace = dayCapFaceFor(new Date(), isComplete);
+  // v202: Paper's fill soaks across the sheet (scaleX, below).
+  const paperFillStyle = usePaperFill(percentage / 100);
+  // v203: under 8-bit the fill advances in stepped chunks
+  // (scaleX from the left edge, the bit kit's stepped timing);
+  // every other skin keeps its fill exactly as it was.
+  const bitFillStyle = useBitFill(percentage / 100);
 
   const glowAnimation = useSharedValue(0);
   // v297 (panel variant): the cap's travel is clamped inside the bar —
@@ -360,6 +367,17 @@ export function ScheduleProgressBar({ completed, total, label = "Progress", vari
   // the count caption at the right in the panel's soft violet-white.
   // The day-cap component itself is untouched — same face, same sky,
   // same completion rule; only its seat moved.
+  //
+  // v342 (his ruling, Oct 29 14:32, on Monday Nov 9's schedule):
+  // "The summary bar shouldn't wave either." This bar — the Daily
+  // Summary's day progress, sun face at the left and the "N of M · %"
+  // count at the right — is EXEMPT from the wavy treatment: v341's
+  // conversion of BOTH variants is reverted and the bar is its
+  // pre-v341 straight self again (the standard variant below is the
+  // same summary bar in the skins' composition, so it reverts with
+  // it, Paper soak and 8-bit stepped fills restored). Like the
+  // Personal Study thread, it reports a stored count — it isn't
+  // live — so it doesn't wave.
   if (variant === "panel") {
     const capTravel = Math.max(0, panelBarWidth - 30);
     const capLeft = (percentage / 100) * capTravel;
@@ -369,11 +387,9 @@ export function ScheduleProgressBar({ completed, total, label = "Progress", vari
           style={{ flex: 1, height: 30, justifyContent: "center", position: "relative" }}
           onLayout={(e) => setPanelBarWidth(e.nativeEvent.layout.width)}
         >
-          {/* v339: the panel bar's fill wears the wave (his Oct 29
-              ruling) — same amber on the same translucent track;
-              the day cap still rides the tip, so the wave's own
-              tip dot stands down in this seat. */}
-          <WavyProgress value={percentage / 100} color="#F59E0B" trackColor="rgba(255,255,255,0.30)" height={14} hideTipDot />
+          <View style={{ height: 14, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.30)", overflow: "hidden" }}>
+            <View style={{ height: "100%", width: `${percentage}%`, backgroundColor: "#F59E0B", borderRadius: 999 }} />
+          </View>
           {total > 0 && panelBarWidth > 0 && (
             <View
               pointerEvents="none"
@@ -421,7 +437,13 @@ export function ScheduleProgressBar({ completed, total, label = "Progress", vari
       <View style={{ position: "relative", paddingTop: 10 }}>
         <Animated.View
           style={[
-            { position: "relative" },
+            {
+              position: "relative",
+              height: 6,
+              backgroundColor: isTerminal ? TERM_DIM : skinTokens.isEightBit ? "#6E5BB5" : !isSkinned ? mix(colors.primary, colors.surface, 0.82) : colors.border,
+              borderRadius: (skinTokens.isEightBit || isTerminal) ? 0 : 3,
+              overflow: "hidden",
+            },
             isComplete && glowStyle,
             isComplete && {
               shadowColor: isTerminal ? TERM_PHOS : "#10B981",
@@ -429,19 +451,33 @@ export function ScheduleProgressBar({ completed, total, label = "Progress", vari
             },
           ]}
         >
-          {/* v339: the fill wears the wave (his Oct 29 ruling) in
-              the colour this seat already wore per skin — Terminal
-              phosphor, 8-bit gold, the green of a finished day,
-              else the seed. The v202 Paper soak / v203 8-bit stepped
-              fills retire: the wave's own sweep is the motion now.
-              The day cap below still rides the fill's end. */}
-          <WavyProgress
-            value={percentage / 100}
-            color={isTerminal ? TERM_PHOS : isComplete ? "#10B981" : skinTokens.isEightBit ? BIT_GOLD : colors.primary}
-            trackColor={isTerminal ? TERM_DIM : skinTokens.isEightBit ? "#6E5BB5" : !isSkinned ? mix(colors.primary, colors.surface, 0.82) : colors.border}
-            height={8}
-            hideTipDot
-          />
+          {/* Regular progress bar fill — v202: under Paper the fill
+              soaks across the sheet by scaleX from the left edge
+              (transform only, skin settle timing); every other skin
+              keeps the width-% fill exactly as it was. */}
+          {(paperFillStyle ?? bitFillStyle) ? (
+            <Animated.View
+              style={[
+                {
+                  height: "100%",
+                  width: "100%",
+                  backgroundColor: isTerminal ? TERM_PHOS : isComplete ? "#10B981" : skinTokens.isEightBit ? BIT_GOLD : colors.primary,
+                  borderRadius: (skinTokens.isEightBit || isTerminal) ? 0 : 3,
+                  transformOrigin: "left center",
+                },
+                paperFillStyle ?? bitFillStyle,
+              ]}
+            />
+          ) : (
+            <View
+              style={{
+                height: "100%",
+                width: `${percentage}%`,
+                backgroundColor: isTerminal ? TERM_PHOS : isComplete ? "#10B981" : skinTokens.isEightBit ? BIT_GOLD : colors.primary,
+                borderRadius: (skinTokens.isEightBit || isTerminal) ? 0 : 3,
+              }}
+            />
+          )}
         </Animated.View>
 
         {/* The day cap (v242): a small sky WINDOW riding the
@@ -455,7 +491,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress", vari
             pointerEvents="none"
             style={{
               position: "absolute",
-              top: 0,
+              top: -1,
               left: `${percentage}%`,
               marginLeft: -14,
               width: CAP_SIZE,

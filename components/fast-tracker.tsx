@@ -11,13 +11,20 @@ import {
   FAST_MISSED_WASH,
   FAST_SKIPPED_DEEP,
   FAST_SKIPPED_WASH,
+  formatRecapWeekLabel,
+  getFastCalendarWeeks,
   getFastEncouragement,
   getFastNoteStream,
   getFastRecordWeeks,
   getFastWeekKeptLabel,
   type FastRecap,
+  type FastRecapWeek,
   type FastWeek,
+  type RecapBlock,
+  type RecapBlockRow,
+  type RecapEncouragement,
 } from "@/lib/fast-tracker";
+import { WavyProgress } from "@/components/wavy-progress";
 import {
   getFastCalendarDays,
   getFastProgress,
@@ -294,10 +301,13 @@ export function FastRecordCard(props: {
         const keptSuffix = keptLabel?.endsWith(" so far") ? " so far" : " kept";
         const keptBold = keptLabel ? keptLabel.slice(0, keptLabel.length - keptSuffix.length) : null;
         return (
-        <View key={week.weekNumber} style={[styles.weekRow, { borderBottomColor: family.line }]}>
+        <View key={week.startDate} style={[styles.weekRow, { borderBottomColor: family.line }]}>
           <View style={styles.weekMeta}>
             <View style={{ flexDirection: "row", alignItems: "baseline", flex: 1 }}>
-              <Text style={[styles.weekTitle, { color: family.ink }]}>Week {week.weekNumber}</Text>
+              {/* v342 (amendment #6): the row is titled by its calendar
+                  dates like the recap — weeks run Sunday–Saturday,
+                  never 7-day blocks from the fast's start. */}
+              <Text style={[styles.weekTitle, { color: family.ink }]}>{formatRecapWeekLabel(week.startDate, week.endDate)}</Text>
               <Text style={[styles.weekDates, { color: family.inkSoft }]}>
                 Days {week.days[0].dayNumber}–{week.days[week.days.length - 1].dayNumber}
                 {week.current ? " · this week" : ""}
@@ -394,64 +404,66 @@ export function FastRecordCard(props: {
 }
 
 // ─── 5 · Recaps ──────────────────────────────────────────────────────
-export type FastRecapTarget = { kind: "week"; weekNumber: number } | { kind: "final" };
+/** Who the Recaps card / document is showing: a CALENDAR week (by
+ *  its Sunday startDate) or the whole fast — v342: recap weeks are
+ *  Sun–Sat calendar weeks named by their dates, never fast-block
+ *  numbers (his ruling, Oct 29). */
+export type FastRecapTarget = { kind: "week"; startDate: string } | { kind: "final" };
 
 export function FastRecapsCard(props: {
   family: FastTrackerFamily;
   fast: PersonalFast;
-  weeks: FastWeek[];
+  /** v342: the CALENDAR weeks (getFastRecapWeeks) — the Record
+   *  card keeps the fast-block weeks; recaps live on the calendar. */
+  recapWeeks: FastRecapWeek[];
   finalReady: boolean;
   onOpenRecap: (target: FastRecapTarget) => void;
 }) {
-  const { family, weeks, finalReady, fast, onOpenRecap } = props;
-  const currentWeek = weeks.find((w) => w.current);
-  const endedWeeks = weeks.filter((w) => w.ended).reverse();
-  // The mockup's set is exactly three rows: the pending week, the
-  // most recent closed week, and the Final recap (v280).
-  const shownEnded = endedWeeks.slice(0, 1);
+  const { family, recapWeeks, finalReady, fast, onOpenRecap } = props;
+  const currentWeek = recapWeeks.find((w) => w.current);
+  const availableWeeks = recapWeeks.filter((w) => w.available);
+  // The card's set (v280 shape, v342 data): the pending week, the
+  // most recent presented week, and the Final recap.
+  const latestWeek = availableWeeks[availableWeeks.length - 1];
   return (
     <View style={[styles.card, styles.cardFlush, { backgroundColor: family.card, shadowColor: family.shadow }]}>
       <View style={[styles.cardBand, { backgroundColor: family.wash }]}>
         <Text style={[styles.kicker, { color: family.deep }]}>RECAPS</Text>
       </View>
       <View style={{ paddingHorizontal: 16 }}>
-        {currentWeek && !finalReady ? (
+        {currentWeek && !currentWeek.available && !finalReady ? (
           <View style={[styles.listRow, { borderBottomColor: family.line }]}>
             <View style={[styles.leadCircle, { backgroundColor: family.wash }]}>
               <MaterialIcons name="description" size={20} color={family.deep} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.rowTitle, { color: family.ink }]}>Week {currentWeek.weekNumber} recap</Text>
-              <Text style={[styles.rowSub, { color: family.inkSoft }]}>Arrives when the week closes</Text>
+              <Text style={[styles.rowTitle, { color: family.ink }]}>
+                {formatRecapWeekLabel(currentWeek.startDate, currentWeek.endDate)} recap
+              </Text>
+              <Text style={[styles.rowSub, { color: family.inkSoft }]}>Arrives Saturday</Text>
             </View>
             <MaterialIcons name="chevron-right" size={20} color={family.inkSoft} />
           </View>
         ) : null}
-        {shownEnded.map((week) => {
-          const counts = {
-            kept: week.days.filter((d) => d.status === "completed").length,
-            skipped: week.days.filter((d) => d.status === "skipped").length,
-            missed: week.days.filter((d) => d.status === "missed").length,
-          };
-          return (
-            <Pressable
-              key={week.weekNumber}
-              onPress={() => onOpenRecap({ kind: "week", weekNumber: week.weekNumber })}
-              style={[styles.listRow, { borderBottomColor: family.line }]}
-            >
-              <View style={[styles.leadCircle, { backgroundColor: family.wash }]}>
-                <MaterialIcons name="description" size={20} color={family.deep} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.rowTitle, { color: family.ink }]}>Week {week.weekNumber} recap</Text>
-                <Text style={[styles.rowSub, { color: family.inkSoft }]}>
-                  {counts.kept} kept · {counts.skipped} skipped · {counts.missed} missed
-                </Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={20} color={family.inkSoft} />
-            </Pressable>
-          );
-        })}
+        {latestWeek ? (
+          <Pressable
+            onPress={() => onOpenRecap({ kind: "week", startDate: latestWeek.startDate })}
+            style={[styles.listRow, { borderBottomColor: family.line }]}
+          >
+            <View style={[styles.leadCircle, { backgroundColor: family.wash }]}>
+              <MaterialIcons name="description" size={20} color={family.deep} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: family.ink }]}>
+                {formatRecapWeekLabel(latestWeek.startDate, latestWeek.endDate)} recap
+              </Text>
+              <Text style={[styles.rowSub, { color: family.inkSoft }]}>
+                {latestWeek.kept} kept · {latestWeek.skipped} skipped · {latestWeek.missed} missed
+              </Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={20} color={family.inkSoft} />
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={() => finalReady && onOpenRecap({ kind: "final" })}
           style={[styles.listRow, { borderBottomColor: "transparent" }]}
@@ -483,7 +495,11 @@ export function FastDaySheetContent(props: {
   const { family, fast, date, onSave, onClose } = props;
   const days = getFastCalendarDays(fast);
   const dayNumber = days.indexOf(date) + 1;
-  const weekNumber = dayNumber > 0 ? Math.ceil(dayNumber / 7) : 0;
+  // v342 (amendment #6): the day sheet's week is the CALENDAR week
+  // (Sun–Sat) holding the day — the same index the Record and the
+  // Recaps count by, not a 7-day block from the fast's start.
+  const weekNumber =
+    dayNumber > 0 ? getFastCalendarWeeks(fast).findIndex((w) => w.startDate <= date && date <= w.endDate) + 1 : 0;
   const [status, setStatus] = useState<FastDayStatus | null>(fast.dayStatuses[date] ?? null);
   const [note, setNote] = useState(fast.dailyNotes?.[date] ?? "");
   const encouragement = getFastEncouragement(status ?? undefined);
@@ -541,6 +557,203 @@ export function FastDaySheetContent(props: {
 }
 
 // ─── 5b · The recap document ─────────────────────────────────────────
+/* ─── The recap document (v342) ───────────────────────────────────
+   Built to the approved drawing (weekly-recap-concepts-v5.html,
+   Jonathan Oct 29: "Love it, do it"): an expressive large-title
+   header; a tonal hero carrying the week's shape as the travelling
+   wavy thread; shaped stat tiles (Kept a rounded square, Skipped a
+   circle, Missed a pill, the longest held stretch an arch); Highs
+   and Lows as material list blocks with shape markers and quote
+   rows; a filled encouragement surface with its verse anchor; real
+   Material buttons; and the Week Ahead companion below. Every
+   surface derives from the seed family (Settings palette ×
+   appearance) — no cream, no pinned drawing hexes. The composition
+   itself lives in lib/fast-tracker.ts (composeWeeklyRecap); this
+   is its rendering only. */
+
+function RecapSegmentsText({
+  segments,
+  family,
+  fontSize = 14.5,
+}: {
+  segments: { text: string; bold?: boolean }[];
+  family: FastTrackerFamily;
+  fontSize?: number;
+}) {
+  return (
+    <Text style={{ color: family.ink, fontSize, lineHeight: 22 }}>
+      {segments.map((s, i) => (
+        <Text key={i} style={s.bold ? { fontWeight: "800" } : undefined}>
+          {s.text}
+        </Text>
+      ))}
+    </Text>
+  );
+}
+
+function RecapStatTile({
+  shape,
+  value,
+  label,
+  backgroundColor,
+  family,
+}: {
+  shape: "square" | "circle" | "pill" | "arch";
+  value: number;
+  label: string;
+  backgroundColor: string;
+  family: FastTrackerFamily;
+}) {
+  const radii =
+    shape === "arch"
+      ? { borderTopLeftRadius: 999, borderTopRightRadius: 999, borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }
+      : shape === "square"
+        ? { borderRadius: 16 }
+        : { borderRadius: 999 };
+  return (
+    <View
+      style={[
+        {
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingTop: shape === "arch" ? 16 : 12,
+          paddingBottom: 12,
+          paddingHorizontal: 4,
+          backgroundColor,
+        },
+        radii,
+      ]}
+    >
+      <Text style={{ color: family.inkSeed, fontSize: 28, lineHeight: 32, fontWeight: "800" }}>{value}</Text>
+      <Text style={{ color: family.washSub, fontSize: 10, lineHeight: 13, fontWeight: "800", letterSpacing: 1.1, marginTop: 2 }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function RecapBlockView({ block, family }: { block: RecapBlock; family: FastTrackerFamily }) {
+  const tonal = block.tone === "tonal";
+  return (
+    <View
+      style={{
+        backgroundColor: tonal ? family.container : family.card,
+        borderWidth: tonal ? 0 : 1,
+        borderColor: family.line,
+        borderRadius: 24,
+        padding: 18,
+        marginTop: 14,
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 4 }}>
+        {block.marker === "diamond" ? (
+          <View style={{ width: 11, height: 11, backgroundColor: family.washSub, transform: [{ rotate: "45deg" }] }} />
+        ) : (
+          <View style={{ width: 11, height: 11, borderRadius: 6, borderWidth: 2.5, borderColor: family.seed }} />
+        )}
+        <Text style={{ color: family.washSub, fontSize: 11.5, fontWeight: "800", letterSpacing: 1.6 }}>{block.title}</Text>
+      </View>
+      {block.rows.map((row, i) => (
+        <RecapRowView key={i} row={row} tonal={tonal} family={family} first={i === 0} />
+      ))}
+    </View>
+  );
+}
+
+function RecapRowView({
+  row,
+  tonal,
+  family,
+  first,
+}: {
+  row: RecapBlockRow;
+  tonal: boolean;
+  family: FastTrackerFamily;
+  first: boolean;
+}) {
+  if (row.kind === "quote") {
+    return (
+      <View
+        style={{
+          borderLeftWidth: 3,
+          borderLeftColor: tonal ? family.washSub : family.seed,
+          paddingLeft: 12,
+          marginTop: first ? 10 : 14,
+          marginLeft: 5,
+        }}
+      >
+        <Text style={{ color: family.washSub, fontSize: 10.5, fontWeight: "800", letterSpacing: 0.8 }}>{row.whenLabel.toUpperCase()}</Text>
+        <Text style={{ color: family.ink, fontSize: 14.5, lineHeight: 22, fontStyle: "italic", marginTop: 3 }}>“{row.text}”</Text>
+      </View>
+    );
+  }
+  if (row.kind === "date") {
+    const tileRadii =
+      row.shape === "arch"
+        ? { borderTopLeftRadius: 999, borderTopRightRadius: 999, borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }
+        : row.shape === "circle"
+          ? { borderRadius: 999 }
+          : { borderRadius: 10 };
+    return (
+      <View style={{ flexDirection: "row", gap: 13, marginTop: first ? 10 : 14, alignItems: "flex-start" }}>
+        <View style={{ alignItems: "center", width: 44 }}>
+          <View
+            style={[
+              {
+                width: 44,
+                height: 44,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: row.shape === "square" ? family.container : family.wash2,
+              },
+              tileRadii,
+            ]}
+          >
+            <Text style={{ color: family.deep, fontSize: 17, fontWeight: "800" }}>{row.dayOfMonth}</Text>
+          </View>
+          <Text style={{ color: family.washSub, fontSize: 9, fontWeight: "800", letterSpacing: 0.7, marginTop: 4 }}>
+            {row.weekday.slice(0, 3).toUpperCase()}
+          </Text>
+        </View>
+        <View style={{ flex: 1, paddingTop: 2 }}>
+          <RecapSegmentsText segments={row.segments} family={family} />
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={{ flexDirection: "row", gap: 11, marginTop: first ? 10 : 14, alignItems: "flex-start" }}>
+      {tonal ? (
+        <View style={{ width: 9, height: 9, backgroundColor: family.washSub, transform: [{ rotate: "45deg" }], marginTop: 6 }} />
+      ) : (
+        <View style={{ width: 11, height: 11, borderRadius: 6, borderWidth: 2.5, borderColor: family.washSub, marginTop: 5 }} />
+      )}
+      <View style={{ flex: 1 }}>
+        <RecapSegmentsText segments={row.segments} family={family} />
+      </View>
+    </View>
+  );
+}
+
+function RecapEncouragementView({ encouragement, family }: { encouragement: RecapEncouragement; family: FastTrackerFamily }) {
+  return (
+    <View style={{ backgroundColor: family.seed, borderRadius: 24, padding: 20, marginTop: 14 }}>
+      {encouragement.paragraphs.map((paragraph, i) => (
+        <Text key={i} style={{ color: "#FFFFFF", fontSize: 14.5, lineHeight: 22, marginTop: i === 0 ? 0 : 10 }}>
+          {paragraph}
+        </Text>
+      ))}
+      <Text style={{ color: "rgba(255,255,255,0.88)", fontSize: 14.5, lineHeight: 22, fontStyle: "italic", marginTop: 12 }}>
+        “{encouragement.verse.text}”
+      </Text>
+      <Text style={{ color: "#FFFFFF", fontSize: 11.5, fontWeight: "800", letterSpacing: 0.8, marginTop: 6 }}>
+        {encouragement.verse.ref.toUpperCase()} · KJV
+      </Text>
+    </View>
+  );
+}
+
 export function FastRecapDocument(props: {
   family: FastTrackerFamily;
   recap: FastRecap;
@@ -549,53 +762,99 @@ export function FastRecapDocument(props: {
   onClose: () => void;
 }) {
   const { family, recap, saved, onSaveToJournal, onClose } = props;
-  // The mockup's counts list is exactly Kept / Skipped / Missed —
-  // the longest streak lives in the Journal text, not on this
-  // document (v280).
-  const countRows: { label: string; value: number; dot: string }[] = [
-    { label: "Kept", value: recap.counts.kept, dot: FAST_KEPT },
-    { label: "Skipped", value: recap.counts.skipped, dot: "#F59E0B" },
-    { label: "Missed", value: recap.counts.missed, dot: "#E57373" },
-  ];
+  const ahead = recap.weekAhead;
   return (
-    <View style={[styles.docCard, { backgroundColor: family.card, shadowColor: family.shadow }]}>
-      <View style={[styles.docBand, { backgroundColor: family.wash2 }]}>
-        <Text style={[styles.kicker, { color: family.deep }]}>
-          {recap.kind === "final" ? "FINAL RECAP" : "WEEKLY RECAP"}
-        </Text>
-        <Text style={[styles.docTitle, { color: family.inkSeed }]}>{recap.headline}</Text>
-        <Text style={[styles.rowSub, { color: family.washSub, marginTop: 2 }]}>{recap.subtitle}</Text>
-      </View>
-      <View style={styles.docBody}>
-        <View style={{ marginTop: 4 }}>
-          {countRows.map((row) => (
-            <View key={row.label} style={[styles.countRow, { borderBottomColor: family.line }]}>
-              <View style={[styles.countDot, { backgroundColor: row.dot }]} />
-              <Text style={[styles.countLabel, { color: family.ink }]}>{row.label}</Text>
-              <Text style={[styles.countValue, { color: family.ink }]}>{row.value}</Text>
-            </View>
-          ))}
+    <View>
+      <Text style={{ color: family.washSub, fontSize: 11, fontWeight: "800", letterSpacing: 2.2 }}>
+        {recap.kind === "final" ? "FINAL RECAP" : "WEEKLY RECAP"}
+      </Text>
+      <Text style={{ color: family.inkSeed, fontSize: 34, lineHeight: 40, fontWeight: "800", marginTop: 8 }}>{recap.heroDates}</Text>
+      <Text style={{ color: family.deep, fontSize: 13.5, fontWeight: "600", marginTop: 5 }}>{recap.heroFastLine}</Text>
+
+      {/* The hero: the week's shape on the wash, its kept fraction
+          as the wavy thread. */}
+      <View style={{ backgroundColor: family.wash, borderRadius: 28, padding: 22, marginTop: 18 }}>
+        <Text style={{ color: family.inkSeed, fontSize: 21, lineHeight: 27, fontWeight: "800" }}>{recap.heroLine}</Text>
+        <Text style={{ color: family.deep, fontSize: 13.5, lineHeight: 20, marginTop: 6 }}>{recap.heroSub}</Text>
+        <View style={{ marginTop: 14 }}>
+          <WavyProgress value={recap.heroFraction} color={family.seed} trackColor={family.wash2} height={10} />
         </View>
-        {recap.paragraphs.map((paragraph, i) => (
-          <Text key={i} style={[styles.docParagraph, { color: family.ink }]}>
-            {paragraph}
+      </View>
+
+      {/* The shaped stat tiles. */}
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
+        <RecapStatTile shape="square" value={recap.counts.kept} label="KEPT" backgroundColor={family.container} family={family} />
+        <RecapStatTile shape="circle" value={recap.counts.skipped} label="SKIPPED" backgroundColor={family.container} family={family} />
+        <RecapStatTile shape="pill" value={recap.counts.missed} label="MISSED" backgroundColor={family.container} family={family} />
+        <RecapStatTile
+          shape="arch"
+          value={recap.longestStreak ?? 0}
+          label="DAY STREAK"
+          backgroundColor={family.wash2}
+          family={family}
+        />
+      </View>
+
+      {recap.blocks.map((block) => (
+        <RecapBlockView key={block.title} block={block} family={family} />
+      ))}
+
+      <RecapEncouragementView encouragement={recap.encouragement} family={family} />
+
+      {/* Real Material buttons (the drawing's pair). */}
+      <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
+        <Pressable
+          onPress={onSaveToJournal}
+          disabled={saved}
+          style={{
+            flex: 1,
+            height: 52,
+            borderRadius: 999,
+            backgroundColor: saved ? family.wash2 : family.seed,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          <MaterialIcons name={saved ? "check" : "bookmark-outline"} size={19} color={saved ? family.deep : "#FFFFFF"} />
+          <Text style={{ color: saved ? family.deep : "#FFFFFF", fontSize: 14.5, fontWeight: "700" }}>
+            {saved ? "Saved to Journal" : "Save to Journal"}
           </Text>
-        ))}
-        <View style={styles.actions}>
-          <Pressable onPress={onClose} style={styles.textButton}>
-            <Text style={[styles.textButtonLabel, { color: family.deep }]}>Not now</Text>
-          </Pressable>
-          <Pressable
-            onPress={onSaveToJournal}
-            disabled={saved}
-            style={[styles.filledButton, { backgroundColor: saved ? family.wash2 : family.seed }]}
-          >
-            <Text style={[styles.filledButtonLabel, saved && { color: family.deep }]}>
-              {saved ? "Saved to Journal" : "Save to Journal"}
-            </Text>
-          </Pressable>
-        </View>
+        </Pressable>
+        <Pressable
+          onPress={onClose}
+          style={{
+            height: 52,
+            paddingHorizontal: 24,
+            borderRadius: 999,
+            backgroundColor: family.container,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: family.deep, fontSize: 14.5, fontWeight: "700" }}>Close</Text>
+        </Pressable>
       </View>
+
+      {/* The Week Ahead companion — same surface, below the recap. */}
+      {ahead ? (
+        <View style={{ marginTop: 30 }}>
+          <Text style={{ color: family.washSub, fontSize: 11, fontWeight: "800", letterSpacing: 2.2 }}>THE WEEK AHEAD</Text>
+          <Text style={{ color: family.inkSeed, fontSize: 27, lineHeight: 33, fontWeight: "800", marginTop: 8 }}>{ahead.heroDates}</Text>
+          {ahead.fastLine ? (
+            <Text style={{ color: family.deep, fontSize: 13, fontWeight: "600", marginTop: 5 }}>{ahead.fastLine}</Text>
+          ) : null}
+          {ahead.heroLine ? (
+            <Text style={{ color: family.inkSeed, fontSize: 19, lineHeight: 25, fontWeight: "800", marginTop: 14 }}>{ahead.heroLine}</Text>
+          ) : null}
+          <Text style={{ color: family.deep, fontSize: 13.5, lineHeight: 20, marginTop: ahead.heroLine ? 5 : 12 }}>{ahead.heroSub}</Text>
+          {ahead.blocks.map((block) => (
+            <RecapBlockView key={block.title} block={block} family={family} />
+          ))}
+          <RecapEncouragementView encouragement={ahead.encouragement} family={family} />
+        </View>
+      ) : null}
     </View>
   );
 }

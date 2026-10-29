@@ -97,9 +97,13 @@ describe("v341 amendment — the progress-to-card gap (his 10:34 ask)", () => {
     expect(session).toContain("const PROGRESS_TO_CARD_GAP_DP = 16;");
   });
 
-  it("the progress bar's container carries the gap as its bottom margin", () => {
+  it("the progress element's container carries the gap as its bottom margin", () => {
+    // RE-BASED (v342, Part C): the progress element is the restored
+    // per-person SEGMENTS row now — the gap rides its container
+    // instead of the retired wavy bar's. The invariant is the
+    // same: 16dp of clear space under the progress element.
     expect(session).toContain(
-      'style={{ width: "100%", marginTop: 12, marginBottom: PROGRESS_TO_CARD_GAP_DP }}'
+      'style={{ width: "100%", flexDirection: "row", gap: 5, marginTop: 12, marginBottom: PROGRESS_TO_CARD_GAP_DP }}'
     );
   });
 

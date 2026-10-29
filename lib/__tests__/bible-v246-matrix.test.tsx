@@ -413,6 +413,14 @@ describe('v246 — the pure sweep: verse ink in every combination the app can be
  * render can show it. Pin (b) below proves the same promise
  * through the wavy mechanism (seat mounted in the render + the
  * seat's wiring + rasp IS the primary); its other clauses stand.
+ *
+ * v342 RE-BASE (Oct 29, amendment #5 — his Leviticus 23 reader
+ * screenshot: "the line on top of the reader... keep that line
+ * straight"): the wavy chapter thread is REVERTED — the reader's
+ * line is the straight pre-v341 bar again, a plain fill View in
+ * the palette rasp over the raspTint track (plus its v304
+ * shimmer). Pin (b) reverts with it: the seat's wiring is the
+ * straight fill element in chapter-page.tsx.
  */
 
 /** The content root's style — the first div that paints a
@@ -456,29 +464,27 @@ describe('v248 — the Bible follows the skin and the chosen color', () => {
           //
           // RE-BASED by v341 (his ruling, Oct 29: the wavy progress
           // bar, everywhere — the look off his Pixel's system-update
-          // screen). The v248 clause asserted the thread's fill as a
-          // CSS background-color in the render; the thread is now
-          // the shared WavyProgress, whose fill is an SVG stroke and
-          // which paints only after onLayout — renderToString can
-          // never show the stroke (the react-native-svg stub at the
-          // top of this file exists for the same reason). The
-          // promise is unchanged — the thread wears THIS cell's
-          // palette primary — and is now proven through the wavy
-          // mechanism, in three parts: the thread's seat is mounted
-          // in this cell's chapter render; the seat hands the thread
-          // the palette's rasp as its colour (chapter-page.tsx's
-          // exact element); and that rasp IS this cell's primary —
-          // useBiblePalette derives it from colors.primary (the
-          // wiring pin below, and the derivation sweep's
-          // rasp === primary in every combination).
+          // screen), then RE-BASED AGAIN by v342 (amendment #5:
+          // the reader's line goes straight — the wavy thread
+          // garbled the slim header on his phone). The promise is
+          // unchanged — the thread wears THIS cell's palette
+          // primary — proven in three parts: the thread's seat is
+          // mounted in this cell's chapter render; the seat's fill
+          // is the palette's rasp (chapter-page.tsx's exact straight
+          // element: a plain View, backgroundColor palette.rasp at
+          // the read percentage, over the raspTint track); and that
+          // rasp IS this cell's primary — useBiblePalette derives
+          // it from colors.primary (the wiring pin below, and the
+          // derivation sweep's rasp === primary in every
+          // combination).
           expect(chapter, `${label}: the progress thread seat is mounted`).toContain(
             'data-testid="chapter-progress-thread"',
           );
           expect(
             chapterPageSrc,
-            `${label}: the thread is a WavyProgress wearing the palette rasp`,
+            `${label}: the thread is the straight bar wearing the palette rasp`,
           ).toContain(
-            '<WavyProgress value={progress} color={palette.rasp} trackColor={palette.raspTint} height={8} />',
+            '<View style={[styles.progThreadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />',
           );
           expect(
             deriveBibleAccents(colors.primary, colors.background).rasp,

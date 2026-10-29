@@ -15,6 +15,18 @@
 // wave path / tip position), the motion contract (one-shot sweep,
 // no loop, nothing idling at rest), and per-surface adoption for
 // the headline seats.
+//
+// v342 SUPERSESSION (Oct 29, his rulings the same afternoon):
+//  · Part D — "Either animate it, or change it to a regular bar":
+//    the wave now TRAVELS continuously (transform-only, native
+//    driver, one wavelength per WAVY_TRAVEL_MS). The no-loop pin
+//    below is REVERSED with a dated note; the sweep stays one-shot.
+//  · Part C — the prayer session's per-person SEGMENTS are
+//    restored (they are the person counter, not a progress bar);
+//    the session's wavy conversion is reversed below.
+//  · Amendments — two bars are EXEMPT as not-live and return to
+//    regular straight bars: the Personal Study card's thread
+//    (14:15) and the Daily Summary's day-progress bar (14:32).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { readFileSync } from "fs";
@@ -60,6 +72,7 @@ vi.mock("react-native-svg", () => {
 });
 import {
   WAVY_SWEEP_MS,
+  WAVY_TRAVEL_MS,
   wavyProgressGeometry,
   wavyWavelength,
 } from "@/components/wavy-progress";
@@ -121,10 +134,14 @@ describe("v339 wavy progress — geometry", () => {
     const travelled = wavyProgressGeometry({ width: 280, height: 8, value: 0.6, phase: lambda });
     expect(rest.wavelength).toBe(lambda);
     expect(travelled.path).toBe(rest.path);
-    // The sweep's listener travels the phase 0 → one wavelength and
-    // the finished frame settles back at phase 0.
-    expect(component).toContain("phase: t * wavelength");
-    expect(component).toContain("phase: 0 });");
+    // RE-BASED (v342, Part D): the phase no longer rides the sweep
+    // listener — the wave is rendered once at phase 0 into a layer
+    // one wavelength wider than the bar, and the TRAVEL is a
+    // transform sliding that layer 0 → −1 wavelength (seamless by
+    // the periodicity proven above). The rendered geometry is
+    // always the phase-0 frame.
+    expect(component).toContain("phase: 0 })");
+    expect(component).toContain("outputRange: [0, -wavelength]");
   });
 
   it("thin threads still read as a wave: the wavelength scales with height", () => {
@@ -134,13 +151,28 @@ describe("v339 wavy progress — geometry", () => {
 });
 
 describe("v339 wavy progress — the motion contract", () => {
-  it("the sweep is one ~600ms one-shot timing — no loop, no repeat, no timers", () => {
+  it("the sweep is one ~600ms one-shot timing; the travel is a native loop — no JS timers", () => {
     expect(WAVY_SWEEP_MS).toBe(600);
+    expect(WAVY_TRAVEL_MS).toBe(1200);
     expect(component).toContain("duration: WAVY_SWEEP_MS");
     expect(component).toContain("Animated.timing");
-    expect(component).not.toContain("Animated.loop");
-    expect(component).not.toContain("withRepeat");
+    // RE-BASED (v342, Part D — his ruling: "Either animate it, or
+    // change it to a regular bar" → animate it): Animated.loop is
+    // now PRESENT BY RULING — it drives the wave's continuous
+    // travel as a native-driver transform (translateX 0 → −1
+    // wavelength, linear). What still never exists: JS timers or
+    // intervals, path-d redraw loops, and any repeat on the SWEEP
+    // (a value change still sweeps exactly once).
+    expect(component).toContain("Animated.loop");
+    expect(component).toContain("duration: WAVY_TRAVEL_MS");
+    expect(component).toContain("easing: Easing.linear");
+    expect(component).toContain("useNativeDriver: true");
     expect(component).not.toContain("setInterval");
+    expect(component).not.toContain("setTimeout");
+  });
+
+  it("the travel stills under reduce-motion", () => {
+    expect(component).toContain("if (!measured || reduceMotion)");
   });
 
   it("mounting never sweeps: the frame starts at the prop values", () => {
@@ -161,16 +193,27 @@ describe("v339 wavy progress — adoption pins (headline seats)", () => {
     expect(card).toContain("color={family.seed} colorEnd={family.queueTeal} trackColor={family.wash} height={8}");
   });
 
-  it("the Study threads wear it (header rows + per-book thread)", () => {
+  it("the Study HEADER threads wear it; the per-book thread is straight again (v342)", () => {
     const card = read("components/bible-v205/reading-progress-card.tsx");
     expect(card).toContain("color={fillColor} trackColor={trackColor} height={8}");
-    expect(card).toContain("color={palette.raspDeep} trackColor={palette.raspTint} height={8}");
+    // RE-BASED in v342 (his ruling, Oct 29 14:46 — "all the lines
+    // below the top ones can be straight"): BookReadingThread is
+    // its pre-v341 straight form; only the header's two rows —
+    // "the top ones" — keep the wave.
+    expect(card).toContain("backgroundColor: palette.raspDeep, width: `${barPct}%`");
+    expect(card).not.toContain("color={palette.raspDeep} trackColor={palette.raspTint} height={8}");
   });
 
-  it("the Books book thread wears it, in-progress share as the trailing segment", () => {
+  it("the Books book thread is straight again, in-progress share behind it (v342)", () => {
+    // RE-BASED in v342 (his 14:46 ruling): the per-book written
+    // thread returns to its pre-v341 straight form — rasp fill at
+    // the written share, the in-progress share as an absolute
+    // yellow segment directly behind it (the job the wavy's
+    // trailing segment did for one build).
     const books = read("app/bible-chapters.tsx");
-    expect(books).toContain("trailingValue={ppct / 100}");
-    expect(books).toContain("trailingColor={palette.yellowBorder}");
+    expect(books).toContain("backgroundColor: palette.rasp, width: `${pct}%`");
+    expect(books).toContain("backgroundColor: palette.yellowBorder, width: `${ppct}%`");
+    expect(books).not.toContain("trailingValue={ppct / 100}");
   });
 
   it("the worship card's heard thread wears it", () => {
@@ -183,26 +226,60 @@ describe("v339 wavy progress — adoption pins (headline seats)", () => {
     expect(tab).toContain("color={leadColor} trackColor={mix(leadColor, colors.surface, 0.78)} height={8} hideTipDot");
   });
 
-  it("the chapter reader's thread wears it (the shimmer loop retired)", () => {
+  it("the chapter reader's thread is straight again, shimmer restored (v342)", () => {
+    // RE-BASED in v342 (his ruling, Oct 29 14:47 — the wavy line
+    // on the reader "is obviously glitched out... you can keep
+    // that line straight"): the ChapterProgressThread leaves the
+    // wavy set entirely and returns to its pre-v341 form — a
+    // straight 4px fill with the v304 shimmer sweep.
     const page = read("components/bible-v205/chapter-page.tsx");
-    expect(page).toContain("<WavyProgress value={progress} color={palette.rasp} trackColor={palette.raspTint} height={8} />");
-    expect(page).not.toContain("progShimmer");
+    expect(page).toContain("progThreadFill");
+    expect(page).toContain("progShimmer");
+    expect(page).not.toContain("<WavyProgress value={progress}");
   });
 
-  it("the prayer session's segments became ONE wavy bar in the same seat", () => {
+  it("the prayer session's PERSON progress is SEGMENTS again (v342 Part C reverses the v341 conversion)", () => {
+    // RE-BASED (v342 — his correction, Oct 29 14:06): the segments
+    // are the PERSON COUNTER — one per person, done/remaining at a
+    // glance — not a progress bar, so the wavy conversion is
+    // reversed for this element only. The session's time-bonus
+    // thread (a time bar) stays wavy.
     const session = read("components/prayer-session.tsx");
-    expect(session).toContain("isFinished ? 1 : (currentIndex + 1) / totalCount");
-    expect(session).toContain("color={pm.seed}");
-    expect(session).toContain("trackColor={pm.wash2}");
-    // The per-person segment colours are gone.
-    expect(session).not.toContain("hexToRgba(pm.seed, 0.45)");
+    expect(session).toContain("sessionPeople.map((person, idx)");
+    expect(session).toContain("hexToRgba(pm.seed, 0.45)");
+    expect(session).not.toContain("isFinished ? 1 : (currentIndex + 1) / totalCount");
+    // The v341 gap between the progress and the person card stays.
+    expect(session).toContain("PROGRESS_TO_CARD_GAP_DP");
+    // The time-bonus bar stays a wavy bar.
+    expect(session).toContain("getTimeBonusProgress(elapsedSeconds)");
   });
 
-  it("the day bar wears it in both variants, cap still riding the tip", () => {
+  it("the day bar is REGULAR again in both variants (v342 amendment — the summary bar doesn't wave)", () => {
+    // RE-BASED (v342 — his ruling, Oct 29 14:32): the Daily
+    // Summary's day-progress bar (sun face + "N of M · %" count)
+    // is exempt like the Personal Study thread — it reports a
+    // stored count, it isn't live. Both variants of
+    // ScheduleProgressBar return to their pre-v341 straight form
+    // (Paper soak / 8-bit stepped fills restored); the day cap
+    // still rides the tip.
     const bar = read("components/schedule-progress-bar.tsx");
-    expect(bar).toContain('color="#F59E0B" trackColor="rgba(255,255,255,0.30)" height={14} hideTipDot');
-    expect(bar).toContain("height={8}");
+    expect(bar).not.toContain("WavyProgress");
+    expect(bar).toContain('width: `${percentage}%`, backgroundColor: "#F59E0B"');
+    expect(bar).toContain("usePaperFill(percentage / 100)");
+    expect(bar).toContain("useBitFill(percentage / 100)");
     expect(bar).toContain("<DayCapGlyph");
+    expect(bar).toContain("{completed} of {total} · {Math.round(percentage)}%");
+  });
+
+  it("the Personal Study card thread is REGULAR (v342 amendment — it isn't live)", () => {
+    // RE-BASED (v342 — his ruling, Oct 29 14:15): "Personal study
+    // bar should be regular, seeing as it's not live." The Daily
+    // Summary study card's thread returns to its pre-v341 straight
+    // bar — same seat, same colours, no wave, no travel.
+    const tab = read("components/schedule-tab.tsx");
+    expect(tab).toContain("width: `${Math.round(item.data.progress * 100)}%`");
+    expect(tab).toContain("the Personal");
+    expect(tab).toContain("Study thread is REGULAR");
   });
 
   it("People's queue bar and household bars wear it (shine loop retired)", () => {
@@ -212,11 +289,18 @@ describe("v339 wavy progress — adoption pins (headline seats)", () => {
     expect(index).not.toContain("queueShine");
   });
 
-  it("Profile's past-fast bars and Budget's hero bar wear it", () => {
+  it("Profile's past-fast bars and Budget's hero bar are REGULAR (v342 exemptions)", () => {
+    // RE-BASED in v342 (his principle, Oct 29 14:45 — bars that
+    // aren't live go regular): the fast-history bar (a finished
+    // fast's record) and the Budget hero bar (a month's money
+    // record) return to their pre-v341 straight forms.
     const profile = read("app/profile.tsx");
-    expect(profile).toContain("color={trackerFamily.seed} trackColor={trackerFamily.wash} height={8}");
+    expect(profile).toContain("historyProgressTrack");
+    expect(profile).toContain("historyProgressFill");
+    expect(profile).not.toContain("WavyProgress");
     const budget = read("app/budget-tracker.tsx");
-    expect(budget).toContain("color={bm.heroBarFill} trackColor={bm.heroBarTrack} height={9}");
+    expect(budget).toContain("width: `${Math.round(paidShare * 100)}%`");
+    expect(budget).not.toContain("WavyProgress");
   });
 
   it("Collections, the Road, and the town stock bars wear it", () => {

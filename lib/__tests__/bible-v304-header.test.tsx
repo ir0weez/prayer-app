@@ -233,17 +233,19 @@ describe('v304 — the progress card is gone; the thread carries its fill', () =
     expect(page).not.toContain('modeRow:');
   });
 
-  it('the thread is a full-width line at the scroll fraction — wavy since v339, seed on tint', () => {
+  it('the thread is a full-width line at the scroll fraction — straight again since v342, seed on tint', () => {
     expect(page).toContain('testID="chapter-progress-thread"');
-    expect(page).toContain("progThread: { position: 'relative' }");
-    // v339: the straight 4px fill (and its perpetual shimmer) became
-    // the shared wavy bar; the value is still the measured scroll
-    // fraction, clamped inside WavyProgress.
-    expect(page).toContain(
-      '<WavyProgress value={progress} color={palette.rasp} trackColor={palette.raspTint} height={8} />',
-    );
-    expect(page).not.toContain('progShimmer');
-    expect(page).not.toContain('Animated.loop');
+    // RE-BASED in v342 (his ruling, Oct 29 14:47 — the wavy line
+    // on the reader "is obviously glitched out... you can keep
+    // that line straight"): the thread returns to its pre-v341
+    // form — the straight 4px fill at the measured scroll
+    // fraction with its perpetual shimmer sweep (v304's design,
+    // restored whole). v339's wavy form stood for one build.
+    expect(page).toContain("progThread: { height: 4, overflow: 'hidden', position: 'relative' }");
+    expect(page).toContain('style={[styles.progThreadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]}');
+    expect(page).toContain('progShimmer');
+    expect(page).toContain('Animated.loop');
+    expect(page).not.toContain('<WavyProgress value={progress}');
   });
 
   it('the header order is title row → slim row → thread at the bottom edge', () => {

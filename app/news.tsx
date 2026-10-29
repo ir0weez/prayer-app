@@ -17,7 +17,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 import { ScreenContainer } from "@/components/screen-container";
-import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import {
   FinishedBar,
   KeywordPageHeader,
@@ -46,7 +45,6 @@ const AREA_ICONS: Record<NewsArea, string> = {
 };
 
 export default function NewsPage() {
-  const fadeScrollY = useTopFadeScrollY();
   const m = useNewsEmailMaterial();
   const router = useRouter();
   const params = useLocalSearchParams<{ eventId?: string; eventDate?: string }>();
@@ -133,8 +131,6 @@ export default function NewsPage() {
             paddingBottom: eventId ? 112 : 40,
           }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
-          onScroll={topFadeScrollHandler(fadeScrollY)}
-          scrollEventThrottle={16}
         >
           <KeywordPageHeader m={m} title="News" dateChip={dateChip} onBack={() => router.back()} />
           <Text style={[styles.dated, { color: m.deep }]}>{dateLong}</Text>
@@ -211,7 +207,8 @@ export default function NewsPage() {
             </>
           )}
         </ScrollView>
-        <TopFade color={m.ground} scrollY={fadeScrollY} />
+        {/* v342: no top fade — door page with a definite
+            header (fade scope ruling, Oct 29). */}
       </View>
       {eventId ? <FinishedBar m={m} onFinished={onFinished} /> : null}
     </ScreenContainer>

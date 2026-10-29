@@ -878,19 +878,31 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
           </View>
           <Text style={{ fontSize: 12, fontWeight: "700", letterSpacing: 1.2, color: pm.inkSoft, paddingTop: 8 }}>PERSON {currentIndex + 1} OF {totalCount}</Text>
         </View>
-        {/* v339 (his Oct 29 ruling): the queue SEGMENTS become one
-            wavy bar in the same seat and colours — the seed fill on
-            the wash track, its fill covering the settled people plus
-            the active person (the share the segments read as
-            settled + active), full when the session is finished.
-            The per-person segment colours retire with the segments. */}
-        <View style={{ width: "100%", marginTop: 12, marginBottom: PROGRESS_TO_CARD_GAP_DP }}>
-          <WavyProgress
-            value={totalCount > 0 ? (isFinished ? 1 : (currentIndex + 1) / totalCount) : 0}
-            color={pm.seed}
-            trackColor={pm.wash2}
-            height={8}
-          />
+        {/* v342 (his correction of v341, Oct 29 14:06): the queue
+            is SEGMENTS again — one segment per person in the
+            session, because the segments are the PERSON COUNTER:
+            settled people read at the seed's 45%, the active
+            person full seed, the waiting ones on the container
+            step, and done/remaining is legible at a glance in a
+            way a single continuous bar never was. v341 swept this
+            element into the wavy conversion with the other
+            progress bars; it does a different job, so it comes
+            back — in the same seat, with the v341 gap below it
+            (PROGRESS_TO_CARD_GAP_DP) kept. The session's other
+            bar — the time-bonus thread in the footer — is a time
+            bar, not the counter, and stays wavy. */}
+        <View style={{ width: "100%", flexDirection: "row", gap: 5, marginTop: 12, marginBottom: PROGRESS_TO_CARD_GAP_DP }}>
+          {sessionPeople.map((person, idx) => (
+            <View
+              key={person.id}
+              style={{
+                flex: 1,
+                height: 6,
+                borderRadius: 99,
+                backgroundColor: isFinished || idx < currentIndex ? hexToRgba(pm.seed, 0.45) : idx === currentIndex ? pm.seed : pm.wash2,
+              }}
+            />
+          ))}
         </View>
 
         {!isFinished && currentPerson ? (

@@ -105,13 +105,16 @@ describe("v264 source pins — backdrop, anchoring, timer (audit D3, D5, D4)", (
     expect(session).not.toContain("top: 4, right: 4, width: 8, height: 8");
   });
 
-  it("the queue is one wavy bar now (v339, heir of D12's segments)", () => {
+  it("the queue is per-person SEGMENTS again (v342, heir of D12's segments)", () => {
     const segments = session.slice(session.indexOf("{/* v310: the head"), session.indexOf("{settledPeople.map("));
-    // v339 (his Oct 29 ruling): the per-person segments became ONE
-    // wavy bar in the same seat — settled + active share as its
-    // fill, full at finish; nothing wraps or clips.
-    expect(segments).toContain("isFinished ? 1 : (currentIndex + 1) / totalCount");
-    expect(segments).toContain("trackColor={pm.wash2}");
+    // RE-BASED in v342 (his correction, Oct 29 14:06): v339's wavy
+    // conversion of this element is reversed — the segments are
+    // the PERSON COUNTER (one per person; settled at the seed's
+    // 45%, the active person full seed, the waiting on wash2), not
+    // a progress bar. Nothing wraps or clips, as before.
+    expect(segments).toContain("sessionPeople.map((person, idx)");
+    expect(segments).toContain("hexToRgba(pm.seed, 0.45)");
+    expect(segments).not.toContain("isFinished ? 1 : (currentIndex + 1) / totalCount");
     expect(segments).not.toContain('flexWrap: "wrap"');
   });
 });

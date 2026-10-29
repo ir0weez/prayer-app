@@ -94,6 +94,12 @@ describe("v338 the component — the overlay renders only as the ramp lets it", 
 });
 
 describe("v338 every placement is wired — no static gradient block remains", () => {
+  // RE-BASED (v342, scope ruling): the wired list is only the
+  // screens that KEEP the fade (main tabs + headerless scrollers).
+  // The detail screens v338 wired (Bible book/queue/reader, person,
+  // family, personal prayer, budget, fast collection, boss badges,
+  // news, email) had the fade REMOVED in v342 — their absence is
+  // pinned in top-fade-v334.test.ts's v342 block.
   // [file, the scroller-side wiring the page must carry]
   const wired: Array<[string, string]> = [
     ["app/(tabs)/index.tsx", "onScroll={topFadeScrollHandler(peopleFadeScrollY)}"],
@@ -102,18 +108,7 @@ describe("v338 every placement is wired — no static gradient block remains", (
     ["components/schedule-tab.tsx", "scrollY={fadeScrollY}"], // RE-BASED Oct 29 hotfix: the fade rides its own JS-driven twin, never the sheet's native-driven scrollY
     ["components/prayer-journal-tab.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
     ["app/bible-chapters.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
-    ["app/bible-book.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
-    ["app/bible-queue.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
-    ["components/bible-v205/chapter-page.tsx", "fadeOnScroll(e)"],
     ["app/profile.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
-    ["app/(tabs)/person.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
-    ["app/(tabs)/family.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
-    ["app/personal-prayer.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
-    ["app/budget-tracker.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
-    ["app/fast-collection.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
-    ["app/boss-badges.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
-    ["app/news.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
-    ["app/email.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
   ];
 
   for (const [file, wiring] of wired) {
@@ -128,18 +123,7 @@ describe("v338 every placement is wired — no static gradient block remains", (
       "components/schedule-tab.tsx",
       "components/prayer-journal-tab.tsx",
       "app/bible-chapters.tsx",
-      "app/bible-book.tsx",
-      "app/bible-queue.tsx",
-      "components/bible-v205/chapter-page.tsx",
       "app/profile.tsx",
-      "app/(tabs)/person.tsx",
-      "app/(tabs)/family.tsx",
-      "app/personal-prayer.tsx",
-      "app/budget-tracker.tsx",
-      "app/fast-collection.tsx",
-      "app/boss-badges.tsx",
-      "app/news.tsx",
-      "app/email.tsx",
     ];
     for (const file of files) {
       const calls = read(file).match(/<TopFade[^/>]*\/?>/g) ?? [];

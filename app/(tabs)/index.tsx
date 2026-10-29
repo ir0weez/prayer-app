@@ -7,6 +7,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused } from "@react-navigation/native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext, normalizeAppearancePreference, type AppearancePreference } from "@/lib/theme-provider";
@@ -839,6 +840,9 @@ const RosterRowShell = memo(
 );
 
 export default function HomeScreen() {
+  // v342: the shell's top inset — the fades anchor at the screen's
+  // literal top and cover the tray zone (his edge-to-edge ruling).
+  const insets = useSafeAreaInsets();
   const verifiedPopPlayer = useAudioPlayer(require("@/assets/verified-pop.wav"));
   useEffect(() => {
     void setAudioModeAsync({ playsInSilentMode: true });
@@ -3932,7 +3936,7 @@ export default function HomeScreen() {
           there is no other bar to paint: the app bar above
           (renderPeopleAppBar) is a bare row with no fill, and this
           screen's root paints only the uniform ground. */}
-      <TopFade color={isClassicSkin ? pmf.ground : skinTokens.background ?? colors.background} scrollY={peopleFadeScrollY} />
+      <TopFade color={isClassicSkin ? pmf.ground : skinTokens.background ?? colors.background} scrollY={peopleFadeScrollY} topInset={insets.top} />
     </View>
   );
 
@@ -5170,7 +5174,7 @@ export default function HomeScreen() {
       </View>
     </ScrollView>
     {/* v334: the top fade, in the settings ground this page paints. */}
-    <TopFade color={sm.ground} scrollY={settingsFadeScrollY} />
+    <TopFade color={sm.ground} scrollY={settingsFadeScrollY} topInset={insets.top} />
     </View>
     );
   };
@@ -5433,7 +5437,7 @@ export default function HomeScreen() {
             {/* v334: the top fade over the hub (and its Families
                 state — both scroll views paint the same ground).
                 v338: scroll-linked to the hub's own offset. */}
-            <TopFade color={isSkinned ? skinTokens.background ?? colors.background : pm.ground} scrollY={moreFadeScrollY} />
+            <TopFade color={isSkinned ? skinTokens.background ?? colors.background : pm.ground} scrollY={moreFadeScrollY} topInset={insets.top} />
           </View>
         )}
         {/* v265: the Study pane — the shell's one keep-alive pane.

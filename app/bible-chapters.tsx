@@ -69,7 +69,6 @@ import {
   resetReadingProgress,
 } from '@/lib/bible-v205/reading-progress';
 import { BookReadingThread, StudyProgressHeader } from '@/components/bible-v205/reading-progress-card';
-import { WavyProgress } from '@/components/wavy-progress';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
@@ -396,7 +395,7 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
       {/* v334: the top fade (his Oct 29 ruling, all pages) — the
           list dissolves under the Bible palette's paper at the top
           of the scroll view, below the fixed topbar. */}
-      <TopFade color={palette.paper} scrollY={fadeScrollY} />
+      <TopFade color={palette.paper} scrollY={fadeScrollY} topInset={insets.top} />
       </View>
 
         <Modal visible={labelEditor} transparent animationType="fade" onRequestClose={() => setLabelEditor(false)}>
@@ -630,19 +629,20 @@ function BookRow({
         <Text style={[styles.bcountLead, { color: palette.ink }]}>{parts[0]}</Text>
         {parts.length > 1 ? ` · ${parts.slice(1).join(' · ')}` : ''}
       </Text>
-      {/* v339: the book thread wears the wavy fill (his Oct 29
-          ruling) — written in the seed on the tint track, with the
-          in-progress share riding directly behind it in the yellow
-          it always wore (the wavy's trailing segment). */}
-      <View style={styles.thread}>
-        <WavyProgress
-          value={pct / 100}
-          color={palette.rasp}
-          trailingValue={ppct / 100}
-          trailingColor={palette.yellowBorder}
-          trackColor={palette.raspTint}
-          height={8}
-        />
+      {/* v342 (his ruling, Oct 29 14:46, on the Books screenshot:
+          "all the lines below the top ones can be straight"): the
+          per-book written thread is a RECORD bar, so v341's wavy
+          conversion is reverted — its pre-v341 straight form,
+          written in the seed on the tint track with the
+          in-progress share riding behind it in yellow. The Study
+          header's two threads at the top of the page stay wavy. */}
+      <View style={[styles.thread, { backgroundColor: palette.raspTint }]}>
+        <View style={[styles.threadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />
+        {ppct ? (
+          <View
+            style={[styles.threadFill, { backgroundColor: palette.yellowBorder, width: `${ppct}%`, marginLeft: `${pct}%`, position: 'absolute', left: 0 }]}
+          />
+        ) : null}
       </View>
       {/* v305: the reading thread — slimmer and deeper than the
           study thread above it, with its own count. */}
@@ -686,7 +686,8 @@ const styles = StyleSheet.create({
   papermark: { fontSize: 12.5, fontWeight: '600' },
   bcount: { fontSize: 13.5, lineHeight: 19, fontWeight: '500', marginTop: 4 },
   bcountLead: { fontWeight: '700' },
-  thread: { marginTop: 16 },
+  thread: { height: 8, borderRadius: 999, overflow: 'hidden', position: 'relative', marginTop: 16 },
+  threadFill: { height: 8, borderRadius: 999 },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,16,20,.45)' },
   editorCard: { position: 'absolute', left: 20, right: 20, top: '30%', borderRadius: 28, padding: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   editorTitle: { fontSize: 16, fontWeight: '800' },

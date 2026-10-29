@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, View } from "react-native";
 import type { ViewStyle } from "react-native";
-import Svg, { Circle, ClipPath, Defs, G, LinearGradient, Path, Rect, Stop } from "react-native-svg";
+import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 
 /* ─── v339 — the wavy progress bar, everywhere ─────────────────────
    Jonathan's ruling (Oct 29, from his Pixel's system-update screen,
@@ -15,17 +15,28 @@ import Svg, { Circle, ClipPath, Defs, G, LinearGradient, Path, Rect, Stop } from
    bar wears the colour it already wore — colour, track colour and
    value arrive as props from the seat; nothing is pinned here.
 
-   The motion: when the value CHANGES, the fill sweeps to the new
-   value over ~600ms while the wave travels along the filled
-   portion; then the bar rests STATIC. No looping, no repeating, no
-   idle animation, no timers — motion belongs to the fill change
-   only (his standing no-lag guard). The wave is an SVG path, and a
-   path's `d` cannot ride the native driver, so the sweep is a
-   one-shot JS-driven Animated.timing whose listener is removed the
-   moment the sweep lands; at rest the component renders a static
-   path from the value prop and starts nothing. A first mount never
-   sweeps — bars settle from their stored values at render, as they
-   always have. Under reduce-motion the value applies instantly.
+   The sweep: when the value CHANGES, the fill sweeps to the new
+   value over ~600ms; a first mount never sweeps — bars settle from
+   their stored values at render, as they always have. Under
+   reduce-motion the value applies instantly. The sweep re-renders
+   the fill window's width from JS (a path's `d` cannot ride the
+   native driver) and its listener dies the moment the sweep lands.
+
+   v342 — THE WAVE TRAVELS (his ruling, Oct 29 14:15, on the People
+   fasting-bar screenshot: "Either animate it, or change it to a
+   regular bar" — animate it): v341 rested the wave STATIC between
+   sweeps, and a still wave reads as decoration, not as the
+   Pixel's live indicator. Now the wave travels continuously along
+   the filled portion — one wavelength per WAVY_TRAVEL_MS, linear
+   and gentle. The travel is TRANSFORM-ONLY: the wave path is
+   rendered once into a layer one wavelength wider than the bar,
+   clipped by a fixed window at the fill's width, and an
+   Animated.loop slides that layer from 0 to −1 wavelength on the
+   NATIVE driver (a phase of exactly one wavelength renders
+   identical to phase 0, so the loop is seamless). No path redraws,
+   no JS timers or intervals — the loop is a native transform, so
+   it costs nothing on scroll-heavy screens. Reduce-motion stills
+   the travel too: the wave renders at phase 0 and rests.
 
    Thin seats: a 4–6px thread cannot carry the wave, so the drawing
    canvas is at least WAVY_CANVAS_MIN_HEIGHT tall, centred on the
@@ -35,6 +46,8 @@ import Svg, { Circle, ClipPath, Defs, G, LinearGradient, Path, Rect, Stop } from
 
 export const WAVY_SWEEP_MS = 600;
 export const WAVY_CANVAS_MIN_HEIGHT = 8;
+/** v342: one wavelength of travel per this many ms — linear, gentle. */
+export const WAVY_TRAVEL_MS = 1200;
 
 export interface WavyGeometry {
   /** The canvas height the wave is drawn on (>= the seat height). */
@@ -72,7 +85,7 @@ export function wavyCanvasHeight(height: number): number {
 /**
  * Pure geometry for one frame of the bar. `phase` shifts the sine
  * along x (px); a phase of exactly one wavelength renders identical
- * to phase 0, which is what lets a sweep end cleanly at rest.
+ * to phase 0, which is what makes the v342 travel loop seamless.
  * The centreline is sampled every 3px — smooth at these heights.
  */
 export function wavyProgressGeometry(args: {
@@ -156,27 +169,28 @@ export function WavyProgress({
   const target = clamp01(value);
   const trailingTarget = clamp01(trailingValue);
   const [barWidth, setBarWidth] = useState(0);
-  // The frame on screen: the values being shown and the wave's
-  // phase. Initialised to the props — a mount never sweeps.
-  const [frame, setFrame] = useState<{ v: number; t: number; phase: number }>({
+  // The frame on screen: the fill values being shown. Initialised
+  // to the props — a mount never sweeps.
+  const [frame, setFrame] = useState<{ v: number; t: number }>({
     v: target,
     t: trailingTarget,
-    phase: 0,
   });
   const frameRef = useRef(frame);
   frameRef.current = frame;
   const animRef = useRef<Animated.Value | null>(null);
   const reducedRef = useRef(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
-  const clipId = `wavy-clip-${uid}`;
-  const trailClipId = `wavy-trail-clip-${uid}`;
   const gradId = `wavy-grad-${uid}`;
 
   useEffect(() => {
     let live = true;
     AccessibilityInfo.isReduceMotionEnabled()
       .then((r) => {
-        if (live) reducedRef.current = r;
+        if (live) {
+          reducedRef.current = r;
+          setReduceMotion(r);
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -184,36 +198,37 @@ export function WavyProgress({
     };
   }, []);
 
+  // The value-change sweep (~600ms, unchanged from v341): the fill
+  // window's width follows the animated frame; the wave's travel
+  // (below) runs independently underneath it.
   useEffect(() => {
     const from = frameRef.current.v;
     const fromTrailing = frameRef.current.t;
     if (from === target && fromTrailing === trailingTarget) return; // at rest: start nothing
     if (reducedRef.current) {
-      setFrame({ v: target, t: trailingTarget, phase: 0 });
+      setFrame({ v: target, t: trailingTarget });
       return;
     }
     const anim = new Animated.Value(0);
     animRef.current = anim;
-    const wavelength = wavyWavelength(wavyCanvasHeight(height));
     const listener = anim.addListener(({ value: t }) => {
       setFrame({
         v: from + (target - from) * t,
         t: fromTrailing + (trailingTarget - fromTrailing) * t,
-        phase: t * wavelength,
       });
     });
     const sweep = Animated.timing(anim, {
       toValue: 1,
       duration: WAVY_SWEEP_MS,
       easing: Easing.out(Easing.cubic),
-      // A path's `d` cannot ride the native driver; the sweep is a
+      // The fill window's width is a layout value; the sweep is a
       // one-shot 600ms animation and the listener dies with it.
       useNativeDriver: false,
     });
     sweep.start(({ finished }) => {
       anim.removeListener(listener);
       if (animRef.current === anim) animRef.current = null;
-      if (finished) setFrame({ v: target, t: trailingTarget, phase: 0 });
+      if (finished) setFrame({ v: target, t: trailingTarget });
     });
     return () => {
       sweep.stop();
@@ -223,15 +238,53 @@ export function WavyProgress({
   }, [target, trailingTarget, height]);
 
   const canvasHeight = wavyCanvasHeight(height);
+  const wavelength = wavyWavelength(canvasHeight);
+
+  // v342: the continuous travel — one native-driver loop sliding
+  // the wave layer 0 → −1 wavelength, linear, seamless (a full
+  // wavelength of phase is the same picture). Stilled under
+  // reduce-motion and before the bar has measured a width.
+  const travel = useRef(new Animated.Value(0)).current;
+  const travelX = travel.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -wavelength],
+  });
+  const measured = barWidth > 0;
+  useEffect(() => {
+    if (!measured || reduceMotion) {
+      travel.setValue(0);
+      return;
+    }
+    travel.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(travel, {
+        toValue: 1,
+        duration: WAVY_TRAVEL_MS,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      travel.setValue(0);
+    };
+  }, [measured, reduceMotion, wavelength, travel]);
+
   const cy = canvasHeight / 2;
   const trackThickness = Math.max(2, canvasHeight * 0.45);
   const strokeWidth = Math.max(2, canvasHeight * 0.55);
-  const geo = barWidth > 0
-    ? wavyProgressGeometry({ width: barWidth, height, value: frame.v, trailingValue: frame.t, phase: frame.phase })
+  const geo = measured
+    ? wavyProgressGeometry({ width: barWidth, height, value: frame.v, trailingValue: frame.t, phase: 0 })
     : null;
   const stopDotR = Math.max(1.6, canvasHeight * 0.26);
   const waveStroke = colorEnd ? `url(#${gradId})` : color;
   const dotFill = trailingColor && geo && geo.trailingWidth > 0 ? trailingColor : colorEnd ?? color;
+  // The sliding wave layer is one wavelength wider than the bar, so
+  // a full wavelength of travel never bares either end; the fixed
+  // windows below clip it to the fill / trailing widths.
+  const layerWidth = barWidth + wavelength;
+  const layerTop = (height - canvasHeight) / 2;
 
   return (
     <View
@@ -244,51 +297,93 @@ export function WavyProgress({
       }}
       style={[{ height, width: "100%", justifyContent: "center" }, style]}
     >
-      {barWidth > 0 && geo ? (
-        <Svg
-          width={barWidth}
-          height={canvasHeight}
-          style={{ position: "absolute", left: 0, top: (height - canvasHeight) / 2, overflow: "visible" }}
-        >
-          <Defs>
-            <ClipPath id={clipId}>
-              <Rect x={0} y={0} width={Math.max(0, geo.fillWidth)} height={canvasHeight} />
-            </ClipPath>
-            <ClipPath id={trailClipId}>
-              <Rect x={Math.max(0, geo.fillWidth)} y={0} width={Math.max(0, geo.trailingWidth)} height={canvasHeight} />
-            </ClipPath>
-            {colorEnd ? (
-              <LinearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor={color} />
-                <Stop offset="1" stopColor={colorEnd} />
-              </LinearGradient>
-            ) : null}
-          </Defs>
-          {/* The straight track, centred, with its stop dot. */}
-          <Rect
-            x={0}
-            y={cy - trackThickness / 2}
+      {measured && geo ? (
+        <>
+          {/* The straight track, centred, with its stop dot. (The
+              tip dot paints in its own overlay AFTER the wave
+              windows below — it rides on top of the wave, as it
+              did before v342.) */}
+          <Svg
             width={barWidth}
-            height={trackThickness}
-            rx={trackThickness / 2}
-            fill={trackColor}
-          />
-          {!hideStopDot ? <Circle cx={barWidth - stopDotR} cy={cy} r={stopDotR} fill={trackColor} /> : null}
-          {/* The wave fill, clipped to the filled width. */}
-          <G clipPath={`url(#${clipId})`}>
-            <Path d={geo.path} stroke={waveStroke} strokeWidth={strokeWidth} fill="none" strokeLinecap="round" />
-          </G>
+            height={canvasHeight}
+            style={{ position: "absolute", left: 0, top: layerTop, overflow: "visible" }}
+          >
+            <Rect
+              x={0}
+              y={cy - trackThickness / 2}
+              width={barWidth}
+              height={trackThickness}
+              rx={trackThickness / 2}
+              fill={trackColor}
+            />
+            {!hideStopDot ? <Circle cx={barWidth - stopDotR} cy={cy} r={stopDotR} fill={trackColor} /> : null}
+          </Svg>
+          {/* The trailing share's wave, in its own window directly
+              behind the fill. Its sliding layer is offset by the
+              fill's width so the pattern runs continuous with the
+              fill's wave across the boundary. */}
           {trailingColor && geo.trailingWidth > 0 ? (
-            <G clipPath={`url(#${trailClipId})`}>
-              <Path d={geo.path} stroke={trailingColor} strokeWidth={strokeWidth} fill="none" strokeLinecap="round" />
-            </G>
+            <View
+              style={{
+                position: "absolute",
+                left: geo.fillWidth,
+                top: layerTop,
+                width: geo.trailingWidth,
+                height: canvasHeight,
+                overflow: "hidden",
+              }}
+            >
+              <Animated.View
+                style={{ width: layerWidth, height: canvasHeight, marginLeft: -geo.fillWidth, transform: [{ translateX: travelX }] }}
+              >
+                <Svg width={layerWidth} height={canvasHeight}>
+                  <Path d={geo.path} stroke={trailingColor} strokeWidth={strokeWidth} fill="none" strokeLinecap="round" />
+                </Svg>
+              </Animated.View>
+            </View>
           ) : null}
-          {/* The tip dot rides the fill's end (hidden at 0 — there is
-              no tip yet — and in seats carrying their own tip). */}
+          {/* The wave fill, clipped to the filled width by its
+              window; the layer inside slides on the native driver
+              (the v342 travel). */}
+          {geo.fillWidth > 0 ? (
+            <View
+              style={{
+                position: "absolute",
+                left: 0,
+                top: layerTop,
+                width: geo.fillWidth,
+                height: canvasHeight,
+                overflow: "hidden",
+              }}
+            >
+              <Animated.View style={{ width: layerWidth, height: canvasHeight, transform: [{ translateX: travelX }] }}>
+                <Svg width={layerWidth} height={canvasHeight}>
+                  {colorEnd ? (
+                    <Defs>
+                      <LinearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+                        <Stop offset="0" stopColor={color} />
+                        <Stop offset="1" stopColor={colorEnd} />
+                      </LinearGradient>
+                    </Defs>
+                  ) : null}
+                  <Path d={geo.path} stroke={waveStroke} strokeWidth={strokeWidth} fill="none" strokeLinecap="round" />
+                </Svg>
+              </Animated.View>
+            </View>
+          ) : null}
+          {/* The tip dot rides the fill's end, over the wave
+              (hidden at 0 — there is no tip yet — and in seats
+              carrying their own tip). */}
           {!hideTipDot && geo.tipCx > 0 ? (
-            <Circle cx={Math.min(geo.tipCx, barWidth - geo.dotR)} cy={cy} r={geo.dotR} fill={dotFill} />
+            <Svg
+              width={barWidth}
+              height={canvasHeight}
+              style={{ position: "absolute", left: 0, top: layerTop, overflow: "visible" }}
+            >
+              <Circle cx={Math.min(geo.tipCx, barWidth - geo.dotR)} cy={cy} r={geo.dotR} fill={dotFill} />
+            </Svg>
           ) : null}
-        </Svg>
+        </>
       ) : null}
     </View>
   );

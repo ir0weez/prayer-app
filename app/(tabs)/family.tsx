@@ -4,7 +4,6 @@ import { Pressable, ScrollView, Text, View, Image, FlatList, Alert, StyleSheet, 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ScreenContainer } from "@/components/screen-container";
-import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { AnchoredSheet, measureEventAnchor, type AnchorRect } from "@/components/anchored-sheet";
 import { AvatarImage } from "@/components/avatar-system";
 import { sortFamilyMembers, type Person } from "@/lib/prayercircle-data";
@@ -16,7 +15,6 @@ import { addAnsweredPrayerJournalEntry, normalizePrayerJournalEntries } from "@/
 import { togglePrayerItemDone, ungroupFromFamily } from "@/lib/prayercircle-data";
 
 export default function FamilyScreen() {
-  const fadeScrollY = useTopFadeScrollY();
   const router = useRouter();
   const { familyId } = useLocalSearchParams<{ familyId: string }>();
   const [people, setPeople] = useState<Person[]>([]);
@@ -223,7 +221,7 @@ export default function FamilyScreen() {
 
   return (
     <ScreenContainer className={(skinTokens.isEightBit) ? undefined : "bg-background"}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false} onScroll={topFadeScrollHandler(fadeScrollY)} scrollEventThrottle={16}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
@@ -458,7 +456,8 @@ export default function FamilyScreen() {
           AnchoredSheet above is a Modal and paints in its own
           window. Colour = the ScreenContainer ground (skin token
           background, else the themed palette background). */}
-      <TopFade color={skinTokens.background ?? colors.background} scrollY={fadeScrollY} />
+      {/* v342: no top fade — detail screen with a definite
+          header (fade scope ruling, Oct 29). */}
     </ScreenContainer>
   );
 }

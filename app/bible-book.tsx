@@ -65,7 +65,6 @@ import {
   useBiblePalette,
 } from '@/components/bible-v205/palette';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
-import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from '@/components/top-fade';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 
 /** v311: the sheet's writing-pipeline chips, in the drawing's order
@@ -90,7 +89,6 @@ export interface BibleBookPaneProps {
 }
 
 function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
-  const fadeScrollY = useTopFadeScrollY();
   const router = useRouter();
   const inPane = !!props.pane;
   // v207: top safe-area inset, as the rest of the app applies.
@@ -262,7 +260,7 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
       </View>
 
       <View style={{ flex: 1 }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.page} onScroll={topFadeScrollHandler(fadeScrollY)} scrollEventThrottle={16}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.page}>
         <View style={styles.vhead}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
           <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{book}</Text>
@@ -469,7 +467,8 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
       {/* v334: the top fade (his Oct 29 ruling, all pages) — the
           chapter grid dissolves under the Bible palette's paper at
           the top of the scroll view, below the fixed topbar. */}
-      <TopFade color={palette.paper} scrollY={fadeScrollY} />
+      {/* v342: no top fade — detail screen with a definite
+          header (fade scope ruling, Oct 29). */}
       </View>
 
       {/* v259: same app, same bar — Study is the active slot.

@@ -303,15 +303,19 @@ describe('v325 Part A — the header renders Concept 3', () => {
     expect(html).toContain('Reset reading progress');
   });
 
-  it('the drawing’s measure is in the furniture (source pins): radius 24, 26px numerals, shares derived; threads wavy since v339', () => {
+  it('the drawing’s measure is in the furniture (source pins): radius 24, 26px numerals, shares derived; the header threads wavy, the per-book thread straight again (v342)', () => {
     const src = read('components/bible-v205/reading-progress-card.tsx');
     expect(src).toContain('progressCardRadius: { borderRadius: 24 }');
     expect(src).toContain('progressNumber: { fontSize: 26');
     expect(src).toContain('const share = total ? (100 * count) / total : 0');
-    // v339: the straight 6px threads became WavyProgress fills in
-    // the same colours — the share still derives exactly as drawn.
+    // v339: the header's straight 6px threads became WavyProgress
+    // fills in the same colours — the share still derives exactly
+    // as drawn. v342: they stay wavy ("the top ones" — his 14:46
+    // ruling); the PER-BOOK reading thread below them is straight
+    // again (next pin).
     expect(src).toContain('<WavyProgress value={share / 100} color={fillColor} trackColor={trackColor} height={8} />');
-    expect(src).toContain('<WavyProgress value={barPct} color={palette.raspDeep} trackColor={palette.raspTint} height={8} />');
+    expect(src).toContain('backgroundColor: palette.raspDeep, width: `${barPct}%`');
+    expect(src).not.toContain('<WavyProgress value={barPct}');
     // Exactly two structured rows — no third track sneaks in.
     expect(src.match(/<StudyProgressRow/g)).toHaveLength(2);
     // The header takes its colours from palette roles, never pins:

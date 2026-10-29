@@ -45,6 +45,26 @@
 // literal in this file by design — the strips below only restate
 // the given colour at falling opacities.
 //
+// v342 SCOPE (Jonathan's ruling, Oct 29 11:18 + 13:09): the fade
+// belongs ONLY on main tab screens and headerless scrollers. It
+// was removed from every detail screen with a definite header —
+// the person page is his named example; the family page, Bible
+// book/queue/reader, personal prayer, fast collection, boss
+// badges, budget, and the News/Email door pages went with it.
+// And the shape is a PURE DISSOLVE now (lib/top-fade.ts): the
+// old curve's long near-opaque shoulder still read as a bar at
+// the top ("can it just be a fade?" — reported twice) — the fall
+// is a cubic ease-out over a taller 120px zone, full only at the
+// very edge, easing from the first pixel, no plateau anywhere.
+// EDGE-TO-EDGE (his fix direction, Oct 29 14:54): the overlay
+// anchors at the screen's literal top and first covers the
+// notification-tray zone at FULL strength — the tray's own
+// backing, so tray icons stay readable over anything scrolling
+// beneath (content rolls under the tray and camera by design) —
+// and the dissolve runs below the tray. The resting layout is
+// untouched: at scrollY 0 the whole overlay is transparent and
+// each page's own top padding seats its header as designed.
+//
 // The gradient is painted as a stack of thin strips sampling the
 // one curve in lib/top-fade.ts — deliberately NOT react-native-svg:
 // the Bible screens' render tests load these pages in an
@@ -55,10 +75,12 @@ import { useRef } from "react";
 import { Animated, View } from "react-native";
 
 import { useColors } from "@/hooks/use-colors";
-import { TOP_FADE_HEIGHT, topFadeOpacityAt } from "@/lib/top-fade";
+import { TOP_FADE_HEIGHT, topFadeStripOpacityAt } from "@/lib/top-fade";
 
-/** Strips across the fade's height — fine enough to read smooth. */
-const TOP_FADE_STRIPS = 28;
+/** Strips across the fade's whole height (tray + dissolve) — fine
+ *  enough to read smooth (v342: 56, ~3px a strip at phone
+ *  geometry). */
+const TOP_FADE_STRIPS = 56;
 
 /** v338: a page's scroll offset, owned by the page and fed to its
  * TopFade. One per scroller — pages with several fades (People /
@@ -85,6 +107,7 @@ export function TopFade({
   height = TOP_FADE_HEIGHT,
   zIndex = 8,
   scrollY,
+  topInset,
 }: {
   /** The page's background colour, derived from the theme. */
   color?: string;
@@ -94,8 +117,18 @@ export function TopFade({
    * opacity is the scroll ramp (0 at rest, full at one
    * fade-height of scroll) — the scroll-linked reading. */
   scrollY?: Animated.Value;
+  /** v342: the tray (top safe-area inset) height the overlay
+   * covers at full strength before the dissolve runs — his
+   * edge-to-edge ruling (Oct 29 14:54). Callers pass their own
+   * insets.top (every fade screen already reads it); this
+   * component deliberately imports nothing from the safe-area
+   * package itself — the render tests that load it cannot
+   * transform that package's sources (the v339 lesson). */
+  topInset?: number;
 }) {
   const colors = useColors();
+  const trayInset = topInset ?? 0;
+  const totalHeight = trayInset + height;
   const fill = color ?? colors.background;
   const strips = Array.from({ length: TOP_FADE_STRIPS }, (_, i) => (
     <View
@@ -103,7 +136,11 @@ export function TopFade({
       style={{
         flex: 1,
         backgroundColor: fill,
-        opacity: topFadeOpacityAt((i + 0.5) / TOP_FADE_STRIPS),
+        opacity: topFadeStripOpacityAt(
+          ((i + 0.5) / TOP_FADE_STRIPS) * totalHeight,
+          trayInset,
+          height,
+        ),
       }}
     />
   ));
@@ -112,7 +149,7 @@ export function TopFade({
     top: 0,
     left: 0,
     right: 0,
-    height,
+    height: totalHeight,
     zIndex,
     flexDirection: "column" as const,
   };

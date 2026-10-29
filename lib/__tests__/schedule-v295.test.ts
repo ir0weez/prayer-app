@@ -215,18 +215,19 @@ describe("v295 ministry ticket + squares, time-off band", () => {
     expect(square).not.toContain("to {format12HourTime(ministry.endTime)}");
   });
 
-  it("the trip band under Classic is a proper tonal card (v314 re-pin)", () => {
+  it("the trip band under Classic is the slim 46px band (v317 re-pin)", () => {
     // v308: the v295 saturated stack — with its TIME OFF · TYPE
     // eyebrow, which doubled on his Day Off ("TIME OFF · TIME
     // OFF") and read as another event card — was replaced by a
-    // slim 46px band. v314 (his correction, Oct 28 14:54 — size
-    // was never the ask): the slim band becomes a proper Material
-    // card, tonal in the trip's own colour family at radius 22;
+    // slim 46px band. v314 (his correction, Oct 28 14:54) made it
+    // a proper tonal card; v317 re-pin (his device verdict,
+    // Oct 28 18:28 — "did you make the time-off card bigger? It
+    // was better skinnier..."): the slim band stands again and
     // the eyebrow stays deleted.
     const band = sliceBetween(timeOffTravel, "export function TripBand", "const ROUTE_RE");
     expect(band).not.toContain("TIME OFF · ${getTimeOffLabel(timeOff.type).toUpperCase()}");
-    expect(band).not.toContain("height: 46, borderRadius: 12, backgroundColor: base");
-    expect(band).toContain("borderRadius: 22, backgroundColor: mix(colors.surface, base");
+    expect(band).toContain("height: 46, borderRadius: 12, backgroundColor: base");
+    expect(band).not.toContain("borderRadius: 22, backgroundColor: mix(colors.surface, base");
     expect(band).toContain("Day ${day.day} of ${day.total}");
     expect(band).toContain('name="wb-sunny"');
   });

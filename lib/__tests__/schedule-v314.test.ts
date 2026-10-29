@@ -20,9 +20,21 @@
 //     lines (13/600, 12.5/600) in the stack. Bottom anchor + time
 //     pill unchanged; TV cards keep the v308 composition; Rest
 //     cards byte-untouched.
+//     → v317 (his device verdict, Oct 28 18:28): the time RANGE
+//     line is deleted — time lives in the pill only — and the
+//     stack gains a 36px top clearance so the title can never
+//     slide under the pill. Hierarchy itself stands.
 //  4. UP NEXT + DAY OFF as PROPER MATERIAL CARDS (his correction,
 //     14:54: size was never the ask): the 44px pill and the 46px
 //     band give way to full-width tonal cards at radius 22.
+//     → v317 (his device verdict, Oct 28 18:28 + his correction
+//     Oct 28 18:35): the DAY OFF half is REVERSED — the v308 slim
+//     band is restored ("I said I wanted the day-off thing
+//     smaller... I liked the time-off"). The UP NEXT half is NOT:
+//     the 18:35 correction rules the pill OUT ("I wanted it more
+//     material. Not smaller") — the v314 card below stands
+//     unchanged in v317, its exact form to be settled by one
+//     mockup round, not re-decided in this build.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, expect, it } from "vitest";
@@ -125,6 +137,10 @@ describe("v314 claimed grouping — the day page renders ONE box per run", () =>
 });
 
 describe("v314 up next + day off — proper Material cards, not slim strips", () => {
+  // v317 note (his correction, Oct 28 18:35): the DAY OFF pin in
+  // this block is re-pinned to the restored slim band below; the
+  // UP NEXT pins stand exactly as v314 left them — the card
+  // stands unchanged in v317, the slim pill is ruled out.
   const upNextCase = scheduleTab.slice(
     scheduleTab.indexOf('case "up-next"'),
     scheduleTab.indexOf('case "time-off"'),
@@ -149,13 +165,14 @@ describe("v314 up next + day off — proper Material cards, not slim strips", ()
     expect(upNextCase).toContain("onPress={toggleNext}");
   });
 
-  it("day off: a tonal card of the trip's colour family — sun tile, title, date + Day N of M, chevron", () => {
-    expect(band).toContain("borderRadius: 22, backgroundColor: mix(colors.surface, base");
-    expect(band).toContain("width: 42, height: 42, borderRadius: 14, backgroundColor: base");
-    expect(band).toContain('name="wb-sunny" size={21}');
+  it("day off: v317 re-pin (his verdicts 2026-10-28 18:28 + 18:35) — the v308 slim band restored: 46px, radius 12, SOLID trip colour", () => {
+    expect(band).toContain("height: 46, borderRadius: 12, backgroundColor: base");
+    expect(band).toContain('name="wb-sunny" size={15}');
     expect(band).toContain("Day ${day.day} of ${day.total}");
-    expect(band).toContain('name="chevron-right" size={20}');
-    expect(band).not.toContain("height: 46");
+    expect(band).toContain('name="chevron-right" size={16}');
+    // The v314 tonal proper-card band is deleted.
+    expect(band).not.toContain("borderRadius: 22, backgroundColor: mix(colors.surface, base");
+    expect(band).not.toContain('name="wb-sunny" size={21}');
   });
 });
 
@@ -169,7 +186,6 @@ describe("v314 event card hierarchy — note biggest and heaviest (his screensho
     expect(classicEventBranch).toContain("fontSize: 16, fontWeight: \"700\" as const");
     expect(classicEventBranch).toContain("fontSize: 20, fontWeight: \"800\" as const, lineHeight: 25");
     expect(classicEventBranch).toContain("const sceneNoteType");
-    expect(classicEventBranch).toContain("const sceneTimeType = { fontSize: 13, fontWeight: \"600\" as const }");
     expect(classicEventBranch).toContain("const sceneLocationType = { fontSize: 12.5, fontWeight: \"600\" as const }");
   });
 
@@ -181,12 +197,30 @@ describe("v314 event card hierarchy — note biggest and heaviest (his screensho
     expect(classicEventBranch.slice(stackAt - 500, stackAt)).toContain("sceneNoteType");
   });
 
-  it("time range and location run as their own quiet lines under the note", () => {
-    expect(classicEventBranch).toContain("const timeRangeLine");
-    expect(classicEventBranch).toContain("` – ${format12HourTime(event.endTime)}`");
-    expect(classicEventBranch).toContain("{timeRangeLine}");
+  it("v317: NO time-range line in the stack — the time lives in the pill only", () => {
+    // v317 re-pin — his device verdict (2026-10-28 18:28): "I just
+    // want the event cards to have the time in the pill, I don't
+    // need it in the text under it too..." The v314 range line and
+    // its type are deleted from the whole Classic branch.
+    expect(classicEventBranch).not.toContain("timeRangeLine");
+    expect(classicEventBranch).not.toContain("sceneTimeType");
+    // The pill still carries the range in its one spot.
+    expect(classicEventBranch).toContain("pillLabel");
+    // The location still runs as its own quiet line under the note.
     expect(classicEventBranch).toContain('name="location-on" size={13}');
     expect(classicEventBranch).toContain("{event.location}");
+    // TV cards: the sub-line keeps its DURATION ("59 min") — a
+    // duration is not the range — and gains no range line either.
+    expect(classicEventBranch).toContain("durationLabel ? ` · ${durationLabel}` : \"\"");
+  });
+
+  it("v317: the stack clears the pill's row — 36px top clearance on the bottom-anchored stack", () => {
+    // His screenshot: the Lunch title slid under the pill. The
+    // keyword stack keeps its bottom anchor and gains a top
+    // clearance past the pill's bottom edge (28, 32 as NowPill).
+    expect(classicEventBranch).toContain('justifyContent: "flex-end", paddingTop: 36, paddingHorizontal: 12');
+    // The plain colour cards keep their existing top seat.
+    expect(classicEventBranch).toContain("paddingTop: 40, paddingHorizontal: 12, paddingBottom: isLiveScheduledBlock ? 34 : 12");
   });
 
   it("the stack order is title, then note (the title sits above it, smaller)", () => {

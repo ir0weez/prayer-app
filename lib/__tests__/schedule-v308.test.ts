@@ -8,8 +8,9 @@
 //  2. DAY OFF BAND: the v295 saturated stack (with the doubled
 //     "TIME OFF · TIME OFF" eyebrow) becomes the drawing's slim
 //     46px one-line band, radius 12.
-//     → SUPERSEDED by v314 (same 14:54 correction — the band
-//     becomes a proper tonal Material card; pins below are v314's).
+//     → SUPERSEDED by v314 (same 14:54 correction), then RESTORED
+//     by v317 (same 18:28 verdict: "It was better skinnier") —
+//     the pins below are the slim band's again.
 //  3. EVENT CARD TEXT (11:58, refined 12:11): the words rest at the
 //     BOTTOM of full-bleed artwork cards over a bottom scrim. TV
 //     Show cards take the stepped-up type (title 20.5/800, sub
@@ -97,16 +98,16 @@ describe("v308 up next — the slim pill → v314: a proper Material card", () =
   });
 });
 
-describe("v308 day off band — slim band → v314: a proper tonal card", () => {
+describe("v308 day off band — the slim band (v314's card reversed by v317)", () => {
   const band = timeOffTravel.slice(
     timeOffTravel.indexOf("export function TripBand"),
     timeOffTravel.indexOf("const ROUTE_RE"),
   );
 
-  it("v314: NOT the 46px slim band — a tonal card at radius 22 in the trip's colour family", () => {
-    expect(band).not.toContain("height: 46, borderRadius: 12, backgroundColor: base");
-    expect(band).toContain("borderRadius: 22, backgroundColor: mix(colors.surface, base");
-    expect(band).toContain("paddingHorizontal: 15, paddingVertical: 14");
+  it("v317 re-pin (his device verdict 2026-10-28 18:28): the 46px slim band is back — NOT the v314 tonal card", () => {
+    expect(band).toContain("height: 46, borderRadius: 12, backgroundColor: base");
+    expect(band).not.toContain("borderRadius: 22, backgroundColor: mix(colors.surface, base");
+    expect(band).not.toContain("paddingHorizontal: 15, paddingVertical: 14");
   });
 
   it("the doubled eyebrow stays deleted entirely", () => {
@@ -114,11 +115,11 @@ describe("v308 day off band — slim band → v314: a proper tonal card", () => 
     expect(band).not.toContain("letterSpacing: 1.6");
   });
 
-  it("v314: sun tile, title, the day's date + day count, chevron", () => {
-    expect(band).toContain('name="wb-sunny" size={21}');
-    expect(band).toContain("fontSize: 16, fontWeight: \"800\"");
+  it("one line: sun chip, the trip's title, a dot, the day's date + day count, chevron", () => {
+    expect(band).toContain('name="wb-sunny" size={15}');
+    expect(band).toContain('fontSize: 15, fontWeight: "800"');
     expect(band).toContain("Day ${day.day} of ${day.total}");
-    expect(band).toContain('name="chevron-right" size={20}');
+    expect(band).toContain('name="chevron-right" size={16}');
     // The date is the SELECTED day, not the trip's whole range.
     expect(band).toContain("const dayLabel = new Date(dy, dm - 1, dd)");
   });

@@ -54,17 +54,25 @@ export function TripBand({ timeOff, date, onPress }: { timeOff: TimeOff; date: s
   const base = tripBaseColor(timeOff);
   const day = tripDayNumber(timeOff, date);
   const bandBg = skinTokens.isTerminal ? undefined : mix(colors.surface, base, hexLuminance(colors.surface) < 0.5 ? 0.34 : 0.22);
-  // v314 (his correction, Oct 28 14:54 — the same one he gave the
-  // Up Next line: "I didn't want you to make it smaller. I just
-  // wanted it to look better. It didn't look like an appropriate
-  // material design style card"): the v308 slim 46px band becomes
-  // a proper Material card — full width, a tonal step of the TRIP's
-  // own colour (derived, the skinned band's own mix), radius 22,
-  // comfortable padding, a solid trip-colour tile carrying the sun,
-  // the trip's title, the selected day's date with its Day N of M,
-  // and a chevron. Still a door, never a checkbox. (The in-flow
-  // claimed-block chips below are a different element he likes —
-  // untouched here.)
+  // v317 (his device verdict on v314, Oct 28 18:28, screenshot
+  // 10859, confirmed by his correction Oct 28 18:35): "did you
+  // make the time-off card bigger? It was better skinnier..." /
+  // "I said I wanted the day-off thing smaller... I liked the
+  // time-off" — the v314 proper tonal card is DELETED and the
+  // v308 slim band below is restored exactly. (v314 had applied
+  // his Oct 28 14:54 correction — the same one he gave the Up
+  // Next line — to this band too; on device he reversed it for
+  // the band. Up Next he did NOT reverse — see schedule-tab.)
+  // v308 (his Oct 28 verdict on the v295 band: too big, "just
+  // looks like another event card", and its eyebrow doubled —
+  // "TIME OFF · TIME OFF"): the slim day-state band from
+  // schedule-upnext-timeoff-v1.html, measured — height 46, radius
+  // 12 (the day's cards are 22), solid trip colour, ONE line: a
+  // sun-glyph chip, the trip's title, a dot, the day's own short
+  // date with the day count, and a chevron. The eyebrow is
+  // deleted entirely. Still a door, never a checkbox. (The
+  // in-flow claimed-block chips below are a different element he
+  // likes — untouched here.)
   if (!isSkinned) {
     const [dy, dm, dd] = date.split("-").map(Number);
     const dayLabel = new Date(dy, dm - 1, dd).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
@@ -75,19 +83,18 @@ export function TripBand({ timeOff, date, onPress }: { timeOff: TimeOff; date: s
         onPress={onPress}
         style={({ pressed }) => [{ marginHorizontal: 12, marginBottom: 12, opacity: pressed ? 0.75 : 1 }]}
       >
-        <View style={{ borderRadius: 22, backgroundColor: mix(colors.surface, base, hexLuminance(colors.surface) < 0.5 ? 0.34 : 0.22), paddingHorizontal: 15, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 12, shadowColor: base, shadowOpacity: 0.14, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 }}>
-          <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: base, alignItems: "center", justifyContent: "center" }}>
-            <MaterialIcons name="wb-sunny" size={21} color="#FFFFFF" />
+        <View style={{ height: 46, borderRadius: 12, backgroundColor: base, flexDirection: "row", alignItems: "center", gap: 10, paddingLeft: 11, paddingRight: 13, shadowColor: base, shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 }}>
+          <View style={{ width: 26, height: 26, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.20)", alignItems: "center", justifyContent: "center" }}>
+            <MaterialIcons name="wb-sunny" size={15} color="#FFFFFF" />
           </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ fontSize: 16, fontWeight: "800", color: colors.foreground }}>
-              {timeOff.title}
-            </Text>
-            <Text style={{ fontSize: 12.5, fontWeight: "600", color: colors.muted, marginTop: 2 }}>
-              {dayLabel}{day ? ` · Day ${day.day} of ${day.total}` : ""}
-            </Text>
-          </View>
-          <MaterialIcons name="chevron-right" size={20} color={base} />
+          <Text style={{ fontSize: 15, fontWeight: "800", color: "#FFFFFF", letterSpacing: 0.15 }} numberOfLines={1}>
+            {timeOff.title}
+          </Text>
+          <View style={{ width: 3.5, height: 3.5, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.55)" }} />
+          <Text style={{ fontSize: 12.5, fontWeight: "600", color: "rgba(255,255,255,0.88)", flex: 1 }} numberOfLines={1}>
+            {dayLabel}{day ? ` · Day ${day.day} of ${day.total}` : ""}
+          </Text>
+          <MaterialIcons name="chevron-right" size={16} color="rgba(255,255,255,0.85)" />
         </View>
       </Pressable>
     );

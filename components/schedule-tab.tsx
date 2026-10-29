@@ -7961,6 +7961,17 @@ function EventCardInner({
     // screenshot. TV cards keep the v308 composition exactly; the
     // bottom anchor and the time pill (his 14:53 confirmation) are
     // unchanged — fonts and line structure only.
+    //
+    // v317 (his device verdict on v314, Oct 28 18:28, screenshot
+    // 10859): "I just want the event cards to have the time in the
+    // pill, I don't need it in the text under it too..." — the
+    // time RANGE line is DELETED from the stack; the stack is now
+    // title / note / location, and the top-left pill is the only
+    // time a scene card carries. (His old screenshot's cards did
+    // print the range as a line, but the pill did not exist in
+    // that dress — with the pill kept by his 14:53 ruling, the
+    // line is a duplicate and goes.) The hierarchy itself —
+    // note biggest and heaviest — stands.
     const isTVShowCard = keyword?.label === "TV Show";
     const cardTitleType = !keyword
       ? { fontSize: 16, fontWeight: "800" as const }
@@ -7973,14 +7984,10 @@ function EventCardInner({
         ? { fontSize: 13, fontWeight: "600" as const }
         : { fontSize: 20, fontWeight: "600" as const, lineHeight: 25 };
     // v314: the non-TV scene stack's own types (see the note above).
+    // v317: the range line's type and its composed string are gone
+    // with the line they styled — the pill carries the time alone.
     const sceneNoteType = { fontSize: 20, fontWeight: "800" as const, lineHeight: 25 };
-    const sceneTimeType = { fontSize: 13, fontWeight: "600" as const };
     const sceneLocationType = { fontSize: 12.5, fontWeight: "600" as const };
-    // The old cards' time line, full form both ends ("10:00 AM –
-    // 11:00 AM") — a quiet stack line, NOT the pill's short form.
-    const timeRangeLine = event.startTime
-      ? `${format12HourTime(event.startTime)}${event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}`
-      : null;
     // v297: the card's height returns to HIS pre-redesign geometry
     // (the illustrated card this branch replaced — still live below
     // for the skins): min-height classes with the content IN FLOW,
@@ -8075,8 +8082,18 @@ function EventCardInner({
                 Photos stack: title / time / location; the Lunch
                 stack: title / Melody / time / location). The TV and
                 plain-colour compositions below are byte-identical
-                to v308/v313. */}
-            <View pointerEvents="none" style={keyword ? { flex: 1, justifyContent: "flex-end", paddingHorizontal: 12, paddingBottom: isLiveScheduledBlock ? 34 : 12 } : { paddingTop: 40, paddingHorizontal: 12, paddingBottom: isLiveScheduledBlock ? 34 : 12 }}>
+                to v308/v313.
+                v317: the time range line is DELETED (see the types
+                note above — the pill carries the time alone), so
+                the non-TV stack is title / note / location. And the
+                stack now carries a 36px top clearance: on his
+                screenshot the Lunch title slid UNDER the pill (the
+                stack filled the card from its top edge, the pill
+                sitting on the title's first letters). Bottom-anchored
+                as ever, but the first line can never rise into the
+                pill's row — the pill's bottom edge is 28 (32 as the
+                NowPill), so the stack starts below it, always. */}
+            <View pointerEvents="none" style={keyword ? { flex: 1, justifyContent: "flex-end", paddingTop: 36, paddingHorizontal: 12, paddingBottom: isLiveScheduledBlock ? 34 : 12 } : { paddingTop: 40, paddingHorizontal: 12, paddingBottom: isLiveScheduledBlock ? 34 : 12 }}>
               <Text style={{ ...cardTitleType, color: "#FFFFFF", textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} numberOfLines={2}>{event.title}</Text>
               {isTVShowCard || !keyword ? (
                 subParts.length > 0 && (
@@ -8086,9 +8103,6 @@ function EventCardInner({
                 <>
                   {event.notes ? (
                     <Text style={{ ...sceneNoteType, color: "#FFFFFF", marginTop: 2, textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{event.notes}</Text>
-                  ) : null}
-                  {timeRangeLine ? (
-                    <Text style={{ ...sceneTimeType, color: "rgba(255,255,255,0.92)", marginTop: 5, textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{timeRangeLine}</Text>
                   ) : null}
                   {event.location ? (
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 3 }}>

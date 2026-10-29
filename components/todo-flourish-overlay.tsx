@@ -245,6 +245,44 @@ function ParticleView({ p, progress, todoColor }: { p: TodoFlourishParticle; pro
       );
       break;
     }
+    case "page-corner": {
+      // Read's page: a small paper page at the checkbox; its folded
+      // corner flips over (rotateY out and back) while the spark
+      // bits burst off it. One piece, transforms only.
+      opacity = seg(progress, p, [0, 0.2, 1], [0, 1, 0]);
+      transform = [
+        { translateX: seg(progress, p, [0, 1], [p.ox, p.ox]) },
+        { translateY: seg(progress, p, [0, 1], [p.oy, p.oy]) },
+        { rotateY: seg(progress, p, [0, 0.5, 1], ["0deg", "-62deg", "0deg"]) },
+        { scale: seg(progress, p, [0, 1], [0.5, 1]) },
+      ];
+      body = (
+        <View
+          style={{
+            width: p.size,
+            height: Math.round(p.size * 1.25),
+            borderRadius: 2,
+            backgroundColor: colors.fill,
+            borderWidth: 1.5,
+            borderColor: colors.border,
+            overflow: "hidden",
+          }}
+        >
+          <View
+            style={{
+              position: "absolute",
+              top: -p.size * 0.24,
+              right: -p.size * 0.24,
+              width: p.size * 0.55,
+              height: p.size * 0.55,
+              backgroundColor: colors.border,
+              transform: [{ rotate: "45deg" }],
+            }}
+          />
+        </View>
+      );
+      break;
+    }
     case "paper-bit": {
       const sway = p.sway ?? 0;
       const rot = p.rotate ?? 0;

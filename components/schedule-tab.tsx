@@ -58,7 +58,7 @@ import { scheduleMaterialTones, tonalRamp } from "@/lib/schedule-material";
 import { detectShowFont, splitShowName } from "@/lib/show-fonts";
 import { stripSpelledSeasonEpisode } from "@/lib/season-episode";
 import { showNameSegments } from "./show-sub-line";
-import { emitTodoFlourish, todoFlourishForTitle, TODO_FLOURISH_SETTLE, type TodoSettleKind } from "@/lib/todo-flourish";
+import { emitTodoFlourish, todoCompletionShouldDefer, todoFlourishForTitle, TODO_FLOURISH_DURATION_MS, TODO_FLOURISH_SETTLE, type TodoSettleKind } from "@/lib/todo-flourish";
 import { FlourishSettleView } from "@/components/todo-flourish-overlay";
 import { mix } from "@/lib/color-themes";
 import type { SkinTokens } from "@/lib/skin-themes";
@@ -8506,6 +8506,8 @@ function TodoItem({
   liveNow,
   showActiveNow = false,
   isNew = false,
+  completionPending = false,
+  onFlushCompletion,
 }: {
   todo: ScheduleTodo;
   onToggle: (position?: XpGainPosition) => void;
@@ -8521,6 +8523,15 @@ function TodoItem({
   liveNow?: Date;
   showActiveNow?: boolean;
   isNew?: boolean;
+  /**
+   * v338: a flourish-mapped completion whose WRITE is being held
+   * in ScheduleTab while its flourish plays. The row renders as
+   * completing (checkbox filled, title struck) but has NOT dropped
+   * to the completed section yet; presses are ignored meanwhile.
+   */
+  completionPending?: boolean;
+  /** v338: run the held completion write NOW (the menu's flush). */
+  onFlushCompletion?: () => void;
 }) {
   const colors = useColors();
   const { isSkinned, tokens: skinTokens, motion: skinMotion } = useSkin();
@@ -8552,6 +8563,13 @@ function TodoItem({
     label: todo.isCompleted ? 'Mark Incomplete' : 'Mark Complete',
     icon: todo.isCompleted ? 'close-circle' : 'check-circle',
     onPress: () => {
+      // v338: Mark Complete on a row whose flourish-held write is
+      // still pending FLUSHES that write immediately — no second
+      // flourish, no second toggle.
+      if (completionPending) {
+        onFlushCompletion?.();
+        return;
+      }
       if (!todo.isCompleted) fireRowFlourish();
       onToggle();
     },
@@ -8600,6 +8618,10 @@ function TodoItem({
   // wrappers in the branches below. Unchecking never fires.
   const [rowSettle, setRowSettle] = useState<{ kind: TodoSettleKind; run: number }>({ kind: "none", run: 0 });
   const [subtaskSettles, setSubtaskSettles] = useState<Record<string, { kind: TodoSettleKind; run: number }>>({});
+  // v338: while the completion write is held for the flourish, the
+  // row LOOKS completed (filled checkbox, struck title) but keeps
+  // its flow slot — isCompleted flips only when the write lands.
+  const visuallyCompleted = todo.isCompleted || completionPending;
   const checkboxAnchorRef = useRef<any>(null);
   const subtaskAnchorRefs = useRef(new Map<string, any>());
 
@@ -8627,6 +8649,15 @@ function TodoItem({
     const flourish = todoFlourishForTitle(todo.title);
     if (!flourish) return;
     setRowSettle({ kind: TODO_FLOURISH_SETTLE[flourish], run: Date.now() });
+    // v338: when the press position is in hand, emit SYNCHRONOUSLY
+    // from it. v337 preferred the async measureInWindow callback,
+    // whose result raced the row's teardown. The measured path
+    // remains only for callers with no press position (the
+    // long-press menu's Mark Complete).
+    if (fallback) {
+      emitTodoFlourish({ flourish, color: todo.color || colors.primary, anchor: fallback });
+      return;
+    }
     emitFlourishAt(flourish, todo.color || colors.primary, checkboxAnchorRef.current, fallback);
   };
 
@@ -8694,6 +8725,10 @@ function TodoItem({
     >
       <>
       {isGroupedTodo && todo.isCompleted ? (
+        // v338: the completed-group branch wears the same settle
+        // wrapper as its uncompleted twin, so a grouped mapped todo
+        // settles identically whichever branch renders it.
+        <FlourishSettleView kind={rowSettle.kind} runKey={rowSettle.run}>
         <Pressable
           accessibilityRole="checkbox"
           accessibilityLabel={`Mark ${todo.title} incomplete`}
@@ -8713,6 +8748,7 @@ function TodoItem({
           </View>
           <MaterialIcons name="folder" size={18} color={colors.muted} />
         </Pressable>
+        </FlourishSettleView>
       ) : isGroupedTodo ? (
         <FlourishSettleView kind={rowSettle.kind} runKey={rowSettle.run} style={{ marginBottom: 12, marginHorizontal: 12, ...((hasTypeScale(skinTokens) && isSkinned) ? { marginBottom: 12 + skinTokens.type.gapBoost } : {}) }}>
           <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: groupBorderColor, overflow: 'hidden', ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? cartridgeShadow ?? {} : {}) }}>
@@ -8736,6 +8772,7 @@ function TodoItem({
                     accessibilityState={{ checked: todo.isCompleted }}
                     onPress={(event) => {
                       event.stopPropagation?.();
+                      if (completionPending) return; // v338: a held write owns this row until it lands
                       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                       const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
                       if (!todo.isCompleted) fireRowFlourish(position);
@@ -8743,9 +8780,9 @@ function TodoItem({
                     }}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
-                    {skinTokens.isTerminal ? <TermCheckbox checked={todo.isCompleted} size={22} /> : <MaterialIcons name={iconName(iconNameStr)} size={22} color={groupAccentColor} />}
+                    {skinTokens.isTerminal ? <TermCheckbox checked={visuallyCompleted} size={22} /> : <MaterialIcons name={iconName(iconNameStr)} size={22} color={groupAccentColor} />}
                   </Pressable>
-                  <Text numberOfLines={1} style={{ flex: 1, color: todo.isCompleted ? colors.muted : colors.foreground, fontSize: 14, fontWeight: '600', textDecorationLine: todo.isCompleted ? 'line-through' : 'none', ...bitDisplay(skinTokens, 10), ...(isSkinned ? skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) : { fontSize: 15, fontWeight: "700" }) }}>
+                  <Text numberOfLines={1} style={{ flex: 1, color: visuallyCompleted ? colors.muted : colors.foreground, fontSize: 14, fontWeight: '600', textDecorationLine: visuallyCompleted ? 'line-through' : 'none', ...bitDisplay(skinTokens, 10), ...(isSkinned ? skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight) : { fontSize: 15, fontWeight: "700" }) }}>
                     {todo.title}
                   </Text>
                 </View>
@@ -8816,6 +8853,7 @@ function TodoItem({
                   accessibilityRole="button"
                   accessibilityLabel={`Mark ${todo.title} complete`}
                   onPress={(event) => {
+                    if (completionPending) return; // v338: a held write owns this row until it lands
                     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
                     fireRowFlourish(position);
@@ -8847,6 +8885,7 @@ function TodoItem({
         <FlourishSettleView kind={rowSettle.kind} runKey={rowSettle.run}>
         <Pressable
           onPress={(event) => {
+            if (completionPending) return; // v338: a held write owns this row until it lands
             if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
             if (!todo.isCompleted) fireRowFlourish(position);
@@ -8858,31 +8897,31 @@ function TodoItem({
         >
           {skinTokens.isTerminal ? (
             <View ref={checkboxAnchorRef} style={{ marginRight: 12, alignSelf: "center" }}>
-              <TermCheckbox checked={todo.isCompleted} size={22} />
+              <TermCheckbox checked={visuallyCompleted} size={22} />
             </View>
           ) : skinTokens.isEightBit ? (
           <ReAnimated.View
             ref={checkboxAnchorRef}
-            key={`checkbox-${todo.isCompleted}`}
-            entering={todo.isCompleted ? FadeIn.duration(200) : undefined}
-            style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle, { borderRadius: 2, borderWidth: 2, borderColor: BIT_INK_HEX }]}
+            key={`checkbox-${visuallyCompleted}`}
+            entering={visuallyCompleted ? FadeIn.duration(200) : undefined}
+            style={[todoStyles.iconContainer, { backgroundColor: visuallyCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle, { borderRadius: 2, borderWidth: 2, borderColor: BIT_INK_HEX }]}
           >
-            <MaterialIcons name={todo.isCompleted ? "check" : (iconNameStr as any)} size={16} color="#FFFFFF" />
+            <MaterialIcons name={visuallyCompleted ? "check" : (iconNameStr as any)} size={16} color="#FFFFFF" />
           </ReAnimated.View>
           ) : (
           // v295: the drawing's checkbox — a drawn rounded square in
           // the todo's own colour (2.5px edge, transparent middle),
           // filled with a white tick when done. No font glyph.
-          <View ref={checkboxAnchorRef} style={{ alignSelf: "center", width: 22, height: 22, borderRadius: 6, borderWidth: 2.5, borderColor: todo.color || colors.primary, backgroundColor: todo.isCompleted ? (todo.color || colors.primary) : "transparent", alignItems: "center", justifyContent: "center" }}>
-            {todo.isCompleted && <MaterialIcons name="check" size={14} color="#FFFFFF" />}
+          <View ref={checkboxAnchorRef} style={{ alignSelf: "center", width: 22, height: 22, borderRadius: 6, borderWidth: 2.5, borderColor: todo.color || colors.primary, backgroundColor: visuallyCompleted ? (todo.color || colors.primary) : "transparent", alignItems: "center", justifyContent: "center" }}>
+            {visuallyCompleted && <MaterialIcons name="check" size={14} color="#FFFFFF" />}
           </View>
           )}
           <View style={{ flex: 1, alignItems: 'flex-start' }}>
-            <Text style={[todoStyles.title, { color: colors.foreground }, todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted }, (!skinTokens.isEightBit && !skinTokens.isTerminal) ? { fontWeight: "700" } : null, skinTokens.isEightBit ? bitDisplay(skinTokens, 10) : null, (hasTypeScale(skinTokens) && isSkinned) ? skinText(skinTokens, skinTokens.type.cardTitle) : null, !isSkinned ? { lineHeight: 19 } : null]} numberOfLines={1}>{todo.title}</Text>
+            <Text style={[todoStyles.title, { color: colors.foreground }, visuallyCompleted && { textDecorationLine: "line-through", color: colors.muted }, (!skinTokens.isEightBit && !skinTokens.isTerminal) ? { fontWeight: "700" } : null, skinTokens.isEightBit ? bitDisplay(skinTokens, 10) : null, (hasTypeScale(skinTokens) && isSkinned) ? skinText(skinTokens, skinTokens.type.cardTitle) : null, !isSkinned ? { lineHeight: 19 } : null]} numberOfLines={1}>{todo.title}</Text>
             {(todo.startTime || todo.notes) && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 }}>
-                {todo.startTime && <Text style={{ fontSize: isSkinned ? 11 : 11.5, color: todo.isCompleted ? colors.muted : (skinTokens.isEightBit || skinTokens.isTerminal) ? colors.primary : scheduleMaterialTones(colors.primary, colors.surface).primaryDeep, fontWeight: '600', ...(isSkinned ? skinText(skinTokens, skinTokens.type.cardMeta) : {}) }}>{format12HourTime(todo.startTime)}</Text>}
-                {todo.notes && <Text style={[todoStyles.notes, { color: colors.muted, marginTop: 0 }, todo.isCompleted && { textDecorationLine: "line-through" }, (hasTypeScale(skinTokens) && isSkinned) ? skinText(skinTokens, skinTokens.type.cardMeta, 18) : null, !isSkinned ? { fontSize: 11.5, lineHeight: 15 } : null]} numberOfLines={1}>{todo.notes}</Text>}
+                {todo.startTime && <Text style={{ fontSize: isSkinned ? 11 : 11.5, color: visuallyCompleted ? colors.muted : (skinTokens.isEightBit || skinTokens.isTerminal) ? colors.primary : scheduleMaterialTones(colors.primary, colors.surface).primaryDeep, fontWeight: '600', ...(isSkinned ? skinText(skinTokens, skinTokens.type.cardMeta) : {}) }}>{format12HourTime(todo.startTime)}</Text>}
+                {todo.notes && <Text style={[todoStyles.notes, { color: colors.muted, marginTop: 0 }, visuallyCompleted && { textDecorationLine: "line-through" }, (hasTypeScale(skinTokens) && isSkinned) ? skinText(skinTokens, skinTokens.type.cardMeta, 18) : null, !isSkinned ? { fontSize: 11.5, lineHeight: 15 } : null]} numberOfLines={1}>{todo.notes}</Text>}
               </View>
             )}
           </View>
@@ -10546,10 +10585,17 @@ export function ScheduleTab({
   const pairRowRefs = useRef(new Map<string, any>());
   const missedRowRefs = useRef(new Map<string, any>());
 
-  const firePairFlourish = (pairTodo: { id: string; title: string; color?: string | null }) => {
+  const firePairFlourish = (pairTodo: { id: string; title: string; color?: string | null }, position?: { x: number; y: number }) => {
     const flourish = todoFlourishForTitle(pairTodo.title);
     if (!flourish) return;
     setPairSettles((prev) => ({ ...prev, [pairTodo.id]: { kind: TODO_FLOURISH_SETTLE[flourish], run: Date.now() } }));
+    // v338: same fix as the row burst — emit synchronously from the
+    // press position when the press provided one; the async
+    // measureInWindow result raced the row's teardown.
+    if (position) {
+      emitTodoFlourish({ flourish, color: pairTodo.color || colors.primary, anchor: position });
+      return;
+    }
     const view = pairRowRefs.current.get(pairTodo.id);
     if (view && typeof view.measureInWindow === "function") {
       view.measureInWindow((x: number, y: number, w: number, h: number) => {
@@ -10559,6 +10605,71 @@ export function ScheduleTab({
       });
     }
   };
+
+  // v338 — flourish-held completion writes. A flourish-mapped
+  // todo's tap fires its burst + settle immediately (above and in
+  // TodoItem), but the completion WRITE (XP + toggleTodoCompleted)
+  // is held here for TODO_FLOURISH_DURATION_MS while the row stays
+  // in its flow slot, visually completing (the pending set drives
+  // that dress in TodoItem and the pair rectangles). The timers and
+  // the pending set live HERE, beside the toggles — never inside a
+  // row — so list recycling can't kill a held write. Uncheck,
+  // quiet-list, and unmatched todos never enter this path: their
+  // writes run instantly, exactly as before (todoCompletionShouldDefer).
+  const [pendingTodoIds, setPendingTodoIds] = useState<ReadonlySet<string>>(() => new Set<string>());
+  const pendingTodoWrites = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; run: () => void }>());
+
+  const flushPendingTodoWrite = (todoId: string) => {
+    const held = pendingTodoWrites.current.get(todoId);
+    if (!held) return;
+    pendingTodoWrites.current.delete(todoId);
+    clearTimeout(held.timer);
+    setPendingTodoIds((prev) => {
+      const next = new Set(prev);
+      next.delete(todoId);
+      return next;
+    });
+    held.run();
+  };
+
+  const cancelPendingTodoWrite = (todoId: string) => {
+    const held = pendingTodoWrites.current.get(todoId);
+    if (!held) return;
+    pendingTodoWrites.current.delete(todoId);
+    clearTimeout(held.timer);
+    setPendingTodoIds((prev) => {
+      const next = new Set(prev);
+      next.delete(todoId);
+      return next;
+    });
+  };
+
+  const requestTodoToggle = (todo: ScheduleTodo, run: () => void) => {
+    if (!todoCompletionShouldDefer(todo)) {
+      run();
+      return;
+    }
+    if (pendingTodoWrites.current.has(todo.id)) return; // a press on a pending row is ignored
+    const timer = setTimeout(() => flushPendingTodoWrite(todo.id), TODO_FLOURISH_DURATION_MS);
+    pendingTodoWrites.current.set(todo.id, { timer, run });
+    setPendingTodoIds((prev) => new Set(prev).add(todo.id));
+  };
+
+  // Switching days flushes every held write immediately — a
+  // completion belongs to its todo, not to the day on screen.
+  useEffect(() => {
+    for (const todoId of [...pendingTodoWrites.current.keys()]) flushPendingTodoWrite(todoId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
+
+  // Never leave a timer dangling past this screen's life.
+  useEffect(() => {
+    const writes = pendingTodoWrites.current;
+    return () => {
+      writes.forEach((held) => clearTimeout(held.timer));
+      writes.clear();
+    };
+  }, []);
   const [ministries, setMinistries] = useState<ScheduleMinistry[]>([]);
   const [prayers, setPrayers] = useState<PrayerItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -13721,6 +13832,9 @@ export function ScheduleTab({
               {item.data.todos.map((t: any) => {
                 const todoColor = t.color || colors.primary;
                 const tonalRect = !skinTokens.isEightBit && !skinTokens.isTerminal;
+                // v338: a pair rectangle whose completion write is
+                // flourish-held wears the completing dress in place.
+                const pairDone = t.isCompleted || pendingTodoIds.has(t.id);
                 return (
                   <FlourishSettleView key={t.id} kind={pairSettles[t.id]?.kind ?? "none"} runKey={pairSettles[t.id]?.run ?? 0} style={{ flex: 1 }}>
                   <Pressable
@@ -13730,36 +13844,38 @@ export function ScheduleTab({
                     }}
                     style={{ flex: 1, backgroundColor: tonalRect ? mix(todoColor, colors.surface, 0.86) : todoColor, borderRadius: tonalRect ? 18 : 12, padding: 11, minHeight: 68, justifyContent: "center", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...((hasTypeScale(skinTokens) && isSkinned) ? { padding: 12 + skinTokens.type.padBoost, minHeight: 68 + skinTokens.type.padBoost * 2 } : {}) }}
                     onPress={(e) => {
+                      if (pendingTodoIds.has(t.id)) return; // v338: a held write owns this rectangle until it lands
                       const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
-                      if (!t.isCompleted) {
-                        firePairFlourish(t);
-                        onAwardXP?.(xpActionForDate(t.date), t.id, position);
-                      } else revokeTodoXP(t.id, position);
-                      setTodos((prev) => toggleTodoCompleted(prev, t.id));
+                      if (!t.isCompleted) firePairFlourish(t, position);
+                      requestTodoToggle(t, () => {
+                        if (!t.isCompleted) onAwardXP?.(xpActionForDate(t.date), t.id, position);
+                        else revokeTodoXP(t.id, position);
+                        setTodos((prev) => toggleTodoCompleted(prev, t.id));
+                      });
                     }}
                   >
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                       {tonalRect ? (
-                        <View style={{ width: 20, height: 20, borderRadius: 6, borderWidth: 2.5, borderColor: todoColor, backgroundColor: t.isCompleted ? todoColor : "transparent", alignItems: "center", justifyContent: "center" }}>
-                          {t.isCompleted && <MaterialIcons name="check" size={12} color="#FFFFFF" />}
+                        <View style={{ width: 20, height: 20, borderRadius: 6, borderWidth: 2.5, borderColor: todoColor, backgroundColor: pairDone ? todoColor : "transparent", alignItems: "center", justifyContent: "center" }}>
+                          {pairDone && <MaterialIcons name="check" size={12} color="#FFFFFF" />}
                         </View>
                       ) : (
                       <View
                         style={{
                           width: 28, height: 28, borderRadius: skinTokens.isEightBit ? 2 : 8,
-                          backgroundColor: t.isCompleted ? "#FFFFFF" : "rgba(255,255,255,0.25)",
+                          backgroundColor: pairDone ? "#FFFFFF" : "rgba(255,255,255,0.25)",
                           alignItems: "center", justifyContent: "center",
                           borderWidth: 1.5, borderColor: "rgba(255,255,255,0.9)",
                         }}
                       >
-                        {t.isCompleted ? (
+                        {pairDone ? (
                           <Text style={{ color: todoColor, fontSize: 14, fontWeight: "800" }}>✓</Text>
                         ) : (
                           <MaterialIcons name={getIconForTodo(t.title) as any} size={16} color="#FFFFFF" />
                         )}
                       </View>
                       )}
-                      <Text style={{ color: tonalRect ? colors.foreground : "#FFFFFF", fontSize: 13.5, fontWeight: "700", flex: 1, ...(t.isCompleted && tonalRect ? { textDecorationLine: "line-through" as const } : {}), ...(isSkinned ? skinText(skinTokens, skinTokens.type.rowBody) : {}) }} numberOfLines={2}>
+                      <Text style={{ color: tonalRect ? colors.foreground : "#FFFFFF", fontSize: 13.5, fontWeight: "700", flex: 1, ...(pairDone && tonalRect ? { textDecorationLine: "line-through" as const } : {}), ...(isSkinned ? skinText(skinTokens, skinTokens.type.rowBody) : {}) }} numberOfLines={2}>
                         {t.title}
                       </Text>
                     </View>
@@ -13801,10 +13917,17 @@ export function ScheduleTab({
               isCurrentTodo={item.data.id === currentTodoId}
               isNew={item.data.id === justAddedId}
               onToggle={(position) => {
-                if (!item.data.isCompleted) onAwardXP?.(xpActionForDate(item.data.date), item.data.id, position);
-                else revokeTodoXP(item.data.id, position);
-                setTodos((prev) => toggleTodoCompleted(prev, item.data.id));
+                // v338: flourish-mapped completions are held for
+                // the flourish (see requestTodoToggle); everything
+                // else runs this body immediately, unchanged.
+                requestTodoToggle(item.data, () => {
+                  if (!item.data.isCompleted) onAwardXP?.(xpActionForDate(item.data.date), item.data.id, position);
+                  else revokeTodoXP(item.data.id, position);
+                  setTodos((prev) => toggleTodoCompleted(prev, item.data.id));
+                });
               }}
+              completionPending={pendingTodoIds.has(item.data.id)}
+              onFlushCompletion={() => flushPendingTodoWrite(item.data.id)}
               liveNow={clockNow}
               showActiveNow={Boolean(isToday && item.data.startTime && !item.data.isCompleted && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id)}
               onToggleSubtask={(subtaskId, position) => {
@@ -13824,6 +13947,8 @@ export function ScheduleTab({
                     {
                       text: 'Delete',
                       onPress: () => {
+                        // v338: a deleted todo's held write dies with it.
+                        cancelPendingTodoWrite(item.data.id);
                         setTodos((prev) => removeScheduleTodo(prev, item.data.id));
                       },
                       style: 'destructive',

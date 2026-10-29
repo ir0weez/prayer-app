@@ -20,11 +20,17 @@
 // The flourish is keyed to the TOGGLE EVENT, not to row identity:
 // checking a todo moves it out of the timed flow into the completed
 // section, so the row component may remount mid-animation. The
-// toggle handlers emit an event on this bus with the checkbox's
-// measured window position; components/todo-flourish-overlay.tsx
-// (mounted once at the app root, beside the XP floater) renders the
-// burst there, independent of what the list does. The row's own
-// settle (jolt / sink / crumple) rides a local wrapper in the row.
+// toggle handlers emit an event on this bus with the press's window
+// position; components/todo-flourish-overlay.tsx (mounted once at
+// the app root, beside the XP floater) renders the burst there,
+// independent of what the list does. The row's own settle
+// (jolt / sink / crumple) rides a local wrapper in the row.
+//
+// v338 sequencing: for mapped todos the completion WRITE itself is
+// held for TODO_FLOURISH_DURATION_MS (see todoCompletionShouldDefer
+// and ScheduleTab's pending writes), so the burst AND the settle
+// play on the row still sitting in its flow slot; the row drops to
+// the completed section only when the held write lands.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type TodoFlourishId =
@@ -35,7 +41,8 @@ export type TodoFlourishId =
   | "brush-teeth"
   | "photo"
   | "app-update"
-  | "trash";
+  | "trash"
+  | "read";
 
 /** How the row itself settles after the burst. "none" = burst only. */
 export type TodoSettleKind = "jolt" | "sink" | "crumple" | "none";
@@ -53,6 +60,8 @@ export const TODO_FLOURISH_SETTLE: Record<TodoFlourishId, TodoSettleKind> = {
   photo: "none",
   "app-update": "jolt",
   trash: "crumple",
+  // Read settles with the standard quick jolt after its page flip.
+  read: "jolt",
 };
 
 /**
@@ -103,10 +112,26 @@ export function todoFlourishForTitle(title: string): TodoFlourishId | null {
   // Trash / Take Out Trash
   if (t.includes("trash")) return "trash";
 
+  // Read — word boundary, so "Ready" / "Reading" / "Bread" never
+  // fire it (added in v338; Jonathan tapped Read expecting one).
+  if (/\bread\b/.test(t)) return "read";
+
   // Break — word boundary: "Break", "Take a break"; never "Breakfast".
   if (/\bbreak\b/.test(t)) return "break";
 
   return null;
+}
+
+/**
+ * v338 — the sequencing decision, kept pure so it can be pinned:
+ * a flourish-MAPPED todo's completion write waits out its flourish
+ * (the row stays in place, visually completing, until the hold
+ * ends). Everything else — unchecking, quiet titles, unmatched
+ * titles — writes instantly, exactly as before.
+ */
+export function todoCompletionShouldDefer(todo: { title: string; isCompleted: boolean }): boolean {
+  if (todo.isCompleted) return false;
+  return todoFlourishForTitle(todo.title) !== null;
 }
 
 // ─── The shared particle kit ────────────────────────────────────────────────
@@ -125,7 +150,8 @@ export type TodoFlourishParticleKind =
   | "flash-star" // camera flash starburst
   | "twinkle" // small late sparkle
   | "chevron" // up-chevron pip rocketing up
-  | "paper-bit"; // crumpled paper fluttering down with sway
+  | "paper-bit" // crumpled paper fluttering down with sway
+  | "page-corner"; // a small paper page whose corner flips over
 
 export type TodoFlourishTone =
   | "milk"
@@ -244,6 +270,17 @@ export const TODO_FLOURISH_PARTICLES: Record<TodoFlourishId, TodoFlourishParticl
     { kind: "paper-bit", tone: "paper", ox: 92, oy: -22, dx: 0, dy: 32, size: 10, delay: 0.03, span: 0.5, rotate: -140, sway: 10 },
     { kind: "paper-bit", tone: "paper", ox: 160, oy: -22, dx: 0, dy: 32, size: 14, delay: 0.06, span: 0.5, rotate: 200, sway: -8 },
     { kind: "paper-bit", tone: "paper", ox: 228, oy: -22, dx: 0, dy: 32, size: 9, delay: 0.09, span: 0.5, rotate: -90, sway: 14 },
+  ],
+
+  // 9 · Read (v338) — page-corner sparks: a small paper page-corner
+  // flips at the checkbox while a few spark bits burst off it in
+  // the todo's own colour, then the row jolts (see the settle map).
+  read: [
+    { kind: "page-corner", tone: "foam-white", ox: 0, oy: 0, dx: 0, dy: 0, size: 17, delay: 0, span: 0.5 },
+    { kind: "spark", tone: "todo", ox: -6, oy: 0, dx: 0, dy: -34, size: 13, delay: 0.1, span: 0.3 },
+    { kind: "spark", tone: "todo", ox: 5, oy: 0, dx: 0, dy: -42, size: 15, delay: 0.16, span: 0.3 },
+    { kind: "spark", tone: "todo", ox: 13, oy: 0, dx: 0, dy: -30, size: 11, delay: 0.22, span: 0.3 },
+    { kind: "twinkle", tone: "twinkle", ox: 20, oy: -18, dx: 0, dy: 0, size: 10, delay: 0.3, span: 0.26, rotate: 80 },
   ],
 };
 

@@ -88,7 +88,9 @@ describe("v337 — the keyword → flourish mapping (his real todos)", () => {
   });
 
   it("unmatched todos keep today's plain behaviour (null)", () => {
-    for (const title of ["Plan", "Plan Day", "Read", "Ukulele", "Gardening", "Answer Question", "Ten Chapters", "Deodorant", "Ring"]) {
+    // v338: "Read" moved OUT of this set — it has its own flourish
+    // now (page-corner sparks). Plan, Ukulele, Ten Chapters stay null.
+    for (const title of ["Plan", "Plan Day", "Ukulele", "Gardening", "Answer Question", "Ten Chapters", "Deodorant", "Ring"]) {
       expect(todoFlourishForTitle(title), title).toBeNull();
     }
     expect(todoFlourishForTitle("")).toBeNull();
@@ -117,7 +119,9 @@ describe("v337 — the settle map", () => {
   });
 
   it("everything else jolts", () => {
-    const jolted: TodoFlourishId[] = ["feed", "duolingo", "caffeine", "brush-teeth", "app-update"];
+    // v338: "read" joins the jolt family (its page flip lands, then
+    // the standard quick jolt settle).
+    const jolted: TodoFlourishId[] = ["feed", "duolingo", "caffeine", "brush-teeth", "app-update", "read"];
     for (const id of jolted) expect(TODO_FLOURISH_SETTLE[id], id).toBe("jolt");
   });
 
@@ -211,7 +215,9 @@ describe("v337 — source pins: one-shot, native driver, wired to the toggles", 
     expect(schedule).toContain("todoFlourishForTitle(todo.title)");
     expect(schedule).toContain("if (!todo.isCompleted) fireRowFlourish(position)");
     expect(schedule).toContain("if (!subtask.isCompleted) fireSubtaskFlourish(subtask, position)");
-    expect(schedule).toContain("firePairFlourish(t)");
+    // v338: the pair press now hands its position over for the
+    // synchronous emit — same seat, wider call.
+    expect(schedule).toContain("firePairFlourish(t, position)");
     expect(schedule).toContain("emitTodoFlourish");
   });
 

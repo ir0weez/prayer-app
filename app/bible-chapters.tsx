@@ -14,6 +14,11 @@
 // status-chip legend is retired and only the ✎ notes-source door
 // stays. v305's ReadingProgressCard and reset stand exactly as
 // shipped.
+// v322 (his ruling, 2026-10-28 20:12): the sections re-sort by
+// channel — Finished now counts the READ ones only (Genesis sat
+// there at 50 of 50 written, 0 read), and writing-complete books
+// get their own Written section. The grouping itself lives in
+// groupBooksByStudy; this screen only renders its four sections.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -161,9 +166,11 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     };
   }, []);
 
-  // v222: all 66 books, three sections, from the study store alone.
-  // Before the store loads, the seed state puts every book in Not
-  // Started, so the list is complete from the first paint.
+  // v222: all 66 books, from the study store alone. v322: FOUR
+  // sections — Finished (fully read) and Written (fully written)
+  // split by channel, then Current and Not Started. Before the
+  // store loads, the seed state puts every book in Not Started,
+  // so the list is complete from the first paint.
   const effectiveState = studyState ?? seedStudyState();
   const groups = useMemo(() => groupBooksByStudy(effectiveState, CANON), [effectiveState]);
   // v305: the READING aggregate over the same state — the v228 read
@@ -171,9 +178,9 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   // track from the study counts the sections and rows below carry.
   const reading = useMemo(() => readingTotals(effectiveState, CANON), [effectiveState]);
   // v241: the canon is 66 books — a grouping with zero books across
-  // all three sections is impossible in a healthy build, so it gets a
+  // all four sections is impossible in a healthy build, so it gets a
   // visible word (below) instead of an empty page.
-  const totalBooks = groups.current.length + groups.finished.length + groups.notStarted.length;
+  const totalBooks = groups.current.length + groups.finished.length + groups.written.length + groups.notStarted.length;
   const possessive = labels?.possessive ?? 'Your';
   const sourceLabel = labels?.sourceLabel ?? 'Handwritten notes';
 
@@ -329,6 +336,13 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
           <Text style={[styles.subhead, { color: palette.inkSoft }]}>Finished</Text>
         ) : null}
         {groups.finished.map(renderBookRow)}
+
+        {/* v322: writing-complete books keep a section of their
+            own, right under Finished — same header treatment. */}
+        {groups.written.length ? (
+          <Text style={[styles.subhead, { color: palette.inkSoft }]}>Written</Text>
+        ) : null}
+        {groups.written.map(renderBookRow)}
 
         {groups.notStarted.length ? (
           <Text style={[styles.subhead, { color: palette.inkSoft }]}>Not Started</Text>

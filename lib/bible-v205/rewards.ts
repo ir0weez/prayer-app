@@ -118,30 +118,53 @@ export function bibleIsFinished(state: StudyState, imports: StudioImportsMap = {
 }
 
 /**
- * v222 — the Books view's three sections, as one pure function so the
- * grouping is pin-able without rendering:
- *   Current    — the study store's currentBook first (unless finished),
- *                then every other book with ≥1 chapter carrying any
- *                state, not finished, in canonical Bible order.
- *   Finished   — every book finished by its applicable rule (v233:
- *                notes-Complete, or all-Read for a book with no noted
- *                chapters), in canonical order.
+ * v222 — the Books view's sections, as one pure function so the
+ * grouping is pin-able without rendering.
+ * v322 — HIS RULING (2026-10-28 20:12, screenshot 10866): "Shouldn't
+ * finished in the app only count the 'read' ones?" Under v222/v233
+ * the Finished section listened to the WRITING channel — Genesis sat
+ * there at "50 of 50 written" with 0 of 50 read. His pick from the
+ * options put to him: Finished = fully read; writing gets its own
+ * section. The sections are now:
+ *   Finished   — every chapter carries a READ mark (the v305 read
+ *                track: bookReadCount == chapter count), in canonical
+ *                order. A book both fully written and fully read
+ *                lands here only.
+ *   Written    — every chapter's notes are Complete (the writing
+ *                channel, bookIsComplete) but the book is not fully
+ *                read, in canonical order.
+ *   Current    — the study store's currentBook first (unless it
+ *                landed in Finished or Written), then every other
+ *                book with ≥1 chapter carrying any state, in
+ *                canonical Bible order.
  *   Not Started — no chapter states at all, in canonical order.
- * Every book in canon lands in exactly one section. A book carrying only
- * a 'not-started' override counts as having a state (it was deliberately
- * marked), so it lands in Current, not Not Started.
+ * Precedence: Finished (read) > Written > Current / Not Started —
+ * every book in canon lands in exactly one section (the pinned
+ * currentBook is also lifted out of Not Started, which the v222
+ * code could double-list). A book carrying only a 'not-started'
+ * override counts as having a state (it was deliberately marked),
+ * so it lands in Current, not Not Started.
+ * This grouping is the PAGE's alone: the v233 finish rules
+ * (bookIsFinished / bibleIsFinished) still govern the XP awards and
+ * are untouched, and `imports` is retained in the signature for
+ * compatibility — it no longer decides section membership.
  */
 export function groupBooksByStudy(
   state: StudyState,
   canon: string[],
   imports: StudioImportsMap = {},
-): { current: string[]; finished: string[]; notStarted: string[] } {
+): { current: string[]; finished: string[]; written: string[]; notStarted: string[] } {
   const finished: string[] = [];
+  const written: string[] = [];
   const progressed: string[] = [];
   const notStarted: string[] = [];
   for (const book of canon) {
-    if (bookIsFinished(state, book, imports)) {
+    if (bookAllRead(state, book)) {
       finished.push(book);
+      continue;
+    }
+    if (bookIsComplete(state, book)) {
+      written.push(book);
       continue;
     }
     const total = chapterCountFor(book);
@@ -155,13 +178,22 @@ export function groupBooksByStudy(
     (hasState ? progressed : notStarted).push(book);
   }
   const current: string[] = [];
-  if (state.currentBook && !finished.includes(state.currentBook)) {
+  if (
+    state.currentBook &&
+    !finished.includes(state.currentBook) &&
+    !written.includes(state.currentBook)
+  ) {
     current.push(state.currentBook);
   }
   for (const book of progressed) {
     if (book !== state.currentBook) current.push(book);
   }
-  return { current, finished, notStarted };
+  return {
+    current,
+    finished,
+    written,
+    notStarted: notStarted.filter((book) => !current.includes(book)),
+  };
 }
 
 export function bibleIsComplete(state: StudyState): boolean {

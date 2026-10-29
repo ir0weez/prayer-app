@@ -336,6 +336,8 @@ describe('v241 — wiring pins', () => {
   it('the zero-books guard is computed and rendered on the Books screen', () => {
     const src = read('app/bible-chapters.tsx');
     expect(src).toContain('totalBooks === 0');
-    expect(src).toContain('groups.current.length + groups.finished.length + groups.notStarted.length');
+    // v322 re-base: the guard sums all FOUR sections now — the
+    // Written section (writing-complete books) counts too.
+    expect(src).toContain('groups.current.length + groups.finished.length + groups.written.length + groups.notStarted.length');
   });
 });

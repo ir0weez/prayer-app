@@ -440,18 +440,20 @@ describe('v222 WS2 — the studio pack door', () => {
   });
 });
 
-describe('v222 WS3 — Books list: all 66, three sections', () => {
+describe('v222 WS3 — Books list: all 66, sections (v322: four, split by channel)', () => {
   const canon = Object.keys(CHAPTER_COUNTS);
 
   it('a fresh state puts every book in Not Started, exactly once', () => {
     const groups = groupBooksByStudy(seedStudyState(), canon);
     expect(groups.current).toEqual([]);
     expect(groups.finished).toEqual([]);
+    // v322: the Written section exists and starts empty too.
+    expect(groups.written).toEqual([]);
     expect(groups.notStarted).toEqual(canon);
     expect(new Set(groups.notStarted).size).toBe(66);
   });
 
-  it('a fixture exercising all three sections: currentBook first, Write-only book in Current, finished book in Finished, untouched book in Not Started', () => {
+  it('a fixture exercising the sections: currentBook first, Write-only book in Current, writing-complete book in Written, untouched book in Not Started', () => {
     let state = seedStudyState();
     state = setCurrentBook(state, 'Leviticus');
     state = setChapterStatus(state, 'Leviticus', 1, 'complete');
@@ -462,9 +464,13 @@ describe('v222 WS3 — Books list: all 66, three sections', () => {
     const groups = groupBooksByStudy(state, canon);
     expect(groups.current[0]).toBe('Leviticus');
     expect(groups.current).toContain('Colossians');
-    expect(groups.finished).toContain('Mark');
+    // v322 re-base (his ruling, 2026-10-28 20:12): Finished counts
+    // the READ ones only — Mark is complete on the WRITING track
+    // with zero read marks, so it lands in Written, not Finished.
+    expect(groups.written).toContain('Mark');
+    expect(groups.finished).not.toContain('Mark');
     expect(groups.notStarted).toContain('Ruth');
-    const all = [...groups.current, ...groups.finished, ...groups.notStarted];
+    const all = [...groups.current, ...groups.finished, ...groups.written, ...groups.notStarted];
     expect(all).toHaveLength(66);
     expect(new Set(all).size).toBe(66);
     expect([...all].sort()).toEqual([...canon].sort());
@@ -473,14 +479,17 @@ describe('v222 WS3 — Books list: all 66, three sections', () => {
     expect(afterPinned).toEqual([...afterPinned].sort((a, b) => canon.indexOf(a) - canon.indexOf(b)));
   });
 
-  it('a finished currentBook lands in Finished, not Current', () => {
+  it('a writing-complete currentBook lands in Written, not Current (v322: Finished is read-only)', () => {
     let state = seedStudyState();
     state = setCurrentBook(state, 'Mark');
     for (let c = 1; c <= CHAPTER_COUNTS['Mark']; c++) {
       state = setChapterStatus(state, 'Mark', c, 'complete');
     }
     const groups = groupBooksByStudy(state, canon);
-    expect(groups.finished).toContain('Mark');
+    // v322 re-base: under v222 this fixture read "finished" via the
+    // writing channel; Finished is the read channel's now.
+    expect(groups.written).toContain('Mark');
+    expect(groups.finished).not.toContain('Mark');
     expect(groups.current).not.toContain('Mark');
   });
 
@@ -492,11 +501,13 @@ describe('v222 WS3 — Books list: all 66, three sections', () => {
     expect(groups.notStarted).not.toContain('Ruth');
   });
 
-  it('the Books view renders the three sections and the row furniture', () => {
+  it('the Books view renders the sections and the row furniture', () => {
     const src = readFileSync(join(process.cwd(), 'app', 'bible-chapters.tsx'), 'utf8');
     expect(src).toContain('groupBooksByStudy');
     expect(src).toContain('>Current<');
     expect(src).toContain('>Finished<');
+    // v322: writing gets its own section header on the page.
+    expect(src).toContain('>Written<');
     expect(src).toContain('>Not Started<');
     expect(src).toContain('CurrentPill');
     expect(src).toContain('✎ on paper');

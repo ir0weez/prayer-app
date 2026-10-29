@@ -175,7 +175,7 @@ import {
   getCurrentFastDay,
   normalizeFastDateInput,
   parseIsoDateFromMmDdYyyy,
-  normalizeFastsForStorage,
+  parseStoredFasts,
   type FastDayStatus,
   type FastType,
   type PersonalFast,
@@ -1529,7 +1529,17 @@ export default function HomeScreen() {
         setStreakRecord(parseStoredStreak(storedStreak));
         setSettings(parseStoredSettings(storedSettings));
         setProfile(parseStoredProfile(storedProfile));
-        if (storedFasts) setFasts(normalizeFastsForStorage(JSON.parse(storedFasts)));
+        if (storedFasts) {
+          // v326: heal-and-persist, same as Profile's load — when
+          // normalization repairs a stored record, the healed array
+          // is written back once so no reader of the key keeps the
+          // malformed value.
+          const stored = parseStoredFasts(storedFasts);
+          setFasts(stored.fasts);
+          if (stored.healedJson) {
+            AsyncStorage.setItem(FASTS_STORAGE_KEY, stored.healedJson).catch(() => undefined);
+          }
+        }
         if (storedScheduleTodos) setScheduleTodos(JSON.parse(storedScheduleTodos));
         if (storedJournal) setJournal(normalizePrayerJournalEntries(JSON.parse(storedJournal)));
         if (storedReachedStamps) setReachedStamps(normalizeReachedStamps(JSON.parse(storedReachedStamps)));
@@ -1577,7 +1587,13 @@ export default function HomeScreen() {
             }
           }
           if (storedFasts) {
-            setFasts(normalizeFastsForStorage(JSON.parse(storedFasts)));
+            // v326: heal-and-persist, same as the hydration load
+            // above and Profile's load.
+            const stored = parseStoredFasts(storedFasts);
+            setFasts(stored.fasts);
+            if (stored.healedJson) {
+              AsyncStorage.setItem(FASTS_STORAGE_KEY, stored.healedJson).catch(() => undefined);
+            }
           }
           if (storedProfile) {
             setProfile(parseStoredProfile(storedProfile));

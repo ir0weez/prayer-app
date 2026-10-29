@@ -265,6 +265,64 @@ export function createPersonalFast(input: {
   };
 }
 
+export function updatePersonalFast(
+  fast: PersonalFast,
+  updates: {
+    name: string;
+    startDate: string;
+    durationDays: number;
+    type: FastType;
+    focusItems: string[];
+    why?: string;
+  },
+): PersonalFast | null {
+  // v326: the editor save path for an existing fast — the mirror of
+  // createPersonalFast. The Profile editor drafts the start date in
+  // MM-DD-YYYY display format, and this function is where that draft
+  // becomes a stored record, so the date is normalized to ISO here
+  // just as creation normalizes it. The pre-v326 editor branch in
+  // profile.tsx validated with normalizeFastDateInput but stored
+  // the raw draft string ("01-01-2026" instead of "2026-01-01"),
+  // which broke every calendar calculation downstream — the hero
+  // showed "Day 365 · 100%" on a fast at day 301 and the record
+  // counted zero (Jonathan, 2026-10-28). Everything not being
+  // edited (dayStatuses, dailyNotes, summary, id, createdAt) rides
+  // through untouched on the spread.
+  const startDate = normalizeFastDateInput(updates.startDate);
+  if (!startDate) return null;
+  return {
+    ...fast,
+    name: updates.name,
+    startDate,
+    durationDays: updates.durationDays,
+    type: updates.type,
+    focusItems: updates.focusItems,
+    why: updates.why?.trim() ? updates.why.trim() : undefined,
+  };
+}
+
+export function parseStoredFasts(raw: string | null): { fasts: PersonalFast[]; healedJson: string | null } {
+  // v326: the load path for the stored fasts JSON — parse +
+  // normalizeFastsForStorage, plus the healed serialization when
+  // normalization changed anything. Load sites persist healedJson
+  // back to FASTS_STORAGE_KEY once, so a malformed record (e.g. a
+  // display-format startDate stored by the pre-v326 editor) repairs
+  // itself permanently on first open instead of only being healed
+  // in this screen's memory while other readers keep the bad value.
+  // healedJson is null when the stored value already matches the
+  // normalized form (no write needed) or cannot be parsed at all.
+  if (!raw) return { fasts: [], healedJson: null };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { fasts: [], healedJson: null };
+  }
+  const fasts = normalizeFastsForStorage(parsed);
+  const healedJson = JSON.stringify(fasts);
+  return { fasts, healedJson: healedJson !== JSON.stringify(parsed) ? healedJson : null };
+}
+
 export function normalizeFastsForStorage(value: unknown): PersonalFast[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((candidate, index) => {

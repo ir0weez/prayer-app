@@ -52,7 +52,8 @@ import {
   getLastCompletedFastForType,
   isFastCompleted,
   normalizeFastDateInput,
-  normalizeFastsForStorage,
+  parseStoredFasts,
+  updatePersonalFast,
   resetFocusItemsForNewDay,
   type FastDayStatus,
   type FastType,
@@ -220,11 +221,19 @@ export default function ProfileScreen() {
       ])
         .then(([storedProfile, storedFasts, storedBibleStatus]) => {
           if (!isActive) return;
-          let nextFasts = storedFasts ? normalizeFastsForStorage(JSON.parse(storedFasts)) : [];
-           nextFasts = nextFasts.map((fast) => ({
-             ...fast,
-             focusItemDailyStatuses: resetFocusItemsForNewDay(fast.focusItemDailyStatuses, today),
-           }));
+          // v326: heal-and-persist — parse + normalize the stored
+          // fasts, and when normalization repaired anything (a
+          // startDate stored in display format by the pre-v326
+          // editor) write the healed array back once, so the fix
+          // reaches every reader of the key, not just this screen.
+          const stored = parseStoredFasts(storedFasts);
+          if (stored.healedJson) {
+            AsyncStorage.setItem(FASTS_STORAGE_KEY, stored.healedJson).catch(() => undefined);
+          }
+          let nextFasts = stored.fasts.map((fast) => ({
+            ...fast,
+            focusItemDailyStatuses: resetFocusItemsForNewDay(fast.focusItemDailyStatuses, today),
+          }));
           setProfile(parseStoredProfile(storedProfile));
           setFasts(nextFasts);
           setSelectedFastId((current) => current ?? getActiveFast(nextFasts, today)?.id ?? nextFasts[0]?.id ?? null);
@@ -504,16 +513,24 @@ export default function ProfileScreen() {
     }
 
     if (isEditingFast && selectedFast) {
-      // Update existing fast
-      const updatedFast: PersonalFast = {
-        ...selectedFast,
+      // Update existing fast. v326: the record is built by
+      // updatePersonalFast, which stores the NORMALIZED ISO start
+      // date — this branch used to store the raw draft string (the
+      // editor drafts in MM-DD-YYYY), and a fast edited that way
+      // read back as "Day 365 · 100%" with an empty-looking record
+      // (Jonathan, 2026-10-28).
+      const updatedFast = updatePersonalFast(selectedFast, {
         name: draftFastName || `${draftFastDuration}-Day ${draftFastType} Fast`,
         startDate: draftFastStartDate,
         durationDays: draftFastDuration,
-        why: draftFastWhy.trim() || undefined,
+        why: draftFastWhy,
         type: draftFastType,
         focusItems,
-      };
+      });
+      if (!updatedFast) {
+        Alert.alert("Check fast details", "Use MM-DD-YYYY for the start date and choose a duration.");
+        return;
+      }
       const nextFasts = fasts.map((f) => (f.id === selectedFast.id ? updatedFast : f));
       persistFasts(nextFasts);
     } else {

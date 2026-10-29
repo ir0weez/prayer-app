@@ -234,6 +234,7 @@ import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 // v294: TimeOffCard retired from the day — the trip band (time-off-travel) is the day's time-off block now.
 import { syncScheduledEventNotifications } from '@/lib/notification-scheduler';
 import { DailySummaryCard } from "@/components/daily-summary-card";
+import { TopFade } from "@/components/top-fade";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
@@ -14078,6 +14079,19 @@ export function ScheduleTab({
           Under 8-bit (v184) the page is the mockup's dusk world: the
           three-stop indigo gradient + checker dither, behind everything. */}
       {skinTokens.isEightBit ? <BitBackground /> : skinTokens.isTerminal ? <TerminalBackground /> : isSkinned ? <PaperGrainOverlay /> : null}
+      {/* v334: the top fade (his Oct 29 ruling, all pages). It is a
+          visual layer over the scrolling SHEET's top edge only:
+          zIndex 3 seats it above the sheet (1) and the fixed-zone
+          overlay host (2) — whose week strip and reach press seat
+          keep working through it, the fade being pointerEvents
+          "none" — and below the app bar (10). The fixed summary
+          panel (zIndex 0) is content, not a bar: at rest the fade
+          covers only the panel's empty top padding zone, so the
+          panel stays complete and legible, and as the sheet slides
+          over it the sheet's cards dissolve at the top instead of
+          ending in a hard edge. Colour = the ground this root
+          paints. */}
+      <TopFade color={isSkinned ? skinTokens.background ?? colors.background : colors.background} zIndex={3} />
       {/* Pill-style floating header (see-through, like People tab).
           v308 (Classic): the bar rides the header block's slide
           (headerSlideY) — it translates up and off the top edge

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, findNodeHandle, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { TopFade } from "@/components/top-fade";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 import { PaperSettle } from "@/components/paper-motion";
 import { BitSettle } from "@/components/bit-motion";
@@ -800,6 +801,11 @@ export default function ProfileScreen() {
           </>
         ) : null}
       </ScrollView>
+      {/* v334: the top fade (his Oct 29 ruling, all pages) — the
+          profile dissolves under its own ground at the top edge.
+          The pickers and sheets after this are Modals and paint
+          in their own windows, above the fade. */}
+      <TopFade color={skinTokens.background ?? colors.background} />
       <AvatarPicker visible={showAvatarPicker} initialAvatarAsset={profile.avatarAsset} unlockedBookIds={unlockedBookIds} onClose={() => setShowAvatarPicker(false)} onUpload={handleUploadProfileAvatar} onSelect={handleSelectProfileAvatar} />
 
       {/* v276 day sheet — a Material bottom sheet (28px top radius,

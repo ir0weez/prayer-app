@@ -72,6 +72,7 @@ import { BookReadingThread, StudyProgressHeader } from '@/components/bible-v205/
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
+import { TopFade } from '@/components/top-fade';
 import {
   handwrittenNoteFor,
   loadHandwritten,
@@ -308,7 +309,8 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.page}>
+      <View style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.page}>
         <View style={styles.vhead}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
           <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{possessive} Books</Text>
@@ -389,6 +391,11 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
             bar's clearance once — only the breathing room stays. */}
         <View style={{ height: inPane ? 27 : tabBarHeight + 27 }} />
       </ScrollView>
+      {/* v334: the top fade (his Oct 29 ruling, all pages) — the
+          list dissolves under the Bible palette's paper at the top
+          of the scroll view, below the fixed topbar. */}
+      <TopFade color={palette.paper} />
+      </View>
 
         <Modal visible={labelEditor} transparent animationType="fade" onRequestClose={() => setLabelEditor(false)}>
           <Pressable style={styles.scrim} onPress={() => setLabelEditor(false)} />

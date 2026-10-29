@@ -23,6 +23,7 @@ import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { PrayerSession } from "@/components/prayer-session";
 import { AttentionBell } from "@/components/attention-bell";
 import { AppTabBar, useTabBarOccupiedHeight, type AppNavTab } from "@/components/app-tab-bar";
+import { TopFade } from "@/components/top-fade";
 import { ScheduleFabHost } from "@/components/schedule-fab-host";
 import { BiblePane } from "@/components/bible-pane";
 import {
@@ -3983,6 +3984,13 @@ export default function HomeScreen() {
         removeClippedSubviews={false}
         keyboardShouldPersistTaps="handled"
       />
+      {/* v334: the top fade — the roster dissolves under the page's
+          own ground colour at the top edge instead of cutting off
+          hard (his Oct 29 ruling, all pages). The colour is the
+          very ground this screen paints: the front-door family's
+          ground under Classic, the skin token background (or the
+          palette's) under a skin. */}
+      <TopFade color={isClassicSkin ? pmf.ground : skinTokens.background ?? colors.background} />
     </View>
   );
 
@@ -4935,6 +4943,7 @@ export default function HomeScreen() {
     };
 
     return (
+    <View style={{ flex: 1 }}>
     <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: sm.ground }} contentContainerStyle={styles.settingsContent}>
       {/* The app bar — the drawing's v5 form: tonal back tile +
           title, nothing else (the build lives in the App group). */}
@@ -5218,6 +5227,9 @@ export default function HomeScreen() {
         </PaperSettle>
       </View>
     </ScrollView>
+    {/* v334: the top fade, in the settings ground this page paints. */}
+    <TopFade color={sm.ground} />
+    </View>
     );
   };
 
@@ -5476,6 +5488,9 @@ export default function HomeScreen() {
         {activeTab === "more" && (
           <View style={{ flex: 1 }}>
             {renderMoreScreen()}
+            {/* v334: the top fade over the hub (and its Families
+                state — both scroll views paint the same ground). */}
+            <TopFade color={isSkinned ? skinTokens.background ?? colors.background : pm.ground} />
           </View>
         )}
         {/* v265: the Study pane — the shell's one keep-alive pane.

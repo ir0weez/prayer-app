@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { TopFade } from "@/components/top-fade";
 import { AvatarImage } from "@/components/avatar-system";
 import { PaperSettle } from "@/components/paper-motion";
 import { AnchoredSheet, measureEventAnchor, type AnchorRect } from "@/components/anchored-sheet";
@@ -883,6 +884,7 @@ export default function PersonScreen() {
         </Pressable>
       </View>
 
+      <View style={{ flex: 1 }}>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
         {/* v202: the person's header sheet settles in under Paper. */}
         <PeopleEntrance emphasis>
@@ -1254,6 +1256,13 @@ export default function PersonScreen() {
         )}
 
       </ScrollView>
+      {/* v334: the top fade (his Oct 29 ruling, all pages) — the
+          page dissolves under its own background at the top of the
+          scroll view, below the fixed header bar. Colour = the
+          SCREEN_BG this page paints (the themed palette
+          background). */}
+      <TopFade color={colors.background} />
+      </View>
 
       <Modal transparent visible={showEditModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowEditModal(false)}>
         <View style={styles.modalOverlay}>

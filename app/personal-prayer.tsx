@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { TopFade } from "@/components/top-fade";
+import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
@@ -21,6 +23,7 @@ interface PrayerItem {
 
 export default function PersonalPrayerScreen() {
   const { isSkinned, tokens: skinTokens } = useSkin();
+  const colors = useColors();
   const router = useRouter();
   const [profile, setProfile] = useState<{ personalPrayerItems?: PrayerItem[] } | null>(null);
   const [prayerItems, setPrayerItems] = useState<PrayerItem[]>([]);
@@ -93,6 +96,7 @@ export default function PersonalPrayerScreen() {
         <View style={{ width: 34 }} />
       </View>
 
+      <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         <View style={styles.content}>
           {prayerItems.length === 0 ? (
@@ -142,6 +146,13 @@ export default function PersonalPrayerScreen() {
           )}
         </View>
       </ScrollView>
+      {/* v334: the top fade (his Oct 29 ruling, all pages) — the
+          list dissolves under the page's own ground at the top of
+          the scroll view, below the fixed header. Colour = the
+          ScreenContainer ground (skin token background, else the
+          themed palette background). */}
+      <TopFade color={skinTokens.background ?? colors.background} />
+      </View>
 
       <Pressable onPress={() => setShowAddModal(true)} style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}>
         <MaterialIcons name="add" size={28} color="#FFFFFF" />

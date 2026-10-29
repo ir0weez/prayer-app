@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View, Image, FlatList, Alert, StyleSheet, 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ScreenContainer } from "@/components/screen-container";
+import { TopFade } from "@/components/top-fade";
 import { AnchoredSheet, measureEventAnchor, type AnchorRect } from "@/components/anchored-sheet";
 import { AvatarImage } from "@/components/avatar-system";
 import { sortFamilyMembers, type Person } from "@/lib/prayercircle-data";
@@ -451,6 +452,12 @@ export default function FamilyScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      {/* v334: the top fade (his Oct 29 ruling, all pages) — the
+          page dissolves under its own ground at the top edge; the
+          AnchoredSheet above is a Modal and paints in its own
+          window. Colour = the ScreenContainer ground (skin token
+          background, else the themed palette background). */}
+      <TopFade color={skinTokens.background ?? colors.background} />
     </ScreenContainer>
   );
 }

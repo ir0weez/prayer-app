@@ -33,6 +33,7 @@ import { JournalDay } from "@/components/journal-day";
 import { JournalPost, type JournalAuthor } from "@/components/journal-post";
 import { CalendarSheet, PersonSheet, TagSheet } from "@/components/journal-sheets";
 import { MoodFace } from "@/components/mood-face";
+import { TopFade } from "@/components/top-fade";
 import { PaperSettle, paperPressedLift } from "@/components/paper-motion";
 import { BitSettle, bitPressedSnap } from "@/components/bit-motion";
 import { MOODS, MoodPicker, type JournalMood } from "@/components/mood-picker";
@@ -1005,6 +1006,12 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
           );
         }}
       />
+
+      {/* v334: the top fade (his Oct 29 ruling, all pages) — the
+          feed dissolves under the journal's own ground at the top
+          edge instead of cutting off hard. The composer morph
+          (zIndex 30) and everything after it paint above the fade. */}
+      <TopFade color={(skinTokens.isEightBit || skinTokens.isTerminal) ? skinTokens.background ?? jm.ground : jm.ground} />
 
       {/* v204 — the composer MORPH (his asks, Oct 23). v195–v196's
           always-visible in-flow bar is retired: at rest there is

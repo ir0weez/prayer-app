@@ -51,6 +51,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Easing } from 'react-native-reanimated';
 import type { Person } from '@/lib/prayercircle-data';
+import { TopFade } from '@/components/top-fade';
 import {
   buildDisplaySections,
   buildReadOnlySections,
@@ -701,7 +702,7 @@ export function ChapterPageView(props: ChapterPageProps) {
           ScrollView below opens its content with a spacer of
           exactly that height — the hero can never slide under it. */}
       <View
-        style={[styles.topwrap, { backgroundColor: palette.paper, borderBottomColor: palette.line }]}
+        style={[styles.topwrap, { borderBottomColor: palette.line }]}
         onLayout={(e) => {
           const h = e.nativeEvent.layout.height;
           if (Math.abs(h - headerHRef.current) > 0.5) {
@@ -1183,6 +1184,17 @@ export function ChapterPageView(props: ChapterPageProps) {
             less than the old FAB-clearing 96. */}
         <View style={{ height: Math.max(96, (props.tabBarHeight ?? 0) + 24) }} />
       </ScrollView>
+
+      {/* ── v334: the top fade ── his Oct 29 ruling (all pages):
+          the header's solid paper fill is GONE from the topwrap
+          above — the header text and pills now float over this
+          fade, and the verses dissolve under the Bible palette's
+          paper as they scroll into the header zone instead of
+          vanishing at a hard edge. The fade is exactly the
+          header's measured height and sits below the topwrap
+          (zIndex 30) and above the scroll content; the progress
+          thread still rides the header's bottom edge. */}
+      <TopFade color={palette.paper} height={headerH} zIndex={20} />
 
       {/* ── Verses FAB ── */}
       {!sheet ? (

@@ -5,7 +5,9 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { BadgeCase } from "@/components/badge-case";
+import { TopFade } from "@/components/top-fade";
 import { useColors } from "@/hooks/use-colors";
+import { useSkin } from "@/hooks/use-skin";
 import { loadPrestigeState } from "@/lib/prestige";
 
 /**
@@ -19,6 +21,7 @@ import { loadPrestigeState } from "@/lib/prestige";
 export default function BossBadgesScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { tokens: skinTokens } = useSkin();
   const [ownedBadges, setOwnedBadges] = useState<string[]>([]);
 
   useFocusEffect(
@@ -52,6 +55,11 @@ export default function BossBadgesScreen() {
         </View>
         <BadgeCase ownedBadges={ownedBadges} />
       </ScrollView>
+      {/* v334: the top fade (his Oct 29 ruling, all pages) — the
+          page dissolves under its own ground at the top edge.
+          Colour = the ScreenContainer ground (skin token
+          background, else the themed palette background). */}
+      <TopFade color={skinTokens.background ?? colors.background} />
     </ScreenContainer>
   );
 }

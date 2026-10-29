@@ -1,6 +1,7 @@
 'use client';
 
 import { ScreenContainer } from '@/components/screen-container';
+import { TopFade } from '@/components/top-fade';
 import { useSkin } from '@/hooks/use-skin';
 import { useBudgetMaterial } from '@/hooks/use-budget-material';
 import { useCallback, useState } from 'react';
@@ -687,6 +688,10 @@ export default function BudgetTrackerScreen() {
             <Text style={styles.addPillText}>Add a bill</Text>
           </Pressable>
         </ScrollView>
+        {/* v334: the top fade (his Oct 29 ruling, all pages) — the
+            page dissolves under the budget ground this root paints
+            at the top edge instead of cutting off hard. */}
+        <TopFade color={ground} />
       </View>
 
       {/* Add Bill sheet */}

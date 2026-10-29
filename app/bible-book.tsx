@@ -65,6 +65,7 @@ import {
   useBiblePalette,
 } from '@/components/bible-v205/palette';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
+import { TopFade } from '@/components/top-fade';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 
 /** v311: the sheet's writing-pipeline chips, in the drawing's order
@@ -259,7 +260,8 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.page}>
+      <View style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.page}>
         <View style={styles.vhead}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
           <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{book}</Text>
@@ -463,6 +465,11 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
             bar's clearance once — only the breathing room stays. */}
         <View style={{ height: inPane ? 27 : tabBarHeight + 27 }} />
       </ScrollView>
+      {/* v334: the top fade (his Oct 29 ruling, all pages) — the
+          chapter grid dissolves under the Bible palette's paper at
+          the top of the scroll view, below the fixed topbar. */}
+      <TopFade color={palette.paper} />
+      </View>
 
       {/* v259: same app, same bar — Study is the active slot.
           v265: no per-screen bar in the pane (the shell's stands);

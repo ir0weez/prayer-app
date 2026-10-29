@@ -167,6 +167,20 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studyState, studioImports, book, total]);
 
+  // v324: the countline's "written" is the shared union rule
+  // (rewards.ts chapterIsWritten) — stored Complete OR noted in the
+  // resolved data — so this page's number agrees with the Books
+  // page's countline and its Written section. The grid's display
+  // marks (chapterDisplayMarks) are untouched.
+  const writtenCount = useMemo(() => {
+    let n = 0;
+    for (let c = 1; c <= total; c++) {
+      if (statusOf(c) === 'complete' || chapterHasNotes(book, c, studioImports)) n += 1;
+    }
+    return n;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studyState, studioImports, book, total]);
+
   const selStatus = statusOf(selected);
   const selReadDate = readDateOf(selected);
   const selDisplay = displayOf(selected);
@@ -244,9 +258,9 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
             order — written · read · in hand · chapters (the read
             count rides second, in the read channel's deep step). */}
         <Text style={[styles.countText, { color: palette.inkSoft }]}>
-          {(counts.get('complete') ?? 0) > 0 ? (
+          {writtenCount > 0 ? (
             <>
-              <Text style={[styles.countStrong, { color: palette.ink }]}>{counts.get('complete')} written</Text>
+              <Text style={[styles.countStrong, { color: palette.ink }]}>{writtenCount} written</Text>
               {'  ·  '}
             </>
           ) : null}

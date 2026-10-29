@@ -41,7 +41,7 @@ import {
   setChapterStatus,
   type StudyState,
 } from './study';
-import { bookHasNotedChapters, type StudioImportsMap } from './studio-import';
+import { bookHasNotedChapters, chapterHasNotes, type StudioImportsMap } from './studio-import';
 import type { StudyStatus } from './types';
 
 export interface StatusTransitionResult {
@@ -74,6 +74,59 @@ export function bookIsComplete(state: StudyState, book: string): boolean {
     if (chapterStatus(state, book, c) !== 'complete') return false;
   }
   return true;
+}
+
+/**
+ * v324 — HIS WORDS (2026-10-28 21:00): "I have multiple entire books
+ * finished with notes." The v322 Written section listened only to
+ * the stored Complete status — Studio-pipeline bookkeeping stamped
+ * on just Genesis/Deuteronomy/Joshua — while the shipped commentary
+ * data carries whole books noted cover to cover whose chapters
+ * never got the stamp (1 Corinthians: 16 of 16 noted, 0 stamped).
+ * Under his model (2026-10-24) a Complete claim is a claim about
+ * NOTES, so a chapter counts as WRITTEN when its stored status is
+ * Complete OR the resolved chapter data (shipped + studio imports)
+ * carries his notes. Section membership and every printed written
+ * count share this one per-chapter rule, so a book showing
+ * "16 of 16 written" is the same book that lands in Written. The
+ * XP finish rules (bookIsFinished / bibleIsFinished) are NOT this
+ * rule and stay untouched — this is display grouping only.
+ */
+export function chapterIsWritten(
+  state: StudyState,
+  book: string,
+  chapter: number,
+  imports: StudioImportsMap = {},
+): boolean {
+  return (
+    chapterStatus(state, book, chapter) === 'complete' ||
+    chapterHasNotes(book, chapter, imports)
+  );
+}
+
+/** v324: how many of the book's chapters count as written (above). */
+export function bookWrittenCount(
+  state: StudyState,
+  book: string,
+  imports: StudioImportsMap = {},
+): number {
+  const total = chapterCountFor(book);
+  let n = 0;
+  for (let c = 1; c <= total; c++) {
+    if (chapterIsWritten(state, book, c, imports)) n += 1;
+  }
+  return n;
+}
+
+/** v324: every chapter of the book counts as written (above). */
+export function bookIsWritten(
+  state: StudyState,
+  book: string,
+  imports: StudioImportsMap = {},
+): boolean {
+  const total = chapterCountFor(book);
+  if (!total) return false;
+  return bookWrittenCount(state, book, imports) === total;
 }
 
 /** v233: every chapter of the book carries a read mark. */
@@ -130,9 +183,11 @@ export function bibleIsFinished(state: StudyState, imports: StudioImportsMap = {
  *                track: bookReadCount == chapter count), in canonical
  *                order. A book both fully written and fully read
  *                lands here only.
- *   Written    — every chapter's notes are Complete (the writing
- *                channel, bookIsComplete) but the book is not fully
- *                read, in canonical order.
+ *   Written    — every chapter counts as written but the book is
+ *                not fully read, in canonical order. v324: "counts
+ *                as written" is the union rule (bookIsWritten —
+ *                stored Complete OR noted in the resolved data),
+ *                not the stored status alone.
  *   Current    — the study store's currentBook first (unless it
  *                landed in Finished or Written), then every other
  *                book with ≥1 chapter carrying any state, in
@@ -146,8 +201,10 @@ export function bibleIsFinished(state: StudyState, imports: StudioImportsMap = {
  * so it lands in Current, not Not Started.
  * This grouping is the PAGE's alone: the v233 finish rules
  * (bookIsFinished / bibleIsFinished) still govern the XP awards and
- * are untouched, and `imports` is retained in the signature for
- * compatibility — it no longer decides section membership.
+ * are untouched. `imports` decides membership again under v324 —
+ * through chapterHasNotes, so a book living only in studio imports
+ * (Leviticus, no bundled file) counts its notes exactly as shipped
+ * data does.
  */
 export function groupBooksByStudy(
   state: StudyState,
@@ -163,7 +220,7 @@ export function groupBooksByStudy(
       finished.push(book);
       continue;
     }
-    if (bookIsComplete(state, book)) {
+    if (bookIsWritten(state, book, imports)) {
       written.push(book);
       continue;
     }

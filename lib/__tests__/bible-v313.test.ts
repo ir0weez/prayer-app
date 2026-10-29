@@ -67,7 +67,9 @@ describe('v313 — the chapter box is inline, not a sheet', () => {
 describe('v313 — the fidelity pass on the other surfaces', () => {
   it('Books: the counts lead says "written" (the drawing’s word)', () => {
     const chapters = read('app/bible-chapters.tsx');
-    expect(chapters).toContain('parts.push(`${complete} of ${total} written`)');
+    // v324 re-base: the lead count is the union written count
+    // (stored Complete OR noted), not the status tally alone.
+    expect(chapters).toContain('parts.push(`${writtenCount} of ${total} written`)');
   });
 
   it('Queue: the bands carry the drawing’s names', () => {

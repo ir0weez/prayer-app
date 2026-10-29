@@ -47,12 +47,23 @@ function fullyRead(state: StudyState, book: string): StudyState {
 }
 
 describe('v322 — Books sections: Finished counts the read ones', () => {
-  it('a fresh state: nothing Finished, nothing Written, all 66 Not Started', () => {
+  it('a fresh state: nothing Finished; Written holds the fully-noted books (v324 re-base)', () => {
+    // v324 re-base (his words, 2026-10-28 21:00 — "I have multiple
+    // entire books finished with notes"): under v322's status-only
+    // rule this fixture read nothing-Written / all-Not-Started.
+    // Written now seats every book noted cover to cover in the
+    // shipped data — the exact list is pinned in
+    // bible-v324-written.test.ts.
     const groups = groupBooksByStudy(seedStudyState(), canon);
     expect(groups.finished).toEqual([]);
-    expect(groups.written).toEqual([]);
     expect(groups.current).toEqual([]);
-    expect(groups.notStarted).toEqual(canon);
+    expect(groups.written).toContain('Genesis');
+    expect(groups.written).toContain('1 Corinthians');
+    expect(groups.notStarted).not.toContain('1 Corinthians');
+    const all = [...groups.current, ...groups.finished, ...groups.written, ...groups.notStarted];
+    expect(all).toHaveLength(66);
+    expect(new Set(all).size).toBe(66);
+    expect([...all].sort()).toEqual([...canon].sort());
   });
 
   it('the Genesis shape — fully written, 0 read — lands in Written, NOT Finished', () => {

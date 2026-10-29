@@ -19,6 +19,13 @@
 // there at 50 of 50 written, 0 read), and writing-complete books
 // get their own Written section. The grouping itself lives in
 // groupBooksByStudy; this screen only renders its four sections.
+// v324 (his words, 2026-10-28 21:00 — "I have multiple entire books
+// finished with notes"): Written membership and the rows' written
+// counts now follow the union rule (rewards.ts chapterIsWritten —
+// stored Complete OR notes in the resolved data, studio imports
+// included). The screen loads the imports map on focus and hands
+// it to both the grouping and every row, so the count a row prints
+// and the section it sits in are the same fact.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -41,6 +48,11 @@ import {
   type StudyState,
 } from '@/lib/bible-v205/study';
 import { bookIsComplete, groupBooksByStudy } from '@/lib/bible-v205/rewards';
+import {
+  chapterHasNotes,
+  loadStudioImports,
+  type StudioImportsMap,
+} from '@/lib/bible-v205/studio-import';
 import {
   bookReadCount,
   readingTotals,
@@ -114,6 +126,10 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   // the list's foot spacer clears it by its occupied height.
   const tabBarHeight = useTabBarOccupiedHeight();
   const [studyState, setStudyState] = useState<StudyState | null>(null);
+  // v324: the studio imports map rides the same focus reload as the
+  // study state — an import landed from Settings changes which
+  // chapters carry notes, hence Written membership and row counts.
+  const [studioImports, setStudioImports] = useState<StudioImportsMap>({});
   const [labels, setLabels] = useState<UserLabels | null>(null);
   const [handwritten, setHandwritten] = useState<HandwrittenEntry[]>([]);
   const [labelEditor, setLabelEditor] = useState(false);
@@ -128,6 +144,7 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   const reloadStudyState = useCallback(() => {
     let live = true;
     loadStudyState().then((s) => live && setStudyState(s));
+    loadStudioImports().then((m) => live && setStudioImports(m));
     return () => {
       live = false;
     };
@@ -168,11 +185,15 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
 
   // v222: all 66 books, from the study store alone. v322: FOUR
   // sections — Finished (fully read) and Written (fully written)
-  // split by channel, then Current and Not Started. Before the
-  // store loads, the seed state puts every book in Not Started,
-  // so the list is complete from the first paint.
+  // split by channel, then Current and Not Started. v324: Written
+  // also reads the resolved notes data (imports included), so the
+  // fully-noted books seat there from the first paint — the seed
+  // state no longer puts every book in Not Started.
   const effectiveState = studyState ?? seedStudyState();
-  const groups = useMemo(() => groupBooksByStudy(effectiveState, CANON), [effectiveState]);
+  const groups = useMemo(
+    () => groupBooksByStudy(effectiveState, CANON, studioImports),
+    [effectiveState, studioImports],
+  );
   // v305: the READING aggregate over the same state — the v228 read
   // track counted by lib/bible-v205/reading-progress, a different
   // track from the study counts the sections and rows below carry.
@@ -201,6 +222,7 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
       palette={palette}
       paperNote={paperNoteFor(book)}
       notesCount={notesChapterCount(book)}
+      imports={studioImports}
       onPress={() => openBook(book)}
       onMakeCurrent={makeCurrent}
     />
@@ -509,6 +531,7 @@ function BookRow({
   palette,
   paperNote,
   notesCount,
+  imports,
   onPress,
   onMakeCurrent,
 }: {
@@ -519,27 +542,40 @@ function BookRow({
   /** Chapters carrying his commentary — the signal the old "Chapter
    * notes" section used to carry, now on the row itself. */
   notesCount: number;
+  /** v324: the studio imports the written count resolves against. */
+  imports: StudioImportsMap;
   onPress: () => void;
   onMakeCurrent: (book: string) => void;
 }) {
-  // v206: counts run over the book's full chapter count, from app
-  // states only — the v205 CSV "tracked subset" (Psalms 40) is gone.
+  // v206: counts run over the book's full chapter count — the v205
+  // CSV "tracked subset" (Psalms 40) is gone.
+  // v324: the WRITTEN count is the union rule (rewards.ts
+  // chapterIsWritten): a chapter counts when its stored status is
+  // Complete OR the resolved chapter data (shipped + imports)
+  // carries his notes — the same rule that seats the book in the
+  // Written section, so the countline and the section never
+  // disagree. The other tallies stay pure status facts.
   const total = CHAPTER_COUNTS[book] ?? 0;
-  let complete = 0;
+  let writtenCount = 0;
   let prog = 0;
+  let progOpen = 0;
   let write = 0;
   let notStarted = 0;
-  if (studyState) {
-    for (let c = 1; c <= total; c++) {
-      const s = chapterStatus(studyState, book, c);
-      if (s === 'complete') complete++;
-      else if (s === 'in-progress') prog++;
-      else if (s === 'write') write++;
-      else if (s === 'not-started') notStarted++;
-    }
+  for (let c = 1; c <= total; c++) {
+    const s = studyState ? chapterStatus(studyState, book, c) : 'none';
+    const isWritten = s === 'complete' || chapterHasNotes(book, c, imports);
+    if (isWritten) writtenCount++;
+    if (s === 'in-progress') {
+      prog++;
+      // The thread's in-progress segment starts where the written
+      // fill ends; a Writing-now chapter already counted as written
+      // (it carries notes) must not paint twice.
+      if (!isWritten) progOpen++;
+    } else if (s === 'write') write++;
+    else if (s === 'not-started') notStarted++;
   }
-  const pct = total ? Math.round((100 * complete) / total) : 0;
-  const ppct = total ? Math.round((100 * prog) / total) : 0;
+  const pct = total ? Math.round((100 * writtenCount) / total) : 0;
+  const ppct = total ? Math.round((100 * progOpen) / total) : 0;
   // v305: the READING count — the v228 read track, counted on its
   // own (lib/bible-v205/reading-progress), never derived from the
   // study counts above: Leviticus can read 0 complete here while
@@ -549,10 +585,10 @@ function BookRow({
   const parts: string[] = [];
   // v313: the drawing's counts word — "0 of 27 written", his word
   // for the writing track everywhere in the approved drawing.
-  parts.push(`${complete} of ${total} written`);
+  parts.push(`${writtenCount} of ${total} written`);
   if (write) parts.push(`${write} to write`);
   if (prog) parts.push(total === prog ? `all ${prog} in progress` : `${prog} in progress`);
-  if (notStarted && complete === 0 && !write && !prog) parts.push('not started');
+  if (notStarted && writtenCount === 0 && !write && !prog) parts.push('not started');
   if (notesCount) parts.push(`notes in ${notesCount} ${notesCount === 1 ? 'chapter' : 'chapters'}`);
   if (paper) parts.push(paper);
 

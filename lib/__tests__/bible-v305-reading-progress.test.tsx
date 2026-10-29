@@ -220,10 +220,13 @@ describe('v305 — the Books screen wiring (source pins)', () => {
     expect(screen).toContain('<BookReadingThread read={readCount} total={total} palette={palette} />');
   });
 
-  it('the study bar and its counts are unchanged', () => {
+  it('the study bar and its counts follow the written rule (v324: union count)', () => {
     // v313 re-base: the counts lead takes the drawing's word —
     // "written" (was "complete"); the bar itself is untouched.
-    expect(screen).toContain('parts.push(`${complete} of ${total} written`)');
+    // v324 re-base: the lead count is no longer the stored-Complete
+    // tally — it is the union count (stored Complete OR noted,
+    // rewards.ts chapterIsWritten), feeding the same thread.
+    expect(screen).toContain('parts.push(`${writtenCount} of ${total} written`)');
     expect(screen).toContain('backgroundColor: palette.rasp, width: `${pct}%`');
   });
 

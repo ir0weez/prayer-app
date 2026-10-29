@@ -443,14 +443,24 @@ describe('v222 WS2 — the studio pack door', () => {
 describe('v222 WS3 — Books list: all 66, sections (v322: four, split by channel)', () => {
   const canon = Object.keys(CHAPTER_COUNTS);
 
-  it('a fresh state puts every book in Not Started, exactly once', () => {
+  it('a fresh state puts the fully-noted books in Written, the rest in Not Started, exactly once', () => {
     const groups = groupBooksByStudy(seedStudyState(), canon);
     expect(groups.current).toEqual([]);
     expect(groups.finished).toEqual([]);
-    // v322: the Written section exists and starts empty too.
-    expect(groups.written).toEqual([]);
-    expect(groups.notStarted).toEqual(canon);
-    expect(new Set(groups.notStarted).size).toBe(66);
+    // v324 re-base (his words, 2026-10-28 21:00 — "I have multiple
+    // entire books finished with notes"): Written no longer starts
+    // empty — membership is the union rule (stored Complete OR
+    // noted in the resolved data), so a fresh state seats every
+    // fully-noted shipped book there. The exact list is pinned in
+    // bible-v324-written.test.ts.
+    expect(groups.written).toContain('Genesis');
+    expect(groups.written).toContain('1 Corinthians');
+    expect(groups.notStarted).not.toContain('1 Corinthians');
+    expect(groups.notStarted).toContain('Ezra');
+    const all = [...groups.current, ...groups.finished, ...groups.written, ...groups.notStarted];
+    expect(all).toHaveLength(66);
+    expect(new Set(all).size).toBe(66);
+    expect([...all].sort()).toEqual([...canon].sort());
   });
 
   it('a fixture exercising the sections: currentBook first, Write-only book in Current, writing-complete book in Written, untouched book in Not Started', () => {
@@ -469,7 +479,11 @@ describe('v222 WS3 — Books list: all 66, sections (v322: four, split by channe
     // with zero read marks, so it lands in Written, not Finished.
     expect(groups.written).toContain('Mark');
     expect(groups.finished).not.toContain('Mark');
-    expect(groups.notStarted).toContain('Ruth');
+    // v324 re-base: untouched Ruth is noted cover to cover in the
+    // shipped data, so she seats in Written now; the untouched-book
+    // assertion moves to Ezra (no notes anywhere, no states).
+    expect(groups.written).toContain('Ruth');
+    expect(groups.notStarted).toContain('Ezra');
     const all = [...groups.current, ...groups.finished, ...groups.written, ...groups.notStarted];
     expect(all).toHaveLength(66);
     expect(new Set(all).size).toBe(66);
@@ -494,11 +508,15 @@ describe('v222 WS3 — Books list: all 66, sections (v322: four, split by channe
   });
 
   it('a book carrying only a deliberate not-started override counts as started — it is Current, not Not Started', () => {
+    // v324 re-base: this fixture used Ruth, but Ruth is noted cover
+    // to cover in the shipped data and now seats in Written before
+    // the override is ever consulted. Ezra (no notes anywhere)
+    // carries the fixture's intent unchanged.
     let state = seedStudyState();
-    state = setChapterStatus(state, 'Ruth', 1, 'not-started');
+    state = setChapterStatus(state, 'Ezra', 1, 'not-started');
     const groups = groupBooksByStudy(state, canon);
-    expect(groups.current).toContain('Ruth');
-    expect(groups.notStarted).not.toContain('Ruth');
+    expect(groups.current).toContain('Ezra');
+    expect(groups.notStarted).not.toContain('Ezra');
   });
 
   it('the Books view renders the sections and the row furniture', () => {

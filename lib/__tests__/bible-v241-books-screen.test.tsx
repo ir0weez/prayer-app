@@ -243,7 +243,10 @@ describe('v241 — Books screen first paint, dark scheme + Classic (his phone st
     for (const book of canon) expect(html, `row for ${book}`).toContain(book);
     expect(html).toContain('Not Started');
     // v313 re-base: the counts lead says "written" (the drawing).
-    expect(html).toContain('0 of 150 written');
+    // v324 re-base: the count is the union rule (stored Complete OR
+    // noted) — Psalms carries notes in 28 of its 150 chapters, so
+    // the first paint reads 28, not 0.
+    expect(html).toContain('28 of 150 written');
   });
 
   it('the paper is the dark page and the book ink clears 4.5:1 on it', () => {

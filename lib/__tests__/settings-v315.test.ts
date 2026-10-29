@@ -383,15 +383,19 @@ describe("v315 settings screen — the drawing's structure, every control wired"
 // ─── Workstream 2: the strip completes its exit ─────────────────
 
 describe("v315 week strip — slide on its own measure, fade on the same scroll, no scale", () => {
-  it("the strip's slide is keyed to its own seat (84 + its height + 12)", () => {
+  it("the strip's slide is keyed to its own seat (84 + its height + 12) (v328 re-pin: the RANGE it runs over is the gated cover; the travel is still its own seat measure)", () => {
+    // v328 (his Oct 28, 23:13): the strip's slide waits for the
+    // halfway-over-the-summary mark and runs across the remaining
+    // cover — inputRange is the gated range; outputRange (its own
+    // seat measure) is unchanged. See schedule-v328.test.ts.
     expect(scheduleTab).toContain("const stripSlideFull = 84 + classicStripHeight + 12;");
     expect(scheduleTab).toContain("const stripSlideY = scrollY.interpolate({");
-    expect(scheduleTab).toContain("inputRange: [0, stripSlideFull]");
+    expect(scheduleTab).toContain("inputRange: [slideGateStart, scheduleSummaryHeight]");
     expect(scheduleTab).toContain("outputRange: [0, -stripSlideFull]");
   });
 
-  it("both fades run solid through the first 45% and reach 0 exactly at slide completion (v319 re-pin: the header fade is retired with the reach twin)", () => {
-    expect(scheduleTab).toContain("inputRange: [stripSlideFull * 0.45, stripSlideFull]");
+  it("both fades run solid through the first 45% and reach 0 exactly at slide completion (v319 re-pin: the header fade is retired with the reach twin) (v328 re-pin: the 45% proportion now measures the gated slide range)", () => {
+    expect(scheduleTab).toContain("inputRange: [slideGateStart + (scheduleSummaryHeight - slideGateStart) * 0.45, scheduleSummaryHeight]");
     expect(scheduleTab).toContain("outputRange: [1, 0]");
     // v319: headerFade drove only the reach twin; the twin is
     // deleted (it dragged across the prose — his Oct 28, 19:16

@@ -104,9 +104,15 @@ describe("v319 reach — outside every sliding transform", () => {
     expect(scheduleTab).not.toContain("inputRange: [headerSlideFull * 0.45, headerSlideFull]");
   });
 
-  it("the app bar keeps the shared slide, byte-identical (the slide's travel still measures the whole block)", () => {
+  it("the app bar keeps the shared slide, travel unchanged (v328 re-pin: the slide's RANGE is gated on the cover; its travel still measures the whole block)", () => {
+    // v328 (his Oct 28, 23:13): the header waits until the sheet
+    // is halfway over the summary before sliding — inputRange is
+    // the gated range now; outputRange (the full travel, still
+    // measured by the whole block incl. the reach seat) is
+    // byte-identical to v319. Pinned numerically in
+    // schedule-v328.test.ts.
     expect(scheduleTab).toContain("const headerSlideY = scrollY.interpolate({");
-    expect(scheduleTab).toContain("inputRange: [0, headerSlideFull]");
+    expect(scheduleTab).toContain("inputRange: [slideGateStart, scheduleSummaryHeight]");
     expect(scheduleTab).toContain("outputRange: [0, -headerSlideFull]");
     expect(scheduleTab).toContain("84 + classicStripHeight + classicReachRect.y + classicReachRect.height");
     expect(scheduleTab).toContain(": { transform: [{ translateY: headerSlideY }] }");
@@ -161,11 +167,16 @@ describe("v319 reach — the rest-only press seat", () => {
 });
 
 describe("v319 day-switching — the v297 invariant holds", () => {
-  it("the strip twin still lives in the overlay with its v315 slide + fade, byte-identical drivers", () => {
+  it("the strip twin still lives in the overlay with its slide + fade (v328 re-pin: both ranges re-based onto the gated cover)", () => {
+    // v328 (his Oct 28, 23:13): the strip holds its seat until
+    // the halfway mark, then slides + fades across the remaining
+    // cover — the fade's 45%-solid proportion now applies to the
+    // gated range instead of the raw seat measure. The twin, its
+    // drivers and the no-scale rule are unchanged.
     expect(overlaySlice).toContain("opacity: stripFade");
     expect(overlaySlice).toContain("transform: [{ translateY: stripSlideY }]");
     expect(scheduleTab).toContain("const stripSlideFull = 84 + classicStripHeight + 12;");
-    expect(scheduleTab).toContain("inputRange: [stripSlideFull * 0.45, stripSlideFull]");
+    expect(scheduleTab).toContain("inputRange: [slideGateStart + (scheduleSummaryHeight - slideGateStart) * 0.45, scheduleSummaryHeight]");
     expect(overlaySlice).not.toContain("scale");
   });
 

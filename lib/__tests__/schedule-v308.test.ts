@@ -252,9 +252,14 @@ describe("v308 header slide — the collapse is a slide, not a shrink", () => {
     scheduleTab.indexOf("viewMode === 'week'"),
   );
 
-  it("one shared slide drives the block, 1:1 with the sheet scroll", () => {
+  it("one shared slide drives the block, 1:1 with the sheet scroll (v328 re-pin: the slide is gated on the cover — same full travel, run over the cover's second half)", () => {
+    // v328 (his Oct 28, 23:13): the slide waits until the sheet is
+    // halfway over the summary, then runs across the remaining
+    // cover — inputRange is now the gated range; outputRange (the
+    // full travel) is unchanged. Behaviour pinned numerically in
+    // schedule-v328.test.ts.
     expect(scheduleTab).toContain("const headerSlideY = scrollY.interpolate({");
-    expect(scheduleTab).toContain("inputRange: [0, headerSlideFull]");
+    expect(scheduleTab).toContain("inputRange: [slideGateStart, scheduleSummaryHeight]");
     expect(scheduleTab).toContain("outputRange: [0, -headerSlideFull]");
     // The slide distance covers the lowest twin's seat bottom.
     expect(scheduleTab).toContain("84 + classicStripHeight + classicReachRect.y + classicReachRect.height");
@@ -276,6 +281,10 @@ describe("v308 header slide — the collapse is a slide, not a shrink", () => {
     // sliding transform — and headerFade is gone with it. The
     // strip's slide + fade below are byte-identical to v315, and
     // the app bar still rides headerSlideY (pinned separately).
+    // v328 re-bases the slide/fade RANGES onto the gated cover
+    // (the header and strip wait for the halfway mark) — the
+    // no-scale / strip-only assertions in this test are untouched
+    // by that; the new ranges are pinned in schedule-v328.test.ts.
     expect(overlaySlice.match(/translateY: headerSlideY/g) ?? []).toHaveLength(0);
     expect(overlaySlice.match(/translateY: stripSlideY/g) ?? []).toHaveLength(1);
     expect(overlaySlice).toContain("opacity: stripFade");

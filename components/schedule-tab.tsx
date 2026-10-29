@@ -10942,8 +10942,28 @@ export function ScheduleTab({
     84 + classicStripHeight,
     classicReachRect ? 84 + classicStripHeight + classicReachRect.y + classicReachRect.height : 0,
   ) + 16;
+  // v328 (his Oct 28, 23:13, mid-scroll screenshot): "Can the
+  // scroll for the header and date bar wait until I'm at least
+  // halfway over the summary before going up?" The slide is now
+  // GATED on the cover: the sheet's head spacer is exactly the
+  // summary's measured height, so scrollY IS the cover distance —
+  // at scrollY = scheduleSummaryHeight / 2 the sheet covers the
+  // summary's first half, and until that mark the header block
+  // and the strip hold their rest seats exactly (offset 0,
+  // strip fully opaque): nothing moves early. From the halfway
+  // mark the slide runs across the remaining cover and still
+  // completes with each element having travelled its own full
+  // measure, ending exactly where it ends today — header block
+  // wholly above the top edge, strip fully gone — so nothing
+  // lingers and nothing invisible stays tappable. Within the
+  // gated range the motion is still a plain linear interpolation
+  // keyed to scrollY — no springs, no bounce, no scale — and the
+  // gate touches translate/opacity only, never the touch path:
+  // day-switching works at every scroll position exactly as the
+  // v297 overlay twin was built for, dead zone included.
+  const slideGateStart = scheduleSummaryHeight / 2;
   const headerSlideY = scrollY.interpolate({
-    inputRange: [0, headerSlideFull],
+    inputRange: [slideGateStart, scheduleSummaryHeight],
     outputRange: [0, -headerSlideFull],
     extrapolate: "clamp",
   });
@@ -10969,14 +10989,21 @@ export function ScheduleTab({
   // lingers visibly nor takes touches; at every earlier position
   // what is drawn is what is tappable, and day-switching works at
   // every scroll position exactly as the twin was built for.
+  // (v328: slide and fade are re-based onto the gated cover range
+  // — the strip holds its seat, fully opaque, until scrollY
+  // reaches slideGateStart (the sheet halfway over the summary),
+  // then slides its full seat measure across the remaining cover;
+  // the fade keeps the v315 proportions on that gated range —
+  // solid through the slide's first 45%, dissolved to 0 exactly
+  // as the slide completes at full cover.)
   const stripSlideFull = 84 + classicStripHeight + 12;
   const stripSlideY = scrollY.interpolate({
-    inputRange: [0, stripSlideFull],
+    inputRange: [slideGateStart, scheduleSummaryHeight],
     outputRange: [0, -stripSlideFull],
     extrapolate: "clamp",
   });
   const stripFade = scrollY.interpolate({
-    inputRange: [stripSlideFull * 0.45, stripSlideFull],
+    inputRange: [slideGateStart + (scheduleSummaryHeight - slideGateStart) * 0.45, scheduleSummaryHeight],
     outputRange: [1, 0],
     extrapolate: "clamp",
   });
@@ -14261,7 +14288,12 @@ export function ScheduleTab({
                 flow's own coordinates (the summary container pads
                 84 top / 20 sides; the strip's block is
                 classicStripHeight), so the pixels do not move —
-                only the touch path changes. */}
+                only the touch path changes. v328: the slide those
+                drivers feed is gated on the cover — the strip holds
+                its seat until the sheet has covered half the
+                summary, then slides and fades across the rest of
+                the cover (see the slideGateStart note at the slide
+                definitions). The seat below is unaffected. */}
             {!isSkinned && scheduleSummaryHeight > 0 && (
               <View pointerEvents="box-none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 2 }}>
                 <Animated.View

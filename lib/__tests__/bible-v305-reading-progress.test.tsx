@@ -276,8 +276,17 @@ describe('v305 — the Books screen wiring (source pins)', () => {
     // v324 re-base: the lead count is no longer the stored-Complete
     // tally — it is the union count (stored Complete OR noted,
     // rewards.ts chapterIsWritten), feeding the same thread.
+    // v341 re-base (his ruling, Oct 29: the wavy progress bar,
+    // everywhere): the thread's fill is no longer a div painted
+    // `backgroundColor: palette.rasp, width: ${pct}%` — it is the
+    // shared WavyProgress wearing palette.rasp, fed the same
+    // union-count pct (value={pct / 100}); the in-progress share
+    // rides directly behind it as the wavy's trailing segment.
+    // The counts promise above is untouched.
     expect(screen).toContain('parts.push(`${writtenCount} of ${total} written`)');
-    expect(screen).toContain('backgroundColor: palette.rasp, width: `${pct}%`');
+    expect(screen).toContain('value={pct / 100}');
+    expect(screen).toContain('color={palette.rasp}');
+    expect(screen).toContain('trailingValue={ppct / 100}');
   });
 
   it('the reset door only opens a confirmation that names what clears and what stays', () => {

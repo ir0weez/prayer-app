@@ -15,6 +15,7 @@ import {
   type CollectionState,
 } from "@/lib/collections";
 import { ShellArt } from "@/components/shell-art";
+import { RoadBadgesSection } from "@/components/road-badges";
 import { ALL_DEMON_NAMES } from "@/lib/dark-forest";
 
 type Props = {
@@ -33,7 +34,10 @@ function ProgressBar({ pct, color }: { pct: number; color: string }) {
 
 export function CollectionsBook({ visible, onClose, pt }: Props) {
   const [state, setState] = useState<CollectionState | null>(null);
-  const [tab, setTab] = useState<CollectionSetId>("fish");
+  // v331: "The Road" (the era badges) is its own section of the book —
+  // a fifth tab beside the four collection sets, drawn by its own
+  // component; it is NOT a collection set (no coins, no title).
+  const [tab, setTab] = useState<CollectionSetId | "road">("fish");
 
   useEffect(() => {
     if (visible) {
@@ -41,16 +45,20 @@ export function CollectionsBook({ visible, onClose, pt }: Props) {
     }
   }, [visible ]);
 
-  const meta = COLLECTION_SETS[tab];
-  const caughtCount =
-    tab === "fish"
+  const isRoad = tab === "road";
+  // Only read in the sets branch below; "fish" stands in while the
+  // Road tab is up so the value is never null.
+  const meta = COLLECTION_SETS[isRoad ? "fish" : (tab as CollectionSetId)];
+  const caughtCount = isRoad
+    ? 0
+    : tab === "fish"
       ? state?.fish.length ?? 0
       : tab === "demons"
         ? state?.demons.length ?? 0
         : tab === "shells"
           ? state?.shells.length ?? 0
           : state?.flowers.length ?? 0;
-  const isComplete = (state?.completedSets ?? []).includes(tab);
+  const isComplete = !isRoad && (state?.completedSets ?? []).includes(tab as CollectionSetId);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -91,14 +99,36 @@ export function CollectionsBook({ visible, onClose, pt }: Props) {
                   }}
                 >
                   <MaterialIcons name={m.icon as any} size={20} color={active ? "#6D28D9" : pt.subtext} />
-                  <Text style={{ fontSize: 11, fontWeight: "700", color: active ? "#6D28D9" : pt.subtext, marginTop: 2 }}>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: active ? "#6D28D9" : pt.subtext, marginTop: 2, textAlign: "center" }}>
                     {m.name}
                   </Text>
                 </Pressable>
               );
             })}
+            {/* v331: The Road — the era badges' own tab. */}
+            <Pressable
+              onPress={() => setTab("road")}
+              style={{
+                flex: 1,
+                borderRadius: 10,
+                paddingVertical: 8,
+                alignItems: "center",
+                backgroundColor: isRoad ? "#FBF3DC" : "rgba(0,0,0,0.04)",
+                borderWidth: 1,
+                borderColor: isRoad ? "#C9963C" : "transparent",
+              }}
+            >
+              <MaterialIcons name="route" size={20} color={isRoad ? "#A67C1B" : pt.subtext} />
+              <Text style={{ fontSize: 11, fontWeight: "700", color: isRoad ? "#A67C1B" : pt.subtext, marginTop: 2, textAlign: "center" }}>
+                The Road
+              </Text>
+            </Pressable>
           </View>
 
+          {isRoad ? (
+            <RoadBadgesSection pt={pt} />
+          ) : (
+            <>
           {/* Progress */}
           <View style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -228,6 +258,8 @@ export function CollectionsBook({ visible, onClose, pt }: Props) {
                 })}
             </View>
           </ScrollView>
+            </>
+          )}
         </Pressable>
       </Pressable>
     </Modal>

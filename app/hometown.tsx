@@ -399,6 +399,7 @@ import {
   type WideStreetState,
 } from "@/lib/wide-street";
 import {
+  ERA_DEFS,
   eraEconomyFor,
   eraForFast,
   loadLastSeenEra,
@@ -406,6 +407,7 @@ import {
   shouldAnnounceEra,
   type EraDef,
 } from "@/lib/hometown-eras";
+import { settleRoadBadges } from "@/lib/hometown-road";
 import { getCurrentFastDay } from "@/lib/prayercircle-fasting";
 import { GardenOfRemembrance } from "@/components/garden-of-remembrance";
 import { TheWell } from "@/components/the-well";
@@ -4105,6 +4107,13 @@ export default function HometownScreen() {
    *  dismissing the card is what records it as seen. */
   const [townEra, setTownEra] = useState<EraDef | null>(null);
   const [eraTurnEra, setEraTurnEra] = useState<EraDef | null>(null);
+  /** v331 (The Road): the era this turn FINISHED, when its badge now
+   *  stands earned — the page-turn card names it in one quiet line.
+   *  Set at the same load that settles the badges; cleared with the
+   *  card. Null whenever the turn earned nothing (the Village's own
+   *  opening, or a card shown for an era whose predecessor the road
+   *  has not recorded). */
+  const [eraTurnBadge, setEraTurnBadge] = useState<string | null>(null);
   /** The Street & The Café (v279): the café's inputs, read from the
    *  app's own stores on open and refreshed on focus (the same settle-
    *  on-open pattern as the coin chip) — the full people record, the
@@ -5769,6 +5778,18 @@ export default function HometownScreen() {
             eraEconomyLocal = eraEconomyFor(eraLocal.index, getCurrentFastDay(cafeFastLocal, today));
             setTownEra(eraLocal);
             setEraCostMult(eraEconomyLocal.costMult);
+            // v331 (The Road): the era badges settle HERE, on open,
+            // from the same fast and the same derivation — no timers.
+            // When this open's standing era has a finished era behind
+            // it whose badge now stands earned, the page-turn card
+            // below names it in one quiet line.
+            try {
+              const road = await settleRoadBadges(cafeFastLocal, today);
+              const finishedEra = eraLocal.index > 0 ? ERA_DEFS[eraLocal.index - 1] : null;
+              setEraTurnBadge(
+                finishedEra && road.state.eras[finishedEra.id] ? finishedEra.name : null,
+              );
+            } catch {}
             try {
               const seenEra = await loadLastSeenEra();
               if (shouldAnnounceEra(seenEra, eraLocal.index)) {
@@ -9933,6 +9954,7 @@ export default function HometownScreen() {
                 onPress={() => {
                   const seenIndex = eraTurnEra.index;
                   setEraTurnEra(null);
+                  setEraTurnBadge(null);
                   void saveLastSeenEra(seenIndex);
                 }}
                 hitSlop={8}
@@ -9944,6 +9966,14 @@ export default function HometownScreen() {
             </View>
             <Text style={{ fontSize: 21, fontWeight: "800", color: pt.text, marginTop: 4 }}>{eraTurnEra.name}</Text>
             <Text style={{ fontSize: 13.5, lineHeight: 19, color: pt.text, marginTop: 4 }}>{eraTurnEra.line}</Text>
+            {/* v331 (The Road): when this turn also finished an era,
+                its badge stands earned — one quiet line, no second
+                card, no interruption beyond the turn itself. */}
+            {eraTurnBadge && (
+              <Text style={{ fontSize: 12, fontWeight: "700", color: pt.subtext, marginTop: 6 }}>
+                {eraTurnBadge} badge earned
+              </Text>
+            )}
           </View>
         )}
         {activeMap === "town" && !isTownWorld && (

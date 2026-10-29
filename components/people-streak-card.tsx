@@ -1,8 +1,8 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Pressable, Text, View } from "react-native";
-import Svg, { Defs, LinearGradient, Rect as SvgRect, Stop } from "react-native-svg";
 
 import { AvatarImage } from "@/components/avatar-system";
+import { WavyProgress } from "@/components/wavy-progress";
 import type { PeopleFrontDoorFamily } from "@/lib/people-material";
 import { getStreakCardModel } from "@/lib/people-streak";
 import type { PersonalFast } from "@/lib/prayercircle-fasting";
@@ -115,18 +115,11 @@ export function PeopleStreakCard({
         <Text style={{ fontSize: 15, fontWeight: "800", color: family.ink, letterSpacing: -0.15 }}>{model.headline}</Text>
         <Text style={{ fontSize: 13, fontWeight: "600", color: family.inkSoft, marginTop: 3 }}>{model.subline}</Text>
         {model.progressFraction !== null ? (
-          <View style={{ height: 6, borderRadius: 3, backgroundColor: family.wash, marginTop: 9, overflow: "hidden" }}>
-            <View style={{ width: `${Math.round(model.progressFraction * 100)}%`, height: "100%", borderRadius: 3, overflow: "hidden" }}>
-              <Svg width="100%" height="100%" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
-                <Defs>
-                  <LinearGradient id="v257StreakGrad" x1="0" y1="0" x2="1" y2="0">
-                    <Stop offset="0" stopColor={family.seed} />
-                    <Stop offset="1" stopColor={family.queueTeal} />
-                  </LinearGradient>
-                </Defs>
-                <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v257StreakGrad)" />
-              </Svg>
-            </View>
+          /* v339: the streak line wears the wavy fill (his Oct 29
+             ruling) in the seed on the card's wash track — same seat,
+             same fraction. */
+          <View style={{ marginTop: 9 }}>
+            <WavyProgress value={model.progressFraction} color={family.seed} colorEnd={family.queueTeal} trackColor={family.wash} height={8} />
           </View>
         ) : null}
       </View>

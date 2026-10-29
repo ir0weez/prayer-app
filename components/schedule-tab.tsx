@@ -144,6 +144,7 @@ function paperStockFor(accent: string, surface: string | null): string {
 import { FlameSparkIcon } from "./flame-spark-icon";
 import { DateTimePicker } from "./date-time-picker";
 import { ScheduleProgressBar } from "./schedule-progress-bar";
+import { WavyProgress } from "./wavy-progress";
 import { PaperSettle, paperPressedLift } from "./paper-motion";
 import { BitSettle, bitPressedSnap } from "./bit-motion";
 import { TimeBlockCard } from "./time-block-card";
@@ -7925,9 +7926,7 @@ function EventCardInner({
             {isLiveScheduledBlock && (
               <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 3 }}>
                 <NowPill />
-                <View style={{ flex: 1, minWidth: 80, height: 5, backgroundColor: `${timeOffTextColor}55`, borderRadius: 3, overflow: 'hidden' }}>
-                  <View style={{ height: '100%', width: `${Math.max(4, Math.round((liveCursor?.progress ?? 0) * 100))}%`, backgroundColor: timeOffTextColor, borderRadius: 3 }} />
-                </View>
+                <WavyProgress value={liveCursor?.progress ?? 0} color={timeOffTextColor} trackColor={`${timeOffTextColor}55`} height={5} style={{ flex: 1, minWidth: 80 }} />
               </View>
             )}
           </View>
@@ -8021,9 +8020,7 @@ function EventCardInner({
             {isLiveScheduledBlock && (
               <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 3 }}>
                 <NowPill />
-                <View style={{ flex: 1, minWidth: 80, height: 5, backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 3, overflow: 'hidden' }}>
-                  <View style={{ height: '100%', width: `${Math.max(4, Math.round((liveCursor?.progress ?? 0) * 100))}%`, backgroundColor: '#FFFFFF', borderRadius: 3 }} />
-                </View>
+                <WavyProgress value={liveCursor?.progress ?? 0} color="#FFFFFF" trackColor="rgba(255,255,255,0.35)" height={5} style={{ flex: 1, minWidth: 80 }} />
               </View>
             )}
             <MaterialIcons name={mc.icon as any} size={44} color={mc.iconColor} style={{ opacity: 0.95 }} />
@@ -8292,8 +8289,8 @@ function EventCardInner({
               )}
             </View>
             {isLiveScheduledBlock && (
-              <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 12, right: 12, bottom: 9, height: 5, backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 3, overflow: 'hidden' }}>
-                <View style={{ height: '100%', width: `${Math.max(4, Math.round((liveCursor?.progress ?? 0) * 100))}%`, backgroundColor: '#FFFFFF', borderRadius: 3 }} />
+              <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 12, right: 12, bottom: 9 }}>
+                <WavyProgress value={liveCursor?.progress ?? 0} color="#FFFFFF" trackColor="rgba(255,255,255,0.35)" height={5} />
               </View>
             )}
           </View>
@@ -8358,9 +8355,7 @@ function EventCardInner({
             {isLiveScheduledBlock && (
               <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 3 }}>
                 <NowPill />
-                <View style={{ flex: 1, minWidth: 80, height: 5, backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 3, overflow: 'hidden' }}>
-                  <View style={{ height: '100%', width: `${Math.max(4, Math.round((liveCursor?.progress ?? 0) * 100))}%`, backgroundColor: '#FFFFFF', borderRadius: 3 }} />
-                </View>
+                <WavyProgress value={liveCursor?.progress ?? 0} color="#FFFFFF" trackColor="rgba(255,255,255,0.35)" height={5} style={{ flex: 1, minWidth: 80 }} />
               </View>
             )}
             <MaterialIcons name={keyword.icon as any} size={isHolidayCard ? 64 : 48} color={event.isOffEvent ? timeOffTextColor : '#FFFFFF'} style={{ opacity: 0.9 }} />
@@ -8413,9 +8408,7 @@ function EventCardInner({
           {isLiveScheduledBlock && (
             <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 3 }}>
               <NowPill />
-              <View style={{ flex: 1, minWidth: 80, height: 5, backgroundColor: event.color ? 'rgba(255,255,255,0.45)' : `${colors.primary}45`, borderRadius: 3, overflow: 'hidden' }}>
-                <View style={{ height: '100%', width: `${Math.max(4, Math.round((liveCursor?.progress ?? 0) * 100))}%`, backgroundColor: event.color ? '#FFFFFF' : colors.primary, borderRadius: 3 }} />
-              </View>
+              <WavyProgress value={liveCursor?.progress ?? 0} color={event.color ? '#FFFFFF' : colors.primary} trackColor={event.color ? 'rgba(255,255,255,0.45)' : `${colors.primary}45`} height={5} style={{ flex: 1, minWidth: 80 }} />
             </View>
           )}
         </View>
@@ -8802,15 +8795,13 @@ function TodoItem({
                   </View>
                   <Text style={{ color: groupAccentColor, fontSize: 11, fontWeight: '600' }}>{Math.round(subtaskProgress.ratio * 100)}%</Text>
                 </View>
-                <View style={{ height: 6, backgroundColor: `${groupAccentColor}16`, borderRadius: 3, overflow: 'hidden' }}>
-                  <View style={{ height: '100%', width: `${Math.round(subtaskProgress.ratio * 100)}%`, backgroundColor: groupAccentColor, borderRadius: 3 }} />
-                </View>
+                {/* v339: the subtask bar wears the wavy fill (his
+                    Oct 29 ruling) in the group accent — same seat. */}
+                <WavyProgress value={subtaskProgress.ratio} color={groupAccentColor} trackColor={`${groupAccentColor}16`} height={8} />
                 {isLiveScheduledBlock && (
                   <View accessibilityLabel="Live schedule position" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={{ width: 70, flexShrink: 0 }}><NowPill /></View>
-                    <View style={{ flex: 1, minWidth: 80, height: 4, backgroundColor: `${groupAccentColor}20`, borderRadius: 2, overflow: 'hidden' }}>
-                      <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: groupAccentColor, borderRadius: 2 }} />
-                    </View>
+                    <WavyProgress value={liveCursor?.progress ?? 0} color={groupAccentColor} trackColor={`${groupAccentColor}20`} height={4} style={{ flex: 1, minWidth: 80 }} />
                   </View>
                 )}
               </View>
@@ -8940,9 +8931,7 @@ function TodoItem({
           {isLiveScheduledBlock && (
             <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={{ width: 70, flexShrink: 0 }}><NowPill /></View>
-              <View style={{ flex: 1, minWidth: 80, height: 5, backgroundColor: `${todo.color || colors.primary}45`, borderRadius: 3, overflow: 'hidden' }}>
-                <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: todo.color || colors.primary, borderRadius: 2 }} />
-              </View>
+              <WavyProgress value={liveCursor?.progress ?? 0} color={todo.color || colors.primary} trackColor={`${todo.color || colors.primary}45`} height={5} style={{ flex: 1, minWidth: 80 }} />
             </View>
           )}
         </Pressable>
@@ -13558,8 +13547,10 @@ export function ScheduleTab({
                   {/* v295: the drawing's progress thread under the
                       meta line — his progress through the book. */}
                   {item.data.progress != null ? (
-                    <View style={{ height: 6, marginTop: classicStudy ? 10 : 0, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 0 : 3, backgroundColor: mix(colors.surface, colors.primary, 0.25), overflow: 'hidden' }}>
-                      <View style={{ height: '100%', width: `${Math.round(item.data.progress * 100)}%`, backgroundColor: colors.primary, borderRadius: (skinTokens.isEightBit || skinTokens.isTerminal) ? 0 : 3 }} />
+                    /* v339: the study thread wears the wavy fill (his
+                       Oct 29 ruling) — same seat and colours. */
+                    <View style={{ marginTop: classicStudy ? 10 : 0 }}>
+                      <WavyProgress value={item.data.progress} color={colors.primary} trackColor={mix(colors.surface, colors.primary, 0.25)} height={8} />
                     </View>
                   ) : null}
                   {isPersonalStudyExpanded && (item.data.preview || item.data.lastRead || item.data.readTarget) ? (
@@ -13725,9 +13716,13 @@ export function ScheduleTab({
                 </View>
                 <Text style={{ color: leadRamp.deep, fontSize: 14, fontWeight: "700" }}>{format12HourTime(leadItem.startTime)}</Text>
               </View>
-              <View style={{ marginTop: 13, height: 4, borderRadius: 999, backgroundColor: mix(leadColor, colors.surface, 0.78) }}>
-                <View style={{ height: "100%", width: `${Math.round(upNextProgress * 100)}%`, borderRadius: 999, backgroundColor: leadColor }} />
-                <UpNextPulseDot color={leadRamp.deep} style={{ position: "absolute", top: -3, left: `${Math.round(upNextProgress * 100)}%`, marginLeft: -5 }} />
+              {/* v339: the thread wears the wavy fill (his Oct 29
+                  ruling) in the lead colour on its tint track; the
+                  breathing pulse dot stays as the thread's tip (the
+                  wavy's own tip dot stands down here). */}
+              <View style={{ marginTop: 13, position: "relative" }}>
+                <WavyProgress value={upNextProgress} color={leadColor} trackColor={mix(leadColor, colors.surface, 0.78)} height={8} hideTipDot />
+                <UpNextPulseDot color={leadRamp.deep} style={{ position: "absolute", top: -1, left: `${Math.round(upNextProgress * 100)}%`, marginLeft: -5 }} />
               </View>
               <View style={{ marginTop: 6 }}>
                 {entries.map((entry, entryIdx) => {
@@ -14292,9 +14287,10 @@ export function ScheduleTab({
                                 {percentage}%
                               </Text>
                             </View>
-                            <View style={{ height: 6, backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border, borderRadius: skinTokens.isTerminal ? 0 : 3, overflow: 'hidden' }}>
-                              <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, borderRadius: skinTokens.isTerminal ? 0 : 3 }} />
-                            </View>
+                            {/* v339: the current-book bar wears the
+                                wavy fill (his Oct 29 ruling) — same
+                                seat and per-skin colours. */}
+                            <WavyProgress value={percentage / 100} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} trackColor={skinTokens.isTerminal ? TERM_DIM : colors.border} height={8} />
                           </View>
                         );
                       }

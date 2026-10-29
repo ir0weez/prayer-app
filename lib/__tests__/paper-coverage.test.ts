@@ -294,8 +294,13 @@ describe("Paper coverage — v202 animation pass", () => {
 
   it("schedule progress fill soaks across the sheet — A46 ruled in v240: the sprout's springs are GONE", () => {
     const bar = read("components/schedule-progress-bar.tsx");
-    expect(bar).toContain("usePaperFill(percentage / 100)");
-    expect(bar).toContain('transformOrigin: "left center"');
+    // RE-BASED in v339 (Jonathan's wavy ruling, 2026-10-29: every
+    // progress bar wears the sine fill): the Paper soak fill retired
+    // in this bar — the shared wavy sweep is the motion now, in the
+    // bar's own per-skin colours. usePaperFill still lives in
+    // paper-motion for its other seats.
+    expect(bar).toContain("WavyProgress");
+    expect(bar).not.toContain("usePaperFill(percentage / 100)");
     // RE-BASED in v240 (Jonathan ruled A46 on 2026-10-24: "I'm
     // really not a fan of that plant animation" — his pick was the
     // sun/moon cap). The original pin froze the sprout's spring

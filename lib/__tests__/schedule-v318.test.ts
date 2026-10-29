@@ -105,9 +105,11 @@ describe("v318 up next — the card's colour follows the lead item (his 18:54 ru
 });
 
 describe("v318 up next — the progress thread, settled from stored times", () => {
-  it("a 4px thread under the header: light track, the item colour as fill", () => {
-    expect(upNextCase).toContain("height: 4, borderRadius: 999, backgroundColor: mix(leadColor, colors.surface, 0.78)");
-    expect(upNextCase).toContain("width: `${Math.round(upNextProgress * 100)}%`, borderRadius: 999, backgroundColor: leadColor");
+  it("a thread under the header: light track, the item colour as fill — wavy since v339", () => {
+    // v339: the straight 4px thread became the shared wavy bar in
+    // the same colours; the pulse dot stays as the tip (hideTipDot).
+    expect(upNextCase).toContain("color={leadColor} trackColor={mix(leadColor, colors.surface, 0.78)} height={8} hideTipDot");
+    expect(upNextCase).toContain("value={upNextProgress}");
   });
 
   it("progress is the elapsed share of anchor → start, computed at render — no timers", () => {

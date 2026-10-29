@@ -15,6 +15,7 @@ import { Alert, ScrollView, Text, useWindowDimensions, View } from "react-native
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
 import { formatCooldown } from "@/lib/gathering-places";
+import { WavyProgress } from "@/components/wavy-progress";
 import { awardCustomXP } from "@/lib/xp-engine";
 import {
   TOWN_STORAGE_KEY,
@@ -182,8 +183,10 @@ export default function CafeteriaInteriorScreen() {
               </View>
             )}
           </View>
-          <View style={{ height: 9, borderRadius: 5, backgroundColor: "#F3E9CF", marginTop: 8, overflow: "hidden" }}>
-            <View style={{ height: 9, width: `${Math.round(stockPct * 100)}%`, backgroundColor: stockedToday ? "#16A34A" : ACCENT, borderRadius: 5 }} />
+          {/* v339: the stock bar wears the wavy fill (his Oct 29
+              ruling) — same seat and colours. */}
+          <View style={{ marginTop: 8 }}>
+            <WavyProgress value={stockPct} color={stockedToday ? "#16A34A" : ACCENT} trackColor="#F3E9CF" height={9} />
           </View>
           <Text style={{ fontSize: 11, color: TEXT_DIM, marginTop: 6 }}>
             Shelves empty by midnight, like every stocked shop. Fill them to 100% on a day and the +50% stocked bonus holds for that whole day.

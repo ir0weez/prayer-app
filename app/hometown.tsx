@@ -226,6 +226,7 @@ import {
   weekStripFor,
 } from "@/lib/cafe-street";
 import { CafeMapMarker, CafeWeekLot, type CafeAnchor } from "@/components/cafe-street";
+import { WavyProgress } from "@/components/wavy-progress";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, BASE_CRIT_CHANCE, type CombatStats } from "@/lib/gear";
 import { MINI_GAME_CAPS, TRAINING_BONUS_MULT, SET_BONUS_RATE, loadSetCompletedDates, loadTodaySetStatus, loadTrainingBonus, playsLeftToday, recordPlay, scaleMiniGamePayout, type TodaySetStatus } from "@/lib/mini-games";
@@ -10300,16 +10301,10 @@ export default function HometownScreen() {
                             </View>
                           )}
                         </View>
-                        <View style={{ height: 6, backgroundColor: pt.bg, borderRadius: 3, overflow: "hidden" }}>
-                          <View
-                            style={{
-                              height: 6,
-                              width: `${pct * 100}%`,
-                              backgroundColor: isFull ? "#DC2626" : "#F59E0B",
-                              borderRadius: 3,
-                            }}
-                          />
-                        </View>
+                        {/* v339: the storage bar wears the wavy fill
+                            (his Oct 29 ruling) — same seat and state
+                            colours (red when full, amber otherwise). */}
+                        <WavyProgress value={pct} color={isFull ? "#DC2626" : "#F59E0B"} trackColor={pt.bg} height={8} />
                         {!isMax && (
                           <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 4 }}>
                             Upgrade to Lv {nextLevel} for {buildingStorageCap(preview)} storage
@@ -10340,16 +10335,10 @@ export default function HometownScreen() {
                                 : "fill to 100% to earn the +50% bonus"}
                           </Text>
                         </View>
-                        <View style={{ height: 6, backgroundColor: pt.bg, borderRadius: 3, overflow: "hidden" }}>
-                          <View
-                            style={{
-                              height: 6,
-                              width: `${ratio * 100}%`,
-                              backgroundColor: empty ? "#D1D5DB" : ratio < 0.5 ? "#F59E0B" : "#22C55E",
-                              borderRadius: 3,
-                            }}
-                          />
-                        </View>
+                        {/* v339: the stock bar wears the wavy fill
+                            (his Oct 29 ruling) — same seat and state
+                            colours (grey empty, amber low, green half+). */}
+                        <WavyProgress value={ratio} color={empty ? "#D1D5DB" : ratio < 0.5 ? "#F59E0B" : "#22C55E"} trackColor={pt.bg} height={8} />
                         <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 4 }}>
                           {stockedToday
                             ? "Stocked for today — the +50% bonus holds until midnight, even as the shelves empty."

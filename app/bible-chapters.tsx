@@ -69,6 +69,7 @@ import {
   resetReadingProgress,
 } from '@/lib/bible-v205/reading-progress';
 import { BookReadingThread, StudyProgressHeader } from '@/components/bible-v205/reading-progress-card';
+import { WavyProgress } from '@/components/wavy-progress';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
@@ -629,13 +630,19 @@ function BookRow({
         <Text style={[styles.bcountLead, { color: palette.ink }]}>{parts[0]}</Text>
         {parts.length > 1 ? ` · ${parts.slice(1).join(' · ')}` : ''}
       </Text>
-      <View style={[styles.thread, { backgroundColor: palette.raspTint }]}>
-        <View style={[styles.threadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />
-        {ppct ? (
-          <View
-            style={[styles.threadFill, { backgroundColor: palette.yellowBorder, width: `${ppct}%`, marginLeft: `${pct}%`, position: 'absolute', left: 0 }]}
-          />
-        ) : null}
+      {/* v339: the book thread wears the wavy fill (his Oct 29
+          ruling) — written in the seed on the tint track, with the
+          in-progress share riding directly behind it in the yellow
+          it always wore (the wavy's trailing segment). */}
+      <View style={styles.thread}>
+        <WavyProgress
+          value={pct / 100}
+          color={palette.rasp}
+          trailingValue={ppct / 100}
+          trailingColor={palette.yellowBorder}
+          trackColor={palette.raspTint}
+          height={8}
+        />
       </View>
       {/* v305: the reading thread — slimmer and deeper than the
           study thread above it, with its own count. */}
@@ -679,8 +686,7 @@ const styles = StyleSheet.create({
   papermark: { fontSize: 12.5, fontWeight: '600' },
   bcount: { fontSize: 13.5, lineHeight: 19, fontWeight: '500', marginTop: 4 },
   bcountLead: { fontWeight: '700' },
-  thread: { height: 8, borderRadius: 999, overflow: 'hidden', position: 'relative', marginTop: 16 },
-  threadFill: { height: 8, borderRadius: 999 },
+  thread: { marginTop: 16 },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,16,20,.45)' },
   editorCard: { position: 'absolute', left: 20, right: 20, top: '30%', borderRadius: 28, padding: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   editorTitle: { fontSize: 16, fontWeight: '800' },

@@ -98,8 +98,13 @@ describe("v240 — the plant is gone and the cap stands in its place", () => {
   });
 
   it("the fill and its glow are exactly as they were", () => {
-    expect(bar).toContain("usePaperFill(percentage / 100)");
-    expect(bar).toContain("useBitFill(percentage / 100)");
+    // RE-BASED in v339 (Jonathan's wavy ruling): the Paper soak and
+    // 8-bit stepped fills retired — the fill is the shared wavy bar
+    // in this seat's per-skin colours. The completion glow and its
+    // green are exactly as they were.
+    expect(bar).toContain("WavyProgress");
+    expect(bar).not.toContain("usePaperFill(percentage / 100)");
+    expect(bar).not.toContain("useBitFill(percentage / 100)");
     expect(bar).toContain("glowAnimation");
     expect(bar).toContain('"#10B981"');
   });

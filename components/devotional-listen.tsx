@@ -27,6 +27,7 @@ import {
   useDevotionalPlayerState,
 } from '@/lib/devotional-player';
 import { useBiblePalette } from './bible-v205/palette';
+import { WavyProgress } from './wavy-progress';
 import { Ornament } from './bible-v205/blocks';
 
 const KEEP_AWAKE_TAG = 'devotional-listen';
@@ -151,12 +152,10 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
                 trackWidth.current = e.nativeEvent.layout.width;
               }}
             >
-              <View
-                style={[
-                  styles.fill,
-                  { backgroundColor: palette.rasp, width: `${duration > 0 ? (position / duration) * 100 : 0}%` },
-                ]}
-              />
+              {/* v339: the seek fill wears the wave (his Oct 29
+                  ruling) — same seat and colour; the Pressable's
+                  tap-to-seek is unchanged. */}
+              <WavyProgress value={duration > 0 ? position / duration : 0} color={palette.rasp} trackColor="transparent" height={8} hideStopDot />
             </Pressable>
             <View style={styles.times}>
               <Text style={[styles.time, { color: palette.inkSoft }]}>{formatClock(position)}</Text>
@@ -229,7 +228,6 @@ const styles = StyleSheet.create({
   stopText: { fontSize: 12, fontWeight: '700' },
   seekWrap: { flex: 1 },
   track: { height: 8, borderRadius: 4, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 4 },
   times: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 },
   time: { fontSize: 11, fontWeight: '600' },
   para: { borderLeftWidth: 3, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 10 },

@@ -192,7 +192,9 @@ describe("v269 source pins — the focused session (prayer-session.tsx)", () => 
     // praise, and plain legs alike.
     expect(session).not.toContain("hexToRgba(PRAISE_CARD.ink, 0.25)");
     expect(session).not.toContain("ringStroke");
-    expect(session).toContain("backgroundColor: pm.seed, width: `${Math.round(getTimeBonusProgress(elapsedSeconds) * 100)}%`");
+    // v339: the thread is the shared wavy fill in the seed on the
+    // wash2 track, still driven by the time-bonus progress.
+    expect(session).toContain("value={getTimeBonusProgress(elapsedSeconds)} color={pm.seed} trackColor={pm.wash2}");
   });
 
   it("the focused complete screen: Keep praying only when others were waiting at launch", () => {

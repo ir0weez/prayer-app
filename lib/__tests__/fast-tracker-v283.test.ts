@@ -163,7 +163,9 @@ describe("source pins — the three defects and the ruling", () => {
     expect(timelineStyles).not.toContain('"#FFFFFF"');
     expect(timelineStyles).not.toContain('"#E5DDF2"');
     expect(timelineStyles).not.toContain('"#DED4EC"');
-    const trackStyle = profile.slice(profile.indexOf("historyProgressTrack: {"), profile.indexOf("historyProgressFill: {"));
+    // v339: the history bar is a WavyProgress in a plain seat now;
+    // the pin scopes to that seat's style block.
+    const trackStyle = profile.slice(profile.indexOf("historyProgressSeat: {"), profile.indexOf("historyDays: {"));
     expect(trackStyle).not.toContain('"#EEE9F7"');
     // The function stands: tapping a history card still selects it.
     expect(profile).toContain("onPress={() => setSelectedFastId(fast.id)}");

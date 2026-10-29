@@ -59,6 +59,28 @@ vi.mock('react-native', async () => {
   };
 });
 
+// v339: the study surfaces' threads are WavyProgress now, which
+// draws through react-native-svg — a module this harness cannot
+// execute (the v326 precedent). Stub it as RNW Views; the pins
+// hold source + structure, never the svg internals.
+vi.mock('react-native-svg', async () => {
+  const React = await import('react');
+  const { View } = await import('react-native-web');
+  const Stub = (props: any) => React.createElement(View, props, props?.children);
+  return {
+    __esModule: true,
+    default: Stub,
+    Circle: Stub,
+    ClipPath: Stub,
+    Defs: Stub,
+    G: Stub,
+    LinearGradient: Stub,
+    Path: Stub,
+    Rect: Stub,
+    Stop: Stub,
+  };
+});
+
 vi.mock('react-native-reanimated', async () => {
   const React = await import('react');
   const { View, Text, ScrollView } = await import('react-native-web');
@@ -211,18 +233,17 @@ describe('v304 — the progress card is gone; the thread carries its fill', () =
     expect(page).not.toContain('modeRow:');
   });
 
-  it('the thread is a 4px full-width line: tint track, seed fill at the scroll fraction', () => {
+  it('the thread is a full-width line at the scroll fraction — wavy since v339, seed on tint', () => {
     expect(page).toContain('testID="chapter-progress-thread"');
-    expect(page).toContain("progThread: { height: 4, overflow: 'hidden', position: 'relative' }");
-    expect(page).toContain('progThreadFill: { height: 4 }');
+    expect(page).toContain("progThread: { position: 'relative' }");
+    // v339: the straight 4px fill (and its perpetual shimmer) became
+    // the shared wavy bar; the value is still the measured scroll
+    // fraction, clamped inside WavyProgress.
     expect(page).toContain(
-      'style={[styles.progThread, { backgroundColor: palette.raspTint }]}',
+      '<WavyProgress value={progress} color={palette.rasp} trackColor={palette.raspTint} height={8} />',
     );
-    expect(page).toContain(
-      'style={[styles.progThreadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]}',
-    );
-    // The fill is still the measured scroll fraction, clamped.
-    expect(page).toContain('Math.max(0, Math.min(100, Math.round(progress * 100)))');
+    expect(page).not.toContain('progShimmer');
+    expect(page).not.toContain('Animated.loop');
   });
 
   it('the header order is title row → slim row → thread at the bottom edge', () => {

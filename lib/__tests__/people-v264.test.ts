@@ -94,7 +94,10 @@ describe("v264 source pins — backdrop, anchoring, timer (audit D3, D5, D4)", (
     expect(session).not.toContain("hexToRgba(FIRST_CARD.ink, 0.25)");
     expect(session).not.toContain('"#EFE3BC"');
     expect(session).not.toContain("timerCircumference");
-    expect(session).toContain("backgroundColor: pm.wash2, overflow: \"hidden\"");
+    // v339: the thread is the shared wavy fill — the wash2 track
+    // and the seed fill ride its props now.
+    expect(session).toContain("trackColor={pm.wash2}");
+    expect(session).toContain("color={pm.seed}");
   });
 
   it("the pulse dot is retired with the ring (D4's heir)", () => {
@@ -102,10 +105,13 @@ describe("v264 source pins — backdrop, anchoring, timer (audit D3, D5, D4)", (
     expect(session).not.toContain("top: 4, right: 4, width: 8, height: 8");
   });
 
-  it("the queue is segments now — they flex, never clip (D12's heir)", () => {
+  it("the queue is one wavy bar now (v339, heir of D12's segments)", () => {
     const segments = session.slice(session.indexOf("{/* v310: the head"), session.indexOf("{settledPeople.map("));
-    expect(segments).toContain("hexToRgba(pm.seed, 0.45)");
-    expect(segments).toContain("flex: 1");
+    // v339 (his Oct 29 ruling): the per-person segments became ONE
+    // wavy bar in the same seat — settled + active share as its
+    // fill, full at finish; nothing wraps or clips.
+    expect(segments).toContain("isFinished ? 1 : (currentIndex + 1) / totalCount");
+    expect(segments).toContain("trackColor={pm.wash2}");
     expect(segments).not.toContain('flexWrap: "wrap"');
   });
 });

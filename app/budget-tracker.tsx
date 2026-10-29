@@ -1,6 +1,7 @@
 'use client';
 
 import { ScreenContainer } from '@/components/screen-container';
+import { WavyProgress } from '@/components/wavy-progress';
 import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from '@/components/top-fade';
 import { useSkin } from '@/hooks/use-skin';
 import { useBudgetMaterial } from '@/hooks/use-budget-material';
@@ -239,17 +240,8 @@ export default function BudgetTrackerScreen() {
       color: bm.heroInkSoft,
       marginTop: 2,
     },
-    heroBar: {
-      height: 9,
-      backgroundColor: bm.heroBarTrack,
-      borderRadius: 99,
+    heroBarSeat: {
       marginTop: 14,
-      overflow: 'hidden',
-    },
-    heroBarFill: {
-      height: '100%',
-      backgroundColor: bm.heroBarFill,
-      borderRadius: 99,
     },
     heroSplit: {
       flexDirection: 'row',
@@ -622,8 +614,10 @@ export default function BudgetTrackerScreen() {
             <Text style={styles.heroKicker}>LEFT TO PAY · {monthLabel.toUpperCase()}</Text>
             <Text style={styles.heroBig}>{money(remainingMonth)}</Text>
             <Text style={styles.heroOf}>of {money(totalMonth)} this month</Text>
-            <View style={styles.heroBar}>
-              <View style={[styles.heroBarFill, { width: `${Math.round(paidShare * 100)}%` }]} />
+            {/* v339: the paid-share bar wears the wavy fill (his
+                Oct 29 ruling) — same seat and colours. */}
+            <View style={styles.heroBarSeat}>
+              <WavyProgress value={paidShare} color={bm.heroBarFill} trackColor={bm.heroBarTrack} height={9} />
             </View>
             <View style={styles.heroSplit}>
               <Text style={styles.heroSplitText}>Paid <Text style={styles.heroSplitBold}>{money(paidMonth)}</Text></Text>

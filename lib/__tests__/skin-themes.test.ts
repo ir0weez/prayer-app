@@ -1303,8 +1303,10 @@ describe("v188 — Terminal, finished properly", () => {
     // check-off buttons; the primary spread and the progress-bar
     // strings below still stand on the remaining study surfaces.)
     expect(schedule).toContain('...(termButtonStyle(skinTokens, "primary") ?? {})');
-    expect(schedule).toContain("backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary, borderRadius: skinTokens.isTerminal ? 0 : 3");
-    expect(schedule).toContain("backgroundColor: skinTokens.isTerminal ? TERM_DIM : colors.border");
+    // v339: the study bar is the shared wavy fill — phosphor on the
+    // dim track rides its color/trackColor props under Terminal.
+    expect(schedule).toContain("color={skinTokens.isTerminal ? TERM_PHOS : colors.primary}");
+    expect(schedule).toContain("trackColor={skinTokens.isTerminal ? TERM_DIM : colors.border}");
     // The week strip's time-off markers stop wearing palette purple.
     expect(schedule).toContain("scheduleStyles.timeOffDayMarker, { backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary }");
   });

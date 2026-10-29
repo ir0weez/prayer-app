@@ -11,6 +11,7 @@
 
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { StudyProgressTotals } from '@/lib/bible-v205/rewards';
+import { WavyProgress } from '@/components/wavy-progress';
 import type { BiblePalette } from './palette';
 
 const formatCount = (n: number) => n.toLocaleString('en-US');
@@ -62,8 +63,10 @@ function StudyProgressRow({
         </View>
         <Text style={[styles.progressPct, { color: labelColor }]}>{`${pct}%`}</Text>
       </View>
-      <View style={[styles.progressThread, { backgroundColor: trackColor }]}>
-        <View style={[styles.progressThreadFill, { backgroundColor: fillColor, width: `${share}%` }]} />
+      {/* v339: the thread wears the wavy fill (his Oct 29 ruling) in
+          the track's own colours — same seat, same share. */}
+      <View style={styles.progressThread}>
+        <WavyProgress value={share / 100} color={fillColor} trackColor={trackColor} height={8} />
       </View>
     </View>
   );
@@ -155,11 +158,12 @@ export function BookReadingThread({
   total: number;
   palette: BiblePalette;
 }) {
-  const barPct = total ? (100 * read) / total : 0;
+  const barPct = total ? read / total : 0;
   return (
     <View style={styles.threadRow}>
-      <View style={[styles.readThread, { backgroundColor: palette.raspTint }]}>
-        <View style={[styles.readThreadFill, { backgroundColor: palette.raspDeep, width: `${barPct}%` }]} />
+      {/* v339: the per-book reading thread wears the wavy fill too. */}
+      <View style={styles.readThread}>
+        <WavyProgress value={barPct} color={palette.raspDeep} trackColor={palette.raspTint} height={8} />
       </View>
       <Text style={[styles.threadCount, { color: palette.inkSoft }]} numberOfLines={1}>
         {`${read} of ${total} read`}
@@ -182,8 +186,7 @@ const styles = StyleSheet.create({
   progressNumber: { fontSize: 26, fontWeight: '800', lineHeight: 29, marginTop: 1 },
   progressOf: { fontSize: 13, fontWeight: '600' },
   progressPct: { fontSize: 20, fontWeight: '800' },
-  progressThread: { height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 6 },
-  progressThreadFill: { height: 6, borderRadius: 3 },
+  progressThread: { marginTop: 6 },
   progressFooter: { borderTopWidth: 1, paddingTop: 7 },
   progressFooterText: { fontSize: 11.5, lineHeight: 17, fontWeight: '500' },
   // The reset line sits under the card, exactly as drawn — a quiet
@@ -191,7 +194,6 @@ const styles = StyleSheet.create({
   resetBtn: { alignSelf: 'flex-start', paddingVertical: 2, marginTop: 11, marginLeft: 2 },
   resetText: { fontSize: 13, fontWeight: '600' },
   threadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  readThread: { flex: 1, height: 4, borderRadius: 999, overflow: 'hidden' },
-  readThreadFill: { height: 4, borderRadius: 999 },
+  readThread: { flex: 1 },
   threadCount: { fontSize: 10.5, fontWeight: '600' },
 });

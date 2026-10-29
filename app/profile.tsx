@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, findNodeHandle, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { WavyProgress } from "@/components/wavy-progress";
 import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 import { PaperSettle } from "@/components/paper-motion";
@@ -789,8 +790,10 @@ export default function ProfileScreen() {
                           <Text style={[styles.historyStatusText, { color: isCompleted ? FAST_KEPT_DEEP : trackerFamily.deep }]}>{isCompleted ? "Complete" : `${percentage}%`}</Text>
                         </View>
                       </View>
-                      <View style={[styles.historyProgressTrack, { backgroundColor: trackerFamily.wash }]}>
-                        <View style={[styles.historyProgressFill, { width: `${percentage}%`, backgroundColor: trackerFamily.seed }]} />
+                      {/* v339: the past-fast bar wears the wavy fill
+                          (his Oct 29 ruling) — same seat and colours. */}
+                      <View style={styles.historyProgressSeat}>
+                        <WavyProgress value={percentage / 100} color={trackerFamily.seed} trackColor={trackerFamily.wash} height={8} />
                       </View>
                       <Text style={[styles.historyDays, { color: trackerFamily.inkSoft }, skinText(skinTokens, skinTokens.type.labelText)]}>{progress.completed}/{progress.total} completed • {progress.missed} missed • {progress.skipped} skipped</Text>
                       {fast.focusItems.length > 0 && (
@@ -1196,15 +1199,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900" as const,
   },
-  historyProgressTrack: {
-    height: 7,
+  historyProgressSeat: {
     marginTop: 12,
-    borderRadius: 4,
-    overflow: "hidden" as const,
-  },
-  historyProgressFill: {
-    height: "100%" as const,
-    borderRadius: 4,
   },
   historyDays: {
     marginTop: 6,

@@ -49,6 +49,28 @@ vi.mock('react-native', async () => {
   };
 });
 
+// v339: the study surfaces' threads are WavyProgress now, which
+// draws through react-native-svg — a module this harness cannot
+// execute (the v326 precedent). Stub it as RNW Views; the pins
+// hold source + structure, never the svg internals.
+vi.mock('react-native-svg', async () => {
+  const React = await import('react');
+  const { View } = await import('react-native-web');
+  const Stub = (props: any) => React.createElement(View, props, props?.children);
+  return {
+    __esModule: true,
+    default: Stub,
+    Circle: Stub,
+    ClipPath: Stub,
+    Defs: Stub,
+    G: Stub,
+    LinearGradient: Stub,
+    Path: Stub,
+    Rect: Stub,
+    Stop: Stub,
+  };
+});
+
 import { CHAPTER_COUNTS } from '@/lib/bible-v205/index';
 import {
   seedStudyState,
@@ -281,13 +303,15 @@ describe('v325 Part A — the header renders Concept 3', () => {
     expect(html).toContain('Reset reading progress');
   });
 
-  it('the drawing’s measure is in the furniture (source pins): radius 24, 6px threads, 26px numerals, shares derived', () => {
+  it('the drawing’s measure is in the furniture (source pins): radius 24, 26px numerals, shares derived; threads wavy since v339', () => {
     const src = read('components/bible-v205/reading-progress-card.tsx');
     expect(src).toContain('progressCardRadius: { borderRadius: 24 }');
-    expect(src).toContain('progressThread: { height: 6');
     expect(src).toContain('progressNumber: { fontSize: 26');
     expect(src).toContain('const share = total ? (100 * count) / total : 0');
-    expect(src).toContain('width: `${share}%`');
+    // v339: the straight 6px threads became WavyProgress fills in
+    // the same colours — the share still derives exactly as drawn.
+    expect(src).toContain('<WavyProgress value={share / 100} color={fillColor} trackColor={trackColor} height={8} />');
+    expect(src).toContain('<WavyProgress value={barPct} color={palette.raspDeep} trackColor={palette.raspTint} height={8} />');
     // Exactly two structured rows — no third track sneaks in.
     expect(src.match(/<StudyProgressRow/g)).toHaveLength(2);
     // The header takes its colours from palette roles, never pins:

@@ -1,4 +1,5 @@
 import { Animated, View, Text, Pressable, ScrollView, Modal } from "react-native";
+import { WavyProgress } from "@/components/wavy-progress";
 import { formatCoins } from "@/lib/hometown";
 import { getAccentThemeDefinition, mix } from "@/lib/color-themes";
 import { useThemeContext } from "@/lib/theme-provider";
@@ -421,15 +422,9 @@ export function DailySummaryCard({
                       <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 8 }}>
                         {day.chapter} of {getChapterCount(day.book)} chapters
                       </Text>
-                      <View style={{ height: 3, backgroundColor: colors.border, borderRadius: 1.5, overflow: 'hidden' }}>
-                        <View
-                          style={{
-                            height: '100%',
-                            width: `${(day.chapter / getChapterCount(day.book)) * 100}%`,
-                            backgroundColor: skinTokens.isTerminal ? TERM_PHOS : colors.primary,
-                          }}
-                        />
-                      </View>
+                      {/* v339: the day thread wears the wavy fill
+                          (his Oct 29 ruling) — same seat and colours. */}
+                      <WavyProgress value={day.chapter / getChapterCount(day.book)} color={skinTokens.isTerminal ? TERM_PHOS : colors.primary} trackColor={colors.border} height={8} />
                     </View>
                     {onDeleteBibleStudyDay && (
                       <Pressable

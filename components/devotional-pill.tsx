@@ -21,6 +21,7 @@ import {
 } from '@/lib/devotional-player';
 import { useBiblePalette } from './bible-v205/palette';
 import { useTabBarOccupiedHeight } from './app-tab-bar';
+import { WavyProgress } from './wavy-progress';
 
 export function DevotionalPill() {
   const playerState = useDevotionalPlayerState();
@@ -91,8 +92,10 @@ export function DevotionalPill() {
         <Pressable onPress={expand} hitSlop={8} style={styles.iconBtn} accessibilityLabel="Expand player">
           <MaterialIcons name="keyboard-arrow-up" size={22} color={palette.inkSoft} />
         </Pressable>
-        <View style={[styles.progressTrack, { backgroundColor: palette.band }]}>
-          <View style={[styles.progressFill, { backgroundColor: palette.rasp, width: `${progress * 100}%` }]} />
+        {/* v339: the pill's playback line wears the wavy fill
+            (his Oct 29 ruling) — same seat and colours. */}
+        <View style={styles.progressTrack}>
+          <WavyProgress value={progress} color={palette.rasp} trackColor={palette.band} height={8} />
         </View>
       </View>
     </View>
@@ -115,6 +118,5 @@ const styles = StyleSheet.create({
   where: { fontSize: 10, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase' },
   title: { fontSize: 13, fontWeight: '700', marginTop: 1 },
   iconBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-  progressTrack: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3 },
-  progressFill: { height: '100%' },
+  progressTrack: { position: 'absolute', left: 0, right: 0, bottom: 0 },
 });

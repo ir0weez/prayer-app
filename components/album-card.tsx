@@ -6,6 +6,7 @@ import { useColors } from '@/hooks/use-colors';
 import { useSkin } from '@/hooks/use-skin';
 import { mix } from '@/lib/color-themes';
 import { TERM_PHOS, hasTypeScale, skinText } from '@/lib/skin-themes';
+import { WavyProgress } from '@/components/wavy-progress';
 
 export interface AlbumCardProps {
   title: string;
@@ -132,8 +133,10 @@ export function AlbumCard({
               <Text style={{ fontSize: 11.5, fontWeight: classic ? '600' : '700', color: classic ? colors.muted : deepPrimary, marginTop: classic ? 5 : 2 }}>
                 {heardCount} of {tracks.length} heard
               </Text>
-              <View style={{ height: 5, borderRadius: 3, backgroundColor: mix(colors.primary, colors.surface, 0.82), maxWidth: 150, width: '100%', overflow: 'hidden', marginTop: classic ? 6 : 3 }}>
-                <View style={{ height: '100%', width: `${heardPct}%`, backgroundColor: colors.primary, borderRadius: 3 }} />
+              {/* v339: the heard thread wears the wavy fill (his
+                  Oct 29 ruling) — same seat, width and colours. */}
+              <View style={{ maxWidth: 150, width: '100%', marginTop: classic ? 6 : 3 }}>
+                <WavyProgress value={heardPct / 100} color={colors.primary} trackColor={mix(colors.primary, colors.surface, 0.82)} height={8} />
               </View>
             </>
           )}

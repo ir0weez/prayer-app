@@ -11,6 +11,7 @@
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, G, Path } from "react-native-svg";
+import { WavyProgress } from "@/components/wavy-progress";
 import { ERA_DEFS, type EraDef } from "@/lib/hometown-eras";
 import {
   ERA_BADGE_ART,
@@ -266,23 +267,10 @@ export function RoadBadgesSection({ pt }: { pt: { card: string; text: string; su
     <View>
       <View style={{ marginBottom: 12 }}>
         <Text style={{ fontSize: 13, fontWeight: "700", color: pt.text }}>{earned}/12 eras walked</Text>
-        <View
-          style={{
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: "rgba(0,0,0,0.08)",
-            overflow: "hidden",
-            marginTop: 6,
-          }}
-        >
-          <View
-            style={{
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: "#C9963C",
-              width: `${Math.min(100, Math.max(0, (earned / ERA_DEFS.length) * 100))}%`,
-            }}
-          />
+        {/* v339: the walked share wears the wavy fill (his Oct 29
+            ruling) in the Road's gold — same seat. */}
+        <View style={{ marginTop: 6 }}>
+          <WavyProgress value={earned / ERA_DEFS.length} color="#C9963C" trackColor="rgba(0,0,0,0.08)" height={8} />
         </View>
         <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 6 }}>
           A badge is earned as each era is lived through — and kept through Begin Again.

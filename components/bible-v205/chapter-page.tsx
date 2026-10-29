@@ -34,11 +34,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AccessibilityInfo,
   Animated,
   BackHandler,
   Dimensions,
-  Easing as RNEasing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -52,6 +50,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Easing } from 'react-native-reanimated';
 import type { Person } from '@/lib/prayercircle-data';
 import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from '@/components/top-fade';
+import { WavyProgress } from '@/components/wavy-progress';
 import {
   buildDisplaySections,
   buildReadOnlySections,
@@ -207,62 +206,14 @@ function ChapterProgressThread({
   palette: BiblePalette;
   progress: number;
 }) {
-  const shimmer = useRef(new Animated.Value(0)).current;
-  const [trackW, setTrackW] = useState(0);
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    let live = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((r) => {
-        if (live) setReduced(r);
-      })
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, []);
-  useEffect(() => {
-    if (reduced || trackW === 0) return;
-    shimmer.setValue(0);
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmer, {
-          toValue: 1,
-          duration: 1500,
-          easing: RNEasing.inOut(RNEasing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.delay(2400),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [reduced, trackW, shimmer]);
-  const pct = Math.max(0, Math.min(100, Math.round(progress * 100)));
+  // v339: the thread wears the wavy fill (his Oct 29 ruling) in the
+  // seed colour on its tint track — same seat at the header's bottom
+  // edge, still the ScrollView's measured read fraction. The old
+  // perpetual shimmer loop is retired: the wave ripples as the fill
+  // moves and rests static, per the ruling's motion spec.
   return (
-    <View
-      testID="chapter-progress-thread"
-      style={[styles.progThread, { backgroundColor: palette.raspTint }]}
-      onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}
-    >
-      <View style={[styles.progThreadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />
-      {!reduced && trackW > 0 ? (
-        <Animated.View
-          style={[
-            styles.progShimmer,
-            {
-              transform: [
-                {
-                  translateX: shimmer.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-trackW * 0.55, trackW * 1.08],
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
-      ) : null}
+    <View testID="chapter-progress-thread" style={styles.progThread}>
+      <WavyProgress value={progress} color={palette.rasp} trackColor={palette.raspTint} height={8} />
     </View>
   );
 }
@@ -1695,9 +1646,7 @@ const styles = StyleSheet.create({
   // v304: the card's chrome is gone — the progress is a 4px thread
   // spanning the header's full width at its bottom edge (track and
   // fill colors inline, as the card's were); the shimmer survives.
-  progThread: { height: 4, overflow: 'hidden', position: 'relative' },
-  progThreadFill: { height: 4 },
-  progShimmer: { position: 'absolute', top: 0, bottom: 0, width: '45%', backgroundColor: 'rgba(255,255,255,0.45)' },
+  progThread: { position: 'relative' },
   // v304: the slim row the range label and the mode control share —
   // the label left and muted at 11.5, the control right.
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },

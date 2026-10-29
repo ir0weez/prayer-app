@@ -204,7 +204,9 @@ describe("the session's dress (source)", () => {
 
   it("the segments replace the dots; the count rides the header", () => {
     expect(session).toContain("PERSON {currentIndex + 1} OF {totalCount}");
-    expect(session).toContain("hexToRgba(pm.seed, 0.45)");
+    // v339: the segments themselves became one wavy bar (his Oct 29
+    // ruling) — settled + active share as its fill, full at finish.
+    expect(session).toContain("isFinished ? 1 : (currentIndex + 1) / totalCount");
     expect(session).not.toContain("{totalCount} {totalCount === 1 ? \"person\" : \"people\"}");
   });
 

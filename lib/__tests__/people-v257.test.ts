@@ -169,11 +169,14 @@ describe("v257 governance — the card reads the derived family, pins nothing", 
     expect(card).toContain("backgroundColor: family.card");
     expect(card).toContain("color: family.ink");
     expect(card).toContain("color: family.inkSoft");
-    expect(card).toContain("backgroundColor: family.wash");
+    // v339: the streak bar is the shared wavy fill now — the wash
+    // is its track, and the seed → queue-teal gradient rides the
+    // wave's stroke (color → colorEnd), still entirely the family's.
+    expect(card).toContain("trackColor={family.wash}");
     expect(card).toContain("backgroundColor: family.seed");
     expect(card).toContain("shadowColor: family.shadow");
-    expect(card).toContain("stopColor={family.seed}");
-    expect(card).toContain("stopColor={family.queueTeal}");
+    expect(card).toContain("color={family.seed}");
+    expect(card).toContain("colorEnd={family.queueTeal}");
   });
 
   it("none of the mockup's surface hexes appear as literals in the card", () => {

@@ -5,6 +5,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import { AvatarImage } from "@/components/avatar-system";
+import { WavyProgress } from "@/components/wavy-progress";
 import { XpGainIndicator } from "@/components/xp-gain-indicator";
 import { useColors } from "@/hooks/use-colors";
 import { NOTIFICATION_ACTIONS, PRAYER_SESSION_CATEGORY } from "@/lib/notification-scheduler";
@@ -866,18 +867,19 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
           </View>
           <Text style={{ fontSize: 12, fontWeight: "700", letterSpacing: 1.2, color: pm.inkSoft, paddingTop: 8 }}>PERSON {currentIndex + 1} OF {totalCount}</Text>
         </View>
-        <View style={{ width: "100%", flexDirection: "row", gap: 5, marginTop: 12 }}>
-          {sessionPeople.map((person, idx) => (
-            <View
-              key={person.id}
-              style={{
-                flex: 1,
-                height: 6,
-                borderRadius: 99,
-                backgroundColor: isFinished || idx < currentIndex ? hexToRgba(pm.seed, 0.45) : idx === currentIndex ? pm.seed : pm.wash2,
-              }}
-            />
-          ))}
+        {/* v339 (his Oct 29 ruling): the queue SEGMENTS become one
+            wavy bar in the same seat and colours — the seed fill on
+            the wash track, its fill covering the settled people plus
+            the active person (the share the segments read as
+            settled + active), full when the session is finished.
+            The per-person segment colours retire with the segments. */}
+        <View style={{ width: "100%", marginTop: 12 }}>
+          <WavyProgress
+            value={totalCount > 0 ? (isFinished ? 1 : (currentIndex + 1) / totalCount) : 0}
+            color={pm.seed}
+            trackColor={pm.wash2}
+            height={8}
+          />
         </View>
 
         {!isFinished && currentPerson ? (
@@ -1150,8 +1152,10 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
                 <Text style={{ flex: 1, textAlign: "right", fontSize: 13.5, fontWeight: "700", color: pm.deep }}>+{accruedTimeBonusXp} for time so far</Text>
               ) : null}
             </View>
-            <View style={{ height: 6, borderRadius: 99, backgroundColor: pm.wash2, overflow: "hidden", marginBottom: 12 }}>
-              <View style={{ height: "100%", borderRadius: 99, backgroundColor: pm.seed, width: `${Math.round(getTimeBonusProgress(elapsedSeconds) * 100)}%` }} />
+            {/* v339: the time-bonus thread wears the wavy fill too —
+                same seat and colours (seed on wash). */}
+            <View style={{ marginBottom: 12 }}>
+              <WavyProgress value={getTimeBonusProgress(elapsedSeconds)} color={pm.seed} trackColor={pm.wash2} height={8} />
             </View>
             <Pressable
               onPress={handlePray}

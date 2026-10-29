@@ -44,6 +44,7 @@ import { bibleAccentInk } from "@/lib/bible-v205/palette-accents";
 import type { PeopleFrontDoorFamily } from "@/lib/people-material";
 import { CarouselDots, FrontDoorCarousel } from "@/components/front-door-carousel";
 import { PeopleStreakCard } from "@/components/people-streak-card";
+import { WavyProgress } from "@/components/wavy-progress";
 import { getPraiseDisplay, getPraiseJournalText } from "@/lib/praise-display";
 import { getReachOutEntries, formatHoursLeft } from "@/lib/bell-header";
 import { getWhatsNext, type WhatsNextItem } from "@/lib/whats-next";
@@ -525,57 +526,10 @@ function parseStoredProfile(value: string | null): PersonalProfile {
   }
 }
 
-function AnimatedWavyProgressBar({ progress, color }: { progress: number; color: string }) {
-  const waveOffset = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(waveOffset, {
-        toValue: -60,
-        duration: 2000,
-        useNativeDriver: true,
-      })
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [waveOffset]);
-
-  return (
-    <View
-      style={{
-        width: `${progress}%`,
-        height: "100%",
-        overflow: "hidden",
-      }}
-    >
-      <Animated.View
-        style={{
-          transform: [{ translateX: waveOffset }],
-        }}
-      >
-        <Svg width="300" height="8" viewBox="0 0 300 8">
-          <Path
-            d="M 0 4 Q 15 0, 30 4 T 60 4 T 90 4 T 120 4 T 150 4 T 180 4 T 210 4 T 240 4 T 270 4 T 300 4"
-            stroke={color}
-            strokeWidth="3"
-            fill="none"
-            strokeLinecap="round"
-          />
-        </Svg>
-      </Animated.View>
-      <View
-        style={{
-          position: "absolute",
-          right: 0,
-          top: 0,
-          width: 2,
-          height: "100%",
-          backgroundColor: color,
-        }}
-      />
-    </View>
-  );
-}
+/* v339: the old AnimatedWavyProgressBar prototype that lived
+   here — an unused, perpetually-looping wave — is retired. Every
+   bar in the app now renders the shared WavyProgress, whose only
+   motion is the sweep when its value changes. */
 
 // Duolingo-style count-up: number ticks smoothly from old to new.
 function CountUpNumber({ value, textStyle }: { value: number; textStyle: any }) {
@@ -1849,17 +1803,9 @@ export default function HomeScreen() {
   // but the current face. (The Daily Summary's Reach area keeps its
   // own rotation; that is a different surface.)
   const reachEntries = useMemo(() => getReachOutEntries(people, new Date()), [people]);
-  // v255: the queue bar's shine sweep, as drawn — a soft white band
-  // crossing the bar every 3.8s, ease-in-out, native driver (the
-  // mockup's CSS shimmer, carried over at the same tempo).
-  const queueShine = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(queueShine, { toValue: 1, duration: 3800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [queueShine]);
+  // v339: the queue bar's v255 shine loop is retired — the bar
+  // wears the wavy fill now, and its only motion is the sweep when
+  // the prayed share changes (his Oct 29 ruling).
 
   const duePersonalTodos = useMemo(() => {
     // Only show personal to-dos after all prayer requests are completed
@@ -3476,30 +3422,12 @@ export default function HomeScreen() {
               ) : null}
             </View>
           </View>
-          <View style={{ height: 8, borderRadius: 4, backgroundColor: pmf.wash, marginTop: 11, overflow: "hidden" }}>
-            <View style={{ width: `${pct}%`, height: "100%", borderRadius: 4, overflow: "hidden" }}>
-              <Svg width="100%" height="100%" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
-                <Defs>
-                  <LinearGradient id="v254QueueGrad" x1="0" y1="0" x2="1" y2="0">
-                    <Stop offset="0" stopColor={pmf.seed} />
-                    <Stop offset="1" stopColor={pmf.queueTeal} />
-                  </LinearGradient>
-                </Defs>
-                <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254QueueGrad)" />
-              </Svg>
-            </View>
-            <Animated.View pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, width: 56, transform: [{ translateX: queueShine.interpolate({ inputRange: [0, 1], outputRange: [-70, 340] }) }] }}>
-              <Svg width="100%" height="100%">
-                <Defs>
-                  <LinearGradient id="v255QueueShine" x1="0" y1="0" x2="1" y2="0">
-                    <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0" />
-                    <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.5" />
-                    <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-                  </LinearGradient>
-                </Defs>
-                <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v255QueueShine)" />
-              </Svg>
-            </Animated.View>
+          {/* v339: the queue bar wears the wavy fill (his Oct 29
+              ruling) on the wash track — same seat, prayed share,
+              and the v254 seed → queue-teal gradient (the wave's
+              stroke carries it); the v255 shine loop retires. */}
+          <View style={{ marginTop: 11 }}>
+            <WavyProgress value={pct / 100} color={pmf.seed} colorEnd={pmf.queueTeal} trackColor={pmf.wash} height={8} />
           </View>
           {/* v262: the tray window — a clipping Animated.View whose
               height IS the open/close motion. At rest the height is
@@ -3816,8 +3744,10 @@ export default function HomeScreen() {
               <Text style={{ fontSize: 11.5, fontWeight: "800", color: pmf.ink }}>{completedMembers} of {familyMembers.length} prayed today</Text>
               <Text style={{ fontSize: 11.5, fontWeight: "800", color: accent }}>{pct}%</Text>
             </View>
-            <View style={{ height: 6, borderRadius: 3, backgroundColor: pmf.wash, marginTop: 6, overflow: "hidden" }}>
-              <View style={{ width: `${pct}%`, height: "100%", borderRadius: 3, backgroundColor: accent }} />
+            {/* v339: the household's prayed-today bar wears the
+                wavy fill in the household accent — same seat. */}
+            <View style={{ marginTop: 6 }}>
+              <WavyProgress value={pct / 100} color={accent} trackColor={pmf.wash} height={8} />
             </View>
           </View>
           <View style={{ marginTop: 6 }}>
@@ -3837,7 +3767,7 @@ export default function HomeScreen() {
     }
     return <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: isSkinned ? skinTokens.surface ?? colors.background : colors.background, borderBottomLeftRadius: skinTokens.isEightBit ? 2 : 12, borderBottomRightRadius: skinTokens.isEightBit ? 2 : 12, borderWidth: skinTokens.isEightBit ? 3 : 1, borderTopWidth: 0, borderColor: skinTokens.isEightBit ? skinTokens.border : `${accent}45` }}>
       {isSkinned ? <PaperGrainOverlay /> : null}
-      <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800", ...(skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 9, lineHeight: 15 } : {}) }}>{completedMembers} of {familyMembers.length} complete</Text><Text style={{ color: accent, fontSize: 12, fontWeight: "800" }}>{Math.round((completedMembers / familyMembers.length) * 100)}%</Text></View><View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${accent}18`, overflow: "hidden" }}><View style={{ width: `${Math.round((completedMembers / familyMembers.length) * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: accent }} /></View></View>
+      <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800", ...(skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 9, lineHeight: 15 } : {}) }}>{completedMembers} of {familyMembers.length} complete</Text><Text style={{ color: accent, fontSize: 12, fontWeight: "800" }}>{Math.round((completedMembers / familyMembers.length) * 100)}%</Text></View><View style={{ marginTop: 8 }}><WavyProgress value={familyMembers.length ? completedMembers / familyMembers.length : 0} color={accent} trackColor={`${accent}18`} height={8} /></View></View>
       {familyMembers.map((member, memberIdx) => {
         const emergency = getAllActiveEmergencyPrayers(people).find((entry) => entry.person.id === member.id);
         const emergencyCountdown = emergency ? emergencyCountdowns[emergency.item.id] : undefined;

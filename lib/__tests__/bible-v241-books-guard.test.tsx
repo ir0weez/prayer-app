@@ -37,6 +37,28 @@ vi.mock('react-native', async () => {
   };
 });
 
+// v339: the study surfaces' threads are WavyProgress now, which
+// draws through react-native-svg — a module this harness cannot
+// execute (the v326 precedent). Stub it as RNW Views; the pins
+// hold source + structure, never the svg internals.
+vi.mock('react-native-svg', async () => {
+  const React = await import('react');
+  const { View } = await import('react-native-web');
+  const Stub = (props: any) => React.createElement(View, props, props?.children);
+  return {
+    __esModule: true,
+    default: Stub,
+    Circle: Stub,
+    ClipPath: Stub,
+    Defs: Stub,
+    G: Stub,
+    LinearGradient: Stub,
+    Path: Stub,
+    Rect: Stub,
+    Stop: Stub,
+  };
+});
+
 vi.mock('expo-router', async () => {
   const React = await import('react');
   return {

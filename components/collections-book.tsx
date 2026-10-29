@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { WavyProgress } from "@/components/wavy-progress";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
   COLLECTION_SETS,
@@ -25,9 +26,11 @@ type Props = {
 };
 
 function ProgressBar({ pct, color }: { pct: number; color: string }) {
+  // v339: the set bars wear the wavy fill (his Oct 29 ruling) —
+  // same seat, colours, and clamp.
   return (
-    <View style={{ height: 8, borderRadius: 4, backgroundColor: "rgba(0,0,0,0.08)", overflow: "hidden", marginTop: 6 }}>
-      <View style={{ height: 8, borderRadius: 4, backgroundColor: color, width: `${Math.min(100, Math.max(0, pct))}%` }} />
+    <View style={{ marginTop: 6 }}>
+      <WavyProgress value={Math.min(100, Math.max(0, pct)) / 100} color={color} trackColor="rgba(0,0,0,0.08)" height={8} />
     </View>
   );
 }

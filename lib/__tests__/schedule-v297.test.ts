@@ -214,8 +214,11 @@ describe("v297 summary — the drawing's composition", () => {
 
   it("the panel variant keeps the day cap and seats it on the panel's colours", () => {
     expect(progressBar).toContain('variant?: "standard" | "panel"');
-    expect(progressBar).toContain('backgroundColor: "rgba(255,255,255,0.30)"');
-    expect(progressBar).toContain("height: 14, borderRadius: 999");
+    // v339: the panel fill is the shared wavy bar in the panel's own
+    // colours (amber on the translucent track), cap still riding.
+    expect(progressBar).toContain('trackColor="rgba(255,255,255,0.30)"');
+    expect(progressBar).toContain('color="#F59E0B"');
+    expect(progressBar).toContain("height={14} hideTipDot");
     expect(progressBar).toContain("<DayCapGlyph");
     expect(progressBar).toContain('color: "#E4DBFF"');
   });

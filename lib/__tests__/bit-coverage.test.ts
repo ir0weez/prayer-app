@@ -94,10 +94,13 @@ describe("8-bit coverage — v203 animation pass", () => {
 
   it("schedule progress fill advances in stepped chunks — A46 ruled in v240: the sprout's springs are GONE", () => {
     const bar = read("components/schedule-progress-bar.tsx");
-    expect(bar).toContain("useBitFill(percentage / 100)");
-    expect(bar).toContain("paperFillStyle ?? bitFillStyle");
-    // Paper's soak is still wired exactly as v202 left it.
-    expect(bar).toContain("usePaperFill(percentage / 100)");
+    // RE-BASED in v339 (Jonathan's wavy ruling, 2026-10-29: every
+    // progress bar wears the sine fill): the 8-bit stepped fill and
+    // the Paper soak retired in this bar — the shared wavy sweep is
+    // the motion now; under 8-bit the wave wears BIT_GOLD as before.
+    expect(bar).toContain("WavyProgress");
+    expect(bar).toContain("BIT_GOLD");
+    expect(bar).not.toContain("useBitFill(percentage / 100)");
     // RE-BASED in v240 (Jonathan ruled A46 on 2026-10-24 and picked
     // the sun/moon cap): the original pin froze the sprout's spring
     // configs while A46 was HELD; the springs are now out under

@@ -33,7 +33,7 @@ import { JournalDay } from "@/components/journal-day";
 import { JournalPost, type JournalAuthor } from "@/components/journal-post";
 import { CalendarSheet, PersonSheet, TagSheet } from "@/components/journal-sheets";
 import { MoodFace } from "@/components/mood-face";
-import { TopFade } from "@/components/top-fade";
+import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { PaperSettle, paperPressedLift } from "@/components/paper-motion";
 import { BitSettle, bitPressedSnap } from "@/components/bit-motion";
 import { MOODS, MoodPicker, type JournalMood } from "@/components/mood-picker";
@@ -168,6 +168,7 @@ function createId(prefix: string): string {
 // on the entry (taggedPeople / places), so the links are data,
 // not render-time guesses.
 export function PrayerJournalTab({ entries, people, onChange, onComposeChange, headerBell }: PrayerJournalTabProps) {
+  const fadeScrollY = useTopFadeScrollY();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
@@ -799,6 +800,8 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
         keyboardShouldPersistTaps="handled"
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 148 + insets.bottom }}
+        onScroll={topFadeScrollHandler(fadeScrollY)}
+        scrollEventThrottle={16}
         ListHeaderComponent={
           // v202: under Paper the whole masthead — header row, search,
           // filter chips, the day pill — is one sheet laid at the head
@@ -1011,7 +1014,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
           feed dissolves under the journal's own ground at the top
           edge instead of cutting off hard. The composer morph
           (zIndex 30) and everything after it paint above the fade. */}
-      <TopFade color={(skinTokens.isEightBit || skinTokens.isTerminal) ? skinTokens.background ?? jm.ground : jm.ground} />
+      <TopFade color={(skinTokens.isEightBit || skinTokens.isTerminal) ? skinTokens.background ?? jm.ground : jm.ground} scrollY={fadeScrollY} />
 
       {/* v204 — the composer MORPH (his asks, Oct 23). v195–v196's
           always-visible in-flow bar is retired: at rest there is

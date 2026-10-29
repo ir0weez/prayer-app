@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
-import { TopFade } from "@/components/top-fade";
+import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { AvatarImage } from "@/components/avatar-system";
 import { PaperSettle } from "@/components/paper-motion";
 import { AnchoredSheet, measureEventAnchor, type AnchorRect } from "@/components/anchored-sheet";
@@ -303,6 +303,7 @@ async function schedulePersonReminders(
 }
 
 export default function PersonScreen() {
+  const fadeScrollY = useTopFadeScrollY();
   const router = useRouter();
   const colors = useColors();
   const params = useLocalSearchParams<{ personId: string }>();
@@ -885,7 +886,7 @@ export default function PersonScreen() {
       </View>
 
       <View style={{ flex: 1 }}>
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent} onScroll={topFadeScrollHandler(fadeScrollY)} scrollEventThrottle={16}>
         {/* v202: the person's header sheet settles in under Paper. */}
         <PeopleEntrance emphasis>
         <PaperSettle style={[styles.profileSection, !isSkinned && { backgroundColor: pm.wash, borderRadius: 28, marginHorizontal: 16, marginTop: 8, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 3 }]}>
@@ -1261,7 +1262,7 @@ export default function PersonScreen() {
           scroll view, below the fixed header bar. Colour = the
           SCREEN_BG this page paints (the themed palette
           background). */}
-      <TopFade color={colors.background} />
+      <TopFade color={colors.background} scrollY={fadeScrollY} />
       </View>
 
       <Modal transparent visible={showEditModal} animationType={skinTokens.isPaper ? "fade" : "slide"} onRequestClose={() => setShowEditModal(false)}>

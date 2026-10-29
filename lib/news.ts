@@ -33,6 +33,17 @@
  * WHAT gets picked — never how an item looks (no badges, no
  * labels: his no-captions rule).
  *
+ * v338 — two rulings of Jonathan's land on the selection:
+ *  (1) Christianity Today is DEMOTED: it stays a source, but its
+ *      items are never Briefing-eligible — "More from your
+ *      sources" only (see the briefingEligible flag).
+ *  (2) The Briefing's TRUTH GATE: "Unless the article can be
+ *      provenly true, there's no reason to have it at the top."
+ *      Briefing eligibility excludes opinion / editorial / essay /
+ *      photo-essay / analysis-style items and extraordinary
+ *      uncorroborated claims, from every source (see
+ *      briefingExclusionReason). More keeps the wider set.
+ *
  * Parsing is a small tolerant extractor — React Native has no
  * DOMParser and this build adds no dependency. It handles the RSS
  * and Atom shapes these six feeds actually publish (CDATA or plain
@@ -60,10 +71,18 @@ export interface NewsFeedDef {
    * illustrationScore — enough to tip close calls toward the
    * story, never enough to outrank a real illustration elsewhere. */
   illustrationBonus?: number;
+  /** v338 (his ruling): false marks a More-only source — its items
+   * are fetched, cached, and listed under "More from your
+   * sources", but are NEVER eligible for the Briefing's picks.
+   * An eligibility flag, not a scoring nudge: no score, however
+   * high, can promote a More-only source into the Briefing.
+   * Absent/true = Briefing-eligible (subject to the truth gate). */
+  briefingEligible?: boolean;
 }
 
 export const NEWS_FEEDS: NewsFeedDef[] = [
-  { id: "ct", name: "Christianity Today", url: "https://www.christianitytoday.com/feed/", area: "Church News" },
+  // v338: Christianity Today demoted by his ruling — More-only.
+  { id: "ct", name: "Christianity Today", url: "https://www.christianitytoday.com/feed/", area: "Church News", briefingEligible: false },
   { id: "christianpost", name: "Christian Post", url: "https://www.christianpost.com/rss/feed", area: "Church News" },
   { id: "baptistpress", name: "Baptist Press", url: "https://www.baptistpress.com/feed/", area: "Church Leadership" },
   { id: "lifeway", name: "Lifeway Research", url: "https://research.lifeway.com/feed", area: "Church Leadership" },
@@ -281,6 +300,76 @@ export function illustrationScore(item: NewsItem): number {
   return Math.max(-2, Math.min(12, score)) + (feed?.illustrationBonus ?? 0);
 }
 
+/* ------------------------- briefing eligibility -------------------------- */
+
+/**
+ * v338 — who may stand in the Briefing at all, before the lens
+ * ranks anyone. Two of his rulings:
+ *
+ *  (1) A More-only source (briefingEligible: false — Christianity
+ *      Today) never enters the Briefing, whatever it scores.
+ *  (2) The truth gate: "Unless the article can be provenly true,
+ *      there's no reason to have it at the top." Opinion,
+ *      editorial, essay, photo-essay, and analysis-style items are
+ *      arguments, not happenings — they belong to More, not the
+ *      top. So are extraordinary claims asserted with no story
+ *      around them (no person, no turn, no specifics — nothing a
+ *      reader could check).
+ *
+ * The gate reads only what survives the cache round-trip — the
+ * item's link, title, summary, and source — never a fetched page:
+ * publishers mark their opinion content in the URL path
+ * (/opinion/, /editorial/, /essay/, /analysis/, /commentary/…)
+ * and in headline labels ("Opinion: …"), which is exactly the
+ * metadata the gate keys on. It is deliberately conservative:
+ * this is NOT a fact-checker, ordinary reported stories with
+ * named people, places, and events stay eligible, and whenever a
+ * marker is ambiguous the item stays eligible. "More from your
+ * sources" is untouched — excluded items land there.
+ */
+const OPINION_PATH_RE =
+  /\/(opinion|opinions|editorial|editorials|comment|commentary|essay|essays|analysis|op-ed|oped|perspective|perspectives|viewpoint|viewpoints|photo-essay|photoessay)(\/|\?|#|$)/i;
+
+const OPINION_TITLE_RE =
+  /^(opinion|editorial|commentary|analysis|essay|op-ed|perspective|viewpoint|review)\s*[:|—–-]/i;
+
+const OPINION_FRAMING_RE = /\b(in my opinion|in our opinion|my take|our take)\b/i;
+
+const PHOTO_ESSAY_RE = /\bphoto essay\b|\bin pictures\b|^photos?\s*:/i;
+
+/** Extraordinary assertions — the kind of claim that, standing
+ * alone as a bare headline with no story around it, no reader
+ * could check. A story-SHAPED account (an illustration theme or a
+ * human-story mark present — a named widow, a town, a stranger)
+ * is a reported story and stays eligible: the gate excludes the
+ * bare assertion, not the testimony. */
+const EXTRAORDINARY_CLAIM_RE =
+  /\b(raised from the dead|dead (man|woman|boy|girl|child) (walks|walked|comes back)|resurrected from|weeping (statue|icon|madonna|image)|statue (weeps|bleeds|cries)|levitat\w+|face of (jesus|christ|mary) (appears|appeared|seen in))/i;
+
+/** The reason an item is barred from the Briefing, or null when
+ * it is eligible. Reasons are for tests and reasoning only —
+ * nothing renders them (his no-captions rule). */
+export function briefingExclusionReason(item: NewsItem): string | null {
+  const feed = NEWS_FEEDS.find((f) => f.id === item.sourceId);
+  if (feed && feed.briefingEligible === false) return "source-more-only";
+  if (OPINION_PATH_RE.test(item.link)) return "opinion-path";
+  if (OPINION_TITLE_RE.test(item.title) || OPINION_FRAMING_RE.test(item.title)) {
+    return "opinion-framing";
+  }
+  if (PHOTO_ESSAY_RE.test(item.title)) return "photo-essay";
+  if (EXTRAORDINARY_CLAIM_RE.test(item.title)) {
+    const text = `${item.title} ${item.summary}`;
+    const hasTheme = ILLUSTRATION_THEMES.some((theme) => theme.re.test(text));
+    const hasHumanMark = HUMAN_STORY_MARKS.some((re) => re.test(text));
+    if (!hasTheme && !hasHumanMark) return "extraordinary-uncorroborated";
+  }
+  return null;
+}
+
+export function isBriefingEligible(item: NewsItem): boolean {
+  return briefingExclusionReason(item) === null;
+}
+
 /* ---------------------------- briefing selection --------------------------- */
 
 function dedupeByLink(items: NewsItem[]): NewsItem[] {
@@ -301,14 +390,18 @@ function byRecency(a: NewsItem, b: NewsItem): number {
 /**
  * The Briefing: `count` items chosen round-robin across the four
  * areas, so a morning's five span the church world instead of
- * five takes on one story. WITHIN each area the pool is ordered
- * by the sermon-illustration lens first (illustrationScore) and
- * recency second — an unmistakable illustration outranks a
- * merely-recent headline (his ruling); recency still breaks ties
- * between stories of equal preachability, and the round-robin
- * keeps the four-area spread he asked for. If an area has
- * nothing, the round simply skips it; the result is shorter only
- * when the feeds themselves gave fewer items.
+ * five takes on one story. The pools hold only Briefing-ELIGIBLE
+ * items (v338: More-only sources and the truth gate filter first
+ * — see briefingExclusionReason); everything barred lands in
+ * "More from your sources" instead. WITHIN each area the pool is
+ * ordered by the sermon-illustration lens first
+ * (illustrationScore) and recency second — an unmistakable
+ * illustration outranks a merely-recent headline (his ruling);
+ * recency still breaks ties between stories of equal
+ * preachability, and the round-robin keeps the four-area spread
+ * he asked for. If an area has nothing eligible, the round
+ * simply skips it; the result is shorter only when the feeds
+ * themselves gave fewer items.
  */
 export function selectBriefing(items: NewsItem[], count = 5): NewsItem[] {
   const byIllustrationThenRecency = (a: NewsItem, b: NewsItem): number =>
@@ -317,7 +410,9 @@ export function selectBriefing(items: NewsItem[], count = 5): NewsItem[] {
   for (const area of NEWS_AREAS) {
     pools.set(
       area,
-      dedupeByLink(items.filter((i) => i.area === area)).sort(byIllustrationThenRecency)
+      dedupeByLink(items.filter((i) => i.area === area && isBriefingEligible(i))).sort(
+        byIllustrationThenRecency
+      )
     );
   }
   const picked: NewsItem[] = [];

@@ -87,7 +87,15 @@ vi.mock("@/components/screen-container", async () => {
 });
 vi.mock("@/components/top-fade", async () => {
   const React = await import("react");
-  return { TopFade: () => React.createElement(React.Fragment, null) };
+  // v338: the pages also call the fade's scroll-link helpers —
+  // the mock mirrors the module's used surface: TopFade renders
+  // nothing, the hook hands back a stand-in value, the handler
+  // is a no-op.
+  return {
+    TopFade: () => React.createElement(React.Fragment, null),
+    useTopFadeScrollY: () => ({ interpolate: () => 0 }),
+    topFadeScrollHandler: () => () => {},
+  };
 });
 
 vi.mock("@/hooks/use-colors", async () => {

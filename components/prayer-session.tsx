@@ -87,6 +87,17 @@ type Props = {
  * curve family (Material emphasized), no springs, no bounce. */
 const MORPH_DURATION_MS = 380;
 
+/** v338: the morph presentation's content column rides a touch
+ * lower (Jonathan's device report on v335, screenshot 10921: the
+ * frame fix landed — the Complete button is whole — but the head
+ * and person card hug the top with dead space below). The shift
+ * applies ONLY inside the shared body's ScrollView top padding
+ * and ONLY when the morph root carries the body (morphActive):
+ * the fixed Complete footer lives outside the ScrollView, so its
+ * seat and bottom clearance are untouched, and the Modal root
+ * (morphActive false) keeps the v335 spacing byte-for-byte. */
+const MORPH_CONTENT_TOP_SHIFT_DP = 12;
+
 /** v310: the deepening's reveal — the hero's quiet rows fade and
  * settle in on the app's own entrance curve (Material
  * emphasized, native driver, no springs, no bounce) when time
@@ -834,7 +845,7 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
         <ScrollView
           ref={scrollRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ alignItems: "center", paddingHorizontal: 16, paddingTop: insets.top + 14, paddingBottom: 24 }}
+          contentContainerStyle={{ alignItems: "center", paddingHorizontal: 16, paddingTop: insets.top + 14 + (morphActive ? MORPH_CONTENT_TOP_SHIFT_DP : 0), paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
         >
         {/* v254 (praytoday-urgent-feel-v1): the session's head — title,

@@ -14291,13 +14291,16 @@ export function ScheduleTab({
           overlay host (2) — whose week strip and reach press seat
           keep working through it, the fade being pointerEvents
           "none" — and below the app bar (10). The fixed summary
-          panel (zIndex 0) is content, not a bar: at rest the fade
-          covers only the panel's empty top padding zone, so the
-          panel stays complete and legible, and as the sheet slides
-          over it the sheet's cards dissolve at the top instead of
-          ending in a hard edge. Colour = the ground this root
+          panel (zIndex 0) is content, not a bar, and carries no
+          fill of its own; the app bar under Classic is transparent
+          (see its !isSkinned override below) — so at rest there is
+          no bar on this page at all. v338: the fade is
+          SCROLL-LINKED to the sheet's own scrollY (the value the
+          day list already drives natively) — opacity 0 at rest,
+          ramping in as the sheet slides, so nothing washes the
+          header until he scrolls. Colour = the ground this root
           paints. */}
-      <TopFade color={isSkinned ? skinTokens.background ?? colors.background : colors.background} zIndex={3} />
+      <TopFade color={isSkinned ? skinTokens.background ?? colors.background : colors.background} zIndex={3} scrollY={scrollY} />
       {/* Pill-style floating header (see-through, like People tab).
           v308 (Classic): the bar rides the header block's slide
           (headerSlideY) — it translates up and off the top edge

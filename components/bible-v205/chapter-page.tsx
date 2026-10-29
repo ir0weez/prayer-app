@@ -51,7 +51,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Easing } from 'react-native-reanimated';
 import type { Person } from '@/lib/prayercircle-data';
-import { TopFade } from '@/components/top-fade';
+import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from '@/components/top-fade';
 import {
   buildDisplaySections,
   buildReadOnlySections,
@@ -321,6 +321,10 @@ export function ChapterPageView(props: ChapterPageProps) {
   const [headSectionEnd, setHeadSectionEnd] = useState<number | null>(null);
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const flashAnim = useRef(new Animated.Value(0)).current;
+  // v338: the header fade's scroll link — fed from this page's own
+  // onScroll below (the handler that already tracks the offset).
+  const fadeScrollY = useTopFadeScrollY();
+  const fadeOnScroll = topFadeScrollHandler(fadeScrollY);
   const scrollRef = useRef<ScrollView>(null);
   const yByKey = useRef(new Map<string, number>());
   const viewHeight = useRef(0);
@@ -802,6 +806,7 @@ export function ChapterPageView(props: ChapterPageProps) {
         // thread's own region still scrolls internally when a
         // conversation is tall.
         onScroll={(e) => {
+          fadeOnScroll(e);
           const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
           viewHeight.current = layoutMeasurement.height;
           contentHeight.current = contentSize.height;
@@ -1194,7 +1199,7 @@ export function ChapterPageView(props: ChapterPageProps) {
           header's measured height and sits below the topwrap
           (zIndex 30) and above the scroll content; the progress
           thread still rides the header's bottom edge. */}
-      <TopFade color={palette.paper} height={headerH} zIndex={20} />
+      <TopFade color={palette.paper} height={headerH} zIndex={20} scrollY={fadeScrollY} />
 
       {/* ── Verses FAB ── */}
       {!sheet ? (

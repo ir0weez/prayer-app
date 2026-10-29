@@ -23,7 +23,7 @@ import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { PrayerSession } from "@/components/prayer-session";
 import { AttentionBell } from "@/components/attention-bell";
 import { AppTabBar, useTabBarOccupiedHeight, type AppNavTab } from "@/components/app-tab-bar";
-import { TopFade } from "@/components/top-fade";
+import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { ScheduleFabHost } from "@/components/schedule-fab-host";
 import { BiblePane } from "@/components/bible-pane";
 import {
@@ -913,6 +913,13 @@ export default function HomeScreen() {
   const bibleOpenNavParam = Array.isArray(routeParams.bibleOpenNav) ? routeParams.bibleOpenNav[0] : routeParams.bibleOpenNav;
   const handledEditPersonId = useRef<string | null>(null);
   const handledNotificationAction = useRef<string | null>(null);
+  // v338: the top fades' scroll links — one offset per shell
+  // screen (People / Settings / More), each fed natively by its
+  // own scroller (useTopFadeScrollY / topFadeScrollHandler). At
+  // rest each sits at 0 and its fade paints nothing at all.
+  const peopleFadeScrollY = useTopFadeScrollY();
+  const settingsFadeScrollY = useTopFadeScrollY();
+  const moreFadeScrollY = useTopFadeScrollY();
   const today = getTodayISOString();
   const todayDate = new Date();
   const todayDayOfWeek = todayDate.getDay();
@@ -3968,6 +3975,7 @@ export default function HomeScreen() {
         ListEmptyComponent={<View style={styles.emptyStateCard}><MaterialIcons name={iconName("groups")} size={46} color={colors.primary} /><Text style={styles.emptyTitle}>No people yet</Text><Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text></View>}
         contentContainerStyle={[styles.peopleContent, { paddingTop: 10, paddingBottom: isClassicSkin ? 118 : 132 }]}
         scrollEventThrottle={16}
+        onScroll={topFadeScrollHandler(peopleFadeScrollY)}
         showsVerticalScrollIndicator={false}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
@@ -3989,8 +3997,12 @@ export default function HomeScreen() {
           hard (his Oct 29 ruling, all pages). The colour is the
           very ground this screen paints: the front-door family's
           ground under Classic, the skin token background (or the
-          palette's) under a skin. */}
-      <TopFade color={isClassicSkin ? pmf.ground : skinTokens.background ?? colors.background} />
+          palette's) under a skin. v338: SCROLL-LINKED to the
+          roster's own offset — at rest it paints nothing, and
+          there is no other bar to paint: the app bar above
+          (renderPeopleAppBar) is a bare row with no fill, and this
+          screen's root paints only the uniform ground. */}
+      <TopFade color={isClassicSkin ? pmf.ground : skinTokens.background ?? colors.background} scrollY={peopleFadeScrollY} />
     </View>
   );
 
@@ -4944,7 +4956,7 @@ export default function HomeScreen() {
 
     return (
     <View style={{ flex: 1 }}>
-    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: sm.ground }} contentContainerStyle={styles.settingsContent}>
+    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: sm.ground }} contentContainerStyle={styles.settingsContent} onScroll={topFadeScrollHandler(settingsFadeScrollY)} scrollEventThrottle={16}>
       {/* The app bar — the drawing's v5 form: tonal back tile +
           title, nothing else (the build lives in the App group). */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingBottom: 4 }}>
@@ -5228,7 +5240,7 @@ export default function HomeScreen() {
       </View>
     </ScrollView>
     {/* v334: the top fade, in the settings ground this page paints. */}
-    <TopFade color={sm.ground} />
+    <TopFade color={sm.ground} scrollY={settingsFadeScrollY} />
     </View>
     );
   };
@@ -5489,8 +5501,9 @@ export default function HomeScreen() {
           <View style={{ flex: 1 }}>
             {renderMoreScreen()}
             {/* v334: the top fade over the hub (and its Families
-                state — both scroll views paint the same ground). */}
-            <TopFade color={isSkinned ? skinTokens.background ?? colors.background : pm.ground} />
+                state — both scroll views paint the same ground).
+                v338: scroll-linked to the hub's own offset. */}
+            <TopFade color={isSkinned ? skinTokens.background ?? colors.background : pm.ground} scrollY={moreFadeScrollY} />
           </View>
         )}
         {/* v265: the Study pane — the shell's one keep-alive pane.
@@ -5555,7 +5568,7 @@ export default function HomeScreen() {
     if (moreShowFamilies) {
       const familyRows = buildFamiliesHubList(people);
       return (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24 }} style={{ backgroundColor: isSkinned ? undefined : pm.ground }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24 }} style={{ backgroundColor: isSkinned ? undefined : pm.ground }} onScroll={topFadeScrollHandler(moreFadeScrollY)} scrollEventThrottle={16}>
           <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 2, paddingTop: 4, paddingBottom: 10 }}>
             <Pressable onPress={() => setMoreShowFamilies(false)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 2, marginRight: 6 }, pressed && { opacity: 0.7 }]}>
               <MaterialIcons name="chevron-left" size={24} color={pm.deep} />
@@ -5594,7 +5607,7 @@ export default function HomeScreen() {
       { key: "budget", icon: "attach-money", label: "Budget", onPress: () => router.push("/budget-tracker") },
     ];
     return (
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24 }} style={{ backgroundColor: isSkinned ? undefined : pm.ground }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24 }} style={{ backgroundColor: isSkinned ? undefined : pm.ground }} onScroll={topFadeScrollHandler(moreFadeScrollY)} scrollEventThrottle={16}>
         <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 2, paddingTop: 4, paddingBottom: 10 }}>
           <View>
             <Text style={{ fontSize: 27, fontWeight: "800", letterSpacing: -0.5, color: pm.ink }}>More</Text>

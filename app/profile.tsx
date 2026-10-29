@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, findNodeHandle, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
-import { TopFade } from "@/components/top-fade";
+import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { PaperGrainOverlay } from "@/components/paper-grain";
 import { PaperSettle } from "@/components/paper-motion";
 import { BitSettle } from "@/components/bit-motion";
@@ -186,6 +186,7 @@ export default function ProfileScreen() {
   const [profileLevel, setProfileLevel] = useState(1);
   const [customPawn, setCustomPawn] = useState<CustomPawn | null>(null);
   const profileScrollRef = useRef<ScrollView>(null);
+  const fadeScrollY = useTopFadeScrollY();
   const [activeQuarter, setActiveQuarter] = useState(0);
   const [quarterAutoSet, setQuarterAutoSet] = useState(false);
   // v276 tracker surfaces: the day sheet and the recap viewer.
@@ -622,6 +623,8 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={true}
+        onScroll={topFadeScrollHandler(fadeScrollY)}
+        scrollEventThrottle={16}
       >
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }, pressed && styles.pressed]}>
@@ -805,7 +808,7 @@ export default function ProfileScreen() {
           profile dissolves under its own ground at the top edge.
           The pickers and sheets after this are Modals and paint
           in their own windows, above the fade. */}
-      <TopFade color={skinTokens.background ?? colors.background} />
+      <TopFade color={skinTokens.background ?? colors.background} scrollY={fadeScrollY} />
       <AvatarPicker visible={showAvatarPicker} initialAvatarAsset={profile.avatarAsset} unlockedBookIds={unlockedBookIds} onClose={() => setShowAvatarPicker(false)} onUpload={handleUploadProfileAvatar} onSelect={handleSelectProfileAvatar} />
 
       {/* v276 day sheet — a Material bottom sheet (28px top radius,

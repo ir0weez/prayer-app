@@ -19,7 +19,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 import { ScreenContainer } from "@/components/screen-container";
-import { TopFade } from "@/components/top-fade";
+import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { FinishedBar, KeywordPageHeader } from "@/components/keyword-page-chrome";
 import { EmailDigestView } from "@/components/email-digest-view";
 import { useNewsEmailMaterial } from "@/hooks/use-news-email-material";
@@ -27,6 +27,7 @@ import { loadEmailDigest, type EmailDigest } from "@/lib/email-digest";
 import { finishScheduleEvent } from "@/lib/finish-event";
 
 export default function EmailPage() {
+  const fadeScrollY = useTopFadeScrollY();
   const m = useNewsEmailMaterial();
   const router = useRouter();
   const params = useLocalSearchParams<{ eventId?: string; eventDate?: string }>();
@@ -71,6 +72,8 @@ export default function EmailPage() {
             paddingTop: 16,
             paddingBottom: eventId ? 112 : 40,
           }}
+          onScroll={topFadeScrollHandler(fadeScrollY)}
+          scrollEventThrottle={16}
         >
           <KeywordPageHeader m={m} title="Email" dateChip={dateChip} onBack={() => router.back()} />
           <Text style={[styles.dated, { color: m.deep }]}>{dateLong}</Text>
@@ -92,7 +95,7 @@ export default function EmailPage() {
             <EmailDigestView m={m} digest={digest} />
           )}
         </ScrollView>
-        <TopFade color={m.ground} />
+        <TopFade color={m.ground} scrollY={fadeScrollY} />
       </View>
       {eventId ? <FinishedBar m={m} onFinished={onFinished} /> : null}
     </ScreenContainer>

@@ -1,7 +1,7 @@
 'use client';
 
 import { ScreenContainer } from '@/components/screen-container';
-import { TopFade } from '@/components/top-fade';
+import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from '@/components/top-fade';
 import { useSkin } from '@/hooks/use-skin';
 import { useBudgetMaterial } from '@/hooks/use-budget-material';
 import { useCallback, useState } from 'react';
@@ -38,6 +38,7 @@ function formatDueDate(dueDate: string): string {
 }
 
 export default function BudgetTrackerScreen() {
+  const fadeScrollY = useTopFadeScrollY();
   const bm = useBudgetMaterial();
   const { isSkinned, tokens: skinTokens } = useSkin();
   // v286: the page ground takes the skin background the way
@@ -598,7 +599,7 @@ export default function BudgetTrackerScreen() {
   return (
     <ScreenContainer className="p-0">
       <View style={{ flex: 1, backgroundColor: ground }}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 32 }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 32 }} onScroll={topFadeScrollHandler(fadeScrollY)} scrollEventThrottle={16}>
           {/* Appbar */}
           <View style={styles.appbar}>
             <Pressable onPress={() => router.back()} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close budget">
@@ -691,7 +692,7 @@ export default function BudgetTrackerScreen() {
         {/* v334: the top fade (his Oct 29 ruling, all pages) — the
             page dissolves under the budget ground this root paints
             at the top edge instead of cutting off hard. */}
-        <TopFade color={ground} />
+        <TopFade color={ground} scrollY={fadeScrollY} />
       </View>
 
       {/* Add Bill sheet */}

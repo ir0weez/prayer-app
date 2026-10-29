@@ -31,3 +31,22 @@ export function topFadeOpacityAt(t: number): number {
   if (clamped <= 0.45) return 1 + (0.42 - 1) * (clamped / 0.45);
   return 0.42 * (1 - (clamped - 0.45) / 0.55);
 }
+
+/**
+ * v338 — the SCROLL LINK (Jonathan's correction of v334, Oct 29
+ * 09:47 + 10:42): the fade as a whole is a function of the page's
+ * own scroll offset. At rest (scrollY = 0) its opacity is 0 —
+ * NOTHING is painted over the header, so titles render crisp the
+ * moment the app opens ("I don't want that fade to be there
+ * until I scroll"). It ramps in linearly over roughly the fade's
+ * own height — by the time content has scrolled one fade-height
+ * under the top edge, the dissolve is at full strength — and
+ * scrolling back to the top returns it to exactly 0. No static
+ * gradient block remains: the strips render only as this ramp
+ * lets them.
+ */
+export function topFadeRampOpacity(scrollY: number, height: number = TOP_FADE_HEIGHT): number {
+  if (!(height > 0)) return 0;
+  const t = scrollY / height;
+  return t <= 0 ? 0 : t >= 1 ? 1 : t;
+}

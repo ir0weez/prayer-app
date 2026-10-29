@@ -5,7 +5,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { BadgeCase } from "@/components/badge-case";
-import { TopFade } from "@/components/top-fade";
+import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { loadPrestigeState } from "@/lib/prestige";
@@ -19,6 +19,7 @@ import { loadPrestigeState } from "@/lib/prestige";
  * permanent; prestige never takes them), in a plain screen chrome.
  */
 export default function BossBadgesScreen() {
+  const fadeScrollY = useTopFadeScrollY();
   const router = useRouter();
   const colors = useColors();
   const { tokens: skinTokens } = useSkin();
@@ -40,7 +41,7 @@ export default function BossBadgesScreen() {
 
   return (
     <ScreenContainer className="flex-1 bg-background">
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={topFadeScrollHandler(fadeScrollY)} scrollEventThrottle={16}>
         <View style={styles.headerRow}>
           <Pressable
             onPress={() => router.back()}
@@ -59,7 +60,7 @@ export default function BossBadgesScreen() {
           page dissolves under its own ground at the top edge.
           Colour = the ScreenContainer ground (skin token
           background, else the themed palette background). */}
-      <TopFade color={skinTokens.background ?? colors.background} />
+      <TopFade color={skinTokens.background ?? colors.background} scrollY={fadeScrollY} />
     </ScreenContainer>
   );
 }

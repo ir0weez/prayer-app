@@ -72,7 +72,7 @@ import { BookReadingThread, StudyProgressHeader } from '@/components/bible-v205/
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
-import { TopFade } from '@/components/top-fade';
+import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from '@/components/top-fade';
 import {
   handwrittenNoteFor,
   loadHandwritten,
@@ -100,6 +100,7 @@ export interface BibleBooksPaneProps {
 }
 
 export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } = {}) {
+  const fadeScrollY = useTopFadeScrollY();
   const router = useRouter();
   const inPane = !!props.pane;
   // v211: the Personal Study card's Books button lands here with
@@ -310,7 +311,7 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
       </View>
 
       <View style={{ flex: 1 }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.page}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.page} onScroll={topFadeScrollHandler(fadeScrollY)} scrollEventThrottle={16}>
         <View style={styles.vhead}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
           <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{possessive} Books</Text>
@@ -394,7 +395,7 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
       {/* v334: the top fade (his Oct 29 ruling, all pages) — the
           list dissolves under the Bible palette's paper at the top
           of the scroll view, below the fixed topbar. */}
-      <TopFade color={palette.paper} />
+      <TopFade color={palette.paper} scrollY={fadeScrollY} />
       </View>
 
         <Modal visible={labelEditor} transparent animationType="fade" onRequestClose={() => setLabelEditor(false)}>

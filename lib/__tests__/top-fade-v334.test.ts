@@ -48,12 +48,25 @@
 //  · SHAPE — "can it just be a fade?": the alpha curve is a pure
 //    quadratic dissolve, (1 − t)² — no constant run anywhere, so
 //    no scroll position can show a band, strip or plateau.
+//
+// v344 SUPERSESSION (Oct 29 15:50–16:00 — his correction of the
+// v343-era diagnosis's premise): the screenshots behind the
+// "bar" reports were taken MID-SCROLL, deliberately, to show
+// where "the box" is — the complaint was never a resting seat.
+// Mid-scroll, the v342 overlay's constant-alpha tray plate read
+// as a BOX whose hard bottom edge cut words passing under it.
+// His prescription: "Just raise the fade up, so the bar is out
+// of the screen." The overlay now sits raised by the tray-zone
+// height: the plate occupies screen positions entirely below
+// zero (off-screen), the visible window shows only the
+// dissolve, and the geometry pins below are re-based to the
+// raised screen space. No page seat or padding changed.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { TOP_FADE_HEIGHT, topFadeOpacityAt, topFadeStops, topFadeStripOpacityAt } from "../top-fade";
+import { TOP_FADE_HEIGHT, topFadeOpacityAt, topFadeOverlayTopPx, topFadeRampOpacity, topFadeScreenOpacityAt, topFadeStops, topFadeStripOpacityAt } from "../top-fade";
 
 const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
@@ -132,7 +145,14 @@ describe("v334 — the shared TopFade component", () => {
     expect(topFadeOpacityAt(0.1)).toBeLessThan(0.8);
   });
 
-  it("the edge-to-edge geometry (Oct 29 14:54): tray at full strength, then a step-free dissolve", () => {
+  it("the overlay's own paint (v342 model, overlay coordinates): tray plate, then a step-free dissolve", () => {
+    // RE-BASED (v344, Oct 29 16:00): this test pinned the v342
+    // geometry AS SEEN ON SCREEN, when the overlay sat at top 0
+    // and the tray plate was visible. The plate's paint is
+    // unchanged — what v344 changes is PLACEMENT: the component
+    // raises the whole overlay by the tray height, so these
+    // overlay-coordinate facts now describe off-screen paint.
+    // The on-screen acceptance is pinned in the v344 test below.
     const tray = 32;
     const total = tray + TOP_FADE_HEIGHT;
     // The whole tray zone is the tray's backing: full strength.
@@ -155,6 +175,45 @@ describe("v334 — the shared TopFade component", () => {
     expect(topFadeStripOpacityAt(total, tray)).toBe(0);
     // With no tray (web / SSR), the strip curve IS the dissolve.
     expect(topFadeStripOpacityAt(TOP_FADE_HEIGHT / 2, 0)).toBeCloseTo(0.125);
+  });
+
+  it("v344 the raise — on screen there is no plate, only the dissolve (his prescription, Oct 29 15:50)", () => {
+    const tray = 32;
+    // The overlay's frame top sits at −tray: the plate's screen
+    // span [top, top + tray) lies ENTIRELY below zero — the bar
+    // is out of the screen, as he prescribed.
+    expect(topFadeOverlayTopPx(tray)).toBe(-tray);
+    expect(topFadeOverlayTopPx(tray) + tray).toBeLessThanOrEqual(0);
+    expect(topFadeOverlayTopPx(0)).toBe(0);
+    // The visible window starts high — the screen's top edge
+    // carries the strongest visible alpha (≥ 0.85, the tray
+    // icons' backing while scrolling) — and falls from the
+    // first pixel: at 1px down the fall has already begun.
+    expect(topFadeScreenOpacityAt(0, tray)).toBeGreaterThanOrEqual(0.85);
+    expect(topFadeScreenOpacityAt(1, tray)).toBeLessThan(topFadeScreenOpacityAt(0, tray));
+    // STRICTLY decreasing across the whole visible window — no
+    // constant-alpha region on screen at any scroll offset, and
+    // per-sample steps stay bounded at render granularity, so
+    // no step or edge can appear either. It lands at exactly 0
+    // at the window's bottom.
+    let prev = Number.POSITIVE_INFINITY;
+    const samples = 240;
+    for (let i = 0; i <= samples; i++) {
+      const y = (i / samples) * TOP_FADE_HEIGHT;
+      const v = topFadeScreenOpacityAt(y, tray);
+      expect(v).toBeLessThan(prev);
+      if (i > 0) expect(prev - v).toBeLessThanOrEqual(0.08);
+      prev = v;
+    }
+    expect(topFadeScreenOpacityAt(TOP_FADE_HEIGHT, tray)).toBe(0);
+    expect(topFadeScreenOpacityAt(TOP_FADE_HEIGHT / 2, tray)).toBeCloseTo(0.125);
+    // The component performs the raise, keyed off the caller's
+    // own topInset — the seven kept seats are untouched.
+    expect(component).toContain("top: topFadeOverlayTopPx(trayInset)");
+    // And at rest the whole raised overlay still multiplies to
+    // exactly 0 — the raise changes nothing at scrollY 0.
+    expect(topFadeRampOpacity(0)).toBe(0);
+    expect(topFadeScreenOpacityAt(0, tray) * topFadeRampOpacity(0)).toBe(0);
   });
 
   it("never imports react-native-svg — the Bible render tests must be able to load it", () => {

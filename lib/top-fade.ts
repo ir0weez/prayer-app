@@ -60,6 +60,12 @@ export function topFadeOpacityAt(t: number): number {
  * 1 across the tray zone, then topFadeOpacityAt over the
  * dissolve. The junction is continuous (the cubic starts at 1),
  * so there is no step or second edge anywhere.
+ *
+ * v344: this function still describes the overlay's OWN paint,
+ * in overlay coordinates — but the component now RAISES the
+ * whole overlay by the tray height (topFadeOverlayTopPx), so
+ * the tray zone painted here never appears on screen; see
+ * topFadeScreenOpacityAt for the visible window.
  */
 export function topFadeStripOpacityAt(
   yPx: number,
@@ -68,6 +74,45 @@ export function topFadeStripOpacityAt(
 ): number {
   if (yPx < trayInsetPx) return 1;
   return topFadeOpacityAt((yPx - trayInsetPx) / dissolveHeightPx);
+}
+
+/**
+ * v344 — THE RAISE (Jonathan's own prescription, Oct 29 15:50:
+ * "Just raise the fade up, so the bar is out of the screen…
+ * Can't that be done?" — and his correction of the diagnosis's
+ * premise, 16:00: the screenshots were taken MID-SCROLL,
+ * deliberately, to show where "the box" is — the complaint was
+ * never an at-rest seat). In its v342 placement the overlay's
+ * tray plate sat ON screen: a constant-alpha slab whose hard
+ * bottom edge cut words as they passed under it mid-scroll. The
+ * plate's paint is not the problem; its on-screen position is.
+ * So the whole overlay shifts UP by the tray-zone height: the
+ * plate occupies screen positions [−trayInset, 0) — entirely
+ * above the screen's top edge, out of the screen — and the
+ * visible window shows only the dissolving portion of the
+ * curve, at every scroll offset.
+ */
+export function topFadeOverlayTopPx(trayInsetPx: number): number {
+  return trayInsetPx === 0 ? 0 : -trayInsetPx;
+}
+
+/**
+ * The alpha VISIBLE at a screen position yPx (0 = the screen's
+ * top edge) under the raised overlay: the screen position maps
+ * into the overlay's own paint at yPx + trayInsetPx, which for
+ * every on-screen position lands inside the dissolve — so over
+ * the visible window this is exactly the cubic: full strength
+ * only at the edge point itself, strictly falling from the
+ * first pixel, no constant-alpha region and no step anywhere
+ * on screen. Words passing under it fade; they are never cut
+ * by a line.
+ */
+export function topFadeScreenOpacityAt(
+  yPx: number,
+  trayInsetPx: number,
+  dissolveHeightPx: number = TOP_FADE_HEIGHT,
+): number {
+  return topFadeStripOpacityAt(yPx + trayInsetPx, trayInsetPx, dissolveHeightPx);
 }
 
 /**

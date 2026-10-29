@@ -58,7 +58,7 @@ import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } f
 import { addAnsweredPrayerJournalEntry, normalizePrayerJournalEntries } from "@/lib/prayer-journal";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { awardXP } from "@/lib/xp-engine";
-import { getNotificationPreferences } from "@/lib/notification-scheduler";
+import { applyQuietHoursToTrigger, getNotificationPreferences, type NotificationPreferences } from "@/lib/notification-scheduler";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -224,12 +224,23 @@ async function schedulePersonReminders(
   if (Platform.OS === "web") return;
 
   // Respect the prayer reminders toggle — don't schedule when it's off.
+  // v316: the loaded preferences also gate the triggers through
+  // quiet hours (this per-person path is where monthly reminders
+  // actually get scheduled — the main scheduler's prayer plans
+  // never build monthly triggers). When the read fails the old
+  // fall-through stands: schedule ungated rather than not at all.
+  let quietPreferences: Pick<NotificationPreferences, "quietHoursEnabled" | "quietHoursRange"> | null = null;
   try {
     const preferences = await getNotificationPreferences();
     if (!preferences.prayerRemindersEnabled) return;
+    quietPreferences = preferences;
   } catch {
     // If preferences can't be read, fall through and schedule.
   }
+  const gate = (
+    trigger: Notifications.NotificationTriggerInput,
+  ): Notifications.NotificationTriggerInput =>
+    quietPreferences ? (applyQuietHoursToTrigger(trigger, quietPreferences) ?? trigger) : trigger;
 
   const parsedTime = parseReminderTime(reminderTime);
   if (!parsedTime) return;
@@ -247,12 +258,12 @@ async function schedulePersonReminders(
   if (frequency === "daily") {
     await Notifications.scheduleNotificationAsync({
       content: baseContent,
-      trigger: {
+      trigger: gate({
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
         channelId,
         hour: parsedTime.hour,
         minute: parsedTime.minute,
-      },
+      }),
     });
     return;
   }
@@ -260,13 +271,13 @@ async function schedulePersonReminders(
   if (frequency === "monthly" && reminderDayOfMonth) {
     await Notifications.scheduleNotificationAsync({
       content: baseContent,
-      trigger: {
+      trigger: gate({
         type: Notifications.SchedulableTriggerInputTypes.MONTHLY,
         channelId,
         day: reminderDayOfMonth,
         hour: parsedTime.hour,
         minute: parsedTime.minute,
-      },
+      }),
     });
     return;
   }
@@ -276,13 +287,13 @@ async function schedulePersonReminders(
       daysOfWeek.map((day) =>
         Notifications.scheduleNotificationAsync({
           content: baseContent,
-          trigger: {
+          trigger: gate({
             type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
             channelId,
             weekday: day + 1,
             hour: parsedTime.hour,
             minute: parsedTime.minute,
-          },
+          }),
         }),
       ),
     );

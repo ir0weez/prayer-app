@@ -7,6 +7,12 @@ import { type ColorScheme } from "@/constants/theme";
 import { APP_SETTINGS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DEFAULT_ACCENT_THEME, getThemedPalette, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
 import { DEFAULT_SKIN_THEME, normalizeSkinThemeId, type SkinThemeId } from "@/lib/skin-themes";
+import {
+  normalizeTextSizePreference,
+  setTextScaleFactor,
+  textScaleFactor,
+  type TextSizePreference,
+} from "@/lib/text-scale";
 
 // v315: appearance is a real tri-state preference ("light" | "system"
 // | "dark"), persisted inside the app-settings blob
@@ -29,6 +35,13 @@ type ThemeContextValue = {
   setAccentTheme: (theme: AccentThemeId) => void;
   skinTheme: SkinThemeId;
   setSkinTheme: (skin: SkinThemeId) => void;
+  // v316: the text-size preference and its live scale factor.
+  // The factor itself is applied inside lib/text-scale.tsx's
+  // ScaledText; this context carries the preference for the
+  // Settings screen and any surface that wants the number.
+  textSize: TextSizePreference;
+  setTextSize: (size: TextSizePreference) => void;
+  textScale: number;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -38,16 +51,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [appearance, setAppearanceState] = useState<AppearancePreference>("system");
   const [accentTheme, setAccentThemeState] = useState<AccentThemeId>(DEFAULT_ACCENT_THEME);
   const [skinTheme, setSkinThemeState] = useState<SkinThemeId>(DEFAULT_SKIN_THEME);
+  const [textSize, setTextSizeState] = useState<TextSizePreference>("default");
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY).then((stored) => {
       if (!stored) return;
       try {
-        const parsed = JSON.parse(stored) as { colorTheme?: unknown; skinTheme?: unknown; appearance?: unknown };
+        const parsed = JSON.parse(stored) as { colorTheme?: unknown; skinTheme?: unknown; appearance?: unknown; textSize?: unknown };
         setAccentThemeState(normalizeAccentThemeId(parsed.colorTheme));
         setSkinThemeState(normalizeSkinThemeId(parsed.skinTheme));
         setAppearanceState(normalizeAppearancePreference(parsed.appearance));
+        setTextSizeState(normalizeTextSizePreference(parsed.textSize));
       } catch {
         // Keep the default accent when settings are malformed.
       }
@@ -86,6 +101,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setSkinTheme = useCallback((skin: SkinThemeId) => {
     setSkinThemeState(normalizeSkinThemeId(skin));
   }, []);
+
+  const setTextSize = useCallback((size: TextSizePreference) => {
+    setTextSizeState(normalizeTextSizePreference(size));
+  }, []);
+
+  // v316: the preference becomes a live factor. The text-scale
+  // store is what every ScaledText subscribes to, so this one
+  // effect is the whole app's text resizing — no restart, no
+  // screen-by-screen adoption.
+  useEffect(() => {
+    setTextScaleFactor(textScaleFactor(textSize));
+  }, [textSize]);
 
   // Terminal skin (v186): the tube is one dark world — while it is
   // active, the palette resolves as DARK so text stays legible on the
@@ -136,8 +163,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setAccentTheme,
       skinTheme,
       setSkinTheme,
+      textSize,
+      setTextSize,
+      textScale: textScaleFactor(textSize),
     }),
-    [accentTheme, appearance, effectiveColorScheme, setAccentTheme, setAppearance, setColorScheme, setSkinTheme, skinTheme],
+    [accentTheme, appearance, effectiveColorScheme, setAccentTheme, setAppearance, setColorScheme, setSkinTheme, skinTheme, textSize, setTextSize],
   );
 
   return (

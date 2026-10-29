@@ -69,9 +69,11 @@ import {
   scheduleTestNotification,
   syncBudgetReminderNotifications,
   syncPrayerReminderNotifications,
+  syncScheduledEventNotifications,
   type QuietHoursRange,
 } from "@/lib/notification-scheduler";
 import { deriveSettingsMaterial } from "@/lib/settings-material";
+import { normalizeTextSizePreference, type TextSizePreference } from "@/lib/text-scale";
 import Constants from "expo-constants";
 import * as Linking from "expo-linking";
 
@@ -358,6 +360,10 @@ type AppSettings = {
   // trigger kind) in lib/notification-scheduler.ts.
   quietHoursEnabled: boolean;
   quietHoursRange: QuietHoursRange;
+  // v316: text size — persisted here, mirrored into the theme
+  // provider; lib/text-scale.tsx applies the factor to every
+  // Text in the app.
+  textSize: TextSizePreference;
 };
 
 type PersonalProfile = {
@@ -399,6 +405,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   budgetReminderDaysBefore: 1,
   quietHoursEnabled: false,
   quietHoursRange: "10-7",
+  textSize: "default",
 };
 const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, avatarAsset: undefined, auraId: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined, statusColor: "#0A86B8", statusExpiresAt: null };
 
@@ -484,6 +491,7 @@ function parseStoredSettings(value: string | null): AppSettings {
       budgetReminderDaysBefore: Number(parsed.budgetReminderDaysBefore) === 0 ? 0 : 1,
       quietHoursEnabled: parsed.quietHoursEnabled === true,
       quietHoursRange: normalizeQuietHoursRange(parsed.quietHoursRange),
+      textSize: normalizeTextSizePreference(parsed.textSize),
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -1432,7 +1440,7 @@ export default function HomeScreen() {
   const pendingPrayerPositions = useRef<Record<string, XpGainPosition | undefined>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
   const xpShimmer = useRef(new Animated.Value(0)).current;
-  const { colorScheme, setAccentTheme, setSkinTheme, setAppearance } = useThemeContext();
+  const { colorScheme, setAccentTheme, setSkinTheme, setAppearance, setTextSize } = useThemeContext();
 
   const awardExperience = useCallback(async (action: XpAction, idempotencyKey: string, position?: XpGainPosition) => {
     try {
@@ -1498,6 +1506,13 @@ export default function HomeScreen() {
   useEffect(() => {
     if (hasHydratedPeople) setAppearance(settings.appearance);
   }, [hasHydratedPeople, setAppearance, settings.appearance]);
+
+  // v316: text size mirrors the same way. The provider pushes
+  // the factor into the text-scale store, and every Text in the
+  // app re-renders at the new size live.
+  useEffect(() => {
+    if (hasHydratedPeople) setTextSize(settings.textSize);
+  }, [hasHydratedPeople, setTextSize, settings.textSize]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1911,8 +1926,9 @@ export default function HomeScreen() {
   // v315: quiet-hours fields ride along so flipping them re-runs the
   // sync (the persist effect above has already landed the new blob —
   // it is declared before this one — so the scheduler reads the fresh
-  // window). Event/todo/ministry plans pick the window up at the
-  // Schedule tab's next sync; budget below re-syncs the same way.
+  // window). v316: event/todo/ministry plans now re-sync from
+  // Settings too (the effect after budget below) — v315 left them
+  // to the Schedule tab's next mount.
   useEffect(() => {
     if (!hasHydratedPeople) return;
     syncPrayerReminderNotifications(people).catch(() => undefined);
@@ -1969,6 +1985,42 @@ export default function HomeScreen() {
       })
       .catch(() => undefined);
   }, [hasHydratedPeople, settings.budgetRemindersEnabled, settings.budgetReminderDaysBefore, settings.quietHoursEnabled, settings.quietHoursRange]);
+
+  // v316: the schedule families re-sync from Settings too. The
+  // Schedule tab is lazily mounted, so in v315 a quiet-hours flip
+  // (or a toggle/alert-time change) only reached event/todo/
+  // ministry plans when the tab next synced. The lists live in
+  // storage — the tab persists them on every change before its
+  // own sync — so Settings reads the same keys and re-plans
+  // immediately, mirroring the budget effect above. When the tab
+  // IS mounted both syncs run; they cancel and rebuild the same
+  // identifier space, so the last one in simply re-states the
+  // same plan set.
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    const parseList = (raw: string | null): unknown[] => {
+      if (!raw) return [];
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    };
+    Promise.all([
+      AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
+      AsyncStorage.getItem(SCHEDULE_TODOS_KEY),
+      AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY),
+    ])
+      .then(([rawEvents, rawTodos, rawMinistries]) => {
+        void syncScheduledEventNotifications(
+          parseList(rawEvents) as ScheduleEvent[],
+          parseList(rawTodos) as ScheduleTodo[],
+          parseList(rawMinistries) as ScheduleMinistry[],
+        );
+      })
+      .catch(() => undefined);
+  }, [hasHydratedPeople, settings.eventRemindersEnabled, settings.defaultEventReminderMinutes, settings.quietHoursEnabled, settings.quietHoursRange]);
 
   // Separate family groups from individual people
   const familyGroups = useMemo(() => {
@@ -4947,6 +4999,23 @@ export default function HomeScreen() {
           ) : null}
           {navRow({ icon: "layers", title: "App skin", value: skinDef.name, onPress: () => setShowSkinSheet(true) })}
           {navRow({ icon: "image", title: "App icon", value: appIconDef.name, onPress: () => { setIconSwitchError(null); setShowAppIconSheet(true); } })}
+          {/* v316: the drawing's Text size control — omitted from
+              v315 for want of a mechanism; lib/text-scale.tsx is
+              the mechanism, and this segment resizes the whole
+              app live. */}
+          <View style={{ paddingHorizontal: 18, paddingTop: 13, paddingBottom: 5, borderTopWidth: 1, borderTopColor: sm.line }}>
+            <Text style={{ fontSize: 15, fontWeight: "500", color: sm.ink, marginBottom: 9 }}>Text size</Text>
+            {segRow({
+              options: [
+                { value: "small" as TextSizePreference, label: "Small" },
+                { value: "default" as TextSizePreference, label: "Default" },
+                { value: "large" as TextSizePreference, label: "Large" },
+                { value: "xl" as TextSizePreference, label: "XL" },
+              ],
+              selected: settings.textSize,
+              onSelect: (textSize) => setSettings((previous) => ({ ...previous, textSize })),
+            })}
+          </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 1, borderTopColor: sm.line }}>
             {tile("visibility-off")}
             <View style={{ flex: 1 }}>

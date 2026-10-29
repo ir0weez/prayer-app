@@ -54,11 +54,11 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
 
 const VALID_ADVANCE_MINUTES = [0, 5, 15, 30, 60];
 
-// ─── v315: quiet hours ──────────────────────────────────────────────────────
+// ─── v315/v316: quiet hours ─────────────────────────────────────────────────
 // Three overnight ranges, picked from chips on the Settings page.
 // The window always wraps midnight (start in the evening, end the
-// next morning). Enforcement is honest about what each trigger kind
-// can express — see applyQuietHoursToPlans.
+// next morning). Enforcement gates every plan kind by fire
+// datetime — see applyQuietHoursToTrigger.
 
 export type QuietHoursRange = "9-6" | "10-7" | "11-7";
 
@@ -101,52 +101,149 @@ export function deferDatePastQuietHours(date: Date, range: QuietHoursRange): Dat
 }
 
 /**
- * v315: hold a batch of plans until quiet hours end.
+ * The next datetime a MONTHLY (day-of-month at hour:minute)
+ * trigger fires strictly after `now`, skipping months that do
+ * not have the day (a 31st reminder in February next fires
+ * March 31). Only the monthly-evening one-shot conversion below
+ * needs real datetimes; every other branch is pure time-of-day
+ * arithmetic on the trigger fields.
+ */
+export function nextMonthlyFireDate(day: number, hour: number, minute: number, now: Date): Date {
+  let year = now.getFullYear();
+  let month = now.getMonth();
+  // Fourteen months covers even a 31st skipping a February.
+  for (let step = 0; step < 14; step += 1) {
+    const candidate = new Date(year, month, day, hour, minute, 0, 0);
+    if (candidate.getDate() === day && candidate.getTime() > now.getTime()) return candidate;
+    month += 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+  }
+  return new Date(year, month, Math.min(day, 28), hour, minute, 0, 0);
+}
+
+/**
+ * One trigger through the quiet-hours window. v316 completes
+ * the v315 partial; the rule is uniform, stated on fire
+ * datetimes: when an instance's fire datetime falls inside the
+ * window, that instance moves to the window's end — even when
+ * the end falls on the next calendar day. Per trigger kind:
  *
- *  - DATE triggers (events, todos, ministries, budget): the fire
- *    date moves to the window's end — exact.
- *  - DAILY triggers (daily prayer reminders): an in-window time
- *    moves to the end hour. A daily trigger fires every day, so
- *    shifting the time-of-day is a true deferral in both halves of
- *    the window.
- *  - WEEKLY / MONTHLY triggers (weekly/monthly prayer reminders):
- *    only a MORNING in-window time moves to the end hour (same day,
- *    later — a real deferral). An EVENING in-window time cannot be
- *    deferred by a time-of-day shift without changing the day the
- *    reminder belongs to, so it is left as scheduled. PARTIAL — the
- *    Settings build report carries this; nothing is faked here.
- *  - Everything else (the test notification's TIME_INTERVAL, …) is
- *    not a plan this function is given and would pass through.
+ *  - DATE: deferDatePastQuietHours already does exactly this.
+ *  - DAILY: the window is a time-of-day window, so an in-window
+ *    time is in-window every day; the time moves to the end
+ *    hour. (True in v315 already.)
+ *  - WEEKLY: a morning time moves to the end hour on the SAME
+ *    weekday; an evening time moves to the end hour on the NEXT
+ *    weekday (wrapping 7 → 1) — precisely its deferred datetime,
+ *    every week. v315 left evening times ungated: the partial.
+ *  - MONTHLY: morning moves to the end hour on the same day;
+ *    evening moves to the end hour on day + 1 when day ≤ 27
+ *    (day + 1 exists in every month, so the cadence stays
+ *    exact). For day 28–31 the deferred day + 1 can overflow
+ *    the month (a 31st has no February 32nd), so no monthly
+ *    trigger can express it: the plan converts to a one-shot
+ *    DATE trigger at the next occurrence's deferred datetime,
+ *    and the next sync re-plans it — the same basis every DATE
+ *    plan already lives on.
+ *  - TIME_INTERVAL (the user-invoked test notification, the
+ *    prayer snooze) is never gated: it fires when the user
+ *    asked, like the native emergency pill.
+ *
+ * Plans are re-planned at every sync (the syncs cancel their
+ * whole identifier space and rebuild), so a shifted trigger
+ * never stacks duplicates.
+ */
+export function applyQuietHoursToTrigger(
+  trigger: Notifications.NotificationTriggerInput | null,
+  preferences: Pick<NotificationPreferences, "quietHoursEnabled" | "quietHoursRange">,
+  now = new Date(),
+): Notifications.NotificationTriggerInput | null {
+  if (!preferences.quietHoursEnabled || !trigger || typeof trigger !== "object") return trigger;
+  const range = preferences.quietHoursRange;
+  const { startHour, endHour } = quietHoursRangeDef(range);
+  const types = Notifications.SchedulableTriggerInputTypes;
+  const fields = trigger as {
+    type?: string;
+    date?: Date;
+    hour?: number;
+    minute?: number;
+    weekday?: number;
+    day?: number;
+    channelId?: string;
+  };
+
+  if (fields.type === types.DATE && fields.date instanceof Date) {
+    const deferred = deferDatePastQuietHours(fields.date, range);
+    return deferred.getTime() === fields.date.getTime()
+      ? trigger
+      : ({ ...fields, date: deferred } as Notifications.NotificationTriggerInput);
+  }
+
+  // Calendar triggers (daily/weekly/monthly) are gated on their
+  // time of day; interval triggers have no time of day and pass
+  // through exactly as built.
+  if (typeof fields.hour !== "number") return trigger;
+  const minute = fields.minute ?? 0;
+  const minutes = fields.hour * 60 + minute;
+  const inEvening = minutes >= startHour * 60;
+  const inMorning = minutes < endHour * 60;
+  if (!inEvening && !inMorning) return trigger;
+
+  if (fields.type === types.DAILY) {
+    return { ...fields, hour: endHour, minute: 0 } as Notifications.NotificationTriggerInput;
+  }
+  if (fields.type === types.WEEKLY) {
+    if (inMorning) {
+      return { ...fields, hour: endHour, minute: 0 } as Notifications.NotificationTriggerInput;
+    }
+    // Evening: the deferred instance is the NEXT day's end hour.
+    if (typeof fields.weekday !== "number" || fields.weekday < 1 || fields.weekday > 7) {
+      return trigger; // malformed — no weekday to move; never guess
+    }
+    return {
+      ...fields,
+      weekday: (fields.weekday % 7) + 1,
+      hour: endHour,
+      minute: 0,
+    } as Notifications.NotificationTriggerInput;
+  }
+  if (fields.type === types.MONTHLY) {
+    if (inMorning) {
+      return { ...fields, hour: endHour, minute: 0 } as Notifications.NotificationTriggerInput;
+    }
+    if (typeof fields.day === "number" && fields.day >= 1 && fields.day <= 27) {
+      return { ...fields, day: fields.day + 1, hour: endHour, minute: 0 } as Notifications.NotificationTriggerInput;
+    }
+    if (typeof fields.day === "number" && fields.day >= 28 && fields.day <= 31) {
+      const occurrence = nextMonthlyFireDate(fields.day, fields.hour, minute, now);
+      const deferred = deferDatePastQuietHours(occurrence, range);
+      return { type: types.DATE, date: deferred, channelId: fields.channelId } as Notifications.NotificationTriggerInput;
+    }
+    return trigger;
+  }
+  return trigger;
+}
+
+/**
+ * v315/v316: hold a batch of plans until quiet hours end. Every
+ * plan routes through applyQuietHoursToTrigger (see its comment
+ * for the per-kind rule). Returns the same array — and the same
+ * plan objects — when nothing moves.
  */
 export function applyQuietHoursToPlans(
   plans: NotificationPlan[],
   preferences: Pick<NotificationPreferences, "quietHoursEnabled" | "quietHoursRange">,
+  now = new Date(),
 ): NotificationPlan[] {
   if (!preferences.quietHoursEnabled) return plans;
-  const range = preferences.quietHoursRange;
-  const { endHour } = quietHoursRangeDef(range);
-  const types = Notifications.SchedulableTriggerInputTypes;
   return plans.map((plan) => {
-    const trigger = plan.trigger as { type?: string; date?: Date; hour?: number; minute?: number } | null;
-    if (!trigger || typeof trigger !== "object") return plan;
-    if (trigger.type === types.DATE && trigger.date instanceof Date) {
-      const deferred = deferDatePastQuietHours(trigger.date, range);
-      if (deferred.getTime() === trigger.date.getTime()) return plan;
-      return { ...plan, trigger: { ...trigger, date: deferred } as Notifications.NotificationTriggerInput };
-    }
-    if (trigger.type === types.DAILY && typeof trigger.hour === "number") {
-      const probe = new Date();
-      probe.setHours(trigger.hour, trigger.minute ?? 0, 0, 0);
-      if (!isInQuietHours(probe, range)) return plan;
-      return { ...plan, trigger: { ...trigger, hour: endHour, minute: 0 } as Notifications.NotificationTriggerInput };
-    }
-    if ((trigger.type === types.WEEKLY || trigger.type === types.MONTHLY) && typeof trigger.hour === "number") {
-      const minutes = trigger.hour * 60 + (trigger.minute ?? 0);
-      // Morning half only: still before the window's end today.
-      if (minutes >= endHour * 60) return plan;
-      return { ...plan, trigger: { ...trigger, hour: endHour, minute: 0 } as Notifications.NotificationTriggerInput };
-    }
-    return plan;
+    const trigger = applyQuietHoursToTrigger(plan.trigger, preferences, now);
+    return trigger === plan.trigger
+      ? plan
+      : { ...plan, trigger: trigger as Notifications.NotificationTriggerInput };
   });
 }
 

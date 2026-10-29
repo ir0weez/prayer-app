@@ -216,15 +216,17 @@ describe("v315 quiet hours — plan enforcement is exact where the trigger allow
     expect(daytime.trigger).toMatchObject({ hour: 12, minute: 0 });
   });
 
-  it("WEEKLY/MONTHLY: a morning time defers to the end hour; an evening time is left as scheduled (the pinned partial)", () => {
+  it("WEEKLY/MONTHLY: a morning time defers to the end hour, same day (the evening half is v316's pin, not this file's)", () => {
     const [morning] = applyQuietHoursToPlans([plan({ type: "weekly", weekday: 3, hour: 6, minute: 30, channelId: "c" })], enabled);
     expect(morning.trigger).toMatchObject({ hour: 7, minute: 0, weekday: 3 });
-    // A weekly 11 PM reminder cannot be deferred by a time-of-day
-    // shift without changing its day — it stays. This is the honest
-    // partial the build report carries; pinning it keeps it visible.
-    const eveningPlan = plan({ type: "weekly", weekday: 3, hour: 23, minute: 0, channelId: "c" });
-    const [eveningOut] = applyQuietHoursToPlans([eveningPlan], enabled);
-    expect(eveningOut).toBe(eveningPlan);
+    // v315 pinned the evening half as LEFT AS SCHEDULED — the
+    // honest partial of that build, kept visible on purpose.
+    // v316 closed it: an evening weekly now moves to the next
+    // weekday's end hour (its true deferred datetime). The full
+    // evening pins live in settings-v316.test.ts; this pin stays
+    // only to record that the partial is GONE, not still true.
+    const [eveningOut] = applyQuietHoursToPlans([plan({ type: "weekly", weekday: 3, hour: 23, minute: 0, channelId: "c" })], enabled);
+    expect(eveningOut.trigger).toMatchObject({ hour: 7, minute: 0, weekday: 4 });
   });
 
   it("the three syncs route their plans through the quiet-hours pass", () => {

@@ -472,10 +472,12 @@ describe("v254 integration — the rest of the app reads the same model", () => 
     expect(index).toContain("p.lastPrayedDate <= fourteenDaysAgo");
   });
 
-  it("(1b) the Schedule summary's rotating Reach (PrayerCheckInNotice) still rotates one person at a time over getPrayerCheckInPeople", () => {
+  it("(1b) the rotating Reach lives in the Daily Summary panel (SummaryReachRow) over getPrayerCheckInPeople — re-pinned v320: the second, under-panel PrayerCheckInNotice line was deleted; his device ruling 2026-10-28 19:54", () => {
     expect(schedule).toContain("getPrayerCheckInPeople(people, selectedDate)");
-    expect(schedule).toContain("<PrayerCheckInNotice");
-    expect(schedule).toContain("(current + 1) % people.length");
+    expect(schedule).not.toContain("PrayerCheckInNotice");
+    const summaryCard = read("components/daily-summary-card.tsx");
+    expect(summaryCard).toContain("<SummaryReachRow");
+    expect(summaryCard).toContain("reachPeople[activeIndex % reachPeople.length]");
   });
 
   it("(2) schedule linked people (events, todos, ministries / Bible study) still resolve ids against the same people array", () => {

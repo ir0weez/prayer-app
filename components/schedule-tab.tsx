@@ -55,7 +55,7 @@ import { TerminalRestSky, terminalKeywordSceneFor } from "./terminal-keyword-sce
 import { BIT_DUSK, BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, hasTypeScale, hexLuminance, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint, skinText, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
 import { setScheduleFabConfig } from "@/lib/schedule-fab-bridge";
 import { scheduleMaterialTones, tonalRamp } from "@/lib/schedule-material";
-import { detectShowFont } from "@/lib/show-fonts";
+import { detectShowFont, splitShowName } from "@/lib/show-fonts";
 import { stripSpelledSeasonEpisode } from "@/lib/season-episode";
 import { showNameSegments } from "./show-sub-line";
 import { mix } from "@/lib/color-themes";
@@ -160,6 +160,7 @@ import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { TimeOffExperience } from "./time-off-experience";
 import { TripBand, ItineraryDayCard, ClaimedRestGroup } from "./time-off-travel";
 import { ReachedStampRow } from "./reached-stamp-row";
+import { KeywordThumbArt } from "./keyword-thumb-art";
 import { getAllTimeOff, getItineraryForDate, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
 import { calculateWhites, groupAdjacentClaimed } from "@/lib/whites";
 import { extractPosterColor, getTimeOffEventColor, isTimeOffEventVisible, readableTextColor } from "@/lib/poster-color";
@@ -221,7 +222,7 @@ import {
   removeScheduleTodo,
   partitionGroupedTodosForSchedule,
 } from "@/lib/schedule-data";
-import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, getPrayerCheckInPeople, getDaysSinceLastPrayedOnDate, type PrayerItem } from "@/lib/prayercircle-data";
+import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, getPrayerCheckInPeople, type PrayerItem } from "@/lib/prayercircle-data";
 import { WeeklyCalendarView } from "./weekly-calendar-view";
 import { getWeekStart, formatDateISO, formatDateLocal } from "@/lib/date-utils";
 import { MonthlyCalendarView } from "./monthly-calendar-view";
@@ -7573,26 +7574,37 @@ function UpNextPulseDot({ color, style }: { color: string; style?: any }) {
 }
 
 /** One Up Next row's 40px radius-12 leading thumbnail.
-    EVENT rows carry the item's own keyword scene artwork
-    miniaturised: the SAME scene component the full-bleed card
-    renders (KeywordAmbientAnimation), composed on a
-    card-proportioned stage (360×160) and transform-scaled into
-    the tile, clipped by the tile's radius. Colour-only events
-    (and time-off events, whose cards show no scene) get a tile in
-    the event's colour with its glyph. TODO rows get a tile in the
-    todo's own colour with its icon glyph (white) — the stored
-    icon, else the title-derived one, else a check. MINISTRY rows
-    get a tile in the ministry colour with its type glyph. */
+    v320 (his device verdict, Oct 28 19:55): the v318 form —
+    the item's full keyword scene miniaturised on a scaled
+    360×160 stage — read as a muddy blob at 40px, so EVENT rows
+    now carry DEDICATED SMALL ARTWORK (components/keyword-thumb-
+    art.tsx): the resolved scene's emblem or icon mark, drawn
+    at 40px on the scene's own ground. TV SHOW events take the
+    day cards' TV treatment instead: a tile in the event's
+    chosen colour with a white TV glyph (the row itself carries
+    the big themed show-name line — see the up-next case). Colour-only
+    events (and time-off events, whose cards show no scene) get
+    a tile in the event's colour with its glyph. TODO rows get
+    a tile in the todo's own colour with its icon glyph
+    (white) — the stored icon, else the title-derived one, else
+    a check. MINISTRY rows get a tile in the ministry colour
+    with its type glyph. */
 function UpNextThumb({ kind, item }: { kind: "todo" | "event" | "ministry"; item: any }) {
   const colors = useColors();
   if (kind === "event") {
     const keyword = item.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === item.keyword) : detectEventKeyword(item.title, item.location, item.notes);
     if (keyword && !item.isOffEvent) {
+      if (keyword.label === "TV Show") {
+        const tvColor = item.color || keyword.accentColor || colors.primary;
+        return (
+          <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: tvColor, alignItems: "center", justifyContent: "center" }}>
+            <MaterialIcons name="tv" size={22} color="#FFFFFF" />
+          </View>
+        );
+      }
       return (
         <View style={{ width: 40, height: 40, borderRadius: 12, overflow: "hidden", backgroundColor: keyword.bgColor }}>
-          <View pointerEvents="none" style={{ width: 360, height: 160, transformOrigin: "left top", transform: [{ scaleX: 40 / 360 }, { scaleY: 40 / 160 }] }}>
-            <KeywordAmbientAnimation label={keyword.label} title={item.title} location={item.location} notes={item.notes} />
-          </View>
+          <KeywordThumbArt label={keyword.label} title={item.title} location={item.location} notes={item.notes} fallbackIcon={keyword.icon} />
         </View>
       );
     }
@@ -10119,55 +10131,6 @@ function BirthdayCard({ birthday }: { birthday: BirthdayEvent }) {
           </Text>
         )}
       </View>
-    </View>
-  );
-}
-
-function PrayerCheckInNotice({ people, selectedDate }: { people: Person[]; selectedDate: string }) {
-  const colors = useColors();
-  const { tokens: skinTokens } = useSkin();
-  const [activeIndex, setActiveIndex] = useState(0);
-  const nameOpacity = useRef(new Animated.Value(1)).current;
-  const attentionPulse = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (people.length <= 1) {
-      setActiveIndex(0);
-      nameOpacity.setValue(1);
-      return;
-    }
-
-    const interval = setInterval(() => {
-      Animated.timing(nameOpacity, { toValue: 0, duration: 220, useNativeDriver: true }).start(({ finished }) => {
-        if (!finished) return;
-        setActiveIndex((current) => (current + 1) % people.length);
-        Animated.timing(nameOpacity, { toValue: 1, duration: 260, useNativeDriver: true }).start();
-      });
-    }, 3200);
-
-    return () => clearInterval(interval);
-  }, [nameOpacity, people.length]);
-
-  // Pulsing animation removed - static dot (was causing distracting blink)
-
-  if (people.length === 0) return null;
-  const activePerson = people[activeIndex % people.length];
-  const displayName = activePerson?.name
-    ? (() => {
-        const nameParts = activePerson.name.trim().split(/\s+/).filter(Boolean);
-        if (nameParts.length <= 1) return nameParts[0] ?? "";
-        return `${nameParts[0].charAt(0)}. ${nameParts.slice(1).join(" ")}`;
-      })()
-    : "";
-  const daysSinceReached = activePerson ? getDaysSinceLastPrayedOnDate(activePerson.lastPrayedDate, selectedDate) : 0;
-  const dotScale = attentionPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] });
-  const dotOpacity = attentionPulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
-  return (
-    <View style={[scheduleStyles.prayerCheckInNotice, { backgroundColor: 'transparent' }]} accessibilityRole="text">
-      <View style={[scheduleStyles.prayerCheckInDot, { backgroundColor: colors.error }]} />
-      <Animated.Text style={[scheduleStyles.prayerCheckInText, { color: skinTokens.isTerminal ? TERM_SOFT : skinTokens.isEightBit ? BIT_ON_DUSK : colors.foreground, opacity: nameOpacity }]} numberOfLines={1}>
-        {displayName} hasn’t been reached in {daysSinceReached} days.
-      </Animated.Text>
     </View>
   );
 }
@@ -12910,10 +12873,6 @@ export function ScheduleTab({
     );
   })()}
 
-  {/* Last-reached notice: above the progress bar, transparent so it blends
-      into the summary background */}
-  <PrayerCheckInNotice people={prayerCheckInPeople} selectedDate={selectedDate} />
-
   {/* Progress Bar — v297: under Classic the bar now lives INSIDE the
       panel as its last row (the drawing's seat; DailySummaryCard
       renders it from the progress props above). The standalone bar
@@ -13319,8 +13278,10 @@ export function ScheduleTab({
           // if two or three things are scheduled for the same
           // time?"): the card lists EVERY item sharing the next
           // start time, one row each, hairlines between; each row
-          // leads with the item's own artwork (event scene
-          // miniaturised, or its colour tile) and keeps the tap
+          // leads with the item's own artwork (v320: an event's
+          // dedicated small artwork, or its colour tile; a TV
+          // show's colour tile + TV glyph, its row carrying the
+          // day cards' themed sub-line) and keeps the tap
           // behaviour its own card has — the row toggles its item
           // through the same handlers (his no-bubbles model).
           const upData = item.data as { entries: Array<{ kind: "todo" | "event" | "ministry"; item: any }>; startMinutes: number; anchorMinutes: number };
@@ -13375,7 +13336,78 @@ export function ScheduleTab({
                 <UpNextPulseDot color={leadRamp.deep} style={{ position: "absolute", top: -3, left: `${Math.round(upNextProgress * 100)}%`, marginLeft: -5 }} />
               </View>
               <View style={{ marginTop: 6 }}>
-                {entries.map((entry, entryIdx) => (
+                {entries.map((entry, entryIdx) => {
+                  // v320 — TV SHOW rows take a BIG TV treatment
+                  // (his idea, approved Oct 28 20:04; sized up by
+                  // his 20:12 amendment — "why can't they be
+                  // bigger to take up the up next card better?"):
+                  // the event TITLE stays the row's first line,
+                  // and under it the SHOW NAME in its themed font
+                  // (lib/show-fonts.ts) becomes the row's prominent
+                  // line at 19.5px in the event's chosen colour's
+                  // deep step, with the S/E read riding the same
+                  // line at quieter weight. The segments compose
+                  // the way the Classic TV card composes its
+                  // sub-line — S/E read, the detail line with the
+                  // v313 spelled-out dedupe, the duration — but
+                  // the EMPHASIS is Up Next's own: the day cards
+                  // keep their small show name in the note line
+                  // (that settlement stands); the row grows taller
+                  // for TV rows, which is wanted. Non-TV rows
+                  // render no second line.
+                  const rowKeyword = entry.kind === "event"
+                    ? (entry.item.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === entry.item.keyword) ?? null : detectEventKeyword(entry.item.title, entry.item.location, entry.item.notes))
+                    : null;
+                  const tvLineNodes = (() => {
+                    if (!rowKeyword || rowKeyword.label !== "TV Show" || entry.item.isOffEvent) return null;
+                    const it = entry.item;
+                    const seRead = (it.season || it.episode)
+                      ? `${it.season ? `S${it.season}` : ""}${it.season && it.episode ? " " : ""}${it.episode ? `E${it.episode}` : ""}`
+                      : null;
+                    const detailLine = stripSpelledSeasonEpisode(
+                      [it.notes, it.location].filter(Boolean).join(" · "),
+                      it.season,
+                      it.episode,
+                    );
+                    const durMins = it.startTime && it.endTime ? timeToMinutes(it.endTime) - timeToMinutes(it.startTime) : null;
+                    const durationLabel = durMins != null && durMins > 0 ? (durMins < 60 ? `${durMins} min` : whiteBlockBadge(durMins)) : null;
+                    const showFont = detectShowFont(it.notes, it.title);
+                    const showDeep = tonalRamp(it.color || rowKeyword.accentColor || colors.primary, colors.surface).deep;
+                    const bigShow = (text: string) => (
+                      <Text key="show-name" style={{ fontFamily: showFont?.fontFamily, color: showDeep, fontSize: 19.5 }}>{text}</Text>
+                    );
+                    const parts: React.ReactNode[] = [];
+                    if (seRead) parts.push(seRead);
+                    if (detailLine) {
+                      parts.push(
+                        showFont
+                          ? splitShowName(detailLine, showFont).map((seg, i) =>
+                              seg.show ? (
+                                <Text key={`show-${i}`} style={{ fontFamily: showFont.fontFamily, color: showDeep, fontSize: 19.5 }}>
+                                  {seg.text}
+                                </Text>
+                              ) : (
+                                seg.text
+                              ),
+                            )
+                          : detailLine,
+                      );
+                    } else if (showFont) {
+                      // No detail text to carry the name (a bare
+                      // "Watch Dexter" entry): the name itself is
+                      // the line, from the font entry.
+                      parts.push(bigShow(showFont.displayName));
+                    }
+                    if (durationLabel) parts.push(durationLabel);
+                    if (parts.length === 0) return null;
+                    const nodes: React.ReactNode[] = [];
+                    parts.forEach((p, i) => {
+                      if (i > 0) nodes.push(" · ");
+                      nodes.push(p);
+                    });
+                    return nodes;
+                  })();
+                  return (
                   <Pressable
                     key={`${entry.kind}-${entry.item.id}`}
                     onPress={toggleEntry(entry)}
@@ -13384,10 +13416,16 @@ export function ScheduleTab({
                     style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, opacity: pressed ? 0.75 : 1 }, entryIdx > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: mix(upNextSurface, leadColor, 0.18) } : null]}
                   >
                     <UpNextThumb kind={entry.kind} item={entry.item} />
-                    <Text style={{ flex: 1, color: colors.foreground, fontSize: 15.5, fontWeight: "700" }}>{entry.item.title}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.foreground, fontSize: 15.5, fontWeight: "700" }}>{entry.item.title}</Text>
+                      {tvLineNodes ? (
+                        <Text style={{ color: colors.muted, fontSize: 13.5, fontWeight: "600", lineHeight: 25, marginTop: 1 }}>{tvLineNodes}</Text>
+                      ) : null}
+                    </View>
                     <Text style={{ color: colors.muted, fontSize: 12.5, fontWeight: "600" }}>{entry.kind === "event" ? "Event" : entry.kind === "todo" ? "Todo" : "Ministry"}</Text>
                   </Pressable>
-                ))}
+                  );
+                })}
               </View>
             </View>
           );
@@ -15691,28 +15729,6 @@ export function ScheduleTab({
 const scheduleStyles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  prayerCheckInNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginHorizontal: 20,
-    marginTop: 0,
-    marginBottom: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 0,
-    minHeight: 28,
-  },
-  prayerCheckInDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-  },
-  prayerCheckInText: {
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '700',
   },
   scheduleTitle: {
     paddingHorizontal: 16,

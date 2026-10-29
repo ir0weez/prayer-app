@@ -23,6 +23,11 @@
 //    full-bleed card renders, transform-scaled into the tile), or
 //    a colour tile with the item's glyph (todo icon / ministry
 //    type glyph / event keyword glyph).
+//    [v320 amendment, his device ruling 2026-10-28 19:55: the
+//    miniaturised scene read as a muddy blob at 40px — replaced
+//    by dedicated small artwork (keyword-thumb-art.tsx); TV show
+//    rows take a chosen-colour TV tile + a big themed show-name
+//    line. The thumbnail pins below are re-pinned accordingly.]
 //  - The moving element: a 4px progress thread under the header
 //    showing the elapsed share of the gap between the previous
 //    timed item's end (or the 5:00 AM window start) and the
@@ -146,14 +151,12 @@ describe("v318 up next — the rows: artwork, titles, kinds, per-item taps", () 
   });
 });
 
-describe("v318 up next — the thumbnails: scene miniatures and colour tiles", () => {
-  it("an event row renders the item's OWN keyword scene, miniaturised into the 40px tile", () => {
+describe("v318 up next — the thumbnails (re-pinned v320: the scene miniature was replaced by dedicated small artwork)", () => {
+  it("an event row renders dedicated small artwork in the 40px tile — re-pinned v320: the v318 scaled 360×160 scene stage read as a muddy blob at 40px; his device ruling 2026-10-28 19:54/19:55 replaced it with KeywordThumbArt, and TV shows with the chosen-colour TV tile", () => {
     expect(thumb).toContain('width: 40, height: 40, borderRadius: 12, overflow: "hidden"');
-    // The same scene component the full-bleed card uses, composed
-    // on a card-proportioned stage and transform-scaled to fit.
-    expect(thumb).toContain("width: 360, height: 160");
-    expect(thumb).toContain("transform: [{ scaleX: 40 / 360 }, { scaleY: 40 / 160 }]");
-    expect(thumb).toContain("<KeywordAmbientAnimation label={keyword.label} title={item.title} location={item.location} notes={item.notes} />");
+    expect(thumb).not.toContain("width: 360, height: 160");
+    expect(thumb).toContain("<KeywordThumbArt label={keyword.label} title={item.title} location={item.location} notes={item.notes} fallbackIcon={keyword.icon} />");
+    expect(thumb).toContain('<MaterialIcons name="tv" size={22} color="#FFFFFF" />');
   });
 
   it("a colour-only event gets a tile in the event colour with its glyph", () => {
@@ -171,7 +174,7 @@ describe("v318 up next — the thumbnails: scene miniatures and colour tiles", (
     expect(thumb).toContain("getMinistryTypeIcon(item.type as any)");
   });
 
-  it("glyphs are white at 22px on the colour tiles", () => {
-    expect(thumb.match(/size=\{22\} color="#FFFFFF"/g) ?? []).toHaveLength(3);
+  it("glyphs are white at 22px on the colour tiles — re-pinned v320: four tiles now (the TV tile joined the colour-only event, todo and ministry tiles); his device ruling 2026-10-28 19:54", () => {
+    expect(thumb.match(/size=\{22\} color="#FFFFFF"/g) ?? []).toHaveLength(4);
   });
 });

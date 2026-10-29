@@ -260,7 +260,7 @@ describe("v308 header slide — the collapse is a slide, not a shrink", () => {
     expect(scheduleTab).toContain("84 + classicStripHeight + classicReachRect.y + classicReachRect.height");
   });
 
-  it("both overlay twins ride the slide — no scale (v315 re-pin: the strip has its own slide, and the fade is back by his word)", () => {
+  it("both overlay twins ride the slide — no scale (v315 re-pin: the strip has its own slide, and the fade is back by his word) (v319 re-pin: the reach twin is RETIRED)", () => {
     // v315 SUPERSEDES the "identical translation / no fade gate"
     // half of this pin. Jonathan on v313/v314 (Oct 28, 16:28/16:30):
     // the strip stayed parked at the top "like a creep" under the
@@ -269,10 +269,17 @@ describe("v308 header slide — the collapse is a slide, not a shrink", () => {
     // its own seat) with opacity stripFade, and the reach twin
     // keeps headerSlideY with opacity headerFade. The no-scale /
     // no-0.01 half of the original pin stands untouched.
-    expect(overlaySlice.match(/translateY: headerSlideY/g) ?? []).toHaveLength(1);
+    // v319 SUPERSEDES the reach half again. Jonathan (Oct 28,
+    // 19:16, screenshot 10861): the reach twin DRAGGED across the
+    // summary prose when the sheet swiped. The twin is deleted —
+    // the reach row renders once, in the panel, outside every
+    // sliding transform — and headerFade is gone with it. The
+    // strip's slide + fade below are byte-identical to v315, and
+    // the app bar still rides headerSlideY (pinned separately).
+    expect(overlaySlice.match(/translateY: headerSlideY/g) ?? []).toHaveLength(0);
     expect(overlaySlice.match(/translateY: stripSlideY/g) ?? []).toHaveLength(1);
     expect(overlaySlice).toContain("opacity: stripFade");
-    expect(overlaySlice).toContain("opacity: headerFade");
+    expect(overlaySlice).not.toContain("opacity: headerFade");
     expect(overlaySlice).not.toContain("scale: scrollY.interpolate");
     expect(overlaySlice).not.toContain("0.01");
     expect(overlaySlice).not.toContain("opacity: scrollY.interpolate");
@@ -288,10 +295,13 @@ describe("v308 header slide — the collapse is a slide, not a shrink", () => {
     expect(scheduleTab).toContain("inputRange: [200, 320], outputRange: [1, 0], extrapolate: 'clamp'");
   });
 
-  it("BEHAVIOUR: day-switching still lives on the drawn strip (v297 intact)", () => {
+  it("BEHAVIOUR: day-switching still lives on the drawn strip (v297 intact; v319: the picker block is removed by his ruling)", () => {
     expect(overlaySlice).toContain("onPress={() => setSelectedDate(date)}");
     expect(overlaySlice).toContain("{...weekStripPanResponder.panHandlers}");
-    expect(overlaySlice).toContain('label="Jump to date"');
+    // v319 (his Oct 28, 19:25): the Jump to date block — the
+    // strip's month/year face — is removed; the cells span the
+    // full width. Pinned in schedule-v319.test.ts.
+    expect(overlaySlice).not.toContain('label="Jump to date"');
   });
 });
 

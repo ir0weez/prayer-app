@@ -108,10 +108,15 @@ describe("v297 day switching — the strip lives above the sheet", () => {
     expect(overlaySlice).toContain("{...weekStripPanResponder.panHandlers}");
   });
 
-  it("BEHAVIOUR: the Jump to date picker is wired to the same selection state", () => {
-    expect(overlaySlice).toContain('label="Jump to date"');
-    expect(overlaySlice).toContain("onChange={(d) => { setWeekSlideDir(0); setSelectedDate(d); }}");
-    expect(overlaySlice).toContain("value={selectedDate}");
+  it("BEHAVIOUR: the Jump to date picker is wired to the same selection state (v319 re-pin: REMOVED by his ruling)", () => {
+    // v319 SUPERSEDES this pin. Jonathan (Oct 28, 19:25, screenshot
+    // 10863): the picker's face was the strip's right-side
+    // month/year block ("Nov 4 / 2026") — redundant with the app
+    // bar's "Wed, November 4" line — so the block is removed and
+    // the seven day cells span the strip's full width. Day
+    // switching itself (cells + week swipe) is untouched; the
+    // removal is pinned in schedule-v319.test.ts.
+    expect(overlaySlice).not.toContain('label="Jump to date"');
   });
 
   it("the sheet mechanism is untouched — the spacer still carries the full measured zone", () => {
@@ -125,17 +130,32 @@ describe("v297 day switching — the strip lives above the sheet", () => {
   });
 });
 
-describe("v297 reach row — live in the overlay, fed by the card's twin", () => {
-  it("the overlay renders the live reach row at the twin's measured seat", () => {
-    expect(overlaySlice).toContain("<SummaryReachRow people={prayerCheckInPeople} selectedDate={selectedDate} onReachOutPress={handleSummaryReachOut} />");
-    expect(overlaySlice).toContain("left: 20 + classicReachRect.x");
-    expect(overlaySlice).toContain("top: 84 + classicStripHeight + classicReachRect.y");
+describe("v297 reach row — live in the overlay, fed by the card's twin (v319 re-pinned: the row lives in the panel now)", () => {
+  it("the overlay renders the live reach row at the twin's measured seat (v319 re-pin: NO reach render in the overlay)", () => {
+    // v319 SUPERSEDES the twin arrangement this describe pinned.
+    // Jonathan (Oct 28, 19:16, screenshot 10861, on v317): when he
+    // swiped the sheet up, the overlay reach copy visibly DRAGGED
+    // across the summary prose — a floating band double-rendering
+    // the words under it. The copy is deleted: the row renders
+    // once, in the panel (next pin), and the overlay hosts only an
+    // invisible, rest-only press seat over its button. Full pins:
+    // schedule-v319.test.ts.
+    expect(overlaySlice).not.toContain("SummaryReachRow");
+    expect(overlaySlice).not.toContain("opacity: headerFade");
+    expect(overlaySlice).not.toContain("left: 20 + classicReachRect.x");
+    expect(overlaySlice).toContain("left: 20 + classicReachButtonRect.x");
+    expect(overlaySlice).toContain("top: 84 + classicStripHeight + classicReachButtonRect.y");
   });
 
-  it("the card renders the row as an invisible twin only when a rect callback is provided", () => {
+  it("the card renders the row as an invisible twin only when a rect callback is provided (v319 re-pin: the row is LIVE in the panel)", () => {
+    // v319: no invisible twin anywhere — the panel's own render is
+    // the one render, visible, in every seat. The rect callbacks
+    // survive as pure measurement (the row rect sizes the header
+    // slide; the new button rect seats the overlay press target).
     expect(summaryCard).toContain("onReachRect");
-    expect(summaryCard).toContain("style={{ marginTop: 12, opacity: 0 }}");
-    expect(summaryCard).toContain("onReachRect({ x: x - 6, y: y + 8, width, height })");
+    expect(summaryCard).not.toContain("style={{ marginTop: 12, opacity: 0 }}");
+    expect(summaryCard).toContain("onReachRect?.({ x: x - 6, y: y + 8, width, height })");
+    expect(summaryCard).toContain("onReachButtonRect");
   });
 
   it("BEHAVIOUR: the Reach out action is one shared handler (editor pre-filled, first open block)", () => {

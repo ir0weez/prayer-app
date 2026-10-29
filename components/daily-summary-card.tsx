@@ -54,11 +54,22 @@ interface DailySummaryCardProps {
   progressTotal?: number;
   /** v297: in the Schedule day view the fixed summary zone sits UNDER the
       scrolling sheet, which swallows its touches (see schedule-tab's
-      overlay host). When this callback is provided, the Classic reach row
-      renders as an invisible layout twin and reports its rect (relative
-      to the card root) so the host can render the live row in its overlay
-      layer. Not provided elsewhere (People tab) — the row renders live. */
+      overlay host). When this callback is provided (Schedule does), the
+      Classic reach row reports its rect (relative to the card root) so
+      the host can size the header block's slide to the whole zone.
+      v319: the row itself renders LIVE and visible in this panel in
+      every seat — the invisible layout twin is retired; this callback
+      only measures the row now, it never hides it. Not provided
+      elsewhere (People tab). */
   onReachRect?: (rect: { x: number; y: number; width: number; height: number }) => void;
+  /** v319: the rect (card-root coordinates) of the reach row's
+      "Reach out" button, reported alongside the row rect so the
+      Schedule host can seat an invisible press target exactly over
+      the painted button while its sheet rests at the top — the
+      sheet's ScrollView spans the whole fixed zone and would
+      otherwise swallow the tap. The row renders once, here; the
+      host never renders a copy of it. */
+  onReachButtonRect?: (rect: { x: number; y: number; width: number; height: number }) => void;
 }
 
 /**
@@ -71,18 +82,25 @@ interface DailySummaryCardProps {
  * ("not reached in N days", from getDaysSinceLastPrayedOnDate) in the
  * drawing's short form. The chip's disc wears the person's own
  * avatarColor, one initial, as drawn (24px disc, 10.5px initial).
- * Exported: schedule-tab renders this row in its overlay layer (the
- * fixed summary zone's touches are swallowed by the sheet — see the
- * v297 notes there) as well as through this card's layout twin.
+ * Exported for this card — its only render. v319: schedule-tab no
+ * longer renders a copy in its overlay layer (that copy dragged
+ * across the prose on its slide — his Oct 28 report); the host
+ * seats only an invisible press target over the button while the
+ * sheet is at rest, fed by onButtonRect below.
  */
 export function SummaryReachRow({
   people: reachPeople,
   selectedDate,
   onReachOutPress,
+  onButtonRect,
 }: {
   people: Array<{ id: string; name: string; lastPrayedDate?: string | null; avatarColor?: string }>;
   selectedDate?: string;
   onReachOutPress?: () => void;
+  /** v319: reports the "Reach out" button's rect relative to this
+      row's root (the chip's width changes as the face rotates, so
+      the button's seat moves — onLayout tracks it). */
+  onButtonRect?: (rect: { x: number; y: number; width: number; height: number }) => void;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const opacity = useRef(new Animated.Value(1)).current;
@@ -126,14 +144,21 @@ export function SummaryReachRow({
           {firstName}{days != null ? ` · not reached in ${days} days` : ""}
         </Text>
       </Animated.View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Reach out"
-        onPress={onReachOutPress}
-        style={({ pressed }) => ({ backgroundColor: "#FFFFFF", borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12, opacity: pressed ? 0.75 : 1 })}
+      <View
+        onLayout={onButtonRect ? (e) => {
+          const { x, y, width, height } = e.nativeEvent.layout;
+          onButtonRect({ x, y, width, height });
+        } : undefined}
       >
-        <Text style={{ color: "#5B21B6", fontSize: 11.5, fontWeight: "800" }}>Reach out</Text>
-      </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Reach out"
+          onPress={onReachOutPress}
+          style={({ pressed }) => ({ backgroundColor: "#FFFFFF", borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12, opacity: pressed ? 0.75 : 1 })}
+        >
+          <Text style={{ color: "#5B21B6", fontSize: 11.5, fontWeight: "800" }}>Reach out</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -189,6 +214,7 @@ export function DailySummaryCard({
   progressCompleted,
   progressTotal,
   onReachRect,
+  onReachButtonRect,
 
 }: DailySummaryCardProps) {
   const colors = useColors();
@@ -205,7 +231,24 @@ export function DailySummaryCard({
   // since v274).
   const summaryIconSize = skinTokens.type.summaryBody ?? 16;
   const [showDayDropdown, setShowDayDropdown] = useState(false);
-  
+
+  // v319: the reach row's two measures, combined into the button's
+  // card-root rect for the Schedule host's press seat. The row
+  // wrapper reports in panel coordinates (converted to card-root
+  // with the panel's −6 / +8 seat, as onReachRect has since v297);
+  // the button reports inside the row. Either can land first and
+  // the button's seat moves as the facechip rotates, so both are
+  // kept in refs and every layout re-emits the combination.
+  const reachRowLayoutRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  const reachButtonLayoutRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  const emitReachButtonRect = () => {
+    if (!onReachButtonRect) return;
+    const row = reachRowLayoutRef.current;
+    const btn = reachButtonLayoutRef.current;
+    if (!row || !btn) return;
+    onReachButtonRect({ x: row.x - 6 + btn.x, y: row.y + 8 + btn.y, width: btn.width, height: btn.height });
+  };
+
   // Format fasting status for display
   const getFastingStatusDisplay = () => {
     switch (fastingStatus) {
@@ -427,9 +470,9 @@ export function DailySummaryCard({
   // screenshot orphaned "2." onto its own line), the REACH row as
   // ONE rotating facechip per his Oct 25 ruling, and the progress
   // bar as the panel's last row. The reach row renders through
-  // SummaryReachRow; when onReachRect is provided it renders as an
-  // invisible layout twin (the host re-renders it live in its
-  // overlay — the sheet swallows this zone's touches).
+  // SummaryReachRow — v319: live in this panel, its only render
+  // (the sheet swallows this zone's touches; the host answers with
+  // a rest-only press seat over the button, not a second render).
   if (!isSkinned) {
     // v296: the panel derives from the seed's SATURATED step (the
     // accent theme's light primary) in BOTH appearances. v295 mixed
@@ -537,26 +580,34 @@ export function DailySummaryCard({
           </Text>
 
           {reachPeople.length > 0 && (
-            onReachRect ? (
-              // v297: layout twin — invisible, keeps the panel's
-              // composition and reports the row's rect (converted to
-              // card-root coordinates: the panel sits at x −6, y 8
-              // inside the card root) so schedule-tab can render the
-              // live row in its overlay layer, above the sheet.
-              <View
-                style={{ marginTop: 12, opacity: 0 }}
-                onLayout={(e) => {
-                  const { x, y, width, height } = e.nativeEvent.layout;
-                  onReachRect({ x: x - 6, y: y + 8, width, height });
+            // v319: the ONE render of the reach row — live and
+            // visible in the panel in every seat. (v297–v318 this
+            // seat held an invisible layout twin while a second,
+            // live copy rode the overlay's header slide; on his
+            // phone that copy dragged across the prose above it —
+            // his Oct 28 report — so the copy is gone. The wrapper
+            // only MEASURES now: the row rect sizes the header
+            // block's slide, and the button rect seats the host's
+            // rest-only press target over the painted button.)
+            <View
+              style={{ marginTop: 12 }}
+              onLayout={(e) => {
+                const { x, y, width, height } = e.nativeEvent.layout;
+                reachRowLayoutRef.current = { x, y, width, height };
+                onReachRect?.({ x: x - 6, y: y + 8, width, height });
+                emitReachButtonRect();
+              }}
+            >
+              <SummaryReachRow
+                people={reachPeople}
+                selectedDate={selectedDate}
+                onReachOutPress={onReachOutPress}
+                onButtonRect={(rect) => {
+                  reachButtonLayoutRef.current = rect;
+                  emitReachButtonRect();
                 }}
-              >
-                <SummaryReachRow people={reachPeople} selectedDate={selectedDate} onReachOutPress={onReachOutPress} />
-              </View>
-            ) : (
-              <View style={{ marginTop: 12 }}>
-                <SummaryReachRow people={reachPeople} selectedDate={selectedDate} onReachOutPress={onReachOutPress} />
-              </View>
-            )
+              />
+            </View>
           )}
 
           {progressTotal != null && (

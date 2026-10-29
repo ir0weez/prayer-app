@@ -231,7 +231,7 @@ import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worsh
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 // v294: TimeOffCard retired from the day — the trip band (time-off-travel) is the day's time-off block now.
 import { syncScheduledEventNotifications } from '@/lib/notification-scheduler';
-import { DailySummaryCard, SummaryReachRow } from "@/components/daily-summary-card";
+import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
@@ -10882,6 +10882,27 @@ export function ScheduleTab({
     // rest-overlap constant stood). Its Classic-only 120px opening
     // scroll is gone with it.
   }, []);
+  // v319: whether the sheet sits at rest (scrollY ≈ 0). The reach
+  // press seat in the overlay host exists only in this state: at
+  // rest it makes the summary panel's own "Reach out" button
+  // tappable through the sheet (whose ScrollView spans the fixed
+  // zone and swallows its touches); the moment the sheet moves,
+  // the seat is gone, so nothing invisible is ever tappable and
+  // the sliding sheet owns every touch over the zone. State flips
+  // only on the rest boundary — the ref guards the listener so a
+  // scroll's per-frame values never re-render this component.
+  const [sheetAtRest, setSheetAtRest] = useState(true);
+  const sheetAtRestRef = useRef(true);
+  useEffect(() => {
+    const sub = scrollY.addListener(({ value }) => {
+      const atRest = value <= 0.5;
+      if (atRest !== sheetAtRestRef.current) {
+        sheetAtRestRef.current = atRest;
+        setSheetAtRest(atRest);
+      }
+    });
+    return () => scrollY.removeListener(sub);
+  }, [scrollY]);
   // Joi-style sheet: the day-view schedule slides up as a card over the fixed summary.
   // v193: the sheet's head used to start 68px before the summary's
   // bottom edge (a standing overlap), so at rest the date header sat
@@ -10911,17 +10932,21 @@ export function ScheduleTab({
   // still carries the full height, so no summary text is covered),
   // and the slide-over in motion is untouched.
   const [scheduleSummaryHeight, setScheduleSummaryHeight] = useState(360);
-  // v297: the Classic week strip and the summary's reach row render
-  // LIVE in an overlay layer above the sheet (see the overlay host
-  // below the day FlatList) because the sheet's pointerEvents-none
-  // spacer does NOT let touches fall through — the ScrollView itself
-  // stays the hit target over the whole fixed zone and swallowed
-  // every tap under it (his Oct 27 report: "I can't switch days").
-  // These two states carry the in-summary layout twins' measures:
-  // the strip's block height (row + its 4px seat gap) and the reach
-  // row's rect relative to the summary card's root.
+  // v297: the Classic week strip renders LIVE in an overlay layer
+  // above the sheet (see the overlay host below the day FlatList)
+  // because the sheet's pointerEvents-none spacer does NOT let
+  // touches fall through — the ScrollView itself stays the hit
+  // target over the whole fixed zone and swallowed every tap under
+  // it (his Oct 27 report: "I can't switch days"). These states
+  // carry the in-summary measures: the strip layout twin's block
+  // height (row + its 4px seat gap), the reach row's rect relative
+  // to the summary card's root (it sizes the header slide below),
+  // and — v319 — the reach row's BUTTON rect, which seats the
+  // row's one press target in the overlay host. The reach row
+  // itself renders once, in the panel, and never moves.
   const [classicStripHeight, setClassicStripHeight] = useState(60);
   const [classicReachRect, setClassicReachRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [classicReachButtonRect, setClassicReachButtonRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   // v308 (his Oct 28, 12:15, screenshot mid-scroll): "is there a
   // way to make the Date line slide up like the headers, rather
   // than shrink to the center awkwardly?" The header block's
@@ -10930,11 +10955,15 @@ export function ScheduleTab({
   // sheet's edge reached them (the week numbers visibly
   // compressed), and the app bar ghosted — opacity 1 → 0 with a
   // token 60px rise over scroll 200–320. All of that is replaced
-  // by ONE slide: the app bar and both overlay twins share this
+  // by ONE slide: the app bar and the overlay strip share this
   // translateY, moving up 1:1 with the sheet's scroll until the
   // block has cleared the top edge — no scale transform. (v315
-  // adds the fade back on TOP of this slide — see stripFade and
-  // headerFade below; the slide itself is unchanged.) The
+  // adds the fade back on TOP of this slide for the strip — see
+  // stripFade below; the slide itself is unchanged. v319: the
+  // reach twin that also rode this slide is retired — the reach
+  // row renders in the panel and never moves — but the slide's
+  // TRAVEL still measures the whole block, reach seat included,
+  // so the app bar's shipped motion is unchanged.) The
   // geometry is self-keeping: an element's clearance above
   // the sheet's rising edge (its seat bottom vs the zone's full
   // height) is constant under a 1:1 slide, so a twin can never be
@@ -10967,14 +10996,16 @@ export function ScheduleTab({
   // exactly as its travel ends — never further, never left hanging —
   // and a fade on the same scroll: solid through the first 45% of
   // the travel, dissolved to fully transparent exactly as the slide
-  // completes. The reach twin keeps the shared headerSlideY and
-  // takes the same-shaped fade keyed to the shared slide. NO scale
-  // anywhere (the shrink was his actual v308 complaint; the fade
-  // was never the problem). Fully gone is fully gone: opacity 0
+  // completes. (v319: the reach twin that kept the shared
+  // headerSlideY with a same-shaped fade is retired — the reach
+  // row never moves now — and its fade, headerFade, is gone with
+  // it; the strip's slide + fade are byte-identical to v315.) NO
+  // scale anywhere (the shrink was his actual v308 complaint; the
+  // fade was never the problem). Fully gone is fully gone: opacity 0
   // AND the frame wholly above the screen, so the strip neither
   // lingers visibly nor takes touches; at every earlier position
   // what is drawn is what is tappable, and day-switching works at
-  // every scroll position exactly as the twins were built for.
+  // every scroll position exactly as the twin was built for.
   const stripSlideFull = 84 + classicStripHeight + 12;
   const stripSlideY = scrollY.interpolate({
     inputRange: [0, stripSlideFull],
@@ -10983,11 +11014,6 @@ export function ScheduleTab({
   });
   const stripFade = scrollY.interpolate({
     inputRange: [stripSlideFull * 0.45, stripSlideFull],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-  const headerFade = scrollY.interpolate({
-    inputRange: [headerSlideFull * 0.45, headerSlideFull],
     outputRange: [1, 0],
     extrapolate: "clamp",
   });
@@ -12726,8 +12752,9 @@ export function ScheduleTab({
   useEffect(() => () => setScheduleFabConfig(null), []);
 
   // v297: the summary's Reach out handler, hoisted out of the
-  // summary IIFE so the card's reach row AND its live overlay copy
-  // (below the day FlatList) share the one behaviour: the white-block
+  // summary IIFE so the panel's reach row AND its rest press seat
+  // in the overlay host (below the day FlatList) share the one
+  // behaviour: the white-block
   // Reach Out in another seat — the event editor, pre-filled at the
   // current time today, else at the day's first open block (the same
   // 05:00–24:00 settled-window computation the summary prose uses).
@@ -12862,6 +12889,9 @@ export function ScheduleTab({
         progressTotal={todoSummaryCounts.total + getEventsForDate(events, selectedDate).length}
         onReachRect={(rect) => {
           setClassicReachRect((prev) => (prev && prev.x === rect.x && prev.y === rect.y && prev.width === rect.width && prev.height === rect.height ? prev : rect));
+        }}
+        onReachButtonRect={(rect) => {
+          setClassicReachButtonRect((prev) => (prev && prev.x === rect.x && prev.y === rect.y && prev.width === rect.width && prev.height === rect.height ? prev : rect));
         }}
         fastLine={(() => {
           // v295: the drawing's fast clause — his fast's own numbers
@@ -14161,32 +14191,37 @@ export function ScheduleTab({
             }
           />
             {/* v297 (Classic only): the fixed-zone OVERLAY — the live
-                week strip and the live reach row, rendered ABOVE the
-                sheet (zIndex 2 over the list's 1; the app bar still
-                rides above both). In the summary itself they are
-                layout twins now: the sheet's ScrollView is the hit
-                target over the whole fixed zone (a pointerEvents-
-                none spacer does NOT pass touches through — the
-                ScrollView under it still claims them), so anything
-                interactive seated in the zone must live up here to
-                be tappable. v308: the scroll gate that used to fade
-                and SHRINK each element away as the sheet's edge
-                reached it is replaced by the header block's slide —
-                both elements carried headerSlideY (see its note at
-                scrollY), translating up 1:1 with the scroll and off
-                the top edge, so what's drawn is what's tappable at
-                every scroll position, and a fully-slid element's
-                frame sits above the screen and takes no touches.
-                v315: the strip now rides its OWN slide (stripSlideY,
-                keyed to its own seat) and both twins FADE as they
-                slide (stripFade / headerFade) — his word that the
-                strip lingered at the top "like a creep" and that he
-                liked the fade; the reach twin keeps headerSlideY.
-                The host is pointerEvents="box-none": only the
-                elements themselves take touches; everything else
-                falls through to the sheet. Their seats are the
-                summary flow's own coordinates (the summary container
-                pads 84 top / 20 sides; the strip's block is
+                week strip, rendered ABOVE the sheet (zIndex 2 over
+                the list's 1; the app bar still rides above both). In
+                the summary itself the strip is a layout twin now:
+                the sheet's ScrollView is the hit target over the
+                whole fixed zone (a pointerEvents-none spacer does
+                NOT pass touches through — the ScrollView under it
+                still claims them), so anything interactive seated in
+                the zone must live up here to be tappable. v308: the
+                scroll gate that used to fade and SHRINK the strip
+                away as the sheet's edge reached it is replaced by
+                the header block's slide (see its note at scrollY),
+                translating up 1:1 with the scroll and off the top
+                edge, so what's drawn is what's tappable at every
+                scroll position, and a fully-slid element's frame
+                sits above the screen and takes no touches. v315:
+                the strip rides its OWN slide (stripSlideY, keyed to
+                its own seat) and FADES as it slides (stripFade) —
+                his word that the strip lingered at the top "like a
+                creep" and that he liked the fade. v319: the reach
+                row no longer renders up here at all — its v297 twin
+                rode the shared slide and dragged across the summary
+                prose (his Oct 28 report, screenshot 10861). The row
+                renders once, in the panel, and never moves; what
+                lives up here for it is only the PRESS SEAT below —
+                an invisible target over the panel button's painted
+                seat, present solely while the sheet is at rest. The
+                host is pointerEvents="box-none": only the elements
+                themselves take touches; everything else falls
+                through to the sheet. Their seats are the summary
+                flow's own coordinates (the summary container pads
+                84 top / 20 sides; the strip's block is
                 classicStripHeight), so the pixels do not move —
                 only the touch path changes. */}
             {!isSkinned && scheduleSummaryHeight > 0 && (
@@ -14207,8 +14242,15 @@ export function ScheduleTab({
                       a 4.5px dot under time-off days, the selected
                       day held by a 2px outline ring in the seed's
                       deep step — no fill, no box). Tap switches the
-                      day; the row keeps its week-swipe; the compact
-                      "Jump to date" picker rides at the row's end. */}
+                      day; the row keeps its week-swipe. One seat is
+                      NOT verbatim — v319 (his Oct 28, 19:25,
+                      screenshot 10863): the compact "Jump to date"
+                      picker that rode at the row's end is REMOVED —
+                      its face was the month/year block ("Nov 4 /
+                      2026"), redundant with the app bar's "Wed,
+                      November 4" line. The seven day cells now span
+                      the row's FULL width — evenly distributed,
+                      bigger tap targets. */}
                   <View
                     onLayout={(e) => {
                       const h = Math.round(e.nativeEvent.layout.height) + 4;
@@ -14243,31 +14285,38 @@ export function ScheduleTab({
                           </Pressable>
                         );
                       })}
-                      <View style={{ justifyContent: "center", paddingLeft: 6, minHeight: 52 }}>
-                        <DateTimePicker
-                          value={selectedDate}
-                          onChange={(d) => { setWeekSlideDir(0); setSelectedDate(d); }}
-                          mode="date"
-                          label="Jump to date"
-                          compact
-                        />
-                      </View>
                     </View>
                   </View>
                 </Animated.View>
-                {classicReachRect && prayerCheckInPeople.length > 0 && (
-                  <Animated.View
+                {/* v319: the REACH PRESS SEAT — not a render of the
+                    reach row (the row renders once, in the summary
+                    panel, and never moves; the v297–v318 overlay copy
+                    dragged across the prose on its slide — his
+                    Oct 28 report). This is an empty press target
+                    seated exactly over the panel button's painted
+                    rect (measured by the card: the chip's width
+                    changes as the face rotates, so the seat tracks
+                    it), driving the same shared handler as the
+                    panel's own button. It exists ONLY while the
+                    sheet is at rest (sheetAtRest): the moment the
+                    sheet scrolls, the seat unmounts, the sliding
+                    sheet owns the zone's touches, and the panel row
+                    is simply covered — the settled slide-over
+                    geometry. No transform, no fade: the seat is
+                    either exactly on the button or not there. */}
+                {sheetAtRest && classicReachButtonRect && prayerCheckInPeople.length > 0 && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Reach out"
+                    onPress={handleSummaryReachOut}
                     style={{
                       position: "absolute",
-                      left: 20 + classicReachRect.x,
-                      top: 84 + classicStripHeight + classicReachRect.y,
-                      width: classicReachRect.width,
-                      opacity: headerFade,
-                      transform: [{ translateY: headerSlideY }],
+                      left: 20 + classicReachButtonRect.x,
+                      top: 84 + classicStripHeight + classicReachButtonRect.y,
+                      width: classicReachButtonRect.width,
+                      height: classicReachButtonRect.height,
                     }}
-                  >
-                    <SummaryReachRow people={prayerCheckInPeople} selectedDate={selectedDate} onReachOutPress={handleSummaryReachOut} />
-                  </Animated.View>
+                  />
                 )}
               </View>
             )}

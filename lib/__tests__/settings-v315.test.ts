@@ -20,7 +20,10 @@
  * list scrolled, and he liked that it faded as it slid out. The
  * strip now slides on its OWN measure (stripSlideY, keyed to its
  * seat) and fades (stripFade); the reach twin keeps headerSlideY
- * and fades too (headerFade). No scale anywhere.
+ * and fades too (headerFade). No scale anywhere. (v319 retires
+ * the reach twin and headerFade — the reach row renders in the
+ * panel and never moves; the strip's slide + fade are unchanged.
+ * See schedule-v319.test.ts.)
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -387,26 +390,38 @@ describe("v315 week strip — slide on its own measure, fade on the same scroll,
     expect(scheduleTab).toContain("outputRange: [0, -stripSlideFull]");
   });
 
-  it("both fades run solid through the first 45% and reach 0 exactly at slide completion", () => {
+  it("both fades run solid through the first 45% and reach 0 exactly at slide completion (v319 re-pin: the header fade is retired with the reach twin)", () => {
     expect(scheduleTab).toContain("inputRange: [stripSlideFull * 0.45, stripSlideFull]");
-    expect(scheduleTab).toContain("inputRange: [headerSlideFull * 0.45, headerSlideFull]");
     expect(scheduleTab).toContain("outputRange: [1, 0]");
+    // v319: headerFade drove only the reach twin; the twin is
+    // deleted (it dragged across the prose — his Oct 28, 19:16
+    // report), so the fade keyed to the shared slide is gone. The
+    // shared slide itself (headerSlideY / headerSlideFull) still
+    // drives the app bar, unchanged.
+    expect(scheduleTab).not.toContain("const headerFade");
+    expect(scheduleTab).not.toContain("inputRange: [headerSlideFull * 0.45, headerSlideFull]");
+    expect(scheduleTab).toContain("const headerSlideY = scrollY.interpolate({");
   });
 
-  it("the twins wear the new drivers; the app bar keeps the shared slide, untouched", () => {
+  it("the twins wear the new drivers; the app bar keeps the shared slide, untouched (v319 re-pin: the overlay carries the strip only)", () => {
     const overlaySlice = scheduleTab.slice(scheduleTab.indexOf("the fixed-zone OVERLAY"), scheduleTab.indexOf("viewMode === 'week'"));
     expect(overlaySlice).toContain("opacity: stripFade");
     expect(overlaySlice).toContain("transform: [{ translateY: stripSlideY }]");
-    expect(overlaySlice).toContain("opacity: headerFade");
-    expect(overlaySlice).toContain("transform: [{ translateY: headerSlideY }]");
+    // v319: no reach element rides the shared slide or any fade in
+    // the overlay — the reach row is the panel's own render.
+    expect(overlaySlice).not.toContain("opacity: headerFade");
+    expect(overlaySlice).not.toContain("transform: [{ translateY: headerSlideY }]");
     expect(scheduleTab).toContain(": { transform: [{ translateY: headerSlideY }] }");
   });
 
-  it("no scale creeps back, and day-switching still lives on the drawn strip", () => {
+  it("no scale creeps back, and day-switching still lives on the drawn strip (v319: the picker block is removed by his ruling)", () => {
     expect(scheduleTab).not.toContain("scale: scrollY.interpolate");
     const overlaySlice = scheduleTab.slice(scheduleTab.indexOf("the fixed-zone OVERLAY"), scheduleTab.indexOf("viewMode === 'week'"));
     expect(overlaySlice).toContain("onPress={() => setSelectedDate(date)}");
     expect(overlaySlice).toContain("{...weekStripPanResponder.panHandlers}");
-    expect(overlaySlice).toContain('label="Jump to date"');
+    // v319 (his Oct 28, 19:25): the strip's month/year block (the
+    // Jump to date picker's face) is removed — redundant with the
+    // app bar's spelled-out day; the cells span the full width.
+    expect(overlaySlice).not.toContain('label="Jump to date"');
   });
 });

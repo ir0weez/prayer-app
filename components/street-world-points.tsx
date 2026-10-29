@@ -37,9 +37,15 @@ type IconName = React.ComponentProps<typeof MaterialIcons>["name"];
 // truncation is a defect). Each point now stands as wide as its
 // longest label needs; the ART keeps its size, centered in the
 // wider stand, and the chip gets the full stand's width to speak in.
-export const NOTICE_BOARD_W = 76;
-export const SHOP_STALL_W = 64;
-export const TESTIMONY_STONES_W = 84;
+// v327: the pattern itself is fixed, not just the numbers — "Town
+// Shop" STILL clipped at the v323 stand (64px: the chip's padding
+// left the words 50px, and the word needs ~54). The stands now fit
+// their longest labels with slack to spare, and NO point label
+// carries a line limit anymore: a label can wrap inside its pill,
+// it can never be cut to an ellipsis.
+export const NOTICE_BOARD_W = 92;
+export const SHOP_STALL_W = 84;
+export const TESTIMONY_STONES_W = 104;
 
 function PointChip({ label, dim }: { label: string; dim?: boolean }) {
   return (
@@ -53,7 +59,7 @@ function PointChip({ label, dim }: { label: string; dim?: boolean }) {
         paddingVertical: 2,
       }}
     >
-      <Text numberOfLines={1} style={{ fontSize: 9.5, fontWeight: "700", color: "#FFF7ED" }}>
+      <Text style={{ fontSize: 9.5, fontWeight: "700", color: "#FFF7ED", textAlign: "center" }}>
         {label}
       </Text>
     </View>
@@ -224,7 +230,7 @@ export function LotPlayPoint({
         }}
       >
         <MaterialIcons name={icon} size={12} color="#FFF7ED" />
-        <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: "700", color: "#FFF7ED", marginLeft: 4 }}>
+        <Text style={{ fontSize: 10, fontWeight: "700", color: "#FFF7ED", marginLeft: 4, textAlign: "center" }}>
           {canPlay ? `${label} · ${plays}/${cap}` : `${label} · played out`}
         </Text>
       </View>

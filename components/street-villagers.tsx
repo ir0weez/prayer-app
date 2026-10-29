@@ -28,8 +28,6 @@ import { getTimeOfDay } from "@/lib/daynight";
 import {
   isStreetWalkable,
   planStreetWalk,
-  STREET_NORTH_DOOR_Y,
-  STREET_SOUTH_DOOR_Y,
   type StreetWorld,
 } from "@/lib/wide-street";
 import type { WalkTile } from "@/lib/walkable-town";
@@ -111,7 +109,7 @@ function StreetVillager({
   eraDress?: EraDress | null;
 }) {
   const startTile = useRef<WalkTile>(
-    homeDoor ?? worldRef.current.cafe?.door ?? { x: 5, y: 5 }
+    homeDoor ?? worldRef.current.cafe?.door ?? worldRef.current.roads[0] ?? { x: 5, y: 9 }
   ).current;
   const pos = useRef(
     new Animated.ValueXY({
@@ -203,7 +201,7 @@ function StreetVillager({
       if (!mountedRef.current) return;
       const world = worldRef.current;
       const night = getTimeOfDay() === "night";
-      const home = homeDoorRef.current ?? world.cafe?.door ?? { x: 5, y: 5 };
+      const home = homeDoorRef.current ?? world.cafe?.door ?? world.roads[0] ?? { x: 5, y: 9 };
       if (night) {
         // Home for the night: walk to the doorstep and rest there.
         if (tileRef.current.x === home.x && tileRef.current.y === home.y) {
@@ -220,15 +218,14 @@ function StreetVillager({
         }
         return;
       }
-      // A stroll: somewhere along the street band, biased toward home.
+      // A stroll: somewhere along the road network — the climbing
+      // lane, the spurs, the gathering corner (v327: the network
+      // IS the street now; the straight band rows are gone) —
+      // biased toward home.
       const span = 7;
-      const tx = Math.max(
-        3,
-        Math.min(world.w - 1, home.x + Math.round((Math.random() * 2 - 1) * span))
-      );
-      const ty =
-        STREET_NORTH_DOOR_Y + Math.floor(Math.random() * (STREET_SOUTH_DOOR_Y - STREET_NORTH_DOOR_Y + 1));
-      const target = { x: tx, y: ty };
+      const near = world.roads.filter((t) => Math.abs(t.x - home.x) <= span);
+      const pool = near.length > 0 ? near : world.roads;
+      const target = pool[Math.floor(Math.random() * pool.length)] ?? home;
       if (!isStreetWalkable(world, target) || (target.x === tileRef.current.x && target.y === tileRef.current.y)) {
         timerRef.current = setTimeout(stroll, 900 + Math.random() * 1200);
         return;

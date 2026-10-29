@@ -48,11 +48,8 @@ import { describe, expect, it } from "vitest";
 import { emptyTownState, type PlacedBuilding, type TownState } from "@/lib/hometown";
 import {
   deriveStreetWorld,
+  dioramaCenterY,
   isStreetWalkable,
-  STREET_NORTH_DOOR_Y,
-  STREET_NORTH_Y,
-  STREET_SOUTH_DOOR_Y,
-  STREET_SOUTH_Y,
 } from "@/lib/wide-street";
 
 const ROOT = join(__dirname, "..", "..");
@@ -213,19 +210,36 @@ describe("v307 (c) — every retired destination, reachable in the world", () =>
     expect(world.places.filter((p) => p.kind === "empty-lot").length).toBe(2);
   });
 
-  it("behavioral: the furniture's gap columns are real, walkable street — one free column between places", () => {
+  it("behavioral: the furniture's seats are real, walkable street — free columns between neighbours", () => {
+    // v327 re-pin: the straight band's two rows are gone; the
+    // Diorama's seats are the board's place mid-lane, the corner
+    // tiles at its feet (the stones), and the café's east gap
+    // (the stall). What survives from the old pin: neighbours on
+    // a side keep free columns between them, every door stands on
+    // walkable street, and the corner is open ground.
+    // Drawing: hometown-street-concepts-v1.html Concept 2 (+ the
+    // Concept 3 corner), approved by Jonathan 2026-10-28 22:45.
     const world = deriveStreetWorld(hisTown().maps.town);
-    for (const [rowY, doorY] of [
-      [STREET_NORTH_Y, STREET_NORTH_DOOR_Y],
-      [STREET_SOUTH_Y, STREET_SOUTH_DOOR_Y],
-    ] as const) {
-      const row = world.places.filter((p) => p.y === rowY).sort((a, b2) => a.x - b2.x);
+    expect(world.board).not.toBeNull();
+    for (let dx = 0; dx < world.corner.w; dx++) {
+      expect(isStreetWalkable(world, { x: world.corner.x + dx, y: world.corner.y })).toBe(true);
+    }
+    for (const p of world.places) {
+      expect(isStreetWalkable(world, p.door)).toBe(true);
+    }
+    const sideOf = (p: (typeof world.places)[number]) =>
+      p.door.y < dioramaCenterY(p.door.x, world.w) ? "north" : "south";
+    for (const side of ["north", "south"] as const) {
+      const row = world.places
+        .filter((p) => p.kind !== "forest" && p.kind !== "board" && sideOf(p) === side)
+        .sort((a, b2) => a.x - b2.x);
       for (let i = 0; i + 1 < row.length; i++) {
-        const gapX = row[i + 1].x - 1;
-        // Exactly one column between neighbours, and it is street the
-        // hero can stand on — the board/stall/stones stand in it.
-        expect(row[i + 1].x - (row[i].x + row[i].w)).toBe(1);
-        expect(isStreetWalkable(world, { x: gapX, y: doorY })).toBe(true);
+        // At least one free column between neighbours (the stall,
+        // the lamps and the fences live in them)…
+        expect(row[i + 1].x - (row[i].x + row[i].w)).toBeGreaterThanOrEqual(1);
+        // …and the column right after a place, at its door's
+        // height, is street the hero can stand on.
+        expect(isStreetWalkable(world, { x: row[i].x + row[i].w, y: row[i].door.y })).toBe(true);
       }
     }
   });

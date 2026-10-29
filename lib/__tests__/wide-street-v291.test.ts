@@ -357,14 +357,25 @@ describe("v291 (e) — street pathing reaches every place's doorstep", () => {
     expect(kinds).toContain("mine");
     expect(kinds).toContain("forest");
     expect(kinds).toContain("house");
+    // v327: the Missions board stands as a place of its own.
+    expect(kinds).toContain("board");
     expect(kinds.filter((k) => k === "home")).toHaveLength(4);
     expect(kinds.filter((k) => k === "gate")).toHaveLength(5);
     expect(kinds.filter((k) => k === "empty-lot")).toHaveLength(2);
-    // The forest closes the west end; the mine caps the east (north).
+    // The forest closes the west edge; the mine caps the north
+    // run's east end in its hill. (v327 re-pin: the mine's column
+    // is the north run's end, not the world's — the south run can
+    // run longer. Drawing: hometown-street-concepts-v1.html
+    // Concept 2 — The Diorama, approved 2026-10-28 22:45.)
     const forest = world.places.find((p) => p.kind === "forest")!;
     expect(forest.x).toBe(0);
     const mine = world.places.find((p) => p.kind === "mine")!;
-    expect(mine.x + mine.w).toBeGreaterThanOrEqual(world.w - 2);
+    expect(mine.y).toBe(0);
+    expect(mine.door.y).toBe(3);
+    const northEnds = world.places
+      .filter((p) => p !== mine && (p.kind === "house" || p.kind === "home" || p.kind === "gate") && p.plot.y + p.plot.h <= 9)
+      .map((p) => p.x + p.w);
+    expect(Math.max(...northEnds)).toBeLessThanOrEqual(mine.x + 1);
     // The retired shop became NO place at all — it produces nothing
     // and stands nowhere on the street.
     expect(streetPlaceByBuildingId(world, "shop-1")).toBeNull();
@@ -373,7 +384,9 @@ describe("v291 (e) — street pathing reaches every place's doorstep", () => {
   });
 
   it("from the forest door, the walk reaches the café, the mine, his house and a home", () => {
-    const start = { x: 3, y: 5 };
+    // v327 re-pin: the forest door is the derived one (on the lane
+    // at the treeline's foot), not the old straight band's literal.
+    const start = world.places.find((p) => p.kind === "forest")!.door;
     expectCleanRoute(start, world.cafe!.door);
     expectCleanRoute(start, world.places.find((p) => p.kind === "mine")!.door);
     expectCleanRoute(start, world.places.find((p) => p.kind === "house")!.door);
@@ -382,9 +395,10 @@ describe("v291 (e) — street pathing reaches every place's doorstep", () => {
 
   it("from the café door, the walk reaches the forest door and the far empty ground", () => {
     const start = world.cafe!.door;
-    expectCleanRoute(start, { x: 3, y: 5 });
+    const forest = world.places.find((p) => p.kind === "forest")!;
+    expectCleanRoute(start, forest.door);
     const far = world.places.filter((p) => p.kind === "empty-lot").pop()!;
-    expectCleanRoute(start, { x: far.x + 1, y: 5 });
+    expectCleanRoute(start, far.door);
   });
 
   it("streetPlaceAt names the place under a tap — footprint and door frontage alike", () => {

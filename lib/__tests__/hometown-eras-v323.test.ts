@@ -266,9 +266,15 @@ describe("v323 (c) — the era turn is announced once", () => {
 describe("v323 (d) — labels stand wide enough to speak", () => {
   it("the points' stands fit their longest labels (no more 'Miss…')", () => {
     const points = read("components/street-world-points.tsx");
-    expect(points).toContain("export const NOTICE_BOARD_W = 76;");
-    expect(points).toContain("export const SHOP_STALL_W = 64;");
-    expect(points).toContain("export const TESTIMONY_STONES_W = 84;");
+    // v327 re-pin: v323's stands (76/64/84) still clipped "Town
+    // Shop" — the chip's padding left the words ~50px of the 64px
+    // stand. The Diorama's fix is the pattern, not just the
+    // numbers: stands sized to their longest labels with slack,
+    // and no point label carries a line limit anymore (see
+    // hometown-v327-diorama.test.ts (d)).
+    expect(points).toContain("export const NOTICE_BOARD_W = 92;");
+    expect(points).toContain("export const SHOP_STALL_W = 84;");
+    expect(points).toContain("export const TESTIMONY_STONES_W = 104;");
     expect(points).toContain("width: NOTICE_BOARD_W");
     expect(points).toContain("width: SHOP_STALL_W");
     expect(points).toContain("width: TESTIMONY_STONES_W");

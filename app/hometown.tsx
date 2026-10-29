@@ -384,13 +384,9 @@ import { type WalkTile } from "@/lib/walkable-town";
 import { StreetWorldView } from "@/components/wide-street";
 import { StreetErrorBoundary } from "@/components/street-error-boundary";
 import { StreetVillagers } from "@/components/street-villagers";
-import { LotPlayPoint, NoticeBoardPoint, ShopStallPoint, TestimonyStonesPoint } from "@/components/street-world-points";
+import { LotPlayPoint, NoticeBoardPoint, NOTICE_BOARD_W, ShopStallPoint, SHOP_STALL_W, TestimonyStonesPoint, TESTIMONY_STONES_W } from "@/components/street-world-points";
 import {
   STREET_H,
-  STREET_NORTH_DOOR_Y,
-  STREET_NORTH_Y,
-  STREET_SOUTH_DOOR_Y,
-  STREET_SOUTH_Y,
   defaultWideStreetState,
   deriveStreetWorld,
   loadWideStreetState,
@@ -7780,6 +7776,12 @@ export default function HometownScreen() {
       case "gate":
         if (place.landmark) handleMapSignSelect(place.landmark.targetMap);
         break;
+      case "board":
+        // The Missions board at the gathering corner: arriving at
+        // its doorstep opens the missions surface — the same door
+        // the board's own direct tap opens.
+        setMissionsVisible(true);
+        break;
       case "house":
         router.push("/pawn-house");
         break;
@@ -9090,31 +9092,41 @@ export default function HometownScreen() {
                 empty lots. Board and stall answer a direct tap, like the
                 register pile; the stones only speak. The gap columns are
                 read off the derived places, so the furniture follows the
-                street wherever the houses land. */}
+                street wherever the houses land.
+                v327 — the Diorama seats the furniture by the new
+                composition: the notice board stands ON its place,
+                mid-lane at the bend; the testimony stones gather at
+                the corner beside it (the town's plaza heart); the
+                shop stall keeps its gap beside the café, on the
+                café's own ground line; the games keep their lots. */}
             {(() => {
               const cs = streetCell;
-              const north = streetWorld.places.filter((p) => p.y === STREET_NORTH_Y).sort((a, b) => a.x - b.x);
-              const south = streetWorld.places.filter((p) => p.y === STREET_SOUTH_Y).sort((a, b) => a.x - b.x);
+              const board = streetWorld.board;
+              const corner = streetWorld.corner;
+              const cafe = streetWorld.cafe;
               const lots = streetWorld.places.filter((p) => p.kind === "empty-lot").sort((a, b) => a.x - b.x);
-              const boardX = north.length >= 2 ? north[1].x - 1 : 7;
-              const stonesX = north.length >= 3 ? north[2].x - 1 : boardX + 5;
-              const stallX = south.length >= 2 ? south[1].x - 1 : 9;
-              const northFeet = (STREET_NORTH_DOOR_Y + 1) * cs;
-              const southFeet = (STREET_SOUTH_DOOR_Y + 1) * cs;
               return (
                 <>
-                  <NoticeBoardPoint
-                    left={boardX * cs - 13}
-                    top={northFeet - 54}
-                    pendingCount={pendingMissions(missions).length}
-                    onPress={() => setMissionsVisible(true)}
+                  {board ? (
+                    <NoticeBoardPoint
+                      left={(board.x + board.w / 2) * cs - NOTICE_BOARD_W / 2}
+                      top={(board.y + 1) * cs - 58}
+                      pendingCount={pendingMissions(missions).length}
+                      onPress={() => setMissionsVisible(true)}
+                    />
+                  ) : null}
+                  <TestimonyStonesPoint
+                    left={(corner.x + 1) * cs - TESTIMONY_STONES_W / 2}
+                    top={(corner.y + 1) * cs - 43}
+                    count={monumentCount}
                   />
-                  <TestimonyStonesPoint left={stonesX * cs - 13} top={northFeet - 43} count={monumentCount} />
-                  <ShopStallPoint
-                    left={stallX * cs - 9}
-                    top={southFeet - 56}
-                    onPress={() => router.push("/hometown-shop")}
-                  />
+                  {cafe ? (
+                    <ShopStallPoint
+                      left={(cafe.x + cafe.w) * cs + (cs - SHOP_STALL_W) / 2}
+                      top={(cafe.door.y + 1) * cs - 56}
+                      onPress={() => router.push("/hometown-shop")}
+                    />
+                  ) : null}
                   {lots[0] ? (
                     <LotPlayPoint
                       left={lots[0].x * cs}

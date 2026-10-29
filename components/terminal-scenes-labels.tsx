@@ -977,3 +977,50 @@ export function TermStPatricksScene() {
     </TermSceneRoot>
   );
 }
+
+export function TermNewsScene() {
+  return (
+    <TermSceneRoot>
+      <LL x1={8} y1={104} x2={192} y2={104} c={TERM_DIM} w={1.8} />
+      <LR x={52} y={22} width={96} height={76} rx={2} c={TERM_PHOS} w={2.1} />
+      <LL x1={60} y1={34} x2={140} y2={34} c={TERM_PHOS} w={2.4} />
+      <LL x1={60} y1={41} x2={140} y2={41} c={TERM_MID} w={1.5} />
+      <LR x={60} y={48} width={34} height={26} c={TERM_MID} w={1.6} />
+      <LR x={71} y={60} width={12} height={14} c={TERM_MID} w={1.4} />
+      <LP d="M 69 60 L 77 52 L 85 60" c={TERM_MID} w={1.4} />
+      <LL x1={77} y1={45} x2={77} y2={51} c={TERM_SOFT} w={1.4} />
+      <LL x1={74} y1={48} x2={80} y2={48} c={TERM_SOFT} w={1.4} />
+      <LL x1={102} y1={50} x2={140} y2={50} c={TERM_PHOS} w={2} />
+      <LL x1={102} y1={58} x2={140} y2={58} c={TERM_MID} w={1.4} />
+      <LL x1={102} y1={64} x2={134} y2={64} c={TERM_MID} w={1.4} />
+      <LL x1={102} y1={70} x2={140} y2={70} c={TERM_MID} w={1.4} />
+      <LL x1={60} y1={82} x2={140} y2={82} c={TERM_MID} w={1.4} />
+      <LL x1={60} y1={88} x2={128} y2={88} c={TERM_MID} w={1.4} />
+      <LR x={160} y={72} width={18} height={14} c={TERM_MID} w={1.6} />
+      <LP d="M 178 76 C 184 76 184 82 178 82" c={TERM_MID} w={1.6} />
+      <LL x1={156} y1={92} x2={182} y2={92} c={TERM_DIM} w={1.5} />
+    </TermSceneRoot>
+  );
+}
+
+export function TermEmailScene() {
+  return (
+    <TermSceneRoot>
+      <LL x1={8} y1={104} x2={192} y2={104} c={TERM_DIM} w={1.8} />
+      <LR x={66} y={16} width={72} height={52} rx={2} c={TERM_MID} w={1.7} />
+      <LL x1={76} y1={28} x2={112} y2={28} c={TERM_PHOS} w={2} />
+      <LL x1={76} y1={38} x2={128} y2={38} c={TERM_MID} w={1.4} />
+      <LL x1={76} y1={45} x2={120} y2={45} c={TERM_MID} w={1.4} />
+      <LL x1={76} y1={52} x2={126} y2={52} c={TERM_MID} w={1.4} />
+      <LC cx={126} cy={26} r={5} c={TERM_SOFT} w={1.6} />
+      <LR x={52} y={52} width={100} height={48} rx={2} c={TERM_PHOS} w={2.1} />
+      <LP d="M 52 54 L 102 82 L 152 54" c={TERM_PHOS} w={2} />
+      <LP d="M 52 98 L 88 70" c={TERM_MID} w={1.5} />
+      <LP d="M 152 98 L 116 70" c={TERM_MID} w={1.5} />
+      <LR x={158} y={66} width={30} height={22} rx={2} c={TERM_MID} w={1.5} />
+      <LP d="M 158 68 L 173 78 L 188 68" c={TERM_MID} w={1.4} />
+      <LDot cx={34} cy={30} r={1.8} c={TERM_SOFT} />
+      <LDot cx={170} cy={24} r={1.8} c={TERM_SOFT} />
+    </TermSceneRoot>
+  );
+}

@@ -64,6 +64,8 @@ function ShapeView({ sh }: { sh: ThumbShape }) {
 
 export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
   // ── Keyword labels — the scene's own ground, one bold mark. ──
+  "news": { g: "#31456B", icon: "article" },
+  "email": { g: "#4C2E91", icon: "mail" },
   "bbq": { g: "#5D2E1E", icon: "outdoor-grill" },
   "fast": { g: "#4A2E1E", icon: "local-fire-department", fg: "#FFB74D" },
   "church": { g: "#3E6B8E", icon: "church" },

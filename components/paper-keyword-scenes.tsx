@@ -5529,6 +5529,91 @@ export function PaperMvWildwoodScene() {
 }
 
 /* ------------------------------------------------------------------ */
+/* News (v336): a folded newspaper on a desk, coffee beside it         */
+/* ------------------------------------------------------------------ */
+
+export function PaperNewsScene() {
+  return (
+    <PaperSceneRoot base="#31456B">
+      <PaperCloud top={14} size={40} duration={30000} delay={2000} />
+      <PaperCloud top={34} size={28} duration={36000} delay={11000} />
+      {/* The desk */}
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -30, height: 64, borderRadius: 30, backgroundColor: "#22314E" }} />
+      {/* The folded-under back sheet */}
+      <SettleIn delay={40} style={{ position: "absolute", left: "30%", bottom: 30, width: 128, height: 96 }}>
+        <PaperPiece style={{ position: "absolute", left: 6, top: 6, width: 116, height: 88, borderRadius: 4, backgroundColor: "#E4D8BC", transform: [{ rotate: "-5deg" }] }} />
+      </SettleIn>
+      {/* The front page */}
+      <SettleIn delay={120} style={{ position: "absolute", left: "33%", bottom: 36, width: 122, height: 94 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, top: 0, width: 122, height: 94, borderRadius: 4, backgroundColor: "#FBF6E9" }} />
+        {/* Masthead */}
+        <PaperPiece style={{ position: "absolute", left: 10, top: 9, width: 102, height: 13, borderRadius: 2, backgroundColor: "#31456B" }} />
+        <PaperPiece style={{ position: "absolute", left: 10, top: 26, width: 102, height: 2.5, backgroundColor: "#31456B" }} />
+        {/* Photo block: a little church under a pale sky */}
+        <PaperPiece style={{ position: "absolute", left: 10, top: 34, width: 44, height: 34, borderRadius: 2, backgroundColor: "#B9CBDE" }} />
+        <PaperPiece style={{ position: "absolute", left: 24, top: 50, width: 18, height: 18, backgroundColor: "#FFF8E1" }} />
+        <PaperPiece style={{ position: "absolute", left: 28, top: 43, width: 10, height: 10, backgroundColor: "#8D4000", transform: [{ rotate: "45deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 31.5, top: 36, width: 3, height: 8, backgroundColor: "#FFD54F" }} />
+        {/* Headline + column lines */}
+        <PaperPiece style={{ position: "absolute", left: 62, top: 35, width: 50, height: 6, borderRadius: 3, backgroundColor: "#2E3D59" }} />
+        <PaperPiece style={{ position: "absolute", left: 62, top: 46, width: 50, height: 3.5, borderRadius: 2, backgroundColor: "#9AA7BC" }} />
+        <PaperPiece style={{ position: "absolute", left: 62, top: 53, width: 44, height: 3.5, borderRadius: 2, backgroundColor: "#9AA7BC" }} />
+        <PaperPiece style={{ position: "absolute", left: 62, top: 60, width: 48, height: 3.5, borderRadius: 2, backgroundColor: "#9AA7BC" }} />
+        <PaperPiece style={{ position: "absolute", left: 10, top: 74, width: 102, height: 3.5, borderRadius: 2, backgroundColor: "#9AA7BC" }} />
+        <PaperPiece style={{ position: "absolute", left: 10, top: 81, width: 88, height: 3.5, borderRadius: 2, backgroundColor: "#9AA7BC" }} />
+      </SettleIn>
+      {/* Coffee beside the paper */}
+      <SettleIn delay={220} style={{ position: "absolute", left: "12%", bottom: 34, width: 44, height: 40 }}>
+        <PaperPiece style={{ position: "absolute", left: 2, bottom: 0, width: 40, height: 6, borderRadius: 3, backgroundColor: "#CBBFA4" }} />
+        <PaperPiece style={{ position: "absolute", left: 7, bottom: 5, width: 26, height: 22, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: "#FFFDF7" }} />
+        <PaperPiece style={{ position: "absolute", left: 9, bottom: 21, width: 22, height: 5, borderRadius: 2.5, backgroundColor: "#6F4E37" }} />
+        <View style={{ position: "absolute", left: 31, bottom: 10, width: 12, height: 12, borderRadius: 6, borderWidth: 3.5, borderColor: "#FFFDF7" }} />
+      </SettleIn>
+    </PaperSceneRoot>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Email (v336): an envelope with the letter rising out of it          */
+/* ------------------------------------------------------------------ */
+
+export function PaperEmailScene() {
+  return (
+    <PaperSceneRoot base="#4C2E91">
+      <PaperPulse left="78%" bottom={86} width={54} height={54} min={1} max={1.06} duration={5600}>
+        <PaperPiece style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: "#B79CFF", opacity: 0.35 }} />
+      </PaperPulse>
+      <PaperPiece style={{ position: "absolute", left: "14%", top: 18, width: 9, height: 9, backgroundColor: "#D9CCFF", transform: [{ rotate: "45deg" }] }} />
+      <PaperPiece style={{ position: "absolute", left: "84%", top: 40, width: 7, height: 7, backgroundColor: "#D9CCFF", transform: [{ rotate: "45deg" }] }} />
+      {/* The letter, rising out of the envelope */}
+      <SettleIn delay={140} style={{ position: "absolute", left: "36%", bottom: 62, width: 104, height: 74 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, top: 0, width: 104, height: 74, borderRadius: 4, backgroundColor: "#FFFDF7" }} />
+        <PaperPiece style={{ position: "absolute", left: 12, top: 12, width: 56, height: 5, borderRadius: 2.5, backgroundColor: "#4C2E91" }} />
+        <PaperPiece style={{ position: "absolute", left: 12, top: 24, width: 80, height: 3.5, borderRadius: 2, backgroundColor: "#B9AEDD" }} />
+        <PaperPiece style={{ position: "absolute", left: 12, top: 32, width: 72, height: 3.5, borderRadius: 2, backgroundColor: "#B9AEDD" }} />
+        <PaperPiece style={{ position: "absolute", left: 12, top: 40, width: 78, height: 3.5, borderRadius: 2, backgroundColor: "#B9AEDD" }} />
+        <PaperPiece style={{ position: "absolute", left: 12, top: 52, width: 34, height: 3.5, borderRadius: 2, backgroundColor: "#B9AEDD" }} />
+        {/* The seal */}
+        <PaperPiece style={{ position: "absolute", right: 10, top: 8, width: 16, height: 16, borderRadius: 8, backgroundColor: "#7C5CFF" }} />
+        <PaperPiece style={{ position: "absolute", right: 15.5, top: 13, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFFDF7" }} />
+      </SettleIn>
+      {/* The envelope */}
+      <SettleIn delay={60} style={{ position: "absolute", left: "31%", bottom: 22, width: 124, height: 62 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 124, height: 62, borderRadius: 5, backgroundColor: "#E9E2F7" }} />
+        <PaperPiece style={{ position: "absolute", left: -14, bottom: 12, width: 84, height: 12, backgroundColor: "#CDBFF0", transform: [{ rotate: "24deg" }] }} />
+        <PaperPiece style={{ position: "absolute", right: -14, bottom: 12, width: 84, height: 12, backgroundColor: "#CDBFF0", transform: [{ rotate: "-24deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 124, height: 8, borderBottomLeftRadius: 5, borderBottomRightRadius: 5, backgroundColor: "#D9CCFF" }} />
+      </SettleIn>
+      {/* A second, smaller envelope waiting its turn */}
+      <SettleIn delay={260} style={{ position: "absolute", left: "10%", bottom: 26, width: 52, height: 34 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 52, height: 34, borderRadius: 4, backgroundColor: "#B79CFF" }} />
+        <PaperPiece style={{ position: "absolute", left: 8, bottom: 14, width: 36, height: 8, backgroundColor: "#8F73E8", transform: [{ rotate: "18deg" }] }} />
+      </SettleIn>
+    </PaperSceneRoot>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* The registry — every id lib/paper-keywords.ts can route to, mapped  */
 /* to its cut-paper rendition. The skin test asserts this map covers   */
 /* allPaperSceneIds() exactly: no keyword scene without a paper twin.  */
@@ -5536,6 +5621,8 @@ export function PaperMvWildwoodScene() {
 
 const PAPER_SCENE_REGISTRY: Record<PaperSceneId, () => ReactNode> = {
   // Labels
+  "news": PaperNewsScene,
+  "email": PaperEmailScene,
   "bbq": PaperBBQScene,
   "fast": PaperFastScene,
   "church": PaperChurchScene,

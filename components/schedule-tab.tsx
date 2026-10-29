@@ -223,6 +223,7 @@ import {
   removeScheduleTodo,
   partitionGroupedTodosForSchedule,
 } from "@/lib/schedule-data";
+import { keywordPageKindForEvent, keywordPagePath } from "@/lib/keyword-pages";
 import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, getPrayerCheckInPeople, type PrayerItem } from "@/lib/prayercircle-data";
 import { WeeklyCalendarView } from "./weekly-calendar-view";
 import { getWeekStart, formatDateISO, formatDateLocal } from "@/lib/date-utils";
@@ -2502,6 +2503,71 @@ function ChurchScene() {
         <View style={{ position: "absolute", left: 70, bottom: 34, width: 10, height: 14, borderRadius: 5, backgroundColor: "#7FB3D5" }} />
       </View>
       <View style={{ position: "absolute", left: "30%", bottom: 22, width: 40, height: 8, borderRadius: 4, backgroundColor: "#D7CCC8", transform: [{ rotate: "-8deg" }] }} />
+    </SceneRoot>
+  );
+}
+
+/** News (v336): the morning paper on a desk, coffee beside it. */
+function NewsScene() {
+  return (
+    <SceneRoot base="#31456B">
+      <DriftingCloud top={14} size={44} duration={30000} delay={2000} />
+      <DriftingCloud top={36} size={30} duration={36000} delay={11000} />
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -30, height: 64, borderRadius: 30, backgroundColor: "#22314E" }} />
+      <View style={{ position: "absolute", left: "30%", bottom: 24, width: 132, height: 100, transform: [{ rotate: "-3deg" }] }}>
+        <View style={{ position: "absolute", left: 4, top: 4, width: 124, height: 94, borderRadius: 4, backgroundColor: "#E4D8BC" }} />
+      </View>
+      <View style={{ position: "absolute", left: "33%", bottom: 30, width: 126, height: 96 }}>
+        <View style={{ position: "absolute", left: 0, top: 0, width: 126, height: 96, borderRadius: 4, backgroundColor: "#FBF6E9" }} />
+        <View style={{ position: "absolute", left: 10, top: 9, width: 106, height: 13, borderRadius: 2, backgroundColor: "#31456B" }} />
+        <View style={{ position: "absolute", left: 10, top: 26, width: 106, height: 2.5, backgroundColor: "#31456B" }} />
+        <View style={{ position: "absolute", left: 10, top: 34, width: 44, height: 34, borderRadius: 2, backgroundColor: "#B9CBDE" }} />
+        <View style={{ position: "absolute", left: 24, top: 50, width: 18, height: 18, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 28, top: 43, width: 10, height: 10, backgroundColor: "#8D4000", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 31.5, top: 36, width: 3, height: 8, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 62, top: 35, width: 52, height: 6, borderRadius: 3, backgroundColor: "#2E3D59" }} />
+        <View style={{ position: "absolute", left: 62, top: 46, width: 52, height: 3.5, borderRadius: 2, backgroundColor: "#9AA7BC" }} />
+        <View style={{ position: "absolute", left: 62, top: 53, width: 46, height: 3.5, borderRadius: 2, backgroundColor: "#9AA7BC" }} />
+        <View style={{ position: "absolute", left: 62, top: 60, width: 50, height: 3.5, borderRadius: 2, backgroundColor: "#9AA7BC" }} />
+        <View style={{ position: "absolute", left: 10, top: 74, width: 106, height: 3.5, borderRadius: 2, backgroundColor: "#9AA7BC" }} />
+        <View style={{ position: "absolute", left: 10, top: 81, width: 90, height: 3.5, borderRadius: 2, backgroundColor: "#9AA7BC" }} />
+      </View>
+      <View style={{ position: "absolute", left: "12%", bottom: 28, width: 44, height: 40 }}>
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 40, height: 6, borderRadius: 3, backgroundColor: "#CBBFA4" }} />
+        <View style={{ position: "absolute", left: 7, bottom: 5, width: 26, height: 22, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: "#FFFDF7" }} />
+        <View style={{ position: "absolute", left: 9, bottom: 21, width: 22, height: 5, borderRadius: 2.5, backgroundColor: "#6F4E37" }} />
+        <View style={{ position: "absolute", left: 31, bottom: 10, width: 12, height: 12, borderRadius: 6, borderWidth: 3.5, borderColor: "#FFFDF7" }} />
+      </View>
+    </SceneRoot>
+  );
+}
+
+/** Email (v336): an opened envelope, the letter rising out of it. */
+function EmailScene() {
+  return (
+    <SceneRoot base="#4C2E91">
+      <BreatheGlow color="#B79CFF" size={130} left="58%" bottom={30} min={0.12} max={0.26} duration={5600} />
+      <TwinkleField color="#D9CCFF" count={6} seed={33} />
+      <View style={{ position: "absolute", left: "36%", bottom: 66, width: 108, height: 76 }}>
+        <View style={{ position: "absolute", left: 0, top: 0, width: 108, height: 76, borderRadius: 4, backgroundColor: "#FFFDF7" }} />
+        <View style={{ position: "absolute", left: 12, top: 12, width: 58, height: 5, borderRadius: 2.5, backgroundColor: "#4C2E91" }} />
+        <View style={{ position: "absolute", left: 12, top: 24, width: 84, height: 3.5, borderRadius: 2, backgroundColor: "#B9AEDD" }} />
+        <View style={{ position: "absolute", left: 12, top: 32, width: 74, height: 3.5, borderRadius: 2, backgroundColor: "#B9AEDD" }} />
+        <View style={{ position: "absolute", left: 12, top: 40, width: 80, height: 3.5, borderRadius: 2, backgroundColor: "#B9AEDD" }} />
+        <View style={{ position: "absolute", left: 12, top: 52, width: 36, height: 3.5, borderRadius: 2, backgroundColor: "#B9AEDD" }} />
+        <View style={{ position: "absolute", right: 10, top: 8, width: 16, height: 16, borderRadius: 8, backgroundColor: "#7C5CFF" }} />
+        <View style={{ position: "absolute", right: 15.5, top: 13, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFFDF7" }} />
+      </View>
+      <View style={{ position: "absolute", left: "31%", bottom: 24, width: 128, height: 62 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 128, height: 62, borderRadius: 5, backgroundColor: "#E9E2F7" }} />
+        <View style={{ position: "absolute", left: -14, bottom: 12, width: 86, height: 12, backgroundColor: "#CDBFF0", transform: [{ rotate: "24deg" }] }} />
+        <View style={{ position: "absolute", right: -14, bottom: 12, width: 86, height: 12, backgroundColor: "#CDBFF0", transform: [{ rotate: "-24deg" }] }} />
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 128, height: 8, borderBottomLeftRadius: 5, borderBottomRightRadius: 5, backgroundColor: "#D9CCFF" }} />
+      </View>
+      <View style={{ position: "absolute", left: "10%", bottom: 28, width: 52, height: 34 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 52, height: 34, borderRadius: 4, backgroundColor: "#B79CFF" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 14, width: 36, height: 8, backgroundColor: "#8F73E8", transform: [{ rotate: "18deg" }] }} />
+      </View>
     </SceneRoot>
   );
 }
@@ -7297,6 +7363,8 @@ export function KeywordAmbientAnimation({ label, title = "", location = "", note
     case "Wedding": return <WeddingScene />;
     case "Memorial": return <MemorialScene />;
     case "Meeting": return <MeetingScene />;
+    case "News": return <NewsScene />;
+    case "Email": return <EmailScene />;
     case "Workout": return <WorkoutScene />;
     case "Basketball": return <BasketballScene />;
     case "Soccer": return <SoccerScene />;
@@ -7674,7 +7742,21 @@ function EventCardInner({
   const { isPaper, isEightBit, isSkinned, tokens: skinTokens } = useSkin();
   const timeOffCardColor = getTimeOffEventColor(event);
   const timeOffTextColor = readableTextColor(timeOffCardColor);
-  const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title, event.location, event.notes);
+  const detectedKeyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title, event.location, event.notes);
+  // v336: News and Email events are DOORS — when the door detection
+  // (lib/keyword-pages.ts) claims this event, the card wears the
+  // door's keyword wholesale: its scene, its colours, its icon —
+  // even when the notes' words would have detected another keyword
+  // (the mockup's own News event notes "The church world, this
+  // morning"). And a tap opens the door's page (carrying this
+  // event's identity for the page's Finished button) instead of
+  // toggling complete. The long-press menu is untouched:
+  // Edit/Delete stay reachable there.
+  const router = useRouter();
+  const pageKind = keywordPageKindForEvent(event);
+  const keyword = pageKind
+    ? EVENT_KEYWORD_MAP.find((k) => k.label === (pageKind === "news" ? "News" : "Email")) ?? detectedKeyword
+    : detectedKeyword;
   // v313: on the branches that ALSO render the compact S/E read, a
   // note spelling out that same "Season {n} Episode {m}" says the
   // fact twice (his Dexter screenshot, Oct 28) — the display copy
@@ -7689,8 +7771,18 @@ function EventCardInner({
   const liveCursor = event.startTime && liveNow ? getLiveCursorPosition([event], liveNow) : null;
   const isLiveScheduledBlock = Boolean(showActiveNow && liveCursor?.activeItemId === event.id && !event.isCompleted);
 
-  const handleTap = (event?: any) => {
-    const n = event?.nativeEvent;
+  const handleTap = (gesture?: any) => {
+    // v336: a door card's tap opens its page, never a toggle — the
+    // completion for these events lives on the page's Finished
+    // button (lib/finish-event.ts), the Bible-Study precedent.
+    if (pageKind) {
+      router.push({
+        pathname: keywordPagePath(pageKind),
+        params: { eventId: event.id, eventDate: event.date },
+      });
+      return;
+    }
+    const n = gesture?.nativeEvent;
     onToggle(n && { x: n.pageX, y: n.pageY });
   };
 
@@ -11639,6 +11731,21 @@ export function ScheduleTab({
       // on focus too, so a chapter completed on the chapter page moves
       // the card's position the moment he comes back.
       refreshStudyCard();
+
+      // v336: the News/Email pages' Finished button completes an
+      // event in storage while this tab sits behind them — reload
+      // the events on focus too (the same v211 pattern), so the day
+      // page shows the event completed the moment he returns
+      // instead of the write being clobbered by this tab's next
+      // save from its stale in-memory list.
+      (async () => {
+        try {
+          const storedEvents = await AsyncStorage.getItem(SCHEDULE_EVENTS_KEY);
+          if (storedEvents) setEvents(JSON.parse(storedEvents));
+        } catch {
+          // A failed reload leaves the in-memory list as it was.
+        }
+      })();
 
       const reloadBibleData = async () => {
         try {

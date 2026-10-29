@@ -193,6 +193,10 @@ function movieSceneId(title: string, notes: string): PaperSceneId | null {
 /* ------------------------------------------------------------------ */
 
 const LABEL_SCENES: Record<string, PaperSceneId> = {
+  // v336: the two door keywords get full scenes like every other
+  // keyword — a folded newspaper and an envelope.
+  "News": "news",
+  "Email": "email",
   "BBQ": "bbq",
   "Fast": "fast",
   "Church": "church",

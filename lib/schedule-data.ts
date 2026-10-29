@@ -204,6 +204,14 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   { keywords: ["halloween"], label: "Halloween", emoji: "🎃", icon: "dark-mode", bgColor: "#1A2340", textColor: "#FFCC80", accentColor: "#FF6D00" },
   { keywords: ["st patrick", "saint patrick", "st. patrick"], label: "St. Patrick's Day", emoji: "🍀", icon: "eco", bgColor: "#1B5E20", textColor: "#C8E6C9", accentColor: "#00E676" },
   { keywords: ["rest", "nap", "siesta", "unwind", "recharge"], label: "Rest", emoji: "🌙", icon: "nights-stay", bgColor: "#232347", textColor: "#E8EAF6", accentColor: "#9FA8DA" },
+  // v336: News and Email are DOORS, not decorations — an event bound
+  // to one of these keywords opens its own page on tap (see
+  // lib/keyword-pages.ts). They sit late in the map on purpose: in
+  // combined-text detection a more specific scene (Church, Prayer…)
+  // still wins; a standalone "News" / "Email" / "Mail" / "Gmail"
+  // title matches nothing earlier and lands here.
+  { keywords: ["news"], label: "News", emoji: "🗞️", icon: "article", bgColor: "#31456B", textColor: "#E8EDF5", accentColor: "#7E93B2" },
+  { keywords: ["email", "e-mail", "gmail", "mail"], label: "Email", emoji: "✉️", icon: "mail", bgColor: "#4C2E91", textColor: "#EFE9FF", accentColor: "#7C5CFF" },
   { keywords: ["tv", "tv show", "television", "show", "episode", "series"], label: "TV Show", emoji: "📺", icon: "tv", bgColor: "#2A2A4E", textColor: "#1A237E", accentColor: "#5C6BC0" },
 ];
 
@@ -255,6 +263,25 @@ export function toggleEventCompleted(events: ScheduleEvent[], eventId: string): 
     e.id === eventId
       ? { ...e, isCompleted: !e.isCompleted, completedAt: !e.isCompleted ? new Date().toISOString() : undefined }
       : e
+  );
+}
+
+/**
+ * v336: the completion half of toggleEventCompleted, one-way. The
+ * News and Email pages' "Finished" button marks the event that
+ * opened them complete through this — the stored shape it produces
+ * for an incomplete event is exactly the shape a day-card toggle
+ * produces when completing (same fields, same completedAt stamp),
+ * so the day page shows it completed on return. An event that is
+ * already complete, or an id that is not in the list, comes back
+ * untouched (the same array reference, so callers can tell nothing
+ * changed and skip the write).
+ */
+export function completeScheduleEvent(events: ScheduleEvent[], eventId: string): ScheduleEvent[] {
+  const target = events.find((e) => e.id === eventId);
+  if (!target || target.isCompleted) return events;
+  return events.map((e) =>
+    e.id === eventId ? { ...e, isCompleted: true, completedAt: new Date().toISOString() } : e
   );
 }
 

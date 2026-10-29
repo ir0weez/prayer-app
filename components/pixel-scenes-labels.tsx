@@ -1163,3 +1163,56 @@ export function PixelStPatricksScene() {
     </PixelSceneRoot>
   );
 }
+
+export function PixelNewsScene() {
+  return (
+    <PixelSceneRoot base="#31456B">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#22314E" }} />
+      <StepIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <Px style={{ position: "absolute", left: "30%", bottom: 24, width: 132, height: 96, backgroundColor: "#E4D8BC" }} />
+        <Px style={{ position: "absolute", left: "33%", bottom: 32, width: 132, height: 96, backgroundColor: "#FBF6E9" }} shadow />
+        <Px style={{ position: "absolute", left: "37%", bottom: 108, width: 108, height: 12, backgroundColor: "#31456B" }} />
+        <Px style={{ position: "absolute", left: "37%", bottom: 100, width: 108, height: 4, backgroundColor: "#31456B" }} />
+        <Px style={{ position: "absolute", left: "37%", bottom: 60, width: 44, height: 32, backgroundColor: "#B9CBDE" }} />
+        <Px style={{ position: "absolute", left: "49%", bottom: 64, width: 16, height: 16, backgroundColor: "#FFF8E1" }} />
+        <Px style={{ position: "absolute", left: "53%", bottom: 80, width: 8, height: 8, backgroundColor: "#8D4000" }} />
+        <Px style={{ position: "absolute", left: "55%", bottom: 88, width: 4, height: 8, backgroundColor: "#FFD54F" }} />
+        <Px style={{ position: "absolute", left: "66%", bottom: 84, width: 52, height: 8, backgroundColor: "#2E3D59" }} />
+        <Px style={{ position: "absolute", left: "66%", bottom: 72, width: 52, height: 4, backgroundColor: "#9AA7BC" }} />
+        <Px style={{ position: "absolute", left: "66%", bottom: 64, width: 44, height: 4, backgroundColor: "#9AA7BC" }} />
+        <Px style={{ position: "absolute", left: "37%", bottom: 48, width: 108, height: 4, backgroundColor: "#9AA7BC" }} />
+        <Px style={{ position: "absolute", left: "37%", bottom: 40, width: 92, height: 4, backgroundColor: "#9AA7BC" }} />
+        <Px style={{ position: "absolute", left: "12%", bottom: 36, width: 28, height: 24, backgroundColor: "#FFFDF7" }} />
+        <Px style={{ position: "absolute", left: "13%", bottom: 52, width: 24, height: 6, backgroundColor: "#6F4E37" }} />
+        <Px style={{ position: "absolute", left: "10%", bottom: 28, width: 36, height: 6, backgroundColor: "#CBBFA4" }} />
+      </StepIn>
+    </PixelSceneRoot>
+  );
+}
+
+export function PixelEmailScene() {
+  return (
+    <PixelSceneRoot base="#4C2E91">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "24%", backgroundColor: "#3A2270" }} />
+      <StepIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        <Px style={{ position: "absolute", left: "14%", bottom: 104, width: 8, height: 8, backgroundColor: "#D9CCFF" }} />
+        <Px style={{ position: "absolute", left: "84%", bottom: 84, width: 8, height: 8, backgroundColor: "#D9CCFF" }} />
+        <Px style={{ position: "absolute", left: "36%", bottom: 68, width: 108, height: 72, backgroundColor: "#FFFDF7" }} shadow />
+        <Px style={{ position: "absolute", left: "40%", bottom: 124, width: 56, height: 8, backgroundColor: "#4C2E91" }} />
+        <Px style={{ position: "absolute", left: "40%", bottom: 108, width: 84, height: 4, backgroundColor: "#B9AEDD" }} />
+        <Px style={{ position: "absolute", left: "40%", bottom: 96, width: 72, height: 4, backgroundColor: "#B9AEDD" }} />
+        <Px style={{ position: "absolute", left: "40%", bottom: 84, width: 80, height: 4, backgroundColor: "#B9AEDD" }} />
+        <Px style={{ position: "absolute", left: "82%", bottom: 120, width: 16, height: 16, backgroundColor: "#7C5CFF" }} />
+        <Px style={{ position: "absolute", left: "31%", bottom: 20, width: 128, height: 56, backgroundColor: "#E9E2F7" }} shadow />
+        <Px style={{ position: "absolute", left: "33%", bottom: 60, width: 32, height: 8, backgroundColor: "#CDBFF0" }} />
+        <Px style={{ position: "absolute", left: "41%", bottom: 52, width: 32, height: 8, backgroundColor: "#CDBFF0" }} />
+        <Px style={{ position: "absolute", left: "49%", bottom: 44, width: 24, height: 8, backgroundColor: "#CDBFF0" }} />
+        <Px style={{ position: "absolute", left: "61%", bottom: 52, width: 32, height: 8, backgroundColor: "#CDBFF0" }} />
+        <Px style={{ position: "absolute", left: "69%", bottom: 60, width: 32, height: 8, backgroundColor: "#CDBFF0" }} />
+        <Px style={{ position: "absolute", left: "31%", bottom: 20, width: 128, height: 8, backgroundColor: "#D9CCFF" }} />
+        <Px style={{ position: "absolute", left: "8%", bottom: 24, width: 48, height: 32, backgroundColor: "#B79CFF" }} />
+        <Px style={{ position: "absolute", left: "12%", bottom: 44, width: 24, height: 6, backgroundColor: "#8F73E8" }} />
+      </StepIn>
+    </PixelSceneRoot>
+  );
+}

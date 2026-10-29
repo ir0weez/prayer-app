@@ -42,6 +42,8 @@ import {
   TermThanksgivingScene,
   TermWeddingScene,
   TermMemorialScene,
+  TermNewsScene,
+  TermEmailScene,
   TermMeetingScene,
   TermWorkoutScene,
   TermBasketballScene,
@@ -197,6 +199,8 @@ import {
 } from "@/components/terminal-scenes-screen";
 
 export const TERMINAL_SCENE_REGISTRY: Record<PaperSceneId, () => ReactNode> = {
+  "news": TermNewsScene,
+  "email": TermEmailScene,
   "bbq": TermBBQScene,
   "fast": TermFastScene,
   "church": TermChurchScene,

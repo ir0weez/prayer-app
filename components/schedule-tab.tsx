@@ -237,7 +237,7 @@ import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 // v294: TimeOffCard retired from the day — the trip band (time-off-travel) is the day's time-off block now.
 import { syncScheduledEventNotifications } from '@/lib/notification-scheduler';
 import { DailySummaryCard } from "@/components/daily-summary-card";
-import { TopFade } from "@/components/top-fade";
+import { TopFade, useTopFadeScrollY } from "@/components/top-fade";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
@@ -11166,6 +11166,23 @@ export function ScheduleTab({
 
   // Scroll animation
   const scrollY = useRef(new Animated.Value(0)).current;
+  // HOTFIX (Oct 29, the v338 startup crash): the top fade rides
+  // its OWN JS-driven offset (fadeScrollY), synced from this
+  // screen's scrollY through a listener — the same mechanism the
+  // v319 sheetAtRest listener below already uses. v338 passed
+  // scrollY — a NATIVELY driven value — straight into TopFade,
+  // adding the fade as a consumer of the native animated graph;
+  // the fade's wiring is JS-driven only now (see
+  // components/top-fade.tsx). The sheet's own scrollY keeps its
+  // native driver and its direct onScroll event below, exactly
+  // as before the hotfix.
+  const fadeScrollY = useTopFadeScrollY();
+  useEffect(() => {
+    const sub = scrollY.addListener(({ value }) => {
+      fadeScrollY.setValue(value);
+    });
+    return () => scrollY.removeListener(sub);
+  }, [scrollY, fadeScrollY]);
   const mainListRef = useRef<any>(null);
   // Restore scroll position on remount (lazy tab mounting).
   useEffect(() => {
@@ -14420,12 +14437,14 @@ export function ScheduleTab({
           fill of its own; the app bar under Classic is transparent
           (see its !isSkinned override below) — so at rest there is
           no bar on this page at all. v338: the fade is
-          SCROLL-LINKED to the sheet's own scrollY (the value the
-          day list already drives natively) — opacity 0 at rest,
-          ramping in as the sheet slides, so nothing washes the
-          header until he scrolls. Colour = the ground this root
-          paints. */}
-      <TopFade color={isSkinned ? skinTokens.background ?? colors.background : colors.background} zIndex={3} scrollY={scrollY} />
+          SCROLL-LINKED to the sheet's own scroll — opacity 0 at
+          rest, ramping in as the sheet slides, so nothing washes
+          the header until he scrolls. HOTFIX (Oct 29): it rides
+          fadeScrollY, a JS-driven twin synced from scrollY
+          through a listener — never the native-driven scrollY
+          itself (see the note at fadeScrollY). Colour = the
+          ground this root paints. */}
+      <TopFade color={isSkinned ? skinTokens.background ?? colors.background : colors.background} zIndex={3} scrollY={fadeScrollY} />
       {/* Pill-style floating header (see-through, like People tab).
           v308 (Classic): the bar rides the header block's slide
           (headerSlideY) — it translates up and off the top edge

@@ -11,14 +11,31 @@
 // disappear… I don't want that fade to be there until I scroll")
 // and read as a grey square sitting on the page. Now the fade is
 // SCROLL-LINKED: pages pass their own scroll offset (an
-// Animated.Value fed by their scroller, native driver) and the
-// whole overlay's opacity is the ramp in lib/top-fade.ts —
-// exactly 0 at rest, so at rest there is NO bar and nothing over
-// the header at all; rising as content scrolls under the top
-// edge; back to 0 at the top. Header furniture itself never
-// changes — only this overlay's opacity behaviour. A placement
-// that passes no scrollY keeps the v334 static reading; every
-// placement wired in v338 passes one.
+// Animated.Value fed by their scroller) and the whole overlay's
+// opacity is the ramp in lib/top-fade.ts — exactly 0 at rest, so
+// at rest there is NO bar and nothing over the header at all;
+// rising as content scrolls under the top edge; back to 0 at the
+// top. Header furniture itself never changes — only this
+// overlay's opacity behaviour. A placement that passes no scrollY
+// keeps the v334 static reading; every placement wired in v338
+// passes one.
+//
+// HOTFIX (Oct 29, the v338 startup crash): v338 shipped the fade
+// wired through the NATIVE animated driver — Animated.event on
+// the native driver feeding each page's value, the overlay's
+// opacity an interpolation on that value, so every startup screen
+// (People first) entered the native animated graph on its first
+// frame. On Jonathan's phone the app died at startup and would
+// not open at all; v337 (the same fade, static, no animated
+// wiring) opened fine, and the jest suite — which renders under
+// react-native-web, where the native animated graph does not
+// exist — was green throughout. The fade's ramp is ONE small
+// overlay's opacity on a 16ms-throttled scroller: it never needed
+// the native driver. The wiring below is JS-DRIVEN on purpose
+// (useNativeDriver: false everywhere in this file's path), so the
+// interpolation lives entirely in JS and no fade node ever enters
+// the native animated graph. The behaviour is byte-for-byte the
+// v338 reading: opacity 0 at rest, full at one fade-height.
 //
 // The colour is DERIVED, never pinned: callers pass the same
 // ground expression their page root already paints (a material
@@ -51,13 +68,15 @@ export function useTopFadeScrollY(): Animated.Value {
 }
 
 /** v338: the lightest wiring from a scroller to the fade — an
- * Animated.event straight onto the value, native driver, so the
- * ramp never touches the JS thread per frame. Pages that already
- * track their scroll (Schedule) pass their existing value to
- * TopFade directly and need no handler at all. */
+ * Animated.event straight onto the value. JS-DRIVEN on purpose
+ * (see the hotfix note above): the fade's values must never enter
+ * the native animated graph. Pages that already track their
+ * scroll on a native-driven value (Schedule's sheet) must NOT
+ * pass that value to TopFade — they feed the fade its own
+ * JS-driven value from the same scroll events instead. */
 export function topFadeScrollHandler(scrollY: Animated.Value) {
   return Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-    useNativeDriver: true,
+    useNativeDriver: false,
   });
 }
 

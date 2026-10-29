@@ -108,7 +108,7 @@ describe("v334 — the fade stands on every covered page, in the page's own grou
     ["app/(tabs)/index.tsx", "<TopFade color={isClassicSkin ? pmf.ground : skinTokens.background ?? colors.background} scrollY={peopleFadeScrollY} />", "the People front-door ground"],
     ["app/(tabs)/index.tsx", "<TopFade color={sm.ground} scrollY={settingsFadeScrollY} />", "the Settings ground"],
     ["app/(tabs)/index.tsx", "<TopFade color={isSkinned ? skinTokens.background ?? colors.background : pm.ground} scrollY={moreFadeScrollY} />", "the More hub ground"],
-    ["components/schedule-tab.tsx", "<TopFade color={isSkinned ? skinTokens.background ?? colors.background : colors.background} zIndex={3} scrollY={scrollY} />", "the Schedule root ground, seated over the sheet only"],
+    ["components/schedule-tab.tsx", "<TopFade color={isSkinned ? skinTokens.background ?? colors.background : colors.background} zIndex={3} scrollY={fadeScrollY} />", "the Schedule root ground, seated over the sheet only"], // seat's scroll link RE-BASED Oct 29 (startup-crash hotfix): fadeScrollY, the JS-driven twin — see top-fade-v339-hotfix.test.tsx
     ["components/prayer-journal-tab.tsx", "<TopFade color={(skinTokens.isEightBit || skinTokens.isTerminal) ? skinTokens.background ?? jm.ground : jm.ground} scrollY={fadeScrollY} />", "the Journal ground"],
     ["app/bible-chapters.tsx", "<TopFade color={palette.paper} scrollY={fadeScrollY} />", "the Bible palette's paper (Books)"],
     ["app/bible-book.tsx", "<TopFade color={palette.paper} scrollY={fadeScrollY} />", "the Bible palette's paper (Book)"],

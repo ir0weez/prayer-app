@@ -74,11 +74,17 @@ describe("v338 the component — the overlay renders only as the ramp lets it", 
     expect(component).toContain('extrapolate: "clamp"');
   });
 
-  it("the wiring helpers feed the value natively — no JS-thread scroll handling", () => {
+  it("the wiring helpers feed the value — JS-DRIVEN (RE-BASED Oct 29, the v338 startup-crash hotfix)", () => {
+    // RE-BASED: this pin originally required useNativeDriver: true
+    // — the exact wiring that crashed the app at startup on
+    // Jonathan's phone (v338 shipped 11:26, crash reported 11:39;
+    // v337's static fade opened fine). The fade's values are
+    // JS-driven now; see top-fade-v339-hotfix.test.ts.
     expect(component).toContain("export function useTopFadeScrollY()");
     expect(component).toContain("export function topFadeScrollHandler(");
     expect(component).toContain("Animated.event");
-    expect(component).toContain("useNativeDriver: true");
+    expect(component).toContain("useNativeDriver: false");
+    expect(component).not.toContain("useNativeDriver: true");
   });
 
   it("the derived-colour rule stands — still no hex literal anywhere in the component", () => {
@@ -93,7 +99,7 @@ describe("v338 every placement is wired — no static gradient block remains", (
     ["app/(tabs)/index.tsx", "onScroll={topFadeScrollHandler(peopleFadeScrollY)}"],
     ["app/(tabs)/index.tsx", "onScroll={topFadeScrollHandler(settingsFadeScrollY)}"],
     ["app/(tabs)/index.tsx", "onScroll={topFadeScrollHandler(moreFadeScrollY)}"],
-    ["components/schedule-tab.tsx", "scrollY={scrollY}"], // the sheet's own value, already native-driven
+    ["components/schedule-tab.tsx", "scrollY={fadeScrollY}"], // RE-BASED Oct 29 hotfix: the fade rides its own JS-driven twin, never the sheet's native-driven scrollY
     ["components/prayer-journal-tab.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
     ["app/bible-chapters.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
     ["app/bible-book.tsx", "onScroll={topFadeScrollHandler(fadeScrollY)}"],
@@ -176,8 +182,13 @@ describe("v338 no bar at rest — Schedule", () => {
     expect(schedule).toContain('...(!isSkinned ? { backgroundColor: "transparent"');
   });
 
-  it("the fade rides the sheet's existing scrollY — 0 at rest, so no bar", () => {
-    expect(schedule).toContain("zIndex={3} scrollY={scrollY}");
+  it("the fade rides the sheet's scroll — 0 at rest, so no bar (seat RE-BASED Oct 29, startup-crash hotfix)", () => {
+    // RE-BASED: v338 seated the fade on the sheet's own
+    // native-driven scrollY; the hotfix moves it to fadeScrollY,
+    // the JS-driven twin fed by the same events (the crash class
+    // is pinned in top-fade-v339-hotfix.test.ts). The no-bar
+    // acceptance this test guards — ramp 0 at rest — is unchanged.
+    expect(schedule).toContain("zIndex={3} scrollY={fadeScrollY}");
     expect(topFadeRampOpacity(0)).toBe(0);
   });
 });

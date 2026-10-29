@@ -227,7 +227,7 @@ import { WeeklyCalendarView } from "./weekly-calendar-view";
 import { getWeekStart, formatDateISO, formatDateLocal } from "@/lib/date-utils";
 import { MonthlyCalendarView } from "./monthly-calendar-view";
 import { format12HourTime, normalizeTimeFormat } from "@/lib/utils";
-import { calculateFastStreak, getActiveFast, getFastCalendarDays, type PersonalFast } from "@/lib/prayercircle-fasting";
+import { calculateFastStreak, getActiveFast, getCurrentFastDay, getFastCalendarDays, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worship-list";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 // v294: TimeOffCard retired from the day — the trip band (time-off-travel) is the day's time-off block now.
@@ -13827,7 +13827,7 @@ export function ScheduleTab({
                     {item.data.name}
                   </Text>
                   <Text style={{ color: colors.muted, fontSize: 13, marginTop: 4, ...skinText(skinTokens, skinTokens.type.cardMeta) }}>
-                    {item.data.type} Fast • Day {Math.max(1, Math.floor((new Date(selectedDate).getTime() - new Date(item.data.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)} of {item.data.durationDays}
+                    {item.data.type} Fast • Day {getCurrentFastDay(item.data)} of {item.data.durationDays}
                   </Text>
                 </View>
               ) : (

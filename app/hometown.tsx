@@ -145,6 +145,10 @@ import {
   getEconomyScale,
   scaledCoins,
   scaledXP,
+  // v323 (The Era Game): the era's cost weather — set at load from
+  // the live fast counter; prices read it through eraPriceCoins.
+  setEraCostMult,
+  eraPriceCoins,
   loadActiveFastLength,
   mapUnlockCost,
   type RememberedPerson,
@@ -398,6 +402,15 @@ import {
   type StreetPlace,
   type WideStreetState,
 } from "@/lib/wide-street";
+import {
+  eraEconomyFor,
+  eraForFast,
+  loadLastSeenEra,
+  saveLastSeenEra,
+  shouldAnnounceEra,
+  type EraDef,
+} from "@/lib/hometown-eras";
+import { getCurrentFastDay } from "@/lib/prayercircle-fasting";
 import { GardenOfRemembrance } from "@/components/garden-of-remembrance";
 import { TheWell } from "@/components/the-well";
 import { FireworksOverlay } from "@/components/fireworks";
@@ -4087,6 +4100,15 @@ export default function HometownScreen() {
   /** The Welcoming Town (v271): the while-you-were-gone report card,
    *  built once at mount from the away accrual's own numbers. */
   const [awayReport, setAwayReport] = useState<AwayReport | null>(null);
+  /** v323 (The Era Game, Part 1): the age the live fast stands in —
+   *  derived on open (and on focus refresh) from the fast counter,
+   *  never a timer. It dresses the street, names itself in the HUD,
+   *  and its economy rides the accrual + price calls below.
+   *  eraTurnEra is an era whose page-turn card is on screen: set at
+   *  load when the standing era differs from the last announced one;
+   *  dismissing the card is what records it as seen. */
+  const [townEra, setTownEra] = useState<EraDef | null>(null);
+  const [eraTurnEra, setEraTurnEra] = useState<EraDef | null>(null);
   /** The Street & The Café (v279): the café's inputs, read from the
    *  app's own stores on open and refreshed on focus (the same settle-
    *  on-open pattern as the coin chip) — the full people record, the
@@ -5102,6 +5124,16 @@ export default function HometownScreen() {
       setCafeFast(data.fast);
       setCafeWeekLots(data.weekLots);
       setCafeDay(data.today);
+      // v323: the era re-derives on focus too — a fast day marked in
+      // the tracker while this screen slept can turn the age, and the
+      // street + prices should already wear it when he comes back.
+      // (The page-turn ANNOUNCEMENT stays a mount-load event; a focus
+      // refresh never springs the card on him mid-visit.)
+      const era = eraForFast(data.fast, data.today);
+      setTownEra(era);
+      setEraCostMult(
+        era ? eraEconomyFor(era.index, data.fast ? getCurrentFastDay(data.fast, data.today) : 1).costMult : 1,
+      );
     } catch {}
   }, []);
 
@@ -5607,6 +5639,9 @@ export default function HometownScreen() {
         // land in locals the report block can read.
         let cafePeopleLocal: Person[] = [];
         let cafeFastLocal: PersonalFast | null = null;
+        // v323: the era's economy for THIS load's settle — the
+        // un-aged economy until the café inputs name the fast.
+        let eraEconomyLocal = { incomeMult: 1, costMult: 1, prayerBoostMult: 1 };
         const [
           remembranceR, fieldMissionsR, plotsR, bellR, frenzyR, tapsR, shiftsR,
           bankR, restR, statR, prayedR, houseR, fellowshipR, lighthouseR, gardenVisitsR,
@@ -5724,6 +5759,27 @@ export default function HometownScreen() {
           setCafeFast(cafeR.value.fast);
           setCafeWeekLots(cafeR.value.weekLots);
           setCafeDay(cafeR.value.today);
+        }
+        // v323 (The Era Game, Part 1): the era derives HERE, from the
+        // same fast the café reads, before the accrual below — so
+        // the away settle, the missed-days award and every price on
+        // the screen all settle under the standing age. The turn
+        // check reads the last ANNOUNCED era; the card itself is set
+        // as state and shown over the town, and only its dismissal
+        // records the new era as seen.
+        if (cafeFastLocal) {
+          const eraLocal = eraForFast(cafeFastLocal, today);
+          if (eraLocal) {
+            eraEconomyLocal = eraEconomyFor(eraLocal.index, getCurrentFastDay(cafeFastLocal, today));
+            setTownEra(eraLocal);
+            setEraCostMult(eraEconomyLocal.costMult);
+            try {
+              const seenEra = await loadLastSeenEra();
+              if (shouldAnnounceEra(seenEra, eraLocal.index)) {
+                setEraTurnEra(eraLocal);
+              }
+            } catch {}
+          }
         }
         setPrayedToday(prayedCount);
         if (houseR.ok) houseCoinMultPre = houseR.value.coinMult;
@@ -5933,6 +5989,9 @@ export default function HometownScreen() {
           // added on the same base (v200) — see setMultToday above.
           depthBlessingMult: depthMult + setMultToday,
           prayerMultValue: prMult,
+          // v323: the standing era's weather over the away settle.
+          eraIncomeMult: eraEconomyLocal.incomeMult,
+          eraPrayerBoostMult: eraEconomyLocal.prayerBoostMult,
           prayedCount,
           fellowshipBonus,
           remembranceBonus,
@@ -5967,6 +6026,8 @@ export default function HometownScreen() {
           // bonused twice by the same channel.
           setBonusDates: setOut.dates,
           setBonusRate: SET_BONUS_RATE,
+          // v323: the era's income weather over the missed days too.
+          eraIncomeMult: eraEconomyLocal.incomeMult,
           nowMs: awayNow,
         });
         // The old chain folded lastIncomeDate to today UNCONDITIONALLY
@@ -6413,7 +6474,7 @@ export default function HometownScreen() {
   /** Purchase a city plot (creates the L1 building). */
   const handlePurchasePlot = (plot: CityPlot) => {
     const def = BUILDINGS[plot.buildingType];
-    const price = scaledCoins(plot.cost);
+    const price = eraPriceCoins(plot.cost);
     // Don't build over legacy free-placed buildings
     for (let dx = 0; dx < 2; dx++) {
       for (let dy = 0; dy < 2; dy++) {
@@ -6473,7 +6534,7 @@ export default function HometownScreen() {
    *  plot flow: one price covers the plot and the building on it. */
   const handlePurchaseCampusPlot = (plot: SchoolPlot) => {
     const def = BUILDINGS[plot.buildingType];
-    const price = scaledCoins(plot.cost);
+    const price = eraPriceCoins(plot.cost);
     // Don't build over legacy free-placed buildings
     for (let dx = 0; dx < 2; dx++) {
       for (let dy = 0; dy < 2; dy++) {
@@ -6793,8 +6854,8 @@ export default function HometownScreen() {
         Alert.alert("Already built", "The Marriage Supper is already prepared — one table for the whole town.");
         return;
       }
-      const lotPrice = scaledCoins(lot.cost);
-      const buildingPrice = scaledCoins(def.cost);
+      const lotPrice = eraPriceCoins(lot.cost);
+      const buildingPrice = eraPriceCoins(def.cost);
       const total = lotPrice + buildingPrice;
       if (coinsRef.current.balance < total) {
         Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${formatCoins(total)} coins (lot ${formatCoins(lotPrice)} + building ${formatCoins(buildingPrice)}). You have ${formatCoins(coins.balance)}.`);
@@ -6922,7 +6983,7 @@ export default function HometownScreen() {
   const handleLighthouseUpgrade = () => {
     const level = lighthouseState.level;
     if (level >= LIGHTHOUSE_MAX_LEVEL) return;
-    const cost = scaledCoins(LIGHTHOUSE_UPGRADE_COSTS[level] ?? 0);
+    const cost = eraPriceCoins(LIGHTHOUSE_UPGRADE_COSTS[level] ?? 0);
     if (coins.balance < cost) {
       Alert.alert("Not enough coins", `Upgrading the lighthouse costs ${formatCoins(cost)} coins. You have ${formatCoins(coins.balance)}.`);
       return;
@@ -7794,7 +7855,7 @@ export default function HometownScreen() {
   const handleBuild = (type: BuildingType) => {
     if (!selectedTile) return;
     const def = BUILDINGS[type];
-    const price = scaledCoins(def.cost);
+    const price = eraPriceCoins(def.cost);
     if (tier < def.tier) {
       Alert.alert("Locked", `Unlocks at tier ${def.tier} (day ${def.tier === 2 ? 40 : def.tier === 3 ? 100 : 250} of your fast).`);
       return;
@@ -8540,6 +8601,14 @@ export default function HometownScreen() {
         </View>
       </View>
 
+      {/* v323 (The Era Game): the standing age, named quietly under
+          the title — the town map only; the era is the town's. */}
+      {activeMap === "town" && townEra ? (
+        <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "700", letterSpacing: 2.4, color: pt.subtext, marginLeft: 48, marginTop: -6, marginBottom: 10 }}>
+          {townEra.name.toUpperCase()}
+        </Text>
+      ) : null}
+
       {/* Compact header summary — the income bonuses (milestone, prayer,
           fellowship, remembrance, garden visits) collapse into ONE chip with
           the combined bonus; tap it for the full breakdown. Streak and
@@ -8810,7 +8879,7 @@ export default function HometownScreen() {
           }}
           onUpgrade={() => {
             const nextLevel = (remembrance.level + 1) as 2 | 3;
-            const cost = scaledCoins(REMEMBRANCE_UPGRADE_COSTS[nextLevel]);
+            const cost = eraPriceCoins(REMEMBRANCE_UPGRADE_COSTS[nextLevel]);
             if (coinsRef.current.balance < cost) return;
             addCoins(-cost);
             const next = { ...remembrance, level: nextLevel };
@@ -8978,6 +9047,7 @@ export default function HometownScreen() {
               world={streetWorld}
               cellSize={streetCell}
               phase={dayPhase}
+              era={townEra}
               ovenLit={cafeOven === "lit"}
               cafeAlert={!!cafeBoard?.tickets.some((t) => t.kind === "emergency")}
               awakeHomeIds={awakeHomeIds}
@@ -8994,6 +9064,11 @@ export default function HometownScreen() {
                   positionsRef={townNpcPositionsRef}
                   missionWaitingIds={vmWaitingIds}
                   onVillagerTap={handleVillagerTapWalk}
+                  eraDress={
+                    townEra && townEra.palette.clothMix > 0
+                      ? { shirt: townEra.palette.cloth, pants: townEra.palette.clothPants, mix: townEra.palette.clothMix }
+                      : null
+                  }
                 />
               }
             >
@@ -9029,14 +9104,14 @@ export default function HometownScreen() {
               return (
                 <>
                   <NoticeBoardPoint
-                    left={boardX * cs + 2}
+                    left={boardX * cs - 13}
                     top={northFeet - 54}
                     pendingCount={pendingMissions(missions).length}
                     onPress={() => setMissionsVisible(true)}
                   />
-                  <TestimonyStonesPoint left={stonesX * cs} top={northFeet - 43} count={monumentCount} />
+                  <TestimonyStonesPoint left={stonesX * cs - 13} top={northFeet - 43} count={monumentCount} />
                   <ShopStallPoint
-                    left={stallX * cs - 2}
+                    left={stallX * cs - 9}
                     top={southFeet - 56}
                     onPress={() => router.push("/hometown-shop")}
                   />
@@ -9325,7 +9400,7 @@ export default function HometownScreen() {
               }}
             >
               <Text style={{ fontSize: 9, fontWeight: "800", color: "#6B7280", letterSpacing: 1 }}>FOR SALE</Text>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#374151", marginTop: 2 }}>🪙{formatCoins(scaledCoins(plot.cost))}</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#374151", marginTop: 2 }}>🪙{formatCoins(eraPriceCoins(plot.cost))}</Text>
               <Text style={{ fontSize: 8, color: "#9CA3AF", marginTop: 2 }}>{BUILDINGS[plot.buildingType].name}</Text>
             </View>
           ))}
@@ -9351,7 +9426,7 @@ export default function HometownScreen() {
               }}
             >
               <Text style={{ fontSize: 9, fontWeight: "800", color: "#115E59", letterSpacing: 1 }}>FOR SALE</Text>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#134E4A", marginTop: 2 }}>{formatCoins(scaledCoins(plot.cost))}</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#134E4A", marginTop: 2 }}>{formatCoins(eraPriceCoins(plot.cost))}</Text>
               <Text style={{ fontSize: 8, color: "#0F766E", marginTop: 2 }}>{BUILDINGS[plot.buildingType].name}</Text>
             </View>
           ))}
@@ -9389,12 +9464,12 @@ export default function HometownScreen() {
                   {lot.allowedTypes.includes("villager-cottage") ? (
                     <CottageGlyph size={16} />
                   ) : null}
-                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#92400E" }}>🪙{formatCoins(scaledCoins(lot.cost))}</Text>
+                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#92400E" }}>🪙{formatCoins(eraPriceCoins(lot.cost))}</Text>
                 </View>
               ) : (
                 <>
                   <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>{"FOR SALE"}</Text>
-                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{formatCoins(scaledCoins(lot.cost))}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{formatCoins(eraPriceCoins(lot.cost))}</Text>
                   <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2, textAlign: "center" }} numberOfLines={1}>{lot.name}</Text>
                   {lot.presetType && !map.buildings.some((b) => b.type === lot.presetType) && (
                     lot.presetType === "banquet-table" ? (
@@ -9813,6 +9888,52 @@ export default function HometownScreen() {
             )}
           </View>
         )}
+        {/* v323 (The Era Game): the page-turn card — the age changed
+            since the town last announced one. It names the new era
+            once; closing it is what records the era as seen, so a
+            card never read is never spent. It moves no coins and
+            settles nothing — the era was already in force from the
+            load's first settle. */}
+        {activeMap === "town" && eraTurnEra && (
+          <View
+            style={{
+              position: "absolute",
+              top: insets.top + 64,
+              left: 16,
+              right: 16,
+              zIndex: 2000001,
+              backgroundColor: pt.card,
+              borderColor: pt.border,
+              borderWidth: 1,
+              borderRadius: 16,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              shadowColor: "#000000",
+              shadowOpacity: 0.18,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 6,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 2.2, color: pt.subtext }}>A NEW AGE</Text>
+              <Pressable
+                onPress={() => {
+                  const seenIndex = eraTurnEra.index;
+                  setEraTurnEra(null);
+                  void saveLastSeenEra(seenIndex);
+                }}
+                hitSlop={8}
+                accessibilityLabel="Close the new-age card"
+                style={{ width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: pt.bg }}
+              >
+                <MaterialIcons name="close" size={15} color={pt.subtext} />
+              </Pressable>
+            </View>
+            <Text style={{ fontSize: 21, fontWeight: "800", color: pt.text, marginTop: 4 }}>{eraTurnEra.name}</Text>
+            <Text style={{ fontSize: 13.5, lineHeight: 19, color: pt.text, marginTop: 4 }}>{eraTurnEra.line}</Text>
+          </View>
+        )}
         {activeMap === "town" && !isTownWorld && (
           <MapSigns
             activeMap={activeMap}
@@ -9945,7 +10066,7 @@ export default function HometownScreen() {
           </Pressable>
           {availableBuildings.map((type) => {
             const def = BUILDINGS[type];
-            const affordable = coins.balance >= scaledCoins(def.cost);
+            const affordable = coins.balance >= eraPriceCoins(def.cost);
             return (
               <Pressable
                 key={type}
@@ -10076,15 +10197,15 @@ export default function HometownScreen() {
                   Alert.alert("No workers available", "Pray for more people today to grow your workforce.");
                   return;
                 }
-                if (coinsRef.current.balance < scaledCoins(WORKER_HIRE_COST)) {
-                  Alert.alert("Not enough coins", `Hiring costs ${formatCoins(scaledCoins(WORKER_HIRE_COST))} coins. You have ${formatCoins(coins.balance)}.`);
+                if (coinsRef.current.balance < eraPriceCoins(WORKER_HIRE_COST)) {
+                  Alert.alert("Not enough coins", `Hiring costs ${formatCoins(eraPriceCoins(WORKER_HIRE_COST))} coins. You have ${formatCoins(coins.balance)}.`);
                   return;
                 }
                 const updated = map.buildings.map(x =>
                   x.id === b.id ? { ...x, workers: (x.workers || 0) + 1 } : x
                 );
                 saveMap({ ...map, buildings: updated });
-                addCoins(-scaledCoins(WORKER_HIRE_COST));
+                addCoins(-eraPriceCoins(WORKER_HIRE_COST));
                 setPopupBuilding({ ...b, workers: workerCount + 1 });
               };
 
@@ -10218,7 +10339,7 @@ export default function HometownScreen() {
                       style={{ backgroundColor: pt.bg, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                     >
                       <Text style={{ color: pt.text, fontWeight: "700", fontSize: 16 }}>
-                        👷 Hire Worker 🪙{formatCoins(scaledCoins(WORKER_HIRE_COST))} ({workerCount}/{MAX_WORKERS_PER_BUILDING})
+                        👷 Hire Worker 🪙{formatCoins(eraPriceCoins(WORKER_HIRE_COST))} ({workerCount}/{MAX_WORKERS_PER_BUILDING})
                       </Text>
                     </Pressable>
                   )}
@@ -11297,7 +11418,7 @@ export default function HometownScreen() {
               const level = lighthouseState.level;
               const reward = LIGHTHOUSE_BLESSING_COINS * level;
               const maxed = level >= LIGHTHOUSE_MAX_LEVEL;
-              const upgradeCost = scaledCoins(LIGHTHOUSE_UPGRADE_COSTS[level] ?? 0);
+              const upgradeCost = eraPriceCoins(LIGHTHOUSE_UPGRADE_COSTS[level] ?? 0);
               return (
                 <>
                   <Text style={{ fontSize: 20, fontWeight: "800", color: pt.text, textAlign: "center" }}>
@@ -11387,7 +11508,7 @@ export default function HometownScreen() {
               const presetOwned = lot.presetType && map.buildings.some((b) => b.type === lot.presetType);
               if (lot.presetType && !presetOwned) {
                 const def = BUILDINGS[lot.presetType];
-                const total = scaledCoins(lot.cost + def.cost);
+                const total = eraPriceCoins(lot.cost + def.cost);
                 const affordable = coinsRef.current.balance >= total;
                 return (
                   <>
@@ -11415,7 +11536,7 @@ export default function HometownScreen() {
                           {def.description}
                         </Text>
                         <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 4 }}>
-                          Plot 🪙{formatCoins(scaledCoins(lot.cost))} + building 🪙{formatCoins(scaledCoins(def.cost))}
+                          Plot 🪙{formatCoins(eraPriceCoins(lot.cost))} + building 🪙{formatCoins(eraPriceCoins(def.cost))}
                         </Text>
                       </View>
                     </View>
@@ -11461,7 +11582,7 @@ export default function HometownScreen() {
                     {lot.name} — FOR SALE
                   </Text>
                   <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginTop: 6, marginBottom: 12 }}>
-                    Purchase this lot for {formatCoins(scaledCoins(lot.cost))} coins and choose what to build. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded. New buildings take 1 min to build.
+                    Purchase this lot for {formatCoins(eraPriceCoins(lot.cost))} coins and choose what to build. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded. New buildings take 1 min to build.
                   </Text>
                   <ScrollView style={{ maxHeight: 420 }}>
                     {groups.map((g) => {
@@ -11474,7 +11595,7 @@ export default function HometownScreen() {
                           </Text>
                           {items.map((type) => {
                             const def = BUILDINGS[type];
-                            const total = scaledCoins(lot.cost + def.cost);
+                            const total = eraPriceCoins(lot.cost + def.cost);
                             const affordable = coinsRef.current.balance >= total;
                             // Duplicates stay buyable — the badge just says
                             // how many already stand, counted live from the

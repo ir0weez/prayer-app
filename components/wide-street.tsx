@@ -39,16 +39,19 @@ import {
 import {
   CafeArt,
   EmptyLotArt,
+  eraGroundFor,
   ForestArt,
   GateArt,
   HeroHouseArt,
   HomeArt,
   MineArt,
+  RainStreaks,
   RegisterPileArt,
-  STREET_GROUND,
   StreetLampArt,
   StreetSkyline,
+  TornEdgeStrip,
 } from "@/components/street-places-art";
+import type { EraDef } from "@/lib/hometown-eras";
 
 const PHASE_WASH: Record<DayPhase, string> = {
   dawn: "rgba(242, 180, 100, 0.08)",
@@ -61,6 +64,7 @@ export const StreetWorldView = memo(function StreetWorldView({
   world,
   cellSize,
   phase,
+  era,
   ovenLit,
   cafeAlert,
   awakeHomeIds,
@@ -74,6 +78,9 @@ export const StreetWorldView = memo(function StreetWorldView({
   world: StreetWorld;
   cellSize: number;
   phase: DayPhase;
+  /** v323 (The Era Game): the age the fast has reached — its papers
+   *  dress the street. Null (or the Village) is the street as built. */
+  era?: EraDef | null;
   /** The café's ovens, from the fast's real day states. */
   ovenLit: boolean;
   /** An emergency ticket stands on the café's board. */
@@ -96,10 +103,13 @@ export const StreetWorldView = memo(function StreetWorldView({
   const cs = cellSize;
   const worldW = world.w * cs;
   const worldH = world.h * cs;
-  const ground = STREET_GROUND[phase];
-  const windowsLit = phaseWindowsLit(phase);
+  // v323: the era's paper stock, blended over the phase dress.
+  const ground = eraGroundFor(era, phase);
+  // Nero: the lamps burn in the windows at every hour.
+  const windowsLit = era?.palette.lampAmber ? true : phaseWindowsLit(phase);
   const lampsLit = phase === "dusk" || phase === "night";
   const cafe = world.cafe;
+  const dress = era?.palette.dress;
 
   return (
     <View style={{ position: "relative", width: worldW, height: worldH, backgroundColor: ground.grass }}>
@@ -122,7 +132,7 @@ export const StreetWorldView = memo(function StreetWorldView({
 
       {/* the skyline at the street's head */}
       <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: worldW, height: cs }}>
-        <StreetSkyline width={worldW} phase={phase} />
+        <StreetSkyline width={worldW} phase={phase} era={era} />
       </View>
 
       {/* the aprons — the path in front of each side's doors */}
@@ -130,11 +140,52 @@ export const StreetWorldView = memo(function StreetWorldView({
       <View pointerEvents="none" style={{ position: "absolute", left: 3 * cs, top: STREET_SOUTH_DOOR_Y * cs, width: worldW - 3 * cs, height: cs, backgroundColor: ground.apron }} />
       {/* the street itself, with its dashed heart line */}
       <View pointerEvents="none" style={{ position: "absolute", left: 3 * cs, top: STREET_ROW_TOP * cs, width: worldW - 3 * cs, height: (STREET_ROW_BOTTOM - STREET_ROW_TOP + 1) * cs, backgroundColor: ground.street }} />
-      <View pointerEvents="none" style={{ position: "absolute", left: 3 * cs, top: (STREET_ROW_TOP + 1) * cs - 1.5, width: worldW - 3 * cs, height: 3, flexDirection: "row", overflow: "hidden" }}>
-        {Array.from({ length: Math.ceil(world.w / 1.2) }).map((_, i) => (
-          <View key={i} style={{ width: 14, height: 3, marginRight: 18, backgroundColor: ground.streetLine, borderRadius: 2 }} />
-        ))}
-      </View>
+      {era?.palette.river ? (
+        /* v323 — the New Earth: the river runs down the street,
+           between gold banks, where the heart line used to dash. */
+        <View pointerEvents="none" style={{ position: "absolute", left: 3 * cs, top: (STREET_ROW_TOP + 0.55) * cs, width: worldW - 3 * cs, height: cs * 0.9, backgroundColor: "#7CC4DE", borderTopWidth: 3, borderBottomWidth: 3, borderColor: "#C9963C" }}>
+          <View style={{ position: "absolute", left: 0, right: 0, top: cs * 0.32, height: 3, flexDirection: "row", overflow: "hidden" }}>
+            {Array.from({ length: Math.ceil(world.w / 1.4) }).map((_, i) => (
+              <View key={i} style={{ width: 16, height: 3, marginRight: 22, backgroundColor: "#CDEBF7", borderRadius: 2 }} />
+            ))}
+          </View>
+          <View style={{ position: "absolute", left: 0, right: 0, top: cs * 0.58, height: 2.4, flexDirection: "row", overflow: "hidden" }}>
+            {Array.from({ length: Math.ceil(world.w / 1.7) }).map((_, i) => (
+              <View key={i} style={{ width: 11, height: 2.4, marginLeft: 26, backgroundColor: "rgba(255,255,255,0.55)", borderRadius: 2 }} />
+            ))}
+          </View>
+        </View>
+      ) : (
+        <View pointerEvents="none" style={{ position: "absolute", left: 3 * cs, top: (STREET_ROW_TOP + 1) * cs - 1.5, width: worldW - 3 * cs, height: 3, flexDirection: "row", overflow: "hidden" }}>
+          {Array.from({ length: Math.ceil(world.w / 1.2) }).map((_, i) => (
+            <View key={i} style={{ width: 14, height: 3, marginRight: 18, backgroundColor: ground.streetLine, borderRadius: 2 }} />
+          ))}
+        </View>
+      )}
+
+      {/* flower tufts along the aprons (the Village pass) — small
+          lived-in colour in front of the doors, never ON a doorstep:
+          deterministic spots, skipped wherever a door stands. */}
+      {(() => {
+        const doorXs = new Set(world.places.map((p) => p.door.x));
+        const tuft = (key: string, x: number, y: number, flower: boolean, ci: number) => (
+          <View key={key} pointerEvents="none" style={{ position: "absolute", left: x, top: y, width: 9, height: 7 }}>
+            <View style={{ position: "absolute", bottom: 0, left: 1, width: 7, height: 5, borderRadius: 3, backgroundColor: ground.padEdge }} />
+            {flower && (
+              <View style={{ position: "absolute", top: 0, left: 2.5, width: 4.5, height: 4.5, borderRadius: 2.5, backgroundColor: ["#E86A92", "#F2B33D", "#B388FF", "#F28B6C"][ci % 4] }} />
+            )}
+          </View>
+        );
+        const out: ReactNode[] = [];
+        for (let i = 0; i < 16; i++) {
+          const fx = 3.6 + (((i * 37) % 89) / 89) * Math.max(4, world.w - 8);
+          const cellX = Math.floor(fx);
+          if (doorXs.has(cellX)) continue;
+          out.push(tuft(`tn-${i}`, fx * cs, (STREET_NORTH_DOOR_Y + 0.72) * cs, i % 3 !== 0, i));
+          out.push(tuft(`ts-${i}`, (fx + 1.3) * cs, (STREET_SOUTH_DOOR_Y + 0.68) * cs, i % 4 !== 0, i + 2));
+        }
+        return out;
+      })()}
 
       {/* lot pads — every place stands ON its lot, never on bare grass */}
       {world.places
@@ -193,10 +244,10 @@ export const StreetWorldView = memo(function StreetWorldView({
               zIndex: Math.round((p.y + p.h) * cs),
             }}
           >
-            {p.kind === "cafe" && <CafeArt w={artW} h={artH} windowsLit={windowsLit} ovenLit={ovenLit} />}
+            {p.kind === "cafe" && <CafeArt w={artW} h={artH} windowsLit={windowsLit} ovenLit={ovenLit} dress={dress} />}
             {p.kind === "mine" && <MineArt w={artW} h={artH} night={phase === "night" || phase === "dusk"} />}
             {p.kind === "forest" && <ForestArt w={artW} h={artH} phase={phase} />}
-            {p.kind === "house" && <HeroHouseArt w={artW} h={artH} windowsLit={windowsLit} />}
+            {p.kind === "house" && <HeroHouseArt w={artW} h={artH} windowsLit={windowsLit} dress={dress} />}
             {p.kind === "home" && (
               <HomeArt
                 w={artW}
@@ -204,10 +255,11 @@ export const StreetWorldView = memo(function StreetWorldView({
                 seed={p.buildingId ?? key}
                 windowsLit={windowsLit}
                 awake={!!p.buildingId && awakeHomeIds.has(p.buildingId)}
+                dress={dress}
               />
             )}
             {p.kind === "gate" && p.landmark && (
-              <GateArt w={artW} h={artH} art={p.landmark.art} windowsLit={windowsLit} />
+              <GateArt w={artW} h={artH} art={p.landmark.art} windowsLit={windowsLit} dress={dress} />
             )}
             {p.kind === "empty-lot" && <EmptyLotArt w={artW} h={artH} weekLot={p.weekLot} />}
           </View>
@@ -317,11 +369,32 @@ export const StreetWorldView = memo(function StreetWorldView({
         </View>
       )}
 
+      {/* v323: the era's wash over the whole street — its mood laid
+          under the phase's light, so an age tints dawn and dusk too */}
+      {era && era.palette.wash !== "rgba(0,0,0,0)" && (
+        <View
+          pointerEvents="none"
+          style={{ position: "absolute", left: 0, top: 0, width: worldW, height: worldH, backgroundColor: era.palette.wash, zIndex: 8999 }}
+        />
+      )}
+
       {/* the phase's light over the whole street */}
       <View
         pointerEvents="none"
         style={{ position: "absolute", left: 0, top: 0, width: worldW, height: worldH, backgroundColor: PHASE_WASH[phase], zIndex: 9000 }}
       />
+
+      {/* v323: the era's signature weather, over everything */}
+      {era?.palette.rain && (
+        <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: worldW, height: worldH, zIndex: 9002 }}>
+          <RainStreaks width={worldW} height={worldH} />
+        </View>
+      )}
+      {era?.palette.torn && (
+        <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: worldW, height: 12, zIndex: 9003 }}>
+          <TornEdgeStrip width={worldW} />
+        </View>
+      )}
 
       {villagers}
       {children}

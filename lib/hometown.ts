@@ -176,9 +176,9 @@ export const MAP_INFO: Record<TownMapId, MapInfo> = {
 
 export const MAP_UNLOCKED_KEY = "prayercircle.hometown.maps.unlocked.v1";
 
-/** Map unlock cost, scaled by the session economy scale. */
+/** Map unlock cost, scaled by the session economy scale and the era's cost weather. */
 export function mapUnlockCost(id: TownMapId): number {
-  return scaledCoins(MAP_INFO[id].unlockCost);
+  return eraPriceCoins(MAP_INFO[id].unlockCost);
 }
 
 export function parseUnlockedMaps(value: unknown): TownMapId[] {
@@ -358,6 +358,27 @@ export function scaledXP(amount: number): number {
   return Math.round((amount || 0) * cachedEconomyScale);
 }
 
+/**
+ * v323 (The Era Game, Part 1): the era's cost weather, session-cached
+ * exactly like the economy scale — set once when Hometown loads, from
+ * the era the live fast counter names (lib/hometown-eras). Purchase
+ * and construction prices pass through eraPriceCoins; rewards and
+ * refunds never do. Defaults to 1 (the un-aged price), so a town with
+ * no era in force prices exactly as before.
+ */
+let cachedEraCostMult = 1;
+export function setEraCostMult(mult: number): void {
+  cachedEraCostMult = mult > 0 && Number.isFinite(mult) ? mult : 1;
+}
+export function getEraCostMult(): number {
+  return cachedEraCostMult;
+}
+
+/** A purchase/construction price under the era's cost weather. */
+export function eraPriceCoins(amount: number): number {
+  return scaledCoins((amount || 0) * cachedEraCostMult);
+}
+
 /** Active fast's durationDays from fasting storage (0 when none found). */
 export async function loadActiveFastLength(): Promise<number> {
   try {
@@ -496,18 +517,18 @@ export function populationMult(prayedCount: number): number {
 }
 
 export function upgradeCostFor(type: BuildingType, toLevel: number): number {
-  if (type === "house") return scaledCoins(HOUSE_UPGRADE_COSTS[toLevel] ?? 0);
+  if (type === "house") return eraPriceCoins(HOUSE_UPGRADE_COSTS[toLevel] ?? 0);
   const def = BUILDINGS[type];
   // City buildings are post-prestige endgame: upgrades are anchored to
   // ~60,000 (L2) / ~250,000 (L3) for a typical 600-coin city building,
   // scaled per building by its base cost.
   const isCityType = def.maps.length > 0 && def.maps.every((m) => m === "city");
   if (isCityType) {
-    return scaledCoins(toLevel >= 3 ? def.cost * 400 : def.cost * 100);
+    return eraPriceCoins(toLevel >= 3 ? def.cost * 400 : def.cost * 100);
   }
   // Town upgrades: L2 costs 5x the old price, L3 costs 10x the old price
   // (old prices were base x3 / base x5).
-  return scaledCoins(def.cost * (toLevel >= 3 ? 50 : 15));
+  return eraPriceCoins(def.cost * (toLevel >= 3 ? 50 : 15));
 }
 
 export function incomeFor(type: BuildingType, level: number): number {
@@ -3296,7 +3317,7 @@ export const BANK_MAX_FLOORS = 5;
 /** Cost to add the next floor when the tower currently has `currentFloors` (1-4). */
 export function bankFloorCost(currentFloors: number): number {
   const costs: Record<number, number> = { 1: 10000, 2: 25000, 3: 50000, 4: 100000 };
-  return scaledCoins(costs[currentFloors] ?? 0);
+  return eraPriceCoins(costs[currentFloors] ?? 0);
 }
 /** Income multiplier for a bank-tower with `floors` stories: +50% per extra floor. */
 export function bankFloorMultiplier(floors: number): number {
@@ -3523,6 +3544,14 @@ export interface AwayAccrualInputs {
   depthBlessingMult?: number;
   /** The value of prayerMult(prayedCount), precomputed by the caller. */
   prayerMultValue: number;
+  /** v323 (The Era Game): the era's income weather and its blessing
+   *  on the prayer-presence boost, from lib/hometown-eras. Optional —
+   *  a caller that doesn't know the era accrues un-aged, as before.
+   *  The prayer boost scales only the boost's lift: the effective
+   *  prayer value is 1 + (prayerMultValue − 1) × eraPrayerBoostMult,
+   *  so a boost of 2 doubles what praying added, never the base. */
+  eraIncomeMult?: number;
+  eraPrayerBoostMult?: number;
   prayedCount: number;
   fellowshipBonus: number;
   remembranceBonus: number;
@@ -3566,6 +3595,10 @@ export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): Aw
     economyScale, nowMs, nowIso,
   } = inputs;
   const depthBlessingMult = inputs.depthBlessingMult ?? 1;
+  // v323: the era's weather over this settle — income scaled whole,
+  // the prayer-presence boost's lift scaled by the era's blessing.
+  const eraIncomeMult = inputs.eraIncomeMult ?? 1;
+  const eraPrayerValue = 1 + (prayerMultValue - 1) * (inputs.eraPrayerBoostMult ?? 1);
   const rates: Record<string, { coins: number; xp: number }> = {};
   const dripOps: { buildingId: string; minutes: number; basePerHour: number }[] = [];
   const newMaps = { ...town.maps };
@@ -3622,9 +3655,9 @@ export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): Aw
         const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
         const wMult = workerMult(b);
         const popMult = populationMult(prayedCount);
-        const basePerHour = 20.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * milestoneMult * prestigeMult * depthBlessingMult * popMult * prayerMultValue * fellowshipBonus * remembranceBonus * gardenVisitBonus * (1 + houseCoinMult) * (restInteriorMult[b.id] ?? 1);
+        const basePerHour = 20.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * milestoneMult * prestigeMult * depthBlessingMult * popMult * eraPrayerValue * fellowshipBonus * remembranceBonus * gardenVisitBonus * (1 + houseCoinMult) * (restInteriorMult[b.id] ?? 1) * eraIncomeMult;
         const churchPerMinute = b.type === "church" && earnsCoins
-          ? (CHURCH_PRAYER_COINS_PER_HOUR * prayedCount) / 60
+          ? (CHURCH_PRAYER_COINS_PER_HOUR * prayedCount * eraIncomeMult) / 60
           : 0;
         // Cache BASE rates (without presence). Presence is applied at
         // accrual time: time-away proxy on open, live positions in tick.
@@ -3705,6 +3738,10 @@ export interface MissedDaysIncomeOptions {
   setBonusDates?: ReadonlySet<string>;
   /** The set bonus rate (0.10), from lib/mini-games. */
   setBonusRate?: number;
+  /** v323 (The Era Game): the era's income weather over the missed
+   *  days' coins, from lib/hometown-eras. Optional — a caller that
+   *  doesn't know the era settles un-aged, as before. XP never ages. */
+  eraIncomeMult?: number;
 }
 
 /**
@@ -3722,7 +3759,8 @@ export function missedDaysIncome(town: TownState, opts: MissedDaysIncomeOptions)
   const perDayCoins = dailyIncomeForTown(town, opts.milestoneMult, 1 + opts.houseCoinMult, opts.fellowshipBonus, opts.prayedCount, opts.remembranceBonus, opts.gardenVisitBonus, opts.prestigeMult, opts.nowMs, opts.depthBlessingMult ?? 1);
   const perDayXP = dailyXPForTown(town, opts.nowMs);
   if (!(days > 0 && (perDayCoins > 0 || perDayXP > 0))) return null;
-  let earnedCoins = days * perDayCoins;
+  const eraIncomeMult = opts.eraIncomeMult ?? 1;
+  let earnedCoins = days * perDayCoins * eraIncomeMult;
   // The day's-set bonus (v200): the missed window is the `days` dates
   // [lastDate, today) — the very dates this award settles, and the
   // caller's lastIncomeDate fold means each is settled exactly once,
@@ -3738,7 +3776,7 @@ export function missedDaysIncome(town: TownState, opts: MissedDaysIncomeOptions)
     }
     if (bonusDays > 0) {
       const perDayBase = dailyIncomeForTown(town, opts.milestoneMult, 1 + opts.houseCoinMult, opts.fellowshipBonus, opts.prayedCount, opts.remembranceBonus, opts.gardenVisitBonus, opts.prestigeMult, opts.nowMs, 1);
-      earnedCoins += setRate * perDayBase * bonusDays;
+      earnedCoins += setRate * perDayBase * bonusDays * eraIncomeMult;
     }
   }
   return { days, earnedCoins: Math.floor(earnedCoins), earnedXP: Math.round(days * perDayXP) };
@@ -3912,13 +3950,13 @@ export function bankFloorPriceMult(floor: number): number {
 
 /** Desk cost scales by floor (20 / 30 / 40 / 50 / 60) — economy-scaled. */
 export function bankDeskCost(floor: number): number {
-  return scaledCoins(BANK_DESK_COST * bankFloorPriceMult(floor));
+  return eraPriceCoins(BANK_DESK_COST * bankFloorPriceMult(floor));
 }
 
 /** Carpet cost scales by floor. Floor 1 carpets are 1 coin. */
 export function bankCarpetCost(floor: number): number {
   if (floor <= 1) return 1;
-  return Math.max(1, scaledCoins(bankFloorPriceMult(floor)));
+  return Math.max(1, eraPriceCoins(bankFloorPriceMult(floor)));
 }
 
 const DESK_TIER_NAMES = ["Desk", "Executive Desk", "Mahogany Desk", "Marble Desk", "Gold Desk"];
@@ -4065,7 +4103,7 @@ export function storageCapFor(type: "atm" | "vault", storageLevel?: number): num
 export function storageUpgradeCostFor(type: "atm" | "vault", storageLevel?: number): number | null {
   const lvl = Math.min(Math.max(storageLevel ?? 0, 0), MAX_STORAGE_LEVEL);
   if (lvl >= MAX_STORAGE_LEVEL) return null;
-  return scaledCoins(type === "atm" ? ATM_STORAGE_UPGRADE_COSTS[lvl] : VAULT_STORAGE_UPGRADE_COSTS[lvl]);
+  return eraPriceCoins(type === "atm" ? ATM_STORAGE_UPGRADE_COSTS[lvl] : VAULT_STORAGE_UPGRADE_COSTS[lvl]);
 }
 
 export function parseBankInterior(value: unknown): BankInteriorState {

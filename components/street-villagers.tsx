@@ -23,6 +23,7 @@ import { Animated, Easing, Pressable, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { PaperGlowDisc, PaperStandingVillager } from "@/components/paper-interior";
 import { paperMapLookFor } from "@/lib/paper-town";
+import { mixHex } from "@/lib/hometown-eras";
 import { getTimeOfDay } from "@/lib/daynight";
 import {
   isStreetWalkable,
@@ -40,6 +41,10 @@ const STROLL_PX_PER_SEC = 42;
 
 type VillagerTap = { id: string; name: string; tile?: { x: number; y: number } };
 
+/** v323 (The Era Game): the age's cloth — shirt/pants tint targets
+ *  and their blend strength. Faces never change; only the dress. */
+export type EraDress = { shirt: string; pants: string; mix: number };
+
 export const StreetVillagers = memo(function StreetVillagers({
   world,
   cellSize,
@@ -48,6 +53,7 @@ export const StreetVillagers = memo(function StreetVillagers({
   positionsRef,
   missionWaitingIds,
   onVillagerTap,
+  eraDress,
 }: {
   world: StreetWorld;
   cellSize: number;
@@ -59,6 +65,7 @@ export const StreetVillagers = memo(function StreetVillagers({
   positionsRef?: React.MutableRefObject<Array<{ x: number; y: number }>>;
   missionWaitingIds: Set<string>;
   onVillagerTap: (p: VillagerTap) => void;
+  eraDress?: EraDress | null;
 }) {
   const worldRef = useRef(world);
   worldRef.current = world;
@@ -75,6 +82,7 @@ export const StreetVillagers = memo(function StreetVillagers({
           positionsRef={positionsRef}
           missionWaiting={missionWaitingIds.has(light.personId)}
           onVillagerTap={onVillagerTap}
+          eraDress={eraDress}
         />
       ))}
     </>
@@ -90,6 +98,7 @@ function StreetVillager({
   positionsRef,
   missionWaiting,
   onVillagerTap,
+  eraDress,
 }: {
   light: LightInfo;
   index: number;
@@ -99,6 +108,7 @@ function StreetVillager({
   positionsRef?: React.MutableRefObject<Array<{ x: number; y: number }>>;
   missionWaiting: boolean;
   onVillagerTap: (p: VillagerTap) => void;
+  eraDress?: EraDress | null;
 }) {
   const startTile = useRef<WalkTile>(
     homeDoor ?? worldRef.current.cafe?.door ?? { x: 5, y: 5 }
@@ -293,7 +303,18 @@ function StreetVillager({
           </View>
         )}
         <PaperStandingVillager
-          look={paperMapLookFor({ id: light.personId, accentColor: light.accentColor })}
+          look={(() => {
+            const base = paperMapLookFor({ id: light.personId, accentColor: light.accentColor });
+            // v323: the era dresses the figure — shirt and pants tint
+            // toward the age's cloth; skin, hair and beard are the
+            // person's own in every age.
+            if (!eraDress || eraDress.mix <= 0) return base;
+            return {
+              ...base,
+              shirt: mixHex(base.shirt, eraDress.shirt, eraDress.mix),
+              pants: mixHex(base.pants, eraDress.pants, eraDress.mix),
+            };
+          })()}
           width={FIGURE_W}
         />
       </Pressable>

@@ -449,6 +449,18 @@ export default function PersonScreen() {
     )));
   };
 
+  // v329: the per-person emergency-notification mute. The switch
+  // speaks in the positive (ON = notifications on) and writes the
+  // person flag immediately, so it persists across renewals and
+  // takes effect on the pill's next sync — including mid-flight.
+  const handleToggleEmergencyNotifications = (enabled: boolean) => {
+    if (!personId) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    updatePeople((previousPeople) => previousPeople.map((person) => (
+      person.id === personId ? { ...person, emergencyNotificationsMuted: !enabled } : person
+    )));
+  };
+
   const handleAddItem = () => {
     if (!personId || !newItemTitle.trim()) return;
     updatePeople((previousPeople) => addPrayerItem(previousPeople, personId, newItemTitle));
@@ -948,6 +960,23 @@ export default function PersonScreen() {
             onValueChange={handleToggleScheduleCheckIns}
             trackColor={{ false: "#D9D2E5", true: colors.primary }}
             thumbColor="#FFFFFF"
+          />
+        </View>
+        {/* v329: the same per-person emergency mute that rides the
+            Emergency Prayer sheet — here beside the person's other
+            standing switch. Off silences only the tray pill; the
+            in-app emergency is unchanged. */}
+        <View style={[styles.scheduleCheckInsRow, !isSkinned && { borderRadius: 18, marginHorizontal: 16, backgroundColor: pm.card, borderColor: pm.line }]}>
+          <View style={styles.scheduleCheckInsCopy}>
+            <Text style={styles.scheduleCheckInsLabel}>Emergency notifications</Text>
+            <Text style={styles.scheduleCheckInsHint}>Show the tray notification for this person's emergency prayers</Text>
+          </View>
+          <Switch
+            value={currentPerson.emergencyNotificationsMuted !== true}
+            onValueChange={handleToggleEmergencyNotifications}
+            trackColor={{ false: "#D9D2E5", true: colors.primary }}
+            thumbColor="#FFFFFF"
+            accessibilityLabel={`Emergency notifications for ${currentPerson.name}`}
           />
         </View>
         <Text style={styles.longPressHint}>Tap to set today. Long-press to choose a previous date.</Text>
@@ -1566,6 +1595,23 @@ export default function PersonScreen() {
               returnKeyType="done"
               style={[styles.modalInput, { minHeight: 64, paddingTop: 12, textAlignVertical: "top", backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
+            {/* v329: the per-person emergency mute, seated where he
+                feels the pain — creating or renewing THIS person's
+                emergency. It writes the person flag immediately, so
+                it outlives this one prayer and every renewal. */}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 16 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.modalFieldLabel}>Notifications for this person</Text>
+                <Text style={{ color: colors.muted, fontSize: 11.5, fontWeight: "500", lineHeight: 15, marginTop: 2 }}>Off keeps the prayer in the app but off the notification tray — for this person, every time.</Text>
+              </View>
+              <Switch
+                value={currentPerson.emergencyNotificationsMuted !== true}
+                onValueChange={handleToggleEmergencyNotifications}
+                trackColor={{ false: "#D9D2E5", true: colors.primary }}
+                thumbColor="#FFFFFF"
+                accessibilityLabel={`Notifications for ${currentPerson.name}`}
+              />
+            </View>
             <Pressable onPress={handleAddEmergencyPrayer} style={({ pressed }) => [styles.modalPrimaryButton, { backgroundColor: "#EF4444" }, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Add Emergency Prayer</Text>
             </Pressable>

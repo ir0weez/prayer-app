@@ -261,20 +261,28 @@ export function chapterMarks(
   return { status: chapterStatus(state, book, chapter), readDate: chapterReadDate(state, book, chapter) };
 }
 
-// ─── v233: the display model — "Read means Read" ─────────────────────────────
-// HIS RULING (2026-10-24): "Instead of 'Complete' it should say 'Read'
-// unless there's notes for it, then it should mark both." Complete is
-// a claim about NOTES, so on a chapter with NO notes the headline
-// state is the READ state: the notes-state editor does not render,
-// and a stored notes-state of Complete — set in the studio, where the
-// pipeline is bookkeeping — DISPLAYS as Read and lights the read
-// affordance. The stored state itself is never deleted or rewritten
-// by the display: the interpretation lives here, in the display layer
-// only, and if notes ever arrive for the chapter (they flip `noted`),
-// the stored Complete becomes the headline again, meaningful as
-// itself. `noted` is computed by the caller from the data layer
-// (chapterHasNotes in studio-import.ts) so this module stays a pure
-// function of the study store plus that one fact.
+// ─── The display model — "Read means Read" ──────────────────────────────────
+// v233 (2026-10-24) ruled that a NOTELESS chapter with a stored
+// Complete should DISPLAY as Read: Complete was a claim about notes,
+// so on a chapter with no notes the headline fell to the read state.
+// That rule predates the v305 reads store — it painted read marks
+// (the grid ribbon, the "Read" pill) that Jonathan never set, driven
+// by the writing channel, so the Read toggle, which controls the
+// store alone, could never clear them. v329 (2026-10-28, his
+// Ecclesiastes report at 23:22: "Why is marking these complete also
+// marking them as read? And I can't turn it off...") supersedes that
+// clause under his settled model of the same day: Complete = Written,
+// Read = read — two independent channels. Now `displayRead` is true
+// ONLY when a real read mark exists in the store, and the headline
+// falls to 'read' only on a noteless chapter carrying NO writing
+// status (none / not-started — the one unset state) whose one mark
+// is the read mark. A noteless Complete presents as Complete — its
+// writing status — with no read ribbon, pill, or line, exactly as a
+// noted chapter does. The stored state itself is still never deleted
+// or rewritten by the display: the interpretation lives here, in the
+// display layer only. `noted` is computed by the caller from the data
+// layer (chapterHasNotes in studio-import.ts) so this module stays a
+// pure function of the study store plus that one fact.
 
 export interface ChapterDisplayMarks {
   /** The stored notes-written status, verbatim. */
@@ -283,11 +291,13 @@ export interface ChapterDisplayMarks {
   readDate: string | null;
   /** True when the chapter carries notes (shipped or imported). */
   noted: boolean;
-  /** True when the chapter should present as READ: it carries a read
-   * mark, or it is noteless with a stored Complete. */
+  /** True when the chapter should present as READ: it carries a
+   * real read mark in the store. Nothing else — a stored Complete,
+   * noted or not, never implies read (v329). */
   displayRead: boolean;
-  /** What the headline pill says: 'read' on a noteless chapter that
-   * presents as read; otherwise the stored notes status rules. */
+  /** What the headline pill says: 'read' only on a noteless chapter
+   * with no writing status whose one mark is a real read mark;
+   * otherwise the stored notes status rules. */
   headline: 'read' | 'status';
   /** The notes-state editor renders only where notes exist. */
   showNotesEditor: boolean;
@@ -301,13 +311,16 @@ export function chapterDisplayMarks(
 ): ChapterDisplayMarks {
   const status = chapterStatus(state, book, chapter);
   const readDate = chapterReadDate(state, book, chapter);
-  const displayRead = readDate !== null || (!noted && status === 'complete');
+  // v329: the v233 clause `|| (!noted && status === 'complete')` is
+  // gone — Read means Read, and only a read mark says so.
+  const displayRead = readDate !== null;
   return {
     status,
     readDate,
     noted,
     displayRead,
-    headline: !noted && displayRead ? 'read' : 'status',
+    headline:
+      !noted && displayRead && (status === 'none' || status === 'not-started') ? 'read' : 'status',
     showNotesEditor: noted,
   };
 }

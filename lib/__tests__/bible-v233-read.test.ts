@@ -1,16 +1,18 @@
 // ─── v233 "Read Means Read" — pins ──────────────────────────────────────────
 // Jonathan's model (2026-10-24): "Instead of 'Complete' it should say
 // 'Read' unless there's notes for it, then it should mark both."
-// Complete is a claim about NOTES. A chapter with no notes (shipped
-// data carries no entries, and no studio import adds any) headlines
-// as READ: no notes-state editor, and a stored Complete — his
-// Leviticus 1–19, set in the studio — displays as Read while the
-// stored state itself is never touched. A book with NO noted
-// chapters finishes by reading (every chapter Read pays the +100
-// under the same idempotent key); a book with even one noted chapter
-// still finishes only by notes-Complete. Part 1 pins ride along:
-// Genesis 6–10, recovered from Full_Commentary, are IN the app data,
-// and the generator carries the recovery stage that keeps them there.
+// Complete is a claim about NOTES. (v329, 2026-10-28: the noteless-
+// Complete-displays-as-Read clause below was SUPERSEDED by his
+// settled model of that day — Complete = Written, Read = read — and
+// his 23:22 report; the display-model test (a) is re-pinned there.
+// The finish rules in this file stand unchanged: they were always
+// computed from the stores, never from the display.) A book with NO
+// noted chapters finishes by reading (every chapter Read pays the
+// +100 under the same idempotent key); a book with even one noted
+// chapter still finishes only by notes-Complete. Part 1 pins ride
+// along: Genesis 6–10, recovered from Full_Commentary, are IN the
+// app data, and the generator carries the recovery stage that keeps
+// them there.
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -105,14 +107,21 @@ describe('hasNotes — computed from the data layer', () => {
   });
 });
 
-describe('the display model — noteless chapters headline as Read', () => {
-  it('(a) a stored Complete on a noteless chapter displays READ, shows no notes editor, and is never rewritten', () => {
+describe('the display model — Read means a real read mark (v329)', () => {
+  // RE-PINNED in v329: this test originally pinned the Oct 24 ruling
+  // (a stored Complete on a noteless chapter displays READ). His
+  // Oct 28 settled model — Complete = Written, Read = read, two
+  // independent channels — plus the 23:22 Ecclesiastes report ("Why
+  // is marking these complete also marking them as read? And I can't
+  // turn it off...") supersede that clause: the chapter now presents
+  // as its writing status, and only a real read mark says Read.
+  it('(a) a stored Complete on a noteless chapter displays as COMPLETE, shows no notes editor, and is never rewritten', () => {
     let state = seedStudyState();
     state = setChapterStatus(state, 'Leviticus', 19, 'complete');
     const d = chapterDisplayMarks(state, 'Leviticus', 19, chapterHasNotes('Leviticus', 19, {}));
     expect(d.noted).toBe(false);
-    expect(d.headline).toBe('read');
-    expect(d.displayRead).toBe(true);
+    expect(d.headline).toBe('status');
+    expect(d.displayRead).toBe(false);
     expect(d.showNotesEditor).toBe(false);
     // The stored mark itself stands exactly as he set it — the studio
     // still sees Complete; only the app's headline interprets it.

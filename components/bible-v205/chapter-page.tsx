@@ -461,8 +461,9 @@ export function ChapterPageView(props: ChapterPageProps) {
   // v228: the READ track, displayed on this page but never derived
   // from the notes status above — the two marks are independent.
   const readDate: string | null = studyState ? chapterReadDate(studyState, book, chapter) : null;
-  // v233: the display model — on a chapter with NO notes the strip
-  // headlines READ, not a notes state (chapterDisplayMarks in study.ts).
+  // The display model — on a chapter with NO notes and NO writing
+  // status the strip headlines READ off a real read mark, never off
+  // a notes state (chapterDisplayMarks in study.ts; v329).
   const display = studyState
     ? chapterDisplayMarks(studyState, book, chapter, chapterHasNotes(book, chapter, studioImports))
     : null;
@@ -842,9 +843,13 @@ export function ChapterPageView(props: ChapterPageProps) {
                 <Text style={[styles.stripLabel, { color: palette.inkSoft }]}>Study</Text>
                 <ReadChip palette={palette} />
                 <Text style={[styles.stripText, { color: palette.ink }]}>
+                  {/* v329: headline 'read' now implies a real read
+                      mark, so the date always stands here. The v233
+                      fallback sentence ("a Complete here counts as
+                      Read") is retired — Complete counts as Written. */}
                   {readDate
                     ? `Chapter ${chapter} — read ${formatReadDate(readDate)}. No notes for this chapter — reading is the whole mark.`
-                    : `Chapter ${chapter} — read. No notes for this chapter, so a Complete here counts as Read.`}
+                    : `Chapter ${chapter} — read. No notes for this chapter — reading is the whole mark.`}
                 </Text>
               </View>
             ) : (

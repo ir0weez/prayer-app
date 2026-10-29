@@ -117,6 +117,16 @@ export type Person = {
    *  are cleared wherever the praise state is cleared (clearPraise). */
   praiseTitle?: string;
   showInPrayerCheckIns?: boolean; // Whether overdue 14-day check-ins appear on the schedule
+  /** v329: per-person mute for the emergency tray notification. The
+   * native timer pill is the only emergency notification (v309); a
+   * muted person's emergencies still pin in-app, join Pray Today,
+   * and run their window exactly as before — they simply never raise
+   * the pill, on create or on Renew. Absent/false = notifications ON:
+   * every existing person starts unmuted, and no migration sets it.
+   * Jonathan (2026-10-28 23:16): he renews one man's father's
+   * emergency for months and doesn't want it constantly on his tray,
+   * while his wife's emergencies must stay loud. */
+  emergencyNotificationsMuted?: boolean;
   lifeVerse?: LifeVerseRef; // v310: the person's life verse reference (text resolves from KJV data)
 };
 
@@ -910,6 +920,9 @@ export function normalizePeopleForStorage(people: Person[]): Person[] {
       lastPrayerCompletedDate: person.lastPrayerCompletedDate ?? null,
       isPersonal: person.isPersonal ?? false,
       showInPrayerCheckIns: person.showInPrayerCheckIns ?? true,
+      // v329: the mute survives storage round-trips verbatim; absent
+      // stays absent (unmuted) — normalization never mutes anyone.
+      emergencyNotificationsMuted: person.emergencyNotificationsMuted === true ? true : undefined,
       isPraised: person.isPraised ?? false,
       praiseExpiresAt: person.praiseExpiresAt ?? undefined,
       lifeVerse: sanitizeLifeVerseRef(person.lifeVerse),
@@ -1217,7 +1230,7 @@ export function formatEmergencyPrayerCountdown(millisRemaining: number): string 
 export function getAllActiveEmergencyPrayers(people: Person[]): Array<{ person: Person; item: PrayerItem }> {
   const now = new Date().toISOString();
   const emergencies: Array<{ person: Person; item: PrayerItem }> = [];
-  
+
   people.forEach((person) => {
     person.prayerItems.forEach((item) => {
       if (item.isEmergency && item.emergencyExpiresAt && item.emergencyExpiresAt > now) {
@@ -1225,8 +1238,23 @@ export function getAllActiveEmergencyPrayers(people: Person[]): Array<{ person: 
       }
     });
   });
-  
+
   return emergencies;
+}
+
+// ─── v329: which active emergencies may raise the tray pill ──────────
+// The pill (the native timer pill synced on the People tab) is the
+// only emergency notification. A person whose emergencyNotifications
+// Muted flag is set is filtered OUT here — and ONLY here: every
+// in-app surface (pinned cards, Pray Today, countdowns) keeps reading
+// getAllActiveEmergencyPrayers above, untouched. Filtering at this
+// one derivation covers the whole lifecycle: a muted person's
+// emergency never starts the pill (create or Renew), muting a person
+// mid-flight drops their emergency from the next sync (the pill
+// stops or moves to the next notifiable emergency), and unmuting
+// mid-flight puts it back with whatever time remains.
+export function getNotifiableActiveEmergencyPrayers(people: Person[]): Array<{ person: Person; item: PrayerItem }> {
+  return getAllActiveEmergencyPrayers(people).filter(({ person }) => person.emergencyNotificationsMuted !== true);
 }
 
 // Helper: Get progress percentage (0-1) for emergency prayer countdown

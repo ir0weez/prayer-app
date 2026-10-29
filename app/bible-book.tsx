@@ -9,9 +9,9 @@
 // READING and MY WRITING (the drawing's names for the v234 two
 // families), ReStudy standing ONCE (its chip), Not Started and None
 // merged into one unset state with one Clear path, and no explanatory
-// captions anywhere in the sheet (his standing rule). The v233
-// display model still decides what shows — the bookmark IS its
-// displayRead, the sheet's headline pill IS its headline.
+// captions anywhere in the sheet (his standing rule). The display
+// model still decides what shows — the bookmark IS its displayRead,
+// the sheet's headline pill IS its headline.
 // v313 (his verdict on v311/v312, Oct 28 14:24–14:26): the sheet is
 // retired — "I want this box back under the chapters list… It's
 // stupid that it's on its own screen." The SAME box (the drawing's
@@ -139,8 +139,10 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
   const readDateOf = (c: number): string | null =>
     studyState ? chapterMarks(studyState, book, c).readDate : null;
 
-  // v233: the display model — a chapter with no notes (shipped or
-  // imported) headlines as READ, never Complete (chapterDisplayMarks).
+  // The display model (chapterDisplayMarks): displayRead is a real
+  // read mark in the store and nothing else (v329 — a noteless
+  // Complete no longer presents as Read; it headlines as its own
+  // writing status, like any noted chapter).
   const displayOf = (c: number): ChapterDisplayMarks =>
     studyState
       ? chapterDisplayMarks(studyState, book, c, chapterHasNotes(book, c, studioImports))
@@ -153,6 +155,8 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
           showNotesEditor: false,
         };
 
+  // v329: the countline's read count is genuine read marks only —
+  // displayRead no longer counts a noteless Complete as read.
   const readCount = useMemo(() => {
     let n = 0;
     for (let c = 1; c <= total; c++) if (displayOf(c).displayRead) n += 1;
@@ -300,8 +304,9 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
                 const d = displayOf(c);
                 // v311 two channels: the FILL is the writing status
                 // (chapterDisplayMarks.status — the stored state, always);
-                // the BOOKMARK is the read mark (displayRead, the v233
-                // presentation — a noteless Complete reads as read).
+                // the BOOKMARK is the read mark (displayRead — a real
+                // read mark in the store, v329; a Complete cell no
+                // longer grows one it never earned).
                 const st = cellDressFor(palette, d.status);
                 const isSel = c === selected;
                 return (

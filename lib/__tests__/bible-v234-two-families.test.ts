@@ -6,9 +6,8 @@
 // Read as Stories · the read-mark switch) and MY WRITING (the
 // notes-written pipeline chips) — ReStudy standing ONCE, as a chip
 // in My Writing (the old second door, the Your Study "Add to
-// ReStudy Queue" button, is retired). Presentation only: the v233
-// display model (chapterDisplayMarks) still decides what shows,
-// untouched.
+// ReStudy Queue" button, is retired). Presentation only: the
+// display model (chapterDisplayMarks) still decides what shows.
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -77,8 +76,14 @@ describe('the chapter page strip — the same two families, labeled', () => {
 
   it('the read line keeps its words — a read date still shows on the strip', () => {
     expect(src).toContain('✓ Read ${formatReadDate(readDate)}');
-    // …and the v233 noteless headline sentences are unchanged.
+    // …and the v233 noteless headline sentence stands for a chapter
+    // whose one mark is a real read.
     expect(src).toContain('No notes for this chapter — reading is the whole mark.');
-    expect(src).toContain('so a Complete here counts as Read.');
+    // RE-PINNED in v329: the v233 fallback sentence ("so a Complete
+    // here counts as Read") is retired. Under his Oct 28 settled
+    // model (Complete = Written, Read = read — independent channels)
+    // and his 23:22 report, a Complete never counts as Read, and
+    // the strip must not say it does.
+    expect(src).not.toContain('counts as Read');
   });
 });

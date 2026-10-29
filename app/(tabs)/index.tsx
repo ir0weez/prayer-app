@@ -143,6 +143,7 @@ import {
   formatEmergencyPrayerCountdown,
   getEmergencyPrayerProgress,
   getAllActiveEmergencyPrayers,
+  getNotifiableActiveEmergencyPrayers,
   clearEmergencyPrayerItem,
   getDuePersonalTodos,
   getNextPersonalTodo,
@@ -1687,9 +1688,13 @@ export default function HomeScreen() {
 
       // Sync the native emergency live pill (progress bar + countdown + actions).
       // Show the first active emergency; refresh progress at most every 30s.
+      // v329: the pill's candidates are the NOTIFIABLE emergencies —
+      // a person he muted never raises the pill (their in-app
+      // emergency is untouched; every other surface still reads the
+      // unfiltered list). The master toggle below still gates all.
       try {
         if (isNativePrayerTimerAvailable()) {
-          const active = getAllActiveEmergencyPrayers(people);
+          const active = getNotifiableActiveEmergencyPrayers(people);
           const pill = emergencyPillRef.current;
           if (!emergencyPraiseEnabledRef.current) {
             // v309: "Emergency & praise notifications" is off — the
@@ -1764,7 +1769,9 @@ export default function HomeScreen() {
     }
     const sub = addEmergencyDismissListener(() => {
       const current = peopleRef.current;
-      const active = getAllActiveEmergencyPrayers(current);
+      // v329: Dismiss answers the pill, and the pill only ever shows
+      // a notifiable emergency — clear the one it is showing.
+      const active = getNotifiableActiveEmergencyPrayers(current);
       if (active.length === 0) {
         stopEmergencyNotification();
         return;

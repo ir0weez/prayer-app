@@ -121,11 +121,19 @@ describe("v298 whites — black in dark mode (his ruling)", () => {
 });
 
 describe("v298 squares — hold-for-options restored to EventCard's anatomy", () => {
-  it("the rest square carries the explicit 500ms long-press to the editor", () => {
-    expect(restSquare).toContain("onLongPress={onLongPress}");
+  it("the rest square carries the explicit 500ms long-press (destination SUPERSEDED by v332)", () => {
+    // v298 made the hold FIRE (the explicit delay); it still landed
+    // in the editor, because the call site wired it straight there.
+    // Jonathan, Oct 29: "hold for options still doesn't work for
+    // the Rest Squares. It just brings up the edit page
+    // automatically." v332 gave the square MinistrySquare's own
+    // menu: hold opens the menu, Edit inside it opens the editor.
+    expect(restSquare).toContain("onLongPress={handleLongPress}");
     expect(restSquare).toContain("delayLongPress={500}");
-    // The ministry-group call site wires that long-press to the editor.
-    expect(scheduleTab).toContain("onLongPress={() => openEventEditor(restEvent)}");
+    // The ministry-group call site now hands the editor in as the
+    // menu's Edit action instead of wiring the hold to it directly.
+    expect(scheduleTab).toContain("onEdit={() => openEventEditor(restEvent)}");
+    expect(scheduleTab).not.toContain("onLongPress={() => openEventEditor(restEvent)}");
   });
 
   it("the ministry square's menu is a sibling of its Pressable, not a child", () => {

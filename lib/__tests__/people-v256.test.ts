@@ -227,7 +227,11 @@ describe("v256 source pins — tab bar = Concept 2, Expressive (v259: components
   });
 
   it("the Pray Today pill is Concept 2's: filled seed, centered above the taller bar, gold count chip kept", () => {
-    expect(index).toContain("bottom: isClassicSkin ? 103 : 140");
+    // Seat re-pinned by v332: the hardcoded 103 was v256's constant,
+    // drawn against the pre-v306 flat-91 bar; v306 raised the bar by
+    // the inset and the pill now derives (occupied + 12) like the
+    // sibling seats. Dress (seed fill, gold chip) unchanged.
+    expect(index).toContain("bottom: isClassicSkin ? tabBarOccupied + 12 : 140");
     expect(index).toContain("backgroundColor: isSkinned ? 'rgba(123, 92, 255, 0.85)' : pmf.seed");
   });
 

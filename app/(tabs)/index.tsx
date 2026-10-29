@@ -22,7 +22,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { PrayerSession } from "@/components/prayer-session";
 import { AttentionBell } from "@/components/attention-bell";
-import { AppTabBar, type AppNavTab } from "@/components/app-tab-bar";
+import { AppTabBar, useTabBarOccupiedHeight, type AppNavTab } from "@/components/app-tab-bar";
 import { ScheduleFabHost } from "@/components/schedule-fab-host";
 import { BiblePane } from "@/components/bible-pane";
 import {
@@ -1753,6 +1753,12 @@ export default function HomeScreen() {
   const pmf: PeopleFrontDoorFamily = isClassicSkin
     ? frontDoorFamily
     : { ...pm, washSub: pm.inkSoft, queueTeal: pm.tealDeep, navGround: pm.card, navInk: pm.inkSoft, navActiveInk: pm.deep, navInd: pm.wash2, navTick: pm.seed, container: pm.wash };
+  // v332: the Pray Today pill's Classic seat derives from the bar's
+  // occupied height, like the sibling seats (schedule FAB, journal
+  // FAB). Its hardcoded 103 predates v306, which raised the Classic
+  // bar by the safe-area inset — on gesture-nav devices the bar's
+  // top edge now rides above 103 and the pill overlapped it.
+  const tabBarOccupied = useTabBarOccupiedHeight();
 
   // Emergency notification "Dismiss" button: clear the active emergency prayer.
   // Uses a ref so the listener always sees the latest people list.
@@ -6304,7 +6310,7 @@ export default function HomeScreen() {
           onPress={openPrayerSession}
           style={{
             position: "absolute",
-            bottom: isClassicSkin ? 103 : 140,
+            bottom: isClassicSkin ? tabBarOccupied + 12 : 140,
             alignSelf: "center",
             backgroundColor: isSkinned ? 'rgba(123, 92, 255, 0.85)' : pmf.seed,
             borderRadius: 999,

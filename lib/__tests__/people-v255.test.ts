@@ -224,8 +224,11 @@ describe("v255 source pins — tab bar as drawn (v259: components/app-tab-bar.ts
     expect(index).toContain('setActiveTab("people"); setShowAddPerson(true);');
   });
 
-  it("6 · SUPERSEDED by v256 — the floating Pray Today pill wears Concept 2's filled seed above the taller Expressive bar (103), unchanged for the skins (140)", () => {
-    expect(index).toContain("bottom: isClassicSkin ? 103 : 140");
+  it("6 · SUPERSEDED by v256, seat SUPERSEDED by v332 — the floating Pray Today pill wears Concept 2's filled seed above the taller Expressive bar, unchanged for the skins (140)", () => {
+    // v332: the Classic seat's hardcoded 103 predates v306, which
+    // raised the bar by the safe-area inset — the pill now derives
+    // from useTabBarOccupiedHeight + 12 like every sibling seat.
+    expect(index).toContain("bottom: isClassicSkin ? tabBarOccupied + 12 : 140");
     expect(index).toContain("pmf.seed");
   });
 

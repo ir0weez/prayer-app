@@ -9505,15 +9505,44 @@ function MinistryTypeArt({ type, accent }: { type: string; accent: string }) {
 function RestSquare({
   event,
   onPress,
-  onLongPress,
+  onEdit,
+  onDelete,
 }: {
   event: any;
   onPress?: (position?: any) => void;
-  onLongPress?: (e: any) => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const colors = useColors();
   const { isPaper, isEightBit, isSkinned, tokens: skinTokens } = useSkin();
   const mood = getRestMood(event.startTime);
+  // v332: hold-for-options, MinistrySquare's anatomy — the square
+  // owns its context menu (state inside, menu rendered as a sibling
+  // of the Pressable). Until now the call site wired the hold
+  // straight into the editor, so holding a Rest square skipped the
+  // menu every other card shows.
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+
+  const handleLongPress = (e: any) => {
+    setContextMenuPos({ x: e.nativeEvent.pageX, y: e.nativeEvent.pageY });
+    setContextMenuVisible(true);
+  };
+
+  const contextMenuActions: ContextMenuAction[] = [];
+  if (onEdit) {
+    contextMenuActions.push({
+      label: 'Edit',
+      icon: 'edit',
+      onPress: () => {
+        setContextMenuVisible(false);
+        onEdit();
+      },
+    });
+  }
+  if (onDelete) {
+    contextMenuActions.push({ label: 'Delete', icon: 'delete', onPress: onDelete, isDestructive: true });
+  }
   const mc = REST_MOODS[mood];
   // Gentle breathing animation on the icon — except under Terminal,
   // whose dialect has no sine in it: the icon holds still and lit.
@@ -9535,9 +9564,10 @@ function RestSquare({
   const iconScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
   const iconOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] });
   return (
+    <>
     <Pressable
       onPress={(e) => onPress?.({ x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
-      onLongPress={onLongPress}
+      onLongPress={handleLongPress}
       delayLongPress={500}
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
@@ -9576,6 +9606,14 @@ function RestSquare({
         )}
       </View>
     </Pressable>
+    <ContextMenu
+      visible={contextMenuVisible}
+      x={contextMenuPos.x}
+      y={contextMenuPos.y}
+      actions={contextMenuActions}
+      onDismiss={() => setContextMenuVisible(false)}
+    />
+    </>
   );
 }
 
@@ -13689,7 +13727,23 @@ export function ScheduleTab({
                     else revokeTodoXP(restEvent.id, position);
                     setEvents((prev) => toggleEventCompleted(prev, restEvent.id));
                   }}
-                  onLongPress={() => openEventEditor(restEvent)}
+                  onEdit={() => openEventEditor(restEvent)}
+                  onDelete={() => {
+                    Alert.alert(
+                      'Delete Event',
+                      `Are you sure you want to delete "${restEvent.title}"?`,
+                      [
+                        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+                        {
+                          text: 'Delete',
+                          onPress: () => {
+                            setEvents((prev) => prev.filter(e => e.id !== restEvent.id));
+                          },
+                          style: 'destructive',
+                        },
+                      ]
+                    );
+                  }}
                 />
               )}
               {groupMinistries.map((m) => (

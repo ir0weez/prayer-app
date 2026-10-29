@@ -4409,6 +4409,12 @@ export default function HomeScreen() {
   //               lands on the matching ministry record (created when
   //               the desk's Schedule tab is its only source)
   // One combined summary names what the whole file did.
+  // v345: the door also takes the COMBINED pack (prayercircle-pack.json)
+  // — the five packs' flat union under a "pack": "combined" marker (the
+  // envelope contract lives on parseStudioFileFull). The summary grew
+  // honest: schedule counts split by kind with dedupe matches named,
+  // and schedule rows with invalid minutes are repaired at validation
+  // (timed → 60, all day → 0) and counted, never silently refused.
   const handleImportStudioPack = async () => {
     try {
       const raw = await pickStudioPackText();
@@ -4476,6 +4482,7 @@ export default function HomeScreen() {
         // un-reads a chapter or re-dates one backwards (v228).
         const reads = applyStudioStatesReads(state, plan.states.chapters);
         counts.readMarks = reads.applied;
+        counts.readMarksAlreadyThere = reads.alreadyThere;
         if (reads.applied > 0) {
           state = reads.state;
           await saveStudyState(state);
@@ -4499,7 +4506,14 @@ export default function HomeScreen() {
         const merged = mergeStudioSchedule(existingEvents, existingTodos, plan.schedule);
         await AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(merged.events));
         await AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(merged.todos));
-        counts.eventsAdded = merged.added;
+        // v345: the split counts feed the honest summary (events and
+        // todos apart, dedupe matches named), and the minutes the
+        // validator repaired ride along so the repair is reported.
+        counts.scheduleEventsAdded = merged.eventsAdded;
+        counts.scheduleTodosAdded = merged.todosAdded;
+        counts.scheduleEventsAlreadyThere = merged.eventsAlreadyThere;
+        counts.scheduleTodosAlreadyThere = merged.todosAlreadyThere;
+        counts.minutesRepaired = plan.schedule.minutesRepaired ?? 0;
       }
 
       if (peopleResult) {

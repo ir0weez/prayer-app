@@ -118,21 +118,26 @@ export function validateStudioStates(raw: unknown, where = 'studioStates'): Stud
  * chapter is unread or the pack's date is LATER; a null never clears.
  * Notes states are NOT applied here: they walk transitionChapterStatus
  * at the door (XP + position semantics live there). Returns the next
- * state and how many read marks actually moved.
+ * state, how many read marks actually moved, and — v345 — how many
+ * carried marks were already there (the stored date equal or later),
+ * so the door's summary can name the forward-only skips.
  */
 export function applyStudioStatesReads(
   state: StudyState,
   entries: StudioStateEntry[],
-): { state: StudyState; applied: number } {
+): { state: StudyState; applied: number; alreadyThere: number } {
   let next = state;
   let applied = 0;
+  let alreadyThere = 0;
   for (const entry of entries) {
     if (entry.readDate === null) continue;
     const current = next.reads[`${entry.book}|${entry.chapter}`] ?? null;
     if (current === null || entry.readDate > current) {
       next = setChapterRead(next, entry.book, entry.chapter, entry.readDate);
       applied += 1;
+    } else {
+      alreadyThere += 1;
     }
   }
-  return { state: next, applied };
+  return { state: next, applied, alreadyThere };
 }

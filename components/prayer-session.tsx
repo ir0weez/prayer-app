@@ -1221,8 +1221,8 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose, m
             position: "absolute",
             width: win.width,
             height: win.height,
-            left: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [-startLeft, insets.left] }),
-            top: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [-startTop, insets.top] }),
+            left: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [-(startLeft + insets.left), 0] }),
+            top: morphProgress.interpolate({ inputRange: [0, 1], outputRange: [-(startTop + insets.top), 0] }),
             opacity: morphProgress.interpolate({ inputRange: [0.55, 1], outputRange: [0, 1] }),
           }}
           pointerEvents={morphEntered ? "auto" : "none"}

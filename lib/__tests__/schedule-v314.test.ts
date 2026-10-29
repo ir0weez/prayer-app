@@ -35,6 +35,11 @@
 //     material. Not smaller") — the v314 card below stands
 //     unchanged in v317, its exact form to be settled by one
 //     mockup round, not re-decided in this build.
+//     → v318: the mockup round settled it — Concept 1 v4 (the
+//     M3 list card) approved Oct 28 18:53 replaces the v314 Up
+//     Next card; the pins below are re-pinned to that form with
+//     the reason "v318 — Concept 1 v4 approved 2026-10-28 18:53"
+//     and the full spec lives in schedule-v318.test.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, expect, it } from "vitest";
@@ -139,8 +144,10 @@ describe("v314 claimed grouping — the day page renders ONE box per run", () =>
 describe("v314 up next + day off — proper Material cards, not slim strips", () => {
   // v317 note (his correction, Oct 28 18:35): the DAY OFF pin in
   // this block is re-pinned to the restored slim band below; the
-  // UP NEXT pins stand exactly as v314 left them — the card
-  // stands unchanged in v317, the slim pill is ruled out.
+  // UP NEXT pins stood exactly as v314 left them through v317.
+  // v318 — Concept 1 v4 approved 2026-10-28 18:53: the UP NEXT
+  // pins are re-pinned to the LIST CARD (the full spec lives in
+  // schedule-v318.test.ts): the v314 seed-toned card is retired.
   const upNextCase = scheduleTab.slice(
     scheduleTab.indexOf('case "up-next"'),
     scheduleTab.indexOf('case "time-off"'),
@@ -150,19 +157,23 @@ describe("v314 up next + day off — proper Material cards, not slim strips", ()
     timeOffTravel.indexOf("const ROUTE_RE"),
   );
 
-  it("up next: radius 22 card in the derived primary container, real padding", () => {
-    expect(upNextCase).toContain("borderRadius: 22, backgroundColor: stripTones.primaryContainer");
-    expect(upNextCase).toContain("paddingHorizontal: 16, paddingVertical: 15");
+  it("up next: v318 — Concept 1 v4 approved 2026-10-28 18:53 — radius 24, surface a light tint of the lead item's colour", () => {
+    expect(upNextCase).toContain("borderRadius: 24, backgroundColor: upNextSurface");
+    expect(upNextCase).toContain("const upNextSurface = mix(leadColor, colors.surface, 0.86);");
+    expect(upNextCase).toContain("paddingHorizontal: 20, paddingTop: 18, paddingBottom: 8");
     expect(upNextCase).not.toContain("height: 44");
+    // The v314 form (seed container, radius 22) is retired.
+    expect(upNextCase).not.toContain("borderRadius: 22, backgroundColor: stripTones.primaryContainer");
     expect(upNextCase).not.toContain("borderRadius: 999, backgroundColor: stripTones.primaryContainer");
   });
 
-  it("up next: eyebrow + title + time + chevron, and the card still toggles the item", () => {
+  it("up next: v318 — filled label pill + the group's shared time, group rows each toggling their own item", () => {
     expect(upNextCase).toContain(">UP NEXT</Text>");
-    expect(upNextCase).toContain("{nd.title}");
-    expect(upNextCase).toContain("format12HourTime(nd.startTime)");
-    expect(upNextCase).toContain('name="chevron-right" size={19}');
-    expect(upNextCase).toContain("onPress={toggleNext}");
+    expect(upNextCase).toContain("backgroundColor: leadRamp.deep, borderRadius: 999");
+    expect(upNextCase).toContain("{format12HourTime(leadItem.startTime)}");
+    expect(upNextCase).toContain("entries.map((entry, entryIdx)");
+    expect(upNextCase).not.toContain("chevron-right");
+    expect(upNextCase).toContain("onPress={toggleEntry(entry)}");
   });
 
   it("day off: v317 re-pin (his verdicts 2026-10-28 18:28 + 18:35) — the v308 slim band restored: 46px, radius 12, SOLID trip colour", () => {

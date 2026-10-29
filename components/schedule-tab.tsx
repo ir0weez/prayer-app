@@ -7549,6 +7549,76 @@ function WhiteBlockCircleButton({ label, icon, color, onPress }: { label: string
   );
 }
 
+// ─── v318 Up Next (Concept 1 v4 — approved by Jonathan Oct 28
+// 18:53, "Okay add it"): the thread's leading dot and the rows'
+// 40px thumbnails live here as their own components. ──────────────
+
+/** The Up Next thread's leading dot: a soft opacity pulse on the
+    native driver (the whites' NowPill pulse is the precedent —
+    calm sine, no bounce): 1.2s down to 0.3, 1.2s back, ~2.4s a
+    breath, exactly the drawing's keyframes. */
+function UpNextPulseDot({ color, style }: { color: string; style?: any }) {
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.3, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return <Animated.View pointerEvents="none" style={[{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, opacity }, style]} />;
+}
+
+/** One Up Next row's 40px radius-12 leading thumbnail.
+    EVENT rows carry the item's own keyword scene artwork
+    miniaturised: the SAME scene component the full-bleed card
+    renders (KeywordAmbientAnimation), composed on a
+    card-proportioned stage (360×160) and transform-scaled into
+    the tile, clipped by the tile's radius. Colour-only events
+    (and time-off events, whose cards show no scene) get a tile in
+    the event's colour with its glyph. TODO rows get a tile in the
+    todo's own colour with its icon glyph (white) — the stored
+    icon, else the title-derived one, else a check. MINISTRY rows
+    get a tile in the ministry colour with its type glyph. */
+function UpNextThumb({ kind, item }: { kind: "todo" | "event" | "ministry"; item: any }) {
+  const colors = useColors();
+  if (kind === "event") {
+    const keyword = item.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === item.keyword) : detectEventKeyword(item.title, item.location, item.notes);
+    if (keyword && !item.isOffEvent) {
+      return (
+        <View style={{ width: 40, height: 40, borderRadius: 12, overflow: "hidden", backgroundColor: keyword.bgColor }}>
+          <View pointerEvents="none" style={{ width: 360, height: 160, transformOrigin: "left top", transform: [{ scaleX: 40 / 360 }, { scaleY: 40 / 160 }] }}>
+            <KeywordAmbientAnimation label={keyword.label} title={item.title} location={item.location} notes={item.notes} />
+          </View>
+        </View>
+      );
+    }
+    const eventColor = item.color || keyword?.accentColor || colors.primary;
+    return (
+      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: eventColor, alignItems: "center", justifyContent: "center" }}>
+        <MaterialIcons name={(keyword?.icon || "event") as any} size={22} color="#FFFFFF" />
+      </View>
+    );
+  }
+  if (kind === "todo") {
+    const todoColor = item.color || colors.primary;
+    return (
+      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: todoColor, alignItems: "center", justifyContent: "center" }}>
+        <MaterialIcons name={(item.icon || getIconForTodo(item.title) || "check") as any} size={22} color="#FFFFFF" />
+      </View>
+    );
+  }
+  const ministryColor = item.color || "#7C5CFF";
+  return (
+    <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: ministryColor, alignItems: "center", justifyContent: "center" }}>
+      <MaterialIcons name={getMinistryTypeIcon(item.type as any) as any} size={22} color="#FFFFFF" />
+    </View>
+  );
+}
+
 // Holiday keywords get bigger, pinned-to-top cards so they stand out.
 const HOLIDAY_KEYWORD_LABELS = [
   "Christmas",
@@ -12562,18 +12632,36 @@ export function ScheduleTab({
     // surface: he approved v32 with the strip in the day page —
     // "Love it, build it", Oct 27 — and named its absence a
     // mismatch on Oct 28.)
+    // v318 (Concept 1 v4, approved Oct 28 18:53): the seat carries
+    // the whole next start-time GROUP — every uncompleted timed
+    // item sharing the earliest upcoming start gets a row in the
+    // card — plus the progress thread's anchor: the end of the
+    // timed item immediately before the group (the latest end
+    // among today's timed items that start earlier), or the
+    // 5:00 AM window start when the group leads the day.
     if (!isSkinned && selectedDate === today) {
       const nowMin = clockNow.getHours() * 60 + clockNow.getMinutes();
-      const nextCandidate = [
+      const upcoming = [
         ...dayTodos.filter((t: any) => t.startTime && !t.isCompleted).map((t: any) => ({ kind: "todo" as const, item: t })),
         ...dayEvents.filter((e: any) => e.startTime && !e.isCompleted && !e.isHoliday).map((e: any) => ({ kind: "event" as const, item: e })),
         ...dayMinistries.filter((m: any) => m.startTime && !m.isCompleted).map((m: any) => ({ kind: "ministry" as const, item: m })),
       ]
         .filter((c) => timeToMinutes(c.item.startTime) > nowMin)
-        .sort((a, b) => timeToMinutes(a.item.startTime) - timeToMinutes(b.item.startTime))[0];
-      if (nextCandidate) {
+        .sort((a, b) => timeToMinutes(a.item.startTime) - timeToMinutes(b.item.startTime));
+      const leadCandidate = upcoming[0];
+      if (leadCandidate) {
+        const startMin = timeToMinutes(leadCandidate.item.startTime);
+        const entries = upcoming.filter((c) => timeToMinutes(c.item.startTime) === startMin);
+        let anchorMin = 5 * 60;
+        for (const it of [...dayTodos, ...dayEvents, ...dayMinistries] as any[]) {
+          if (!it.startTime) continue;
+          const s = timeToMinutes(it.startTime);
+          if (s >= startMin) continue;
+          const e = it.endTime ? timeToMinutes(it.endTime) : s;
+          if (e > anchorMin && e <= startMin) anchorMin = e;
+        }
         const studyIdx = items.findIndex((i) => i.type === "personal-study-card");
-        items.splice(studyIdx >= 0 ? studyIdx + 1 : 0, 0, { type: "up-next", id: "up-next", data: nextCandidate });
+        items.splice(studyIdx >= 0 ? studyIdx + 1 : 0, 0, { type: "up-next", id: "up-next", data: { entries, startMinutes: startMin, anchorMinutes: anchorMin } });
       }
     }
 
@@ -13183,30 +13271,58 @@ export function ScheduleTab({
           );
         }
         case "up-next": {
-          // v314 (his correction, Oct 28 14:54): "I didn't want you
-          // to make the 'Up Next' line in the schedule smaller. I
-          // just wanted it to look better. It didn't look like an
-          // appropriate material design style card." The v308 slim
-          // 44px pill is replaced by a REAL Material card — full
-          // width in the same seat (today only, after the study
-          // card), tonal primary-container fill (derived), radius
-          // 22, comfortable padding: the UP NEXT eyebrow, the item's
-          // title at full card weight, its time under it in the deep
-          // step, and a chevron riding in a tonal circle. Not the
-          // old fat event-card clone either — a deliberate card.
-          // The whole card is still the tap (his no-bubbles model):
-          // it toggles the named item through the same handlers its
-          // own card uses.
-          const nextData = item.data as { kind: "todo" | "event" | "ministry"; item: any };
-          const nd = nextData.item;
-          const stripTones = scheduleMaterialTones(colors.primary, colors.surface);
-          const toggleNext = (e: any) => {
+          // v318 — Concept 1 v4, the M3 LIST CARD, approved by
+          // Jonathan Oct 28 18:53 ("Okay add it") from drawing
+          // schedule-upnext-concept1-v4.html. It retires BOTH
+          // earlier forms in this seat (the v308 slim pill and the
+          // v314 tonal card) for the design he picked from the
+          // three-concept round: a full-width card (radius 24) in
+          // the same seat — today only, directly after the study
+          // card — whose COLOUR FOLLOWS THE CURRENT ITEM (his
+          // 18:54 ruling): the surface is a light tint of the lead
+          // item's chosen colour, stepped from it the way other
+          // item-coloured surfaces derive; the filled "UP NEXT"
+          // pill wears that colour's deep step; the progress
+          // thread under the header fills in that colour toward
+          // the group's start, its leading dot breathing softly.
+          // THE SAME-TIME RULE (his 18:47 question — "what happens
+          // if two or three things are scheduled for the same
+          // time?"): the card lists EVERY item sharing the next
+          // start time, one row each, hairlines between; each row
+          // leads with the item's own artwork (event scene
+          // miniaturised, or its colour tile) and keeps the tap
+          // behaviour its own card has — the row toggles its item
+          // through the same handlers (his no-bubbles model).
+          const upData = item.data as { entries: Array<{ kind: "todo" | "event" | "ministry"; item: any }>; startMinutes: number; anchorMinutes: number };
+          const entries = upData.entries;
+          const leadEntry = entries[0];
+          const leadItem = leadEntry.item;
+          const leadKeyword = leadEntry.kind === "event"
+            ? (leadItem.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === leadItem.keyword) ?? null : detectEventKeyword(leadItem.title, leadItem.location, leadItem.notes))
+            : null;
+          const leadColor = leadEntry.kind === "event"
+            ? (leadItem.color || leadKeyword?.accentColor || colors.primary)
+            : leadEntry.kind === "todo"
+              ? (leadItem.color || colors.primary)
+              : (leadItem.color || "#7C5CFF");
+          const leadRamp = tonalRamp(leadColor, colors.surface);
+          const upNextSurface = mix(leadColor, colors.surface, 0.86);
+          // The thread settles from stored times at render — no
+          // timers: the elapsed share of the gap between the
+          // previous timed item's end (or the 5:00 AM window
+          // start) and the group's start. A group whose start has
+          // been reached reads full.
+          const nowMin = clockNow.getHours() * 60 + clockNow.getMinutes();
+          const upNextSpan = Math.max(1, upData.startMinutes - upData.anchorMinutes);
+          const upNextProgress = Math.min(1, Math.max(0, (nowMin - upData.anchorMinutes) / upNextSpan));
+          const toggleEntry = (entry: { kind: "todo" | "event" | "ministry"; item: any }) => (e: any) => {
+            const nd = entry.item;
             const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
-            if (nextData.kind === "todo") {
+            if (entry.kind === "todo") {
               if (!nd.isCompleted) onAwardXP?.(xpActionForDate(nd.date), nd.id, position);
               else revokeTodoXP(nd.id, position);
               setTodos((prev) => toggleTodoCompleted(prev, nd.id));
-            } else if (nextData.kind === "event") {
+            } else if (entry.kind === "event") {
               if (!nd.isCompleted) onAwardXP?.(xpActionForDate(nd.date), nd.id, position);
               else revokeTodoXP(nd.id, position);
               setEvents((prev) => toggleEventCompleted(prev, nd.id));
@@ -13217,21 +13333,33 @@ export function ScheduleTab({
             }
           };
           return (
-            <Pressable
-              onPress={toggleNext}
-              accessibilityRole="button"
-              accessibilityLabel={`Up next: ${nd.title} at ${format12HourTime(nd.startTime)}`}
-              style={({ pressed }) => [{ marginHorizontal: 12, marginBottom: 12, borderRadius: 22, backgroundColor: stripTones.primaryContainer, paddingHorizontal: 16, paddingVertical: 15, flexDirection: "row", alignItems: "center", gap: 12, shadowColor: colors.primary, shadowOpacity: 0.10, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2, opacity: pressed ? 0.75 : 1 }]}
-            >
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ color: stripTones.primaryDeep, fontSize: 10.5, fontWeight: "800", letterSpacing: 1.2 }}>UP NEXT</Text>
-                <Text style={{ color: colors.foreground, fontSize: 16.5, fontWeight: "800", marginTop: 3 }}>{nd.title}</Text>
-                <Text style={{ color: stripTones.primaryDeep, fontSize: 13.5, fontWeight: "700", marginTop: 2 }}>{format12HourTime(nd.startTime)}</Text>
+            <View style={{ marginHorizontal: 12, marginBottom: 12, borderRadius: 24, backgroundColor: upNextSurface, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 8, shadowColor: leadColor, shadowOpacity: 0.10, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ backgroundColor: leadRamp.deep, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                  <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800", letterSpacing: 1.6 }}>UP NEXT</Text>
+                </View>
+                <Text style={{ color: leadRamp.deep, fontSize: 14, fontWeight: "700" }}>{format12HourTime(leadItem.startTime)}</Text>
               </View>
-              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: mix(colors.primary, colors.surface, 0.78), alignItems: "center", justifyContent: "center" }}>
-                <MaterialIcons name="chevron-right" size={19} color={stripTones.primaryDeep} />
+              <View style={{ marginTop: 13, height: 4, borderRadius: 999, backgroundColor: mix(leadColor, colors.surface, 0.78) }}>
+                <View style={{ height: "100%", width: `${Math.round(upNextProgress * 100)}%`, borderRadius: 999, backgroundColor: leadColor }} />
+                <UpNextPulseDot color={leadRamp.deep} style={{ position: "absolute", top: -3, left: `${Math.round(upNextProgress * 100)}%`, marginLeft: -5 }} />
               </View>
-            </Pressable>
+              <View style={{ marginTop: 6 }}>
+                {entries.map((entry, entryIdx) => (
+                  <Pressable
+                    key={`${entry.kind}-${entry.item.id}`}
+                    onPress={toggleEntry(entry)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Up next: ${entry.item.title} at ${format12HourTime(entry.item.startTime)}`}
+                    style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, opacity: pressed ? 0.75 : 1 }, entryIdx > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: mix(upNextSurface, leadColor, 0.18) } : null]}
+                  >
+                    <UpNextThumb kind={entry.kind} item={entry.item} />
+                    <Text style={{ flex: 1, color: colors.foreground, fontSize: 15.5, fontWeight: "700" }}>{entry.item.title}</Text>
+                    <Text style={{ color: colors.muted, fontSize: 12.5, fontWeight: "600" }}>{entry.kind === "event" ? "Event" : entry.kind === "todo" ? "Todo" : "Ministry"}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
           );
         }
         case "time-off":

@@ -72,26 +72,31 @@ const classicEventBranch = scheduleTab.slice(
   scheduleTab.indexOf("// Active: illustrated card if keyword matches"),
 );
 
-describe("v308 up next — the slim pill → v314: a proper Material card", () => {
-  it("v314: full-width tonal card, radius 22, comfortable padding — NOT the 44px pill", () => {
+describe("v308 up next — the slim pill → v314 card → v318 list card", () => {
+  // v318 — Concept 1 v4 approved 2026-10-28 18:53: the pins are
+  // re-pinned once more, to the M3 list card (full spec in
+  // schedule-v318.test.ts).
+  it("v318: full-width list card, radius 24, tinted from the lead item's colour — NOT the 44px pill, NOT the v314 card", () => {
     expect(upNextCase).not.toContain("height: 44, borderRadius: 999");
-    expect(upNextCase).toContain("borderRadius: 22, backgroundColor: stripTones.primaryContainer");
-    expect(upNextCase).toContain("paddingHorizontal: 16, paddingVertical: 15");
+    expect(upNextCase).toContain("borderRadius: 24, backgroundColor: upNextSurface");
+    expect(upNextCase).toContain("const upNextSurface = mix(leadColor, colors.surface, 0.86);");
+    expect(upNextCase).not.toContain("borderRadius: 22, backgroundColor: stripTones.primaryContainer");
+    expect(upNextCase).not.toContain("paddingHorizontal: 16, paddingVertical: 15");
   });
 
-  it("v314: eyebrow, title at card weight, time in the deep step, chevron in a tonal circle", () => {
+  it("v318: filled pill label, the group's time in the deep step, row titles at 15.5/700, no chevron", () => {
     expect(upNextCase).toContain(">UP NEXT</Text>");
-    expect(upNextCase).toContain("fontSize: 10.5, fontWeight: \"800\", letterSpacing: 1.2");
-    expect(upNextCase).toContain("fontSize: 16.5, fontWeight: \"800\"");
-    expect(upNextCase).toContain("fontSize: 13.5, fontWeight: \"700\"");
-    expect(upNextCase).toContain("width: 34, height: 34, borderRadius: 17");
-    expect(upNextCase).toContain('name="chevron-right" size={19}');
+    expect(upNextCase).toContain('fontSize: 10, fontWeight: "800", letterSpacing: 1.6');
+    expect(upNextCase).toContain("fontSize: 15.5, fontWeight: \"700\"");
+    expect(upNextCase).toContain("color: leadRamp.deep, fontSize: 14, fontWeight: \"700\"");
+    expect(upNextCase).not.toContain("width: 34, height: 34, borderRadius: 17");
+    expect(upNextCase).not.toContain('name="chevron-right" size={19}');
     // The title is never truncated on the card.
     expect(upNextCase).not.toContain("numberOfLines");
   });
 
-  it("BEHAVIOUR: the whole card still toggles the item through the cards' handlers", () => {
-    expect(upNextCase).toContain("onPress={toggleNext}");
+  it("BEHAVIOUR: each row still toggles its item through the cards' handlers", () => {
+    expect(upNextCase).toContain("onPress={toggleEntry(entry)}");
     expect(upNextCase).toContain("setTodos((prev) => toggleTodoCompleted(prev, nd.id))");
     expect(upNextCase).toContain("setEvents((prev) => toggleEventCompleted(prev, nd.id))");
     expect(upNextCase).toContain("setMinistries((prev) => toggleMinistryCompleted(prev, nd.id))");

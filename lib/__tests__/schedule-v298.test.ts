@@ -189,10 +189,13 @@ describe("v298 study card — the drawing's size and resting face", () => {
 });
 
 describe("v298 up next — the drawing's strip, built", () => {
-  it("the strip is computed for today only, from the earliest uncompleted timed item still ahead", () => {
+  it("the strip is computed for today only, from the earliest uncompleted timed items still ahead", () => {
     expect(scheduleTab).toContain('if (!isSkinned && selectedDate === today)');
     expect(scheduleTab).toContain("timeToMinutes(c.item.startTime) > nowMin");
-    expect(scheduleTab).toContain('items.splice(studyIdx >= 0 ? studyIdx + 1 : 0, 0, { type: "up-next", id: "up-next", data: nextCandidate })');
+    // v318 — Concept 1 v4 approved 2026-10-28 18:53: the seat
+    // carries the whole same-time GROUP plus the thread anchor,
+    // not the single nextCandidate of v298–v317.
+    expect(scheduleTab).toContain('items.splice(studyIdx >= 0 ? studyIdx + 1 : 0, 0, { type: "up-next", id: "up-next", data: { entries, startMinutes: startMin, anchorMinutes: anchorMin } })');
   });
 
   it("the case seats after the study card and takes the current card's metrics", () => {
@@ -204,10 +207,13 @@ describe("v298 up next — the drawing's strip, built", () => {
     // an appropriate material design style card"): the pill gives
     // way to a proper Material card — radius 22, tonal container
     // fill, comfortable padding, the title at card weight.
+    // v318 re-pin — Concept 1 v4 approved 2026-10-28 18:53: the
+    // M3 list card — radius 24, surface tinted from the lead
+    // item's colour, row titles at 15.5/700.
     expect(upNextCase).not.toContain("height: 44, borderRadius: 999");
-    expect(upNextCase).toContain("borderRadius: 22, backgroundColor: stripTones.primaryContainer");
+    expect(upNextCase).toContain("borderRadius: 24, backgroundColor: upNextSurface");
     expect(upNextCase).toContain(">UP NEXT</Text>");
-    expect(upNextCase).toContain("fontSize: 16.5, fontWeight: \"800\"");
+    expect(upNextCase).toContain("fontSize: 15.5, fontWeight: \"700\"");
     expect(upNextCase).not.toContain("width: 44, height: 44, borderRadius: 14");
     expect(upNextCase).not.toContain("subParts.join");
   });

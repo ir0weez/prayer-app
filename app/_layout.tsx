@@ -41,6 +41,7 @@ import {
   snoozeScheduleNotification,
 } from "@/lib/notification-scheduler";
 import { XpGainIndicator } from "@/components/xp-gain-indicator";
+import { TodoFlourishOverlay } from "@/components/todo-flourish-overlay";
 import { DevotionalPill } from "@/components/devotional-pill";
 import { SetCompleteAnnouncer } from "@/components/set-complete-announcer";
 import { SplashOverlay } from "@/components/splash-overlay";
@@ -214,6 +215,9 @@ function RootLayoutContent() {
                 options like every other undeclared route. */}
           </Stack>
           <XpGainIndicator />
+          {/* v337: keyword todo check-off bursts — one-shot particles
+              at the toggled checkbox, emitted on the flourish bus. */}
+          <TodoFlourishOverlay />
           <SetCompleteAnnouncer />
           {/* v293: the minimized devotional player — renders only
               while a devotional session is live (see

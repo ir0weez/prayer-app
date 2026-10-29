@@ -58,6 +58,8 @@ import { scheduleMaterialTones, tonalRamp } from "@/lib/schedule-material";
 import { detectShowFont, splitShowName } from "@/lib/show-fonts";
 import { stripSpelledSeasonEpisode } from "@/lib/season-episode";
 import { showNameSegments } from "./show-sub-line";
+import { emitTodoFlourish, todoFlourishForTitle, TODO_FLOURISH_SETTLE, type TodoSettleKind } from "@/lib/todo-flourish";
+import { FlourishSettleView } from "@/components/todo-flourish-overlay";
 import { mix } from "@/lib/color-themes";
 import type { SkinTokens } from "@/lib/skin-themes";
 
@@ -8549,7 +8551,10 @@ function TodoItem({
   contextMenuActions.push({
     label: todo.isCompleted ? 'Mark Incomplete' : 'Mark Complete',
     icon: todo.isCompleted ? 'close-circle' : 'check-circle',
-    onPress: onToggle,
+    onPress: () => {
+      if (!todo.isCompleted) fireRowFlourish();
+      onToggle();
+    },
   });
   if (onDelete) {
     contextMenuActions.push({
@@ -8585,6 +8590,54 @@ function TodoItem({
   const groupBorderColor = `${groupAccentColor}38`;
   const liveCursor = todo.startTime && liveNow ? getLiveCursorPosition([todo], liveNow, 30) : null;
   const isLiveScheduledBlock = liveCursor?.activeItemId === todo.id && !todo.isCompleted;
+
+  // v337: keyword check-off flourish (see lib/todo-flourish.ts).
+  // Fired on the toggle EVENT, before onToggle runs: the burst goes
+  // out on the flourish bus with the checkbox's measured window
+  // position — the completing row is about to move to the completed
+  // section, so the burst must not live on the row — while the row's
+  // own settle (jolt / sink / crumple) rides the FlourishSettleView
+  // wrappers in the branches below. Unchecking never fires.
+  const [rowSettle, setRowSettle] = useState<{ kind: TodoSettleKind; run: number }>({ kind: "none", run: 0 });
+  const [subtaskSettles, setSubtaskSettles] = useState<Record<string, { kind: TodoSettleKind; run: number }>>({});
+  const checkboxAnchorRef = useRef<any>(null);
+  const subtaskAnchorRefs = useRef(new Map<string, any>());
+
+  const emitFlourishAt = (
+    flourish: NonNullable<ReturnType<typeof todoFlourishForTitle>>,
+    color: string,
+    anchorView: any,
+    fallback?: XpGainPosition,
+    leftInset?: number,
+  ) => {
+    if (anchorView && typeof anchorView.measureInWindow === "function") {
+      anchorView.measureInWindow((x: number, y: number, w: number, h: number) => {
+        emitTodoFlourish({
+          flourish,
+          color,
+          anchor: leftInset != null ? { x: x + leftInset, y: y + h / 2 } : { x: x + w / 2, y: y + h / 2 },
+        });
+      });
+    } else if (fallback) {
+      emitTodoFlourish({ flourish, color, anchor: fallback });
+    }
+  };
+
+  const fireRowFlourish = (fallback?: XpGainPosition) => {
+    const flourish = todoFlourishForTitle(todo.title);
+    if (!flourish) return;
+    setRowSettle({ kind: TODO_FLOURISH_SETTLE[flourish], run: Date.now() });
+    emitFlourishAt(flourish, todo.color || colors.primary, checkboxAnchorRef.current, fallback);
+  };
+
+  const fireSubtaskFlourish = (subtask: { id: string; title: string }, fallback?: XpGainPosition) => {
+    const flourish = todoFlourishForTitle(subtask.title);
+    if (!flourish) return;
+    setSubtaskSettles((prev) => ({ ...prev, [subtask.id]: { kind: TODO_FLOURISH_SETTLE[flourish], run: Date.now() } }));
+    // The subtask's checkbox rides at its row's left edge — measure
+    // the row and anchor at the checkbox's centre (~10px in).
+    emitFlourishAt(flourish, groupAccentColor, subtaskAnchorRefs.current.get(subtask.id), fallback, 10);
+  };
 
   // Determine if this todo is in its active hour (glow effect)
   // Re-check every minute so it activates/deactivates without restart
@@ -8661,7 +8714,7 @@ function TodoItem({
           <MaterialIcons name="folder" size={18} color={colors.muted} />
         </Pressable>
       ) : isGroupedTodo ? (
-        <View style={{ marginBottom: 12, marginHorizontal: 12, ...((hasTypeScale(skinTokens) && isSkinned) ? { marginBottom: 12 + skinTokens.type.gapBoost } : {}) }}>
+        <FlourishSettleView kind={rowSettle.kind} runKey={rowSettle.run} style={{ marginBottom: 12, marginHorizontal: 12, ...((hasTypeScale(skinTokens) && isSkinned) ? { marginBottom: 12 + skinTokens.type.gapBoost } : {}) }}>
           <View style={{ backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, borderRadius: isSkinned ? skinTokens.cardRadius ?? 12 : 12, borderWidth: 1, borderColor: groupBorderColor, overflow: 'hidden', ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? cartridgeShadow ?? {} : {}) }}>
             <Pressable
               accessibilityRole="button"
@@ -8677,13 +8730,16 @@ function TodoItem({
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                   <Pressable
+                    ref={checkboxAnchorRef}
                     accessibilityRole="checkbox"
                     accessibilityLabel={`Mark ${todo.title} ${todo.isCompleted ? 'incomplete' : 'complete'}`}
                     accessibilityState={{ checked: todo.isCompleted }}
                     onPress={(event) => {
                       event.stopPropagation?.();
                       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      onToggle({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
+                      const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+                      if (!todo.isCompleted) fireRowFlourish(position);
+                      onToggle(position);
                     }}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
@@ -8727,11 +8783,19 @@ function TodoItem({
               <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 16, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, gap: 12 }}>
                 <View style={{ height: skinTokens.isEightBit ? 2 : 1, width: '100%', alignSelf: 'center', backgroundColor: skinTokens.isEightBit ? "#EBD894" : skinTokens.isTerminal ? TERM_DIM : colors.border, opacity: 0.8 }} />
                 {groupedSubtasks.map((subtask, index) => (
+                  <FlourishSettleView key={subtask.id} kind={subtaskSettles[subtask.id]?.kind ?? "none"} runKey={subtaskSettles[subtask.id]?.run ?? 0}>
                   <Pressable
-                    key={subtask.id}
+                    ref={(view: any) => {
+                      if (view) subtaskAnchorRefs.current.set(subtask.id, view);
+                      else subtaskAnchorRefs.current.delete(subtask.id);
+                    }}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: subtask.isCompleted }}
-                    onPress={(event) => onToggleSubtask?.(subtask.id, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
+                    onPress={(event) => {
+                      const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+                      if (!subtask.isCompleted) fireSubtaskFlourish(subtask, position);
+                      onToggleSubtask?.(subtask.id, position);
+                    }}
                     style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10, borderBottomWidth: index < groupedSubtasks.length - 1 ? 1 : 0, borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
                   >
                     {skinTokens.isTerminal ? <TermCheckbox checked={subtask.isCompleted} size={19} /> : <MaterialIcons name={subtask.isCompleted ? 'check-box' : 'check-box-outline-blank'} size={19} color={groupAccentColor} />}
@@ -8746,13 +8810,16 @@ function TodoItem({
                       )}
                     </View>
                   </Pressable>
+                  </FlourishSettleView>
                 ))}
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Mark ${todo.title} complete`}
                   onPress={(event) => {
                     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    onToggle({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
+                    const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+                    fireRowFlourish(position);
+                    onToggle(position);
                   }}
                   style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
                 >
@@ -8764,7 +8831,7 @@ function TodoItem({
               </View>
             )}
           </View>
-        </View>
+        </FlourishSettleView>
       ) : (
         // v297 (Classic): the row returns to the drawing's own
         // metrics (schedule-material-concepts-v32.html `.todo`:
@@ -8777,21 +8844,25 @@ function TodoItem({
         // stays (it still drives Paper's derivation and every other
         // surface); the correction is the row's own metrics — under
         // Classic the scale spreads no longer apply to todo rows.
+        <FlourishSettleView kind={rowSettle.kind} runKey={rowSettle.run}>
         <Pressable
           onPress={(event) => {
             if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            onToggle({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
+            const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+            if (!todo.isCompleted) fireRowFlourish(position);
+            onToggle(position);
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
           style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(cartridgeShadow ?? {}) } : { backgroundColor: mix(todo.color || colors.primary, colors.surface, 0.9), borderRadius: 18, marginHorizontal: 12, marginBottom: isSkinned ? 8 : 12, paddingVertical: isSkinned ? 10 : 8, paddingHorizontal: 12, gap: 10 }, (hasTypeScale(skinTokens) && isSkinned) ? { paddingVertical: 12 + skinTokens.type.padBoost, paddingHorizontal: 16 + skinTokens.type.padBoost } : null, pressed && { opacity: 0.7 }]}
         >
           {skinTokens.isTerminal ? (
-            <View style={{ marginRight: 12, alignSelf: "center" }}>
+            <View ref={checkboxAnchorRef} style={{ marginRight: 12, alignSelf: "center" }}>
               <TermCheckbox checked={todo.isCompleted} size={22} />
             </View>
           ) : skinTokens.isEightBit ? (
           <ReAnimated.View
+            ref={checkboxAnchorRef}
             key={`checkbox-${todo.isCompleted}`}
             entering={todo.isCompleted ? FadeIn.duration(200) : undefined}
             style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle, { borderRadius: 2, borderWidth: 2, borderColor: BIT_INK_HEX }]}
@@ -8802,7 +8873,7 @@ function TodoItem({
           // v295: the drawing's checkbox — a drawn rounded square in
           // the todo's own colour (2.5px edge, transparent middle),
           // filled with a white tick when done. No font glyph.
-          <View style={{ alignSelf: "center", width: 22, height: 22, borderRadius: 6, borderWidth: 2.5, borderColor: todo.color || colors.primary, backgroundColor: todo.isCompleted ? (todo.color || colors.primary) : "transparent", alignItems: "center", justifyContent: "center" }}>
+          <View ref={checkboxAnchorRef} style={{ alignSelf: "center", width: 22, height: 22, borderRadius: 6, borderWidth: 2.5, borderColor: todo.color || colors.primary, backgroundColor: todo.isCompleted ? (todo.color || colors.primary) : "transparent", alignItems: "center", justifyContent: "center" }}>
             {todo.isCompleted && <MaterialIcons name="check" size={14} color="#FFFFFF" />}
           </View>
           )}
@@ -8836,6 +8907,7 @@ function TodoItem({
             </View>
           )}
         </Pressable>
+        </FlourishSettleView>
       )}
       <ContextMenu
         visible={contextMenuVisible}
@@ -10467,6 +10539,26 @@ export function ScheduleTab({
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [todos, setTodos] = useState<ScheduleTodo[]>([]);
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
+  // v337: todo-pair rectangles and missed-todo rows carry their own
+  // flourish seats (see lib/todo-flourish.ts) — settle runs per todo
+  // plus row refs so the burst can anchor at each row's checkbox.
+  const [pairSettles, setPairSettles] = useState<Record<string, { kind: TodoSettleKind; run: number }>>({});
+  const pairRowRefs = useRef(new Map<string, any>());
+  const missedRowRefs = useRef(new Map<string, any>());
+
+  const firePairFlourish = (pairTodo: { id: string; title: string; color?: string | null }) => {
+    const flourish = todoFlourishForTitle(pairTodo.title);
+    if (!flourish) return;
+    setPairSettles((prev) => ({ ...prev, [pairTodo.id]: { kind: TODO_FLOURISH_SETTLE[flourish], run: Date.now() } }));
+    const view = pairRowRefs.current.get(pairTodo.id);
+    if (view && typeof view.measureInWindow === "function") {
+      view.measureInWindow((x: number, y: number, w: number, h: number) => {
+        // The pair's checkbox rides at the rectangle's top-left:
+        // padding 11 + half the 20px box.
+        emitTodoFlourish({ flourish, color: pairTodo.color || colors.primary, anchor: { x: x + 21, y: y + h / 2 - 10 } });
+      });
+    }
+  };
   const [ministries, setMinistries] = useState<ScheduleMinistry[]>([]);
   const [prayers, setPrayers] = useState<PrayerItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -13630,13 +13722,19 @@ export function ScheduleTab({
                 const todoColor = t.color || colors.primary;
                 const tonalRect = !skinTokens.isEightBit && !skinTokens.isTerminal;
                 return (
+                  <FlourishSettleView key={t.id} kind={pairSettles[t.id]?.kind ?? "none"} runKey={pairSettles[t.id]?.run ?? 0} style={{ flex: 1 }}>
                   <Pressable
-                    key={t.id}
+                    ref={(view: any) => {
+                      if (view) pairRowRefs.current.set(t.id, view);
+                      else pairRowRefs.current.delete(t.id);
+                    }}
                     style={{ flex: 1, backgroundColor: tonalRect ? mix(todoColor, colors.surface, 0.86) : todoColor, borderRadius: tonalRect ? 18 : 12, padding: 11, minHeight: 68, justifyContent: "center", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...((hasTypeScale(skinTokens) && isSkinned) ? { padding: 12 + skinTokens.type.padBoost, minHeight: 68 + skinTokens.type.padBoost * 2 } : {}) }}
                     onPress={(e) => {
                       const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
-                      if (!t.isCompleted) onAwardXP?.(xpActionForDate(t.date), t.id, position);
-                      else revokeTodoXP(t.id, position);
+                      if (!t.isCompleted) {
+                        firePairFlourish(t);
+                        onAwardXP?.(xpActionForDate(t.date), t.id, position);
+                      } else revokeTodoXP(t.id, position);
                       setTodos((prev) => toggleTodoCompleted(prev, t.id));
                     }}
                   >
@@ -13687,6 +13785,7 @@ export function ScheduleTab({
                       )}
                     </View>
                   </Pressable>
+                  </FlourishSettleView>
                 );
               })}
             </View>
@@ -14694,6 +14793,10 @@ export function ScheduleTab({
                   return (
                     <View key={todo.id}>
                       <Pressable
+                        ref={(view: any) => {
+                          if (view) missedRowRefs.current.set(todo.id, view);
+                          else missedRowRefs.current.delete(todo.id);
+                        }}
                         accessibilityRole="button"
                         accessibilityState={{ expanded: isActive }}
                         onPress={() => setActiveMissedTodoId((current) => current === todo.id ? null : todo.id)}
@@ -14715,7 +14818,7 @@ export function ScheduleTab({
                       {isActive && (
                         <View style={[scheduleStyles.missedTodoActions, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }]}>
                           <Pressable
-                            onPress={(event) => { const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; if (!todo.isCompleted) onAwardXP?.(xpActionForDate(todo.date), todo.id, position); else revokeTodoXP(todo.id, position); setTodos((current) => toggleTodoCompleted(current, todo.id)); }}
+                            onPress={(event) => { const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; if (!todo.isCompleted) { const flourish = todoFlourishForTitle(todo.title); if (flourish) { const rowView = missedRowRefs.current.get(todo.id); if (rowView && typeof rowView.measureInWindow === "function") rowView.measureInWindow((x: number, y: number, w: number, h: number) => emitTodoFlourish({ flourish, color: todo.color || colors.primary, anchor: { x: x + 26, y: y + h / 2 } })); else emitTodoFlourish({ flourish, color: todo.color || colors.primary, anchor: position }); } onAwardXP?.(xpActionForDate(todo.date), todo.id, position); } else revokeTodoXP(todo.id, position); setTodos((current) => toggleTodoCompleted(current, todo.id)); }}
                             style={({ pressed }) => [scheduleStyles.missedTodoActionButton, { backgroundColor: colors.success }, pressed && { opacity: 0.72 }]}
                           >
                             <MaterialIcons name="check" size={17} color="#FFFFFF" />

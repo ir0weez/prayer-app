@@ -14,6 +14,11 @@
 // should be a lot more properties to buy", and money set by his
 // fast (the money calibration is NOT this build — his word on
 // the number is still pending, and no coin code changes here).
+// AMENDED (v359, same day): Jonathan authorized the calibration
+// hours after this pass pushed — a one-time top-up to a fixed
+// 150,000 (lib/coin-calibration.ts). It landed as the next build;
+// this pass's own files still move no coins and the pin below
+// (the street layer touches no ledger) stands unchanged.
 // The caves were explicitly freed ("you don't need to keep the
 // caves and stuff") — the mine's front is redesignable like any
 // building; this pass keeps its seat and door (the Deep Descent

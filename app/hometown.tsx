@@ -208,6 +208,7 @@ import {
 import { refreshHouseBonusCache } from "@/lib/pawn-house";
 import { isEnterableRestaurant, restaurantInteriorBonus } from "@/lib/restaurant-interior";
 import { maybeGrantRestitution, RESTITUTION_MESSAGE } from "@/lib/restitution";
+import { maybeApplyCoinCalibration, COIN_CALIBRATION_MESSAGE } from "@/lib/coin-calibration";
 import { getTodayISOString, type Person } from "@/lib/prayercircle-data";
 import {
   buildCafeBoard,
@@ -5639,6 +5640,17 @@ export default function HometownScreen() {
           if (restored) {
             c = restored;
             Alert.alert("Good news", RESTITUTION_MESSAGE);
+          }
+        } catch {}
+        // One-time coin calibration (Jonathan's ruling, Oct 30): top the
+        // balance UP to a fixed 150,000 — 1,000 for each of his 150 kept
+        // days — through the ledger, sealed behind its flag so it can
+        // never fire twice, and never a deduction (lib/coin-calibration.ts).
+        try {
+          const calibrated = await maybeApplyCoinCalibration(c);
+          if (calibrated) {
+            c = calibrated;
+            Alert.alert("Good news", COIN_CALIBRATION_MESSAGE);
           }
         } catch {}
         // ── CRITICAL FAN-OUT (v164) ─────────────────────────────────

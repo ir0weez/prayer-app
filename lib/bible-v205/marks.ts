@@ -115,6 +115,33 @@ export interface EntryMarks {
 
 export type MarksMap = Record<string, EntryMarks>;
 
+/**
+ * v356: the people most often credited on his stored lines — the
+ * note composer's Top 5. Counts author ids across every entry's
+ * highlights, thoughts and notes in the marks map (the attribution
+ * the composer itself has stored since v214 — no invented signal).
+ * Most-credited first; ties break by the credited name, then id,
+ * so the order is deterministic. Returns person ids.
+ */
+export function rankedAuthorIds(marks: MarksMap, limit = 5): string[] {
+  const counts = new Map<string, { count: number; name: string }>();
+  for (const entry of Object.values(marks)) {
+    for (const line of [...entry.highlights, ...entry.thoughts, ...entry.notes]) {
+      const author = lineAuthor(line);
+      if (!author) continue;
+      const prev = counts.get(author.authorId);
+      counts.set(author.authorId, {
+        count: (prev?.count ?? 0) + 1,
+        name: author.authorName || prev?.name || '',
+      });
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1].count - a[1].count || a[1].name.localeCompare(b[1].name) || a[0].localeCompare(b[0]))
+    .slice(0, Math.max(0, limit))
+    .map(([id]) => id);
+}
+
 const EMPTY: EntryMarks = {
   kept: false,
   highlights: [],

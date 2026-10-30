@@ -76,7 +76,13 @@ describe('v352 — separated verses', () => {
   });
 
   it('each verse is its own pressable block carrying its text and tint dress', () => {
-    expect(entryView).toContain('<Pressable key={v} onPress={() => openComposerForVerse(v)}>');
+    // Re-based 2026-10-29 (v356): the verse Pressable gained an
+    // onLayout (it caches its top for the verse-open scroll), so
+    // the tag is multi-line now — the pin's intent is unchanged:
+    // one keyed pressable per verse, its press opens that verse's
+    // composer.
+    expect(entryView).toContain('key={v}');
+    expect(entryView).toContain('onPress={() => openComposerForVerse(v)}');
     expect(entryView).toContain('styles.entryVerse');
     expect(entryView).toContain('props.verseText.get(v)');
     expect(entryView).toContain('verseTintFor(palette, props.verseTints[v])');

@@ -32,7 +32,7 @@
 // survives, and the v251 measured-header machinery is untouched —
 // it simply measures a shorter header now.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo,
   Animated,
@@ -71,6 +71,7 @@ import {
   isKept,
   loadMarks,
   marksFor,
+  rankedAuthorIds,
   removeKeeperLineAt,
   resolveTintFields,
   saveMarks,
@@ -437,6 +438,9 @@ export function ChapterPageView(props: ChapterPageProps) {
     for (const piece of bubblePieces.values()) map.set(piece.start, piece);
     return map;
   }, [bubblePieces]);
+  // v356: the note composer's Top 5, ranked from the attribution
+  // stored across the WHOLE marks map (every book, every chapter).
+  const topAuthorIds = useMemo(() => rankedAuthorIds(marks), [marks]);
   // The bloom's timing: the locked mockup numbers in the default
   // skin (380ms, cubic-bezier(0.22, 1, 0.36, 1)); material skins
   // speak their own settle dialect for the same morph, the way the
@@ -1118,6 +1122,27 @@ export function ChapterPageView(props: ChapterPageProps) {
                     (yByKey.current.get(`secwrap-${section.start}`) ?? 0) + y,
                   )
                 }
+                topAuthorIds={topAuthorIds}
+                onVerseSeatOpen={(yWithinEntry) => {
+                  // v356: a verse's composer just seated beneath it —
+                  // land the verse on screen ONLY when verse + box
+                  // would not already be visible together: the verse
+                  // tucked under the header, or too little room left
+                  // beneath it for the unfurling cluster. A verse
+                  // already sitting comfortably never yanks the page.
+                  const key = entryKey(book, chapter, entry.start, entry.end);
+                  const entryY = yByKey.current.get(key);
+                  if (entryY === undefined) return;
+                  const verseTop = entryY + yWithinEntry;
+                  const screenTop = verseTop - scrollYRef.current;
+                  const vh = viewHeight.current > 0 ? viewHeight.current : Dimensions.get('window').height;
+                  if (
+                    screenTop < headerHRef.current + CHAPTER_HEADER_LAND_GAP ||
+                    screenTop > vh - VERSE_COMPOSER_ROOM_PX
+                  ) {
+                    scrollToY(verseTop);
+                  }
+                }}
               />
               );
             })}
@@ -1239,6 +1264,133 @@ export function ChapterPageView(props: ChapterPageProps) {
 
 // ─── One verse entry: toggle + his blocks + the markup bar ──────────────────
 
+/** v356: the unfurl's duration — the verse-seated composer grows
+ * out of its verse and collapses back into it on this one timing. */
+export const VERSE_COMPOSER_UNFURL_MS = 280;
+
+/** v356: the room a verse-open wants beneath the verse before the
+ * page bothers to scroll — roughly the unfurled cluster's height,
+ * so verse and box are visible together. */
+export const VERSE_COMPOSER_ROOM_PX = 360;
+
+/**
+ * v356 — the unfurl itself (his ruling, 2026-10-29 22:55: "I want
+ * the text box to unfurl from the verse I tap"). The verse-seated
+ * mark cluster grows downward out of the tapped verse's bottom
+ * edge — animated height + opacity, the growth's origin at its
+ * top — and collapses back into the verse on close, calling
+ * onExited when it has fully folded so the owner can clear the
+ * composer. JS-DRIVEN by house rule (useNativeDriver: false —
+ * height is a layout property, and nothing on this path rides the
+ * native animated graph), VERSE_COMPOSER_UNFURL_MS on a gentle
+ * ease-out cubic; no bounce, no spring. Under the OS
+ * reduce-motion setting it opens and closes instantly, the same
+ * discipline as the chapter progress thread (v304). The content
+ * rides absolutely inside the growing frame and reports its
+ * natural height through onLayout (the collapsible pattern), so
+ * the frame's height is the only layout the animation drives.
+ */
+function VerseUnfurl(props: {
+  closing: boolean;
+  onExited: () => void;
+  children: ReactNode;
+}) {
+  const grow = useRef(new Animated.Value(0)).current;
+  const growValueRef = useRef(0);
+  const [naturalH, setNaturalH] = useState(0);
+  const [reduced, setReduced] = useState<boolean | null>(null);
+  const exitedRef = useRef(false);
+  const liveRef = useRef(true);
+  const onExitedRef = useRef(props.onExited);
+  onExitedRef.current = props.onExited;
+  useEffect(() => {
+    liveRef.current = true;
+    const sub = grow.addListener(({ value }) => {
+      growValueRef.current = value;
+    });
+    return () => {
+      liveRef.current = false;
+      grow.removeListener(sub);
+    };
+  }, [grow]);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((r) => {
+        if (live) setReduced(r);
+      })
+      .catch(() => {
+        if (live) setReduced(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  // Settle open: on mount (grow starts folded), and again if a
+  // collapse was interrupted by re-tapping the same verse — grow
+  // back out from wherever the fold had reached.
+  useEffect(() => {
+    if (props.closing || reduced === null || naturalH <= 0) return;
+    if (reduced) {
+      grow.setValue(1);
+      return;
+    }
+    if (growValueRef.current >= 1) return;
+    const anim = Animated.timing(grow, {
+      toValue: 1,
+      duration: VERSE_COMPOSER_UNFURL_MS,
+      easing: RNEasing.out(RNEasing.cubic),
+      useNativeDriver: false,
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [props.closing, reduced, naturalH, grow]);
+  // The collapse: fold back into the verse, then hand back so the
+  // owner clears the composer. Instant under reduce-motion.
+  useEffect(() => {
+    if (!props.closing || exitedRef.current || reduced === null) return;
+    const finish = () => {
+      if (exitedRef.current || !liveRef.current) return;
+      exitedRef.current = true;
+      onExitedRef.current();
+    };
+    if (reduced) {
+      grow.setValue(0);
+      finish();
+      return;
+    }
+    const anim = Animated.timing(grow, {
+      toValue: 0,
+      duration: VERSE_COMPOSER_UNFURL_MS,
+      easing: RNEasing.out(RNEasing.cubic),
+      useNativeDriver: false,
+    });
+    anim.start(({ finished }) => {
+      if (finished) finish();
+    });
+    return () => anim.stop();
+  }, [props.closing, reduced, grow]);
+  return (
+    <Animated.View
+      style={{
+        height: naturalH > 0 ? grow.interpolate({ inputRange: [0, 1], outputRange: [0, naturalH] }) : 0,
+        opacity: grow,
+        overflow: 'hidden',
+      }}
+    >
+      <View
+        style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0 && Math.abs(h - naturalH) > 0.5) setNaturalH(h);
+        }}
+      >
+        {props.children}
+      </View>
+    </Animated.View>
+  );
+}
+
 function EntryView(props: {
   entry: V205Entry;
   book: string;
@@ -1282,6 +1434,13 @@ function EntryView(props: {
   onApplyVerseTint: (hue: TintColor) => void;
   onCategory: (category: NoteCategory | null) => void;
   registerY: (y: number) => void;
+  /** v356: a verse's text was tapped and its composer seated —
+   * the verse's top within this entry, so the page can land the
+   * verse (with room beneath it for the unfurling box) on screen. */
+  onVerseSeatOpen?: (yWithinEntry: number) => void;
+  /** v356: the composer's Top 5 — people most often credited on
+   * his stored notes (rankedAuthorIds over the whole marks map). */
+  topAuthorIds?: string[];
 }) {
   const { entry, palette } = props;
   const [composer, setComposer] = useState<null | 'highlight' | 'thought' | 'note'>(null);
@@ -1291,6 +1450,29 @@ function EntryView(props: {
   // target of the line being edited.
   const [composerAuthor, setComposerAuthor] = useState<LineAuthor | null>(null);
   const [editingTarget, setEditingTarget] = useState<LineStorageTarget | null>(null);
+  // v356: the verse seat. A composer opened by tapping a verse's
+  // text is homed on that verse (its number rides here) and the
+  // whole mark cluster — markbar, category chips, the note box —
+  // renders directly beneath THAT verse in the head's verse flow,
+  // unfurling out of it (VerseUnfurl below), instead of sitting at
+  // the entry body's tail verses away (his Leviticus 26 report:
+  // he tapped verse 2, the box opened below verse 3). null = the
+  // body seat, exactly where the cluster has always lived. While a
+  // verse-seated close is collapsing back into its verse,
+  // composerClosing rides true and the clear is deferred to the
+  // unfurl's exit (finishCloseComposer).
+  const [composerVerse, setComposerVerse] = useState<number | null>(null);
+  const [composerClosing, setComposerClosing] = useState(false);
+  const closingRef = useRef(false);
+  // v356: the latest closeComposer, for the back handler below
+  // (assigned every render, so the handler never closes stale).
+  const composerCloseRef = useRef<() => void>(() => {});
+  // v356: each verse block's top within the entry (onLayout-cached:
+  // the verse's y inside entryVerses, plus the entryVerses box's own
+  // y inside the head), so a verse-open can ask the page to land the
+  // verse — with room beneath it for the box — on screen.
+  const verseYRef = useRef(new Map<number, number>());
+  const versesBoxYRef = useRef(0);
   const openComposer = (kind: 'highlight' | 'thought' | 'note') => {
     setComposer(kind);
     setDraft('');
@@ -1310,12 +1492,62 @@ function EntryView(props: {
     setDraft(`#${verse} `);
     setComposerAuthor(null);
     setEditingTarget(null);
+    // v356: home the composer on this verse — the cluster unfurls
+    // directly beneath it in the verse flow (see the verse map),
+    // retargeting cleanly if another verse's box was open or still
+    // collapsing. And ask the page to land the verse on screen
+    // with room beneath it, so verse and box stay visible together.
+    closingRef.current = false;
+    setComposerClosing(false);
+    setComposerVerse(verse);
+    props.onVerseSeatOpen?.(versesBoxYRef.current + (verseYRef.current.get(verse) ?? 0));
   };
-  const closeComposer = () => {
+  const finishCloseComposer = () => {
+    closingRef.current = false;
+    setComposerClosing(false);
+    setComposerVerse(null);
     setComposer(null);
     setEditingTarget(null);
     setComposerAuthor(null);
   };
+  const closeComposer = () => {
+    // v356: a verse-seated composer collapses back into its verse
+    // first — VerseUnfurl runs the collapse and calls
+    // handleUnfurlExited, which lands here as finishCloseComposer.
+    // A body-seated composer closes as it always has, at once.
+    if (composerVerse !== null) {
+      closingRef.current = true;
+      setComposerClosing(true);
+      return;
+    }
+    finishCloseComposer();
+  };
+  const handleUnfurlExited = () => {
+    // A retarget mid-collapse clears closingRef first, so a late
+    // exit from the old verse's unfurl lands as a no-op.
+    if (!closingRef.current) return;
+    finishCloseComposer();
+  };
+  composerCloseRef.current = closeComposer;
+  // v356 (his ruling, 2026-10-29 23:09): while THIS entry's
+  // composer is open, the Android back gesture/button folds the
+  // composer shut — through closeComposer itself, so back does
+  // exactly what Cancel does (same close path, same draft fate,
+  // verse-seat collapse included) — instead of stranding the box
+  // open until he leaves the chapter. Registered only while a
+  // composer is open; with none open, back is the page's own
+  // business and behaves exactly as it always has. (The prayer
+  // session's deliberate back-block is a different surface and is
+  // not touched.)
+  const composerOpen = composer !== null;
+  useEffect(() => {
+    if (!composerOpen) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      composerCloseRef.current();
+      return true;
+    });
+    return () => sub.remove();
+  }, [composerOpen]);
   const editBubbleLine = (lineIndex: number) => {
     const piece = props.bubblePiece;
     if (!piece) return;
@@ -1326,6 +1558,11 @@ function EntryView(props: {
     // (their card shows no pencil either — this is the belt to its
     // braces, and it keeps the sentinel target away from the marks).
     if (line.source === 'quote' || line.kind === 'quote') return;
+    // v356: line edits keep the body seat they have always had —
+    // a verse seat never carries an edit.
+    closingRef.current = false;
+    setComposerClosing(false);
+    setComposerVerse(null);
     setComposer(line.kind);
     setDraft(line.text);
     setComposerAuthor(line.author);
@@ -1347,6 +1584,11 @@ function EntryView(props: {
     // Self lines are marks lines by construction (v217) — a quote
     // kind can never land here; the check is the type's seatbelt.
     if (line.kind === 'quote') return;
+    // v356: line edits keep the body seat they have always had —
+    // a verse seat never carries an edit.
+    closingRef.current = false;
+    setComposerClosing(false);
+    setComposerVerse(null);
     setComposer(line.kind);
     setDraft(line.text);
     setComposerAuthor(line.author);
@@ -1379,6 +1621,144 @@ function EntryView(props: {
     ? props.flashAnim.interpolate({ inputRange: [0, 1], outputRange: [palette.flashTintClear, palette.flashTint] })
     : (wash ?? 'transparent');
   const hasSelection = props.selectedVerses.length > 0;
+
+  // v356: the mark cluster — markbar, category chips, and the
+  // composer box when one is open — is ONE unit with ONE seat.
+  // Its home seat is the entry body (rendered there below, exactly
+  // as it always has been); a verse-opened composer carries the
+  // whole cluster up into the verse flow, directly beneath the
+  // tapped verse (see the verse map). Never both at once.
+  const renderMarkCluster = () => (
+    <>
+      <View style={[styles.markbar, { borderTopColor: palette.line }]}>
+        <Pressable style={styles.markBtn} onPress={props.onToggleKept}>
+          <Text style={{ color: props.kept ? palette.rose : palette.inkSoft, fontSize: 13 }}>♥</Text>
+          <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>{props.kept ? 'Kept' : 'Keep'}</Text>
+        </Pressable>
+        <Pressable style={styles.markBtn} onPress={() => openComposer('highlight')}>
+          <Text style={{ color: palette.hlMark, fontSize: 12 }}>✦</Text>
+          <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Highlight</Text>
+        </Pressable>
+        <Pressable style={styles.markBtn} onPress={() => openComposer('thought')}>
+          <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Main Thought</Text>
+        </Pressable>
+        <Pressable style={styles.markBtn} onPress={() => openComposer('note')}>
+          <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Note</Text>
+        </Pressable>
+        <View style={styles.swatches}>
+          {(['yellow', 'rose', 'green'] as TintColor[]).map((t) => {
+            // v212: with verses selected, the dots speak for the
+            // selection — ringed when every selected verse already
+            // wears this hue; a tap applies it to the selection
+            // (or lifts it, per verse). With no selection they keep
+            // their entry-tint meaning exactly as before.
+            const active = hasSelection
+              ? props.selectedVerses.every((v) => props.verseTints[v] === t)
+              : props.entryTint === t;
+            return (
+              <Pressable
+                key={t}
+                style={[
+                  styles.swatch,
+                  {
+                    backgroundColor: t === 'yellow' ? '#F5C542' : t === 'rose' ? '#F08BB4' : '#7FCB9B',
+                    borderColor: active ? palette.ink : 'transparent',
+                    borderWidth: active ? 2 : 0,
+                  },
+                ]}
+                onPress={() => (hasSelection ? props.onApplyVerseTint(t) : props.onTint(props.entryTint === t ? null : t))}
+              />
+            );
+          })}
+          <Text style={[styles.tintLabel, { color: palette.inkFaint }]}>
+            {hasSelection ? `Tint ${props.selectedVerses.length === 1 ? 'verse' : 'verses'} ${props.selectedVerses.join(', ')}` : 'Tint'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.catRow}>
+        {NOTE_CATEGORIES.map((meta) => {
+          const active = props.marksEntry?.category === meta.id;
+          return (
+            <Pressable
+              key={meta.id}
+              style={[
+                styles.catChip,
+                { borderColor: active ? meta.color : palette.line, backgroundColor: active ? meta.bg : palette.paper },
+              ]}
+              onPress={() => props.onCategory(active ? null : meta.id)}
+            >
+              <View style={[styles.catDot, { backgroundColor: meta.color }]} />
+              <Text style={[styles.catChipText, { color: active ? meta.ink : palette.inkSoft }]}>{meta.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {composer ? (
+        <View style={[styles.composer, { borderColor: palette.bandLine, backgroundColor: palette.paper2 }, palette.cardDress]}>
+          <Text style={[styles.composerLabel, { color: composer === 'highlight' ? palette.yellowLabel : palette.greyLabel }]}>
+            {editingTarget
+              ? `Editing ${kindLabelFor(composer)}`
+              : composer === 'highlight' ? '✦ Your Highlight' : composer === 'note' ? 'Your Note' : 'Main Thought'}
+          </Text>
+          <TextInput
+            style={[styles.composerInput, { color: palette.ink }]}
+            placeholder={composer === 'highlight' ? 'The line that stays with you…' : composer === 'note' ? 'A plain note, in your own words…' : 'The one thought to carry…'}
+            placeholderTextColor={palette.inkFaint}
+            value={draft}
+            onChangeText={setDraft}
+            multiline
+            autoFocus
+          />
+          <Text style={[styles.composerHint, { color: palette.inkFaint }]}>
+            Tip: start a note with #11-12 to set those verses apart with it.
+          </Text>
+          {/* v214: every line can wear a face — his own by
+              default, or anyone from his People when they said
+              the thing worth keeping. Re-picking here re-faces
+              an existing line just as it faces a new one. */}
+          <AuthorPicker
+            people={props.people}
+            profile={props.profile}
+            value={composerAuthor}
+            palette={palette}
+            onChange={setComposerAuthor}
+            topPeopleIds={props.topAuthorIds}
+          />
+          <View style={styles.composerBtns}>
+            {editingTarget ? (
+              // v217: a line opened for editing — from a bubble
+              // OR from the flow — can be deleted right here.
+              <Pressable onPress={deleteEditingLine} style={styles.composerDelete}>
+                <Text style={{ color: palette.raspDeep, fontWeight: '700', fontSize: 13 }}>Delete</Text>
+              </Pressable>
+            ) : null}
+            <Pressable onPress={closeComposer}>
+              <Text style={{ color: palette.inkSoft, fontWeight: '600', fontSize: 13 }}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.addBtn, { backgroundColor: palette.rasp }, palette.btnDress]}
+              onPress={() => {
+                const text = draft.trim();
+                if (text) {
+                  if (editingTarget) props.onUpdateLine(editingTarget, { text, author: composerAuthor });
+                  else props.onAddLine(composer, text, composerAuthor);
+                } else if (editingTarget) {
+                  // An author-only change (re-face) still saves
+                  // with the text untouched.
+                  props.onUpdateLine(editingTarget, { author: composerAuthor });
+                }
+                closeComposer();
+              }}
+            >
+              <Text style={styles.addBtnText}>{editingTarget ? 'Save' : 'Add'}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+    </>
+  );
 
   // v244: the entry head's height — where this entry's verses end.
   // The Living Bubble layer docks its open thread below that line
@@ -1416,18 +1796,29 @@ function EntryView(props: {
         <View style={styles.heartSlot}>
           {props.kept ? <Text style={{ color: palette.rose, fontSize: 14 }}>♥</Text> : null}
         </View>
-        <View style={styles.entryVerses}>
+        <View
+          style={styles.entryVerses}
+          onLayout={(e) => {
+            versesBoxYRef.current = e.nativeEvent.layout.y;
+          }}
+        >
           {Array.from({ length: entry.end - entry.start + 1 }, (_, i) => entry.start + i).map((v) => {
             const selected = props.selectedVerses.includes(v);
             const verseBg = verseTintFor(palette, props.verseTints[v]);
-            return (
-              // v352: each verse is its own pressable block (the
-              // entryVerses gap separates the blocks). A tap on the
-              // verse TEXT opens the note composer homed on that
-              // verse (openComposerForVerse); the number span
-              // inside keeps its own tap, exactly as it already
-              // out-pressed the head Pressable.
-              <Pressable key={v} onPress={() => openComposerForVerse(v)}>
+            // v352: each verse is its own pressable block (the
+            // entryVerses gap separates the blocks). A tap on the
+            // verse TEXT opens the note composer homed on that
+            // verse (openComposerForVerse); the number span
+            // inside keeps its own tap, exactly as it already
+            // out-pressed the head Pressable.
+            // v356: the verse block also caches its top inside
+            // entryVerses (onLayout), for the verse-open scroll.
+            const verseBlock = (
+              <Pressable
+                key={v}
+                onPress={() => openComposerForVerse(v)}
+                onLayout={(e) => verseYRef.current.set(v, e.nativeEvent.layout.y)}
+              >
                 <Text
                   style={[
                     styles.entryVerse,
@@ -1466,6 +1857,24 @@ function EntryView(props: {
                 </Text>
               </Pressable>
             );
+            // v356: the verse seat. When this verse holds the
+            // composer, the whole mark cluster renders DIRECTLY
+            // BENEATH it, here in the verse flow — VerseUnfurl
+            // grows it out of the verse's bottom edge and folds
+            // it back on close. The seat's wrapper claims the
+            // responder for its dead space so taps inside the box
+            // never fall through to the head Pressable's toggle
+            // (its buttons and input claim their own, like the
+            // verse blocks above them).
+            const seat =
+              composerVerse === v ? (
+                <View key={`verse-composer-${v}`} onStartShouldSetResponder={() => true}>
+                  <VerseUnfurl closing={composerClosing} onExited={handleUnfurlExited}>
+                    {renderMarkCluster()}
+                  </VerseUnfurl>
+                </View>
+              ) : null;
+            return [verseBlock, seat];
           })}
         </View>
         <MaterialIcons
@@ -1532,132 +1941,11 @@ function EntryView(props: {
             ))
           )}
 
-          <View style={[styles.markbar, { borderTopColor: palette.line }]}>
-            <Pressable style={styles.markBtn} onPress={props.onToggleKept}>
-              <Text style={{ color: props.kept ? palette.rose : palette.inkSoft, fontSize: 13 }}>♥</Text>
-              <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>{props.kept ? 'Kept' : 'Keep'}</Text>
-            </Pressable>
-            <Pressable style={styles.markBtn} onPress={() => openComposer('highlight')}>
-              <Text style={{ color: palette.hlMark, fontSize: 12 }}>✦</Text>
-              <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Highlight</Text>
-            </Pressable>
-            <Pressable style={styles.markBtn} onPress={() => openComposer('thought')}>
-              <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Main Thought</Text>
-            </Pressable>
-            <Pressable style={styles.markBtn} onPress={() => openComposer('note')}>
-              <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Note</Text>
-            </Pressable>
-            <View style={styles.swatches}>
-              {(['yellow', 'rose', 'green'] as TintColor[]).map((t) => {
-                // v212: with verses selected, the dots speak for the
-                // selection — ringed when every selected verse already
-                // wears this hue; a tap applies it to the selection
-                // (or lifts it, per verse). With no selection they keep
-                // their entry-tint meaning exactly as before.
-                const active = hasSelection
-                  ? props.selectedVerses.every((v) => props.verseTints[v] === t)
-                  : props.entryTint === t;
-                return (
-                  <Pressable
-                    key={t}
-                    style={[
-                      styles.swatch,
-                      {
-                        backgroundColor: t === 'yellow' ? '#F5C542' : t === 'rose' ? '#F08BB4' : '#7FCB9B',
-                        borderColor: active ? palette.ink : 'transparent',
-                        borderWidth: active ? 2 : 0,
-                      },
-                    ]}
-                    onPress={() => (hasSelection ? props.onApplyVerseTint(t) : props.onTint(props.entryTint === t ? null : t))}
-                  />
-                );
-              })}
-              <Text style={[styles.tintLabel, { color: palette.inkFaint }]}>
-                {hasSelection ? `Tint ${props.selectedVerses.length === 1 ? 'verse' : 'verses'} ${props.selectedVerses.join(', ')}` : 'Tint'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.catRow}>
-            {NOTE_CATEGORIES.map((meta) => {
-              const active = props.marksEntry?.category === meta.id;
-              return (
-                <Pressable
-                  key={meta.id}
-                  style={[
-                    styles.catChip,
-                    { borderColor: active ? meta.color : palette.line, backgroundColor: active ? meta.bg : palette.paper },
-                  ]}
-                  onPress={() => props.onCategory(active ? null : meta.id)}
-                >
-                  <View style={[styles.catDot, { backgroundColor: meta.color }]} />
-                  <Text style={[styles.catChipText, { color: active ? meta.ink : palette.inkSoft }]}>{meta.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {composer ? (
-            <View style={[styles.composer, { borderColor: palette.bandLine, backgroundColor: palette.paper2 }, palette.cardDress]}>
-              <Text style={[styles.composerLabel, { color: composer === 'highlight' ? palette.yellowLabel : palette.greyLabel }]}>
-                {editingTarget
-                  ? `Editing ${kindLabelFor(composer)}`
-                  : composer === 'highlight' ? '✦ Your Highlight' : composer === 'note' ? 'Your Note' : 'Main Thought'}
-              </Text>
-              <TextInput
-                style={[styles.composerInput, { color: palette.ink }]}
-                placeholder={composer === 'highlight' ? 'The line that stays with you…' : composer === 'note' ? 'A plain note, in your own words…' : 'The one thought to carry…'}
-                placeholderTextColor={palette.inkFaint}
-                value={draft}
-                onChangeText={setDraft}
-                multiline
-                autoFocus
-              />
-              <Text style={[styles.composerHint, { color: palette.inkFaint }]}>
-                Tip: start a note with #11-12 to set those verses apart with it.
-              </Text>
-              {/* v214: every line can wear a face — his own by
-                  default, or anyone from his People when they said
-                  the thing worth keeping. Re-picking here re-faces
-                  an existing line just as it faces a new one. */}
-              <AuthorPicker
-                people={props.people}
-                profile={props.profile}
-                value={composerAuthor}
-                palette={palette}
-                onChange={setComposerAuthor}
-              />
-              <View style={styles.composerBtns}>
-                {editingTarget ? (
-                  // v217: a line opened for editing — from a bubble
-                  // OR from the flow — can be deleted right here.
-                  <Pressable onPress={deleteEditingLine} style={styles.composerDelete}>
-                    <Text style={{ color: palette.raspDeep, fontWeight: '700', fontSize: 13 }}>Delete</Text>
-                  </Pressable>
-                ) : null}
-                <Pressable onPress={closeComposer}>
-                  <Text style={{ color: palette.inkSoft, fontWeight: '600', fontSize: 13 }}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.addBtn, { backgroundColor: palette.rasp }, palette.btnDress]}
-                  onPress={() => {
-                    const text = draft.trim();
-                    if (text) {
-                      if (editingTarget) props.onUpdateLine(editingTarget, { text, author: composerAuthor });
-                      else props.onAddLine(composer, text, composerAuthor);
-                    } else if (editingTarget) {
-                      // An author-only change (re-face) still saves
-                      // with the text untouched.
-                      props.onUpdateLine(editingTarget, { author: composerAuthor });
-                    }
-                    closeComposer();
-                  }}
-                >
-                  <Text style={styles.addBtnText}>{editingTarget ? 'Save' : 'Add'}</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
+          {/* v356: the mark cluster renders here only while no verse
+              seat holds it — a verse-opened composer carries the
+              cluster up beneath its verse in the head (see the verse
+              map + renderMarkCluster). One cluster, one seat. */}
+          {composerVerse === null ? renderMarkCluster() : null}
         </View>
       ) : null}
 

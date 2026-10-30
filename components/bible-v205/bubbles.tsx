@@ -55,7 +55,7 @@
 // (the same disease the seed's static radius cured in v244).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import ReAnimated, {
   Easing,
   interpolate,
@@ -628,6 +628,7 @@ export function AuthorPicker({
   value,
   palette,
   onChange,
+  topPeopleIds,
 }: {
   people: Person[];
   profile: ProfileIdentity;
@@ -635,7 +636,17 @@ export function AuthorPicker({
   value: LineAuthor | null;
   palette: BiblePalette;
   onChange: (author: LineAuthor | null) => void;
+  /** v356: the Top 5 — the people most often credited on his
+   * stored notes (rankedAuthorIds over the marks map), most first. */
+  topPeopleIds?: string[];
 }) {
+  // v356 (his ruling, 2026-10-29 23:09): the roster under the note
+  // box runs past a hundred chips — a search field at the top of
+  // the list filters by name as he types, and at rest a Top 5 (the
+  // people he actually credits) leads, with the full list below in
+  // its usual order. Selection is unchanged: a tap still stores
+  // { authorId, authorName } on the line, Me still clears it.
+  const [query, setQuery] = useState('');
   const chip = (selected: boolean) => [
     styles.authorChip,
     {
@@ -643,46 +654,88 @@ export function AuthorPicker({
       backgroundColor: selected ? palette.band : palette.paper,
     },
   ];
+  const meChip = (
+    <Pressable style={chip(value === null)} onPress={() => onChange(null)}>
+      <AuthorFace
+        author={{
+          name: profile.name || 'You',
+          person: null,
+          isSelf: true,
+          isSnapshot: false,
+          photoUri: profile.photoUri,
+          avatarAsset: profile.avatarAsset,
+        }}
+        size={20}
+        palette={palette}
+      />
+      <Text style={[styles.authorChipText, { color: palette.ink }]}>
+        {profile.name ? profile.name.split(/\s+/)[0] : 'Me'}
+      </Text>
+      <Text style={[styles.authorDefault, { color: palette.rasp }]}>DEFAULT</Text>
+    </Pressable>
+  );
+  const personChip = (person: Person) => {
+    const selected = value?.authorId === person.id;
+    return (
+      <Pressable
+        key={person.id}
+        style={chip(selected)}
+        onPress={() => onChange({ authorId: person.id, authorName: person.name })}
+      >
+        <AuthorFace
+          author={{ name: person.name, person, isSelf: false, isSnapshot: false }}
+          size={20}
+          palette={palette}
+        />
+        <Text style={[styles.authorChipText, { color: palette.ink }]}>{person.name.split(/\s+/)[0]}</Text>
+      </Pressable>
+    );
+  };
+  const q = query.trim().toLowerCase();
+  const searching = q.length > 0;
+  const matches = searching ? people.filter((person) => person.name.toLowerCase().includes(q)) : people;
+  const topPeople = searching
+    ? []
+    : (topPeopleIds ?? [])
+        .map((id) => people.find((person) => person.id === id))
+        .filter((person): person is Person => !!person)
+        .slice(0, 5);
   return (
     <View style={styles.authorPicker}>
       <Text style={[styles.authorLabel, { color: palette.inkFaint }]}>Who said this?</Text>
-      <View style={styles.authorRow}>
-        <Pressable style={chip(value === null)} onPress={() => onChange(null)}>
-          <AuthorFace
-            author={{
-              name: profile.name || 'You',
-              person: null,
-              isSelf: true,
-              isSnapshot: false,
-              photoUri: profile.photoUri,
-              avatarAsset: profile.avatarAsset,
-            }}
-            size={20}
-            palette={palette}
-          />
-          <Text style={[styles.authorChipText, { color: palette.ink }]}>
-            {profile.name ? profile.name.split(/\s+/)[0] : 'Me'}
-          </Text>
-          <Text style={[styles.authorDefault, { color: palette.rasp }]}>DEFAULT</Text>
-        </Pressable>
-        {people.map((person) => {
-          const selected = value?.authorId === person.id;
-          return (
-            <Pressable
-              key={person.id}
-              style={chip(selected)}
-              onPress={() => onChange({ authorId: person.id, authorName: person.name })}
-            >
-              <AuthorFace
-                author={{ name: person.name, person, isSelf: false, isSnapshot: false }}
-                size={20}
-                palette={palette}
-              />
-              <Text style={[styles.authorChipText, { color: palette.ink }]}>{person.name.split(/\s+/)[0]}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <TextInput
+        style={[styles.authorSearch, { borderColor: palette.line, backgroundColor: palette.paper, color: palette.ink }]}
+        placeholder="Search people…"
+        placeholderTextColor={palette.inkFaint}
+        value={query}
+        onChangeText={setQuery}
+        autoCorrect={false}
+      />
+      {searching ? (
+        <>
+          <View style={styles.authorRow}>
+            {meChip}
+            {matches.map(personChip)}
+          </View>
+          {matches.length === 0 ? (
+            <Text style={[styles.authorEmpty, { color: palette.inkFaint }]}>No one by that name.</Text>
+          ) : null}
+        </>
+      ) : (
+        <>
+          {topPeople.length ? (
+            <>
+              <Text style={[styles.authorLabel, { color: palette.inkFaint }]}>Top 5</Text>
+              <View style={styles.authorRow}>{topPeople.map(personChip)}</View>
+              <Text style={[styles.authorLabel, { color: palette.inkFaint, marginTop: 10 }]}>Everyone</Text>
+            </>
+          ) : null}
+          <View style={styles.authorRow}>
+            {meChip}
+            {people.map(personChip)}
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -757,6 +810,8 @@ const styles = StyleSheet.create({
   chatHead: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.6, marginBottom: 3 },
   chatText: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
   authorPicker: { marginTop: 10 },
+  authorSearch: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7, fontSize: 13.5, marginBottom: 9 },
+  authorEmpty: { fontSize: 12, marginTop: 7 },
   authorLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 7 },
   authorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   authorChip: {

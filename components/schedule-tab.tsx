@@ -6872,6 +6872,37 @@ function TopDownMeatloafScene() {
   );
 }
 
+/** Top-down Mississippi pot roast: the oval crockpot from above —
+ *  shredded beef sitting in its own juices, whole pepperoncini
+ *  over the top, a butter pat still melting, steam rising. */
+function TopDownMississippiPotRoastScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#FFB74D" size={160} left="64%" bottom={54} min={0.16} max={0.32} duration={5200} />
+      <View style={{ position: "absolute", left: "50%", bottom: 6, width: 196, height: 158, borderRadius: 98, backgroundColor: "#263238" }} />
+      <View style={{ position: "absolute", left: "52.5%", bottom: 18, width: 172, height: 134, borderRadius: 86, backgroundColor: "#37474F" }} />
+      <View style={{ position: "absolute", left: "54.5%", bottom: 28, width: 152, height: 114, borderRadius: 76, backgroundColor: "#4A2C17" }} />
+      <GentleBob left="57%" bottom={44} width={138} height={92} distance={4} duration={3900}>
+        <View style={{ position: "absolute", left: 16, bottom: 52, width: 34, height: 13, borderRadius: 6.5, backgroundColor: "#6D3B1E", transform: [{ rotate: "-14deg" }] }} />
+        <View style={{ position: "absolute", left: 58, bottom: 58, width: 38, height: 13, borderRadius: 6.5, backgroundColor: "#7A4525", transform: [{ rotate: "10deg" }] }} />
+        <View style={{ position: "absolute", left: 96, bottom: 48, width: 32, height: 12, borderRadius: 6, backgroundColor: "#63351B", transform: [{ rotate: "-6deg" }] }} />
+        <View style={{ position: "absolute", left: 34, bottom: 28, width: 36, height: 13, borderRadius: 6.5, backgroundColor: "#754324", transform: [{ rotate: "18deg" }] }} />
+        <View style={{ position: "absolute", left: 82, bottom: 24, width: 34, height: 12, borderRadius: 6, backgroundColor: "#6D3B1E", transform: [{ rotate: "-18deg" }] }} />
+        <View style={{ position: "absolute", left: 56, bottom: 40, width: 30, height: 12, borderRadius: 6, backgroundColor: "#7A4525", transform: [{ rotate: "4deg" }] }} />
+        <View style={{ position: "absolute", left: 24, bottom: 66, width: 20, height: 9, borderRadius: 4.5, backgroundColor: "#9BA832", transform: [{ rotate: "24deg" }] }} />
+        <View style={{ position: "absolute", left: 66, bottom: 72, width: 20, height: 9, borderRadius: 4.5, backgroundColor: "#A8B53A", transform: [{ rotate: "-20deg" }] }} />
+        <View style={{ position: "absolute", left: 104, bottom: 64, width: 20, height: 9, borderRadius: 4.5, backgroundColor: "#93A52E", transform: [{ rotate: "12deg" }] }} />
+        <View style={{ position: "absolute", left: 48, bottom: 12, width: 19, height: 9, borderRadius: 4.5, backgroundColor: "#9BA832", transform: [{ rotate: "-30deg" }] }} />
+        <View style={{ position: "absolute", left: 92, bottom: 10, width: 19, height: 9, borderRadius: 4.5, backgroundColor: "#A8B53A", transform: [{ rotate: "28deg" }] }} />
+        <View style={{ position: "absolute", left: 58, bottom: 54, width: 16, height: 12, borderRadius: 3, backgroundColor: "#F7E8A0", transform: [{ rotate: "16deg" }] }} />
+      </GentleBob>
+      <RisingDot left="63%" top={26} size={6.5} color="#FFFFFF" duration={4400} delay={600} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+      <RisingDot left="70%" top={26} size={5.5} color="#FFFFFF" duration={5100} delay={1800} maxOpacity={0.4} sway={6} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
 function TopDownPotRoastScene() {
   return (
     <SceneRoot base="#6B4A3A">
@@ -7315,6 +7346,7 @@ function detectHomecookedMeal(notes: string | undefined | null): React.ReactNode
   if (match("burger", "hamburger", "cheeseburger")) return <TopDownBurgerScene />;
   if (match("roast chicken", "rotisserie chicken", "baked chicken")) return <TopDownRoastChickenScene />;
   if (match("meatloaf")) return <TopDownMeatloafScene />;
+  if (match("mississippi")) return <TopDownMississippiPotRoastScene />;
   if (match("pot roast", "roast beef")) return <TopDownPotRoastScene />;
   if (match("casserole", "baked ziti", "hotdish")) return <TopDownCasseroleScene />;
   if (match("hot dog", "hotdog", "corn dog")) return <TopDownHotDogScene />;

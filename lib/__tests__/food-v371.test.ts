@@ -42,7 +42,9 @@ describe("v371 Papa Joe's seed recipe", () => {
     // 27 dishes then; Papa Joe's own seat is unchanged.
     // v373 amendment: Bacon & Mushroom Risotto joined the list
     // after this pin was written — 28 dishes now.
-    expect(DISH_KEYS).toHaveLength(28);
+    // v376 amendment: Mississippi Pot Roast joined the list
+    // after this pin was written — 29 dishes now.
+    expect(DISH_KEYS).toHaveLength(29);
     expect(DISH_KEYS).toContain("papa-joes");
     expect(DISH_KEYS.indexOf("papa-joes")).toBe(DISH_KEYS.indexOf("sandwich") + 1);
     const seed = SEED_RECIPES["papa-joes"];

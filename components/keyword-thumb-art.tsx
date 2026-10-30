@@ -427,6 +427,14 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
     { k: "r", x: 11, y: 14, w: 18, h: 12, f: "#6D4C41", rad: 3 },
     { k: "r", x: 11, y: 14, w: 18, h: 4.5, f: "#A93226", rad: 2 },
   ] },
+  "td-mississippi-pot-roast": { g: "#6B4A3A", s: [
+    { k: "e", x: 9, y: 13, w: 22, h: 14, f: "#263238" },
+    { k: "e", x: 11.5, y: 15, w: 17, h: 9, f: "#4A2C17" },
+    { k: "c", x: 16, y: 18.5, r: 1.7, f: "#9BA832" },
+    { k: "c", x: 21, y: 20, r: 1.7, f: "#6D3B1E" },
+    { k: "c", x: 25, y: 17.5, r: 1.7, f: "#A8B53A" },
+    { k: "r", x: 19, y: 15.5, w: 3.5, h: 3, f: "#F7E8A0", rad: 1 },
+  ] },
   "td-pot-roast": { g: "#6B4A3A", s: [
     { k: "c", x: 20, y: 20, r: 13, f: "#F5EBD0" },
     { k: "e", x: 11, y: 14, w: 18, h: 12, f: "#5D4037" },

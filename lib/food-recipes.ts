@@ -72,6 +72,7 @@ export type DishKey =
   | "shawarma-rice-bar"
   | "meatloaf"
   | "pot-roast"
+  | "mississippi-pot-roast"
   | "casserole"
   | "hot-dogs"
   | "nachos"
@@ -456,6 +457,26 @@ export const SEED_RECIPES: Record<DishKey, SeedRecipe> = {
       "Serve with the vegetables and pan juices over everything.",
     ],
   },
+  "mississippi-pot-roast": {
+    title: "Mississippi Pot Roast",
+    serves: "Serves 6",
+    minutes: 490,
+    ingredients: [
+      { name: "Beef chuck roast", quantity: "3 lb", group: "Meat" },
+      { name: "Ranch dressing mix", quantity: "1 packet (1 oz)", group: "Pantry" },
+      { name: "Au jus gravy mix", quantity: "1 packet (1 oz)", group: "Pantry" },
+      { name: "Butter", quantity: "½ cup (1 stick)", group: "Dairy" },
+      { name: "Pepperoncini peppers", quantity: "8 whole, plus a splash of their juice", group: "Pantry" },
+    ],
+    steps: [
+      "Set the chuck roast in the slow cooker.",
+      "Sprinkle the ranch mix and the au jus mix evenly over the top.",
+      "Lay the butter on top and arrange the pepperoncini over and around the roast, with a splash of their juice.",
+      "Cover and cook on LOW for 8 hours (or HIGH for 4–5), until the roast is fork-tender. No extra liquid — it makes its own.",
+      "Shred the beef right in the pot with two forks and stir it through the juices.",
+      "Serve over mashed potatoes or rice, or piled on rolls, with the juices spooned over.",
+    ],
+  },
   "casserole": {
     title: "Casserole",
     serves: "Serves 6",
@@ -676,6 +697,7 @@ export const DISH_KEYS: DishKey[] = [
   "shawarma-rice-bar",
   "meatloaf",
   "pot-roast",
+  "mississippi-pot-roast",
   "casserole",
   "hot-dogs",
   "nachos",

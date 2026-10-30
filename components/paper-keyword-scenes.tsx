@@ -2770,6 +2770,32 @@ export function PaperTdMeatloafScene() {
   );
 }
 
+export function PaperTdMississippiPotRoastScene() {
+  // The crockpot from above: shredded beef in its juices inside
+  // the oval pot, whole pepperoncini over the top, butter melting.
+  return (
+    <PaperSceneRoot base="#54382A">
+      <SettleIn delay={50} style={{ position: "absolute", left: "45%", bottom: 10, width: 158, height: 104 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 158, height: 98, borderRadius: 49, backgroundColor: "#263238" }} />
+        <PaperPiece style={{ position: "absolute", left: 8, bottom: 8, width: 142, height: 82, borderRadius: 41, borderWidth: 3, borderColor: "#37474F", backgroundColor: "#263238", opacity: 0.9 }} />
+        <PaperPiece style={{ position: "absolute", left: 18, bottom: 17, width: 122, height: 64, borderRadius: 32, backgroundColor: "#4A2C17" }} />
+      </SettleIn>
+      <SettleIn delay={140} style={{ position: "absolute", left: "50%", bottom: 30, width: 112, height: 62 }}>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: 8 + (i % 3) * 32, bottom: 8 + Math.floor(i / 3) * 26, width: 27, height: 12, borderRadius: 6, backgroundColor: i % 2 ? "#7A4525" : "#6D3B1E", transform: [{ rotate: `${i * 23}deg` }] }} />
+        ))}
+        {[0, 1, 2, 3, 4].map((i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: 14 + (i % 3) * 34, bottom: 18 + Math.floor(i / 3) * 24, width: 18, height: 9, borderRadius: 4.5, backgroundColor: "#9BA832", transform: [{ rotate: `${i * 29}deg` }] }} />
+        ))}
+        <PaperPiece style={{ position: "absolute", left: 46, bottom: 26, width: 15, height: 11, borderRadius: 3, backgroundColor: "#F7E8A0", transform: [{ rotate: "16deg" }] }} />
+      </SettleIn>
+      <PaperBob left="64%" bottom={106} width={9} height={13} distance={5} duration={3200}>
+        <PaperPiece style={{ width: 9, height: 13, borderRadius: 4.5, backgroundColor: "#FFFFFF", opacity: 0.4 }} />
+      </PaperBob>
+    </PaperSceneRoot>
+  );
+}
+
 export function PaperTdPotRoastScene() {
   // Pot roast in the Dutch oven, lid ajar, carrots and potatoes in.
   return (
@@ -5825,6 +5851,7 @@ const PAPER_SCENE_REGISTRY: Record<PaperSceneId, () => ReactNode> = {
   "td-roast-chicken": PaperTdRoastChickenScene,
   "td-shawarma-rice-bar": PaperTdShawarmaRiceBarScene,
   "td-meatloaf": PaperTdMeatloafScene,
+  "td-mississippi-pot-roast": PaperTdMississippiPotRoastScene,
   "td-pot-roast": PaperTdPotRoastScene,
   "td-casserole": PaperTdCasseroleScene,
   "td-hot-dog": PaperTdHotDogScene,

@@ -80,7 +80,8 @@ describe("v350 — motion coverage is exact: one motion spec per keyword scene",
     // v371: 170 — td-papa-joe joined the scene set.
     // v372: 171 — td-shawarma-rice-bar joined the scene set.
     // v373: 172 — td-risotto joined the scene set.
-    expect(specKeys.length).toBe(172);
+    // v376: 173 — td-mississippi-pot-roast joined the scene set.
+    expect(specKeys.length).toBe(173);
   });
 
   it("every spec names a vocabulary kind with a loop style, inside the 2.4–4s calm band", () => {

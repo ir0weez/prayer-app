@@ -152,7 +152,10 @@ describe("v370 seed recipes", () => {
     // v373 amendment: Bacon & Mushroom Risotto (the HelloFresh
     // recipe he sent Oct 30) joins in the rice family's seat,
     // after fried rice — 28 dishes now.
-    expect(DISH_KEYS).toHaveLength(28);
+    // v376 amendment: Mississippi Pot Roast (his Oct 30 ask)
+    // joins in the roast family's seat, after pot roast —
+    // 29 dishes now.
+    expect(DISH_KEYS).toHaveLength(29);
     expect(DISH_KEYS).toEqual([
       "soup",
       "bean-burritos",
@@ -172,6 +175,7 @@ describe("v370 seed recipes", () => {
       "shawarma-rice-bar",
       "meatloaf",
       "pot-roast",
+      "mississippi-pot-roast",
       "casserole",
       "hot-dogs",
       "nachos",

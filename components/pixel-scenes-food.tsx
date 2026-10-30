@@ -572,6 +572,35 @@ export function PixelTdMeatloafScene() {
   );
 }
 
+export function PixelTdMississippiPotRoastScene() {
+  // The crockpot from above: shredded beef in its juices in the
+  // oval pot, whole pepperoncini on top, butter pat melting.
+  return (
+    <PixelSceneRoot base="#54382A">
+      <StepIn delay={50} style={{ position: "absolute", left: "46%", bottom: 12, width: 152, height: 100 }}>
+        <Px style={{ position: "absolute", left: 8, bottom: 0, width: 136, height: 100, backgroundColor: "#263238" }} shadow />
+        <Px style={{ position: "absolute", left: 0, bottom: 12, width: 152, height: 76, backgroundColor: "#263238" }} />
+        <Px style={{ position: "absolute", left: 16, bottom: 16, width: 120, height: 68, backgroundColor: "#37474F" }} />
+        <Px style={{ position: "absolute", left: 24, bottom: 24, width: 104, height: 52, backgroundColor: "#4A2C17" }} />
+      </StepIn>
+      <StepBob left="52%" bottom={36} width={108} height={56} distance={4}>
+        <Px style={{ position: "absolute", left: 4, bottom: 8, width: 28, height: 12, backgroundColor: "#6D3B1E" }} />
+        <Px style={{ position: "absolute", left: 40, bottom: 4, width: 28, height: 12, backgroundColor: "#7A4525" }} />
+        <Px style={{ position: "absolute", left: 76, bottom: 12, width: 28, height: 12, backgroundColor: "#63351B" }} />
+        <Px style={{ position: "absolute", left: 20, bottom: 32, width: 28, height: 12, backgroundColor: "#754324" }} />
+        <Px style={{ position: "absolute", left: 60, bottom: 28, width: 28, height: 12, backgroundColor: "#6D3B1E" }} />
+        <Px style={{ position: "absolute", left: 12, bottom: 20, width: 16, height: 8, backgroundColor: "#9BA832" }} />
+        <Px style={{ position: "absolute", left: 48, bottom: 40, width: 16, height: 8, backgroundColor: "#A8B53A" }} />
+        <Px style={{ position: "absolute", left: 84, bottom: 36, width: 16, height: 8, backgroundColor: "#93A52E" }} />
+        <Px style={{ position: "absolute", left: 44, bottom: 16, width: 16, height: 12, backgroundColor: "#F7E8A0" }} />
+      </StepBob>
+      <StepBob left="64%" bottom={108} width={8} height={12} distance={4}>
+        <Px style={{ position: "absolute", left: 0, bottom: 0, width: 8, height: 12, backgroundColor: "#FFFFFF", opacity: 0.4 }} />
+      </StepBob>
+    </PixelSceneRoot>
+  );
+}
+
 export function PixelTdPotRoastScene() {
   // Pot roast in the Dutch oven, lid ajar, carrots and potatoes in.
   return (

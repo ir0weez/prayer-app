@@ -36,7 +36,9 @@ const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 
 describe("v373 Bacon & Mushroom Risotto seed recipe", () => {
   it("is a full dish in the chooser, in the rice family's seat", () => {
-    expect(DISH_KEYS).toHaveLength(28);
+    // v376 amendment: Mississippi Pot Roast joined the list
+    // after this pin was written — 29 dishes now.
+    expect(DISH_KEYS).toHaveLength(29);
     expect(DISH_KEYS).toContain("bacon-mushroom-risotto");
     expect(DISH_KEYS.indexOf("bacon-mushroom-risotto")).toBe(
       DISH_KEYS.indexOf("fried-rice") + 1,

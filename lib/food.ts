@@ -104,6 +104,10 @@ const NOTES_DISH_TABLE: { names: string[]; dish: DishKey | null }[] = [
   { names: ["burger", "hamburger", "cheeseburger"], dish: "burgers" },
   { names: ["roast chicken", "rotisserie chicken", "baked chicken"], dish: "roast-chicken" },
   { names: ["meatloaf"], dish: "meatloaf" },
+  // Specific before general (v376): "mississippi" names the
+  // crockpot dish outright, ahead of the pot-roast row below —
+  // "mississippi pot roast" is its own dish, not a pot roast.
+  { names: ["mississippi"], dish: "mississippi-pot-roast" },
   { names: ["pot roast", "roast beef"], dish: "pot-roast" },
   { names: ["casserole", "baked ziti", "hotdish"], dish: "casserole" },
   { names: ["hot dog", "hotdog", "corn dog"], dish: "hot-dogs" },

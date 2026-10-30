@@ -49,6 +49,7 @@ const HOMECOOKED: MatchEntry[] = [
   { id: "td-burger", names: ["burger", "hamburger", "cheeseburger"] },
   { id: "td-roast-chicken", names: ["roast chicken", "rotisserie chicken", "baked chicken"] },
   { id: "td-meatloaf", names: ["meatloaf"] },
+  { id: "td-mississippi-pot-roast", names: ["mississippi"] },
   { id: "td-pot-roast", names: ["pot roast", "roast beef"] },
   { id: "td-casserole", names: ["casserole", "baked ziti", "hotdish"] },
   { id: "td-hot-dog", names: ["hot dog", "hotdog", "corn dog"] },

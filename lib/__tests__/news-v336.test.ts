@@ -129,7 +129,8 @@ describe("v336 scenes", () => {
     // v371: 170 — td-papa-joe joined the set after this pin was written.
     // v372: 171 — td-shawarma-rice-bar joined the set.
     // v373: 172 — td-risotto joined the set after this pin was written.
-    expect(ids.length).toBe(172);
+    // v376: 173 — td-mississippi-pot-roast joined the set after this pin was written.
+    expect(ids.length).toBe(173);
     expect(ids).toContain("news");
     expect(ids).toContain("email");
   });

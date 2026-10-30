@@ -99,7 +99,8 @@ describe("v353 — the Up Next-only thumb set is exact and self-consistent", () 
     // v371: 170 — td-papa-joe joined the scene set.
     // v372: 171 — td-shawarma-rice-bar joined the scene set.
     // v373: 172 — td-risotto joined the scene set.
-    expect(specKeysOf("KEYWORD_THUMB_SPECS").length).toBe(172);
+    // v376: 173 — td-mississippi-pot-roast joined the scene set.
+    expect(specKeysOf("KEYWORD_THUMB_SPECS").length).toBe(173);
   });
 
   it("every thumb-only motion names a vocabulary kind inside the calm band", () => {

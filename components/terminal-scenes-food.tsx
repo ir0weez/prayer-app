@@ -393,6 +393,27 @@ export function TermTdMeatloafScene() {
   );
 }
 
+export function TermTdMississippiPotRoastScene() {
+  // The crockpot in line art: the oval pot from above, shredded
+  // beef in its juices, whole pepperoncini on top — steam off it.
+  return (
+    <TermSceneRoot>
+      <LL x1={16} y1={108} x2={194} y2={108} c={TERM_DIM} w={1.6} />
+      <LP d="M 126 14 C 122 20 126 24 123 30" c={TERM_DIM} w={1.7} />
+      <LP d="M 168 12 C 164 18 168 22 165 28" c={TERM_DIM} w={1.7} />
+      <LP d="M 98 68 C 98 48 122 38 149 38 C 176 38 200 48 200 68 C 200 88 176 98 149 98 C 122 98 98 88 98 68 Z" c={TERM_PHOS} w={2.3} />
+      <LP d="M 108 68 C 108 54 126 46 149 46 C 172 46 190 54 190 68 C 190 82 172 90 149 90 C 126 90 108 82 108 68 Z" c={TERM_MID} w={1.8} />
+      <LP d="M 118 62 C 126 56 134 62 142 57" c={TERM_SOFT} w={1.6} />
+      <LP d="M 152 74 C 160 68 168 74 178 68" c={TERM_SOFT} w={1.6} />
+      <LP d="M 124 80 C 132 75 140 80 148 76" c={TERM_MID} w={1.5} />
+      <LC cx={130} cy={66} r={4.5} c={TERM_MID} w={1.6} />
+      <LC cx={164} cy={58} r={4.5} c={TERM_SOFT} w={1.6} />
+      <LC cx={158} cy={80} r={4.5} c={TERM_MID} w={1.6} />
+      <LDot cx={146} cy={64} r={2} c={TERM_PHOS} />
+    </TermSceneRoot>
+  );
+}
+
 export function TermTdPotRoastScene() {
   // Pot roast in the Dutch oven, lid ajar, carrots and potatoes in.
   return (

@@ -26,6 +26,23 @@
 // the livelock cannot silently return, and hold the sibling
 // coverage: every editor's date/time fields ride this one shared
 // component, so the one fix reaches all of them.
+//
+// ─── SUPERSEDED IN v377 (Oct 30, dated note) ─────────────────────
+// The cap fix above is DEVICE-DISCONFIRMED. Jonathan, Oct 30
+// 16:46, on v376 (which carries v374): a screenshot of the New
+// Event editor — START TIME in its pink open tint, no panel
+// under it — "selecting times and dates still doesn't work..."
+// The cap model below still resolves the open target to the
+// natural height; his phone resolved it to nothing. The model
+// was the wrong level: it simulated the window in isolation
+// while the device exercises the whole ancestor chain (Modal →
+// ScrollView → section card → window). v377 deletes the window
+// entirely — the panel is a plain View, per the v282/v367
+// ruling — and pins the chain in picker-v377-plain-panel.test.ts.
+// What remains in THIS file: the isolation model, kept as the
+// record of what v374 believed and where it stopped being
+// enough; retirement pins where the cap-shape pins stood; and
+// the sibling-coverage pins, which remain true.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -36,9 +53,10 @@ const read = (rel: string) =>
 
 const picker = read("components/date-time-picker.tsx");
 
-const windowStart = picker.indexOf("function PickerUnfurlWindow");
-const windowEnd = picker.indexOf("interface DateTimePickerProps");
-const windowSrc = picker.slice(windowStart, windowEnd);
+// v377: the window function is deleted from the component, so
+// there is no window source left to slice — the extraction the
+// cap pins stood on is retired with them.
+const windowSrc = "";
 
 // The v275 clamp, as device-traced: an in-flow child's computed
 // height is clamped to a DEFINITE parent height; a maxHeight cap
@@ -67,50 +85,50 @@ function windowShapeFromSource(src: string): "definite" | "cap" {
   throw new Error("window shape not recognised");
 }
 
-describe("v374 — the window animates a cap, never a definite height", () => {
-  it("the shipped window's locked style is a maxHeight cap", () => {
-    expect(windowStart).toBeGreaterThan(-1);
-    expect(windowEnd).toBeGreaterThan(windowStart);
-    expect(windowSrc).toContain("maxHeight: windowCap");
-    expect(windowShapeFromSource(windowSrc)).toBe("cap");
+describe("v374 — RETIRED in v377: the cap window is deleted, not amended", () => {
+  it("the window function and its cap are gone from the component", () => {
+    expect(picker).not.toContain("function PickerUnfurlWindow");
+    expect(picker).not.toContain("maxHeight: windowCap");
+    expect(picker).not.toContain("windowCap");
   });
 
-  it("no definite height is ever applied from the animated value", () => {
-    expect(windowSrc).not.toMatch(/height:\s*windowCap/);
-    expect(windowSrc).not.toContain("{ height: window");
-    // The v366 variable name carried the definite-height shape;
-    // it is gone from the whole component.
+  it("no definite height is ever applied from an animated value", () => {
     expect(picker).not.toContain("windowHeight");
+    expect(picker).not.toContain("Animated.Value");
   });
 
-  it("the measurement handler and its non-positive discard stand (the mechanism the model encodes)", () => {
-    expect(windowSrc).toContain("handlePanelContentLayout");
-    expect(windowSrc).toContain("if (height <= 0) return;");
+  it("the shape detector finds no window shape left to recognise", () => {
+    expect(() => windowShapeFromSource(windowSrc)).toThrow(
+      "window shape not recognised",
+    );
+  });
+
+  it("the measurement handler and its non-positive discard are gone with the window", () => {
+    expect(picker).not.toContain("handlePanelContentLayout");
+    expect(picker).not.toContain("if (height <= 0) return;");
   });
 });
 
-describe("v374 — the open resolves to the panel's real height", () => {
+describe("v374 — the isolation model, kept as the record (superseded by the v377 chain model)", () => {
   it("on the v366 definite-height shape the target resolves to 0 — the livelock, panel invisible", () => {
     expect(resolveOpenTarget("definite", 380)).toBe(0);
   });
 
-  it("on the shipped cap shape the target resolves to the natural height — the panel opens", () => {
-    expect(resolveOpenTarget(windowShapeFromSource(windowSrc), 380)).toBe(380);
-    expect(resolveOpenTarget(windowShapeFromSource(windowSrc), 252)).toBe(252);
+  // This assertion is still TRUE of the model — and the panel
+  // still never appeared on his phone. That gap is the lesson
+  // v377 is built on: a model of the window alone cannot speak
+  // for the chain. The discriminating model lives in
+  // picker-v377-plain-panel.test.ts.
+  it("on the cap shape the model resolves the target to the natural height — and the device disagreed", () => {
+    expect(resolveOpenTarget("cap", 380)).toBe(380);
+    expect(resolveOpenTarget("cap", 252)).toBe(252);
   });
 
-  it("the open still ends by unlocking — the settled style carries no cap", () => {
-    expect(windowSrc).toContain(
-      "heightLocked ? { maxHeight: windowCap } : null",
-    );
-    expect(windowSrc).toContain("setLocked(false)");
-  });
-
-  it("closing re-locks the cap at the measured height before folding", () => {
-    expect(windowSrc).toContain(
-      "windowCap.setValue(naturalHeightRef.current)",
-    );
-    expect(windowSrc).toContain("runWindowTo(0,");
+  it("the unlock/re-lock machinery the cap needed is gone — there is no cap state left", () => {
+    expect(picker).not.toContain("heightLocked");
+    expect(picker).not.toContain("setLocked");
+    expect(picker).not.toContain("naturalHeightRef");
+    expect(picker).not.toContain("runWindowTo");
   });
 });
 

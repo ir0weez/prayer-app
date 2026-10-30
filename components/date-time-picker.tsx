@@ -1,8 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo,
-  Animated,
-  Easing as RnEasing,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -40,11 +37,8 @@ import {
  * "They are so difficult to use and they don't really feel material
  * either... I'd want it directly in the screen, unfurling from the
  * time or date box"). The bottom sheet and its drum wheels are GONE.
- * The picker now grows out of the field itself on the family's own
- * motion (a plain RN Animated maxHeight cap on a clipping window,
- * 300ms, bezier(0.2, 0, 0, 1), no springs, no bounce — v373: the
- * window must animate a cap, never a definite height; see
- * PickerUnfurlWindow), carrying the approved drawing's anatomy
+ * The picker opens out of the field itself, carrying the approved
+ * drawing's anatomy
  * (selector-unfurl-v5 + the v4 dial): the date is a real Material
  * calendar — headline band in primary-container, month row with
  * tonal chevrons, today ringed, the chosen day filled — and the
@@ -64,146 +58,45 @@ import {
  * invents a time for an optional field). Every tone derives from
  * the Settings seed × appearance through schedule-material —
  * nothing pinned, light and dark alike.
+ *
+ * v377 — the panel is a PLAIN VIEW (Jonathan, Oct 30 16:46, on
+ * v376 which carries the v374 fix: a screenshot of the New Event
+ * editor, START TIME sitting in its pink open tint with no panel
+ * under it — "selecting times and dates still doesn't work...").
+ * Twice this panel's visibility hung on an animated window that
+ * measured its own child: v366's definite-height window (the
+ * child reported 0 forever) and v374's maxHeight-cap window (the
+ * v275 roster shape — it passed its source-model pins and still
+ * never reached pixels on his phone). The roster learned this in
+ * v282 and the People unfurl again in v367: on his device the
+ * animated measured window loses, and plain conditional rendering
+ * wins. So the window is GONE. Phase "open" mounts the panel as a
+ * plain View in normal layout flow — one frame, no Animated
+ * height or maxHeight, no onLayout measurement gating it, no
+ * fold on close — and "closed" unmounts it. Function over motion,
+ * per his standing ruling for these panels; the calendar, the
+ * dial, the tones and the contract above are untouched.
  */
-
-const PICKER_UNFURL_DURATION_MS = 300;
 
 /** Cross-instance seat-keeping: only one picker is open at a time;
  * opening one folds (and discards) whichever was open before it. */
 let activePickerClose: (() => void) | null = null;
 
 /**
- * The clipping window the picker unfurls through. The window
- * animates a maxHeight CAP, never a definite height — the v275
- * ruling, device-traced on the People roster's UnfurlPanel: Yoga
- * clamps an in-flow child's computed height to a definite
- * parent's height, so a child born inside a definite height:0
- * window reports onLayout height 0 forever, the measurement is
- * discarded as non-positive, and the open never starts. (The
- * v373 device report, exactly: v366 shipped this window with a
- * definite height — a tap painted the field its open tint while
- * the panel sat at height 0, and the only way out was another
- * tap, so the fields just flashed pink.) A cap never gives the
- * child a definite height to clamp against: content lays out at
- * natural height from the first frame and reports it up; the
- * window's travel is the only motion; the open ends by unlocking
- * back to auto height; under reduced motion the swap is instant.
+ * v377: there is deliberately NO window component here any more.
+ * v366 wrapped the panel in an Animated definite-height clipping
+ * window; v374 swapped the definite height for an animated
+ * maxHeight cap. Both took the panel's only measurement from an
+ * onLayout inside the window, and both failed on Jonathan's
+ * phone — the field painted its open tint and no panel ever
+ * appeared (v366's recording Oct 30 14:24; v374's, carried in
+ * v376, Oct 30 16:46). The panel below now renders as a plain
+ * View the moment the phase is "open": its height is its
+ * children's layout height in the same pass as the rest of the
+ * form, the same plain-View ruling that fixed the People roster
+ * in v282 and the family unfurl in v367. Do not reintroduce an
+ * animated height, maxHeight, or measurement gate on this path.
  */
-function PickerUnfurlWindow({
-  closing,
-  reducedMotion,
-  onClosed,
-  style,
-  children,
-}: {
-  closing?: boolean;
-  reducedMotion?: boolean;
-  onClosed?: () => void;
-  style?: ViewStyle;
-  children: React.ReactNode;
-}) {
-  const windowCap = useRef(new Animated.Value(0)).current;
-  const [heightLocked, setHeightLocked] = useState(true);
-  const heightLockedRef = useRef(true);
-  const setLocked = (locked: boolean) => {
-    heightLockedRef.current = locked;
-    setHeightLocked(locked);
-  };
-  const naturalHeightRef = useRef(0);
-  const animRef = useRef<Animated.CompositeAnimation | null>(null);
-  const openedRef = useRef(false);
-  const closingRef = useRef(!!closing);
-  closingRef.current = !!closing;
-  const reducedMotionRef = useRef(!!reducedMotion);
-  reducedMotionRef.current = !!reducedMotion;
-  const onClosedRef = useRef(onClosed);
-  onClosedRef.current = onClosed;
-
-  useEffect(() => {
-    return () => {
-      animRef.current?.stop();
-    };
-  }, []);
-
-  const runWindowTo = (target: number, onDone?: () => void) => {
-    animRef.current?.stop();
-    const anim = Animated.timing(windowCap, {
-      toValue: target,
-      duration: PICKER_UNFURL_DURATION_MS,
-      easing: RnEasing.bezier(0.2, 0, 0, 1),
-      useNativeDriver: false,
-    });
-    animRef.current = anim;
-    anim.start(({ finished }) => {
-      if (animRef.current === anim) animRef.current = null;
-      if (finished) onDone?.();
-    });
-  };
-
-  const handlePanelContentLayout = (height: number) => {
-    if (height <= 0) return;
-    naturalHeightRef.current = height;
-    if (openedRef.current) return;
-    openedRef.current = true;
-    if (closingRef.current) {
-      onClosedRef.current?.();
-      return;
-    }
-    if (reducedMotionRef.current) {
-      setLocked(false);
-      return;
-    }
-    runWindowTo(height, () => {
-      if (!closingRef.current) setLocked(false);
-    });
-  };
-
-  const wasClosingRef = useRef(!!closing);
-  useEffect(() => {
-    const wasClosing = wasClosingRef.current;
-    wasClosingRef.current = !!closing;
-    if (wasClosing === !!closing || !openedRef.current) return;
-    if (closing) {
-      if (reducedMotionRef.current) {
-        onClosedRef.current?.();
-        return;
-      }
-      if (!heightLockedRef.current) windowCap.setValue(naturalHeightRef.current);
-      setLocked(true);
-      runWindowTo(0, () => {
-        onClosedRef.current?.();
-      });
-    } else {
-      if (reducedMotionRef.current) {
-        animRef.current?.stop();
-        setLocked(false);
-        return;
-      }
-      setLocked(true);
-      runWindowTo(naturalHeightRef.current, () => {
-        if (!closingRef.current) setLocked(false);
-      });
-    }
-  }, [closing, windowCap]);
-
-  useEffect(() => {
-    if (!reducedMotion || !openedRef.current) return;
-    animRef.current?.stop();
-    if (closingRef.current) {
-      onClosedRef.current?.();
-    } else {
-      setLocked(false);
-    }
-  }, [reducedMotion]);
-
-  return (
-    <Animated.View style={[style, { overflow: "hidden" }, heightLocked ? { maxHeight: windowCap } : null]}>
-      <View onLayout={(event) => handlePanelContentLayout(event.nativeEvent.layout.height)}>
-        {children}
-      </View>
-    </Animated.View>
-  );
-}
 
 interface DateTimePickerProps {
   value: string; // ISO date string or time string (HH:mm)
@@ -242,9 +135,9 @@ export function DateTimePicker({
   const boxBg = mix(panelBg, colors.primary, dark ? 0.18 : 0.05);
   const switchOutline = mix(panelBg, colors.primary, 0.28);
 
-  const [phase, setPhase] = useState<"closed" | "open" | "closing">("closed");
+  const [phase, setPhase] = useState<"closed" | "open">("closed");
   const phaseRef = useRef(phase);
-  const setPhaseBoth = (next: "closed" | "open" | "closing") => {
+  const setPhaseBoth = (next: "closed" | "open") => {
     phaseRef.current = next;
     setPhase(next);
   };
@@ -254,11 +147,9 @@ export function DateTimePicker({
     draftRef.current = next;
     setDraft(next);
   };
-  const [reducedMotion, setReducedMotion] = useState(false);
   const [seat, setSeat] = useState<{ x: number; width: number } | null>(null);
   const [panelWidth, setPanelWidth] = useState(0);
   const rootRef = useRef<View>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Date staging.
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
@@ -273,36 +164,20 @@ export function DateTimePicker({
   const [typedTime, setTypedTime] = useState({ hh: "", mm: "" });
   const [timeFocus, setTimeFocus] = useState<"hour" | "minute">("hour");
 
-  useEffect(() => {
-    let mounted = true;
-    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (mounted) setReducedMotion(!!enabled);
-    });
-    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReducedMotion);
-    return () => {
-      mounted = false;
-      subscription.remove();
-    };
-  }, []);
-
   const requestCloseRef = useRef<(commit: boolean) => void>(() => {});
   requestCloseRef.current = (commit: boolean) => {
     if (phaseRef.current !== "open") return;
     if (commit) onChange(draftRef.current);
     if (activePickerClose === myCloserRef.current) activePickerClose = null;
-    setPhaseBoth("closing");
-    // The fold's callback normally lands this; the timeout only
-    // sweeps up after an interrupted fold.
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = setTimeout(() => {
-      if (phaseRef.current === "closing") setPhaseBoth("closed");
-    }, PICKER_UNFURL_DURATION_MS + 200);
+    // v377: the close is the unmount — same pass, no fold, no
+    // sweep timer. The panel was never animated into visibility,
+    // so there is nothing to animate out of it.
+    setPhaseBoth("closed");
   };
   const myCloserRef = useRef(() => requestCloseRef.current(false));
   useEffect(() => {
     return () => {
       if (activePickerClose === myCloserRef.current) activePickerClose = null;
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
     };
   }, []);
 
@@ -327,7 +202,7 @@ export function DateTimePicker({
 
   const handleFieldPress = () => {
     if (phase === "closed") openPicker();
-    else if (phase === "open") requestCloseRef.current(false);
+    else requestCloseRef.current(false);
   };
 
   const formatDisplay = () => {
@@ -922,7 +797,7 @@ export function DateTimePicker({
 
   // ─── Field + unfurl ────────────────────────────────────────────
 
-  const isOpen = phase !== "closed";
+  const isOpen = phase === "open";
 
   // A narrow seat (the two-up Start/End columns) grows the panel
   // toward the form's full width, anchored to whichever edge keeps
@@ -1022,16 +897,15 @@ export function DateTimePicker({
 
       {isOpen && (
         <View style={panelSeating} onLayout={(event) => setPanelWidth(event.nativeEvent.layout.width)}>
-          <PickerUnfurlWindow
-            closing={phase === "closing"}
-            reducedMotion={reducedMotion}
-            onClosed={() => setPhaseBoth("closed")}
-            style={panelFrameStyle}
-          >
+          {/* v377: the panel is a plain View in normal layout
+              flow — it mounts at full height in the same pass as
+              the rest of the form. The seating View's onLayout
+              only sizes the dial; it gates nothing. */}
+          <View style={panelFrameStyle}>
             <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
               {mode === "date" ? renderDateBody() : renderTimeBody()}
             </View>
-          </PickerUnfurlWindow>
+          </View>
         </View>
       )}
     </View>

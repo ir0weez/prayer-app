@@ -49,11 +49,23 @@ describe("v366 — the sheet and the wheels are gone", () => {
     expect(picker).not.toContain("currentYear + 10");
   });
 
-  it("the picker unfurls on the family's clock — 300ms, Material standard easing, JS-driven", () => {
-    expect(picker).toContain("PICKER_UNFURL_DURATION_MS = 300");
-    expect(picker).toContain("RnEasing.bezier(0.2, 0, 0, 1)");
-    expect(picker).toContain("useNativeDriver: false");
-    expect(picker).toContain("PickerUnfurlWindow");
+  // SUPERSEDED IN v377 (Oct 30, dated note): this pin held the
+  // animated unfurl — 300ms, Material easing, JS-driven — through
+  // v366's definite-height window and v374's maxHeight-cap swap.
+  // Both windows failed on Jonathan's phone (recordings Oct 30
+  // 14:24 and 16:46: the field paints its open tint, no panel
+  // ever appears). v377 retires the motion on this path per the
+  // v282/v367 ruling: the panel is a plain View, mounted in one
+  // frame when the phase is open. The pin below now holds the
+  // retirement; the calendar/dial anatomy the unfurl carried is
+  // pinned by the rest of this file, unchanged.
+  it("v377: the animated unfurl is retired — the panel is a plain conditional render", () => {
+    expect(picker).not.toContain("PICKER_UNFURL_DURATION_MS");
+    expect(picker).not.toContain("RnEasing");
+    expect(picker).not.toContain("useNativeDriver");
+    expect(picker).not.toContain("PickerUnfurlWindow");
+    expect(picker).toContain("{isOpen && (");
+    expect(picker).toContain("<View style={panelFrameStyle}>");
   });
 
   it("OK commits and Cancel discards — the staged-draft contract", () => {

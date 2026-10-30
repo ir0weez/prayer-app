@@ -5,12 +5,12 @@
 // promises "Defeat costs nothing," and energy must never block a
 // prestige. The whole store rekindles at local midnight.
 //
-// Since v177 the strength also returns one flame at a time: +1 base
-// energy per full hour elapsed, settled from the stored `updatedAt`
-// anchor whenever the store loads (no background timers, like every
-// other system here). The trickle feeds the BASE only, capped at the
-// level max; purchased bonus energy is untouched by it and still dies
-// at midnight.
+// v343: the v177 hourly trickle is REMOVED — the store rekindles at
+// local midnight and that is the only refill; nothing returns
+// mid-day. The above-cap bonus pool goes with it: grants (diner
+// coffee) clamp at the level cap like everything else. (The stored
+// `updatedAt` anchor and `bonus` field stay readable for old saves;
+// a stored bonus is dropped on the next resolve, never spent.)
 //
 // State lives in its own AsyncStorage key as { date, energy }; the date
 // rollover on read is the refill, like the other daily systems
@@ -22,8 +22,8 @@ import { loadXPState } from "./xp-engine";
 
 export const FOREST_ENERGY_KEY = "prayercircle.forest-energy.v1";
 
-/** The hourly trickle: one flame back per full hour (v177). */
-export const ENERGY_TRICKLE_MS = 3600 * 1000;
+/** RE-BASED v343: ENERGY_TRICKLE_MS is removed with the trickle it
+ *  paced — midnight is the only refill now. */
 
 export type ForestEnergyState = {
   /** Local date ("YYYY-MM-DD") the stored energy belongs to. */
@@ -31,16 +31,14 @@ export type ForestEnergyState = {
   /** Base energy (never above the level cap on its own). */
   energy: number;
   /**
-   * Purchased bonus energy ABOVE the cap (diner coffee). Kept separate
-   * from `energy` so the base store still clamps to the level cap; the
-   * bonus is spent like normal energy and dies at midnight — the daily
-   * refill resets the whole store to the cap as usual.
+   * Legacy (pre-v343): purchased bonus energy above the cap. The
+   * pool is removed — the resolver drops it on read and nothing
+   * writes it any more. Kept in the type so old stores still parse.
    */
   bonus?: number;
   /**
-   * Epoch ms the hourly trickle clock last advanced to (v177). Absent
-   * on stores written before v177: the clock starts at the first
-   * v177 load — no retroactive trickle for time already gone.
+   * Legacy (v177–v342): the hourly trickle's anchor. The resolver no
+   * longer advances energy from it; new writes simply carry `now`.
    */
   updatedAt?: number;
 };
@@ -64,7 +62,7 @@ export function maxForestEnergy(level: number): number {
   return Math.max(0, Math.floor(level) || 0);
 }
 
-/** A resolved store: the public energy view plus its trickle anchor. */
+/** A resolved store: the public energy view plus its anchor stamp. */
 type ResolvedEnergyStore = ForestEnergy & { updatedAt: number };
 
 /**
@@ -72,38 +70,18 @@ type ResolvedEnergyStore = ForestEnergy & { updatedAt: number };
  * current time.
  * A stored date other than today means midnight has passed — the store
  * rekindles to full. Same-day energy is kept, clamped to the max (a
- * level drop can shrink the max under a stored value), and the hourly
- * trickle settles on top of the BASE: +1 per full hour elapsed since
- * the stored `updatedAt` anchor, capped at the max. Bonus energy is
- * untouched by the trickle. The anchor advances by the whole hours
- * consumed (leftover partial time carries), rests at `nowMs` while
- * the base sits at the cap (no banking past full), and starts at
- * `nowMs` for a legacy store that has none — never retroactive.
+ * level drop can shrink the max under a stored value). v343: NO
+ * hourly trickle settles here, and a legacy stored `bonus` is dropped
+ * — energy never exceeds the level cap. The anchor is carried as
+ * `nowMs` purely so old stores keep their shape.
  */
 function resolveEnergyStore(raw: unknown, level: number, today: string, nowMs: number): ResolvedEnergyStore {
   const max = maxForestEnergy(level);
   if (raw && typeof raw === "object") {
     const s = raw as Partial<ForestEnergyState>;
     if (s.date === today && typeof s.energy === "number" && Number.isFinite(s.energy)) {
-      let base = Math.max(0, Math.min(max, Math.floor(s.energy)));
-      const bonus =
-        typeof s.bonus === "number" && Number.isFinite(s.bonus) ? Math.max(0, Math.floor(s.bonus)) : 0;
-      const anchorIn =
-        typeof s.updatedAt === "number" && Number.isFinite(s.updatedAt) && s.updatedAt >= 0
-          ? s.updatedAt
-          : null;
-      let anchor = anchorIn ?? nowMs;
-      if (base >= max) {
-        anchor = nowMs;
-      } else if (anchorIn !== null) {
-        const elapsed = nowMs - anchorIn;
-        const periods = elapsed > 0 ? Math.floor(elapsed / ENERGY_TRICKLE_MS) : 0;
-        if (periods > 0) {
-          base = Math.min(max, base + periods);
-          anchor = base >= max ? nowMs : anchorIn + periods * ENERGY_TRICKLE_MS;
-        }
-      }
-      return { energy: base + bonus, max, updatedAt: anchor };
+      const base = Math.max(0, Math.min(max, Math.floor(s.energy)));
+      return { energy: base, max, updatedAt: nowMs };
     }
   }
   return { energy: max, max, updatedAt: nowMs };
@@ -111,8 +89,7 @@ function resolveEnergyStore(raw: unknown, level: number, today: string, nowMs: n
 
 /**
  * Pure: resolve a stored state against a level and today's date (the
- * public view — { energy, max } only; the trickle anchor stays an
- * internal storage concern).
+ * public view — { energy, max } only).
  */
 export function resolveForestEnergy(
   raw: unknown,
@@ -153,17 +130,16 @@ async function readStoredState(): Promise<unknown> {
   }
 }
 
-/** Split a total into the stored base (≤ cap) + bonus (above it). */
+/** Split a total into the stored base (≤ cap) + bonus. v343: the
+ * bonus pool is removed — energy clamps at the cap, bonus is 0. */
 function splitEnergy(state: ForestEnergy): { base: number; bonus: number } {
-  const bonus = Math.max(0, state.energy - state.max);
-  return { base: state.energy - bonus, bonus };
+  return { base: Math.max(0, Math.min(state.max, state.energy)), bonus: 0 };
 }
 
 async function persistStore(state: ResolvedEnergyStore, today: string): Promise<void> {
   try {
-    // Split the total back into base (≤ cap) + bonus (above the cap).
-    // The bonus key is written only when positive, so the common-case
-    // stored shape stays { date, energy } plus the v177 trickle anchor.
+    // The stored shape stays { date, energy, updatedAt }; the bonus
+    // key is never written any more (v343).
     const { base, bonus } = splitEnergy(state);
     const stored: ForestEnergyState =
       bonus > 0
@@ -174,12 +150,11 @@ async function persistStore(state: ResolvedEnergyStore, today: string): Promise<
 }
 
 /**
- * Load today's energy store, settled: the player's level sets the max,
- * a stored date from before today refills to full (and is re-stamped
- * to today), and the hourly trickle settles against the stored anchor.
- * Persists whenever the settled store differs from what was stored —
- * including a bare anchor stamp on a legacy store. Updates the sync
- * cache with the public { energy, max } view.
+ * Load today's energy store, settled: the player's level sets the
+ * max, and a stored date from before today refills to full (and is
+ * re-stamped to today) — midnight is the only refill (v343).
+ * Persists whenever the settled store differs from what was stored.
+ * Updates the sync cache with the public { energy, max } view.
  */
 async function loadEnergyStore(): Promise<ResolvedEnergyStore> {
   const today = forestEnergyDateStr();
@@ -193,8 +168,7 @@ async function loadEnergyStore(): Promise<ResolvedEnergyStore> {
     !stored ||
     stored.date !== today ||
     storedBase !== base ||
-    storedBonus !== bonus ||
-    stored.updatedAt !== resolved.updatedAt
+    storedBonus !== bonus
   ) {
     await persistStore(resolved, today);
   }
@@ -211,9 +185,7 @@ export async function loadForestEnergy(): Promise<ForestEnergy> {
 /**
  * Spend 1 energy on entering a wave fight. Returns false — and spends
  * nothing — when the store is empty. Boss Gate fights never call this:
- * the gate is free. The trickle anchor rides through untouched: the
- * hourly flame arrives on the anchor's schedule whether or not a
- * spend happened inside the hour (hero-health's carry semantics).
+ * the gate is free.
  */
 export async function spendForestEnergy(): Promise<boolean> {
   const current = await loadEnergyStore();
@@ -226,10 +198,9 @@ export async function spendForestEnergy(): Promise<boolean> {
 }
 
 /**
- * Grant bonus energy (diner coffee): +amount on top of today's store,
- * ALLOWED to exceed the level cap. The excess is stored as `bonus`, so
- * it survives re-reads of the base store, is spent like normal energy,
- * and disappears at midnight when the store rekindles to the cap.
+ * Grant energy (diner coffee): +amount on today's store, CLAMPED at
+ * the level cap (v343 — the above-cap bonus pool is removed; a grant
+ * at a full store is a no-op, as is any non-positive amount).
  * Updates the sync cache so the forest panel sees it immediately.
  */
 export async function grantForestEnergy(amount: number): Promise<ForestEnergy> {
@@ -237,7 +208,7 @@ export async function grantForestEnergy(amount: number): Promise<ForestEnergy> {
   const add = Math.max(0, Math.floor(amount) || 0);
   if (add <= 0) return { energy: current.energy, max: current.max };
   const nextStore: ResolvedEnergyStore = {
-    energy: current.energy + add,
+    energy: Math.min(current.max, current.energy + add),
     max: current.max,
     updatedAt: current.updatedAt,
   };

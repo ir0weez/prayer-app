@@ -288,6 +288,123 @@ export const ERA_DEFS: readonly EraDef[] = [
 
 export const ERA_COUNT = ERA_DEFS.length;
 
+// ── v343: full place dress for EVERY era ────────────────────────────────────
+// Part 1 dressed only the Millennium and the New Earth in full; the
+// nine middle eras wore palette + sky + cloth. The rebuild gives
+// every age its own papers, drawn from its stock: the Flood's
+// blue-grey, Babel's clay red, Israel's linen + gold leaf, Saul's
+// slate and purple-grey, David's royal purple and cedar, the
+// Ministry's Galilean ochre, Nero's charcoal and lamp-amber, the
+// Church Ages' aged parchment, the Tribulation's ash.
+const ERA_DRESS: Partial<Record<EraId, EraPlaceDress>> = {
+  flood: {
+    wall: "#A8BCC8", roof: "#5E7488", foundation: "#7A8FA1",
+    roofs: ["#5E7488", "#6E8296", "#54687C", "#63788C"],
+  },
+  babel: {
+    wall: "#D9B48A", roof: "#B4503C", foundation: "#96683F",
+    roofs: ["#B4503C", "#A85A3C", "#C06038", "#9C4A34"],
+  },
+  israel: {
+    wall: "#EFE6CC", roof: "#C9963C", foundation: "#B3A075",
+    roofs: ["#C9963C", "#D9BC7A", "#B8934A", "#E4D6AE"],
+  },
+  saul: {
+    wall: "#9AA0AE", roof: "#5C5470", foundation: "#626A7C",
+    roofs: ["#5C5470", "#4E4A66", "#6A6280", "#55506B"],
+  },
+  david: {
+    wall: "#D8C2A0", roof: "#5E3A8C", foundation: "#77572F",
+    roofs: ["#5E3A8C", "#6D3FA0", "#54337E", "#7A4FA8"],
+  },
+  ministry: {
+    wall: "#EAD9A8", roof: "#8A6D3B", foundation: "#9A8547",
+    roofs: ["#8A6D3B", "#9A7A44", "#7A6234", "#A8894E"],
+  },
+  nero: {
+    wall: "#55524E", roof: "#2C2A27", foundation: "#3E3B36",
+    roofs: ["#2C2A27", "#37342F", "#242220", "#3F3B36"],
+  },
+  "church-ages": {
+    wall: "#E4D6B0", roof: "#8A6D3B", foundation: "#8F815C",
+    roofs: ["#8A6D3B", "#7A6234", "#96793F", "#6E5830"],
+  },
+  tribulation: {
+    wall: "#8A857E", roof: "#4E4A45", foundation: "#5E5A55",
+    roofs: ["#4E4A45", "#5A554F", "#443F3B", "#655F59"],
+  },
+};
+/** An era's full place dress: the def's own where Part 1 set one
+ *  (Millennium, New Earth), the v343 table for the other ages, or
+ *  undefined for the Village (the places keep their Village papers). */
+export function eraDressFor(era: EraDef | null | undefined): EraPlaceDress | undefined {
+  if (!era) return undefined;
+  return era.palette.dress ?? ERA_DRESS[era.id];
+}
+
+// ── v343: the gathering place — the spine ───────────────────────────────────
+// The café's seat is the town's gathering place, and it does not
+// start as a café: the PLACE evolves era by era while the wiring
+// underneath it (the prayer list = its orders, praying serves) never
+// changes. Fire circle and common table → ark provision → Babel's
+// false temple → the tabernacle (under Saul, wearing a king's
+// banner) → the Temple → the upper room → hidden house churches →
+// the church through the ages → hidden again in the Tribulation →
+// the Millennium's flourishing pavilion → the floating city, New
+// Jerusalem, where no temple is needed (Rev 21:22). Kind, name,
+// plaque and silhouette all change; the orders board is the same
+// board in every age.
+export type GatheringArtKind =
+  | "fire-circle"
+  | "ark"
+  | "false-temple"
+  | "tabernacle"
+  | "tabernacle-banner"
+  | "temple"
+  | "upper-room"
+  | "house-church"
+  | "church"
+  | "hidden-house"
+  | "pavilion"
+  | "new-jerusalem";
+
+export type GatheringDef = {
+  /** The place's name in this age (its label, and the café scene's
+   *  header — the interior wears the age too). */
+  name: string;
+  /** The street plaque the place speaks in this age. */
+  plaque: string;
+  art: GatheringArtKind;
+};
+
+export const GATHERING_BY_ERA: Record<EraId, GatheringDef> = {
+  village: { name: "The Common Table", plaque: "Common Table", art: "fire-circle" },
+  flood: { name: "Ark Provision", plaque: "Ark Provision", art: "ark" },
+  babel: { name: "The False Temple", plaque: "False Temple", art: "false-temple" },
+  israel: { name: "The Tabernacle", plaque: "Tabernacle", art: "tabernacle" },
+  saul: { name: "The Tabernacle", plaque: "Tabernacle", art: "tabernacle-banner" },
+  david: { name: "The Temple", plaque: "The Temple", art: "temple" },
+  ministry: { name: "The Upper Room", plaque: "Upper Room", art: "upper-room" },
+  nero: { name: "A House Church", plaque: "House Church", art: "house-church" },
+  "church-ages": { name: "The Church", plaque: "The Church", art: "church" },
+  tribulation: { name: "The Hidden Church", plaque: "Hidden Church", art: "hidden-house" },
+  millennium: { name: "The Pavilion", plaque: "The Pavilion", art: "pavilion" },
+  "new-earth": { name: "New Jerusalem", plaque: "New Jerusalem", art: "new-jerusalem" },
+};
+
+/** The gathering place's dress for an era (or the Village's when
+ *  the town carries no era). */
+export function gatheringForEra(era: EraDef | EraId | null | undefined): GatheringDef {
+  if (!era) return GATHERING_BY_ERA.village;
+  const id = typeof era === "string" ? era : era.id;
+  return GATHERING_BY_ERA[id] ?? GATHERING_BY_ERA.village;
+}
+
+/** The era cloth shape the street's figures share (shirt/pants tint
+ *  targets + blend) — components/street-villagers' EraDress is this
+ *  shape; the hero's pawn reads it too (v343). */
+export type EraDressLike = { shirt: string; pants: string; mix: number };
+
 /** Which twelfth of the fast a (1-based) fast day falls in — the one
  *  era derivation every surface shares. Day 1 is the Village; the
  *  fast's last day is the New Earth. */

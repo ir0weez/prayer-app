@@ -10,7 +10,7 @@
 // sealed behind a once-ever flag.
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { COINS_STORAGE_KEY, type HometownCoins, type TownState } from "./hometown";
+import { applyCoinsDelta, type HometownCoins, type TownState } from "./hometown";
 
 export const RESTITUTION_FLAG_KEY = "prayercircle.restitution.v1";
 export const RESTITUTION_AMOUNT = 5500;
@@ -53,11 +53,12 @@ export async function maybeGrantRestitution(
       flagSet: !!flag,
     });
     if (!grant) return null;
-    const next: HometownCoins = {
-      balance: Math.round((coins.balance + RESTITUTION_AMOUNT) * 100) / 100,
-      lifetimeEarned: Math.round((coins.lifetimeEarned + RESTITUTION_AMOUNT) * 100) / 100,
-    };
-    await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+    // v343: the grant goes through the ledger like every other coin
+    // movement — applyCoinsDelta against the freshest stored record,
+    // persisted by the ledger's own queue. This file used to write
+    // the coins record directly from its caller's snapshot, the one
+    // write outside the ledger.
+    const next = await applyCoinsDelta(RESTITUTION_AMOUNT, "none");
     await AsyncStorage.setItem(RESTITUTION_FLAG_KEY, "1");
     return next;
   } catch {

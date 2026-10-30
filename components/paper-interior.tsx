@@ -795,7 +795,7 @@ export function PaperSeatedHero({ pawn, unit }: { pawn: CustomPawn; unit: number
 export const PAPER_HERO_W = 11;
 export const PAPER_HERO_H = 17;
 
-export function PaperHeroFigure({ pawn, unit }: { pawn: CustomPawn; unit: number }) {
+export function PaperHeroFigure({ pawn, unit, cloth }: { pawn: CustomPawn; unit: number; cloth?: string }) {
   const skin = "#EFC39A";
   const hair = pawn.hairColor || "#6B4423";
   const style = pawn.hairStyle;
@@ -880,10 +880,12 @@ export function PaperHeroFigure({ pawn, unit }: { pawn: CustomPawn; unit: number
       <Rect x={5.9} y={11.5} width={1.9} height={4.3} rx={0.7} fill="#3E4A5C" />
       <Ellipse cx={4.2} cy={16.05} rx={1.25} ry={0.55} fill="#3A2A1C" />
       <Ellipse cx={6.9} cy={16.05} rx={1.25} ry={0.55} fill="#3A2A1C" />
-      {/* torso + arms — his clothes, never armor */}
-      <Rect x={2.6} y={6.2} width={5.9} height={5.6} rx={1.8} fill={pawn.bodyColor} />
-      <Rect x={1.15} y={6.6} width={1.55} height={4.6} rx={0.75} fill={pawn.bodyColor} />
-      <Rect x={8.35} y={6.6} width={1.55} height={4.6} rx={0.75} fill={pawn.bodyColor} />
+      {/* torso + arms — his clothes, never armor. v343: the era's
+          cloth tint, when the street passes one (the villagers'
+          look-mix applied to the hero the same way). */}
+      <Rect x={2.6} y={6.2} width={5.9} height={5.6} rx={1.8} fill={cloth ?? pawn.bodyColor} />
+      <Rect x={1.15} y={6.6} width={1.55} height={4.6} rx={0.75} fill={cloth ?? pawn.bodyColor} />
+      <Rect x={8.35} y={6.6} width={1.55} height={4.6} rx={0.75} fill={cloth ?? pawn.bodyColor} />
       <Circle cx={1.9} cy={11.5} r={0.8} fill={skin} />
       <Circle cx={9.1} cy={11.5} r={0.8} fill={skin} />
       {/* neck, hair mass, head */}

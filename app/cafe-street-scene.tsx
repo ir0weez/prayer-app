@@ -26,8 +26,8 @@ import {
   ovenStateFor,
   type CafeStreetData,
 } from "@/lib/cafe-street";
-import { getTimeOfDay } from "@/lib/daynight";
-import { phaseForTimeOfDay } from "@/lib/welcoming-town";
+import { phaseForDate } from "@/lib/welcoming-town";
+import { eraForFast, gatheringForEra } from "@/lib/hometown-eras";
 
 const BG = "#EFE6D4";
 const HEADER_BG = "#F7F1E8";
@@ -57,7 +57,14 @@ export default function CafeStreetSceneScreen() {
     [cafe],
   );
   const oven = cafe ? ovenStateFor(cafe.fast, cafe.today) : "none";
-  const phase = phaseForTimeOfDay(getTimeOfDay());
+  // v343: the town's phases are the walkable mock's windows
+  // (dawn 5-8, day 8-17, dusk 17-20, night 20-5).
+  const phase = phaseForDate();
+  // v343: the gathering place wears its AGE inside too — the
+  // scene's header is the era's name for the place (the Common
+  // Table in the Village, the Temple under David, New Jerusalem
+  // at the end), never a fixed "The Café".
+  const gathering = gatheringForEra(eraForFast(cafe?.fast ?? null, cafe?.today));
   // Coins are whole in this app — the pile shows whole coins waiting.
   const earnings = Math.max(0, Math.floor(building?.accumulated ?? 0));
 
@@ -66,7 +73,7 @@ export default function CafeStreetSceneScreen() {
       <InteriorHeader
         icon="restaurant"
         iconColor="#B4503C"
-        title="The Café"
+        title={gathering.name}
         coins={coins}
         bg={HEADER_BG}
         textColor={INK}

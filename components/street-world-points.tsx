@@ -59,7 +59,7 @@ function PointChip({ label, dim, scale = 1 }: { label: string; dim?: boolean; sc
         paddingVertical: 2 * scale,
       }}
     >
-      <Text style={{ fontSize: 9.5 * scale, fontWeight: "700", color: "#FFF7ED", textAlign: "center" }}>
+      <Text style={{ fontSize: Math.max(10, 9.5 * scale), fontWeight: "700", color: "#FFF7ED", textAlign: "center" }}>
         {label}
       </Text>
     </View>
@@ -86,21 +86,24 @@ export function NoticeBoardPoint({
     <Pressable
       onPress={onPress}
       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-      style={{ position: "absolute", left, top, width: NOTICE_BOARD_W * s, alignItems: "center" }}
+      style={{ position: "absolute", left, top, width: NOTICE_BOARD_W * s, alignItems: "center", zIndex: 9600 }}
       accessibilityLabel={pendingCount > 0 ? `${pendingCount} missions available` : "Mission board"}
     >
-      {/* the board itself, at its drawn size, centered in the stand */}
-      <View style={{ width: 46 * s, height: 34 * s }}>
+      {/* the board itself — v343: drawn at the DRAWING's scale (its
+          place is 2.32 tiles wide and the drawing's face fills
+          ~19-21% of the stage; the old 46-unit face rendered at
+          ~10% and read as a toy). Centered in the stand. */}
+      <View style={{ width: 84 * s, height: 62 * s }}>
         {/* posts */}
         <View style={{ position: "absolute", bottom: -12 * s, left: 8 * s, width: 4 * s, height: 16 * s, backgroundColor: "#6B4423", borderRadius: 2 }} />
         <View style={{ position: "absolute", bottom: -12 * s, right: 8 * s, width: 4 * s, height: 16 * s, backgroundColor: "#6B4423", borderRadius: 2 }} />
         {/* board face: wood frame, paper inside, three pinned notes */}
-        <View style={{ width: 46 * s, height: 34 * s, backgroundColor: "#7C4A21", borderRadius: 5, padding: 3 * s }}>
+        <View style={{ width: 84 * s, height: 62 * s, backgroundColor: "#7C4A21", borderRadius: 5, padding: 4 * s }}>
           <View style={{ flex: 1, backgroundColor: "#FEF3C7", borderRadius: 3 }}>
-            <View style={{ position: "absolute", left: 5 * s, top: 5 * s, width: 9 * s, height: 11 * s, backgroundColor: "#FFFFFF", borderRadius: 1, transform: [{ rotate: "-5deg" }] }} />
-            <View style={{ position: "absolute", left: 17 * s, top: 4 * s, width: 9 * s, height: 11 * s, backgroundColor: "#FCA5A5", borderRadius: 1, transform: [{ rotate: "3deg" }] }} />
-            <View style={{ position: "absolute", left: 29 * s, top: 5 * s, width: 9 * s, height: 11 * s, backgroundColor: "#93C5FD", borderRadius: 1, transform: [{ rotate: "-2deg" }] }} />
-            <View style={{ position: "absolute", left: 6 * s, top: 20 * s, width: 30 * s, height: 3 * s, backgroundColor: "#D6C08A", borderRadius: 2 }} />
+            <View style={{ position: "absolute", left: 8 * s, top: 8 * s, width: 17 * s, height: 21 * s, backgroundColor: "#FFFFFF", borderRadius: 1, transform: [{ rotate: "-5deg" }] }} />
+            <View style={{ position: "absolute", left: 31 * s, top: 6 * s, width: 17 * s, height: 21 * s, backgroundColor: "#FCA5A5", borderRadius: 1, transform: [{ rotate: "3deg" }] }} />
+            <View style={{ position: "absolute", left: 54 * s, top: 8 * s, width: 17 * s, height: 21 * s, backgroundColor: "#93C5FD", borderRadius: 1, transform: [{ rotate: "-2deg" }] }} />
+            <View style={{ position: "absolute", left: 10 * s, top: 38 * s, width: 56 * s, height: 5 * s, backgroundColor: "#D6C08A", borderRadius: 2 }} />
           </View>
         </View>
         {pendingCount > 0 && (
@@ -118,7 +121,7 @@ export function NoticeBoardPoint({
               paddingHorizontal: 4 * s,
             }}
           >
-            <Text style={{ fontSize: 10 * s, fontWeight: "800", color: "#FFFFFF" }}>{pendingCount}</Text>
+            <Text style={{ fontSize: Math.max(10, 10 * s), fontWeight: "800", color: "#FFFFFF" }}>{pendingCount}</Text>
           </View>
         )}
       </View>
@@ -191,7 +194,7 @@ export function TestimonyStonesPoint({
 }) {
   const s = scale;
   return (
-    <View pointerEvents="none" style={{ position: "absolute", left, top, width: TESTIMONY_STONES_W * s, alignItems: "center" }}>
+    <View pointerEvents="none" style={{ position: "absolute", left, top, width: TESTIMONY_STONES_W * s, alignItems: "center", zIndex: 9500 }}>
       {/* a small cairn of standing stones — the plaza, in miniature */}
       <View style={{ width: 15 * s, height: 10 * s, backgroundColor: "#9CA3AF", borderRadius: 7 * s, borderBottomWidth: 2, borderBottomColor: "#6B7280" }} />
       <View style={{ flexDirection: "row", gap: 3 * s, marginTop: 1 * s }}>
@@ -235,22 +238,21 @@ export function LotPlayPoint({
   return (
     <Pressable
       onPress={canPlay ? onPlay : undefined}
-      style={{ position: "absolute", left, top, width, height, alignItems: "center" }}
+      style={{ position: "absolute", left, top, width, height, alignItems: "center", justifyContent: "center", zIndex: 9500 }}
       accessibilityLabel={canPlay ? `Play: ${label}` : `${label} — played out for today`}
     >
       <View
         style={{
           flexDirection: "row",
           alignItems: "center",
-          marginTop: 6 * s,
           backgroundColor: canPlay ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.38)",
           borderRadius: 999,
           paddingHorizontal: 8 * s,
           paddingVertical: 3 * s,
         }}
       >
-        <MaterialIcons name={icon} size={12 * s} color="#FFF7ED" />
-        <Text style={{ fontSize: 10 * s, fontWeight: "700", color: "#FFF7ED", marginLeft: 4 * s, textAlign: "center" }}>
+        <MaterialIcons name={icon} size={Math.max(11, 12 * s)} color="#FFF7ED" />
+        <Text style={{ fontSize: Math.max(10, 10 * s), fontWeight: "700", color: "#FFF7ED", marginLeft: 4 * s, textAlign: "center" }}>
           {canPlay ? `${label} · ${plays}/${cap}` : `${label} · played out`}
         </Text>
       </View>

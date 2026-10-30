@@ -16,6 +16,16 @@
 // Movement is presentation only: positions settle from the walk
 // plans in lib/wide-street; nothing here writes, collects, or
 // settles anything.
+//
+// v343 — NIGHT, as decided: when the screen passes the town's
+// phase and it is night, the villagers are NOT in the street at
+// all — they are home (their cottages show it: windows lit, and a
+// prayed-for person's home glows). They walk home as dusk falls
+// (the phase flips and the street empties), and they are back on
+// the street at dawn. Each villager also carries their FIRST NAME
+// under their figure now (the street had lost the labels the grid
+// town always had), and the greeting wave bubble from the grid
+// town returns: it shows when the Hero is within ~1.5 tiles.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { memo, useEffect, useRef, useState } from "react";
@@ -25,6 +35,7 @@ import { PaperGlowDisc, PaperStandingVillager } from "@/components/paper-interio
 import { paperMapLookFor } from "@/lib/paper-town";
 import { mixHex } from "@/lib/hometown-eras";
 import { getTimeOfDay } from "@/lib/daynight";
+import type { DayPhase } from "@/lib/welcoming-town";
 import {
   isStreetWalkable,
   planStreetWalk,
@@ -57,6 +68,8 @@ export const StreetVillagers = memo(function StreetVillagers({
   missionWaitingIds,
   onVillagerTap,
   eraDress,
+  phase,
+  heroPosRef,
 }: {
   world: StreetWorld;
   cellSize: number;
@@ -74,9 +87,17 @@ export const StreetVillagers = memo(function StreetVillagers({
   missionWaitingIds: Set<string>;
   onVillagerTap: (p: VillagerTap) => void;
   eraDress?: EraDress | null;
+  /** v343: the town's phase. At night the street is EMPTY — the
+   *  villagers are home (see the header). Absent = legacy daynight
+   *  behaviour (doorstep rest), unchanged. */
+  phase?: DayPhase;
+  /** v343: the Hero's live pixel position (feet anchor, content
+   *  space) — drives the greeting wave when he comes close. */
+  heroPosRef?: React.MutableRefObject<{ x: number; y: number }>;
 }) {
   const worldRef = useRef(world);
   worldRef.current = world;
+  if (phase === "night") return null;
   return (
     <>
       {lights.map((light, i) => (
@@ -92,6 +113,8 @@ export const StreetVillagers = memo(function StreetVillagers({
           missionWaiting={missionWaitingIds.has(light.personId)}
           onVillagerTap={onVillagerTap}
           eraDress={eraDress}
+          phase={phase}
+          heroPosRef={heroPosRef}
         />
       ))}
     </>
@@ -109,6 +132,8 @@ function StreetVillager({
   missionWaiting,
   onVillagerTap,
   eraDress,
+  phase,
+  heroPosRef,
 }: {
   light: LightInfo;
   index: number;
@@ -120,6 +145,8 @@ function StreetVillager({
   missionWaiting: boolean;
   onVillagerTap: (p: VillagerTap) => void;
   eraDress?: EraDress | null;
+  phase?: DayPhase;
+  heroPosRef?: React.MutableRefObject<{ x: number; y: number }>;
 }) {
   const startTile = useRef<WalkTile>(
     stand ?? homeDoor ?? worldRef.current.cafe?.door ?? worldRef.current.roads[0] ?? { x: 5, y: 9 }
@@ -145,8 +172,10 @@ function StreetVillager({
   onTapRef.current = onVillagerTap;
 
   // Live tile position for the parent's presence tick.
+  const pxRef = useRef({ x: (startTile.x + 0.5) * cellSize, y: (startTile.y + 0.5) * cellSize - 4 });
   useEffect(() => {
     const id = pos.addListener((v) => {
+      pxRef.current = { x: v.x, y: v.y };
       if (positionsRef) {
         positionsRef.current[index] = {
           x: v.x / cellSize - 0.5,
@@ -156,6 +185,25 @@ function StreetVillager({
     });
     return () => pos.removeListener(id);
   }, [pos, positionsRef, index, cellSize]);
+
+  // v343: the greeting wave — shown while the Hero is within
+  // ~1.5 tiles (checked on a slow interval from the two live
+  // position refs; presentation only).
+  const [heroNear, setHeroNear] = useState(false);
+  useEffect(() => {
+    if (!heroPosRef) return;
+    const check = () => {
+      const h = heroPosRef.current;
+      const d = Math.hypot(h.x - pxRef.current.x, h.y - pxRef.current.y);
+      setHeroNear((prev) => {
+        const near = d <= cellSize * 1.5;
+        return prev === near ? prev : near;
+      });
+    };
+    check();
+    const id = setInterval(check, 600);
+    return () => clearInterval(id);
+  }, [heroPosRef, cellSize]);
 
   // Gentle bob while walking (the town's own idle motion).
   useEffect(() => {
@@ -215,7 +263,7 @@ function StreetVillager({
     const stroll = () => {
       if (!mountedRef.current) return;
       const world = worldRef.current;
-      const night = getTimeOfDay() === "night";
+      const night = phase !== undefined ? phase === "night" : getTimeOfDay() === "night";
       // Night rest: their own doorstep, else their corner stand,
       // else the café's door. The stroll below biases the other
       // way — a stand-holder's day gathers at the corner.
@@ -326,6 +374,42 @@ function StreetVillager({
             <Text style={{ color: "#FFF7E6", fontSize: 9, fontWeight: "900", lineHeight: 11 }}>!</Text>
           </View>
         )}
+        {/* v343: the greeting wave (the grid town's bubble,
+            ported): white, gold-edged, a raised hand — for the
+            hero when he comes close. */}
+        {heroNear && (
+          <View
+            pointerEvents="none"
+            style={{ position: "absolute", top: -16, alignSelf: "center", alignItems: "center" }}
+          >
+            <View
+              style={{
+                backgroundColor: "#FFFFFF",
+                borderRadius: 9,
+                paddingHorizontal: 5,
+                paddingVertical: 2,
+                borderWidth: 1,
+                borderColor: "#D4AF37",
+                alignItems: "center",
+              }}
+            >
+              <MaterialIcons name="front-hand" size={13} color="#8A6D1F" />
+            </View>
+            <View
+              style={{
+                width: 0,
+                height: 0,
+                borderLeftWidth: 3.5,
+                borderRightWidth: 3.5,
+                borderTopWidth: 5,
+                borderLeftColor: "transparent",
+                borderRightColor: "transparent",
+                borderTopColor: "#D4AF37",
+                marginTop: -1,
+              }}
+            />
+          </View>
+        )}
         <PaperStandingVillager
           look={(() => {
             const base = paperMapLookFor({ id: light.personId, accentColor: light.accentColor });
@@ -341,6 +425,28 @@ function StreetVillager({
           })()}
           width={figW}
         />
+        {/* v343: the villager's FIRST name under their figure —
+            auto-sized by the word, floored at the legibility
+            minimum, never truncated. */}
+        <View
+          pointerEvents="none"
+          style={{ position: "absolute", top: boxH - 1, left: -(200 - boxW) / 2, width: 200, alignItems: "center" }}
+        >
+          <Text
+            style={{
+              fontSize: Math.max(10, cellSize * 0.34),
+              fontWeight: "700",
+              color: "#FFF7ED",
+              backgroundColor: "rgba(0,0,0,0.45)",
+              borderRadius: 6,
+              paddingHorizontal: 5,
+              paddingVertical: 1,
+              textAlign: "center",
+            }}
+          >
+            {(light.name || "").trim().split(/\s+/)[0] || light.name}
+          </Text>
+        </View>
       </Pressable>
     </Animated.View>
   );

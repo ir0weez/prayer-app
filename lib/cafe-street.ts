@@ -340,6 +340,24 @@ export function ovenStateFor(fast: PersonalFast | null, today: string): CafeOven
   return fast.dayStatuses?.[today] === "missed" ? "cold" : "lit";
 }
 
+/**
+ * v343 — SERVE: the route a board ticket's Serve button opens. It
+ * lands on People carrying the person, and index.tsx's
+ * servePersonId effect starts the prayer session on them (the same
+ * plumbing the native notification uses) — serving IS praying for
+ * that person in the app's own session, so the served glow, the
+ * café's bookkeeping and the prayer session can never disagree.
+ * Null when there is nothing to serve: an already-served ticket,
+ * and tomorrow's pins (tomorrow's business, shown early so the day
+ * can be planned — they join the board for real at midnight).
+ */
+export function serveRouteForTicket(
+  ticket: CafeTicket,
+): { pathname: "/(tabs)"; params: { servePersonId: string } } | null {
+  if (ticket.served || ticket.tomorrow) return null;
+  return { pathname: "/(tabs)", params: { servePersonId: ticket.personId } };
+}
+
 /** Kept weeks inside the current fast — 7 kept days open one lot. */
 export function fastWeeksCompleted(fast: PersonalFast | null): number {
   if (!fast) return 0;

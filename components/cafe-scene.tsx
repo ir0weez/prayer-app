@@ -10,12 +10,17 @@
 // "+N more" line (that popup was the v279 overlay, retired in this
 // build; Jonathan's 2026-10-27 screenshot 10759 is why).
 //
-// Serving is prayer: there is no serve button here and no second
-// prayer path. The scene settles from stored state on open — pray in
-// Pray Today, come back, and the ticket is checked, the figure is at
-// their table, warm. Coins never touch a ticket; the day's earnings
-// sit piled by the register, waiting, and collecting stays on the
-// street where it has always lived.
+// Serving is prayer (v343): every waiting ticket carries a SERVE
+// button that routes to People with the person, and the prayer
+// session opens on them — the app's one prayer path, started from
+// the board. (The v287 "no serve button" design is superseded:
+// arriving at the café used to auto-collect the register too, and
+// both passive behaviours are gone — nothing here moves money or
+// marks anyone served; praying does.) The scene settles from
+// stored state on open — serve someone, come back, and the ticket
+// is checked, the figure is at their table, warm. Coins never
+// touch a ticket; the day's earnings sit piled by the register,
+// waiting, and collecting stays a deliberate tap on the street.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useMemo } from "react";
@@ -30,6 +35,7 @@ import { paperDinerLookFor, type PaperDinerLook } from "@/lib/paper-interior";
 import type { Person } from "@/lib/prayercircle-data";
 import type { CustomPawn } from "@/lib/pawn";
 import {
+  serveRouteForTicket,
   weekStripFor,
   type CafeBoard,
   type CafeOvenState,
@@ -83,7 +89,16 @@ function Chip({ label, bg, color }: { label: string; bg: string; color: string }
   );
 }
 
-function TicketCard({ ticket, stripCount }: { ticket: CafeTicket; stripCount: number | null }) {
+function TicketCard({
+  ticket,
+  stripCount,
+  onServe,
+}: {
+  ticket: CafeTicket;
+  stripCount: number | null;
+  /** v343: SERVE — routes to the prayer session on this person. */
+  onServe?: () => void;
+}) {
   const slipping = ticket.slippingDays !== undefined;
   const emergency = ticket.kind === "emergency";
   const served = ticket.kind === "served";
@@ -169,6 +184,29 @@ function TicketCard({ ticket, stripCount }: { ticket: CafeTicket; stripCount: nu
           {ticket.tomorrow && <Chip label="TOMORROW — FIRST" bg="#E2E8F0" color="#475569" />}
         </View>
       )}
+      {!served && !ticket.tomorrow && onServe && (
+        <Pressable
+          onPress={onServe}
+          accessibilityLabel={`Serve ${ticket.name} — pray for them now`}
+          style={({ pressed }) => ({
+            marginTop: 9,
+            alignSelf: "flex-start",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            backgroundColor: emergency ? EMERGENCY_INK : "#8A4A34",
+            borderRadius: 999,
+            paddingHorizontal: 14,
+            paddingVertical: 7,
+            opacity: pressed ? 0.75 : 1,
+          })}
+        >
+          <MaterialIcons name="front-hand" size={14} color="#FFF6E2" />
+          <Text style={{ fontSize: 12.5, fontWeight: "800", letterSpacing: 0.8, color: "#FFF6E2" }}>
+            {`SERVE ${ticket.firstName.toUpperCase()}`}
+          </Text>
+        </Pressable>
+      )}
       {served && stripCount !== null && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>
           <View
@@ -211,6 +249,7 @@ export function CafeOrderBoard(props: {
   today: string;
 }) {
   const { board, peopleById, today } = props;
+  const router = useRouter();
   return (
     <View style={{ marginTop: 16 }}>
       {/* the panel, standing on its two posts */}
@@ -247,7 +286,17 @@ export function CafeOrderBoard(props: {
               const person = peopleById.get(ticket.personId);
               const stripCount =
                 ticket.kind === "served" && person ? weekStripFor(person, today).count : null;
-              return <TicketCard key={ticket.personId} ticket={ticket} stripCount={stripCount} />;
+              return (
+                <TicketCard
+                  key={ticket.personId}
+                  ticket={ticket}
+                  stripCount={stripCount}
+                  onServe={() => {
+                    const route = serveRouteForTicket(ticket);
+                    if (route) router.push(route);
+                  }}
+                />
+              );
             })}
           </ScrollView>
         )}
@@ -260,9 +309,12 @@ export function CafeOrderBoard(props: {
   );
 }
 
+// v343: three door spots (was two — the caps rise with the
+// tables'; the board below still carries everyone).
 const SLIP_SPOTS = [
   { cx: CAFE_LAYOUT.slipCx, feetY: CAFE_LAYOUT.slipFeetY },
   { cx: 20, feetY: CAFE_LAYOUT.slipFeetY },
+  { cx: 37, feetY: CAFE_LAYOUT.slipFeetY },
 ] as const;
 
 export function CafeScene(props: {

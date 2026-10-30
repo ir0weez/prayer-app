@@ -9,10 +9,20 @@ import {
   parseCoins,
   applyCoinsDelta,
   parseOwnedItems,
+  eraPriceCoins,
+  setEraCostMult,
+  tierForFastDay,
   type HometownCoins,
   type ShopItem,
   formatCoins,
 } from "@/lib/hometown";
+import { FASTS_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import {
+  getActiveFast,
+  getCurrentFastDay,
+  parseStoredFasts,
+} from "@/lib/prayercircle-fasting";
+import { eraForFast } from "@/lib/hometown-eras";
 import { FastPawnShape } from "@/components/pawn-preview";
 import { useSkin } from "@/hooks/use-skin";
 
@@ -22,7 +32,15 @@ export default function HometownShopScreen() {
   const { isSkinned, tokens: skinTokens } = useSkin();
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [owned, setOwned] = useState<string[]>([]);
-  const [tier] = useState(1); // TODO: derive from active fast day
+  // v343: the tier is REAL — derived from the active fast's current
+  // day (tierForFastDay), not the hardcoded 1 the TODO left behind
+  // (at tier 1 every tier-2+ item was locked forever). The era's
+  // cost weather is also set HERE, from the same fasts, so this
+  // screen's prices carry the era like every other purchase
+  // surface — the price shown is eraPriceCoins(item.cost), and the
+  // purchase charges exactly that.
+  const [tier, setTier] = useState(1);
+  const [, setEraTick] = useState(0);
 
   // (v167: purchases deduct through the canonical ledger —
   // applyCoinsDelta against the freshest stored record. The old
@@ -36,12 +54,19 @@ export default function HometownShopScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const [coinsRaw, ownedRaw] = await Promise.all([
+        const [coinsRaw, ownedRaw, fastsRaw] = await Promise.all([
           AsyncStorage.getItem(COINS_STORAGE_KEY),
           AsyncStorage.getItem(SHOP_OWNED_KEY),
+          AsyncStorage.getItem(FASTS_STORAGE_KEY),
         ]);
         setCoins(parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {}));
         setOwned(parseOwnedItems(ownedRaw ? JSON.parse(ownedRaw) : []));
+        const { fasts } = parseStoredFasts(fastsRaw);
+        const active = getActiveFast(fasts);
+        if (active) setTier(tierForFastDay(getCurrentFastDay(active)));
+        const era = eraForFast(active);
+        setEraCostMult(era?.palette.costMult ?? 1);
+        setEraTick((n) => n + 1);
       } catch {}
     })();
   }, []);
@@ -52,19 +77,21 @@ export default function HometownShopScreen() {
       Alert.alert("Locked", `Unlocks at tier ${item.tier}.`);
       return;
     }
-    if (coins.balance < item.cost) {
-      Alert.alert("Not enough coins", `You need ${formatCoins(item.cost)} coins.`);
+    // v343: the era-priced cost — the same number the card shows.
+    const price = eraPriceCoins(item.cost);
+    if (coins.balance < price) {
+      Alert.alert("Not enough coins", `You need ${formatCoins(price)} coins.`);
       return;
     }
     Alert.alert(
       `Buy ${item.name}?`,
-      `${item.description}\n\nCost: 🪙${item.cost}`,
+      `${item.description}\n\nCost: 🪙${price}`,
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Buy",
           onPress: () => {
-            void applyCoinsDelta(-item.cost, "none").then((next) => setCoins(next));
+            void applyCoinsDelta(-price, "none").then((next) => setCoins(next));
             saveOwned([...owned, item.id]);
           },
         },
@@ -101,7 +128,7 @@ export default function HometownShopScreen() {
             {items.map((item) => {
               const isOwned = owned.includes(item.id);
               const locked = tier < item.tier;
-              const affordable = coins.balance >= item.cost;
+              const affordable = coins.balance >= eraPriceCoins(item.cost);
               return (
                 <Pressable
                   key={item.id}
@@ -136,7 +163,7 @@ export default function HometownShopScreen() {
                   </View>
                   {!isOwned && !locked && (
                     <Text style={{ fontWeight: "700", color: affordable ? "#000" : "#999" }}>
-                      🪙{formatCoins(item.cost)}
+                      🪙{formatCoins(eraPriceCoins(item.cost))}
                     </Text>
                   )}
                 </Pressable>

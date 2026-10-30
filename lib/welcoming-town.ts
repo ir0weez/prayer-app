@@ -48,6 +48,28 @@ export function phaseForTimeOfDay(tod: TimeOfDay): DayPhase {
 }
 
 /**
+ * v343 — the town's phases follow the WALKABLE MOCK's windows
+ * (hometown-walkable-v1.html `realPhase`), not the rest-card daynight
+ * beats the town drifted onto: dawn 5–8, day 8–17, dusk 17–20, night
+ * 20–5. The audit's complaint was measured against these windows —
+ * under the daynight mapping the town still called 9am "dawn" (with
+ * dawn's lit windows in the horizon dress). This is the one phase
+ * derivation the town map, its people and its hero all read now;
+ * phaseForTimeOfDay survives for the older grid dressing.
+ */
+export function phaseForHour(hour: number): DayPhase {
+  const h = ((Math.floor(hour) % 24) + 24) % 24;
+  if (h >= 5 && h < 8) return "dawn";
+  if (h >= 8 && h < 17) return "day";
+  if (h >= 17 && h < 20) return "dusk";
+  return "night";
+}
+
+export function phaseForDate(date: Date = new Date()): DayPhase {
+  return phaseForHour(date.getHours() + date.getMinutes() / 60);
+}
+
+/**
  * The light wash laid over the town map for each phase — a translucent
  * tint, pointer-events-none, presentation only. Day wears none (the
  * paper town in full sun is the day look, unchanged). Night's wash is
@@ -109,9 +131,6 @@ export type AwayReportInput = {
   deltas: AwayBuildingDelta[];
   /** Work shifts whose end time fell inside the absence window. */
   shiftsDone: AwayShiftInput[];
-  /** Missed-days business income (already applied to his balance). */
-  missedCoins: number;
-  missedXP: number;
   /** Every coin now sitting uncollected in the town's buildings. */
   totalWaiting: number;
   /** v279: today's café orders (the Street & Café loop) — how many of
@@ -125,7 +144,8 @@ export type AwayReportInput = {
 
 export type AwayReport = {
   lines: string[];
-  /** Away-accrual coins + missed-days coins (the "earned" story). */
+  /** Away-accrual coins (all of it WAITING in the buildings' piles —
+   *  v343: nothing is ever "already applied" to the balance). */
   totalEarned: number;
   totalWaiting: number;
 };
@@ -162,11 +182,10 @@ export function shiftLine(shift: AwayShiftInput): string {
 export function buildAwayReport(input: AwayReportInput): AwayReport | null {
   if (input.absenceMs === null || input.absenceMs < AWAY_MIN_MS) return null;
   const earnedFromBuildings = input.deltas.reduce((sum, d) => sum + Math.max(0, d.coins), 0);
-  const totalEarned = earnedFromBuildings + Math.max(0, input.missedCoins);
+  const totalEarned = earnedFromBuildings;
   const worthwhile =
     earnedFromBuildings >= AWAY_MIN_COINS ||
-    input.shiftsDone.length > 0 ||
-    input.missedCoins > 0;
+    input.shiftsDone.length > 0;
   if (!worthwhile) return null;
 
   const lines: string[] = [];
@@ -181,13 +200,6 @@ export function buildAwayReport(input: AwayReportInput): AwayReport | null {
     // Some building names already carry their "The" ("The Well").
     const named = /^the\b/i.test(d.name) ? d.name : `The ${d.name}`;
     lines.push(`${named} earned ${formatWholeCoins(d.coins)} coins`);
-  }
-  if (input.missedCoins > 0) {
-    lines.push(
-      input.missedXP > 0
-        ? `Plus ${formatWholeCoins(input.missedCoins)} coins and ${formatWholeCoins(input.missedXP)} XP from the days between`
-        : `Plus ${formatWholeCoins(input.missedCoins)} coins from the days between`,
-    );
   }
   // v279: the café's day, in one line — but only as a line of its own
   // story (it never makes an otherwise-empty report worthwhile: the

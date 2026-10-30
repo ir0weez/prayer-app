@@ -853,9 +853,11 @@ export default function HomeScreen() {
     verifiedPopPlayer.play();
   };
   const router = useRouter();
-  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[]; notificationPersonId?: string | string[]; notificationAction?: string | string[]; notificationScheduleAction?: string | string[]; notificationScheduleKind?: string | string[]; notificationScheduleId?: string | string[]; navTab?: string | string[]; bibleTarget?: string | string[]; bibleBook?: string | string[]; bibleChapter?: string | string[]; bibleStories?: string | string[]; bibleOpenNav?: string | string[] }>();
+  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[]; notificationPersonId?: string | string[]; notificationAction?: string | string[]; notificationScheduleAction?: string | string[]; notificationScheduleKind?: string | string[]; notificationScheduleId?: string | string[]; navTab?: string | string[]; bibleTarget?: string | string[]; bibleBook?: string | string[]; bibleChapter?: string | string[]; bibleStories?: string | string[]; bibleOpenNav?: string | string[]; servePersonId?: string | string[] }>();
   const editPersonIdParam = Array.isArray(routeParams.editPersonId) ? routeParams.editPersonId[0] : routeParams.editPersonId;
   const notificationPersonIdParam = Array.isArray(routeParams.notificationPersonId) ? routeParams.notificationPersonId[0] : routeParams.notificationPersonId;
+  // v343: the café board's SERVE lands here (serveRouteForTicket).
+  const servePersonIdParam = Array.isArray(routeParams.servePersonId) ? routeParams.servePersonId[0] : routeParams.servePersonId;
   const notificationActionParam = Array.isArray(routeParams.notificationAction) ? routeParams.notificationAction[0] : routeParams.notificationAction;
   const notificationScheduleActionParam = Array.isArray(routeParams.notificationScheduleAction) ? routeParams.notificationScheduleAction[0] : routeParams.notificationScheduleAction;
   const notificationScheduleKindParam = Array.isArray(routeParams.notificationScheduleKind) ? routeParams.notificationScheduleKind[0] : routeParams.notificationScheduleKind;
@@ -2575,6 +2577,27 @@ export default function HomeScreen() {
     setActiveTab("schedule");
     router.setParams({ notificationScheduleAction: undefined, notificationScheduleKind: undefined, notificationScheduleId: undefined });
   }, [notificationScheduleActionParam, notificationScheduleKindParam, notificationScheduleIdParam, router]);
+
+  // v343 — SERVE (the café board): the ticket's Serve button routes
+  // here carrying the person; when they are on today's prayable
+  // list, the prayer session opens starting with them — serving IS
+  // praying for that person in the app's own session (the same
+  // start-id plumbing a per-person Pray now uses). The param is
+  // consumed and cleared either way, so a stale serve can never
+  // re-fire or strand the session on someone not prayable today.
+  useEffect(() => {
+    if (!hasHydratedPeople || !servePersonIdParam) return;
+    const person = people.find((candidate) => candidate.id === servePersonIdParam);
+    const prayable =
+      !!person &&
+      getPrayTodayList(people, todayDayOfWeek, todayDayOfMonth).some((p) => p.id === person.id);
+    router.setParams({ servePersonId: undefined });
+    if (!person || !prayable) return;
+    setActiveTab("people");
+    setShowAddPerson(false);
+    setPrayerSessionStartId(person.id);
+    setShowPrayerSession(true);
+  }, [hasHydratedPeople, servePersonIdParam, people, router, todayDayOfWeek, todayDayOfMonth]);
 
   // v259: the Bible section's tab bar sends the shell home carrying
   // the destination it should open on — consumed once and cleared,

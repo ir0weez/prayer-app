@@ -242,40 +242,40 @@ export function stratumIndexForFace(faceIndex: number): number {
   return stratumIndexForLevel(levelForFace(faceIndex));
 }
 
-// ---- Ore value (v175) ---------------------------------------------------------
-
-/** Within a stratum, each deeper level pays this much more again. */
-export const LEVEL_VALUE_STEP = 0.09;
+// ---- Ore value (v175; v343 flat) ----------------------------------------------
 
 /**
- * What ONE piece of `ore` broken on `level` is worth: the ore's base
- * price times the depth factor of the level it broke on —
- * ×(1 + 0.09 × (level-in-stratum − 1)), so a stratum's tenth level
- * pays ≈×1.81 its first. The Deep's diamonds start from their own
- * richer base (220) instead of the Diamond stratum's 120 — which is
- * exactly where the Diamond stratum tops out, so the ladder is
- * continuous all the way down.
+ * What ONE piece of `ore` broken on `level` is worth: the ore's
+ * FLAT base price — 3/6/10/14/26/45/120 down the ladder, and the
+ * Deep's diamonds from their own richer base (220). v343 removed
+ * the +9%-per-level step (LEVEL_VALUE_STEP): the same ore must be
+ * worth the same money wherever it broke; depth pays through the
+ * HAUL multiplier instead. Stacks already in a satchel keep the
+ * unit value they were stamped with — stored data is untouched.
+ * (`level` stays in the signature for its callers.)
  */
 export function unitPriceFor(ore: OreKind, level: number): number {
   const base =
     ore === "diamond" && stratumIndexForLevel(level) === 7 ? DEEP_DIAMOND_BASE_PRICE : ORE_PRICES[ore];
-  return Math.round(base * (1 + LEVEL_VALUE_STEP * (levelInStratum(level) - 1)));
+  return Math.round(base);
 }
 
-// ---- The haul multiplier (v172, strata ladder v175) --------------------------
+// ---- The haul multiplier (v172, strata ladder v175; v343 bands) --------------
 
 /** What a stratum does to the haul: the deeper the rock you've broken
  *  since the last sell, the more the WHOLE satchel is worth when it
- *  finally sells at the Mouth — Stone pays face value, the Diamond
- *  stratum and the Deep triple it. Indexed by stratum. */
-export const STRATUM_MULTIPLIERS: number[] = [1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3];
+ *  finally sells at the Mouth. v343: the ladder is the settled four
+ *  bands — ×1 / ×1.5 / ×2 / ×3 — mapped across the eight strata in
+ *  pairs (the old eight-step 1→3 ladder drifted from the spec).
+ *  Indexed by stratum. */
+export const STRATUM_MULTIPLIERS: number[] = [1, 1, 1.5, 1.5, 2, 2, 3, 3];
 
 export function stratumMultiplier(stratumIndex: number): number {
   const i = Math.min(Math.max(Math.floor(stratumIndex) || 0, 0), STRATUM_MULTIPLIERS.length - 1);
   return STRATUM_MULTIPLIERS[i];
 }
 
-/** "×2.5" without trailing-zero noise: 1, 1.25, 1.5, 1.75, 2, 2.5, 3. */
+/** "×1.5" without trailing-zero noise: 1, 1.5, 2, 3 (v343 bands). */
 export function formatHaulMultiplier(m: number): string {
   return String(Math.round(m * 100) / 100);
 }

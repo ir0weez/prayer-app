@@ -12,10 +12,10 @@
 // window square on a wall.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { View } from "react-native";
+import { View, type ViewStyle } from "react-native";
 import Svg, { Circle, G, Polygon, Rect } from "react-native-svg";
-import { HORIZON_DRESS, type DayPhase } from "@/lib/welcoming-town";
-import { mixHex, type EraDef, type EraPlaceDress } from "@/lib/hometown-eras";
+import type { DayPhase } from "@/lib/welcoming-town";
+import { mixHex, type EraDef, type EraPlaceDress, type GatheringArtKind } from "@/lib/hometown-eras";
 
 export type { EraPlaceDress };
 
@@ -106,48 +106,12 @@ export function TornEdgeStrip({ width }: { width: number }) {
   );
 }
 
-/** The skyline the street wears at its head: hills and rooftops in
- *  the horizon dress every phase already owns (lib/welcoming-town,
- *  HORIZON_DRESS — the same dress the old town horizon wore). v323:
- *  an era tints the hills toward its own sky; v323's Village pass
- *  also raises one spire among the rooftops, for depth. */
-export function StreetSkyline({ width, phase, era }: { width: number; phase: DayPhase; era?: EraDef | null }) {
-  const hd = HORIZON_DRESS[phase];
-  const tint = era && era.id !== "village" ? era.palette.sky : null;
-  const d = tint
-    ? {
-        far: mixHex(hd.far, tint, 0.45),
-        near: mixHex(hd.near, tint, 0.5),
-        roofs: mixHex(hd.roofs, tint, 0.35),
-        windowsLit: hd.windowsLit,
-      }
-    : hd;
-  const h = 40;
-  return (
-    <View pointerEvents="none" style={{ width, height: h, overflow: "hidden" }}>
-      {/* far hills */}
-      <View style={{ position: "absolute", bottom: h * 0.34, left: -width * 0.04, width: width * 1.08, height: h * 0.95, borderRadius: width * 0.3, backgroundColor: d.far }} />
-      {/* near hills, shouldering in from both sides */}
-      <View style={{ position: "absolute", bottom: h * 0.12, left: -width * 0.3, width: width * 0.95, height: h * 0.78, borderRadius: width * 0.3, backgroundColor: d.near }} />
-      <View style={{ position: "absolute", bottom: h * 0.12, right: -width * 0.3, width: width * 0.95, height: h * 0.78, borderRadius: width * 0.3, backgroundColor: d.near }} />
-      {/* rooftops along the strip's foot, spread the street's length */}
-      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: h * 0.36, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: width * 0.02 }}>
-        {[0.05, 0.075, 0.045, 0.08, 0.055, 0.07, 0.05, 0.085, 0.06, 0.05, 0.075, 0.055].map((wf, i) => (
-          <View key={i} style={{ width: Math.max(10, width * wf * 0.32), height: h * (0.5 + ((i * 13) % 40) / 100), backgroundColor: d.roofs, borderTopLeftRadius: 3, borderTopRightRadius: 3 }}>
-            {d.windowsLit && (
-              <View style={{ position: "absolute", top: "38%", left: "30%", width: 3, height: 4, backgroundColor: WINDOW_LIT, borderRadius: 1 }} />
-            )}
-          </View>
-        ))}
-      </View>
-      {/* one spire among the rooftops — the town's depth cue */}
-      <View pointerEvents="none" style={{ position: "absolute", bottom: 0, left: width * 0.61, alignItems: "center" }}>
-        <View style={{ width: 0, height: 0, borderLeftWidth: 5, borderRightWidth: 5, borderBottomWidth: 11, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: d.roofs }} />
-        <View style={{ width: 13, height: h * 0.3, backgroundColor: d.roofs, borderTopLeftRadius: 2, borderTopRightRadius: 2 }} />
-      </View>
-    </View>
-  );
-}
+/**
+ * v343 — StreetSkyline is REMOVED. It was dead code (no caller
+ * since the grid town retired), and the rebuilt stage draws its
+ * sky directly in its own SVG band — sun by phase, moon and stars
+ * at night — instead of borrowing this strip.
+ */
 
 // ── Shared bits ─────────────────────────────────────────────────────────────
 
@@ -559,14 +523,22 @@ export function HomeArt({
     : dress?.roof ?? HOME_ROOFS[hash % HOME_ROOFS.length];
   const wall = dress?.wall ?? ["#F1E4C8", "#EDDFC2", "#F4E9D2"][hash % 3];
   const foundation = dress?.foundation ?? "#C9AE7E";
+  // v343: the details scale WITH the cottage — door, window and
+  // wall insets are proportions of the place's own width, never
+  // fixed pixels (a fixed 17px door and 10px insets left ~5px of
+  // wall on the narrowest real cottages).
+  const wallInset = Math.max(3, Math.round(w * 0.16));
+  const foundInset = Math.max(2, Math.round(w * 0.08));
+  const doorW = Math.max(9, Math.round(w * 0.3));
+  const winSize = Math.max(7, Math.round(w * 0.2));
   return (
     <View pointerEvents="none" style={{ width: w, height: h }}>
       {awake && (
         <View
           style={{
             position: "absolute",
-            left: 6,
-            right: 6,
+            left: Math.round(w * 0.1),
+            right: Math.round(w * 0.1),
             bottom: 0,
             height: 14,
             backgroundColor: "#FDE68A",
@@ -579,23 +551,23 @@ export function HomeArt({
         <Polygon points={`2,${Math.round(h * 0.44)} ${Math.round(w / 2)},${Math.round(h * 0.04)} ${w - 2},${Math.round(h * 0.44)}`} fill={roof} />
       </Svg>
       {hash % 2 === 0 && <Chimney left={Math.round(w * 0.62)} top={Math.round(h * 0.14)} h={Math.round(h * 0.24)} />}
-      <View style={{ position: "absolute", left: 10, right: 10, top: Math.round(h * 0.48), bottom: 3, backgroundColor: wall, borderRadius: 3 }} />
-      <View style={{ position: "absolute", left: 5, right: 5, bottom: 0, height: 4, backgroundColor: foundation, borderRadius: 2 }} />
+      <View style={{ position: "absolute", left: wallInset, right: wallInset, top: Math.round(h * 0.48), bottom: 3, backgroundColor: wall, borderRadius: 3 }} />
+      <View style={{ position: "absolute", left: foundInset, right: foundInset, bottom: 0, height: 4, backgroundColor: foundation, borderRadius: 2 }} />
       <View
         style={{
           position: "absolute",
           left: Math.round(w * 0.16),
           bottom: 4,
-          width: 17,
+          width: doorW,
           height: Math.round(h * 0.34),
           backgroundColor: "#7A4A2B",
-          borderTopLeftRadius: 7,
-          borderTopRightRadius: 7,
+          borderTopLeftRadius: Math.max(3, Math.round(doorW * 0.4)),
+          borderTopRightRadius: Math.max(3, Math.round(doorW * 0.4)),
           borderWidth: 2,
           borderColor: "#5D3820",
         }}
       />
-      <LitWindow left={Math.round(w * 0.58)} top={Math.round(h * 0.56)} size={12} lit={windowsLit || awake} />
+      <LitWindow left={Math.round(w * 0.58)} top={Math.round(h * 0.56)} size={winSize} lit={windowsLit || awake} />
       {/* yard dress by hash — a fence run, a bush, or a flower pair:
           no two front yards quite alike (the Village pass) */}
       {hash % 3 === 0 && (
@@ -728,15 +700,18 @@ export function EmptyLotArt({ w, h, weekLot }: { w: number; h: number; weekLot?:
       <View style={{ position: "absolute", left: 3, right: 3, top: 5, bottom: 3, backgroundColor: "rgba(255,255,255,0.13)", borderRadius: 4 }} />
       {weekLot ? (
         <>
-          {/* the fast-week lot's rope: four posts and a sagging line */}
+          {/* v343: the fast-week lot's rope HUGS the lot's edges —
+              posts and lines at the very top and bottom, so the
+              big week chip centred inside the lot never crosses a
+              rope line (the old mid-lot lines ran through it). */}
           {[6, w - 12].map((left, i) => (
-            <View key={i} style={{ position: "absolute", left, top: 10, width: 5, height: 16, backgroundColor: "#7A5A38", borderRadius: 2 }} />
+            <View key={i} style={{ position: "absolute", left, top: 2, width: 5, height: 13, backgroundColor: "#7A5A38", borderRadius: 2 }} />
           ))}
-          <View style={{ position: "absolute", left: 8, right: 8, top: 13, height: 3, backgroundColor: "#C2503C", borderRadius: 2 }} />
+          <View style={{ position: "absolute", left: 8, right: 8, top: 4, height: 3, backgroundColor: "#C2503C", borderRadius: 2 }} />
           {[6, w - 12].map((left, i) => (
-            <View key={`b${i}`} style={{ position: "absolute", left, bottom: 6, width: 5, height: 16, backgroundColor: "#7A5A38", borderRadius: 2 }} />
+            <View key={`b${i}`} style={{ position: "absolute", left, bottom: 2, width: 5, height: 13, backgroundColor: "#7A5A38", borderRadius: 2 }} />
           ))}
-          <View style={{ position: "absolute", left: 8, right: 8, bottom: 18, height: 3, backgroundColor: "#C2503C", borderRadius: 2 }} />
+          <View style={{ position: "absolute", left: 8, right: 8, bottom: 4, height: 3, backgroundColor: "#C2503C", borderRadius: 2 }} />
         </>
       ) : (
         <>
@@ -751,6 +726,209 @@ export function EmptyLotArt({ w, h, weekLot }: { w: number; h: number; weekLot?:
       )}
     </View>
   );
+}
+
+// ── v343: The Gathering Place (the café seat, era by era) ───────────────────
+// The street place on the café's seat is the town's gathering
+// place, and it does NOT start as a café: its silhouette is the
+// age's own — fire circle and common table in the Village, the
+// ark's provision in the Flood, Babel's false temple, the
+// tabernacle (bannered under Saul), the Temple, the upper room,
+// hidden house churches under Nero and again in the Tribulation,
+// the church through the ages, the Millennium's pavilion, and at
+// the end the floating city itself — the one place in town allowed
+// off the ground, because the city comes down out of heaven and
+// needs no temple (Rev 21:22). Every other kind stands on its
+// foundation line like every place in town. The papers come from
+// the era's place dress when it has one; the shapes are the age's.
+
+export function GatheringArt({
+  w,
+  h,
+  kind,
+  windowsLit,
+  dress,
+}: {
+  w: number;
+  h: number;
+  kind: GatheringArtKind;
+  windowsLit: boolean;
+  dress?: EraPlaceDress;
+}) {
+  const win = windowsLit ? "#FDE68A" : "#BFE0EA";
+  const foundation = dress?.foundation ?? "#C9AE7E";
+  const ground = (
+    <View style={{ position: "absolute", left: 2, right: 2, bottom: 0, height: 4, backgroundColor: foundation, borderRadius: 2 }} />
+  );
+  const box = (style: ViewStyle) => <View pointerEvents="none" style={[{ position: "absolute" }, style]} />;
+
+  switch (kind) {
+    case "fire-circle":
+      return (
+        <View pointerEvents="none" style={{ width: w, height: h }}>
+          {/* the common table behind the fire */}
+          {box({ left: Math.round(w * 0.14), right: Math.round(w * 0.14), top: Math.round(h * 0.34), height: Math.round(h * 0.1), backgroundColor: "#8A6844", borderRadius: 2 })}
+          {box({ left: Math.round(w * 0.2), top: Math.round(h * 0.44), width: 5, height: Math.round(h * 0.2), backgroundColor: "#6B4A2E" })}
+          {box({ right: Math.round(w * 0.2), top: Math.round(h * 0.44), width: 5, height: Math.round(h * 0.2), backgroundColor: "#6B4A2E" })}
+          {/* the stone ring */}
+          {[0.3, 0.42, 0.55, 0.68].map((f, i) => (
+            <View key={i} style={{ position: "absolute", left: Math.round(w * f), bottom: Math.round(h * 0.08), width: Math.round(w * 0.07), height: Math.round(h * 0.09), borderRadius: 3, backgroundColor: "#9A938A" }} />
+          ))}
+          {[0.36, 0.6].map((f, i) => (
+            <View key={`f${i}`} style={{ position: "absolute", left: Math.round(w * f), bottom: Math.round(h * 0.2), width: Math.round(w * 0.06), height: Math.round(h * 0.08), borderRadius: 3, backgroundColor: "#8A8378" }} />
+          ))}
+          {/* logs + the flame */}
+          <View style={{ position: "absolute", left: Math.round(w * 0.42), bottom: Math.round(h * 0.1), width: Math.round(w * 0.18), height: Math.round(h * 0.07), backgroundColor: "#6B4226", borderRadius: 3, transform: [{ rotate: "14deg" }] }} />
+          <View style={{ position: "absolute", left: Math.round(w * 0.42), bottom: Math.round(h * 0.1), width: Math.round(w * 0.18), height: Math.round(h * 0.07), backgroundColor: "#54341E", borderRadius: 3, transform: [{ rotate: "-14deg" }] }} />
+          <Svg width={Math.round(w * 0.2)} height={Math.round(h * 0.34)} style={{ position: "absolute", left: Math.round(w * 0.4), bottom: Math.round(h * 0.14) }}>
+            <Polygon points={`${Math.round(w * 0.1)},0 0,${Math.round(h * 0.34)} ${Math.round(w * 0.2)},${Math.round(h * 0.34)}`} fill="#E86A2A" />
+            <Polygon points={`${Math.round(w * 0.1)},${Math.round(h * 0.12)} ${Math.round(w * 0.04)},${Math.round(h * 0.34)} ${Math.round(w * 0.16)},${Math.round(h * 0.34)}`} fill="#F2B33D" />
+          </Svg>
+          {ground}
+        </View>
+      );
+    case "ark":
+      return (
+        <View pointerEvents="none" style={{ width: w, height: h }}>
+          <Svg width={w} height={Math.round(h * 0.52)} style={{ position: "absolute", left: 0, bottom: Math.round(h * 0.04) }}>
+            <Polygon points={`0,0 ${w},0 ${Math.round(w * 0.86)},${Math.round(h * 0.52)} ${Math.round(w * 0.14)},${Math.round(h * 0.52)}`} fill={dress?.wall ?? "#8A6844"} />
+          </Svg>
+          {box({ left: Math.round(w * 0.3), right: Math.round(w * 0.3), top: Math.round(h * 0.16), height: Math.round(h * 0.3), backgroundColor: dress?.wall ?? "#9A744C", borderRadius: 2 })}
+          {box({ left: Math.round(w * 0.26), right: Math.round(w * 0.26), top: Math.round(h * 0.08), height: Math.round(h * 0.09), backgroundColor: dress?.roof ?? "#5E4630", borderRadius: 2 })}
+          {box({ left: Math.round(w * 0.47), top: Math.round(h * 0.26), width: Math.round(w * 0.07), height: Math.round(w * 0.07), backgroundColor: win, borderWidth: 1.5, borderColor: "#54341E", borderRadius: 1 })}
+          {ground}
+        </View>
+      );
+    case "false-temple":
+      return (
+        <View pointerEvents="none" style={{ width: w, height: h }}>
+          {box({ left: Math.round(w * 0.06), right: Math.round(w * 0.06), bottom: Math.round(h * 0.04), height: Math.round(h * 0.2), backgroundColor: dress?.wall ?? "#D9B48A", borderRadius: 2 })}
+          {box({ left: Math.round(w * 0.16), right: Math.round(w * 0.16), bottom: Math.round(h * 0.24), height: Math.round(h * 0.2), backgroundColor: dress?.wall ?? "#CFA878", borderRadius: 2 })}
+          {box({ left: Math.round(w * 0.27), right: Math.round(w * 0.27), bottom: Math.round(h * 0.44), height: Math.round(h * 0.2), backgroundColor: dress?.wall ?? "#C59F6A", borderRadius: 2 })}
+          {box({ left: Math.round(w * 0.4), right: Math.round(w * 0.4), bottom: Math.round(h * 0.64), height: Math.round(h * 0.18), backgroundColor: dress?.roof ?? "#B4503C", borderRadius: 2 })}
+          <View style={{ position: "absolute", left: Math.round(w * 0.465), bottom: Math.round(h * 0.68), width: Math.round(w * 0.07), height: Math.round(w * 0.07), borderRadius: Math.round(w * 0.035), backgroundColor: "#F2B33D" }} />
+          {ground}
+        </View>
+      );
+    case "tabernacle":
+    case "tabernacle-banner":
+      return (
+        <View pointerEvents="none" style={{ width: w, height: h }}>
+          {/* the court fence across the front */}
+          {[0.08, 0.3, 0.52, 0.74, 0.9].map((f, i) => (
+            <View key={i} style={{ position: "absolute", left: Math.round(w * f), bottom: Math.round(h * 0.05), width: 3.5, height: Math.round(h * 0.26), backgroundColor: "#B3A075", borderRadius: 1.5 }} />
+          ))}
+          {box({ left: Math.round(w * 0.05), right: Math.round(w * 0.05), bottom: Math.round(h * 0.28), height: 3, backgroundColor: "#B3A075", borderRadius: 1.5 })}
+          {/* the tent: linen walls, gold band, flat roof */}
+          {box({ left: Math.round(w * 0.2), right: Math.round(w * 0.2), top: Math.round(h * 0.3), bottom: Math.round(h * 0.04), backgroundColor: dress?.wall ?? "#EFE6CC", borderRadius: 2 })}
+          {box({ left: Math.round(w * 0.2), right: Math.round(w * 0.2), top: Math.round(h * 0.3), height: Math.round(h * 0.1), backgroundColor: "#C9963C" })}
+          {box({ left: Math.round(w * 0.17), right: Math.round(w * 0.17), top: Math.round(h * 0.24), height: Math.round(h * 0.07), backgroundColor: dress?.roof ?? "#C9963C", borderRadius: 2 })}
+          {box({ left: Math.round(w * 0.47), top: Math.round(h * 0.44), width: Math.round(w * 0.07), bottom: Math.round(h * 0.04), backgroundColor: "#7A6234" })}
+          {kind === "tabernacle-banner" && (
+            <>
+              {box({ right: Math.round(w * 0.1), top: Math.round(h * 0.04), width: 4, height: Math.round(h * 0.5), backgroundColor: "#4E4A66", borderRadius: 2 })}
+              {box({ right: Math.round(w * 0.1) + 4, top: Math.round(h * 0.04), width: Math.round(w * 0.14), height: Math.round(h * 0.13), backgroundColor: "#5C5470", borderTopRightRadius: 2, borderBottomRightRadius: 2 })}
+            </>
+          )}
+          {ground}
+        </View>
+      );
+    case "temple":
+      return (
+        <View pointerEvents="none" style={{ width: w, height: h }}>
+          <Svg width={w} height={Math.round(h * 0.2)} style={{ position: "absolute", left: 0, top: Math.round(h * 0.06) }}>
+            <Polygon points={`${Math.round(w * 0.14)},${Math.round(h * 0.2)} ${Math.round(w * 0.5)},0 ${Math.round(w * 0.86)},${Math.round(h * 0.2)}`} fill={dress?.wall ?? "#EFE9DC"} />
+          </Svg>
+          {box({ left: Math.round(w * 0.12), right: Math.round(w * 0.12), top: Math.round(h * 0.26), height: Math.round(h * 0.08), backgroundColor: "#C9963C", borderRadius: 1 })}
+          {[0.18, 0.36, 0.58, 0.76].map((f, i) => (
+            <View key={i} style={{ position: "absolute", left: Math.round(w * f), top: Math.round(h * 0.36), width: Math.round(w * 0.06), height: Math.round(h * 0.4), backgroundColor: dress?.wall ?? "#EFE9DC", borderRadius: 2 }} />
+          ))}
+          {box({ left: Math.round(w * 0.1), right: Math.round(w * 0.1), bottom: Math.round(h * 0.1), height: Math.round(h * 0.07), backgroundColor: "#D8CFB8", borderRadius: 1 })}
+          {box({ left: Math.round(w * 0.05), right: Math.round(w * 0.05), bottom: Math.round(h * 0.03), height: Math.round(h * 0.07), backgroundColor: "#CFC4A8", borderRadius: 1 })}
+          {ground}
+        </View>
+      );
+    case "upper-room":
+      return (
+        <View pointerEvents="none" style={{ width: w, height: h }}>
+          {box({ left: Math.round(w * 0.1), right: Math.round(w * 0.22), top: Math.round(h * 0.14), bottom: Math.round(h * 0.04), backgroundColor: dress?.wall ?? "#EAD9A8", borderRadius: 2 })}
+          {box({ left: Math.round(w * 0.07), right: Math.round(w * 0.19), top: Math.round(h * 0.08), height: Math.round(h * 0.07), backgroundColor: dress?.roof ?? "#8A6D3B", borderRadius: 2 })}
+          {/* the upper room's wide lit window band */}
+          {[0.17, 0.34, 0.51].map((f, i) => (
+            <View key={i} style={{ position: "absolute", left: Math.round(w * f), top: Math.round(h * 0.22), width: Math.round(w * 0.11), height: Math.round(h * 0.16), backgroundColor: win, borderWidth: 1.5, borderColor: "#6B4A2E", borderRadius: 1 }} />
+          ))}
+          {box({ left: Math.round(w * 0.2), bottom: Math.round(h * 0.04), width: Math.round(w * 0.11), height: Math.round(h * 0.3), backgroundColor: "#7A4A2B", borderTopLeftRadius: 5, borderTopRightRadius: 5 })}
+          {/* the outside stair up to the room */}
+          {[0, 1, 2, 3].map((i) => (
+            <View key={`s${i}`} style={{ position: "absolute", right: Math.round(w * 0.2) - i * Math.round(w * 0.045), top: Math.round(h * (0.62 - i * 0.12)), width: Math.round(w * 0.05), height: Math.round(h * 0.06), backgroundColor: "#B3A075", borderRadius: 1 }} />
+          ))}
+          {ground}
+        </View>
+      );
+    case "house-church":
+    case "hidden-house":
+      return (
+        <View pointerEvents="none" style={{ width: w, height: h }}>
+          <Svg width={w} height={Math.round(h * 0.4)} style={{ position: "absolute", top: Math.round(h * 0.14), left: 0 }}>
+            <Polygon points={`2,${Math.round(h * 0.4)} ${Math.round(w / 2)},${Math.round(h * 0.05)} ${w - 2},${Math.round(h * 0.4)}`} fill={dress?.roof ?? (kind === "hidden-house" ? "#4E4A45" : "#2C2A27")} />
+          </Svg>
+          {box({ left: Math.round(w * 0.14), right: Math.round(w * 0.14), top: Math.round(h * 0.52), bottom: Math.round(h * 0.04), backgroundColor: dress?.wall ?? (kind === "hidden-house" ? "#8A857E" : "#55524E"), borderRadius: 2 })}
+          {box({ left: Math.round(w * 0.24), bottom: Math.round(h * 0.04), width: Math.round(w * 0.13), height: Math.round(h * 0.3), backgroundColor: "#3E3B36", borderTopLeftRadius: 5, borderTopRightRadius: 5 })}
+          {/* one small lamp-lit window — the house is occupied, quietly */}
+          {box({ left: Math.round(w * 0.58), top: Math.round(h * 0.6), width: Math.round(w * 0.11), height: Math.round(w * 0.11), backgroundColor: "#FDE68A", borderWidth: 1.5, borderColor: "#3E3B36", borderRadius: 1 })}
+          {ground}
+        </View>
+      );
+    case "church":
+      return (
+        <View pointerEvents="none" style={{ width: w, height: h }}>
+          <Svg width={w} height={Math.round(h * 0.42)} style={{ position: "absolute", top: Math.round(h * 0.16), left: 0 }}>
+            <Polygon points={`${Math.round(w * 0.3)},${Math.round(h * 0.42)} ${Math.round(w * 0.62)},${Math.round(h * 0.08)} ${Math.round(w * 0.94)},${Math.round(h * 0.42)}`} fill={dress?.roof ?? "#8A6D3B"} />
+          </Svg>
+          {box({ left: Math.round(w * 0.32), right: Math.round(w * 0.08), top: Math.round(h * 0.56), bottom: Math.round(h * 0.04), backgroundColor: dress?.wall ?? "#E4D6B0", borderRadius: 2 })}
+          {/* the steeple */}
+          {box({ left: Math.round(w * 0.1), top: Math.round(h * 0.3), width: Math.round(w * 0.16), bottom: Math.round(h * 0.04), backgroundColor: dress?.wall ?? "#E4D6B0", borderRadius: 2 })}
+          <Svg width={Math.round(w * 0.2)} height={Math.round(h * 0.3)} style={{ position: "absolute", left: Math.round(w * 0.08), top: 0 }}>
+            <Polygon points={`${Math.round(w * 0.1)},0 0,${Math.round(h * 0.3)} ${Math.round(w * 0.2)},${Math.round(h * 0.3)}`} fill={dress?.roof ?? "#8A6D3B"} />
+          </Svg>
+          {box({ left: Math.round(w * 0.55), top: Math.round(h * 0.62), width: Math.round(w * 0.1), height: Math.round(h * 0.22), backgroundColor: win, borderWidth: 1.5, borderColor: "#6B4A2E", borderTopLeftRadius: 6, borderTopRightRadius: 6 })}
+          {box({ left: Math.round(w * 0.4), bottom: Math.round(h * 0.04), width: Math.round(w * 0.11), height: Math.round(h * 0.28), backgroundColor: "#7A4A2B", borderTopLeftRadius: 5, borderTopRightRadius: 5 })}
+          {ground}
+        </View>
+      );
+    case "pavilion":
+      return (
+        <View pointerEvents="none" style={{ width: w, height: h }}>
+          <Svg width={w} height={Math.round(h * 0.3)} style={{ position: "absolute", top: Math.round(h * 0.04), left: 0 }}>
+            <Polygon points={`0,${Math.round(h * 0.3)} ${Math.round(w * 0.5)},0 ${w},${Math.round(h * 0.3)} ${Math.round(w * 0.88)},${Math.round(h * 0.3)} ${Math.round(w * 0.5)},${Math.round(h * 0.12)} ${Math.round(w * 0.12)},${Math.round(h * 0.3)}`} fill={dress?.roof ?? "#C2503C"} />
+          </Svg>
+          {[0.08, 0.88].map((f, i) => (
+            <View key={i} style={{ position: "absolute", left: Math.round(w * f), top: Math.round(h * 0.3), width: 4.5, height: Math.round(h * 0.62), backgroundColor: "#8A6844", borderRadius: 2 }} />
+          ))}
+          {[0.25, 0.42, 0.58, 0.74].map((f, i) => (
+            <View key={`g${i}`} style={{ position: "absolute", left: Math.round(w * f), top: Math.round(h * 0.34), width: 6, height: 6, borderRadius: 3, backgroundColor: ["#E86A92", "#F2B33D", "#7CC4DE", "#B388FF"][i % 4] }} />
+          ))}
+          {box({ left: Math.round(w * 0.22), right: Math.round(w * 0.22), bottom: Math.round(h * 0.1), height: Math.round(h * 0.09), backgroundColor: "#8A6844", borderRadius: 2 })}
+          {ground}
+        </View>
+      );
+    case "new-jerusalem":
+      return (
+        <View pointerEvents="none" style={{ width: w, height: h }}>
+          {/* the light beneath the city — it comes down out of
+              heaven; the glow is its foundation (the one sanctioned
+              float in town, by design). */}
+          <View style={{ position: "absolute", left: Math.round(w * 0.06), right: Math.round(w * 0.06), bottom: Math.round(h * 0.02), height: Math.round(h * 0.12), backgroundColor: "rgba(255,236,170,0.55)", borderRadius: Math.round(h * 0.06) }} />
+          {box({ left: Math.round(w * 0.08), right: Math.round(w * 0.08), bottom: Math.round(h * 0.13), height: Math.round(h * 0.07), backgroundColor: "#E8C96A", borderRadius: 2 })}
+          {[0.14, 0.3, 0.47, 0.64].map((f, i) => (
+            <View key={i} style={{ position: "absolute", left: Math.round(w * f), bottom: Math.round(h * 0.2), width: Math.round(w * 0.13), height: Math.round(h * (0.3 + (i % 3) * 0.13)), backgroundColor: i % 2 ? "#FFF6DC" : "#F7E7B8", borderTopLeftRadius: 3, borderTopRightRadius: 3, borderWidth: 1, borderColor: "#E8C96A" }} />
+          ))}
+          {[0.2, 0.53, 0.7].map((f, i) => (
+            <View key={`wd${i}`} style={{ position: "absolute", left: Math.round(w * f), bottom: Math.round(h * 0.3), width: Math.round(w * 0.05), height: Math.round(w * 0.05), backgroundColor: "#FFE9A0", borderRadius: 1 }} />
+          ))}
+        </View>
+      );
+  }
 }
 
 // ── The register pile ───────────────────────────────────────────────────────

@@ -1,12 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // v291 — The Wide Street: the town surface.
 // v333 — THE HOMETOWN REBUILD: the stage, drawn as the drawing
-// draws it. Jonathan rejected the town's look four times; the
-// fourth rejection (Oct 29, on v331) brought his authorization to
-// rebuild completely. The approved drawing
+// draws it.
+// v343 — THE FRAME CONTRACT: the stage now FILLS its world box.
+// The screen hands the fit (lib/wide-street stageFit): the content
+// keeps its tile geometry, the sky band stretches upward and the
+// river downward into whatever height the box offers, so the world
+// reaches the screen's bottom edge instead of ending mid-screen
+// over empty frame. The drawing
 // (hometown-street-concepts-v1.html, Concept 2 — The Diorama, with
 // Concept 3's gathering corner borrowed at the board) is a FIXED
-// single-frame stage, and this view now draws exactly that frame:
+// single-frame stage, and this view draws exactly that frame:
 //   - one SVG layer carries the whole stage picture: the sky and
 //     hill band (rows 0–3) with the forest's individual trees on
 //     the baseline and the mine's hill at the east, the yard
@@ -39,14 +43,15 @@
 
 import { memo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
-import Svg, { Ellipse, Path, Polygon, Polyline, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Path, Polygon, Polyline, Rect } from "react-native-svg";
 import { formatCoins } from "@/lib/hometown";
 import { HORIZON_DRESS, phaseWindowsLit, type DayPhase } from "@/lib/welcoming-town";
-import { mixHex } from "@/lib/hometown-eras";
+import { eraDressFor, gatheringForEra, mixHex } from "@/lib/hometown-eras";
 import {
   isLaneTile,
   LANE_POINTS,
   laneCenterRowAt,
+  layoutPlaques,
   RIVER_RECTS,
   STREET_H,
   STREET_W,
@@ -54,11 +59,11 @@ import {
   type StreetWorld,
 } from "@/lib/wide-street";
 import {
-  CafeArt,
   EmptyLotArt,
   eraGroundFor,
   ForestTreesArt,
   GateArt,
+  GatheringArt,
   HeroHouseArt,
   HomeArt,
   MineArt,
@@ -107,14 +112,17 @@ function lanePathD(worldW: number, worldH: number): string {
   return d;
 }
 
-/** A place's name, spoken whole: a dark pill sized by its word,
- *  riding a 200px centred strip with NO line limit on the text —
- *  a plaque can wrap, it cannot clip. */
-function PlacePlaque({ label, cx, top, z }: { label: string; cx: number; top: number; z: number }) {
+/** A place's name, spoken whole. v343: the pill's rect comes from
+ *  lib/wide-street's layoutPlaques — measured from the word, clamped
+ *  inside the frame, stepped clear of every other plaque — and the
+ *  plaques render ABOVE the era/phase washes (zIndex in the 9500s),
+ *  so no weather can ever mute a name. The text has no line limit:
+ *  the pill is sized by the word, so nothing truncates. */
+function PlacePlaque({ label, left, top, width, fontSize }: { label: string; left: number; top: number; width: number; fontSize: number }) {
   return (
     <View
       pointerEvents="none"
-      style={{ position: "absolute", left: cx - 100, top, width: 200, alignItems: "center", zIndex: z }}
+      style={{ position: "absolute", left, top, width, alignItems: "center", zIndex: 9500 }}
     >
       <View
         style={{
@@ -124,7 +132,7 @@ function PlacePlaque({ label, cx, top, z }: { label: string; cx: number; top: nu
           paddingVertical: 3,
         }}
       >
-        <Text style={{ color: "#FFF7ED", fontSize: 10.5, fontWeight: "700" }}>{label}</Text>
+        <Text style={{ color: "#FFF7ED", fontSize, fontWeight: "700" }}>{label}</Text>
       </View>
     </View>
   );
@@ -133,6 +141,8 @@ function PlacePlaque({ label, cx, top, z }: { label: string; cx: number; top: nu
 export const StreetWorldView = memo(function StreetWorldView({
   world,
   cellSize,
+  extendTop = 0,
+  extendBottom = 0,
   phase,
   era,
   ovenLit,
@@ -147,6 +157,10 @@ export const StreetWorldView = memo(function StreetWorldView({
 }: {
   world: StreetWorld;
   cellSize: number;
+  /** v343 (the frame contract): elastic sky above the content, px. */
+  extendTop?: number;
+  /** v343: elastic river depth below the content, px. */
+  extendBottom?: number;
   phase: DayPhase;
   /** v323 (The Era Game): the age the fast has reached — its papers
    *  dress the street. Null (or the Village) is the street as built. */
@@ -182,7 +196,16 @@ export const StreetWorldView = memo(function StreetWorldView({
   const windowsLit = era?.palette.lampAmber ? true : phaseWindowsLit(phase);
   const lampsLit = phase === "dusk" || phase === "night";
   const cafe = world.cafe;
-  const dress = era?.palette.dress;
+  // v343: every era now carries a full place dress (eraDressFor
+  // falls back to the v343 table for the nine middle ages).
+  const dress = eraDressFor(era);
+  // v343: the gathering place on the café's seat, and its windows
+  // at night — the gathering place is DARK at night (the town
+  // sleeps; its business waits for dawn on the board). The
+  // emergency beacon above its door is life-or-death signalling
+  // and stays lit regardless.
+  const gathering = gatheringForEra(era?.id ?? null);
+  const cafeWindowsLit = phase === "night" ? false : windowsLit;
   const corner = world.corner;
   const hd = HORIZON_DRESS[phase];
   const eraSky = era && era.id !== "village" ? era.palette.sky : null;
@@ -194,25 +217,48 @@ export const StreetWorldView = memo(function StreetWorldView({
   const mineHill = world.places.find((p) => p.kind === "mine");
   /** Places whose yards show as ground (strata buildings only). */
   const yardKinds = new Set(["house", "cafe", "shop", "home", "gate"]);
+  // v343: every plaque's rect, laid out once by the pure engine —
+  // inside the frame, whole, and clear of its neighbours.
+  const plaqueFont = Math.max(10, 10.5 * s);
+  const plaqueRects = layoutPlaques(
+    world.places
+      .filter((p) => p.plaque)
+      .map((p) => ({
+        key: `plaque-${p.kind}-${p.buildingId ?? p.landmark?.id ?? `${p.x}`}`,
+        label: p.plaque!,
+        cx: (p.x + p.w / 2) * cs,
+        top: (p.y + p.h) * cs + 3,
+        fontSize: plaqueFont,
+      })),
+    worldW,
+  );
+  const totalH = worldH + extendTop + extendBottom;
 
   return (
-    <View style={{ position: "relative", width: worldW, height: worldH, backgroundColor: ground.grass }}>
-      {/* The street's own ground — the root's FIRST child, so every
-          tap that the places, the pile and the villagers don't claim
-          lands on it through the ancestor chain (the art above it is
-          pointer-events-none; the Pressables above it claim their
-          own ground first). Reports world pixels; the screen plans
-          the walk. A long press reports too. */}
+    <View style={{ position: "relative", width: worldW, height: totalH, backgroundColor: ground.grass }}>
+      {/* v343: the elastic bands — the sky's colour field continues
+          above the content's hill band, and the river's water
+          continues below its bank, so the stage reaches the world
+          box's edges on both ends. */}
+      <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: worldW, height: extendTop + hillBase, backgroundColor: sky }} />
+      <View pointerEvents="none" style={{ position: "absolute", left: 0, top: extendTop + 15 * cs, width: worldW, height: Math.max(0, totalH - extendTop - 15 * cs), backgroundColor: "#47688C" }} />
+      {/* The street's own ground — the root's first interactive
+          child, spanning the WHOLE box (bands included): a tap in
+          the sky walks to the hill band, a tap in the deep river to
+          the bank. Reports CONTENT pixels — the band offset comes
+          off here, so the screen's tile math never sees it. */}
       <Pressable
-        style={{ position: "absolute", left: 0, top: 0, width: worldW, height: worldH }}
+        style={{ position: "absolute", left: 0, top: 0, width: worldW, height: totalH }}
         onPress={(e) =>
-          onGroundPress({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY })
+          onGroundPress({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY - extendTop })
         }
         onLongPress={(e) =>
-          onGroundLongPress({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY })
+          onGroundLongPress({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY - extendTop })
         }
         delayLongPress={450}
       />
+      {/* the content, offset by the sky band */}
+      <View pointerEvents="box-none" style={{ position: "absolute", left: 0, top: extendTop, width: worldW, height: worldH }}>
 
       {/* ── The stage picture: ONE SVG layer ──────────────────────
           sky and hills, yards, the corner's paving, the door
@@ -224,6 +270,33 @@ export const StreetWorldView = memo(function StreetWorldView({
         <Svg width={worldW} height={worldH}>
           {/* the sky band (rows 0–3.84) */}
           <Rect x={0} y={0} width={worldW} height={hillBase} fill={sky} />
+          {/* v343: the sky is DRAWN — a sun disc riding the phase
+              (low east at dawn, high at day, low west at dusk), and
+              at night a moon with stars. Deterministic seats, so
+              the sky never shimmers between renders. */}
+          {phase === "night" ? (
+            <>
+              {Array.from({ length: 26 }).map((_, i) => (
+                <Circle
+                  key={`star-${i}`}
+                  cx={((i * 173) % 97) / 97 * worldW}
+                  cy={((i * 37) % 61) / 61 * hillBase * 0.8}
+                  r={i % 5 === 0 ? 2 : 1.2}
+                  fill="#FFF7D6"
+                  opacity={0.55 + (i % 4) * 0.12}
+                />
+              ))}
+              <Circle cx={worldW * 0.78} cy={hillBase * 0.3} r={cs * 0.34} fill="#F5EFD2" />
+              <Circle cx={worldW * 0.78 - cs * 0.13} cy={hillBase * 0.3 - cs * 0.06} r={cs * 0.28} fill={sky} />
+            </>
+          ) : (
+            <Circle
+              cx={worldW * (phase === "dawn" ? 0.2 : phase === "dusk" ? 0.8 : 0.62)}
+              cy={hillBase * (phase === "day" ? 0.26 : 0.52)}
+              r={cs * (phase === "day" ? 0.4 : 0.48)}
+              fill={phase === "dusk" ? "#FFC98A" : "#FFE9A8"}
+            />
+          )}
           {/* the far hill shoulder, west */}
           <Ellipse cx={worldW * 0.3} cy={hillBase} rx={worldW * 0.44} ry={cs * 1.5} fill={hillFar} />
           {/* the mine's hill: one polygon, apex (0.83, 0.06) of the
@@ -482,7 +555,7 @@ export const StreetWorldView = memo(function StreetWorldView({
                 zIndex: Math.round((p.y + p.h) * cs),
               }}
             >
-              {p.kind === "cafe" && <CafeArt w={artW} h={artH} windowsLit={windowsLit} ovenLit={ovenLit} dress={dress} />}
+              {p.kind === "cafe" && <GatheringArt w={artW} h={artH} kind={gathering.art} windowsLit={cafeWindowsLit} dress={dress} />}
               {p.kind === "mine" && <MineArt w={artW} h={artH} night={phase === "night" || phase === "dusk"} />}
               {p.kind === "house" && <HeroHouseArt w={artW} h={artH} windowsLit={windowsLit} dress={dress} />}
               {p.kind === "home" && (
@@ -504,22 +577,11 @@ export const StreetWorldView = memo(function StreetWorldView({
           );
         })}
 
-      {/* name plaques under the named places — the whole word,
-          always (no line limit, so nothing can clip). The mine's
-          plaque lands directly under its hill's base, as drawn;
-          the board's name rides its own chip; homes and the
-          forest go unnamed, as drawn. */}
-      {world.places
-        .filter((p) => p.plaque)
-        .map((p) => (
-          <PlacePlaque
-            key={`plaque-${p.kind}-${p.buildingId ?? p.landmark?.id ?? `${p.x}`}`}
-            label={p.plaque!}
-            cx={(p.x + p.w / 2) * cs}
-            top={(p.y + p.h) * cs + 3}
-            z={Math.round((p.y + p.h) * cs) + 3}
-          />
-        ))}
+      {/* name plaques render AFTER the washes (below, in the
+          furniture layer at zIndex 9500) — a name is never weather.
+          The mine's plaque lands directly under its hill's base,
+          as drawn; the board's name rides its own chip; homes and
+          the forest go unnamed, as drawn. */}
 
       {/* Each place's own doorstep Pressable — footprint plus its
           door frontage plus a margin (the drawing's generous hit
@@ -569,11 +631,12 @@ export const StreetWorldView = memo(function StreetWorldView({
         })}
 
       {/* the café's register pile — coins WAITING, whole numbers.
-          Its own Pressable: a tap collects in person, at once (the
-          pile's only mover). Walking up to the café collects on
-          arrival too, through the café's own doorstep; the pile
-          never waits on a walk to be collected. The pile stands at
-          the café's door, sized from the cell. */}
+          Its own Pressable: a deliberate tap on the pile collects
+          in person, at once — THE pile's only mover (v343: walking
+          up to the café no longer collects anything; arriving
+          opens the gathering place, and the pile waits for its
+          own tap like every pile in town). The pile stands at the
+          café's door, sized from the cell. */}
       {cafe && world.cafePile > 0 && (
         <Pressable
           onPress={onCollectPile}
@@ -654,8 +717,17 @@ export const StreetWorldView = memo(function StreetWorldView({
         </View>
       )}
 
+      {/* the name plaques — ABOVE every wash (their layer sits at
+          zIndex 9500), laid out by the pure engine: measured from
+          their words, clamped inside the frame, stepped clear of
+          one another */}
+      {plaqueRects.map((r) => (
+        <PlacePlaque key={r.key} label={r.label} left={r.left} top={r.top} width={r.width} fontSize={plaqueFont} />
+      ))}
+
       {villagers}
       {children}
+      </View>
     </View>
   );
 });

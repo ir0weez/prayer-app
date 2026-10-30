@@ -62,6 +62,11 @@ export type DarkForestProps = {
   timeOfDay: TimeOfDay;
   pt: PageTheme;
   onVictory: (wave: number) => void;
+  /** v343: called when a defeat's "Wake at home" is pressed — the
+   *  hero wakes AT HOME (the town), not on a panel inside the
+   *  forest. The host switches the map; absent, the panel falls
+   *  back to the wave select as before. */
+  onDefeatWake?: () => void;
   /** The Boss Gate (prestige): set while a prestige offer is active. */
   bossGate?: { boss: BossDef; cleared: boolean } | null;
   /**
@@ -478,7 +483,7 @@ type FloatItem = { id: number; text: string; color: string; side: "left" | "righ
 
 let floatId = 0;
 
-export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10, forest, tunicColor, armorId, weaponId, hairStyle = "short", hairColor = "#111827", beardStyle = "none", beardLength = 0, bodyStyle = "pebble", timeOfDay, pt, onVictory, bossGate = null, bossGateOpensOn = null, onBossVictory }: DarkForestProps) {
+export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10, forest, tunicColor, armorId, weaponId, hairStyle = "short", hairColor = "#111827", beardStyle = "none", beardLength = 0, bodyStyle = "pebble", timeOfDay, pt, onVictory, onDefeatWake, bossGate = null, bossGateOpensOn = null, onBossVictory }: DarkForestProps) {
   const [phase, setPhase] = useState<Phase>("select");
   const [wave, setWave] = useState(1);
   const [playerHp, setPlayerHp] = useState(stats.maxHp);
@@ -707,10 +712,10 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
       if (newPlayerHp > 0) {
         persistHp(newPlayerHp);
       } else {
-        // Defeat: he wakes at home (lib/hero-health decides the HP he
-        // wakes with) and that state is what persists. The HUD keeps
-        // showing 0 on the defeat panel; returning to select re-settles
-        // and surfaces the woken HP.
+        // Defeat: he wakes at home (lib/hero-health decides the HP
+        // he wakes with) and that state is what persists. v343: the
+        // defeat panel's button now LEAVES the forest for home —
+        // he never lingers in the forest at the wake HP.
         const prev = healthRef.current;
         if (prev) {
           const woken = wakeAfterDefeat({ ...prev, hp: 0 }, effStats.maxHp);
@@ -1005,7 +1010,7 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
                 </View>
                 {noEnergy && (
                   <Text style={{ color: "#FCA5A5", fontSize: 11.5, fontWeight: "700", marginTop: 8 }}>
-                    No energy — a flame returns within the hour, and all of them at midnight.
+                    No energy — your flames return at midnight.
                   </Text>
                 )}
               </View>
@@ -1015,14 +1020,18 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
                 <Text style={{ color: "#F87171", fontWeight: "900", fontSize: 16, marginBottom: 4 }}>Overwhelmed…</Text>
                 <Text style={{ color: "#C7D2FE", fontSize: 13, marginBottom: 10, textAlign: "center", fontStyle: "italic" }}>
                   {bossFight
-                    ? "The boss holds the gate — for now. Nothing is lost: grow stronger, earn your badges, and return."
-                    : "The darkness was too strong. Upgrade your gear and try again — nothing is lost."}
+                    ? "The boss holds the gate — for now. Nothing is lost: you wake at home, grow stronger, and return."
+                    : "The darkness was too strong. You wake at home — nothing is lost."}
                 </Text>
                 <Pressable
-                  onPress={bossFight ? leaveBoss : () => setPhase("select")}
+                  onPress={() => {
+                    if (bossFight) setBossFight(null);
+                    if (onDefeatWake) onDefeatWake();
+                    else setPhase("select");
+                  }}
                   style={{ backgroundColor: "#3B2F6B", borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10 }}
                 >
-                  <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>Retreat</Text>
+                  <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>Wake at home</Text>
                 </Pressable>
               </View>
             )}

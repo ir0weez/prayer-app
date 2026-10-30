@@ -509,13 +509,12 @@ export function townsfolkForHouse(level: number): number {
 }
 
 /**
- * Population economy: each prayer light (person prayed for today) = +2% income.
- * The town feels alive when Jonathan prays. Caps at 2x (50 lights).
+ * RE-BASED v343: the population multiplier (+2% per prayer light,
+ * cap 2×) is REMOVED. It double-counted prayer in the income chain —
+ * prayerMult already pays +3% per person prayed for into the same
+ * product, and the two stacked into one opaque number no surface
+ * could explain. Prayer enters income ONCE now, as prayerMult.
  */
-export function populationMult(prayedCount: number): number {
-  return Math.min(2, 1 + Math.max(prayedCount || 0, 0) * 0.02);
-}
-
 export function upgradeCostFor(type: BuildingType, toLevel: number): number {
   if (type === "house") return eraPriceCoins(HOUSE_UPGRADE_COSTS[toLevel] ?? 0);
   const def = BUILDINGS[type];
@@ -3390,7 +3389,11 @@ export const FRENZY_MULT = 2;
 
 export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1, nowMs: number = Date.now(), depthBlessingMult: number = 1): number {
   if (!mapHasPopulation(map, town)) return 0;
-  const popMult = populationMult(prayedCount);
+  // v343: prayedCount no longer enters here — the +2% population
+  // multiplier is gone (prayer enters income once, as prayerMult,
+  // in the accrual chain and the caller's other surfaces). The
+  // parameter stays for the callers' shape.
+  void prayedCount;
   return map.buildings.reduce((sum, b) => {
     // A building under construction is closed: it earns nothing.
     if (isUnderConstruction(b, nowMs)) return sum;
@@ -3410,7 +3413,7 @@ export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult
         stockMult = STOCKED_INCOME_MULT;
       }
     }
-    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * prestigeMult * stockMult * depthBlessingMult;
+    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * prestigeMult * stockMult * depthBlessingMult;
     return sum + (base * multiplier);
   }, 0);
 }
@@ -3492,8 +3495,10 @@ export function addDaysStr(dateStr: string, n: number): string {
  *
  * - Live (app open): counts villagers within 2 tiles of the building.
  *   0 nearby = 0 income, 1 = 40%, 2 = 70%, 3+ = 100%.
- * - Away (on-open accrual): uses prayed count as a proxy — villagers were
- *   "around" during the day. 0 prayed = 0 income, scales up to full at 8+.
+ * - Away (on-open accrual): the SAME step shape over the count of
+ *   villagers located on the building's map (v343 — a presence value
+ *   means the same thing open or closed; the old ÷8-of-prayed proxy
+ *   priced a different input on a different scale).
  */
 export function presenceMultiplierFor(
   building: { x: number; y: number },
@@ -3502,9 +3507,11 @@ export function presenceMultiplierFor(
   isLive: boolean,
 ): number {
   if (!isLive) {
-    // Time away: proxy by prayed count (villagers existed that day).
+    // Time away: the live step shape over the map's villager count.
     if (prayedCount <= 0) return 0;
-    return Math.min(1, prayedCount / 8);
+    if (prayedCount === 1) return 0.4;
+    if (prayedCount === 2) return 0.7;
+    return 1;
   }
   // Live: count villagers within 2 tiles (Chebyshev distance).
   const bx = building.x;
@@ -3561,6 +3568,13 @@ export interface AwayAccrualInputs {
   /** Per-map counts of villagers located on that map (single-location
    *  truth), or null to fall back to the global prayed count. */
   presenceCounts: Record<string, number> | null;
+  /** v343 — the fast-alive gate: the farm's own text promises its
+   *  buildings earn "while your streak is alive", and the same gate
+   *  now guards the whole town's settle. When the caller knows the
+   *  streak is dead (false), anchors still advance — the dead days
+   *  never pay — but no income lands. Undefined = ungated (the
+   *  pre-v343 callers and tests). */
+  fastAlive?: boolean;
   economyScale: number;
   nowMs: number;
   nowIso: string;
@@ -3568,24 +3582,34 @@ export interface AwayAccrualInputs {
 
 export interface AwayAccrualResult {
   town: TownState;
-  /** Per-building per-minute rates the mount caches for the live tick. */
+  /** Per-building PER-DAY rates (v343) the mount caches for the
+   *  live tick, which now settles whole days like the accrual. */
   rates: Record<string, { coins: number; xp: number }>;
   /** Bank ATM/vault drips to accrue onto bank interiors (async storage,
    *  applied by the caller after the town commit — they are collectible
-   *  inside the bank and never touch the town record). */
+   *  inside the bank and never touch the town record). The `minutes`
+   *  field carries the settled window in minutes (days × 1440) so the
+   *  bank interior's per-hour drip math is unchanged. */
   dripOps: { buildingId: string; minutes: number; basePerHour: number }[];
 }
 
 /**
- * The time-away accrual: for every building on every map, add
- * minutes-since-lastTick × its per-minute rate (presence- and
- * stock-scaled), materialize the stock drain, and advance every
- * building's lastTick anchor to `nowIso`. Amounts and anchors live in
- * the SAME town record, so persisting the returned town is the atomic
- * commit: a load that exits before that write replays the whole accrual
- * next time (correct total, never doubled), and a load that completes
- * it can never accrue the same window twice — at a fixed clock the
- * function is idempotent (a second run sees 0 elapsed minutes).
+ * The time-away accrual (v343 form): for every building on every
+ * map, settle WHOLE LOCAL DAYS between its lastTick anchor's date
+ * and today at the building's per-day rate — the same rate
+ * dailyIncomeForMap prices and effectiveIncomeFor displays —
+ * presence- and stock-scaled, capped at the building's storage cap,
+ * and materialize the stock drain. The per-minute engine this
+ * replaces paid a flat 20/hour to every building regardless of kind
+ * or level and stacked a second +2%-per-person multiplier on top of
+ * the prayer boost; the day model pays the building's own table
+ * (L1 farm 25/day up to L5 1000/day) with ONE prayer formula
+ * (prayerMult, in the chain once) and no flat base. Amounts and
+ * anchors live in the SAME town record, so persisting the returned
+ * town is the atomic commit: a load that exits before that write
+ * replays the whole settle next time (correct total, never
+ * doubled), and at a fixed clock the function is idempotent (a
+ * second run sees 0 elapsed days).
  */
 export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): AwayAccrualResult {
   const {
@@ -3619,7 +3643,11 @@ export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): Aw
     const townAnchorId = id === "town" ? cafeAnchorDiner(m)?.id ?? null : null;
     const updatedBuildings = m.buildings.map(b => {
       const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : nowMs;
-      const minutesElapsed = Math.floor((nowMs - lastTick) / 60000);
+      // v343: the settle counts WHOLE LOCAL DAYS between the
+      // anchor's date and today — day boundaries, not minutes.
+      const daysElapsed = b.lastTick
+        ? Math.max(0, daysBetween(localDateStr(new Date(lastTick)), awayTodayKey))
+        : 0;
       // Under construction: closed — no stock drain, no rate caching, no
       // accrual. Advance lastTick so the finished building doesn't
       // "earn" for its building time later.
@@ -3644,9 +3672,17 @@ export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): Aw
       }
       const earnsCoins = effectiveIncomeFor(b) > 0;
       const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
-      // Cache per-minute rates for every earning building (even with 0
-      // elapsed, e.g. just placed) so the live interval tick can accrue
-      // while watching.
+      // Cache PER-DAY rates for every earning building (even with 0
+      // elapsed days, e.g. just placed) so the live tick can settle
+      // a day boundary while watching. The rate IS the settled
+      // composition: the building's own incomePerDay × the chain —
+      // road, shop, adjacency, interior, floor, worker, gear,
+      // generosity, milestone, prestige, the shared blessings slot,
+      // the ONE prayer formula (era-adjusted), fellowship,
+      // remembrance, garden, house, rest-interior, the era's income
+      // weather — with NO flat base and NO second population
+      // multiplier (the +2% stack is gone: prayer enters once, as
+      // prayerMult). Presence is applied at settle time, never here.
       if ((earnsCoins || earnsXP) && mapHasPopulation(m, town)) {
         const multiplier = roadMultiplierForBuilding(m, b.id);
         const shopBoost = barbershopBoostForBuilding(m, b.id);
@@ -3654,25 +3690,33 @@ export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): Aw
         const ib = interiorBonuses[b.id] ?? { mult: 1, vaultDrips: [], atmDrips: [] };
         const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
         const wMult = workerMult(b);
-        const popMult = populationMult(prayedCount);
-        const basePerHour = 20.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * milestoneMult * prestigeMult * depthBlessingMult * popMult * eraPrayerValue * fellowshipBonus * remembranceBonus * gardenVisitBonus * (1 + houseCoinMult) * (restInteriorMult[b.id] ?? 1) * eraIncomeMult;
-        const churchPerMinute = b.type === "church" && earnsCoins
-          ? (CHURCH_PRAYER_COINS_PER_HOUR * prayedCount * eraIncomeMult) / 60
+        const rawPerDay =
+          effectiveIncomeFor(b) *
+          multiplier * shopBoost * adjacency * ib.mult * floorMult * wMult *
+          gearCoinMult * (1 + generosityMult) * milestoneMult * prestigeMult *
+          depthBlessingMult * eraPrayerValue * fellowshipBonus *
+          remembranceBonus * gardenVisitBonus * (1 + houseCoinMult) *
+          (restInteriorMult[b.id] ?? 1) * eraIncomeMult;
+        // The church's prayer stream: CHURCH_PRAYER_COINS_PER_HOUR
+        // was the old per-minute engine's name for the stream; in
+        // the day model it settles once per day per person prayed
+        // for (the day is the unit now), era-weathered like the rest.
+        const churchPerDay = b.type === "church" && earnsCoins
+          ? CHURCH_PRAYER_COINS_PER_HOUR * prayedCount * eraIncomeMult
           : 0;
-        // Cache BASE rates (without presence). Presence is applied at
-        // accrual time: time-away proxy on open, live positions in tick.
         rates[b.id] = {
-          coins: earnsCoins ? (basePerHour / 60 + churchPerMinute) * economyScale : 0,
-          xp: !earnsCoins && earnsXP ? (xpIncomeFor(b.type, b.level || 1) * wMult) / 24 / 60 : 0,
+          coins: earnsCoins ? rawPerDay + churchPerDay * economyScale : 0,
+          xp: !earnsCoins && earnsXP ? xpIncomeFor(b.type, b.level || 1) * wMult : 0,
         };
       }
-      if (minutesElapsed > 0 && (earnsCoins || earnsXP) && mapHasPopulation(m, town)) {
+      if (daysElapsed > 0 && inputs.fastAlive !== false && (earnsCoins || earnsXP) && mapHasPopulation(m, town)) {
         const rate = rates[b.id];
-        const perMinuteCoins = rate ? rate.coins : 0;
-        const perMinuteXP = rate ? rate.xp : 0;
-        // Presence gate (time away): scale by the count of villagers
-        // located on THIS building's map (single-location truth),
-        // falling back to the global prayed count.
+        const perDayCoins = rate ? rate.coins : 0;
+        const perDayXP = rate ? rate.xp : 0;
+        // Presence gate (time away): the count of villagers located
+        // on THIS building's map (single-location truth), falling
+        // back to the global prayed count — priced by the SAME step
+        // shape the live town pays (0 / 0.4 / 0.7 / 1).
         const presenceMult = presenceMultiplierFor(
           b,
           [],
@@ -3688,15 +3732,16 @@ export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): Aw
           stockMult = stockMultiplierFor(isStockedToday(stockedDates, b.id, nowMs));
         }
         const add = earnsCoins
-          ? minutesElapsed * perMinuteCoins * presenceMult * stockMult
-          : minutesElapsed * perMinuteXP * presenceMult;
+          ? daysElapsed * perDayCoins * presenceMult * stockMult
+          : daysElapsed * perDayXP * presenceMult;
         // ATM & vault bonuses drip as collectible coins inside the bank
-        // interior instead of auto-adding to the building total.
+        // interior instead of auto-adding to the building total. The
+        // drip window is the settled days in minutes; the base is
+        // the building's per-hour equivalent of its day rate.
         if (earnsCoins && (b.type === "bank" || b.type === "bank-tower")) {
           const ib = interiorBonuses[b.id] ?? { mult: 1, vaultDrips: [], atmDrips: [] };
           if (ib.vaultDrips.length > 0 || ib.atmDrips.length > 0) {
-            // basePerHour needed for vault % — recompute cheaply from cached rate
-            dripOps.push({ buildingId: b.id, minutes: minutesElapsed, basePerHour: perMinuteCoins * 60 });
+            dripOps.push({ buildingId: b.id, minutes: daysElapsed * 1440, basePerHour: perDayCoins / 24 });
           }
         }
         return {
@@ -3718,69 +3763,16 @@ export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): Aw
   };
 }
 
-export interface MissedDaysIncomeOptions {
-  today: string;
-  milestoneMult: number;
-  houseCoinMult: number;
-  fellowshipBonus: number;
-  prayedCount: number;
-  remembranceBonus: number;
-  gardenVisitBonus: number;
-  prestigeMult: number;
-  nowMs: number;
-  /** The mine's Depth Blessing (v175), from lib/mountain. */
-  depthBlessingMult?: number;
-  /** The day's-set bonus (v200, lib/mini-games): local dates whose
-   *  twelve-game set was completed. Each completed date inside the
-   *  missed window earns `setBonusRate` × that day's base on top.
-   *  Optional — a caller that doesn't know the games settles
-   *  unbonused, as before. */
-  setBonusDates?: ReadonlySet<string>;
-  /** The set bonus rate (0.10), from lib/mini-games. */
-  setBonusRate?: number;
-  /** v323 (The Era Game): the era's income weather over the missed
-   *  days' coins, from lib/hometown-eras. Optional — a caller that
-   *  doesn't know the era settles un-aged, as before. XP never ages. */
-  eraIncomeMult?: number;
-}
-
 /**
- * Missed-days business income: whole days between the town's
- * lastIncomeDate and today, priced by dailyIncomeForTown/dailyXPForTown
- * on the (already away-accrued) town. Returns null when there is nothing
- * to award — same day, no recorded last day, or zero earnable days. The
- * caller folds `lastIncomeDate = today` into the SAME town-record write
- * as the away accrual, so the day count can never be awarded twice.
+ * v343 — missedDaysIncome is REMOVED. It paid whole missed days
+ * straight into the balance on open (auto-credited income, and it
+ * double-paid the same window the per-minute accrual had already
+ * covered). Missed days now settle through the ONE accrual:
+ * accrueAwayIncome counts whole local days from each building's
+ * lastTick anchor and lands them in the buildings' waiting piles,
+ * capped — nothing is ever auto-credited, and the return card
+ * reports what WAITS, never what was "already applied".
  */
-export function missedDaysIncome(town: TownState, opts: MissedDaysIncomeOptions): { days: number; earnedCoins: number; earnedXP: number } | null {
-  const lastDate = town.lastIncomeDate;
-  if (!lastDate || lastDate === opts.today) return null;
-  const days = daysBetween(lastDate, opts.today);
-  const perDayCoins = dailyIncomeForTown(town, opts.milestoneMult, 1 + opts.houseCoinMult, opts.fellowshipBonus, opts.prayedCount, opts.remembranceBonus, opts.gardenVisitBonus, opts.prestigeMult, opts.nowMs, opts.depthBlessingMult ?? 1);
-  const perDayXP = dailyXPForTown(town, opts.nowMs);
-  if (!(days > 0 && (perDayCoins > 0 || perDayXP > 0))) return null;
-  const eraIncomeMult = opts.eraIncomeMult ?? 1;
-  let earnedCoins = days * perDayCoins * eraIncomeMult;
-  // The day's-set bonus (v200): the missed window is the `days` dates
-  // [lastDate, today) — the very dates this award settles, and the
-  // caller's lastIncomeDate fold means each is settled exactly once,
-  // so a completed date is paid its bonus here and never again,
-  // whenever during its day the set was finished. The bonus is priced
-  // on the day's base WITHOUT the Depth Blessing, so the two
-  // blessings add on the same base instead of compounding.
-  const setRate = opts.setBonusRate ?? 0;
-  if (setRate > 0 && opts.setBonusDates && opts.setBonusDates.size > 0 && perDayCoins > 0) {
-    let bonusDays = 0;
-    for (let i = 0; i < days; i++) {
-      if (opts.setBonusDates.has(addDaysStr(lastDate, i))) bonusDays++;
-    }
-    if (bonusDays > 0) {
-      const perDayBase = dailyIncomeForTown(town, opts.milestoneMult, 1 + opts.houseCoinMult, opts.fellowshipBonus, opts.prayedCount, opts.remembranceBonus, opts.gardenVisitBonus, opts.prestigeMult, opts.nowMs, 1);
-      earnedCoins += setRate * perDayBase * bonusDays * eraIncomeMult;
-    }
-  }
-  return { days, earnedCoins: Math.floor(earnedCoins), earnedXP: Math.round(days * perDayXP) };
-}
 
 // ---- Collect All coin-fly budget ----
 
@@ -4357,28 +4349,11 @@ export function canThankLight(taps: Record<string, number>, lightId: string, now
 }
 
 // ---------------------------------------------------------------------------
-// Daily prayer bonus — thresholds for praying for people
+// RE-BASED v343: the daily prayer-threshold bonuses (250/500/1000 at
+// 5/10/20 people) are REMOVED — prayer pays through prayerMult and
+// the café's served glow; a second cash payout for the same act made
+// the economy unauditable. The storage key is retired with it.
 // ---------------------------------------------------------------------------
-
-export const PRAYER_BONUS_KEY = "prayercircle.hometown.prayer-bonus.v1";
-export const PRAYER_COIN_BONUSES = [
-  { threshold: 5, coins: 250 },
-  { threshold: 10, coins: 500 },
-  { threshold: 20, coins: 1000 },
-] as const;
-
-export type PrayerBonusState = { date: string; awarded: number[] };
-
-export function parsePrayerBonus(value: unknown): PrayerBonusState {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const v = value as Record<string, unknown>;
-    return {
-      date: typeof v.date === "string" ? v.date : "",
-      awarded: Array.isArray(v.awarded) ? v.awarded.filter(x => typeof x === "number") : [],
-    };
-  }
-  return { date: "", awarded: [] };
-}
 
 // ---------------------------------------------------------------------------
 // Work shifts — tap rapidly on a shop for 10 seconds to earn coins
@@ -4408,14 +4383,10 @@ export function canWorkShift(shifts: Record<string, number>, buildingId: string,
 }
 
 // ---------------------------------------------------------------------------
-// Fast day green bonus — 50 coins per completed fast day
+// RE-BASED v343: the 50-coins-per-green-day on-open sweep is REMOVED.
+// A completed fast day is worth exactly ONE coin, and it lands at
+// MARKING time (app/profile.tsx applyCoinsDelta(1), which prints the
+// "+1" receipt). The sweep double-paid every green day the profile
+// screen had already paid; the one-time backfill beside it in the
+// town screen goes with it — storage from both is simply retired.
 // ---------------------------------------------------------------------------
-
-export const FAST_DAY_COIN_KEY = "prayercircle.hometown.fast-day-coins.v1";
-export const FAST_DAY_COINS = 50;
-
-/** Set of "fastId:date" keys already counted for coins. */
-export function parseFastDayCoins(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter(x => typeof x === "string");
-  return [];
-}

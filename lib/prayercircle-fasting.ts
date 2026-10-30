@@ -192,6 +192,28 @@ export function getHighestFastStreak(fasts: PersonalFast[]): number {
   }, 0);
 }
 
+/**
+ * v343 — the CURRENT streak under the strict rule, and the
+ * fast-alive gate the town's economy reads. The two streak
+ * counters in this file disagreed (calculateFastStreak let skipped
+ * and unmarked days pass; getHighestFastStreak breaks on them);
+ * the settled rule is the strict one — skipped, missed and
+ * unmarked days all break a streak — so the gate uses it.
+ * "Alive" means: a fast covers today, and the chain of completed
+ * days runs unbroken up to the last ELAPSED day (today itself,
+ * still unmarked, never kills a streak — the day isn't over; a
+ * fast that started today is alive, nothing has broken yet).
+ */
+export function isFastStreakAlive(fasts: PersonalFast[], dateString = getTodayISOString()): boolean {
+  const fast = fasts.find((f) => f.startDate <= dateString && getFastEndDate(f) >= dateString);
+  if (!fast) return false;
+  const elapsed = getFastCalendarDays(fast).filter((d) => d < dateString);
+  if (elapsed.length === 0) return true;
+  // A streak is the unbroken run of kept days ENDING at the last
+  // elapsed day — alive exactly when that day was kept.
+  return fast.dayStatuses[elapsed[elapsed.length - 1]] === "completed";
+}
+
 export function getLastCompletedFastForType(
   fasts: PersonalFast[],
   type: FastType,

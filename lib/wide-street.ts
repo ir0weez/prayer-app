@@ -61,6 +61,7 @@ import {
   type TownLandmark,
   type TownState,
 } from "./hometown";
+import { gatheringForEra, type EraId } from "./hometown-eras";
 import type { WalkTile } from "./walkable-town";
 
 // ── Geometry ────────────────────────────────────────────────────────────────
@@ -343,7 +344,8 @@ function strataPlace(
   x: number,
   w: number,
   base: number,
-  doorRow: number
+  doorRow: number,
+  eraId?: EraId | null
 ): StreetPlace {
   const h = seat.h;
   const y = base - h;
@@ -378,15 +380,21 @@ function strataPlace(
         label: "His House",
         plaque: "His House",
       };
-    case "cafe":
+    case "cafe": {
+      // v343: the café's seat is the gathering place — its street
+      // name and plaque are the AGE's (the Common Table in the
+      // Village, the Temple under David, New Jerusalem at the
+      // end). The wiring under the name never changes.
+      const gathering = gatheringForEra(eraId ?? null);
       return {
         ...baseFields,
         kind: "cafe",
         buildingId: seat.building?.id,
         buildingType: seat.building?.type,
-        label: "The Café",
-        plaque: "Café",
+        label: gathering.name,
+        plaque: gathering.plaque,
       };
+    }
     case "shop":
       return { ...baseFields, kind: "shop", label: "Town Shop", plaque: "Town Shop" };
     case "home":
@@ -455,7 +463,7 @@ function streetInBounds(world: { w: number; h: number }, x: number, y: number): 
  */
 export function deriveStreetWorld(
   map: MapState,
-  opts: { pendingRegister?: number; weekLots?: number } = {}
+  opts: { pendingRegister?: number; weekLots?: number; eraId?: EraId | null } = {}
 ): StreetWorld {
   const pendingRegister = opts.pendingRegister ?? 0;
   const anchor = cafeAnchorDiner(map);
@@ -508,7 +516,7 @@ export function deriveStreetWorld(
       if (i < gateSeats.length) seats.push(gateSeats[i]);
     }
     for (const { seat, x, w } of packRow(seats, 1.15, 9.9)) {
-      places.push(strataPlace(seat, x, w, BACK_BASE, BACK_DOOR_ROW));
+      places.push(strataPlace(seat, x, w, BACK_BASE, BACK_DOOR_ROW, opts.eraId));
     }
   }
 
@@ -567,7 +575,7 @@ export function deriveStreetWorld(
       { kind: "shop", w: 3.05, h: 3.26 },
     ];
     for (const { seat, x, w } of packRow(seats, 0.15, 10.85)) {
-      places.push(strataPlace(seat, x, w, FRONT_BASE, FRONT_DOOR_ROW));
+      places.push(strataPlace(seat, x, w, FRONT_BASE, FRONT_DOOR_ROW, opts.eraId));
     }
   }
 
@@ -962,6 +970,138 @@ export function settleWideStreetMigration(
 export function cafeRegisterPile(map: MapState, pendingRegister: number): number {
   const anchor = cafeAnchorDiner(map);
   return (anchor?.accumulated || 0) + (pendingRegister || 0);
+}
+
+// ── v343: the frame contract ────────────────────────────────────────────────
+// The stage FILLS its world box: the cell is sized by the box's
+// WIDTH (the composition is width-true), the drawn content is the
+// 16 rows, and any height the box has beyond the content is split
+// between the two elastic bands — the sky above the hills and the
+// river below the bank — so the world reaches the box's bottom edge
+// instead of ending mid-screen over empty frame (the v333
+// letterbox: a min()-fit inside the SeasonalBorder's frame left
+// ~40% of the screen empty). The HUD is a block ABOVE the world
+// box, never an overlay on it, so the stage rect and the HUD rect
+// are disjoint by construction. A box too SHORT for the width-true
+// cell falls back to the height fit (the whole composition stays
+// visible, centred) — the phone case never takes that branch.
+
+export type StageFit = {
+  /** The stage's cell size in px (square; tile space is untouched). */
+  cell: number;
+  /** Drawn stage content size: STREET_W × cell by STREET_H × cell. */
+  contentW: number;
+  contentH: number;
+  /** Extra sky height above the hill band (the elastic top band). */
+  extendTop: number;
+  /** Extra river depth below the bank (the elastic bottom band). */
+  extendBottom: number;
+  /** Horizontal centring slack (0 whenever the width rules). */
+  offsetX: number;
+  /** The stage's total drawn height: contentH + extendTop + extendBottom. */
+  stageH: number;
+};
+
+export function stageFit(boxW: number, boxH: number): StageFit {
+  const w = Math.max(0, boxW);
+  const h = Math.max(0, boxH);
+  const widthCell = w / STREET_W;
+  const heightCell = h / STREET_H;
+  if (heightCell < widthCell) {
+    // Short box: the height rules so nothing is cropped.
+    const cell = heightCell;
+    const contentW = cell * STREET_W;
+    return {
+      cell,
+      contentW,
+      contentH: h,
+      extendTop: 0,
+      extendBottom: 0,
+      offsetX: Math.max(0, (w - contentW) / 2),
+      stageH: h,
+    };
+  }
+  const cell = widthCell;
+  const contentH = cell * STREET_H;
+  const extra = Math.max(0, h - contentH);
+  const extendTop = Math.round(extra * 0.4);
+  return {
+    cell,
+    contentW: w,
+    contentH,
+    extendTop,
+    extendBottom: extra - extendTop,
+    offsetX: 0,
+    stageH: h,
+  };
+}
+
+// ── v343: plaque layout ─────────────────────────────────────────────────────
+// Every plaque is clamped INSIDE the frame and never overlaps
+// another plaque: the pill's width is estimated from its word (the
+// text itself never truncates — the pill is sized by it), its left
+// is clamped to the frame's margins, and a plaque that would land
+// on an earlier one is stepped down below it. Pure and pinnable:
+// the renderer draws exactly these rects.
+
+export type PlaqueSeat = {
+  key: string;
+  label: string;
+  /** Desired centre x (stage px). */
+  cx: number;
+  /** Desired top (stage px). */
+  top: number;
+  /** Rendered font size (already floored at the ~10px minimum). */
+  fontSize: number;
+};
+
+export type PlaqueRect = {
+  key: string;
+  label: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+/** A plaque pill's width for its word: ~0.60 em per character plus
+ *  the pill's horizontal padding (9px each side) — sized by the
+ *  text so the whole word always fits. */
+export function plaqueWidth(label: string, fontSize: number): number {
+  return Math.ceil(label.length * fontSize * 0.6) + 18;
+}
+
+export function plaqueHeight(fontSize: number): number {
+  return Math.ceil(fontSize * 1.5) + 6;
+}
+
+const PLAQUE_MARGIN = 4;
+const PLAQUE_GAP = 2;
+
+export function layoutPlaques(seats: PlaqueSeat[], worldW: number): PlaqueRect[] {
+  const placed: PlaqueRect[] = [];
+  const ordered = [...seats].sort((a, b) => a.top - b.top || a.cx - b.cx || (a.key < b.key ? -1 : 1));
+  for (const seat of ordered) {
+    const width = plaqueWidth(seat.label, seat.fontSize);
+    const height = plaqueHeight(seat.fontSize);
+    const maxLeft = Math.max(PLAQUE_MARGIN, worldW - PLAQUE_MARGIN - width);
+    let left = Math.min(Math.max(seat.cx - width / 2, PLAQUE_MARGIN), maxLeft);
+    let top = seat.top;
+    // Step down until clear of every earlier plaque.
+    for (;;) {
+      const hit = placed.find(
+        (r) =>
+          left < r.left + r.width + PLAQUE_GAP &&
+          left + width + PLAQUE_GAP > r.left &&
+          top < r.top + r.height + PLAQUE_GAP &&
+          top + height + PLAQUE_GAP > r.top,
+      );
+      if (!hit) break;
+      top = hit.top + hit.height + PLAQUE_GAP;
+    }
+    placed.push({ key: seat.key, label: seat.label, left, top, width, height });
+  }
+  return placed;
 }
 
 // ── Storage (the hometown screen's pattern: read on open) ───────────────────

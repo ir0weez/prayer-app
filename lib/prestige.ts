@@ -31,6 +31,7 @@
 // Victory earns a permanent badge and clears the gate for that offer.
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getTodayISOString } from "./prayercircle-data";
 import { getFastEndDate, type PersonalFast } from "./prayercircle-fasting";
 import {
   CITY_PLOTS_STORAGE_KEY,
@@ -371,6 +372,11 @@ export async function performPrestige(fasts: PersonalFast[]): Promise<PerformPre
   if (!offer) return null;
   // The Boss Gate: no prestige until the current boss is beaten.
   if (!offerBossCleared(state, offer)) return null;
+  // v343: no prestige while the offer's fast is still RUNNING — a
+  // Begin Again belongs to a finished fast. (The offer selection
+  // itself is unchanged; this gate is perform-time only.)
+  const offerFast = fasts.find((f) => f.id === offer.fastId);
+  if (!offerFast || getTodayISOString() <= getFastEndDate(offerFast)) return null;
 
   let crowns = await loadPrestigeLevel();
   let devotionBonus = state.devotionBonus;

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Text, View } from "react-native";
+import { Animated, Easing, View } from "react-native";
 import { PAPER_HERO_H, PAPER_HERO_W, PaperHeroFigure } from "@/components/paper-interior";
 import { buildPath } from "@/components/town-npcs";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { getTimeOfDay } from "@/lib/daynight";
+import { mixHex, type EraDressLike } from "@/lib/hometown-eras";
+import type { DayPhase } from "@/lib/welcoming-town";
 import { TOWN_GRID_H, type MapState } from "@/lib/hometown";
 
 const PAWN_SIZE = 34;
@@ -13,9 +15,11 @@ const PAWN_SIZE = 34;
  *  taller, distinct through detail rather than size. PAWN_SIZE stays
  *  the container/anchor size; only the figure shrinks inside it. */
 const MAP_HERO_FIGURE_W = 13.7;
-/** Walk speed, px per second. The villagers stroll at ~42; the Hero
- *  keeps a touch brisker pace so a cross-town road trip stays watchable. */
-const WALK_PX_PER_SEC = 46;
+/** Walk speed, px per second. v343: the Hero walks at 2.4× the
+ *  villagers' stroll (~42 px/s) — brisk enough that a walk-up reads
+ *  as going somewhere. At the 40px reference cell that's ~396ms a
+ *  tile, comfortably inside the walk watchdog's per-tile budget. */
+const WALK_PX_PER_SEC = 101;
 /** The cell size that pace was tuned at. v307 draws the street at a
  *  fitted cell size (40–64px); the effective speed scales with the
  *  cell so a tile always takes the same time — the walk watchdog's
@@ -31,8 +35,10 @@ const WALK_REF_CELL = 40;
  * along the road network (buildPath: nearest road tile, BFS over the
  * roads, then the final step off-road to the door) — never in a
  * straight line over the rooftops. Idle, he strolls from road tile to
- * road tile. At night he's in bed in the Hero's house (rendered there),
- * so this hides after dark.
+ * road tile. NIGHT (v343): on the STREET (a `phase` is passed) the
+ * hero WALKS at night while the town sleeps — he never hides and
+ * commands are never refused; the legacy grid maps (no phase) keep
+ * the old daynight rule — in bed after dark, rendered at his house.
  */
 export function PlayerPawnWanderer({
   cellSize,
@@ -43,6 +49,8 @@ export function PlayerPawnWanderer({
   positionRef,
   onReady,
   figureHeightPx,
+  phase,
+  eraDress,
 }: {
   cellSize: number;
   /** v333 (the fixed stage): the Hero's figure height in px,
@@ -65,7 +73,16 @@ export function PlayerPawnWanderer({
   /** Fired once the pawn's saved appearance has loaded (the Hero is
    *  on the map and able to take commands). */
   onReady?: () => void;
+  /** v343: the town's phase (lib/welcoming-town). When passed, the
+   *  pawn is on the street: it walks at EVERY phase, night included,
+   *  and the daynight hide/refuse rules below stand down. Absent =
+   *  the legacy grid behaviour, unchanged. */
+  phase?: DayPhase;
+  /** v343: the era's cloth (the same EraDress the villagers wear) —
+   *  the hero's shirt tints toward the age like everyone else's. */
+  eraDress?: EraDressLike | null;
 }) {
+  const streetMode = phase !== undefined;
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
   const [isNight, setIsNight] = useState(getTimeOfDay() === "night");
   // Tile Y for depth sorting — villagers and buildings interleave by Y.
@@ -134,7 +151,7 @@ export function PlayerPawnWanderer({
     const gen = walkGenRef.current;
     idleTimerRef.current = setTimeout(() => {
       if (!mountedRef.current || gen !== walkGenRef.current) return;
-      if (destTileRef.current || getTimeOfDay() === "night") {
+      if (destTileRef.current || (!streetMode && getTimeOfDay() === "night")) {
         scheduleIdleRef.current();
         return;
       }
@@ -220,7 +237,7 @@ export function PlayerPawnWanderer({
   useEffect(() => {
     if (!commandPath || commandSeq === 0 || commandSeq === lastCommandSeqRef.current) return;
     lastCommandSeqRef.current = commandSeq;
-    if (getTimeOfDay() === "night") return;
+    if (!streetMode && getTimeOfDay() === "night") return;
     commandInFlightRef.current = true;
     const pts = commandPath.tiles.map((t) => ({
       x: (t.x + 0.5) * cellSize,
@@ -257,7 +274,7 @@ export function PlayerPawnWanderer({
   useEffect(() => {
     if (lastDestKeyRef.current === destKey) return;
     lastDestKeyRef.current = destKey;
-    if (getTimeOfDay() === "night") return;
+    if (!streetMode && getTimeOfDay() === "night") return;
     // A tap-to-walk command in flight outranks the schedule; the
     // command's own completion returns the Hero here afterwards.
     if (commandInFlightRef.current) return;
@@ -275,7 +292,7 @@ export function PlayerPawnWanderer({
       if (!mountedRef.current) return;
       const night = getTimeOfDay() === "night";
       setIsNight((prev) => (prev === night ? prev : night));
-      if (night) {
+      if (night && !streetMode) {
         stopWalk();
       }
     }, 3200);
@@ -284,13 +301,16 @@ export function PlayerPawnWanderer({
   }, []);
 
   // Resume in the morning after the night hid him mid-route.
+  // (Legacy maps only — on the street he never hid.)
   const wasNightRef = useRef(isNight);
   useEffect(() => {
+    if (streetMode) return;
     if (wasNightRef.current && !isNight) {
       if (destTileRef.current) walkToRef.current(destTileRef.current);
       else scheduleIdleRef.current();
     }
     wasNightRef.current = isNight;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNight]);
 
   useEffect(() => {
@@ -298,7 +318,7 @@ export function PlayerPawnWanderer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!pawn || isNight) return null;
+  if (!pawn || (!streetMode && isNight)) return null;
 
   const bobY = bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
   // The figure's unit: from the caller's stage-derived height when
@@ -324,35 +344,21 @@ export function PlayerPawnWanderer({
         zIndex: Math.round((tileY + 0.5) * cellSize),
       }}
     >
-      {/* name label — v307: the chip used to sit in this 34px-wide
-          container with maxWidth 64, so any real name clipped to an
-          ellipsis ("Pe…"). It now rides a wide invisible strip centred
-          on the pawn (the town-npcs pattern, widened): the Text sizes
-          to its content, so the name always fits whole. */}
-      <View
-        pointerEvents="none"
-        style={{ position: "absolute", top: Math.min(-2, 32 - heroFigH), left: -(200 - PAWN_SIZE) / 2, width: 200, alignItems: "center" }}
-      >
-        <Text
-          numberOfLines={1}
-          style={{
-            fontSize: 9,
-            fontWeight: "800",
-            color: "#FFF7ED",
-            backgroundColor: "rgba(0,0,0,0.45)",
-            borderRadius: 6,
-            paddingHorizontal: 5,
-            paddingVertical: 1,
-            textAlign: "center",
-          }}
-        >
-          {pawn.name || "You"}
-        </Text>
-      </View>
+      {/* v343: NO name pill over the hero — the drawing's hero
+          carries none (the villagers carry their names; the hero
+          is the player, he knows who he is). */}
       {/* the Hero as a paper figure in the world — normal clothes,
           equipped hair, live-grown beard (PaperHeroFigure reads the
           pawn's saved appearance) */}
-      <PaperHeroFigure pawn={pawn} unit={heroUnit} />
+      <PaperHeroFigure
+        pawn={pawn}
+        unit={heroUnit}
+        cloth={
+          eraDress && eraDress.mix > 0
+            ? mixHex(pawn.bodyColor || "#7C5CBF", eraDress.shirt, eraDress.mix)
+            : undefined
+        }
+      />
     </Animated.View>
   );
 }

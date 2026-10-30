@@ -20,10 +20,12 @@ export const HERO_HEALTH_KEY = "prayercircle.hero.health.v1";
 /** Free full heals at the hospital per day. Care, never the wallet. */
 export const HOSPITAL_HEALS_PER_DAY = 2;
 
-/** The hourly mend: one tick every hour (v177; was ~4-hourly). */
-export const TRICKLE_MS = 3600 * 1000;
-/** Each hourly tick restores this fraction of max HP (v177; was 5%). */
-export const TRICKLE_PCT = 0.1;
+/** The mend: one tick every ~4 hours (restored v343; v177 had made
+ *  it hourly). */
+export const TRICKLE_MS = 4 * 3600 * 1000;
+/** Each ~4-hour tick restores this fraction of max HP (restored
+ *  v343; v177 had raised it to 10%). */
+export const TRICKLE_PCT = 0.05;
 
 /** After a defeat the hero wakes at home with this fraction of max HP. */
 export const DEFEAT_WAKE_PCT = 0.1;

@@ -29,7 +29,10 @@ export const CAFE_LAYOUT = {
   cafeWall: { x: 13.5, y: 20, w: 25, h: 19.5 },
   doorCx: 26,
   groundY: 41.2,
-  tablesX: [16.5, 24.5, 32.5],
+  // v343: four tables along the café's frontage (was three — the
+  // scene's caps rise to the drawing's intent; the board below
+  // still carries everyone regardless).
+  tablesX: [12.5, 20, 27.5, 35],
   tableTopY: 45.3,
   servedFeetY: 49.5,
   servedDx: 5.4,
@@ -262,7 +265,10 @@ export const CafeSceneCanvas = memo(function CafeSceneCanvas(props: {
   const pal = PHASE_PALETTE[phase];
   const horizon = HORIZON_DRESS[phase];
   const unit = width / CAFE_SCENE_COLS;
-  const lit = pal.windowsLit || oven === "lit";
+  // v343: at night the café itself is DARK (the town sleeps) —
+  // its big window never lights after dark, whatever the ovens'
+  // fast-state says. The horizon homes keep their own lit windows.
+  const lit = phase === "night" ? false : pal.windowsLit || oven === "lit";
 
   return (
     <PaperCanvas

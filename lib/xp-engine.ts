@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TOWN_STORAGE_KEY, PAWN_HOUSE_STORAGE_KEY } from "./hometown";
+import { FASTS_STORAGE_KEY } from "./prayercircle-storage";
 import { getCachedBoosts, refreshGearBoostCache } from "./gear";
 import { getCachedStatBoosts, refreshStatBoostCache, grantStatPointsForLevel } from "./character-stats";
 import { getCachedHouseBonuses } from "./pawn-house";
@@ -143,8 +144,12 @@ function daysBetweenDateStrings(from: string, to: string): number {
 }
 
 /**
- * Regenerates +1 heart per elapsed calendar day, up to the level's max. Pure —
- * callers persist the result. A missing regen date simply stamps today.
+ * The Sunday refill (the settled rule): on a Sunday, hearts reset to
+ * the level's full max, once per Sunday (stamped by
+ * lastHeartRegenDate). Other days leave hearts untouched — the
+ * elapsed-day losses are settled separately (settleFastingHearts).
+ * Pure — callers persist the result. A missing regen date simply
+ * stamps today.
  */
 export function applyDailyHeartRegen(state: XpState, todayStr: string): XpState {
   const current = normalizeXPState(state);
@@ -238,17 +243,115 @@ export function applyXPAward(state: XpState, action: XpAction): XpAwardResult {
   return { state: next, awarded: true, points, previousLevel: previous.level, levelUp: next.level > previous.level };
 }
 
+/** Local today as "YYYY-MM-DD" (the shape every heart rule reads). */
+function localTodayStr(now: Date = new Date()): string {
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${m}-${d}`;
+}
+
 export async function loadXPState(todayStr?: string): Promise<XpState> {
   try {
+    // v343: the settle no longer depends on the caller remembering
+    // to pass a date — a load without one settles against the local
+    // today, so EVERY screen that loads XP sees the same hearts:
+    // the Sunday refill applied, and elapsed missed fast days
+    // charged (settleFastingHearts below), whichever screen opens
+    // first.
+    const today = todayStr ?? localTodayStr();
     const state = normalizeXPState(JSON.parse((await AsyncStorage.getItem(XP_STORAGE_KEY)) || "null"));
-    if (!todayStr) return state;
-    const regen = applyDailyHeartRegen(state, todayStr);
+    const regen = applyDailyHeartRegen(state, today);
     if (regen.hearts !== state.hearts || regen.lastHeartRegenDate !== state.lastHeartRegenDate) {
       await AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(regen));
     }
-    return regen;
+    return settleFastingHearts(regen, today);
   } catch {
     return DEFAULT_XP_STATE;
+  }
+}
+
+/** The stored fast shape the heart settle reads (day statuses only —
+ *  parsed locally so this module never imports the fasting module
+ *  and its dependency chain). */
+type StoredFastForHearts = {
+  id?: unknown;
+  dayStatuses?: Record<string, unknown> | null;
+};
+
+/**
+ * v343 — the elapsed-day heart settle, run from loadXPState so it
+ * does not depend on which screen loads state: every fast day
+ * BEFORE today whose status is "missed" costs exactly one heart,
+ * once ever, through the same `heart-loss:fasting-day-missed:…`
+ * ledger keys loseHeart uses (so the People tab's own calls and
+ * this settle can never double-charge, and restoreHeart can still
+ * give a heart back when a day is re-marked). Losses apply in date
+ * order with loseHeart's exact consequence: hearts reaching zero
+ * drops a level (never below 1), refills to the new max, and wipes
+ * the town. Skipped and unmarked days cost nothing — the settled
+ * rule charges MISSED days only. One storage pass, one write.
+ */
+export async function settleFastingHearts(state: XpState, todayStr: string): Promise<XpState> {
+  try {
+    const [rawFasts, rawAwards] = await Promise.all([
+      AsyncStorage.getItem(FASTS_STORAGE_KEY),
+      AsyncStorage.getItem(XP_AWARDS_STORAGE_KEY),
+    ]);
+    if (!rawFasts) return state;
+    let fasts: StoredFastForHearts[] = [];
+    try {
+      const parsed = JSON.parse(rawFasts);
+      if (Array.isArray(parsed)) fasts = parsed as StoredFastForHearts[];
+    } catch {
+      return state;
+    }
+    let awards: string[] = [];
+    try {
+      const parsed = rawAwards ? JSON.parse(rawAwards) : [];
+      if (Array.isArray(parsed)) awards = parsed.filter((x): x is string => typeof x === "string");
+    } catch {
+      awards = [];
+    }
+    const due: { key: string; date: string }[] = [];
+    for (const fast of fasts) {
+      if (!fast || typeof fast.id !== "string" || !fast.dayStatuses) continue;
+      for (const [date, status] of Object.entries(fast.dayStatuses)) {
+        if (status !== "missed" || date >= todayStr) continue;
+        const key = `heart-loss:fasting-day-missed:${fast.id}:${date}`;
+        if (!awards.includes(key)) due.push({ key, date });
+      }
+    }
+    if (due.length === 0) return state;
+    due.sort((a, b) => (a.date < b.date ? -1 : 1));
+    let current = normalizeXPState(state);
+    let wipeTown = false;
+    for (const { key } of due) {
+      awards.push(key);
+      let hearts = current.hearts - 1;
+      let totalXP = current.totalXP;
+      if (hearts <= 0) {
+        const newLevel = Math.max(1, current.level - 1);
+        totalXP = xpRequiredForLevel(newLevel);
+        hearts = maxHeartsForLevel(newLevel);
+        wipeTown = true;
+      }
+      current = {
+        totalXP,
+        level: getLevelForXP(totalXP),
+        hearts,
+        lastHeartRegenDate: current.lastHeartRegenDate,
+      };
+    }
+    await Promise.all([
+      AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(current)),
+      AsyncStorage.setItem(XP_AWARDS_STORAGE_KEY, JSON.stringify(awards)),
+    ]);
+    if (wipeTown) {
+      void AsyncStorage.multiRemove([TOWN_STORAGE_KEY, PAWN_HOUSE_STORAGE_KEY]).catch(() => undefined);
+    }
+    return current;
+  } catch {
+    return state;
   }
 }
 

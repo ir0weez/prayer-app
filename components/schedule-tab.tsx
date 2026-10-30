@@ -7038,6 +7038,41 @@ function TopDownStirFryScene() {
   );
 }
 
+/** Top-down homecooked risotto: a bowl of creamy pale-gold risotto
+ *  with a ladle swirl, crispy bacon, roasted mushrooms, scallion
+ *  greens and Parmesan shavings. */
+function TopDownRisottoScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#FFD54F" size={150} left="63%" bottom={52} min={0.14} max={0.3} duration={5000} />
+      <View style={{ position: "absolute", left: "54%", bottom: 4, width: 176, height: 176, borderRadius: 88, backgroundColor: "#37474F" }} />
+      <View style={{ position: "absolute", left: "56%", bottom: 16, width: 152, height: 152, borderRadius: 76, backgroundColor: "#78909C" }} />
+      <GentleBob left="59%" bottom={48} width={126} height={106} distance={4} duration={3800}>
+        <View style={{ position: "absolute", left: 6, bottom: 6, width: 114, height: 96, borderRadius: 52, backgroundColor: "#F2DCAC" }} />
+        <View style={{ position: "absolute", left: 20, bottom: 20, width: 86, height: 70, borderRadius: 38, backgroundColor: "#F7E8C9" }} />
+        <View style={{ position: "absolute", left: 38, bottom: 34, width: 50, height: 40, borderRadius: 22, backgroundColor: "#FCF2D8" }} />
+        <View style={{ position: "absolute", left: 24, bottom: 66, width: 20, height: 13, borderRadius: 6.5, backgroundColor: "#B98A4E", transform: [{ rotate: "-6deg" }] }} />
+        <View style={{ position: "absolute", left: 27, bottom: 69, width: 14, height: 8, borderRadius: 4, backgroundColor: "#D9B47C", transform: [{ rotate: "-6deg" }] }} />
+        <View style={{ position: "absolute", left: 78, bottom: 60, width: 20, height: 13, borderRadius: 6.5, backgroundColor: "#B98A4E", transform: [{ rotate: "18deg" }] }} />
+        <View style={{ position: "absolute", left: 81, bottom: 63, width: 14, height: 8, borderRadius: 4, backgroundColor: "#D9B47C", transform: [{ rotate: "18deg" }] }} />
+        <View style={{ position: "absolute", left: 52, bottom: 18, width: 20, height: 13, borderRadius: 6.5, backgroundColor: "#B98A4E", transform: [{ rotate: "-12deg" }] }} />
+        <View style={{ position: "absolute", left: 55, bottom: 21, width: 14, height: 8, borderRadius: 4, backgroundColor: "#D9B47C", transform: [{ rotate: "-12deg" }] }} />
+        <View style={{ position: "absolute", left: 48, bottom: 74, width: 16, height: 9, borderRadius: 3, backgroundColor: "#A93226", transform: [{ rotate: "10deg" }] }} />
+        <View style={{ position: "absolute", left: 92, bottom: 34, width: 15, height: 9, borderRadius: 3, backgroundColor: "#922B21", transform: [{ rotate: "-14deg" }] }} />
+        <View style={{ position: "absolute", left: 28, bottom: 38, width: 15, height: 9, borderRadius: 3, backgroundColor: "#A93226", transform: [{ rotate: "22deg" }] }} />
+        <View style={{ position: "absolute", left: 62, bottom: 52, width: 12, height: 5, borderRadius: 2.5, backgroundColor: "#43A047", transform: [{ rotate: "16deg" }] }} />
+        <View style={{ position: "absolute", left: 40, bottom: 56, width: 12, height: 5, borderRadius: 2.5, backgroundColor: "#2E7D32", transform: [{ rotate: "-18deg" }] }} />
+        <View style={{ position: "absolute", left: 84, bottom: 78, width: 12, height: 5, borderRadius: 2.5, backgroundColor: "#43A047", transform: [{ rotate: "8deg" }] }} />
+        <View style={{ position: "absolute", left: 56, bottom: 86, width: 18, height: 4, borderRadius: 2, backgroundColor: "#FFFDF4", transform: [{ rotate: "-10deg" }] }} />
+        <View style={{ position: "absolute", left: 70, bottom: 28, width: 16, height: 4, borderRadius: 2, backgroundColor: "#FFFDF4", transform: [{ rotate: "14deg" }] }} />
+      </GentleBob>
+      <RisingDot left="64%" top={28} size={6} color="#FFFFFF" duration={4400} delay={600} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+      <RisingDot left="70%" top={28} size={5} color="#FFFFFF" duration={5100} delay={1800} maxOpacity={0.4} sway={6} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
 function TopDownFriedRiceScene() {
   return (
     <SceneRoot base="#6B4A3A">
@@ -7288,6 +7323,7 @@ function detectHomecookedMeal(notes: string | undefined | null): React.ReactNode
   if (match("hot wings", "buffalo wings", "wings")) return <TopDownHotWingsScene />;
   if (match("ramen", "pho")) return <TopDownRamenScene />;
   if (match("stir fry", "stir-fry")) return <TopDownStirFryScene />;
+  if (match("risotto")) return <TopDownRisottoScene />;
   if (match("fried rice")) return <TopDownFriedRiceScene />;
   if (match("oatmeal", "porridge")) return <TopDownOatmealScene />;
   if (match("cereal")) return <TopDownCerealScene />;

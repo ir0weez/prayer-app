@@ -39,8 +39,10 @@ const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 describe("v371 Papa Joe's seed recipe", () => {
   it("is a full dish in the chooser, in the sandwich family's seat", () => {
     // v372 amendment: the shawarma rice bar joins the chooser —
-    // 27 dishes now; Papa Joe's own seat is unchanged.
-    expect(DISH_KEYS).toHaveLength(27);
+    // 27 dishes then; Papa Joe's own seat is unchanged.
+    // v373 amendment: Bacon & Mushroom Risotto joined the list
+    // after this pin was written — 28 dishes now.
+    expect(DISH_KEYS).toHaveLength(28);
     expect(DISH_KEYS).toContain("papa-joes");
     expect(DISH_KEYS.indexOf("papa-joes")).toBe(DISH_KEYS.indexOf("sandwich") + 1);
     const seed = SEED_RECIPES["papa-joes"];

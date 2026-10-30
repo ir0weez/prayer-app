@@ -2997,6 +2997,36 @@ export function PaperTdStirFryScene() {
   );
 }
 
+export function PaperTdRisottoScene() {
+  // A bowl of creamy risotto: ladle swirl, crispy bacon, roasted
+  // mushrooms, scallion greens and Parmesan — spoon at the side.
+  return (
+    <PaperSceneRoot base="#7A5230">
+      <SettleIn delay={40} style={{ position: "absolute", left: "46%", bottom: 10, width: 152, height: 104 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 152, height: 96, borderRadius: 48, backgroundColor: "#546E7A" }} />
+        <PaperPiece style={{ position: "absolute", left: 9, bottom: 9, width: 134, height: 78, borderRadius: 39, borderWidth: 3, borderColor: "#78909C", backgroundColor: "#546E7A", opacity: 0.85 }} />
+      </SettleIn>
+      <SettleIn delay={140} style={{ position: "absolute", left: "52%", bottom: 30, width: 106, height: 66 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 106, height: 62, borderTopLeftRadius: 53, borderTopRightRadius: 53, backgroundColor: "#F2DCAC" }} />
+        <PaperPiece style={{ position: "absolute", left: 10, bottom: 6, width: 86, height: 48, borderTopLeftRadius: 43, borderTopRightRadius: 43, backgroundColor: "#F7E8C9" }} />
+        <PaperPiece style={{ position: "absolute", left: 30, bottom: 16, width: 46, height: 30, borderTopLeftRadius: 23, borderTopRightRadius: 23, backgroundColor: "#FCF2D8" }} />
+        <PaperPiece style={{ position: "absolute", left: 14, bottom: 38, width: 17, height: 11, borderRadius: 5, backgroundColor: "#B98A4E", transform: [{ rotate: "-8deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 74, bottom: 34, width: 17, height: 11, borderRadius: 5, backgroundColor: "#B98A4E", transform: [{ rotate: "14deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 44, bottom: 8, width: 17, height: 11, borderRadius: 5, backgroundColor: "#C49A5E", transform: [{ rotate: "-4deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 40, bottom: 44, width: 14, height: 8, borderRadius: 3, backgroundColor: "#B03A2E", transform: [{ rotate: "10deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 82, bottom: 14, width: 13, height: 8, borderRadius: 3, backgroundColor: "#A93226", transform: [{ rotate: "-12deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 22, bottom: 20, width: 12, height: 5, borderRadius: 2.5, backgroundColor: "#58A05C", transform: [{ rotate: "16deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 62, bottom: 46, width: 12, height: 5, borderRadius: 2.5, backgroundColor: "#58A05C", transform: [{ rotate: "-14deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 52, bottom: 30, width: 16, height: 4, borderRadius: 2, backgroundColor: "#FFFDF4", transform: [{ rotate: "-10deg" }] }} />
+      </SettleIn>
+      <SettleIn delay={280} style={{ position: "absolute", left: "50%", bottom: 18, width: 36, height: 12 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 20, height: 11, borderRadius: 5.5, backgroundColor: "#C0C6CE" }} />
+        <PaperPiece style={{ position: "absolute", left: 18, bottom: 3, width: 18, height: 5, borderRadius: 2.5, backgroundColor: "#C0C6CE" }} />
+      </SettleIn>
+    </PaperSceneRoot>
+  );
+}
+
 export function PaperTdFriedRiceScene() {
   // A dome of fried rice on a plate, spoon ready, soy at the side.
   return (
@@ -5803,6 +5833,7 @@ const PAPER_SCENE_REGISTRY: Record<PaperSceneId, () => ReactNode> = {
   "td-hot-wings": PaperTdHotWingsScene,
   "td-ramen": PaperTdRamenScene,
   "td-stir-fry": PaperTdStirFryScene,
+  "td-risotto": PaperTdRisottoScene,
   "td-fried-rice": PaperTdFriedRiceScene,
   "td-oatmeal": PaperTdOatmealScene,
   "td-cereal": PaperTdCerealScene,

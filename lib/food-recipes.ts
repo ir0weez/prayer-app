@@ -19,6 +19,10 @@
  * same way, in the chicken family's seat:
  * HelloFresh's own recipe for two, kept faithful, served family
  * style, with card artwork in every skin.
+ *
+ * v373 (Oct 30): Bacon & Mushroom Risotto — the HelloFresh
+ * recipe he sent — joins the seeds as a full dish (recipe +
+ * card artwork), in the rice family's seat after fried rice.
  */
 
 export type RecipeGroup = "Produce" | "Meat" | "Bakery" | "Dairy" | "Frozen" | "Pantry";
@@ -75,6 +79,7 @@ export type DishKey =
   | "ramen"
   | "stir-fry"
   | "fried-rice"
+  | "bacon-mushroom-risotto"
   | "oatmeal"
   | "cereal";
 
@@ -588,6 +593,34 @@ export const SEED_RECIPES: Record<DishKey, SeedRecipe> = {
       "Scatter green onions over and serve.",
     ],
   },
+  "bacon-mushroom-risotto": {
+    title: "Bacon & Mushroom Risotto",
+    serves: "Serves 2",
+    minutes: 50,
+    ingredients: [
+      { name: "Bacon", quantity: "4 oz", group: "Meat" },
+      { name: "Button mushrooms", quantity: "4 oz", group: "Produce" },
+      { name: "Scallions", quantity: "2", group: "Produce" },
+      { name: "Garlic", quantity: "2 cloves", group: "Produce" },
+      { name: "Arborio rice", quantity: "¾ cup", group: "Pantry" },
+      { name: "Dried thyme", quantity: "1 tsp", group: "Pantry" },
+      { name: "Vidalia onion paste", quantity: "½ oz", group: "Pantry" },
+      { name: "Chicken stock concentrate", quantity: "1 unit", group: "Pantry" },
+      { name: "Cheese roux concentrate", quantity: "1 oz", group: "Pantry" },
+      { name: "Sour cream", quantity: "1½ tbsp", group: "Dairy" },
+      { name: "Parmesan cheese", quantity: "3 tbsp", group: "Dairy" },
+      { name: "Butter", quantity: "2 tbsp", group: "Dairy" },
+      { name: "Olive oil", quantity: "for cooking", group: "Pantry" },
+    ],
+    steps: [
+      "Adjust the rack to the top position and preheat the oven to 425°F. In a medium pot, bring 5 cups of water to a boil, then reduce to a low simmer — you'll ladle it into the risotto later. Wash and dry the produce; thinly slice the mushrooms, thinly slice the scallions separating whites from greens, and mince or grate the garlic.",
+      "Place the bacon on one side of a baking sheet; toss the mushrooms on the empty side with a drizzle of oil, half the thyme, salt and pepper. Roast on the top rack 15–20 minutes, until the bacon is browned and crispy and the mushrooms are tender. Transfer the bacon to a paper-towel-lined plate and, once cool enough to handle, roughly chop it.",
+      "While they roast, heat a drizzle of olive oil in a large pan over medium heat; add the scallion whites and cook, stirring, until fragrant, 1 minute. Add the garlic, rice, vidalia onion paste and 1 tbsp butter; cook, stirring, until the garlic is fragrant and the rice is translucent at the edges, 1–2 minutes. Season with salt and pepper.",
+      "Add ½ cup of the simmering water and the stock concentrate to the rice; stir until the liquid has mostly absorbed. Repeat with the remaining water, ½ cup at a time, stirring until each addition has mostly absorbed, until the rice is al dente and the risotto is creamy, 25–30 minutes.",
+      "Stir in the cheese roux concentrate, sour cream and 1 tbsp butter until creamy and combined. Stir in the mushrooms, half the chopped bacon and half the Parmesan; taste and season with salt and pepper.",
+      "Divide between bowls and top with the scallion greens, the remaining bacon and the remaining Parmesan.",
+    ],
+  },
   "oatmeal": {
     title: "Oatmeal",
     serves: "Serves 2",
@@ -650,6 +683,7 @@ export const DISH_KEYS: DishKey[] = [
   "ramen",
   "stir-fry",
   "fried-rice",
+  "bacon-mushroom-risotto",
   "oatmeal",
   "cereal",
 ];

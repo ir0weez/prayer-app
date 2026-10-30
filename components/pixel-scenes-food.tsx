@@ -817,6 +817,35 @@ export function PixelTdStirFryScene() {
   );
 }
 
+export function PixelTdRisottoScene() {
+  // Bowl of creamy risotto: ladle swirl, crispy bacon, roasted
+  // mushrooms, scallion greens and Parmesan — spoon at the side.
+  return (
+    <PixelSceneRoot base="#7A5230">
+      <StepIn delay={40} style={{ position: "absolute", left: "46%", bottom: 12, width: 152, height: 100 }}>
+        <Px style={{ position: "absolute", left: 8, bottom: 0, width: 136, height: 100, backgroundColor: "#546E7A" }} shadow />
+        <Px style={{ position: "absolute", left: 0, bottom: 12, width: 152, height: 76, backgroundColor: "#546E7A" }} />
+        <Px style={{ position: "absolute", left: 16, bottom: 16, width: 120, height: 68, backgroundColor: "#78909C" }} />
+        <Px style={{ position: "absolute", left: 20, bottom: 20, width: 112, height: 60, backgroundColor: "#546E7A" }} />
+      </StepIn>
+      <StepBob left="52%" bottom={32} width={108} height={64} distance={4}>
+        <Px style={{ position: "absolute", left: 0, bottom: 0, width: 108, height: 20, backgroundColor: "#F2DCAC" }} />
+        <Px style={{ position: "absolute", left: 8, bottom: 20, width: 92, height: 20, backgroundColor: "#F7E8C9" }} />
+        <Px style={{ position: "absolute", left: 28, bottom: 40, width: 52, height: 20, backgroundColor: "#FCF2D8" }} />
+        <Px style={{ position: "absolute", left: 16, bottom: 16, width: 16, height: 8, backgroundColor: "#B98A4E" }} />
+        <Px style={{ position: "absolute", left: 76, bottom: 12, width: 16, height: 8, backgroundColor: "#B98A4E" }} />
+        <Px style={{ position: "absolute", left: 44, bottom: 44, width: 12, height: 8, backgroundColor: "#B03A2E" }} />
+        <Px style={{ position: "absolute", left: 84, bottom: 36, width: 12, height: 8, backgroundColor: "#A93226" }} />
+        <Px style={{ position: "absolute", left: 24, bottom: 36, width: 8, height: 8, backgroundColor: "#58A05C" }} />
+        <Px style={{ position: "absolute", left: 64, bottom: 24, width: 8, height: 8, backgroundColor: "#58A05C" }} />
+        <Px style={{ position: "absolute", left: 52, bottom: 8, width: 16, height: 4, backgroundColor: "#FFFDF4" }} />
+      </StepBob>
+      <Px style={{ position: "absolute", left: "50%", bottom: 20, width: 20, height: 12, backgroundColor: "#C0C6CE" }} />
+      <Px style={{ position: "absolute", left: "54%", bottom: 24, width: 20, height: 4, backgroundColor: "#C0C6CE" }} />
+    </PixelSceneRoot>
+  );
+}
+
 export function PixelTdFriedRiceScene() {
   // Dome of fried rice on a plate, spoon and soy at the side.
   return (

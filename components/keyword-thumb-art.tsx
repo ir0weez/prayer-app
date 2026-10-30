@@ -480,6 +480,13 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
     { k: "c", x: 21, y: 17.5, r: 1.6, f: "#7CB342" },
     { k: "c", x: 25.5, y: 16, r: 1.6, f: "#E53935" },
   ] },
+  "td-risotto": { g: "#6B4A3A", s: [
+    { k: "e", x: 9, y: 16, w: 22, h: 11, f: "#78909C" },
+    { k: "e", x: 11.5, y: 14.5, w: 17, h: 6, f: "#F7E8C9" },
+    { k: "c", x: 16, y: 16.5, r: 1.5, f: "#B03A2E" },
+    { k: "c", x: 21, y: 17.5, r: 1.5, f: "#B98A4E" },
+    { k: "c", x: 25, y: 16, r: 1.5, f: "#43A047" },
+  ] },
   "td-fried-rice": { g: "#6B4A3A", s: [
     { k: "e", x: 9, y: 16, w: 22, h: 11, f: "#ECEFF1" },
     { k: "e", x: 11.5, y: 14.5, w: 17, h: 6, f: "#FFF8E1" },

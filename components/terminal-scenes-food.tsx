@@ -553,6 +553,28 @@ export function TermTdStirFryScene() {
   );
 }
 
+export function TermTdRisottoScene() {
+  // Bowl of risotto in line art: ladle swirl in the creamy
+  // surface, bacon bits, mushroom slices — steam off the bowl.
+  return (
+    <TermSceneRoot>
+      <LL x1={16} y1={108} x2={194} y2={108} c={TERM_DIM} w={1.6} />
+      <LP d="M 122 18 C 118 24 122 28 119 34" c={TERM_DIM} w={1.7} />
+      <LP d="M 166 16 C 162 22 166 26 163 32" c={TERM_DIM} w={1.7} />
+      <LP d="M 100 90 C 122 80 176 80 198 90 C 176 101 122 101 100 90 Z" c={TERM_MID} w={2} />
+      <LP d="M 114 88 C 116 62 130 46 149 46 C 168 46 182 62 184 88 C 162 94 136 94 114 88 Z" c={TERM_PHOS} w={2.3} />
+      <LP d="M 128 62 C 134 54 144 62 150 55 C 157 61 166 56 172 61" c={TERM_SOFT} w={1.7} />
+      <LP d="M 132 74 C 140 68 152 74 160 68" c={TERM_MID} w={1.6} />
+      <LDot cx={128} cy={80} r={2.1} c={TERM_MID} />
+      <LDot cx={146} cy={84} r={2.1} c={TERM_SOFT} />
+      <LDot cx={166} cy={80} r={2.1} c={TERM_MID} />
+      <LPoly points="122,52 134,52 130,59 124,59" close c={TERM_SOFT} w={1.6} />
+      <LPoly points="160,50 172,50 168,57 162,57" close c={TERM_MID} w={1.6} />
+      <LP d="M 104 98 C 100 92 106 86 112 89 C 117 92 114 100 108 101 C 105 101 104 100 104 98 Z M 110 96 L 122 104" c={TERM_MID} w={1.7} />
+    </TermSceneRoot>
+  );
+}
+
 export function TermTdFriedRiceScene() {
   // Dome of fried rice on a plate, spoon and soy at the side.
   return (

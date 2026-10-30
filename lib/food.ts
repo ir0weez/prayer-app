@@ -21,6 +21,9 @@
  * v372 adds a fourth: "shawarma" names the Loaded Shawarma-Style
  * Chicken & Rice Bar (the HelloFresh recipe he chose), ahead of
  * the generic chicken and salad rows the full name brushes past.
+ * v373 adds a fifth in the rice family's seat: "risotto" names
+ * the Bacon & Mushroom Risotto dish, while "fried rice" keeps
+ * claiming the fried-rice dish below it.
  *
  * Stores — all `prayercircle.*` AsyncStorage keys, so they ride
  * the backup/export and restore exactly like the email digest
@@ -109,6 +112,9 @@ const NOTES_DISH_TABLE: { names: string[]; dish: DishKey | null }[] = [
   { names: ["hot wings", "buffalo wings", "wings"], dish: "hot-wings" },
   { names: ["ramen", "pho"], dish: "ramen" },
   { names: ["stir fry", "stir-fry"], dish: "stir-fry" },
+  // Specific within the rice family (v373): "risotto" names
+  // its own dish; "fried rice" keeps the row below.
+  { names: ["risotto"], dish: "bacon-mushroom-risotto" },
   { names: ["fried rice"], dish: "fried-rice" },
   { names: ["oatmeal", "porridge"], dish: "oatmeal" },
   { names: ["cereal"], dish: "cereal" },

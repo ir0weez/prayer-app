@@ -148,8 +148,11 @@ describe("v370 seed recipes", () => {
     // in the sandwich family's seat — 26 dishes then.
     // v372 amendment: the Loaded Shawarma-Style Chicken & Rice
     // Bar (the HelloFresh recipe he chose) joins in the chicken
-    // family's seat — 27 dishes now.
-    expect(DISH_KEYS).toHaveLength(27);
+    // family's seat — 27 dishes then.
+    // v373 amendment: Bacon & Mushroom Risotto (the HelloFresh
+    // recipe he sent Oct 30) joins in the rice family's seat,
+    // after fried rice — 28 dishes now.
+    expect(DISH_KEYS).toHaveLength(28);
     expect(DISH_KEYS).toEqual([
       "soup",
       "bean-burritos",
@@ -176,6 +179,7 @@ describe("v370 seed recipes", () => {
       "ramen",
       "stir-fry",
       "fried-rice",
+      "bacon-mushroom-risotto",
       "oatmeal",
       "cereal",
     ]);

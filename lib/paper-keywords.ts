@@ -57,6 +57,7 @@ const HOMECOOKED: MatchEntry[] = [
   { id: "td-hot-wings", names: ["hot wings", "buffalo wings", "wings"] },
   { id: "td-ramen", names: ["ramen", "pho"] },
   { id: "td-stir-fry", names: ["stir fry", "stir-fry"] },
+  { id: "td-risotto", names: ["risotto"] },
   { id: "td-fried-rice", names: ["fried rice"] },
   { id: "td-oatmeal", names: ["oatmeal", "porridge"] },
   { id: "td-cereal", names: ["cereal"] },

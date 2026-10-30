@@ -414,11 +414,40 @@ export function planDriveFile(
 // deletes anything in the linked folder — ever. (The app's single
 // authorized write lives in drive-export.ts by design.)
 
-function safModule(): {
+/** The narrow SAF read surface this module uses — named so the test
+ *  seam below (and only it) can hand the folder functions a fake. */
+export interface DriveFolderSaf {
   requestDirectoryPermissionsAsync: (initial?: string | null) => Promise<{ granted: boolean; directoryUri: string }>;
   readDirectoryAsync: (dirUri: string) => Promise<string[]>;
   readAsStringAsync: (uri: string, opts?: { encoding?: string }) => Promise<string>;
-} {
+}
+
+// ── Test seam (v362) ───────────────────────────────────────────────────────
+// The lazy requires below are deliberate — importing this file must
+// never touch native code — but they also mean a module mock can
+// never intercept them: a test's fake SAF has to arrive through the
+// front door. These overrides are that door, on the drive-export.ts
+// pattern (the write side takes its surface as a parameter; the read
+// side's public functions take none, so the surface arrives here
+// instead). Production never sets them: with both null, every
+// function in this file behaves exactly as it did before the seam
+// existed — the overrides are consulted first and answer "not set".
+let safOverrideForTests: DriveFolderSaf | null = null;
+let androidOverrideForTests: boolean | null = null;
+
+/** Test-only: substitute the SAF surface and/or the Android answer
+ *  the folder functions see. Call with no arguments (or nulls) to
+ *  restore the real native surfaces. */
+export function setDriveFolderOverridesForTests(overrides?: {
+  saf?: DriveFolderSaf | null;
+  android?: boolean | null;
+}): void {
+  safOverrideForTests = overrides?.saf ?? null;
+  androidOverrideForTests = overrides?.android ?? null;
+}
+
+function safModule(): DriveFolderSaf {
+  if (safOverrideForTests) return safOverrideForTests;
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const FileSystem = require('expo-file-system/legacy');
   return FileSystem.StorageAccessFramework;
@@ -427,6 +456,7 @@ function safModule(): {
 /** Android detection, loaded lazily so headless tests never touch the
  *  native runtime: only the two folder functions below call this. */
 function isAndroid(): boolean {
+  if (androidOverrideForTests !== null) return androidOverrideForTests;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Platform } = require('react-native');

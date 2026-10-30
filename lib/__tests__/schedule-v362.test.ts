@@ -38,7 +38,11 @@ const bridge = readFileSync(join(__dirname, "..", "..", "lib", "schedule-fab-bri
 describe("v362 — the FAB opens on the app's clock, all rows together", () => {
   it("open 320ms, close 280ms, emphasized easings unchanged", () => {
     expect(fab).toContain("duration: open ? 320 : 280");
-    expect(fab).toContain("Easing.bezier(0.05, 0.7, 0.1, 1.0)");
+    // v362 amendment (Oct 30): the pin's literal is the source's own —
+    // schedule-fab writes Easing.bezier(0.05, 0.7, 0.1, 1); 1 and 1.0
+    // are the same easing value, and the pin now matches the source
+    // byte for byte.
+    expect(fab).toContain("Easing.bezier(0.05, 0.7, 0.1, 1)");
     expect(fab).toContain("Easing.bezier(0.3, 0, 0.8, 0.15)");
   });
 

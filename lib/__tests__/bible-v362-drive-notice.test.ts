@@ -27,9 +27,17 @@
 //     state.
 //
 // These pins drive the real checkDriveFolder against a fake SAF
-// whose directory reads fail on a script.
+// whose directory reads fail on a script. The fake arrives through
+// drive-folder's test seam (setDriveFolderOverridesForTests), NOT a
+// module mock: safModule() loads SAF through a lazy require —
+// deliberate, so importing the module never touches native code —
+// and a lazy require bypasses the mock registry entirely (the first
+// cut of this file mocked expo-file-system/legacy and the real
+// module answered instead: readCalls stayed 0 and every pin failed
+// on a check that had never run). The seam is the drive-export.ts
+// pattern; production never sets it.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const store = new Map<string, string>();
 vi.mock("@react-native-async-storage/async-storage", () => ({
@@ -47,24 +55,26 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
-vi.mock("react-native", () => ({ Platform: { OS: "android" } }));
-
-const safScript = vi.hoisted(() => ({ readCalls: 0, failuresBeforeSuccess: 0, alwaysFail: false }));
-vi.mock("expo-file-system/legacy", () => ({
-  StorageAccessFramework: {
-    readDirectoryAsync: async () => {
-      safScript.readCalls += 1;
-      if (safScript.alwaysFail || safScript.readCalls <= safScript.failuresBeforeSuccess) {
-        throw new Error("the provider is not awake yet");
-      }
-      return [];
-    },
-    readAsStringAsync: async () => "",
-    requestDirectoryPermissionsAsync: async () => ({ granted: false, directoryUri: "" }),
+const safScript = { readCalls: 0, failuresBeforeSuccess: 0, alwaysFail: false };
+const fakeSaf: DriveFolderSaf = {
+  readDirectoryAsync: async () => {
+    safScript.readCalls += 1;
+    if (safScript.alwaysFail || safScript.readCalls <= safScript.failuresBeforeSuccess) {
+      throw new Error("the provider is not awake yet");
+    }
+    return [];
   },
-}));
+  readAsStringAsync: async () => "",
+  requestDirectoryPermissionsAsync: async () => ({ granted: false, directoryUri: "" }),
+};
 
-import { checkDriveFolder, DRIVE_LINK_KEY, DRIVE_NOTICE_KEY } from "../bible-v205/drive-folder";
+import {
+  checkDriveFolder,
+  DRIVE_LINK_KEY,
+  DRIVE_NOTICE_KEY,
+  setDriveFolderOverridesForTests,
+  type DriveFolderSaf,
+} from "../bible-v205/drive-folder";
 
 beforeEach(() => {
   store.clear();
@@ -72,6 +82,11 @@ beforeEach(() => {
   safScript.readCalls = 0;
   safScript.failuresBeforeSuccess = 0;
   safScript.alwaysFail = false;
+  setDriveFolderOverridesForTests({ saf: fakeSaf, android: true });
+});
+
+afterEach(() => {
+  setDriveFolderOverridesForTests();
 });
 
 describe("v362 — a transient cold-start failure is not a lost permission", () => {

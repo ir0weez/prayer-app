@@ -7,7 +7,7 @@
 import { COMMENTARY_DATA } from './data/index';
 import { chapterStatus, type StudyState } from './study';
 import { entrySourceCategory } from './categories';
-import { lineText, marksFor, normalizeMarks, type EntryMarks, type KeeperField, type MarksMap, type TintColor } from './marks';
+import { lineText, marksFor, normalizeMarks, type EntryMarks, type KeeperField, type MarksMap, type TintColor, type VersePhraseHighlight } from './marks';
 import {
   entryKey,
   type NoteCategory,
@@ -365,6 +365,14 @@ export function splitEntryByHashNotes(entry: DisplayEntry, entryMarks: EntryMark
     return out;
   };
 
+  // v361: verse phrase highlights PARTITION by verse, exactly like
+  // verseTints — each piece carries only the ranges on its own
+  // verses. Line phrase highlights do NOT partition: they live on
+  // the line's storage record and are resolved through the line's
+  // storage target at render, so the pieces carry none.
+  const phraseHighlightsWithin = (start: number, end: number): VersePhraseHighlight[] =>
+    (entryMarks.phraseHighlights ?? []).filter((h) => h.verse >= start && h.verse <= end);
+
   const pieceMarks: EntryMarks[] = segs.map((s, i) => ({
     kept: i === firstSeg ? entryMarks.kept : false,
     highlights: [],
@@ -372,6 +380,8 @@ export function splitEntryByHashNotes(entry: DisplayEntry, entryMarks: EntryMark
     notes: [],
     tint: i === firstSeg ? entryMarks.tint : null,
     verseTints: verseTintsWithin(s.start, s.end),
+    phraseHighlights: phraseHighlightsWithin(s.start, s.end),
+    lineHighlights: [],
     category: i === firstSeg ? entryMarks.category : null,
   }));
   const pieceOrigins: Record<KeeperField, number[]>[] = segs.map(() => ({
@@ -472,6 +482,12 @@ export function splitSectionsByHashNotes(
               // The piece-key record is a direct edit on the piece —
               // its per-verse tints win over the partitioned parent's.
               verseTints: { ...piece.marks.verseTints, ...atKey.verseTints },
+              // v361: the piece's partitioned verse ranges first,
+              // the piece-key record's own after (resolvePhrase-
+              // Highlights dedupes identical ranges, later winning).
+              // Line ranges stay the storage record's own.
+              phraseHighlights: [...piece.marks.phraseHighlights, ...atKey.phraseHighlights],
+              lineHighlights: atKey.lineHighlights,
               category: atKey.category,
             }
           : piece.marks;

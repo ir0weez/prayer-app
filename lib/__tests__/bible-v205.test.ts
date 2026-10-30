@@ -1077,6 +1077,9 @@ describe("v210 — '#' verse splitting: a note's leading #N / #N-M sets those ve
       notes: [],
       tint: 'rose',
       verseTints: {},
+      // v361 amendment: the record shape grew the two range lists.
+      phraseHighlights: [],
+      lineHighlights: [],
       category: 'quote',
     };
     const pieces = splitEntryByHashNotes(entry, m);
@@ -1264,7 +1267,11 @@ describe("v210 — the plain personal Note: no box, just inset text", () => {
     expect(page).not.toContain('styles.verseRow');
     expect(page).not.toContain('minWidth: 17');
     expect(page).toContain('styles.supTap');
-    expect(page).toContain('onPress={() => props.onToggleVerse(v)}');
+    // v361 amendment: the number still leads inline (now as the
+    // selection text's lead token, styles.supSeat) — no rail — but
+    // its tap is retired: selection is the drag, not the number.
+    expect(page).toContain('styles.supSeat');
+    expect(page).not.toContain('onToggleVerse');
   });
 });
 
@@ -1554,9 +1561,12 @@ describe('v212 — tint that actually shows: the whole entry, and per-verse', ()
   });
 
   it('sanitizeVerseTints keeps only integer verse keys with known hues', () => {
-    expect(sanitizeVerseTints({ 11: 'yellow', '12': 'rose', x: 'green', 13: 'blue', '-4': 'yellow', '5.5': 'green' })).toEqual({
+    // v361 amendment: the known-hue set grew to six (blue/red/orange
+    // joined by his ruling) — blue now keeps; purple stays unknown.
+    expect(sanitizeVerseTints({ 11: 'yellow', '12': 'rose', x: 'green', 13: 'blue', 14: 'purple', '-4': 'yellow', '5.5': 'green' })).toEqual({
       11: 'yellow',
       12: 'rose',
+      13: 'blue',
     });
     expect(sanitizeVerseTints(null)).toEqual({});
     expect(sanitizeVerseTints(['yellow'])).toEqual({});
@@ -1695,30 +1705,33 @@ describe('v212 — tint that actually shows: the whole entry, and per-verse', ()
     expect(blocks).not.toContain('tinted');
   });
 
-  it('render: verse numbers are the selection handles; a selected verse is dashed-underlined', () => {
+  it('render: verse numbers are plain lead tokens now — selection is the drag (v361)', () => {
     const page = pageSrc();
-    // RE-BASED (v352): the single-verse RAIL handle —
-    // props.onToggleVerse(entry.start) on the vnumTap Pressable —
-    // was deleted with the rail itself (his ruling: the current
-    // design, just with separated verses; the rail range was the
-    // element wrapping "13–15" into "13–1"/"5"). The inline supTap
-    // span is now the ONE selection handle and leads EVERY verse —
-    // the verse map renders it unconditionally, singles included,
-    // where v === entry.start — so the handle pin lives on the (v)
-    // call alone and the rail handle pins as absent.
+    // RE-BASED (v361): the v212 number-tap selection model is
+    // retired wholesale by his approved selection model — the
+    // number carries no tap and no dashed-underline selection
+    // state; a long-press drag across the words IS the selection
+    // (SelectableText), and the number leads every verse as the
+    // selection text's plain superscript token.
     expect(page).not.toContain('props.onToggleVerse(entry.start)');
     expect(page).not.toContain('styles.vnumTap');
-    expect(page).toContain('props.onToggleVerse(v)');
-    expect(page).toContain("textDecorationStyle: 'dashed'");
+    expect(page).not.toContain('props.onToggleVerse(v)');
+    expect(page).not.toContain("textDecorationStyle: 'dashed'");
     expect(page).toContain('styles.supTap');
+    expect(page).toContain('<SelectableText');
     // A verse wearing a tint paints the highlighter color behind its text.
     expect(page).toContain('verseTintFor(palette, props.verseTints[v])');
   });
 
-  it('render: the tint dots serve the selection when one exists, the entry tint when none does', () => {
+  it('render: the tint dots live on the selection bar now, not the markbar (v361)', () => {
     const page = pageSrc();
-    expect(page).toContain('hasSelection ? props.onApplyVerseTint(t) : props.onTint(props.entryTint === t ? null : t)');
-    expect(page).toContain('props.selectedVerses.every((v) => props.verseTints[v] === t)');
+    // RE-BASED (v361): the markbar tint row is gone — the six dots
+    // ride the floating selection bar inside SelectableText, and
+    // entry tints are no longer set from the reader surface at all.
+    expect(page).not.toContain('onApplyVerseTint');
+    expect(page).not.toContain('props.selectedVerses');
+    const sel = readFileSync(join(process.cwd(), 'components/bible-v205/selectable-text.tsx'), 'utf8');
+    expect(sel).toContain('TINT_ORDER.map');
   });
 
   it('render: Stories verse screens carry the entry wash and per-verse tints', () => {

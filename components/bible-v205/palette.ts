@@ -128,9 +128,26 @@ export interface BiblePalette {
   tintYellow: string;
   tintRose: string;
   tintGreen: string;
+  tintBlue: string;
+  tintRed: string;
+  tintOrange: string;
   verseTintYellow: string;
   verseTintRose: string;
   verseTintGreen: string;
+  verseTintBlue: string;
+  verseTintRed: string;
+  verseTintOrange: string;
+  /** v361: phrase washes — the soft tints a drag-selected range
+   * wears (the approved model's six, at its own alphas). */
+  phraseTintYellow: string;
+  phraseTintRose: string;
+  phraseTintGreen: string;
+  phraseTintBlue: string;
+  phraseTintRed: string;
+  phraseTintOrange: string;
+  /** v361: the live drag-selection wash (the seed's own orange
+   * family at selection strength, per the approved drawing). */
+  selWash: string;
   isDark: boolean;
   /** v250 Material dress — one dress in every skin (see the
    * fragments in useBiblePalette). */
@@ -229,12 +246,30 @@ export function useBiblePalette(): BiblePalette {
     tintYellow: 'rgba(245,197,66,.32)',
     tintRose: 'rgba(230,73,128,.22)',
     tintGreen: 'rgba(64,160,110,.27)',
+    // v361: the three new hues join the entry/verse washes at the
+    // same strengths (their bases are the model's dot hexes).
+    tintBlue: 'rgba(110,168,240,.27)',
+    tintRed: 'rgba(240,118,107,.27)',
+    tintOrange: 'rgba(245,158,76,.30)',
     // v212: verse-level tints — a highlighter stroke behind one
     // verse's text, stronger than the entry wash so the single verse
     // stands out from an entry wash of the same hue.
     verseTintYellow: 'rgba(245,197,66,.45)',
     verseTintRose: 'rgba(230,73,128,.45)',
     verseTintGreen: 'rgba(64,160,110,.45)',
+    verseTintBlue: 'rgba(110,168,240,.45)',
+    verseTintRed: 'rgba(240,118,107,.45)',
+    verseTintOrange: 'rgba(245,158,76,.45)',
+    // v361: phrase washes — the approved drawing's six soft tints
+    // at its alphas (yellow deepest, the rest at .40–.44), on the
+    // model's own bases (#63BE82 green, not the v212 verse green).
+    phraseTintYellow: 'rgba(245,197,66,.48)',
+    phraseTintRose: 'rgba(240,139,180,.42)',
+    phraseTintGreen: 'rgba(99,190,130,.40)',
+    phraseTintBlue: 'rgba(110,168,240,.40)',
+    phraseTintRed: 'rgba(240,118,107,.42)',
+    phraseTintOrange: 'rgba(245,158,76,.44)',
+    selWash: 'rgba(242,87,0,.30)',
     isDark,
     cardDress,
     btnDress,
@@ -257,24 +292,42 @@ export function sectionToneFor(palette: BiblePalette, index: number): BibleSecti
 
 /** The entry-container wash for a tint hue (null = no wash). */
 export function tintWashFor(palette: BiblePalette, tint: TintColor | null | undefined): string | null {
-  return tint === 'yellow'
-    ? palette.tintYellow
-    : tint === 'rose'
-      ? palette.tintRose
-      : tint === 'green'
-        ? palette.tintGreen
-        : null;
+  switch (tint) {
+    case 'yellow': return palette.tintYellow;
+    case 'rose': return palette.tintRose;
+    case 'green': return palette.tintGreen;
+    case 'blue': return palette.tintBlue;
+    case 'red': return palette.tintRed;
+    case 'orange': return palette.tintOrange;
+    default: return null;
+  }
 }
 
 /** The highlighter color behind a single tinted verse's text. */
 export function verseTintFor(palette: BiblePalette, tint: TintColor | null | undefined): string | null {
-  return tint === 'yellow'
-    ? palette.verseTintYellow
-    : tint === 'rose'
-      ? palette.verseTintRose
-      : tint === 'green'
-        ? palette.verseTintGreen
-        : null;
+  switch (tint) {
+    case 'yellow': return palette.verseTintYellow;
+    case 'rose': return palette.verseTintRose;
+    case 'green': return palette.verseTintGreen;
+    case 'blue': return palette.verseTintBlue;
+    case 'red': return palette.verseTintRed;
+    case 'orange': return palette.verseTintOrange;
+    default: return null;
+  }
+}
+
+/** v361: the soft wash behind a drag-selected phrase's words —
+ * in the Scripture, and in his own notes alike. */
+export function phraseTintFor(palette: BiblePalette, tint: TintColor | null | undefined): string | null {
+  switch (tint) {
+    case 'yellow': return palette.phraseTintYellow;
+    case 'rose': return palette.phraseTintRose;
+    case 'green': return palette.phraseTintGreen;
+    case 'blue': return palette.phraseTintBlue;
+    case 'red': return palette.phraseTintRed;
+    case 'orange': return palette.phraseTintOrange;
+    default: return null;
+  }
 }
 
 /** "Ver. 1–3" style range label (en dash, his Notion convention). */

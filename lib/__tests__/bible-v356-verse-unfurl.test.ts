@@ -54,7 +54,9 @@ describe('v356 — the per-verse seat', () => {
     expect(entryView).toContain('<VerseUnfurl closing={composerClosing} onExited={handleUnfurlExited}>');
     expect(entryView).toContain('return [verseBlock, seat];');
     const map = sliceBetween(entryView, 'const verseBlock = (', 'const seat =');
-    expect(map).toContain('onPress={() => openComposerForVerse(v)}');
+    // v361 amendment: the verse press now rides the words
+    // (SelectableText's onPressText) — same destination.
+    expect(map).toContain('onPressText={() => openComposerForVerse(v)}');
     // The seat follows the verse block in the map's return pair.
     expect(entryView.indexOf('const verseBlock = (')).toBeLessThan(entryView.indexOf('const seat ='));
     expect(entryView.indexOf('const seat =')).toBeLessThan(entryView.indexOf('return [verseBlock, seat];'));
@@ -64,12 +66,17 @@ describe('v356 — the per-verse seat', () => {
     expect(entryView).toContain('{composerVerse === null ? renderMarkCluster() : null}');
     // Exactly two render calls: the body seat and the verse seat.
     expect(entryView.split('renderMarkCluster()').length - 1).toBe(2);
-    // The cluster itself is one definition carrying all the furniture.
+    // The cluster itself is one definition carrying the furniture.
     const cluster = sliceBetween(entryView, 'const renderMarkCluster = () => (', '\n  return (');
-    expect(cluster).toContain("openComposer('highlight')");
-    expect(cluster).toContain("openComposer('thought')");
+    // v361 amendment: the cluster is slimmed to his approved model —
+    // the Highlight / Main Thought buttons and the category chips
+    // are gone from this surface (the composer box still opens as
+    // any kind when EDITING a stored line of that kind — the edit
+    // paths set it — and saves through the same two calls below).
+    expect(cluster).not.toContain("openComposer('highlight')");
+    expect(cluster).not.toContain("openComposer('thought')");
     expect(cluster).toContain("openComposer('note')");
-    expect(cluster).toContain('NOTE_CATEGORIES.map');
+    expect(cluster).not.toContain('NOTE_CATEGORIES.map');
     expect(cluster).toContain('styles.composer');
     expect(cluster).toContain('props.onAddLine(composer, text, composerAuthor)');
     expect(cluster).toContain('props.onUpdateLine(editingTarget, { text, author: composerAuthor })');
@@ -161,8 +168,10 @@ describe('v356 — preservation', () => {
     expect(entryView).toContain('onEditLine={editBubbleLine}');
   });
 
-  it('the verse number keeps its tint-selection tap, the head its toggle', () => {
-    expect(entryView).toContain('onPress={() => props.onToggleVerse(v)}');
+  it('the head keeps its toggle; the verse number is a plain token now (v361)', () => {
+    // v361 amendment: the number's tint-selection tap is retired
+    // with the v212 selection model — selection is the drag.
+    expect(entryView).not.toContain('onToggleVerse');
     expect(entryView).toContain('onPress={props.onToggleOpen}');
   });
 });

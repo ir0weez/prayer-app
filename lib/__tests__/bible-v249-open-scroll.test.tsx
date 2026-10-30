@@ -178,8 +178,13 @@ function renderLayer(open: boolean): string {
 describe('v249 — no page scroll lock; the thread keeps its own internal scroll', () => {
   it('the chapter page no longer disables its ScrollView for an open bubble', () => {
     expect(pageSrc).not.toContain('scrollEnabled={!openBubblesKey}');
-    // The page's one ScrollView carries no scrollEnabled prop at all.
-    expect(pageSrc).not.toContain('scrollEnabled');
+    // v361 amendment: the ScrollView carries exactly one lock, and
+    // it is NOT the bubble's — a live text drag-selection holds the
+    // page still so the drag and the scroll never fight over one
+    // finger (his approved selection model). An open bubble thread
+    // still never locks the page: v249's ruling stands untouched.
+    expect(pageSrc).toContain('scrollEnabled={!selectionDrag}');
+    expect(pageSrc).not.toContain('scrollEnabled={!openBubbles');
   });
 
   it('the Living Bubble layer renders INSIDE the page ScrollView (content coordinates — it rides with the chapter, anchored to its entry)', () => {

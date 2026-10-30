@@ -142,12 +142,16 @@ describe('v357 — the notes declutter', () => {
 
   it('the markbar stops offering Good Thought — and only the offer stops', () => {
     const cluster = sliceBetween(entryView, 'const renderMarkCluster = () => (', '\n  return (');
-    expect(cluster).toContain("if (meta.id === 'good-thought') return null;");
-    // Everything else in the bar stays.
-    expect(cluster).toContain("openComposer('highlight')");
-    expect(cluster).toContain("openComposer('thought')");
+    // v361 amendment: the whole chip row left the reader with the
+    // rest of the old composer surface (his approved selection
+    // model) — Good Thought's offer is gone with the row itself,
+    // which is the v357 outcome carried to its conclusion. What
+    // v357 protected still holds exactly: the category survives
+    // intact for stored data (below), and Keep + Note stay.
+    expect(cluster).not.toContain('NOTE_CATEGORIES.map');
+    expect(cluster).not.toContain('good-thought');
     expect(cluster).toContain("openComposer('note')");
-    expect(cluster).toContain('NOTE_CATEGORIES.map');
+    expect(cluster).toContain('onToggleKept');
     // The category itself survives intact for stored data: it
     // still normalizes to itself, so stored entries render and
     // save exactly as before.

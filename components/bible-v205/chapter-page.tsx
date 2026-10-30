@@ -59,31 +59,35 @@ import {
   getBookData,
   isBareChapter,
   mergeVerseOnlyEntries,
+  parseHashVerseRef,
   splitSectionsByHashNotes,
   type DisplaySection,
 } from '@/lib/bible-v205/index';
 import { entryKey, type NoteCategory, type StudyStatus, type V205Entry } from '@/lib/bible-v205/types';
-import { entrySourceCategory, NOTE_CATEGORIES } from '@/lib/bible-v205/categories';
+import { entrySourceCategory } from '@/lib/bible-v205/categories';
 import { loadUserLabels, type UserLabels } from '@/lib/bible-v205/user-labels';
 import {
   addKeeperLine,
-  applyTintToSelection,
+  applyLinePhraseHighlight,
+  applyVersePhraseHighlight,
   isKept,
+  lineHighlightsFor,
   loadMarks,
   marksFor,
   rankedAuthorIds,
   removeKeeperLineAt,
+  resolvePhraseHighlights,
   resolveTintFields,
   saveMarks,
-  scrubVerseTints,
+  scrubPhraseHighlights,
   toggleKept,
-  toggleVerseInSelection,
   updateKeeperLineAt,
   withMarks,
   type EntryMarks,
   type LineAuthor,
   type MarksMap,
   type TintColor,
+  type VersePhraseHighlight,
 } from '@/lib/bible-v205/marks';
 import {
   buildBubblePieces,
@@ -114,6 +118,7 @@ import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import { useSkin } from '@/hooks/use-skin';
 import { BlockView, CategoryTag, Ornament, ReadChip, SectionBand, SelfLineBlock, StatusChip } from './blocks';
+import { SelectableText } from './selectable-text';
 import { AuthorFace, AuthorPicker, LivingBubbles, kindLabelFor, spanLabelFor, type BloomTiming } from './bubbles';
 import { IndexSheet } from './index-sheet';
 import { StoriesView } from './stories-view';
@@ -308,10 +313,19 @@ export function ChapterPageView(props: ChapterPageProps) {
   const [labels, setLabels] = useState<UserLabels | null>(null);
   const [openMap, setOpenMap] = useState<Record<string, boolean> | null>(null);
   const [sheet, setSheet] = useState<null | 'verses' | 'search'>(null);
-  // v212: verse-tint selection — per rendered entry (keyed by its
-  // entry key, split pieces included), the verses he has tapped and
-  // not yet tinted. Pure UI state; only the applied tints persist.
-  const [verseSelection, setVerseSelection] = useState<Record<string, number[]>>({});
+  // v361: the selection model replaced the v212 number-tap tint
+  // selection wholesale — a drag across the words IS the selection
+  // now, and it lives inside SelectableText. All the page holds is
+  // whether a drag is live (its scroll locks for the drag, so the
+  // two never fight over the same finger).
+  const [selectionDrag, setSelectionDrag] = useState(false);
+  // v361: composer-seat extents — each entry whose mark cluster is
+  // standing reports the cluster's bottom edge within the entry,
+  // so the seat check below can keep the unfurled composer's
+  // Cancel/Save row clear of the floating Verses pill (his
+  // screenshot, 2026-10-30: Cancel half-buried, Save unreachable).
+  const seatExtentsRef = useRef(new Map<string, number>());
+  const [seatSpacer, setSeatSpacer] = useState(0);
   // v214: the Living Bubble layer — the People list (the same stored
   // list the Journal's @mentions read, so author ids mean the same
   // person in both places), his profile identity for his own face,
@@ -539,6 +553,37 @@ export function ChapterPageView(props: ChapterPageProps) {
       animated: true,
     });
   };
+  // v361: the composer seat check. An entry with a standing mark
+  // cluster reports the cluster's bottom edge (content coordinates
+  // via yByKey + the within-entry extent); whenever a report lands,
+  // if that bottom would sit under the floating Verses pill's band
+  // (tab bar + the pill's own seat), scroll just far enough to lift
+  // it clear — growing the foot spacer first when the chapter's own
+  // scroll range cannot reach (a composer near the foot). When no
+  // cluster stands, the spacer goes home.
+  const ensureSeatVisible = () => {
+    if (seatExtentsRef.current.size === 0) {
+      setSeatSpacer(0);
+      return;
+    }
+    const vh = viewHeight.current > 0 ? viewHeight.current : Dimensions.get('window').height;
+    const reserve = (props.tabBarHeight ?? 0) + SEAT_FAB_CLEARANCE_PX;
+    let worst = 0;
+    for (const [key, bottomWithin] of seatExtentsRef.current) {
+      const entryY = yByKey.current.get(key);
+      if (entryY === undefined) continue;
+      const need = entryY + bottomWithin + 10 - (vh - reserve);
+      if (need > worst) worst = need;
+    }
+    if (worst <= scrollYRef.current + 1) return;
+    const maxScroll = Math.max(0, contentHeight.current - vh);
+    if (worst > maxScroll) {
+      setSeatSpacer(Math.ceil(worst - maxScroll) + 8);
+    }
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: worst, animated: true });
+    }, 60);
+  };
   const landOnVerse = (verse: number) => {
     setSheet(null);
     const target = flat.find((f) => verse >= f.entry.start && verse <= f.entry.end);
@@ -606,39 +651,51 @@ export function ChapterPageView(props: ChapterPageProps) {
     const covering = notesFlat.find((nf) => start >= nf.entry.start && start <= nf.entry.end);
     return covering ? { start: covering.entry.start, end: covering.entry.end } : { start, end };
   };
-  const handleTint = async (start: number, end: number, tint: TintColor | null) => {
+  // v361: a tint chosen from the selection bar on a VERSE's words.
+  // The write discipline is the v212 one, at phrase grain: resolve
+  // the span's ranges against the DISPLAY map (split pieces carry
+  // their partitions there), apply onto that list, write the result
+  // to the covering entry's record (tintWriteSpan), then scrub the
+  // range's overlaps off every OTHER record covering the verse, so
+  // no resolution path can repaint what the bar just changed — and
+  // no toggled-off range resurrects from a parent record.
+  const handlePhraseTint = async (
+    start: number,
+    end: number,
+    verse: number,
+    range: { start: number; end: number },
+    tint: TintColor,
+  ) => {
     const span = tintWriteSpan(start, end);
-    const next = withMarks(marks, book, chapter, span.start, span.end, { tint });
+    const resolved = resolvePhraseHighlights(displayMarks, book, chapter, span.start, span.end);
+    const nextList = applyVersePhraseHighlight(resolved, { verse, start: range.start, end: range.end, tint });
+    let next = withMarks(marks, book, chapter, span.start, span.end, { phraseHighlights: nextList });
+    next = scrubPhraseHighlights(
+      next,
+      book,
+      chapter,
+      verse,
+      range.start,
+      range.end,
+      entryKey(book, chapter, span.start, span.end),
+    );
     setMarks(next);
     await saveMarks(next);
   };
-  const handleVerseTintApply = async (start: number, end: number, hue: TintColor) => {
-    const key = entryKey(book, chapter, start, end);
-    const sel = verseSelection[key] ?? [];
-    if (sel.length === 0) return;
-    // Resolve against the DISPLAY map (split pieces carry their
-    // partitioned records there), then write the result to the
-    // UNSPLIT entry's record: verse tints live there, and the split
-    // partitions re-derive from it on the next render.
-    const resolved = resolveTintFields(displayMarks, book, chapter, start, end);
-    const nextVerseTints = applyTintToSelection(resolved.verseTints, sel, hue);
-    const covering = notesFlat.find((nf) => start >= nf.entry.start && start <= nf.entry.end);
-    const span = covering ? { start: covering.entry.start, end: covering.entry.end } : { start, end };
-    let next = withMarks(marks, book, chapter, span.start, span.end, { verseTints: nextVerseTints });
-    // A toggled-off verse must also leave any OTHER stored record the
-    // tint was resolved from (e.g. a record stored directly at a split
-    // piece's key), or the display merge would paint it straight back.
-    const removed = sel.filter((v) => nextVerseTints[v] === undefined && resolved.verseTints[v] !== undefined);
-    if (removed.length) {
-      next = scrubVerseTints(next, book, chapter, removed, entryKey(book, chapter, span.start, span.end));
-    }
+  // v361: a tint chosen from the selection bar inside one of HIS
+  // lines. The line's storage target IS the address — the write
+  // lands on the record the line lives on, nowhere else, and the
+  // render looks the ranges up through the same target.
+  const handleLinePhraseTint = async (
+    target: LineStorageTarget,
+    range: { start: number; end: number },
+    tint: TintColor,
+  ) => {
+    const rec = marksFor(marks, book, chapter, target.start, target.end);
+    const nextList = applyLinePhraseHighlight(rec.lineHighlights, target, { ...range, tint });
+    const next = withMarks(marks, book, chapter, target.start, target.end, { lineHighlights: nextList });
     setMarks(next);
     await saveMarks(next);
-    setVerseSelection((prev) => ({ ...prev, [key]: [] }));
-  };
-  const handleToggleVerse = (start: number, end: number, verse: number) => {
-    const key = entryKey(book, chapter, start, end);
-    setVerseSelection((prev) => ({ ...prev, [key]: toggleVerseInSelection(prev[key] ?? [], verse) }));
   };
   // v228 — the reader's ONLY mark control (his ruling): Mark as Read.
   // The notes-written state is set from the book grid's editor and
@@ -660,12 +717,6 @@ export function ChapterPageView(props: ChapterPageProps) {
     if (readDate !== null) await handleClearRead();
     else await handleMarkRead();
   };
-  const handleCategory = async (start: number, end: number, category: NoteCategory | null) => {
-    const next = withMarks(marks, book, chapter, start, end, { category });
-    setMarks(next);
-    await saveMarks(next);
-  };
-
   const allComplete =
     studyState !== null &&
     totalChapters > 0 &&
@@ -836,6 +887,9 @@ export function ChapterPageView(props: ChapterPageProps) {
           setHeadSectionEnd((prev) => (prev === headEnd ? prev : headEnd));
         }}
         scrollEventThrottle={32}
+        // v361: while a text drag-selection is live the page holds
+        // still — the drag and the scroll never fight over a finger.
+        scrollEnabled={!selectionDrag}
       >
         {/* v251: the measured header spacer — the content's first
             box is exactly the overlay header's measured height, so
@@ -1090,7 +1144,8 @@ export function ChapterPageView(props: ChapterPageProps) {
                 marksEntry={marksFor(displayMarks, book, chapter, entry.start, entry.end)}
                 entryTint={resolveTintFields(displayMarks, book, chapter, entry.start, entry.end).tint}
                 verseTints={resolveTintFields(displayMarks, book, chapter, entry.start, entry.end).verseTints}
-                selectedVerses={verseSelection[entryKey(book, chapter, entry.start, entry.end)] ?? []}
+                phraseHighlights={resolvePhraseHighlights(displayMarks, book, chapter, entry.start, entry.end)}
+                marksMap={marks}
                 kept={entryStatus.get(entryKey(book, chapter, entry.start, entry.end))?.kept ?? false}
                 open={isOpen(entry)}
                 flash={flashKey === entryKey(book, chapter, entry.start, entry.end)}
@@ -1112,10 +1167,18 @@ export function ChapterPageView(props: ChapterPageProps) {
                 onAddLine={(kind, text, author) => handleAddLine(entry.start, entry.end, kind, text, author)}
                 onUpdateLine={handleUpdateLine}
                 onRemoveLine={handleRemoveLine}
-                onTint={(tint) => handleTint(entry.start, entry.end, tint)}
-                onToggleVerse={(verse) => handleToggleVerse(entry.start, entry.end, verse)}
-                onApplyVerseTint={(hue) => handleVerseTintApply(entry.start, entry.end, hue)}
-                onCategory={(category) => handleCategory(entry.start, entry.end, category)}
+                onPhraseTint={(verse, range, tint) => handlePhraseTint(entry.start, entry.end, verse, range, tint)}
+                onLinePhraseTint={handleLinePhraseTint}
+                onSelectionDragChange={setSelectionDrag}
+                onClusterExtent={(bottom) => {
+                  // v361: the seat check's raw material — this
+                  // entry's standing cluster bottom (within-entry
+                  // coordinates), or null when it folds away.
+                  const key = entryKey(book, chapter, entry.start, entry.end);
+                  if (bottom === null) seatExtentsRef.current.delete(key);
+                  else seatExtentsRef.current.set(key, bottom);
+                  ensureSeatVisible();
+                }}
                 registerY={(y) =>
                   yByKey.current.set(
                     entryKey(book, chapter, entry.start, entry.end),
@@ -1217,8 +1280,11 @@ export function ChapterPageView(props: ChapterPageProps) {
         </View>
         {/* v259: the foot clears the tab bar riding over the
             reader (its occupied height + breathing room), never
-            less than the old FAB-clearing 96. */}
-        <View style={{ height: Math.max(96, (props.tabBarHeight ?? 0) + 24) }} />
+            less than the old FAB-clearing 96. v361: while a
+            composer's seat needs more room than the chapter's own
+            scroll range has, the spacer grows to lend it (the seat
+            check above spends it) and shrinks back on close. */}
+        <View style={{ height: Math.max(96, (props.tabBarHeight ?? 0) + 24, seatSpacer) }} />
       </ScrollView>
 
       {/* ── v342: NO top fade on the reader — the fade belongs
@@ -1272,6 +1338,12 @@ export const VERSE_COMPOSER_UNFURL_MS = 280;
  * page bothers to scroll — roughly the unfurled cluster's height,
  * so verse and box are visible together. */
 export const VERSE_COMPOSER_ROOM_PX = 360;
+
+/** v361: the band at the foot of the viewport a standing composer's
+ * action row must clear — the floating Verses pill rides 24px above
+ * the tab bar at ~40px tall; this is its seat plus working room, so
+ * Cancel and Save land fully visible and tappable above it. */
+export const SEAT_FAB_CLEARANCE_PX = 76;
 
 /**
  * v356 — the unfurl itself (his ruling, 2026-10-29 22:55: "I want
@@ -1402,8 +1474,13 @@ function EntryView(props: {
    * covering grouped records in Read-only). */
   entryTint: TintColor | null;
   verseTints: Record<number, TintColor>;
-  /** v212: verses tapped and waiting for a tint color (this entry only). */
-  selectedVerses: number[];
+  /** v361: this span's drag-selected phrase ranges on the verses,
+   * resolved by the page like the tint fields above them. */
+  phraseHighlights: VersePhraseHighlight[];
+  /** v361: the RAW marks map — his lines' phrase ranges are looked
+   * up through their storage targets (lineHighlightsFor), which
+   * only the raw map can answer. */
+  marksMap: MarksMap;
   kept: boolean;
   open: boolean;
   flash: boolean;
@@ -1429,10 +1506,16 @@ function EntryView(props: {
   onAddLine: (kind: 'highlight' | 'thought' | 'note', text: string, author: LineAuthor | null) => void;
   onUpdateLine: (target: LineStorageTarget, patch: { text?: string; author?: LineAuthor | null }) => void;
   onRemoveLine: (target: LineStorageTarget) => void;
-  onTint: (tint: TintColor | null) => void;
-  onToggleVerse: (verse: number) => void;
-  onApplyVerseTint: (hue: TintColor) => void;
-  onCategory: (category: NoteCategory | null) => void;
+  /** v361: a tint picked from a verse selection bar. */
+  onPhraseTint: (verse: number, range: { start: number; end: number }, tint: TintColor) => void;
+  /** v361: a tint picked from the selection bar inside his line. */
+  onLinePhraseTint: (target: LineStorageTarget, range: { start: number; end: number }, tint: TintColor) => void;
+  /** v361: a drag-selection started/ended — the page locks scroll. */
+  onSelectionDragChange?: (active: boolean) => void;
+  /** v361: the standing mark cluster's bottom edge within this
+   * entry (the page's seat check keeps the composer's action row
+   * clear of the Verses pill); null when no cluster stands. */
+  onClusterExtent?: (bottomWithinEntry: number | null) => void;
   registerY: (y: number) => void;
   /** v356: a verse's text was tapped and its composer seated —
    * the verse's top within this entry, so the page can land the
@@ -1484,11 +1567,47 @@ function EntryView(props: {
   // verse — with room beneath it for the box — on screen.
   const verseYRef = useRef(new Map<number, number>());
   const versesBoxYRef = useRef(0);
+  // v361: this entry's root and its standing mark cluster, for the
+  // seat report — the cluster's bottom edge measured against the
+  // entry root (measureLayout), handed to the page's seat check so
+  // the unfurled composer's Cancel/Save row never again lands
+  // under the floating Verses pill (his 2026-10-30 screenshot).
+  const entryRootRef = useRef<View | null>(null);
+  const clusterRef = useRef<View | null>(null);
+  const reportClusterExtent = () => {
+    // Only a standing COMPOSER needs the seat kept clear — the
+    // bare markbar is short and rides anywhere (reporting it would
+    // scroll the page merely for opening an entry near the foot).
+    if (!composer) {
+      props.onClusterExtent?.(null);
+      return;
+    }
+    const root = entryRootRef.current as unknown as View | null;
+    const cluster = clusterRef.current;
+    if (!root || !cluster || !props.onClusterExtent) return;
+    cluster.measureLayout(
+      root,
+      (_x, y, _w, h) => props.onClusterExtent?.(y + h),
+      () => {},
+    );
+  };
+  // v361: when the composer folds away entirely, the seat report
+  // clears — nothing stands, nothing to keep clear of the pill.
+  useEffect(() => {
+    if (!composer) props.onClusterExtent?.(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [composer]);
+  // v361: whether this composer was opened by the selection bar's
+  // Bubble action — it is framed as what it is ("Someone said"),
+  // and saving it credited to another person is what births the
+  // bubble at the verse's dock, exactly as bubbles are born today.
+  const [composerBubble, setComposerBubble] = useState(false);
   const openComposer = (kind: 'highlight' | 'thought' | 'note') => {
     setComposer(kind);
     setDraft('');
     setComposerAuthor(null);
     setEditingTarget(null);
+    setComposerBubble(false);
   };
   // v352: tapping a verse's TEXT opens the note composer homed on
   // that verse — the body opens first if it was closed, and the
@@ -1497,7 +1616,7 @@ function EntryView(props: {
   // renders riding exactly that verse, write-back origins
   // included). The verse NUMBER keeps its tint-selection job —
   // the supTap span below is untouched by this path.
-  const openComposerForVerse = (verse: number) => {
+  const openComposerForVerse = (verse: number, opts?: { bubble?: boolean }) => {
     // v357: a FRESH verse seat records whether it is the tap that
     // opens the entry (a retarget rides the seat already open and
     // keeps the first tap's record).
@@ -1507,6 +1626,12 @@ function EntryView(props: {
     setDraft(`#${verse} `);
     setComposerAuthor(null);
     setEditingTarget(null);
+    // v361: the selection bar's Bubble action seats this same
+    // composer — framed "Someone said", since crediting another
+    // person in the picker below IS the bubble flow (v214: there
+    // is no separate bubble composer; authorship decides where a
+    // saved line renders, and a bubble renders at the verse dock).
+    setComposerBubble(!!opts?.bubble);
     // v356: home the composer on this verse — the cluster unfurls
     // directly beneath it in the verse flow (see the verse map),
     // retargeting cleanly if another verse's box was open or still
@@ -1524,6 +1649,7 @@ function EntryView(props: {
     setComposer(null);
     setEditingTarget(null);
     setComposerAuthor(null);
+    setComposerBubble(false);
     // v357: the seat is fully cleared — and an entry this verse
     // tap opened folds back with it, so no expanded markbar is
     // left standing at the entry's tail under another verse.
@@ -1588,6 +1714,7 @@ function EntryView(props: {
     setComposerClosing(false);
     setComposerVerse(null);
     openedEntryForVerseRef.current = false;
+    setComposerBubble(false);
     setComposer(line.kind);
     setDraft(line.text);
     setComposerAuthor(line.author);
@@ -1615,6 +1742,7 @@ function EntryView(props: {
     setComposerClosing(false);
     setComposerVerse(null);
     openedEntryForVerseRef.current = false;
+    setComposerBubble(false);
     setComposer(line.kind);
     setDraft(line.text);
     setComposerAuthor(line.author);
@@ -1646,87 +1774,32 @@ function EntryView(props: {
   const flashBg = props.flash
     ? props.flashAnim.interpolate({ inputRange: [0, 1], outputRange: [palette.flashTintClear, palette.flashTint] })
     : (wash ?? 'transparent');
-  const hasSelection = props.selectedVerses.length > 0;
 
-  // v356: the mark cluster — markbar, category chips, and the
-  // composer box when one is open — is ONE unit with ONE seat.
-  // Its home seat is the entry body (rendered there below, exactly
-  // as it always has been); a verse-opened composer carries the
-  // whole cluster up into the verse flow, directly beneath the
-  // tapped verse (see the verse map). Never both at once.
+  // v356: the mark cluster — markbar and the composer box when one
+  // is open — is ONE unit with ONE seat. Its home seat is the entry
+  // body (rendered there below, exactly as it always has been); a
+  // verse-opened composer carries the whole cluster up into the
+  // verse flow, directly beneath the tapped verse (see the verse
+  // map). Never both at once.
+  // v361: the cluster is SLIMMED to his approved model — the kind
+  // chips, the Main Thought and Highlight buttons, and the tint row
+  // are gone from this surface (colour now lives on the selection
+  // bar, on the words themselves). Keep and Note remain. Stored
+  // typed entries are untouched by the slimming: they keep
+  // rendering, editing through this same box (the edit paths set
+  // the composer's kind from the line itself), and round-tripping
+  // to the Studio exactly as before. The wrapper measures the
+  // cluster's bottom edge for the page's seat check (v361 seat fix).
   const renderMarkCluster = () => (
-    <>
+    <View ref={clusterRef} onLayout={reportClusterExtent}>
       <View style={[styles.markbar, { borderTopColor: palette.line }]}>
         <Pressable style={styles.markBtn} onPress={props.onToggleKept}>
           <Text style={{ color: props.kept ? palette.rose : palette.inkSoft, fontSize: 13 }}>♥</Text>
           <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>{props.kept ? 'Kept' : 'Keep'}</Text>
         </Pressable>
-        <Pressable style={styles.markBtn} onPress={() => openComposer('highlight')}>
-          <Text style={{ color: palette.hlMark, fontSize: 12 }}>✦</Text>
-          <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Highlight</Text>
-        </Pressable>
-        <Pressable style={styles.markBtn} onPress={() => openComposer('thought')}>
-          <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Main Thought</Text>
-        </Pressable>
         <Pressable style={styles.markBtn} onPress={() => openComposer('note')}>
           <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>Note</Text>
         </Pressable>
-        <View style={styles.swatches}>
-          {(['yellow', 'rose', 'green'] as TintColor[]).map((t) => {
-            // v212: with verses selected, the dots speak for the
-            // selection — ringed when every selected verse already
-            // wears this hue; a tap applies it to the selection
-            // (or lifts it, per verse). With no selection they keep
-            // their entry-tint meaning exactly as before.
-            const active = hasSelection
-              ? props.selectedVerses.every((v) => props.verseTints[v] === t)
-              : props.entryTint === t;
-            return (
-              <Pressable
-                key={t}
-                style={[
-                  styles.swatch,
-                  {
-                    backgroundColor: t === 'yellow' ? '#F5C542' : t === 'rose' ? '#F08BB4' : '#7FCB9B',
-                    borderColor: active ? palette.ink : 'transparent',
-                    borderWidth: active ? 2 : 0,
-                  },
-                ]}
-                onPress={() => (hasSelection ? props.onApplyVerseTint(t) : props.onTint(props.entryTint === t ? null : t))}
-              />
-            );
-          })}
-          <Text style={[styles.tintLabel, { color: palette.inkFaint }]}>
-            {hasSelection ? `Tint ${props.selectedVerses.length === 1 ? 'verse' : 'verses'} ${props.selectedVerses.join(', ')}` : 'Tint'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.catRow}>
-        {NOTE_CATEGORIES.map((meta) => {
-          // v357 (standing ruling): Good Thought is no longer
-          // offered as a new category — it was deleted and
-          // converted to Main Thoughts, and the bar offering both
-          // was duplication. Only the OFFER stops: the category
-          // itself stays in NOTE_CATEGORIES, so stored entries
-          // carrying good-thought still normalize, render their
-          // tag, and save exactly as before.
-          if (meta.id === 'good-thought') return null;
-          const active = props.marksEntry?.category === meta.id;
-          return (
-            <Pressable
-              key={meta.id}
-              style={[
-                styles.catChip,
-                { borderColor: active ? meta.color : palette.line, backgroundColor: active ? meta.bg : palette.paper },
-              ]}
-              onPress={() => props.onCategory(active ? null : meta.id)}
-            >
-              <View style={[styles.catDot, { backgroundColor: meta.color }]} />
-              <Text style={[styles.catChipText, { color: active ? meta.ink : palette.inkSoft }]}>{meta.label}</Text>
-            </Pressable>
-          );
-        })}
       </View>
 
       {composer ? (
@@ -1734,7 +1807,9 @@ function EntryView(props: {
           <Text style={[styles.composerLabel, { color: composer === 'highlight' ? palette.yellowLabel : palette.greyLabel }]}>
             {editingTarget
               ? `Editing ${kindLabelFor(composer)}`
-              : composer === 'highlight' ? '✦ Your Highlight' : composer === 'note' ? 'Your Note' : 'Main Thought'}
+              : composerBubble
+                ? 'Someone said'
+                : composer === 'highlight' ? '✦ Your Highlight' : composer === 'note' ? 'Your Note' : 'Main Thought'}
           </Text>
           <TextInput
             style={[styles.composerInput, { color: palette.ink }]}
@@ -1791,7 +1866,7 @@ function EntryView(props: {
           </View>
         </View>
       ) : null}
-    </>
+    </View>
   );
 
   // v244: the entry head's height — where this entry's verses end.
@@ -1816,6 +1891,7 @@ function EntryView(props: {
 
   return (
     <Animated.View
+      ref={entryRootRef as never}
       style={[styles.entry, { backgroundColor: flashBg }, props.bubbleOpen ? styles.entryOpen : null]}
       onLayout={(e) => props.registerY(e.nativeEvent.layout.y)}
     >
@@ -1837,67 +1913,64 @@ function EntryView(props: {
           }}
         >
           {Array.from({ length: entry.end - entry.start + 1 }, (_, i) => entry.start + i).map((v) => {
-            const selected = props.selectedVerses.includes(v);
             const verseBg = verseTintFor(palette, props.verseTints[v]);
-            // v352: each verse is its own pressable block (the
-            // entryVerses gap separates the blocks). A tap on the
-            // verse TEXT opens the note composer homed on that
-            // verse (openComposerForVerse); the number span
-            // inside keeps its own tap, exactly as it already
-            // out-pressed the head Pressable.
+            const verseStr = props.verseText.get(v) ?? '';
+            // v352: each verse is its own block (the entryVerses gap
+            // separates the blocks). A tap on the verse TEXT opens
+            // the note composer homed on that verse
+            // (openComposerForVerse).
             // v356: the verse block also caches its top inside
             // entryVerses (onLayout), for the verse-open scroll.
+            // v361: the verse's words render through SelectableText —
+            // a long-press starts a drag-selection on the words and
+            // the bar offers the six tints, Bubble, Note; stored
+            // phrase ranges wash their words; the LEGACY whole-verse
+            // tint still paints behind the whole verse exactly as
+            // before (wholeTint), so no tint he already has is lost.
+            // The verse number leads as a plain superscript token:
+            // its v212 tint-selection tap is retired — selection is
+            // the drag now. A verse with no text loaded yet keeps
+            // the plain rendering.
             const verseBlock = (
-              <Pressable
+              <View
                 key={v}
                 style={styles.verseBlock}
-                onPress={() => openComposerForVerse(v)}
                 onLayout={(e) => verseYRef.current.set(v, e.nativeEvent.layout.y)}
               >
-                <Text
-                  style={[
-                    styles.entryVerse,
-                    { flex: 1, color: palette.ink },
-                    verseBg ? { backgroundColor: verseBg } : null,
-                    selected
-                      ? { textDecorationLine: 'underline', textDecorationStyle: 'dashed', textDecorationColor: palette.rasp }
-                      : null,
-                  ]}
-                >
-                  {/* v217 squeeze fix: the verse number is an INLINE
-                      superscript in the text (the approved mockup's
-                      rendering), not a rail beside it — a multi-verse
-                      entry's text starts at the same x as a
-                      single-verse entry's. It stays the v212 tint
-                      handle: a tap selects the verse; selected, it
-                      fills raspberry with white glyphs over the
-                      verse's dashed underline.
-                      v352: the head's rail numeral/range is GONE in
-                      both modes (his ruling — the range was the
-                      element that wrapped "13–15" into "13–1"/"5"),
-                      so this span now leads EVERY verse, single-verse
-                      entries included: no verse loses its number, and
-                      the number's tap job is unchanged. */}
+                {verseStr ? (
+                  <SelectableText
+                    text={verseStr}
+                    palette={palette}
+                    textStyle={[styles.entryVerse, { color: palette.ink }]}
+                    wholeTint={verseBg}
+                    highlights={props.phraseHighlights.filter((h) => h.verse === v)}
+                    lead={
+                      <View style={styles.supSeat}>
+                        <Text style={[styles.supTap, { color: props.tone.deep }]}>{v}</Text>
+                      </View>
+                    }
+                    onPressText={() => openComposerForVerse(v)}
+                    onApplyTint={(range, tint) => props.onPhraseTint(v, range, tint)}
+                    onBubble={() => openComposerForVerse(v, { bubble: true })}
+                    onNote={() => openComposerForVerse(v)}
+                    onDragChange={props.onSelectionDragChange}
+                  />
+                ) : (
                   <Text
-                    onPress={() => props.onToggleVerse(v)}
                     style={[
-                      styles.supTap,
-                      { color: selected ? '#FFFFFF' : props.tone.deep },
-                      selected ? { backgroundColor: palette.rasp } : null,
+                      styles.entryVerse,
+                      { flex: 1, color: palette.ink },
+                      verseBg ? { backgroundColor: verseBg } : null,
                     ]}
                   >
-                    {v}{' '}
+                    <Text style={[styles.supTap, { color: props.tone.deep }]}>
+                      {v}{' '}
+                    </Text>
+                    {verseStr}
                   </Text>
-                  {props.verseText.get(v) ?? ''}
-                </Text>
+                )}
                 {/* v357: EVERY verse row carries its own expand
-                    chevron. It used to render once per entry head,
-                    beside the entry's FIRST verse only — on a
-                    three-verse entry verses two and three showed
-                    no arrow at all (his report, twice over). The
-                    chevron lives in the verse map now, one per
-                    verse; like the number's tap, it out-presses
-                    the verse block, and its job is the head's own
+                    chevron — one per verse, its job the head's own
                     toggle: open or fold this entry's notes body. */}
                 <Pressable onPress={props.onToggleOpen} hitSlop={6} style={{ marginTop: 3 }}>
                   <MaterialIcons
@@ -1906,7 +1979,7 @@ function EntryView(props: {
                     color={palette.inkFaint}
                   />
                 </Pressable>
-              </Pressable>
+              </View>
             );
             // v356: the verse seat. When this verse holds the
             // composer, the whole mark cluster renders DIRECTLY
@@ -1940,6 +2013,14 @@ function EntryView(props: {
             // Self lines are marks lines by construction (v217) —
             // a quote kind can never land in this group.
             if (line.kind === 'quote') return null;
+            const piece = props.bubblePiece;
+            const target = piece?.selfTargets[i];
+            // v361: the line's parent verse — its own '#ref' head
+            // when it carries one, else the piece's first verse.
+            // The selection bar inside the note acts HERE (his
+            // ruling: bubbles dock on verses, never in notes; the
+            // Note action opens this verse's composer).
+            const anchorVerse = parseHashVerseRef(line.text)?.start ?? piece?.start ?? entry.start;
             return (
               <Pressable
                 key={`${line.kind}-${line.fieldIndex}-${i}`}
@@ -1959,6 +2040,18 @@ function EntryView(props: {
                     />
                   }
                   spanText={spanLabelFor(entry.start, entry.end)}
+                  onPressText={() => editSelfLine(i)}
+                  selection={
+                    target
+                      ? {
+                          highlights: lineHighlightsFor(props.marksMap, props.book, props.chapter, target),
+                          onApplyTint: (range, tint) => props.onLinePhraseTint(target, range, tint),
+                          onBubble: () => openComposerForVerse(anchorVerse, { bubble: true }),
+                          onNote: () => openComposerForVerse(anchorVerse),
+                          onDragChange: props.onSelectionDragChange,
+                        }
+                      : undefined
+                  }
                 />
               </Pressable>
             );
@@ -2139,6 +2232,9 @@ const styles = StyleSheet.create({
   // span inside the verse text (see the head render) — a text style,
   // no longer an in-flow rail with width of its own.
   supTap: { fontSize: 10.5, fontWeight: '800' },
+  // v361: the verse number's seat as the selection text's lead
+  // token — superscript height against the verse's first line.
+  supSeat: { paddingTop: 4, marginRight: 3 },
   // v217: his own lines' in-flow column — the same measure as the
   // entry body, at the full text width (no bubble inset, ever).
   // v352: the measure moved with the rail's removal — verses now

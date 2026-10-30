@@ -205,7 +205,11 @@ describe("v259 source pins — clearance", () => {
     // v265: in the pane the reader gets 0 — the pane pads once.
     expect(chapter).toContain("tabBarHeight={inPane ? 0 : tabBarHeight}");
     expect(chapterPage).toContain("tabBarHeight?: number");
-    expect(chapterPage).toContain("Math.max(96, (props.tabBarHeight ?? 0) + 24)");
+    // v361 amendment: the spacer's floor is unchanged (tab bar +
+    // 24, never under 96) — it may only GROW past it while a
+    // composer's seat check lends it room (seatSpacer), so an
+    // unfurled composer's action row clears the Verses pill.
+    expect(chapterPage).toContain("Math.max(96, (props.tabBarHeight ?? 0) + 24, seatSpacer)");
     expect(chapterPage).toContain("bottom: 24 + (props.tabBarHeight ?? 0)");
     expect(chapterPage).toContain("bottomInset={props.tabBarHeight}");
     expect(stories).toContain("bottomInset?: number");

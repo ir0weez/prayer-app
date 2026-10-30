@@ -59,7 +59,11 @@ describe('v352 — the rail is gone', () => {
     expect(entryView).not.toContain('{!single');
     expect(page).not.toContain('const single');
     expect(entryView).toContain('styles.supTap');
-    expect(entryView).toContain('onPress={() => props.onToggleVerse(v)}');
+    // v361 amendment: the number still leads every verse — now as
+    // the SelectableText lead token (styles.supSeat) — but its
+    // tint-selection tap is retired; selection is the drag.
+    expect(entryView).toContain('styles.supSeat');
+    expect(entryView).not.toContain('onToggleVerse');
   });
 
   it("the section outline keeps its ranges — SectionBand and the contents are his outline, not the rail", () => {
@@ -75,14 +79,16 @@ describe('v352 — separated verses', () => {
     expect(page).not.toContain('entryVerses: { flex: 1, gap: 3 }');
   });
 
-  it('each verse is its own pressable block carrying its text and tint dress', () => {
+  it('each verse is its own block carrying its text and tint dress', () => {
     // Re-based 2026-10-29 (v356): the verse Pressable gained an
-    // onLayout (it caches its top for the verse-open scroll), so
-    // the tag is multi-line now — the pin's intent is unchanged:
-    // one keyed pressable per verse, its press opens that verse's
-    // composer.
+    // onLayout (it caches its top for the verse-open scroll).
+    // Re-based again (v361): the block is a plain View now — the
+    // press lives on the words themselves (SelectableText's
+    // onPressText opens that verse's composer, a long-press drag
+    // selects). The pin's intent is unchanged: one keyed block per
+    // verse, carrying its text and its tint dress.
     expect(entryView).toContain('key={v}');
-    expect(entryView).toContain('onPress={() => openComposerForVerse(v)}');
+    expect(entryView).toContain('onPressText={() => openComposerForVerse(v)}');
     expect(entryView).toContain('styles.entryVerse');
     expect(entryView).toContain('props.verseText.get(v)');
     expect(entryView).toContain('verseTintFor(palette, props.verseTints[v])');
@@ -146,8 +152,11 @@ describe('v352 — tap a verse, get its composer', () => {
     expect(pieces[1].marks.notes).toEqual(['#14 Held strong today.']);
   });
 
-  it('the other taps keep their jobs: number selects for tint, head toggles the body', () => {
-    expect(entryView).toContain('onPress={() => props.onToggleVerse(v)}');
+  it('the other taps keep their jobs: the head toggles the body; the number is a plain token (v361)', () => {
+    // v361 amendment: the number's tint-selection tap is retired
+    // (selection is the drag now) — the head/chevron toggle and
+    // the number's leading seat are the surviving jobs.
+    expect(entryView).not.toContain('onToggleVerse');
     expect(entryView).toContain('onPress={props.onToggleOpen}');
     expect(entryView).toContain('styles.supTap');
   });

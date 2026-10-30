@@ -85,14 +85,19 @@ describe('v245 — the working set is four', () => {
     expect(CATEGORY_META['personal-story'].label).toBe('Personal story');
   });
 
-  it('both category pickers (chapter markbar, index sheet) are driven by the four-list', () => {
+  it('the index sheet picker is driven by the four-list; the chapter markbar picker is retired (v361)', () => {
     const root = join(__dirname, '..', '..');
-    const markbar = readFileSync(join(root, 'components/bible-v205/chapter-page.tsx'), 'utf8');
+    const chapter = readFileSync(join(root, 'components/bible-v205/chapter-page.tsx'), 'utf8');
     const sheet = readFileSync(join(root, 'components/bible-v205/index-sheet.tsx'), 'utf8');
-    for (const src of [markbar, sheet]) {
-      expect(src).toContain('NOTE_CATEGORIES.map');
-      expect(src).not.toContain("'conversation'");
-    }
+    expect(sheet).toContain('NOTE_CATEGORIES.map');
+    expect(sheet).not.toContain("'conversation'");
+    // v361 amendment: the chapter-page category chips were removed
+    // with the rest of the old composer surface (his approved
+    // selection model — colour and kind no longer live on the
+    // markbar). The four-list itself is untouched: stored
+    // categories keep normalizing, rendering, and saving.
+    expect(chapter).not.toContain('NOTE_CATEGORIES.map');
+    expect(chapter).not.toContain("'conversation'");
   });
 
   it('normalizeCategory: the four pass, the retired one merges, the unknown is none', () => {

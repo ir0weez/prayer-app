@@ -19,7 +19,9 @@ import { StyleSheet, Text, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NoteCategory, StudyStatus, V205Block } from '@/lib/bible-v205/types';
 import { CATEGORY_META, blockCategory, type CategoryMeta } from '@/lib/bible-v205/categories';
+import type { PhraseHighlight, TintColor } from '@/lib/bible-v205/marks';
 import { rangeLabel, useBiblePalette, type BiblePalette, type BibleSectionTone } from './palette';
+import { SelectableText } from './selectable-text';
 
 /**
  * His color code made visible: a small labeled tag in the category's
@@ -205,6 +207,8 @@ export function SelfLineBlock({
   authorName,
   face,
   spanText,
+  selection,
+  onPressText,
 }: {
   kind: 'note' | 'highlight' | 'thought';
   text: string;
@@ -217,6 +221,24 @@ export function SelfLineBlock({
   face?: ReactNode;
   /** "on v. 11" — the span the line rides on, as drawn. */
   spanText?: string;
+  /**
+   * v361: drag-selection inside the line's own words (the chapter
+   * page supplies it for his faced lines; Stories leaves it off and
+   * renders exactly as before). The tint action carries the range;
+   * Bubble and Note act on the line's parent VERSE — his ruling:
+   * bubbles are a verse-level thing, full stop — so they take none.
+   */
+  selection?: {
+    highlights: readonly PhraseHighlight[];
+    onApplyTint: (range: { start: number; end: number }, tint: TintColor) => void;
+    onBubble: () => void;
+    onNote: () => void;
+    onDragChange?: (active: boolean) => void;
+  };
+  /** v361: a plain tap on the words when selection renders them
+   * (the caller's edit affordance, previously the wrapping
+   * Pressable's job). */
+  onPressText?: () => void;
 }) {
   if (kind === 'highlight') {
     // v311: the drawing's bubble-highlight — the yellow box with the
@@ -234,7 +256,21 @@ export function SelfLineBlock({
         ) : (
           <Text style={[styles.ktag, { color: CATEGORY_META['good-thought'].ink }]}>Highlight</Text>
         )}
-        <Text style={[styles.nboxText, { color: palette.ink }]}>{text}</Text>
+        {selection ? (
+          <SelectableText
+            text={text}
+            palette={palette}
+            textStyle={[styles.nboxText, { color: palette.ink }]}
+            highlights={selection.highlights}
+            onPressText={onPressText}
+            onApplyTint={selection.onApplyTint}
+            onBubble={selection.onBubble}
+            onNote={selection.onNote}
+            onDragChange={selection.onDragChange}
+          />
+        ) : (
+          <Text style={[styles.nboxText, { color: palette.ink }]}>{text}</Text>
+        )}
       </View>
     );
   }
@@ -242,6 +278,9 @@ export function SelfLineBlock({
     // v311: the unboxed note flow — attribution head, then the words
     // as bare text. No card, no background, no tag chip (the v250
     // filled seed card is retired by his Oct 28 ruling).
+    // v361: when the caller hands over selection, the words render
+    // through SelectableText — same bare dress, now drag-selectable,
+    // his phrase highlights washing the words they were made on.
     return (
       <View style={styles.flowWrap}>
         <View style={styles.flowHead}>
@@ -251,7 +290,21 @@ export function SelfLineBlock({
           </Text>
           {spanText ? <Text style={[styles.flowSpan, { color: palette.inkSoft }]}>{spanText}</Text> : null}
         </View>
-        <Text style={[styles.flowText, { color: palette.ink }]}>{text}</Text>
+        {selection ? (
+          <SelectableText
+            text={text}
+            palette={palette}
+            textStyle={[styles.flowText, { color: palette.ink }]}
+            highlights={selection.highlights}
+            onPressText={onPressText}
+            onApplyTint={selection.onApplyTint}
+            onBubble={selection.onBubble}
+            onNote={selection.onNote}
+            onDragChange={selection.onDragChange}
+          />
+        ) : (
+          <Text style={[styles.flowText, { color: palette.ink }]}>{text}</Text>
+        )}
       </View>
     );
   }

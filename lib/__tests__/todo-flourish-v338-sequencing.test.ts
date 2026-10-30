@@ -15,7 +15,11 @@
 //    TODO_FLOURISH_DURATION_MS in ScheduleTab (pending set + timers
 //    beside the toggles, never inside a row); the row stays in its
 //    flow slot wearing the completing dress until the write lands;
-//  · the burst emits SYNCHRONOUSLY from the press's pageX/pageY;
+//  · the burst emits SYNCHRONOUSLY from the press's pageX/pageY
+//    (the ANCHOR half of this bullet was RE-BASED in v348: the
+//    emission is still synchronous with the press, but it anchors
+//    at the measured checkbox, not the fingertip — see the
+//    re-based pin below);
 //  · pending presses are ignored, the long-press menu's Mark
 //    Complete flushes a held write, a day switch flushes all held
 //    writes, and uncheck / quiet / unmatched todos write instantly;
@@ -124,9 +128,23 @@ describe("v338 — source pins: the hold lives in ScheduleTab, beside the toggle
     expect(schedule).toContain("const pairDone = t.isCompleted || pendingTodoIds.has(t.id);");
   });
 
-  it("the burst emits synchronously from the press position, not via measureInWindow", () => {
-    expect(schedule).toContain("if (fallback) {\n      emitTodoFlourish({ flourish, color: todo.color || colors.primary, anchor: fallback });");
-    expect(schedule).toContain("if (position) {\n      emitTodoFlourish({ flourish, color: pairTodo.color || colors.primary, anchor: position });");
+  it("the burst anchors at the measured checkbox, not the press position (RE-BASED in v348)", () => {
+    // RE-BASED (v348, Oct 29): v338 pinned synchronous emission
+    // FROM THE PRESS POSITION because the async measureInWindow
+    // raced the row's teardown. That race died with this very
+    // build's deferred write — the row sits in its slot for the
+    // whole flourish, so the measure lands safely — and the
+    // fingertip anchor buried the burst mid-card, under the thumb
+    // (Jonathan's invisible-burst report, Oct 29 17:46). v348
+    // removes both press-position shortcuts: the row fires through
+    // the measured checkbox path (the press position remains only
+    // as emitFlourishAt's can't-measure fallback) and the pair
+    // measures its registered rectangle. The full v348 pins live
+    // in todo-flourish-v348.test.ts.
+    expect(schedule).not.toContain("if (fallback) {\n      emitTodoFlourish({ flourish, color: todo.color || colors.primary, anchor: fallback });");
+    expect(schedule).not.toContain("if (position) {\n      emitTodoFlourish({ flourish, color: pairTodo.color || colors.primary, anchor: position });");
+    expect(schedule).toContain("emitFlourishAt(flourish, todo.color || colors.primary, checkboxAnchorRef.current, fallback)");
+    expect(schedule).toContain("pairRowRefs.current.get(pairTodo.id)");
   });
 
   it("the grouped completed branch wears the settle wrapper like its twin", () => {

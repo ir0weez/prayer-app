@@ -48,7 +48,11 @@ type VisibleBurst = TodoFlourishEvent & { progress: Animated.Value };
 function toneColors(tone: TodoFlourishTone, todoColor: string): { fill: string; border?: string; text?: string } {
   switch (tone) {
     case "milk":
-      return { fill: "rgba(255,255,255,0.92)", border: mix(todoColor, "#FFFFFF", 0.45) };
+      // v348: the rim is the todo's colour at FULL strength — the
+      // old 45%-toward-white tint on a near-white fill was invisible
+      // on the pale pair cards (Feed's half of the invisible-burst
+      // report, Oct 29).
+      return { fill: "rgba(255,255,255,0.92)", border: todoColor };
     case "amber":
       return { fill: "#FEF3C7", border: "#F59E0B" };
     case "tile":
@@ -58,7 +62,9 @@ function toneColors(tone: TodoFlourishTone, todoColor: string): { fill: string; 
     case "spark":
       return { fill: "#58CC02" };
     case "sigh":
-      return { fill: "#C9CDD6" };
+      // v348: the todo's own colour mixed into the sigh grey —
+      // plain #C9CDD6 drifted invisibly on the pale card.
+      return { fill: mix("#C9CDD6", todoColor, 0.5) };
     case "mint":
       return { fill: "#ECFDF5", border: "#6EE7B7" };
     case "foam-white":
@@ -167,7 +173,9 @@ function ParticleView({ p, progress, todoColor }: { p: TodoFlourishParticle; pro
       break;
     }
     case "sigh-dot": {
-      opacity = seg(progress, p, [0, 0.3, 1], [0, 0.5, 0]);
+      // v348: peak opacity 0.85 (was 0.5) — with the coloured fill
+      // above, Break's exhale actually reads on the pale card.
+      opacity = seg(progress, p, [0, 0.3, 1], [0, 0.85, 0]);
       transform = [
         { translateX: seg(progress, p, [0, 1], [p.ox, p.ox + p.dx]) },
         { translateY: seg(progress, p, [0, 1], [p.oy - 4, p.oy + p.dy]) },
@@ -353,7 +361,15 @@ export function TodoFlourishOverlay() {
           style={{ position: "absolute", left: burst.anchor.x, top: burst.anchor.y, width: 0, height: 0 }}
         >
           {TODO_FLOURISH_PARTICLES[burst.flourish].map((p, index) => (
-            <ParticleView key={index} p={p} progress={burst.progress} todoColor={burst.color} />
+            // v348: a pair-anchored wide kit carries an oxScale —
+            // its authored full-row spread is squeezed to the pair
+            // card before the particle interpolates (see the bus).
+            <ParticleView
+              key={index}
+              p={burst.oxScale != null && burst.oxScale !== 1 ? { ...p, ox: p.ox * burst.oxScale } : p}
+              progress={burst.progress}
+              todoColor={burst.color}
+            />
           ))}
         </View>
       ))}

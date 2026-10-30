@@ -54,6 +54,7 @@ import { TerminalBackground } from "./terminal-background";
 import { TerminalRestSky, terminalKeywordSceneFor } from "./terminal-keyword-scenes";
 import { BIT_DUSK, BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, hasTypeScale, hexLuminance, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint, skinText, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
 import { setScheduleFabConfig } from "@/lib/schedule-fab-bridge";
+import { scheduleRowKey } from "@/lib/schedule-row-key";
 import { scheduleMaterialTones, tonalRamp } from "@/lib/schedule-material";
 import { detectShowFont, splitShowName } from "@/lib/show-fonts";
 import { stripSpelledSeasonEpisode } from "@/lib/season-episode";
@@ -14875,7 +14876,7 @@ export function ScheduleTab({
               scrollEnabled={slidePicker == null}
               onMomentumScrollEnd={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
               onScrollEndDrag={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
-              keyExtractor={(item) => item.id === justAddedId ? `${item.id}-new` : item.id}
+              keyExtractor={(item) => scheduleRowKey(item, justAddedId)}
               renderItem={(info) => {
                 const element = renderItem(info);
                 // v185 (8-bit only): NO sheet wrapper — the dusk shows

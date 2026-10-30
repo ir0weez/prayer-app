@@ -12,7 +12,7 @@
 // window square on a wall.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { View, type ViewStyle } from "react-native";
+import { Text, View, type ViewStyle } from "react-native";
 import Svg, { Circle, G, Polygon, Rect } from "react-native-svg";
 import type { DayPhase } from "@/lib/welcoming-town";
 import { mixHex, type EraDef, type EraPlaceDress, type GatheringArtKind } from "@/lib/hometown-eras";
@@ -724,6 +724,37 @@ export function EmptyLotArt({ w, h, weekLot }: { w: number; h: number; weekLot?:
           ))}
         </>
       )}
+    </View>
+  );
+}
+
+/** v358: a street lot's FOR SALE sign — a wooden post and board
+ *  standing in the lot's middle, saying what the lot is. The word
+ *  is the sign's own (a sign is supposed to speak); it carries no
+ *  plaque, so the label pass never has to seat it. */
+export function ForSaleSign({ w, h }: { w: number; h: number }) {
+  const boardW = Math.min(w * 0.86, 86);
+  const boardH = Math.max(15, h * 0.3);
+  const font = Math.max(8, Math.min(12, boardW * 0.16));
+  return (
+    <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: w, height: h, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ width: Math.max(3, w * 0.05), height: h * 0.34, backgroundColor: "#7A5A38", borderRadius: 1.5 }} />
+      <View
+        style={{
+          position: "absolute",
+          top: h * 0.16,
+          width: boardW,
+          height: boardH,
+          backgroundColor: "#FEF3C7",
+          borderWidth: 2,
+          borderColor: "#7A5A38",
+          borderRadius: 3,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Text style={{ fontSize: font, fontWeight: "800", color: "#92400E", letterSpacing: 0.5 }}>FOR SALE</Text>
+      </View>
     </View>
   );
 }

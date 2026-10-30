@@ -94,6 +94,8 @@ export function NoticeBoardPoint({
   pendingCount,
   onPress,
   scale = 1,
+  chipDx = 0,
+  chipDy = 0,
 }: {
   left: number;
   top: number;
@@ -102,6 +104,11 @@ export function NoticeBoardPoint({
   /** v333: the point sizes from the stage's cell (1 = the legacy
    *  stand at a 40px cell) — no fixed-pixel board on the stage. */
   scale?: number;
+  /** v358: the ONE label pass's dealt offset for this point's
+   *  chip (the screen lays plaques and chips out together now) —
+   *  the board stands fast; its chip steps where the pass deals. */
+  chipDx?: number;
+  chipDy?: number;
 }) {
   const s = scale;
   return (
@@ -147,7 +154,9 @@ export function NoticeBoardPoint({
           </View>
         )}
       </View>
-      <PointChip label={noticeBoardChipLabel(pendingCount)} scale={s} />
+      <View style={{ transform: [{ translateX: chipDx }, { translateY: chipDy }] }}>
+        <PointChip label={noticeBoardChipLabel(pendingCount)} scale={s} />
+      </View>
     </Pressable>
   );
 }
@@ -207,12 +216,19 @@ export function TestimonyStonesPoint({
   top,
   count,
   scale = 1,
+  chipDx = 0,
+  chipDy = 0,
 }: {
   left: number;
   top: number;
   count: number;
   /** v333: sizes from the stage's cell, like the board. */
   scale?: number;
+  /** v358: the ONE label pass's dealt offset for the count chip
+   *  (see NoticeBoardPoint) — the stones stand fast; the chip
+   *  steps clear of the Schoolhouse plaque it used to crowd. */
+  chipDx?: number;
+  chipDy?: number;
 }) {
   const s = scale;
   return (
@@ -223,7 +239,9 @@ export function TestimonyStonesPoint({
         <View style={{ width: 19 * s, height: 12 * s, backgroundColor: "#A8B0BC", borderRadius: 8 * s, borderBottomWidth: 2, borderBottomColor: "#6B7280" }} />
         <View style={{ width: 16 * s, height: 11 * s, backgroundColor: "#8B95A5", borderRadius: 7 * s, borderBottomWidth: 2, borderBottomColor: "#6B7280" }} />
       </View>
-      <PointChip label={count === 1 ? "1 testimony" : `${count} testimonies`} dim scale={s} />
+      <View style={{ transform: [{ translateX: chipDx }, { translateY: chipDy }] }}>
+        <PointChip label={count === 1 ? "1 testimony" : `${count} testimonies`} dim scale={s} />
+      </View>
     </View>
   );
 }
@@ -240,6 +258,7 @@ export function LotPlayPoint({
   onPlay,
   scale = 1,
   chipDy = 0,
+  chipDx = 0,
 }: {
   left: number;
   top: number;
@@ -259,6 +278,9 @@ export function LotPlayPoint({
    *  measured chips would meet — the layout gives way, never the
    *  word. */
   chipDy?: number;
+  /** v358: the same pass's horizontal dealing (the whole-frame
+   *  pass now seats this chip against the plaques too). */
+  chipDx?: number;
 }) {
   const plays = playsLeft ?? cap;
   const canPlay = plays > 0;
@@ -283,7 +305,7 @@ export function LotPlayPoint({
           borderRadius: 999,
           width: chipW,
           paddingVertical: 3 * s,
-          transform: [{ translateY: chipDy }],
+          transform: [{ translateX: chipDx }, { translateY: chipDy }],
         }}
       >
         <MaterialIcons name={icon} size={Math.max(11, 12 * s)} color="#FFF7ED" />

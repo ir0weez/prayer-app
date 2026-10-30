@@ -94,6 +94,11 @@ export type StageLabelSeat = {
    *  feet and may touch it; every OTHER reserved rect is a wall
    *  the label must clear. */
   avoidKey?: string;
+  /** v358: extra rendered width beyond the measured word — a
+   *  chip that carries an icon beside its word (the lot game
+   *  chips) is wider than its pill measurement, and the pass
+   *  must clear the CHIP, not just the word. */
+  widthBonus?: number;
 };
 
 export type StageLabelRect = {
@@ -154,7 +159,7 @@ export function layoutStageLabels(
     (a, b) => a.top - b.top || a.cx - b.cx || (a.key < b.key ? -1 : 1),
   );
   for (const seat of ordered) {
-    const width = labelPillWidth(seat.label, seat.fontSize);
+    const width = labelPillWidth(seat.label, seat.fontSize) + (seat.widthBonus ?? 0);
     const height = labelPillHeight(seat.fontSize);
     const maxLeft = Math.max(LABEL_MARGIN, frame.w - LABEL_MARGIN - width);
     const left = Math.min(Math.max(seat.cx - width / 2, LABEL_MARGIN), maxLeft);

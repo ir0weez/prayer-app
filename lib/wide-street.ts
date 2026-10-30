@@ -54,6 +54,7 @@
 
 import {
   BUILDINGS,
+  STREET_LOTS,
   TOWN_LANDMARKS,
   cafeAnchorDiner,
   type MapState,
@@ -62,6 +63,7 @@ import {
   type TownState,
 } from "./hometown";
 import { eraIndexForId, gatheringForEra, type EraId } from "./hometown-eras";
+import type { ReservedRect, StageLabelSeat } from "./stage-labels";
 import type { WalkTile } from "./walkable-town";
 
 // ── Geometry ────────────────────────────────────────────────────────────────
@@ -254,7 +256,12 @@ export type StreetPlaceKind =
   | "gate"
   | "shop"
   | "empty-lot"
-  | "board";
+  | "board"
+  /** v358: an unsold street lot — a property he can buy through
+   *  the town's existing lot flow (see STREET_LOT_SEATS). Once
+   *  bought, the lot's building stands here as a "home" place
+   *  carrying the same lotId. */
+  | "plot";
 
 export type StreetPlace = {
   kind: StreetPlaceKind;
@@ -297,6 +304,11 @@ export type StreetPlace = {
   /** The fast-week lot (v279's roped ground), worn by one empty lot
    *  once a fast week has opened it. */
   weekLot?: boolean;
+  /** v358: the street lot this place stands on (lib/hometown's
+   *  STREET_LOTS). An unsold lot is a "plot" place; its bought
+   *  building is a "home" place keeping the same lotId, seated
+   *  on the lot, never dealt onto the strata. */
+  lotId?: string;
   /** v355: a gate DOOR set into the town wall's ring (the five
    *  retired street gates — schoolhouse, Mission Field, well,
    *  garden, river — stand as doors now, not mid-street buildings). */
@@ -370,6 +382,45 @@ const FOREST_TREES: Array<{ x: number; y: number; s: number }> = [
  *  (24%), spanning x 0.664–0.99 of the stage. */
 const MINE_RECT = { x: 7.3, y: 0.97, w: 3.6, h: 2.87 };
 const MINE_DOOR: WalkTile = { x: 10, y: 6 };
+
+/** v358 — THE STREET LOTS: eight buyable properties standing on
+ *  the stage's open land (Jonathan, Oct 29 22:56: "There should
+ *  be a lot more properties to buy" — the street itself offered
+ *  none). Each seat pairs with a STREET_LOTS entry (lib/hometown):
+ *  the lot carries the price and the allowed buildings; the seat
+ *  carries where it stands here. A lot's
+ *  building (matched by townLotId) stands ON its seat as a home
+ *  place — it is never dealt onto the strata — and an unsold lot
+ *  stands as open roped ground with its FOR SALE sign, tappable
+ *  into the existing lot purchase flow (handleTownLotPress →
+ *  the lot modal → purchaseOnLot, era-priced like every lot).
+ *  Seats were paced against every era's wall doors and the lane:
+ *  no seat shares a door tile with a gate, a lot, or another
+ *  lot in any era (pinned in the v358 tests). */
+export type StreetLotSeat = {
+  lotId: string;
+  rect: { x: number; y: number; w: number; h: number };
+  door: WalkTile;
+  depth: "front" | "back";
+};
+
+export const STREET_LOT_SEATS: StreetLotSeat[] = [
+  // The riverbank's two ends — cottages over the water.
+  { lotId: "street-lot-bank-west", rect: { x: 0.15, y: 13.45, w: 1.0, h: 1.45 }, door: { x: 0, y: 14 }, depth: "front" },
+  { lotId: "street-lot-bank-east", rect: { x: 9.85, y: 13.45, w: 1.0, h: 1.45 }, door: { x: 10, y: 14 }, depth: "front" },
+  // The bankside strips — flexible shop ground south of the corner.
+  { lotId: "street-lot-strip-west", rect: { x: 0.1, y: 12.5, w: 1.7, h: 1.45 }, door: { x: 1, y: 14 }, depth: "front" },
+  { lotId: "street-lot-strip-east", rect: { x: 9.3, y: 12.5, w: 1.7, h: 1.45 }, door: { x: 9, y: 14 }, depth: "front" },
+  // The lane's bend (west) and the east meadow — cottages. Their
+  // doors stand on the bank row / the far east column: the wall's
+  // south doors slide with the ring (rows 12–13, cols 1–9 across
+  // the eras), and a lot door must never be one they can reach.
+  { lotId: "street-lot-lane-west", rect: { x: 1.95, y: 11.2, w: 1.7, h: 1.45 }, door: { x: 2, y: 14 }, depth: "front" },
+  { lotId: "street-lot-meadow-east", rect: { x: 8.8, y: 11.3, w: 1.7, h: 1.45 }, door: { x: 10, y: 13 }, depth: "front" },
+  // The hill's two feet — back-stratum ground flanking His House's row.
+  { lotId: "street-lot-hill-west", rect: { x: 0.22, y: 4.08, w: 0.86, h: 1.92 }, door: { x: 0, y: 6 }, depth: "back" },
+  { lotId: "street-lot-hill-east", rect: { x: 9.98, y: 4.08, w: 0.9, h: 1.92 }, door: { x: 10, y: 5 }, depth: "back" },
+];
 
 type RowSeat = {
   kind: "house" | "cafe" | "shop" | "home" | "gate";
@@ -551,8 +602,22 @@ export function deriveStreetWorld(
   const homes = map.buildings
     .filter((b) => b.type === "villager-cottage" || b.type === "house")
     .sort((a, b) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : 1));
-  const homesBack = homes.filter((_, i) => i % 2 === 0);
-  const homesFront = homes.filter((_, i) => i % 2 === 1);
+  // v358: a home bought on a STREET LOT stands on its lot (below),
+  // never on the strata — the strata deal only the unseated homes,
+  // in the same reading order as ever.
+  const lotSeatById = new Map(STREET_LOT_SEATS.map((s) => [s.lotId, s]));
+  const strataHomes = homes.filter((b) => !(b.townLotId && lotSeatById.has(b.townLotId)));
+  const homesBack = strataHomes.filter((_, i) => i % 2 === 0);
+  const homesFront = strataHomes.filter((_, i) => i % 2 === 1);
+  /** v358: the building standing on each street lot, if bought —
+   *  any lot type (cottages, shops, the hillfoot garden), matched
+   *  by townLotId, first in reading order. */
+  const lotBuildingByLot = new Map<string, PlacedBuilding>();
+  for (const b of [...map.buildings].sort((a, b) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : 1))) {
+    if (b.townLotId && lotSeatById.has(b.townLotId) && !lotBuildingByLot.has(b.townLotId)) {
+      lotBuildingByLot.set(b.townLotId, b);
+    }
+  }
   const gateById = (id: string) => TOWN_LANDMARKS.find((l) => l.id === id)!;
   const schoolGate = gateById("landmark-school");
   const missionGate = gateById("landmark-mission");
@@ -738,6 +803,47 @@ export function deriveStreetWorld(
     bankPlace({ kind: "empty-lot", rect: { x: 6.95, y: 13.45, w: 1.7, h: 1.45 }, door: { x: 7, y: 14 } })
   );
 
+  // v358 — THE STREET LOTS stand (STREET_LOT_SEATS): bought, the
+  // lot's building stands here as a home on its own ground (its
+  // spur is walked by the home rule below); unsold, the lot is
+  // open ground wearing its FOR SALE sign — no solidity either
+  // way beyond a bought building's own walls.
+  for (const seat of STREET_LOT_SEATS) {
+    const lot = STREET_LOTS.find((l) => l.id === seat.lotId);
+    const bought = lotBuildingByLot.get(seat.lotId);
+    if (bought) {
+      places.push({
+        kind: "home",
+        buildingId: bought.id,
+        buildingType: bought.type,
+        lotId: seat.lotId,
+        x: seat.rect.x,
+        y: seat.rect.y,
+        w: seat.rect.w,
+        h: seat.rect.h,
+        door: { ...seat.door },
+        depth: seat.depth,
+        plot: { ...seat.rect },
+        spur: [{ ...seat.door }],
+        label: BUILDINGS[bought.type].name,
+      });
+    } else {
+      places.push({
+        kind: "plot",
+        lotId: seat.lotId,
+        x: seat.rect.x,
+        y: seat.rect.y,
+        w: seat.rect.w,
+        h: seat.rect.h,
+        door: { ...seat.door },
+        depth: seat.depth,
+        plot: { ...seat.rect },
+        spur: [{ ...seat.door }],
+        label: lot ? `${lot.name} — for sale` : "For sale",
+      });
+    }
+  }
+
   // ── Solidity ──────────────────────────────────────────────────
   // Walls block; roofs don't (pawns walk behind a roof, depth-
   // sorted — which is what lets His House's path thread east of
@@ -766,7 +872,8 @@ export function deriveStreetWorld(
     }
     switch (p.kind) {
       case "empty-lot":
-        break; // open ground
+      case "plot":
+        break; // open ground (a bought lot's building is a "home")
       case "forest":
       case "mine":
         addRectTiles(p);
@@ -908,7 +1015,12 @@ export function deriveStreetWorld(
     const cy = p.door.y + 0.5;
     p.inTown = cx >= wall.x && cx <= wallRight && cy >= wall.y && cy <= wallBottom;
   }
-  const homePlaces = places.filter((p) => p.kind === "home");
+  // v358: home places now include bought street-lot buildings of
+  // any type (a bakery stands as a "home" place on its lot) — the
+  // growth curve still counts HOMES: cottages and houses only.
+  const homePlaces = places.filter(
+    (p) => p.kind === "home" && (p.buildingType === "villager-cottage" || p.buildingType === "house")
+  );
   const plotsOpen = homePlaces.filter((p) => p.inTown).length;
 
   const cafe = places.find((p) => p.kind === "cafe") ?? null;
@@ -1141,16 +1253,34 @@ export type StageFit = {
   extendTop: number;
   /** Extra river depth below the bank (the elastic bottom band). */
   extendBottom: number;
-  /** Horizontal centring slack (0 whenever the width rules). */
+  /** Horizontal centring slack: 0 when the width rules at the
+   *  Village's full frame; the era zoom's revealed land (v358)
+   *  otherwise — the renderer draws it as landscape margins. */
   offsetX: number;
   /** The stage's total drawn height: contentH + extendTop + extendBottom. */
   stageH: number;
 };
 
-export function stageFit(boxW: number, boxH: number): StageFit {
+/** v358 — THE ERA ZOOM (his growth rule, Oct 29 22:56: the view
+ *  steps OUT era by era — "it's supposed to be smaller now too
+ *  seeing as we are towards the end of my fast"). The Village
+ *  stands at full frame (1.0); each era steps the stage down
+ *  until the Tribulation renders at 0.80 and the New Earth —
+ *  the widest view of all — at 0.76. The land the zoom reveals
+ *  is drawn landscape (the renderer's margin bands), and the
+ *  street lots stand on it. Labels never shrink below their
+ *  ~10px floor (the label system's own rule), so names stay
+ *  legible at every step. */
+export function eraZoomForIndex(eraIndex: number): number {
+  const i = Math.min(Math.max(Math.floor(eraIndex) || 0, 0), 11);
+  if (i <= 9) return 1 - (0.2 * i) / 9;
+  return 0.8 - 0.02 * (i - 9);
+}
+
+export function stageFit(boxW: number, boxH: number, eraIndex = 0): StageFit {
   const w = Math.max(0, boxW);
   const h = Math.max(0, boxH);
-  const widthCell = w / STREET_W;
+  const widthCell = (w / STREET_W) * eraZoomForIndex(eraIndex);
   const heightCell = h / STREET_H;
   if (heightCell < widthCell) {
     // Short box: the height rules so nothing is cropped.
@@ -1167,16 +1297,17 @@ export function stageFit(boxW: number, boxH: number): StageFit {
     };
   }
   const cell = widthCell;
+  const contentW = cell * STREET_W;
   const contentH = cell * STREET_H;
   const extra = Math.max(0, h - contentH);
   const extendTop = Math.round(extra * 0.4);
   return {
     cell,
-    contentW: w,
+    contentW,
     contentH,
     extendTop,
     extendBottom: extra - extendTop,
-    offsetX: 0,
+    offsetX: Math.max(0, (w - contentW) / 2),
     stageH: h,
   };
 }
@@ -1189,6 +1320,85 @@ export function stageFit(boxW: number, boxH: number): StageFit {
 // the stage — plaques, furniture chips, villager name pills — now
 // runs through lib/stage-labels: real per-glyph measurement and
 // one whole-frame layout pass.
+
+// ── v358: the ONE pass, shared ─────────────────────────────────────────────
+// v355 put the plaques through the one pass but left the floating
+// status chips (the board's count, the testimony count, the two
+// lot game chips) to fend for themselves in the screen — and on
+// device the "Tide Pools" chip landed ON the Garden of
+// Remembrance plaque, because the chips' little side-pass never
+// saw the plaques at all. The seat and rect builders live HERE
+// now, used by BOTH the street renderer (its plaques) and the
+// screen (the whole pass: plaques + every chip together, the art
+// and the register pile reserved) — one source, so the two can
+// never drift apart again.
+
+/** The stage's label key for a place (the renderer's own). */
+export function streetPlaceKey(p: StreetPlace): string {
+  return `place-${p.kind}-${p.buildingId ?? p.landmark?.id ?? `${p.x}-${p.y}`}`;
+}
+
+/** The plaque font at a cell size (the label floor holds it at
+ *  ~10px however far the era zoom steps out). */
+export function streetPlaqueFont(cellSize: number): number {
+  return Math.max(10, 10.5 * (cellSize / 40));
+}
+
+/** Reserved art for the label pass: each place's WALLS band (its
+ *  lower 60% — the same band the derivation makes solid). Roofs
+ *  are sky; a plaque at a neighbour's feet may share the
+ *  roofline's air, but never the walls. */
+export function streetArtRects(world: StreetWorld, cellSize: number): ReservedRect[] {
+  const cs = cellSize;
+  return world.places.map((p) => ({
+    key: streetPlaceKey(p),
+    left: p.x * cs,
+    top: (p.y + p.h * 0.4) * cs,
+    width: p.w * cs,
+    height: p.h * 0.6 * cs,
+  }));
+}
+
+/** The plaque seats, exactly as the renderer has always built
+ *  them: at the place's feet, or above its door where the feet
+ *  stand on the bank (below the feet is the river). */
+export function streetPlaqueSeats(world: StreetWorld, cellSize: number): StageLabelSeat[] {
+  const cs = cellSize;
+  const font = streetPlaqueFont(cs);
+  const pillH = Math.ceil(font * 1.5) + 6;
+  const riverTopPx = (STREET_H - 1) * cs;
+  return world.places
+    .filter((p) => p.plaque)
+    .map((p) => {
+      const feetTop = (p.y + p.h) * cs + 3;
+      return {
+        key: `plaque-${p.kind}-${p.buildingId ?? p.landmark?.id ?? `${p.x}`}`,
+        label: p.plaque!,
+        cx: (p.x + p.w / 2) * cs,
+        top: feetTop + pillH > riverTopPx ? p.y * cs - pillH - 3 : feetTop,
+        fontSize: font,
+        avoidKey: streetPlaceKey(p),
+      };
+    });
+}
+
+/** The café register pile's pill, reserved in the pass: the pile
+ *  is furniture fixed to its art (it does not join the seats),
+ *  but no plaque or chip may land on it either. Null when no
+ *  pile waits. */
+export function streetPileRect(world: StreetWorld, cellSize: number): ReservedRect | null {
+  const cafe = world.cafe;
+  if (!cafe || world.cafePile <= 0) return null;
+  const cs = cellSize;
+  const s = cs / 40;
+  return {
+    key: "chip-pile",
+    left: (cafe.door.x + 0.5) * cs - 66 * s,
+    top: cafe.door.y * cs + 30 * s - 2,
+    width: 132 * s,
+    height: Math.ceil(10 * 1.5) + 12,
+  };
+}
 
 // ── Storage (the hometown screen's pattern: read on open) ───────────────────
 

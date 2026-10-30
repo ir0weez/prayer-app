@@ -2201,6 +2201,44 @@ export const TOWN_LOTS: TownLot[] = [
   { id: "town-lot-pawn", x: 4, y: 21, w: 2, h: 2, allowedTypes: ["pawn-house"], cost: 275, name: "Hearthside" },
 ];
 
+/**
+ * v358 — THE STREET LOTS: eight more properties to buy (Jonathan,
+ * Oct 29 22:56: "There should be a lot more properties to buy"),
+ * standing on the Wide Street itself — lib/wide-street's
+ * STREET_LOT_SEATS pairs each id with its stage seat (the
+ * riverbank ends, the bankside strips, the lane's bend, the east
+ * meadow, the hill's two feet). They are TownLots in every way
+ * that matters — same purchase flow (handleTownLotPress → the
+ * lot modal → purchaseOnLot), same era pricing, buildings carry
+ * townLotId and can't be moved or sold — but they are NOT
+ * neighborhood lots: the neighborhood's geography (its 10×34
+ * board, its lane-fronting rule, its cottage reading order) is
+ * pinned as built, and the street is a different ground. Their
+ * record coordinates are bookkeeping in the board's free south
+ * rows; the street derivation matches their buildings by
+ * townLotId and seats them on the stage. The neighborhood's
+ * auto-assignment NEVER claims a street lot (a street lot is
+ * bought on the street, or it stands empty) — but a building
+ * stamped with a street lot's id is a valid lot building, and
+ * ensureTownNeighborhood keeps it on its lot. The diner is
+ * deliberately absent from the flexible lists — the café is the
+ * town's diner.
+ */
+export const STREET_LOTS: TownLot[] = [
+  { id: "street-lot-bank-west", x: 6, y: 32, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Riverbank West" },
+  { id: "street-lot-bank-east", x: 7, y: 32, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Riverbank East" },
+  { id: "street-lot-lane-west", x: 8, y: 32, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Lane's Bend" },
+  { id: "street-lot-meadow-east", x: 9, y: 32, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "East Meadow" },
+  { id: "street-lot-hill-west", x: 6, y: 33, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Hillfoot West" },
+  { id: "street-lot-strip-west", x: 0, y: 32, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES.filter((t) => t !== "diner"), cost: 825, name: "Bankside West" },
+  { id: "street-lot-strip-east", x: 2, y: 32, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES.filter((t) => t !== "diner"), cost: 825, name: "Bankside East" },
+  { id: "street-lot-hill-east", x: 4, y: 32, w: 2, h: 2, allowedTypes: ["community-garden"], cost: 990, name: "Hillfoot Garden", presetType: "community-garden" },
+];
+
+/** Every lot a building may legitimately be stamped with —
+ *  neighborhood and street alike. */
+export const ALL_TOWN_LOTS: TownLot[] = [...TOWN_LOTS, ...STREET_LOTS];
+
 /** Winding neighborhood path tiles — permanent infrastructure (not a grid). */
 export const TOWN_PATH: Array<{ x: number; y: number }> = [
   // v285 — the Lane. One winding street: it starts at the artisans'
@@ -2563,7 +2601,11 @@ export function ensureTownNeighborhood(map: MapState): MapState {
   // 2. Buildings: assign unassigned buildings to empty lots by type.
   //    Buildings on lots that no longer exist (dangling townLotId) are
   //    treated as unassigned and re-homed to a free matching lot if possible.
-  const validLotIds = new Set(TOWN_LOTS.map((l) => l.id));
+  //    v358: street lots are valid stamps too (ALL_TOWN_LOTS) — a
+  //    building bought on the street keeps its lot. The re-homing
+  //    search below still reads TOWN_LOTS only: auto-assignment
+  //    never claims a street lot.
+  const validLotIds = new Set(ALL_TOWN_LOTS.map((l) => l.id));
   const buildings = map.buildings || [];
   const occupiedLotIds = new Set<string>();
   const normalized = buildings.map((b) => {
@@ -2591,7 +2633,7 @@ export function ensureTownNeighborhood(map: MapState): MapState {
   // new streets), snap its building along so nothing is left behind.
   const synced = moved.map((b) => {
     if (!b.townLotId) return b;
-    const lot = TOWN_LOTS.find((l) => l.id === b.townLotId);
+    const lot = ALL_TOWN_LOTS.find((l) => l.id === b.townLotId);
     if (!lot || (b.x === lot.x && b.y === lot.y)) return b;
     return { ...b, x: lot.x, y: lot.y };
   });

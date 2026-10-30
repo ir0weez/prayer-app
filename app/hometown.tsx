@@ -88,6 +88,7 @@ import {
   loadPurchasedPlots,
   savePurchasedPlots,
   TOWN_LOTS,
+  STREET_LOTS,
   TOWN_PATH,
   townLotAt,
   lotPurchaseBlocker,
@@ -378,7 +379,7 @@ import { type WalkTile } from "@/lib/walkable-town";
 import { StreetWorldView } from "@/components/wide-street";
 import { StreetErrorBoundary } from "@/components/street-error-boundary";
 import { StreetVillagers } from "@/components/street-villagers";
-import { LotPlayPoint, NoticeBoardPoint, noticeBoardStandW, TestimonyStonesPoint } from "@/components/street-world-points";
+import { LotPlayPoint, NoticeBoardPoint, noticeBoardChipLabel, noticeBoardStandW, TestimonyStonesPoint, testimonyStonesStandW } from "@/components/street-world-points";
 import { labelPillHeight, layoutStageLabels } from "@/lib/stage-labels";
 import {
   defaultWideStreetState,
@@ -388,8 +389,12 @@ import {
   planStreetWalk,
   saveWideStreetState,
   settleWideStreetMigration,
+  streetArtRects,
+  streetPileRect,
   streetPlaceAt,
   streetPlaceByBuildingId,
+  streetPlaqueSeats,
+  STREET_H,
   type StreetPlace,
   type WideStreetState,
 } from "@/lib/wide-street";
@@ -7792,6 +7797,14 @@ export default function HometownScreen() {
         if (b) handleTownLotBuildingPress(b);
         break;
       }
+      case "plot": {
+        // v358: an unsold street lot — arriving at its sign opens
+        // the town's own lot purchase flow (the lot modal and
+        // purchaseOnLot, era-priced like every lot in town).
+        const lot = place.lotId ? STREET_LOTS.find((l) => l.id === place.lotId) : undefined;
+        if (lot) handleTownLotPress(lot);
+        break;
+      }
     }
   };
 
@@ -8373,8 +8386,85 @@ export default function HometownScreen() {
   // are disjoint by construction.
   const stageBoxW = worldBox?.w ?? windowW;
   const stageBoxH = worldBox?.h ?? Math.max(320, windowH - insets.top - insets.bottom);
-  const stage = stageFit(stageBoxW, stageBoxH);
+  // v358: the era zoom — the stage steps OUT era by era (his
+  // growth rule), so the fit reads the world's own era.
+  const stage = stageFit(stageBoxW, stageBoxH, streetWorld?.eraIndex ?? 0);
   const streetCell = stage.cell;
+
+  // v358 — THE ONE LABEL PASS, WHOLE. v355 laid the plaques out
+  // in the street renderer and staggers the two lot chips in a
+  // little side-pass here, but the board's chip and the testimony
+  // chip never joined any pass — on device the "Tide Pools" chip
+  // sat ON the Garden of Remembrance plaque and the testimony
+  // count crowded the Schoolhouse. Now EVERY static word on the
+  // stage is one seat in one layoutStageLabels call: the plaques
+  // (lib/wide-street's shared seats), the board's chip, the
+  // testimony chip, and both lot game chips — against the whole
+  // frame (the river's top edge is the bottom bound), the places'
+  // art reserved, the café's register pile reserved. The street
+  // renders its plaques at these very rects (labelRects), and
+  // each furniture chip renders at its natural seat plus the
+  // dealt offset — the layout gives way, never the word, and no
+  // chip can sit on a plaque because they were laid out together.
+  const stageLabels = useMemo(() => {
+    if (!streetWorld) return null;
+    const cs = streetCell;
+    const scale = cs / 40;
+    const seats = [...streetPlaqueSeats(streetWorld, cs)];
+    const naturals = new Map<string, { cx: number; top: number }>();
+    const board = streetWorld.board;
+    const corner = streetWorld.corner;
+    if (board) {
+      const count = pendingMissions(missions).length;
+      const key = "chip-board";
+      const cx = (board.x + board.w / 2) * cs;
+      // The chip's natural seat: under the board's face, in its stand.
+      const top = (board.y + board.h) * cs + 7 * scale;
+      seats.push({ key, label: noticeBoardChipLabel(count), cx, top, fontSize: Math.max(10, 9.5 * scale) });
+      naturals.set(key, { cx, top });
+    }
+    {
+      const key = "chip-testimony";
+      const standW = testimonyStonesStandW(monumentCount, scale);
+      const cx = corner.x * cs + 2 + standW / 2;
+      const top = (corner.y + corner.h) * cs - 20 * scale;
+      seats.push({
+        key,
+        label: monumentCount === 1 ? "1 testimony" : `${monumentCount} testimonies`,
+        cx,
+        top,
+        fontSize: Math.max(10, 9.5 * scale),
+      });
+      naturals.set(key, { cx, top });
+    }
+    const lots = streetWorld.places.filter((p) => p.kind === "empty-lot").sort((a, b) => a.x - b.x);
+    lots.forEach((lot, i) => {
+      const label = i === 0 ? "Garden Tending" : "Tide Pools";
+      const playsLeft = i === 0 ? gardenPlaysLeft : tidePlaysLeft;
+      const cap = i === 0 ? MINI_GAME_CAPS.garden : MINI_GAME_CAPS.tide;
+      const plays = playsLeft ?? cap;
+      const text = plays > 0 ? `${label} · ${plays}/${cap}` : `${label} · played out`;
+      const font = Math.max(10, 10 * scale);
+      const key = `lot-chip-${i}`;
+      const cx = (lot.x + lot.w / 2) * cs;
+      const top = (lot.y + lot.h / 2) * cs - labelPillHeight(font) / 2;
+      // The rendered chip is wider than its word (it carries an
+      // icon) — the pass must clear the chip, not just the word.
+      seats.push({ key, label: text, cx, top, fontSize: font, widthBonus: Math.max(11, 12 * scale) + 8 * scale });
+      naturals.set(key, { cx, top });
+    });
+    const reserved = [...streetArtRects(streetWorld, cs)];
+    const pile = streetPileRect(streetWorld, cs);
+    if (pile) reserved.push(pile);
+    const rects = layoutStageLabels(seats, { w: streetWorld.w * cs, h: (STREET_H - 1) * cs }, reserved);
+    const offsets = new Map<string, { dx: number; dy: number }>();
+    for (const [key, nat] of naturals) {
+      const rect = rects.find((r) => r.key === key);
+      if (!rect) continue;
+      offsets.set(key, { dx: rect.left + rect.width / 2 - nat.cx, dy: rect.top - nat.top });
+    }
+    return { rects, offsets };
+  }, [streetWorld, streetCell, missions, monumentCount, gardenPlaysLeft, tidePlaysLeft]);
 
   const streetWorldRef = useRef(streetWorld);
   streetWorldRef.current = streetWorld;
@@ -9089,7 +9179,7 @@ export default function HometownScreen() {
         >
         <WalkableTownShell
           enabled={activeMap === "town"}
-          worldW={activeMap === "town" && streetWorld ? streetWorld.w * streetCell : gridW * cellSize}
+          worldW={activeMap === "town" && streetWorld ? stageBoxW : gridW * cellSize}
           worldH={activeMap === "town" && streetWorld ? stage.stageH : gridH * cellSize}
           viewportH={activeMap === "town" && streetWorld ? stageBoxH : TOWN_VIEWPORT_H}
           viewportW={activeMap === "town" && streetWorld ? stageBoxW : gridW * cellSize}
@@ -9097,7 +9187,7 @@ export default function HometownScreen() {
           followNonce={walkNonce}
         >
         {activeMap === "town" && streetWorld ? (
-          <View ref={mapGridRef} style={{ position: "relative", width: streetWorld.w * streetCell, height: stage.stageH }}>
+          <View ref={mapGridRef} style={{ position: "relative", width: stageBoxW, height: stage.stageH }}>
             {/* v291: the Wide Street itself — its places, its people,
                 its ground, all carrying their own Pressables inside
                 this subtree (the v290 lesson: a tap must land on a
@@ -9113,6 +9203,8 @@ export default function HometownScreen() {
               cellSize={streetCell}
               extendTop={stage.extendTop}
               extendBottom={stage.extendBottom}
+              marginX={stage.offsetX}
+              labelRects={stageLabels?.rects}
               phase={dayPhase}
               era={townEra}
               ovenLit={cafeOven === "lit"}
@@ -9174,42 +9266,20 @@ export default function HometownScreen() {
               const board = streetWorld.board;
               const corner = streetWorld.corner;
               const lots = streetWorld.places.filter((p) => p.kind === "empty-lot").sort((a, b) => a.x - b.x);
-              // v355: the two lots' game chips go through the ONE
-              // label pass — their measured pills are wider than
-              // the gap between the lots, so side by side they
-              // would meet over the bank; the pass staggers the
-              // second chip clear (the layout gives way, never
-              // the word), and each point shifts its pill by the
-              // dealt offset.
-              const lotChipFont = Math.max(10, 10 * scale);
-              const lotChipText = (label: string, playsLeft: number | null, cap: number) => {
-                const plays = playsLeft ?? cap;
-                return plays > 0 ? `${label} · ${plays}/${cap}` : `${label} · played out`;
-              };
-              const lotChipSeats = lots.map((lot, i) => {
-                const label = i === 0 ? "Garden Tending" : "Tide Pools";
-                const playsLeft = i === 0 ? gardenPlaysLeft : tidePlaysLeft;
-                const cap = i === 0 ? MINI_GAME_CAPS.garden : MINI_GAME_CAPS.tide;
-                return {
-                  key: `lot-chip-${i}`,
-                  label: lotChipText(label, playsLeft, cap),
-                  cx: (lot.x + lot.w / 2) * cs,
-                  top: (lot.y + lot.h / 2) * cs - labelPillHeight(lotChipFont) / 2,
-                  fontSize: lotChipFont,
-                };
-              });
-              const lotChipRects = layoutStageLabels(lotChipSeats, { w: streetWorld.w * cs, h: 15 * cs });
-              const lotChipDy = (i: number) => {
-                const rect = lotChipRects.find((r) => r.key === `lot-chip-${i}`);
-                const seat = lotChipSeats[i];
-                return rect && seat ? rect.top - seat.top : 0;
-              };
+              // v358: every chip's offset comes from the ONE
+              // whole-frame pass (stageLabels, computed above):
+              // plaques and chips were laid out together, so a
+              // chip's dealt seat is clear of every plaque by
+              // construction — the "Tide Pools" chip can never
+              // sit on the Garden of Remembrance plaque again.
+              const chipOffset = (key: string) => stageLabels?.offsets.get(key) ?? { dx: 0, dy: 0 };
               return (
                 // v343: the stage's content rides below the elastic
                 // sky band (StreetWorldView shifts its own content
                 // layer by extendTop) — the furniture seats in the
                 // same content space, so this layer shifts with it.
-                <View pointerEvents="box-none" style={{ position: "absolute", left: 0, top: stage.extendTop, right: 0, bottom: 0 }}>
+                // v358: it also rides inside the era zoom's margins.
+                <View pointerEvents="box-none" style={{ position: "absolute", left: stage.offsetX, top: stage.extendTop, right: stage.offsetX, bottom: 0 }}>
                   {board ? (
                     <NoticeBoardPoint
                       left={(board.x + board.w / 2) * cs - noticeBoardStandW(pendingMissions(missions).length, scale) / 2}
@@ -9217,6 +9287,8 @@ export default function HometownScreen() {
                       pendingCount={pendingMissions(missions).length}
                       onPress={() => setMissionsVisible(true)}
                       scale={scale}
+                      chipDx={chipOffset("chip-board").dx}
+                      chipDy={chipOffset("chip-board").dy}
                     />
                   ) : null}
                   <TestimonyStonesPoint
@@ -9224,6 +9296,8 @@ export default function HometownScreen() {
                     top={(corner.y + corner.h) * cs - 46 * scale}
                     count={monumentCount}
                     scale={scale}
+                    chipDx={chipOffset("chip-testimony").dx}
+                    chipDy={chipOffset("chip-testimony").dy}
                   />
                   {lots[0] ? (
                     <LotPlayPoint
@@ -9237,7 +9311,8 @@ export default function HometownScreen() {
                       cap={MINI_GAME_CAPS.garden}
                       onPlay={() => { gardenBloomKindsRef.current = []; setPlayingGarden(true); }}
                       scale={scale}
-                      chipDy={lotChipDy(0)}
+                      chipDx={chipOffset("lot-chip-0").dx}
+                      chipDy={chipOffset("lot-chip-0").dy}
                     />
                   ) : null}
                   {lots[1] ? (
@@ -9252,7 +9327,8 @@ export default function HometownScreen() {
                       cap={MINI_GAME_CAPS.tide}
                       onPlay={() => setPlayingTide(true)}
                       scale={scale}
-                      chipDy={lotChipDy(1)}
+                      chipDx={chipOffset("lot-chip-1").dx}
+                      chipDy={chipOffset("lot-chip-1").dy}
                     />
                   ) : null}
                 </View>

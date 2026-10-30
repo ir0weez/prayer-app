@@ -108,9 +108,14 @@ describe("v307 (a) — composition: the town is the screen", () => {
     // none to subtract): the cell fits the width, the stage takes
     // the box's full height, and sky/ground bands absorb the slack
     // (the numeric contract is pinned in hometown-v343-frame).
-    expect(screen).toContain("const stage = stageFit(stageBoxW, stageBoxH);");
+    // RE-BASED (v358): the fit now reads the world's era — the
+    // stage steps OUT era by era (his growth rule), and the
+    // shell's world spans the whole box while the street draws
+    // the revealed land as margins inside it.
+    expect(screen).toContain("const stage = stageFit(stageBoxW, stageBoxH, streetWorld?.eraIndex ?? 0);");
     expect(screen).toContain("const streetCell = stage.cell;");
-    expect(screen).toContain("streetWorld.w * streetCell");
+    expect(screen).toContain('worldW={activeMap === "town" && streetWorld ? stageBoxW : gridW * cellSize}');
+    expect(screen).toContain("marginX={stage.offsetX}");
     expect(screen).toContain('viewportW={activeMap === "town" && streetWorld ? stageBoxW : gridW * cellSize}');
   });
 

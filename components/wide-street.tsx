@@ -53,16 +53,19 @@ import {
   laneCenterRowAt,
   laneWallCrossings,
   RIVER_RECTS,
+  streetArtRects,
+  streetPlaqueSeats,
   STREET_H,
   STREET_W,
   type StreetPlace,
   type StreetWorld,
 } from "@/lib/wide-street";
-import { layoutStageLabels, type ReservedRect } from "@/lib/stage-labels";
+import { layoutStageLabels, type StageLabelRect } from "@/lib/stage-labels";
 import {
   EmptyLotArt,
   eraGroundFor,
   ForestTreesArt,
+  ForSaleSign,
   GateArt,
   GatheringArt,
   HeroHouseArt,
@@ -145,6 +148,8 @@ export const StreetWorldView = memo(function StreetWorldView({
   cellSize,
   extendTop = 0,
   extendBottom = 0,
+  marginX = 0,
+  labelRects,
   phase,
   era,
   ovenLit,
@@ -163,6 +168,17 @@ export const StreetWorldView = memo(function StreetWorldView({
   extendTop?: number;
   /** v343: elastic river depth below the content, px. */
   extendBottom?: number;
+  /** v358: the era zoom's revealed land, px on EACH side of the
+   *  content — drawn here as landscape (sky, grass, river run
+   *  on), so the zoomed-out town sits in a country, not a void. */
+  marginX?: number;
+  /** v358: the ONE label pass, dealt by the screen — plaques AND
+   *  every floating chip laid out together (lib/wide-street's
+   *  shared seat builders feeding lib/stage-labels). When the
+   *  screen deals them, the plaques render at exactly these
+   *  rects; when it doesn't, the plaques lay themselves out
+   *  alone, as they did in v355. */
+  labelRects?: StageLabelRect[];
   phase: DayPhase;
   /** v323 (The Era Game): the age the fast has reached — its papers
    *  dress the street. Null (or the Village) is the street as built. */
@@ -219,48 +235,21 @@ export const StreetWorldView = memo(function StreetWorldView({
   const hillNear = eraSky ? mixHex(hd.near, eraSky, 0.4) : hd.near;
   const laneD = lanePathD(worldW, worldH);
   const hillBase = 3.84 * cs;
-  const mineHill = world.places.find((p) => p.kind === "mine");
   /** Places whose yards show as ground (strata buildings only). */
   const yardKinds = new Set(["house", "cafe", "shop", "home", "gate"]);
   // v355: every plaque's rect, laid out once by the ONE label
   // system — inside the whole frame (bottom bound = the river's
   // top edge), whole, clear of its neighbours AND of the places'
   // art (a seat may touch only its own place's rect).
+  // v358: the seats and the reserved art come from lib/wide-
+  // street's shared builders, and when the screen deals the
+  // WHOLE pass (plaques + every floating chip together), the
+  // plaques render at the dealt rects — one pass, one source.
   const plaqueFont = Math.max(10, 10.5 * s);
-  const plaqueH = Math.ceil(plaqueFont * 1.5) + 6;
-  const placeKey = (p: StreetPlace) =>
-    `place-${p.kind}-${p.buildingId ?? p.landmark?.id ?? `${p.x}-${p.y}`}`;
-  // The reserved art is each place's WALLS band (its lower 60% —
-  // the same band the derivation makes solid): roofs are sky, and
-  // a plaque at a neighbour's feet may share the roofline's air.
-  const reserved: ReservedRect[] = world.places.map((p) => ({
-    key: placeKey(p),
-    left: p.x * cs,
-    top: (p.y + p.h * 0.4) * cs,
-    width: p.w * cs,
-    height: p.h * 0.6 * cs,
-  }));
   const riverTopPx = (STREET_H - 1) * cs;
-  const plaqueRects = layoutStageLabels(
-    world.places
-      .filter((p) => p.plaque)
-      .map((p) => {
-        const feetTop = (p.y + p.h) * cs + 3;
-        return {
-          key: `plaque-${p.kind}-${p.buildingId ?? p.landmark?.id ?? `${p.x}`}`,
-          label: p.plaque!,
-          cx: (p.x + p.w / 2) * cs,
-          // A plaque rides at its place's feet — except where the
-          // feet stand on the bank (the south wall doors), where
-          // below is the river: those seat ABOVE their door.
-          top: feetTop + plaqueH > riverTopPx ? p.y * cs - plaqueH - 3 : feetTop,
-          fontSize: plaqueFont,
-          avoidKey: placeKey(p),
-        };
-      }),
-    { w: worldW, h: riverTopPx },
-    reserved,
-  );
+  const plaqueRects = labelRects
+    ? labelRects.filter((r) => r.key.startsWith("plaque-"))
+    : layoutStageLabels(streetPlaqueSeats(world, cs), { w: worldW, h: riverTopPx }, streetArtRects(world, cs));
   /** v355: the town wall's ring in stage px, and where the lane
    *  passes through it. */
   const wallPx = {
@@ -275,24 +264,65 @@ export const StreetWorldView = memo(function StreetWorldView({
    *  the band the frame fit reports under the bank. */
   const riverBandTop = extendTop + (STREET_H - 1) * cs;
   const riverBandH = Math.max(0, totalH - riverBandTop);
+  /** v358: the whole stage box, margins included. */
+  const totalW = worldW + marginX * 2;
 
   return (
-    <View style={{ position: "relative", width: worldW, height: totalH, backgroundColor: ground.grass }}>
+    <View style={{ position: "relative", width: totalW, height: totalH, backgroundColor: ground.grass }}>
       {/* The street's own ground — the root's first interactive
-          child, spanning the WHOLE box (bands included): a tap in
-          the sky walks to the hill band, a tap in the deep river to
-          the bank. Reports CONTENT pixels — the band offset comes
-          off here, so the screen's tile math never sees it. */}
+          child, spanning the WHOLE box (bands and margins
+          included): a tap in the sky walks to the hill band, a
+          tap in the deep river to the bank, a tap on the revealed
+          land walks to the town's edge. Reports CONTENT pixels —
+          the band and margin offsets come off here, so the
+          screen's tile math never sees them. */}
       <Pressable
-        style={{ position: "absolute", left: 0, top: 0, width: worldW, height: totalH }}
+        style={{ position: "absolute", left: 0, top: 0, width: totalW, height: totalH }}
         onPress={(e) =>
-          onGroundPress({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY - extendTop })
+          onGroundPress({
+            x: Math.min(Math.max(e.nativeEvent.locationX - marginX, 0), worldW),
+            y: e.nativeEvent.locationY - extendTop,
+          })
         }
         onLongPress={(e) =>
-          onGroundLongPress({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY - extendTop })
+          onGroundLongPress({
+            x: Math.min(Math.max(e.nativeEvent.locationX - marginX, 0), worldW),
+            y: e.nativeEvent.locationY - extendTop,
+          })
         }
         delayLongPress={450}
       />
+      {/* v358: the revealed land — when the era zoom steps out,
+          the country around the town is DRAWN: the sky runs on,
+          the grass runs on (tufts, a lone tree, field stones),
+          and the river runs on to the frame's edges, so the town
+          sits smaller in a landscape, never in a void. */}
+      {marginX > 2 ? (
+        <Svg
+          pointerEvents="none"
+          style={{ position: "absolute", left: 0, top: 0 }}
+          width={totalW}
+          height={totalH}
+          viewBox={`0 0 ${totalW} ${totalH}`}
+        >
+          {[0, marginX + worldW].map((mx, side) => (
+            <G key={`margin-${side}`}>
+              <Rect x={mx} y={0} width={marginX} height={extendTop + hillBase} fill={sky} />
+              <Rect x={mx} y={riverBandTop} width={marginX} height={Math.max(0, totalH - riverBandTop)} fill="#47688C" />
+              <Rect x={mx} y={riverBandTop + riverBandH * 0.55} width={marginX} height={Math.max(0, totalH - riverBandTop - riverBandH * 0.55)} fill="#3A5878" />
+              {[0.3, 0.52, 0.74].map((fy, i) => (
+                <Rect key={i} x={mx + ((i * 29 + side * 13) % Math.max(10, marginX - 26))} y={extendTop + hillBase + fy * Math.max(10, riverBandTop - extendTop - hillBase)} width={Math.min(9, marginX * 0.3)} height={5} rx={2} fill={ground.padEdge} opacity={0.7} />
+              ))}
+              <Polygon
+                points={`${mx + marginX * 0.5},${extendTop + hillBase + cs * 0.7} ${mx + marginX * 0.5 - cs * 0.34},${extendTop + hillBase + cs * 1.7} ${mx + marginX * 0.5 + cs * 0.34},${extendTop + hillBase + cs * 1.7}`}
+                fill={hillNear}
+                opacity={0.85}
+              />
+              <Rect x={mx + marginX * 0.5 - 1.5} y={extendTop + hillBase + cs * 1.7} width={3} height={cs * 0.3} fill="#5D4630" />
+            </G>
+          ))}
+        </Svg>
+      ) : null}
       {/* v355: the sky band is DRAWN sky (stars and a moon at
           night, clouds by day, the low sun at dawn/dusk) — the
           flat colour field the audit measured (~18% of the frame)
@@ -301,7 +331,7 @@ export const StreetWorldView = memo(function StreetWorldView({
       {extendTop > 2 ? (
         <Svg
           pointerEvents="none"
-          style={{ position: "absolute", left: 0, top: 0 }}
+          style={{ position: "absolute", left: marginX, top: 0 }}
           width={worldW}
           height={extendTop + hillBase}
           viewBox={`0 0 ${worldW} ${extendTop + hillBase}`}
@@ -336,7 +366,7 @@ export const StreetWorldView = memo(function StreetWorldView({
       {riverBandH > 2 ? (
         <Svg
           pointerEvents="none"
-          style={{ position: "absolute", left: 0, top: riverBandTop }}
+          style={{ position: "absolute", left: marginX, top: riverBandTop }}
           width={worldW}
           height={riverBandH}
           viewBox={`0 0 ${worldW} ${riverBandH}`}
@@ -348,8 +378,9 @@ export const StreetWorldView = memo(function StreetWorldView({
           ))}
         </Svg>
       ) : null}
-      {/* the content, offset by the sky band */}
-      <View pointerEvents="box-none" style={{ position: "absolute", left: 0, top: extendTop, width: worldW, height: worldH }}>
+      {/* the content, offset by the sky band (and, v358, by the
+          era zoom's west margin) */}
+      <View pointerEvents="box-none" style={{ position: "absolute", left: marginX, top: extendTop, width: worldW, height: worldH }}>
 
       {/* ── The stage picture: ONE SVG layer ──────────────────────
           sky and hills, yards, the corner's paving, the door
@@ -388,17 +419,71 @@ export const StreetWorldView = memo(function StreetWorldView({
               fill={phase === "dusk" ? "#FFC98A" : "#FFE9A8"}
             />
           )}
-          {/* the far hill shoulder, west */}
-          <Ellipse cx={worldW * 0.3} cy={hillBase} rx={worldW * 0.44} ry={cs * 1.5} fill={hillFar} />
-          {/* the mine's hill: one polygon, apex (0.83, 0.06) of the
-              stage, base at the hill baseline — drawn from the
-              mine's own seat, so the hill IS the place's ground */}
-          {mineHill && (
-            <Polygon
-              points={`${mineHill.x * cs},${hillBase} ${(0.83 * worldW).toFixed(1)},${0.92 * cs} ${(mineHill.x + mineHill.w) * cs},${hillBase}`}
-              fill={hillNear}
-            />
-          )}
+          {/* v358: THE HILL IS TERRAIN, not one flat ellipse —
+              three drawn ridges stack west to east (the far
+              shoulder, a mid ridge, and the near ridge that rises
+              into the mine's own hill at the east, apex (0.83,
+              0.06) as drawn, seated from the mine's rect so the
+              hill is still the place's ground), with contour
+              lines walking the slopes and field stones scattered
+              on them. The ridges are smooth paths through fixed
+              fractional seats — deterministic, like the sky. */}
+          {(() => {
+            const ridge = (pts: Array<[number, number]>) => {
+              let d = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+              for (let i = 0; i + 1 < pts.length; i++) {
+                const p0 = pts[Math.max(0, i - 1)];
+                const p1 = pts[i];
+                const p2 = pts[i + 1];
+                const p3 = pts[Math.min(pts.length - 1, i + 2)];
+                d += ` C ${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)} ${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)}, ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)} ${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)}, ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+              }
+              return `${d} L ${worldW} ${hillBase} L 0 ${hillBase} Z`;
+            };
+            const farPts: Array<[number, number]> = [
+              [0, hillBase - cs * 0.9],
+              [worldW * 0.2, hillBase - cs * 1.95],
+              [worldW * 0.42, hillBase - cs * 1.15],
+              [worldW * 0.64, hillBase - cs * 1.6],
+              [worldW * 0.83, hillBase - cs * 2.5],
+              [worldW, hillBase - cs * 1.5],
+            ];
+            const midPts: Array<[number, number]> = [
+              [0, hillBase - cs * 0.45],
+              [worldW * 0.24, hillBase - cs * 1.25],
+              [worldW * 0.5, hillBase - cs * 0.7],
+              [worldW * 0.72, hillBase - cs * 1.35],
+              [worldW * 0.9, hillBase - cs * 2.1],
+              [worldW, hillBase - cs * 1.1],
+            ];
+            const nearPts: Array<[number, number]> = [
+              [0, hillBase - cs * 0.15],
+              [worldW * 0.3, hillBase - cs * 0.6],
+              [worldW * 0.58, hillBase - cs * 0.35],
+              [worldW * 0.72, hillBase - cs * 1.1],
+              [0.83 * worldW, 0.92 * cs],
+              [worldW, hillBase - cs * 0.55],
+            ];
+            const contour = (pts: Array<[number, number]>, drop: number) =>
+              pts.map(([x, y], i) => `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${(y + drop).toFixed(1)}`).join(" ");
+            return (
+              <G>
+                <Path d={ridge(farPts)} fill={hillFar} />
+                <Path d={ridge(midPts)} fill={mixHex(hillFar, hillNear, 0.5)} />
+                <Path d={ridge(nearPts)} fill={hillNear} />
+                <Path d={contour(farPts, cs * 0.34)} stroke={hillNear} strokeWidth={1.6} fill="none" opacity={0.55} />
+                <Path d={contour(nearPts, cs * 0.4)} stroke={hillFar} strokeWidth={1.6} fill="none" opacity={0.6} />
+                {([[0.16, 1.5], [0.47, 0.85], [0.68, 1.15], [0.93, 1.6]] as const).map(([fx, dy], i) => (
+                  <Polygon
+                    key={`hill-rock-${i}`}
+                    points={`${fx * worldW},${hillBase - cs * dy} ${fx * worldW + cs * 0.22},${hillBase - cs * dy + cs * 0.1} ${fx * worldW + cs * 0.1},${hillBase - cs * dy + cs * 0.2} ${fx * worldW - cs * 0.08},${hillBase - cs * dy + cs * 0.12}`}
+                    fill={hillFar}
+                    opacity={0.8}
+                  />
+                ))}
+              </G>
+            );
+          })()}
           {/* yard grounds — soft tint, no border: a yard is ground,
               not a rectangle (R9) */}
           {world.places
@@ -463,24 +548,107 @@ export const StreetWorldView = memo(function StreetWorldView({
             />
           )}
           {/* v355: THE WALL — the era's footprint ring, drawn over
-              the ground and the lane, under the places: a doubled
-              stone line with gate openings where the lane passes
-              through it. It moves only at era turns (the derivation
-              seats it); the wall doors' own art stands on the ring
-              in the places layer. Drawn before the river so the
-              river's south shore stays clean. */}
-          <Rect x={wallPx.x} y={wallPx.y} width={wallPx.w} height={wallPx.h} rx={cs * 0.45} fill="none" stroke="#6E6353" strokeWidth={cs * 0.22} />
-          <Rect x={wallPx.x} y={wallPx.y} width={wallPx.w} height={wallPx.h} rx={cs * 0.45} fill="none" stroke="#9A8D76" strokeWidth={cs * 0.1} />
-          {wallCrossings.map((c, i) => (
-            <G key={`wall-gap-${i}`}>
-              <Circle cx={c.x * cs} cy={c.y * cs} r={cs * 0.34} fill={ground.grass} />
-              <Circle cx={c.x * cs - cs * 0.36} cy={c.y * cs} r={cs * 0.075} fill="#5D5138" />
-              <Circle cx={c.x * cs + cs * 0.36} cy={c.y * cs} r={cs * 0.075} fill="#5D5138" />
-            </G>
-          ))}
+              the ground and the lane, under the places. It moves
+              only at era turns (the derivation seats it); the wall
+              doors' own art stands on the ring in the places layer.
+              Drawn before the river so the river's south shore
+              stays clean.
+              v358: THE WALL IS STONE now — the v355 doubled line
+              read on device as a pale rounded TRACK running behind
+              the buildings. The ring has THICKNESS (a shadowed
+              base, a stone body, a lighter cap), mortar joints
+              dashed along its length, POSTS standing proud at a
+              walking rhythm, and true BREAKS at the five gate
+              doors and where the lane passes through: the street
+              itself runs through its gate, flanked by jamb posts. */}
+          {(() => {
+            const wallR = { x: world.wall.x, y: world.wall.y, w: world.wall.w, h: world.wall.h };
+            const edgeOf = (px: number, py: number): "w" | "e" | "s" | "n" => {
+              const dW = Math.abs(px - wallR.x);
+              const dE = Math.abs(px - (wallR.x + wallR.w));
+              const dS = Math.abs(py - (wallR.y + wallR.h));
+              const dN = Math.abs(py - wallR.y);
+              const m = Math.min(dW, dE, dS, dN);
+              return m === dW ? "w" : m === dE ? "e" : m === dS ? "s" : "n";
+            };
+            type Break = { x: number; y: number; edge: "w" | "e" | "s" | "n"; street: boolean };
+            const breaks: Break[] = [
+              ...wallCrossings.map((c) => ({ x: c.x, y: c.y, edge: edgeOf(c.x, c.y), street: true })),
+              ...world.places
+                .filter((p) => p.wallDoor)
+                .map((p) => {
+                  const cx = p.x + p.w / 2;
+                  const cy = p.y + p.h / 2;
+                  const edge = edgeOf(cx, cy);
+                  return {
+                    x: edge === "w" ? wallR.x : edge === "e" ? wallR.x + wallR.w : cx,
+                    y: edge === "s" ? wallR.y + wallR.h : edge === "n" ? wallR.y : cy,
+                    edge,
+                    street: false,
+                  };
+                }),
+            ];
+            const nearBreak = (x: number, y: number, dist: number) =>
+              breaks.some((b) => Math.hypot(b.x - x, b.y - y) < dist);
+            const posts: Array<{ x: number; y: number; vert: boolean }> = [];
+            const step = 1.35;
+            for (let x = wallR.x + step; x < wallR.x + wallR.w - 0.4; x += step) {
+              if (!nearBreak(x, wallR.y, 0.62)) posts.push({ x, y: wallR.y, vert: false });
+              if (!nearBreak(x, wallR.y + wallR.h, 0.62)) posts.push({ x, y: wallR.y + wallR.h, vert: false });
+            }
+            for (let y = wallR.y + step; y < wallR.y + wallR.h - 0.4; y += step) {
+              if (!nearBreak(wallR.x, y, 0.62)) posts.push({ x: wallR.x, y, vert: true });
+              if (!nearBreak(wallR.x + wallR.w, y, 0.62)) posts.push({ x: wallR.x + wallR.w, y, vert: true });
+            }
+            return (
+              <G>
+                <Rect x={wallPx.x} y={wallPx.y} width={wallPx.w} height={wallPx.h} rx={cs * 0.45} fill="none" stroke="#5D5138" strokeWidth={cs * 0.36} />
+                <Rect x={wallPx.x} y={wallPx.y} width={wallPx.w} height={wallPx.h} rx={cs * 0.45} fill="none" stroke="#8A7B63" strokeWidth={cs * 0.27} />
+                <Rect x={wallPx.x} y={wallPx.y} width={wallPx.w} height={wallPx.h} rx={cs * 0.45} fill="none" stroke="#6E6353" strokeWidth={cs * 0.27} strokeDasharray={`${cs * 0.55} ${cs * 0.3}`} opacity={0.45} />
+                <Rect x={wallPx.x} y={wallPx.y} width={wallPx.w} height={wallPx.h} rx={cs * 0.45} fill="none" stroke="#B8AB90" strokeWidth={cs * 0.07} />
+                {posts.map((pt, i) => (
+                  <G key={`wall-post-${i}`}>
+                    <Rect
+                      x={(pt.x - (pt.vert ? 0.11 : 0.2)) * cs}
+                      y={(pt.y - (pt.vert ? 0.2 : 0.11)) * cs}
+                      width={(pt.vert ? 0.22 : 0.4) * cs}
+                      height={(pt.vert ? 0.4 : 0.22) * cs}
+                      rx={cs * 0.05}
+                      fill="#6B5D45"
+                    />
+                    <Rect
+                      x={(pt.x - (pt.vert ? 0.14 : 0.23)) * cs}
+                      y={(pt.y - (pt.vert ? 0.23 : 0.14)) * cs}
+                      width={(pt.vert ? 0.28 : 0.46) * cs}
+                      height={(pt.vert ? 0.46 : 0.28) * cs}
+                      rx={cs * 0.06}
+                      fill="#97876A"
+                    />
+                  </G>
+                ))}
+                {breaks.map((b, i) => {
+                  const along = b.edge === "w" || b.edge === "e" ? { dx: 0, dy: 0.44 } : { dx: 0.44, dy: 0 };
+                  return (
+                    <G key={`wall-break-${i}`}>
+                      <Circle cx={b.x * cs} cy={b.y * cs} r={cs * 0.42} fill={b.street ? ground.street : ground.grass} />
+                      <Circle cx={(b.x - along.dx) * cs} cy={(b.y - along.dy) * cs} r={cs * 0.1} fill="#5D5138" />
+                      <Circle cx={(b.x + along.dx) * cs} cy={(b.y + along.dy) * cs} r={cs * 0.1} fill="#5D5138" />
+                    </G>
+                  );
+                })}
+              </G>
+            );
+          })()}
           {/* the river: the full stage width at the bottom band —
               the same rects the derivation blocks, drawn OVER the
               lane's south end, which terminates into it as drawn */}
+          {/* v358: the river is a BAND with a BANK, not a sliver
+              line — a sand-and-stone bank strip runs along its
+              top edge where it meets the bank row, the water
+              deepens in two drawn bands below it, and three wave
+              lines walk its length. The band is ~5% of the stage
+              (its rect) plus the drawn continuation below the
+              frame; the bank is what the eye reads as shore. */}
           {RIVER_RECTS.map((r, i) => (
             <Rect
               key={`river-${i}`}
@@ -492,15 +660,23 @@ export const StreetWorldView = memo(function StreetWorldView({
             />
           ))}
           {RIVER_RECTS.map((r, i) => (
-            <Rect
-              key={`wave-${i}`}
-              x={r.x * cs + 6}
-              y={(r.y + 0.38) * cs}
-              width={r.w * cs - 12}
-              height={2.4}
-              fill="rgba(167,211,235,0.6)"
-              rx={1.2}
-            />
+            <G key={`river-dress-${i}`}>
+              <Rect x={r.x * cs} y={(r.y + 0.45) * cs} width={r.w * cs} height={r.h * cs * 0.55} fill="#3A5878" />
+              {/* the bank: sand over a stone foot, at the water's top edge */}
+              <Rect x={r.x * cs} y={r.y * cs - cs * 0.07} width={r.w * cs} height={cs * 0.13} fill="#C9B18C" />
+              <Rect x={r.x * cs} y={r.y * cs + cs * 0.06} width={r.w * cs} height={2.2} fill="#8A7A5C" />
+              {[0.34, 0.58, 0.82].map((fy, wi) => (
+                <Rect
+                  key={wi}
+                  x={r.x * cs + ((wi * 53) % 40) + 6}
+                  y={(r.y + fy) * cs}
+                  width={r.w * cs * (0.55 - wi * 0.08)}
+                  height={2.4}
+                  fill="rgba(167,211,235,0.6)"
+                  rx={1.2}
+                />
+              ))}
+            </G>
           ))}
           {/* the forest: individual trees on the hill baseline */}
           <ForestTreesArt trees={world.forestTrees} cellSize={cs} phase={phase} />
@@ -680,6 +856,12 @@ export const StreetWorldView = memo(function StreetWorldView({
                 <GateArt w={artW} h={artH} art={p.landmark.art} windowsLit={windowsLit} dress={dress} />
               )}
               {p.kind === "empty-lot" && <EmptyLotArt w={artW} h={artH} weekLot={p.weekLot} />}
+              {p.kind === "plot" && (
+                <>
+                  <EmptyLotArt w={artW} h={artH} />
+                  <ForSaleSign w={artW} h={artH} />
+                </>
+              )}
             </View>
           );
         })}

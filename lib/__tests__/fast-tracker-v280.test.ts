@@ -183,7 +183,14 @@ describe("v280 fidelity: the fasting section is the mockup", () => {
   });
 
   it("no Hometown entry card on the fasting page (Hometown lives on People)", () => {
-    expect(profile).not.toContain('router.push("/hometown")');
+    // RE-BASED (v354, dated 2026-10-29): the route-absence half
+    // of this pin held the v280 removal. The approved Concept 2
+    // "Two Lives" (profile-concepts-v2, his pick) restores
+    // Hometown as a quiet row in the YOUR TOWN group card on My
+    // Profile — a door, not the entry card. What this test still
+    // guards: the ENTRY CARD stays off the page (its copy below,
+    // forbidden), and People's own door stands as it did.
+    expect(profile).toContain('router.push("/hometown")');
     expect(profile).not.toContain("Build your town with fast coins");
     expect(read("app/(tabs)/index.tsx")).toContain('router.push("/hometown")');
   });

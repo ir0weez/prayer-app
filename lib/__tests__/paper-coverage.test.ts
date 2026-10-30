@@ -403,7 +403,12 @@ describe("Paper coverage — v202 animation pass", () => {
     // and the fast creator (2 — the creator is Part 2 by his
     // ruling, the recap viewer is a full-page document).
     expect(count(profile, 'animationType={isPaper ? "fade" : "slide"}')).toBe(2);
-    expect(count(profile, "<AnchoredSheet")).toBe(1);
+    // RE-BASED (v354, dated 2026-10-29): the AnchoredSheet count
+    // is 2 now — the profile editor (Concept 2 "Two Lives")
+    // joins the day sheet, grown from the identity band by the
+    // same transform. The Paper dress pins around it (settle
+    // indices, the fade count, the creator sheet) are unchanged.
+    expect(count(profile, "<AnchoredSheet")).toBe(2);
     expect(profile).toContain("<PaperSettle style={styles.sheet}>");
   });
 

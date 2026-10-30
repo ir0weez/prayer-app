@@ -13,7 +13,7 @@ import { PaperSettle } from "@/components/paper-motion";
 import { BitSettle } from "@/components/bit-motion";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { FastDaySheetContent, FastRecapDocument, FastRecapsCard, FastRecordCard, FastTodayHero, FastWhyCard, type FastRecapTarget } from "@/components/fast-tracker";
-import { AnchoredSheet } from "@/components/anchored-sheet";
+import { AnchoredSheet, measureEventAnchor, type AnchorRect } from "@/components/anchored-sheet";
 import { PrestigePrompt } from "@/components/prestige-prompt";
 import { COINS_STORAGE_KEY, parseCoins, type HometownCoins, HOMETOWN_MIN_FAST_DAYS, hometownUnlockedForFastLength,
   formatCoins, applyCoinsDelta,
@@ -46,6 +46,7 @@ import {
   FAST_TYPES,
   formatIsoToMmDdYyyy,
   getActiveFast,
+  getCurrentFastDay,
   getFastCalendarDays,
   getFastCompletionPercentage,
   getFastDateRangeLabel,
@@ -74,7 +75,18 @@ import { getReadingPosition } from "@/lib/bible-v205/position";
 import { awardXP, awardCustomXP, loadXPState, loseHeart, restoreHeart, revokeXP, type XpGainPosition } from "@/lib/xp-engine";
 import { generateFastSummary } from "@/lib/prayercircle-fasting";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
+import { getSessionQuietLine } from "@/lib/life-verse";
 import { loadPrestigeState } from "@/lib/prestige";
+
+// v354: the personal prayer items ride this same record (written
+// by app/personal-prayer.tsx, whose local PrayerItem this mirrors)
+// — the prayer-life card below reads their count off the record.
+type PersonalPrayerItem = {
+  id: string;
+  title: string;
+  isDone: boolean;
+  isUrgent: boolean;
+};
 
 type PersonalProfile = {
   name: string;
@@ -86,6 +98,7 @@ type PersonalProfile = {
   fastingStatus: "completed" | "skipped" | "missed" | "not-set";
   lastFastingDate?: string | null;
   lastPersonalPrayerDate?: string | null;
+  personalPrayerItems?: PersonalPrayerItem[];
 };
 
 const DEFAULT_PROFILE: PersonalProfile = {
@@ -169,6 +182,18 @@ export default function ProfileScreen() {
   const today = getTodayISOString();
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  // v354 (Concept 2 "Two Lives"): his own person record (the
+  // isPersonal one) — the life-verse row reads its verse through
+  // the session quiet-line rule; the two scroll anchors seat the
+  // fasting card's doors (tracker section, Fast History).
+  const [ownPerson, setOwnPerson] = useState<Person | null>(null);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [profileEditorAnchor, setProfileEditorAnchor] = useState<AnchorRect | null>(null);
+  const [draftProfileName, setDraftProfileName] = useState("");
+  const [draftProfilePhotoUri, setDraftProfilePhotoUri] = useState<string | undefined>(undefined);
+  const [draftProfileAvatarAsset, setDraftProfileAvatarAsset] = useState<string | undefined>(undefined);
+  const trackerAnchorY = useRef(0);
+  const historyAnchorY = useRef(0);
   const [prestigeLevel, setPrestigeLevel] = useState(0);
   const [ownedBadges, setOwnedBadges] = useState<string[]>([]);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
@@ -225,8 +250,9 @@ export default function ProfileScreen() {
         AsyncStorage.getItem(PROFILE_STORAGE_KEY),
         AsyncStorage.getItem(FASTS_STORAGE_KEY),
         AsyncStorage.getItem('bibleBookStatus'),
+        AsyncStorage.getItem(PEOPLE_STORAGE_KEY),
       ])
-        .then(([storedProfile, storedFasts, storedBibleStatus]) => {
+        .then(([storedProfile, storedFasts, storedBibleStatus, storedPeople]) => {
           if (!isActive) return;
           // v326: heal-and-persist — parse + normalize the stored
           // fasts, and when normalization repaired anything (a
@@ -242,6 +268,17 @@ export default function ProfileScreen() {
             focusItemDailyStatuses: resetFocusItemsForNewDay(fast.focusItemDailyStatuses, today),
           }));
           setProfile(parseStoredProfile(storedProfile));
+          // v354: his own person record, for the life-verse row.
+          if (storedPeople) {
+            try {
+              const parsedPeople = JSON.parse(storedPeople) as Person[];
+              if (Array.isArray(parsedPeople)) {
+                setOwnPerson(normalizePeopleForStorage(parsedPeople).find((person) => person.isPersonal) ?? null);
+              }
+            } catch {
+              // The row falls back to the quiet-line fallback.
+            }
+          }
           setFasts(nextFasts);
           setSelectedFastId((current) => current ?? getActiveFast(nextFasts, today)?.id ?? nextFasts[0]?.id ?? null);
 
@@ -298,6 +335,16 @@ export default function ProfileScreen() {
   const handleUploadProfileAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.85 });
     if (!result.canceled && result.assets[0]?.uri) {
+      // v354: while the profile editor is open, the picker feeds
+      // its DRAFTS — the editor's Save is what lands them (the
+      // People editor's semantics). Otherwise the pick saves at
+      // once, as this handler has always done.
+      if (showProfileEditor) {
+        setDraftProfilePhotoUri(result.assets[0].uri);
+        setDraftProfileAvatarAsset(undefined);
+        setShowAvatarPicker(false);
+        return;
+      }
       const next = { ...profile, photoUri: result.assets[0].uri, avatarAsset: undefined, auraId: undefined };
       setProfile(next);
       await AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(next));
@@ -306,9 +353,57 @@ export default function ProfileScreen() {
   };
 
   const handleSelectProfileAvatar = async (avatarAsset?: string) => {
+    // v354: the editor-open branch feeds the drafts, same rule as
+    // the upload handler above.
+    if (showProfileEditor) {
+      setDraftProfileAvatarAsset(avatarAsset);
+      setDraftProfilePhotoUri(undefined);
+      return;
+    }
     const next = { ...profile, photoUri: undefined, avatarAsset, auraId: avatarAsset?.endsWith("-shiny") || avatarAsset?.startsWith("book-") ? avatarAsset : undefined };
     setProfile(next);
     await AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(next));
+  };
+
+  // ─── v354: the profile editor, rehomed on this page ───────────
+  // The Edit Profile sheet lived orphaned in the People tab (its
+  // opener lost its last caller before v283): name field, Upload
+  // photo, Choose avatar, and this exact save — name required;
+  // photo XOR avatar; a shiny ("-shiny") or book ("book-")
+  // avatar also becomes the aura. The semantics move here
+  // unchanged; the sheet itself is new (AnchoredSheet below).
+  const openProfileEditor = (event: unknown) => {
+    setDraftProfileName(profile.name);
+    setDraftProfilePhotoUri(profile.photoUri);
+    setDraftProfileAvatarAsset(profile.avatarAsset);
+    measureEventAnchor(event, (rect) => {
+      setProfileEditorAnchor(rect);
+      setShowProfileEditor(true);
+    });
+  };
+
+  const handlePickDraftPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.85 });
+    if (!result.canceled && result.assets[0]?.uri) { setDraftProfilePhotoUri(result.assets[0].uri); setDraftProfileAvatarAsset(undefined); }
+  };
+
+  const handleSaveProfile = async () => {
+    const name = draftProfileName.trim();
+    if (!name) {
+      Alert.alert("Add your name", "Enter a name before saving your profile.");
+      return;
+    }
+    const next = { ...profile, name, photoUri: draftProfileAvatarAsset ? undefined : draftProfilePhotoUri, avatarAsset: draftProfilePhotoUri ? undefined : draftProfileAvatarAsset, auraId: draftProfileAvatarAsset?.endsWith("-shiny") || draftProfileAvatarAsset?.startsWith("book-") ? draftProfileAvatarAsset : undefined };
+    setProfile(next);
+    await AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+    setShowProfileEditor(false);
+  };
+
+  // The life-verse row's door: his own person page, whose Edit
+  // carries the verse pickers (the person-editor pattern).
+  const openOwnPerson = () => {
+    if (ownPerson) router.push({ pathname: "/person", params: { personId: ownPerson.id } });
+    else router.push("/");
   };
   const selectedFastType = selectedFast ? FAST_TYPES.find((entry) => entry.type === selectedFast.type) : undefined;
   const selectedFastProgress = selectedFast ? getFastProgress(selectedFast) : null;
@@ -325,6 +420,20 @@ export default function ProfileScreen() {
     () => [...fasts].sort((a, b) => b.startDate.localeCompare(a.startDate) || b.createdAt.localeCompare(a.createdAt)),
     [fasts],
   );
+
+  // v354 "Two Lives" read-models: the prayer-items count rides
+  // the profile record itself; the life-verse row speaks the
+  // session quiet-line rule over his own person (his verse when
+  // set, Colossians 4:2 otherwise — the drawing's value). The
+  // fasting card's doors scroll to the measured sections below.
+  const personalPrayerCount = profile.personalPrayerItems?.length ?? 0;
+  const ownQuietLine = getSessionQuietLine({ lifeVerse: ownPerson?.lifeVerse });
+  const scrollToTracker = () => {
+    profileScrollRef.current?.scrollTo({ y: Math.max(trackerAnchorY.current - 12, 0), animated: true });
+  };
+  const scrollToHistory = () => {
+    profileScrollRef.current?.scrollTo({ y: Math.max(historyAnchorY.current - 12, 0), animated: true });
+  };
 
   // v276 tracker read-models (lib/fast-tracker): weeks chunked from
   // Day 1, quarters with the existing 80+ day behavior (ceil(d/4),
@@ -722,6 +831,117 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* v354 (Concept 2 "Two Lives" — profile-concepts-v2,
+            his pick, Oct 29): the slim identity band and the two
+            life cards take the top of My Profile. The band is the
+            Settings hero band's slim form in this page's tracker
+            family: avatar, name, level, Edit pill — and Edit
+            finally opens the profile editor (below the fade; its
+            save semantics moved here from the orphaned People
+            sheet). The cards run on real stores only: prayer
+            items + streak ride the profile record, the life
+            verse is his own person's quiet line, the fasting
+            card summarises the selected fast and its doors
+            scroll to the tracker and Fast History standing
+            below — no route, no data moves. */}
+        <View style={[styles.identityBand, { backgroundColor: trackerFamily.wash }]}>
+          <Pressable onPress={(event) => openProfileEditor(event)} style={({ pressed }) => [styles.identityBandRow, pressed && styles.pressed]}>
+            <AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="static" profileLevel={profileLevel} photoUri={profile.photoUri} size={40} fallbackColor={trackerFamily.deep} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.identityName, { color: trackerFamily.ink }]} numberOfLines={1}>{profile.name}</Text>
+              <Text style={[styles.identitySub, { color: trackerFamily.inkSoft }]}>Level {profileLevel}</Text>
+            </View>
+            <View style={[styles.editPill, { backgroundColor: trackerFamily.wash2 }]}>
+              <Text style={[styles.editPillText, { color: trackerFamily.ink }]}>Edit</Text>
+            </View>
+          </Pressable>
+        </View>
+
+        <Text style={[styles.lifeGroupLabel, { color: trackerFamily.inkSoft }]}>YOUR PRAYER LIFE</Text>
+        <View style={[styles.lifeCard, { backgroundColor: trackerFamily.card }]}>
+          <Pressable onPress={() => router.push("/personal-prayer")} style={({ pressed }) => [styles.lifeRow, pressed && styles.pressed]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.lifeRowTitle, { color: trackerFamily.ink }]}>Personal prayer items</Text>
+              <Text style={[styles.lifeRowSub, { color: trackerFamily.inkSoft }]}>{personalPrayerCount > 0 ? `${personalPrayerCount} item${personalPrayerCount === 1 ? "" : "s"}` : "Nothing added yet"}</Text>
+            </View>
+            <MaterialIcons name={iconName("chevron-right")} size={20} color={trackerFamily.inkSoft} />
+          </Pressable>
+          <View style={[styles.lifeRow, styles.lifeRowDivider, { borderTopColor: trackerFamily.line }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.lifeRowTitle, { color: trackerFamily.ink }]}>Prayer streak</Text>
+            </View>
+            <Text style={[styles.lifeRowValue, { color: trackerFamily.inkSoft }]}>{profile.personalPrayerStreak} day{profile.personalPrayerStreak === 1 ? "" : "s"}</Text>
+          </View>
+          <Pressable onPress={openOwnPerson} style={({ pressed }) => [styles.lifeRow, styles.lifeRowDivider, { borderTopColor: trackerFamily.line }, pressed && styles.pressed]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.lifeRowTitle, { color: trackerFamily.ink }]}>Life verse</Text>
+            </View>
+            <Text style={[styles.lifeRowValue, { color: trackerFamily.inkSoft }]}>{ownQuietLine.reference}</Text>
+            <MaterialIcons name={iconName("chevron-right")} size={20} color={trackerFamily.inkSoft} />
+          </Pressable>
+        </View>
+
+        <Text style={[styles.lifeGroupLabel, { color: trackerFamily.inkSoft }]}>YOUR FASTING LIFE</Text>
+        <View style={[styles.lifeCard, { backgroundColor: trackerFamily.card }]}>
+          {selectedFast ? (
+            <Pressable onPress={scrollToTracker} style={({ pressed }) => [styles.lifeRow, pressed && styles.pressed]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.lifeRowTitle, { color: trackerFamily.ink }]}>{selectedFast.name}</Text>
+                <Text style={[styles.lifeRowSub, { color: trackerFamily.inkSoft }]}>{`Day ${getCurrentFastDay(selectedFast)} of ${selectedFast.durationDays}`}{selectedFastStreak > 0 ? ` · ${selectedFastStreak}-day streak` : ""}</Text>
+              </View>
+              <View style={[styles.lifeChip, { backgroundColor: trackerFamily.wash }]}>
+                <Text style={[styles.lifeChipText, { color: trackerFamily.deep }]}>Open tracker</Text>
+              </View>
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => setShowFastCreator(true)} style={({ pressed }) => [styles.lifeRow, pressed && styles.pressed]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.lifeRowTitle, { color: trackerFamily.ink }]}>No fast yet</Text>
+                <Text style={[styles.lifeRowSub, { color: trackerFamily.inkSoft }]}>Start a New Fast</Text>
+              </View>
+              <MaterialIcons name={iconName("chevron-right")} size={20} color={trackerFamily.inkSoft} />
+            </Pressable>
+          )}
+          {fastHistory.length > 0 ? (
+            <Pressable onPress={scrollToHistory} style={({ pressed }) => [styles.lifeRow, styles.lifeRowDivider, { borderTopColor: trackerFamily.line }, pressed && styles.pressed]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.lifeRowTitle, { color: trackerFamily.ink }]}>Fast History</Text>
+              </View>
+              <MaterialIcons name={iconName("chevron-right")} size={20} color={trackerFamily.inkSoft} />
+            </Pressable>
+          ) : null}
+          {selectedFast ? (
+            <Pressable onPress={scrollToTracker} style={({ pressed }) => [styles.lifeRow, styles.lifeRowDivider, { borderTopColor: trackerFamily.line }, pressed && styles.pressed]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.lifeRowTitle, { color: trackerFamily.ink }]}>Recaps</Text>
+              </View>
+              <MaterialIcons name={iconName("chevron-right")} size={20} color={trackerFamily.inkSoft} />
+            </Pressable>
+          ) : null}
+          <Pressable onPress={() => router.push("/fast-collection")} style={({ pressed }) => [styles.lifeRow, styles.lifeRowDivider, { borderTopColor: trackerFamily.line }, pressed && styles.pressed]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.lifeRowTitle, { color: trackerFamily.ink }]}>Fast Collection</Text>
+            </View>
+            <MaterialIcons name={iconName("chevron-right")} size={20} color={trackerFamily.inkSoft} />
+          </Pressable>
+        </View>
+
+        <Text style={[styles.lifeGroupLabel, { color: trackerFamily.inkSoft }]}>YOUR TOWN</Text>
+        <View style={[styles.lifeCard, { backgroundColor: trackerFamily.card }]}>
+          <Pressable onPress={() => router.push("/hometown")} style={({ pressed }) => [styles.lifeRow, pressed && styles.pressed]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.lifeRowTitle, { color: trackerFamily.ink }]}>Hometown</Text>
+            </View>
+            <MaterialIcons name={iconName("chevron-right")} size={20} color={trackerFamily.inkSoft} />
+          </Pressable>
+          <Pressable onPress={() => router.push("/character")} style={({ pressed }) => [styles.lifeRow, styles.lifeRowDivider, { borderTopColor: trackerFamily.line }, pressed && styles.pressed]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.lifeRowTitle, { color: trackerFamily.ink }]}>Character</Text>
+            </View>
+            <MaterialIcons name={iconName("chevron-right")} size={20} color={trackerFamily.inkSoft} />
+          </Pressable>
+        </View>
+
         {/* v283 (Jonathan, Oct 27 08:37-08:46: the badges and
             profile stuff on this page "were never approved
             either" - "I want the fucking rebuild done! Put the
@@ -737,6 +957,7 @@ export default function ProfileScreen() {
             state and loaders behind those surfaces still run
             above - only their dressing left this page. */}
 
+        <View onLayout={(event) => { trackerAnchorY.current = event.nativeEvent.layout.y; }}>
         {selectedFast ? (
           <>
             {/* v280: the mockup's app-bar row is the section head —
@@ -816,7 +1037,9 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
         )}
+        </View>
 
+        <View onLayout={(event) => { historyAnchorY.current = event.nativeEvent.layout.y; }}>
         {fastHistory.length > 0 ? (
           <>
             <Text style={[styles.sectionLabel, { color: colors.foreground }, skinText(skinTokens, skinTokens.type.sectionTitle, skinTokens.type.sectionLineHeight)]}>FAST HISTORY</Text>
@@ -870,12 +1093,51 @@ export default function ProfileScreen() {
             </View>
           </>
         ) : null}
+        </View>
       </ScrollView>
       {/* v334: the top fade (his Oct 29 ruling, all pages) — the
           profile dissolves under its own ground at the top edge.
           The pickers and sheets after this are Modals and paint
           in their own windows, above the fade. */}
       <TopFade color={skinTokens.background ?? colors.background} scrollY={fadeScrollY} topInset={insets.top} />
+      {/* v354: the profile editor — grown out of the identity
+          band by the v330 container transform, in creator
+          furniture (✕ left, centred title, Save top-right). Its
+          Choose avatar opens the page's own AvatarPicker below,
+          which feeds these drafts while the editor is open (see
+          the handlers); Upload photo drafts through the same
+          square-crop pick the orphaned sheet used. The name is
+          the only required field — the save is the orphaned
+          sheet's, verbatim in effect. */}
+      <AnchoredSheet visible={showProfileEditor} onClose={() => setShowProfileEditor(false)} anchor={profileEditorAnchor} scrimColor="rgba(20,16,40,0.5)" containerStyle={{ flex: 1, justifyContent: "flex-end", paddingBottom: keyboardHeight }}>
+        <View style={{ backgroundColor: trackerFamily.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 16, paddingBottom: 28, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }}>
+          <View style={styles.profileEditorHeader}>
+            <Pressable onPress={() => setShowProfileEditor(false)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close editor">
+              <MaterialIcons name={iconName("close")} size={24} color={trackerFamily.ink} />
+            </Pressable>
+            <Text style={[styles.profileEditorTitle, { color: trackerFamily.ink }]}>Edit Profile</Text>
+            <Pressable onPress={() => void handleSaveProfile()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Save profile">
+              <Text style={[styles.profileEditorSave, { color: trackerFamily.seed }]}>Save</Text>
+            </Pressable>
+          </View>
+          <View style={{ alignItems: "center", marginBottom: 6 }}>
+            <AvatarImage id="profile" name={draftProfileName} avatarAsset={draftProfileAvatarAsset} auraId={draftProfileAvatarAsset?.endsWith("-shiny") ? draftProfileAvatarAsset : undefined} auraMode="animated" profileLevel={profileLevel} photoUri={draftProfilePhotoUri} size={88} fallbackColor={trackerFamily.deep} />
+            <Text style={[styles.profilePhotoNote, { color: trackerFamily.inkSoft }]}>{draftProfilePhotoUri ? "Uploaded photo" : draftProfileAvatarAsset ? "Pack avatar" : "Default avatar"}</Text>
+          </View>
+          <View style={styles.profileEditorButtons}>
+            <Pressable onPress={() => void handlePickDraftPhoto()} style={({ pressed }) => [styles.profileEditorButton, { borderColor: trackerFamily.seed }, pressed && styles.pressed]}>
+              <MaterialIcons name={iconName("photo-library")} size={18} color={trackerFamily.seed} />
+              <Text style={[styles.profileEditorButtonText, { color: trackerFamily.seed }]}>Upload photo</Text>
+            </Pressable>
+            <Pressable onPress={() => setShowAvatarPicker(true)} style={({ pressed }) => [styles.profileEditorButton, { borderColor: trackerFamily.seed }, pressed && styles.pressed]}>
+              <MaterialIcons name={iconName("pets")} size={18} color={trackerFamily.seed} />
+              <Text style={[styles.profileEditorButtonText, { color: trackerFamily.seed }]}>Choose avatar</Text>
+            </Pressable>
+          </View>
+          <Text style={[styles.profileFieldLabel, { color: trackerFamily.inkSoft }]}>NAME</Text>
+          <TextInput value={draftProfileName} onChangeText={setDraftProfileName} placeholder="Your name" placeholderTextColor={trackerFamily.inkSoft} returnKeyType="done" style={[styles.profileNameField, { backgroundColor: trackerFamily.ground, borderBottomColor: trackerFamily.wash2, color: trackerFamily.ink }]} />
+        </View>
+      </AnchoredSheet>
       <AvatarPicker visible={showAvatarPicker} initialAvatarAsset={profile.avatarAsset} unlockedBookIds={unlockedBookIds} onClose={() => setShowAvatarPicker(false)} onUpload={handleUploadProfileAvatar} onSelect={handleSelectProfileAvatar} />
 
       {/* v276 day sheet — a Material bottom sheet (28px top radius,
@@ -1069,6 +1331,141 @@ const styles = StyleSheet.create({
     fontSize: 31,
     fontWeight: "900",
     letterSpacing: -0.9,
+  },
+  // v354 "Two Lives": the identity band (Settings hero band,
+  // slim form — radius 28 tonal band, contents at the band's
+  // own metrics), the two life cards (radius 24, hairline rows)
+  // and the profile editor's furniture. Colours all arrive from
+  // the tracker family at render; these carry shape only.
+  identityBand: {
+    borderRadius: 28,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  identityBandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  identityName: {
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+  },
+  identitySub: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 1,
+  },
+  editPill: {
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  editPillText: {
+    fontSize: 12.5,
+    fontWeight: "700",
+  },
+  lifeGroupLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 2.2,
+    marginTop: 22,
+    marginBottom: 9,
+    marginHorizontal: 4,
+  },
+  lifeCard: {
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  lifeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  lifeRowDivider: {
+    borderTopWidth: 1,
+  },
+  lifeRowTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  lifeRowSub: {
+    fontSize: 12.5,
+    fontWeight: "500",
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  lifeRowValue: {
+    fontSize: 12.5,
+    fontWeight: "600",
+    textAlign: "right",
+  },
+  lifeChip: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  lifeChipText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  profileEditorHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 18,
+  },
+  profileEditorTitle: {
+    fontSize: 15.5,
+    fontWeight: "800",
+  },
+  profileEditorSave: {
+    fontSize: 14.5,
+    fontWeight: "800",
+  },
+  profilePhotoNote: {
+    fontSize: 12,
+    marginTop: 6,
+  },
+  profileEditorButtons: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  profileEditorButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingVertical: 11,
+  },
+  profileEditorButtonText: {
+    fontSize: 13.5,
+    fontWeight: "800",
+  },
+  profileFieldLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 2,
+    marginBottom: 7,
+  },
+  profileNameField: {
+    borderBottomWidth: 2,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 15,
+    fontWeight: "600",
   },
   profileCard: {
     minHeight: 130,

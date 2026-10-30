@@ -50,7 +50,13 @@ describe("profile chrome is Material 3 (theme tokens, no one-off hex)", () => {
     // (amendment 2: the mockup's fasting page has no such
     // surface), so pin its absence instead.
     expect(profile).not.toContain("Build your town with fast coins");
-    expect(profile).not.toContain(">Hometown<");
+    // RE-BASED (v354, dated 2026-10-29): the ">Hometown<" absence
+    // pin held the v280 removal of the Hometown ENTRY CARD. The
+    // approved Concept 2 "Two Lives" (profile-concepts-v2, his
+    // pick) restores Hometown as a quiet row in the YOUR TOWN
+    // group card on My Profile — a door, not the entry card. The
+    // entry card's own copy stays forbidden above; the row and
+    // its route are pinned in profile-v354.test.ts.
   });
 
   it("missed wears the meaning red from the tracker constants, never a hardcoded bright red", () => {

@@ -174,7 +174,12 @@ describe("v330 — every in-scope surface rides the mechanism", () => {
   });
 
   it("profile: the fast day sheet is anchored, keyboard lift intact on its container", () => {
-    expect(count(profile, "<AnchoredSheet")).toBe(1);
+    // RE-BASED (v354, dated 2026-10-29): the count is 2 now —
+    // the profile editor (Concept 2 "Two Lives") joins the day
+    // sheet as the page's second AnchoredSheet, grown from the
+    // identity band by the same transform. The day sheet's own
+    // pins in this test are unchanged.
+    expect(count(profile, "<AnchoredSheet")).toBe(2);
     expect(profile).toContain("paddingBottom: keyboardHeight");
     expect(profile).toContain("onSave={(status, note) => saveDaySheet(sheetDate, status, note)}");
     // The fast creator (Part 2) and the recap viewer (a full-page

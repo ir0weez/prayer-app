@@ -144,12 +144,15 @@ describe("v370 dish resolution from notes", () => {
 
 describe("v370 seed recipes", () => {
   it("ships exactly the 25 dishes from his Oct 12 list", () => {
-    expect(DISH_KEYS).toHaveLength(25);
+    // v371 amendment: Papa Joe's (his Oct 30 ask) joins the list
+    // in the sandwich family's seat — 26 dishes now.
+    expect(DISH_KEYS).toHaveLength(26);
     expect(DISH_KEYS).toEqual([
       "soup",
       "bean-burritos",
       "tacos",
       "sandwich",
+      "papa-joes",
       "tv-dinner",
       "pizza",
       "grilled-cheese",

@@ -323,7 +323,8 @@ describe("v180+v181 bespoke scenes: the shared emblem shells are dead (source pi
       return scenes.slice(start, next === -1 ? undefined : next);
     };
     const ids = allPaperSceneIds();
-    expect(ids.length).toBe(169);
+    // v371: 170 — Papa Joe's (td-papa-joe) joined the routable set.
+    expect(ids.length).toBe(170);
     const seenComponents = new Set<string>();
     for (const id of ids) {
       const name = componentFor(id);
@@ -340,7 +341,7 @@ describe("v180+v181 bespoke scenes: the shared emblem shells are dead (source pi
       expect(body, `${id} → ${name}`).not.toContain("EmblemScene");
       expect(body, `${id} → ${name}`).not.toContain("movieScene(");
     }
-    expect(seenComponents.size).toBe(169);
+    expect(seenComponents.size).toBe(170);
   });
 
   it("the Sopranos flagship is the pool with the ducks, house behind (source pin)", () => {

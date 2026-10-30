@@ -6506,6 +6506,51 @@ function TopDownSandwichScene() {
   );
 }
 
+/** Top-down homecooked Papa Joe's: focaccia halves with pesto, turkey,
+ *  melted Asiago and roasted tomato, chips + pickle alongside. */
+function TopDownPapaJoeScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#FFD54F" size={140} left="62%" bottom={50} min={0.14} max={0.28} duration={5000} />
+      <View style={{ position: "absolute", left: "53%", bottom: 8, width: 170, height: 170, borderRadius: 85, backgroundColor: "#ECEFF1" }} />
+      <GentleBob left="55%" bottom={36} width={146} height={118} distance={5} duration={3600}>
+        <View style={{ position: "absolute", left: 2, bottom: 28, width: 68, height: 62, borderRadius: 10, backgroundColor: "#EFC26E", transform: [{ rotate: "-4deg" }] }} />
+        <View style={{ position: "absolute", left: 7, bottom: 33, width: 58, height: 52, borderRadius: 7, backgroundColor: "#F8E5B2", transform: [{ rotate: "-4deg" }] }} />
+        <View style={{ position: "absolute", left: 10, bottom: 66, width: 52, height: 9, borderRadius: 4.5, backgroundColor: "#558B2F", transform: [{ rotate: "-4deg" }] }} />
+        <View style={{ position: "absolute", left: 13, bottom: 46, width: 20, height: 16, borderRadius: 8, backgroundColor: "#C9402C", transform: [{ rotate: "-4deg" }] }} />
+        <View style={{ position: "absolute", left: 16, bottom: 49, width: 14, height: 10, borderRadius: 5, backgroundColor: "#E0573F", transform: [{ rotate: "-4deg" }] }} />
+        <View style={{ position: "absolute", left: 40, bottom: 44, width: 20, height: 16, borderRadius: 8, backgroundColor: "#C9402C", transform: [{ rotate: "-4deg" }] }} />
+        <View style={{ position: "absolute", left: 43, bottom: 47, width: 14, height: 10, borderRadius: 5, backgroundColor: "#E0573F", transform: [{ rotate: "-4deg" }] }} />
+        <View style={{ position: "absolute", left: 10, bottom: 36, width: 52, height: 9, borderRadius: 4.5, backgroundColor: "#F1DFC8", transform: [{ rotate: "-4deg" }] }} />
+        <View style={{ position: "absolute", left: 24, bottom: 29, width: 26, height: 10, borderRadius: 5, backgroundColor: "#FFF3D6", transform: [{ rotate: "-4deg" }] }} />
+        <View style={{ position: "absolute", left: 34, bottom: 23, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFF3D6" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 56, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#7CB342" }} />
+        <View style={{ position: "absolute", left: 63, bottom: 50, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#7CB342" }} />
+        <View style={{ position: "absolute", left: 76, bottom: 28, width: 68, height: 62, borderRadius: 10, backgroundColor: "#E9B95E", transform: [{ rotate: "5deg" }] }} />
+        <View style={{ position: "absolute", left: 81, bottom: 33, width: 58, height: 52, borderRadius: 7, backgroundColor: "#F8E5B2", transform: [{ rotate: "5deg" }] }} />
+        <View style={{ position: "absolute", left: 84, bottom: 66, width: 52, height: 9, borderRadius: 4.5, backgroundColor: "#558B2F", transform: [{ rotate: "5deg" }] }} />
+        <View style={{ position: "absolute", left: 87, bottom: 46, width: 20, height: 16, borderRadius: 8, backgroundColor: "#C9402C", transform: [{ rotate: "5deg" }] }} />
+        <View style={{ position: "absolute", left: 90, bottom: 49, width: 14, height: 10, borderRadius: 5, backgroundColor: "#E0573F", transform: [{ rotate: "5deg" }] }} />
+        <View style={{ position: "absolute", left: 114, bottom: 44, width: 20, height: 16, borderRadius: 8, backgroundColor: "#C9402C", transform: [{ rotate: "5deg" }] }} />
+        <View style={{ position: "absolute", left: 117, bottom: 47, width: 14, height: 10, borderRadius: 5, backgroundColor: "#E0573F", transform: [{ rotate: "5deg" }] }} />
+        <View style={{ position: "absolute", left: 84, bottom: 36, width: 52, height: 9, borderRadius: 4.5, backgroundColor: "#F1DFC8", transform: [{ rotate: "5deg" }] }} />
+        <View style={{ position: "absolute", left: 98, bottom: 29, width: 26, height: 10, borderRadius: 5, backgroundColor: "#FFF3D6", transform: [{ rotate: "5deg" }] }} />
+        <View style={{ position: "absolute", left: 108, bottom: 23, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFF3D6" }} />
+        <View style={{ position: "absolute", left: 78, bottom: 56, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#7CB342" }} />
+        <View style={{ position: "absolute", left: 137, bottom: 50, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#7CB342" }} />
+      </GentleBob>
+      <GentleSway left="82%" bottom={24} width={24} height={64} arc={8} duration={3400}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 16, height: 56, borderRadius: 8, backgroundColor: "#558B2F" }} />
+        <View style={{ position: "absolute", left: 7, bottom: 8, width: 10, height: 40, borderRadius: 5, backgroundColor: "#7CB342" }} />
+      </GentleSway>
+      <View style={{ position: "absolute", left: "56%", bottom: 12, width: 22, height: 22, borderRadius: 11, backgroundColor: "#F5D08A" }} />
+      <View style={{ position: "absolute", left: "60%", bottom: 8, width: 22, height: 22, borderRadius: 11, backgroundColor: "#F0BE6A" }} />
+      <View style={{ position: "absolute", left: "64%", bottom: 12, width: 22, height: 22, borderRadius: 11, backgroundColor: "#F5D08A" }} />
+    </SceneRoot>
+  );
+}
+
 /** Top-down homecooked salad: bowl of greens, tomato, croutons, dressing. */
 function TopDownSaladScene() {
   return (
@@ -7156,6 +7201,7 @@ function detectHomecookedMeal(notes: string | undefined | null): React.ReactNode
   if (match("tostada", "tostadas")) return <TopDownTostadasScene />;
   if (match("taco")) return <TopDownTacosScene />;
   if (match("pizza")) return <TopDownPizzaScene />;
+  if (match("papa joe")) return <TopDownPapaJoeScene />;
   if (match("sandwich", "panini", "grilled cheese")) return <TopDownSandwichScene />;
   if (match("salad")) return <TopDownSaladScene />;
   if (match("pasta", "spaghetti", "lasagna", "mac and cheese", "mac n cheese")) return <TopDownPastaScene />;

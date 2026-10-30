@@ -9,6 +9,10 @@
  * Quantities are a home cook's shorthand ("1 lb", "2 cloves"),
  * and each ingredient carries the grocery section it is found in,
  * which is the grouping the Grocery tab wears.
+ *
+ * v371 (Oct 30): Papa Joe's — the Jason's Deli sandwich he used
+ * to make all the time at home — joins the seeds as a full dish
+ * (recipe + card artwork), in the sandwich family's seat.
  */
 
 export type RecipeGroup = "Produce" | "Meat" | "Bakery" | "Dairy" | "Frozen" | "Pantry";
@@ -44,6 +48,7 @@ export type DishKey =
   | "bean-burritos"
   | "tacos"
   | "sandwich"
+  | "papa-joes"
   | "tv-dinner"
   | "pizza"
   | "grilled-cheese"
@@ -147,6 +152,31 @@ export const SEED_RECIPES: Record<DishKey, SeedRecipe> = {
       "Spread mayonnaise on one slice, mustard on the other.",
       "Layer turkey, cheddar, tomato and lettuce.",
       "Close, press gently, and cut on the diagonal.",
+    ],
+  },
+  "papa-joes": {
+    title: "Papa Joe's",
+    serves: "Serves 2",
+    minutes: 25,
+    ingredients: [
+      { name: "Herb focaccia bread", quantity: "2 sandwich pieces", group: "Bakery" },
+      { name: "Roasted turkey breast", quantity: "8 oz, sliced", group: "Meat" },
+      { name: "Asiago cheese", quantity: "4 slices", group: "Dairy" },
+      { name: "Roma tomatoes", quantity: "2", group: "Produce" },
+      { name: "Basil pesto", quantity: "3 tbsp", group: "Pantry" },
+      { name: "Mayonnaise", quantity: "2 tbsp", group: "Pantry" },
+      { name: "Olive oil", quantity: "1 tbsp", group: "Pantry" },
+      { name: "Potato chips", quantity: "2 handfuls, to serve", group: "Pantry" },
+      { name: "Dill pickle spears", quantity: "2, to serve", group: "Produce" },
+    ],
+    steps: [
+      "Heat the oven to 425°F; slice the tomatoes, lay them on a lined tray, drizzle with olive oil and a pinch of salt, and roast 12–15 minutes until softened and sweet.",
+      "Stir the pesto and mayo together into a pesto aioli.",
+      "Split the focaccia and toast cut-side down in a dry skillet or under the broiler until golden at the edges.",
+      "Spread pesto aioli on both cut sides.",
+      "Layer the turkey and Asiago on the bottom halves; broil 1–2 minutes until the cheese melts and the turkey is hot.",
+      "Top with the roasted tomatoes, close, press gently, and cut in half.",
+      "Serve with chips and a pickle spear.",
     ],
   },
   "tv-dinner": {
@@ -562,6 +592,7 @@ export const DISH_KEYS: DishKey[] = [
   "bean-burritos",
   "tacos",
   "sandwich",
+  "papa-joes",
   "tv-dinner",
   "pizza",
   "grilled-cheese",

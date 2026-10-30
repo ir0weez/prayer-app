@@ -16,6 +16,8 @@
  * first, which leaves its mexican-pizza scene unreachable — a
  * recipe must not inherit that). Scene-only matches with no
  * seeded dish (salad, pasta, pancakes, eggs) resolve to null.
+ * v371 adds a third refinement in the same family seat: "papa
+ * joe" names the Papa Joe's dish, not the generic sandwich.
  *
  * Stores — all `prayercircle.*` AsyncStorage keys, so they ride
  * the backup/export and restore exactly like the email digest
@@ -77,7 +79,10 @@ const NOTES_DISH_TABLE: { names: string[]; dish: DishKey | null }[] = [
   // pizza" names its own dish, not plain pizza.
   { names: ["mexican pizza"], dish: "mexican-pizza" },
   { names: ["pizza"], dish: "pizza" },
-  // Specific before general within the sandwich family.
+  // Specific before general within the sandwich family: the
+  // Papa Joe names its own dish (v371); the bare "papa joe"
+  // also covers "papa joe's" and "papa joes" as substrings.
+  { names: ["papa joe's", "papa joes", "papa joe"], dish: "papa-joes" },
   { names: ["grilled cheese"], dish: "grilled-cheese" },
   { names: ["sandwich", "panini"], dish: "sandwich" },
   { names: ["salad"], dish: null },

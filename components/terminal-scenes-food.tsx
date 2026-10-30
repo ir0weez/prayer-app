@@ -140,6 +140,30 @@ export function TermTdSandwichScene() {
   );
 }
 
+export function TermTdPapaJoeScene() {
+  // Focaccia halves in line art: pesto seam, roasted tomato rounds,
+  // melted cheese — pickle and chips beside, steam off the toast.
+  return (
+    <TermSceneRoot>
+      <LL x1={16} y1={106} x2={194} y2={106} c={TERM_DIM} w={1.6} />
+      <LP d="M 124 16 C 120 22 124 26 121 32" c={TERM_DIM} w={1.7} />
+      <LP d="M 168 14 C 164 20 168 24 165 30" c={TERM_DIM} w={1.7} />
+      <LR x={102} y={48} width={45} height={44} rx={6} c={TERM_PHOS} w={2.2} />
+      <LP d="M 106 62 C 114 57 122 65 130 60 C 136 65 141 59 145 62" c={TERM_SOFT} w={1.7} />
+      <LC cx={116} cy={76} r={6.5} c={TERM_PHOS} w={1.8} />
+      <LC cx={133} cy={76} r={6.5} c={TERM_SOFT} w={1.8} />
+      <LP d="M 107 88 C 116 84 134 84 143 88 C 134 92 116 92 107 88 Z" c={TERM_MID} w={1.7} />
+      <LR x={151} y={48} width={43} height={44} rx={6} c={TERM_PHOS} w={2.2} />
+      <LP d="M 155 62 C 162 57 170 65 177 60 C 183 65 188 59 192 62" c={TERM_SOFT} w={1.7} />
+      <LC cx={172} cy={76} r={6.5} c={TERM_PHOS} w={1.8} />
+      <LP d="M 156 88 C 164 84 182 84 190 88 C 182 92 164 92 156 88 Z" c={TERM_MID} w={1.7} />
+      <LC cx={118} cy={100} r={5.5} c={TERM_SOFT} w={1.7} />
+      <LPoly points="160,94 172,90 170,102" close c={TERM_MID} w={1.7} />
+      <LPoly points="176,98 188,94 186,104" close c={TERM_MID} w={1.7} />
+    </TermSceneRoot>
+  );
+}
+
 export function TermTdSaladScene() {
   // Big bowl of salad, fork resting on the rim.
   return (

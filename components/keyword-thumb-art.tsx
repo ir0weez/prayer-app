@@ -336,6 +336,15 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
     { k: "r", x: 11, y: 18.5, w: 18, h: 3, f: "#7CB342", rad: 1.5 },
     { k: "r", x: 11, y: 21.5, w: 18, h: 5.5, f: "#F5EBD0", rad: 2 },
   ] },
+  "td-papa-joe": { g: "#6B4A3A", s: [
+    { k: "c", x: 20, y: 20, r: 13, f: "#F5EBD0" },
+    { k: "r", x: 10, y: 12, w: 9.5, h: 15, f: "#F0BE6A", rad: 2 },
+    { k: "r", x: 20.5, y: 12, w: 9.5, h: 15, f: "#E8B45A", rad: 2 },
+    { k: "r", x: 10, y: 16, w: 9.5, h: 3, f: "#558B2F", rad: 1.5 },
+    { k: "r", x: 20.5, y: 16, w: 9.5, h: 3, f: "#558B2F", rad: 1.5 },
+    { k: "c", x: 14.5, y: 22.5, r: 1.9, f: "#C62828" },
+    { k: "c", x: 25.5, y: 22.5, r: 1.9, f: "#C62828" },
+  ] },
   "td-salad": { g: "#6B4A3A", s: [
     { k: "e", x: 9, y: 17, w: 22, h: 10, f: "#ECEFF1" },
     { k: "c", x: 15, y: 16, r: 3.4, f: "#7CB342" },

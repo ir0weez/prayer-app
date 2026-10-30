@@ -126,7 +126,8 @@ describe("v336 scenes", () => {
     expect(paperSceneIdFor("News")).toBe("news");
     expect(paperSceneIdFor("Email")).toBe("email");
     const ids = allPaperSceneIds();
-    expect(ids.length).toBe(169);
+    // v371: 170 — td-papa-joe joined the set after this pin was written.
+    expect(ids.length).toBe(170);
     expect(ids).toContain("news");
     expect(ids).toContain("email");
   });

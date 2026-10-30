@@ -2399,6 +2399,38 @@ export function PaperTdSandwichScene() {
   );
 }
 
+export function PaperTdPapaJoeScene() {
+  // Focaccia halves on butcher paper: pesto, turkey, melted Asiago,
+  // roasted tomato — chips and a pickle alongside.
+  return (
+    <PaperSceneRoot base="#5D7A4A">
+      <SettleIn delay={40} style={{ position: "absolute", left: "47%", bottom: 12, width: 158, height: 116 }}>
+        <PaperPiece style={{ width: 158, height: 112, borderRadius: 6, backgroundColor: "#F7F2E4", transform: [{ rotate: "2deg" }] }} />
+      </SettleIn>
+      <SettleIn delay={130} style={{ position: "absolute", left: "50%", bottom: 26, width: 74, height: 66 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 70, height: 62, borderRadius: 9, backgroundColor: "#F2D8A7", transform: [{ rotate: "-3deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 7, bottom: 8, width: 56, height: 9, borderRadius: 4, backgroundColor: "#58A05C", transform: [{ rotate: "-3deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 9, bottom: 22, width: 52, height: 8, borderRadius: 4, backgroundColor: "#F5E9D2", transform: [{ rotate: "-3deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 10, bottom: 36, width: 50, height: 10, borderRadius: 5, backgroundColor: "#FFF6DC", transform: [{ rotate: "-3deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 14, bottom: 48, width: 17, height: 13, borderRadius: 6, backgroundColor: "#D64545", transform: [{ rotate: "-3deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 38, bottom: 48, width: 17, height: 13, borderRadius: 6, backgroundColor: "#C93B3B", transform: [{ rotate: "-3deg" }] }} />
+      </SettleIn>
+      <SettleIn delay={210} style={{ position: "absolute", left: "66%", bottom: 58, width: 74, height: 66 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 0, width: 70, height: 62, borderRadius: 9, backgroundColor: "#EFC477", transform: [{ rotate: "4deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 7, bottom: 8, width: 56, height: 9, borderRadius: 4, backgroundColor: "#58A05C", transform: [{ rotate: "4deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 10, bottom: 36, width: 50, height: 10, borderRadius: 5, backgroundColor: "#FFF6DC", transform: [{ rotate: "4deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 24, bottom: 48, width: 17, height: 13, borderRadius: 6, backgroundColor: "#D64545", transform: [{ rotate: "4deg" }] }} />
+      </SettleIn>
+      {[0, 1, 2].map((i) => (
+        <PaperPiece key={i} style={{ position: "absolute", left: `${50 + i * 4}%` as `${number}%`, bottom: 96 - i * 4, width: 14, height: 14, borderRadius: 7, backgroundColor: i % 2 ? "#8FBC7A" : "#7FB069" }} />
+      ))}
+      {[0, 1, 2, 3].map((i) => (
+        <PaperPiece key={i} style={{ position: "absolute", left: `${76 + (i % 2) * 5}%` as `${number}%`, bottom: 18 + Math.floor(i / 2) * 10, width: 15, height: 13, borderRadius: 5, backgroundColor: "#F2C14E", transform: [{ rotate: `${i * 33}deg` }] }} />
+      ))}
+    </PaperSceneRoot>
+  );
+}
+
 export function PaperTdSaladScene() {
   // A big wooden bowl of salad, fork resting on the rim.
   return (
@@ -5686,6 +5718,7 @@ const PAPER_SCENE_REGISTRY: Record<PaperSceneId, () => ReactNode> = {
   "td-tostadas": PaperTdTostadasScene,
   "td-tacos": PaperTdTacosScene,
   "td-pizza": PaperTdPizzaScene,
+  "td-papa-joe": PaperTdPapaJoeScene,
   "td-sandwich": PaperTdSandwichScene,
   "td-salad": PaperTdSaladScene,
   "td-pasta": PaperTdPastaScene,

@@ -96,7 +96,8 @@ describe("v353 — the Up Next-only thumb set is exact and self-consistent", () 
     const paper = new Set(allPaperSceneIds());
     for (const id of UP_NEXT_ONLY) expect(paper.has(id), id).toBe(false);
     expect(Object.keys(KEYWORD_THUMB_MOTIONS).sort()).toEqual([...paper].sort());
-    expect(specKeysOf("KEYWORD_THUMB_SPECS").length).toBe(169);
+    // v371: 170 — td-papa-joe joined the scene set.
+    expect(specKeysOf("KEYWORD_THUMB_SPECS").length).toBe(170);
   });
 
   it("every thumb-only motion names a vocabulary kind inside the calm band", () => {

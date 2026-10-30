@@ -181,6 +181,39 @@ export function PixelTdSandwichScene() {
   );
 }
 
+export function PixelTdPapaJoeScene() {
+  // Focaccia halves on butcher paper: pesto, turkey, melted Asiago,
+  // roasted tomato — chips and a pickle alongside.
+  return (
+    <PixelSceneRoot base="#5D7A4A">
+      <StepIn delay={40} style={{ position: "absolute", left: "47%", bottom: 12, width: 160, height: 112 }}>
+        <Px style={{ position: "absolute", left: 0, bottom: 0, width: 160, height: 112, backgroundColor: "#F7F2E4" }} shadow />
+      </StepIn>
+      <StepIn delay={130} style={{ position: "absolute", left: "50%", bottom: 28, width: 72, height: 64 }}>
+        <Px style={{ position: "absolute", left: 8, bottom: 0, width: 56, height: 12, backgroundColor: "#F2D8A7" }} />
+        <Px style={{ position: "absolute", left: 4, bottom: 12, width: 64, height: 8, backgroundColor: "#58A05C" }} />
+        <Px style={{ position: "absolute", left: 8, bottom: 20, width: 56, height: 12, backgroundColor: "#F5E9D2" }} />
+        <Px style={{ position: "absolute", left: 4, bottom: 32, width: 64, height: 12, backgroundColor: "#FFF6DC" }} />
+        <Px style={{ position: "absolute", left: 12, bottom: 44, width: 16, height: 12, backgroundColor: "#D64545" }} />
+        <Px style={{ position: "absolute", left: 36, bottom: 44, width: 16, height: 12, backgroundColor: "#C93B3B" }} />
+        <Px style={{ position: "absolute", left: 0, bottom: 56, width: 72, height: 8, backgroundColor: "#EFC477" }} />
+      </StepIn>
+      <StepIn delay={210} style={{ position: "absolute", left: "66%", bottom: 60, width: 72, height: 52 }}>
+        <Px style={{ position: "absolute", left: 8, bottom: 0, width: 56, height: 12, backgroundColor: "#EFC477" }} />
+        <Px style={{ position: "absolute", left: 4, bottom: 12, width: 64, height: 8, backgroundColor: "#58A05C" }} />
+        <Px style={{ position: "absolute", left: 8, bottom: 20, width: 56, height: 12, backgroundColor: "#FFF6DC" }} />
+        <Px style={{ position: "absolute", left: 24, bottom: 32, width: 16, height: 12, backgroundColor: "#D64545" }} />
+        <Px style={{ position: "absolute", left: 0, bottom: 44, width: 72, height: 8, backgroundColor: "#EFC477" }} />
+      </StepIn>
+      <Px style={{ position: "absolute", left: "52%", bottom: 96, width: 16, height: 12, backgroundColor: "#8FBC7A" }} />
+      <Px style={{ position: "absolute", left: "56%", bottom: 88, width: 16, height: 12, backgroundColor: "#7FB069" }} />
+      <Px style={{ position: "absolute", left: "78%", bottom: 20, width: 16, height: 12, backgroundColor: "#F2C14E" }} />
+      <Px style={{ position: "absolute", left: "82%", bottom: 32, width: 16, height: 12, backgroundColor: "#F2C14E" }} />
+      <Px style={{ position: "absolute", left: "76%", bottom: 32, width: 16, height: 12, backgroundColor: "#E8B34B" }} />
+    </PixelSceneRoot>
+  );
+}
+
 export function PixelTdSaladScene() {
   // Big wooden bowl of salad, fork resting on the rim.
   return (

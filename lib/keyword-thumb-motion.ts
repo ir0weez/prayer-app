@@ -196,6 +196,7 @@ export const KEYWORD_THUMB_MOTIONS: Record<string, ThumbMotionSpec> = {
   "td-nachos": { kind: "steam", duration: 3000 },
   "td-oatmeal": { kind: "steam", duration: 3000 },
   "td-pancakes": { kind: "steam", duration: 3000 },
+  "td-papa-joe": { kind: "bob", duration: 2800 },
   "td-pasta": { kind: "steam", duration: 3000 },
   "td-pizza": { kind: "steam", duration: 3000 },
   "td-pot-roast": { kind: "steam", duration: 3000 },

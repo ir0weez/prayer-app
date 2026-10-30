@@ -1297,6 +1297,20 @@ function EntryView(props: {
     setComposerAuthor(null);
     setEditingTarget(null);
   };
+  // v352: tapping a verse's TEXT opens the note composer homed on
+  // that verse — the body opens first if it was closed, and the
+  // draft carries the '#<verse>' prefix of his own notation
+  // (parseHashVerseRef / splitEntryByHashNotes: the saved line
+  // renders riding exactly that verse, write-back origins
+  // included). The verse NUMBER keeps its tint-selection job —
+  // the supTap span below is untouched by this path.
+  const openComposerForVerse = (verse: number) => {
+    if (!props.open) props.onToggleOpen();
+    setComposer('note');
+    setDraft(`#${verse} `);
+    setComposerAuthor(null);
+    setEditingTarget(null);
+  };
   const closeComposer = () => {
     setComposer(null);
     setEditingTarget(null);
@@ -1356,7 +1370,6 @@ function EntryView(props: {
     props.onRemoveLine(target);
     if (piece.lines.length <= 1) props.onBubbleToggle(false);
   };
-  const single = entry.start === entry.end;
   // v212: the entry tint washes the whole entry container — head and
   // body, open or closed. (The jump-flash still wins while it runs.)
   const wash = tintWashFor(palette, props.entryTint);
@@ -1403,49 +1416,42 @@ function EntryView(props: {
         <View style={styles.heartSlot}>
           {props.kept ? <Text style={{ color: palette.rose, fontSize: 14 }}>♥</Text> : null}
         </View>
-        {single ? (
-          <Pressable
-            onPress={() => props.onToggleVerse(entry.start)}
-            hitSlop={8}
-            style={[styles.vnumTap, props.selectedVerses.includes(entry.start) ? { backgroundColor: palette.rasp } : null]}
-          >
-            <Text
-              style={[
-                styles.vnumBig,
-                { color: props.selectedVerses.includes(entry.start) ? '#FFFFFF' : props.tone.deep },
-              ]}
-            >
-              {entry.start}
-            </Text>
-          </Pressable>
-        ) : (
-          <Text style={[styles.vnumRange, { color: props.tone.deep }]}>{entry.start}–{entry.end}</Text>
-        )}
         <View style={styles.entryVerses}>
           {Array.from({ length: entry.end - entry.start + 1 }, (_, i) => entry.start + i).map((v) => {
             const selected = props.selectedVerses.includes(v);
             const verseBg = verseTintFor(palette, props.verseTints[v]);
             return (
-              <Text
-                key={v}
-                style={[
-                  styles.entryVerse,
-                  { color: palette.ink },
-                  verseBg ? { backgroundColor: verseBg } : null,
-                  selected
-                    ? { textDecorationLine: 'underline', textDecorationStyle: 'dashed', textDecorationColor: palette.rasp }
-                    : null,
-                ]}
-              >
-                {!single ? (
-                  // v217 squeeze fix: the verse number is an INLINE
-                  // superscript in the text (the approved mockup's
-                  // rendering), not a rail beside it — a multi-verse
-                  // entry's text now starts at the same x as a
-                  // single-verse entry's. It stays the v212 tint
-                  // handle: a tap selects the verse; selected, it
-                  // fills raspberry with white glyphs over the
-                  // verse's dashed underline.
+              // v352: each verse is its own pressable block (the
+              // entryVerses gap separates the blocks). A tap on the
+              // verse TEXT opens the note composer homed on that
+              // verse (openComposerForVerse); the number span
+              // inside keeps its own tap, exactly as it already
+              // out-pressed the head Pressable.
+              <Pressable key={v} onPress={() => openComposerForVerse(v)}>
+                <Text
+                  style={[
+                    styles.entryVerse,
+                    { color: palette.ink },
+                    verseBg ? { backgroundColor: verseBg } : null,
+                    selected
+                      ? { textDecorationLine: 'underline', textDecorationStyle: 'dashed', textDecorationColor: palette.rasp }
+                      : null,
+                  ]}
+                >
+                  {/* v217 squeeze fix: the verse number is an INLINE
+                      superscript in the text (the approved mockup's
+                      rendering), not a rail beside it — a multi-verse
+                      entry's text starts at the same x as a
+                      single-verse entry's. It stays the v212 tint
+                      handle: a tap selects the verse; selected, it
+                      fills raspberry with white glyphs over the
+                      verse's dashed underline.
+                      v352: the head's rail numeral/range is GONE in
+                      both modes (his ruling — the range was the
+                      element that wrapped "13–15" into "13–1"/"5"),
+                      so this span now leads EVERY verse, single-verse
+                      entries included: no verse loses its number, and
+                      the number's tap job is unchanged. */}
                   <Text
                     onPress={() => props.onToggleVerse(v)}
                     style={[
@@ -1456,9 +1462,9 @@ function EntryView(props: {
                   >
                     {v}{' '}
                   </Text>
-                ) : null}
-                {props.verseText.get(v) ?? ''}
-              </Text>
+                  {props.verseText.get(v) ?? ''}
+                </Text>
+              </Pressable>
             );
           })}
         </View>
@@ -1773,24 +1779,30 @@ const styles = StyleSheet.create({
   // grew to 51, so the inset grows with them.
   entryHeadBubbled: { paddingRight: 66 },
   heartSlot: { width: 20, alignItems: 'center', paddingTop: 5 },
-  // v250: the numerals are chunky (the mockup's .vn 26px/800 and
-  // .vr 14px/800) — in the section tone's deep shade (color inline).
-  vnumBig: { fontSize: 26, fontWeight: '800', width: 40, lineHeight: 32, textAlign: 'center' },
-  vnumRange: { fontSize: 14, fontWeight: '800', width: 40, lineHeight: 32, textAlign: 'center' },
-  entryVerses: { flex: 1, gap: 3 },
+  // v352: the rail styles (vnumBig / vnumRange / vnumTap) are gone
+  // with the rail itself — the inline supTap span is the only
+  // numeral the head carries now, in both modes.
+  // v352: the verses stand as separate blocks — the gap between
+  // verse blocks is 12 (the head's own rhythm is 10/13; 12 reads
+  // as a clear paragraph step against the 26.5 leading without
+  // scattering the chapter).
+  entryVerses: { flex: 1, gap: 12 },
   // v313: the verse type at the drawing's weight — 17.5 at
   // fontWeight 450 (RN steps to 500); the size and leading were
   // already the drawing's.
   entryVerse: { fontSize: 17.5, fontWeight: '500', lineHeight: 26.5 },
-  vnumTap: { borderRadius: 9 },
   // v217: the tint-selection handle is now an inline superscript
   // span inside the verse text (see the head render) — a text style,
   // no longer an in-flow rail with width of its own.
   supTap: { fontSize: 10.5, fontWeight: '800' },
   // v217: his own lines' in-flow column — the same measure as the
   // entry body, at the full text width (no bubble inset, ever).
-  selfLines: { marginLeft: 72, paddingRight: 4, paddingBottom: 6 },
-  entryBody: { marginLeft: 72, paddingRight: 4, paddingBottom: 14 },
+  // v352: the measure moved with the rail's removal — verses now
+  // start at x=32 in the entry (was 82: rail 40 + its gap 10 are
+  // gone), and the notes keep their exact relationship, beginning
+  // one head-gap (10) left of the verse text: 72 -> 22.
+  selfLines: { marginLeft: 22, paddingRight: 4, paddingBottom: 6 },
+  entryBody: { marginLeft: 22, paddingRight: 4, paddingBottom: 14 },
   noNotes: { fontSize: 13.5, fontStyle: 'italic', marginBottom: 10 },
   markbar: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', borderTopWidth: 1, paddingTop: 11, marginTop: 4 },
   markBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6, paddingHorizontal: 9, borderRadius: 999 },

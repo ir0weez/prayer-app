@@ -1691,10 +1691,19 @@ describe('v212 — tint that actually shows: the whole entry, and per-verse', ()
 
   it('render: verse numbers are the selection handles; a selected verse is dashed-underlined', () => {
     const page = pageSrc();
-    expect(page).toContain('props.onToggleVerse(entry.start)');
+    // RE-BASED (v352): the single-verse RAIL handle —
+    // props.onToggleVerse(entry.start) on the vnumTap Pressable —
+    // was deleted with the rail itself (his ruling: the current
+    // design, just with separated verses; the rail range was the
+    // element wrapping "13–15" into "13–1"/"5"). The inline supTap
+    // span is now the ONE selection handle and leads EVERY verse —
+    // the verse map renders it unconditionally, singles included,
+    // where v === entry.start — so the handle pin lives on the (v)
+    // call alone and the rail handle pins as absent.
+    expect(page).not.toContain('props.onToggleVerse(entry.start)');
+    expect(page).not.toContain('styles.vnumTap');
     expect(page).toContain('props.onToggleVerse(v)');
     expect(page).toContain("textDecorationStyle: 'dashed'");
-    expect(page).toContain('styles.vnumTap');
     expect(page).toContain('styles.supTap');
     // A verse wearing a tint paints the highlighter color behind its text.
     expect(page).toContain('verseTintFor(palette, props.verseTints[v])');

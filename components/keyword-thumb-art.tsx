@@ -412,6 +412,16 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
     { k: "c", x: 13, y: 15, r: 3.2, f: "#E8B06A" },
     { k: "c", x: 27, y: 15, r: 3.2, f: "#E8B06A" },
   ] },
+  "td-shawarma-rice-bar": { g: "#6B4A3A", s: [
+    { k: "r", x: 8, y: 10, w: 24, h: 20, f: "#8A5A33", rad: 3 },
+    { k: "e", x: 11, y: 12, w: 12, h: 7, f: "#B5713B" },
+    { k: "e", x: 10, y: 21, w: 9, h: 6, f: "#FFF8E1" },
+    { k: "r", x: 21, y: 21, w: 3, h: 6, f: "#E53935", rad: 1 },
+    { k: "r", x: 25, y: 21, w: 3, h: 6, f: "#FB8C00", rad: 1 },
+    { k: "c", x: 26, y: 15, r: 3.4, f: "#DCCBA6" },
+    { k: "c", x: 15, y: 24, r: 1.2, f: "#FFFFFF" },
+    { k: "c", x: 27, y: 25, r: 1.6, f: "#F7DC6F" },
+  ] },
   "td-meatloaf": { g: "#6B4A3A", s: [
     { k: "c", x: 20, y: 20, r: 13, f: "#F5EBD0" },
     { k: "r", x: 11, y: 14, w: 18, h: 12, f: "#6D4C41", rad: 3 },

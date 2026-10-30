@@ -317,6 +317,42 @@ export function TermTdSteakScene() {
   );
 }
 
+export function TermTdShawarmaRiceBarScene() {
+  // A family-style shawarma board in line art: chicken platter,
+  // rice and pepper bowls, salad, hummus and crema around.
+  return (
+    <TermSceneRoot>
+      <LL x1={16} y1={108} x2={194} y2={108} c={TERM_DIM} w={1.6} />
+      <LP d="M 132 10 C 128 16 132 20 129 26" c={TERM_DIM} w={1.7} />
+      <LP d="M 154 8 C 150 14 154 18 151 24" c={TERM_DIM} w={1.7} />
+      <LR x={98} y={34} width={100} height={74} rx={6} c={TERM_MID} w={1.8} />
+      <LP d="M 104 52 C 120 40 160 40 178 52 C 160 64 120 64 104 52 Z" c={TERM_PHOS} w={2.2} />
+      <LL x1={116} y1={45} x2={126} y2={58} c={TERM_MID} w={1.5} />
+      <LL x1={136} y1={43} x2={144} y2={59} c={TERM_MID} w={1.5} />
+      <LL x1={156} y1={45} x2={162} y2={58} c={TERM_MID} w={1.5} />
+      <LDot cx={124} cy={50} r={1.7} c={TERM_SOFT} />
+      <LDot cx={148} cy={54} r={1.7} c={TERM_SOFT} />
+      <LDot cx={168} cy={49} r={1.7} c={TERM_SOFT} />
+      <LP d="M 104 24 L 132 24 C 130 34 124 38 117 38 C 110 38 105 34 104 24 Z" c={TERM_SOFT} w={1.7} />
+      <LP d="M 110 29 C 115 25 122 25 127 29" c={TERM_MID} w={1.4} />
+      <LP d="M 164 22 L 196 22 C 194 34 188 40 180 40 C 172 40 166 34 164 22 Z" c={TERM_PHOS} w={1.8} />
+      <LC cx={174} cy={29} r={3.5} c={TERM_SOFT} w={1.4} />
+      <LC cx={186} cy={29} r={3.5} c={TERM_MID} w={1.4} />
+      <LDot cx={180} cy={34} r={1.8} c={TERM_PHOS} />
+      <LP d="M 104 82 L 144 82 C 141 96 132 102 124 102 C 116 102 107 96 104 82 Z" c={TERM_PHOS} w={2} />
+      <LP d="M 108 82 C 116 74 134 74 140 82 C 132 87 116 87 108 82 Z" c={TERM_SOFT} w={1.6} />
+      <LP d="M 150 82 L 194 82 C 191 96 182 102 172 102 C 162 102 153 96 150 82 Z" c={TERM_PHOS} w={2} />
+      <LL x1={160} y1={76} x2={163} y2={88} c={TERM_SOFT} w={1.5} />
+      <LL x1={172} y1={74} x2={173} y2={89} c={TERM_MID} w={1.5} />
+      <LL x1={183} y1={76} x2={181} y2={88} c={TERM_SOFT} w={1.5} />
+      <LC cx={188} cy={68} r={6} c={TERM_MID} w={1.6} />
+      <LL x1={184} y1={64} x2={192} y2={72} c={TERM_MID} w={1.3} />
+      <LDot cx={112} cy={68} r={1.8} c={TERM_MID} />
+      <LDot cx={188} cy={50} r={1.8} c={TERM_MID} />
+    </TermSceneRoot>
+  );
+}
+
 export function TermTdRoastChickenScene() {
   // Golden bird on an oval platter, gravy boat standing by.
   return (

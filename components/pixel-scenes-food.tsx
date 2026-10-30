@@ -446,6 +446,70 @@ export function PixelTdSteakScene() {
   );
 }
 
+export function PixelTdShawarmaRiceBarScene() {
+  // A family-style shawarma board in pixels: sliced chicken on a
+  // platter, rice and roasted peppers below, salad, hummus, crema,
+  // feta and lemon set around for build-your-own bowls.
+  return (
+    <PixelSceneRoot base="#7A5230">
+      <StepIn delay={40} style={{ position: "absolute", left: "44%", bottom: 8, width: 178, height: 108 }}>
+        <Px style={{ position: "absolute", left: 0, bottom: 0, width: 178, height: 108, backgroundColor: "#96613A" }} shadow />
+        <Px style={{ position: "absolute", left: 8, bottom: 8, width: 162, height: 92, backgroundColor: "#8A5A33" }} />
+      </StepIn>
+      <StepBob left="48%" bottom={68} width={126} height={48} distance={4}>
+        <Px style={{ position: "absolute", left: 8, bottom: 0, width: 110, height: 44, backgroundColor: "#EDE6D8" }} />
+        <Px style={{ position: "absolute", left: 0, bottom: 8, width: 126, height: 28, backgroundColor: "#EDE6D8" }} />
+        <Px style={{ position: "absolute", left: 12, bottom: 24, width: 28, height: 12, backgroundColor: "#B5713B" }} />
+        <Px style={{ position: "absolute", left: 40, bottom: 28, width: 28, height: 12, backgroundColor: "#C07C42" }} />
+        <Px style={{ position: "absolute", left: 68, bottom: 24, width: 28, height: 12, backgroundColor: "#B5713B" }} />
+        <Px style={{ position: "absolute", left: 24, bottom: 8, width: 28, height: 12, backgroundColor: "#A96834" }} />
+        <Px style={{ position: "absolute", left: 56, bottom: 8, width: 28, height: 12, backgroundColor: "#C07C42" }} />
+        <Px style={{ position: "absolute", left: 20, bottom: 36, width: 8, height: 8, backgroundColor: "#FFFFFF" }} />
+        <Px style={{ position: "absolute", left: 76, bottom: 36, width: 8, height: 8, backgroundColor: "#FFFFFF" }} />
+        <Px style={{ position: "absolute", left: 100, bottom: 28, width: 8, height: 8, backgroundColor: "#FFFFFF" }} />
+      </StepBob>
+      <StepIn delay={220} style={{ position: "absolute", left: "49%", bottom: 16, width: 64, height: 44 }}>
+        <Px style={{ position: "absolute", left: 0, bottom: 0, width: 64, height: 28, backgroundColor: "#4E342E" }} />
+        <Px style={{ position: "absolute", left: 4, bottom: 24, width: 56, height: 16, backgroundColor: "#FFF8E1" }} />
+        <Px style={{ position: "absolute", left: 16, bottom: 32, width: 8, height: 4, backgroundColor: "#E8C98A" }} />
+        <Px style={{ position: "absolute", left: 32, bottom: 28, width: 8, height: 4, backgroundColor: "#E8C98A" }} />
+        <Px style={{ position: "absolute", left: 44, bottom: 32, width: 8, height: 4, backgroundColor: "#E8C98A" }} />
+      </StepIn>
+      <StepIn delay={290} style={{ position: "absolute", left: "66%", bottom: 14, width: 60, height: 42 }}>
+        <Px style={{ position: "absolute", left: 0, bottom: 0, width: 60, height: 28, backgroundColor: "#455A64" }} />
+        <Px style={{ position: "absolute", left: 4, bottom: 24, width: 52, height: 16, backgroundColor: "#6D4C41" }} />
+        <Px style={{ position: "absolute", left: 8, bottom: 24, width: 8, height: 20, backgroundColor: "#E53935" }} />
+        <Px style={{ position: "absolute", left: 22, bottom: 24, width: 8, height: 20, backgroundColor: "#FB8C00" }} />
+        <Px style={{ position: "absolute", left: 36, bottom: 24, width: 8, height: 20, backgroundColor: "#FDD835" }} />
+        <Px style={{ position: "absolute", left: 48, bottom: 26, width: 6, height: 16, backgroundColor: "#B39DDB" }} />
+      </StepIn>
+      <StepIn delay={360} style={{ position: "absolute", left: "78%", bottom: 70, width: 56, height: 40 }}>
+        <Px style={{ position: "absolute", left: 0, bottom: 0, width: 56, height: 24, backgroundColor: "#37474F" }} />
+        <Px style={{ position: "absolute", left: 4, bottom: 20, width: 48, height: 16, backgroundColor: "#7CB342" }} />
+        <Px style={{ position: "absolute", left: 8, bottom: 24, width: 12, height: 12, backgroundColor: "#A5D6A7" }} />
+        <Px style={{ position: "absolute", left: 24, bottom: 26, width: 12, height: 12, backgroundColor: "#C5E1A5" }} />
+        <Px style={{ position: "absolute", left: 40, bottom: 24, width: 10, height: 10, backgroundColor: "#A5D6A7" }} />
+        <Px style={{ position: "absolute", left: 18, bottom: 20, width: 10, height: 10, backgroundColor: "#E53935" }} />
+        <Px style={{ position: "absolute", left: 34, bottom: 20, width: 10, height: 10, backgroundColor: "#C62828" }} />
+      </StepIn>
+      <StepIn delay={420} style={{ position: "absolute", left: "45%", bottom: 76, width: 44, height: 34 }}>
+        <Px style={{ position: "absolute", left: 0, bottom: 0, width: 44, height: 22, backgroundColor: "#8D6E63" }} />
+        <Px style={{ position: "absolute", left: 4, bottom: 18, width: 36, height: 14, backgroundColor: "#E8D9B8" }} />
+        <Px style={{ position: "absolute", left: 12, bottom: 22, width: 20, height: 8, backgroundColor: "#DCCBA6" }} />
+      </StepIn>
+      <StepIn delay={470} style={{ position: "absolute", left: "84%", bottom: 38, width: 36, height: 28 }}>
+        <Px style={{ position: "absolute", left: 0, bottom: 0, width: 36, height: 18, backgroundColor: "#B0BEC5" }} />
+        <Px style={{ position: "absolute", left: 4, bottom: 14, width: 28, height: 12, backgroundColor: "#FFFFFF" }} />
+        <Px style={{ position: "absolute", left: 8, bottom: 20, width: 20, height: 4, backgroundColor: "#ECEFF1" }} />
+      </StepIn>
+      <Px style={{ position: "absolute", left: "90%", bottom: 14, width: 22, height: 22, backgroundColor: "#F7DC6F" }} />
+      <Px style={{ position: "absolute", left: "91%", bottom: 17, width: 14, height: 14, backgroundColor: "#FBE98A" }} />
+      <Px style={{ position: "absolute", left: "63%", bottom: 61, width: 7, height: 7, backgroundColor: "#FFFFFF" }} />
+      <Px style={{ position: "absolute", left: "74%", bottom: 64, width: 7, height: 7, backgroundColor: "#FFFFFF" }} />
+    </PixelSceneRoot>
+  );
+}
+
 export function PixelTdRoastChickenScene() {
   // Golden bird on an oval platter, gravy boat standing by.
   return (

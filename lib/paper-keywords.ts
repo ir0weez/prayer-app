@@ -34,6 +34,7 @@ const HOMECOOKED: MatchEntry[] = [
   { id: "td-burrito", names: ["burrito"] },
   { id: "td-tostadas", names: ["tostada", "tostadas"] },
   { id: "td-tacos", names: ["taco"] },
+  { id: "td-shawarma-rice-bar", names: ["shawarma"] },
   { id: "td-pizza", names: ["pizza"] },
   { id: "td-papa-joe", names: ["papa joe"] },
   { id: "td-sandwich", names: ["sandwich", "panini", "grilled cheese"] },

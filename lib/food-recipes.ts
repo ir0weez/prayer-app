@@ -13,6 +13,12 @@
  * v371 (Oct 30): Papa Joe's — the Jason's Deli sandwich he used
  * to make all the time at home — joins the seeds as a full dish
  * (recipe + card artwork), in the sandwich family's seat.
+ *
+ * v372 (Oct 30): Loaded Shawarma-Style Chicken & Rice Bar — the
+ * HelloFresh recipe he sent and chose — joins the seeds the
+ * same way, in the chicken family's seat:
+ * HelloFresh's own recipe for two, kept faithful, served family
+ * style, with card artwork in every skin.
  */
 
 export type RecipeGroup = "Produce" | "Meat" | "Bakery" | "Dairy" | "Frozen" | "Pantry";
@@ -59,6 +65,7 @@ export type DishKey =
   | "hot-wings"
   | "burgers"
   | "roast-chicken"
+  | "shawarma-rice-bar"
   | "meatloaf"
   | "pot-roast"
   | "casserole"
@@ -374,6 +381,36 @@ export const SEED_RECIPES: Record<DishKey, SeedRecipe> = {
       "Rest 15 minutes before carving.",
     ],
   },
+  "shawarma-rice-bar": {
+    title: "Loaded Shawarma-Style Chicken & Rice Bar",
+    serves: "Serves 2",
+    minutes: 30,
+    ingredients: [
+      { name: "Chicken cutlets", quantity: "10 oz", group: "Meat" },
+      { name: "Bell pepper", quantity: "1", group: "Produce" },
+      { name: "Red onion", quantity: "1", group: "Produce" },
+      { name: "Mini cucumber", quantity: "1", group: "Produce" },
+      { name: "Tomato", quantity: "1", group: "Produce" },
+      { name: "Lemon", quantity: "1", group: "Produce" },
+      { name: "Jasmine rice", quantity: "¾ cup", group: "Pantry" },
+      { name: "Shawarma spice blend", quantity: "1 tbsp", group: "Pantry" },
+      { name: "Garlic powder", quantity: "1 tsp", group: "Pantry" },
+      { name: "Olive oil", quantity: "4 tsp, plus drizzles", group: "Pantry" },
+      { name: "Hummus", quantity: "4 tbsp", group: "Dairy" },
+      { name: "Sour cream", quantity: "3 tbsp", group: "Dairy" },
+      { name: "Feta cheese", quantity: "½ cup", group: "Dairy" },
+      { name: "Butter", quantity: "1 tbsp", group: "Dairy" },
+    ],
+    steps: [
+      "Adjust a rack to the top position and preheat the oven to 425°F; wash and dry the produce. Halve, peel and thinly slice the onion, then mince a few slices until you have 1 tbsp. Halve, core and thinly slice the bell pepper into strips; finely dice the cucumber; dice the tomato into ¼-inch pieces; quarter the lemon.",
+      "In a small pot, combine the rice, 1¼ cups water and a pinch of salt; bring to a boil, cover, reduce to a low simmer and cook 15–18 minutes until tender; keep covered off the heat until serving.",
+      "Toss the sliced onion and bell pepper on a baking sheet with a drizzle of oil, 1 tsp of the shawarma spice, salt and pepper; push the veggies to one side of the sheet.",
+      "Pat the chicken dry and place it on the empty side of the sheet; rub with a drizzle of oil and season all over with the remaining shawarma spice, salt and pepper. Roast on the top rack 15–20 minutes, until the chicken is cooked through (165°) and the veggies are tender.",
+      "In a medium bowl, combine the cucumber, tomato, minced onion, ½ tsp garlic powder and the juice from one lemon wedge; add a drizzle of olive oil, season with salt and pepper, and stir.",
+      "In a small bowl, combine the hummus, the remaining garlic powder, 1 tbsp olive oil and the juice from one lemon wedge, thinning with water 1 tsp at a time to a drizzling consistency; season with salt and pepper. Put the sour cream in a separate small bowl, thin the same way, and season with salt.",
+      "Fluff the rice with a fork and stir in 1 tbsp butter; slice the chicken crosswise. Serve everything family style — chicken, rice, veggies, tomato-cuke salad, hummus, crema, feta and the remaining lemon wedges — and let everyone build their own bowl.",
+    ],
+  },
   "meatloaf": {
     title: "Meatloaf",
     serves: "Serves 6",
@@ -603,6 +640,7 @@ export const DISH_KEYS: DishKey[] = [
   "hot-wings",
   "burgers",
   "roast-chicken",
+  "shawarma-rice-bar",
   "meatloaf",
   "pot-roast",
   "casserole",

@@ -145,8 +145,11 @@ describe("v370 dish resolution from notes", () => {
 describe("v370 seed recipes", () => {
   it("ships exactly the 25 dishes from his Oct 12 list", () => {
     // v371 amendment: Papa Joe's (his Oct 30 ask) joins the list
-    // in the sandwich family's seat — 26 dishes now.
-    expect(DISH_KEYS).toHaveLength(26);
+    // in the sandwich family's seat — 26 dishes then.
+    // v372 amendment: the Loaded Shawarma-Style Chicken & Rice
+    // Bar (the HelloFresh recipe he chose) joins in the chicken
+    // family's seat — 27 dishes now.
+    expect(DISH_KEYS).toHaveLength(27);
     expect(DISH_KEYS).toEqual([
       "soup",
       "bean-burritos",
@@ -163,6 +166,7 @@ describe("v370 seed recipes", () => {
       "hot-wings",
       "burgers",
       "roast-chicken",
+      "shawarma-rice-bar",
       "meatloaf",
       "pot-roast",
       "casserole",

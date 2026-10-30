@@ -18,6 +18,9 @@
  * seeded dish (salad, pasta, pancakes, eggs) resolve to null.
  * v371 adds a third refinement in the same family seat: "papa
  * joe" names the Papa Joe's dish, not the generic sandwich.
+ * v372 adds a fourth: "shawarma" names the Loaded Shawarma-Style
+ * Chicken & Rice Bar (the HelloFresh recipe he chose), ahead of
+ * the generic chicken and salad rows the full name brushes past.
  *
  * Stores — all `prayercircle.*` AsyncStorage keys, so they ride
  * the backup/export and restore exactly like the email digest
@@ -75,6 +78,9 @@ const NOTES_DISH_TABLE: { names: string[]; dish: DishKey | null }[] = [
   { names: ["burrito"], dish: "bean-burritos" },
   { names: ["tostada", "tostadas"], dish: "tostadas" },
   { names: ["taco"], dish: "tacos" },
+  // Specific before general (v372): "shawarma" names the Rice
+  // Bar dish outright, ahead of the salad and chicken rows.
+  { names: ["shawarma"], dish: "shawarma-rice-bar" },
   // Specific before general (see the file header): "mexican
   // pizza" names its own dish, not plain pizza.
   { names: ["mexican pizza"], dish: "mexican-pizza" },

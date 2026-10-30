@@ -78,7 +78,8 @@ describe("v350 — motion coverage is exact: one motion spec per keyword scene",
   it("the motion table covers exactly the scenes that have thumb artwork", () => {
     expect(Object.keys(KEYWORD_THUMB_MOTIONS).sort()).toEqual([...specKeys].sort());
     // v371: 170 — td-papa-joe joined the scene set.
-    expect(specKeys.length).toBe(170);
+    // v372: 171 — td-shawarma-rice-bar joined the scene set.
+    expect(specKeys.length).toBe(171);
   });
 
   it("every spec names a vocabulary kind with a loop style, inside the 2.4–4s calm band", () => {

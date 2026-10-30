@@ -20,8 +20,8 @@
 // The flourish is keyed to the TOGGLE EVENT, not to row identity:
 // checking a todo moves it out of the timed flow into the completed
 // section, so the row component may remount mid-animation. The
-// toggle handlers emit an event on this bus with the press's window
-// position; components/todo-flourish-overlay.tsx (mounted once at
+// toggle handlers emit an event on this bus with the checkbox's
+// measured window position; components/todo-flourish-overlay.tsx (mounted once at
 // the app root, beside the XP floater) renders the burst there,
 // independent of what the list does. The row's own settle
 // (jolt / sink / crumple) rides a local wrapper in the row.
@@ -197,15 +197,18 @@ const bubble = (
   delay: number,
 ): TodoFlourishParticle => ({ kind: "bubble", tone, ox: 0, oy: 0, dx, dy, size, delay, span: 0.42 });
 
-export const TODO_FLOURISH_PARTICLES: Record<TodoFlourishId, TodoFlourishParticle[]> = {
+const AUTHORED_FLOURISH_PARTICLES: Record<TodoFlourishId, TodoFlourishParticle[]> = {
   // 1 · Feed — milky bottle bubbles fizz up off the checkbox.
+  // v348: no bubble under 7px, and the overlay rims them in the
+  // todo's colour at full strength — the smallest bubbles in a
+  // light tint were white-on-white on the pale pair cards.
   feed: [
     bubble("milk", 9, -8, -44, 0),
-    bubble("milk", 6, 5, -52, 0.03),
+    bubble("milk", 7, 5, -52, 0.03),
     bubble("milk", 11, 14, -38, 0.06),
-    bubble("milk", 5, -16, -34, 0.02),
+    bubble("milk", 7, -16, -34, 0.02),
     bubble("milk", 7, 22, -48, 0.09),
-    bubble("milk", 4, 0, -58, 0.12),
+    bubble("milk", 7, 0, -58, 0.12),
   ],
 
   // 2 · Duolingo — tiny letter tiles burst upward + one green spark.
@@ -284,6 +287,37 @@ export const TODO_FLOURISH_PARTICLES: Record<TodoFlourishId, TodoFlourishParticl
   ],
 };
 
+// v348 — the timing stretch. As authored above, the kit burned out
+// before the row's settle began: every particle's opacity reached 0
+// by ~0.55 of the 900ms (the longest-lived piece, Break's last
+// sigh-dot, ended at 0.70) while every settle only STARTS at 0.5 —
+// the eye got a faint puff, then the shake alone (Jonathan's
+// invisible-burst report, Oct 29). Spans are stretched by one
+// factor so the kit's last particle finishes at 0.9 of the burst:
+// delays (the stagger) and the travel are untouched, and the
+// stretch is applied once, here, so TODO_FLOURISH_PARTICLES always
+// carries the final timing the overlay interpolates. The factor is
+// set by that last sigh-dot: 0.15 delay + 0.55 span × 15/11 = 0.90.
+export const TODO_FLOURISH_SPAN_STRETCH = 15 / 11;
+
+export const TODO_FLOURISH_PARTICLES: Record<TodoFlourishId, TodoFlourishParticle[]> = (
+  Object.keys(AUTHORED_FLOURISH_PARTICLES) as TodoFlourishId[]
+).reduce<Record<TodoFlourishId, TodoFlourishParticle[]>>((kit, id) => {
+  kit[id] = AUTHORED_FLOURISH_PARTICLES[id].map((p) => ({ ...p, span: p.span * TODO_FLOURISH_SPAN_STRETCH }));
+  return kit;
+}, {} as Record<TodoFlourishId, TodoFlourishParticle[]>);
+
+/**
+ * The horizontal span the wide kits (Brush Teeth foam, Trash bits)
+ * were authored across, measured from the checkbox anchor: foam's
+ * furthest puff sits at ox 255 and is 8px wide (255 + 8 = 263).
+ * From a pair rectangle — about half a row — those kits would
+ * scatter onto the neighbouring card, so pair-anchored wide bursts
+ * scale their ox to fit the card (see firePairFlourish in
+ * components/schedule-tab.tsx).
+ */
+export const TODO_FLOURISH_WIDE_SPAN_PX = 263;
+
 // ─── The toggle-event bus ───────────────────────────────────────────────────
 // Mirrors lib/xp-engine's XP-gain bus: toggle handlers emit, the one
 // root overlay subscribes. The anchor is a WINDOW position (the
@@ -296,6 +330,14 @@ export type TodoFlourishEvent = {
   /** The todo's own colour — the burst wears it where the kit asks. */
   color: string;
   anchor: { x: number; y: number };
+  /**
+   * v348: horizontal squeeze for a pair-anchored wide kit (Brush
+   * Teeth / Trash fired from a pair rectangle): the overlay
+   * multiplies each particle's ox by this so the authored full-row
+   * spread fits inside the pair card. Absent (rows, subtasks, and
+   * narrow kits) = the authored spread, untouched.
+   */
+  oxScale?: number;
 };
 
 type TodoFlourishListener = (event: TodoFlourishEvent) => void;
@@ -313,6 +355,7 @@ export function emitTodoFlourish(input: {
   flourish: TodoFlourishId;
   color: string;
   anchor: { x: number; y: number };
+  oxScale?: number;
 }): void {
   const event: TodoFlourishEvent = {
     id: `todo-flourish-${Date.now()}-${nextTodoFlourishId++}`,

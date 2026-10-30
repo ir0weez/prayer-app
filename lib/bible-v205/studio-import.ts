@@ -242,6 +242,10 @@ export interface StudioScheduleEventInput {
 export interface StudioSchedulePayload {
   weekOf: string;
   events: StudioScheduleEventInput[];
+  /** v345: rows whose minutes the validator repaired instead of
+   *  rejecting the file (see validateScheduleEvents). Absent on
+   *  payloads built by hand (drive planner, tests) — read as 0. */
+  minutesRepaired?: number;
   whiteSpace?: Record<string, { start: string; end: string; minutes: number }[]>;
 }
 
@@ -463,8 +467,22 @@ function validateChapter(raw: unknown, where: string): StudioChapterPayload {
   return payload;
 }
 
-function validateScheduleEvents(rawEvents: unknown[]): StudioScheduleEventInput[] {
-  return rawEvents.map((e, i) => {
+/**
+ * Validate a schedule's rows. v345: a row whose minutes is missing,
+ * null, not a whole number, or negative is REPAIRED, not rejected —
+ * the Oct 29 incident, where one TV row's null minutes refused an
+ * 801-row file whole at this line. The repair is the Studio's own
+ * -41 rule: a timed row (a real HH:MM start) reads as 60 minutes,
+ * an 'All day' row as 0. Every other rule in this validator stays
+ * loud and whole-file. The repair count rides the payload so the
+ * door's summary can name it — a repair is visible, never silent.
+ */
+function validateScheduleEvents(rawEvents: unknown[]): {
+  events: StudioScheduleEventInput[];
+  minutesRepaired: number;
+} {
+  let minutesRepaired = 0;
+  const events = rawEvents.map((e, i) => {
     const where = `schedule event ${i}`;
     if (!isRecord(e)) fail(`${where}: event is not an object`);
     if (!isNonEmptyString(e.title)) fail(`${where}: event has no title`);
@@ -472,7 +490,13 @@ function validateScheduleEvents(rawEvents: unknown[]): StudioScheduleEventInput[
     if (typeof e.start !== 'string' || (e.start !== 'All day' && !/^\d{2}:\d{2}$/.test(e.start))) {
       fail(`${where}: event has no valid start time`);
     }
-    if (!isInt(e.minutes) || e.minutes < 0) fail(`${where}: event has invalid minutes`);
+    let minutes: number;
+    if (isInt(e.minutes) && e.minutes >= 0) {
+      minutes = e.minutes;
+    } else {
+      minutes = e.start === 'All day' ? 0 : 60;
+      minutesRepaired += 1;
+    }
     if (e.type !== 'Event' && e.type !== 'Todo' && e.type !== 'Ministry') {
       fail(`${where}: event type must be Event, Todo, or Ministry`);
     }
@@ -481,7 +505,7 @@ function validateScheduleEvents(rawEvents: unknown[]): StudioScheduleEventInput[
       day: typeof e.day === 'string' ? e.day : '',
       date: e.date as string,
       start: e.start as string,
-      minutes: e.minutes,
+      minutes,
       type: e.type as 'Event' | 'Todo' | 'Ministry',
       online: e.online === true,
       recur: typeof e.recur === 'string' ? e.recur : 'none',
@@ -506,6 +530,7 @@ function validateScheduleEvents(rawEvents: unknown[]): StudioScheduleEventInput[
       ...validateBridgeFields(e, where),
     };
   });
+  return { events, minutesRepaired };
 }
 
 /** The v237 book/chapter pair on a Ministry schedule row: each key,
@@ -676,7 +701,8 @@ function validateSchedule(raw: unknown): StudioSchedulePayload {
     fail('Schedule pack has no valid weekOf date');
   }
   if (!Array.isArray(raw.events)) fail('Schedule pack has no events array');
-  return { weekOf: raw.weekOf as string, events: validateScheduleEvents(raw.events) };
+  const { events, minutesRepaired } = validateScheduleEvents(raw.events);
+  return { weekOf: raw.weekOf as string, events, minutesRepaired };
 }
 
 /**
@@ -687,7 +713,8 @@ function validateSchedule(raw: unknown): StudioSchedulePayload {
 function validateScheduleSection(raw: unknown): StudioSchedulePayload {
   if (!isRecord(raw)) fail('Schedule section is not an object');
   if (!Array.isArray(raw.events)) fail('Schedule section has no events array');
-  return { weekOf: '', events: validateScheduleEvents(raw.events) };
+  const { events, minutesRepaired } = validateScheduleEvents(raw.events);
+  return { weekOf: '', events, minutesRepaired };
 }
 
 const RELATIONSHIP_TYPES: RelationshipType[] = [
@@ -929,6 +956,41 @@ export function studioFileHasSections(plan: StudioFilePlan): boolean {
  * Parse and FULLY validate a whole studio file — any mix of sections.
  * Throws a plain Error with a human-readable reason on anything
  * malformed, before the caller applies a single section.
+ *
+ * v345 — THE COMBINED PACK (prayercircle-pack.json). Jonathan's ruling
+ * (Oct 29): the Studio→app transfer is ONE file — one file out of the
+ * Studio, one import in the app. The envelope is the FLAT UNION of the
+ * five standalone packs' own top-level shapes, plus one marker key:
+ *
+ *   {
+ *     "pack": "combined",                  // the marker (see below)
+ *     "chapters":    [ … ],                // notes, library form
+ *     "studioStates": { "chapters": [ … ] }, // states / read marks
+ *     "weekOf": "YYYY-MM-DD",              // schedule — weekOf and
+ *     "events":      [ … ],                //   events ride together
+ *     "whiteSpace":  { … },                //   optional, advisory only
+ *     "people":      [ … ],                // people — people and
+ *     "journal":     [ … ],                //   journal ride together
+ *     "ministries":  [ … ],                // ministries records
+ *     "deletedIds":  [ … ]                 //   optional tombstones
+ *   }
+ *
+ * Why flat: this parser has always detected sections by presence and
+ * read each from exactly the top-level keys its standalone pack uses,
+ * so the flat union keeps every existing validator and merger working
+ * unchanged — no section is re-shaped, renamed, or nested. (The full
+ * backup's nested studio* sections are the same payloads in the other
+ * placement and keep working; the flat form is deliberately NOT the
+ * backup's shape, so a pack can never be mistaken for a restore.)
+ * The "pack": "combined" marker gives the file its identity — it is
+ * how a reader (and the Studio's own emitter contract) tells this is
+ * the one-file pack and not a stray multi-key file; the parser itself
+ * still reads sections by presence, so a section key is simply absent
+ * when the section carries nothing. Emitter rules that follow from
+ * the validators, unchanged from the standalone packs: omit a section
+ * with no payload (notably `chapters` — an empty chapters array is
+ * refused, as an empty library pack always was), and `weekOf` never
+ * rides without `events`.
  */
 export function parseStudioFileFull(parsed: unknown): StudioFilePlan {
   if (!isRecord(parsed)) fail('That file is not a studio pack (expected a JSON object).');
@@ -967,9 +1029,10 @@ export function parseStudioFileFull(parsed: unknown): StudioFilePlan {
   }
   if (!studioFileHasSections(plan)) {
     fail(
-      'That file is not a studio pack — expected prayercircle-notes.json, ' +
-        'prayercircle-library.json, prayercircle-schedule.json, prayercircle-people.json, ' +
-        'prayercircle-ministries.json, or a PrayerCircle backup carrying studio sections.',
+      'That file is not a studio pack — expected prayercircle-pack.json (the combined pack), ' +
+        'prayercircle-notes.json, prayercircle-library.json, prayercircle-schedule.json, ' +
+        'prayercircle-people.json, prayercircle-ministries.json, or a PrayerCircle backup ' +
+        'carrying studio sections.',
     );
   }
   return plan;
@@ -1005,7 +1068,20 @@ export interface StudioApplyCounts {
   chaptersUpdated: number;
   statesSet: number;
   readMarks: number;
-  eventsAdded: number;
+  /** v345: read marks the file carried that were already there (the
+   *  stored date equal or later) — named in the summary so a forward-
+   *  only skip is never silent. */
+  readMarksAlreadyThere: number;
+  /** v345: the schedule counts, split by kind (the v231 lump
+   *  `eventsAdded` counted events and todos together under an
+   *  "Events" label and let dedupe matches pass silently). */
+  scheduleEventsAdded: number;
+  scheduleTodosAdded: number;
+  scheduleEventsAlreadyThere: number;
+  scheduleTodosAlreadyThere: number;
+  /** v345: schedule rows whose invalid minutes the validator
+   *  repaired instead of rejecting the file. */
+  minutesRepaired: number;
   peopleUpdated: number;
   needs: number;
   journalEntries: number;
@@ -1023,7 +1099,12 @@ export function emptyStudioApplyCounts(): StudioApplyCounts {
     chaptersUpdated: 0,
     statesSet: 0,
     readMarks: 0,
-    eventsAdded: 0,
+    readMarksAlreadyThere: 0,
+    scheduleEventsAdded: 0,
+    scheduleTodosAdded: 0,
+    scheduleEventsAlreadyThere: 0,
+    scheduleTodosAlreadyThere: 0,
+    minutesRepaired: 0,
     peopleUpdated: 0,
     needs: 0,
     journalEntries: 0,
@@ -1036,16 +1117,36 @@ export function emptyStudioApplyCounts(): StudioApplyCounts {
 
 /**
  * One line naming what a whole file did, section by section — only the
- * sections the file actually carried get a segment:
- * "Notes: N chapters · States: M · Events added: K · People updated: P
- *  · Ministries: A added / U updated / D deleted".
+ * sections the file actually carried get a segment. v345 made the
+ * schedule segment honest: events and todos count separately, the
+ * rows that were ALREADY THERE (dedupe-matched) are named rather than
+ * silent, and minutes the validator repaired are counted — so a
+ * no-op import reads as a no-op, never as a failure or a success it
+ * wasn't:
+ * "Notes: N chapters · States: M · Read marks: R ·
+ *  Schedule: E events + T todos added · A already there ·
+ *  People updated: P · Ministries: A added / U updated / D deleted".
  */
 export function formatStudioImportSummary(plan: StudioFilePlan, counts: StudioApplyCounts): string {
   const parts: string[] = [];
   if (plan.notes) parts.push(`Notes: ${counts.chaptersUpdated} chapters`);
   if (plan.states || counts.statesSet > 0) parts.push(`States: ${counts.statesSet}`);
-  if (plan.states && counts.readMarks > 0) parts.push(`Read marks: ${counts.readMarks}`);
-  if (plan.schedule) parts.push(`Events added: ${counts.eventsAdded}`);
+  if (plan.states && (counts.readMarks > 0 || counts.readMarksAlreadyThere > 0)) {
+    parts.push(
+      `Read marks: ${counts.readMarks}` +
+        (counts.readMarksAlreadyThere > 0
+          ? ` · ${counts.readMarksAlreadyThere} already there`
+          : ''),
+    );
+  }
+  if (plan.schedule) {
+    const alreadyThere = counts.scheduleEventsAlreadyThere + counts.scheduleTodosAlreadyThere;
+    parts.push(
+      `Schedule: ${counts.scheduleEventsAdded} events + ${counts.scheduleTodosAdded} todos added` +
+        ` · ${alreadyThere} already there` +
+        (counts.minutesRepaired > 0 ? ` · ${counts.minutesRepaired} repaired` : ''),
+    );
+  }
   if (counts.ministriesLinked > 0) {
     parts.push(
       `Ministry chapters: ${counts.ministriesLinked} tied`,
@@ -1523,7 +1624,19 @@ export function mergeStudioSchedule(
   existingEvents: ScheduleEvent[],
   existingTodos: ScheduleTodo[],
   pack: StudioSchedulePayload,
-): { events: ScheduleEvent[]; todos: ScheduleTodo[]; added: number } {
+): {
+  events: ScheduleEvent[];
+  todos: ScheduleTodo[];
+  added: number;
+  /** v345: the same counts split by kind, plus the dedupe matches —
+   *  the door's honest summary names what was already there instead
+   *  of letting a matched row pass silently. `added` stays the sum
+   *  (eventsAdded + todosAdded), unchanged for existing callers. */
+  eventsAdded: number;
+  todosAdded: number;
+  eventsAlreadyThere: number;
+  todosAlreadyThere: number;
+} {
   const events = [...existingEvents];
   const todos = [...existingTodos];
   const eventIndexByKey = new Map<string, number>();
@@ -1537,6 +1650,10 @@ export function mergeStudioSchedule(
     if (!todoIndexByKey.has(key)) todoIndexByKey.set(key, i);
   });
   let added = 0;
+  let eventsAdded = 0;
+  let todosAdded = 0;
+  let eventsAlreadyThere = 0;
+  let todosAlreadyThere = 0;
   for (const ev of pack.events) {
     // v229: Ministry rows are the studio-facing projection of ministry
     // records. They validate (a known type) but apply NOTHING here —
@@ -1549,6 +1666,7 @@ export function mergeStudioSchedule(
     if (ev.type === 'Todo') {
       const existingIndex = todoIndexByKey.get(dedupe);
       if (existingIndex !== undefined) {
+        todosAlreadyThere += 1;
         // Already there: the steps and the v239 bridge fields can
         // change, each only when the pack speaks about it. The
         // stored todo object is replaced, never mutated.
@@ -1586,9 +1704,11 @@ export function mergeStudioSchedule(
       todoIndexByKey.set(dedupe, todos.length);
       todos.push(todo);
       added += 1;
+      todosAdded += 1;
     } else {
       const existingIndex = eventIndexByKey.get(dedupe);
       if (existingIndex !== undefined) {
+        eventsAlreadyThere += 1;
         // Already there: no duplicate (the v222 rule) — but the
         // pack's bridge fields still land, present-wins.
         const patch = eventBridgePatch(ev);
@@ -1614,9 +1734,10 @@ export function mergeStudioSchedule(
       eventIndexByKey.set(dedupe, events.length);
       events.push(event);
       added += 1;
+      eventsAdded += 1;
     }
   }
-  return { events, todos, added };
+  return { events, todos, added, eventsAdded, todosAdded, eventsAlreadyThere, todosAlreadyThere };
 }
 
 /** Does a Ministry row carry anything that lands on a record? A bare

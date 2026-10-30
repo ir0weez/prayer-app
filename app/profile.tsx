@@ -679,7 +679,14 @@ export default function ProfileScreen() {
         removeClippedSubviews={true}
         onScroll={topFadeScrollHandler(fadeScrollY)}
         scrollEventThrottle={16}
+        style={{ marginTop: -insets.top }}
       >
+        {/* v347: edge-to-edge — the frame reaches the screen's
+            literal top (marginTop above) so content scrolls INTO
+            the tray zone and ghosts under the fade; this spacer
+            returns the inset to the content, so at rest the
+            header row sits exactly where it sat. */}
+        <View style={{ height: insets.top }} />
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("arrow-back")} size={26} color={colors.foreground} />

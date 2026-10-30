@@ -58,7 +58,7 @@ import { scheduleMaterialTones, tonalRamp } from "@/lib/schedule-material";
 import { detectShowFont, splitShowName } from "@/lib/show-fonts";
 import { stripSpelledSeasonEpisode } from "@/lib/season-episode";
 import { showNameSegments } from "./show-sub-line";
-import { emitTodoFlourish, todoCompletionShouldDefer, todoFlourishForTitle, TODO_FLOURISH_DURATION_MS, TODO_FLOURISH_SETTLE, type TodoSettleKind } from "@/lib/todo-flourish";
+import { emitTodoFlourish, todoCompletionShouldDefer, todoFlourishForTitle, TODO_FLOURISH_DURATION_MS, TODO_FLOURISH_SETTLE, TODO_FLOURISH_WIDE_SPAN_PX, type TodoSettleKind } from "@/lib/todo-flourish";
 import { FlourishSettleView } from "@/components/todo-flourish-overlay";
 import { mix } from "@/lib/color-themes";
 import type { SkinTokens } from "@/lib/skin-themes";
@@ -8767,15 +8767,16 @@ function TodoItem({
     const flourish = todoFlourishForTitle(todo.title);
     if (!flourish) return;
     setRowSettle({ kind: TODO_FLOURISH_SETTLE[flourish], run: Date.now() });
-    // v338: when the press position is in hand, emit SYNCHRONOUSLY
-    // from it. v337 preferred the async measureInWindow callback,
-    // whose result raced the row's teardown. The measured path
-    // remains only for callers with no press position (the
-    // long-press menu's Mark Complete).
-    if (fallback) {
-      emitTodoFlourish({ flourish, color: todo.color || colors.primary, anchor: fallback });
-      return;
-    }
+    // v348: ALWAYS anchor at the row's measured checkbox — the
+    // v338 press-position shortcut is gone. v338 feared the async
+    // measure raced the row's teardown, but v338's own deferred
+    // write holds the row in its slot for the whole flourish, so
+    // the measure lands on a row that isn't going anywhere; the
+    // fingertip anchor, by contrast, played the burst mid-card on
+    // the pale surface, under his thumb — the invisible-burst
+    // report (Oct 29). The press position survives only as
+    // emitFlourishAt's fallback for a checkbox that can't be
+    // measured at all.
     emitFlourishAt(flourish, todo.color || colors.primary, checkboxAnchorRef.current, fallback);
   };
 
@@ -10699,23 +10700,30 @@ export function ScheduleTab({
   const pairRowRefs = useRef(new Map<string, any>());
   const missedRowRefs = useRef(new Map<string, any>());
 
-  const firePairFlourish = (pairTodo: { id: string; title: string; color?: string | null }, position?: { x: number; y: number }) => {
+  const firePairFlourish = (pairTodo: { id: string; title: string; color?: string | null }) => {
     const flourish = todoFlourishForTitle(pairTodo.title);
     if (!flourish) return;
     setPairSettles((prev) => ({ ...prev, [pairTodo.id]: { kind: TODO_FLOURISH_SETTLE[flourish], run: Date.now() } }));
-    // v338: same fix as the row burst — emit synchronously from the
-    // press position when the press provided one; the async
-    // measureInWindow result raced the row's teardown.
-    if (position) {
-      emitTodoFlourish({ flourish, color: pairTodo.color || colors.primary, anchor: position });
-      return;
-    }
+    // v348: ALWAYS anchor at the pair's measured checkbox — the
+    // v338 press-position shortcut is gone (same reasoning as the
+    // row burst: the deferred write holds the rectangle in its slot
+    // for the whole flourish, so the measure can't race a teardown;
+    // the fingertip anchor buried the burst mid-card, under the
+    // thumb). The kit's travel was drawn from the checkbox.
     const view = pairRowRefs.current.get(pairTodo.id);
     if (view && typeof view.measureInWindow === "function") {
       view.measureInWindow((x: number, y: number, w: number, h: number) => {
         // The pair's checkbox rides at the rectangle's top-left:
         // padding 11 + half the 20px box.
-        emitTodoFlourish({ flourish, color: pairTodo.color || colors.primary, anchor: { x: x + 21, y: y + h / 2 - 10 } });
+        // The wide kits (Brush Teeth foam, Trash bits) were
+        // authored across a full-width row; from a pair rectangle
+        // they'd scatter onto the neighbouring card — contain
+        // their ox to the card's width right of the checkbox.
+        const oxScale =
+          flourish === "brush-teeth" || flourish === "trash"
+            ? Math.min(1, Math.max(0, w - 21) / TODO_FLOURISH_WIDE_SPAN_PX)
+            : undefined;
+        emitTodoFlourish({ flourish, color: pairTodo.color || colors.primary, anchor: { x: x + 21, y: y + h / 2 - 10 }, oxScale });
       });
     }
   };
@@ -11024,6 +11032,15 @@ export function ScheduleTab({
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
   const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
   const [timeBlockColors, setTimeBlockColors] = useState<Record<string, string>>({}); // Map of time block ID to color
+  // v346: hydration guard for the five schedule stores (events / todos /
+  // ministries / bibleStudies / timeBlockColors). This tab unmounts and
+  // remounts on every tab entry, and the save effects below run on mount
+  // with the initial empty state — before this flag they wrote that empty
+  // state over storage ahead of the async load, wiping imported events
+  // (the events save, declared first, lost the race almost every time).
+  // Same pattern as isWorshipExpansionHydrated below: saves early-return
+  // until the mount load has finished, then behave exactly as before.
+  const [isScheduleHydrated, setIsScheduleHydrated] = useState(false);
   const [selectedBibleStudyDay, setSelectedBibleStudyDay] = useState<string | null>(null); // Day name for multi-day Bible study tracker
   // v207: the chapterSummary / isLoadingSummary state is gone with the
   // live fetch it served — the storyteller preview is baked local data
@@ -11740,6 +11757,7 @@ export function ScheduleTab({
       } catch (e) {
         // Silent fail
       } finally {
+        setIsScheduleHydrated(true);
         setIsWorshipExpansionHydrated(true);
         setIsWorshipTrackCompletionsHydrated(true);
       }
@@ -11749,8 +11767,9 @@ export function ScheduleTab({
 
   // Save data
   useEffect(() => {
+    if (!isScheduleHydrated) return;
     AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(events)).catch(() => undefined);
-  }, [events]);
+  }, [isScheduleHydrated, events]);
 
   useEffect(() => {
     syncScheduledEventNotifications(events, todos, ministries).catch(() => undefined);
@@ -11760,21 +11779,25 @@ export function ScheduleTab({
     AsyncStorage.setItem('WORSHIP_LIST_LINKS_KEY', JSON.stringify(worshipListLinks)).catch(() => undefined);
   }, [worshipListLinks]);
   useEffect(() => {
+    if (!isScheduleHydrated) return;
     AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(todos)).catch(() => undefined);
-  }, [todos]);
+  }, [isScheduleHydrated, todos]);
 
   useEffect(() => {
     AsyncStorage.setItem('PRAYERS_KEY', JSON.stringify(prayers)).catch(() => undefined);
   }, [prayers]);
   useEffect(() => {
+    if (!isScheduleHydrated) return;
     AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(ministries)).catch(() => undefined);
-  }, [ministries]);
+  }, [isScheduleHydrated, ministries]);
   useEffect(() => {
+    if (!isScheduleHydrated) return;
     AsyncStorage.setItem(SCHEDULE_BIBLE_STUDIES_KEY, JSON.stringify(bibleStudies)).catch(() => undefined);
-  }, [bibleStudies]);
+  }, [isScheduleHydrated, bibleStudies]);
   useEffect(() => {
+    if (!isScheduleHydrated) return;
     AsyncStorage.setItem('SCHEDULE_TIME_BLOCK_COLORS_KEY', JSON.stringify(timeBlockColors)).catch(() => undefined);
-  }, [timeBlockColors]);
+  }, [isScheduleHydrated, timeBlockColors]);
 
   useEffect(() => {
     if (!isWorshipExpansionHydrated) return;
@@ -13991,7 +14014,7 @@ export function ScheduleTab({
                     onPress={(e) => {
                       if (pendingTodoIds.has(t.id)) return; // v338: a held write owns this rectangle until it lands
                       const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
-                      if (!t.isCompleted) firePairFlourish(t, position);
+                      if (!t.isCompleted) firePairFlourish(t);
                       requestTodoToggle(t, () => {
                         if (!t.isCompleted) onAwardXP?.(xpActionForDate(t.date), t.id, position);
                         else revokeTodoXP(t.id, position);
@@ -14717,7 +14740,13 @@ export function ScheduleTab({
             </Animated.View>
             <Animated.FlatList
               ref={mainListRef}
-              style={{ flex: 1, position: "relative", zIndex: 1 }}
+              // v347: edge-to-edge — the sheet's frame reaches the
+              // screen's literal top (marginTop −safeInsets.top)
+              // so day cards scroll INTO the tray zone and ghost
+              // under the fade; the header spacer below grows by
+              // the same inset, so the sheet's rest position (the
+              // measured spacer alone sets it) is unchanged.
+              style={{ flex: 1, position: "relative", zIndex: 1, marginTop: -safeInsets.top }}
               data={scheduleSheetData}
               scrollEnabled={slidePicker == null}
               onMomentumScrollEnd={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
@@ -14802,7 +14831,10 @@ export function ScheduleTab({
             ListHeaderComponent={
               <View
                 pointerEvents="none"
-                style={{ height: scheduleSummaryHeight }}
+                // v347: + safeInsets.top — the sheet's frame moved
+                // up by that much (edge-to-edge, above); the spacer
+                // absorbs it so the rest position is unchanged.
+                style={{ height: scheduleSummaryHeight + safeInsets.top }}
               />
             }
           />

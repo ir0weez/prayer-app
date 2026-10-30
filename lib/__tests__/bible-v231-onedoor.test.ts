@@ -250,7 +250,13 @@ describe('the door’s apply — every section lands, one combined summary', () 
 
     // Schedule → the merge, deduped as ever.
     const merged = mergeStudioSchedule([], [], plan.schedule!);
-    counts.eventsAdded = merged.added;
+    // RE-BASED 2026-10-29 (v345): the counts split by kind — the
+    // lumped `eventsAdded` field is gone; the merge now reports
+    // events/todos added and already-there separately.
+    counts.scheduleEventsAdded = merged.eventsAdded;
+    counts.scheduleTodosAdded = merged.todosAdded;
+    counts.scheduleEventsAlreadyThere = merged.eventsAlreadyThere;
+    counts.scheduleTodosAlreadyThere = merged.todosAlreadyThere;
     expect(merged.events.map((e) => e.title)).toEqual(['Evening check-in']);
 
     // People → the merge (upsert-only, forward-only dates).
@@ -269,8 +275,12 @@ describe('the door’s apply — every section lands, one combined summary', () 
     expect(ministriesResult.ministries.map((m) => m.title)).toEqual(['Food Bank Run']);
 
     // The one summary names every section the file carried.
+    // RE-BASED 2026-10-29 (v345): the schedule segment is honest now —
+    // "Events added: 1" lumped events+todos and hid dedupe matches;
+    // it reads "Schedule: E events + T todos added · A already there".
     expect(formatStudioImportSummary(plan, counts)).toBe(
-      'Notes: 1 chapters · States: 2 · Read marks: 1 · Events added: 1 · ' +
+      'Notes: 1 chapters · States: 2 · Read marks: 1 · ' +
+        'Schedule: 1 events + 0 todos added · 0 already there · ' +
         'People updated: 1 · Ministries: 1 added / 0 updated / 0 deleted',
     );
   });

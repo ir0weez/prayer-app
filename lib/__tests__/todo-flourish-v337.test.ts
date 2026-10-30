@@ -215,9 +215,12 @@ describe("v337 — source pins: one-shot, native driver, wired to the toggles", 
     expect(schedule).toContain("todoFlourishForTitle(todo.title)");
     expect(schedule).toContain("if (!todo.isCompleted) fireRowFlourish(position)");
     expect(schedule).toContain("if (!subtask.isCompleted) fireSubtaskFlourish(subtask, position)");
-    // v338: the pair press now hands its position over for the
-    // synchronous emit — same seat, wider call.
-    expect(schedule).toContain("firePairFlourish(t, position)");
+    // RE-BASED (v348, Oct 29): the pair press no longer hands its
+    // position to the flourish — v348 anchors the burst at the
+    // pair's measured checkbox (the fingertip anchor buried the
+    // burst mid-card; see todo-flourish-v348.test.ts). The press
+    // position still goes to the XP award at the same seat.
+    expect(schedule).toContain("firePairFlourish(t);");
     expect(schedule).toContain("emitTodoFlourish");
   });
 

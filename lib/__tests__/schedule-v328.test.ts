@@ -68,7 +68,9 @@ describe("v328 gate — the slide waits for halfway over the summary", () => {
     expect(scheduleTab).toContain("const slideGateStart = scheduleSummaryHeight / 2;");
     // The cover mapping itself: the sheet's head spacer is the
     // measured summary height, flush at the summary's bottom edge.
-    expect(scheduleTab).toContain("style={{ height: scheduleSummaryHeight }}");
+    // RE-BASED (v347, Oct 29): the spacer is the measured height + safeInsets.top,
+    // absorbing the sheet frame's edge-to-edge bleed — the cover mapping is unchanged.
+    expect(scheduleTab).toContain("style={{ height: scheduleSummaryHeight + safeInsets.top }}");
     expect(scheduleTab).toContain("onLayout={(event) => setScheduleSummaryHeight(event.nativeEvent.layout.height)}");
   });
 

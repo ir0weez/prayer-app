@@ -793,13 +793,18 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
         },
       ]}
     >
+      {/* v347: edge-to-edge — the feed's frame reaches the
+          screen's literal top (marginTop −insets.top on the list)
+          so entries scroll INTO the tray zone and ghost under
+          the fade; the content paddingTop returns the inset, so
+          at rest the masthead sits exactly where it sat. */}
       <FlatList
         ref={feedListRef}
         data={feedItems}
         keyExtractor={(item) => item.key}
         keyboardShouldPersistTaps="handled"
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 148 + insets.bottom }}
+        style={{ flex: 1, marginTop: -insets.top }}
+        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 148 + insets.bottom }}
         onScroll={topFadeScrollHandler(fadeScrollY)}
         scrollEventThrottle={16}
         ListHeaderComponent={

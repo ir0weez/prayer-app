@@ -66,7 +66,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { TOP_FADE_HEIGHT, topFadeOpacityAt, topFadeOverlayTopPx, topFadeRampOpacity, topFadeScreenOpacityAt, topFadeStops, topFadeStripOpacityAt } from "../top-fade";
+import { TOP_FADE_HEIGHT, TOP_FADE_TRAY_CAP, topFadeOpacityAt, topFadeOverlayTopPx, topFadeRampOpacity, topFadeScreenOpacityAt, topFadeStops, topFadeStripOpacityAt } from "../top-fade";
 
 const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
@@ -155,11 +155,16 @@ describe("v334 — the shared TopFade component", () => {
     // The on-screen acceptance is pinned in the v344 test below.
     const tray = 32;
     const total = tray + TOP_FADE_HEIGHT;
-    // The whole tray zone is the tray's backing: full strength.
-    expect(topFadeStripOpacityAt(0, tray)).toBe(1);
-    expect(topFadeStripOpacityAt(tray - 1, tray)).toBe(1);
-    // The junction has no step: the dissolve starts at 1 too.
-    expect(topFadeStripOpacityAt(tray, tray)).toBe(1);
+    // The whole tray zone is the tray's backing — at the CAP
+    // since v347 (RE-BASED Oct 29, his 16:47 clarification:
+    // "the words still scroll and are visible in the
+    // notification tray, just really faded" — the paint never
+    // reaches 1, so content ghosts through the tray zone).
+    // Through v344 these pinned 1.
+    expect(topFadeStripOpacityAt(0, tray)).toBe(TOP_FADE_TRAY_CAP);
+    expect(topFadeStripOpacityAt(tray - 1, tray)).toBe(TOP_FADE_TRAY_CAP);
+    // The junction has no step: the dissolve starts at the cap too.
+    expect(topFadeStripOpacityAt(tray, tray)).toBe(TOP_FADE_TRAY_CAP);
     // Non-increasing everywhere, and the per-sample step across
     // the dissolve is bounded (sampled at the render's strip
     // granularity, ~1/56 of the whole overlay): no visible edge.
@@ -185,23 +190,28 @@ describe("v334 — the shared TopFade component", () => {
     expect(topFadeOverlayTopPx(tray)).toBe(-tray);
     expect(topFadeOverlayTopPx(tray) + tray).toBeLessThanOrEqual(0);
     expect(topFadeOverlayTopPx(0)).toBe(0);
-    // The visible window starts high — the screen's top edge
-    // carries the strongest visible alpha (≥ 0.85, the tray
-    // icons' backing while scrolling) — and falls from the
-    // first pixel: at 1px down the fall has already begun.
-    expect(topFadeScreenOpacityAt(0, tray)).toBeGreaterThanOrEqual(0.85);
-    expect(topFadeScreenOpacityAt(1, tray)).toBeLessThan(topFadeScreenOpacityAt(0, tray));
-    // STRICTLY decreasing across the whole visible window — no
-    // constant-alpha region on screen at any scroll offset, and
-    // per-sample steps stay bounded at render granularity, so
-    // no step or edge can appear either. It lands at exactly 0
-    // at the window's bottom.
+    // The visible window starts at the CAP — the screen's top
+    // edge carries the strongest visible alpha (the tray icons'
+    // backing while scrolling) — and the fall begins as soon as
+    // the cubic drops below the cap (RE-BASED Oct 29, v347
+    // amendment: through v344 the edge pinned ≥ 0.85 with the
+    // fall begun at 1px and strict decrease everywhere; the cap
+    // holds the first ~5px at TOP_FADE_TRAY_CAP by design — the
+    // tray zone's deliberate ceiling, not a band: below it the
+    // fall is strict again).
+    expect(topFadeScreenOpacityAt(0, tray)).toBe(TOP_FADE_TRAY_CAP);
+    expect(topFadeScreenOpacityAt(8, tray)).toBeLessThan(topFadeScreenOpacityAt(0, tray));
+    // Non-increasing across the whole visible window, STRICTLY
+    // decreasing past the cap zone, per-sample steps bounded at
+    // render granularity — no step or edge can appear. It lands
+    // at exactly 0 at the window's bottom.
     let prev = Number.POSITIVE_INFINITY;
     const samples = 240;
     for (let i = 0; i <= samples; i++) {
       const y = (i / samples) * TOP_FADE_HEIGHT;
       const v = topFadeScreenOpacityAt(y, tray);
-      expect(v).toBeLessThan(prev);
+      expect(v).toBeLessThanOrEqual(prev);
+      if (y >= 6) expect(v).toBeLessThan(prev);
       if (i > 0) expect(prev - v).toBeLessThanOrEqual(0.08);
       prev = v;
     }

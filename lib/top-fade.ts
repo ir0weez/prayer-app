@@ -8,6 +8,33 @@
  *  a gentler, taller dissolve on the main tab screens. */
 export const TOP_FADE_HEIGHT = 120;
 
+/** v347: the SCROLL RAMP's distance — how far the page scrolls
+ *  before the fade reaches full strength. Deliberately NOT the
+ *  dissolve height any more (it was TOP_FADE_HEIGHT through
+ *  v344): the measured cause of the surviving "bar" (pixel-
+ *  verified against his v344 screenshots 10955/10956) is that
+ *  scrolling content is CLIPPED DEAD at the FlatList viewport's
+ *  top edge, and under the old ramp a glyph reached that edge
+ *  only ~28% dissolved (34dp of scroll ÷ 120) and was sliced at
+ *  the line. At 16px the ramp is essentially complete before
+ *  anything reaches the edge, so the clip has nothing left to
+ *  slice. Still exactly 0 at rest (scrollY = 0). */
+export const TOP_FADE_RAMP_PX = 16;
+
+/** v347 AMENDMENT (Jonathan's clarification, Oct 29 16:47: "the
+ *  words still scroll and are visible in the notification tray,
+ *  just really faded"): the fade's alpha NEVER reaches 1 over
+ *  the tray zone. At full ramp the tray zone sits at this cap —
+ *  heavy enough that the tray's clock and icons stay readable
+ *  against it, light enough that dark content scrolling beneath
+ *  ghosts through faintly instead of being dissolved to nothing
+ *  or sliced at the tray's bottom edge. Applied as a ceiling on
+ *  the strip paint (topFadeStripOpacityAt): the only alphas it
+ *  touches are those above the cap, which on screen occur only
+ *  in the tray zone; the sub-tray dissolve eases to 0 over
+ *  TOP_FADE_HEIGHT exactly as before. */
+export const TOP_FADE_TRAY_CAP = 0.88;
+
 /**
  * The gradient's stops for a page background colour: full strength
  * ONLY at the very top edge (content is fully dissolved there),
@@ -61,6 +88,11 @@ export function topFadeOpacityAt(t: number): number {
  * dissolve. The junction is continuous (the cubic starts at 1),
  * so there is no step or second edge anywhere.
  *
+ * v347 AMENDMENT (his clarification, Oct 29 16:47): "full
+ * strength" is now the TOP_FADE_TRAY_CAP (0.88), never 1 — the
+ * words must stay faintly VISIBLE in the tray, ghosting
+ * through, not dissolved to nothing.
+ *
  * v344: this function still describes the overlay's OWN paint,
  * in overlay coordinates — but the component now RAISES the
  * whole overlay by the tray height (topFadeOverlayTopPx), so
@@ -72,8 +104,12 @@ export function topFadeStripOpacityAt(
   trayInsetPx: number,
   dissolveHeightPx: number = TOP_FADE_HEIGHT,
 ): number {
-  if (yPx < trayInsetPx) return 1;
-  return topFadeOpacityAt((yPx - trayInsetPx) / dissolveHeightPx);
+  const raw = yPx < trayInsetPx ? 1 : topFadeOpacityAt((yPx - trayInsetPx) / dissolveHeightPx);
+  // v347 amendment: the tray cap — the paint never goes fully
+  // opaque, so content ghosts through the tray zone (see
+  // TOP_FADE_TRAY_CAP). Through v344 this returned the raw
+  // curve (plate and junction at 1).
+  return Math.min(raw, TOP_FADE_TRAY_CAP);
 }
 
 /**
@@ -121,15 +157,19 @@ export function topFadeScreenOpacityAt(
  * own scroll offset. At rest (scrollY = 0) its opacity is 0 —
  * NOTHING is painted over the header, so titles render crisp the
  * moment the app opens ("I don't want that fade to be there
- * until I scroll"). It ramps in linearly over roughly the fade's
- * own height — by the time content has scrolled one fade-height
- * under the top edge, the dissolve is at full strength — and
+ * until I scroll"). It ramps in linearly with scroll, and
  * scrolling back to the top returns it to exactly 0. No static
  * gradient block remains: the strips render only as this ramp
  * lets them.
+ *
+ * v347: the ramp's distance is TOP_FADE_RAMP_PX (16), NOT the
+ * fade's height — see that constant for the measured reason
+ * (content is clipped at the viewport's top edge and must be
+ * ~fully dissolved before it gets there). Through v344 this
+ * distance was the fade height (120).
  */
-export function topFadeRampOpacity(scrollY: number, height: number = TOP_FADE_HEIGHT): number {
-  if (!(height > 0)) return 0;
-  const t = scrollY / height;
+export function topFadeRampOpacity(scrollY: number, rampPx: number = TOP_FADE_RAMP_PX): number {
+  if (!(rampPx > 0)) return 0;
+  const t = scrollY / rampPx;
   return t <= 0 ? 0 : t >= 1 ? 1 : t;
 }

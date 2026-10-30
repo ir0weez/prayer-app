@@ -162,7 +162,10 @@ describe("v296 slide-over rest — the drawing's overlap, the v197 mechanism", (
   });
 
   it("the spacer still carries the summary's full measured height (no text is covered by construction)", () => {
-    expect(scheduleTab).toContain("style={{ height: scheduleSummaryHeight }}");
+    // RE-BASED (v347, Oct 29): the spacer is the measured height + safeInsets.top —
+    // the sheet frame bleeds up by the inset (edge-to-edge), the spacer absorbs it,
+    // so the rest position this pin guards is unchanged.
+    expect(scheduleTab).toContain("style={{ height: scheduleSummaryHeight + safeInsets.top }}");
   });
 });
 

@@ -188,7 +188,8 @@ describe("v319 day-switching — the v297 invariant holds", () => {
 
   it("the sheet mechanism is untouched — the spacer still carries the full measured zone", () => {
     expect(scheduleTab).toContain('pointerEvents="none"');
-    expect(scheduleTab).toContain("style={{ height: scheduleSummaryHeight }}");
+    // RE-BASED (v347, Oct 29): + safeInsets.top absorbs the sheet frame's edge-to-edge bleed; rest position unchanged.
+    expect(scheduleTab).toContain("style={{ height: scheduleSummaryHeight + safeInsets.top }}");
     expect(scheduleTab).toContain('pointerEvents="box-none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 2 }}');
   });
 

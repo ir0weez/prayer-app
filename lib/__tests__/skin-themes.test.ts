@@ -1688,12 +1688,15 @@ describe("v193 — the header joins the slide", () => {
 
   it("the summary is never clipped at rest: the spacer is the summary's full height", () => {
     expect(schedule).not.toContain("SHEET_OVERLAP");
-    expect(schedule).toContain("style={{ height: scheduleSummaryHeight }}");
+    // RE-BASED (v347, Oct 29): + safeInsets.top absorbs the sheet frame's edge-to-edge bleed; the spacer still sets the rest position.
+    expect(schedule).toContain("style={{ height: scheduleSummaryHeight + safeInsets.top }}");
     // The summary itself is still the fixed layer behind (zIndex 0)
     // and the list still scrolls over it (zIndex 1) — the slide-over
     // choreography in motion is unchanged.
     expect(schedule).toContain('style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 0');
-    expect(schedule).toContain('style={{ flex: 1, position: "relative", zIndex: 1 }}');
+    // RE-BASED (v347, Oct 29): the sheet frame also carries marginTop: -safeInsets.top
+    // (edge-to-edge bleed into the tray zone; the spacer absorbs it — rest unchanged).
+    expect(schedule).toContain('style={{ flex: 1, position: "relative", zIndex: 1, marginTop: -safeInsets.top }}');
   });
 
   it("the week and month views never had the floating header — audited, different structure", () => {
@@ -1733,7 +1736,8 @@ describe("v197 — flush slide, dates back", () => {
     // (no overlap returns — no summary text or the Tasks & Events
     // bar can be covered at rest), and the bottom clearance the
     // footer needs is untouched.
-    expect(sheet).toContain("style={{ height: scheduleSummaryHeight }}");
+    // RE-BASED (v347, Oct 29): + safeInsets.top absorbs the sheet frame's edge-to-edge bleed; rest position unchanged.
+    expect(sheet).toContain("style={{ height: scheduleSummaryHeight + safeInsets.top }}");
     expect(sheet).toContain("paddingBottom: 120");
     // The measurement itself still comes from the summary wrapper's
     // own onLayout — the summary's rendered content height only,

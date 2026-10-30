@@ -25,6 +25,19 @@ export interface ScreenContainerProps extends ViewProps {
    * Additional className for the SafeAreaView (content layer).
    */
   safeAreaClassName?: string;
+  /**
+   * v347: the ground the contained screen itself paints (its own
+   * derivation — a Material family's ground under Classic, the
+   * skin token background under a skin). The tray strip above
+   * the safe area is the ONLY place this container's own paint
+   * shows on a normal screen; when the caller hands over its
+   * ground, BOTH container layers paint it, so the tray zone and
+   * the page are one colour with no tint step and no hard edge
+   * at the boundary (the measured second half of the surviving
+   * top "bar", Oct 29). Omitted: the container paints exactly as
+   * before (palette background / skin token).
+   */
+  groundColor?: string;
 }
 
 /**
@@ -48,6 +61,7 @@ export function ScreenContainer({
   className,
   containerClassName,
   safeAreaClassName,
+  groundColor,
   style,
   ...props
 }: ScreenContainerProps) {
@@ -62,7 +76,13 @@ export function ScreenContainer({
         "bg-background",
         containerClassName
       )}
-      style={isSkinned && tokens.background ? { backgroundColor: tokens.background } : undefined}
+      style={
+        groundColor
+          ? { backgroundColor: groundColor }
+          : isSkinned && tokens.background
+            ? { backgroundColor: tokens.background }
+            : undefined
+      }
       {...props}
     >
       {isPaper ? <PaperGrainOverlay /> : null}
@@ -71,7 +91,7 @@ export function ScreenContainer({
       <SafeAreaView
         edges={edges}
         className={cn("flex-1", safeAreaClassName)}
-        style={style}
+        style={groundColor ? [style, { backgroundColor: groundColor }] : style}
       >
         <View className={cn("flex-1", className)}>{children}</View>
       </SafeAreaView>

@@ -14732,7 +14732,13 @@ export function ScheduleTab({
             </Animated.View>
             <Animated.FlatList
               ref={mainListRef}
-              style={{ flex: 1, position: "relative", zIndex: 1 }}
+              // v347: edge-to-edge — the sheet's frame reaches the
+              // screen's literal top (marginTop −safeInsets.top)
+              // so day cards scroll INTO the tray zone and ghost
+              // under the fade; the header spacer below grows by
+              // the same inset, so the sheet's rest position (the
+              // measured spacer alone sets it) is unchanged.
+              style={{ flex: 1, position: "relative", zIndex: 1, marginTop: -safeInsets.top }}
               data={scheduleSheetData}
               scrollEnabled={slidePicker == null}
               onMomentumScrollEnd={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
@@ -14817,7 +14823,10 @@ export function ScheduleTab({
             ListHeaderComponent={
               <View
                 pointerEvents="none"
-                style={{ height: scheduleSummaryHeight }}
+                // v347: + safeInsets.top — the sheet's frame moved
+                // up by that much (edge-to-edge, above); the spacer
+                // absorbs it so the rest position is unchanged.
+                style={{ height: scheduleSummaryHeight + safeInsets.top }}
               />
             }
           />

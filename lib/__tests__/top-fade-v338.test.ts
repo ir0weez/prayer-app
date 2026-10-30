@@ -31,7 +31,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { TOP_FADE_HEIGHT, topFadeRampOpacity } from "../top-fade";
+import { TOP_FADE_HEIGHT, TOP_FADE_RAMP_PX, TOP_FADE_TRAY_CAP, topFadeRampOpacity, topFadeScreenOpacityAt, topFadeStripOpacityAt } from "../top-fade";
 
 const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
@@ -43,13 +43,23 @@ describe("v338 the ramp — opacity is a function of scroll, 0 at rest", () => {
     expect(topFadeRampOpacity(0)).toBe(0);
   });
 
-  it("rises with scroll and reaches full at one fade-height", () => {
-    expect(topFadeRampOpacity(TOP_FADE_HEIGHT / 2)).toBeCloseTo(0.5);
+  it("rises with scroll and reaches full at the ramp distance (RE-BASED Oct 29, v347)", () => {
+    // RE-BASED: through v344 the ramp distance was the fade's
+    // height (full at TOP_FADE_HEIGHT = 120). v347 steepens it
+    // to TOP_FADE_RAMP_PX — content is clipped dead at the
+    // viewport's top edge and must be ~fully dissolved before
+    // it reaches the edge (measured on his v344 screenshots
+    // 10955/10956: at 34dp of scroll the old ramp had a glyph
+    // only ~28% dissolved as the edge sliced it). Rest is still
+    // exactly 0; the dissolve geometry (TOP_FADE_HEIGHT) is
+    // unchanged.
+    expect(topFadeRampOpacity(TOP_FADE_RAMP_PX / 2)).toBeCloseTo(0.5);
+    expect(topFadeRampOpacity(TOP_FADE_RAMP_PX)).toBe(1);
     expect(topFadeRampOpacity(TOP_FADE_HEIGHT)).toBe(1);
     expect(topFadeRampOpacity(TOP_FADE_HEIGHT * 3)).toBe(1);
   });
 
-  it("clamps below 0 for rubber-band offsets and honours a custom height", () => {
+  it("clamps below 0 for rubber-band offsets and honours a custom ramp distance", () => {
     expect(topFadeRampOpacity(-24)).toBe(0);
     expect(topFadeRampOpacity(60, 120)).toBeCloseTo(0.5);
     expect(topFadeRampOpacity(0, 120)).toBe(0);
@@ -66,10 +76,13 @@ describe("v338 the ramp — opacity is a function of scroll, 0 at rest", () => {
 });
 
 describe("v338 the component — the overlay renders only as the ramp lets it", () => {
-  it("takes the page's scroll value and interpolates opacity over [0, height]", () => {
+  it("takes the page's scroll value and interpolates opacity over the ramp distance (RE-BASED Oct 29, v347)", () => {
+    // RE-BASED: the input range was [0, height] (the dissolve
+    // height) through v344; v347 interpolates over
+    // TOP_FADE_RAMP_PX instead — see the ramp re-base above.
     expect(component).toContain("scrollY?: Animated.Value");
     expect(component).toContain("scrollY.interpolate");
-    expect(component).toContain("inputRange: [0, height]");
+    expect(component).toContain("inputRange: [0, TOP_FADE_RAMP_PX]");
     expect(component).toContain("outputRange: [0, 1]");
     expect(component).toContain('extrapolate: "clamp"');
   });
@@ -149,6 +162,117 @@ describe("v338 no bar at rest — People", () => {
     // At rest peopleFadeScrollY is 0 and the ramp is 0 — the
     // header renders fully crisp when the app opens.
     expect(topFadeRampOpacity(0)).toBe(0);
+  });
+});
+
+describe("v347 — the tray cap and the steepened ramp (his clarification, Oct 29 16:47)", () => {
+  // "the words still scroll and are visible in the notification
+  // tray, just really faded" — the tray zone NEVER goes fully
+  // opaque, and the ramp is full before content reaches the
+  // viewport's clip edge.
+  const tray = 50;
+
+  it("tray-zone alpha at full ramp == the cap, never 1", () => {
+    expect(topFadeRampOpacity(TOP_FADE_RAMP_PX)).toBe(1);
+    expect(topFadeScreenOpacityAt(0, tray) * topFadeRampOpacity(TOP_FADE_RAMP_PX)).toBe(TOP_FADE_TRAY_CAP);
+    expect(topFadeStripOpacityAt(0, tray)).toBe(TOP_FADE_TRAY_CAP);
+    expect(topFadeStripOpacityAt(tray / 2, tray)).toBe(TOP_FADE_TRAY_CAP);
+    expect(TOP_FADE_TRAY_CAP).toBeLessThan(1);
+    expect(TOP_FADE_TRAY_CAP).toBeGreaterThan(0.8);
+  });
+
+  it("no point of the paint ever exceeds the cap", () => {
+    for (let y = 0; y <= tray + TOP_FADE_HEIGHT; y += 2) {
+      expect(topFadeStripOpacityAt(y, tray)).toBeLessThanOrEqual(TOP_FADE_TRAY_CAP);
+    }
+    for (let y = 0; y <= TOP_FADE_HEIGHT; y += 2) {
+      expect(topFadeScreenOpacityAt(y, tray)).toBeLessThanOrEqual(TOP_FADE_TRAY_CAP);
+    }
+  });
+
+  it("rest is still exactly 0 under the capped profile", () => {
+    expect(topFadeRampOpacity(0)).toBe(0);
+    expect(topFadeScreenOpacityAt(0, tray) * topFadeRampOpacity(0)).toBe(0);
+  });
+
+  it("the ramp completes well inside the old slice case (34dp of scroll)", () => {
+    // On v344, 34dp of scroll left a glyph ~28% dissolved at
+    // the clip edge (34/120). Now the ramp is long complete.
+    expect(topFadeRampOpacity(34)).toBe(1);
+    expect(TOP_FADE_RAMP_PX).toBeLessThan(TOP_FADE_HEIGHT);
+  });
+});
+
+describe("v347 — edge-to-edge seats: the scroller reaches the screen's literal top", () => {
+  // The scroller's frame bleeds up by the top inset; the same
+  // inset returns as content padding/spacer, so at rest every
+  // seat is byte-identical. Content can now pass INTO the tray
+  // zone and ghost under the capped fade.
+  const index = read("app/(tabs)/index.tsx");
+  const schedule = read("components/schedule-tab.tsx");
+  const journal = read("components/prayer-journal-tab.tsx");
+  const profile = read("app/profile.tsx");
+  const bible = read("app/bible-chapters.tsx");
+
+  it("People — the roster bleeds, its content padding returns the inset", () => {
+    expect(index).toContain("style={{ flex: 1, marginTop: -insets.top }}");
+    expect(index).toContain("paddingTop: 10 + insets.top");
+  });
+
+  it("Settings — the scroll view bleeds, a spacer returns the inset", () => {
+    expect(index).toContain("backgroundColor: sm.ground, marginTop: -insets.top");
+    expect(index).toContain("<View style={{ height: insets.top }} />");
+  });
+
+  it("More — both scroll views bleed, their padding returns the inset", () => {
+    expect(index).toContain("pm.ground, marginTop: -insets.top");
+    expect(index).toContain("paddingTop: 8 + insets.top");
+  });
+
+  it("Schedule — the sheet bleeds, its measured spacer absorbs the inset", () => {
+    expect(schedule).toContain("marginTop: -safeInsets.top");
+    expect(schedule).toContain("height: scheduleSummaryHeight + safeInsets.top");
+  });
+
+  it("Journal — the feed bleeds, its content padding returns the inset", () => {
+    expect(journal).toContain("marginTop: -insets.top");
+    expect(journal).toContain("paddingTop: insets.top, paddingBottom: 148");
+  });
+
+  it("Profile — the scroll view bleeds, a spacer returns the inset", () => {
+    expect(profile).toContain("style={{ marginTop: -insets.top }}");
+    expect(profile).toContain("<View style={{ height: insets.top }} />");
+  });
+
+  it("Books list — FLAGGED, not forced: its fixed topbar already spans the tray zone", () => {
+    // The Books screen's root paints the palette paper
+    // edge-to-edge and its fixed topbar seats its row under
+    // the tray via paddingTop (insets.top + 8) — there is no
+    // tint step to erase, and bleeding the list behind a
+    // definite header would collide with the bar's own row.
+    // The list keeps dissolving below the topbar.
+    expect(bible).not.toContain("marginTop: -insets.top");
+    expect(bible).toContain("insets.top + 8");
+  });
+});
+
+describe("v347 — the container paints the screen's own ground (no tint lid)", () => {
+  const container = read("components/screen-container.tsx");
+  const index = read("app/(tabs)/index.tsx");
+
+  it("ScreenContainer takes a groundColor and paints it on BOTH layers", () => {
+    expect(container).toContain("groundColor?: string");
+    expect(container).toContain("backgroundColor: groundColor");
+    expect(container).toContain("[style, { backgroundColor: groundColor }]");
+  });
+
+  it("the shell hands over the active screen's ground in its own derivation", () => {
+    expect(index).toContain("groundColor={shellGround}");
+    const block = index.slice(index.indexOf("const shellGround ="), index.indexOf("groundColor={shellGround}"));
+    expect(block).toContain("pmf.ground");
+    expect(block).toContain("deriveSettingsMaterial");
+    expect(block).toContain("pm.ground");
+    expect(block).toContain("jm.ground");
   });
 });
 

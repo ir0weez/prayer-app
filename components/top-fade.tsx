@@ -35,7 +35,9 @@
 // (useNativeDriver: false everywhere in this file's path), so the
 // interpolation lives entirely in JS and no fade node ever enters
 // the native animated graph. The behaviour is byte-for-byte the
-// v338 reading: opacity 0 at rest, full at one fade-height.
+// v338 reading: opacity 0 at rest, full at one fade-height
+// (v347: the ramp distance is TOP_FADE_RAMP_PX now — see the
+// v347 note further down).
 //
 // The colour is DERIVED, never pinned: callers pass the same
 // ground expression their page root already paints (a material
@@ -86,6 +88,23 @@
 // the whole overlay at exactly 0 — the raise changes nothing
 // there.
 //
+// v347 — THE BAR, MEASURED (his v344 verdict, Oct 29 16:37,
+// screenshots 10955/10956: "The bar is still there!!!"): pixel
+// measurement showed the fade itself drawing exactly what it
+// was coded to draw. The bar was two other things compounding:
+// (1) scrolling content is CLIPPED DEAD at the FlatList
+// viewport's top edge, and the old ramp (full at 120px of
+// scroll) left a glyph only ~28% dissolved when it reached
+// that edge at ~34dp of scroll — sliced at the line; the ramp
+// is now full at TOP_FADE_RAMP_PX (16px), so the clip has
+// nothing left to slice. (2) The tray zone above that edge was
+// painted by the ScreenContainer in the palette background
+// while the page ground below it is the screen's own derived
+// ground — a small tint step with a hard edge, a lid over the
+// slice; the shell now hands ScreenContainer the active
+// screen's ground (see components/screen-container.tsx). The
+// v344 raise stands untouched.
+//
 // The gradient is painted as a stack of thin strips sampling the
 // one curve in lib/top-fade.ts — deliberately NOT react-native-svg:
 // the Bible screens' render tests load these pages in an
@@ -96,7 +115,7 @@ import { useRef } from "react";
 import { Animated, View } from "react-native";
 
 import { useColors } from "@/hooks/use-colors";
-import { TOP_FADE_HEIGHT, topFadeOverlayTopPx, topFadeStripOpacityAt } from "@/lib/top-fade";
+import { TOP_FADE_HEIGHT, TOP_FADE_RAMP_PX, topFadeOverlayTopPx, topFadeStripOpacityAt } from "@/lib/top-fade";
 
 /** Strips across the fade's whole height (tray + dissolve) — fine
  *  enough to read smooth (v342: 56, ~3px a strip at phone
@@ -135,8 +154,9 @@ export function TopFade({
   height?: number;
   zIndex?: number;
   /** v338: the page's scroll offset. When passed, the overlay's
-   * opacity is the scroll ramp (0 at rest, full at one
-   * fade-height of scroll) — the scroll-linked reading. */
+   * opacity is the scroll ramp (0 at rest, full at
+   * TOP_FADE_RAMP_PX of scroll since v347) — the scroll-linked
+   * reading. */
   scrollY?: Animated.Value;
   /** v342: the tray (top safe-area inset) height the overlay
    * covers at full strength before the dissolve runs — his
@@ -190,7 +210,11 @@ export function TopFade({
         style={{
           ...frame,
           opacity: scrollY.interpolate({
-            inputRange: [0, height],
+            // v347: the ramp distance is TOP_FADE_RAMP_PX, not
+            // the dissolve height — content is clipped at the
+            // viewport's top edge and must be ~fully dissolved
+            // before it reaches the edge (see lib/top-fade.ts).
+            inputRange: [0, TOP_FADE_RAMP_PX],
             outputRange: [0, 1],
             extrapolate: "clamp",
           }),

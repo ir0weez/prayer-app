@@ -38,6 +38,7 @@ import {
   type BiblePaneRoute,
 } from "@/lib/bible-pane";
 import { PeopleEntrance, EmergencyLiveDot, EmergencyBreathGlow, PEOPLE_ENTRANCE_EASING, PEOPLE_ENTRANCE_RISE, PEOPLE_ENTRANCE_STAGGER_CAP } from "@/components/people-entrance";
+import { useJournalMaterial } from "@/hooks/use-journal-material";
 import { usePeopleFrontDoor, usePeopleMaterial } from "@/hooks/use-people-material";
 import { queueFaceStatus, queueFirstName, sortQueueFaces } from "@/lib/people-queue";
 import { PEOPLE_EMERGENCY_RED, PEOPLE_GOLD_PILL_INK } from "@/lib/people-material";
@@ -941,6 +942,12 @@ export default function HomeScreen() {
   // the structure and the Classic-light instance). The pmf token
   // source is resolved below, once the skin tokens exist.
   const frontDoorFamily = usePeopleFrontDoor();
+  // v347: the Journal family's ground, resolved here as well so
+  // the shell can hand ScreenContainer the active screen's own
+  // ground (see shellGround at the return below). The Journal
+  // tab derives the same family from the same palette, so the
+  // two always agree.
+  const jm = useJournalMaterial();
   // v260: Today's prayer list — collapsed scroll row ⇄ expanded grid.
   const [queueExpanded, setQueueExpanded] = useState(false);
   // v262 "The Tray Learns to Move" (his Oct 26 device verdict on
@@ -3907,7 +3914,13 @@ export default function HomeScreen() {
         keyExtractor={(item) => item.key}
         ListHeaderComponent={<View>{renderPeopleFrontDoor()}</View>}
         ListEmptyComponent={<View style={styles.emptyStateCard}><MaterialIcons name={iconName("groups")} size={46} color={colors.primary} /><Text style={styles.emptyTitle}>No people yet</Text><Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text></View>}
-        contentContainerStyle={[styles.peopleContent, { paddingTop: 10, paddingBottom: isClassicSkin ? 118 : 132 }]}
+        // v347: edge-to-edge — the roster's frame reaches the
+        // screen's literal top (marginTop −insets.top) so rows
+        // scroll INTO the tray zone and ghost under the fade;
+        // the content padding grows by the same inset, so at
+        // rest every row sits exactly where it sat.
+        style={{ flex: 1, marginTop: -insets.top }}
+        contentContainerStyle={[styles.peopleContent, { paddingTop: 10 + insets.top, paddingBottom: isClassicSkin ? 118 : 132 }]}
         scrollEventThrottle={16}
         onScroll={topFadeScrollHandler(peopleFadeScrollY)}
         showsVerticalScrollIndicator={false}
@@ -4904,7 +4917,13 @@ export default function HomeScreen() {
 
     return (
     <View style={{ flex: 1 }}>
-    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: sm.ground }} contentContainerStyle={styles.settingsContent} onScroll={topFadeScrollHandler(settingsFadeScrollY)} scrollEventThrottle={16}>
+    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: sm.ground, marginTop: -insets.top }} contentContainerStyle={styles.settingsContent} onScroll={topFadeScrollHandler(settingsFadeScrollY)} scrollEventThrottle={16}>
+      {/* v347: edge-to-edge — the frame reaches the screen's
+          literal top (marginTop above) so content scrolls INTO
+          the tray zone and ghosts under the fade; this spacer
+          returns the inset to the content, so at rest everything
+          sits exactly where it sat. */}
+      <View style={{ height: insets.top }} />
       {/* The app bar — the drawing's v5 form: tonal back tile +
           title, nothing else (the build lives in the App group). */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingBottom: 4 }}>
@@ -5516,7 +5535,7 @@ export default function HomeScreen() {
     if (moreShowFamilies) {
       const familyRows = buildFamiliesHubList(people);
       return (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24 }} style={{ backgroundColor: isSkinned ? undefined : pm.ground }} onScroll={topFadeScrollHandler(moreFadeScrollY)} scrollEventThrottle={16}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8 + insets.top, paddingBottom: 24 }} style={{ backgroundColor: isSkinned ? undefined : pm.ground, marginTop: -insets.top }} onScroll={topFadeScrollHandler(moreFadeScrollY)} scrollEventThrottle={16}>
           <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 2, paddingTop: 4, paddingBottom: 10 }}>
             <Pressable onPress={() => setMoreShowFamilies(false)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 2, marginRight: 6 }, pressed && { opacity: 0.7 }]}>
               <MaterialIcons name="chevron-left" size={24} color={pm.deep} />
@@ -5555,7 +5574,7 @@ export default function HomeScreen() {
       { key: "budget", icon: "attach-money", label: "Budget", onPress: () => router.push("/budget-tracker") },
     ];
     return (
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24 }} style={{ backgroundColor: isSkinned ? undefined : pm.ground }} onScroll={topFadeScrollHandler(moreFadeScrollY)} scrollEventThrottle={16}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8 + insets.top, paddingBottom: 24 }} style={{ backgroundColor: isSkinned ? undefined : pm.ground, marginTop: -insets.top }} onScroll={topFadeScrollHandler(moreFadeScrollY)} scrollEventThrottle={16}>
         <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 2, paddingTop: 4, paddingBottom: 10 }}>
           <View>
             <Text style={{ fontSize: 27, fontWeight: "800", letterSpacing: -0.5, color: pm.ink }}>More</Text>
@@ -5854,8 +5873,42 @@ export default function HomeScreen() {
     );
   }
 
+  // v347: the ground the ACTIVE screen paints, in that screen's
+  // own derivation — the very expressions the screens hand their
+  // TopFade (People :3939 area, Settings' sm, More's pm, the
+  // Journal's jm). ScreenContainer paints it through the tray
+  // strip so tray zone and page are one colour (the measured
+  // tint step, Oct 29). Schedule's ground IS the palette
+  // background (its root paints colors.background under Classic,
+  // the skin token under a skin — both already the container's
+  // own paint), and the Study pane paints its own world, so
+  // those hand over nothing. Under 8-bit/Terminal the drawn
+  // backgrounds own the tray strip, as before.
+  const shellGround =
+    skinTokens.isEightBit || skinTokens.isTerminal
+      ? undefined
+      : activeTab === "people" || activeTab === "home"
+        ? isClassicSkin
+          ? pmf.ground
+          : (skinTokens.background ?? colors.background)
+        : activeTab === "settings"
+          ? deriveSettingsMaterial(colors.primary, {
+              background: colors.background,
+              surface: colors.surface,
+              foreground: colors.foreground,
+              muted: colors.muted,
+              border: colors.border,
+            }).ground
+          : activeTab === "more"
+            ? isSkinned
+              ? (skinTokens.background ?? colors.background)
+              : pm.ground
+            : activeTab === "journal"
+              ? jm.ground
+              : undefined;
+
   return (
-    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : colors.background }, null]}>
+    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" groundColor={shellGround} style={[styles.root, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : colors.background }, null]}>
       <ReAnimated.View style={[{ flex: 1 }, tabContentStyle]}>
         {renderContent()}
       </ReAnimated.View>

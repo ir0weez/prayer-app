@@ -41,9 +41,10 @@ import {
  * either... I'd want it directly in the screen, unfurling from the
  * time or date box"). The bottom sheet and its drum wheels are GONE.
  * The picker now grows out of the field itself on the family's own
- * motion (the People UnfurlPanel pattern: a plain RN Animated
- * height on a clipping window, 300ms, bezier(0.2, 0, 0, 1), no
- * springs, no bounce), carrying the approved drawing's anatomy
+ * motion (a plain RN Animated maxHeight cap on a clipping window,
+ * 300ms, bezier(0.2, 0, 0, 1), no springs, no bounce — v373: the
+ * window must animate a cap, never a definite height; see
+ * PickerUnfurlWindow), carrying the approved drawing's anatomy
  * (selector-unfurl-v5 + the v4 dial): the date is a real Material
  * calendar — headline band in primary-container, month row with
  * tonal chevrons, today ringed, the chosen day filled — and the
@@ -72,12 +73,21 @@ const PICKER_UNFURL_DURATION_MS = 300;
 let activePickerClose: (() => void) | null = null;
 
 /**
- * The clipping window the picker unfurls through — the UnfurlPanel
- * pattern from the People roster (app/(tabs)/index.tsx), kept
- * deliberately identical in mechanics: content lays out at natural
- * height from the first frame and reports it up; the window's
- * travel is the only motion; the open ends by unlocking back to
- * auto height; under reduced motion the swap is instant.
+ * The clipping window the picker unfurls through. The window
+ * animates a maxHeight CAP, never a definite height — the v275
+ * ruling, device-traced on the People roster's UnfurlPanel: Yoga
+ * clamps an in-flow child's computed height to a definite
+ * parent's height, so a child born inside a definite height:0
+ * window reports onLayout height 0 forever, the measurement is
+ * discarded as non-positive, and the open never starts. (The
+ * v373 device report, exactly: v366 shipped this window with a
+ * definite height — a tap painted the field its open tint while
+ * the panel sat at height 0, and the only way out was another
+ * tap, so the fields just flashed pink.) A cap never gives the
+ * child a definite height to clamp against: content lays out at
+ * natural height from the first frame and reports it up; the
+ * window's travel is the only motion; the open ends by unlocking
+ * back to auto height; under reduced motion the swap is instant.
  */
 function PickerUnfurlWindow({
   closing,
@@ -92,7 +102,7 @@ function PickerUnfurlWindow({
   style?: ViewStyle;
   children: React.ReactNode;
 }) {
-  const windowHeight = useRef(new Animated.Value(0)).current;
+  const windowCap = useRef(new Animated.Value(0)).current;
   const [heightLocked, setHeightLocked] = useState(true);
   const heightLockedRef = useRef(true);
   const setLocked = (locked: boolean) => {
@@ -117,7 +127,7 @@ function PickerUnfurlWindow({
 
   const runWindowTo = (target: number, onDone?: () => void) => {
     animRef.current?.stop();
-    const anim = Animated.timing(windowHeight, {
+    const anim = Animated.timing(windowCap, {
       toValue: target,
       duration: PICKER_UNFURL_DURATION_MS,
       easing: RnEasing.bezier(0.2, 0, 0, 1),
@@ -158,7 +168,7 @@ function PickerUnfurlWindow({
         onClosedRef.current?.();
         return;
       }
-      if (!heightLockedRef.current) windowHeight.setValue(naturalHeightRef.current);
+      if (!heightLockedRef.current) windowCap.setValue(naturalHeightRef.current);
       setLocked(true);
       runWindowTo(0, () => {
         onClosedRef.current?.();
@@ -174,7 +184,7 @@ function PickerUnfurlWindow({
         if (!closingRef.current) setLocked(false);
       });
     }
-  }, [closing, windowHeight]);
+  }, [closing, windowCap]);
 
   useEffect(() => {
     if (!reducedMotion || !openedRef.current) return;
@@ -187,7 +197,7 @@ function PickerUnfurlWindow({
   }, [reducedMotion]);
 
   return (
-    <Animated.View style={[style, { overflow: "hidden" }, heightLocked ? { height: windowHeight } : null]}>
+    <Animated.View style={[style, { overflow: "hidden" }, heightLocked ? { maxHeight: windowCap } : null]}>
       <View onLayout={(event) => handlePanelContentLayout(event.nativeEvent.layout.height)}>
         {children}
       </View>

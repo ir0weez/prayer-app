@@ -502,7 +502,10 @@ describe("v176 chrome coverage (source pins)", () => {
     const index = read("app/(tabs)/index.tsx");
     // Colored construction paper: the (now texture-free) overlay call
     // site still marks the accent card as a paper surface.
-    expect(index).toContain('tone={(isExpanded || closingFamilyId === familyId) ? "ink" : "light"}');
+    // v367 amendment (Oct 30): closing state was retired with
+    // the animated family panel, so the tone follows the
+    // expanded state alone.
+    expect(index).toContain('tone={isExpanded ? "ink" : "light"}');
     // Entrances branch to the sheet-settle dialect under Paper.
     expect(index).toContain("FadeInUp.duration(skinMotion.settle.duration)");
     expect(index).toContain("skinTokens.surface ?? colors.surface");

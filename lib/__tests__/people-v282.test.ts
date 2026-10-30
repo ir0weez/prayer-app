@@ -67,7 +67,7 @@ const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 
 const index = read("app/(tabs)/index.tsx");
-const unfurl = index.slice(index.indexOf("function UnfurlPanel"), index.indexOf("const QUEUE_TRAY_DURATION_MS"));
+const unfurl = index.slice(index.indexOf("function FamilyPanel"), index.indexOf("type AppSettings = {"));
 const rosterList = index.slice(index.indexOf("const renderPeopleScreen"), index.indexOf("const renderSimpleScreen"));
 const chevron = index.slice(index.indexOf("function FamilyChevron"), index.indexOf("const rosterRefIds = new WeakMap"));
 
@@ -137,16 +137,17 @@ describe("v282 — the integration model discriminates the failing shape", () =>
 });
 
 describe("v282 — the panel is plain layout (index.tsx)", () => {
-  it("v362: the frame style rides the clipping window; the padded content view rides inside it, measured", () => {
-    // RE-BASED in v362 (his Oct 30 verdict — the travel returns,
-    // on the tray's rails): the outer plain View is now an
-    // Animated.View window carrying the same frame style, and
-    // the padded content View reports its natural height from
-    // inside it. The accounting is unchanged: padding inside,
-    // frame outside. people-v362.test.ts pins the window.
-    expect(unfurl).toContain("<Animated.View style={[frameStyle, { overflow: \"hidden\" }, heightLocked ? { height: windowHeight } : null]}>");
+  it("v367: the frame style rides the plain panel; the padded content view rides inside it, unmeasured", () => {
+    // RE-BASED in v367 (his later Oct 30 verdict — v362's
+    // Animated.View window was slow and laggy on device): the
+    // outer element is a plain View carrying the same frame
+    // style, and the padded content View simply lays out inside
+    // it. The accounting is unchanged: padding inside, frame
+    // outside. people-v367-instant-family.test.ts pins it.
+    expect(unfurl).toContain("<View style={[frameStyle, { overflow: \"hidden\" }]}>");
     expect(unfurl).toContain("const { paddingTop, paddingBottom, ...frameStyle } = outerStyle ?? {};");
-    expect(unfurl).toContain("<View onLayout={(event) => handlePanelContentLayout(event.nativeEvent.layout.height)} style={{ paddingTop, paddingBottom }}>");
+    expect(unfurl).toContain("<View style={{ paddingTop, paddingBottom }}>");
+    expect(unfurl).not.toContain("onLayout");
   });
 
   it("no animated window survives: no shared values, no animated style, no maxHeight, no timing", () => {
@@ -182,9 +183,11 @@ describe("v282 — the panel is plain layout (index.tsx)", () => {
 });
 
 describe("v282 — the mount path and the surviving motion are untouched", () => {
-  it("the family row still mounts the panel on expanded-or-closing, at both dress sites", () => {
-    expect(index).toContain("{(isExpanded || isClosing) && renderExpandedFamily(item.familyMembers, item.section, isClosing)}");
-    expect(index.match(/<UnfurlPanel closing={closing}/g)).toHaveLength(2);
+  it("the family row still mounts the panel on expanded, at both dress sites", () => {
+    // v367 amendment (Oct 30): no closing state survives — the
+    // row mounts the panel exactly while its family is expanded.
+    expect(index).toContain("{isExpanded && renderExpandedFamily(item.familyMembers, item.section)}");
+    expect(index.match(/<FamilyPanel outerStyle=/g)).toHaveLength(2);
   });
 
   it("the chevron still turns on the 320ms Material clock, and the header fill still pours", () => {
@@ -193,10 +196,13 @@ describe("v282 — the mount path and the surviving motion are untouched", () =>
     expect(index).toContain("cardFillProgress.value = withTiming(0, { duration: QUEUE_TRAY_DURATION_MS, easing: fillEasing });");
   });
 
-  it("the toggle lifecycle stands: closing keeps the panel mounted until the close timeout clears state", () => {
+  it("the toggle lifecycle is immediate: closing clears the expanded state in the same render", () => {
+    // v367 amendment (Oct 30): the old close lifecycle — closing
+    // state, panel completion callback, and 400ms timeout — is
+    // the lag Jonathan reported, so all of it is gone.
     const toggle = index.slice(index.indexOf("const toggleFamilyExpanded"), index.indexOf("const [familyActionMembers"));
-    expect(toggle).toContain("setClosingFamilyId(familyId);");
     expect(toggle).toContain("setExpandedFamilyId(null);");
-    expect(toggle).toContain("}, 400);");
+    expect(toggle).not.toContain("setClosingFamilyId");
+    expect(toggle).not.toContain("setTimeout");
   });
 });

@@ -528,8 +528,13 @@ describe("v254 motion layer — Material, native-driver, no springs", () => {
     expect(index).toContain("FadeInUp.duration(300)");
   });
 
-  it("household unfurl/collapse rides the shared UnfurlPanel (maxHeight + opacity timing) in Classic too, and the chevron rotates", () => {
-    expect(index).toContain("<UnfurlPanel closing={closing}");
+  it("household expansion rides the shared FamilyPanel in Classic too, and the chevron rotates", () => {
+    // v367 amendment (Oct 30): the animated UnfurlPanel was
+    // retired after Jonathan found it slow and laggy on device.
+    // The shared panel is plain layout now; the chevron's own
+    // rotation stands.
+    expect(index).toContain("<FamilyPanel outerStyle=");
+    expect(index).not.toContain("UnfurlPanel");
     expect(index).toContain("function FamilyChevron");
     expect(index).toContain('"180deg"');
   });

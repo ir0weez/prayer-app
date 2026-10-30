@@ -50,7 +50,7 @@ const entrance = read("components/people-entrance.tsx");
 
 const banner = index.slice(index.indexOf("const renderEmergencyBanner"), index.indexOf("const renderQueueCard"));
 const praise = index.slice(index.indexOf("const renderPraiseCard"), index.indexOf("const renderSlipCard"));
-const unfurl = index.slice(index.indexOf("function UnfurlPanel"), index.indexOf("const QUEUE_TRAY_DURATION_MS"));
+const unfurl = index.slice(index.indexOf("function FamilyPanel"), index.indexOf("type AppSettings = {"));
 const trayWindow = index.slice(index.indexOf("queueTrayHeightLocked ? { height: queueTrayHeight }"), index.indexOf("const renderStreakCard"));
 const rows = index.slice(index.indexOf("const rosterRefIds = new WeakMap"), index.indexOf("export default function HomeScreen"));
 
@@ -98,14 +98,17 @@ describe("v267 — the emergency card lives (people-entrance kit + banner)", () 
 });
 
 describe("v267 — the household unfurl is smooth (index.tsx)", () => {
-  it("v362: the window lineage ends at the tray's rails — an RN Animated height, none of the retired shapes", () => {
-    // v282's plain-View ruling is superseded by his Oct 30
-    // verdict (the travel returns, carried by a clipping
-    // window); what stays retired is the Reanimated lineage
-    // this test originally pinned against: no measured-into-
-    // itself definite height, no cap, no shared-value style.
-    // people-v362.test.ts pins the window itself.
-    expect(unfurl).toContain("<Animated.View style={[frameStyle, { overflow: \"hidden\" }, heightLocked ? { height: windowHeight } : null]}>");
+  it("v367: the window lineage ends at plain layout — no animated height, none of the retired shapes", () => {
+    // v362 briefly superseded v282's plain-View ruling with an
+    // RN Animated height window; Jonathan's later Oct 30 device
+    // verdict ("slow and laggy") retired that window too. The
+    // panel is a plain View again, and the Reanimated lineage
+    // this test originally pinned against stays retired: no
+    // measured-into-itself definite height, no cap, no
+    // shared-value style. people-v367-instant-family.test.ts
+    // pins the instant panel itself.
+    expect(unfurl).toContain("<View style={[frameStyle, { overflow: \"hidden\" }]}>");
+    expect(unfurl).not.toContain("Animated.View");
     expect(unfurl).not.toContain("handleContentLayout");
     expect(unfurl).not.toContain("maxHeight: reveal.value");
     expect(unfurl).not.toContain("reveal.value = withTiming(contentHeight.value");
@@ -148,9 +151,12 @@ describe("v267 — roster rows are memo shells (index.tsx)", () => {
     expect(renderItem).toContain("fingerprint={`f|${rosterRefId(item.familyMembers)}|");
   });
 
-  it("the family fingerprint carries the row's own expanded/closing state and member countdowns", () => {
+  it("the family fingerprint carries the row's own expanded state and member countdowns", () => {
+    // v367 amendment (Oct 30): there is no closing state — the
+    // toggle mounts or unmounts the panel in the same render.
     const renderItem = index.slice(index.indexOf("const renderPeopleRow = "), index.indexOf("const renderPeopleScreen"));
-    expect(renderItem).toContain("${expandedFamilyId === familyId ? 1 : 0}|${closingFamilyId === familyId ? 1 : 0}|${memberCountdowns}");
+    expect(renderItem).toContain("${expandedFamilyId === familyId ? 1 : 0}|${memberCountdowns}");
+    expect(renderItem).not.toContain("closingFamilyId");
   });
 
   it("the stylesheet is memoized on its theme inputs, not rebuilt per render", () => {

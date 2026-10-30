@@ -17,10 +17,13 @@
 // LinePhraseHighlight), so a selection and a stored range are the
 // same shape.
 //
-// A plain tap keeps the caller's old job (verse → composer, his
-// line → its editor): while a selection stands, a tap clears the
-// selection instead. The bar floats above the selection's first
-// line: six tint dots, Bubble, Note — nothing else (the drawing).
+// A plain tap normally keeps the caller's old job (his line →
+// its editor): while a selection stands, a tap clears the
+// selection instead. v367 makes Scripture verses the exception:
+// their tap is deliberately inert, so a tap neither opens
+// anything nor disturbs a standing selection. The bar floats
+// above the selection's first line: six tint dots, Bubble, Note
+// — nothing else (the drawing).
 
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
@@ -62,6 +65,8 @@ export function SelectableText(props: {
   spaceWidth?: number;
   /** A plain tap on the words (no selection standing). */
   onPressText?: () => void;
+  /** v367: swallow plain taps without changing any state. */
+  tapInert?: boolean;
   onApplyTint: (range: { start: number; end: number }, tint: TintColor) => void;
   onBubble: (range: { start: number; end: number }) => void;
   onNote: (range: { start: number; end: number }) => void;
@@ -174,6 +179,7 @@ export function SelectableText(props: {
               delayLongPress={350}
               onLongPress={() => begin(i)}
               onPress={() => {
+                if (props.tapInert) return;
                 if (sel && !draggingRef.current) {
                   clearSelection();
                   return;

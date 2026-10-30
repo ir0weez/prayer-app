@@ -87,8 +87,12 @@ describe('v352 — separated verses', () => {
     // onPressText opens that verse's composer, a long-press drag
     // selects). The pin's intent is unchanged: one keyed block per
     // verse, carrying its text and its tint dress.
+    // v367 amendment (Oct 30): the verse words' plain tap is
+    // retired — SelectableText is tap-inert for Scripture, and
+    // only the long-press selection's actions open the composer.
     expect(entryView).toContain('key={v}');
-    expect(entryView).toContain('onPressText={() => openComposerForVerse(v)}');
+    expect(entryView).toContain('tapInert');
+    expect(entryView).not.toContain('onPressText={() => openComposerForVerse(v)}');
     expect(entryView).toContain('styles.entryVerse');
     expect(entryView).toContain('props.verseText.get(v)');
     expect(entryView).toContain('verseTintFor(palette, props.verseTints[v])');
@@ -124,7 +128,7 @@ describe('v352 — geometry: both columns shift left together', () => {
   });
 });
 
-describe('v352 — tap a verse, get its composer', () => {
+describe('v352 — a verse selection action gets its composer (v367: never a plain tap)', () => {
   it('openComposerForVerse opens the body if closed and presets the #<verse> draft', () => {
     const fn = entryView.slice(
       entryView.indexOf('const openComposerForVerse'),
@@ -152,12 +156,14 @@ describe('v352 — tap a verse, get its composer', () => {
     expect(pieces[1].marks.notes).toEqual(['#14 Held strong today.']);
   });
 
-  it('the other taps keep their jobs: the head toggles the body; the number is a plain token (v361)', () => {
+  it('the chevron alone toggles the body; the number is a plain token (v361, v367)', () => {
     // v361 amendment: the number's tint-selection tap is retired
-    // (selection is the drag now) — the head/chevron toggle and
-    // the number's leading seat are the surviving jobs.
+    // (selection is the drag now).
+    // v367 amendment (Oct 30): the entry head is no longer a
+    // Pressable either — the per-verse chevron is the only tap
+    // that carries onToggleOpen, exactly once in the entry.
     expect(entryView).not.toContain('onToggleVerse');
-    expect(entryView).toContain('onPress={props.onToggleOpen}');
+    expect(entryView.match(/<Pressable onPress=\{props\.onToggleOpen\}/g)).toHaveLength(1);
     expect(entryView).toContain('styles.supTap');
   });
 });

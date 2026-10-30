@@ -1517,7 +1517,7 @@ function EntryView(props: {
    * clear of the Verses pill); null when no cluster stands. */
   onClusterExtent?: (bottomWithinEntry: number | null) => void;
   registerY: (y: number) => void;
-  /** v356: a verse's text was tapped and its composer seated —
+  /** v356: a verse's selection action seated its composer —
    * the verse's top within this entry, so the page can land the
    * verse (with room beneath it for the unfurling box) on screen. */
   onVerseSeatOpen?: (yWithinEntry: number) => void;
@@ -1533,8 +1533,8 @@ function EntryView(props: {
   // target of the line being edited.
   const [composerAuthor, setComposerAuthor] = useState<LineAuthor | null>(null);
   const [editingTarget, setEditingTarget] = useState<LineStorageTarget | null>(null);
-  // v356: the verse seat. A composer opened by tapping a verse's
-  // text is homed on that verse (its number rides here) and the
+  // v356: the verse seat. A composer opened by a verse selection
+  // action is homed on that verse (its number rides here) and the
   // whole mark cluster — markbar, category chips, the note box —
   // renders directly beneath THAT verse in the head's verse flow,
   // unfurling out of it (VerseUnfurl below), instead of sitting at
@@ -1547,16 +1547,18 @@ function EntryView(props: {
   const [composerVerse, setComposerVerse] = useState<number | null>(null);
   const [composerClosing, setComposerClosing] = useState(false);
   const closingRef = useRef(false);
-  // v357: whether a verse tap is what OPENED this entry. Entries
+  // v357: whether a verse seat is what OPENED this entry. Entries
   // group verses (a bare chapter chunks three to an entry), so a
-  // tap on verse 1 force-opens the entry and its body — placeholder,
-  // markbar, chips — renders at the entry's tail, below verse 3.
-  // v356 cleared only the composer on close, leaving that expanded
-  // body standing under the wrong verse (his Leviticus 26 report:
-  // he opened verse 1, backed out, and verse 3 wore the seat).
-  // finishCloseComposer now folds the entry back whenever THIS
-  // verse seat opened it, so a close by any path — Cancel, Save,
-  // Android back — leaves the page exactly as the tap found it.
+  // verse-seated composer force-opens the entry and its body —
+  // placeholder, markbar, chips — renders at the entry's tail,
+  // below verse 3. v356 cleared only the composer on close,
+  // leaving that expanded body standing under the wrong verse
+  // (his Leviticus 26 report: he opened verse 1, backed out, and
+  // verse 3 wore the seat). finishCloseComposer now folds the
+  // entry back whenever THIS verse seat opened it, so a close by
+  // any path — Cancel, Save, Android back — leaves the page
+  // exactly as the selection action found it. v367: that seat is
+  // reached from the selection bar, never from a plain verse tap.
   const openedEntryForVerseRef = useRef(false);
   // v356: the latest closeComposer, for the back handler below
   // (assigned every render, so the handler never closes stale).
@@ -1609,17 +1611,17 @@ function EntryView(props: {
     setEditingTarget(null);
     setComposerBubble(false);
   };
-  // v352: tapping a verse's TEXT opens the note composer homed on
-  // that verse — the body opens first if it was closed, and the
-  // draft carries the '#<verse>' prefix of his own notation
-  // (parseHashVerseRef / splitEntryByHashNotes: the saved line
-  // renders riding exactly that verse, write-back origins
-  // included). The verse NUMBER keeps its tint-selection job —
-  // the supTap span below is untouched by this path.
+  // v352: the selection bar's Note/Bubble actions open the note
+  // composer homed on that verse — the body opens first if it was
+  // closed, and the draft carries the '#<verse>' prefix of his
+  // own notation (parseHashVerseRef / splitEntryByHashNotes: the
+  // saved line renders riding exactly that verse, write-back
+  // origins included). v367: a plain tap on the verse text no
+  // longer reaches this path; only a long-press selection does.
   const openComposerForVerse = (verse: number, opts?: { bubble?: boolean }) => {
-    // v357: a FRESH verse seat records whether it is the tap that
-    // opens the entry (a retarget rides the seat already open and
-    // keeps the first tap's record).
+    // v357: a FRESH verse seat records whether it is the action
+    // that opens the entry (a retarget rides the seat already open
+    // and keeps the first action's record).
     if (composerVerse === null) openedEntryForVerseRef.current = !props.open;
     if (!props.open) props.onToggleOpen();
     setComposer('note');
@@ -1895,9 +1897,8 @@ function EntryView(props: {
       style={[styles.entry, { backgroundColor: flashBg }, props.bubbleOpen ? styles.entryOpen : null]}
       onLayout={(e) => props.registerY(e.nativeEvent.layout.y)}
     >
-      <Pressable
+      <View
         style={[styles.entryHead, hasBubbles ? styles.entryHeadBubbled : null]}
-        onPress={props.onToggleOpen}
         onLayout={(e) => {
           const h = e.nativeEvent.layout.height;
           setHeadH((prev) => (prev !== null && Math.abs(prev - h) < 1 ? prev : h));
@@ -1916,8 +1917,9 @@ function EntryView(props: {
             const verseBg = verseTintFor(palette, props.verseTints[v]);
             const verseStr = props.verseText.get(v) ?? '';
             // v352: each verse is its own block (the entryVerses gap
-            // separates the blocks). A tap on the verse TEXT opens
-            // the note composer homed on that verse
+            // separates the blocks). v367: a plain tap on the verse
+            // TEXT is inert; the selection bar's actions are what
+            // open the note composer homed on that verse
             // (openComposerForVerse).
             // v356: the verse block also caches its top inside
             // entryVerses (onLayout), for the verse-open scroll.
@@ -1949,7 +1951,7 @@ function EntryView(props: {
                         <Text style={[styles.supTap, { color: props.tone.deep }]}>{v}</Text>
                       </View>
                     }
-                    onPressText={() => openComposerForVerse(v)}
+                    tapInert
                     onApplyTint={(range, tint) => props.onPhraseTint(v, range, tint)}
                     onBubble={() => openComposerForVerse(v, { bubble: true })}
                     onNote={() => openComposerForVerse(v)}
@@ -1970,8 +1972,9 @@ function EntryView(props: {
                   </Text>
                 )}
                 {/* v357: EVERY verse row carries its own expand
-                    chevron — one per verse, its job the head's own
-                    toggle: open or fold this entry's notes body. */}
+                    chevron — one per verse. v367: it is now the
+                    ONLY tap door for opening or folding this
+                    entry's notes body. */}
                 <Pressable onPress={props.onToggleOpen} hitSlop={6} style={{ marginTop: 3 }}>
                   <MaterialIcons
                     name={props.open ? 'expand-less' : 'expand-more'}
@@ -1987,9 +1990,8 @@ function EntryView(props: {
             // grows it out of the verse's bottom edge and folds
             // it back on close. The seat's wrapper claims the
             // responder for its dead space so taps inside the box
-            // never fall through to the head Pressable's toggle
-            // (its buttons and input claim their own, like the
-            // verse blocks above them).
+            // stay local to the composer (its buttons and input
+            // claim their own, like the verse blocks above them).
             const seat =
               composerVerse === v ? (
                 <View key={`verse-composer-${v}`} onStartShouldSetResponder={() => true}>
@@ -2001,7 +2003,7 @@ function EntryView(props: {
             return [verseBlock, seat];
           })}
         </View>
-      </Pressable>
+      </View>
 
       {/* v217: HIS OWN lines, in the flow directly under the verses
           — rendered whether the entry body is open or closed, in

@@ -49,14 +49,20 @@ const picker = bubblesSrc.slice(
 const sliceBetween = (src: string, from: string, to: string) => src.slice(src.indexOf(from), src.indexOf(to));
 
 describe('v356 — the per-verse seat', () => {
-  it('the cluster renders directly beneath the tapped verse, inside the verse flow', () => {
+  it('the cluster renders directly beneath the selected verse, inside the verse flow', () => {
     expect(entryView).toContain('composerVerse === v ? (');
     expect(entryView).toContain('<VerseUnfurl closing={composerClosing} onExited={handleUnfurlExited}>');
     expect(entryView).toContain('return [verseBlock, seat];');
     const map = sliceBetween(entryView, 'const verseBlock = (', 'const seat =');
     // v361 amendment: the verse press now rides the words
     // (SelectableText's onPressText) — same destination.
-    expect(map).toContain('onPressText={() => openComposerForVerse(v)}');
+    // v367 amendment (Oct 30): that plain tap is retired. The
+    // seat is reached through the selection bar's Note/Bubble
+    // actions, and the verse words are explicitly tap-inert.
+    expect(map).toContain('tapInert');
+    expect(map).not.toContain('onPressText={() => openComposerForVerse(v)}');
+    expect(map).toContain('onNote={() => openComposerForVerse(v)}');
+    expect(map).toContain("onBubble={() => openComposerForVerse(v, { bubble: true })}");
     // The seat follows the verse block in the map's return pair.
     expect(entryView.indexOf('const verseBlock = (')).toBeLessThan(entryView.indexOf('const seat ='));
     expect(entryView.indexOf('const seat =')).toBeLessThan(entryView.indexOf('return [verseBlock, seat];'));

@@ -67,7 +67,7 @@ const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 
 const index = read("app/(tabs)/index.tsx");
-const unfurl = index.slice(index.indexOf("function UnfurlPanel"), index.indexOf("const QUEUE_TRAY_DURATION_MS"));
+const unfurl = index.slice(index.indexOf("function FamilyPanel"), index.indexOf("type AppSettings = {"));
 
 /**
  * The panel's target-resolution model, kept from the v275
@@ -110,17 +110,16 @@ describe("v275 — the unfurl target resolves after a toggle (the livelock pin, 
     expect(unfurl).not.toContain("1200");
   });
 
-  it("v362: the measured-target machinery stays gone — the frame rides a clipping window, not the measured cap", () => {
+  it("v367: the measured-target machinery stays gone — the frame is plain layout, not a window or cap", () => {
     expect(unfurl).not.toContain("handleContentLayout");
-    expect(unfurl).not.toContain("onLayout={(event) => handleContentLayout(event.nativeEvent.layout.height)}");
+    expect(unfurl).not.toContain("onLayout");
     expect(unfurl).not.toContain("contentHeight.value <= 0");
-    // RE-BASED in v362: the plain View is a clipping
-    // Animated.View window now (his Oct 30 verdict — the
-    // travel returns on the tray's rails). The content report
-    // that feeds it (handlePanelContentLayout) is the tray's
-    // unconstrained-child report, not the measured-target
-    // machinery retired above.
-    expect(unfurl).toContain("<Animated.View style={[frameStyle, { overflow: \"hidden\" }, heightLocked ? { height: windowHeight } : null]}>");
+    // RE-BASED in v367 (Oct 30): v362's RN Animated clipping
+    // window was itself retired after Jonathan found it slow
+    // and laggy on device. The frame is a plain View at natural
+    // height; there is no content report to feed a target.
+    expect(unfurl).toContain("<View style={[frameStyle, { overflow: \"hidden\" }]}>");
+    expect(unfurl).not.toContain("Animated.View");
   });
 });
 
@@ -162,13 +161,17 @@ describe("v275 — regression sweep: the neighbors are untouched", () => {
   });
 
   it("the roster still routes family rows through the memoized shell with the toggle in the fingerprint", () => {
+    // v367 amendment (Oct 30): the fingerprint carries the
+    // expanded identity only — closing state no longer exists.
     const renderItem = index.slice(index.indexOf("const renderPeopleRow = "), index.indexOf("const renderPeopleScreen"));
     expect(renderItem).toContain("renderRow={() => renderPeopleFamilyRow(item)}");
-    expect(renderItem).toContain("${expandedFamilyId === familyId ? 1 : 0}|${closingFamilyId === familyId ? 1 : 0}|${memberCountdowns}");
+    expect(renderItem).toContain("${expandedFamilyId === familyId ? 1 : 0}|${memberCountdowns}");
   });
 
-  it("the panel still mounts from the family row on expanded-or-closing, at both dress sites", () => {
-    expect(index).toContain("{(isExpanded || isClosing) && renderExpandedFamily(item.familyMembers, item.section, isClosing)}");
-    expect(index.match(/<UnfurlPanel closing={closing}/g)).toHaveLength(2);
+  it("the panel still mounts from the family row on expanded, at both dress sites", () => {
+    // v367 amendment (Oct 30): mount and unmount both happen in
+    // the toggle's own render; there is no closing window.
+    expect(index).toContain("{isExpanded && renderExpandedFamily(item.familyMembers, item.section)}");
+    expect(index.match(/<FamilyPanel outerStyle=/g)).toHaveLength(2);
   });
 });

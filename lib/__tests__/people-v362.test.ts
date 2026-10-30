@@ -26,34 +26,43 @@
 // rows' own stagger is gone: the window reveals them. The roster
 // skeleton (groups, nesting, +N circle) and the header's wavy
 // thread are untouched — people-v282/v284 keep those pins.
+//
+// v367 amendment (Oct 30, later the same day): Jonathan's
+// device verdict on this build's travel was "slow and laggy."
+// The 300ms window, the closing state, its completion callback,
+// and the 400ms fallback are all retired below; FamilyPanel is
+// plain layout and expansion is an immediate mount/unmount.
+// people-v367-instant-family.test.ts carries the new pins.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const index = readFileSync(join(__dirname, "..", "..", "app", "(tabs)", "index.tsx"), "utf8");
-const unfurl = index.slice(index.indexOf("function UnfurlPanel"), index.indexOf("const QUEUE_TRAY_DURATION_MS"));
+const unfurl = index.slice(index.indexOf("function FamilyPanel"), index.indexOf("type AppSettings = {"));
 const expandedFamily = index.slice(index.indexOf("const renderExpandedFamily"), index.indexOf("const renderPeopleSectionRow"));
 
-describe("v362 — the panel is a clipping window on the queue tray's pattern", () => {
-  it("one RN Animated height, 300ms, Material standard easing, JS driver", () => {
-    expect(index).toContain("const FAMILY_PANEL_DURATION_MS = 300;");
-    expect(unfurl).toContain("Animated.timing(windowHeight");
-    expect(unfurl).toContain("duration: FAMILY_PANEL_DURATION_MS");
-    expect(unfurl).toContain("RnEasing.bezier(0.2, 0, 0, 1)");
-    expect(unfurl).toContain("useNativeDriver: false");
+describe("v362 — the panel is a clipping window on the queue tray's pattern (superseded by v367)", () => {
+  it("v367: the 300ms RN Animated height is gone — the panel is one plain View", () => {
+    expect(index).not.toContain("const FAMILY_PANEL_DURATION_MS = 300;");
+    expect(unfurl).toContain("<View style={[frameStyle, { overflow: \"hidden\" }]}>");
+    expect(unfurl).not.toContain("Animated.View");
+    expect(unfurl).not.toContain("Animated.timing");
+    expect(unfurl).not.toContain("windowHeight");
   });
 
-  it("the window clips; the content is never height-constrained and reports its natural height", () => {
-    expect(unfurl).toContain('<Animated.View style={[frameStyle, { overflow: "hidden" }, heightLocked ? { height: windowHeight } : null]}>');
-    expect(unfurl).toContain("onLayout={(event) => handlePanelContentLayout(event.nativeEvent.layout.height)}");
-    expect(unfurl).toContain("naturalHeightRef.current = height;");
+  it("v367: the panel does not clip by height or measure its content", () => {
+    expect(unfurl).not.toContain("heightLocked");
+    expect(unfurl).not.toContain("onLayout");
+    expect(unfurl).not.toContain("naturalHeightRef");
+    expect(unfurl).toContain("<View style={{ paddingTop, paddingBottom }}>");
   });
 
-  it("the open unlocks to auto height at rest; the close reports its own completion", () => {
-    expect(unfurl).toContain("if (!closingRef.current) setLocked(false);");
-    expect(unfurl).toContain("onClosedRef.current?.();");
-    expect(unfurl).toContain("runWindowTo(0, () => {");
+  it("v367: no close completion exists to report — mount state is the whole lifecycle", () => {
+    expect(unfurl).not.toContain("onClosed");
+    expect(unfurl).not.toContain("onClosedRef");
+    expect(unfurl).not.toContain("runWindowTo");
+    expect(index).not.toContain("closingFamilyId");
   });
 
   it("none of the retired machinery returns — no Reanimated, no texture, no exiting gate, no opacity gate", () => {
@@ -66,37 +75,42 @@ describe("v362 — the panel is a clipping window on the queue tray's pattern", 
     expect(unfurl).not.toContain("opacity");
   });
 
-  it("reduced motion arrives as a prop from the screen's tray subscription — the panel subscribes to nothing", () => {
-    expect(unfurl).toContain("closing, reducedMotion, onClosed }");
+  it("v367: the panel takes no reduced-motion or closing props — instant is unconditional", () => {
+    expect(unfurl).toContain("function FamilyPanel({ children, outerStyle }");
     expect(unfurl).not.toContain("AccessibilityInfo");
-    expect(unfurl).toContain("reducedMotionRef.current");
+    expect(unfurl).not.toContain("reducedMotion");
+    expect(unfurl).not.toContain("closing?:");
   });
 });
 
-describe("v362 — the parent wiring: the fold clears the state, the timeout only sweeps up", () => {
-  it("both dresses pass the reduced-motion flag and the close callback", () => {
-    const callSites = index.match(/<UnfurlPanel closing={closing} reducedMotion={queueTrayReducedMotion} onClosed={/g) ?? [];
+describe("v362 — the parent wiring: the fold clears the state, the timeout only sweeps up (superseded by v367)", () => {
+  it("v367: both dresses render the plain panel with no closing, reduced-motion, or callback props", () => {
+    const callSites = index.match(/<FamilyPanel outerStyle=/g) ?? [];
     expect(callSites.length).toBe(2);
+    expect(index).not.toContain("onClosed={() => handleFamilyPanelClosed(familyId)}");
+    expect(index).not.toContain("reducedMotion={queueTrayReducedMotion} onClosed=");
   });
 
-  it("the completion handler clears the expanded/closing state and cancels the fallback timeout", () => {
-    expect(index).toContain("const handleFamilyPanelClosed = useCallback((familyId: string) => {");
-    expect(index).toContain("if (closingFamilyIdRef.current !== familyId) return;");
-    expect(index).toContain("closingFamilyIdRef.current = familyId;");
+  it("v367: there is no completion handler or closing-state mirror left to clear", () => {
+    expect(index).not.toContain("const handleFamilyPanelClosed");
+    expect(index).not.toContain("closingFamilyIdRef");
+    expect(index).not.toContain("closingFamilyId");
   });
 
-  it("the toggle's 400ms timeout survives as the fallback (the v282 pin's shape is unchanged)", () => {
-    const toggle = index.slice(index.indexOf("const toggleFamilyExpanded"), index.indexOf("const handleFamilyPanelClosed"));
-    expect(toggle).toContain("}, 400);");
-    expect(toggle).toContain("setClosingFamilyId(familyId);");
+  it("v367: the toggle has no 400ms fallback — it directly flips the expanded identity", () => {
+    const toggle = index.slice(index.indexOf("const toggleFamilyExpanded"), index.indexOf("const [familyActionMembers"));
+    expect(toggle).toContain("setExpandedFamilyId(null);");
+    expect(toggle).toContain("setExpandedFamilyId(familyId);");
+    expect(toggle).not.toContain("setTimeout");
+    expect(toggle).not.toContain("}, 400);");
   });
 
-  it("the mount condition is unchanged — the panel still lives exactly in the expanded-or-closing window", () => {
-    expect(index).toContain("{(isExpanded || isClosing) && renderExpandedFamily(item.familyMembers, item.section, isClosing)}");
+  it("v367: the mount condition is exactly the expanded state", () => {
+    expect(index).toContain("{isExpanded && renderExpandedFamily(item.familyMembers, item.section)}");
   });
 });
 
-describe("v362 — the members carry no motion of their own; the window reveals them", () => {
+describe("v362 — the members carry no motion of their own (v367: plain layout presents them at once)", () => {
   it("the 65ms-per-row FadeInUp stagger is gone from the whole file", () => {
     expect(index).not.toContain("delay(memberIdx * 65)");
     expect(index).not.toContain("memberIdx * 65");

@@ -102,8 +102,11 @@ describe("v300 — household→single seam spacing", () => {
   });
 
   it("the seam predicate: first single of a section with households, Classic only", () => {
+    // v367 amendment (Oct 30): closing state was retired with
+    // the animated panel, so the predicate now asks only whether
+    // the household above is the expanded one.
     expect(home).toContain(
-      "const seamAfterFamily = !isSkinned && item.index === 0 && sectionFamilies.length > 0 && expandedFamilyId !== seamFamilyId && closingFamilyId !== seamFamilyId;",
+      "const seamAfterFamily = !isSkinned && item.index === 0 && sectionFamilies.length > 0 && expandedFamilyId !== seamFamilyId;",
     );
     expect(home).toContain(
       'const seamFamilyId = sectionFamilies.length > 0 ? sectionFamilies[sectionFamilies.length - 1]?.[0]?.familyId || "" : "";',

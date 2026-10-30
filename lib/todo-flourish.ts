@@ -24,7 +24,7 @@
 // measured window position; components/todo-flourish-overlay.tsx (mounted once at
 // the app root, beside the XP floater) renders the burst there,
 // independent of what the list does. The row's own settle
-// (jolt / sink / crumple) rides a local wrapper in the row.
+// (sink / crumple) rides a local wrapper in the row.
 //
 // v338 sequencing: for mapped todos the completion WRITE itself is
 // held for TODO_FLOURISH_DURATION_MS (see todoCompletionShouldDefer
@@ -44,8 +44,12 @@ export type TodoFlourishId =
   | "trash"
   | "read";
 
-/** How the row itself settles after the burst. "none" = burst only. */
-export type TodoSettleKind = "jolt" | "sink" | "crumple" | "none";
+/** How the row itself settles after the burst. "none" = burst only.
+    v364: the "jolt" settle — the little side-to-side "no" shake at
+    the end of the checkoff — is gone at Jonathan's word (Oct 30),
+    removed from this union, the map below and the settle view.
+    Break's sink and Trash's crumple are untouched. */
+export type TodoSettleKind = "sink" | "crumple" | "none";
 
 /** One burst, start to finish. v360 (Jonathan, Oct 30: the
     flourishes "show up now... They are just so freaking quick"):
@@ -57,17 +61,19 @@ export type TodoSettleKind = "jolt" | "sink" | "crumple" | "none";
 export const TODO_FLOURISH_DURATION_MS = 2400;
 
 export const TODO_FLOURISH_SETTLE: Record<TodoFlourishId, TodoSettleKind> = {
-  feed: "jolt",
-  duolingo: "jolt",
-  // Deliberate exception: a break settles like a sigh, never a jolt.
+  // v364 (Jonathan, Oct 30): every flourish that used to end in the
+  // little "no" jolt is burst-only now — feed, duolingo, caffeine,
+  // brush-teeth, app-update and read all settle "none".
+  feed: "none",
+  duolingo: "none",
+  // Deliberate exception: a break settles like a sigh.
   break: "sink",
-  caffeine: "jolt",
-  "brush-teeth": "jolt",
+  caffeine: "none",
+  "brush-teeth": "none",
   photo: "none",
-  "app-update": "jolt",
+  "app-update": "none",
   trash: "crumple",
-  // Read settles with the standard quick jolt after its page flip.
-  read: "jolt",
+  read: "none",
 };
 
 /**
@@ -283,7 +289,8 @@ const AUTHORED_FLOURISH_PARTICLES: Record<TodoFlourishId, TodoFlourishParticle[]
 
   // 9 · Read (v338) — page-corner sparks: a small paper page-corner
   // flips at the checkbox while a few spark bits burst off it in
-  // the todo's own colour, then the row jolts (see the settle map).
+  // the todo's own colour — burst only, no row settle (see the
+  // settle map; the row's old end-of-flourish jolt went in v364).
   read: [
     { kind: "page-corner", tone: "foam-white", ox: 0, oy: 0, dx: 0, dy: 0, size: 17, delay: 0, span: 0.5 },
     { kind: "spark", tone: "todo", ox: -6, oy: 0, dx: 0, dy: -34, size: 13, delay: 0.1, span: 0.3 },

@@ -10,8 +10,9 @@
 //    is not Feed);
 //  · the QUIET list — Pray, Internal Permission, External
 //    Permission, Sleep, Stitch Journal never flourish;
-//  · the settle map (Break sinks, never jolts; Trash crumples;
-//    Photo bursts only);
+//  · the settle map (Break sinks; Trash crumples; Photo bursts
+//    only — and since v364 every other flourish bursts only too:
+//    the jolt settle is gone, at Jonathan's word, Oct 30);
 //  · the performance contract: one burst < 1s, ≤ a dozen particles
 //    per flourish from the one shared kit, every particle's motion
 //    finishing inside the burst; the overlay animates ONLY on the
@@ -118,15 +119,29 @@ describe("v337 — the settle map", () => {
     expect(TODO_FLOURISH_SETTLE.photo).toBe("none");
   });
 
-  it("everything else jolts", () => {
-    // v338: "read" joins the jolt family (its page flip lands, then
-    // the standard quick jolt settle).
-    const jolted: TodoFlourishId[] = ["feed", "duolingo", "caffeine", "brush-teeth", "app-update", "read"];
-    for (const id of jolted) expect(TODO_FLOURISH_SETTLE[id], id).toBe("jolt");
+  it("everything else bursts only (v364: the jolt is gone)", () => {
+    // v364 amendment (Oct 30): was "everything else jolts" — the
+    // six ids below used to settle with the little side-to-side
+    // "no" shake (read had joined that family in v338) until
+    // Jonathan asked for the shake to be taken away. They are all
+    // "none" now: the burst is the whole performance.
+    const burstOnly: TodoFlourishId[] = ["feed", "duolingo", "caffeine", "brush-teeth", "app-update", "read"];
+    for (const id of burstOnly) expect(TODO_FLOURISH_SETTLE[id], id).toBe("none");
   });
 
-  it("coffee's settle is the caffeine round's Jolt", () => {
-    expect(TODO_FLOURISH_SETTLE.caffeine).toBe("jolt");
+  it("no flourish id maps to the jolt anymore, while sink and crumple stand (v364)", () => {
+    for (const id of Object.keys(TODO_FLOURISH_SETTLE) as TodoFlourishId[]) {
+      expect(TODO_FLOURISH_SETTLE[id], id).not.toBe("jolt");
+    }
+    expect(TODO_FLOURISH_SETTLE.break).toBe("sink");
+    expect(TODO_FLOURISH_SETTLE.trash).toBe("crumple");
+  });
+
+  it("coffee's settle rides the caffeine round (burst only since v364)", () => {
+    // v364 amendment (Oct 30): was "coffee's settle is the caffeine
+    // round's Jolt" (caffeine settled "jolt"); with the jolt
+    // removed, coffee — the caffeine round — settles "none".
+    expect(TODO_FLOURISH_SETTLE.caffeine).toBe("none");
   });
 });
 
@@ -237,9 +252,12 @@ describe("v337 — source pins: one-shot, native driver, wired to the toggles", 
     expect(schedule).toContain("emitTodoFlourish");
   });
 
-  it("the settle wrapper exists for the row transforms (jolt / sink / crumple)", () => {
+  it("the settle wrapper exists for the row transforms (sink / crumple)", () => {
     expect(overlay).toContain("FlourishSettleView");
-    expect(overlay).toContain('"jolt"');
+    // v364 amendment (Oct 30): this pin used to require '"jolt"'
+    // in the overlay source; the jolt branch was removed at
+    // Jonathan's word, so the pin now requires its absence.
+    expect(overlay).not.toContain('"jolt"');
     expect(overlay).toContain('"sink"');
     expect(overlay).toContain('"crumple"');
     expect(schedule).toContain("FlourishSettleView");

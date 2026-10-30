@@ -18,9 +18,10 @@
 //   shared particle kit in lib/todo-flourish.ts.
 // · at most 4 bursts alive at once; the layer never takes touches.
 //
-// FlourishSettleView (below) carries the row's own settle — the
-// jolt, Break's sink, Trash's crumple — as a transform on a wrapper
-// inside the row, driven by the same one-shot timing.
+// FlourishSettleView (below) carries the row's own settle —
+// Break's sink, Trash's crumple — as a transform on a wrapper
+// inside the row, driven by the same one-shot timing. (The old
+// jolt shake was removed in v364; most rows settle "none".)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -412,16 +413,7 @@ export function FlourishSettleView({
   }, [runKey, kind, value]);
 
   let transform: ViewStyle["transform"];
-  if (kind === "jolt") {
-    transform = [
-      {
-        translateX: value.interpolate({
-          inputRange: [0, 0.5, 0.56, 0.62, 0.68, 1],
-          outputRange: [0, 0, -2.5, 2.5, -1.5, 0],
-        }),
-      },
-    ];
-  } else if (kind === "sink") {
+  if (kind === "sink") {
     transform = [
       {
         translateY: value.interpolate({

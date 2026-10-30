@@ -12214,12 +12214,22 @@ export function ScheduleTab({
       // page shows the event completed the moment he returns
       // instead of the write being clobbered by this tab's next
       // save from its stale in-memory list.
+      // v365: the same protection now covers todos and ministries.
+      // The studio import doors (manual + Drive) write all three
+      // stores directly; before v365 only events were re-read here,
+      // so an imported todo/ministry change could be overwritten by
+      // this tab's next save from its stale in-memory lists. All
+      // three lists are re-read on focus, before he can interact.
       (async () => {
         try {
           const storedEvents = await AsyncStorage.getItem(SCHEDULE_EVENTS_KEY);
           if (storedEvents) setEvents(JSON.parse(storedEvents));
+          const storedTodos = await AsyncStorage.getItem(SCHEDULE_TODOS_KEY);
+          if (storedTodos) setTodos(JSON.parse(storedTodos));
+          const storedMinistries = await AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY);
+          if (storedMinistries) setMinistries(JSON.parse(storedMinistries));
         } catch {
-          // A failed reload leaves the in-memory list as it was.
+          // A failed reload leaves the in-memory lists as they were.
         }
       })();
 

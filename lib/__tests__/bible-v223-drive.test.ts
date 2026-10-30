@@ -135,7 +135,14 @@ describe('Rule 5 — schedule conflicts are held, dedupes skipped, new events au
   ];
   const todos: ScheduleTodo[] = [];
 
-  it('holds a different title on an occupied slot, skips the identical event, passes new ones', () => {
+  // v365 amendment (Oct 30): the identical event is no longer
+  // "skipped" — a same-kind exact match now rides autoSchedule into
+  // the same merge the manual door uses, so the desk's field edits
+  // (colour, keyword, notes, location) land by folder too. For an
+  // unchanged row the merge lands nothing and adds nothing, so the
+  // outcome this pin protected — no duplicate, no hold — stands; only
+  // the classification moved. The conflict hold is untouched.
+  it('holds a different title on an occupied slot, routes the identical event to the merge, passes new ones', () => {
     const pack = {
       kind: 'schedule' as const,
       schedule: {
@@ -148,12 +155,12 @@ describe('Rule 5 — schedule conflicts are held, dedupes skipped, new events au
       },
     };
     const plan = planDrivePack(pack, () => 'none', existing, todos);
-    expect(plan.skippedSchedule).toBe(1);
+    expect(plan.skippedSchedule).toBe(0);
     expect(plan.heldSchedule).toHaveLength(1);
     expect(plan.heldSchedule[0].conflictTitle).toBe('Morning rundown');
     expect(heldItemLabel(plan.heldSchedule[0])).toContain('Commentary writing — Genesis 2');
-    expect(plan.autoSchedule).toHaveLength(1);
-    expect(plan.autoSchedule[0].title).toBe('Evening check-in');
+    expect(plan.autoSchedule).toHaveLength(2);
+    expect(plan.autoSchedule.map((e) => e.title)).toEqual(['Morning rundown', 'Evening check-in']);
   });
 });
 

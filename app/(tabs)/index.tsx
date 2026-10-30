@@ -193,6 +193,7 @@ import { applyStudioStatesReads, collectStudioStates } from "@/lib/bible-v205/st
 import { loadMarks, MARKS_KEY } from "@/lib/bible-v205/marks";
 import { transitionChapterStatus } from "@/lib/bible-v205/rewards";
 import {
+  applyScheduleTombstones,
   applyStudioChapters,
   collectBubbleLinesForExport,
   collectHighlightsForExport,
@@ -4612,6 +4613,10 @@ export default function HomeScreen() {
   //   ministries → applyStudioMinistriesPack: upsert by id plus the
   //               deletedIds tombstones the file explicitly names —
   //               the one authorized deletion channel, ministries only
+  //   v365: the schedule section grew its own tombstone channel —
+  //               a pack's deletedSchedule names events/todos by exact
+  //               (date, start, title) key, the desk's Option B word;
+  //               absence still deletes nothing, on either door
   //   schedule Ministry rows (v237) → mergeStudioScheduleMinistries,
   //               run last: a Ministry row's bibleBook/bibleChapter
   //               lands on the matching ministry record (created when
@@ -4712,8 +4717,18 @@ export default function HomeScreen() {
         const existingTodos = (await readStoredArray(SCHEDULE_TODOS_KEY))
           .filter((item): item is ScheduleTodo => !!item && typeof item === "object" && typeof (item as ScheduleTodo).title === "string" && typeof (item as ScheduleTodo).date === "string");
         const merged = mergeStudioSchedule(existingEvents, existingTodos, plan.schedule);
-        await AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(merged.events));
-        await AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(merged.todos));
+        // v365: the pack's schedule tombstones (Option B) land after
+        // the merge — exact-key deletions of items the desk itself
+        // once held, the only deletion the schedule bridge performs.
+        // An absent list removes nothing; the count feeds the honest
+        // summary's "Removed: N".
+        const afterTombstones = applyScheduleTombstones(
+          merged.events,
+          merged.todos,
+          plan.schedule.deletedSchedule,
+        );
+        await AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(afterTombstones.events));
+        await AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(afterTombstones.todos));
         // v345: the split counts feed the honest summary (events and
         // todos apart, dedupe matches named), and the minutes the
         // validator repaired ride along so the repair is reported.
@@ -4721,6 +4736,7 @@ export default function HomeScreen() {
         counts.scheduleTodosAdded = merged.todosAdded;
         counts.scheduleEventsAlreadyThere = merged.eventsAlreadyThere;
         counts.scheduleTodosAlreadyThere = merged.todosAlreadyThere;
+        counts.scheduleRemoved = afterTombstones.removed;
         counts.minutesRepaired = plan.schedule.minutesRepaired ?? 0;
       }
 

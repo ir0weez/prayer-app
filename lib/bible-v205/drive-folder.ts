@@ -51,6 +51,16 @@
 //     auto-apply NEVER deletes an app event, so a pack can never
 //     "remove" one — the hold protects against conflicting additions,
 //     and deletion simply never happens.
+//     v365 amendment (Oct 30, Jonathan's Option B ruling): two honest
+//     changes. (a) A same-kind exact match (date, start, title) is no
+//     longer classed as a skip — it rides into the same merge the
+//     manual door uses, so the desk's field edits land by folder too;
+//     the Rule 5 hold is unchanged for a DIFFERENT title on the slot.
+//     (b) Schedule deletion now exists, by exactly one channel: a
+//     pack's `deletedSchedule` tombstones — explicit exact-key names
+//     the desk derived from its own synced base, the ministries
+//     discipline of Rule 4 carried to events/todos. Absence deletes
+//     nothing, ever; an item the desk never held is out of reach.
 //  6. VISIBLE JOURNAL. Every check records when it ran and per-file
 //     applied / held / skipped counts, viewable from the DATA screen.
 //
@@ -63,6 +73,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  applyScheduleTombstones,
   applyStudioChapters,
   loadStudioImports,
   mergeStudioSchedule,
@@ -75,6 +86,7 @@ import {
   type StudioPack,
   type StudioPeoplePack,
   type StudioScheduleEventInput,
+  type StudioScheduleTombstone,
 } from './studio-import';
 import {
   applyStudioPeoplePack,
@@ -260,8 +272,19 @@ export interface DrivePlan {
   heldStates: HeldStateItem[];
   autoSchedule: StudioScheduleEventInput[];
   heldSchedule: HeldScheduleItem[];
-  /** Pack events already in the app (same date + start + title) — skipped. */
+  /** Pack rows whose (date + start) slot is held by the SAME title of
+   *  the OTHER kind (a pack Event over a stored Todo, or the reverse):
+   *  not a merge match — the merges dedupe per kind — and creating it
+   *  would double the slot, so it is skipped, as it always was. A
+   *  same-kind exact match is NOT skipped since v365: it rides
+   *  autoSchedule into the merge, whose present-wins patches are the
+   *  whole point of the desk round trip. */
   skippedSchedule: number;
+  /** v365: the file's schedule tombstones (Option B) — exact-key
+   *  deletions the desk derived from its own synced base. Like the
+   *  ministries tombstones they ride whole: a delete is in the file
+   *  or it doesn't happen, so there is nothing to hold. */
+  scheduleTombstones: StudioScheduleTombstone[];
   /** v225: a people pack rides whole — it is merge-only by design (see
    *  studio-people.ts), so there is nothing to hold: a regression (an
    *  earlier lastReached, a need the pack no longer lists) simply
@@ -325,6 +348,7 @@ export function planDriveFile(
     autoSchedule: [],
     heldSchedule: [],
     skippedSchedule: 0,
+    scheduleTombstones: [],
     peoplePack: null,
     ministriesPack: null,
     ministryRows: 0,
@@ -370,9 +394,21 @@ export function planDriveFile(
     }
   }
   if (!file.schedule) return plan;
+  plan.scheduleTombstones = file.schedule.deletedSchedule ?? [];
   const occupied = new Map<string, string>();
   for (const e of existingEvents) occupied.set(`${e.date}|${e.startTime ?? ''}`, e.title);
   for (const t of existingTodos) occupied.set(`${t.date}|${t.startTime ?? ''}`, t.title);
+  // v365: the merges' exact dedupe identities, per kind — the same
+  // (date | start | title) keys mergeStudioSchedule matches on. A row
+  // whose key is already stored under its OWN kind is a matched item,
+  // not a conflict and not a skip: it rides into the merge so its
+  // present-wins field patches land, exactly as through the manual
+  // door. (Before v365 the planner stamped every same-title slot
+  // match "already in the app — skipped" and discarded the payload,
+  // so a colour or keyword edited at the desk could never arrive by
+  // folder — the discard Jonathan hit on Oct 30.)
+  const eventKeys = new Set(existingEvents.map((e) => `${e.date}|${e.startTime ?? ''}|${e.title}`));
+  const todoKeys = new Set(existingTodos.map((t) => `${t.date}|${t.startTime ?? ''}|${t.title}`));
   for (const ev of file.schedule.events) {
     if (ev.type === 'Ministry') {
       // The projection of a ministry record: noted, never slotted —
@@ -385,9 +421,16 @@ export function planDriveFile(
       continue;
     }
     const start = ev.start === 'All day' ? '' : ev.start;
+    const dedupe = `${ev.date}|${start}|${ev.title}`;
+    if (ev.type === 'Event' ? eventKeys.has(dedupe) : todoKeys.has(dedupe)) {
+      plan.autoSchedule.push(ev);
+      continue;
+    }
     const slot = `${ev.date}|${start}`;
     const clash = occupied.get(slot);
     if (clash === ev.title) {
+      // Same slot, same title, OTHER kind — not a merge match (above),
+      // and a create would double the slot. Skipped, as it always was.
       plan.skippedSchedule += 1;
       continue;
     }
@@ -752,16 +795,27 @@ export async function checkDriveFolder(): Promise<
     if (filePlan.schedule) {
       noteParts.push('Schedule');
     }
-    if (plan.autoSchedule.length > 0) {
+    if (plan.autoSchedule.length > 0 || plan.scheduleTombstones.length > 0) {
       const merged = mergeStudioSchedule(existingEvents, existingTodos, {
         weekOf: filePlan.schedule?.weekOf ?? '',
         events: plan.autoSchedule,
       });
-      existingEvents = merged.events;
-      existingTodos = merged.todos;
-      await AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(merged.events));
-      await AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(merged.todos));
-      appliedHere += merged.added;
+      // v365: the file's schedule tombstones land after the merge —
+      // exact-key deletions only (applyScheduleTombstones), the one
+      // deletion channel the schedule bridge has. A removal is
+      // counted like any other applied change, and the journal note
+      // names it.
+      const after = applyScheduleTombstones(merged.events, merged.todos, plan.scheduleTombstones);
+      existingEvents = after.events;
+      existingTodos = after.todos;
+      await AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(after.events));
+      await AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(after.todos));
+      appliedHere += merged.added + merged.eventsUpdated + merged.todosUpdated + after.removed;
+      if (after.removed > 0) {
+        noteParts.push(
+          `Schedule removals: ${after.removed} item${after.removed === 1 ? '' : 's'} the desk named`,
+        );
+      }
     }
     for (const heldItem of [...plan.heldStates, ...plan.heldSchedule]) {
       if (!heldIds.has(heldItem.id)) {

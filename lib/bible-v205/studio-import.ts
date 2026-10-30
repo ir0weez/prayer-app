@@ -248,9 +248,30 @@ export interface StudioScheduleEventInput {
   dueDate?: string;
 }
 
+/**
+ * v365 — one schedule tombstone (Option B, Jonathan's ruling Oct 30):
+ * the desk names an event/todo it once held and no longer does, by the
+ * EXACT dedupe identity (date, start, title) — the same key the merges
+ * match on. `start` is the row's own start word: an 'HH:MM' time, or
+ * 'All day' for an untimed item. A tombstone is the ONLY way a schedule
+ * item is ever deleted by an import, and it deletes by exact key
+ * match alone — never by absence, range, or kind. The Studio derives
+ * these from its synced base (pass -49); this side only consumes them.
+ */
+export interface StudioScheduleTombstone {
+  date: string;
+  start: string;
+  title: string;
+}
+
 export interface StudioSchedulePayload {
   weekOf: string;
   events: StudioScheduleEventInput[];
+  /** v365: the pack's schedule tombstones (see StudioScheduleTombstone).
+   *  ABSENT means the pack names no deletions — nothing is removed.
+   *  Rides at the top level of a pack beside `events`, and inside a
+   *  backup's studioSchedule section beside its events. */
+  deletedSchedule?: StudioScheduleTombstone[];
   /** v345: rows whose minutes the validator repaired instead of
    *  rejecting the file (see validateScheduleEvents). Absent on
    *  payloads built by hand (drive planner, tests) — read as 0. */
@@ -704,6 +725,28 @@ function validateBridgeFields(
   return out;
 }
 
+/** v365: the pack's schedule tombstones. A PRESENT deletedSchedule key
+ *  is a payload the doors act on (exact-key deletions), so a malformed
+ *  one rejects the file under the door's validate-first discipline —
+ *  a deletion wire is never read loosely. Absent stays absent. */
+function validateDeletedSchedule(raw: unknown, where: string): StudioScheduleTombstone[] {
+  if (!Array.isArray(raw)) fail(`${where}: deletedSchedule is not an array`);
+  return raw.map((t, i) => {
+    const at = `${where}: tombstone ${i}`;
+    if (!isRecord(t)) fail(`${at} is not an object`);
+    if (!isValidIsoDate(t.date)) fail(`${at} has no valid date`);
+    if (!isNonEmptyString(t.title)) fail(`${at} has no title`);
+    let start = 'All day';
+    if (t.start !== undefined) {
+      if (typeof t.start !== 'string' || (t.start !== 'All day' && !/^\d{2}:\d{2}$/.test(t.start))) {
+        fail(`${at} has no valid start time`);
+      }
+      start = t.start as string;
+    }
+    return { date: t.date as string, start, title: t.title as string };
+  });
+}
+
 function validateSchedule(raw: unknown): StudioSchedulePayload {
   if (!isRecord(raw)) fail('Schedule pack is not an object');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(raw.weekOf))) {
@@ -711,7 +754,14 @@ function validateSchedule(raw: unknown): StudioSchedulePayload {
   }
   if (!Array.isArray(raw.events)) fail('Schedule pack has no events array');
   const { events, minutesRepaired } = validateScheduleEvents(raw.events);
-  return { weekOf: raw.weekOf as string, events, minutesRepaired };
+  return {
+    weekOf: raw.weekOf as string,
+    events,
+    minutesRepaired,
+    ...(raw.deletedSchedule !== undefined
+      ? { deletedSchedule: validateDeletedSchedule(raw.deletedSchedule, 'schedule pack') }
+      : {}),
+  };
 }
 
 /**
@@ -723,7 +773,14 @@ function validateScheduleSection(raw: unknown): StudioSchedulePayload {
   if (!isRecord(raw)) fail('Schedule section is not an object');
   if (!Array.isArray(raw.events)) fail('Schedule section has no events array');
   const { events, minutesRepaired } = validateScheduleEvents(raw.events);
-  return { weekOf: '', events, minutesRepaired };
+  return {
+    weekOf: '',
+    events,
+    minutesRepaired,
+    ...(raw.deletedSchedule !== undefined
+      ? { deletedSchedule: validateDeletedSchedule(raw.deletedSchedule, 'schedule section') }
+      : {}),
+  };
 }
 
 const RELATIONSHIP_TYPES: RelationshipType[] = [
@@ -988,6 +1045,8 @@ export function studioFileHasSections(plan: StudioFilePlan): boolean {
  *     "studioStates": { "chapters": [ … ] }, // states / read marks
  *     "weekOf": "YYYY-MM-DD",              // schedule — weekOf and
  *     "events":      [ … ],                //   events ride together
+ *     "deletedSchedule": [ … ],            //   v365: optional exact-key
+ *                                          //   tombstones (Option B)
  *     "whiteSpace":  { … },                //   optional, advisory only
  *     "people":      [ … ],                // people — people and
  *     "journal":     [ … ],                //   journal ride together
@@ -1177,6 +1236,9 @@ export interface StudioApplyCounts {
   scheduleTodosAdded: number;
   scheduleEventsAlreadyThere: number;
   scheduleTodosAlreadyThere: number;
+  /** v365: stored events/todos a pack's schedule tombstones removed
+   *  (exact-key matches only — see applyScheduleTombstones). */
+  scheduleRemoved: number;
   /** v345: schedule rows whose invalid minutes the validator
    *  repaired instead of rejecting the file. */
   minutesRepaired: number;
@@ -1206,6 +1268,7 @@ export function emptyStudioApplyCounts(): StudioApplyCounts {
     scheduleTodosAdded: 0,
     scheduleEventsAlreadyThere: 0,
     scheduleTodosAlreadyThere: 0,
+    scheduleRemoved: 0,
     minutesRepaired: 0,
     peopleUpdated: 0,
     needs: 0,
@@ -1247,7 +1310,10 @@ export function formatStudioImportSummary(plan: StudioFilePlan, counts: StudioAp
     parts.push(
       `Schedule: ${counts.scheduleEventsAdded} events + ${counts.scheduleTodosAdded} todos added` +
         ` · ${alreadyThere} already there` +
-        (counts.minutesRepaired > 0 ? ` · ${counts.minutesRepaired} repaired` : ''),
+        (counts.minutesRepaired > 0 ? ` · ${counts.minutesRepaired} repaired` : '') +
+        // v365: tombstone removals are named, never silent — and the
+        // segment only grows the word when something was removed.
+        (counts.scheduleRemoved > 0 ? ` · Removed: ${counts.scheduleRemoved}` : ''),
     );
   }
   if (counts.ministriesLinked > 0) {
@@ -1657,6 +1723,15 @@ function completionPatch(ev: StudioScheduleEventInput): {
 
 function eventBridgePatch(ev: StudioScheduleEventInput): Partial<ScheduleEvent> {
   const patch: Partial<ScheduleEvent> = { ...completionPatch(ev) };
+  // v365: notes + location join the present-wins discipline on matched
+  // records. The validator normalizes an unset wire value to '', so
+  // "present" here means a non-empty word from the desk — it replaces;
+  // '' (or an omitted key) preserves the stored value. Creation reads
+  // the input directly with its own v224 rule (the pack's location
+  // wins, Online only fills an empty one), and this patch spread after
+  // the factory call lands the same values, so creation is unchanged.
+  if (ev.notes) patch.notes = ev.notes;
+  if (ev.location) patch.location = ev.location;
   if (ev.keyword !== undefined) patch.keyword = ev.keyword;
   if (ev.color !== undefined) patch.color = ev.color;
   if (ev.linkedPeopleIds !== undefined) patch.linkedPeopleIds = [...ev.linkedPeopleIds];
@@ -1674,6 +1749,9 @@ function eventBridgePatch(ev: StudioScheduleEventInput): Partial<ScheduleEvent> 
 
 function todoBridgePatch(ev: StudioScheduleEventInput): Partial<ScheduleTodo> {
   const patch: Partial<ScheduleTodo> = { ...completionPatch(ev) };
+  // v365: notes patch a matched todo too (same non-empty-wins rule as
+  // events). Todos carry no location field — none is invented here.
+  if (ev.notes) patch.notes = ev.notes;
   // A wire `keyword` is validated on todos but has no home on the
   // record (its lanes are tag + icon) — it is the one shared key
   // that lands nowhere, like the bible pair on an Event row.
@@ -1720,9 +1798,16 @@ function todoBridgePatch(ev: StudioScheduleEventInput): Partial<ScheduleTodo> {
  * created and matched records alike — a matched event or todo takes
  * the pack's keyword/color/links/completion (and its own kind's
  * fields) onto a replaced copy. Only the item's identity (title,
- * date, start) and the v224 notes/location semantics are unchanged:
- * those differences never created a duplicate, and still don't
- * update a matched record.
+ * date, start) is outside the patch.
+ *
+ * v365 amendment (Oct 30): the v239 carve-out is retired — notes and
+ * location now patch matched records too (a non-empty word from the
+ * desk wins; the wire's '' preserves), because Jonathan shapes his
+ * week at the desk and an edit that cannot land is a broken bridge.
+ * They still never create a duplicate: identity is (date, start,
+ * title) alone, exactly as before. The counts grow eventsUpdated /
+ * todosUpdated — matched records whose stored form actually changed
+ * — so a door can say honestly that a patch landed.
  */
 export function mergeStudioSchedule(
   existingEvents: ScheduleEvent[],
@@ -1740,6 +1825,10 @@ export function mergeStudioSchedule(
   todosAdded: number;
   eventsAlreadyThere: number;
   todosAlreadyThere: number;
+  /** v365: matched records whose stored form actually changed under
+   *  the patch (a same-value patch counts nothing). */
+  eventsUpdated: number;
+  todosUpdated: number;
 } {
   const events = [...existingEvents];
   const todos = [...existingTodos];
@@ -1758,6 +1847,8 @@ export function mergeStudioSchedule(
   let todosAdded = 0;
   let eventsAlreadyThere = 0;
   let todosAlreadyThere = 0;
+  let eventsUpdated = 0;
+  let todosUpdated = 0;
   for (const ev of pack.events) {
     // v229: Ministry rows are the studio-facing projection of ministry
     // records. They validate (a known type) but apply NOTHING here —
@@ -1776,7 +1867,7 @@ export function mergeStudioSchedule(
         // stored todo object is replaced, never mutated.
         const patch = todoBridgePatch(ev);
         if (ev.subtasks !== undefined || Object.keys(patch).length > 0) {
-          todos[existingIndex] = {
+          const replaced: ScheduleTodo = {
             ...todos[existingIndex],
             ...patch,
             ...(ev.subtasks !== undefined
@@ -1786,6 +1877,10 @@ export function mergeStudioSchedule(
                 }
               : {}),
           };
+          if (JSON.stringify(replaced) !== JSON.stringify(todos[existingIndex])) {
+            todosUpdated += 1;
+          }
+          todos[existingIndex] = replaced;
         }
         continue;
       }
@@ -1817,7 +1912,11 @@ export function mergeStudioSchedule(
         // pack's bridge fields still land, present-wins.
         const patch = eventBridgePatch(ev);
         if (Object.keys(patch).length > 0) {
-          events[existingIndex] = { ...events[existingIndex], ...patch };
+          const replaced: ScheduleEvent = { ...events[existingIndex], ...patch };
+          if (JSON.stringify(replaced) !== JSON.stringify(events[existingIndex])) {
+            eventsUpdated += 1;
+          }
+          events[existingIndex] = replaced;
         }
         continue;
       }
@@ -1841,7 +1940,55 @@ export function mergeStudioSchedule(
       eventsAdded += 1;
     }
   }
-  return { events, todos, added, eventsAdded, todosAdded, eventsAlreadyThere, todosAlreadyThere };
+  return {
+    events,
+    todos,
+    added,
+    eventsAdded,
+    todosAdded,
+    eventsAlreadyThere,
+    todosAlreadyThere,
+    eventsUpdated,
+    todosUpdated,
+  };
+}
+
+/** The dedupe identity of a schedule tombstone, built exactly as the
+ *  merges build theirs: (date | start-or-'' | title), with 'All day'
+ *  reading as the empty start an untimed stored record carries. */
+export function scheduleTombstoneKey(tombstone: StudioScheduleTombstone): string {
+  return `${tombstone.date}|${tombstone.start === 'All day' ? '' : tombstone.start}|${tombstone.title}`;
+}
+
+/**
+ * v365 — apply a pack's schedule tombstones (Option B): delete the
+ * stored events/todos whose EXACT identity key a tombstone names.
+ * This is the only deletion the schedule bridge performs, and it is
+ * deliberately narrow: a tombstone names one item the desk itself
+ * once held, so an item that exists only in the app can never be in
+ * its reach; a same-title item at a different start is a different
+ * key and survives; an absent key removes nothing (re-applying the
+ * same pack is a no-op). Absent/empty tombstone lists change nothing
+ * and return the caller's arrays untouched.
+ */
+export function applyScheduleTombstones(
+  existingEvents: ScheduleEvent[],
+  existingTodos: ScheduleTodo[],
+  tombstones: StudioScheduleTombstone[] | undefined,
+): { events: ScheduleEvent[]; todos: ScheduleTodo[]; removed: number } {
+  if (!tombstones || tombstones.length === 0) {
+    return { events: existingEvents, todos: existingTodos, removed: 0 };
+  }
+  const keys = new Set(tombstones.map(scheduleTombstoneKey));
+  const keyOf = (item: ScheduleEvent | ScheduleTodo): string =>
+    `${item.date}|${item.startTime ?? ''}|${item.title}`;
+  const events = existingEvents.filter((e) => !keys.has(keyOf(e)));
+  const todos = existingTodos.filter((t) => !keys.has(keyOf(t)));
+  return {
+    events,
+    todos,
+    removed: existingEvents.length - events.length + (existingTodos.length - todos.length),
+  };
 }
 
 /** Does a Ministry row carry anything that lands on a record? A bare
@@ -1860,7 +2007,11 @@ function ministryRowHasPayload(ev: StudioScheduleEventInput): boolean {
     ev.color !== undefined ||
     ev.linkedPeopleIds !== undefined ||
     ev.isCompleted !== undefined ||
-    ev.completedAt !== undefined
+    ev.completedAt !== undefined ||
+    // v365: a notes or location word from the desk is payload too —
+    // a row carrying only a place change must still land (below).
+    !!ev.notes ||
+    !!ev.location
   );
 }
 
@@ -1926,6 +2077,12 @@ export function mergeStudioScheduleMinistries(
     if (index !== undefined) {
       ministries[index] = {
         ...ministries[index],
+        // v365: notes + location patch a matched ministry row too —
+        // a non-empty word from the desk wins, the wire's '' (or an
+        // omitted key) preserves, exactly as on events. (Creation
+        // below keeps its v224 rule untouched.)
+        ...(ev.notes ? { notes: ev.notes } : {}),
+        ...(ev.location ? { location: ev.location } : {}),
         ...(ev.ministryType !== undefined ? { type: ev.ministryType } : {}),
         ...(ev.dueDate !== undefined ? { dueDate: ev.dueDate } : {}),
         ...(ev.travelTimeMinutes !== undefined

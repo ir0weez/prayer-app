@@ -391,8 +391,15 @@ describe('v222 WS2 — the studio pack door', () => {
     expect(again.added).toBe(0);
     expect(again.events).toHaveLength(1);
     expect(again.todos).toHaveLength(1);
-    // The first import's copy stands — a re-import never rewrites it.
-    expect(again.events[0].location).toBeUndefined();
+    // v365 amendment (Oct 30): the dedupe half of this pin stands —
+    // different notes/location still never create a duplicate — but
+    // the "first import's copy stands" half is retired by Jonathan's
+    // ruling: notes + location now PATCH the matched record (he
+    // shapes his week at the desk; an edit that cannot land is the
+    // bug v365 exists to fix). The re-import's words win.
+    expect(again.events[0].location).toBe('Somewhere new');
+    expect(again.events[0].notes).toBe('Edited in the studio later');
+    expect(again.eventsUpdated).toBe(1);
   });
 
   it('schedule merge does not read whiteSpace — the advisory field never lands in the store', () => {

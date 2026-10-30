@@ -24,6 +24,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { MinistryType } from "./schedule-data";
+import { todoFlourishForTitle, type TodoFlourishId } from "./todo-flourish";
 
 /** The motion vocabulary — the sheet's words, so the set can be
     talked about ("the steam one", "the flicker"). */
@@ -252,8 +253,34 @@ export const KEYWORD_THUMB_MOTIONS: Record<string, ThumbMotionSpec> = {
   "worship": { kind: "bob", duration: 2800 },
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// v353 — UP NEXT-ONLY THUMB SCENES. A device trace on shipped v352
+// proved two holes of one class: identities the app already knows
+// in one system never reached the Up Next thumb layer. Feed is a
+// flourish keyword (lib/todo-flourish.ts) but was never an event
+// keyword, so its Up Next todo tile fell back to a check glyph;
+// Rest IS an event keyword but has no paper scene (its card swaps
+// its own sky), so its tile fell back to a static crescent with no
+// motion. These scenes live ONLY in the thumb layer — they are not
+// paper scenes (paperSceneIdFor is untouched, Rest's null pin
+// stands) — one spec in UP_NEXT_THUMB_SPECS
+// (components/keyword-thumb-art.tsx) and one motion here, keyed
+// identically. The v350 set-equality discipline is unchanged for
+// the paper set; this extension set is pinned exactly in
+// keyword-thumb-v353.test.ts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const UP_NEXT_THUMB_MOTIONS: Record<string, ThumbMotionSpec> = {
+  "feed": { kind: "bob", duration: 2800 },
+  "duolingo": { kind: "bob", duration: 2800 },
+  "brush-teeth": { kind: "sparkle", duration: 3000 },
+  "app-update": { kind: "glide", duration: 3000 },
+  "trash": { kind: "bob", duration: 2600 },
+  "rest": { kind: "breathe", duration: 3600 },
+};
+
 export function thumbMotionForScene(sceneId: string): ThumbMotionSpec | null {
-  return KEYWORD_THUMB_MOTIONS[sceneId] ?? null;
+  return KEYWORD_THUMB_MOTIONS[sceneId] ?? UP_NEXT_THUMB_MOTIONS[sceneId] ?? null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -291,5 +318,54 @@ export const MINISTRY_TYPE_THUMB_SCENE: Record<MinistryType, string | null> = {
 
 export function ministryThumbSceneForType(type: string): string | null {
   return (MINISTRY_TYPE_THUMB_SCENE as Record<string, string | null>)[type] ?? null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v353 — TODO TILES: THE FLOURISH IDENTITY COUNTS TOO. The todo
+// arm's first route is the event-keyword routing (v350); when a
+// title carries no event keyword, the tile now consults the SAME
+// keyword identity the check-off flourishes use
+// (todoFlourishForTitle — word boundaries and the quiet set
+// included, so "Feedback" never fires Feed and Pray/Sleep/Stitch
+// stay sceneless). Each flourish id lands on the thumb scene whose
+// subject matches it: caffeine borrows the coffee scene (steam),
+// Read the study scene (glow), Break the rest scene (breathe);
+// the rest are the Up Next-only scenes above. Photo already
+// resolves through the event routing; it is listed here so the
+// map covers the whole flourish set exactly.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const TODO_FLOURISH_THUMB_SCENE: Record<TodoFlourishId, string> = {
+  "feed": "feed",
+  "duolingo": "duolingo",
+  "caffeine": "rest-coffee",
+  "brush-teeth": "brush-teeth",
+  "photo": "photo",
+  "app-update": "app-update",
+  "trash": "trash",
+  "read": "study",
+  "break": "rest",
+};
+
+export function todoThumbSceneForTitle(title: string): string | null {
+  const flourish = todoFlourishForTitle(title);
+  return flourish ? TODO_FLOURISH_THUMB_SCENE[flourish] : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v353 — EVENT TILES: KEYWORD LABELS WITH NO PAPER SCENE. Rest's
+// paper routing stays null on purpose (the Rest card swaps its own
+// living sky; RestSquare is untouched), but its Up Next tile is a
+// thumbnail like every other — the crescent on Rest's own navy
+// ground, breathing. Keyed by the keyword LABEL, consulted only
+// where paperSceneIdFor returns null.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const KEYWORD_LABEL_THUMB_SCENE: Record<string, string> = {
+  "Rest": "rest",
+};
+
+export function thumbSceneForKeywordLabel(label: string): string | null {
+  return KEYWORD_LABEL_THUMB_SCENE[label] ?? null;
 }
 

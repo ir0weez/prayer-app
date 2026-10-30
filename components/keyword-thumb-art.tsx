@@ -45,7 +45,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, View } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { paperSceneIdFor } from "@/lib/paper-keywords";
-import { THUMB_MOTION_LOOP, thumbMotionForScene, type ThumbMotionKind, type ThumbMotionSpec } from "@/lib/keyword-thumb-motion";
+import { THUMB_MOTION_LOOP, thumbMotionForScene, thumbSceneForKeywordLabel, type ThumbMotionKind, type ThumbMotionSpec } from "@/lib/keyword-thumb-motion";
 
 /** One bold shape in the 40×40 emblem space.
     c = circle (x/y = centre), e = ellipse (x/y = top-left),
@@ -821,6 +821,55 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// v353 — UP NEXT-ONLY THUMB SPECS (see lib/keyword-thumb-motion.ts
+// for the trace that proved the holes). These scenes exist only at
+// thumbnail size: the identities behind them (todo flourish
+// keywords; the Rest event keyword) have no paper scene and gain
+// none — the paper routing is untouched. Keyed identically to
+// UP_NEXT_THUMB_MOTIONS. Todo tiles redraw these emblems in the
+// todo's own colour family through the palette, exactly like the
+// paper-set specs; Rest's tile wears its own ground, the keyword's
+// own #232347, with the keyword's own crescent.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const UP_NEXT_THUMB_SPECS: Record<string, ThumbSpec> = {
+  // A baby bottle: amber teat, collar, milk-white body, two dark
+  // measure ticks. Drawn for the Feed todo (Feed Aaron / Feed
+  // Novalee) — the bottle the flourish fizzes.
+  "feed": { g: "#7A4A21", s: [
+    { k: "r", x: 17, y: 4.5, w: 6, h: 6, f: "#E8B04B", rad: 2 },
+    { k: "r", x: 14.5, y: 10.5, w: 11, h: 3.4, f: "#8D6E63", rad: 1.5 },
+    { k: "r", x: 12.5, y: 13.5, w: 15, h: 19, f: "#F7F3E9", rad: 5 },
+    { k: "r", x: 16, y: 18, w: 5, h: 1.6, f: "#5D4037", rad: 0.8 },
+    { k: "r", x: 16, y: 24.5, w: 5, h: 1.6, f: "#5D4037", rad: 0.8 },
+  ] },
+  // Two letter tiles, tumbled against each other — the Duolingo
+  // flourish's tiles at rest, each with its letter dot.
+  "duolingo": { g: "#3E7A1E", s: [
+    { k: "r", x: 7.5, y: 9.5, w: 13, h: 13, f: "#58CC02", rad: 3, rot: -8 },
+    { k: "r", x: 19.5, y: 17, w: 13, h: 13, f: "#1CB0F6", rad: 3, rot: 8 },
+    { k: "c", x: 14, y: 16, r: 2, f: "#14532D" },
+    { k: "c", x: 26, y: 23.5, r: 2, f: "#7A1F1F" },
+  ] },
+  // A white tooth with its two roots, foam bubbles at its crown,
+  // the brush handle leaning at its side.
+  "brush-teeth": { g: "#2E7D6B", s: [
+    { k: "r", x: 26.5, y: 17, w: 3, h: 13, f: "#26A69A", rad: 1.5, rot: 24 },
+    { k: "e", x: 12.5, y: 8, w: 15, h: 15, f: "#FFFFFF" },
+    { k: "r", x: 14.5, y: 20, w: 4.5, h: 8, f: "#FFFFFF", rad: 2 },
+    { k: "r", x: 21, y: 20, w: 4.5, h: 8, f: "#FFFFFF", rad: 2 },
+    { k: "c", x: 10.5, y: 9, r: 3, f: "#E3F2FD" },
+    { k: "c", x: 29, y: 6.5, r: 2.2, f: "#E3F2FD" },
+    { k: "c", x: 31.5, y: 12.5, r: 1.6, f: "#E3F2FD" },
+  ] },
+  "app-update": { g: "#37474F", icon: "system-update" },
+  "trash": { g: "#5A4632", icon: "delete" },
+  // Rest: the keyword's own crescent on the keyword's own navy —
+  // the v320-era fallback tile, now a real spec so it can breathe.
+  "rest": { g: "#232347", icon: "nights-stay" },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // v350 — the motion renderer. One JS-driven loop value per tile
 // (plus two staggered particle channels for steam / drip /
 // sparkle kinds), transform and opacity only, easing sine or
@@ -1048,9 +1097,10 @@ function ThumbMotionView({ motion, seedKey, children }: { motion: ThumbMotionSpe
 }
 
 /** The spec for one scene id (the Up Next seats read the ground
-    for their tile chrome). */
+    for their tile chrome). The paper set first, then the v353
+    Up Next-only set. */
 export function thumbSpecForScene(sceneId: string): ThumbSpec | undefined {
-  return KEYWORD_THUMB_SPECS[sceneId];
+  return KEYWORD_THUMB_SPECS[sceneId] ?? UP_NEXT_THUMB_SPECS[sceneId];
 }
 
 /**
@@ -1061,7 +1111,7 @@ export function thumbSpecForScene(sceneId: string): ThumbSpec | undefined {
  * ministry tiles).
  */
 export function SceneThumbArt({ sceneId, palette }: { sceneId: string; palette?: ThumbPalette }) {
-  const spec = KEYWORD_THUMB_SPECS[sceneId];
+  const spec = thumbSpecForScene(sceneId);
   if (!spec) return null;
   const motion = thumbMotionForScene(sceneId);
   return (
@@ -1113,8 +1163,11 @@ export function KeywordThumbArt({
   fallbackIcon?: string;
   palette?: ThumbPalette;
 }) {
-  const id = paperSceneIdFor(label, title, location, notes);
-  const spec = id ? KEYWORD_THUMB_SPECS[id] : undefined;
+  // v353: a keyword label with no paper scene can still own a
+  // thumb scene (Rest) — consulted only where the paper routing
+  // returns null, so every paper-routed label is untouched.
+  const id = paperSceneIdFor(label, title, location, notes) ?? thumbSceneForKeywordLabel(label);
+  const spec = id ? thumbSpecForScene(id) : undefined;
   if (!spec) {
     if (!fallbackIcon) return null;
     return (

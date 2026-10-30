@@ -104,8 +104,14 @@ describe("v320 — Up Next thumbnails: dedicated small artwork, never the scaled
 
   it("the small artwork resolves scenes through the same routing as the full cards (paperSceneIdFor)", () => {
     expect(thumbArt).toContain('import { paperSceneIdFor } from "@/lib/paper-keywords";');
-    expect(thumbArt).toContain("const id = paperSceneIdFor(label, title, location, notes);");
-    expect(thumbArt).toContain("const spec = id ? KEYWORD_THUMB_SPECS[id] : undefined;");
+    // RE-BASED (v353, 2026-10-29): the paper routing still leads,
+    // but a label with no paper scene now falls through to the
+    // thumb-only label map (Rest), and the spec lookup reads the
+    // merged thumbSpecForScene (paper set, then the Up Next-only
+    // set). The v320 discipline — paper routing first — is what
+    // this pin still guards.
+    expect(thumbArt).toContain("const id = paperSceneIdFor(label, title, location, notes) ?? thumbSceneForKeywordLabel(label);");
+    expect(thumbArt).toContain("const spec = id ? thumbSpecForScene(id) : undefined;");
   });
 
   it("coverage is exact: every scene id the routing can produce has a thumbnail spec", () => {

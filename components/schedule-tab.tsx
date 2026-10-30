@@ -167,7 +167,7 @@ import { ReachedStampRow } from "./reached-stamp-row";
 import { KeywordThumbArt } from "./keyword-thumb-art";
 import { SceneThumbArt, ThumbBreatheWrap, thumbSpecForScene } from "./keyword-thumb-art";
 import { paperSceneIdFor } from "@/lib/paper-keywords";
-import { MINISTRY_TYPE_THUMB_SCENE } from "@/lib/keyword-thumb-motion";
+import { MINISTRY_TYPE_THUMB_SCENE, todoThumbSceneForTitle } from "@/lib/keyword-thumb-motion";
 import { getAllTimeOff, getItineraryForDate, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
 import { calculateWhites, groupAdjacentClaimed } from "@/lib/whites";
 import { extractPosterColor, getTimeOffEventColor, isTimeOffEventVisible, readableTextColor } from "@/lib/poster-color";
@@ -7803,7 +7803,17 @@ function UpNextPulseDot({ color, style }: { color: string; style?: any }) {
     type's scene emblem + motion on the scene's own ground;
     a type with no scene keeps its glyph tile, breathing.
     TV rows keep their v320 treatment exactly — a deliberate
-    hold, not an oversight. */
+    hold, not an oversight.
+    v353 (device trace on v352): two identities the app already
+    knew never reached this thumb layer — the flourish keyword
+    identity for TODOS (Feed is a flourish keyword but was never
+    an event keyword, so its tile showed a check glyph) and the
+    Rest EVENT keyword (a keyword with no paper scene, so its
+    tile was a static crescent with no motion). Todo tiles now
+    fall through to todoThumbSceneForTitle; Rest resolves in
+    KeywordThumbArt through KEYWORD_LABEL_THUMB_SCENE. Both new
+    scene sets live only in the thumb layer — the paper routing
+    and RestSquare are untouched. */
 function UpNextThumb({ kind, item }: { kind: "todo" | "event" | "ministry"; item: any }) {
   const colors = useColors();
   if (kind === "event") {
@@ -7838,7 +7848,13 @@ function UpNextThumb({ kind, item }: { kind: "todo" | "event" | "ministry"; item
     // lights) on a tonal tile of the same colour, with the
     // scene's motion. The category colour stays the identity.
     const todoKeyword = detectEventKeyword(item.title, item.location, item.notes);
-    const todoSceneId = todoKeyword ? paperSceneIdFor(todoKeyword.label, item.title, item.location, item.notes) : null;
+    const keywordSceneId = todoKeyword ? paperSceneIdFor(todoKeyword.label, item.title, item.location, item.notes) : null;
+    // v353: a todo with no EVENT keyword can still carry the
+    // flourish keyword identity (Feed, Duolingo, Brush Teeth,
+    // Trash, Read, Break, App Update) — the check-off system has
+    // known these titles since v337, so the tile resolves through
+    // that map too instead of falling back to a plain glyph.
+    const todoSceneId = keywordSceneId ?? todoThumbSceneForTitle(item.title);
     if (todoSceneId && thumbSpecForScene(todoSceneId)) {
       const ramp = tonalRamp(todoColor, colors.surface);
       const tileGround = mix(todoColor, colors.surface, 0.8);

@@ -5,6 +5,12 @@ describe("accent color themes", () => {
   it("contains the requested theme order and unlock levels", () => {
     expect(ACCENT_THEMES.map((theme) => [theme.id, theme.unlockLevel])).toEqual([
       ["default", 1],
+      // v360: the plain primaries stand with the basics at
+      // level 1 (see lib/color-themes.ts); every existing theme
+      // keeps its place and level.
+      ["red", 1],
+      ["yellow", 1],
+      ["blue", 1],
       ["sky", 5],
       ["ocean", 10],
       ["teal", 15],
@@ -19,14 +25,36 @@ describe("accent color themes", () => {
   });
 
   it("unlocks themes cumulatively from the stored XP level", () => {
-    expect(getUnlockedAccentThemeIds(1)).toEqual(["default"]);
-    expect(getUnlockedAccentThemeIds(5)).toEqual(["default", "sky"]);
-    expect(getUnlockedAccentThemeIds(10)).toEqual(["default", "sky", "ocean"]);
-    expect(getUnlockedAccentThemeIds(15)).toEqual(["default", "sky", "ocean", "teal"]);
-    expect(getUnlockedAccentThemeIds(30)).toEqual(["default", "sky", "ocean", "teal", "forest", "sunset"]);
-    expect(getUnlockedAccentThemeIds(50)).toEqual(["default", "sky", "ocean", "teal", "forest", "sunset", "pomegranate", "crimson"]);
+    // v360: red/yellow/blue are level-1 basics, so they ride
+    // every list from the start; the gated themes unlock exactly
+    // as before.
+    expect(getUnlockedAccentThemeIds(1)).toEqual(["default", "red", "yellow", "blue"]);
+    expect(getUnlockedAccentThemeIds(5)).toEqual(["default", "red", "yellow", "blue", "sky"]);
+    expect(getUnlockedAccentThemeIds(10)).toEqual(["default", "red", "yellow", "blue", "sky", "ocean"]);
+    expect(getUnlockedAccentThemeIds(15)).toEqual(["default", "red", "yellow", "blue", "sky", "ocean", "teal"]);
+    expect(getUnlockedAccentThemeIds(30)).toEqual(["default", "red", "yellow", "blue", "sky", "ocean", "teal", "forest", "sunset"]);
+    expect(getUnlockedAccentThemeIds(50)).toEqual(["default", "red", "yellow", "blue", "sky", "ocean", "teal", "forest", "sunset", "pomegranate", "crimson"]);
     expect(getUnlockedAccentThemeIds(75)).toContain("midnight");
     expect(getUnlockedAccentThemeIds(100)).toContain("charcoal-gold");
+  });
+
+  it("the plain primaries carry the schedule family's exact hexes (v360)", () => {
+    // The Studio mirror pass shipped these same hexes — the
+    // app swatch and the Studio chip must be the identical colour.
+    const byId = Object.fromEntries(ACCENT_THEMES.map((theme) => [theme.id, theme]));
+    expect(byId["red"].swatch).toBe("#EF4444");
+    expect(byId["yellow"].swatch).toBe("#FBBF24");
+    expect(byId["blue"].swatch).toBe("#3B82F6");
+    expect(byId["red"].name).toBe("Red");
+    expect(byId["yellow"].name).toBe("Yellow");
+    expect(byId["blue"].name).toBe("Blue");
+    // Shades derive from the swatch hex itself in light mode.
+    expect(getThemedPalette("light", "red").primary).toBe("#EF4444");
+    expect(getThemedPalette("light", "yellow").primary).toBe("#FBBF24");
+    expect(getThemedPalette("light", "blue").primary).toBe("#3B82F6");
+    expect(normalizeAccentThemeId("red")).toBe("red");
+    expect(normalizeAccentThemeId("yellow")).toBe("yellow");
+    expect(normalizeAccentThemeId("blue")).toBe("blue");
   });
 
   it("migrates the former Rose setting to Pomegranate and defaults invalid values", () => {

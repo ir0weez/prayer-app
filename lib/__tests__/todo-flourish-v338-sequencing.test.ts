@@ -99,7 +99,10 @@ describe("v338 — source pins: the hold lives in ScheduleTab, beside the toggle
 
   it("the write is held for exactly the flourish duration", () => {
     expect(schedule).toContain("setTimeout(() => flushPendingTodoWrite(todo.id), TODO_FLOURISH_DURATION_MS)");
-    expect(TODO_FLOURISH_DURATION_MS).toBe(900);
+    // RE-BASED (v360): the duration itself rose 900 → 2400 at
+    // Jonathan's word (Oct 30 — the flourishes were "so freaking
+    // quick"); the hold still lasts exactly one flourish.
+    expect(TODO_FLOURISH_DURATION_MS).toBe(2400);
   });
 
   it("the deferral is gated on the pure decision (uncheck / quiet / unmatched stay instant)", () => {

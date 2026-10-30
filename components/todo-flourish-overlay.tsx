@@ -9,7 +9,8 @@
 //
 // Performance contract (his standing rule — no lag, no glitch):
 // · one-shot: a burst mounts on its toggle event and unmounts when
-//   its single 900ms timing completes. Nothing loops, nothing idles.
+//   its single 2.4s timing completes (v360 slowed the set).
+//   Nothing loops, nothing idles.
 // · ONE Animated.Value per burst drives every particle through
 //   interpolations — transforms and opacity only, all on the native
 //   driver. No layout properties are ever animated.

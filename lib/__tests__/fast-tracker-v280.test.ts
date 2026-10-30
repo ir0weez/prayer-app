@@ -112,7 +112,9 @@ describe("v280 seam: the board layer is deleted, not hidden", () => {
   });
 
   it("both marking paths pay the fast's own loop only — no specials anywhere", () => {
-    const profile = read("app/profile.tsx");
+    // RE-BASED (v360): the marking engine moved with the tracker
+    // to app/fasting-tracker.tsx — the loop is the same code.
+    const profile = read("app/fasting-tracker.tsx");
     const engine = profile.slice(profile.indexOf("const applyFastStatusEffects"), profile.indexOf("const maybeGenerateFastSummary"));
     expect(engine).toContain('awardXP("fasting-day"');
     expect(engine).toContain('applyCoinsDelta(1, "none")');
@@ -167,19 +169,23 @@ describe("v280 seam: the board layer is deleted, not hidden", () => {
 
 describe("v280 fidelity: the fasting section is the mockup", () => {
   const profile = read("app/profile.tsx");
+  // RE-BASED (v360): the fasting section is its own page now
+  // (app/fasting-tracker.tsx); `profile` below still guards the
+  // YOUR TOWN door on My Profile.
+  const trackerPage = read("app/fasting-tracker.tsx");
   const tracker = read("components/fast-tracker.tsx");
 
   it("the section head is the mockup's app-bar row: name + streak chip, no label, no card", () => {
-    expect(profile).toContain("{selectedFastStreak}-day streak");
-    expect(profile).toContain('name="local-fire-department" size={18} color={trackerFamily.deep}');
+    expect(trackerPage).toContain("{selectedFastStreak}-day streak");
+    expect(trackerPage).toContain('name="local-fire-department" size={18} color={trackerFamily.deep}');
     // v283 re-base: the settle renumbered 3 -> 0 — the sheets
     // above it (profile card, stat grid, previous-fast card) left
     // the page at Jonathan's Oct 27 ruling, so the section head
     // is the page's first settling sheet now.
-    expect(profile).toContain("<PaperSettle index={0} style={styles.trackerSection}>");
-    expect(profile).not.toContain(">CURRENT FAST<");
-    expect(profile).not.toContain("styles.fastCard,");
-    expect(profile).not.toContain("🔥 {selectedFastStreak}");
+    expect(trackerPage).toContain("<PaperSettle index={0} style={styles.trackerSection}>");
+    expect(trackerPage).not.toContain(">CURRENT FAST<");
+    expect(trackerPage).not.toContain("styles.fastCard,");
+    expect(trackerPage).not.toContain("🔥 {selectedFastStreak}");
   });
 
   it("no Hometown entry card on the fasting page (Hometown lives on People)", () => {

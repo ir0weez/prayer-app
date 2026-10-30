@@ -162,7 +162,10 @@ describe("8-bit coverage — v203 animation pass", () => {
   });
 
   it("fasting profile: the above-fold cards snap with their cascade; its sheets drop in", () => {
-    const profile = read("app/profile.tsx");
+    // RE-BASED (v360): the fasting page is its own route now
+    // (app/fasting-tracker.tsx) — the cascade and sheets below
+    // are that page's, unchanged.
+    const profile = read("app/fasting-tracker.tsx");
     // v283 re-base: the above-fold cascade is gone with the cards
     // it animated — Jonathan's Oct 27 ruling took the profile
     // card, the stat grid and the previous-fast card off the

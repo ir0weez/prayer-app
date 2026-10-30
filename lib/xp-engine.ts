@@ -8,6 +8,10 @@ import { ASHEN_XP_MULT, hasCachedBadge } from "./badges";
 
 export const XP_STORAGE_KEY = "prayercircle.xp.v1";
 export const XP_AWARDS_STORAGE_KEY = "prayercircle.xp-awards.v1";
+/** v360 — the heart settle's baseline marker, stored in the awards
+ *  ledger itself (so it travels with the ledger it describes —
+ *  see settleFastingHearts). */
+const HEART_SETTLE_BASELINE_KEY = "heart-settle-baseline:v360";
 
 export type XpAction =
   | "scheduled-prayer"
@@ -290,6 +294,27 @@ type StoredFastForHearts = {
  * drops a level (never below 1), refills to the new max, and wipes
  * the town. Skipped and unmarked days cost nothing — the settled
  * rule charges MISSED days only. One storage pass, one write.
+ *
+ * v360 — FORWARD-ONLY charging (Jonathan's ruling, Oct 30: "4
+ * missed days in a week certainly should cause a missed level,
+ * but I haven't done that since I've gotten the app"). The
+ * mechanic above stands exactly as designed; what changed is
+ * WHEN a missed day may charge. The settle used to charge every
+ * uncharged missed day in history in one pass — harmless while
+ * the ledger and the fasts grew up together, but a backup
+ * restore replaces the ledger wholesale: his Oct 29 restore left
+ * 36 historical missed days uncharged, and the next load charged
+ * all 36 at once (7 zero-crossings, Level 35 → 28) for misses
+ * that were spread one-or-two-a-week across months, each week
+ * long since Sunday-refilled. So: the FIRST settle under this
+ * build baselines the ledger — every missed day already on
+ * record is written into the ledger as settled WITHOUT charging
+ * a heart, and the baseline marker is stored with it. From then
+ * on only newly-missed days charge, as they pass, week by week.
+ * If a later restore ever replaces the ledger again (marker
+ * gone), the settle re-baselines rather than ambushing him a
+ * second time. This settle is the only bulk heart-loss path —
+ * loseHeart charges a single day at marking time, as always.
  */
 export async function settleFastingHearts(state: XpState, todayStr: string): Promise<XpState> {
   try {
@@ -312,15 +337,28 @@ export async function settleFastingHearts(state: XpState, todayStr: string): Pro
     } catch {
       awards = [];
     }
-    const due: { key: string; date: string }[] = [];
+    const missed: { key: string; date: string }[] = [];
     for (const fast of fasts) {
       if (!fast || typeof fast.id !== "string" || !fast.dayStatuses) continue;
       for (const [date, status] of Object.entries(fast.dayStatuses)) {
         if (status !== "missed" || date >= todayStr) continue;
-        const key = `heart-loss:fasting-day-missed:${fast.id}:${date}`;
-        if (!awards.includes(key)) due.push({ key, date });
+        missed.push({ key: `heart-loss:fasting-day-missed:${fast.id}:${date}`, date });
       }
     }
+    // v360 baseline pass (see the doc comment above): with no
+    // marker in the ledger, every missed day already on record is
+    // settled silently — recorded, never charged — and nothing
+    // else happens this pass. Only days missed AFTER this moment
+    // can ever charge, one at a time, as they pass.
+    if (!awards.includes(HEART_SETTLE_BASELINE_KEY)) {
+      for (const { key } of missed) {
+        if (!awards.includes(key)) awards.push(key);
+      }
+      awards.push(HEART_SETTLE_BASELINE_KEY);
+      await AsyncStorage.setItem(XP_AWARDS_STORAGE_KEY, JSON.stringify(awards));
+      return state;
+    }
+    const due = missed.filter(({ key }) => !awards.includes(key));
     if (due.length === 0) return state;
     due.sort((a, b) => (a.date < b.date ? -1 : 1));
     let current = normalizeXPState(state);

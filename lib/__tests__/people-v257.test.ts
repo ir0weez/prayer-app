@@ -143,13 +143,17 @@ describe("v257 source pins — the two removals stay removed (people-streak-card
 
 // ─── (d) The whole card is a door to his profile ────────────────────
 
-describe("v257 source pins — tap routes to /profile", () => {
+describe("v257 source pins — tap routes to the fasting page", () => {
   const index = read("app/(tabs)/index.tsx");
   const card = read("components/people-streak-card.tsx");
 
-  it("index wires the card's press to the profile route", () => {
+  it("index wires the card's press to the fasting page's route", () => {
     const renderer = index.slice(index.indexOf("const renderStreakCard"), index.indexOf("const renderPraiseCard"));
-    expect(renderer).toContain('onPress={() => router.push("/profile")}');
+    // RE-BASED (v360): the card's subject is the fast; when the
+    // tracker stood under My Profile the door landed on /profile,
+    // and since the v360 split the tracker is its own route — the
+    // door lands there now.
+    expect(renderer).toContain('onPress={() => router.push("/fasting-tracker")}');
     expect(renderer).toContain("fastingStreak={profile.fastingStreak}");
     expect(renderer).toContain("activeFast={activeFast}");
   });

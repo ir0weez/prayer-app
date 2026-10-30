@@ -523,8 +523,13 @@ describe("v176 chrome coverage (source pins)", () => {
   });
 
   it("the fasting profile card is opaque paper on a warm sheet stack, not a gray frame", () => {
-    const profile = read("app/profile.tsx");
-    expect(profile).toContain("paperSurfaceStyle");
+    // RE-BASED (v360): the fasting page is its own route now
+    // (app/fasting-tracker.tsx). paperSurfaceStyle was a
+    // declared-but-never-applied helper in the old combined
+    // file — dead code the split dropped, so the pin flips to
+    // its absence; the hex absences below are unchanged.
+    const profile = read("app/fasting-tracker.tsx");
+    expect(profile).not.toContain("paperSurfaceStyle");
     // v182: the stack stepped to the cleaner white-paper neutral.
     // v283 re-base: the card and its stack left the fasting page
     // at Jonathan's Oct 27 ruling (never-approved profile
@@ -1615,10 +1620,17 @@ describe("v190 — Paper, Bigger", () => {
     expect(journal).toContain("padding: 16 + skinTokens.type.padBoost");
     // Fasting profile: page title, display name, stat numerals,
     // section labels, previous/current/history cards.
-    const profile = read("app/profile.tsx");
+    // RE-BASED (v360): the fasting page is its own route now
+    // (app/fasting-tracker.tsx), and the displayName/statValue
+    // spreads dressed the profile card and stat grid Jonathan's
+    // Oct 27 ruling removed (v283) — their style entries were
+    // dead code in the combined file and the split dropped
+    // them, so those two pins flip to absences. The page title
+    // and the FAST HISTORY section label stand as they were.
+    const profile = read("app/fasting-tracker.tsx");
     expect(profile).toContain("skinText(skinTokens, skinTokens.type.pageTitle)");
-    expect(profile).toContain("...skinText(skinTokens, skinTokens.type.displayName, skinTokens.type.displayNameLineHeight)");
-    expect(profile).toContain("...skinText(skinTokens, skinTokens.type.statValue)");
+    expect(profile).not.toContain("...skinText(skinTokens, skinTokens.type.displayName, skinTokens.type.displayNameLineHeight)");
+    expect(profile).not.toContain("...skinText(skinTokens, skinTokens.type.statValue)");
     // v276 re-base: the count drops 8 -> 4 — the fasting section's
     // FASTING FOCUS / TODAY / SEASONS / BOARD labels retired with
     // the tracker re-presentation (the tracker cards carry their

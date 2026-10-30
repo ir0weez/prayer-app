@@ -1484,9 +1484,15 @@ describe('v211 — the box gets its buttons back; position lives in the new stor
     const home = readFileSync(join(process.cwd(), 'app', '(tabs)', 'index.tsx'), 'utf8');
     expect(home).toContain('getReadingPosition');
     expect(home).not.toContain('getCurrentBibleDisplay');
+    // RE-BASED (v360): the profile page's study-position read
+    // fed only the currentBibleBook/lastBibleReadDate state —
+    // declared, never rendered (the Personal Study headline
+    // lives on the schedule side, v218) — and the v360 Profile
+    // split dropped the orphaned load with the rest of the dead
+    // state. The home tab's read, the one that renders, stands.
     const profile = readFileSync(join(process.cwd(), 'app', 'profile.tsx'), 'utf8');
-    expect(profile).toContain('getReadingPosition');
-    expect(profile).toContain('position.currentBook');
+    expect(profile).not.toContain('getReadingPosition');
+    expect(profile).not.toContain('position.currentBook');
   });
 });
 

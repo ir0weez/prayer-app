@@ -47,10 +47,20 @@ export type ThumbMotionKind =
   | "twinkle"
   | "flare";
 
+/** One overlay spark for the twinkle/sparkle/shine kinds, in tile
+ *  px (the sheet's own seats). */
+export type ThumbSpark = { left: number; top: number; size: number; color: string };
+
 export type ThumbMotionSpec = {
   kind: ThumbMotionKind;
   /** Full loop length in ms — always within [MIN, MAX]. */
   duration: number;
+  /** v360 — per-scene spark seats for the particle kinds. The
+   *  shared defaults were drawn for Birthday; scenes whose
+   *  approved sheet cell seats its own sparks (Christmas's tree
+   *  star, Clean's shine spark) name them here. Absent = the
+   *  shared two-spark set. */
+  sparks?: ThumbSpark[];
 };
 
 export const THUMB_MOTION_MIN_MS = 2400;
@@ -89,12 +99,12 @@ export const KEYWORD_THUMB_MOTIONS: Record<string, ThumbMotionSpec> = {
   "bible-study": { kind: "glow", duration: 3200 },
   "birthday": { kind: "sparkle", duration: 3000 },
   "breakfast": { kind: "glow", duration: 3200 },
-  "christmas": { kind: "twinkle", duration: 3000 },
+  "christmas": { kind: "twinkle", duration: 3000, sparks: [{ left: 14.5, top: 0.5, size: 11, color: "#FFD54F" }] },
   "christmas-breakfast": { kind: "steam", duration: 3000 },
   "christmas-dinner": { kind: "steam", duration: 3000 },
   "christmas-movie": { kind: "twinkle", duration: 3000 },
   "church": { kind: "swing", duration: 3200 },
-  "clean": { kind: "shine", duration: 3400 },
+  "clean": { kind: "shine", duration: 3400, sparks: [{ left: 25, top: 3, size: 10, color: "#E1F5FE" }] },
   "concert": { kind: "bob", duration: 2800 },
   "dinner": { kind: "steam", duration: 3000 },
   "doctor": { kind: "pulse", duration: 2800 },

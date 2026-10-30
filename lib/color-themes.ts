@@ -8,7 +8,7 @@ const SchemeColors: Record<ColorScheme, ThemeColorPalette> = {
   dark: Object.fromEntries(Object.entries(themeConfig.themeColors).map(([name, swatch]) => [name, swatch.dark])),
 };
 
-export type AccentThemeId = "default" | "sky" | "ocean" | "teal" | "forest" | "sunset" | "pomegranate" | "crimson" | "lavender" | "midnight" | "charcoal-gold";
+export type AccentThemeId = "default" | "red" | "yellow" | "blue" | "sky" | "ocean" | "teal" | "forest" | "sunset" | "pomegranate" | "crimson" | "lavender" | "midnight" | "charcoal-gold";
 
 export type AccentThemeDefinition = {
   id: AccentThemeId;
@@ -91,6 +91,40 @@ export const ACCENT_THEMES: AccentThemeDefinition[] = [
     swatch: "#8557D9",
     light: { primary: "#8557D9" },
     dark: { primary: "#A985F0" },
+  },
+  // v360 — the plain primaries (Jonathan, Oct 30: "I have every
+  // color of blue, but not blue. I have every shade of red, but
+  // not red. At least ROYGBIV"). Red, Yellow and Blue join Default
+  // at level 1 — basics are never prestige rewards — with the
+  // schedule family's own primary hexes as their swatches and
+  // light primaries (the Studio chips carry these exact hexes, so
+  // the Studio swatch and the app swatch are the identical
+  // colour), and dark primaries tinted from them the way every
+  // other theme's are. Green and orange were already covered
+  // (Forest, Sunset); violet is Default itself.
+  {
+    id: "red",
+    name: "Red",
+    description: "True red theme",
+    unlockLevel: 1,
+    swatch: "#EF4444",
+    ...buildThemeShades("#EF4444", "#F58585"),
+  },
+  {
+    id: "yellow",
+    name: "Yellow",
+    description: "True yellow theme",
+    unlockLevel: 1,
+    swatch: "#FBBF24",
+    ...buildThemeShades("#FBBF24", "#FCD571"),
+  },
+  {
+    id: "blue",
+    name: "Blue",
+    description: "True blue theme",
+    unlockLevel: 1,
+    swatch: "#3B82F6",
+    ...buildThemeShades("#3B82F6", "#80AEF9"),
   },
   {
     id: "sky",

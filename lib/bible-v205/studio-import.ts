@@ -57,6 +57,7 @@
 //    layer into a distinct backup section the studio can read later.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { EmailDigest } from '@/lib/email-digest';
 import { CHAPTER_COUNTS, chapterCountFor, getChapterData } from './index';
 import {
   createScheduleEvent,
@@ -936,10 +937,20 @@ export interface StudioFilePlan {
   /** Ministry records + tombstones (standalone pack or backup
    *  `studioMinistries`). */
   ministries: StudioMinistriesPack | null;
+  /** v360 — the morning email digest (the `emailDigest` section).
+   *  The Email page's store (lib/email-digest.ts) could only be
+   *  written by a full backup restore — and the restore door sets
+   *  people/journal/fasts/streak/profile/settings from the file
+   *  with empty fallbacks for absent keys, so a digest-only file
+   *  through that door would wipe his data. This section is the
+   *  safe door: validated here like every other section, applied
+   *  by writing ONLY the prayercircle.email-digest.v1 key. A pack
+   *  carrying only a digest changes nothing else in the app. */
+  emailDigest: EmailDigest | null;
 }
 
 export function emptyStudioFilePlan(): StudioFilePlan {
-  return { notes: null, states: null, schedule: null, people: null, ministries: null };
+  return { notes: null, states: null, schedule: null, people: null, ministries: null, emailDigest: null };
 }
 
 export function studioFileHasSections(plan: StudioFilePlan): boolean {
@@ -948,7 +959,8 @@ export function studioFileHasSections(plan: StudioFilePlan): boolean {
     plan.states !== null ||
     plan.schedule !== null ||
     plan.people !== null ||
-    plan.ministries !== null
+    plan.ministries !== null ||
+    plan.emailDigest !== null
   );
 }
 
@@ -992,9 +1004,87 @@ export function studioFileHasSections(plan: StudioFilePlan): boolean {
  * refused, as an empty library pack always was), and `weekOf` never
  * rides without `events`.
  */
+/**
+ * v360 — validate the `emailDigest` section into the Email page's
+ * own shape (lib/email-digest.ts). Eva's morning prep emits:
+ *   { preparedAt: ISO string,
+ *     digest: [{ sender, subject, why }],
+ *     groups: { reply: [rows], money: [rows], people: [rows] },
+ *     filedCount: number }
+ * with rows { sender, subject, preview } (a `when` word may ride).
+ * Structural garbage fails the whole file, like every other
+ * section; leaf strings default to "" when absent. A section with
+ * no content at all is refused — writing it would clear the digest
+ * already waiting on the Email page.
+ */
+export function validateEmailDigestSection(value: unknown): EmailDigest {
+  if (!isRecord(value)) fail('The emailDigest section is not an object.');
+  const preparedAt = typeof value.preparedAt === 'string' ? value.preparedAt : '';
+  if (!preparedAt) fail('The emailDigest section has no preparedAt time.');
+  const leaf = (row: Record<string, unknown>, key: string): string => {
+    const v = row[key];
+    if (v === undefined) return '';
+    if (typeof v !== 'string') fail(`The emailDigest section has a non-string ${key}.`);
+    return v as string;
+  };
+  const leads = (raw: unknown, where: string): EmailDigest['digest'] => {
+    if (raw === undefined) return [];
+    if (!Array.isArray(raw)) fail(`The emailDigest ${where} list is not a list.`);
+    return raw.map((entry, i) => {
+      if (!isRecord(entry)) fail(`The emailDigest ${where} entry ${i} is not an object.`);
+      return { sender: leaf(entry, 'sender'), subject: leaf(entry, 'subject'), why: leaf(entry, 'why') };
+    });
+  };
+  const rows = (raw: unknown, where: string): EmailDigest['groups']['reply'] => {
+    if (raw === undefined) return [];
+    if (!Array.isArray(raw)) fail(`The emailDigest ${where} list is not a list.`);
+    return raw.map((entry, i) => {
+      if (!isRecord(entry)) fail(`The emailDigest ${where} entry ${i} is not an object.`);
+      return {
+        sender: leaf(entry, 'sender'),
+        subject: leaf(entry, 'subject'),
+        preview: leaf(entry, 'preview'),
+        when: leaf(entry, 'when'),
+      };
+    });
+  };
+  const groupsRaw = value.groups === undefined ? {} : value.groups;
+  if (!isRecord(groupsRaw)) fail('The emailDigest groups are not an object.');
+  let filedCount = 0;
+  if (value.filedCount !== undefined) {
+    if (typeof value.filedCount !== 'number' || !Number.isFinite(value.filedCount) || value.filedCount < 0) {
+      fail('The emailDigest filedCount is not a number.');
+    }
+    filedCount = Math.floor(value.filedCount as number);
+  }
+  const digest: EmailDigest = {
+    preparedAt,
+    digest: leads(value.digest, 'digest'),
+    groups: {
+      reply: rows(groupsRaw.reply, 'reply'),
+      money: rows(groupsRaw.money, 'money'),
+      people: rows(groupsRaw.people, 'people'),
+    },
+    filedCount,
+  };
+  const hasContent =
+    digest.digest.length > 0 ||
+    digest.groups.reply.length > 0 ||
+    digest.groups.money.length > 0 ||
+    digest.groups.people.length > 0 ||
+    digest.filedCount > 0;
+  if (!hasContent) fail('The emailDigest section carries no digest content.');
+  return digest;
+}
+
 export function parseStudioFileFull(parsed: unknown): StudioFilePlan {
   if (!isRecord(parsed)) fail('That file is not a studio pack (expected a JSON object).');
   const plan = emptyStudioFilePlan();
+  // The morning digest (v360): a top-level section of the combined
+  // pack; applied by writing only its own storage key.
+  if (parsed.emailDigest !== undefined) {
+    plan.emailDigest = validateEmailDigestSection(parsed.emailDigest);
+  }
   // The two marks (v228): the studioStates section, wherever it rides.
   if (parsed.studioStates !== undefined) {
     plan.states = { chapters: validateStudioStates(parsed.studioStates) };
@@ -1092,6 +1182,10 @@ export interface StudioApplyCounts {
    *  (v237's book/chapter ties; any carried record field since v239 —
    *  mergeStudioScheduleMinistries). */
   ministriesLinked: number;
+  /** v360: 1 when the file's emailDigest section was written to the
+   *  Email page's store (the section is a single snapshot, so the
+   *  count is boolean in spirit). */
+  emailDigest: number;
 }
 
 export function emptyStudioApplyCounts(): StudioApplyCounts {
@@ -1112,6 +1206,7 @@ export function emptyStudioApplyCounts(): StudioApplyCounts {
     ministriesUpdated: 0,
     ministriesDeleted: 0,
     ministriesLinked: 0,
+    emailDigest: 0,
   };
 }
 
@@ -1158,6 +1253,7 @@ export function formatStudioImportSummary(plan: StudioFilePlan, counts: StudioAp
       `Ministries: ${counts.ministriesAdded} added / ${counts.ministriesUpdated} updated / ${counts.ministriesDeleted} deleted`,
     );
   }
+  if (plan.emailDigest) parts.push('Email digest: updated');
   return parts.join(' · ');
 }
 

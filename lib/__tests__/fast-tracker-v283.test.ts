@@ -119,7 +119,10 @@ describe("the Record: begun weeks, current first, future weeks silent", () => {
 
 describe("source pins — the three defects and the ruling", () => {
   const tracker = read("components/fast-tracker.tsx");
-  const profile = read("app/profile.tsx");
+  // RE-BASED (v360): "the page" these pins describe is the
+  // fasting page, which is its own route now
+  // (app/fasting-tracker.tsx) — same tracker, same history.
+  const profile = read("app/fasting-tracker.tsx");
   const index = read("app/(tabs)/index.tsx");
 
   it("defect 1: the ring's texts carry no font padding; the caption is fenced to the ring's chord", () => {

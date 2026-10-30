@@ -30,7 +30,10 @@ import { describe, expect, it } from "vitest";
 const ROOT = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
-const profile = read("app/profile.tsx");
+// RE-BASED (v360): the fasting sheets moved with the tracker to
+// their own page (app/fasting-tracker.tsx) — same sheets, same
+// lift; this file's "profile" subject is that page now.
+const profile = read("app/fasting-tracker.tsx");
 const hook = read("hooks/use-keyboard-height.ts");
 const fastTracker = read("components/fast-tracker.tsx");
 

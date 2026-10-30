@@ -179,13 +179,19 @@ describe("v330 — every in-scope surface rides the mechanism", () => {
     // sheet as the page's second AnchoredSheet, grown from the
     // identity band by the same transform. The day sheet's own
     // pins in this test are unchanged.
-    expect(count(profile, "<AnchoredSheet")).toBe(2);
-    expect(profile).toContain("paddingBottom: keyboardHeight");
-    expect(profile).toContain("onSave={(status, note) => saveDaySheet(sheetDate, status, note)}");
+    // RE-BASED (v360): the two sheets live on separate pages now
+    // — the editor on My Profile, the day sheet on the Fasting
+    // Tracker page — one AnchoredSheet each, same mechanism,
+    // same keyboard lift, same save wiring.
+    const tracker = read("app/fasting-tracker.tsx");
+    expect(count(profile, "<AnchoredSheet")).toBe(1);
+    expect(count(tracker, "<AnchoredSheet")).toBe(1);
+    expect(tracker).toContain("paddingBottom: keyboardHeight");
+    expect(tracker).toContain("onSave={(status, note) => saveDaySheet(sheetDate, status, note)}");
     // The fast creator (Part 2) and the recap viewer (a full-page
     // document) keep their Modals.
-    expect(profile).toContain("visible={showFastCreator}");
-    expect(profile).toContain("visible={recapTarget !== null && !!selectedFast}");
+    expect(tracker).toContain("visible={showFastCreator}");
+    expect(tracker).toContain("visible={recapTarget !== null && !!selectedFast}");
   });
 
   it("family page: the Add Prayer sheet grows out of its + button", () => {

@@ -43,6 +43,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { paperSceneIdFor } from "@/lib/paper-keywords";
 import { THUMB_MOTION_LOOP, thumbMotionForScene, thumbSceneForKeywordLabel, type ThumbMotionKind, type ThumbMotionSpec } from "@/lib/keyword-thumb-motion";
@@ -50,12 +51,19 @@ import { THUMB_MOTION_LOOP, thumbMotionForScene, thumbSceneForKeywordLabel, type
 /** One bold shape in the 40×40 emblem space.
     c = circle (x/y = centre), e = ellipse (x/y = top-left),
     r = rect (x/y = top-left, optional corner radius / rotation),
-    o = ring (x/y = centre, bw = border width). */
+    o = ring (x/y = centre, bw = border width),
+    p = an SVG path in the sheet's own 24×24 glyph space (v360 —
+    the approved emblem sheet drew its glyph cells as 24-grid
+    paths seated centred in the tile; the path renders at 24×24
+    at (8,8), with the sheet's own transform when it carries one.
+    f is the fill (for a stroked path it also feeds the palette
+    remap); stroke/sw draw an unfilled path like the waves). */
 type ThumbShape =
   | { k: "c"; x: number; y: number; r: number; f: string; o?: number }
   | { k: "e"; x: number; y: number; w: number; h: number; f: string; o?: number }
   | { k: "r"; x: number; y: number; w: number; h: number; f: string; rad?: number; rot?: number; o?: number }
-  | { k: "o"; x: number; y: number; r: number; f: string; bw: number; o?: number };
+  | { k: "o"; x: number; y: number; r: number; f: string; bw: number; o?: number }
+  | { k: "p"; d: string; f: string; stroke?: string; sw?: number; tf?: string; o?: number };
 
 type ThumbSpec = {
   /** The scene's own ground colour. */
@@ -78,6 +86,20 @@ function ShapeView({ sh }: { sh: ThumbShape }) {
   if (sh.k === "e") {
     return <View pointerEvents="none" style={{ position: "absolute", left: sh.x, top: sh.y, width: sh.w, height: sh.h, borderRadius: sh.h / 2, backgroundColor: sh.f, opacity: sh.o ?? 1 }} />;
   }
+  if (sh.k === "p") {
+    return (
+      <Svg pointerEvents="none" width={24} height={24} viewBox="0 0 24 24" style={{ position: "absolute", left: 8, top: 8, opacity: sh.o ?? 1 }}>
+        <Path
+          d={sh.d}
+          fill={sh.stroke ? "none" : sh.f}
+          stroke={sh.stroke}
+          strokeWidth={sh.sw}
+          strokeLinecap={sh.stroke ? "round" : undefined}
+          transform={sh.tf}
+        />
+      </Svg>
+    );
+  }
   return <View pointerEvents="none" style={{ position: "absolute", left: sh.x, top: sh.y, width: sh.w, height: sh.h, borderRadius: sh.rad ?? 0, backgroundColor: sh.f, opacity: sh.o ?? 1, transform: sh.rot ? [{ rotate: `${sh.rot}deg` }] : undefined }} />;
 }
 
@@ -86,30 +108,55 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
   "news": { g: "#31456B", icon: "article" },
   "email": { g: "#4C2E91", icon: "mail" },
   "bbq": { g: "#5D2E1E", icon: "outdoor-grill" },
-  "fast": { g: "#4A2E1E", icon: "local-fire-department", fg: "#FFB74D" },
-  "church": { g: "#3E6B8E", icon: "church" },
-  "worship": { g: "#4E2E6E", icon: "music-note" },
-  "bible-study": { g: "#5D4028", icon: "book" },
+  // v360 — THE SHEET REDRAW (Jonathan, Oct 30: "the up next icons
+  // still didn't change to the mockups we agreed on"). The
+  // approved emblem sheet (upnext-thumb-motion-v1.html, his
+  // "Yes love it!" Oct 29) drew its glyph cells as bespoke 24-grid
+  // paths, but these scenes shipped as MaterialIcons font glyphs —
+  // near for some, a different picture for others (a spray bottle
+  // for Clean, an airplane for Travel). They carry the sheet's own
+  // path data now (kind "p"), so the tile on device IS the sheet's
+  // emblem. Grounds and motions unchanged.
+  "fast": { g: "#4A2E1E", s: [
+    { k: "p", d: "M12.7 2.3c.3 3.9-1.8 5.6-3.3 7.2C8 10.9 7 12.3 7 14.2A5.1 5.1 0 0 0 12.1 19.3c.4 0 .8-.3.8-.8 0-1.9-1.2-2.6-1.2-4 0-.3.4-.5.6-.2.9 1 2.1 1.6 2.1 3.5 0 .5.4.8.8.8a5.1 5.1 0 0 0 5.1-5.1c0-2.3-1.3-3.9-2.6-5.4-1.3-1.5-2.8-3-3.4-5.5-.1-.6-1.7-.6-1.6.1zM12 21.8a6.9 6.9 0 0 1-6.9-6.9c0-2.6 1.4-4.4 2.9-6C9.4 7.3 10.9 5.7 11 3c0-.9 1.2-1.2 1.8-.5 1.1 1.3 1.4 2.9 2.9 4.9 1.4 1.9 3.2 3.9 3.2 7A6.9 6.9 0 0 1 12 21.8z", f: "#FFB74D", tf: "scale(0.92) translate(1 1)" },
+  ] },
+  "church": { g: "#3E6B8E", s: [
+    { k: "p", d: "M11 2h2v2.2h2v2H13v1.6l6.5 3.9v9.8h-15v-9.8L11 7.8V6.2H9v-2h2V2zm1 12.2a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2z", f: "#FFFFFF" },
+  ] },
+  "worship": { g: "#4E2E6E", s: [
+    { k: "p", d: "M15.5 3.5v10.9a3.75 3.75 0 1 0 2 3.2V9.2l4.5-1.3V5L15.5 3.5zM6 15.2a3.75 3.75 0 1 0 2 3.2V6.3l-2-.6v9.5z", f: "#FFFFFF", tf: "translate(-2.5 1) scale(0.92)" },
+  ] },
+  "bible-study": { g: "#5D4028", s: [
+    { k: "p", d: "M12 6.2C10.4 4.9 8.3 4.3 5.6 4.3c-.5 0-.9.4-.9.9v11.6c0 .5.4.9.9.9 2.7 0 4.8.6 6.4 1.9 1.6-1.3 3.7-1.9 6.4-1.9.5 0 .9-.4.9-.9V5.2c0-.5-.4-.9-.9-.9-2.7 0-4.8.6-6.4 1.9zm0 1.7c1.3-1 3-1.5 5.3-1.6v9.3c-2.3.1-4 .6-5.3 1.6V7.9zm-5.3-1.6c2.3.1 4 .6 5.3 1.6v9.3c-1.3-1-3-1.5-5.3-1.6V6.3z", f: "#FFFFFF" },
+  ] },
   "therapy": { g: "#5A6E8E", icon: "psychology" },
   "doctor": { g: "#2B7A9E", icon: "local-hospital" },
   "haircut": { g: "#3B4A6B", icon: "content-cut" },
-  "gardening": { g: "#6FAED9", icon: "yard", fg: "#14532D" },
+  "gardening": { g: "#6FAED9", s: [
+    { k: "p", d: "M4 4h2.2v10H4zM10.9 3h2.2v11h-2.2zM17.8 4H20v10h-2.2zM3 8.2h18v2H3zM3 12.6h18v2H3zM5.5 21l1.6-4.4L8.7 21zM11.2 21l1.6-4.4L14.4 21zM17 21l1.6-4.4L20.2 21z", f: "#14532D" },
+  ] },
   "mow-lawn": { g: "#4A8E4A", icon: "grass" },
   "prune": { g: "#2E7D32", icon: "content-cut" },
   "harvest": { g: "#C97A2B", icon: "eco" },
   "park": { g: "#3E8E5A", icon: "park" },
   "party": { g: "#6E2B7E", icon: "celebration" },
   "school": { g: "#8B6F47", icon: "school" },
-  "water-park": { g: "#4FC3F7", icon: "waves", fg: "#01579B" },
+  "water-park": { g: "#4FC3F7", s: [
+    { k: "p", d: "M2 8c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2M2 13.5c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2M2 19c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2", f: "#01579B", stroke: "#01579B", sw: 2.1 },
+  ] },
   "beach": { g: "#7EC8E3", icon: "beach-access", fg: "#4E342E" },
   "baby-shower": { g: "#A85D7A", icon: "child-care" },
-  "birthday": { g: "#5E2E8E", icon: "cake" },
+  "birthday": { g: "#5E2E8E", s: [
+    { k: "p", d: "M11.3 2.6c.4-.5 1-.5 1.4 0 .7.9.7 2 0 2.9-.4.5-1 .5-1.4 0-.7-.9-.7-2 0-2.9zM12 7.2c.6 0 1 .4 1 1v1h3.4c.8 0 1.4.6 1.4 1.4v1.7c.9.2 1.6 1 1.6 2v3.4c0 .6-.4 1-1 1H5.6c-.6 0-1-.4-1-1v-3.4c0-1 .7-1.8 1.6-2v-1.7c0-.8.6-1.4 1.4-1.4H11v-1c0-.6.4-1 1-1z", f: "#FFFFFF" },
+  ] },
   "christmas": { g: "#1B4332", s: [
     { k: "r", x: 14, y: 9, w: 12, h: 6, f: "#43A047", rad: 2 },
     { k: "r", x: 12, y: 15, w: 16, h: 6, f: "#43A047", rad: 2 },
     { k: "r", x: 10, y: 21, w: 20, h: 6, f: "#43A047", rad: 2 },
     { k: "r", x: 18, y: 28, w: 4, h: 5, f: "#8D6E63" },
-    { k: "c", x: 20, y: 6, r: 2.4, f: "#FFD54F" },
+    // v360: the sheet's topper is its twinkling STAR (the motion
+    // spec's sparks, lib/keyword-thumb-motion.ts) — the static
+    // gold ball that stood here is gone.
   ] },
   "easter": { g: "#8FC7A8", s: [
     { k: "e", x: 14, y: 8, w: 12, h: 18, f: "#FFFFFF" },
@@ -132,11 +179,19 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
     { k: "r", x: 12, y: 29, w: 16, h: 3, f: "#90A4AE", rad: 1.5 },
   ] },
   "meeting": { g: "#265F6E", icon: "people" },
-  "workout": { g: "#8E2F22", icon: "fitness-center" },
+  "workout": { g: "#8E2F22", s: [
+    { k: "r", x: 9.8, y: 17, w: 3.4, h: 6.5, f: "#FFFFFF", rad: 1 },
+    { k: "r", x: 13.4, y: 14.8, w: 3.4, h: 10.9, f: "#FFFFFF", rad: 1 },
+    { k: "r", x: 16.8, y: 18.9, w: 6.4, h: 2.7, f: "#FFFFFF" },
+    { k: "r", x: 23.2, y: 14.8, w: 3.4, h: 10.9, f: "#FFFFFF", rad: 1 },
+    { k: "r", x: 26.8, y: 17, w: 3.4, h: 6.5, f: "#FFFFFF", rad: 1 },
+  ] },
   "basketball": { g: "#B85C1E", icon: "sports-basketball" },
   "soccer": { g: "#2E7D3A", icon: "sports-soccer" },
   "game": { g: "#2A2A52", icon: "sports-esports" },
-  "photo": { g: "#4A3423", icon: "photo-camera" },
+  "photo": { g: "#4A3423", s: [
+    { k: "p", d: "M9.2 3.5L7.6 5.6H4.9c-1 0-1.8.8-1.8 1.8v9.9c0 1 .8 1.8 1.8 1.8h14.2c1 0 1.8-.8 1.8-1.8V7.4c0-1-.8-1.8-1.8-1.8h-2.7L14.8 3.5H9.2zm2.8 5.2a4.4 4.4 0 1 1 0 8.8 4.4 4.4 0 0 1 0-8.8zm0 1.8a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2z", f: "#FFFFFF" },
+  ] },
   "scary-movie": { g: "#1A1A2E", s: [
     { k: "r", x: 13, y: 8, w: 14, h: 21, f: "#ECEFF1", rad: 7 },
     { k: "c", x: 17, y: 17, r: 1.8, f: "#1A1A2E" },
@@ -167,17 +222,25 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
     { k: "c", x: 24, y: 23, r: 1.7, f: "#E0CE8E" },
     { k: "c", x: 19, y: 26, r: 1.3, f: "#E0CE8E" },
   ] },
-  "prayer": { g: "#35245A", icon: "pan-tool" },
+  "prayer": { g: "#35245A", s: [
+    { k: "p", d: "M8.2 21.5c-2.9-.8-4.7-3.4-4.7-7v-3.2c0-.8 1-1.1 1.5-.5l1 1.1V6.4c0-.8 1.2-1 1.6-.3l.4.7V4.6c0-.9 1.3-1.1 1.7-.3l.5.8V3.9c0-.9 1.3-1.1 1.7-.3l.4.7c.9-.4 1.9.2 1.9 1.2v5.4c1.9.5 3.3 2 3.6 4 .4 2.9-1.3 5.4-4 6.2-1.7.5-3.9.6-5.6.4z", f: "#FFFFFF" },
+  ] },
   "outreach": { g: "#17695E", icon: "public" },
   "concert": { g: "#1E1E2A", icon: "music-note" },
-  "travel": { g: "#3E8EBA", icon: "flight" },
+  "travel": { g: "#3E8EBA", s: [
+    { k: "p", d: "M21.9 3.1L2.4 10.6c-.6.2-.6 1 .1 1.2l6.8 1.7 2 6.6c.2.6 1 .7 1.4.2l2.4-3 4.2 2c.5.3 1.1-.1 1.1-.7L21.9 3.9c0-.5-.4-.9 0-.8zm-9.6 15.2l-1.5-5 8.4-6.2-6.9 11.2z", f: "#FFFFFF" },
+  ] },
   "hotel": { g: "#3E5A7E", icon: "hotel" },
-  "shower": { g: "#4A7A9E", icon: "shower" },
+  "shower": { g: "#4A7A9E", s: [
+    { k: "p", d: "M20.5 2.5h-4v2h1.6v2.1c-3.4.6-6 3-6.8 6.3l-.2 1.1h10.6l-.2-1.1c-.5-2.5-2-4.5-4.1-5.6V4.5h3.1v-2zM7 4.5C5.5 6 4.5 8 4.2 10.2l-.2 1.3h4.3l.1-1C8.8 8.3 9.9 6.5 11.4 5.2c-.4-.3-.9-.6-1.4-.8-.9-.4-2.2-.4-3 .1z", f: "#FFFFFF", tf: "scale(0.9) translate(1.3 0.5)" },
+  ] },
   "study": { g: "#3B4657", icon: "menu-book" },
   "graduation": { g: "#2E4A7A", icon: "school", fg: "#FFD54F" },
   "visit": { g: "#CE8A3E", icon: "home", fg: "#3E2723" },
   "reach-out": { g: "#5E7A9E", icon: "chat" },
-  "clean": { g: "#4A7A9E", icon: "cleaning-services" },
+  "clean": { g: "#4A7A9E", s: [
+    { k: "p", d: "M10.5 3l1.1 4.9L16.5 9l-4.9 1.1L10.5 15l-1.1-4.9L4.5 9l4.9-1.1L10.5 3zM18.6 11.5l.8 3.4 3.4.8-3.4.8-.8 3.4-.8-3.4-3.4-.8 3.4-.8.8-3.4zM6.8 14.8l.7 2.9 2.9.7-2.9.7-.7 2.9-.7-2.9-2.9-.7 2.9-.7.7-2.9z", f: "#FFFFFF", tf: "scale(0.94) translate(0.7 0.7)" },
+  ] },
   "wash-car": { g: "#3E6E8E", icon: "local-car-wash" },
   "get-gas": { g: "#6E4A2E", icon: "local-gas-station" },
   "grocery": { g: "#4A8E4A", icon: "shopping-cart" },
@@ -902,6 +965,8 @@ function hexLuminance(hex: string): number {
 function remapShape(sh: ThumbShape, palette: ThumbPalette): ThumbShape {
   const lum = hexLuminance(sh.f);
   const f = lum >= 0.72 ? palette.light : lum <= 0.3 ? palette.dark : palette.mid;
+  // v360: a stroked path (the waves) remaps its stroke alongside.
+  if (sh.k === "p" && sh.stroke) return { ...sh, f, stroke: f };
   return { ...sh, f };
 }
 
@@ -997,7 +1062,7 @@ function wholeArtStyle(kind: ThumbMotionKind, t: Animated.Value): any {
   }
 }
 
-function ThumbOverlays({ kind, t, p1, p2 }: { kind: ThumbMotionKind; t: Animated.Value; p1: Animated.Value; p2: Animated.Value }) {
+function ThumbOverlays({ kind, t, p1, p2, sparks }: { kind: ThumbMotionKind; t: Animated.Value; p1: Animated.Value; p2: Animated.Value; sparks?: { left: number; top: number; size: number; color: string }[] }) {
   if (kind === "steam") {
     const wisp = (v: Animated.Value, left: number, top: number, height: number) => (
       <Animated.View
@@ -1056,6 +1121,13 @@ function ThumbOverlays({ kind, t, p1, p2 }: { kind: ThumbMotionKind; t: Animated
         <MaterialIcons name="auto-awesome" size={size} color={color} />
       </Animated.View>
     );
+    // v360: a scene whose sheet cell seats its own sparks (the
+    // spec's `sparks`) shows exactly those; every other scene
+    // keeps the shared pair drawn for Birthday's cell.
+    if (sparks && sparks.length > 0) {
+      const values = [t, p1, p2];
+      return (<>{sparks.map((s, i) => <React.Fragment key={i}>{spark(values[i % values.length], s.left, s.top, s.size, s.color)}</React.Fragment>)}</>);
+    }
     return (<>{spark(t, 4, 4, 9, "#FFD54F")}{spark(p1, 28, 9, 8, "#F48FB1")}</>);
   }
   return null;
@@ -1091,7 +1163,7 @@ function ThumbMotionView({ motion, seedKey, children }: { motion: ThumbMotionSpe
         />
       ) : null}
       <Animated.View style={[{ width: 40, height: 40 }, wholeArtStyle(kind, t)]}>{children}</Animated.View>
-      <ThumbOverlays kind={kind} t={t} p1={p1} p2={p2} />
+      <ThumbOverlays kind={kind} t={t} p1={p1} p2={p2} sparks={motion.sparks} />
     </View>
   );
 }

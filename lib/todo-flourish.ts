@@ -6,7 +6,7 @@
 // performance guard: the app must not get laggy or glitchy).
 //
 // When a todo is checked off on the schedule day page, its row plays
-// ONE one-shot flourish (~900ms, native driver, ≤ a dozen moving
+// ONE one-shot flourish (~2.4s since v360, native driver, ≤ a dozen moving
 // pieces), then settles into its existing completed state exactly as
 // before. Unchecking plays nothing. Detection is title-based, in the
 // same lowercase-includes style as getIconForTodo (the app's existing
@@ -47,8 +47,14 @@ export type TodoFlourishId =
 /** How the row itself settles after the burst. "none" = burst only. */
 export type TodoSettleKind = "jolt" | "sink" | "crumple" | "none";
 
-/** One burst, start to finish — under a second, per the drawing. */
-export const TODO_FLOURISH_DURATION_MS = 900;
+/** One burst, start to finish. v360 (Jonathan, Oct 30: the
+    flourishes "show up now... They are just so freaking quick"):
+    900ms blinked past — the whole set now runs 2400ms (2.67×),
+    and because every particle span, the row settle and the
+    deferred write are fractions of / keyed to this one constant,
+    the whole performance slows together and particles live
+    through the full span. */
+export const TODO_FLOURISH_DURATION_MS = 2400;
 
 export const TODO_FLOURISH_SETTLE: Record<TodoFlourishId, TodoSettleKind> = {
   feed: "jolt",

@@ -153,7 +153,9 @@ describe("(a) the editor save stores ISO and keeps the record", () => {
   });
 
   it("profile.tsx builds the edited record through updatePersonalFast", () => {
-    const profile = read("app/profile.tsx");
+    // RE-BASED (v360): the fast editor moved with the tracker to
+    // app/fasting-tracker.tsx — the save path is the same code.
+    const profile = read("app/fasting-tracker.tsx");
     expect(profile).toContain("updatePersonalFast(selectedFast, {");
     // The pre-v326 inline literal that stored the raw draft is gone.
     expect(profile).not.toContain("const updatedFast: PersonalFast = {");

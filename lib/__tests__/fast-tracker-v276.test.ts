@@ -259,7 +259,10 @@ describe("recaps: quote and count only what exists", () => {
 });
 
 describe("the page: tracker mounted, game furniture gone", () => {
-  const profile = read("app/profile.tsx");
+  // RE-BASED (v360): the tracker is its own page now
+  // (app/fasting-tracker.tsx) — the page under test moved, the
+  // surfaces and engine are the same code.
+  const profile = read("app/fasting-tracker.tsx");
 
   it("mounts the tracker surfaces and derives its family from the Settings seed", () => {
     expect(profile).toContain("<FastWhyCard");

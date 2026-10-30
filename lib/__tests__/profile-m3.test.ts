@@ -36,7 +36,9 @@ const ROOT = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
 describe("profile chrome is Material 3 (theme tokens, no one-off hex)", () => {
-  const profile = read("app/profile.tsx");
+  // RE-BASED (v360): the day sheet and the marking engine these
+  // pins guard moved with the tracker to app/fasting-tracker.tsx.
+  const profile = read("app/fasting-tracker.tsx");
 
   it("the day note lives in the tracker day sheet, no emoji anywhere on the page", () => {
     // v276: the standalone "Add a note for today" action retired;
@@ -88,7 +90,9 @@ describe("profile chrome is Material 3 (theme tokens, no one-off hex)", () => {
 });
 
 describe("quarters: month-range labels, no season names (v276)", () => {
-  const profile = read("app/profile.tsx");
+  // RE-BASED (v360): the Record card's quarters live on the
+  // tracker page now (app/fasting-tracker.tsx).
+  const profile = read("app/fasting-tracker.tsx");
 
   it("quarter switching survives on the tracker record card; the seasons switcher is retired", () => {
     // The SEASONS switcher dressed the board with a season tint;

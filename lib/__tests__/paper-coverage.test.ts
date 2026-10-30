@@ -118,9 +118,15 @@ describe("v179 paper coverage — every named surface consumes the skin", () => 
   });
 
   it("the fasting profile's leftover chrome (note modal, note button, chips) is paper too", () => {
-    const profile = read("app/profile.tsx");
+    // RE-BASED (v360): the fasting page is its own route now
+    // (app/fasting-tracker.tsx); its day-sheet container still
+    // carries the sheet shadow. paperSurfaceStyle was a
+    // declared-but-never-applied helper in the old combined
+    // file — dead code the split dropped; the live paper chrome
+    // is the shadow spread and the grain below.
+    const profile = read("app/fasting-tracker.tsx");
     expect(profile).toContain("skinTokens.sheetShadow");
-    expect(profile).toContain("paperSurfaceStyle");
+    expect(profile).not.toContain("paperSurfaceStyle");
   });
 
   it("flat paper only: the grain component renders nothing, anywhere", () => {
@@ -377,7 +383,9 @@ describe("Paper coverage — v202 animation pass", () => {
   });
 
   it("fasting profile: the above-fold sheets settle; its modals fade as pages", () => {
-    const profile = read("app/profile.tsx");
+    // RE-BASED (v360): the fasting page is its own route now
+    // (app/fasting-tracker.tsx); the pins below read that page.
+    const profile = read("app/fasting-tracker.tsx");
     // v283 re-base: the above-fold sheets are GONE — Jonathan's
     // Oct 27 ruling removed the profile card, the stat grid and
     // the previous-fast card from the fasting page (none of them
@@ -408,7 +416,11 @@ describe("Paper coverage — v202 animation pass", () => {
     // joins the day sheet, grown from the identity band by the
     // same transform. The Paper dress pins around it (settle
     // indices, the fade count, the creator sheet) are unchanged.
-    expect(count(profile, "<AnchoredSheet")).toBe(2);
+    // RE-BASED (v360): the two sheets split across the two pages
+    // in the v360 separation — this page (the tracker) carries
+    // the day sheet alone; the editor's sheet stands on My
+    // Profile. The combined count across both pages is still 2.
+    expect(count(profile, "<AnchoredSheet")).toBe(1);
     expect(profile).toContain("<PaperSettle style={styles.sheet}>");
   });
 

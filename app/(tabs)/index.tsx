@@ -206,6 +206,7 @@ import {
   type StudioApplyCounts,
   type StudioFilePlan,
 } from "@/lib/bible-v205/studio-import";
+import { EMAIL_DIGEST_KEY } from "@/lib/email-digest";
 import {
   applyStudioPeoplePack,
   collectStudioJournal,
@@ -3547,7 +3548,9 @@ export default function HomeScreen() {
   // 21:33): the fasting streak's home on People, DIRECTLY under the
   // queue card. Display + door only — it ALWAYS renders, even when
   // the queue card above it is hidden on an empty day, and it never
-  // carries day-marking or hearts (both live on Fasting/profile).
+  // carries day-marking or hearts (both live on the Fasting
+  // Tracker page — its own route since v360, so the door lands
+  // there now, not on My Profile).
   const renderStreakCard = () => (
     <PeopleEntrance index={2}>
       <PeopleStreakCard
@@ -3559,7 +3562,7 @@ export default function HomeScreen() {
         profileAvatarAsset={profile.avatarAsset}
         profilePhotoUri={profile.photoUri}
         profileLevel={xpProgress.level}
-        onPress={() => router.push("/profile")}
+        onPress={() => router.push("/fasting-tracker")}
       />
     </PeopleEntrance>
   );
@@ -4569,6 +4572,17 @@ export default function HomeScreen() {
         counts.ministriesAdded = result.summary.added;
         counts.ministriesUpdated = result.summary.updated;
         counts.ministriesDeleted = result.summary.deleted;
+      }
+
+      // v360 — the email digest's safe door: the section writes
+      // ONLY its own key (prayercircle.email-digest.v1). It never
+      // goes through the backup restore, whose absent-key empty
+      // fallbacks would wipe people/journal/fasts/streak/profile
+      // if a digest-only file ever reached it — a pack carrying
+      // only a digest changes nothing else in the app.
+      if (plan.emailDigest) {
+        await AsyncStorage.setItem(EMAIL_DIGEST_KEY, JSON.stringify(plan.emailDigest));
+        counts.emailDigest = 1;
       }
 
       // v237/v239: a schedule pack's Ministry rows may carry the

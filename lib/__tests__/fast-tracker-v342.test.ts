@@ -245,14 +245,17 @@ describe("v342 Part A — the document and the header fit (source pins)", () => 
   });
 
   it("the Recaps modal header seats below the top inset", () => {
-    const profile = read("app/profile.tsx");
+    // RE-BASED (v360): the recap viewer moved with the tracker
+    // to app/fasting-tracker.tsx.
+    const profile = read("app/fasting-tracker.tsx");
     expect(profile).toContain("paddingTop: insets.top + 8");
     expect(profile).toContain("useSafeAreaInsets");
     expect(profile).not.toContain('<View style={{ height: 64, flexDirection: "row", alignItems: "center", paddingHorizontal: 8, gap: 4 }}>');
   });
 
   it("Save to Journal still flows through recapToJournalBody", () => {
-    const profile = read("app/profile.tsx");
+    // RE-BASED (v360): same move as above.
+    const profile = read("app/fasting-tracker.tsx");
     expect(profile).toContain("recapToJournalBody(recap)");
     const fast = growthFast({
       dayStatuses: { "2026-10-26": "completed", "2026-10-27": "completed", "2026-10-28": "completed" },

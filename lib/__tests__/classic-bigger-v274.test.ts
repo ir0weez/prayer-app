@@ -175,9 +175,15 @@ describe("v274 — wiring: the gated roominess spreads follow the scale, not Pap
   });
 
   it("fasting profile: the size halves of the bundled spreads split off Paper's radius", () => {
-    const profile = read("app/profile.tsx");
+    // RE-BASED (v360): the fasting page is its own route now
+    // (app/fasting-tracker.tsx). The padding-18 spread dressed
+    // the profile card Jonathan's Oct 27 ruling removed (v283);
+    // its style entry was dead code in the combined file and
+    // the split dropped it, so that pin flips to an absence
+    // alongside the three retired spreads below.
+    const profile = read("app/fasting-tracker.tsx");
     expect(profile).toContain("hasTypeScale, skinText");
-    expect(profile).toContain(
+    expect(profile).not.toContain(
       "hasTypeScale(skinTokens) ? { padding: 18 + skinTokens.type.padBoost } : null",
     );
     // v283 re-base: three of the spreads below retired with the

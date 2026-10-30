@@ -16,6 +16,13 @@
  * person's quiet line, the selected fast), the fasting card's
  * doors only scroll, and every new surface takes its colours
  * from the tracker family (derive, never pin).
+ *
+ * v360 addendum (Oct 30): the premise above ended the morning
+ * Jonathan saw the stack — "You put the profile on top of the
+ * fast page?!" The tracker moved to its own route; the doors
+ * navigate; the streak row reads the real streak record. The
+ * pins below were re-based where the split changed their
+ * premise, each marked RE-BASED (v360).
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -34,9 +41,13 @@ describe("v354 — the identity band and the rehomed editor", () => {
     expect(profile).toContain("Level {profileLevel}");
     expect(profile).toContain(">Edit<");
     expect(profile).toContain("styles.editPill, { backgroundColor: trackerFamily.wash2 }");
-    // The band stands above the two life cards and the tracker.
+    // The band stands above the two life cards.
     expect(profile.indexOf("styles.identityBand")).toBeLessThan(profile.indexOf("YOUR PRAYER LIFE"));
-    expect(profile.indexOf("YOUR PRAYER LIFE")).toBeLessThan(profile.indexOf("<FastWhyCard"));
+    // RE-BASED (v360): the tracker no longer stands below on this
+    // page at all — it is its own route, and the band's page is
+    // the identity alone (Jonathan, Oct 30: the profile "shouldn't
+    // it be its own separate thing?!").
+    expect(profile).not.toContain("<FastWhyCard");
   });
 
   it("the band's Edit opens the editor through the v330 anchor measurement", () => {
@@ -79,13 +90,20 @@ describe("v354 — the identity band and the rehomed editor", () => {
 describe("v354 — the two life cards run on real stores", () => {
   const profile = read("app/profile.tsx");
 
-  it("prayer life: items count off the profile record, the door to /personal-prayer, the streak off the record", () => {
+  it("prayer life: items count off the profile record, the door to /personal-prayer, the streak off the real streak record", () => {
     expect(profile).toContain("YOUR PRAYER LIFE");
     expect(profile).toContain("Personal prayer items");
     expect(profile).toContain("profile.personalPrayerItems?.length ?? 0");
     expect(profile).toContain('router.push("/personal-prayer")');
     expect(profile).toContain("Prayer streak");
-    expect(profile).toContain("profile.personalPrayerStreak");
+    // RE-BASED (v360, Item 2): the row rendered
+    // profile.personalPrayerStreak — a profile-record field tied
+    // to personal prayer items, 0 for a man who prays daily. The
+    // row now reads the prayercircle.streak.v1 record his prayer
+    // sessions advance (lib/prayer-streak.ts).
+    expect(profile).toContain("PRAYER_STREAK_STORAGE_KEY");
+    expect(profile).toContain("normalizePrayerStreakRecord(parsed, today).streak");
+    expect(profile).toContain("{prayerStreak} day{prayerStreak === 1 ? \"\" : \"s\"}");
   });
 
   it("the life verse row speaks his own person's quiet line and opens his person page (whose Edit carries the pickers)", () => {
@@ -96,14 +114,22 @@ describe("v354 — the two life cards run on real stores", () => {
     expect(profile).toContain('router.push({ pathname: "/person", params: { personId: ownPerson.id } })');
   });
 
-  it("fasting life: the selected fast summarised by the live counter, Open tracker + history doors only scroll, collection keeps its route", () => {
+  it("fasting life: the selected fast summarised by the live counter, the doors navigate to the tracker page, collection keeps its route", () => {
     expect(profile).toContain("YOUR FASTING LIFE");
     expect(profile).toContain("Day ${getCurrentFastDay(selectedFast)} of ${selectedFast.durationDays}");
     expect(profile).toContain("Open tracker");
-    expect(profile).toContain("onPress={scrollToTracker}");
-    expect(profile).toContain("onPress={scrollToHistory}");
-    expect(profile).toContain("trackerAnchorY.current = event.nativeEvent.layout.y;");
-    expect(profile).toContain("historyAnchorY.current = event.nativeEvent.layout.y;");
+    // RE-BASED (v360, Item 1): the doors scrolled down this page
+    // when the tracker stood below; the tracker is its own route
+    // now, so Open tracker / Recaps push it plainly and Fast
+    // History pushes it with the section param (the tracker page
+    // scrolls to its history anchor on landing). The anchors that
+    // powered the same-page scroll live on the tracker page.
+    expect(profile).toContain('const openTracker = () => router.push("/fasting-tracker");');
+    expect(profile).toContain('router.push({ pathname: "/fasting-tracker", params: { section: "history" } })');
+    expect(profile).toContain("onPress={openTracker}");
+    expect(profile).toContain("onPress={openTrackerHistory}");
+    expect(profile).not.toContain("scrollToTracker");
+    expect(profile).not.toContain("historyAnchorY");
     expect(profile).toContain('router.push("/fast-collection")');
   });
 
@@ -119,8 +145,11 @@ describe("v354 — the two life cards run on real stores", () => {
   });
 });
 
-describe("v354 — the tracker below stands untouched", () => {
-  const profile = read("app/profile.tsx");
+describe("v354 — the tracker stands untouched (on its own page since v360)", () => {
+  // RE-BASED (v360, Item 1): the tracker moved verbatim to
+  // app/fasting-tracker.tsx; these pins now read that page and
+  // hold the same order, the same engine calls, the same history.
+  const profile = read("app/fasting-tracker.tsx");
 
   it("the tracker surfaces keep their order and their engine calls", () => {
     const why = profile.indexOf("<FastWhyCard");

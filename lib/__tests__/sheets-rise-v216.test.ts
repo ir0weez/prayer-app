@@ -76,7 +76,10 @@ describe("v216/v219 — sheets rise, full: definite boxes over a live flex chain
   });
 
   it("profile: the fast-creator sheet carried the same chain and gets the same fix", () => {
-    const profile = read("app/profile.tsx");
+    // RE-BASED (v360): the fast creator lives on the Fasting
+    // Tracker page now (app/fasting-tracker.tsx) — same sheet,
+    // same chain.
+    const profile = read("app/fasting-tracker.tsx");
     const sheet = styleBlock(profile, "sheet");
     expect(sheet).toContain('height: "92%"');
     expect(sheet).toContain('maxHeight: "92%"');

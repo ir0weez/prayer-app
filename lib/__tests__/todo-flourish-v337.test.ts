@@ -131,9 +131,15 @@ describe("v337 — the settle map", () => {
 });
 
 describe("v337 — the performance contract, in the kit itself", () => {
-  it("one burst is under a second", () => {
+  it("one burst is a single readable performance", () => {
     expect(TODO_FLOURISH_DURATION_MS).toBeGreaterThan(0);
-    expect(TODO_FLOURISH_DURATION_MS).toBeLessThan(1000);
+    // RE-BASED (v360): v337's under-a-second contract was the
+    // drawing's; on device the bursts blinked past ("so freaking
+    // quick" — Jonathan, Oct 30), and the duration rose to 2400ms
+    // at his word. The contract that survives: one burst, one
+    // timing, over in a single short performance.
+    expect(TODO_FLOURISH_DURATION_MS).toBe(2400);
+    expect(TODO_FLOURISH_DURATION_MS).toBeLessThan(3000);
   });
 
   it("every flourish is built from ≤ a dozen pieces", () => {

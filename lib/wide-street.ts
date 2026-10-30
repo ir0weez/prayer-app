@@ -61,7 +61,7 @@ import {
   type TownLandmark,
   type TownState,
 } from "./hometown";
-import { gatheringForEra, type EraId } from "./hometown-eras";
+import { eraIndexForId, gatheringForEra, type EraId } from "./hometown-eras";
 import type { WalkTile } from "./walkable-town";
 
 // ── Geometry ────────────────────────────────────────────────────────────────
@@ -181,6 +181,59 @@ export const RIVER_RECTS: ReadonlyArray<{ x: number; y: number; w: number; h: nu
   { x: 0, y: STREET_H - 1, w: STREET_W, h: 1 },
 ];
 
+/** v355 — THE WALL. The town's footprint per era, in tile space:
+ *  the ring grows monotonically from the Village (hugging the
+ *  town's core: the board, the corner, the café's door) to the New
+ *  Earth (the frame's edges). Derived from the era index alone —
+ *  no storage; prestige restarts the fast, so the town restarts at
+ *  the Village footprint on its own. The wall is a DRAWN boundary:
+ *  it adds no blocked tiles (the walking plumbing is protected);
+ *  its doors carry the gates' own small solidity like every gate. */
+export function wallRectForEra(eraIndex: number): { x: number; y: number; w: number; h: number } {
+  const t = Math.min(Math.max(Math.floor(eraIndex) || 0, 0), 11) / 11;
+  const west = 3.3 + (0.12 - 3.3) * t;
+  const eastInset = 3.0 + (0.12 - 3.0) * t;
+  const north = 6.8 + (0.5 - 6.8) * t;
+  const south = 13.3 + (14.6 - 13.3) * t;
+  return { x: west, y: north, w: STREET_W - west - eastInset, h: south - north };
+}
+
+/** Where the lane crosses the wall's ring (tile space): the
+ *  renderer opens gate arches there, so the street visibly passes
+ *  through its own wall on its way to the hill and the river. */
+export function laneWallCrossings(
+  wall: { x: number; y: number; w: number; h: number },
+): Array<{ x: number; y: number }> {
+  const pts = LANE_POINTS.map(([fx, fy]) => ({ x: fx * STREET_W, y: fy * STREET_H }));
+  const edges: Array<readonly [{ x: number; y: number }, { x: number; y: number }]> = [
+    [{ x: wall.x, y: wall.y }, { x: wall.x + wall.w, y: wall.y }],
+    [{ x: wall.x + wall.w, y: wall.y }, { x: wall.x + wall.w, y: wall.y + wall.h }],
+    [{ x: wall.x + wall.w, y: wall.y + wall.h }, { x: wall.x, y: wall.y + wall.h }],
+    [{ x: wall.x, y: wall.y + wall.h }, { x: wall.x, y: wall.y }],
+  ];
+  const out: Array<{ x: number; y: number }> = [];
+  const segHit = (
+    a: { x: number; y: number }, b: { x: number; y: number },
+    c: { x: number; y: number }, d: { x: number; y: number },
+  ): { x: number; y: number } | null => {
+    const r = { x: b.x - a.x, y: b.y - a.y };
+    const s = { x: d.x - c.x, y: d.y - c.y };
+    const den = r.x * s.y - r.y * s.x;
+    if (Math.abs(den) < 1e-9) return null;
+    const t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / den;
+    const u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / den;
+    if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+    return { x: a.x + t * r.x, y: a.y + t * r.y };
+  };
+  for (let i = 0; i + 1 < pts.length; i++) {
+    for (const [c, d] of edges) {
+      const hit = segHit(pts[i], pts[i + 1], c, d);
+      if (hit && !out.some((p) => Math.hypot(p.x - hit.x, p.y - hit.y) < 0.3)) out.push(hit);
+    }
+  }
+  return out;
+}
+
 /** The two strata's base rows (building foundations). */
 const BACK_BASE = 6.0; // 37.5% of stage height
 const FRONT_BASE = 10.35; // 64.7% of stage height
@@ -244,6 +297,14 @@ export type StreetPlace = {
   /** The fast-week lot (v279's roped ground), worn by one empty lot
    *  once a fast week has opened it. */
   weekLot?: boolean;
+  /** v355: a gate DOOR set into the town wall's ring (the five
+   *  retired street gates — schoolhouse, Mission Field, well,
+   *  garden, river — stand as doors now, not mid-street buildings). */
+  wallDoor?: boolean;
+  /** v355: this place's door stands INSIDE the era's wall — the
+   *  town proper. A place outside is outskirts: still his, still
+   *  reachable, waiting for the wall to grow past it. */
+  inTown?: boolean;
 };
 
 export type StreetWorld = {
@@ -273,6 +334,18 @@ export type StreetWorld = {
    *  (≥3 whenever the corner's doors leave room, which they do):
    *  idle seats, in addition to strolling. */
   cornerStands: WalkTile[];
+  /** v355: the town wall's ring for the standing era (tile space):
+   *  the footprint the era has grown to. It moves ONLY at era
+   *  turns (the delegated call) — Village hugs the core, the New
+   *  Earth stands at the frame's edges. */
+  wall: { x: number; y: number; w: number; h: number };
+  /** v355: the era index this world was derived under (0–11). */
+  eraIndex: number;
+  /** v355: home plots inside the wall / home plots in total —
+   *  the growth curve the economy reads: the more ground the era
+   *  has opened, the more of his town stands in town. */
+  plotsOpen: number;
+  plotsTotal: number;
   /** The anchor diner's id, or null until a diner stands. */
   cafeBuildingId: string | null;
   /** Coins waiting at the café's register: the anchor diner's pile
@@ -372,11 +445,15 @@ function strataPlace(
   };
   switch (seat.kind) {
     case "house":
+      // v355: His House ALWAYS stands (the fixed composition) —
+      // with no pawn-house in the record it simply carries no
+      // building identity yet; the seat, path and plaque are the
+      // town's regardless.
       return {
         ...baseFields,
         kind: "house",
-        buildingId: seat.building!.id,
-        buildingType: seat.building!.type,
+        buildingId: seat.building?.id,
+        buildingType: seat.building?.type,
         label: "His House",
         plaque: "His House",
       };
@@ -502,22 +579,29 @@ export function deriveStreetWorld(
     label: "Dark Forest",
   });
 
-  // The back stratum (bases at row 6.0): His House first (west),
-  // then the cottages with the schoolhouse gate dealt among them.
-  // The span leaves the west columns open under the trees (the
-  // forest's doorstep) and keeps cottages off the mine's spur.
-  {
-    const seats: RowSeat[] = [];
-    if (heroHouse) seats.push({ kind: "house", building: heroHouse, w: 2.95, h: 2.67 });
-    const gateSeats: RowSeat[] = [{ kind: "gate", landmark: schoolGate, w: 1.1, h: 2.3 }];
-    const n = Math.max(homesBack.length, gateSeats.length);
-    for (let i = 0; i < n; i++) {
-      if (i < homesBack.length) seats.push({ kind: "home", building: homesBack[i], w: 0, h: 1.92 });
-      if (i < gateSeats.length) seats.push(gateSeats[i]);
-    }
-    for (const { seat, x, w } of packRow(seats, 1.15, 9.9)) {
-      places.push(strataPlace(seat, x, w, BACK_BASE, BACK_DOOR_ROW, opts.eraId));
-    }
+  // v355 — FIXED COMPOSITION. The anchors' seats are the drawing's
+  // and never move with the record: His House back-left (always —
+  // a record without a pawn-house still gets the house's seat),
+  // the café front-left, the Town Shop front-right. The record
+  // decides only WHOSE cottages stand on the home plots between
+  // the anchors, packed on each stratum's home span. (v349 packed
+  // everything west→east, so the shop migrated behind the board
+  // whenever the cottage count changed and His House could vanish
+  // with its record — the audit's composition failure.)
+  const HIS_HOUSE_SEAT = { x: 1.15, w: 2.95, h: 2.67 };
+  const CAFE_SEAT = { x: 0.15, w: 3.54, h: 3.73 };
+  const SHOP_SEAT = { x: 7.8, w: 3.05, h: 3.26 };
+  places.push(
+    strataPlace(
+      { kind: "house", building: heroHouse, w: HIS_HOUSE_SEAT.w, h: HIS_HOUSE_SEAT.h },
+      HIS_HOUSE_SEAT.x, HIS_HOUSE_SEAT.w, BACK_BASE, BACK_DOOR_ROW, opts.eraId,
+    ),
+  );
+  for (const { seat, x, w } of packRow(
+    homesBack.map((building) => ({ kind: "home", building, w: 0, h: 1.92 }) as RowSeat),
+    4.35, 9.9,
+  )) {
+    places.push(strataPlace(seat, x, w, BACK_BASE, BACK_DOOR_ROW, opts.eraId));
   }
 
   // The mine hill at the east — its seat never moves.
@@ -563,41 +647,86 @@ export function deriveStreetWorld(
   };
   places.push(board);
 
-  // The front stratum (bases at row 10.35): the café first (west),
-  // the cottages after it, the Town Shop last (east) — a real
-  // place with the drawing's shop front.
-  {
-    const seats: RowSeat[] = [
-      { kind: "cafe", building: anchor, w: 3.54, h: 3.73 },
-      ...homesFront.map(
-        (building) => ({ kind: "home", building, w: 0, h: 1.92 }) as RowSeat
-      ),
-      { kind: "shop", w: 3.05, h: 3.26 },
-    ];
-    for (const { seat, x, w } of packRow(seats, 0.15, 10.85)) {
-      places.push(strataPlace(seat, x, w, FRONT_BASE, FRONT_DOOR_ROW, opts.eraId));
-    }
+  // The front stratum (bases at row 10.35): the café at its fixed
+  // west seat, the Town Shop at its fixed east seat, the cottages
+  // on the home span between them.
+  places.push(
+    strataPlace(
+      { kind: "cafe", building: anchor, w: CAFE_SEAT.w, h: CAFE_SEAT.h },
+      CAFE_SEAT.x, CAFE_SEAT.w, FRONT_BASE, FRONT_DOOR_ROW, opts.eraId,
+    ),
+  );
+  for (const { seat, x, w } of packRow(
+    homesFront.map((building) => ({ kind: "home", building, w: 0, h: 1.92 }) as RowSeat),
+    3.85, 7.65,
+  )) {
+    places.push(strataPlace(seat, x, w, FRONT_BASE, FRONT_DOOR_ROW, opts.eraId));
   }
-
-  // The Mission Field gate beside the board, its pole clearing
-  // the shop's west post; its doorstep stands on the lane.
   places.push(
-    bankPlace({
-      kind: "gate",
-      landmark: missionGate,
-      rect: { x: 7.08, y: 7.8, w: 0.82, h: 1.5 },
-      door: { x: 7, y: 10 },
-    })
+    strataPlace(
+      { kind: "shop", w: SHOP_SEAT.w, h: SHOP_SEAT.h },
+      SHOP_SEAT.x, SHOP_SEAT.w, FRONT_BASE, FRONT_DOOR_ROW, opts.eraId,
+    ),
   );
 
-  // The riverbank (bases at the water's edge, row 15): the well,
-  // the two open lots (Garden Tending west, Tide Pools east — the
-  // screen deals the games to the lots in x order), the garden
-  // gate, the river gate.
+  // v355 — THE WALL AND ITS DOORS. The era's footprint ring, and
+  // the five retired street gates standing as DOORS set into it
+  // (the delegated call): present, tappable, opening their places
+  // — not labelled buildings competing mid-street. The doors ride
+  // the ring, so an era turn moves them with the wall. West door:
+  // the schoolhouse; east: the Mission Field; the south ring
+  // carries the well, the garden, and the river doors west→east.
+  const eraIndex = eraIndexForId(opts.eraId ?? null);
+  const wall = wallRectForEra(eraIndex);
+  const wallRight = wall.x + wall.w;
+  const wallBottom = wall.y + wall.h;
+  const wallDoorPlace = (
+    landmark: TownLandmark,
+    rect: { x: number; y: number; w: number; h: number },
+    door: WalkTile,
+  ): StreetPlace => ({
+    kind: "gate",
+    landmark,
+    x: rect.x,
+    y: rect.y,
+    w: rect.w,
+    h: rect.h,
+    door,
+    depth: "front",
+    plot: { ...rect },
+    spur: [{ ...door }],
+    label: landmark.name,
+    plaque: landmark.name,
+    wallDoor: true,
+  });
+  places.push(
+    wallDoorPlace(
+      schoolGate,
+      { x: wall.x - 0.41, y: 10.1, w: 0.82, h: 1.5 },
+      { x: Math.floor(wall.x + 0.5), y: 11 },
+    ),
+  );
+  places.push(
+    wallDoorPlace(
+      missionGate,
+      { x: wallRight - 0.41, y: 10.1, w: 0.82, h: 1.5 },
+      { x: Math.floor(wallRight - 0.5), y: 11 },
+    ),
+  );
+  const southDoor = (landmark: TownLandmark, cx: number) =>
+    wallDoorPlace(
+      landmark,
+      { x: cx - 0.45, y: wallBottom - 0.75, w: 0.9, h: 1.5 },
+      { x: Math.floor(cx), y: Math.floor(wallBottom) - 1 },
+    );
+  places.push(southDoor(wellGate, wall.x + 1.6));
+  places.push(southDoor(gardenGate, wall.x + wall.w / 2));
+  places.push(southDoor(riverGate, wallRight - 1.6));
+
+  // The riverbank (bases at the water's edge, row 15): the two
+  // open lots (Garden Tending west, Tide Pools east — the screen
+  // deals the games to the lots in x order).
   const weekLot = (opts.weekLots ?? 0) >= 1;
-  places.push(
-    bankPlace({ kind: "gate", landmark: wellGate, rect: { x: 3.6, y: 13.35, w: 0.9, h: 1.5 }, door: { x: 4, y: 14 } })
-  );
   const gardenLot = bankPlace({
     kind: "empty-lot",
     rect: { x: 5.0, y: 13.45, w: 1.7, h: 1.45 },
@@ -607,12 +736,6 @@ export function deriveStreetWorld(
   places.push(gardenLot);
   places.push(
     bankPlace({ kind: "empty-lot", rect: { x: 6.95, y: 13.45, w: 1.7, h: 1.45 }, door: { x: 7, y: 14 } })
-  );
-  places.push(
-    bankPlace({ kind: "gate", landmark: gardenGate, rect: { x: 8.8, y: 13.25, w: 0.95, h: 1.6 }, door: { x: 9, y: 14 } })
-  );
-  places.push(
-    bankPlace({ kind: "gate", landmark: riverGate, rect: { x: 9.9, y: 13.4, w: 1.0, h: 1.5 }, door: { x: 10, y: 14 } })
   );
 
   // ── Solidity ──────────────────────────────────────────────────
@@ -775,6 +898,19 @@ export function deriveStreetWorld(
   }
   const roads = [...roadSet.values()].sort((a, b) => a.y - b.y || a.x - b.x);
 
+  // v355: in-town standing, by the DOOR (where a place's business
+  // happens): a place whose door stands inside the wall is town;
+  // outside it is outskirts — drawn, reachable, his, and counted
+  // when the wall grows past it. In his standing era (Tribulation,
+  // index 9) every dealt door is inside: nothing he has is lost.
+  for (const p of places) {
+    const cx = p.door.x + 0.5;
+    const cy = p.door.y + 0.5;
+    p.inTown = cx >= wall.x && cx <= wallRight && cy >= wall.y && cy <= wallBottom;
+  }
+  const homePlaces = places.filter((p) => p.kind === "home");
+  const plotsOpen = homePlaces.filter((p) => p.inTown).length;
+
   const cafe = places.find((p) => p.kind === "cafe") ?? null;
   return {
     w: STREET_W,
@@ -787,6 +923,10 @@ export function deriveStreetWorld(
     corner,
     forestTrees: FOREST_TREES.map((t) => ({ ...t })),
     cornerStands,
+    wall,
+    eraIndex,
+    plotsOpen,
+    plotsTotal: homePlaces.length,
     cafeBuildingId: anchor?.id ?? null,
     cafePile: (anchor?.accumulated || 0) + pendingRegister,
   };
@@ -973,6 +1113,11 @@ export function cafeRegisterPile(map: MapState, pendingRegister: number): number
 }
 
 // ── v343: the frame contract ────────────────────────────────────────────────
+// v355: the two bands the fit reports are DRAWN landscape now —
+// the sky band carries stars/moon/clouds and the river band
+// carries water with depth and waves (components/wide-street) —
+// never flat colour fields: the audit measured ~18% of the v349
+// frame as flat bands, and flat colour is dead by this build.
 // The stage FILLS its world box: the cell is sized by the box's
 // WIDTH (the composition is width-true), the drawn content is the
 // 16 rows, and any height the box has beyond the content is split
@@ -1036,73 +1181,14 @@ export function stageFit(boxW: number, boxH: number): StageFit {
   };
 }
 
-// ── v343: plaque layout ─────────────────────────────────────────────────────
-// Every plaque is clamped INSIDE the frame and never overlaps
-// another plaque: the pill's width is estimated from its word (the
-// text itself never truncates — the pill is sized by it), its left
-// is clamped to the frame's margins, and a plaque that would land
-// on an earlier one is stepped down below it. Pure and pinnable:
-// the renderer draws exactly these rects.
-
-export type PlaqueSeat = {
-  key: string;
-  label: string;
-  /** Desired centre x (stage px). */
-  cx: number;
-  /** Desired top (stage px). */
-  top: number;
-  /** Rendered font size (already floored at the ~10px minimum). */
-  fontSize: number;
-};
-
-export type PlaqueRect = {
-  key: string;
-  label: string;
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
-
-/** A plaque pill's width for its word: ~0.60 em per character plus
- *  the pill's horizontal padding (9px each side) — sized by the
- *  text so the whole word always fits. */
-export function plaqueWidth(label: string, fontSize: number): number {
-  return Math.ceil(label.length * fontSize * 0.6) + 18;
-}
-
-export function plaqueHeight(fontSize: number): number {
-  return Math.ceil(fontSize * 1.5) + 6;
-}
-
-const PLAQUE_MARGIN = 4;
-const PLAQUE_GAP = 2;
-
-export function layoutPlaques(seats: PlaqueSeat[], worldW: number): PlaqueRect[] {
-  const placed: PlaqueRect[] = [];
-  const ordered = [...seats].sort((a, b) => a.top - b.top || a.cx - b.cx || (a.key < b.key ? -1 : 1));
-  for (const seat of ordered) {
-    const width = plaqueWidth(seat.label, seat.fontSize);
-    const height = plaqueHeight(seat.fontSize);
-    const maxLeft = Math.max(PLAQUE_MARGIN, worldW - PLAQUE_MARGIN - width);
-    let left = Math.min(Math.max(seat.cx - width / 2, PLAQUE_MARGIN), maxLeft);
-    let top = seat.top;
-    // Step down until clear of every earlier plaque.
-    for (;;) {
-      const hit = placed.find(
-        (r) =>
-          left < r.left + r.width + PLAQUE_GAP &&
-          left + width + PLAQUE_GAP > r.left &&
-          top < r.top + r.height + PLAQUE_GAP &&
-          top + height + PLAQUE_GAP > r.top,
-      );
-      if (!hit) break;
-      top = hit.top + hit.height + PLAQUE_GAP;
-    }
-    placed.push({ key: seat.key, label: seat.label, left, top, width, height });
-  }
-  return placed;
-}
+// ── Plaques: ONE LABEL SYSTEM (v355) ───────────────────────────────────────
+// The v343 plaque engine that lived here (layoutPlaques and its
+// 0.60-em width estimate) is GONE: the audit showed it under-
+// measured bold text (pills wrapped) and knew nothing of the
+// frame's height (plaques stepped off the bottom). Every label on
+// the stage — plaques, furniture chips, villager name pills — now
+// runs through lib/stage-labels: real per-glyph measurement and
+// one whole-frame layout pass.
 
 // ── Storage (the hometown screen's pattern: read on open) ───────────────────
 

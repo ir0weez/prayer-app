@@ -26,6 +26,15 @@
 // under their figure now (the street had lost the labels the grid
 // town always had), and the greeting wave bubble from the grid
 // town returns: it shows when the Hero is within ~1.5 tiles.
+//
+// v355 — NIGHT, WIRED (the audit's finding): the rule above never
+// fired on device because the screen never passed `phase` — each
+// villager fell back to a legacy doorstep-rest that stood them in
+// the street all night. `phase` is REQUIRED now, the fallback
+// (and its doorstep/corner-stand rest) is DELETED, and the name
+// takes the approved drawing's form: a CREAM pill ABOVE the head,
+// sized by the one label system (lib/stage-labels) and clamped
+// whole into the frame at the figure's standing point.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { memo, useEffect, useRef, useState } from "react";
@@ -34,7 +43,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { PaperGlowDisc, PaperStandingVillager } from "@/components/paper-interior";
 import { paperMapLookFor } from "@/lib/paper-town";
 import { mixHex } from "@/lib/hometown-eras";
-import { getTimeOfDay } from "@/lib/daynight";
+import { clampedPillLeft, labelPillHeight, labelPillWidth } from "@/lib/stage-labels";
 import type { DayPhase } from "@/lib/welcoming-town";
 import {
   isStreetWalkable,
@@ -78,8 +87,10 @@ export const StreetVillagers = memo(function StreetVillagers({
   homeDoorByPerson: Map<string, WalkTile>;
   /** v333: personId → an assigned stand-point in the gathering
    *  corner (the derivation's cornerStands, dealt by the screen).
-   *  A villager with a stand starts there, strolls biased to it,
-   *  and rests there at night if they have no home door. */
+   *  A villager with a stand starts there and strolls biased to
+   *  it through the day. (v355: the night rest that used stands
+   *  and doorsteps is deleted — at night nobody stands anywhere;
+   *  the street is empty.) */
   standByPerson?: Map<string, WalkTile>;
   /** Live tile positions for presence-gated income (the parent's
    *  income tick reads this, exactly as it read TownNPCs'). */
@@ -87,10 +98,11 @@ export const StreetVillagers = memo(function StreetVillagers({
   missionWaitingIds: Set<string>;
   onVillagerTap: (p: VillagerTap) => void;
   eraDress?: EraDress | null;
-  /** v343: the town's phase. At night the street is EMPTY — the
-   *  villagers are home (see the header). Absent = legacy daynight
-   *  behaviour (doorstep rest), unchanged. */
-  phase?: DayPhase;
+  /** v343's rule, v355's wiring: the town's phase, REQUIRED. At
+   *  night the street is EMPTY — the villagers are home (see the
+   *  header). There is no fallback: a caller that cannot say the
+   *  phase cannot have villagers. */
+  phase: DayPhase;
   /** v343: the Hero's live pixel position (feet anchor, content
    *  space) — drives the greeting wave when he comes close. */
   heroPosRef?: React.MutableRefObject<{ x: number; y: number }>;
@@ -132,7 +144,6 @@ function StreetVillager({
   missionWaiting,
   onVillagerTap,
   eraDress,
-  phase,
   heroPosRef,
 }: {
   light: LightInfo;
@@ -145,6 +156,8 @@ function StreetVillager({
   missionWaiting: boolean;
   onVillagerTap: (p: VillagerTap) => void;
   eraDress?: EraDress | null;
+  /** Carried for the parent's night rule; the figure itself only
+   *  ever lives in daylight now (v355). */
   phase?: DayPhase;
   heroPosRef?: React.MutableRefObject<{ x: number; y: number }>;
 }) {
@@ -263,28 +276,12 @@ function StreetVillager({
     const stroll = () => {
       if (!mountedRef.current) return;
       const world = worldRef.current;
-      const night = phase !== undefined ? phase === "night" : getTimeOfDay() === "night";
-      // Night rest: their own doorstep, else their corner stand,
-      // else the café's door. The stroll below biases the other
-      // way — a stand-holder's day gathers at the corner.
+      // v355: DAY strolls only — the night branch that walked a
+      // villager home to rest on a doorstep/stand is DELETED. At
+      // night the parent renders nobody at all (phase is required
+      // and the street empties); dawn remounts the street.
       const home = homeDoorRef.current ?? standRef.current ?? world.cafe?.door ?? world.roads[0] ?? { x: 5, y: 9 };
       const anchor = standRef.current ?? home;
-      if (night) {
-        // Home for the night: walk to the doorstep and rest there.
-        if (tileRef.current.x === home.x && tileRef.current.y === home.y) {
-          timerRef.current = setTimeout(stroll, 3200);
-          return;
-        }
-        const plan = planStreetWalk(world, tileRef.current, home);
-        if (plan && plan.tiles.length > 1) {
-          walkTiles(plan.tiles.slice(1), () => {
-            timerRef.current = setTimeout(stroll, 3200);
-          });
-        } else {
-          timerRef.current = setTimeout(stroll, 3200);
-        }
-        return;
-      }
       // A stroll: somewhere along the road network — the climbing
       // lane, the spurs, the gathering corner (v333: the network
       // IS the stage now) — biased toward the villager's anchor:
@@ -325,6 +322,27 @@ function StreetVillager({
   const figH = figW * 1.6;
   const boxW = figW + 18;
   const boxH = figH + 12;
+
+  // v355: the name pill — the drawing's form (cream, ABOVE the
+  // head), sized by the one label system (lib/stage-labels) and
+  // clamped whole into the frame at the figure's standing point.
+  // The clamp rides an Animated value fed by the position
+  // listener, so a strolling villager's pill never leaves the
+  // frame and never costs a re-render.
+  const firstName = (light.name || "").trim().split(/\s+/)[0] || light.name;
+  const nameFont = Math.max(10, cellSize * 0.34);
+  const nameW = labelPillWidth(firstName, nameFont);
+  const nameH = labelPillHeight(nameFont);
+  const frameW = worldRef.current.w * cellSize;
+  const pillShiftX = useRef(
+    new Animated.Value(clampedPillLeft((startTile.x + 0.5) * cellSize, nameW, frameW)),
+  ).current;
+  useEffect(() => {
+    const id = pos.addListener((v) => {
+      pillShiftX.setValue(clampedPillLeft(v.x, nameW, frameW));
+    });
+    return () => pos.removeListener(id);
+  }, [pos, pillShiftX, nameW, frameW]);
 
   return (
     <Animated.View
@@ -376,11 +394,12 @@ function StreetVillager({
         )}
         {/* v343: the greeting wave (the grid town's bubble,
             ported): white, gold-edged, a raised hand — for the
-            hero when he comes close. */}
+            hero when he comes close. v355: it rides ABOVE the
+            name pill now (the pill took the head's air). */}
         {heroNear && (
           <View
             pointerEvents="none"
-            style={{ position: "absolute", top: -16, alignSelf: "center", alignItems: "center" }}
+            style={{ position: "absolute", top: 9 - nameH - 30, alignSelf: "center", alignItems: "center" }}
           >
             <View
               style={{
@@ -425,28 +444,37 @@ function StreetVillager({
           })()}
           width={figW}
         />
-        {/* v343: the villager's FIRST name under their figure —
-            auto-sized by the word, floored at the legibility
-            minimum, never truncated. */}
-        <View
+        {/* v355: the villager's FIRST name — a CREAM pill ABOVE
+            the head (the approved drawing's form), measured by
+            the one label system so it never wraps or truncates,
+            clamped whole into the frame as the figure strolls. */}
+        <Animated.View
           pointerEvents="none"
-          style={{ position: "absolute", top: boxH - 1, left: -(200 - boxW) / 2, width: 200, alignItems: "center" }}
+          style={{
+            position: "absolute",
+            top: 9 - nameH,
+            alignSelf: "center",
+            width: nameW,
+            height: nameH,
+            transform: [{ translateX: pillShiftX }],
+          }}
         >
-          <Text
+          <View
             style={{
-              fontSize: Math.max(10, cellSize * 0.34),
-              fontWeight: "700",
-              color: "#FFF7ED",
-              backgroundColor: "rgba(0,0,0,0.45)",
-              borderRadius: 6,
-              paddingHorizontal: 5,
-              paddingVertical: 1,
-              textAlign: "center",
+              flex: 1,
+              backgroundColor: "#FFF7ED",
+              borderRadius: nameH / 2,
+              borderWidth: 1,
+              borderColor: "rgba(62,47,35,0.28)",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            {(light.name || "").trim().split(/\s+/)[0] || light.name}
-          </Text>
-        </View>
+            <Text numberOfLines={1} style={{ fontSize: nameFont, fontWeight: "700", color: "#3E2F23" }}>
+              {firstName}
+            </Text>
+          </View>
+        </Animated.View>
       </Pressable>
     </Animated.View>
   );

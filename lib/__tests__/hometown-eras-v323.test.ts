@@ -304,9 +304,16 @@ describe("v323 (d) — labels stand wide enough to speak", () => {
     expect(points).toContain("export const NOTICE_BOARD_W = 92;");
     expect(points).toContain("export const SHOP_STALL_W = 84;");
     expect(points).toContain("export const TESTIMONY_STONES_W = 104;");
-    expect(points).toContain("width: NOTICE_BOARD_W");
+    // RE-BASED in v355 (Oct 29): the board's and stones' stand
+    // widths are MEASURED by the one label system now
+    // (noticeBoardStandW / testimonyStonesStandW, from
+    // lib/stage-labels) with the v323 constants standing as
+    // floors — a stand is as wide as its actual label at its
+    // actual count, so "12 missions" can never outgrow it. The
+    // shop stall (compat only, unplaced) keeps its constant.
+    expect(points).toContain("width: noticeBoardStandW(pendingCount, s)");
     expect(points).toContain("width: SHOP_STALL_W");
-    expect(points).toContain("width: TESTIMONY_STONES_W");
+    expect(points).toContain("width: testimonyStonesStandW(count, s)");
     // the board's art keeps its drawn size, centered in the stand.
     // v333 re-pin: the drawn size is now expressed through the
     // point's stage scale (46×34 at scale 1 — the 40px reference

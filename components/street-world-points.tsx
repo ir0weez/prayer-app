@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { labelPillWidth, measureLabelText } from "@/lib/stage-labels";
 
 /**
  * v307 — STREET FURNITURE: the old town page's furniture, standing IN the
@@ -47,7 +48,27 @@ export const NOTICE_BOARD_W = 92;
 export const SHOP_STALL_W = 84;
 export const TESTIMONY_STONES_W = 104;
 
+// v355: the stands' widths are MEASURED now — the one label
+// system (lib/stage-labels) sizes each stand by its actual label
+// at its actual count, so "12 missions" can never outgrow the
+// board's stand again (the constants above remain as floors).
+// The screen centres the board by this same function — the two
+// can never drift apart.
+export function noticeBoardChipLabel(pendingCount: number): string {
+  return pendingCount > 0 ? `${pendingCount} mission${pendingCount > 1 ? "s" : ""}` : "Missions";
+}
+export function noticeBoardStandW(pendingCount: number, scale: number): number {
+  const font = Math.max(10, 9.5 * scale);
+  return Math.max(NOTICE_BOARD_W * scale, measureLabelText(noticeBoardChipLabel(pendingCount), font) + 14 * scale + 8 * scale);
+}
+export function testimonyStonesStandW(count: number, scale: number): number {
+  const font = Math.max(10, 9.5 * scale);
+  const label = count === 1 ? "1 testimony" : `${count} testimonies`;
+  return Math.max(TESTIMONY_STONES_W * scale, measureLabelText(label, font) + 14 * scale + 8 * scale);
+}
+
 function PointChip({ label, dim, scale = 1 }: { label: string; dim?: boolean; scale?: number }) {
+  const font = Math.max(10, 9.5 * scale);
   return (
     <View
       style={{
@@ -55,11 +76,12 @@ function PointChip({ label, dim, scale = 1 }: { label: string; dim?: boolean; sc
         marginTop: 3 * scale,
         backgroundColor: dim ? "rgba(0,0,0,0.38)" : "rgba(0,0,0,0.55)",
         borderRadius: 999,
-        paddingHorizontal: 7 * scale,
+        width: measureLabelText(label, font) + 14 * scale,
         paddingVertical: 2 * scale,
+        alignItems: "center",
       }}
     >
-      <Text style={{ fontSize: Math.max(10, 9.5 * scale), fontWeight: "700", color: "#FFF7ED", textAlign: "center" }}>
+      <Text style={{ fontSize: font, fontWeight: "700", color: "#FFF7ED", textAlign: "center" }}>
         {label}
       </Text>
     </View>
@@ -86,7 +108,7 @@ export function NoticeBoardPoint({
     <Pressable
       onPress={onPress}
       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-      style={{ position: "absolute", left, top, width: NOTICE_BOARD_W * s, alignItems: "center", zIndex: 9600 }}
+      style={{ position: "absolute", left, top, width: noticeBoardStandW(pendingCount, s), alignItems: "center", zIndex: 9600 }}
       accessibilityLabel={pendingCount > 0 ? `${pendingCount} missions available` : "Mission board"}
     >
       {/* the board itself — v343: drawn at the DRAWING's scale (its
@@ -125,7 +147,7 @@ export function NoticeBoardPoint({
           </View>
         )}
       </View>
-      <PointChip label={pendingCount > 0 ? `${pendingCount} mission${pendingCount > 1 ? "s" : ""}` : "Missions"} scale={s} />
+      <PointChip label={noticeBoardChipLabel(pendingCount)} scale={s} />
     </Pressable>
   );
 }
@@ -194,7 +216,7 @@ export function TestimonyStonesPoint({
 }) {
   const s = scale;
   return (
-    <View pointerEvents="none" style={{ position: "absolute", left, top, width: TESTIMONY_STONES_W * s, alignItems: "center", zIndex: 9500 }}>
+    <View pointerEvents="none" style={{ position: "absolute", left, top, width: testimonyStonesStandW(count, s), alignItems: "center", zIndex: 9500 }}>
       {/* a small cairn of standing stones — the plaza, in miniature */}
       <View style={{ width: 15 * s, height: 10 * s, backgroundColor: "#9CA3AF", borderRadius: 7 * s, borderBottomWidth: 2, borderBottomColor: "#6B7280" }} />
       <View style={{ flexDirection: "row", gap: 3 * s, marginTop: 1 * s }}>
@@ -217,6 +239,7 @@ export function LotPlayPoint({
   cap,
   onPlay,
   scale = 1,
+  chipDy = 0,
 }: {
   left: number;
   top: number;
@@ -231,10 +254,20 @@ export function LotPlayPoint({
   onPlay: () => void;
   /** v333: the chip sizes from the stage's cell. */
   scale?: number;
+  /** v355: a deliberate vertical stagger for this lot's chip,
+   *  dealt by the screen's one label pass when the two lots'
+   *  measured chips would meet — the layout gives way, never the
+   *  word. */
+  chipDy?: number;
 }) {
   const plays = playsLeft ?? cap;
   const canPlay = plays > 0;
   const s = scale;
+  const chipText = canPlay ? `${label} · ${plays}/${cap}` : `${label} · played out`;
+  const chipFont = Math.max(10, 10 * s);
+  // v355: the pill is sized by its measured word (the one label
+  // system) plus its icon — one line, whole, always.
+  const chipW = labelPillWidth(chipText, chipFont) + Math.max(11, 12 * s) + 4 * s;
   return (
     <Pressable
       onPress={canPlay ? onPlay : undefined}
@@ -245,15 +278,17 @@ export function LotPlayPoint({
         style={{
           flexDirection: "row",
           alignItems: "center",
+          justifyContent: "center",
           backgroundColor: canPlay ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.38)",
           borderRadius: 999,
-          paddingHorizontal: 8 * s,
+          width: chipW,
           paddingVertical: 3 * s,
+          transform: [{ translateY: chipDy }],
         }}
       >
         <MaterialIcons name={icon} size={Math.max(11, 12 * s)} color="#FFF7ED" />
-        <Text style={{ fontSize: Math.max(10, 10 * s), fontWeight: "700", color: "#FFF7ED", marginLeft: 4 * s, textAlign: "center" }}>
-          {canPlay ? `${label} · ${plays}/${cap}` : `${label} · played out`}
+        <Text style={{ fontSize: chipFont, fontWeight: "700", color: "#FFF7ED", marginLeft: 4 * s, textAlign: "center" }}>
+          {chipText}
         </Text>
       </View>
     </Pressable>

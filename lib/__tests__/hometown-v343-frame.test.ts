@@ -8,8 +8,12 @@
 //  - stageFit: the stage takes its box's FULL height on any aspect
 //    — the cell fits the width, sky/ground bands absorb the slack,
 //    and the street is never cropped;
-//  - layoutPlaques: every plaque rect sits inside the world and no
-//    two overlap — labels are sized whole, never truncated;
+//  - plaques: every plaque rect sits inside the world and no
+//    two overlap — labels are sized whole, never truncated.
+//    (v355 re-base: the layout engine is now lib/stage-labels'
+//    one label system — whole-frame, per-glyph measurement —
+//    superseding v343's layoutPlaques and its 0.60-em estimate,
+//    which the v349 audit proved under-measured bold text.)
 //  - the screen's seats: no border frame on the town world, the
 //    header in flow above the world (never an overlay), the café
 //    walk-up collecting nothing, the forest defeat waking at home,
@@ -26,10 +30,9 @@ import {
   STREET_H,
   STREET_W,
   deriveStreetWorld,
-  layoutPlaques,
-  plaqueWidth,
   stageFit,
 } from "../wide-street";
+import { labelPillWidth, layoutStageLabels } from "../stage-labels";
 import { phaseForHour, phaseWindowsLit } from "../welcoming-town";
 import type { MapState } from "../hometown";
 
@@ -86,30 +89,50 @@ describe("v343 frame — plaques live inside the world and never collide", () =>
     const cell = stage.cell;
     const world = deriveStreetWorld(map, { eraId: "david" });
     const worldW = world.w * cell;
-    const worldH = world.h * cell;
     // The seats exactly as the renderer builds them (wide-street.tsx).
     const fontSize = Math.max(10, 10.5 * (cell / 40));
+    // v355 re-base (Oct 29): the ONE label system lays the plaques
+    // out against the WHOLE frame — its bottom bound is the
+    // river's top edge (a v343 plaque could hang into the river
+    // band; the audit's frame said never over the water) — clear
+    // of the places' art as well as of each other.
+    const placeKey = (p: (typeof world.places)[number]) =>
+      `place-${p.kind}-${p.buildingId ?? p.landmark?.id ?? `${p.x}-${p.y}`}`;
+    // Reserved art = each place's walls band; bank places seat
+    // above their doors — the renderer's own seats (v355).
+    const reserved = world.places.map((p) => ({
+      key: placeKey(p),
+      left: p.x * cell,
+      top: (p.y + p.h * 0.4) * cell,
+      width: p.w * cell,
+      height: p.h * 0.6 * cell,
+    }));
+    const pillH = Math.ceil(fontSize * 1.5) + 6;
+    const riverTopPx = (STREET_H - 1) * cell;
     const seats = world.places
       .filter((p) => p.plaque)
-      .map((p) => ({
-        key: `plaque-${p.kind}-${p.buildingId ?? p.landmark?.id ?? `${p.x}`}`,
-        label: p.plaque!,
-        cx: (p.x + p.w / 2) * cell,
-        top: (p.y + p.h) * cell + 3,
-        fontSize,
-      }));
-    const rects = layoutPlaques(seats, worldW);
+      .map((p) => {
+        const feetTop = (p.y + p.h) * cell + 3;
+        return {
+          key: `plaque-${p.kind}-${p.buildingId ?? p.landmark?.id ?? `${p.x}`}`,
+          label: p.plaque!,
+          cx: (p.x + p.w / 2) * cell,
+          top: feetTop + pillH > riverTopPx ? p.y * cell - pillH - 3 : feetTop,
+          fontSize,
+          avoidKey: placeKey(p),
+        };
+      });
+    const rects = layoutStageLabels(seats, { w: worldW, h: (STREET_H - 1) * cell }, reserved);
     expect(rects.length).toBeGreaterThan(5);
     for (const r of rects) {
       expect(r.left, r.label).toBeGreaterThanOrEqual(0);
       expect(r.top, r.label).toBeGreaterThanOrEqual(0);
       expect(r.left + r.width, r.label).toBeLessThanOrEqual(worldW);
-      // Vertically a plaque may hang past the content's bottom
-      // edge into the ground/river band — the frame's true bound
-      // is the stage (content + extendBottom), and it holds.
-      expect(r.top + r.height, r.label).toBeLessThanOrEqual(worldH + stage.extendBottom);
-      // The pill is exactly as wide as its whole word needs.
-      expect(r.width, r.label).toBe(plaqueWidth(r.label, fontSize));
+      // The bottom bound is the river's top edge — nothing over
+      // the water, ever (v355; v343 allowed the river band).
+      expect(r.top + r.height, r.label).toBeLessThanOrEqual((STREET_H - 1) * cell);
+      // The pill is exactly as wide as its whole word measures.
+      expect(r.width, r.label).toBe(labelPillWidth(r.label, fontSize));
     }
     for (let i = 0; i < rects.length; i++) {
       for (let j = i + 1; j < rects.length; j++) {

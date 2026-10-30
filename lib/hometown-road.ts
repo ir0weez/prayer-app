@@ -17,9 +17,10 @@
 //   - UNLOCK: a badge is earned the first time he FINISHES LIVING
 //     that era — when the live era derivation (the v323 engine:
 //     getCurrentFastDay over the fast's twelfths) shows he has
-//     entered the NEXT era; the New Earth's badge earns when the fast
-//     itself has ended (the app's own ended rule, getFastEndDate <
-//     today — the same rule that seats a "previous fast"). Settled
+//     entered the NEXT era; the New Earth's badge earns ON the
+//     fast's last day itself (v355, delegated call Oct 29 20:41 —
+//     superseding the v331 ended-rule, getFastEndDate < today,
+//     which also still earns it for any fast already past). Settled
 //     from stored state on open/render, like everything in town: no
 //     background timers. Eras apply on the same terms as the era
 //     engine — Hometown-unlocked fasts (> 40 days) only.
@@ -138,6 +139,11 @@ export function erasFullyLivedThrough(
   if (!hometownUnlockedForFastLength(fast.durationDays)) return -1;
   if (today < fast.startDate) return -1;
   if (getFastEndDate(fast) < today) return ERA_COUNT - 1; // the fast has ended: the whole road was lived
+  // v355 (delegated call, Oct 29 20:41): the New Earth's badge earns
+  // ON the fast's last day itself — standing on day 365 of 365, the
+  // whole road counts as lived; he does not have to wait for a
+  // first open after the fast has ended to collect it.
+  if (getCurrentFastDay(fast, today) >= fast.durationDays) return ERA_COUNT - 1;
   return eraIndexForDay(getCurrentFastDay(fast, today), fast.durationDays) - 1;
 }
 

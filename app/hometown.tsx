@@ -378,7 +378,8 @@ import { type WalkTile } from "@/lib/walkable-town";
 import { StreetWorldView } from "@/components/wide-street";
 import { StreetErrorBoundary } from "@/components/street-error-boundary";
 import { StreetVillagers } from "@/components/street-villagers";
-import { LotPlayPoint, NoticeBoardPoint, NOTICE_BOARD_W, TestimonyStonesPoint } from "@/components/street-world-points";
+import { LotPlayPoint, NoticeBoardPoint, noticeBoardStandW, TestimonyStonesPoint } from "@/components/street-world-points";
+import { labelPillHeight, layoutStageLabels } from "@/lib/stage-labels";
 import {
   defaultWideStreetState,
   deriveStreetWorld,
@@ -396,6 +397,7 @@ import {
   ERA_DEFS,
   eraEconomyFor,
   eraForFast,
+  eraProgressForDay,
   loadLastSeenEra,
   saveLastSeenEra,
   shouldAnnounceEra,
@@ -8664,18 +8666,27 @@ export default function HometownScreen() {
           );
         })()}
 
-        {/* Daily visit streak chip (compact) */}
-        {streak.streak > 0 ? (
-          <Pressable
-            onPress={() => setStreakDetailOpen(true)}
-            style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFF7ED", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, borderWidth: 1, borderColor: "#FDBA74" }}
-          >
-            <MaterialIcons name="local-fire-department" size={14} color="#EA580C" />
-            <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#9A3412" }}>
-              Day {streak.streak}
-            </Text>
-          </Pressable>
-        ) : null}
+        {/* v355 (delegated call, Oct 29 20:41): the day chip counts
+            the DAY WITHIN THE ERA, from the era engine over the
+            live fast counter — "Day 28 of 31". The town-VISIT
+            streak that wore this spot (its "Day 11" read as a fast
+            count and was neither) LEAVES the Hometown HUD; the
+            streak itself still settles on open and its detail
+            sheet keeps its honest name. Town map + standing era
+            only, like the era name above it. */}
+        {activeMap === "town" && townEra && cafeFast ? (() => {
+          const progress = eraProgressForDay(getCurrentFastDay(cafeFast, cafeDay), cafeFast.durationDays);
+          return (
+            <View
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFF7ED", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, borderWidth: 1, borderColor: "#FDBA74" }}
+            >
+              <MaterialIcons name="hourglass-bottom" size={14} color="#EA580C" />
+              <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#9A3412" }}>
+                Day {progress.dayInEra} of {progress.eraDays}
+              </Text>
+            </View>
+          );
+        })() : null}
 
         {/* Collections button (compact) */}
         <Pressable
@@ -9126,6 +9137,8 @@ export default function HometownScreen() {
                       ? { shirt: townEra.palette.cloth, pants: townEra.palette.clothPants, mix: townEra.palette.clothMix }
                       : null
                   }
+                  phase={dayPhase}
+                  heroPosRef={heroPosRef}
                 />
               }
             >
@@ -9161,6 +9174,36 @@ export default function HometownScreen() {
               const board = streetWorld.board;
               const corner = streetWorld.corner;
               const lots = streetWorld.places.filter((p) => p.kind === "empty-lot").sort((a, b) => a.x - b.x);
+              // v355: the two lots' game chips go through the ONE
+              // label pass — their measured pills are wider than
+              // the gap between the lots, so side by side they
+              // would meet over the bank; the pass staggers the
+              // second chip clear (the layout gives way, never
+              // the word), and each point shifts its pill by the
+              // dealt offset.
+              const lotChipFont = Math.max(10, 10 * scale);
+              const lotChipText = (label: string, playsLeft: number | null, cap: number) => {
+                const plays = playsLeft ?? cap;
+                return plays > 0 ? `${label} · ${plays}/${cap}` : `${label} · played out`;
+              };
+              const lotChipSeats = lots.map((lot, i) => {
+                const label = i === 0 ? "Garden Tending" : "Tide Pools";
+                const playsLeft = i === 0 ? gardenPlaysLeft : tidePlaysLeft;
+                const cap = i === 0 ? MINI_GAME_CAPS.garden : MINI_GAME_CAPS.tide;
+                return {
+                  key: `lot-chip-${i}`,
+                  label: lotChipText(label, playsLeft, cap),
+                  cx: (lot.x + lot.w / 2) * cs,
+                  top: (lot.y + lot.h / 2) * cs - labelPillHeight(lotChipFont) / 2,
+                  fontSize: lotChipFont,
+                };
+              });
+              const lotChipRects = layoutStageLabels(lotChipSeats, { w: streetWorld.w * cs, h: 15 * cs });
+              const lotChipDy = (i: number) => {
+                const rect = lotChipRects.find((r) => r.key === `lot-chip-${i}`);
+                const seat = lotChipSeats[i];
+                return rect && seat ? rect.top - seat.top : 0;
+              };
               return (
                 // v343: the stage's content rides below the elastic
                 // sky band (StreetWorldView shifts its own content
@@ -9169,7 +9212,7 @@ export default function HometownScreen() {
                 <View pointerEvents="box-none" style={{ position: "absolute", left: 0, top: stage.extendTop, right: 0, bottom: 0 }}>
                   {board ? (
                     <NoticeBoardPoint
-                      left={(board.x + board.w / 2) * cs - (NOTICE_BOARD_W * scale) / 2}
+                      left={(board.x + board.w / 2) * cs - noticeBoardStandW(pendingMissions(missions).length, scale) / 2}
                       top={(board.y + board.h) * cs - 58 * scale}
                       pendingCount={pendingMissions(missions).length}
                       onPress={() => setMissionsVisible(true)}
@@ -9194,6 +9237,7 @@ export default function HometownScreen() {
                       cap={MINI_GAME_CAPS.garden}
                       onPlay={() => { gardenBloomKindsRef.current = []; setPlayingGarden(true); }}
                       scale={scale}
+                      chipDy={lotChipDy(0)}
                     />
                   ) : null}
                   {lots[1] ? (
@@ -9208,6 +9252,7 @@ export default function HometownScreen() {
                       cap={MINI_GAME_CAPS.tide}
                       onPlay={() => setPlayingTide(true)}
                       scale={scale}
+                      chipDy={lotChipDy(1)}
                     />
                   ) : null}
                 </View>

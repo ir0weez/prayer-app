@@ -43,7 +43,7 @@
 
 import { memo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
-import Svg, { Circle, Ellipse, Path, Polygon, Polyline, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, G, Path, Polygon, Polyline, Rect } from "react-native-svg";
 import { formatCoins } from "@/lib/hometown";
 import { HORIZON_DRESS, phaseWindowsLit, type DayPhase } from "@/lib/welcoming-town";
 import { eraDressFor, gatheringForEra, mixHex } from "@/lib/hometown-eras";
@@ -51,13 +51,14 @@ import {
   isLaneTile,
   LANE_POINTS,
   laneCenterRowAt,
-  layoutPlaques,
+  laneWallCrossings,
   RIVER_RECTS,
   STREET_H,
   STREET_W,
   type StreetPlace,
   type StreetWorld,
 } from "@/lib/wide-street";
+import { layoutStageLabels, type ReservedRect } from "@/lib/stage-labels";
 import {
   EmptyLotArt,
   eraGroundFor,
@@ -71,7 +72,6 @@ import {
   RegisterPileArt,
   ShopArt,
   StreetLampArt,
-  TornEdgeStrip,
 } from "@/components/street-places-art";
 import type { EraDef } from "@/lib/hometown-eras";
 
@@ -112,9 +112,11 @@ function lanePathD(worldW: number, worldH: number): string {
   return d;
 }
 
-/** A place's name, spoken whole. v343: the pill's rect comes from
- *  lib/wide-street's layoutPlaques — measured from the word, clamped
- *  inside the frame, stepped clear of every other plaque — and the
+/** A place's name, spoken whole. v355: the pill's rect comes from
+ *  the ONE label system (lib/stage-labels' layoutStageLabels) —
+ *  measured per-glyph from the word, clamped inside the whole
+ *  frame (the river's top edge is its bottom bound), stepped clear
+ *  of every other label and of the places' own art — and the
  *  plaques render ABOVE the era/phase washes (zIndex in the 9500s),
  *  so no weather can ever mute a name. The text has no line limit:
  *  the pill is sized by the word, so nothing truncates. */
@@ -209,7 +211,10 @@ export const StreetWorldView = memo(function StreetWorldView({
   const corner = world.corner;
   const hd = HORIZON_DRESS[phase];
   const eraSky = era && era.id !== "village" ? era.palette.sky : null;
-  const sky = eraSky ? mixHex(STREET_SKY[phase], eraSky, 0.35) : STREET_SKY[phase];
+  // v355: at night the era's sky reads THROUGH the phase (0.6, not
+  // 0.35) — the v349 frame read blue-navy at night in the
+  // Tribulation because the ash sky was buried under the night.
+  const sky = eraSky ? mixHex(STREET_SKY[phase], eraSky, phase === "night" ? 0.6 : 0.35) : STREET_SKY[phase];
   const hillFar = eraSky ? mixHex(hd.far, eraSky, 0.35) : hd.far;
   const hillNear = eraSky ? mixHex(hd.near, eraSky, 0.4) : hd.near;
   const laneD = lanePathD(worldW, worldH);
@@ -217,31 +222,62 @@ export const StreetWorldView = memo(function StreetWorldView({
   const mineHill = world.places.find((p) => p.kind === "mine");
   /** Places whose yards show as ground (strata buildings only). */
   const yardKinds = new Set(["house", "cafe", "shop", "home", "gate"]);
-  // v343: every plaque's rect, laid out once by the pure engine —
-  // inside the frame, whole, and clear of its neighbours.
+  // v355: every plaque's rect, laid out once by the ONE label
+  // system — inside the whole frame (bottom bound = the river's
+  // top edge), whole, clear of its neighbours AND of the places'
+  // art (a seat may touch only its own place's rect).
   const plaqueFont = Math.max(10, 10.5 * s);
-  const plaqueRects = layoutPlaques(
+  const plaqueH = Math.ceil(plaqueFont * 1.5) + 6;
+  const placeKey = (p: StreetPlace) =>
+    `place-${p.kind}-${p.buildingId ?? p.landmark?.id ?? `${p.x}-${p.y}`}`;
+  // The reserved art is each place's WALLS band (its lower 60% —
+  // the same band the derivation makes solid): roofs are sky, and
+  // a plaque at a neighbour's feet may share the roofline's air.
+  const reserved: ReservedRect[] = world.places.map((p) => ({
+    key: placeKey(p),
+    left: p.x * cs,
+    top: (p.y + p.h * 0.4) * cs,
+    width: p.w * cs,
+    height: p.h * 0.6 * cs,
+  }));
+  const riverTopPx = (STREET_H - 1) * cs;
+  const plaqueRects = layoutStageLabels(
     world.places
       .filter((p) => p.plaque)
-      .map((p) => ({
-        key: `plaque-${p.kind}-${p.buildingId ?? p.landmark?.id ?? `${p.x}`}`,
-        label: p.plaque!,
-        cx: (p.x + p.w / 2) * cs,
-        top: (p.y + p.h) * cs + 3,
-        fontSize: plaqueFont,
-      })),
-    worldW,
+      .map((p) => {
+        const feetTop = (p.y + p.h) * cs + 3;
+        return {
+          key: `plaque-${p.kind}-${p.buildingId ?? p.landmark?.id ?? `${p.x}`}`,
+          label: p.plaque!,
+          cx: (p.x + p.w / 2) * cs,
+          // A plaque rides at its place's feet — except where the
+          // feet stand on the bank (the south wall doors), where
+          // below is the river: those seat ABOVE their door.
+          top: feetTop + plaqueH > riverTopPx ? p.y * cs - plaqueH - 3 : feetTop,
+          fontSize: plaqueFont,
+          avoidKey: placeKey(p),
+        };
+      }),
+    { w: worldW, h: riverTopPx },
+    reserved,
   );
+  /** v355: the town wall's ring in stage px, and where the lane
+   *  passes through it. */
+  const wallPx = {
+    x: world.wall.x * cs,
+    y: world.wall.y * cs,
+    w: world.wall.w * cs,
+    h: world.wall.h * cs,
+  };
+  const wallCrossings = laneWallCrossings(world.wall);
   const totalH = worldH + extendTop + extendBottom;
+  /** The river's drawn continuation below the content (v355):
+   *  the band the frame fit reports under the bank. */
+  const riverBandTop = extendTop + (STREET_H - 1) * cs;
+  const riverBandH = Math.max(0, totalH - riverBandTop);
 
   return (
     <View style={{ position: "relative", width: worldW, height: totalH, backgroundColor: ground.grass }}>
-      {/* v343: the elastic bands — the sky's colour field continues
-          above the content's hill band, and the river's water
-          continues below its bank, so the stage reaches the world
-          box's edges on both ends. */}
-      <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: worldW, height: extendTop + hillBase, backgroundColor: sky }} />
-      <View pointerEvents="none" style={{ position: "absolute", left: 0, top: extendTop + 15 * cs, width: worldW, height: Math.max(0, totalH - extendTop - 15 * cs), backgroundColor: "#47688C" }} />
       {/* The street's own ground — the root's first interactive
           child, spanning the WHOLE box (bands included): a tap in
           the sky walks to the hill band, a tap in the deep river to
@@ -257,6 +293,61 @@ export const StreetWorldView = memo(function StreetWorldView({
         }
         delayLongPress={450}
       />
+      {/* v355: the sky band is DRAWN sky (stars and a moon at
+          night, clouds by day, the low sun at dawn/dusk) — the
+          flat colour field the audit measured (~18% of the frame)
+          is dead. The content's own sky rect covers the part of
+          this layer behind the hill band. */}
+      {extendTop > 2 ? (
+        <Svg
+          pointerEvents="none"
+          style={{ position: "absolute", left: 0, top: 0 }}
+          width={worldW}
+          height={extendTop + hillBase}
+          viewBox={`0 0 ${worldW} ${extendTop + hillBase}`}
+        >
+          <Rect x={0} y={0} width={worldW} height={extendTop + hillBase} fill={sky} />
+          {phase === "night"
+            ? ([[0.08, 0.3], [0.22, 0.65], [0.38, 0.2], [0.55, 0.55], [0.7, 0.25], [0.86, 0.6], [0.95, 0.35], [0.15, 0.85], [0.48, 0.8], [0.78, 0.85]] as const).map(([fx, fy], i) => (
+                <Circle key={i} cx={fx * worldW} cy={fy * extendTop} r={i % 3 === 0 ? 1.6 : 1} fill="#FFF7D6" opacity={0.5 + (i % 3) * 0.2} />
+              ))
+            : ([[0.2, 0.35], [0.55, 0.6], [0.85, 0.3]] as const).map(([fx, fy], i) => (
+                <G key={i} opacity={0.5}>
+                  <Ellipse cx={fx * worldW} cy={fy * extendTop} rx={cs * 0.5} ry={cs * 0.16} fill="#FFFFFF" />
+                  <Ellipse cx={fx * worldW + cs * 0.3} cy={fy * extendTop + 2} rx={cs * 0.35} ry={cs * 0.12} fill="#FFFFFF" />
+                </G>
+              ))}
+          {phase === "night" ? (
+            <G>
+              <Circle cx={worldW * 0.82} cy={extendTop * 0.3} r={cs * 0.3} fill="#F5EFD2" />
+              <Circle cx={worldW * 0.82 - cs * 0.12} cy={extendTop * 0.3 - cs * 0.05} r={cs * 0.24} fill={sky} />
+            </G>
+          ) : null}
+          {phase === "dawn" || phase === "dusk" ? (
+            <Circle cx={worldW * (phase === "dawn" ? 0.14 : 0.86)} cy={extendTop * 0.8} r={cs * 0.3} fill={phase === "dawn" ? "#FFD9A0" : "#FF9E6B"} opacity={0.85} />
+          ) : null}
+          {phase === "day" ? (
+            <Circle cx={worldW * 0.85} cy={extendTop * 0.35} r={cs * 0.32} fill="#FFE9A8" opacity={0.9} />
+          ) : null}
+        </Svg>
+      ) : null}
+      {/* v355: the river's continuation below the bank is drawn
+          water — depth bands and wave lines — not a flat field. */}
+      {riverBandH > 2 ? (
+        <Svg
+          pointerEvents="none"
+          style={{ position: "absolute", left: 0, top: riverBandTop }}
+          width={worldW}
+          height={riverBandH}
+          viewBox={`0 0 ${worldW} ${riverBandH}`}
+        >
+          <Rect x={0} y={0} width={worldW} height={riverBandH} fill="#47688C" />
+          <Rect x={0} y={riverBandH * 0.55} width={worldW} height={riverBandH * 0.45} fill="#3A5878" />
+          {[0.25, 0.5, 0.75].map((fy, i) => (
+            <Rect key={i} x={(i * 37) % 60} y={fy * riverBandH} width={worldW * 0.6} height={2} rx={1} fill="#BFD9EA" opacity={0.5} />
+          ))}
+        </Svg>
+      ) : null}
       {/* the content, offset by the sky band */}
       <View pointerEvents="box-none" style={{ position: "absolute", left: 0, top: extendTop, width: worldW, height: worldH }}>
 
@@ -371,6 +462,22 @@ export const StreetWorldView = memo(function StreetWorldView({
               strokeLinecap="round"
             />
           )}
+          {/* v355: THE WALL — the era's footprint ring, drawn over
+              the ground and the lane, under the places: a doubled
+              stone line with gate openings where the lane passes
+              through it. It moves only at era turns (the derivation
+              seats it); the wall doors' own art stands on the ring
+              in the places layer. Drawn before the river so the
+              river's south shore stays clean. */}
+          <Rect x={wallPx.x} y={wallPx.y} width={wallPx.w} height={wallPx.h} rx={cs * 0.45} fill="none" stroke="#6E6353" strokeWidth={cs * 0.22} />
+          <Rect x={wallPx.x} y={wallPx.y} width={wallPx.w} height={wallPx.h} rx={cs * 0.45} fill="none" stroke="#9A8D76" strokeWidth={cs * 0.1} />
+          {wallCrossings.map((c, i) => (
+            <G key={`wall-gap-${i}`}>
+              <Circle cx={c.x * cs} cy={c.y * cs} r={cs * 0.34} fill={ground.grass} />
+              <Circle cx={c.x * cs - cs * 0.36} cy={c.y * cs} r={cs * 0.075} fill="#5D5138" />
+              <Circle cx={c.x * cs + cs * 0.36} cy={c.y * cs} r={cs * 0.075} fill="#5D5138" />
+            </G>
+          ))}
           {/* the river: the full stage width at the bottom band —
               the same rects the derivation blocks, drawn OVER the
               lane's south end, which terminates into it as drawn */}
@@ -690,20 +797,23 @@ export const StreetWorldView = memo(function StreetWorldView({
         </View>
       )}
 
-      {/* v323: the era's wash over the whole street — its mood laid
-          under the phase's light, so an age tints dawn and dusk too */}
+      {/* the phase's light over the whole street — v355: UNDER the
+          era's wash. Era is the paper, phase is light on it: the
+          v349 night frame read plain navy in the Tribulation
+          because the navy night wash sat on top of the ash. */}
+      <View
+        pointerEvents="none"
+        style={{ position: "absolute", left: 0, top: 0, width: worldW, height: worldH, backgroundColor: PHASE_WASH[phase], zIndex: 8999 }}
+      />
+
+      {/* v323's era wash, v355's order: over the phase's light, so
+          an age reads through dawn, dusk and night alike */}
       {era && era.palette.wash !== "rgba(0,0,0,0)" && (
         <View
           pointerEvents="none"
-          style={{ position: "absolute", left: 0, top: 0, width: worldW, height: worldH, backgroundColor: era.palette.wash, zIndex: 8999 }}
+          style={{ position: "absolute", left: 0, top: 0, width: worldW, height: worldH, backgroundColor: era.palette.wash, zIndex: 9000 }}
         />
       )}
-
-      {/* the phase's light over the whole street */}
-      <View
-        pointerEvents="none"
-        style={{ position: "absolute", left: 0, top: 0, width: worldW, height: worldH, backgroundColor: PHASE_WASH[phase], zIndex: 9000 }}
-      />
 
       {/* v323: the era's signature weather, over everything */}
       {era?.palette.rain && (
@@ -711,9 +821,12 @@ export const StreetWorldView = memo(function StreetWorldView({
           <RainStreaks width={worldW} height={worldH} />
         </View>
       )}
+      {/* v355: the torn edge is a FRAME treatment — all four edges
+          of the stage, legible at night too (v349's single 12px
+          strip across the top vanished after dark). */}
       {era?.palette.torn && (
-        <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: worldW, height: 12, zIndex: 9003 }}>
-          <TornEdgeStrip width={worldW} />
+        <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: worldW, height: worldH, zIndex: 9003 }}>
+          <TornFrame width={worldW} height={worldH} />
         </View>
       )}
 
@@ -731,3 +844,40 @@ export const StreetWorldView = memo(function StreetWorldView({
     </View>
   );
 });
+
+/** v355: the torn-paper frame (Tribulation; the Ministry dark
+ *  day): jagged torn edges on ALL FOUR sides of the stage — the
+ *  v349 single 12px strip across the top was invisible at night.
+ *  Deterministic teeth (a fixed stride pattern, no randomness),
+ *  in the strip's own charcoal paper. */
+function TornFrame({ width, height }: { width: number; height: number }) {
+  /** One torn edge: points from (0,0) to (len,0), teeth dipping
+   *  toward `depth`. Deterministic strides — no randomness. */
+  const edgePts = (len: number, depth: number): Array<[number, number]> => {
+    const pts: Array<[number, number]> = [[0, 0]];
+    let x = 0;
+    let i = 0;
+    while (x < len) {
+      const step = 16 + ((i * 37) % 17);
+      pts.push([Math.min(x + step / 2, len), depth * (0.6 + ((i * 53) % 40) / 100)]);
+      x += step;
+      pts.push([Math.min(x, len), 0]);
+      i++;
+    }
+    return pts;
+  };
+  const poly = (points: Array<[number, number]>) => points.map(([x, y]) => `${x},${y}`).join(" ");
+  const top = edgePts(width, 11);
+  const bottom = top.map(([x, y]): [number, number] => [x, height - y]);
+  const left = edgePts(height, 11).map(([a, b]): [number, number] => [b, a]);
+  const right = left.map(([x, y]): [number, number] => [width - x, y]);
+  return (
+    <Svg width={width} height={height}>
+      <Polygon points={poly(top)} fill="#3E3B36" />
+      <Polygon points={poly(bottom)} fill="#3E3B36" />
+      <Polygon points={poly(left)} fill="#3E3B36" />
+      <Polygon points={poly(right)} fill="#3E3B36" />
+    </Svg>
+  );
+}
+

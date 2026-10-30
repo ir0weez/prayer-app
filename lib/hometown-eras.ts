@@ -415,6 +415,39 @@ export function eraIndexForDay(currentDay: number, durationDays: number): number
   return Math.min(ERA_COUNT - 1, Math.floor(fraction * ERA_COUNT));
 }
 
+/** The era index an era id names (the defs stand in road order). */
+export function eraIndexForId(id: EraId | null | undefined): number {
+  if (!id) return 0;
+  const i = ERA_DEFS.findIndex((d) => d.id === id);
+  return i >= 0 ? i : 0;
+}
+
+/** The first (1-based) fast day of era `index` on a fast of
+ *  `durationDays` — the exact inverse of eraIndexForDay: the
+ *  smallest day whose twelfth-floor is the era. Era 9 of a 365
+ *  starts on day 275; the Millennium starts on day 306. */
+export function eraStartDay(index: number, durationDays: number): number {
+  if (!(durationDays > 0)) return 1;
+  const i = Math.min(Math.max(Math.floor(index) || 0, 0), ERA_COUNT - 1);
+  if (i === 0) return 1;
+  return Math.min(durationDays, Math.ceil((i * durationDays) / ERA_COUNT) + 1);
+}
+
+/** v355 (delegated call, Oct 29 20:41): where a fast day stands
+ *  WITHIN its era — the HUD chip's count ("Day 28 of 31"), counted
+ *  from the same twelfths the era engine derives. Pure day math. */
+export function eraProgressForDay(
+  currentDay: number,
+  durationDays: number,
+): { index: number; dayInEra: number; eraDays: number } {
+  const index = eraIndexForDay(currentDay, durationDays);
+  if (!(durationDays > 0)) return { index: 0, dayInEra: 1, eraDays: 1 };
+  const day = Math.min(Math.max(Math.floor(currentDay) || 1, 1), durationDays);
+  const start = eraStartDay(index, durationDays);
+  const end = index >= ERA_COUNT - 1 ? durationDays : eraStartDay(index + 1, durationDays) - 1;
+  return { index, dayInEra: day - start + 1, eraDays: Math.max(1, end - start + 1) };
+}
+
 /** The era index for a fast on a given date, from the LIVE counter —
  *  or null when the fast doesn't carry an era (none, or too short to
  *  unlock Hometown). */

@@ -142,16 +142,21 @@ describe("v333 (a) — R1/R2: the fixed stage, every home on the one frame", () 
     const front = homes.filter((p) => p.depth === "front");
     expect(back).toHaveLength(4);
     expect(front).toHaveLength(4);
-    // The measured fit at the cap: back cottages ≈1.03 tiles wide,
-    // front ≈0.88 — narrower than the landmarks, as the drawing's
-    // contract allows, with whole labels beneath them.
+    // The measured fit at the cap — RE-BASED in v355 (Oct 29):
+    // v333 measured the PACKED stratum (His House + schoolhouse
+    // gate + cottages sharing one span: back ≈1.03, front ≈0.88).
+    // The approved fixed composition supersedes the packing: His
+    // House holds its own seat, the gate stands in the wall, and
+    // the cottages take the home spans between the anchors —
+    // back ≈1.39, front ≈0.95. The pin's intent stands: narrower
+    // than every landmark, never crushed, whole labels beneath.
     for (const p of back) {
       expect(p.w).toBeGreaterThan(0.95);
-      expect(p.w).toBeLessThan(1.1);
+      expect(p.w).toBeLessThan(1.45);
     }
     for (const p of front) {
       expect(p.w).toBeGreaterThan(0.8);
-      expect(p.w).toBeLessThan(0.95);
+      expect(p.w).toBeLessThan(1.0);
     }
     // Cottage height compresses toward ~12% of stage height.
     for (const p of homes) {

@@ -134,12 +134,16 @@ describe("v331 (a) — derivation → earned at the boundary days", () => {
     expect(r.state.eras["millennium"]).toBeUndefined();
   });
 
-  it("the last day still leaves the New Earth unearned — he is living it", () => {
+  // RE-BASED in v355 (Oct 29): the delegated call (Oct 29 20:41)
+  // supersedes the v331 rule pinned here — the New Earth's badge
+  // earns ON day 365 itself, not on a first open after the fast
+  // has ended. Standing on the last day, the whole road counts.
+  it("the last day EARNS the New Earth — standing on it, the road is lived", () => {
     expect(erasFullyLivedThrough(f, dateOfDay(f, 336))).toBe(10); // New Earth standing: Millennium earned
-    expect(erasFullyLivedThrough(f, dateOfDay(f, 365))).toBe(10);
+    expect(erasFullyLivedThrough(f, dateOfDay(f, 365))).toBe(11);
     const r = reconcileRoadBadges(emptyRoadState(), f, dateOfDay(f, 365));
-    expect(roadEarnedCount(r.state)).toBe(11);
-    expect(r.state.eras["new-earth"]).toBeUndefined();
+    expect(roadEarnedCount(r.state)).toBe(12);
+    expect(r.state.eras["new-earth"]?.completions).toBe(1);
   });
 
   it("once the fast has ended, all twelve stand earned", () => {

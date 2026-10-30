@@ -55,6 +55,11 @@
 //    payload data and is never stored — the app computes its own.
 //  · Export side (WS2c): collectBubbleLinesForExport turns the marks
 //    layer into a distinct backup section the studio can read later.
+//  · Export side (v363): collectHighlightsForExport turns the marks
+//    layer's TINTS into the studioHighlights section beside it — the
+//    highlights bridge, so his colours show at the desk too. Export-
+//    only like the bubbles: imports never read the section and never
+//    touch the marks layer.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { EmailDigest } from '@/lib/email-digest';
@@ -70,9 +75,12 @@ import {
 import {
   lineAuthor,
   lineText,
+  normalizeMarks,
   parseEntryKey,
+  type KeeperField,
   type KeeperLine,
   type MarksMap,
+  type TintColor,
 } from './marks';
 import type {
   NoteCategory,
@@ -2020,6 +2028,182 @@ export function collectBubbleLinesForExport(marks: MarksMap): BubbleLineExport[]
       a.text.localeCompare(b.text),
   );
   return lines;
+}
+
+// ── Export side (v363): the highlights bridge — his colours, out ────────────
+// Jonathan's ruling (Oct 30): "Build the bridge — highlights show in
+// the Studio too." Everything visual he lays on the text — v361's
+// drag-selected phrase ranges, the v212 whole-verse tints, the whole-
+// entry tint, and phrase ranges inside his own lines — rides the same
+// doors as studioBubbles as ONE more section, in the stored model's
+// own terms (hue = the stored TintColor key; offsets are character
+// positions in the target text). Export-only, exactly like the bubble
+// lines: parseStudioFileFull reads sections by presence and simply
+// never reads this one, so a file carrying it imports cleanly and no
+// import can add, remove, or alter a phone highlight.
+
+/** One drag-selected range of a verse's Scripture text, in chars. */
+export interface StudioPhraseHighlightExport {
+  book: string;
+  chapter: number;
+  verse: number;
+  /** Char offset of the range's start inside that verse's text. */
+  start: number;
+  /** Char offset of the range's end (exclusive) inside that text. */
+  end: number;
+  hue: TintColor;
+}
+
+/** A run of whole-verse tints: consecutive verses wearing one hue,
+ * coalesced into a single span (start = first verse, end = last). */
+export interface StudioVerseTintExport {
+  book: string;
+  chapter: number;
+  start: number;
+  end: number;
+  hue: TintColor;
+}
+
+/** The whole-entry tint, addressed by the entry's own verse span. */
+export interface StudioEntryTintExport {
+  book: string;
+  chapter: number;
+  start: number;
+  end: number;
+  hue: TintColor;
+}
+
+/**
+ * A phrase range inside one of HIS OWN keeper lines. The line is
+ * identified the only way that survives the crossing: its entry span
+ * (start/end), its kind, and its EXACT text — the studio matches the
+ * words, never a storage index. Offsets are char positions inside
+ * that line's text.
+ */
+export interface StudioLineHighlightExport {
+  book: string;
+  chapter: number;
+  start: number;
+  end: number;
+  kind: 'highlight' | 'thought' | 'note';
+  text: string;
+  startOffset: number;
+  endOffset: number;
+  hue: TintColor;
+}
+
+export interface StudioHighlightsSection {
+  phrase: StudioPhraseHighlightExport[];
+  verses: StudioVerseTintExport[];
+  entries: StudioEntryTintExport[];
+  lines: StudioLineHighlightExport[];
+}
+
+const HIGHLIGHT_FIELD_KIND: Record<KeeperField, StudioLineHighlightExport['kind']> = {
+  highlights: 'highlight',
+  thoughts: 'thought',
+  notes: 'note',
+};
+
+/**
+ * Every tint in the marks layer, in the studioHighlights wire shape.
+ * Each record is read through normalizeMarks (the load boundary's own
+ * discipline), so only the six stored hues and sane offsets can
+ * cross. A line highlight whose line cannot be found on its own
+ * record is skipped: with no exact text to name it by, it could
+ * never be placed at the desk. Pure and deterministic — collecting
+ * the same map twice yields identical output.
+ */
+export function collectHighlightsForExport(marks: MarksMap): StudioHighlightsSection {
+  const phrase: StudioPhraseHighlightExport[] = [];
+  const verses: StudioVerseTintExport[] = [];
+  const entries: StudioEntryTintExport[] = [];
+  const lines: StudioLineHighlightExport[] = [];
+  for (const [key, raw] of Object.entries(marks)) {
+    const span = parseEntryKey(key);
+    if (!span) continue;
+    const entry = normalizeMarks(raw);
+    const { book, chapter } = span;
+    if (entry.tint) {
+      entries.push({ book, chapter, start: span.start, end: span.end, hue: entry.tint });
+    }
+    // Whole-verse tints cross as spans: a run of consecutive verses
+    // in one hue is one span; a hue change or a gap closes the run.
+    const tinted = Object.keys(entry.verseTints)
+      .map(Number)
+      .sort((a, b) => a - b);
+    let runStart = 0;
+    let runEnd = 0;
+    let runHue: TintColor | null = null;
+    const flushRun = () => {
+      if (runHue) verses.push({ book, chapter, start: runStart, end: runEnd, hue: runHue });
+    };
+    for (const v of tinted) {
+      const hue = entry.verseTints[v];
+      if (runHue === hue && v === runEnd + 1) {
+        runEnd = v;
+      } else {
+        flushRun();
+        runStart = v;
+        runEnd = v;
+        runHue = hue;
+      }
+    }
+    flushRun();
+    for (const h of entry.phraseHighlights) {
+      phrase.push({ book, chapter, verse: h.verse, start: h.start, end: h.end, hue: h.tint });
+    }
+    for (const h of entry.lineHighlights) {
+      // Line highlights sit on the record the line itself lives on
+      // (marks.ts), so the line's words are read from THIS record.
+      const line = entry[h.field][h.index];
+      if (line === undefined) continue;
+      lines.push({
+        book,
+        chapter,
+        start: span.start,
+        end: span.end,
+        kind: HIGHLIGHT_FIELD_KIND[h.field],
+        text: lineText(line),
+        startOffset: h.start,
+        endOffset: h.end,
+        hue: h.tint,
+      });
+    }
+  }
+  const bySpan = (
+    a: { book: string; chapter: number; start: number; end: number; hue: TintColor },
+    b: { book: string; chapter: number; start: number; end: number; hue: TintColor },
+  ) =>
+    a.book.localeCompare(b.book) ||
+    a.chapter - b.chapter ||
+    a.start - b.start ||
+    a.end - b.end ||
+    a.hue.localeCompare(b.hue);
+  phrase.sort(
+    (a, b) =>
+      a.book.localeCompare(b.book) ||
+      a.chapter - b.chapter ||
+      a.verse - b.verse ||
+      a.start - b.start ||
+      a.end - b.end ||
+      a.hue.localeCompare(b.hue),
+  );
+  verses.sort(bySpan);
+  entries.sort(bySpan);
+  lines.sort(
+    (a, b) =>
+      a.book.localeCompare(b.book) ||
+      a.chapter - b.chapter ||
+      a.start - b.start ||
+      a.end - b.end ||
+      a.kind.localeCompare(b.kind) ||
+      a.text.localeCompare(b.text) ||
+      a.startOffset - b.startOffset ||
+      a.endOffset - b.endOffset ||
+      a.hue.localeCompare(b.hue),
+  );
+  return { phrase, verses, entries, lines };
 }
 
 /** Keep the type import honest for callers that only need the book shape. */

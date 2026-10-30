@@ -221,7 +221,12 @@ describe('Settings wiring (source pins)', () => {
 
   it('the payload itself is untouched — same serializer, same format tag', () => {
     expect(src).toContain('format: "prayercircle-backup", version: 1');
-    expect(src).toContain('studioBubbles, studioPeople, studioJournal, studioSchedule, studioStates, studioMinistries');
+    // v363 amendment (Oct 30): the payload gains ONE section —
+    // studioHighlights, riding beside studioBubbles (the highlights
+    // bridge; export-only, imports never read it). The serializer and
+    // format tag this pin guards are unchanged; every v235 section
+    // still rides, in its place.
+    expect(src).toContain('studioBubbles, studioHighlights, studioPeople, studioJournal, studioSchedule, studioStates, studioMinistries');
   });
 
   it('a written export confirms in the settings voice, naming the folder', () => {

@@ -195,6 +195,7 @@ import { transitionChapterStatus } from "@/lib/bible-v205/rewards";
 import {
   applyStudioChapters,
   collectBubbleLinesForExport,
+  collectHighlightsForExport,
   emptyStudioApplyCounts,
   formatStudioImportSummary,
   loadStudioImports,
@@ -4356,6 +4357,11 @@ export default function HomeScreen() {
       // section, so the studio can later read them into its "From the
       // app" inbox. Export-only — nothing else about the backup changes.
       const studioBubbles = collectBubbleLinesForExport(await loadMarks());
+      // v363: the highlights bridge — his tints (phrase ranges, verse
+      // tints, entry tints, line ranges) ride the same payload as the
+      // studioHighlights section, so they show at the desk too.
+      // Export-only like the bubbles: no import ever reads them back.
+      const studioHighlights = collectHighlightsForExport(await loadMarks());
       // v225: his people ride the backup as the studioPeople pack (the
       // studio's People page loads his real list from it on unlock), and
       // the Journal moments ride as studioJournal — the read feed for
@@ -4399,7 +4405,7 @@ export default function HomeScreen() {
       // studioMinistries — the section the studio's Ministries manager
       // mirrors, and the records' way home through the door.
       const studioMinistries = collectStudioMinistries(exportMinistries);
-      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles, studioPeople, studioJournal, studioSchedule, studioStates, studioMinistries }, null, 2);
+      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles, studioHighlights, studioPeople, studioJournal, studioSchedule, studioStates, studioMinistries }, null, 2);
       // v235 — "One Export, Overwritten": when the Drive folder is
       // linked with export writing enabled, the export overwrites the
       // ONE fixed file there (prayercircle-export.json) instead of the

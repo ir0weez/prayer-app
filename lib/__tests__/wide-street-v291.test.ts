@@ -78,7 +78,7 @@ import {
   TRICKLE_MS,
   TRICKLE_PCT,
 } from "@/lib/hero-health";
-import { ENERGY_TRICKLE_MS, maxForestEnergy } from "@/lib/forest-energy";
+import { maxForestEnergy, resolveForestEnergy } from "@/lib/forest-energy";
 
 const ROOT = join(__dirname, "..", "..");
 function read(rel: string): string {
@@ -205,12 +205,17 @@ describe("v291 (b) — café-only production on the town map", () => {
     };
   }
 
+  // RE-BASED (v343): the day model settles whole local days, so
+  // the fixtures anchor a full day back (the five-minute anchors
+  // of the per-minute era settle nothing now).
+  const DAY_AGO = "2027-01-14T12:00:00.000Z";
+
   function producingTown(): TownState {
     const town = emptyTownState();
     town.maps.town.buildings = [
-      b({ id: "diner-a", type: "diner", x: 6, y: 0, accumulated: 0, lastTick: FIVE_MIN_AGO }),
-      b({ id: "shop-1", type: "shop", x: 2, y: 3, accumulated: 40, lastTick: FIVE_MIN_AGO }),
-      b({ id: "church-1", type: "church", x: 0, y: 0, accumulated: 10, lastTick: FIVE_MIN_AGO }),
+      b({ id: "diner-a", type: "diner", x: 6, y: 0, accumulated: 0, lastTick: DAY_AGO }),
+      b({ id: "shop-1", type: "shop", x: 2, y: 3, accumulated: 40, lastTick: DAY_AGO }),
+      b({ id: "church-1", type: "church", x: 0, y: 0, accumulated: 10, lastTick: DAY_AGO }),
     ];
     town.lastIncomeDate = "2027-01-12";
     return town;
@@ -233,7 +238,7 @@ describe("v291 (b) — café-only production on the town map", () => {
   it("control: the same church on the CITY map still earns — the engine's arithmetic is untouched", () => {
     const town = emptyTownState();
     town.maps.city.buildings = [
-      b({ id: "church-city", type: "church", x: 2, y: 2, accumulated: 0, lastTick: FIVE_MIN_AGO }),
+      b({ id: "church-city", type: "church", x: 2, y: 2, accumulated: 0, lastTick: DAY_AGO }),
     ];
     town.lastIncomeDate = "2027-01-12";
     const { town: out, rates } = accrueAwayIncome(town, inputs());
@@ -248,7 +253,7 @@ describe("v291 (b) — café-only production on the town map", () => {
     expect(dailyIncomeForMap(town.maps.town, town, 1, 1, 8, 1, 1, 1, NOW)).toBeGreaterThan(0);
     const onlyShop = emptyTownState();
     onlyShop.maps.town.buildings = [
-      b({ id: "shop-1", type: "shop", x: 2, y: 3, accumulated: 40, lastTick: FIVE_MIN_AGO }),
+      b({ id: "shop-1", type: "shop", x: 2, y: 3, accumulated: 40, lastTick: DAY_AGO }),
     ];
     expect(dailyIncomeForTown(onlyShop, 1, 1, 1, 8, 1, 1, 1, NOW)).toBe(0);
   });
@@ -278,7 +283,10 @@ describe("v291 (c) — mine mechanics unchanged (HEAD values)", () => {
   });
 
   it("the haul ladder, strata, cave-in odds and regrow", () => {
-    expect(STRATUM_MULTIPLIERS).toEqual([1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3]);
+    // RE-BASED (v343): the haul ladder is the settled flat set —
+    // [1, 1.5, 2, 3] by stratum PAIRS — not the shipped 8-step
+    // ladder (1, 1.25, 1.5, 1.75, …) the brief names as drift.
+    expect(STRATUM_MULTIPLIERS).toEqual([1, 1, 1.5, 1.5, 2, 2, 3, 3]);
     expect(STRATA_COUNT).toBe(8);
     expect(LEVELS_PER_STRATUM).toBe(10);
     expect(MAX_LEVEL).toBe(80);
@@ -305,16 +313,26 @@ describe("v291 (c) — mine mechanics unchanged (HEAD values)", () => {
 
 describe("v291 (d) — forest mechanics unchanged (HEAD values)", () => {
   it("heal cadence, hospital, defeat", () => {
-    expect(TRICKLE_MS).toBe(3600 * 1000);
-    expect(TRICKLE_PCT).toBe(0.1);
+    // RE-BASED (v343): the heal trickle is the settled ~4-hour tick
+    // at 5% (the shipped 1-hour/10% was the drift the rebuild brief
+    // names). Hospital and defeat values are unchanged.
+    expect(TRICKLE_MS).toBe(4 * 3600 * 1000);
+    expect(TRICKLE_PCT).toBe(0.05);
     expect(HOSPITAL_HEALS_PER_DAY).toBe(2);
     expect(DEFEAT_WAKE_PCT).toBe(0.1);
   });
 
-  it("the flames pool: max is the XP level, one back an hour", () => {
+  it("the flames pool: max is the XP level; midnight is the only refill", () => {
     expect(maxForestEnergy(15)).toBe(15);
     expect(maxForestEnergy(1)).toBe(1);
-    expect(ENERGY_TRICKLE_MS).toBe(3600 * 1000);
+    // RE-BASED (v343): ENERGY_TRICKLE_MS is deleted with the hourly
+    // trickle — a store spent down by day stays spent however many
+    // hours pass, and the date rollover alone rekindles it to full.
+    const spent = { date: "2027-01-15", energy: 3 };
+    expect(resolveForestEnergy(spent, 15, "2027-01-15", NOW + 6 * 3600 * 1000)).toEqual({ energy: 3, max: 15 });
+    expect(resolveForestEnergy(spent, 15, "2027-01-16", NOW + 24 * 3600 * 1000)).toEqual({ energy: 15, max: 15 });
+    // A stored above-cap bonus (pre-v343 saves) is dropped on resolve.
+    expect(resolveForestEnergy({ date: "2027-01-15", energy: 15, bonus: 5 }, 15, "2027-01-15", NOW)).toEqual({ energy: 15, max: 15 });
   });
 });
 

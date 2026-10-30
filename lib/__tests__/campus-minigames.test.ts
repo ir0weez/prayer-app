@@ -23,7 +23,9 @@ const CAMPUS_HOSTS: Array<[string, string, string, string]> = [
   ["app/gymnasium-interior.tsx", "TrainingGame", "training", "grantTrainingBonus"],
   ["app/music-room-interior.tsx", "RhythmGame", "rhythm", "rhythmMult"],
   ["app/chapel-interior.tsx", "CandleGame", "candle", ""],
-  ["app/cafeteria-interior.tsx", "ServeGame", "serve", 'cuisine="cafeteria"'],
+  // RE-BASED (v343): the room file was renamed with its route —
+  // app/school-cafeteria-interior.tsx (route /school-cafeteria-interior).
+  ["app/school-cafeteria-interior.tsx", "ServeGame", "serve", 'cuisine="cafeteria"'],
 ];
 
 describe("campus rooms host the shared mini-games", () => {

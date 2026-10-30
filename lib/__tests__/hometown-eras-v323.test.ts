@@ -18,9 +18,11 @@
 //      no era; a 90 walks the same road in miniature.
 //  (b) ECONOMY — the era table itself, Saul's day-parity swing, and
 //      its application: incomeMult + prayerBoostMult inside the
-//      away-settle path (and the missed-days award), costMult at
-//      purchase/construction pricing through eraPriceCoins. Defaults
-//      (no era inputs, cost mult 1) leave every number untouched.
+//      away-settle path (missed days settle through that same path
+//      since v343 — the separate missed-days award is deleted),
+//      costMult at purchase/construction pricing through
+//      eraPriceCoins. Defaults (no era inputs, cost mult 1) leave
+//      every number untouched.
 //  (c) ERA TURN — the last-seen record parses strictly, and the card
 //      offers itself exactly when the standing era differs from the
 //      last announced one.
@@ -40,7 +42,6 @@ import {
   emptyTownState,
   eraPriceCoins,
   mapUnlockCost,
-  missedDaysIncome,
   setEconomyScale,
   setEraCostMult,
   upgradeCostFor,
@@ -164,13 +165,16 @@ describe("v323 (b) — the era economy", () => {
       nowMs: NOW, nowIso: NOW_ISO, ...over,
     };
   }
-  /** The away-accrual suite's fixture: one L1 church on the city map,
-   *  ticked exactly five minutes before the fixed clock. */
+  /** The away-accrual suite's fixture: one L1 church on the city map.
+   *  RE-BASED (v343): the anchor is a fixed local date one day
+   *  before the clock's (2027-01-14 midday UTC) — the day model
+   *  settles whole days from the anchor's DATE, so the old
+   *  "five minutes before the clock" anchor settles nothing. */
   function churchTown(): TownState {
     const town = emptyTownState();
     const church: PlacedBuilding = {
       id: "church-1", type: "church", x: 2, y: 2, level: 1,
-      accumulated: 0, lastTick: new Date(NOW - 5 * 60000).toISOString(),
+      accumulated: 0, lastTick: "2027-01-14T12:00:00.000Z",
     };
     town.maps.city.buildings = [church];
     town.lastIncomeDate = "2027-01-12";
@@ -178,39 +182,64 @@ describe("v323 (b) — the era economy", () => {
   }
 
   it("inside the settle path: incomeMult scales the accrual, untouched at 1", () => {
+    // RE-BASED (v343) to the day model: the church's per-day rate is
+    // its def table (240) plus the prayer stream (20 × 8 prayed =
+    // 160), and eraIncomeMult scales BOTH (it rides the rate chain
+    // and the stream alike). One day settles at presence 1 — and
+    // slams into the L1 storage cap (25), so the era is read off
+    // the cached rates, where nothing is capped.
     const base = accrueAwayIncome(churchTown(), inputs());
-    expect(base.town.maps.city.buildings[0].accumulated).toBeCloseTo(15.27, 2);
-    // the era scales the rate itself (15.2667 before the cents round)
+    expect(base.rates["church-1"].coins).toBeCloseTo(400, 8);
+    expect(base.town.maps.city.buildings[0].accumulated).toBe(25);
     const aged = accrueAwayIncome(churchTown(), inputs({ eraIncomeMult: 1.5 }));
-    expect(aged.town.maps.city.buildings[0].accumulated).toBeCloseTo(22.9, 2);
+    expect(aged.rates["church-1"].coins).toBeCloseTo(600, 8);
     const lean = accrueAwayIncome(churchTown(), inputs({ eraIncomeMult: 0.5 }));
-    expect(lean.town.maps.city.buildings[0].accumulated).toBeCloseTo(7.63, 2);
+    expect(lean.rates["church-1"].coins).toBeCloseTo(200, 8);
   });
 
   it("prayerBoostMult scales only the boost's lift, never the base", () => {
     // prayerMultValue 1.3 = ten people prayed (+3% each). A boost of
     // 2 (Nero) makes the lift 0.6, so the prayer value becomes 1.6 —
-    // the cached per-minute rate carries it exactly.
+    // the cached per-DAY rate carries it exactly: the church's 240
+    // base scales by the prayer value; the 160 prayer stream does
+    // not (it is already prayer's own count, once).
     const plain = accrueAwayIncome(churchTown(), inputs({ prayerMultValue: 1.3 }));
-    expect(plain.rates["church-1"].coins).toBeCloseTo((20 * 1.16 * 1.3) / 60 + 160 / 60, 6);
+    expect(plain.rates["church-1"].coins).toBeCloseTo(240 * 1.3 + 160, 6);
     const boosted = accrueAwayIncome(churchTown(), inputs({ prayerMultValue: 1.3, eraPrayerBoostMult: 2 }));
-    expect(boosted.rates["church-1"].coins).toBeCloseTo((20 * 1.16 * 1.6) / 60 + 160 / 60, 6);
+    expect(boosted.rates["church-1"].coins).toBeCloseTo(240 * 1.6 + 160, 6);
     // and with no lift at all (nobody prayed), a boost changes nothing
     const noLift = accrueAwayIncome(churchTown(), inputs({ prayerMultValue: 1, eraPrayerBoostMult: 2 }));
-    expect(noLift.rates["church-1"].coins).toBeCloseTo(plain.rates["church-1"].coins - ((20 * 1.16 * 0.3) / 60), 6);
+    expect(noLift.rates["church-1"].coins).toBeCloseTo(plain.rates["church-1"].coins - 240 * 0.3, 6);
   });
 
-  it("the missed-days award settles under the era's income too", () => {
-    const opts = {
-      today: "2027-01-15", milestoneMult: 1, houseCoinMult: 0, fellowshipBonus: 1,
-      prayedCount: 8, remembranceBonus: 1, gardenVisitBonus: 1, prestigeMult: 1, nowMs: NOW,
+  it("missed days settle under the era's income too — through the accrual", () => {
+    // RE-BASED (v343): the missed-days award this pin priced is
+    // deleted; missed days settle through accrueAwayIncome itself,
+    // under the same era weather. An L3 farm (100/day, cap 200)
+    // anchored a day back settles one day: 100 un-aged, 200 under
+    // a ×2 era. XP never ages: the library's XP rate ignores
+    // eraIncomeMult entirely.
+    const town = emptyTownState();
+    const farm: PlacedBuilding = {
+      id: "farm-1", type: "farm", x: 2, y: 2, level: 3,
+      accumulated: 0, lastTick: "2027-01-14T12:00:00.000Z",
     };
-    const base = missedDaysIncome(churchTown(), opts);
-    expect(base).not.toBeNull();
-    const aged = missedDaysIncome(churchTown(), { ...opts, eraIncomeMult: 2 });
-    expect(aged).not.toBeNull();
-    expect(Math.abs((aged?.earnedCoins ?? 0) - 2 * (base?.earnedCoins ?? 0))).toBeLessThanOrEqual(1);
-    expect(aged?.earnedXP).toBe(base?.earnedXP); // XP never ages
+    const library: PlacedBuilding = {
+      id: "library-1", type: "library", x: 4, y: 2, level: 1,
+      accumulated: 0, lastTick: "2027-01-14T12:00:00.000Z",
+    };
+    // Farm and library stand on DIFFERENT maps: on one map the
+    // library's presence lifts the farm's rate through the worker
+    // chain (×1.25) — a real engine synergy, but not this pin's
+    // subject.
+    town.maps.city.buildings = [farm];
+    town.maps.school.buildings = [library];
+    const base = accrueAwayIncome(town, inputs());
+    expect(base.town.maps.city.buildings[0].accumulated).toBe(100);
+    const aged = accrueAwayIncome(town, inputs({ eraIncomeMult: 2 }));
+    expect(aged.town.maps.city.buildings[0].accumulated).toBe(200);
+    expect(aged.rates["library-1"].xp).toBe(50);
+    expect(aged.town.maps.school.buildings[0].accumulated).toBe(50);
   });
 
   it("costMult rides purchase/construction pricing — and only pricing", () => {
@@ -283,7 +312,10 @@ describe("v323 (d) — labels stand wide enough to speak", () => {
     // point's stage scale (46×34 at scale 1 — the 40px reference
     // cell), because the fixed stage scales its furniture from the
     // cell (R13). The stands' widths scale the same way.
-    expect(points).toContain("<View style={{ width: 46 * s, height: 34 * s }}>");
+    // RE-BASED (v343): the board's FACE grew to the brief's ruling —
+    // about 19% of the stage, big enough to read as the town's
+    // "nobody slips" surface — 84×62 at scale 1.
+    expect(points).toContain("<View style={{ width: 84 * s, height: 62 * s }}>");
   });
 });
 

@@ -144,7 +144,10 @@ describe("v290 (b) — no auto-collect: income waits in piles, balance untouched
         y: 2,
         level: 1,
         accumulated: 0,
-        lastTick: new Date(NOW - 5 * 60000).toISOString(),
+        // RE-BASED (v343): the day model settles whole LOCAL days —
+        // the anchor stands 30 hours back so at least one local day
+        // has turned in any timezone the suite runs in.
+        lastTick: new Date(NOW - 30 * 3600 * 1000).toISOString(),
       },
     ];
     town.lastIncomeDate = "2027-01-12";
@@ -182,22 +185,24 @@ describe("v290 (b) — no auto-collect: income waits in piles, balance untouched
     expect(pawn).not.toContain("handleCollectBuilding");
   });
 
-  it("the collect triggers are in person: the café's arrival collects before it opens", () => {
-    // v291 re-base: the walk-up collect lives in runStreetPlace —
-    // the street's arrival action for the café — through the same
-    // existing collect flow, before the café opens; the register
-    // pile's own Pressable collects directly (wide-street-v291 (f)).
+  it("the café's arrival collects NOTHING — walking up just opens it (RE-BASED v343)", () => {
+    // RE-BASED (v343): the walk-up auto-collect this test pinned
+    // since v291 was an audit defect — arriving somewhere is not
+    // collecting. Collecting is by hand only: the pile's own tap
+    // (handleCollectPilePress) and the buildings' collect buttons.
+    // The café's street arrival now opens the café and nothing else.
     const src = read("app/hometown.tsx");
     const at = src.indexOf("const runStreetPlace");
     expect(at).toBeGreaterThan(-1);
     const block = src.slice(at, src.indexOf("const handleStreetPlacePress", at));
-    const collectAt = block.indexOf("handleCollectBuilding(anchor.id)");
-    const openAt = block.indexOf("handleTownLotBuildingPress(anchor)");
-    expect(collectAt).toBeGreaterThan(-1);
-    expect(openAt).toBeGreaterThan(collectAt);
-    // And it only fires for a register actually holding a pile —
-    // the guard rides in the same block.
-    expect(block).toContain("(anchor.accumulated || 0) > 0");
+    const cafeAt = block.indexOf('case "cafe":');
+    const mineAt = block.indexOf('case "mine":', cafeAt);
+    const cafeCase = block.slice(cafeAt, mineAt);
+    expect(cafeCase).toContain("handleTownLotBuildingPress(anchor)");
+    expect(cafeCase).not.toContain("handleCollectBuilding");
+    expect(cafeCase).not.toContain("collectPendingRegister");
+    // The by-hand path still exists on the screen.
+    expect(src).toContain("handleCollectPilePress");
   });
 });
 

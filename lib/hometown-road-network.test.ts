@@ -37,7 +37,6 @@ import {
   effectiveIncomeFor,
   bankFloorMultiplier,
   workerMult,
-  populationMult,
   isStockedBuildingType,
   isUnderConstruction,
   STOCKED_INCOME_MULT,
@@ -200,9 +199,14 @@ function refShopAdjacencyBonusForBuilding(map: MapState, buildingId: string): nu
 }
 
 /** Reference daily income: the pre-fix composition (road mult × shop
- *  adjacency — note: NO barbershop boost, matching dailyIncomeForMap). */
+ *  adjacency — note: NO barbershop boost, matching dailyIncomeForMap).
+ *  RE-BASED (v343): the +2%-per-person population multiplier is
+ *  deleted from the composition — prayer enters income exactly
+ *  once, as prayerMult inside the accrual chain; the daily estimate
+ *  carries no population factor (the lib's prayedCount parameter is
+ *  inert). The reference drops it identically. */
 function refDailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1, nowMs: number = Date.now()): number {
-  const popMult = populationMult(prayedCount);
+  void prayedCount;
   return map.buildings.reduce((sum, b) => {
     if (isUnderConstruction(b, nowMs)) return sum;
     const base = effectiveIncomeFor(b);
@@ -217,7 +221,7 @@ function refDailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: nu
         stockMult = STOCKED_INCOME_MULT;
       }
     }
-    const multiplier = refRoadMultiplierForBuilding(map, b.id) * refShopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * prestigeMult * stockMult;
+    const multiplier = refRoadMultiplierForBuilding(map, b.id) * refShopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * prestigeMult * stockMult;
     return sum + (base * multiplier);
   }, 0);
 }

@@ -278,19 +278,20 @@ describe("hero HP — the cave-in bite (v170 rules, boots added v175)", () => {
     expect(hurt.state.hp).toBe(20);
   });
 
-  it("the bite persists in the stored record — only the hourly mend gives health back", async () => {
+  it("the bite persists in the stored record — only the ~4-hour mend gives health back", async () => {
     await saveHeroHealth({ ...defaultHeroHealthState(T0), hp: 60 });
     const raw = await loadHeroHealthRaw();
     expect(raw.hp).toBe(60);
     expect(JSON.parse(store.get(HERO_HEALTH_KEY)!).hp).toBe(60);
     // The forest's own settle doesn't invent health either: inside
-    // the hour, nothing has mended yet.
+    // the first tick, nothing has mended yet.
     const within = settleHealth({ ...defaultHeroHealthState(T0), hp: 60 }, T0 + 59 * 60 * 1000, 200, 0);
     expect(within.state.hp).toBe(60);
-    // One full hour on, the v177 hourly mend (+10% of max) has
-    // restored some — that mend is the only free heal there is.
-    const settled = settleHealth({ ...defaultHeroHealthState(T0), hp: 60 }, T0 + HOUR, 200, 0);
-    expect(settled.state.hp).toBe(80);
+    // RE-BASED (v343): the mend is one tick every ~4 hours at 5% of
+    // max (the v177 hourly 10% is reverted) — one tick on, 60 → 70
+    // of 200, and that mend is the only free heal there is.
+    const settled = settleHealth({ ...defaultHeroHealthState(T0), hp: 60 }, T0 + 4 * HOUR, 200, 0);
+    expect(settled.state.hp).toBe(70);
   });
 
   it("healToFull still tops the hero off completely (the pool's drink)", () => {

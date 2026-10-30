@@ -354,7 +354,7 @@ export function ovenStateFor(fast: PersonalFast | null, today: string): CafeOven
 export function serveRouteForTicket(
   ticket: CafeTicket,
 ): { pathname: "/(tabs)"; params: { servePersonId: string } } | null {
-  if (ticket.served || ticket.tomorrow) return null;
+  if (ticket.kind === "served" || ticket.tomorrow) return null;
   return { pathname: "/(tabs)", params: { servePersonId: ticket.personId } };
 }
 

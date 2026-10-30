@@ -209,8 +209,10 @@ describe("source pins — the stale whole-record write class stays dead", () => 
   it("hometown's stale saveCoins is gone; its grants and focus refresh go through the ledger", () => {
     const src = read("app/hometown.tsx");
     expect(src).not.toContain("saveCoins(");
-    expect(src).toContain('applyCoinsDelta(earnedCoins, "dime")');
-    expect(src).toContain('applyCoinsDelta(bonusCoins, "dime")');
+    // RE-BASED (v343): every grant on the screen funnels through
+    // the addCoins helper into the one ledger call (the missed-days
+    // award's own two grants are deleted with the award itself).
+    expect(src).toContain('applyCoinsDelta(delta, "dime")');
     expect(src).toContain("useFocusEffect");
     expect(src).toContain("loadCoinsRecord()");
   });
@@ -229,12 +231,15 @@ describe("source pins — the stale whole-record write class stays dead", () => 
     }
   });
 
-  it("the only direct writers left are the ledger itself and the test-pinned one-time restitution", () => {
+  it("the only direct writer left is the ledger itself (RE-BASED v343)", () => {
+    // RE-BASED (v343): the one-time restitution was the last direct
+    // writer outside the ledger; it now grants through
+    // applyCoinsDelta like everything else.
     const libWriters: string[] = [];
     for (const rel of walk("lib")) {
       if (rel.includes("__tests__")) continue;
       if (read(rel).includes("setItem(COINS_STORAGE_KEY")) libWriters.push(rel);
     }
-    expect(libWriters.sort()).toEqual(["lib/hometown.ts", "lib/restitution.ts"]);
+    expect(libWriters.sort()).toEqual(["lib/hometown.ts"]);
   });
 });

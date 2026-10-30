@@ -17,8 +17,8 @@ import {
   TOWN_MAP_IDS,
   dailyIncomeForMap,
   accrueAwayIncome,
+  daysBetween,
   cafeAnchorDiner,
-  missedDaysIncome,
   presenceMultiplierFor,
   grantFlyers,
   roadMultiplierForBuilding,
@@ -31,7 +31,6 @@ import {
   milestoneFor,
   maxLevelFor,
   houseNameFor,
-  populationMult,
   WORKER_HIRE_COST,
   MAX_WORKERS_PER_BUILDING,
   FRENZY_STORAGE_KEY,
@@ -45,15 +44,9 @@ import {
   LIGHT_TAP_COINS,
   parseLightTaps,
   canThankLight,
-  PRAYER_BONUS_KEY,
-  PRAYER_COIN_BONUSES,
-  parsePrayerBonus,
   WORK_SHIFT_KEY,
   parseWorkShifts,
   canWorkShift,
-  FAST_DAY_COIN_KEY,
-  FAST_DAY_COINS,
-  parseFastDayCoins,
   bankInteriorBonus,
   accrueBankDrips,
   bankFloorMultiplier,
@@ -326,7 +319,7 @@ import {
   villagerMapOf,
   type VillagerLocations,
 } from "@/lib/villager-locations";
-import { SeasonalBorder } from "@/components/seasonal-border";
+import { SeasonalBorder, type BorderLighthouse } from "@/components/seasonal-border";
 
 import { MapSigns } from "@/components/map-signs";
 import { MissionField } from "@/components/mission-field";
@@ -358,7 +351,7 @@ import {
   buildAwayReport,
   formatWholeCoins,
   HOMETOWN_LAST_VISIT_KEY,
-  phaseForTimeOfDay,
+  phaseForDate,
   phaseWindowsLit,
   PHASE_WASH,
   type AwayReport,
@@ -387,10 +380,9 @@ import { StreetErrorBoundary } from "@/components/street-error-boundary";
 import { StreetVillagers } from "@/components/street-villagers";
 import { LotPlayPoint, NoticeBoardPoint, NOTICE_BOARD_W, TestimonyStonesPoint } from "@/components/street-world-points";
 import {
-  STREET_H,
-  STREET_W,
   defaultWideStreetState,
   deriveStreetWorld,
+  stageFit,
   loadWideStreetState,
   planStreetWalk,
   saveWideStreetState,
@@ -410,7 +402,7 @@ import {
   type EraDef,
 } from "@/lib/hometown-eras";
 import { settleRoadBadges } from "@/lib/hometown-road";
-import { getCurrentFastDay } from "@/lib/prayercircle-fasting";
+import { getCurrentFastDay, isFastStreakAlive } from "@/lib/prayercircle-fasting";
 import { GardenOfRemembrance } from "@/components/garden-of-remembrance";
 import { TheWell } from "@/components/the-well";
 import { FireworksOverlay } from "@/components/fireworks";
@@ -3998,6 +3990,34 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFul
   );
 }
 
+/**
+ * v343 — the map frame. Every map but the standing town world keeps
+ * its SeasonalBorder picture frame, exactly as it was. The town
+ * world drops the frame entirely (the frame contract: the stage
+ * fills the screen; the border's sky strip, gutters and beach were
+ * the letterbox). The border's lighthouse seat is re-homed in the
+ * town world's HUD block (the header's chips row) — the modal and
+ * its daily blessing are unchanged.
+ */
+function TownFrame({
+  framed,
+  variant,
+  lighthouse,
+  children,
+}: {
+  framed: boolean;
+  variant: "town" | "city" | "school";
+  lighthouse?: BorderLighthouse;
+  children: React.ReactNode;
+}) {
+  if (!framed) return <>{children}</>;
+  return (
+    <SeasonalBorder variant={variant} lighthouse={lighthouse}>
+      {children}
+    </SeasonalBorder>
+  );
+}
+
 export default function HometownScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -4016,8 +4036,18 @@ export default function HometownScreen() {
   // Day/night page theme: re-evaluate every 5 minutes so the whole
   // screen shifts with the sky.
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(() => getTimeOfDay());
+  // v343: the town's phase rides the MOCK's windows (dawn 5–8, day
+  // 8–17, dusk 17–20, night 20–5) via phaseForDate — the old
+  // phaseForTimeOfDay mapping inherited the page theme's coarser
+  // windows (morning from 6, "day" until 16), so the street's light
+  // drifted from the drawing (windows lit at 9am was wrong). Both
+  // clocks refresh on the same existing 5-minute interval.
+  const [dayPhase, setDayPhase] = useState<DayPhase>(() => phaseForDate());
   useEffect(() => {
-    const t = setInterval(() => setTimeOfDay(getTimeOfDay()), 5 * 60 * 1000);
+    const t = setInterval(() => {
+      setTimeOfDay(getTimeOfDay());
+      setDayPhase(phaseForDate());
+    }, 5 * 60 * 1000);
     return () => clearInterval(t);
   }, []);
   // Ambient life (chimney smoke, night window glow, city traffic, birds)
@@ -4031,10 +4061,9 @@ export default function HometownScreen() {
   }, []);
   const isNight = timeOfDay === "night";
   // The Welcoming Town, Stage 1 (v271): the day in four phases — dawn /
-  // day / dusk / night — derived from the same timeOfDay state (settled
-  // on open, re-evaluated on the existing 5-minute theme clock; no new
+  // day / dusk / night (the phase state above; settled on open,
+  // re-evaluated on the existing 5-minute theme clock; no new
   // timers, no per-frame state).
-  const dayPhase = phaseForTimeOfDay(timeOfDay);
   const phaseWash = PHASE_WASH[dayPhase];
   // v285: at dusk every building throws a long shadow east — the scene
   // has one light, and it rakes +x like every drawn shadow in it. The
@@ -4055,8 +4084,9 @@ export default function HometownScreen() {
   const tapTimesRef = useRef<number[]>([]);
   const frenzyUntilRef = useRef(0);
   const lastFrenzyRef = useRef(0);
-  // Per-minute income rates cached at mount tick, for the live interval tick.
-  const perMinuteRateRef = useRef<Record<string, { coins: number; xp: number }>>({});
+  // Per-DAY income rates cached at mount (the accrual's own settled
+  // composition), for the live tick's day-boundary settle (v343).
+  const perDayRateRef = useRef<Record<string, { coins: number; xp: number }>>({});
   // Live villager positions (town + city), updated by TownNPCs/CityNPCs.
   // Presence-gated income: buildings only earn when villagers are nearby.
   const townNpcPositionsRef = useRef<Array<{ x: number; y: number }>>([]);
@@ -5385,7 +5415,7 @@ export default function HometownScreen() {
       setUnlockedMaps(res.unlockedMaps);
       setActiveMap("town");
       setSelectedTile(null);
-      perMinuteRateRef.current = {};
+      perDayRateRef.current = {};
       // The gear reset too — the forest hero starts bare-handed again.
       setForestArmor(null);
       setForestWeapon(null);
@@ -5421,7 +5451,7 @@ export default function HometownScreen() {
     switchMap(id);
   }, [unlockedMaps, handleUnlockMap, switchMap]);
 
-  // Load + accumulate hourly income on open (across all maps)
+  // Load + settle income on open (across all maps)
   useEffect(() => {
     (async () => {
       try {
@@ -5430,12 +5460,11 @@ export default function HometownScreen() {
         const gearCoinMult = 1 + getCachedBoosts().coinMult;
         const now = new Date().toISOString();
         const today = getTodayISOString();
-        const [coinsRaw, townRaw, monumentsRaw, ownedRaw, backfillRaw, fastsRaw, unlockedRaw] = await Promise.all([
+        const [coinsRaw, townRaw, monumentsRaw, ownedRaw, fastsRaw, unlockedRaw] = await Promise.all([
           AsyncStorage.getItem(COINS_STORAGE_KEY),
           AsyncStorage.getItem(TOWN_STORAGE_KEY),
           AsyncStorage.getItem(MONUMENT_STORAGE_KEY),
           AsyncStorage.getItem(SHOP_OWNED_KEY),
-          AsyncStorage.getItem("prayercircle.hometown.coin-backfill.v1"),
           AsyncStorage.getItem("prayercircle.fasts.v1"),
           AsyncStorage.getItem(MAP_UNLOCKED_KEY),
         ]);
@@ -5457,26 +5486,12 @@ export default function HometownScreen() {
             throw e;
           }
         };
-        // One-time backfill: 1 coin per completed fast day before coins existed
-        let effectiveCoinsRaw = coinsRaw;
-        if (!backfillRaw) {
-          try {
-            const fasts = parseFastsRaw();
-            let completedCount = 0;
-            for (const f of fasts) {
-              const statuses = f.dayStatuses || {};
-              for (const d of Object.values(statuses)) {
-                if (d === "completed") completedCount++;
-              }
-            }
-            if (completedCount > 0) {
-              const backfilled = await applyCoinsDelta(completedCount, "none");
-              effectiveCoinsRaw = JSON.stringify(backfilled);
-            }
-          } catch {}
-          await AsyncStorage.setItem("prayercircle.hometown.coin-backfill.v1", "1");
-        }
-        let c = parseCoins(effectiveCoinsRaw ? JSON.parse(effectiveCoinsRaw) : {});
+        // v343: the one-time coin backfill is GONE — it paid 1 coin
+        // per completed fast day straight into the balance on open
+        // (auto-credited income). The fast green-day bonus is ONE
+        // rate now: +1 coin at marking time, in the fasting flow
+        // itself; nothing back-fills here.
+        let c = parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {});
         let t = parseTown(townRaw ? JSON.parse(townRaw) : {});
         // Fast-length gating, prestige, and the two one-time migration
         // flags are independent of each other — one parallel round
@@ -5769,8 +5784,8 @@ export default function HometownScreen() {
         }
         // v323 (The Era Game, Part 1): the era derives HERE, from the
         // same fast the café reads, before the accrual below — so
-        // the away settle, the missed-days award and every price on
-        // the screen all settle under the standing age. The turn
+        // the away settle and every price on the screen all settle
+        // under the standing age. The turn
         // check reads the last ANNOUNCED era; the card itself is set
         // as state and shown over the town, and only its dismissal
         // records the new era as seen.
@@ -5804,58 +5819,12 @@ export default function HometownScreen() {
         if (houseR.ok) houseCoinMultPre = houseR.value.coinMult;
         if (fellowshipR.ok) fellowshipState = fellowshipR.value;
         if (gardenVisitsR.ok) gardenVisitState = gardenVisitsR.value;
-        // Daily prayer bonus — thresholds for praying for people
-        try {
-          const bonusRaw = await AsyncStorage.getItem(PRAYER_BONUS_KEY);
-          const bonusState = parsePrayerBonus(bonusRaw ? JSON.parse(bonusRaw) : {});
-          if (bonusState.date !== today) {
-            bonusState.date = today;
-            bonusState.awarded = [];
-          }
-          for (const { threshold, coins: bonusCoins } of PRAYER_COIN_BONUSES) {
-            if (prayedCount >= threshold && !bonusState.awarded.includes(threshold)) {
-              bonusState.awarded.push(threshold);
-              await AsyncStorage.setItem(PRAYER_BONUS_KEY, JSON.stringify(bonusState));
-              // Award via the canonical ledger (v167): a serialized
-              // delta against the freshest stored record.
-              const next = await applyCoinsDelta(bonusCoins, "dime");
-              setCoins(next);
-              setFireworksKey((k) => k + 1);
-              Alert.alert(
-                "🙏 Prayer Bonus!",
-                `You prayed for ${prayedCount} people today! +${formatCoins(bonusCoins)} coins.`
-              );
-            }
-          }
-          // Save even if no new awards (date rollover)
-          await AsyncStorage.setItem(PRAYER_BONUS_KEY, JSON.stringify(bonusState));
-        } catch {}
-        // Fast day green bonus — 5 coins per newly completed fast day
-        try {
-          const countedRaw = await AsyncStorage.getItem(FAST_DAY_COIN_KEY);
-          const counted = new Set(parseFastDayCoins(countedRaw ? JSON.parse(countedRaw) : []));
-          const fasts = parseFastsRaw();
-          let newGreens = 0;
-          for (const f of fasts) {
-            const fid = String(f.id || f.name || "fast");
-            const statuses = f.dayStatuses || {};
-            for (const [date, status] of Object.entries(statuses)) {
-              if (status === "completed") {
-                const key = `${fid}:${date}`;
-                if (!counted.has(key)) {
-                  counted.add(key);
-                  newGreens++;
-                }
-              }
-            }
-          }
-          if (newGreens > 0) {
-            await AsyncStorage.setItem(FAST_DAY_COIN_KEY, JSON.stringify([...counted]));
-            const reward = newGreens * FAST_DAY_COINS;
-            const next = await applyCoinsDelta(reward, "dime");
-            setCoins(next);
-          }
-        } catch {}
+        // v343: the prayer-threshold bonuses {5→250, 10→500,
+        // 20→1000} and the on-open fast green-day sweep are GONE —
+        // neither is a settled rule. Prayer pays through the ONE
+        // formula (prayerMult, in the accrual chain below), and a
+        // kept fast day pays its +1 coin at marking time in the
+        // fasting flow. Nothing is awarded on open here.
         const prMult = prayerMult(prayedCount);
         // Pawn house rooms + desirables boost coin income (loaded in
         // the critical fan-out above; refreshHouseBonusCache ran there).
@@ -5998,6 +5967,18 @@ export default function HometownScreen() {
             preAccrualPiles.set(b.id, b.accumulated || 0);
           }
         }
+        // v343: the fast-alive gate — away income requires the
+        // streak alive (the farm's own promise, now the whole
+        // town's). Computed from the stored fasts; a parse failure
+        // leaves the settle ungated rather than wrongly gated (the
+        // lib's undefined contract).
+        let fastAlive: boolean | undefined;
+        try {
+          const fastsArr = parseFastsRaw();
+          if (Array.isArray(fastsArr)) {
+            fastAlive = isFastStreakAlive(fastsArr as PersonalFast[], today);
+          }
+        } catch {}
         const accrual = accrueAwayIncome(t, {
           gearCoinMult,
           generosityMult,
@@ -6018,40 +5999,22 @@ export default function HometownScreen() {
           interiorBonuses,
           restInteriorMult,
           presenceCounts: awayPresenceCounts,
+          fastAlive,
           economyScale: getEconomyScale(),
           nowMs: awayNow,
           nowIso: now,
         });
         for (const [buildingId, rate] of Object.entries(accrual.rates)) {
-          perMinuteRateRef.current[buildingId] = rate;
+          perDayRateRef.current[buildingId] = rate;
         }
         t = accrual.town;
-        // Missed-days business income, priced on the accrued town
-        // exactly as the old chain priced it on its post-loop town.
-        const lastDate = t.lastIncomeDate;
-        const missed = missedDaysIncome(t, {
-          today,
-          milestoneMult: msMult,
-          houseCoinMult,
-          fellowshipBonus,
-          prayedCount,
-          remembranceBonus,
-          gardenVisitBonus,
-          prestigeMult: pMult,
-          depthBlessingMult: depthMult,
-          // The day's-set bonus (v200): past days price their own
-          // completions per date inside the award — today's set rides
-          // the accrual slot above, never this one, so no day is
-          // bonused twice by the same channel.
-          setBonusDates: setOut.dates,
-          setBonusRate: SET_BONUS_RATE,
-          // v323: the era's income weather over the missed days too.
-          eraIncomeMult: eraEconomyLocal.incomeMult,
-          nowMs: awayNow,
-        });
-        // The old chain folded lastIncomeDate to today UNCONDITIONALLY
-        // at this point (whether or not an award fired — including a
-        // fresh town's null anchor). Same fold here, inside the commit.
+        // v343: missedDaysIncome is GONE — it paid whole missed days
+        // straight into the balance on open. Missed days now settle
+        // through the ONE accrual above: whole days from each
+        // building's lastTick anchor, into the waiting piles,
+        // capped. The lastIncomeDate fold stays (the accrual's
+        // stock branch reads it as the last settled day), inside
+        // the commit as before.
         t = { ...t, lastIncomeDate: today };
         // v291 (the Wide Street): the retirement sweep — every coin
         // still waiting on a retired town building lands on the
@@ -6086,34 +6049,15 @@ export default function HometownScreen() {
           }
           setWideStreetState(migState);
         }
-        // The missed-days award lands right after the commit — the
-        // same position relative to the town paint the old chain gave
-        // it. The day count itself can never double-award:
-        // lastIncomeDate already advanced inside the committed record
-        // above. v167: the award is a DELTA against the freshest
-        // stored record — the old code built a whole record from the
-        // mount-start snapshot `c` and wrote it here, erasing anything
-        // earned after this mount began (the vanishing-coins bug).
-        if (missed) {
-          const { earnedCoins, earnedXP } = missed;
-          if (earnedCoins > 0) {
-            const nextCoins = await applyCoinsDelta(earnedCoins, "dime");
-            setCoins(nextCoins);
-          }
-          if (earnedXP > 0) {
-            await awardCustomXP(earnedXP, `town-missed-${lastDate}-to-${today}`).catch(() => undefined);
-          }
-        }
         // The Welcoming Town (v271): the return report — what the town
         // did while he was gone, told through its people. Built from
         // the accrual's own numbers (the per-building pile diff against
-        // the pre-accrual snapshot), the work shifts that ended during
-        // the absence, and the missed-days award above. When the card
-        // shows, it carries the missed-days news too, so the plain
-        // "Town Income" alert only remains as the fallback for returns
-        // the card doesn't cover. Nothing here moves money — the
-        // accrual and the award already landed; the coins sit in the
-        // buildings, waiting for his tap, exactly as before.
+        // the pre-accrual snapshot) and the work shifts that ended
+        // during the absence. v343: the report shows what WAITS —
+        // nothing was auto-credited, so there is no award to announce
+        // and the old "Town Income" alert is gone with it. Nothing
+        // here moves money: the accrual landed in the piles, waiting
+        // for his tap, exactly as before.
         {
           const awayDeltas: { buildingId: string; name: string; coins: number }[] = [];
           let awayWaiting = 0;
@@ -6158,15 +6102,11 @@ export default function HometownScreen() {
             absenceMs: lastVisitMs === null ? null : awayNow - lastVisitMs,
             deltas: awayDeltas,
             shiftsDone: awayShifts,
-            missedCoins: missed?.earnedCoins ?? 0,
-            missedXP: missed?.earnedXP ?? 0,
             totalWaiting: awayWaiting,
             orders: cafeOrders,
           });
           if (report) {
             setAwayReport(report);
-          } else if (missed && missed.earnedCoins > 0) {
-            Alert.alert("Town Income", `Your towns earned ${missed.earnedCoins} coins${missed.earnedXP > 0 ? ` and ${missed.earnedXP} XP` : ""} while you were away!`);
           }
           try {
             await AsyncStorage.setItem(HOMETOWN_LAST_VISIT_KEY, String(awayNow));
@@ -6239,11 +6179,23 @@ export default function HometownScreen() {
     return () => clearInterval(evtTimer);
   }, []);
 
-  // Live tick: every 30s, accrue another slice of minute-by-minute income so the
-  // coin badges visibly grow while watching. Uses the per-minute rates cached at
-  // mount; the next full open re-syncs everything exactly via lastTick.
+  // Live tick: every 30s the town re-checks its clocks — missions,
+  // shifts, celebrations — and settles any DAY BOUNDARY that passed
+  // while watching (v343: income settles in whole days at the per-day
+  // rates the mount's accrual cached; the per-minute drip is gone,
+  // so a pile grows at a day boundary or on open, never minute by
+  // minute). The next full open re-syncs everything exactly via
+  // lastTick.
   useEffect(() => {
     const id = setInterval(() => {
+      // The fast-alive gate for the tick's settle, from the fasts the
+      // mount loaded — ungated (undefined) when they're unknown, the
+      // lib's contract, so a load gap never wrongly starves the town.
+      let tickFastAlive: boolean | undefined;
+      try {
+        const arr = fastsRef.current;
+        tickFastAlive = arr.length > 0 ? isFastStreakAlive(arr, localDateStr(new Date())) : undefined;
+      } catch {}
       // Stock drain clock: whole minutes since the last interval run, used
       // to pace the daily stock drain (time away is handled by the catch-up).
       const tickNow = Date.now();
@@ -6373,19 +6325,34 @@ export default function HometownScreen() {
             // the stamps clear (persisted below via `changed`).
             const b = settleBuilding(rawB, now);
             if (b !== rawB) changed = true;
-            const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : now;
-            const minutesElapsed = Math.floor((now - lastTick) / 60000);
-            if (minutesElapsed <= 0) return b;
-            // Under construction: closed — no accrual; advance lastTick
+            // Under construction: closed — no settle; advance lastTick
             // (persisted) so building time never converts into income.
             if (isUnderConstruction(b, now)) {
               changed = true;
               return { ...b, lastTick: new Date(now).toISOString() };
             }
-            const rate = perMinuteRateRef.current[b.id];
-            const perMin = rate ? rate.coins + rate.xp : 0;
-            if (!rate || perMin <= 0) {
-              return b.lastTick ? b : { ...b, lastTick: new Date(now).toISOString() };
+            // v343: the tick settles WHOLE DAYS, exactly like the
+            // accrual — whole local days between the anchor's date
+            // and today, at the cached per-day rate. Within the day
+            // nothing accrues.
+            const daysElapsed = b.lastTick
+              ? daysBetween(localDateStr(new Date(b.lastTick)), todayKey)
+              : 0;
+            if (daysElapsed <= 0) return b;
+            const rate = perDayRateRef.current[b.id];
+            if (!rate || rate.coins + rate.xp <= 0) {
+              // No cached day rate (a retired town building, or a
+              // map with no population at mount): the anchor stays —
+              // the next open's accrual consumes the window at its
+              // own pricing, as it always has.
+              return b;
+            }
+            // The fast-alive gate, the accrual's own: dead days
+            // never pay, but the anchor advances so they are never
+            // priced twice.
+            if (tickFastAlive === false) {
+              changed = true;
+              return { ...b, lastTick: new Date(now).toISOString() };
             }
             // Presence gate (live): only earn when villagers are nearby.
             // The map being viewed uses its real positions (its NPC layer
@@ -6395,7 +6362,8 @@ export default function HometownScreen() {
             // presence on the school or city maps (single-location truth).
             // v291: the café's presence is measured at its street
             // doorstep (above); every other building keeps its own
-            // record coordinates.
+            // record coordinates. A zero presence settles the day at
+            // zero and advances the anchor — the accrual's semantics.
             const presenceBuilding =
               mapId === "town" && tickCafeDoor && b.id === tickCafeDoor.id
                 ? { x: tickCafeDoor.x, y: tickCafeDoor.y }
@@ -6413,21 +6381,23 @@ export default function HometownScreen() {
                     ),
                     false
                   );
-            if (presenceMult <= 0) {
-              return b.lastTick ? b : { ...b, lastTick: new Date(now).toISOString() };
-            }
             changed = true;
             // Stock: the stocked switch boosts income — once a building
             // has hit full shelves today it earns ×1.5 until midnight,
             // whatever the (drained) level on hand; otherwise regular.
+            // The boost rides the coin path only (the accrual's rule).
             let stockMult = 1;
-            if (isStockedBuildingType(b.type)) {
+            if (rate.coins > 0 && isStockedBuildingType(b.type)) {
               stockMult = stockMultiplierFor(isStockedToday(nextStockedDates, b.id, now));
             }
-            const add = minutesElapsed * perMin * presenceMult * stockMult;
+            const add = rate.coins > 0
+              ? daysElapsed * rate.coins * presenceMult * stockMult
+              : daysElapsed * rate.xp * presenceMult;
             return {
               ...b,
-              accumulated: Math.round(Math.min(buildingStorageCap(b), (b.accumulated || 0) + add) * 100) / 100,
+              accumulated: rate.coins > 0
+                ? Math.round(Math.min(buildingStorageCap(b), (b.accumulated || 0) + add) * 100) / 100
+                : Math.round(((b.accumulated || 0) + add) * 100) / 100,
               lastTick: new Date(now).toISOString(),
             };
           });
@@ -6615,7 +6585,7 @@ export default function HometownScreen() {
       "science-lab": "/science-lab-interior",
       "art-studio": "/art-studio-interior",
       "gymnasium": "/gymnasium-interior",
-      "cafeteria": "/cafeteria-interior",
+      "cafeteria": "/school-cafeteria-interior",
       "school-workshop": "/workshop-interior",
       "main-office": "/main-office-interior",
     };
@@ -7780,12 +7750,11 @@ export default function HometownScreen() {
     switch (place.kind) {
       case "cafe": {
         const anchor = townMapNow ? cafeAnchorDiner(townMapNow) : null;
-        if (anchor && (anchor.accumulated || 0) > 0 && !isUnderConstruction(anchor, Date.now())) {
-          handleCollectBuilding(anchor.id);
-        }
-        if ((wideStreetStateRef.current.pendingRegister || 0) > 0) {
-          collectPendingRegister();
-        }
+        // v343: arriving at the café collects NOTHING — no building
+        // pile, no register. Coins WAIT in their piles until he taps
+        // the pile itself (handleCollectPilePress) or Collect All in
+        // the header; walking up only opens the café, on both entry
+        // paths identically (the audit's walk-up auto-collect defect).
         if (anchor) handleTownLotBuildingPress(anchor);
         else router.push("/cafe-street-scene");
         break;
@@ -8359,13 +8328,17 @@ export default function HometownScreen() {
         world: deriveStreetWorld(town.maps.town, {
           pendingRegister: wideStreetState.pendingRegister,
           weekLots: cafeWeekLots,
+          // v343: the standing era dresses the street's places —
+          // kind, name, plaque and silhouette per age (the era
+          // spine), not just a palette wash over the same town.
+          eraId: townEra?.id ?? null,
         }),
         failed: false,
       };
     } catch {
       return { world: null, failed: true };
     }
-  }, [activeMap, hometownLocked, town, wideStreetState, cafeWeekLots]);
+  }, [activeMap, hometownLocked, town, wideStreetState, cafeWeekLots, townEra]);
   useEffect(() => {
     if (streetAttempt.failed) markStreetBroken();
   }, [streetAttempt.failed, markStreetBroken]);
@@ -8386,15 +8359,20 @@ export default function HometownScreen() {
       prev && Math.abs(prev.w - width) < 2 && Math.abs(prev.h - height) < 2 ? prev : { w: width, h: height }
     );
   };
-  // The SeasonalBorder frame eats 26 top + 44 bottom + 26 per side.
-  const worldInnerW = Math.max(280, (worldBox?.w ?? windowW) - 52);
-  const worldInnerH = Math.max(320, (worldBox?.h ?? windowH - insets.top - insets.bottom) - 70);
-  // v333 — the fixed stage fits the frame on BOTH axes: the whole
-  // 11×16 stage is visible in one viewport, no horizontal scrolling
-  // for the composition. The old height-only fit (floored at 40,
-  // capped at 64) belonged to the roster-width world; on the fixed
-  // stage the smaller axis rules, so the stage can never overflow.
-  const streetCell = Math.max(16, Math.floor(Math.min(worldInnerW / STREET_W, worldInnerH / STREET_H)));
+  // v343 — THE FRAME CONTRACT. The town world gets NO SeasonalBorder
+  // (the frame's sky strip, side gutters and beach ate ~40% of the
+  // screen and left the v333 stage letterboxed over empty frame):
+  // the stage fits the RAW world box via lib's stageFit — width-true
+  // cell, the drawn 16 rows, and any extra height split between the
+  // elastic sky and river bands the renderer draws, so the world
+  // reaches the box's bottom edge. The HUD is a flow block ABOVE
+  // this box (rendered in the ScrollView before it), so the box the
+  // layout measures already excludes it — HUD rect and stage rect
+  // are disjoint by construction.
+  const stageBoxW = worldBox?.w ?? windowW;
+  const stageBoxH = worldBox?.h ?? Math.max(320, windowH - insets.top - insets.bottom);
+  const stage = stageFit(stageBoxW, stageBoxH);
+  const streetCell = stage.cell;
 
   const streetWorldRef = useRef(streetWorld);
   streetWorldRef.current = streetWorld;
@@ -8744,6 +8722,23 @@ export default function HometownScreen() {
             </Text>
           </View>
         ) : null}
+        {/* v343: the lighthouse's seat in the frameless town — the
+            SeasonalBorder's right gutter carried it until the town
+            world dropped the frame; this chip opens the same
+            lighthouse modal (the daily blessing is unchanged). In
+            the framed fallback the border still carries it, so the
+            chip stands only in the town world. */}
+        {activeMap === "town" && isTownWorld ? (
+          <Pressable
+            onPress={() => setLighthouseModalVisible(true)}
+            style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFBEB", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginLeft: 8, borderWidth: 1, borderColor: "#FCD34D" }}
+          >
+            <MaterialIcons name="lightbulb" size={14} color="#92400E" />
+            <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#92400E" }}>
+              Lighthouse Lv{lighthouseState.level}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
       {/* Limited-time heavenly events */}
       {activeEvents.map((ev) => (
@@ -8797,6 +8792,18 @@ export default function HometownScreen() {
       contentContainerStyle={isTownWorld ? { flexGrow: 1, paddingTop: insets.top, paddingBottom: insets.bottom } : { padding: 16, paddingTop: insets.top + 16 }}
     >
       {!isTownWorld && renderTownHeader()}
+
+      {/* v343: the town world's HUD is a FLOW BLOCK above the world —
+          back, title, coin pill, chips — in the ScrollView's column,
+          so the world box below is measured under it and the stage
+          can never slide beneath the chips (the v307/v333 overlay
+          HUD floated over the picture and its chips collided with
+          the town's plaques). */}
+      {isTownWorld && (
+        <View style={{ paddingHorizontal: 12 }}>
+          {renderTownHeader()}
+        </View>
+      )}
 
       {!isTownWorld && (<>
       {/* Map selector */}
@@ -9006,6 +9013,7 @@ export default function HometownScreen() {
           timeOfDay={timeOfDay}
           pt={pt}
           onVictory={handleForestVictory}
+          onDefeatWake={() => switchMap("town")}
           bossGate={bossGateVis.visible && prestigeOfferState ? {
             boss: bossGateFor(ownedBadges as string[], throneVictories),
             cleared: bossClearedFastId === prestigeOfferState.fastId,
@@ -9054,9 +9062,9 @@ export default function HometownScreen() {
             east end, its own doorstep Pressable), and the skyline
             rides at the street's head in the same horizon dress
             (components/street-places-art). */}
-        <SeasonalBorder
+        <TownFrame
+          framed={!isTownWorld}
           variant={activeMap === "city" ? "city" : activeMap === "school" ? "school" : "town"}
-          fill={isTownWorld}
           lighthouse={
             activeMap === "town"
               ? {
@@ -9071,14 +9079,14 @@ export default function HometownScreen() {
         <WalkableTownShell
           enabled={activeMap === "town"}
           worldW={activeMap === "town" && streetWorld ? streetWorld.w * streetCell : gridW * cellSize}
-          worldH={activeMap === "town" && streetWorld ? streetWorld.h * streetCell : gridH * cellSize}
-          viewportH={activeMap === "town" && streetWorld ? streetWorld.h * streetCell : TOWN_VIEWPORT_H}
-          viewportW={activeMap === "town" && streetWorld ? worldInnerW : gridW * cellSize}
+          worldH={activeMap === "town" && streetWorld ? stage.stageH : gridH * cellSize}
+          viewportH={activeMap === "town" && streetWorld ? stageBoxH : TOWN_VIEWPORT_H}
+          viewportW={activeMap === "town" && streetWorld ? stageBoxW : gridW * cellSize}
           heroPosRef={heroPosRef}
           followNonce={walkNonce}
         >
         {activeMap === "town" && streetWorld ? (
-          <View ref={mapGridRef} style={{ position: "relative", width: streetWorld.w * streetCell, height: streetWorld.h * streetCell }}>
+          <View ref={mapGridRef} style={{ position: "relative", width: streetWorld.w * streetCell, height: stage.stageH }}>
             {/* v291: the Wide Street itself — its places, its people,
                 its ground, all carrying their own Pressables inside
                 this subtree (the v290 lesson: a tap must land on a
@@ -9092,6 +9100,8 @@ export default function HometownScreen() {
             <StreetWorldView
               world={streetWorld}
               cellSize={streetCell}
+              extendTop={stage.extendTop}
+              extendBottom={stage.extendBottom}
               phase={dayPhase}
               era={townEra}
               ovenLit={cafeOven === "lit"}
@@ -9152,7 +9162,11 @@ export default function HometownScreen() {
               const corner = streetWorld.corner;
               const lots = streetWorld.places.filter((p) => p.kind === "empty-lot").sort((a, b) => a.x - b.x);
               return (
-                <>
+                // v343: the stage's content rides below the elastic
+                // sky band (StreetWorldView shifts its own content
+                // layer by extendTop) — the furniture seats in the
+                // same content space, so this layer shifts with it.
+                <View pointerEvents="box-none" style={{ position: "absolute", left: 0, top: stage.extendTop, right: 0, bottom: 0 }}>
                   {board ? (
                     <NoticeBoardPoint
                       left={(board.x + board.w / 2) * cs - (NOTICE_BOARD_W * scale) / 2}
@@ -9196,7 +9210,7 @@ export default function HometownScreen() {
                       scale={scale}
                     />
                   ) : null}
-                </>
+                </View>
               );
             })()}
 
@@ -9890,7 +9904,7 @@ export default function HometownScreen() {
           </View>
         )}
         </WalkableTownShell>
-        </SeasonalBorder>
+        </TownFrame>
         {/* The Welcoming Town (v271): the while-you-were-gone report —
             the town telling him, through its people, what it did while
             he was away. The coins it names are already sitting in the
@@ -10351,7 +10365,7 @@ export default function HometownScreen() {
                   })()}
                   {b.type === "church" ? (
                     <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
-                      🙏 {prayedToday} prayed for today (+{formatCoins((prayedToday * CHURCH_PRAYER_COINS_PER_HOUR))} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a warm Community Church, full of light!"}
+                      🙏 {prayedToday} prayed for today (+{formatCoins((prayedToday * CHURCH_PRAYER_COINS_PER_HOUR))} coins/day){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a warm Community Church, full of light!"}
                     </Text>
                   ) : b.type === "house" ? (
                     <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
@@ -11703,15 +11717,9 @@ export default function HometownScreen() {
         </Pressable>
       </Modal>
     </ScrollView>
-    {/* v307 HUD — when the town stands full-screen, the header block
-        rides as an overlay: back, title, the coin pill (Collect All
-        still lives there) and the summary chips, with the open sky
-        between them tap-through to the world. */}
-    {isTownWorld && (
-      <View pointerEvents="box-none" style={{ position: "absolute", top: 0, left: 0, right: 0, paddingTop: insets.top + 8, paddingHorizontal: 12, zIndex: 40 }}>
-        {renderTownHeader()}
-      </View>
-    )}
+    {/* v343: the v307 overlay HUD is GONE — the header renders in
+        flow above the world now (see the ScrollView's children), so
+        nothing overlays the picture. */}
     {/* v307 — the two mini-games, opened from their lots in the
         world, take the whole screen while they run. */}
     {isTownWorld && playingGarden && (

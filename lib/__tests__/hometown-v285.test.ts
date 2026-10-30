@@ -485,10 +485,15 @@ describe("v285 dress — renderer wiring (source pins)", () => {
     // (StreetSkyline, components/street-places-art, from the same
     // HORIZON_DRESS). The lamps and dusk shadows still pin the town
     // screen's own source (they dress the other maps' grids).
+    // RE-BASED (v343): the sky is DRAWN by the stage renderer
+    // itself now — a per-phase sky field (STREET_SKY) over
+    // HORIZON_DRESS hills, era-tinted, stretching through the
+    // frame's elastic top band; the separate StreetSkyline piece
+    // retired into components/wide-street.tsx.
     expect(town).toContain("StreetWorldView");
-    const skyline = read("components/street-places-art.tsx");
-    expect(skyline).toContain("StreetSkyline");
-    expect(skyline).toContain("HORIZON_DRESS");
+    const stage = read("components/wide-street.tsx");
+    expect(stage).toContain("STREET_SKY");
+    expect(stage).toContain("HORIZON_DRESS[phase]");
     expect(town).toContain("lampForTile(");
     expect(town).toContain('dayPhase === "dusk"');
     expect(town).toContain("longShadow");

@@ -89,22 +89,29 @@ describe("v307 (a) — composition: the town is the screen", () => {
   });
 
   it("the frame stretches to fill in world mode only", () => {
-    expect(screen).toContain("fill={isTownWorld}");
+    // RE-BASED (v343): the town world wears NO frame at all — the
+    // SeasonalBorder (and its fill stretch) stands down for the
+    // town via the TownFrame gate, and keeps dressing the other
+    // worlds exactly as before.
+    expect(screen).toContain("framed={!isTownWorld}");
+    expect(screen).toContain("function TownFrame(");
     expect(border).toContain("fill?: boolean");
     expect(border).toContain("...(fill ? { flex: 1 } : null)");
   });
 
-  it("the street is drawn at a cell size fitted to the frame's inner height, floored at today's 40", () => {
+  it("the street is drawn at the fit stageFit computes for the raw frame box", () => {
     // v333 re-pin: the fixed stage fits on BOTH axes (the whole
     // 11×16 stage in one viewport — the drawing's contract, R1);
     // the v307 height-only fit belonged to the roster-width world.
-    // The floor is a legibility floor only (16), never a fit-breaker.
-    expect(screen).toContain(
-      "const streetCell = Math.max(16, Math.floor(Math.min(worldInnerW / STREET_W, worldInnerH / STREET_H)));"
-    );
+    // RE-BASED (v343): the fit is lib/wide-street's stageFit over
+    // the RAW world box (no border insets — the frameless town has
+    // none to subtract): the cell fits the width, the stage takes
+    // the box's full height, and sky/ground bands absorb the slack
+    // (the numeric contract is pinned in hometown-v343-frame).
+    expect(screen).toContain("const stage = stageFit(stageBoxW, stageBoxH);");
+    expect(screen).toContain("const streetCell = stage.cell;");
     expect(screen).toContain("streetWorld.w * streetCell");
-    expect(screen).toContain("streetWorld.h * streetCell");
-    expect(screen).toContain('viewportW={activeMap === "town" && streetWorld ? worldInnerW : gridW * cellSize}');
+    expect(screen).toContain('viewportW={activeMap === "town" && streetWorld ? stageBoxW : gridW * cellSize}');
   });
 
   it("the walk math measures the pawn in street cells, not page cells", () => {
@@ -115,15 +122,17 @@ describe("v307 (a) — composition: the town is the screen", () => {
     expect(block).toContain("const cs = sw ? streetCell : cellSize;");
   });
 
-  it("the header block has one definition and exactly two homes — page flow and the HUD overlay", () => {
+  it("the header block has one definition and exactly two homes — both in page flow", () => {
     expect(screen).toContain("const renderTownHeader = () => (");
     expect(screen).toContain("{!isTownWorld && renderTownHeader()}");
     expect(screen.match(/renderTownHeader\(\)/g)?.length).toBe(2);
-    // The HUD: tap-through sky, the header riding on top of the world.
-    const hudAt = screen.indexOf("v307 HUD");
-    const hud = screen.slice(hudAt, screen.indexOf("playingGarden", hudAt));
-    expect(hud).toContain('pointerEvents="box-none"');
-    expect(hud).toContain("{renderTownHeader()}");
+    // RE-BASED (v343): the HUD overlay is DELETED — it rode on top
+    // of the town and its chips collided with the world (the v333
+    // device rejection). The town's header is a flow block ABOVE
+    // the world box instead; nothing overlays the town.
+    expect(screen).not.toContain("v307 HUD");
+    expect(screen).toContain("{isTownWorld && (");
+    expect(screen).toContain("{renderTownHeader()}");
   });
 });
 
@@ -281,11 +290,14 @@ describe("v307 (a2) — the walk keeps its tile pace at the fitted cell size", (
 });
 
 describe("v307 (d) — name labels are fenced to fit", () => {
-  it("the pawn's name chip: the 64px clamp is gone; the label rides a 200px centred strip", () => {
+  it("the pawn carries NO name pill at all (RE-BASED v343)", () => {
+    // RE-BASED (v343): the drawing's hero carries no name pill —
+    // the villagers carry their names; the hero is simply him.
+    // The chip and its 200px strip are gone entirely.
     const pawn = read("components/player-pawn.tsx");
     expect(pawn).not.toContain("maxWidth: 64");
-    expect(pawn).toContain("width: 200");
-    expect(pawn).toContain('pawn.name || "You"');
+    expect(pawn).not.toContain("width: 200");
+    expect(pawn).toContain("NO name pill over the hero");
   });
 
   it("the town NPC name label: widened from the 90px strip that clipped names", () => {

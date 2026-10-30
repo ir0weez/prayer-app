@@ -71,10 +71,19 @@ describe("the gate (pure)", () => {
 
 describe("maybeGrantRestitution", () => {
   it("grants 5,500 once: tops up balance + lifetime, persists both, sets the flag", async () => {
+    // RE-BASED (v343): the grant goes through the coin ledger
+    // (applyCoinsDelta against the freshest STORED record) — the
+    // stored record is seeded with the established save, as on a
+    // real device, instead of the grant writing the caller's
+    // snapshot directly.
+    store.set(COINS_STORAGE_KEY, JSON.stringify(ESTABLISHED));
     const granted = await maybeGrantRestitution(ESTABLISHED, townWith(["church"]));
-    expect(granted).toEqual({ balance: 5620.5, lifetimeEarned: 11500 });
+    // The 5,500 lands whole; the balance is the ledger's whole-coin
+    // figure (coins are whole numbers only — the legacy half coin in
+    // the stored 120.5 is absorbed by the ledger's rounding).
+    expect(granted).toEqual({ balance: 5620, lifetimeEarned: 11500 });
     expect(store.get(RESTITUTION_FLAG_KEY)).toBe("1");
-    expect(JSON.parse(store.get(COINS_STORAGE_KEY)!)).toEqual({ balance: 5620.5, lifetimeEarned: 11500 });
+    expect(JSON.parse(store.get(COINS_STORAGE_KEY)!)).toEqual({ balance: 5620, lifetimeEarned: 11500 });
     // And never twice.
     await expect(maybeGrantRestitution(granted!, townWith(["church"]))).resolves.toBeNull();
   });

@@ -12,10 +12,14 @@
 //  - The while-you-were-gone report: people first (shifts that ended
 //    during the absence, named from the assignment records), then the
 //    top earning buildings BY BUILDING — a villager's name never gets
-//    attached to earnings the data doesn't tie to them — then the
-//    missed-days line. Gates: a worthwhile absence only (>= 15 min and
-//    something to tell). The report moves no money and collects
-//    nothing: it reads the accrual's own per-building pile deltas.
+//    attached to earnings the data doesn't tie to them. Gates: a
+//    worthwhile absence only (>= 15 min and something to tell). The
+//    report moves no money and collects nothing: it reads the
+//    accrual's own per-building pile deltas.
+//    RE-BASED (v343): the report's missed-days line is GONE with
+//    missedDaysIncome itself — missed days settle through the one
+//    accrual into the piles, so there is no separate award to fold
+//    in, and the "Town Income" alert fallback went with it.
 //  - The greeting: once per entry, town map only, the chat-bubble
 //    shell with a raised hand; reduced motion stills it.
 //  - Wake-by-prayer: a cottage's smoke and warm glow only when a
@@ -69,8 +73,6 @@ describe("v271 — the while-you-were-gone report", () => {
     absenceMs: 2 * HOUR,
     deltas: [{ buildingId: "b1", name: "Bakery", coins: 240 }],
     shiftsDone: [{ personName: "Gabriel Gutierrez", kind: "deliver-meal", endsAt: 0 }],
-    missedCoins: 0,
-    missedXP: 0,
     totalWaiting: 240,
   };
 
@@ -116,17 +118,20 @@ describe("v271 — the while-you-were-gone report", () => {
     expect(report!.lines).toEqual(["Gabriel Gutierrez delivered meals around town"]);
   });
 
-  it("folds the missed-days award in as its own line", () => {
+  it("RE-BASED (v343): no missed-days line exists — a long absence with nothing settled tells nothing", () => {
+    // The old pin folded a separate missed-days award in as its own
+    // line ("Plus N coins and X XP from the days between"). That
+    // award is deleted: missed days settle through the accrual into
+    // the buildings' piles, so they already stand inside `deltas`
+    // when they earned — a return with no deltas and no shifts has
+    // nothing to tell, however long the absence.
     const report = buildAwayReport({
       ...base,
       shiftsDone: [],
       deltas: [],
-      missedCoins: 1250,
-      missedXP: 40,
       totalWaiting: 0,
     });
-    expect(report!.lines).toEqual(["Plus 1,250 coins and 40 XP from the days between"]);
-    expect(report!.totalEarned).toBe(1250);
+    expect(report).toBeNull();
   });
 
   it("caps the story: at most three shifts and three buildings, biggest first", () => {
@@ -169,7 +174,13 @@ describe("v271 source pins — app/hometown.tsx", () => {
   it("the phase wash mounts on the town map only, pointer-events none", () => {
     expect(src).toContain('activeMap === "town" && phaseWash');
     expect(src).toContain("PHASE_WASH[dayPhase]");
-    expect(src).toContain("phaseForTimeOfDay(timeOfDay)");
+    // RE-BASED (v343): the screen's phase no longer maps the page
+    // theme's beats (phaseForTimeOfDay) — it derives from
+    // phaseForDate, the mock's windows (dawn 5–8, day 8–17, dusk
+    // 17–20, night 20–5), refreshed on the same 5-minute clock.
+    expect(src).toContain("useState<DayPhase>(() => phaseForDate())");
+    expect(src).toContain("setDayPhase(phaseForDate())");
+    expect(src).not.toContain("phaseForTimeOfDay(timeOfDay)");
   });
 
   it("dusk lights the town's windows through the phase rule (Great Peak precedent)", () => {
@@ -188,8 +199,12 @@ describe("v271 source pins — app/hometown.tsx", () => {
     expect(src).toContain("preAccrualPiles");
     expect(src).toContain("buildAwayReport({");
     expect(src).toContain("HOMETOWN_LAST_VISIT_KEY");
-    // The plain Town Income alert survives only as the fallback.
-    expect(src).toContain("} else if (missed && missed.earnedCoins > 0) {");
+    // RE-BASED (v343): the plain Town Income alert and the
+    // missed-days award it announced are deleted outright — the
+    // report card is the only return story, and it reports what
+    // WAITS in the piles.
+    expect(src).not.toContain('Alert.alert("Town Income"');
+    expect(src).not.toContain("missedDaysIncome(");
   });
 
   it("the greeting is armed once at the screen and passed to the town map only", () => {

@@ -442,7 +442,13 @@ describe("v333 (i) — R14: one frame shows the whole town", () => {
   });
 
   it("the named places carry their whole words; no street label carries a line limit", () => {
-    expect(world.cafe!.plaque).toBe("Café");
+    // RE-BASED (v343): the café seat is the gathering place, and
+    // its plaque speaks the AGE's name — with no era in play the
+    // Village's Common Table; under David, the Temple. The wiring
+    // under the name never changes.
+    expect(world.cafe!.plaque).toBe("Common Table");
+    const david = deriveStreetWorld(fixtureMap(), { eraId: "david" });
+    expect(david.cafe!.plaque).toBe("The Temple");
     expect(byKind(world, "house")[0].plaque).toBe("His House");
     expect(byKind(world, "mine")[0].plaque).toBe("The Mine");
     expect(byKind(world, "shop")[0].plaque).toBe("Town Shop");

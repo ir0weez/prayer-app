@@ -14,10 +14,12 @@
 //    game never do; building games never count;
 //  - the completion is recorded once per date (in recordPlay, the
 //    one counter every game flows through) and announced once;
-//  - settlement: missedDaysIncome pays each completed date inside
-//    its window exactly once — the lastIncomeDate fold means a
-//    second settle of the same window returns nothing — priced
-//    additively with the Depth Blessing on the same base;
+//  - settlement: the set bonus rides TODAY's blessing slot into
+//    the accrual (depthBlessingMult = depth + set, additively on
+//    the same base — never compounded). RE-BASED (v343): the
+//    per-date missed-days pricing this file originally pinned is
+//    deleted with missedDaysIncome; past days settle through the
+//    one accrual at the standing slot, like every other day;
 //  - day rollover: progress is fresh at dawn while yesterday's
 //    completion remains as settlement history;
 //  - prestige clears the record, like the mine.
@@ -56,9 +58,7 @@ import {
   accrueAwayIncome,
   dailyIncomeForTown,
   emptyTownState,
-  missedDaysIncome,
   type AwayAccrualInputs,
-  type MissedDaysIncomeOptions,
   type PlacedBuilding,
   type TownState,
 } from "../hometown";
@@ -218,124 +218,66 @@ function churchTown(lastIncomeDate: string | null = THREE_DAYS_AGO): TownState {
   return town;
 }
 
-function missedOpts(over: Partial<MissedDaysIncomeOptions> = {}): MissedDaysIncomeOptions {
+function accrualInputs(depthBlessingMult: number): AwayAccrualInputs {
   return {
-    today: TODAY,
-    milestoneMult: 1,
+    gearCoinMult: 1,
+    generosityMult: 0,
     houseCoinMult: 0,
-    fellowshipBonus: 1,
+    milestoneMult: 1,
+    prestigeMult: 1,
+    depthBlessingMult,
+    prayerMultValue: 1,
     prayedCount: 8,
+    fellowshipBonus: 1,
     remembranceBonus: 1,
     gardenVisitBonus: 1,
-    prestigeMult: 1,
+    interiorBonuses: {},
+    restInteriorMult: {},
+    presenceCounts: null,
+    economyScale: 1,
     nowMs: NOW,
-    ...over,
+    nowIso: new Date(NOW).toISOString(),
   };
 }
 
-/** Per-day coin price of the fixture town at a given blessing mult. */
-function perDay(town: TownState, depthMult: number): number {
-  return dailyIncomeForTown(town, 1, 1, 1, 8, 1, 1, 1, NOW, depthMult);
-}
-
-describe("settlement — missed days pay each completed date once", () => {
-  it("without set information the award is the original arithmetic", () => {
-    const town = churchTown();
-    const base = perDay(town, 1);
-    expect(base).toBeGreaterThan(0);
-    const award = missedDaysIncome(town, missedOpts());
-    expect(award).not.toBeNull();
-    expect(award!.days).toBe(3);
-    expect(award!.earnedCoins).toBe(Math.floor(3 * base));
+describe("settlement — the set rides the accrual's one blessing slot (RE-BASED v343)", () => {
+  it("the combined slot is one base × (depth + set) — additive, never compounded", () => {
+    const plain = accrueAwayIncome(churchTown(), accrualInputs(1));
+    const depthOnly = accrueAwayIncome(churchTown(), accrualInputs(1.2));
+    const combined = accrueAwayIncome(churchTown(), accrualInputs(1.2 + SET_BONUS_RATE));
+    // Church fixture, per-DAY: the building's own 240 scales by the
+    // blessing slot; the +160 prayer stream rides unscaled (pinned
+    // in the away-accrual suite). Combined = one base × 1.30.
+    expect(plain.rates["church-1"].coins).toBeCloseTo(240 + 160, 8);
+    expect(depthOnly.rates["church-1"].coins).toBeCloseTo(240 * 1.2 + 160, 8);
+    expect(combined.rates["church-1"].coins).toBeCloseTo(240 * 1.3 + 160, 8);
+    // NOT compounded: depth × set would price the base at 1.32.
+    expect(combined.rates["church-1"].coins).not.toBeCloseTo(240 * 1.2 * (1 + SET_BONUS_RATE) + 160, 8);
   });
 
-  it("a completed date inside the window earns +10% of that day's base", () => {
-    const town = churchTown();
-    const base = perDay(town, 1);
-    const award = missedDaysIncome(town, missedOpts({
-      setBonusDates: new Set(["2027-01-13"]),
-      setBonusRate: SET_BONUS_RATE,
-    }));
-    expect(award!.earnedCoins).toBe(Math.floor(3 * base + SET_BONUS_RATE * base));
+  it("a settled day lands the combined rate in the pile, once", () => {
+    // An L3 farm (100/day, cap 200) on the city map, anchored one
+    // day back: the slot-1.30 day lands 130 waiting; a second
+    // settle at the same clock lands nothing more (the anchor
+    // advanced — the day can never settle twice).
+    const town = emptyTownState();
+    const farm: PlacedBuilding = {
+      id: "farm-1", type: "farm", x: 2, y: 2, level: 3,
+      accumulated: 0, lastTick: "2027-01-14T12:00:00.000Z",
+    };
+    town.maps.city.buildings = [farm];
+    const first = accrueAwayIncome(town, accrualInputs(1.2 + SET_BONUS_RATE));
+    expect(first.town.maps.city.buildings[0].accumulated).toBe(130);
+    const second = accrueAwayIncome(first.town, accrualInputs(1.2 + SET_BONUS_RATE));
+    expect(second.town.maps.city.buildings[0].accumulated).toBe(130);
   });
 
-  it("every completed date in the window is paid — and only those", () => {
+  it("the daily estimate carries the same blessing factor end to end", () => {
     const town = churchTown();
-    const base = perDay(town, 1);
-    const all = missedDaysIncome(town, missedOpts({
-      setBonusDates: new Set(["2027-01-12", "2027-01-13", "2027-01-14"]),
-      setBonusRate: SET_BONUS_RATE,
-    }));
-    expect(all!.earnedCoins).toBe(Math.floor(3 * base + 3 * SET_BONUS_RATE * base));
-    // Completions outside the window (before it, or today itself)
-    // change nothing.
-    const outside = missedDaysIncome(town, missedOpts({
-      setBonusDates: new Set(["2027-01-11", "2027-01-15"]),
-      setBonusRate: SET_BONUS_RATE,
-    }));
-    expect(outside!.earnedCoins).toBe(Math.floor(3 * base));
-  });
-
-  it("a second settle of the same window pays nothing (the fold is the lock)", () => {
-    const town = churchTown();
-    const first = missedDaysIncome(town, missedOpts({
-      setBonusDates: new Set(["2027-01-13"]),
-      setBonusRate: SET_BONUS_RATE,
-    }));
-    expect(first).not.toBeNull();
-    // The app folds lastIncomeDate to today in the same commit that
-    // pays the award; settling again from the folded record is null.
-    const folded: TownState = { ...town, lastIncomeDate: TODAY };
-    expect(missedDaysIncome(folded, missedOpts({
-      setBonusDates: new Set(["2027-01-13"]),
-      setBonusRate: SET_BONUS_RATE,
-    }))).toBeNull();
-  });
-
-  it("stacks ADDITIVELY with the Depth Blessing on the same base — never compounded", () => {
-    const town = churchTown();
-    const base = perDay(town, 1);          // no blessings
-    const blessed = perDay(town, 1.2);     // Depth Blessing at its +20% cap
-    expect(blessed).toBeCloseTo(base * 1.2, 8);
-    const award = missedDaysIncome(town, missedOpts({
-      depthBlessingMult: 1.2,
-      setBonusDates: new Set(["2027-01-13"]),
-      setBonusRate: SET_BONUS_RATE,
-    }));
-    // Additive: 3 days at the depth price + 0.10 × the UNblessed
-    // base for the one completed day (= a 1.30 day, not a 1.32 day).
-    expect(award!.earnedCoins).toBe(Math.floor(3 * blessed + SET_BONUS_RATE * base));
-    const compounded = Math.floor(2 * blessed + blessed * (1 + SET_BONUS_RATE));
-    expect(award!.earnedCoins).not.toBe(compounded);
-  });
-
-  it("the accrual blessing slot scales linearly, so the combined 1.30 is one base × 1.30", () => {
-    const inputs = (depthBlessingMult: number): AwayAccrualInputs => ({
-      gearCoinMult: 1,
-      generosityMult: 0,
-      houseCoinMult: 0,
-      milestoneMult: 1,
-      prestigeMult: 1,
-      depthBlessingMult,
-      prayerMultValue: 1,
-      prayedCount: 8,
-      fellowshipBonus: 1,
-      remembranceBonus: 1,
-      gardenVisitBonus: 1,
-      interiorBonuses: {},
-      restInteriorMult: {},
-      presenceCounts: null,
-      economyScale: 1,
-      nowMs: NOW,
-      nowIso: new Date(NOW).toISOString(),
-    });
-    const plain = accrueAwayIncome(churchTown(), inputs(1));
-    const combined = accrueAwayIncome(churchTown(), inputs(1.3));
-    // Church fixture: building stream = 20 × populationMult(8) = 23.2
-    // per hour, scaled by the blessing slot; the +160/hr prayer-coin
-    // stream rides unscaled (pinned in the away-accrual suite).
-    expect(plain.rates["church-1"].coins).toBeCloseTo((23.2 + 160) / 60, 8);
-    expect(combined.rates["church-1"].coins).toBeCloseTo((23.2 * 1.3 + 160) / 60, 8);
+    const plain = dailyIncomeForTown(town, 1, 1, 1, 8, 1, 1, 1, NOW);
+    const blessed = dailyIncomeForTown(town, 1, 1, 1, 8, 1, 1, 1, NOW, 1.2);
+    expect(plain).toBeGreaterThan(0);
+    expect(blessed).toBeCloseTo(plain * 1.2, 8);
   });
 });
 
@@ -346,11 +288,14 @@ function readSrc(rel: string): string {
 }
 
 describe("wiring — the set reaches settlement, the sheet, and the moment", () => {
-  it("hometown folds today's set into the accrual slot and past sets into missed days", () => {
+  it("hometown folds today's set into the accrual slot — and past sets nowhere", () => {
     const src = readSrc("app/hometown.tsx");
     expect(src).toContain("depthBlessingMult: depthMult + setMultToday");
-    expect(src).toContain("setBonusDates: setOut.dates");
-    expect(src).toContain("setBonusRate: SET_BONUS_RATE");
+    // RE-BASED (v343): the per-date channel into the deleted
+    // missed-days award is gone — completed dates from past days
+    // are settlement history only, never priced again.
+    expect(src).not.toContain("setBonusDates");
+    expect(src).not.toContain("setBonusRate");
   });
 
   it("the income breakdown shows the Game Set line beside the Depth Blessing", () => {

@@ -42,7 +42,8 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
-import { loadForestEnergy } from "../forest-energy";
+import { loadForestEnergy, spendForestEnergy } from "../forest-energy";
+import { XP_STORAGE_KEY, xpRequiredForLevel } from "../xp-engine";
 import {
   MAX_BAG_TIER,
   SATCHEL_BAGS,
@@ -109,9 +110,12 @@ beforeEach(() => {
   store.clear();
 });
 
-describe("haul multiplier — depth pays, per stratum (v175)", () => {
-  it("the ladder runs ×1 at Stone to a ×3 cap in the Diamond country and the Deep", () => {
-    expect(STRATUM_MULTIPLIERS).toEqual([1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3]);
+describe("haul multiplier — depth pays, per stratum (v175; bands RE-BASED v343)", () => {
+  it("the ladder runs in four bands across the strata in pairs, ×1 to a ×3 cap", () => {
+    // RE-BASED (v343): the settled ladder is [1, 1.5, 2, 3] mapped
+    // across the eight strata in pairs — the old eight-step ladder
+    // (1.25/1.75/2.5 steps) drifted from the spec.
+    expect(STRATUM_MULTIPLIERS).toEqual([1, 1, 1.5, 1.5, 2, 2, 3, 3]);
     expect(stratumMultiplier(0)).toBe(1);
     expect(stratumMultiplier(7)).toBe(3);
     expect(stratumMultiplier(99)).toBe(3); // clamped at the cap
@@ -119,7 +123,7 @@ describe("haul multiplier — depth pays, per stratum (v175)", () => {
 
   it("the label drops trailing zeros it doesn't need", () => {
     expect(STRATUM_MULTIPLIERS.map(formatHaulMultiplier)).toEqual([
-      "1", "1.25", "1.5", "1.75", "2", "2.5", "3", "3",
+      "1", "1", "1.5", "1.5", "2", "2", "3", "3",
     ]);
     expect(formatHaulMultiplier(1)).toBe("1");
     expect(formatHaulMultiplier(3)).toBe("3");
@@ -129,7 +133,11 @@ describe("haul multiplier — depth pays, per stratum (v175)", () => {
     const cracked = mineTap(stateWith(0), faceIndexFor(11, 0), T0, 0.1).state; // Coal face, one hit (Wood pick: 2 hits)
     expect(cracked.haulMultiplier).toBe(1);
     const broken = breakFace(cracked, faceIndexFor(11, 0));
-    expect(broken.haulMultiplier).toBe(1.25); // Coal
+    // Coal sits in the ×1 band pair (strata 0–1) — broken or not,
+    // its stratum's rate IS ×1 under the v343 bands.
+    expect(broken.haulMultiplier).toBe(1);
+    const copper = breakFace(stateWith(7), faceIndexFor(21, 0));
+    expect(copper.haulMultiplier).toBe(1.5); // Copper — the second band
   });
 
   it("each deeper stratum raises it further; shallow rock never steps it down", () => {
@@ -272,11 +280,18 @@ describe("the Mining Gear shelf (v175 addendum)", () => {
     expect(hasMiningGear(defaultMineState(T0), "boots")).toBe(false);
   });
 
-  it("the Tinderbox kindles +3 bonus flames once a day, through the forest's own pool", async () => {
+  it("the Tinderbox kindles +3 flames once a day, through the forest's own pool — clamped at the cap", async () => {
+    // RE-BASED (v343): the kindling still grants exactly 3 through
+    // grantForestEnergy, but the above-cap bonus pool is gone — the
+    // grant clamps at the level cap like everything else. Seed a
+    // level-15 hero and spend 5 so the +3 has room to land whole.
+    store.set(XP_STORAGE_KEY, JSON.stringify({ totalXP: xpRequiredForLevel(15) }));
+    for (let i = 0; i < 5; i++) await spendForestEnergy();
     const today = mineTodayString(T0);
     const withBox: MineState = { ...defaultMineState(T0), gear: ["tinderbox"] };
     expect(tinderboxDue(withBox, today)).toBe(true);
     const before = (await loadForestEnergy()).energy;
+    expect(before).toBe(10);
     const stamped = await settleTinderboxBonus(withBox, today);
     expect(stamped.tinderboxDay).toBe(today);
     const after = (await loadForestEnergy()).energy;

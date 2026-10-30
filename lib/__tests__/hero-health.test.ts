@@ -56,8 +56,10 @@ beforeEach(() => {
 describe("constants + bed rest rate", () => {
   it("the design constants are pinned", () => {
     expect(HOSPITAL_HEALS_PER_DAY).toBe(2);
-    expect(TRICKLE_MS).toBe(HOUR);
-    expect(TRICKLE_PCT).toBe(0.1);
+    // RE-BASED (v343): the mend is the restored ~4-hour tick at 5%
+    // (v177's hourly 10% is reverted by the rebuild's settled rule).
+    expect(TRICKLE_MS).toBe(4 * HOUR);
+    expect(TRICKLE_PCT).toBe(0.05);
     expect(DEFEAT_WAKE_PCT).toBe(0.1);
   });
 
@@ -88,21 +90,26 @@ describe("settleHealth", () => {
     expect(state).toBe(s);
   });
 
-  it("each full hour mends +10% of max HP (v177 rate)", () => {
+  it("each full ~4-hour tick mends +5% of max HP (RE-BASED v343)", () => {
     const s = stateAt({ hp: 50, updatedAt: at(21, 0) });
-    const one = settleHealth(s, at(21, 1), 100, 0.25);
-    expect(one.changed).toBe(true);
-    expect(one.state.hp).toBeCloseTo(60);
-    expect(one.state.updatedAt).toBe(at(21, 1));
+    // One hour is not a tick any more — nothing mends.
+    const early = settleHealth(s, at(21, 1), 100, 0.25);
+    expect(early.changed).toBe(false);
+    expect(early.state.hp).toBe(50);
 
-    const two = settleHealth(s, at(21, 2, 30), 100, 0.25); // 2.5h = 2 periods + 30m spare
-    expect(two.state.hp).toBeCloseTo(70);
-    expect(two.state.updatedAt).toBe(at(21, 2)); // spare half hour carries over
+    const one = settleHealth(s, at(21, 4), 100, 0.25);
+    expect(one.changed).toBe(true);
+    expect(one.state.hp).toBeCloseTo(55);
+    expect(one.state.updatedAt).toBe(at(21, 4));
+
+    const two = settleHealth(s, at(21, 8, 30), 100, 0.25); // 8.5h = 2 ticks + 30m spare
+    expect(two.state.hp).toBeCloseTo(60);
+    expect(two.state.updatedAt).toBe(at(21, 8)); // spare half hour carries over
   });
 
-  it("the hourly mend caps at max HP", () => {
+  it("the mend caps at max HP", () => {
     const s = stateAt({ hp: 98, updatedAt: at(21, 0) });
-    const { state } = settleHealth(s, at(21, 3), 100, 0.25);
+    const { state } = settleHealth(s, at(21, 12), 100, 0.25); // 3 ticks × 5% = +15 → capped
     expect(state.hp).toBe(100);
   });
 

@@ -22,7 +22,7 @@ import {
   getCurrentFastDay,
   parseStoredFasts,
 } from "@/lib/prayercircle-fasting";
-import { eraForFast } from "@/lib/hometown-eras";
+import { eraEconomyFor, eraForFast } from "@/lib/hometown-eras";
 import { FastPawnShape } from "@/components/pawn-preview";
 import { useSkin } from "@/hooks/use-skin";
 
@@ -65,7 +65,9 @@ export default function HometownShopScreen() {
         const active = getActiveFast(fasts);
         if (active) setTier(tierForFastDay(getCurrentFastDay(active)));
         const era = eraForFast(active);
-        setEraCostMult(era?.palette.costMult ?? 1);
+        setEraCostMult(
+          era ? eraEconomyFor(era.index, active ? getCurrentFastDay(active) : 1).costMult : 1,
+        );
         setEraTick((n) => n + 1);
       } catch {}
     })();

@@ -43,7 +43,8 @@ const SCREEN_SCENES: Record<string, string> = {
   "app/gymnasium-interior.tsx": "PaperRoomScene",
   "app/chapel-interior.tsx": "PaperRoomScene",
   "app/workshop-interior.tsx": "PaperRoomScene",
-  "app/cafeteria-interior.tsx": "PaperRoomScene",
+  // RE-BASED (v343): renamed with its route — app/school-cafeteria-interior.tsx.
+  "app/school-cafeteria-interior.tsx": "PaperRoomScene",
   "app/main-office-interior.tsx": "PaperRoomScene",
   "app/inn-interior.tsx": "PaperRoomScene",
   "app/bathhouse-interior.tsx": "PaperRoomScene",

@@ -25,6 +25,17 @@
 // component, so every spawn/retire re-rendered the whole town tree.
 // They now live in an isolated, memoized overlay with a hard sprite
 // budget (MAX_LIVE_FLYERS = 12, via grantFlyers).
+//
+// RE-BASED (v343): the accrual this file pins is now the DAY MODEL.
+// The per-minute engine (flat 20/hr × minutes, stacked with a
+// +2%-per-person populationMult) is replaced by whole-local-day
+// settles at each building's per-day def-table rate, with ONE
+// prayer formula (prayerMult — populationMult is deleted), a
+// fast-streak-alive gate, and presence in the live step shape
+// (0/.4/.7/1). missedDaysIncome is DELETED: missed days settle
+// through this same accrual into the waiting piles — nothing is
+// ever auto-credited to the balance, and the return report reads
+// the piles. The sequencing invariant of Part B is unchanged.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -34,13 +45,12 @@ import {
   barbershopBoostForBuilding,
   buildingStorageCap,
   dailyIncomeForTown,
-  dailyXPForTown,
+  effectiveIncomeFor,
   emptyTownState,
   grantFlyers,
   MAX_LIVE_FLYERS,
-  missedDaysIncome,
   parseTown,
-  populationMult,
+  prayerMult,
   roadMultiplierForBuilding,
   shopAdjacencyBonusForBuilding,
   type AwayAccrualInputs,
@@ -75,11 +85,10 @@ function inputs(over: Partial<AwayAccrualInputs> = {}): AwayAccrualInputs {
   };
 }
 
-/** One level-1 church, last ticked exactly 5 minutes before the
- *  fixed clock, nothing accumulated yet. (Five minutes keeps the
- *  expected add — 15.27 — under the level-1 church's 25-coin
- *  storage cap, so the raw arithmetic is what gets pinned; the cap
- *  itself is asserted in the arithmetic test.)
+/** One level-1 church on the city map, anchored one local day
+ *  before the fixed clock (2027-01-14 midday UTC — the day model
+ *  counts whole days between the anchor's DATE and today), nothing
+ *  accumulated yet.
  *
  *  v291 re-base: the church stands on the CITY map now. Part 2
  *  retired the town map's building set (the café alone produces
@@ -96,9 +105,28 @@ function churchTown(): TownState {
     y: 2,
     level: 1,
     accumulated: 0,
-    lastTick: new Date(NOW - 5 * 60000).toISOString(),
+    lastTick: "2027-01-14T12:00:00.000Z",
   };
   town.maps.city.buildings = [church];
+  town.lastIncomeDate = THREE_DAYS_AGO;
+  return town;
+}
+
+/** One level-1 farm on the city map (20/day, storage cap 25 — a
+ *  day's settle fits under the cap, so the raw day arithmetic is
+ *  what gets pinned; the cap itself is asserted separately). */
+function farmTown(lastTick: string): TownState {
+  const town = emptyTownState();
+  const farm: PlacedBuilding = {
+    id: "farm-1",
+    type: "farm",
+    x: 2,
+    y: 2,
+    level: 1,
+    accumulated: 0,
+    lastTick,
+  };
+  town.maps.city.buildings = [farm];
   town.lastIncomeDate = THREE_DAYS_AGO;
   return town;
 }
@@ -112,28 +140,60 @@ function pendingTotal(town: TownState): number {
 }
 
 describe("accrueAwayIncome — arithmetic (hand-computed fixture)", () => {
-  it("accrues minutes × rate and advances the anchor", () => {
-    const town = churchTown();
+  it("settles whole days at the per-day rate and advances the anchor", () => {
+    const town = farmTown("2027-01-14T12:00:00.000Z");
     const map = town.maps.city;
-    const church = map.buildings[0];
+    const farm = map.buildings[0];
     // Pin the primitives the hand computation relies on: a roadless,
-    // shop-less map leaves every spatial factor at exactly 1.
-    expect(roadMultiplierForBuilding(map, "church-1")).toBe(1);
-    expect(barbershopBoostForBuilding(map, "church-1")).toBe(1);
-    expect(shopAdjacencyBonusForBuilding(map, "church-1")).toBe(1);
-    expect(populationMult(8)).toBeCloseTo(1.16, 10);
-    expect(buildingStorageCap(church)).toBe(25);
+    // shop-less map leaves every spatial factor at exactly 1, and
+    // the farm's def table is 20/day under a 25-coin L1 cap.
+    expect(roadMultiplierForBuilding(map, "farm-1")).toBe(1);
+    expect(barbershopBoostForBuilding(map, "farm-1")).toBe(1);
+    expect(shopAdjacencyBonusForBuilding(map, "farm-1")).toBe(1);
+    expect(effectiveIncomeFor(farm)).toBe(20);
+    expect(buildingStorageCap(farm)).toBe(25);
 
     const { town: out, rates } = accrueAwayIncome(town, inputs());
-    // basePerHour = 20 × populationMult(8) = 23.2 → 23.2/60 per minute;
-    // churches also earn CHURCH_PRAYER_COINS_PER_HOUR × prayedCount
-    // = 20 × 8 = 160/hr → 160/60 per minute. Presence (away proxy,
-    // prayedCount 8) = min(1, 8/8) = 1.
-    const perMinute = 183.2 / 60;
-    expect(rates["church-1"].coins).toBeCloseTo(perMinute, 8);
+    // One whole day × 20/day × presence 1 (8 prayed, the step shape
+    // is full at 3+) = 20 waiting. The cached rate IS the per-day
+    // rate — the live tick settles day boundaries from it.
+    expect(rates["farm-1"].coins).toBeCloseTo(20, 8);
     const b = out.maps.city.buildings[0];
-    expect(b.accumulated).toBeCloseTo(5 * perMinute, 2); // 15.27 after the cents round
+    expect(b.accumulated).toBe(20);
     expect(b.lastTick).toBe(NOW_ISO);
+  });
+
+  it("several days settle at once — and the pile caps at the storage cap", () => {
+    // Three days × 20 = 60 priced, 25 held: the cap is the pile's
+    // whole discipline (collect by hand, daily).
+    const { town: out } = accrueAwayIncome(farmTown("2027-01-12T12:00:00.000Z"), inputs());
+    expect(out.maps.city.buildings[0].accumulated).toBe(25);
+    expect(out.maps.city.buildings[0].lastTick).toBe(NOW_ISO);
+  });
+
+  it("within the same day nothing settles — there is no per-minute drip", () => {
+    const sameDay = "2027-01-15T12:00:00.000Z"; // the clock's own local date, midday UTC
+    const { town: out } = accrueAwayIncome(
+      farmTown(sameDay),
+      inputs({ nowMs: Date.parse("2027-01-15T20:00:00.000Z"), nowIso: "2027-01-15T20:00:00.000Z" }),
+    );
+    const b = out.maps.city.buildings[0];
+    expect(b.accumulated).toBe(0);
+    expect(b.lastTick).toBe(sameDay); // anchor untouched — the day has not turned
+  });
+
+  it("the church's rate is its table plus the prayer stream — ONE prayer formula", () => {
+    // 240/day from the def table; the stream settles 20 per person
+    // prayed for, once per day (160 at 8 prayed). prayerMult enters
+    // ONCE, on the building's own rate: at prayerMultValue =
+    // prayerMult(8) = 1.24 the rate is 240 × 1.24 + 160 — the old
+    // +2% population stack (which priced a second multiplier on top)
+    // is deleted with populationMult.
+    expect(prayerMult(8)).toBeCloseTo(1.24, 10);
+    const neutral = accrueAwayIncome(churchTown(), inputs());
+    expect(neutral.rates["church-1"].coins).toBeCloseTo(240 + 160, 8);
+    const prayed = accrueAwayIncome(churchTown(), inputs({ prayerMultValue: prayerMult(8) }));
+    expect(prayed.rates["church-1"].coins).toBeCloseTo(240 * 1.24 + 160, 8);
   });
 
   it("is idempotent at a fixed clock — the same window never accrues twice", () => {
@@ -153,50 +213,49 @@ describe("accrueAwayIncome — arithmetic (hand-computed fixture)", () => {
     expect(rates["church-1"]).toBeUndefined();
   });
 
-  it("presence: per-map villager counts gate the accrual; absence falls back to prayed count", () => {
-    // Nobody located on the church's map → presence 0 → no accrual,
+  it("presence: the away shape is the live step shape (0 / .4 / .7 / 1)", () => {
+    // Nobody located on the farm's map → presence 0 → no accrual,
     // but the anchor still advances (the window is consumed).
-    const none = accrueAwayIncome(churchTown(), inputs({ presenceCounts: { city: 0 } }));
+    const none = accrueAwayIncome(farmTown("2027-01-14T12:00:00.000Z"), inputs({ presenceCounts: { city: 0 } }));
     expect(none.town.maps.city.buildings[0].accumulated).toBe(0);
     expect(none.town.maps.city.buildings[0].lastTick).toBe(NOW_ISO);
-    // Four located → presence min(1, 4/8) = 0.5 → half the full add.
-    const half = accrueAwayIncome(churchTown(), inputs({ presenceCounts: { city: 4 } }));
-    expect(half.town.maps.city.buildings[0].accumulated).toBeCloseTo(2.5 * (183.2 / 60), 2); // 7.63
+    // One located → 0.4 of the day; two → 0.7; three or more → full.
+    const one = accrueAwayIncome(farmTown("2027-01-14T12:00:00.000Z"), inputs({ presenceCounts: { city: 1 } }));
+    expect(one.town.maps.city.buildings[0].accumulated).toBeCloseTo(20 * 0.4, 8);
+    const two = accrueAwayIncome(farmTown("2027-01-14T12:00:00.000Z"), inputs({ presenceCounts: { city: 2 } }));
+    expect(two.town.maps.city.buildings[0].accumulated).toBeCloseTo(20 * 0.7, 8);
+    const three = accrueAwayIncome(farmTown("2027-01-14T12:00:00.000Z"), inputs({ presenceCounts: { city: 3 } }));
+    expect(three.town.maps.city.buildings[0].accumulated).toBe(20);
     // prayedCount 0 with no per-map counts → presence 0.
-    const zero = accrueAwayIncome(churchTown(), inputs({ prayedCount: 0 }));
+    const zero = accrueAwayIncome(farmTown("2027-01-14T12:00:00.000Z"), inputs({ prayedCount: 0 }));
     expect(zero.town.maps.city.buildings[0].accumulated).toBe(0);
+  });
+
+  it("the fast-alive gate: dead days never pay, but their anchors advance", () => {
+    const dead = accrueAwayIncome(farmTown("2027-01-12T12:00:00.000Z"), inputs({ fastAlive: false }));
+    expect(dead.town.maps.city.buildings[0].accumulated).toBe(0);
+    expect(dead.town.maps.city.buildings[0].lastTick).toBe(NOW_ISO);
+    const alive = accrueAwayIncome(farmTown("2027-01-12T12:00:00.000Z"), inputs({ fastAlive: true }));
+    expect(alive.town.maps.city.buildings[0].accumulated).toBe(25); // 3 days, capped
   });
 });
 
 describe("Part B — exit-replay simulation (load → exit → reload)", () => {
-  const missedOpts = {
-    today: TODAY,
-    milestoneMult: 1,
-    houseCoinMult: 0,
-    fellowshipBonus: 1,
-    prayedCount: 8,
-    remembranceBonus: 1,
-    gardenVisitBonus: 1,
-    prestigeMult: 1,
-    nowMs: NOW,
-  };
-
   /** One full mount, exactly as the screen runs it: parse the stored
-   *  record, accrue, price missed days, fold the date, ONE write. */
+   *  record, accrue, fold the date, ONE write. (v343: there is no
+   *  second pricing step — missed days are the accrual's own days.) */
   function mountOnce(stored: string): { committed: string; pending: number } {
     const loaded = parseTown(JSON.parse(stored));
     const accrual = accrueAwayIncome(loaded, inputs());
-    let t = accrual.town;
-    missedDaysIncome(t, missedOpts); // award decision (coins/XP live outside the town record)
-    t = { ...t, lastIncomeDate: TODAY };
+    const t = { ...accrual.town, lastIncomeDate: TODAY };
     return { committed: JSON.stringify(t), pending: pendingTotal(t) };
   }
 
   it("exit BEFORE the commit write: the replay lands on the exact same total", () => {
-    const stored0 = JSON.stringify(churchTown());
+    const stored0 = JSON.stringify(farmTown("2027-01-14T12:00:00.000Z"));
     // Entry 1 runs the whole critical path and commits.
     const first = mountOnce(stored0);
-    expect(first.pending).toBeCloseTo(15.27, 6);
+    expect(first.pending).toBe(20); // one day, settled into the pile
     // Entry 2 simulates entry 1 having been killed before its write:
     // storage still holds the pre-accrual record, so the accrual
     // replays — and must produce EXACTLY the single-accrual total,
@@ -206,54 +265,38 @@ describe("Part B — exit-replay simulation (load → exit → reload)", () => {
     expect(replay.committed).toBe(first.committed);
   });
 
-  it("exit AFTER the commit: reload accrues nothing new and missed days do not re-award", () => {
-    const stored0 = JSON.stringify(churchTown());
+  it("exit AFTER the commit: reload accrues nothing new — the day never settles twice", () => {
+    const stored0 = JSON.stringify(farmTown("2027-01-14T12:00:00.000Z"));
     const first = mountOnce(stored0);
-    // Reload from the committed record at the same clock.
+    // Reload from the committed record at the same clock: the
+    // anchor already stands at today, so the window is empty.
     const loaded = parseTown(JSON.parse(first.committed));
     const again = accrueAwayIncome(loaded, inputs());
     expect(pendingTotal(again.town)).toBe(first.pending);
-    // lastIncomeDate already folded → the missed-days award is gone.
-    expect(missedDaysIncome(again.town, missedOpts)).toBeNull();
+    expect(again.town.maps.city.buildings[0].lastTick).toBe(NOW_ISO);
   });
 });
 
-describe("missedDaysIncome — the award decision", () => {
-  const opts = {
-    today: TODAY,
-    milestoneMult: 1,
-    houseCoinMult: 0,
-    fellowshipBonus: 1,
-    prayedCount: 8,
-    remembranceBonus: 1,
-    gardenVisitBonus: 1,
-    prestigeMult: 1,
-    nowMs: NOW,
-  };
-
-  it("null for a fresh town and for the same day", () => {
-    const fresh = churchTown();
-    fresh.lastIncomeDate = null;
-    expect(missedDaysIncome(fresh, opts)).toBeNull();
-    const sameDay = churchTown();
-    sameDay.lastIncomeDate = TODAY;
-    expect(missedDaysIncome(sameDay, opts)).toBeNull();
+describe("missed days — settled by the one accrual, never auto-credited (v343)", () => {
+  it("whole missed days land in the waiting pile (capped), not in any balance", () => {
+    // Three days gone: 3 × 20 priced, 25 held at the L1 cap. The
+    // accrual's result has no balance channel at all — the pile is
+    // the whole story, and collecting it is a separate, deliberate
+    // act (the return report merely names what waits).
+    const result = accrueAwayIncome(farmTown("2027-01-12T12:00:00.000Z"), inputs());
+    expect(result.town.maps.city.buildings[0].accumulated).toBe(25);
+    expect(result).not.toHaveProperty("coins");
+    expect(result).not.toHaveProperty("balance");
   });
 
-  it("prices whole days at the town's daily income, floored/rounded as before", () => {
-    const town = churchTown();
-    const perDayCoins = dailyIncomeForTown(town, 1, 1, 1, 8, 1, 1, 1, NOW);
-    const perDayXP = dailyXPForTown(town, NOW);
-    expect(perDayCoins).toBeGreaterThan(0);
-    const missed = missedDaysIncome(town, opts);
-    expect(missed).not.toBeNull();
-    expect(missed!.days).toBe(3);
-    expect(missed!.earnedCoins).toBe(Math.floor(3 * perDayCoins));
-    expect(missed!.earnedXP).toBe(Math.round(3 * perDayXP));
-    // After the caller's unconditional fold, a second call is null —
-    // the day count can never be awarded twice.
-    const folded = { ...town, lastIncomeDate: TODAY };
-    expect(missedDaysIncome(folded, opts)).toBeNull();
+  it("a fresh town and a same-day town settle nothing", () => {
+    const fresh = farmTown(NOW_ISO);
+    fresh.lastIncomeDate = null;
+    expect(pendingTotal(accrueAwayIncome(fresh, inputs()).town)).toBe(0);
+    const sameDay = farmTown("2027-01-15T12:00:00.000Z");
+    sameDay.lastIncomeDate = TODAY;
+    const out = accrueAwayIncome(sameDay, inputs({ nowMs: Date.parse("2027-01-15T20:00:00.000Z"), nowIso: "2027-01-15T20:00:00.000Z" }));
+    expect(pendingTotal(out.town)).toBe(0);
   });
 });
 
@@ -273,10 +316,17 @@ describe("grantFlyers — the Collect All sprite budget", () => {
 describe("source pins — mount sequencing + fly overlay isolation", () => {
   const src = readFileSync(join(process.cwd(), "app/hometown.tsx"), "utf8");
   const effect = (() => {
-    const start = src.indexOf("// Load + accumulate hourly income on open");
+    // RE-BASED (v343): the effect's header comment dropped "hourly"
+    // with the per-minute engine it named.
+    const start = src.indexOf("// Load + settle income on open");
     const end = src.indexOf("// Daily town visit streak", start);
     return src.slice(start, end);
   })();
+
+  it("the accrual is gated on the fast streak being alive (v343)", () => {
+    expect(effect).toContain("isFastStreakAlive(fastsArr as PersonalFast[], today)");
+    expect(effect).toContain("fastAlive,");
+  });
 
   it("the accrual is computed, persisted in ONE awaited write, and only then painted", () => {
     // Scoped to the commit section: the one-time migrations earlier in
@@ -352,11 +402,11 @@ describe("Depth Blessing (v175) — the mine's multiplier joins the income chain
   it("away accrual scales the per-building rate by the blessing; the prayer coins are unscaled", () => {
     const base = accrueAwayIncome(churchTown(), inputs());
     const blessed = accrueAwayIncome(churchTown(), inputs({ depthBlessingMult: 1.2 }));
-    // Church fixture arithmetic: basePerHour = 20 × populationMult(8)
-    // = 23.2 → blessed 27.84; the +160/hr prayer-coin stream rides
-    // alongside UNSCALED (it is not building income).
-    expect(base.rates["church-1"].coins).toBeCloseTo(183.2 / 60, 8);
-    expect(blessed.rates["church-1"].coins).toBeCloseTo(187.84 / 60, 8);
+    // Church fixture arithmetic (per DAY): the building's own 240
+    // scales by the blessing (→ 288); the +160 prayer-coin stream
+    // rides alongside UNSCALED (it is not building income).
+    expect(base.rates["church-1"].coins).toBeCloseTo(400, 8);
+    expect(blessed.rates["church-1"].coins).toBeCloseTo(448, 8);
   });
 
   it("daily income carries the same blessing factor end to end", () => {

@@ -3709,6 +3709,15 @@ export function accrueAwayIncome(town: TownState, inputs: AwayAccrualInputs): Aw
           xp: !earnsCoins && earnsXP ? xpIncomeFor(b.type, b.level || 1) * wMult : 0,
         };
       }
+      // v343 (resume fix): the fast-alive gate CONSUMES the dead
+      // window — the anchor advances, nothing lands — exactly as
+      // the AwayAccrualInputs contract states ("anchors still
+      // advance — the dead days never pay"). Without this return
+      // the gate merely deferred the settle, and a later living
+      // open would price the dead days at full rate.
+      if (daysElapsed > 0 && inputs.fastAlive === false) {
+        return { ...b, lastTick: nowIso };
+      }
       if (daysElapsed > 0 && inputs.fastAlive !== false && (earnsCoins || earnsXP) && mapHasPopulation(m, town)) {
         const rate = rates[b.id];
         const perDayCoins = rate ? rate.coins : 0;

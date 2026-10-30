@@ -308,7 +308,9 @@ describe("v339 wavy progress — adoption pins (headline seats)", () => {
     expect(read("components/road-badges.tsx")).toContain('color="#C9963C" trackColor="rgba(0,0,0,0.08)" height={8}');
     const town = read("app/hometown.tsx");
     expect(town).toContain('color={isFull ? "#DC2626" : "#F59E0B"} trackColor={pt.bg} height={8}');
-    expect(read("app/cafeteria-interior.tsx")).toContain('trackColor="#F3E9CF" height={9}');
+    // RE-BASED (v343): the cafeteria room file was renamed with
+    // its route — app/school-cafeteria-interior.tsx.
+    expect(read("app/school-cafeteria-interior.tsx")).toContain('trackColor="#F3E9CF" height={9}');
   });
 });
 

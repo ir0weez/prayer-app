@@ -377,28 +377,31 @@ describe("mining, yields, and depth pricing", () => {
     expect(yieldForFace(61, 6, 0.1)).toEqual({ diamond: 2 }); // Diamond pick in its own stratum
   });
 
-  it("unit prices: stratum entry, rising ~9% a level to ≈×1.81 at the tenth", () => {
+  it("unit prices: FLAT across the whole stratum (RE-BASED v343)", () => {
+    // RE-BASED (v343): the v175 +9%-per-level step is removed — the
+    // same ore is worth the same money wherever in its stratum it
+    // broke; depth pays through the haul multiplier instead.
     expect(ORE_PRICES).toEqual({ stone: 3, coal: 6, copper: 10, iron: 14, silver: 26, gold: 45, diamond: 120 });
     expect(unitPriceFor("stone", 1)).toBe(3);
     expect(unitPriceFor("iron", 31)).toBe(14); // Iron's first level
-    expect(unitPriceFor("iron", 40)).toBe(25); // Iron's tenth: round(14 × 1.81)
-    expect(unitPriceFor("gold", 60)).toBe(81); // round(45 × 1.81)
-    expect(unitPriceFor("coal", 20)).toBe(11); // round(6 × 1.81)
+    expect(unitPriceFor("iron", 40)).toBe(14); // Iron's tenth: still 14
+    expect(unitPriceFor("gold", 60)).toBe(45);
+    expect(unitPriceFor("coal", 20)).toBe(6);
   });
 
-  it("the diamond ladder is continuous: Diamond stratum tops out where the Deep begins", () => {
+  it("the diamond prices: the Diamond stratum is flat 120; the Deep has its own 220 base", () => {
     expect(unitPriceFor("diamond", 61)).toBe(120);
-    expect(unitPriceFor("diamond", 70)).toBe(217); // round(120 × 1.81)
+    expect(unitPriceFor("diamond", 70)).toBe(120); // flat to the stratum's last level
     expect(unitPriceFor("diamond", 71)).toBe(220); // the Deep's own base
-    expect(unitPriceFor("diamond", 80)).toBe(398); // round(220 × 1.81) — the richest rock there is
+    expect(unitPriceFor("diamond", 80)).toBe(220); // flat there too — the richest rock there is
   });
 
-  it("ore broken deeper is worth more IN the satchel, not just on paper", () => {
+  it("ore broken deeper is worth the same IN the satchel — depth pays at the till, not the break", () => {
     const shallow = mineOut(stateWith(3), faceIndexFor(31, 0), T0, 0.1);
     expect(shallow.satchel).toEqual([{ ore: "iron", unit: 14, count: 2 }]);
     expect(satchelValue(shallow.satchel)).toBe(28);
     const deep = mineOut(stateWith(3), faceIndexFor(40, 0), T0, 0.1);
-    expect(deep.satchel).toEqual([{ ore: "iron", unit: 25, count: 2 }]);
+    expect(deep.satchel).toEqual([{ ore: "iron", unit: 14, count: 2 }]);
     expect(satchelByKind(deep.satchel).iron).toBe(2);
   });
 });

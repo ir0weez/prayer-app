@@ -73,10 +73,10 @@ export type OreKind = "stone" | "coal" | "copper" | "iron" | "silver" | "gold" |
 
 export const ORE_KINDS: OreKind[] = ["stone", "coal", "copper", "iron", "silver", "gold", "diamond"];
 
-/** Coins paid per unit of ore at its stratum's FIRST level (v175).
- *  Deeper levels of the stratum pay more — see unitPriceFor. Diamond
- *  has two homes: the Diamond stratum enters at 120, and The Deep's
- *  diamonds start at 220 (DEEP_DIAMOND_BASE_PRICE). */
+/** Coins paid per unit of ore — FLAT across its whole stratum
+ *  (v343; the v175 per-level step is removed — see unitPriceFor).
+ *  Diamond has two homes: the Diamond stratum at 120, and The
+ *  Deep's diamonds at 220 (DEEP_DIAMOND_BASE_PRICE). */
 export const ORE_PRICES: Record<OreKind, number> = {
   stone: 3,
   coal: 6,

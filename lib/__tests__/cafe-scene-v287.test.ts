@@ -54,7 +54,11 @@ describe("v287 — the diner's tap opens the café scene", () => {
     expect(src).toContain("loadCafeStreetData()");
     expect(src).toContain("buildCafeBoard(cafe.people, cafe.today)");
     expect(src).toContain("ovenStateFor(cafe.fast, cafe.today)");
-    expect(src).toContain('title="The Café"');
+    // RE-BASED (v343): the header names the gathering place OF THE
+    // ERA (the spine: fire circle → … → café → floating city), not
+    // a fixed "The Café" — the name derives from the live fast.
+    expect(src).toContain("title={gathering.name}");
+    expect(src).toContain("gatheringForEra(eraForFast(cafe?.fast ?? null, cafe?.today))");
   });
 
   it("the scene keeps the diner's interior one step inside (furniture + coffee survive)", () => {

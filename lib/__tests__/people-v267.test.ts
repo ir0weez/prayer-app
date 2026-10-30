@@ -98,12 +98,14 @@ describe("v267 — the emergency card lives (people-entrance kit + banner)", () 
 });
 
 describe("v267 — the household unfurl is smooth (index.tsx)", () => {
-  it("v282: the panel carries NO animated height at all — the window lineage (1200 guess → definite height → measured cap) is retired", () => {
-    // v267's measured animation and v275's maxHeight cap both
-    // failed on his phone; the panel is a plain View whose
-    // height is its children's layout height. Nothing to
-    // measure, nothing to clamp, nothing to animate shut.
-    expect(unfurl).toContain("<View style={frameStyle}>");
+  it("v362: the window lineage ends at the tray's rails — an RN Animated height, none of the retired shapes", () => {
+    // v282's plain-View ruling is superseded by his Oct 30
+    // verdict (the travel returns, carried by a clipping
+    // window); what stays retired is the Reanimated lineage
+    // this test originally pinned against: no measured-into-
+    // itself definite height, no cap, no shared-value style.
+    // people-v362.test.ts pins the window itself.
+    expect(unfurl).toContain("<Animated.View style={[frameStyle, { overflow: \"hidden\" }, heightLocked ? { height: windowHeight } : null]}>");
     expect(unfurl).not.toContain("handleContentLayout");
     expect(unfurl).not.toContain("maxHeight: reveal.value");
     expect(unfurl).not.toContain("reveal.value = withTiming(contentHeight.value");

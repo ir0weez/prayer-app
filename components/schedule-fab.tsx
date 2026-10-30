@@ -8,8 +8,14 @@
  * (56×56, radius 16, seed) to the menu (218×276, radius 20, tonal
  * container) on Material's emphasized decelerate, and closes on the
  * emphasized accelerate; the + rotates 135° into a × as it goes; the
- * five rows stagger-rise inside; a deep scrim fades with the state; a
+ * five rows rise inside; a deep scrim fades with the state; a
  * press ripple answers a row tap. Flowy, and fun to press.
+ *
+ * v362 (his Oct 30 recording — "slow, laggy, and lame"): the rows
+ * no longer stagger (one shared window, below), the open is 320ms,
+ * and the bridge (lib/schedule-fab-bridge.ts) no longer republishes
+ * the menu into existence on every schedule-tab render — the three
+ * parts of the stutter he filmed. Form, order, colours, seat: his.
  */
 
 import React, { useEffect } from "react";
@@ -52,22 +58,28 @@ const EMPHASIZED_OUT = Easing.bezier(0.3, 0, 0.8, 0.15);
 
 function FabRow({
   item,
-  index,
   progress,
   labelColor,
 }: {
   item: FabMenuItem;
-  index: number;
   progress: SharedValue<number>;
   labelColor: string;
 }) {
   const ripple = useSharedValue(0);
 
+  // v362: ONE window for every row — the five rows rise and fade
+  // together, carried by the morph itself, and finish WITH it
+  // (0.95 < 1). The v294 per-row stagger (each row starting at
+  // 0.3 + its index × 0.07 of the morph) meant the last row only
+  // began at 58% of an already-long 460ms open and was still
+  // mid-fade after the surface settled: the visible lag cascade
+  // in his Oct 30 recording ("slow, laggy, and lame"). The rise
+  // itself (a small lift + fade as the menu grows) is unchanged —
+  // only the per-row delay is gone.
   const rowStyle = useAnimatedStyle(() => {
-    const start = 0.3 + index * 0.07;
     return {
-      opacity: interpolate(progress.value, [start, start + 0.45], [0, 1]),
-      transform: [{ translateY: interpolate(progress.value, [start, start + 0.45], [10, 0]) }],
+      opacity: interpolate(progress.value, [0.3, 0.95], [0, 1]),
+      transform: [{ translateY: interpolate(progress.value, [0.3, 0.95], [8, 0]) }],
     };
   });
 
@@ -177,7 +189,11 @@ export function ScheduleFab({
 
   useEffect(() => {
     progress.value = withTiming(open ? 1 : 0, {
-      duration: open ? 460 : 280,
+      // v362: the open rides the same 250–350ms register as the
+      // rest of the app's interactive motion (320ms) — 460ms read
+      // as lag before the rows' stagger was even counted. The
+      // emphasized easings (the morph's character) are unchanged.
+      duration: open ? 320 : 280,
       easing: open ? EMPHASIZED_IN : EMPHASIZED_OUT,
     });
   }, [open, progress]);
@@ -235,8 +251,8 @@ export function ScheduleFab({
         ]}
       >
         <View style={{ paddingTop: 6, paddingBottom: 6 }} pointerEvents={open ? "auto" : "none"}>
-          {items.map((item, i) => (
-            <FabRow key={item.key} item={item} index={i} progress={progress} labelColor={labelColor} />
+          {items.map((item) => (
+            <FabRow key={item.key} item={item} progress={progress} labelColor={labelColor} />
           ))}
         </View>
         <Pressable

@@ -283,10 +283,6 @@ type RelationshipSection = {
 };
 
 // Panel that shows a household's members under its card.
-// It is PLAIN LAYOUT — no animated window, no clipping, no
-// measurement. When the family row mounts it (expanded or
-// closing), the members are simply in the layout at their
-// natural height, in the same commit as the header above them.
 //
 // v282 — "Unfurl, For Real This Time" (his Oct 27 08:29 report,
 // WITH v280 installed: Roberts Family chevron UP, zero members
@@ -311,38 +307,172 @@ type RelationshipSection = {
 // pixels; the gate stack had four places to lose them and the
 // model tested none of them.
 //
-// THE FIX removes the gate stack: no shared values, no
-// useAnimatedStyle, no maxHeight, no opacity gate, no hardware
-// texture, no exiting animation, no onLayout measurement, no
-// settle state — and the roster FlatList no longer removes
-// clipped subviews (people screen only). The panel's height is
-// whatever Yoga says its children are, in the same layout pass
-// as everything else on the page. The trade-off, stated
-// plainly: expand/collapse is INSTANT — the panel does not
-// travel. The motion that remains is the chrome around it,
-// which never broke: the chevron still turns on the 320ms
-// Material clock and the header card's fill still pours on
-// close. If a future verdict wants the travel back, it has to
-// be proven on a device inside this list first — not modeled
-// at a desk again.
-function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactNode; outerStyle?: { paddingTop?: number; paddingBottom?: number; [key: string]: unknown }; closing?: boolean }) {
+// v282 removed the gate stack and shipped the panel as PLAIN
+// LAYOUT — instant, no travel at all. That cured the invisible
+// members, and the roster list still does not remove clipped
+// subviews (that part of v282 stands untouched below).
+//
+// v362 — "The Travel, On The Tray's Rails" (his Oct 30 verdict,
+// with a recording: "The opening and closing animation for the
+// groups is slow and very delayed (it also don't look very
+// animated)"). What he filmed was the v282 trade-off plus the
+// classic dress's own member stagger: the panel snapped to
+// full height in one layout pass — the list lurched, sibling
+// rows' entrance fades replayed as cells re-measured, and the
+// classic members ghosted in on a 65ms-per-row FadeInUp stagger
+// (the last of eight lands ~¾s after the tap) — while closing
+// hung a dead 400ms with the panel frozen open, then snapped
+// shut. His ruling: the opening must be carried by real travel.
+//
+// So the travel is back, but on the ONE mechanism in this file
+// that has never failed on his phone: the v262 queue tray's.
+// A plain RN Animated (JS-thread) height on a clipping window;
+// the content inside is NEVER height-constrained — it lays out
+// at natural height from the first frame and reports that
+// height up, so there is no measurement to clamp (the v267
+// livelock measured a child the definite parent had already
+// squashed; this window's child is measured the way the tray's
+// is, parent height notwithstanding — Yoga sizes the in-flow
+// child by its own content). None of the v275 gates return:
+// no Reanimated, no UI-thread style, no hardware texture, no
+// exiting animation, no opacity gate — the members are fully
+// laid out and fully opaque at every height of the window;
+// the window's travel is the only motion, and visibility never
+// depends on a callback landing (the open ends by unlocking
+// back to auto height; a lost close callback is still covered
+// by the toggle's original 400ms fallback timeout, which now
+// only sweeps up after an interrupted fold). One 300ms timing
+// on the Material standard easing — the family's own clock
+// family (chevron + fill ride its 320ms sibling) — reversible
+// mid-flight from the current height, and under reduced motion
+// the swap is instant again, exactly as the tray's is. The
+// roster skeleton — groups, nesting, the +N circle — is
+// untouched; only the panel's motion changed.
+const FAMILY_PANEL_DURATION_MS = 300;
+
+function UnfurlPanel({ children, outerStyle, closing, reducedMotion, onClosed }: { children: React.ReactNode; outerStyle?: { paddingTop?: number; paddingBottom?: number; [key: string]: unknown }; closing?: boolean; reducedMotion?: boolean; onClosed?: () => void }) {
   // The frame's vertical padding rides INSIDE the content box,
-  // so the panel's layout height is its true full height —
-  // the same accounting the animated window needed a
-  // measurement to learn.
+  // so the content's measured height is the panel's true full
+  // height — frame style (margins, card, radii, shadow) rides
+  // the window itself.
   const { paddingTop, paddingBottom, ...frameStyle } = outerStyle ?? {};
-  // `closing` is accepted so both dress call sites stand
-  // unchanged; the panel renders identically either way — it is
-  // mounted for exactly the expanded-or-closing window the
-  // family row already gates on, and unmounts when the
-  // toggle's close timeout clears that state.
-  void closing;
+  const windowHeight = useRef(new Animated.Value(0)).current;
+  const [heightLocked, setHeightLocked] = useState(true);
+  const heightLockedRef = useRef(true);
+  const setLocked = (locked: boolean) => {
+    heightLockedRef.current = locked;
+    setHeightLocked(locked);
+  };
+  const naturalHeightRef = useRef(0);
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+  const openedRef = useRef(false);
+  const closingRef = useRef(!!closing);
+  closingRef.current = !!closing;
+  const reducedMotionRef = useRef(!!reducedMotion);
+  reducedMotionRef.current = !!reducedMotion;
+  const onClosedRef = useRef(onClosed);
+  onClosedRef.current = onClosed;
+
+  // An interrupted fold or open never leaves a timing running
+  // against an unmounted panel.
+  useEffect(() => {
+    return () => {
+      animRef.current?.stop();
+    };
+  }, []);
+
+  const runWindowTo = (target: number, onDone?: () => void) => {
+    animRef.current?.stop();
+    const anim = Animated.timing(windowHeight, {
+      toValue: target,
+      duration: FAMILY_PANEL_DURATION_MS,
+      easing: RnEasing.bezier(0.2, 0, 0, 1),
+      useNativeDriver: false,
+    });
+    animRef.current = anim;
+    anim.start(({ finished }) => {
+      if (animRef.current === anim) animRef.current = null;
+      if (finished) onDone?.();
+    });
+  };
+
+  // The content reports its natural height. The first report
+  // kicks the open (or, for a cell that remounts mid-close,
+  // finishes the close at once — the window is born folded).
+  // Later reports only keep the natural height fresh for the
+  // next fold; while the window is unlocked they change
+  // nothing, the layout already carries them.
+  const handlePanelContentLayout = (height: number) => {
+    if (height <= 0) return;
+    naturalHeightRef.current = height;
+    if (openedRef.current) return;
+    openedRef.current = true;
+    if (closingRef.current) {
+      onClosedRef.current?.();
+      return;
+    }
+    if (reducedMotionRef.current) {
+      setLocked(false);
+      return;
+    }
+    runWindowTo(height, () => {
+      if (!closingRef.current) setLocked(false);
+    });
+  };
+
+  // The fold, and the mid-flight reversal. Mount is the open's
+  // business (above); this effect answers the closing flag
+  // changing under a mounted panel.
+  const wasClosingRef = useRef(!!closing);
+  useEffect(() => {
+    const wasClosing = wasClosingRef.current;
+    wasClosingRef.current = !!closing;
+    if (wasClosing === !!closing || !openedRef.current) return;
+    if (closing) {
+      if (reducedMotionRef.current) {
+        onClosedRef.current?.();
+        return;
+      }
+      // From rest the window is unlocked (auto = natural
+      // height): lock it at that height first so the fold
+      // starts from the true current frame. Mid-open, the
+      // animated value already IS the current height.
+      if (!heightLockedRef.current) windowHeight.setValue(naturalHeightRef.current);
+      setLocked(true);
+      runWindowTo(0, () => {
+        onClosedRef.current?.();
+      });
+    } else {
+      if (reducedMotionRef.current) {
+        animRef.current?.stop();
+        setLocked(false);
+        return;
+      }
+      setLocked(true);
+      runWindowTo(naturalHeightRef.current, () => {
+        if (!closingRef.current) setLocked(false);
+      });
+    }
+  }, [closing, windowHeight]);
+
+  // Reduced motion arriving mid-flight settles the panel at
+  // its destination at once — the tray's instant swap, kept.
+  useEffect(() => {
+    if (!reducedMotion || !openedRef.current) return;
+    animRef.current?.stop();
+    if (closingRef.current) {
+      onClosedRef.current?.();
+    } else {
+      setLocked(false);
+    }
+  }, [reducedMotion]);
+
   return (
-    <View style={frameStyle}>
-      <View style={{ paddingTop, paddingBottom }}>
+    <Animated.View style={[frameStyle, { overflow: "hidden" }, heightLocked ? { height: windowHeight } : null]}>
+      <View onLayout={(event) => handlePanelContentLayout(event.nativeEvent.layout.height)} style={{ paddingTop, paddingBottom }}>
         {children}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -1373,6 +1503,11 @@ export default function HomeScreen() {
   const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
   const [closingFamilyId, setClosingFamilyId] = useState<string | null>(null);
   const familyCloseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // v362: a ref mirror of the closing family, so the panel's own
+  // fold-completion callback can tell whether its close is still
+  // the live one (a re-open or a different family's close may
+  // have superseded it while it folded).
+  const closingFamilyIdRef = useRef<string | null>(null);
 
   // Card color fill: the accent pours in from the bottom as the group closes,
   // and drains back down as it opens. Only the active card renders the overlay.
@@ -1391,19 +1526,42 @@ export default function HomeScreen() {
     }
     if (expandedFamilyId === familyId) {
       setClosingFamilyId(familyId);
+      closingFamilyIdRef.current = familyId;
       cardFillProgress.value = withTiming(1, { duration: QUEUE_TRAY_DURATION_MS, easing: fillEasing });
+      // v362: the panel's fold reports its own completion
+      // (handleFamilyPanelClosed) and clears this state at
+      // 300ms; this timeout remains only as the fallback for an
+      // interrupted fold, exactly as long as it always was.
       familyCloseTimeout.current = setTimeout(() => {
+        closingFamilyIdRef.current = null;
         setExpandedFamilyId(null);
         setClosingFamilyId(null);
         familyCloseTimeout.current = null;
       }, 400);
     } else {
       setClosingFamilyId(null);
+      closingFamilyIdRef.current = null;
       setExpandedFamilyId(familyId);
       cardFillProgress.value = 1;
       cardFillProgress.value = withTiming(0, { duration: QUEUE_TRAY_DURATION_MS, easing: fillEasing });
     }
   };
+
+  // v362: the UnfurlPanel's fold finished — unmount the panel by
+  // clearing the same state the close timeout used to clear on
+  // its own. A close that was superseded mid-fold (the family
+  // re-opened, or another family started closing) is ignored:
+  // that newer gesture owns the state now.
+  const handleFamilyPanelClosed = useCallback((familyId: string) => {
+    if (closingFamilyIdRef.current !== familyId) return;
+    closingFamilyIdRef.current = null;
+    if (familyCloseTimeout.current) {
+      clearTimeout(familyCloseTimeout.current);
+      familyCloseTimeout.current = null;
+    }
+    setExpandedFamilyId(null);
+    setClosingFamilyId(null);
+  }, []);
   const [familyActionMembers, setFamilyActionMembers] = useState<Person[] | null>(null);
   const [expandedPersonId, setExpandedPersonId] = useState<string | null>(null);
   const [avatarComposer, setAvatarComposer] = useState<{ personId: string; kind: "praise" | "emergency" } | null>(null);
@@ -3725,6 +3883,7 @@ export default function HomeScreen() {
   );
 
   const renderExpandedFamily = (familyMembers: Person[], section: RelationshipSection, closing?: boolean) => {
+    const familyId = familyMembers[0]?.familyId || "";
     const accent = relationshipColors[section.title].accent;
     const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
     // v254 (Classic): the unfurl as the concept draws it — the panel
@@ -3775,7 +3934,7 @@ export default function HomeScreen() {
       const adults = familyMembers.filter((member) => member.familyType !== "Child");
       const kids = familyMembers.filter((member) => member.familyType === "Child");
       return (
-        <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -14, marginBottom: 10, backgroundColor: pmf.card, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingTop: 20, paddingBottom: 14, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+        <UnfurlPanel closing={closing} reducedMotion={queueTrayReducedMotion} onClosed={() => handleFamilyPanelClosed(familyId)} outerStyle={{ marginHorizontal: 12, marginTop: -14, marginBottom: 10, backgroundColor: pmf.card, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingTop: 20, paddingBottom: 14, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
           <View style={{ paddingHorizontal: 16 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               <Text style={{ fontSize: 11.5, fontWeight: "800", color: pmf.ink }}>{completedMembers} of {familyMembers.length} prayed today</Text>
@@ -3802,7 +3961,7 @@ export default function HomeScreen() {
         </UnfurlPanel>
       );
     }
-    return <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: isSkinned ? skinTokens.surface ?? colors.background : colors.background, borderBottomLeftRadius: skinTokens.isEightBit ? 2 : 12, borderBottomRightRadius: skinTokens.isEightBit ? 2 : 12, borderWidth: skinTokens.isEightBit ? 3 : 1, borderTopWidth: 0, borderColor: skinTokens.isEightBit ? skinTokens.border : `${accent}45` }}>
+    return <UnfurlPanel closing={closing} reducedMotion={queueTrayReducedMotion} onClosed={() => handleFamilyPanelClosed(familyId)} outerStyle={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: isSkinned ? skinTokens.surface ?? colors.background : colors.background, borderBottomLeftRadius: skinTokens.isEightBit ? 2 : 12, borderBottomRightRadius: skinTokens.isEightBit ? 2 : 12, borderWidth: skinTokens.isEightBit ? 3 : 1, borderTopWidth: 0, borderColor: skinTokens.isEightBit ? skinTokens.border : `${accent}45` }}>
       {isSkinned ? <PaperGrainOverlay /> : null}
       <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800", ...(skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 9, lineHeight: 15 } : {}) }}>{completedMembers} of {familyMembers.length} complete</Text><Text style={{ color: accent, fontSize: 12, fontWeight: "800" }}>{Math.round((completedMembers / familyMembers.length) * 100)}%</Text></View><View style={{ marginTop: 8 }}><WavyProgress value={familyMembers.length ? completedMembers / familyMembers.length : 0} color={accent} trackColor={`${accent}18`} height={8} /></View></View>
       {familyMembers.map((member, memberIdx) => {
@@ -3810,13 +3969,17 @@ export default function HomeScreen() {
         const emergencyCountdown = emergency ? emergencyCountdowns[emergency.item.id] : undefined;
         const daysSince = getDaysSinceLastPrayed(member.lastPrayedDate);
         const complete = hasPersonCompletedPrayerToday(member, today);
-        return <ReAnimated.View key={member.id} entering={isSkinned ? FadeInUp.duration(skinMotion.settle.duration).delay(memberIdx * 65).easing(skinMotion.settle.easing) : FadeInUp.duration(280).delay(memberIdx * 65)}>
+        // v362: no entering animation of the row's own — the
+        // panel's window travel reveals the members. The v282-era
+        // per-row FadeInUp stagger (65ms × index + 280ms) was the
+        // ghosty late fade in his Oct 30 recording.
+        return <View key={member.id}>
           <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: memberIdx === familyMembers.length - 1 ? 0 : 1, borderBottomColor: colors.border, backgroundColor: pressed ? colors.primary + "15" : "transparent" }]}>
           {renderAvatar(member, 48)}<View style={{ flex: 1, marginLeft: 12 }}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.personName, skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null]}>{member.name}</Text><Text numberOfLines={1} style={styles.personMeta}>{formatLastReachedSummary(member)}</Text></View>
           {emergencyCountdown ? <EmergencyPrayerPill millisRemaining={emergencyCountdown} /> : <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}><View style={[styles.reachPillFill, { backgroundColor: daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(member), width: `${Math.round(getReachProgressRatio(daysSince) * 100)}%` }]} /><Text style={[styles.reachPillText, (daysSince === 999 || getReachProgressRatio(daysSince) < 0.42) && styles.reachPillTextMuted]}>{daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince)}</Text></View>}
           <Pressable onPress={(event) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; const count = familyMembers.filter((familyMember) => hasPersonCompletedPrayerToday(familyMember, today)).length; if (!complete && count === familyMembers.length - 1) playVerifiedPop(); if (complete) void revokeExperience("scheduled-prayer", `${today}:${member.id}`, position); else void awardExperience("scheduled-prayer", `${today}:${member.id}`, position); setPeople((previousPeople) => complete ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id)); }} hitSlop={8} style={({ pressed }) => [{ width: 24, height: 24, marginLeft: 10, borderRadius: 12, borderWidth: 1.5, borderColor: accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}>{complete && <MaterialIcons name={iconName("check")} size={16} color={accent} />}</Pressable>
         </Pressable>
-        </ReAnimated.View>;
+        </View>;
       })}
       <Pressable onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))} style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 6, marginBottom: 12, minHeight: 38, borderRadius: 8, backgroundColor: accent, alignItems: "center", justifyContent: "center", ...(bitButtonStyle(skinTokens, "primary") ?? {}), ...(termButtonStyle(skinTokens, "primary") ?? {}) }, pressed && { opacity: 0.8 }]}><Text style={{ color: skinTokens.isTerminal ? termButtonInk("primary") : skinTokens.isEightBit ? bitButtonInk("primary") : "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text></Pressable>
     </UnfurlPanel>;
@@ -4667,7 +4830,12 @@ export default function HomeScreen() {
       }
       if (summary.permissionLost) {
         if (!silent) notifyAlert("Drive folders", "PrayerCircle lost access to the linked folder. Tap the Drive row and choose Reconnect.");
-        else showDriveToast("Drive: folder access lost — reconnect in Settings → DATA");
+        // v362: the silent launch toast fires once per loss run —
+        // the check verifies the loss (one retry) and reports
+        // whether this loss has already had its say. A folder that
+        // is still lost stays quiet on later opens; the Settings →
+        // DATA row keeps showing the true state regardless.
+        else if (summary.permissionLostNoticeDue) showDriveToast("Drive: folder access lost — reconnect in Settings → DATA");
         return;
       }
       if (summary.errors.length > 0 && !silent) {

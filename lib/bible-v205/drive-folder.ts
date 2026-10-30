@@ -104,6 +104,11 @@ import {
 export const DRIVE_LINK_KEY = 'prayercircle.drive-folder.v1';
 export const DRIVE_JOURNAL_KEY = 'prayercircle.bible.v205.drive-journal.v1';
 export const DRIVE_HELD_KEY = 'prayercircle.bible.v205.drive-held.v1';
+/** v362: the permission-lost notice memory — whether the silent
+ *  launch toast has already fired for the current unbroken run of
+ *  failed checks. Kept OUT of the journal on purpose: the journal's
+ *  shape and meaning are pinned elsewhere and do not change. */
+export const DRIVE_NOTICE_KEY = 'prayercircle.bible.v205.drive-notice.v1';
 
 export interface DriveLink {
   uri: string;
@@ -195,6 +200,19 @@ export async function loadHeldItems(): Promise<HeldItem[]> {
 
 export async function saveHeldItems(held: HeldItem[]): Promise<void> {
   await AsyncStorage.setItem(DRIVE_HELD_KEY, JSON.stringify(held));
+}
+
+/** v362: has the silent permission-lost notice already been shown
+ *  for the current unbroken run of failed checks? A check that reads
+ *  the folder cleanly clears this (the notice re-arms); a fresh link
+ *  clears it too (a reconnect is a new state, not a continuation). */
+export async function loadDriveLossNoticeShown(): Promise<boolean> {
+  const record = await loadJson<{ lossNoticeShown?: boolean }>(DRIVE_NOTICE_KEY, {});
+  return record?.lossNoticeShown === true;
+}
+
+export async function saveDriveLossNoticeShown(shown: boolean): Promise<void> {
+  await AsyncStorage.setItem(DRIVE_NOTICE_KEY, JSON.stringify({ lossNoticeShown: shown }));
 }
 
 // ── Signatures (Rule 3) ────────────────────────────────────────────────────
@@ -449,6 +467,9 @@ export async function linkDriveFolder(): Promise<DriveLink | null> {
     writeEnabled: true,
   };
   await saveDriveLink(link);
+  // v362: a fresh grant is a new state — the permission-lost notice
+  // memory starts over with the link.
+  await saveDriveLossNoticeShown(false);
   return link;
 }
 
@@ -467,16 +488,44 @@ export interface DriveCheckSummary {
   ministriesApplied: number;
 }
 
+/** v362: the launch check's directory read gets ONE retry after a
+ *  short wait before anyone may call the permission lost. At cold
+ *  start the Drive provider is routinely not awake yet and the first
+ *  read throws on a folder that is linked and healthy — the exact
+ *  false alarm Jonathan kept getting ("It pops up EVERY TIME!").
+ *  The SAF surface this module wraps exposes no persisted-permission
+ *  query, so the retry IS the verification: a read that succeeds on
+ *  the second attempt was never a lost permission. */
+export const DRIVE_READ_RETRY_DELAY_MS = 750;
+
+async function readDriveDirectoryWithRetry(dirUri: string): Promise<string[]> {
+  try {
+    return await safModule().readDirectoryAsync(dirUri);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, DRIVE_READ_RETRY_DELAY_MS));
+    return safModule().readDirectoryAsync(dirUri);
+  }
+}
+
 /**
  * One check of the linked folder. Silent by design: it never alerts on
  * its own — the caller decides what (if anything) to show. A lost
  * permission or a read failure is recorded in the journal and reported
  * as `permissionLost`, never thrown.
+ *
+ * v362: `permissionLost` is only declared after the retry above also
+ * fails, and `permissionLostNoticeDue` carries the toast policy: it
+ * is true only for the FIRST verified loss since the folder last
+ * checked clean (or since the link was made). The silent launch
+ * toast keys off the notice flag, so a genuinely lost folder speaks
+ * once instead of at every open, and a later real loss — after a
+ * clean check re-armed the notice — speaks again. Manual checks key
+ * off `permissionLost` itself and keep their every-time behaviour.
  */
 export async function checkDriveFolder(): Promise<
-  DriveCheckSummary & { permissionLost: boolean; linked: boolean }
+  DriveCheckSummary & { permissionLost: boolean; permissionLostNoticeDue: boolean; linked: boolean }
 > {
-  const summary: DriveCheckSummary & { permissionLost: boolean; linked: boolean } = {
+  const summary: DriveCheckSummary & { permissionLost: boolean; permissionLostNoticeDue: boolean; linked: boolean } = {
     applied: 0,
     held: 0,
     skipped: 0,
@@ -485,6 +534,7 @@ export async function checkDriveFolder(): Promise<
     peopleApplied: 0,
     ministriesApplied: 0,
     permissionLost: false,
+    permissionLostNoticeDue: false,
     linked: false,
   };
   if (!isAndroid()) return summary;
@@ -496,14 +546,21 @@ export async function checkDriveFolder(): Promise<
   const heldIds = new Set(held.map((h) => h.id));
   let children: string[];
   try {
-    children = await safModule().readDirectoryAsync(link.uri);
+    children = await readDriveDirectoryWithRetry(link.uri);
   } catch {
-    // Permission lost (or the folder moved): quiet, never a crash.
+    // Permission lost (or the folder moved) — verified by the retry,
+    // not a cold-start hiccup: quiet, never a crash. The notice is
+    // due only if this run of losses hasn't already had its say.
     summary.permissionLost = true;
+    summary.permissionLostNoticeDue = !(await loadDriveLossNoticeShown());
+    await saveDriveLossNoticeShown(true);
     journal.lastCheckAt = new Date().toISOString();
     await saveDriveJournal(journal);
     return summary;
   }
+  // The folder read cleanly: the permission is demonstrably held, so
+  // any earlier loss run is over and the notice re-arms.
+  await saveDriveLossNoticeShown(false);
   const jsonFiles = children.filter((uri) => safDisplayName(uri).toLowerCase().endsWith('.json'));
   // Study + schedule stores, loaded fresh so the check is correct
   // regardless of what the UI has or hasn't loaded yet.

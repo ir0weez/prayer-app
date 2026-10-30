@@ -110,16 +110,22 @@ describe("v275 — the unfurl target resolves after a toggle (the livelock pin, 
     expect(unfurl).not.toContain("1200");
   });
 
-  it("v282: the measured-target machinery is gone — no onLayout measurement, no runOpen guard", () => {
+  it("v362: the measured-target machinery stays gone — the frame rides a clipping window, not the measured cap", () => {
     expect(unfurl).not.toContain("handleContentLayout");
     expect(unfurl).not.toContain("onLayout={(event) => handleContentLayout(event.nativeEvent.layout.height)}");
     expect(unfurl).not.toContain("contentHeight.value <= 0");
-    expect(unfurl).toContain("<View style={frameStyle}>");
+    // RE-BASED in v362: the plain View is a clipping
+    // Animated.View window now (his Oct 30 verdict — the
+    // travel returns on the tray's rails). The content report
+    // that feeds it (handlePanelContentLayout) is the tray's
+    // unconstrained-child report, not the measured-target
+    // machinery retired above.
+    expect(unfurl).toContain("<Animated.View style={[frameStyle, { overflow: \"hidden\" }, heightLocked ? { height: windowHeight } : null]}>");
   });
 });
 
-describe("v275 — the v267 motion contract (retired by v282: the panel is instant; the chrome keeps the clock)", () => {
-  it("the panel itself carries no timing at all now — no 320ms travel, no springs, nothing to interrupt", () => {
+describe("v275 — the v267 motion contract (v282 retired the panel's motion; v362 restores ONE RN Animated timing on the tray's rails — the retired shapes stay retired)", () => {
+  it("the retired Reanimated timing stays retired — no withTiming, no springs, no bounce, no borrowed tray duration", () => {
     expect(unfurl).not.toContain("withTiming");
     expect(unfurl).not.toContain("withSpring");
     expect(unfurl).not.toContain("bounce");

@@ -137,10 +137,16 @@ describe("v282 — the integration model discriminates the failing shape", () =>
 });
 
 describe("v282 — the panel is plain layout (index.tsx)", () => {
-  it("UnfurlPanel renders a plain View carrying the frame style, padding riding inside", () => {
-    expect(unfurl).toContain("<View style={frameStyle}>");
+  it("v362: the frame style rides the clipping window; the padded content view rides inside it, measured", () => {
+    // RE-BASED in v362 (his Oct 30 verdict — the travel returns,
+    // on the tray's rails): the outer plain View is now an
+    // Animated.View window carrying the same frame style, and
+    // the padded content View reports its natural height from
+    // inside it. The accounting is unchanged: padding inside,
+    // frame outside. people-v362.test.ts pins the window.
+    expect(unfurl).toContain("<Animated.View style={[frameStyle, { overflow: \"hidden\" }, heightLocked ? { height: windowHeight } : null]}>");
     expect(unfurl).toContain("const { paddingTop, paddingBottom, ...frameStyle } = outerStyle ?? {};");
-    expect(unfurl).toContain("<View style={{ paddingTop, paddingBottom }}>");
+    expect(unfurl).toContain("<View onLayout={(event) => handlePanelContentLayout(event.nativeEvent.layout.height)} style={{ paddingTop, paddingBottom }}>");
   });
 
   it("no animated window survives: no shared values, no animated style, no maxHeight, no timing", () => {
@@ -151,12 +157,19 @@ describe("v282 — the panel is plain layout (index.tsx)", () => {
     expect(unfurl).not.toContain("1200");
   });
 
-  it("no rasterized texture, no exiting animation, no measurement, no settle state", () => {
+  it("no rasterized texture, no exiting animation, no settle state (v362: the tray-style content report is the one measurement that returns)", () => {
     expect(unfurl).not.toContain("renderToHardwareTextureAndroid");
     expect(unfurl).not.toContain("shouldRasterizeIOS");
     expect(unfurl).not.toContain("exiting={");
     expect(unfurl).not.toContain("FadeOut");
-    expect(unfurl).not.toContain("onLayout");
+    // v362: onLayout is back — but on the NEVER-constrained
+    // content child (the v262 tray's exact seat), not measured
+    // from inside a definite animated box; the v267 livelock
+    // came from a child its definite parent had clamped, and
+    // this window's height never constrains the content's
+    // layout. The retired handler name stays retired, and the
+    // panel still holds no reduced-motion subscription of its
+    // own (the screen's tray subscription feeds it as a prop).
     expect(unfurl).not.toContain("handleContentLayout");
     expect(unfurl).not.toContain("settleOpen");
     expect(unfurl).not.toContain("AccessibilityInfo");

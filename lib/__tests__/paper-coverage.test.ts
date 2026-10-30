@@ -286,7 +286,14 @@ describe("Paper coverage — v202 animation pass", () => {
     // registration below; the stagger pin is unchanged.
     expect(schedule).toContain("setScheduleFabConfig({");
     expect(read("app/(tabs)/index.tsx")).toContain("<ScheduleFabHost />");
-    expect(read("components/schedule-fab.tsx")).toContain("0.3 + index * 0.07");
+    // RE-BASED in v362 (his Oct 30 recording — "slow, laggy, and
+    // lame"): the per-row stagger is retired; the five rows rise
+    // on ONE shared window of the morph's progress, the open is
+    // 320ms, and the bridge no longer republishes the menu on
+    // every schedule-tab render. The pin moves to the window.
+    expect(read("components/schedule-fab.tsx")).not.toContain("index * 0.07");
+    expect(read("components/schedule-fab.tsx")).toContain("interpolate(progress.value, [0.3, 0.95], [0, 1])");
+    expect(read("components/schedule-fab.tsx")).toContain("duration: open ? 320 : 280");
     // All six slide-over forms (event/todo/ministry/bible-study/
     // worship/album library) fade under Paper and their sheets are
     // PaperSettle sheets.

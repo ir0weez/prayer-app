@@ -53,12 +53,19 @@ export type TodoSettleKind = "sink" | "crumple" | "none";
 
 /** One burst, start to finish. v360 (Jonathan, Oct 30: the
     flourishes "show up now... They are just so freaking quick"):
-    900ms blinked past — the whole set now runs 2400ms (2.67×),
+    900ms blinked past — the whole set ran 2400ms (2.67×),
     and because every particle span, the row settle and the
     deferred write are fractions of / keyed to this one constant,
     the whole performance slows together and particles live
-    through the full span. */
-export const TODO_FLOURISH_DURATION_MS = 2400;
+    through the full span.
+    v368 (Jonathan, Oct 30, with a recording of a Duolingo
+    check-off): at 2400ms the completed row "hangs around...
+    feels like forever" after the burst lands — "I understand
+    for a second or two". The performance now runs 1500ms;
+    the deferred write still waits for the full flourish
+    (v338 semantics unchanged), so tap-to-gone lands at
+    ~1.5s plus the row's existing exit beat. */
+export const TODO_FLOURISH_DURATION_MS = 1500;
 
 export const TODO_FLOURISH_SETTLE: Record<TodoFlourishId, TodoSettleKind> = {
   // v364 (Jonathan, Oct 30): every flourish that used to end in the

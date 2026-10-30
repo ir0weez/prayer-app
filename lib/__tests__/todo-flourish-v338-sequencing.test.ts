@@ -102,7 +102,10 @@ describe("v338 — source pins: the hold lives in ScheduleTab, beside the toggle
     // RE-BASED (v360): the duration itself rose 900 → 2400 at
     // Jonathan's word (Oct 30 — the flourishes were "so freaking
     // quick"); the hold still lasts exactly one flourish.
-    expect(TODO_FLOURISH_DURATION_MS).toBe(2400);
+    // RE-BASED (v368): the flourish shortened 2400 → 1500 at
+    // Jonathan's word (Oct 30 — the completed row hung around
+    // too long); the hold still lasts exactly one flourish.
+    expect(TODO_FLOURISH_DURATION_MS).toBe(1500);
   });
 
   it("the deferral is gated on the pure decision (uncheck / quiet / unmatched stay instant)", () => {

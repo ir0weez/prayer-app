@@ -151,9 +151,13 @@ describe("v337 — the performance contract, in the kit itself", () => {
     // RE-BASED (v360): v337's under-a-second contract was the
     // drawing's; on device the bursts blinked past ("so freaking
     // quick" — Jonathan, Oct 30), and the duration rose to 2400ms
-    // at his word. The contract that survives: one burst, one
+    // at his word.
+    // RE-BASED (v368): at 2400ms the completed row hung around
+    // too long after the burst ("feels like forever" — Jonathan,
+    // Oct 30); the duration is now 1500ms, inside his "a second
+    // or two". The contract that survives: one burst, one
     // timing, over in a single short performance.
-    expect(TODO_FLOURISH_DURATION_MS).toBe(2400);
+    expect(TODO_FLOURISH_DURATION_MS).toBe(1500);
     expect(TODO_FLOURISH_DURATION_MS).toBeLessThan(3000);
   });
 

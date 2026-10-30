@@ -7947,9 +7947,12 @@ function EventCardInner({
   // toggling complete. The long-press menu is untouched:
   // Edit/Delete stay reachable there.
   const router = useRouter();
-  const pageKind = keywordPageKindForEvent(event);
+  // v370: the Food door joins News/Email — the detection also
+  // takes the card's resolved label, so an unstored Lunch/Dinner
+  // (detected "Meal") is claimed as a door too.
+  const pageKind = keywordPageKindForEvent(event, detectedKeyword?.label);
   const keyword = pageKind
-    ? EVENT_KEYWORD_MAP.find((k) => k.label === (pageKind === "news" ? "News" : "Email")) ?? detectedKeyword
+    ? EVENT_KEYWORD_MAP.find((k) => k.label === (pageKind === "news" ? "News" : pageKind === "email" ? "Email" : "Meal")) ?? detectedKeyword
     : detectedKeyword;
   // v313: on the branches that ALSO render the compact S/E read, a
   // note spelling out that same "Season {n} Episode {m}" says the

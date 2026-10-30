@@ -447,13 +447,17 @@ describe("v336 the email digest store", () => {
 describe("v336 wiring (source pins)", () => {
   it("the day card routes door taps to the pages with the event's identity", () => {
     const tab = read("components/schedule-tab.tsx");
-    expect(tab).toContain("keywordPageKindForEvent(event)");
+    // v370 amendment (Oct 30): the Food door joined the detection,
+    // which now also takes the card's resolved label — the call
+    // gained its second argument and the keyword map its third
+    // arm. The v336 routing shape is otherwise unchanged.
+    expect(tab).toContain("keywordPageKindForEvent(event, detectedKeyword?.label)");
     expect(tab).toContain("keywordPagePath(pageKind)");
     expect(tab).toContain("params: { eventId: event.id, eventDate: event.date }");
     // The card wears the door's keyword wholesale (scene, colours,
     // icon) — the call sites keep their long-standing shape.
     expect(tab).toContain("const keyword = pageKind");
-    expect(tab).toContain('pageKind === "news" ? "News" : "Email"');
+    expect(tab).toContain('pageKind === "news" ? "News" : pageKind === "email" ? "Email" : "Meal"');
     expect(tab).toContain("label={keyword.label}");
   });
 

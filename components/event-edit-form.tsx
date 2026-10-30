@@ -10,10 +10,19 @@ import {
   Switch,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { ScheduleEvent, EVENT_KEYWORD_MAP, detectEventKeyword, SCHEDULE_COLOR_PALETTE } from "@/lib/schedule-data";
 import { scheduleMaterialTones } from "@/lib/schedule-material";
+import {
+  isMealEventTitle,
+  loadRecipeStore,
+  recipeForDish,
+  resolveDishKeyFromNotes,
+  type RecipeStore,
+} from "@/lib/food";
+import { beginRecipePick, consumeRecipePickResult } from "@/lib/recipe-pick";
 import { DateTimePicker } from "./date-time-picker";
 import { PaperSettle } from "./paper-motion";
 import { BitSettle } from "./bit-motion";
@@ -41,6 +50,7 @@ export function EventEditForm({
   isNew = false,
 }: EventEditFormProps) {
   const colors = useColors();
+  const router = useRouter();
   const { isSkinned, tokens: skinTokens } = useSkin();
   const [formTitle, setFormTitle] = useState(event.title);
   const [formDate, setFormDate] = useState(event.date);
@@ -57,6 +67,14 @@ export function EventEditForm({
   const [formSeason, setFormSeason] = useState(event.season ? String(event.season) : "");
   const [formEpisode, setFormEpisode] = useState(event.episode ? String(event.episode) : "");
   const [titleFocused, setTitleFocused] = useState(false);
+  // v375: the recipe pick. recipeStore feeds the attached row's
+  // facts (the canonical recipe, edits included); pickingRecipe
+  // hides this Modal while the Food page is up — the form's state
+  // lives here, not in the Modal, so nothing is lost — and the
+  // pick's token guards the focus-return consumption below.
+  const [recipeStore, setRecipeStore] = useState<RecipeStore>({});
+  const [pickingRecipe, setPickingRecipe] = useState(false);
+  const pickTokenRef = React.useRef<number | null>(null);
 
   // Is this a TV Show event? (drives conditional season/episode fields)
   const isTVShow = (() => {
@@ -99,7 +117,60 @@ export function EventEditForm({
     setFormSeason(event.season ? String(event.season) : "");
     setFormEpisode(event.episode ? String(event.episode) : "");
     setTitleFocused(false);
+    setPickingRecipe(false);
+    pickTokenRef.current = null;
+    let live = true;
+    loadRecipeStore().then((store) => {
+      if (live) setRecipeStore(store);
+    });
+    return () => {
+      live = false;
+    };
   }, [event, visible]);
+
+  // v375: the pick flow. Derived, never stored: the row shows
+  // exactly when the title names Lunch/Dinner, and the attached
+  // dish is whatever the notes resolve to — the same seam the
+  // day card reads (lib/food.ts), so the two never disagree.
+  const showRecipeRow = isMealEventTitle(formTitle);
+  const attachedDish = resolveDishKeyFromNotes(formNotes);
+  const attachedRecipe = attachedDish ? recipeForDish(attachedDish, recipeStore) : null;
+
+  const openRecipePicker = () => {
+    const token = beginRecipePick({
+      eventId: isNew ? null : event.id,
+      title: formTitle.trim(),
+      date: formDate,
+      startTime: formStartTime || undefined,
+      notes: formNotes,
+    });
+    pickTokenRef.current = token;
+    setPickingRecipe(true);
+    router.push({
+      pathname: "/food",
+      params: {
+        pick: "1",
+        pickToken: String(token),
+        eventDate: formDate,
+        ...(isNew ? {} : { eventId: event.id }),
+      },
+    });
+  };
+
+  // Returning from the Food page: adopt the picked notes into
+  // the form's in-memory state (this editor's Save persists
+  // them — nothing is written behind the user's back) and
+  // re-show the editor. Coming back without a pick changes
+  // nothing but the Modal's visibility.
+  useFocusEffect(
+    React.useCallback(() => {
+      if (pickTokenRef.current == null) return;
+      const result = consumeRecipePickResult(pickTokenRef.current);
+      pickTokenRef.current = null;
+      if (result) setFormNotes(result.notes);
+      setPickingRecipe(false);
+    }, []),
+  );
 
   const handleStartTimeChange = (value: string) => {
     setFormStartTime(value);
@@ -157,7 +228,7 @@ export function EventEditForm({
   return (
     <Modal
       transparent
-      visible={visible}
+      visible={visible && !pickingRecipe}
       animationType={skinTokens.isPaper ? "fade" : "slide"}
       onRequestClose={onClose}
     >
@@ -221,6 +292,56 @@ export function EventEditForm({
                 </Pressable>
               ))}
             </View>
+          )}
+
+          {/* v375: the Recipe row — Lunch/Dinner titles only, one
+              compact row, no list and no search in the editor.
+              Tapping it opens the Food chooser as its own page. */}
+          {showRecipeRow && (
+            <>
+              <Text style={[styles.label, { color: colors.muted }]}>RECIPE</Text>
+              {attachedRecipe ? (
+                <Pressable
+                  onPress={openRecipePicker}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Recipe: ${attachedRecipe.title}. Change recipe`}
+                  style={[styles.recipeSelected, { backgroundColor: tones.primaryContainer }]}
+                >
+                  <View style={[styles.recipeCheck, { backgroundColor: colors.primary }]}>
+                    <MaterialIcons name="check" size={15} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.recipeName, { color: tones.primaryDeep }]}
+                    >
+                      {attachedRecipe.title}
+                    </Text>
+                    <Text style={[styles.recipeFacts, { color: tones.primaryDeep, opacity: 0.75 }]}>
+                      Serves {attachedRecipe.serves} · ~{attachedRecipe.minutes} min
+                    </Text>
+                  </View>
+                  <Text style={[styles.recipeChange, { color: tones.primaryDeep }]}>
+                    Change
+                  </Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={openRecipePicker}
+                  accessibilityRole="button"
+                  accessibilityLabel="Pick a recipe"
+                  style={[
+                    styles.recipePick,
+                    { borderColor: colors.border, backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface },
+                  ]}
+                >
+                  <Text style={[styles.recipePickText, { color: colors.foreground }]}>
+                    Pick a recipe
+                  </Text>
+                  <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+                </Pressable>
+              )}
+            </>
           )}
 
           {/* Date */}
@@ -554,5 +675,47 @@ const styles = StyleSheet.create({
   seasonEpisodeRow: {
     flexDirection: "row",
     gap: 12,
+  },
+  recipeSelected: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    borderRadius: 16,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  recipeCheck: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  recipeName: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  recipeFacts: {
+    fontSize: 12.5,
+    fontWeight: "600",
+    marginTop: 1,
+  },
+  recipeChange: {
+    fontSize: 13.5,
+    fontWeight: "700",
+  },
+  recipePick: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    marginBottom: 8,
+  },
+  recipePickText: {
+    flex: 1,
+    fontSize: 14,
   },
 });

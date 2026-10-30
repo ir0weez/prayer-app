@@ -141,6 +141,113 @@ export function resolveDishForEvent(event: {
 }
 
 /* ------------------------------------------------------------------ */
+/* v375 — the recipe selector (Jonathan's flow, approved Oct 30):    */
+/* a Lunch/Dinner event's editor carries one Recipe row; tapping it  */
+/* opens the Food chooser as its own page; "Add to event" writes     */
+/* the dish's name into the event's notes — the same notes seam      */
+/* resolution above reads, so the editor's attached state and the    */
+/* day card never disagree.                                          */
+/* ------------------------------------------------------------------ */
+
+/** True when an event title names a meal the selector serves:
+ * the title CONTAINS "lunch" or "dinner", any case. */
+export function isMealEventTitle(title: string | undefined | null): boolean {
+  if (!title) return false;
+  const t = title.toLowerCase();
+  return t.includes("lunch") || t.includes("dinner");
+}
+
+export interface DishNameMatch {
+  /** The dish the matched words name (null = scene-only words). */
+  dish: DishKey | null;
+  /** The exact words in the notes that named it. */
+  name: string;
+  /** Where those words sit in the notes. */
+  index: number;
+}
+
+/**
+ * The first dish-naming match in the notes, in the resolution
+ * table's own order — the occurrence `notesWithDish` replaces.
+ */
+export function dishNameMatchInNotes(
+  notes: string | undefined | null,
+): DishNameMatch | null {
+  if (!notes) return null;
+  const n = notes.toLowerCase();
+  if (!n.trim()) return null;
+  for (const row of NOTES_DISH_TABLE) {
+    for (const name of row.names) {
+      const index = n.indexOf(name);
+      if (index >= 0) return { dish: row.dish, name, index };
+    }
+  }
+  return null;
+}
+
+/**
+ * The notes with `dish` named in them — what "Add to event"
+ * writes. When the notes already name a dish (or a scene-only
+ * food word), that naming word is REPLACED by the new dish's
+ * title, never stacked beside it; every other word of the notes
+ * is preserved. When nothing food-like is named, the title is
+ * prepended. Re-adding the dish already named is a no-op.
+ */
+export function notesWithDish(
+  notes: string | undefined | null,
+  dish: DishKey,
+): string {
+  const title = SEED_RECIPES[dish].title;
+  const text = notes ?? "";
+  const match = dishNameMatchInNotes(text);
+  if (match) {
+    if (match.dish === dish) return text;
+    // The table matches singular stems ("taco" inside "Tacos"):
+    // a trailing plural s belongs to the naming word, not to the
+    // sentence, so it is replaced along with it.
+    let end = match.index + match.name.length;
+    if (
+      (text[end] === "s" || text[end] === "S") &&
+      (end + 1 >= text.length || !/[a-z]/i.test(text[end + 1]))
+    ) {
+      end += 1;
+    }
+    return text.slice(0, match.index) + title + text.slice(end);
+  }
+  const trimmed = text.trim();
+  return trimmed ? `${title}\n${text}` : title;
+}
+
+/** Dish keys whose canonical title matches a search query
+ * (case-insensitive substring), in chooser order. An empty
+ * query returns every dish. */
+export function filterDishKeys(
+  query: string,
+  store: RecipeStore = {},
+): DishKey[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [...DISH_KEYS];
+  return DISH_KEYS.filter((dish) =>
+    recipeForDish(dish, store).title.toLowerCase().includes(q),
+  );
+}
+
+/**
+ * The picker's chooser groups: his edited dishes ("your
+ * version") first, then the rest — both filtered by the query.
+ */
+export function groupDishesForPicker(
+  query: string,
+  store: RecipeStore = {},
+): { yours: DishKey[]; all: DishKey[] } {
+  const filtered = filterDishKeys(query, store);
+  return {
+    yours: filtered.filter((dish) => isEditedDish(dish, store)),
+    all: filtered.filter((dish) => !isEditedDish(dish, store)),
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* The recipe store — his edits are canonical.                         */
 /* ------------------------------------------------------------------ */
 

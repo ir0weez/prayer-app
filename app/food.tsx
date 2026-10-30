@@ -16,6 +16,16 @@
  * it). Prices, when the page shows any, come only from the
  * price book store (prayercircle.price-book.v1) — the app never
  * invents one.
+ *
+ * v375 — the page also serves the event editor's recipe pick
+ * (his flow, approved Oct 30): arrived at with pick=1 and a
+ * hand-off token (lib/recipe-pick.ts), the chooser gains a
+ * search bar and groups his edited dishes first, and a dish
+ * page's bottom bar reads "Add to event" — which writes the
+ * dish's name into the EDITOR's notes (via the hand-off slot,
+ * never directly into storage) and returns to the editor. The
+ * day-card route above is untouched: view/edit only, and its
+ * Finished bar still belongs to the originating event.
  */
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -27,6 +37,7 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 import { ScreenContainer } from "@/components/screen-container";
@@ -38,6 +49,7 @@ import {
   formatCents,
   groceryStateKey,
   groceryTotals,
+  groupDishesForPicker,
   groupIngredients,
   ingredientKeyFor,
   isEditedDish,
@@ -45,6 +57,7 @@ import {
   loadPriceBook,
   loadRecipeStore,
   loadScheduleEventById,
+  notesWithDish,
   priceForIngredient,
   recipeForDish,
   resolveDishForEvent,
@@ -59,6 +72,12 @@ import {
   type RecipeStore,
 } from "@/lib/food";
 import { finishScheduleEvent } from "@/lib/finish-event";
+import {
+  cancelRecipePick,
+  completeRecipePick,
+  peekRecipePickRequest,
+  recipePickEventSnapshot,
+} from "@/lib/recipe-pick";
 import type { ScheduleEvent } from "@/lib/schedule-data";
 import { format12HourTime } from "@/lib/utils";
 
@@ -73,8 +92,27 @@ interface DraftIngredient {
 export default function FoodPage() {
   const m = useNewsEmailMaterial();
   const router = useRouter();
-  const params = useLocalSearchParams<{ eventId?: string; eventDate?: string }>();
+  const params = useLocalSearchParams<{
+    eventId?: string;
+    eventDate?: string;
+    pick?: string;
+    pickToken?: string;
+  }>();
   const eventId = typeof params.eventId === "string" && params.eventId ? params.eventId : null;
+
+  // v375: the editor's pick hand-off, read once on mount. In pick
+  // mode the "event" is the editor's in-memory snapshot, NOT a
+  // stored event — a brand-new event may not exist in storage yet.
+  const [pickRequest] = useState(() =>
+    params.pick === "1"
+      ? peekRecipePickRequest(
+          typeof params.pickToken === "string" ? Number(params.pickToken) : null,
+        )
+      : null,
+  );
+  const pickMode = pickRequest !== null;
+  const insets = useSafeAreaInsets();
+  const [searchQuery, setSearchQuery] = useState("");
 
   // undefined = still reading the stores; null = no such event.
   const [event, setEvent] = useState<ScheduleEvent | null | undefined>(undefined);
@@ -90,8 +128,15 @@ export default function FoodPage() {
 
   useEffect(() => {
     let live = true;
+    const pickEvent: ScheduleEvent | null = pickRequest
+      ? recipePickEventSnapshot(pickRequest)
+      : null;
     Promise.all([
-      eventId ? loadScheduleEventById(eventId) : Promise.resolve(null),
+      pickRequest
+        ? Promise.resolve(pickEvent)
+        : eventId
+          ? loadScheduleEventById(eventId)
+          : Promise.resolve(null),
       loadRecipeStore(),
       loadPriceBook(),
       loadGroceryChecks(),
@@ -105,20 +150,49 @@ export default function FoodPage() {
     return () => {
       live = false;
     };
-  }, [eventId]);
+  }, [eventId, pickRequest]);
+
+  // Leaving the pick without adding abandons it, so a stale
+  // hand-off can never surface in a later editor session. A
+  // completed pick survives (cancelRecipePick guards it).
+  useEffect(() => {
+    return () => {
+      if (pickRequest) cancelRecipePick(pickRequest.token);
+    };
+  }, [pickRequest]);
 
   const onFinished = useCallback(async () => {
     if (eventId) await finishScheduleEvent(eventId);
     router.back();
   }, [eventId, router]);
 
+  // v375: "Add to event" — the dish's name goes into the editor's
+  // notes through the hand-off slot (replace, never stack), and
+  // the editor's own Save is what persists it. (Defined below,
+  // once the dish is known.)
+
   const resolvedDish = event ? resolveDishForEvent(event) : null;
   const dishKey: DishKey | null = chosenDish ?? resolvedDish;
   const showChooser = browsing || dishKey === null;
+
+  const onAddToEvent = () => {
+    if (!pickRequest || !dishKey) return;
+    completeRecipePick(
+      pickRequest.token,
+      dishKey,
+      notesWithDish(pickRequest.notes, dishKey),
+    );
+    router.back();
+  };
   const recipe: Recipe | null =
     !showChooser && dishKey ? recipeForDish(dishKey, recipeStore) : null;
 
-  const checksKey = dishKey ? groceryStateKey(eventId ?? "door", dishKey) : null;
+  const checksKey = dishKey
+    ? groceryStateKey(
+        pickRequest ? (pickRequest.eventId ?? "recipe-pick") : (eventId ?? "door"),
+        dishKey,
+      )
+    : null;
   const checkedList: string[] = checksKey ? (checks[checksKey] ?? []) : [];
 
   const toggleIngredient = useCallback(
@@ -186,6 +260,35 @@ export default function FoodPage() {
   const totals = recipe ? groceryTotals(recipe, priceBook, checkedList) : null;
   const groups = recipe ? groupIngredients(recipe) : [];
 
+  const dishRow = (dish: DishKey, index: number) => {
+    const seed = SEED_RECIPES[dish];
+    return (
+      <Pressable
+        key={dish}
+        onPress={() => pickDish(dish)}
+        accessibilityRole="button"
+        accessibilityLabel={seed.title}
+        style={[
+          styles.dishRow,
+          index > 0 && { borderTopWidth: 1, borderTopColor: m.line },
+        ]}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.dishName, { color: m.ink }]}>{seed.title}</Text>
+          <Text style={[styles.dishFacts, { color: m.inkSoft }]}>
+            {seed.serves} · ~{seed.minutes} min
+            {isEditedDish(dish, recipeStore) ? " · your version" : ""}
+          </Text>
+        </View>
+        <MaterialIcons name="chevron-right" size={20} color={m.inkSoft} />
+      </Pressable>
+    );
+  };
+
+  // v375: the picker's chooser groups (edited first, then the
+  // rest), both cut by the search query.
+  const pickerGroups = pickMode ? groupDishesForPicker(searchQuery, recipeStore) : null;
+
   return (
     <ScreenContainer className="p-0">
       <View style={{ flex: 1, backgroundColor: m.ground }}>
@@ -193,7 +296,13 @@ export default function FoodPage() {
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingTop: 16,
-            paddingBottom: eventId ? 112 : 40,
+            paddingBottom: pickMode
+              ? showChooser || editing
+                ? 40
+                : 112
+              : eventId
+                ? 112
+                : 40,
           }}
         >
           <KeywordPageHeader
@@ -211,32 +320,57 @@ export default function FoodPage() {
           ) : showChooser ? (
             <>
               <Text style={[styles.h1, { color: m.ink }]}>Recipes</Text>
-              <View style={[styles.card, { backgroundColor: m.card }]}>
-                {DISH_KEYS.map((dish, index) => {
-                  const seed = SEED_RECIPES[dish];
-                  return (
-                    <Pressable
-                      key={dish}
-                      onPress={() => pickDish(dish)}
-                      accessibilityRole="button"
-                      accessibilityLabel={seed.title}
-                      style={[
-                        styles.dishRow,
-                        index > 0 && { borderTopWidth: 1, borderTopColor: m.line },
-                      ]}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.dishName, { color: m.ink }]}>{seed.title}</Text>
-                        <Text style={[styles.dishFacts, { color: m.inkSoft }]}>
-                          {seed.serves} · ~{seed.minutes} min
-                          {isEditedDish(dish, recipeStore) ? " · your version" : ""}
-                        </Text>
+              {pickMode && pickerGroups ? (
+                <>
+                  {/* v375: the one addition on this route — an M3
+                      search bar, so the dish list never becomes a
+                      long scroll. */}
+                  <View style={[styles.searchBar, { backgroundColor: m.tonal }]}>
+                    <MaterialIcons name="search" size={21} color={m.deep} />
+                    <TextInput
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                      placeholder="Search recipes"
+                      placeholderTextColor={m.inkSoft}
+                      accessibilityLabel="Search recipes"
+                      style={[styles.searchInput, { color: m.ink }]}
+                    />
+                    {searchQuery ? (
+                      <Pressable
+                        onPress={() => setSearchQuery("")}
+                        accessibilityRole="button"
+                        accessibilityLabel="Clear search"
+                      >
+                        <MaterialIcons name="close" size={19} color={m.deep} />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                  {pickerGroups.yours.length > 0 ? (
+                    <>
+                      <Text style={[styles.sectHead, { color: m.deep }]}>
+                        Your versions first
+                      </Text>
+                      <View style={[styles.card, { backgroundColor: m.card, marginTop: 6 }]}>
+                        {pickerGroups.yours.map((dish, index) => dishRow(dish, index))}
                       </View>
-                      <MaterialIcons name="chevron-right" size={20} color={m.inkSoft} />
-                    </Pressable>
-                  );
-                })}
-              </View>
+                    </>
+                  ) : null}
+                  <Text style={[styles.sectHead, { color: m.deep }]}>All recipes</Text>
+                  <View style={[styles.card, { backgroundColor: m.card, marginTop: 6 }]}>
+                    {pickerGroups.all.length > 0 ? (
+                      pickerGroups.all.map((dish, index) => dishRow(dish, index))
+                    ) : (
+                      <Text style={[styles.dishFacts, { color: m.inkSoft, paddingVertical: 11 }]}>
+                        No recipes match “{searchQuery}”.
+                      </Text>
+                    )}
+                  </View>
+                </>
+              ) : (
+                <View style={[styles.card, { backgroundColor: m.card }]}>
+                  {DISH_KEYS.map((dish, index) => dishRow(dish, index))}
+                </View>
+              )}
             </>
           ) : recipe ? (
             <>
@@ -561,7 +695,37 @@ export default function FoodPage() {
           ) : null}
         </ScrollView>
       </View>
-      {eventId ? <FinishedBar m={m} onFinished={onFinished} /> : null}
+      {pickMode ? (
+        recipe && !editing ? (
+          <View
+            style={[
+              styles.addBar,
+              {
+                backgroundColor: m.ground,
+                borderTopColor: m.line,
+                paddingBottom: Math.max(insets.bottom, 12),
+              },
+            ]}
+          >
+            <Pressable
+              onPress={onAddToEvent}
+              accessibilityRole="button"
+              accessibilityLabel="Add to event"
+              style={[styles.addButton, { backgroundColor: m.seed }]}
+            >
+              <MaterialIcons name="add" size={19} color={m.onSeed} />
+              <Text style={[styles.addButtonText, { color: m.onSeed }]}>
+                Add to event
+              </Text>
+            </Pressable>
+            <Text style={[styles.addHint, { color: m.inkSoft }]}>
+              Adds “{recipe.title}” to {event?.title ?? "the event"}’s notes
+            </Text>
+          </View>
+        ) : null
+      ) : eventId ? (
+        <FinishedBar m={m} onFinished={onFinished} />
+      ) : null}
     </ScreenContainer>
   );
 }
@@ -576,6 +740,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 11,
   },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    height: 56,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    marginTop: 16,
+  },
+  searchInput: { flex: 1, fontSize: 15, paddingVertical: 0 },
+  addBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  addButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 999,
+    paddingVertical: 14,
+  },
+  addButtonText: { fontSize: 16, fontWeight: "800" },
+  addHint: { fontSize: 12, textAlign: "center", marginTop: 8 },
   dishName: { fontSize: 15.5, fontWeight: "600" },
   dishFacts: { fontSize: 12.5, marginTop: 2, fontWeight: "600" },
   tabs: {

@@ -21,12 +21,31 @@
 // instead (chosen-colour tile + TV glyph + the themed show
 // name as the row's prominent line, in the up-next case of
 // schedule-tab.tsx).
+//
+// v350 — THE TILES MOVE (approved Oct 29 19:03–19:14 from the
+// sample sheet upnext-thumb-motion-v1.html — "Yes love it! Do it
+// to todos events and ministries"): every scene's tile now runs
+// its looping motion from lib/keyword-thumb-motion.ts (one spec
+// per scene, fitted to the emblem's subject), and Dinner +
+// christmas-dinner are redrawn as cloches (see the Meals note
+// in the spec table). The renderer is JS-DRIVEN on purpose
+// (useNativeDriver: false everywhere — the v339 cold-start
+// lesson; Up Next is not on the cold-start path, but the top
+// fade's JS pattern is the house precedent for small always-on
+// loops), render-loop only, no timers, and everything stills
+// under the OS reduce-motion setting. Only tiles actually
+// mounted in the Up Next card animate — the 169 specs are data,
+// not mounted animations. Todo tiles can borrow a scene through
+// a palette (the emblem redrawn in the todo's own colour family
+// on its tonal tile); ministry tiles key off the linked ministry
+// TYPE via MINISTRY_TYPE_THUMB_SCENE, never the title.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React from "react";
-import { View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { AccessibilityInfo, Animated, Easing, View } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { paperSceneIdFor } from "@/lib/paper-keywords";
+import { THUMB_MOTION_LOOP, thumbMotionForScene, type ThumbMotionKind, type ThumbMotionSpec } from "@/lib/keyword-thumb-motion";
 
 /** One bold shape in the 40×40 emblem space.
     c = circle (x/y = centre), e = ellipse (x/y = top-left),
@@ -137,12 +156,10 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
     { k: "c", x: 11, y: 11, r: 1.8, f: "#43A047" },
   ] },
   "christmas-dinner": { g: "#4A1E1E", s: [
-    { k: "e", x: 11, y: 6, w: 4, h: 6, f: "#FFB300" },
-    { k: "r", x: 10.5, y: 13, w: 5, h: 12, f: "#FFF8E1", rad: 1.2 },
-    { k: "e", x: 17, y: 25, w: 19, h: 6.5, f: "#FFF8E1" },
-    { k: "e", x: 21, y: 26, w: 9, h: 4, f: "#795548" },
-    { k: "c", x: 30, y: 13, r: 2, f: "#E53935" },
-    { k: "c", x: 26, y: 11, r: 1.7, f: "#43A047" },
+    { k: "c", x: 20, y: 11.5, r: 1.8, f: "#FFF8E1" },
+    { k: "r", x: 9, y: 13.5, w: 22, h: 12, f: "#FFF8E1", rad: 9 },
+    { k: "r", x: 7, y: 27, w: 26, h: 2.6, f: "#FFF8E1", rad: 1.3 },
+    { k: "r", x: 12, y: 31.5, w: 16, h: 1.6, f: "#795548", rad: 0.8 },
   ] },
   "full-moon": { g: "#101828", s: [
     { k: "c", x: 20, y: 20, r: 11, f: "#F5E6A8" },
@@ -189,9 +206,15 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
     { k: "c", x: 20, y: 22, r: 5, f: "#00E676" },
     { k: "r", x: 19, y: 24, w: 3, h: 8, f: "#00C853", rad: 1.5, rot: 18 },
   ] },
-  // ── Meals — breakfast / lunch / dinner (the Dinner emblem is
-  // his own example: a bold candle + plate on the warm dark
-  // ground). ──
+  // ── Meals — breakfast / lunch / dinner. v350 REDRAW (his
+  // verdict Oct 29 18:47, screenshot 10962: "You didn't fix the
+  // up next event tag icon"): the old Dinner emblem — a candle
+  // beside a plate — read at 40px as a price tag. Dinner is a
+  // serving CLOCHE now (dome + knob + base line, the approved
+  // sheet's drawing), and christmas-dinner, which shared the
+  // candle + plate construction, gets the same cloche on its
+  // own dark red ground. Memorial's candle stays — a tall
+  // pillar on a base, it reads as a candle. ──
   "breakfast": { g: "#B85C1E", s: [
     { k: "c", x: 20, y: 20, r: 12.5, f: "#FFF8E1" },
     { k: "c", x: 20, y: 20, r: 8.5, f: "#FFFFFF" },
@@ -204,10 +227,10 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
     { k: "r", x: 11, y: 26, w: 18, h: 4, f: "#F0BE6A", rad: 2 },
   ] },
   "dinner": { g: "#4A2C17", s: [
-    { k: "e", x: 10.5, y: 5, w: 5, h: 7, f: "#FFB300" },
-    { k: "r", x: 10, y: 13, w: 6, h: 13, f: "#FFF8E1", rad: 1.5 },
-    { k: "e", x: 16, y: 25, w: 20, h: 7, f: "#FFF8E1" },
-    { k: "e", x: 21, y: 26, w: 10, h: 4.5, f: "#795548" },
+    { k: "c", x: 20, y: 11.5, r: 1.8, f: "#FFF8E1" },
+    { k: "r", x: 9, y: 13.5, w: 22, h: 12, f: "#FFF8E1", rad: 9 },
+    { k: "r", x: 7, y: 27, w: 26, h: 2.6, f: "#FFF8E1", rad: 1.3 },
+    { k: "r", x: 12, y: 31.5, w: 16, h: 1.6, f: "#795548", rad: 0.8 },
   ] },
   // ── Homecooked, top-down — one plate, the dish on it. ──
   "td-tv-dinner": { g: "#6B4A3A", s: [
@@ -797,12 +820,283 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
   ] },
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// v350 — the motion renderer. One JS-driven loop value per tile
+// (plus two staggered particle channels for steam / drip /
+// sparkle kinds), transform and opacity only, easing sine or
+// linear keyframes — no bounce and no spring physics anywhere.
+// Loops start with a per-scene phase
+// offset so a card full of rows never moves in lockstep.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** A caller-supplied colour family (todo tiles): the emblem is
+    redrawn in these tones on the caller's tonal ground, so the
+    tile keeps the item's own colour identity. */
+export type ThumbPalette = {
+  ground: string;
+  dark: string;
+  mid: string;
+  light: string;
+};
+
+function hexLuminance(hex: string): number {
+  const c = hex.replace("#", "");
+  if (c.length !== 6) return 0.5;
+  const r = parseInt(c.slice(0, 2), 16) / 255;
+  const g = parseInt(c.slice(2, 4), 16) / 255;
+  const b = parseInt(c.slice(4, 6), 16) / 255;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** Bucket a shape's own colour into the palette: lights stay
+    light, darks go deep, the middle takes the family colour. */
+function remapShape(sh: ThumbShape, palette: ThumbPalette): ThumbShape {
+  const lum = hexLuminance(sh.f);
+  const f = lum >= 0.72 ? palette.light : lum <= 0.3 ? palette.dark : palette.mid;
+  return { ...sh, f };
+}
+
+function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((v) => { if (live) setReduced(!!v); })
+      .catch(() => undefined);
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", (v: boolean) => setReduced(!!v));
+    return () => { live = false; sub?.remove?.(); };
+  }, []);
+  return reduced;
+}
+
+/** One looping Animated.Value, JS-driven (the top-fade
+    precedent). Inactive values are never started. */
+function useThumbLoop(duration: number, mode: "cycle" | "pingpong", startDelay: number, active: boolean): Animated.Value {
+  const value = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!active) {
+      value.setValue(0);
+      return;
+    }
+    value.setValue(0);
+    const loopAnim =
+      mode === "cycle"
+        ? Animated.loop(Animated.timing(value, { toValue: 1, duration, easing: Easing.linear, useNativeDriver: false }))
+        : Animated.loop(
+            Animated.sequence([
+              Animated.timing(value, { toValue: 1, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+              Animated.timing(value, { toValue: 0, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+            ]),
+          );
+    const run = startDelay > 0 ? Animated.sequence([Animated.delay(startDelay), loopAnim]) : loopAnim;
+    run.start();
+    return () => { run.stop(); };
+  }, [value, duration, mode, startDelay, active]);
+  return value;
+}
+
+/** Deterministic per-scene phase (0–1100ms) — rows sharing a
+    motion kind don't breathe in lockstep. */
+function thumbPhaseMs(seed: string): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 997;
+  return (h % 12) * 100;
+}
+
+const PARTICLE_KINDS: ThumbMotionKind[] = ["steam", "drip", "sparkle", "shine", "twinkle"];
+
+/** The whole-art half of a motion: a transform and/or opacity on
+    the emblem group. Kinds not listed here are overlay-only. */
+function wholeArtStyle(kind: ThumbMotionKind, t: Animated.Value): any {
+  switch (kind) {
+    case "breathe":
+      return { transform: [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) }] };
+    case "bob":
+      return { transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -2.5] }) }] };
+    case "sway":
+      return { transformOrigin: "50% 92%", transform: [{ rotate: t.interpolate({ inputRange: [0, 1], outputRange: ["-3deg", "3deg"] }) }] };
+    case "swing":
+      return { transformOrigin: "50% 8%", transform: [{ rotate: t.interpolate({ inputRange: [0, 1], outputRange: ["2.5deg", "-2.5deg"] }) }] };
+    case "drift":
+      return { transform: [{ translateX: t.interpolate({ inputRange: [0, 1], outputRange: [-2, 2] }) }] };
+    case "glide":
+      return {
+        transform: [
+          { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [0, 1.6] }) },
+          { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -1.6] }) },
+        ],
+      };
+    case "flare":
+      return {
+        opacity: t.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] }),
+        transform: [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }) }],
+      };
+    case "shimmer":
+      return { opacity: t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.78] }) };
+    case "flicker":
+      return {
+        transformOrigin: "50% 90%",
+        transform: [
+          { scaleY: t.interpolate({ inputRange: [0, 0.3, 0.55, 0.78, 1], outputRange: [1, 1.09, 0.94, 1.05, 1] }) },
+          { scaleX: t.interpolate({ inputRange: [0, 0.3, 0.55, 0.78, 1], outputRange: [1, 0.96, 1.03, 0.98, 1] }) },
+        ],
+      };
+    case "pulse":
+      return { transform: [{ scale: t.interpolate({ inputRange: [0, 0.38, 0.55, 0.72, 1], outputRange: [1, 1.09, 1.03, 1.07, 1] }) }] };
+    default:
+      return null;
+  }
+}
+
+function ThumbOverlays({ kind, t, p1, p2 }: { kind: ThumbMotionKind; t: Animated.Value; p1: Animated.Value; p2: Animated.Value }) {
+  if (kind === "steam") {
+    const wisp = (v: Animated.Value, left: number, top: number, height: number) => (
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute", left, top, width: 3.5, height, borderRadius: 2,
+          backgroundColor: "rgba(255,248,225,0.9)",
+          opacity: v.interpolate({ inputRange: [0, 0.35, 0.7, 1], outputRange: [0, 0.9, 0.55, 0] }),
+          transform: [
+            { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [2, -4] }) },
+            { scaleX: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.25] }) },
+          ],
+        }}
+      />
+    );
+    return (<>{wisp(p1, 15, 4, 8)}{wisp(p2, 21, 3, 9)}</>);
+  }
+  if (kind === "drip") {
+    const drop = (v: Animated.Value, left: number) => (
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute", left, top: 23, width: 3, height: 4.6, borderRadius: 1.5,
+          backgroundColor: "#B3E5FC",
+          opacity: v.interpolate({ inputRange: [0, 0.25, 0.75, 1], outputRange: [0, 0.95, 0.8, 0] }),
+          transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, 8] }) }],
+        }}
+      />
+    );
+    return (<>{drop(t, 13)}{drop(p1, 19)}{drop(p2, 25)}</>);
+  }
+  if (kind === "blink") {
+    return (
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute", left: 26, top: 3,
+          opacity: t.interpolate({ inputRange: [0, 0.72, 0.8, 0.88, 1], outputRange: [0, 0, 1, 0.25, 0] }),
+          transform: [{ scale: t.interpolate({ inputRange: [0, 0.8, 0.88, 1], outputRange: [0.4, 1, 0.7, 0.5] }) }],
+        }}
+      >
+        <MaterialIcons name="auto-awesome" size={11} color="#FFF59D" />
+      </Animated.View>
+    );
+  }
+  if (kind === "twinkle" || kind === "sparkle" || kind === "shine") {
+    const spark = (v: Animated.Value, left: number, top: number, size: number, color: string) => (
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute", left, top,
+          opacity: v.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.15, 1, 0.15] }),
+          transform: [{ scale: v.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.55, 1, 0.55] }) }],
+        }}
+      >
+        <MaterialIcons name="auto-awesome" size={size} color={color} />
+      </Animated.View>
+    );
+    return (<>{spark(t, 4, 4, 9, "#FFD54F")}{spark(p1, 28, 9, 8, "#F48FB1")}</>);
+  }
+  return null;
+}
+
+/** Wraps a tile's artwork in its motion: the glow halo behind,
+    the whole-art transform around, the particles above. Stills
+    entirely under reduce-motion. */
+function ThumbMotionView({ motion, seedKey, children }: { motion: ThumbMotionSpec | null; seedKey: string; children: React.ReactNode }) {
+  const reduced = useReducedMotion();
+  const active = !!motion && !reduced;
+  const duration = motion?.duration ?? 3600;
+  const mode = motion ? THUMB_MOTION_LOOP[motion.kind] : "pingpong";
+  const phase = thumbPhaseMs(seedKey);
+  const t = useThumbLoop(duration, mode, phase, active);
+  const hasParticles = !!motion && PARTICLE_KINDS.includes(motion.kind);
+  const p1 = useThumbLoop(duration, "cycle", phase + Math.round(duration / 3), active && hasParticles);
+  const p2 = useThumbLoop(duration, "cycle", phase + Math.round((duration * 2) / 3), active && hasParticles);
+  if (!motion || reduced) {
+    return <View style={{ width: 40, height: 40 }}>{children}</View>;
+  }
+  const kind = motion.kind;
+  return (
+    <View style={{ width: 40, height: 40 }}>
+      {kind === "glow" ? (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute", left: 6, top: 6, width: 28, height: 28, borderRadius: 14,
+            backgroundColor: "#FFD54F",
+            opacity: t.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] }),
+          }}
+        />
+      ) : null}
+      <Animated.View style={[{ width: 40, height: 40 }, wholeArtStyle(kind, t)]}>{children}</Animated.View>
+      <ThumbOverlays kind={kind} t={t} p1={p1} p2={p2} />
+    </View>
+  );
+}
+
+/** The spec for one scene id (the Up Next seats read the ground
+    for their tile chrome). */
+export function thumbSpecForScene(sceneId: string): ThumbSpec | undefined {
+  return KEYWORD_THUMB_SPECS[sceneId];
+}
+
+/**
+ * One scene's thumbnail artwork with its v350 motion, drawn at
+ * 40px. With a palette, the emblem is redrawn in the caller's
+ * colour family on the palette ground (todo tiles); without one
+ * it wears the scene's own ground and colours (event and
+ * ministry tiles).
+ */
+export function SceneThumbArt({ sceneId, palette }: { sceneId: string; palette?: ThumbPalette }) {
+  const spec = KEYWORD_THUMB_SPECS[sceneId];
+  if (!spec) return null;
+  const motion = thumbMotionForScene(sceneId);
+  return (
+    <ThumbMotionView motion={motion} seedKey={sceneId}>
+      <View style={{ width: 40, height: 40, backgroundColor: palette ? palette.ground : spec.g }}>
+        {spec.s?.map((sh, i) => (
+          <ShapeView key={i} sh={palette ? remapShape(sh, palette) : sh} />
+        ))}
+        {spec.icon ? (
+          <View style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
+            <MaterialIcons name={spec.icon as any} size={24} color={palette ? palette.dark : (spec.fg ?? "#FFFFFF")} />
+          </View>
+        ) : null}
+      </View>
+    </ThumbMotionView>
+  );
+}
+
+/** The gentle breathe every unmapped glyph tile gets (todo and
+    ministry rows whose titles/types carry no keyword scene). */
+export function ThumbBreatheWrap({ children }: { children: React.ReactNode }) {
+  return (
+    <ThumbMotionView motion={{ kind: "breathe", duration: 3600 }} seedKey="glyph-tile">
+      {children}
+    </ThumbMotionView>
+  );
+}
+
 /**
  * The dedicated small artwork for one keyword event's Up Next
  * thumbnail: the resolved scene's emblem or icon mark on its own
- * ground, drawn at 40px inside the caller's clipped tile. Falls
- * back to the keyword's glyph (centred, white) when a label has
- * no scene — the same fallback the colour-tile arm uses.
+ * ground, drawn at 40px inside the caller's clipped tile — with
+ * its v350 motion. Falls back to the keyword's glyph (centred,
+ * white) when a label has no scene — the same fallback the
+ * colour-tile arm uses.
  */
 export function KeywordThumbArt({
   label,
@@ -810,12 +1104,14 @@ export function KeywordThumbArt({
   location = "",
   notes = "",
   fallbackIcon,
+  palette,
 }: {
   label: string;
   title?: string;
   location?: string;
   notes?: string;
   fallbackIcon?: string;
+  palette?: ThumbPalette;
 }) {
   const id = paperSceneIdFor(label, title, location, notes);
   const spec = id ? KEYWORD_THUMB_SPECS[id] : undefined;
@@ -827,16 +1123,5 @@ export function KeywordThumbArt({
       </View>
     );
   }
-  return (
-    <View style={{ width: 40, height: 40, backgroundColor: spec.g }}>
-      {spec.s?.map((sh, i) => (
-        <ShapeView key={i} sh={sh} />
-      ))}
-      {spec.icon ? (
-        <View style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
-          <MaterialIcons name={spec.icon as any} size={24} color={spec.fg ?? "#FFFFFF"} />
-        </View>
-      ) : null}
-    </View>
-  );
+  return <SceneThumbArt sceneId={id as string} palette={palette} />;
 }

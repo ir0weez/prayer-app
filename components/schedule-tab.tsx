@@ -165,6 +165,9 @@ import { TimeOffExperience } from "./time-off-experience";
 import { TripBand, ItineraryDayCard, ClaimedRestGroup } from "./time-off-travel";
 import { ReachedStampRow } from "./reached-stamp-row";
 import { KeywordThumbArt } from "./keyword-thumb-art";
+import { SceneThumbArt, ThumbBreatheWrap, thumbSpecForScene } from "./keyword-thumb-art";
+import { paperSceneIdFor } from "@/lib/paper-keywords";
+import { MINISTRY_TYPE_THUMB_SCENE } from "@/lib/keyword-thumb-motion";
 import { getAllTimeOff, getItineraryForDate, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
 import { calculateWhites, groupAdjacentClaimed } from "@/lib/whites";
 import { extractPosterColor, getTimeOffEventColor, isTimeOffEventVisible, readableTextColor } from "@/lib/poster-color";
@@ -7786,7 +7789,21 @@ function UpNextPulseDot({ color, style }: { color: string; style?: any }) {
     a tile in the todo's own colour with its icon glyph
     (white) — the stored icon, else the title-derived one, else
     a check. MINISTRY rows get a tile in the ministry colour
-    with its type glyph. */
+    with its type glyph.
+    v350 (approved Oct 29 19:03–19:14, the upnext-thumb-motion
+    sheet — "Do it to todos events and ministries"): the tiles
+    MOVE. Event keyword tiles run their scene's looping motion
+    (inside KeywordThumbArt). TODO rows resolve their title
+    through the same keyword scenes: a keyword todo shows that
+    scene's emblem redrawn in the todo's own colour family on
+    its tonal tile, with the scene's motion; a todo with no
+    keyword keeps its glyph tile, breathing gently. MINISTRY
+    rows key off the LINKED MINISTRY TYPE (his ruling,
+    19:15 — MINISTRY_TYPE_THUMB_SCENE, never the title): the
+    type's scene emblem + motion on the scene's own ground;
+    a type with no scene keeps its glyph tile, breathing.
+    TV rows keep their v320 treatment exactly — a deliberate
+    hold, not an oversight. */
 function UpNextThumb({ kind, item }: { kind: "todo" | "event" | "ministry"; item: any }) {
   const colors = useColors();
   if (kind === "event") {
@@ -7815,17 +7832,49 @@ function UpNextThumb({ kind, item }: { kind: "todo" | "event" | "ministry"; item
   }
   if (kind === "todo") {
     const todoColor = item.color || colors.primary;
+    // v350: a keyword todo borrows its scene — the emblem
+    // redrawn in the todo's own colour family (deep step for
+    // the darks, the colour itself for the mids, white for the
+    // lights) on a tonal tile of the same colour, with the
+    // scene's motion. The category colour stays the identity.
+    const todoKeyword = detectEventKeyword(item.title, item.location, item.notes);
+    const todoSceneId = todoKeyword ? paperSceneIdFor(todoKeyword.label, item.title, item.location, item.notes) : null;
+    if (todoSceneId && thumbSpecForScene(todoSceneId)) {
+      const ramp = tonalRamp(todoColor, colors.surface);
+      const tileGround = mix(todoColor, colors.surface, 0.8);
+      return (
+        <View style={{ width: 40, height: 40, borderRadius: 12, overflow: "hidden", backgroundColor: tileGround }}>
+          <SceneThumbArt sceneId={todoSceneId} palette={{ ground: tileGround, dark: ramp.deep, mid: todoColor, light: "#FFFFFF" }} />
+        </View>
+      );
+    }
     return (
-      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: todoColor, alignItems: "center", justifyContent: "center" }}>
-        <MaterialIcons name={(item.icon || getIconForTodo(item.title) || "check") as any} size={22} color="#FFFFFF" />
-      </View>
+      <ThumbBreatheWrap>
+        <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: todoColor, alignItems: "center", justifyContent: "center" }}>
+          <MaterialIcons name={(item.icon || getIconForTodo(item.title) || "check") as any} size={22} color="#FFFFFF" />
+        </View>
+      </ThumbBreatheWrap>
     );
   }
   const ministryColor = item.color || "#7C5CFF";
+  // v350: the tile keys off the LINKED MINISTRY TYPE (his
+  // ruling, Oct 29 19:15) — the type's scene, its own ground,
+  // its motion. The title is never consulted here.
+  const ministrySceneId = (MINISTRY_TYPE_THUMB_SCENE as Record<string, string | null>)[item.type as string] ?? null;
+  const ministrySpec = ministrySceneId ? thumbSpecForScene(ministrySceneId) : undefined;
+  if (ministrySceneId && ministrySpec) {
+    return (
+      <View style={{ width: 40, height: 40, borderRadius: 12, overflow: "hidden", backgroundColor: ministrySpec.g }}>
+        <SceneThumbArt sceneId={ministrySceneId} />
+      </View>
+    );
+  }
   return (
-    <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: ministryColor, alignItems: "center", justifyContent: "center" }}>
-      <MaterialIcons name={getMinistryTypeIcon(item.type as any) as any} size={22} color="#FFFFFF" />
-    </View>
+    <ThumbBreatheWrap>
+      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: ministryColor, alignItems: "center", justifyContent: "center" }}>
+        <MaterialIcons name={getMinistryTypeIcon(item.type as any) as any} size={22} color="#FFFFFF" />
+      </View>
+    </ThumbBreatheWrap>
   );
 }
 

@@ -1464,6 +1464,17 @@ function EntryView(props: {
   const [composerVerse, setComposerVerse] = useState<number | null>(null);
   const [composerClosing, setComposerClosing] = useState(false);
   const closingRef = useRef(false);
+  // v357: whether a verse tap is what OPENED this entry. Entries
+  // group verses (a bare chapter chunks three to an entry), so a
+  // tap on verse 1 force-opens the entry and its body — placeholder,
+  // markbar, chips — renders at the entry's tail, below verse 3.
+  // v356 cleared only the composer on close, leaving that expanded
+  // body standing under the wrong verse (his Leviticus 26 report:
+  // he opened verse 1, backed out, and verse 3 wore the seat).
+  // finishCloseComposer now folds the entry back whenever THIS
+  // verse seat opened it, so a close by any path — Cancel, Save,
+  // Android back — leaves the page exactly as the tap found it.
+  const openedEntryForVerseRef = useRef(false);
   // v356: the latest closeComposer, for the back handler below
   // (assigned every render, so the handler never closes stale).
   const composerCloseRef = useRef<() => void>(() => {});
@@ -1487,6 +1498,10 @@ function EntryView(props: {
   // included). The verse NUMBER keeps its tint-selection job —
   // the supTap span below is untouched by this path.
   const openComposerForVerse = (verse: number) => {
+    // v357: a FRESH verse seat records whether it is the tap that
+    // opens the entry (a retarget rides the seat already open and
+    // keeps the first tap's record).
+    if (composerVerse === null) openedEntryForVerseRef.current = !props.open;
     if (!props.open) props.onToggleOpen();
     setComposer('note');
     setDraft(`#${verse} `);
@@ -1509,6 +1524,15 @@ function EntryView(props: {
     setComposer(null);
     setEditingTarget(null);
     setComposerAuthor(null);
+    // v357: the seat is fully cleared — and an entry this verse
+    // tap opened folds back with it, so no expanded markbar is
+    // left standing at the entry's tail under another verse.
+    // (His own saved lines render whether the entry is open or
+    // closed, so a Save loses nothing by folding.)
+    if (openedEntryForVerseRef.current) {
+      openedEntryForVerseRef.current = false;
+      if (props.open) props.onToggleOpen();
+    }
   };
   const closeComposer = () => {
     // v356: a verse-seated composer collapses back into its verse
@@ -1563,6 +1587,7 @@ function EntryView(props: {
     closingRef.current = false;
     setComposerClosing(false);
     setComposerVerse(null);
+    openedEntryForVerseRef.current = false;
     setComposer(line.kind);
     setDraft(line.text);
     setComposerAuthor(line.author);
@@ -1589,6 +1614,7 @@ function EntryView(props: {
     closingRef.current = false;
     setComposerClosing(false);
     setComposerVerse(null);
+    openedEntryForVerseRef.current = false;
     setComposer(line.kind);
     setDraft(line.text);
     setComposerAuthor(line.author);
@@ -1678,6 +1704,14 @@ function EntryView(props: {
 
       <View style={styles.catRow}>
         {NOTE_CATEGORIES.map((meta) => {
+          // v357 (standing ruling): Good Thought is no longer
+          // offered as a new category — it was deleted and
+          // converted to Main Thoughts, and the bar offering both
+          // was duplication. Only the OFFER stops: the category
+          // itself stays in NOTE_CATEGORIES, so stored entries
+          // carrying good-thought still normalize, render their
+          // tag, and save exactly as before.
+          if (meta.id === 'good-thought') return null;
           const active = props.marksEntry?.category === meta.id;
           return (
             <Pressable
@@ -1816,13 +1850,14 @@ function EntryView(props: {
             const verseBlock = (
               <Pressable
                 key={v}
+                style={styles.verseBlock}
                 onPress={() => openComposerForVerse(v)}
                 onLayout={(e) => verseYRef.current.set(v, e.nativeEvent.layout.y)}
               >
                 <Text
                   style={[
                     styles.entryVerse,
-                    { color: palette.ink },
+                    { flex: 1, color: palette.ink },
                     verseBg ? { backgroundColor: verseBg } : null,
                     selected
                       ? { textDecorationLine: 'underline', textDecorationStyle: 'dashed', textDecorationColor: palette.rasp }
@@ -1855,6 +1890,22 @@ function EntryView(props: {
                   </Text>
                   {props.verseText.get(v) ?? ''}
                 </Text>
+                {/* v357: EVERY verse row carries its own expand
+                    chevron. It used to render once per entry head,
+                    beside the entry's FIRST verse only — on a
+                    three-verse entry verses two and three showed
+                    no arrow at all (his report, twice over). The
+                    chevron lives in the verse map now, one per
+                    verse; like the number's tap, it out-presses
+                    the verse block, and its job is the head's own
+                    toggle: open or fold this entry's notes body. */}
+                <Pressable onPress={props.onToggleOpen} hitSlop={6} style={{ marginTop: 3 }}>
+                  <MaterialIcons
+                    name={props.open ? 'expand-less' : 'expand-more'}
+                    size={19}
+                    color={palette.inkFaint}
+                  />
+                </Pressable>
               </Pressable>
             );
             // v356: the verse seat. When this verse holds the
@@ -1877,12 +1928,6 @@ function EntryView(props: {
             return [verseBlock, seat];
           })}
         </View>
-        <MaterialIcons
-          name={props.open ? 'expand-less' : 'expand-more'}
-          size={19}
-          color={palette.inkFaint}
-          style={{ marginTop: 3 }}
-        />
       </Pressable>
 
       {/* v217: HIS OWN lines, in the flow directly under the verses
@@ -1932,9 +1977,18 @@ function EntryView(props: {
             ) : null;
           })()}
           {blocks.length === 0 && !hasBubbles && selfLines.length === 0 ? (
-            <Text style={[styles.noNotes, { color: palette.inkFaint }]}>
-              No notes on this verse — it stands on its own here.
-            </Text>
+            // v357 (his ruling, 2026-10-30): the old italic
+            // no-notes placeholder line is deleted. An expanded
+            // verse with no notes gets ONE
+            // quiet, tappable invitation in the tonal language —
+            // no explanation, just the door — and tapping it opens
+            // this entry's note composer, the body's own seat.
+            <Pressable
+              style={[styles.addNoteRow, { backgroundColor: palette.paper2, borderColor: palette.line }]}
+              onPress={() => openComposer('note')}
+            >
+              <Text style={[styles.addNoteText, { color: palette.inkSoft }]}>+ Add a note</Text>
+            </Pressable>
           ) : (
             blocks.map((b, i) => (
               <BlockView key={i} block={b} palette={palette} />
@@ -2075,6 +2129,8 @@ const styles = StyleSheet.create({
   // as a clear paragraph step against the 26.5 leading without
   // scattering the chapter).
   entryVerses: { flex: 1, gap: 12 },
+  // v357: a verse row is text + its own chevron, side by side.
+  verseBlock: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   // v313: the verse type at the drawing's weight — 17.5 at
   // fontWeight 450 (RN steps to 500); the size and leading were
   // already the drawing's.
@@ -2091,7 +2147,9 @@ const styles = StyleSheet.create({
   // one head-gap (10) left of the verse text: 72 -> 22.
   selfLines: { marginLeft: 22, paddingRight: 4, paddingBottom: 6 },
   entryBody: { marginLeft: 22, paddingRight: 4, paddingBottom: 14 },
-  noNotes: { fontSize: 13.5, fontStyle: 'italic', marginBottom: 10 },
+  // v357: the empty verse's one quiet door to a note.
+  addNoteRow: { borderWidth: 1, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 10 },
+  addNoteText: { fontSize: 13.5, fontWeight: '600' },
   markbar: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', borderTopWidth: 1, paddingTop: 11, marginTop: 4 },
   markBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6, paddingHorizontal: 9, borderRadius: 999 },
   markBtnText: { fontSize: 12.5, fontWeight: '700' },

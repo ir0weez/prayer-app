@@ -646,6 +646,11 @@ export function AuthorPicker({
   // people he actually credits) leads, with the full list below in
   // its usual order. Selection is unchanged: a tap still stores
   // { authorId, authorName } on the line, Me still clears it.
+  // v357 (his ruling, 2026-10-30 08:16): the full list goes away —
+  // at rest the picker is the search field, the Me chip, and the
+  // Top 5, nothing more. Typing still searches the WHOLE roster
+  // and shows every match; nobody is unreachable, they are just
+  // no longer all standing in the room.
   const [query, setQuery] = useState('');
   const chip = (selected: boolean) => [
     styles.authorChip,
@@ -693,7 +698,7 @@ export function AuthorPicker({
   };
   const q = query.trim().toLowerCase();
   const searching = q.length > 0;
-  const matches = searching ? people.filter((person) => person.name.toLowerCase().includes(q)) : people;
+  const matches = searching ? people.filter((person) => person.name.toLowerCase().includes(q)) : [];
   const topPeople = searching
     ? []
     : (topPeopleIds ?? [])
@@ -723,17 +728,13 @@ export function AuthorPicker({
         </>
       ) : (
         <>
+          <View style={styles.authorRow}>{meChip}</View>
           {topPeople.length ? (
             <>
-              <Text style={[styles.authorLabel, { color: palette.inkFaint }]}>Top 5</Text>
+              <Text style={[styles.authorLabel, { color: palette.inkFaint, marginTop: 10 }]}>Top 5</Text>
               <View style={styles.authorRow}>{topPeople.map(personChip)}</View>
-              <Text style={[styles.authorLabel, { color: palette.inkFaint, marginTop: 10 }]}>Everyone</Text>
             </>
           ) : null}
-          <View style={styles.authorRow}>
-            {meChip}
-            {people.map(personChip)}
-          </View>
         </>
       )}
     </View>

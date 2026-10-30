@@ -18,8 +18,10 @@
 // Preserved, and pinned as preserved below: the '#<verse>' preset
 // and its #N split/write-back (v352's own tests carry the split),
 // save/cancel semantics and span binding, the markbar actions and
-// type chips, the no-notes line, the bubbles, the verse-number
-// tint tap, the 12dp verse separation, and the section model.
+// type chips, the bubbles, the verse-number tint tap, the 12dp
+// verse separation, and the section model. (v357 later retired
+// the no-notes line and the picker's Everyone list — its own
+// test file carries those.)
 
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -154,8 +156,7 @@ describe('v356 — the verse-open scroll', () => {
 });
 
 describe('v356 — preservation', () => {
-  it('the no-notes line and the bubbles layer are untouched', () => {
-    expect(entryView).toContain('No notes on this verse — it stands on its own here.');
+  it('the bubbles layer is untouched (the no-notes line was retired by v357)', () => {
     expect(entryView).toContain('<LivingBubbles');
     expect(entryView).toContain('onEditLine={editBubbleLine}');
   });
@@ -225,10 +226,8 @@ describe('v356 — people search + Top 5 in the composer', () => {
     expect(picker).toContain('{matches.map(personChip)}');
   });
 
-  it('at rest the Top 5 leads and the full list stays below in its usual order', () => {
+  it('at rest the Top 5 leads (v357 removed the Everyone list below it)', () => {
     expect(picker).toContain('>Top 5</Text>');
-    expect(picker).toContain('>Everyone</Text>');
-    expect(picker).toContain('{people.map(personChip)}');
     expect(picker).toContain('.slice(0, 5)');
     // Ranked ids resolve against the live roster; the departed
     // simply do not render.

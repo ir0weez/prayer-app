@@ -220,7 +220,14 @@ describe("v337 — source pins: one-shot, native driver, wired to the toggles", 
     // pair's measured checkbox (the fingertip anchor buried the
     // burst mid-card; see todo-flourish-v348.test.ts). The press
     // position still goes to the XP award at the same seat.
-    expect(schedule).toContain("firePairFlourish(t);");
+    // RE-BASED (v351, Oct 29): the press hands its SEAT over
+    // again — page position plus locationX/Y — because the live
+    // measure it replaced could silently never call back (see
+    // todo-flourish-v351.test.ts). The anchor is computed to the
+    // pair's checkbox from the rectangle's cached layout size;
+    // the raw page point is only the no-cache fallback, and it
+    // still goes to the XP award at the same seat.
+    expect(schedule).toContain("firePairFlourish(t, position);");
     expect(schedule).toContain("emitTodoFlourish");
   });
 

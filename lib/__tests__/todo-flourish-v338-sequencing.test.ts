@@ -19,7 +19,12 @@
 //    (the ANCHOR half of this bullet was RE-BASED in v348: the
 //    emission is still synchronous with the press, but it anchors
 //    at the measured checkbox, not the fingertip — see the
-//    re-based pin below);
+//    re-based pin below; and RE-BASED again in v351: the measured
+//    checkbox rode a Fabric measureInWindow callback that can
+//    silently never fire, so v351 keeps the synchronous emission
+//    AND the checkbox anchor but computes the anchor from a
+//    layout rect cached at layout time plus the press's own
+//    locationX/Y — see todo-flourish-v351.test.ts);
 //  · pending presses are ignored, the long-press menu's Mark
 //    Complete flushes a held write, a day switch flushes all held
 //    writes, and uncheck / quiet / unmatched todos write instantly;
@@ -128,7 +133,7 @@ describe("v338 — source pins: the hold lives in ScheduleTab, beside the toggle
     expect(schedule).toContain("const pairDone = t.isCompleted || pendingTodoIds.has(t.id);");
   });
 
-  it("the burst anchors at the measured checkbox, not the press position (RE-BASED in v348)", () => {
+  it("the burst anchors at the checkbox, computed synchronously from the press seat (RE-BASED in v348, mechanism RE-BASED in v351)", () => {
     // RE-BASED (v348, Oct 29): v338 pinned synchronous emission
     // FROM THE PRESS POSITION because the async measureInWindow
     // raced the row's teardown. That race died with this very
@@ -141,9 +146,25 @@ describe("v338 — source pins: the hold lives in ScheduleTab, beside the toggle
     // as emitFlourishAt's can't-measure fallback) and the pair
     // measures its registered rectangle. The full v348 pins live
     // in todo-flourish-v348.test.ts.
+    //
+    // RE-BASED (v351, Oct 29): the measured path itself went
+    // silent on his phone — Fabric's measureInWindow callback is
+    // invoked only if the shadow node resolves (no else, no
+    // error), and the pair path had no fallback, so on v348 the
+    // settle played and the burst never emitted ("still don't
+    // work", 19:15). v351 restores this test's original v338
+    // shape — synchronous emission from the press flow — while
+    // KEEPING v348's checkbox anchor: the origin is computed
+    // from a layout rect cached at layout time (onLayout) plus
+    // the press's locationX/Y, and the raw press position is
+    // only the no-cache fallback. The verbatim v338 one-liners
+    // below stay gone; the full v351 pins live in
+    // todo-flourish-v351.test.ts.
     expect(schedule).not.toContain("if (fallback) {\n      emitTodoFlourish({ flourish, color: todo.color || colors.primary, anchor: fallback });");
     expect(schedule).not.toContain("if (position) {\n      emitTodoFlourish({ flourish, color: pairTodo.color || colors.primary, anchor: position });");
-    expect(schedule).toContain("emitFlourishAt(flourish, todo.color || colors.primary, checkboxAnchorRef.current, fallback)");
+    expect(schedule).not.toContain("emitFlourishAt");
+    expect(schedule).toContain("const rect = checkboxRectRef.current;");
+    expect(schedule).toContain("anchor: anchor ?? press ?? contextMenuPos");
     expect(schedule).toContain("pairRowRefs.current.get(pairTodo.id)");
   });
 

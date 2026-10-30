@@ -58,7 +58,7 @@ import { scheduleMaterialTones, tonalRamp } from "@/lib/schedule-material";
 import { detectShowFont, splitShowName } from "@/lib/show-fonts";
 import { stripSpelledSeasonEpisode } from "@/lib/season-episode";
 import { showNameSegments } from "./show-sub-line";
-import { emitTodoFlourish, todoCompletionShouldDefer, todoFlourishForTitle, TODO_FLOURISH_DURATION_MS, TODO_FLOURISH_SETTLE, TODO_FLOURISH_WIDE_SPAN_PX, type TodoSettleKind } from "@/lib/todo-flourish";
+import { emitTodoFlourish, todoCompletionShouldDefer, todoFlourishForTitle, TODO_FLOURISH_DURATION_MS, TODO_FLOURISH_SETTLE, TODO_FLOURISH_WIDE_SPAN_PX, type TodoFlourishPress, type TodoSettleKind } from "@/lib/todo-flourish";
 import { FlourishSettleView } from "@/components/todo-flourish-overlay";
 import { mix } from "@/lib/color-themes";
 import type { SkinTokens } from "@/lib/skin-themes";
@@ -8737,7 +8737,10 @@ function TodoItem({
         onFlushCompletion?.();
         return;
       }
-      if (!todo.isCompleted) fireRowFlourish();
+      // v351: no live press event reaches the menu action — the
+      // long-press point that opened the menu is its seat (the
+      // fire path falls back to it; the emission stays synchronous).
+      if (!todo.isCompleted) fireRowFlourish(contextMenuPos);
       onToggle();
     },
   });
@@ -8778,10 +8781,10 @@ function TodoItem({
 
   // v337: keyword check-off flourish (see lib/todo-flourish.ts).
   // Fired on the toggle EVENT, before onToggle runs: the burst goes
-  // out on the flourish bus with the checkbox's measured window
-  // position — the completing row is about to move to the completed
-  // section, so the burst must not live on the row — while the row's
-  // own settle (jolt / sink / crumple) rides the FlourishSettleView
+  // out on the flourish bus with the checkbox's window position —
+  // the completing row is about to move to the completed section,
+  // so the burst must not live on the row — while the row's own
+  // settle (jolt / sink / crumple) rides the FlourishSettleView
   // wrappers in the branches below. Unchecking never fires.
   const [rowSettle, setRowSettle] = useState<{ kind: TodoSettleKind; run: number }>({ kind: "none", run: 0 });
   const [subtaskSettles, setSubtaskSettles] = useState<Record<string, { kind: TodoSettleKind; run: number }>>({});
@@ -8789,53 +8792,68 @@ function TodoItem({
   // row LOOKS completed (filled checkbox, struck title) but keeps
   // its flow slot — isCompleted flips only when the write lands.
   const visuallyCompleted = todo.isCompleted || completionPending;
-  const checkboxAnchorRef = useRef<any>(null);
-  const subtaskAnchorRefs = useRef(new Map<string, any>());
+  // v351: the checkbox origin is recovered WITHOUT a live measure.
+  // Each checkbox wrapper caches its layout rect here at layout
+  // time (onLayout — for a plain row the rect is the checkbox's
+  // seat inside the row Pressable; for the grouped header it is
+  // the checkbox Pressable's own box, of which only the size is
+  // used), and each subtask row caches its size the same way. At
+  // press time the press's locationX/Y hands us the pressed
+  // target's window origin synchronously (page − location), and
+  // the anchor is computed from the cached rect. v348 anchored
+  // through an async Fabric measureInWindow callback that can
+  // silently never fire — ReactFabricHostComponent invokes it
+  // only if the shadow node resolves, with no else and no error —
+  // so bursts never emitted while the state-driven settle always
+  // played: "shake only", on v348 too. (The +10 XP floater works
+  // on his phone because it positions from the press's synchronous
+  // pageX/pageY — the press flow this restores.)
+  const checkboxRectRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  const subtaskRectRefs = useRef(new Map<string, { width: number; height: number }>());
 
-  const emitFlourishAt = (
-    flourish: NonNullable<ReturnType<typeof todoFlourishForTitle>>,
-    color: string,
-    anchorView: any,
-    fallback?: XpGainPosition,
-    leftInset?: number,
-  ) => {
-    if (anchorView && typeof anchorView.measureInWindow === "function") {
-      anchorView.measureInWindow((x: number, y: number, w: number, h: number) => {
-        emitTodoFlourish({
-          flourish,
-          color,
-          anchor: leftInset != null ? { x: x + leftInset, y: y + h / 2 } : { x: x + w / 2, y: y + h / 2 },
-        });
-      });
-    } else if (fallback) {
-      emitTodoFlourish({ flourish, color, anchor: fallback });
-    }
-  };
-
-  const fireRowFlourish = (fallback?: XpGainPosition) => {
+  const fireRowFlourish = (press?: TodoFlourishPress) => {
     const flourish = todoFlourishForTitle(todo.title);
     if (!flourish) return;
     setRowSettle({ kind: TODO_FLOURISH_SETTLE[flourish], run: Date.now() });
-    // v348: ALWAYS anchor at the row's measured checkbox — the
-    // v338 press-position shortcut is gone. v338 feared the async
-    // measure raced the row's teardown, but v338's own deferred
-    // write holds the row in its slot for the whole flourish, so
-    // the measure lands on a row that isn't going anywhere; the
-    // fingertip anchor, by contrast, played the burst mid-card on
-    // the pale surface, under his thumb — the invisible-burst
-    // report (Oct 29). The press position survives only as
-    // emitFlourishAt's fallback for a checkbox that can't be
-    // measured at all.
-    emitFlourishAt(flourish, todo.color || colors.primary, checkboxAnchorRef.current, fallback);
+    const color = todo.color || colors.primary;
+    const rect = checkboxRectRef.current;
+    let anchor: XpGainPosition | undefined;
+    if (press && press.locationX != null && press.locationY != null && rect) {
+      const originX = press.x - press.locationX;
+      const originY = press.y - press.locationY;
+      // frame "checkbox": the pressed target IS the checkbox (the
+      // grouped header) — anchor at its centre. frame "row": the
+      // pressed target is the row and the cached rect is the
+      // checkbox's seat inside it.
+      anchor =
+        press.frame === "checkbox"
+          ? { x: originX + rect.width / 2, y: originY + rect.height / 2 }
+          : press.frame === "row"
+            ? { x: originX + rect.x + rect.width / 2, y: originY + rect.y + rect.height / 2 }
+            : undefined;
+    }
+    // Synchronous emission from the press flow (v338's shape, the
+    // checkbox recovered from the cache) — and when no rect is
+    // cached, the raw press position carries the burst; the
+    // emission is never dropped.
+    emitTodoFlourish({ flourish, color, anchor: anchor ?? press ?? contextMenuPos });
   };
 
-  const fireSubtaskFlourish = (subtask: { id: string; title: string }, fallback?: XpGainPosition) => {
+  const fireSubtaskFlourish = (subtask: { id: string; title: string }, press?: TodoFlourishPress) => {
     const flourish = todoFlourishForTitle(subtask.title);
     if (!flourish) return;
     setSubtaskSettles((prev) => ({ ...prev, [subtask.id]: { kind: TODO_FLOURISH_SETTLE[flourish], run: Date.now() } }));
-    // The subtask's checkbox rides at its row's left edge — measure
-    // the row and anchor at the checkbox's centre (~10px in).
-    emitFlourishAt(flourish, groupAccentColor, subtaskAnchorRefs.current.get(subtask.id), fallback, 10);
+    // The subtask's checkbox rides at its row's left edge — the
+    // pressed target IS the subtask row, so its window origin (from
+    // the press seat) plus the row's cached height centres the
+    // burst on the checkbox (~10px in), synchronously.
+    const rect = subtaskRectRefs.current.get(subtask.id);
+    let anchor: XpGainPosition | undefined;
+    if (press && press.locationX != null && press.locationY != null && rect) {
+      anchor = { x: press.x - press.locationX + 10, y: press.y - press.locationY + rect.height / 2 };
+    }
+    const seat = anchor ?? press;
+    if (seat) emitTodoFlourish({ flourish, color: groupAccentColor, anchor: seat });
   };
 
   // Determine if this todo is in its active hour (glow effect)
@@ -8934,7 +8952,7 @@ function TodoItem({
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                   <Pressable
-                    ref={checkboxAnchorRef}
+                    onLayout={(e) => { checkboxRectRef.current = e.nativeEvent.layout; }}
                     accessibilityRole="checkbox"
                     accessibilityLabel={`Mark ${todo.title} ${todo.isCompleted ? 'incomplete' : 'complete'}`}
                     accessibilityState={{ checked: todo.isCompleted }}
@@ -8942,7 +8960,7 @@ function TodoItem({
                       event.stopPropagation?.();
                       if (completionPending) return; // v338: a held write owns this row until it lands
                       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+                      const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY, locationX: event.nativeEvent.locationX, locationY: event.nativeEvent.locationY, frame: "checkbox" as const };
                       if (!todo.isCompleted) fireRowFlourish(position);
                       onToggle(position);
                     }}
@@ -8988,14 +9006,11 @@ function TodoItem({
                 {groupedSubtasks.map((subtask, index) => (
                   <FlourishSettleView key={subtask.id} kind={subtaskSettles[subtask.id]?.kind ?? "none"} runKey={subtaskSettles[subtask.id]?.run ?? 0}>
                   <Pressable
-                    ref={(view: any) => {
-                      if (view) subtaskAnchorRefs.current.set(subtask.id, view);
-                      else subtaskAnchorRefs.current.delete(subtask.id);
-                    }}
+                    onLayout={(e) => { subtaskRectRefs.current.set(subtask.id, { width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height }); }}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: subtask.isCompleted }}
                     onPress={(event) => {
-                      const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+                      const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY, locationX: event.nativeEvent.locationX, locationY: event.nativeEvent.locationY };
                       if (!subtask.isCompleted) fireSubtaskFlourish(subtask, position);
                       onToggleSubtask?.(subtask.id, position);
                     }}
@@ -9053,7 +9068,7 @@ function TodoItem({
           onPress={(event) => {
             if (completionPending) return; // v338: a held write owns this row until it lands
             if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+            const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY, locationX: event.nativeEvent.locationX, locationY: event.nativeEvent.locationY, frame: "row" as const };
             if (!todo.isCompleted) fireRowFlourish(position);
             onToggle(position);
           }}
@@ -9062,12 +9077,12 @@ function TodoItem({
           style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, (skinTokens.isEightBit || skinTokens.isTerminal) ? { backgroundColor: skinTokens.surface ?? colors.surface, marginHorizontal: 12, marginBottom: 12, ...(skinTokens.frame ?? {}), borderBottomWidth: skinTokens.frame?.borderWidth ?? 3, borderBottomColor: skinTokens.frame?.borderColor, ...(cartridgeShadow ?? {}) } : { backgroundColor: mix(todo.color || colors.primary, colors.surface, 0.9), borderRadius: 18, marginHorizontal: 12, marginBottom: isSkinned ? 8 : 12, paddingVertical: isSkinned ? 10 : 8, paddingHorizontal: 12, gap: 10 }, (hasTypeScale(skinTokens) && isSkinned) ? { paddingVertical: 12 + skinTokens.type.padBoost, paddingHorizontal: 16 + skinTokens.type.padBoost } : null, pressed && { opacity: 0.7 }]}
         >
           {skinTokens.isTerminal ? (
-            <View ref={checkboxAnchorRef} style={{ marginRight: 12, alignSelf: "center" }}>
+            <View onLayout={(e) => { checkboxRectRef.current = e.nativeEvent.layout; }} style={{ marginRight: 12, alignSelf: "center" }}>
               <TermCheckbox checked={visuallyCompleted} size={22} />
             </View>
           ) : skinTokens.isEightBit ? (
           <ReAnimated.View
-            ref={checkboxAnchorRef}
+            onLayout={(e) => { checkboxRectRef.current = e.nativeEvent.layout; }}
             key={`checkbox-${visuallyCompleted}`}
             entering={visuallyCompleted ? FadeIn.duration(200) : undefined}
             style={[todoStyles.iconContainer, { backgroundColor: visuallyCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle, { borderRadius: 2, borderWidth: 2, borderColor: BIT_INK_HEX }]}
@@ -9078,7 +9093,7 @@ function TodoItem({
           // v295: the drawing's checkbox — a drawn rounded square in
           // the todo's own colour (2.5px edge, transparent middle),
           // filled with a white tick when done. No font glyph.
-          <View ref={checkboxAnchorRef} style={{ alignSelf: "center", width: 22, height: 22, borderRadius: 6, borderWidth: 2.5, borderColor: todo.color || colors.primary, backgroundColor: visuallyCompleted ? (todo.color || colors.primary) : "transparent", alignItems: "center", justifyContent: "center" }}>
+          <View onLayout={(e) => { checkboxRectRef.current = e.nativeEvent.layout; }} style={{ alignSelf: "center", width: 22, height: 22, borderRadius: 6, borderWidth: 2.5, borderColor: todo.color || colors.primary, backgroundColor: visuallyCompleted ? (todo.color || colors.primary) : "transparent", alignItems: "center", justifyContent: "center" }}>
             {visuallyCompleted && <MaterialIcons name="check" size={14} color="#FFFFFF" />}
           </View>
           )}
@@ -10744,37 +10759,74 @@ export function ScheduleTab({
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
   // v337: todo-pair rectangles and missed-todo rows carry their own
   // flourish seats (see lib/todo-flourish.ts) — settle runs per todo
-  // plus row refs so the burst can anchor at each row's checkbox.
+  // plus layout-rect caches so each burst can anchor at its row's
+  // checkbox.
   const [pairSettles, setPairSettles] = useState<Record<string, { kind: TodoSettleKind; run: number }>>({});
-  const pairRowRefs = useRef(new Map<string, any>());
-  const missedRowRefs = useRef(new Map<string, any>());
+  // v351: these maps cache LAYOUT RECTS written by onLayout, not
+  // views. v348 measured the views at press time through Fabric's
+  // measureInWindow, whose callback can silently never fire — and
+  // the pair path had no fallback at all, so no callback meant no
+  // burst while the state-driven settle always played. The press's
+  // own locationX/Y recovers the pressed target's window origin
+  // synchronously; the cached rect supplies the rest.
+  const pairRowRefs = useRef(new Map<string, { width: number; height: number }>());
+  const missedRowRefs = useRef(new Map<string, { row?: { x: number; y: number; width: number; height: number }; actions?: { x: number; y: number; width: number; height: number }; button?: { x: number; y: number; width: number; height: number } }>());
 
-  const firePairFlourish = (pairTodo: { id: string; title: string; color?: string | null }) => {
+  const stashMissedRect = (todoId: string, seat: "row" | "actions" | "button", layout: { x: number; y: number; width: number; height: number }) => {
+    const entry = missedRowRefs.current.get(todoId) ?? {};
+    entry[seat] = layout;
+    missedRowRefs.current.set(todoId, entry);
+  };
+
+  const fireMissedFlourish = (missedTodo: { id: string; title: string; color?: string | null }, press: TodoFlourishPress) => {
+    const flourish = todoFlourishForTitle(missedTodo.title);
+    if (!flourish) return;
+    // The Complete button that fires this is NOT the row — it is
+    // the action button under it. The row's window origin is
+    // recovered from the button's: the press's location gives the
+    // button's window origin, and the cached layout rects (the row
+    // and the actions strip are siblings in one wrapper; the
+    // button rides inside the actions strip) give the row's offset
+    // from the button. v348's anchor math from the row's origin —
+    // checkbox at +26, vertically centred — is unchanged; only
+    // the sourcing is synchronous now. Any rect missing → the raw
+    // press position; the emission is never dropped.
+    const rects = missedRowRefs.current.get(missedTodo.id);
+    let anchor: XpGainPosition | undefined;
+    if (rects?.row && rects?.actions && rects?.button && press.locationX != null && press.locationY != null) {
+      const rowOriginX = press.x - press.locationX - (rects.actions.x + rects.button.x) + rects.row.x;
+      const rowOriginY = press.y - press.locationY - (rects.actions.y + rects.button.y) + rects.row.y;
+      anchor = { x: rowOriginX + 26, y: rowOriginY + rects.row.height / 2 };
+    }
+    emitTodoFlourish({ flourish, color: missedTodo.color || colors.primary, anchor: anchor ?? press });
+  };
+
+  const firePairFlourish = (pairTodo: { id: string; title: string; color?: string | null }, press: TodoFlourishPress) => {
     const flourish = todoFlourishForTitle(pairTodo.title);
     if (!flourish) return;
     setPairSettles((prev) => ({ ...prev, [pairTodo.id]: { kind: TODO_FLOURISH_SETTLE[flourish], run: Date.now() } }));
-    // v348: ALWAYS anchor at the pair's measured checkbox — the
-    // v338 press-position shortcut is gone (same reasoning as the
-    // row burst: the deferred write holds the rectangle in its slot
-    // for the whole flourish, so the measure can't race a teardown;
-    // the fingertip anchor buried the burst mid-card, under the
-    // thumb). The kit's travel was drawn from the checkbox.
-    const view = pairRowRefs.current.get(pairTodo.id);
-    if (view && typeof view.measureInWindow === "function") {
-      view.measureInWindow((x: number, y: number, w: number, h: number) => {
-        // The pair's checkbox rides at the rectangle's top-left:
-        // padding 11 + half the 20px box.
-        // The wide kits (Brush Teeth foam, Trash bits) were
-        // authored across a full-width row; from a pair rectangle
-        // they'd scatter onto the neighbouring card — contain
-        // their ox to the card's width right of the checkbox.
-        const oxScale =
-          flourish === "brush-teeth" || flourish === "trash"
-            ? Math.min(1, Math.max(0, w - 21) / TODO_FLOURISH_WIDE_SPAN_PX)
-            : undefined;
-        emitTodoFlourish({ flourish, color: pairTodo.color || colors.primary, anchor: { x: x + 21, y: y + h / 2 - 10 }, oxScale });
-      });
+    // v351: anchor at the pair's checkbox, computed synchronously
+    // in the press flow. The press target IS the rectangle, so
+    // page − location is its window origin; the checkbox rides at
+    // the rectangle's top-left (padding 11 + half the 20px box;
+    // vertically centred, less the half box) over the rectangle's
+    // cached layout height — v348's anchor math, without the async
+    // measure that could silently never call back. No cached rect
+    // → the raw press position; the emission is never dropped.
+    const rect = pairRowRefs.current.get(pairTodo.id);
+    let anchor: XpGainPosition | undefined;
+    if (rect && press.locationX != null && press.locationY != null) {
+      anchor = { x: press.x - press.locationX + 21, y: press.y - press.locationY + rect.height / 2 - 10 };
     }
+    // The wide kits (Brush Teeth foam, Trash bits) were authored
+    // across a full-width row; from a pair rectangle they'd
+    // scatter onto the neighbouring card — contain their ox to
+    // the card's width right of the checkbox (v348, kept).
+    const oxScale =
+      rect && (flourish === "brush-teeth" || flourish === "trash")
+        ? Math.min(1, Math.max(0, rect.width - 21) / TODO_FLOURISH_WIDE_SPAN_PX)
+        : undefined;
+    emitTodoFlourish({ flourish, color: pairTodo.color || colors.primary, anchor: anchor ?? press, oxScale });
   };
 
   // v338 — flourish-held completion writes. A flourish-mapped
@@ -14055,15 +14107,12 @@ export function ScheduleTab({
                 return (
                   <FlourishSettleView key={t.id} kind={pairSettles[t.id]?.kind ?? "none"} runKey={pairSettles[t.id]?.run ?? 0} style={{ flex: 1 }}>
                   <Pressable
-                    ref={(view: any) => {
-                      if (view) pairRowRefs.current.set(t.id, view);
-                      else pairRowRefs.current.delete(t.id);
-                    }}
+                    onLayout={(e) => { pairRowRefs.current.set(t.id, { width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height }); }}
                     style={{ flex: 1, backgroundColor: tonalRect ? mix(todoColor, colors.surface, 0.86) : todoColor, borderRadius: tonalRect ? 18 : 12, padding: 11, minHeight: 68, justifyContent: "center", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...((hasTypeScale(skinTokens) && isSkinned) ? { padding: 12 + skinTokens.type.padBoost, minHeight: 68 + skinTokens.type.padBoost * 2 } : {}) }}
                     onPress={(e) => {
                       if (pendingTodoIds.has(t.id)) return; // v338: a held write owns this rectangle until it lands
-                      const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
-                      if (!t.isCompleted) firePairFlourish(t);
+                      const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, locationX: e.nativeEvent.locationX, locationY: e.nativeEvent.locationY };
+                      if (!t.isCompleted) firePairFlourish(t, position);
                       requestTodoToggle(t, () => {
                         if (!t.isCompleted) onAwardXP?.(xpActionForDate(t.date), t.id, position);
                         else revokeTodoXP(t.id, position);
@@ -15150,10 +15199,7 @@ export function ScheduleTab({
                   return (
                     <View key={todo.id}>
                       <Pressable
-                        ref={(view: any) => {
-                          if (view) missedRowRefs.current.set(todo.id, view);
-                          else missedRowRefs.current.delete(todo.id);
-                        }}
+                        onLayout={(e) => stashMissedRect(todo.id, "row", e.nativeEvent.layout)}
                         accessibilityRole="button"
                         accessibilityState={{ expanded: isActive }}
                         onPress={() => setActiveMissedTodoId((current) => current === todo.id ? null : todo.id)}
@@ -15173,9 +15219,10 @@ export function ScheduleTab({
                         <MaterialIcons name={isActive ? "keyboard-arrow-up" : "keyboard-arrow-right"} size={20} color={colors.muted} />
                       </Pressable>
                       {isActive && (
-                        <View style={[scheduleStyles.missedTodoActions, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }]}>
+                        <View onLayout={(e) => stashMissedRect(todo.id, "actions", e.nativeEvent.layout)} style={[scheduleStyles.missedTodoActions, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface }]}>
                           <Pressable
-                            onPress={(event) => { const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; if (!todo.isCompleted) { const flourish = todoFlourishForTitle(todo.title); if (flourish) { const rowView = missedRowRefs.current.get(todo.id); if (rowView && typeof rowView.measureInWindow === "function") rowView.measureInWindow((x: number, y: number, w: number, h: number) => emitTodoFlourish({ flourish, color: todo.color || colors.primary, anchor: { x: x + 26, y: y + h / 2 } })); else emitTodoFlourish({ flourish, color: todo.color || colors.primary, anchor: position }); } onAwardXP?.(xpActionForDate(todo.date), todo.id, position); } else revokeTodoXP(todo.id, position); setTodos((current) => toggleTodoCompleted(current, todo.id)); }}
+                            onLayout={(e) => stashMissedRect(todo.id, "button", e.nativeEvent.layout)}
+                            onPress={(event) => { const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY, locationX: event.nativeEvent.locationX, locationY: event.nativeEvent.locationY }; if (!todo.isCompleted) { fireMissedFlourish(todo, position); onAwardXP?.(xpActionForDate(todo.date), todo.id, position); } else revokeTodoXP(todo.id, position); setTodos((current) => toggleTodoCompleted(current, todo.id)); }}
                             style={({ pressed }) => [scheduleStyles.missedTodoActionButton, { backgroundColor: colors.success }, pressed && { opacity: 0.72 }]}
                           >
                             <MaterialIcons name="check" size={17} color="#FFFFFF" />

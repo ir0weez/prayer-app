@@ -41,6 +41,24 @@
 //    spread to the pair card's width; rows keep authored spreads.
 // NOT touched: the keyword map, the null set, the 900ms duration,
 // the deferred-write/settle mechanics, the bus/overlay shape.
+//
+// RE-BASED (v351, Oct 29): the ANCHOR mechanism pins in the first
+// describe below are re-based. The measured anchor itself became
+// the bug: on v348 the bursts STILL never appeared on his phone
+// ("the tap animations still don't work on todos", 19:15) — every
+// burst rode an async Fabric measureInWindow callback that can
+// silently never fire (ReactFabricHostComponent invokes it only
+// if the shadow node resolves; no else, no error), and the pair
+// path had no fallback at all, so no callback meant no emission
+// while the state-driven settle always played. v351 takes the
+// live measure out of every press path: emission is synchronous
+// from the press seat again, and the checkbox origin is computed
+// from a layout rect cached at layout time (onLayout) plus the
+// press's own locationX/Y. v348's anchor MATH (+21 / centred /
+// +26), the timing stretch, the contrast lifts and the wide-kit
+// squeeze are all kept — only the sourcing changed. The full
+// v351 pins live in todo-flourish-v351.test.ts; the timing,
+// contrast and bus pins below stand exactly as written.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, expect, it, vi } from "vitest";
@@ -70,8 +88,12 @@ const rowFn = schedule.slice(
   schedule.indexOf("const fireSubtaskFlourish"),
 );
 
-describe("v348 — the anchor: measured checkbox, never the fingertip", () => {
-  it("no press-position emission remains in either fire path", () => {
+describe("the anchor: the checkbox, never the fingertip (RE-BASED in v351)", () => {
+  it("the v338 press-position one-liners never came back", () => {
+    // v351 restores synchronous emission from the press flow, but
+    // as a computed seat (anchor ?? press) — the verbatim v338
+    // shortcuts, which emitted the raw fingertip with no checkbox
+    // recovery at all, stay gone.
     expect(schedule).not.toContain(
       "if (fallback) {\n      emitTodoFlourish({ flourish, color: todo.color || colors.primary, anchor: fallback });",
     );
@@ -80,25 +102,42 @@ describe("v348 — the anchor: measured checkbox, never the fingertip", () => {
     );
   });
 
-  it("the pair burst measures its rectangle and anchors at its checkbox", () => {
+  it("the pair burst anchors at its checkbox, computed from the cached rect (RE-BASED in v351)", () => {
+    // RE-BASED (v351): was "measures its rectangle" through
+    // measureInWindow — the callback that silently never fired.
+    // The map now caches the rectangle's layout size (onLayout),
+    // and the anchor keeps v348's math from the press origin:
+    // padding 11 + half the 20px box, vertically centred, less
+    // the half box.
     expect(pairFn).toContain("pairRowRefs.current.get(pairTodo.id)");
-    expect(pairFn).toContain("measureInWindow");
-    // padding 11 + half the 20px box, vertically centred, less the half box
-    expect(pairFn).toContain("anchor: { x: x + 21, y: y + h / 2 - 10 }");
-  });
-
-  it("the row burst goes through the measured checkbox path", () => {
-    expect(rowFn).toContain(
-      "emitFlourishAt(flourish, todo.color || colors.primary, checkboxAnchorRef.current, fallback)",
+    expect(pairFn).not.toContain("measureInWindow");
+    expect(pairFn).toContain(
+      "anchor = { x: press.x - press.locationX + 21, y: press.y - press.locationY + rect.height / 2 - 10 };",
     );
-    // the press position survives only as emitFlourishAt's own
-    // can't-measure fallback — it is never emitted directly
-    expect(rowFn).not.toContain("emitTodoFlourish");
   });
 
-  it("the pair press no longer hands its position to the flourish", () => {
-    expect(schedule).toContain("if (!t.isCompleted) firePairFlourish(t);");
-    expect(schedule).not.toContain("firePairFlourish(t, position)");
+  it("the row burst anchors at its checkbox, computed from the cached rect (RE-BASED in v351)", () => {
+    // RE-BASED (v351): was "goes through the measured checkbox
+    // path" (emitFlourishAt + measureInWindow, never emitting
+    // directly). The row now emits synchronously itself, walking
+    // from the pressed target's origin to the checkbox through
+    // the rect its wrapper cached at layout time.
+    expect(rowFn).toContain("emitTodoFlourish({");
+    expect(rowFn).not.toContain("measureInWindow");
+    expect(rowFn).toContain("const rect = checkboxRectRef.current;");
+    expect(rowFn).toContain("{ x: originX + rect.x + rect.width / 2, y: originY + rect.y + rect.height / 2 }");
+  });
+
+  it("the pair press hands its seat (page + location) to the flourish (RE-BASED in v351)", () => {
+    // RE-BASED (v351): v348 pinned the press handing NOTHING over
+    // (firePairFlourish(t)) because the fingertip was the wrong
+    // anchor and the measure supplied the origin. With the live
+    // measure gone, the press's own location is how the checkbox
+    // origin is recovered synchronously — the seat is handed
+    // over, the anchor is still computed to the checkbox, and the
+    // raw page point remains only the no-cache fallback.
+    expect(schedule).toContain("if (!t.isCompleted) firePairFlourish(t, position);");
+    expect(schedule).not.toContain("firePairFlourish(t);");
   });
 });
 

@@ -321,8 +321,28 @@ export const TODO_FLOURISH_WIDE_SPAN_PX = 263;
 // ─── The toggle-event bus ───────────────────────────────────────────────────
 // Mirrors lib/xp-engine's XP-gain bus: toggle handlers emit, the one
 // root overlay subscribes. The anchor is a WINDOW position (the
-// checkbox centre, measured at press time), so the burst lands where
+// checkbox centre, computed at press time), so the burst lands where
 // the row was even after the row itself moves to the completed stack.
+
+/**
+ * v351: a flourish press seat — everything a press handler knows
+ * synchronously. `x`/`y` are the touch's window position (pageX/Y);
+ * `locationX`/`locationY` are the touch's position inside the
+ * pressed target, so the target's window origin is page − location
+ * with no live measure; `frame` names which target was pressed (the
+ * checkbox itself, or the row around it) so the caller can walk
+ * from that origin to the checkbox via the layout rect the row
+ * cached at layout time (onLayout). Emission is synchronous from
+ * the press flow — v348's async Fabric measureInWindow callback
+ * could silently never fire, and the pair path had no fallback.
+ */
+export type TodoFlourishPress = {
+  x: number;
+  y: number;
+  locationX?: number;
+  locationY?: number;
+  frame?: "checkbox" | "row";
+};
 
 export type TodoFlourishEvent = {
   id: string;

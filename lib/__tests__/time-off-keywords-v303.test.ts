@@ -183,12 +183,17 @@ describe("v303 surfaces — special, not copies (source pins)", () => {
     expect(dayCard).toContain("getItineraryKindLabel(entry.kind).toUpperCase()");
   });
 
-  it("the timeline entry shows the artwork in a media band, kind tile preserved below it", () => {
-    const artAt = experience.indexOf("<KeywordAmbientAnimation");
-    const tileAt = experience.indexOf("width: 26, height: 26, borderRadius: 9");
-    expect(artAt).toBeGreaterThan(-1);
-    expect(experience).toContain("<View style={{ height: 96 }}>");
-    expect(tileAt).toBeGreaterThan(artAt);
+  it("the timeline entry is dressed by kind (v388) — the banner is gone from this face, the day card keeps it", () => {
+    // v388 amendment (Oct 31): the timeline entry's 96px artwork
+    // band WAS the generic banner card of his flag ("this page is
+    // NOT the designed timeline we agreed"). The trip page's
+    // entries are now dressed by kind (route card / booking block
+    // / chunky card) and carry NO artwork band; the band remains
+    // the day card's, pinned above. The kind tile survives in the
+    // shared EntryHead at 30px.
+    expect(experience).not.toContain("<KeywordAmbientAnimation");
+    expect(experience).not.toContain("<View style={{ height: 96 }}>");
+    expect(experience).toContain("width: 30, height: 30, borderRadius: 10");
     // v308 re-pin: the timeline's detail line now renders through
     // the show-font segments — the plain line survives verbatim as
     // the fallback when no show font engages.

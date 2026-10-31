@@ -574,6 +574,14 @@ export function pastTrips(timeOffList: TimeOff[], todayISO: string): TimeOff[] {
     .sort((a, b) => b.startDate.localeCompare(a.startDate));
 }
 
+/** The town an address names: "412 Mesa Rd, Moab, UT" → "Moab"; "1 World Way, Los Angeles" → "Los Angeles". */
+function townOfAddress(address?: string): string | null {
+  if (!address) return null;
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) return parts[parts.length - 2].replace(/\s+(Intl|International)\s+Airport.*$/i, "") || parts[parts.length - 2];
+  return parts[0] ?? null;
+}
+
 /**
  * The route read for the hero — "Los Angeles → Denver → Moab" — derived
  * from the itinerary in order: a travel entry contributes its route's two
@@ -590,19 +598,12 @@ export function deriveRouteRead(timeOff: TimeOff): string | null {
     const clean = (place || "").trim();
     if (clean && places[places.length - 1] !== clean) places.push(clean);
   };
-  const townOf = (address?: string): string | null => {
-    if (!address) return null;
-    const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
-    // "412 Mesa Rd, Moab, UT" → Moab; "1 World Way, Los Angeles" → Los Angeles
-    if (parts.length >= 2) return parts[parts.length - 2].replace(/\s+(Intl|International)\s+Airport.*$/i, "") || parts[parts.length - 2];
-    return parts[0] ?? null;
-  };
   for (const entry of entries) {
     if (entry.kind === 'travel') {
       const route = entry.detail?.match(/([A-Za-z]{3})\s*→\s*([A-Za-z]{3})/);
       if (route) {
         // Origin reads from this entry's own address when it names a place.
-        push(townOf(entry.address) ?? route[1]);
+        push(townOfAddress(entry.address) ?? route[1]);
         const destTitle = entry.title.replace(/^Flight to\s+/i, "").trim();
         push(destTitle && !/^[A-Za-z]{3}$/.test(destTitle) ? destTitle : route[2]);
       } else if (entry.title) {
@@ -610,11 +611,49 @@ export function deriveRouteRead(timeOff: TimeOff): string | null {
         if (drive !== entry.title) push(drive);
       }
     } else if (entry.kind === 'stay') {
-      push(townOf(entry.address));
+      push(townOfAddress(entry.address));
     }
   }
   if (places.length < 2) return null;
   return places.join(" → ");
+}
+
+/**
+ * v388 — ONE Travel entry's route for its route card on the trip
+ * page, read from the entry's own stored fields the way
+ * deriveRouteRead reads a whole trip: the detail's airport-code
+ * pair first (origin from the entry's address when it names a
+ * town, destination from a "Flight to …" title when it names a
+ * place rather than falling back to the code), then a "Flight
+ * to …" / "Drive to …" title on its own (destination only, with
+ * the address's town as origin when it names one). titleConsumed
+ * marks that the destination WAS the title, so the card does not
+ * print the same words twice. Null when the entry stores no
+ * route at all — the card prints what exists and never invents
+ * a second city.
+ */
+export function itineraryTravelRoute(
+  entry: ItineraryEntry,
+): { from: string | null; to: string | null; titleConsumed: boolean } | null {
+  if (entry.kind !== "travel") return null;
+  const route = entry.detail?.match(/([A-Za-z]{3})\s*→\s*([A-Za-z]{3})/);
+  if (route) {
+    // The destination is the title's place only when the title
+    // actually names one ("Flight to Denver" → Denver); any other
+    // title ("Flight UA 1847") leaves the code to speak.
+    const destTitle = entry.title.replace(/^Flight to\s+/i, "").trim();
+    const toIsTitle = destTitle !== entry.title && !!destTitle && !/^[A-Za-z]{3}$/.test(destTitle);
+    return {
+      from: townOfAddress(entry.address) ?? route[1].toUpperCase(),
+      to: toIsTitle ? destTitle : route[2].toUpperCase(),
+      titleConsumed: toIsTitle,
+    };
+  }
+  const named = entry.title.replace(/^(?:Flight|Drive) to\s+/i, "").trim();
+  if (named !== entry.title && named) {
+    return { from: townOfAddress(entry.address), to: named, titleConsumed: true };
+  }
+  return null;
 }
 
 /**

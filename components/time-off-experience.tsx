@@ -13,6 +13,29 @@
  *   a route card, a stay set as a booking block, plans as simple rows —
  *   with Add to timeline at the foot.
  *
+ * v388 — the TRIP face rebuilt to that blend at last (his flags,
+ * Oct 28 and Oct 31: the shipped page "is NOT the designed timeline
+ * we agreed one from the mockup"). v314 had rebuilt the LIST from
+ * the blend drawing but left the trip face with a plain title block
+ * and the generic keyword-banner entry cards. Now the trip header
+ * is the blend hero — the saturated colour field, the kind pill,
+ * ONE oversized number story (days to go before the trip; the day
+ * count while it runs; its length once it is over), the title and
+ * range on the field, and the route read standing on the scenic
+ * band when the itinerary yields one. The entries are dressed by
+ * kind, no banners anywhere: Travel is a ROUTE CARD (FROM → TO as
+ * the biggest print over the dotted flight path, from the entry's
+ * own stored fields via itineraryTravelRoute — never an invented
+ * city), Stay is a BOOKING BLOCK (title big, check-in / check-out
+ * as a small grid — check-out is the next stay's date or the
+ * trip's end, only what the data derives), and Plan / Food / Ride
+ * / View are chunky cards in their kind's tonal step of the trip's
+ * colour. The whole face derives from the trip's own colour
+ * family (timeOffPassPalette, the pass/board derivation). Day
+ * heads, the add row, Edit trip and Delete trip keep their places
+ * and behaviour; the day list's own cards (v303 artwork, v385
+ * passes) are untouched — the artwork band lives there, not here.
+ *
  * Nothing here completes anything: time off is booked, edited, and
  * planned — never checked off.
  *
@@ -80,6 +103,8 @@ import {
   getTimeOffLabel,
   itineraryKindColor,
   itineraryDetailLine,
+  itineraryTravelRoute,
+  timeOffPassPalette,
   resolveItineraryKeyword,
   ITINERARY_KINDS as ALL_ITINERARY_KINDS,
   groupItineraryByDate,
@@ -94,6 +119,7 @@ import {
   type ItineraryEntry,
   type ItineraryKind,
   type TimeOff,
+  type TimeOffPassPalette,
   type TimeOffType,
 } from "@/lib/time-off";
 import { detectShowFont } from "@/lib/show-fonts";
@@ -101,7 +127,6 @@ import { showNameSegments } from "./show-sub-line";
 import { generateId } from "@/lib/schedule-data";
 import { format12HourTime } from "@/lib/utils";
 import { tripBaseColor } from "./time-off-travel";
-import { KeywordAmbientAnimation } from "./schedule-tab";
 
 const TIME_OFF_TYPES: TimeOffType[] = ["vacation", "sick", "personal", "sabbatical", "other"];
 // v302: the six kinds come from the model (lib/time-off) — one source
@@ -740,22 +765,66 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
     const duration = calculateTimeOffDuration(activeTrip.startDate, activeTrip.endDate);
     const until = daysUntilTrip(activeTrip, today);
     const dayNum = tripDayNumber(activeTrip, today);
-    // v314: the sub-line's state read — the facts only (range,
-    // length, where today sits in it), no caption.
-    const stateRead = until > 0
-      ? ` · starts in ${until} day${until !== 1 ? "s" : ""}`
-      : dayNum
-        ? ` · Day ${dayNum.day} of ${dayNum.total}`
-        : "";
+    // v388: the trip's own colour family for the whole face — the
+    // pass/board derivation (lib/time-off timeOffPassPalette).
+    const palette = timeOffPassPalette(activeTrip, colors.surface);
+    // v388: a stay's check-out, from stored data only — the next
+    // stay's date in itinerary order, else the trip's own end.
+    const sortedAll = sortItinerary(activeTrip.itinerary ?? []);
+    const checkoutFor = (entry: ItineraryEntry): string => {
+      const at = sortedAll.findIndex((e) => e.id === entry.id);
+      const nextStay = sortedAll.slice(at + 1).find((e) => e.kind === "stay");
+      return nextStay?.date ?? activeTrip.endDate;
+    };
     return (
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        {/* v314: the drawing's trip head — the title at display
-            weight on the surface and the facts as ONE sub-line.
-            The v294 colour header card (and its caption) is gone. */}
-        <Text style={{ fontSize: 32, fontWeight: "900", letterSpacing: -0.5, color: colors.foreground, marginTop: 2 }}>{activeTrip.title}</Text>
-        <Text style={{ fontSize: 14, fontWeight: "500", color: colors.muted, marginTop: 2 }}>
-          {fmtRange(activeTrip)} · {duration} day{duration !== 1 ? "s" : ""}{stateRead}
-        </Text>
+        {/* v388: the blend hero — the trip's saturated colour
+            field, built exactly as the list's hero card is: the
+            kind pill, ONE oversized number story, the title and
+            range on the field, and the scenic band across the
+            foot with the route read standing on it when the
+            itinerary yields one. (v314's plain title block was
+            the deviation his Oct 31 flag named.) */}
+        {(() => {
+          const pillBg = mix(base, "#FFD60A", 0.82);
+          const pillInk = mix(pillBg, "#000000", 0.78);
+          const route = deriveRouteRead(activeTrip);
+          const big = until > 0 ? until : dayNum ? dayNum.day : duration;
+          const bigSide = until > 0 ? "days\nto go" : dayNum ? `of ${dayNum.total}\ndays` : "days";
+          return (
+            <View style={{ backgroundColor: base, borderTopLeftRadius: 36, borderTopRightRadius: 36, borderBottomRightRadius: 36, borderBottomLeftRadius: 14, paddingTop: 20, paddingHorizontal: 20, overflow: "hidden", marginBottom: 6 }}>
+              <View style={{ alignSelf: "flex-start", backgroundColor: pillBg, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
+                <Text style={{ color: pillInk, fontSize: 12, fontWeight: "900", letterSpacing: 0.4 }}>
+                  {getTimeOffLabel(activeTrip.type).toUpperCase()}
+                </Text>
+              </View>
+              {/* v388: ONE number story — days to go before the
+                  trip starts; while it runs, the day count (Day N
+                  of M); once it is over, its length. No duration
+                  or second count rides anywhere else on the field. */}
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 4 }}>
+                <Text style={{ color: "#FFFFFF", fontSize: 96, lineHeight: 88, fontWeight: "900", letterSpacing: -2 }}>{big}</Text>
+                <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700", lineHeight: 20, marginTop: 12 }}>{bigSide}</Text>
+              </View>
+              <Text style={{ color: "#FFFFFF", fontSize: 32, fontWeight: "900", letterSpacing: -0.5, marginTop: 10 }}>{activeTrip.title}</Text>
+              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: "500", marginTop: 2 }}>
+                {fmtRange(activeTrip)}
+              </Text>
+              <View style={{ marginHorizontal: -20, marginTop: 14, height: 64 }}>
+                <Svg width="100%" height="100%" viewBox="0 0 354 64" preserveAspectRatio="none" style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+                  <Circle cx={292} cy={20} r={15} fill={mix(base, "#FFD60A", 0.85)} />
+                  <Path d="M0 44 Q 70 22 150 40 T 354 34 V64 H0 Z" fill={mix(base, "#000000", 0.22)} />
+                  <Path d="M0 54 Q 90 36 190 50 T 354 48 V64 H0 Z" fill={mix(base, "#000000", 0.38)} />
+                </Svg>
+                {route && (
+                  <View style={{ position: "absolute", left: 20, bottom: 12 }}>
+                    <Text style={{ color: "#FFFFFF", fontSize: 13.5, fontWeight: "700", letterSpacing: 0.3, textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>{route}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          );
+        })()}
 
         {groups.length === 0 && (
           <View style={{ alignItems: "center", paddingVertical: 26 }}>
@@ -788,14 +857,14 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
               </View>
               <View style={{ gap: 12, paddingBottom: 4 }}>
                 {group.entries.map((entry) => (
-                  <TimelineEntry key={entry.id} entry={entry} base={base} onDelete={() => handleDeleteEntry(entry)} />
+                  <TimelineEntry key={entry.id} entry={entry} base={base} palette={palette} checkoutDate={checkoutFor(entry)} onDelete={() => handleDeleteEntry(entry)} />
                 ))}
               </View>
             </View>
           );
         })}
 
-        <View style={{ backgroundColor: tones.containerLow, borderRadius: 22, padding: 16, marginTop: 4 }}>
+        <View style={{ backgroundColor: palette.paper, borderRadius: 22, padding: 16, marginTop: 4 }}>
           <Text style={{ fontSize: 13, fontWeight: "800", color: colors.foreground, marginBottom: 10 }}>Add to the timeline</Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
             {ITINERARY_KINDS.map(({ kind, label, icon }) => {
@@ -1032,72 +1101,312 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
   );
 }
 
-const ROUTE_RE = /([A-Za-z]{3})\s*→\s*([A-Za-z]{3})/;
 
-function TimelineEntry({ entry, base, onDelete }: { entry: ItineraryEntry; base: string; onDelete: () => void }) {
-  const colors = useColors();
-  const route = entry.kind === "travel" ? entry.detail?.match(ROUTE_RE) : null;
-  // v302: the entry's kind identity — its icon on a tonal tile of its
-  // own colour step, its label in that same colour.
+/**
+ * v388 — one timeline entry, dressed by its kind (the blend's
+ * insides; see the file head note). TimelineEntry resolves the
+ * shared reads — the kind identity (v302), the composed detail
+ * line (v303) and its show-font segments (v308) — and dispatches:
+ * Travel to the route card, Stay to the booking block, and Plan /
+ * Food / Ride / View to the chunky kind card. The keyword artwork
+ * banner that headed this card from v303 to v387 is GONE from
+ * this face: it was the generic banner card of his Oct 31 flag.
+ * The artwork lives on the day list's cards, untouched. Every
+ * card keeps the same × removal and the same inert body — an
+ * entry here is planned, never completed, never a door.
+ */
+function TimelineEntry({ entry, base, palette, checkoutDate, onDelete }: { entry: ItineraryEntry; base: string; palette: TimeOffPassPalette; checkoutDate: string; onDelete: () => void }) {
+  // v302: the entry's kind identity — its icon, its label, and
+  // its own colour step of the trip's colour.
   const kindColor = itineraryKindColor(entry.kind, base);
   const kindLabel = getItineraryKindLabel(entry.kind).toUpperCase();
-  // v303: the entry's keyword artwork, resolved as an event's is. It
-  // shows in a media band at the entry's head; the kind tile and label
-  // below are preserved untouched, and an entry with no keyword keeps
-  // its plain card exactly. The detail line speaks the composed read
-  // ("S1 E6 · The Bear") when the entry carries one.
+  const kindIcon = getItineraryKindIcon(entry.kind);
+  // v303: the keyword still resolves — no longer for a banner,
+  // but for the TV Show detail composition, the way the day
+  // cards compose theirs.
   const keyword = resolveItineraryKeyword(entry);
   const detailLine = itineraryDetailLine(entry);
-  // v308: the show's name in the composed read ("S1 E6 · The Bear")
-  // wears its title font, as on the day-page cards — segments only
-  // when the name is present, else the plain line renders as today.
+  // v308: the show's name in the composed read ("S1 E6 · The
+  // Bear") wears its title font — segments only when the name
+  // is present, else the plain line renders.
   const showFont = keyword?.label === "TV Show" ? detectShowFont(entry.detail, entry.title) : null;
   const detailSegments = showFont && detailLine ? showNameSegments(detailLine, showFont) : null;
+  if (entry.kind === "travel") {
+    return (
+      <TravelRouteCard
+        entry={entry}
+        palette={palette}
+        kindColor={kindColor}
+        kindLabel={kindLabel}
+        kindIcon={kindIcon}
+        detailLine={detailLine}
+        detailSegments={detailSegments}
+        onDelete={onDelete}
+      />
+    );
+  }
+  if (entry.kind === "stay") {
+    return (
+      <StayBookingBlock
+        entry={entry}
+        palette={palette}
+        kindColor={kindColor}
+        kindLabel={kindLabel}
+        kindIcon={kindIcon}
+        checkoutDate={checkoutDate}
+        detailLine={detailLine}
+        detailSegments={detailSegments}
+        onDelete={onDelete}
+      />
+    );
+  }
   return (
-    <View style={{ backgroundColor: colors.surface, borderRadius: 20, ...(keyword ? { overflow: "hidden" as const } : { padding: 15 }), shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-      {keyword && (
-        <View style={{ height: 96 }}>
-          <KeywordAmbientAnimation label={keyword.label} title={entry.title} location={entry.address} notes={entry.detail} />
-          <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.22)" }} />
+    <ChunkyEntryCard
+      entry={entry}
+      kindColor={kindColor}
+      kindLabel={kindLabel}
+      kindIcon={kindIcon}
+      detailLine={detailLine}
+      detailSegments={detailSegments}
+      onDelete={onDelete}
+    />
+  );
+}
+
+/** The head row every dressed entry shares: kind tile, time, kind word, and the × removal. */
+function EntryHead({ icon, tileBg, tileIconColor, time, label, labelColor, timeColor, closeColor, title, onDelete }: {
+  icon: string;
+  tileBg: string;
+  tileIconColor: string;
+  time?: string;
+  label: string;
+  labelColor: string;
+  timeColor: string;
+  closeColor: string;
+  title: string;
+  onDelete: () => void;
+}) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: tileBg, alignItems: "center", justifyContent: "center" }}>
+        <MaterialIcons name={icon as any} size={17} color={tileIconColor} />
+      </View>
+      {time && (
+        <Text style={{ fontSize: 13.5, fontWeight: "800", color: timeColor }}>{time}</Text>
+      )}
+      <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 1.2, color: labelColor }}>{label}</Text>
+      <View style={{ flex: 1 }} />
+      <Pressable onPress={onDelete} accessibilityLabel={`Remove ${title}`} style={({ pressed }) => [{ padding: 2, opacity: pressed ? 0.5 : 1 }]}>
+        <MaterialIcons name="close" size={16} color={closeColor} />
+      </Pressable>
+    </View>
+  );
+}
+
+const entryCardShadow = {
+  shadowColor: "#000",
+  shadowOpacity: 0.06,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 2 },
+  elevation: 2,
+} as const;
+
+/**
+ * v388 — Travel as a ROUTE CARD: FROM → TO is the biggest print
+ * on the card, over the dotted flight path with the plane riding
+ * it (the flight-board language). The route reads from the
+ * entry's own stored fields (itineraryTravelRoute): the detail's
+ * airport-code pair, a "Flight to …" title, the address's town.
+ * An entry storing only one place prints that one place, under
+ * its own FROM or TO eyebrow — a second city is never invented.
+ * An entry storing no route prints its title as the big print.
+ */
+function TravelRouteCard({ entry, palette, kindColor, kindLabel, kindIcon, detailLine, detailSegments, onDelete }: {
+  entry: ItineraryEntry;
+  palette: TimeOffPassPalette;
+  kindColor: string;
+  kindLabel: string;
+  kindIcon: string;
+  detailLine: string | null;
+  detailSegments: React.ReactNode;
+  onDelete: () => void;
+}) {
+  const route = itineraryTravelRoute(entry);
+  // The detail's code pair already prints as the card's big
+  // print — the spoken line drops a leading consumed pair rather
+  // than saying the same codes twice (the v313 dedupe instinct).
+  const rawDetail = entry.detail;
+  const detailRemainder = route && rawDetail && /^\s*[A-Za-z]{3}\s*→\s*[A-Za-z]{3}/.test(rawDetail)
+    ? rawDetail.replace(/^\s*[A-Za-z]{3}\s*→\s*[A-Za-z]{3}\s*(?:·\s*)?/, "").trim() || undefined
+    : rawDetail;
+  const spokenLine = detailRemainder !== rawDetail
+    ? itineraryDetailLine({ ...entry, detail: detailRemainder })
+    : detailLine;
+  const spokenSegments = detailRemainder !== rawDetail ? null : detailSegments;
+  const eyebrow = { fontSize: 9, fontWeight: "800" as const, letterSpacing: 1.4, color: palette.label };
+  const place = { fontSize: 23, fontWeight: "900" as const, color: palette.print };
+  return (
+    <View style={{ backgroundColor: palette.paper, borderWidth: 1, borderColor: palette.border, borderRadius: 24, padding: 16, ...entryCardShadow }}>
+      <EntryHead
+        icon={kindIcon}
+        tileBg={mix(palette.paper, kindColor, 0.2)}
+        tileIconColor={kindColor}
+        time={entry.time ? format12HourTime(entry.time) : undefined}
+        label={kindLabel}
+        labelColor={kindColor}
+        timeColor={palette.ink}
+        closeColor={palette.label}
+        title={entry.title}
+        onDelete={onDelete}
+      />
+      {route && route.from && route.to ? (
+        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 10, marginTop: 12 }}>
+          <View style={{ flexShrink: 1, minWidth: 0 }}>
+            <Text style={eyebrow}>FROM</Text>
+            <Text style={place} numberOfLines={1} adjustsFontSizeToFit>{route.from}</Text>
+          </View>
+          <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 4, paddingBottom: 7 }}>
+            <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: palette.band }} />
+            <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: palette.band }} />
+            <MaterialIcons name="flight" size={16} color={palette.band} style={{ transform: [{ rotate: "90deg" }] }} />
+            <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: palette.band }} />
+            <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: palette.band }} />
+          </View>
+          <View style={{ flexShrink: 1, minWidth: 0, alignItems: "flex-end" }}>
+            <Text style={eyebrow}>TO</Text>
+            <Text style={place} numberOfLines={1} adjustsFontSizeToFit>{route.to}</Text>
+          </View>
+        </View>
+      ) : route && (route.from || route.to) ? (
+        <View style={{ marginTop: 12 }}>
+          <Text style={eyebrow}>{route.to ? "TO" : "FROM"}</Text>
+          <Text style={place} numberOfLines={1} adjustsFontSizeToFit>{route.to ?? route.from}</Text>
+        </View>
+      ) : (
+        <Text style={{ fontSize: 21, fontWeight: "900", color: palette.ink, marginTop: 12 }}>{entry.title}</Text>
+      )}
+      {route && !route.titleConsumed && (
+        <Text style={{ fontSize: 15.5, fontWeight: "700", color: palette.ink, marginTop: 9 }}>{entry.title}</Text>
+      )}
+      {entry.address && (
+        <View style={{ alignSelf: "flex-start", backgroundColor: palette.stub, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, marginTop: 9 }}>
+          <Text style={{ fontSize: 12.5, fontWeight: "600", color: palette.ink }}>{entry.address}</Text>
         </View>
       )}
-      <View style={keyword ? { padding: 15 } : undefined}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <View style={{ width: 26, height: 26, borderRadius: 9, backgroundColor: mix(colors.surface, kindColor, 0.16), alignItems: "center", justifyContent: "center" }}>
-          <MaterialIcons name={getItineraryKindIcon(entry.kind) as any} size={15} color={kindColor} />
+      {spokenLine && (
+        <Text style={{ fontSize: 12.5, fontWeight: "600", color: palette.print, marginTop: 8 }}>
+          {Array.isArray(spokenSegments) ? spokenSegments : spokenLine}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+/**
+ * v388 — Stay as a BOOKING BLOCK: the title big, then check-in
+ * and check-out as a small grid. Check-in is the entry's own
+ * date (and its time, when it carries one); check-out is the
+ * next stay's date or the trip's end — passed in by the caller,
+ * derived from stored data only. The detail line prints as
+ * stored: it is where a confirmation lives when the trip
+ * carries one, and nothing is invented when it does not.
+ */
+function StayBookingBlock({ entry, palette, kindColor, kindLabel, kindIcon, checkoutDate, detailLine, detailSegments, onDelete }: {
+  entry: ItineraryEntry;
+  palette: TimeOffPassPalette;
+  kindColor: string;
+  kindLabel: string;
+  kindIcon: string;
+  checkoutDate: string;
+  detailLine: string | null;
+  detailSegments: React.ReactNode;
+  onDelete: () => void;
+}) {
+  const cellLabel = { fontSize: 9.5, fontWeight: "800" as const, letterSpacing: 1.2, color: palette.label };
+  const cellValue = { fontSize: 13.5, fontWeight: "800" as const, color: palette.ink, marginTop: 2 };
+  return (
+    <View style={{ backgroundColor: palette.paper, borderWidth: 1, borderColor: palette.border, borderRadius: 24, padding: 16, ...entryCardShadow }}>
+      <EntryHead
+        icon={kindIcon}
+        tileBg={mix(palette.paper, kindColor, 0.2)}
+        tileIconColor={kindColor}
+        time={entry.time ? format12HourTime(entry.time) : undefined}
+        label={kindLabel}
+        labelColor={kindColor}
+        timeColor={palette.ink}
+        closeColor={palette.label}
+        title={entry.title}
+        onDelete={onDelete}
+      />
+      <Text style={{ fontSize: 20, fontWeight: "900", color: palette.ink, marginTop: 10 }}>{entry.title}</Text>
+      <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+        <View style={{ flex: 1, backgroundColor: palette.stub, borderRadius: 14, paddingHorizontal: 11, paddingVertical: 9 }}>
+          <Text style={cellLabel}>CHECK-IN</Text>
+          <Text style={cellValue}>{fmtDay(entry.date)}{entry.time ? ` · ${format12HourTime(entry.time)}` : ""}</Text>
         </View>
-        {entry.time && (
-          <Text style={{ fontSize: 13, fontWeight: "800", color: colors.foreground }}>{format12HourTime(entry.time)}</Text>
-        )}
-        <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 1.2, color: kindColor }}>{kindLabel}</Text>
-        <View style={{ flex: 1 }} />
-        <Pressable onPress={onDelete} accessibilityLabel={`Remove ${entry.title}`} style={({ pressed }) => [{ padding: 2, opacity: pressed ? 0.5 : 1 }]}>
-          <MaterialIcons name="close" size={16} color={colors.muted} />
-        </Pressable>
+        <View style={{ flex: 1, backgroundColor: palette.stub, borderRadius: 14, paddingHorizontal: 11, paddingVertical: 9 }}>
+          <Text style={cellLabel}>CHECK-OUT</Text>
+          <Text style={cellValue}>{fmtDay(checkoutDate)}</Text>
+        </View>
       </View>
-      {route ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10 }}>
-          <Text style={{ fontSize: 23, fontWeight: "800", color: colors.foreground }}>{route[1].toUpperCase()}</Text>
-          <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: base }} />
-            <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: base }} />
-            <MaterialIcons name="flight" size={16} color={base} style={{ transform: [{ rotate: "90deg" }] }} />
-            <View style={{ flex: 1, borderTopWidth: 2, borderStyle: "dotted", borderColor: base }} />
-            <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: base }} />
-          </View>
-          <Text style={{ fontSize: 23, fontWeight: "800", color: colors.foreground }}>{route[2].toUpperCase()}</Text>
-        </View>
-      ) : null}
-      <Text style={{ fontSize: 15.5, fontWeight: "700", color: colors.foreground, marginTop: route ? 8 : 6 }}>{entry.title}</Text>
       {entry.address && (
-        <View style={{ backgroundColor: mix(colors.surface, base, 0.1), borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, marginTop: 8 }}>
-          <Text style={{ fontSize: 12.5, fontWeight: "600", color: colors.foreground }}>{entry.address}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 11 }}>
+          <MaterialIcons name="place" size={13} color={palette.label} />
+          <Text style={{ fontSize: 12.5, fontWeight: "600", color: palette.print, flex: 1 }}>{entry.address}</Text>
         </View>
       )}
       {detailLine && (
-        <Text style={{ fontSize: 12.5, color: colors.muted, marginTop: 7 }}>{Array.isArray(detailSegments) ? detailSegments : detailLine}</Text>
+        <Text style={{ fontSize: 12.5, fontWeight: "600", color: palette.print, marginTop: 8 }}>
+          {Array.isArray(detailSegments) ? detailSegments : detailLine}
+        </Text>
       )}
-      </View>
+    </View>
+  );
+}
+
+/**
+ * v388 — Plan / Food / Ride / View as chunky kind cards: a soft
+ * wash of the kind's own colour step, its filled tile and word,
+ * the title big, the note beneath. The blend's "plans as simple
+ * rows" grown chunky and colourful, in the family the add-row
+ * chips already speak.
+ */
+function ChunkyEntryCard({ entry, kindColor, kindLabel, kindIcon, detailLine, detailSegments, onDelete }: {
+  entry: ItineraryEntry;
+  kindColor: string;
+  kindLabel: string;
+  kindIcon: string;
+  detailLine: string | null;
+  detailSegments: React.ReactNode;
+  onDelete: () => void;
+}) {
+  const colors = useColors();
+  return (
+    <View style={{ backgroundColor: mix(colors.surface, kindColor, 0.13), borderRadius: 24, padding: 15, ...entryCardShadow }}>
+      <EntryHead
+        icon={kindIcon}
+        tileBg={kindColor}
+        tileIconColor="#FFFFFF"
+        time={entry.time ? format12HourTime(entry.time) : undefined}
+        label={kindLabel}
+        labelColor={kindColor}
+        timeColor={colors.foreground}
+        closeColor={colors.muted}
+        title={entry.title}
+        onDelete={onDelete}
+      />
+      <Text style={{ fontSize: 17, fontWeight: "800", color: colors.foreground, marginTop: 9 }}>{entry.title}</Text>
+      {entry.address && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 6 }}>
+          <MaterialIcons name="place" size={13} color={kindColor} />
+          <Text style={{ fontSize: 12.5, fontWeight: "600", color: colors.foreground, flex: 1 }}>{entry.address}</Text>
+        </View>
+      )}
+      {detailLine && (
+        <Text style={{ fontSize: 12.5, color: colors.muted, marginTop: 6 }}>
+          {Array.isArray(detailSegments) ? detailSegments : detailLine}
+        </Text>
+      )}
     </View>
   );
 }

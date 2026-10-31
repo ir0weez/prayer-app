@@ -369,7 +369,7 @@ describe("v314 time off list — the blend drawing, structurally", () => {
     expect(timeOffExperience).not.toContain("position: \"absolute\", bottom: 26");
   });
 
-  it("the trip face: title block on the surface, no colour card, no caption, 44/900 day heads", () => {
+  it("the trip face: the blend hero restored (v388), no caption, 44/900 day heads", () => {
     const renderTrip = timeOffExperience.slice(
       timeOffExperience.indexOf("const renderTrip"),
       timeOffExperience.indexOf("const renderEntryForm"),
@@ -380,7 +380,13 @@ describe("v314 time off list — the blend drawing, structurally", () => {
     expect(renderTrip).not.toContain("borderRadius: 26, padding: 20");
     expect(renderTrip).toContain("fontSize: 32, fontWeight: \"900\"");
     expect(renderTrip).toContain("fontSize: 44, fontWeight: \"900\"");
-    expect(renderTrip).toContain("starts in ${until} day");
-    expect(renderTrip).toContain("Day ${dayNum.day} of ${dayNum.total}");
+    // v388 amendment (Oct 31): v314's plain title block and its
+    // sub-line state read ("starts in …" / "Day … of …") were the
+    // deviation his flag named — the header is the blend's colour
+    // field again and the state read moved INTO the hero's one
+    // oversized number story. The hero is pinned in
+    // time-off-v388-trip-page.test.ts.
+    expect(renderTrip).toContain("backgroundColor: base, borderTopLeftRadius: 36");
+    expect(renderTrip).not.toContain("stateRead");
   });
 });

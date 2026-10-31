@@ -590,23 +590,36 @@ function FlightRouteLine({
  * words"). The list is lib/time-off's ITINERARY_KIND_WORDS —
  * Travel, Stay, Plan, Food, Ride, View, the chips' own labels
  * in chip order — and the rotator is the shared CyclingWord
- * (the white blocks' cadence and crossfade, extracted in
- * components/cycling-word.tsx). The words print verbatim; the
+ * (components/cycling-word.tsx). The words print verbatim; the
  * spaced capitals are the destination style, as drawn.
+ *
+ * v389 (Oct 31, his pick from the live word-animation
+ * mockups — "I LOVE it! Let's do it!"): the motion now
+ * depends on the seat. The HERO's destination TYPES
+ * (CyclingWord's "typewriter" variant — letter by letter,
+ * an underline cursor riding at a fixed level under the
+ * next letter slot, the word's shape reserved from the
+ * first frame so the card never shifts); the panel ROWS'
+ * destinations CASCADE (the "cascade" variant — the old
+ * word fades, the new word's letters settle in staggered).
+ * The ordinary whites keep the plain whole-word swap.
  */
 function FlightDestination({
   startIndex,
   color,
   fontSize,
+  variant,
 }: {
   startIndex: number;
   color: string;
   fontSize: number;
+  variant: "typewriter" | "cascade";
 }) {
   return (
     <CyclingWord
       words={ITINERARY_KIND_WORDS}
       startIndex={startIndex}
+      variant={variant}
       style={{
         fontSize,
         lineHeight: fontSize + 4,
@@ -723,6 +736,13 @@ export const timeOffTravelStyles = StyleSheet.create({});
  * stands alone between them with its own margins and radius.
  * When now is inside an event there is no claimed block under
  * it, so nothing fills.
+ *
+ * v389 (Oct 31, later): the destination word's MOTION splits
+ * by seat, his pick from the live mockups — the hero's word
+ * types with its fixed-level underline cursor, the rows'
+ * words cascade. Grouping, splitting, palettes, plane,
+ * pills, and tap targets are exactly as v387 left them; see
+ * FlightDestination and components/cycling-word.tsx.
  */
 export function ClaimedRestGroup({
   timeOff,
@@ -792,7 +812,7 @@ export function ClaimedRestGroup({
             </View>
           </View>
           <View style={{ marginTop: 9 }}>
-            <FlightDestination startIndex={startIndex} color="#FFFFFF" fontSize={28} />
+            <FlightDestination startIndex={startIndex} color="#FFFFFF" fontSize={28} variant="typewriter" />
           </View>
           <View style={{ marginTop: 3 }}>
             <FlightRouteLine
@@ -860,7 +880,7 @@ export function ClaimedRestGroup({
                   fontWeight="800"
                 />
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 5 }}>
-                  <FlightDestination startIndex={index} color={palette.print} fontSize={11.5} />
+                  <FlightDestination startIndex={index} color={palette.print} fontSize={11.5} variant="cascade" />
                   <Text
                     style={{
                       fontSize: 11,

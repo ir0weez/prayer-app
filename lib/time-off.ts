@@ -430,7 +430,20 @@ export function timeOffPassPalette(
   timeOff: Pick<TimeOff, "color" | "type">,
   surface: string,
 ): TimeOffPassPalette {
-  const base = timeOff.color || TIME_OFF_COLORS[timeOff.type];
+  return timeOffPassPaletteFromBase(timeOff.color || TIME_OFF_COLORS[timeOff.type], surface);
+}
+
+/**
+ * The pass family from ONE base colour — the derivation
+ * timeOffPassPalette has always run, lifted out so another base
+ * can feed it (v392: the entry pass's kind colour). The trip
+ * path above is byte-identical to before: same base resolution,
+ * same family out.
+ */
+export function timeOffPassPaletteFromBase(
+  base: string,
+  surface: string,
+): TimeOffPassPalette {
   const dark = hexLuminance(surface) < 0.5;
   const { h, s } = hexToHsl(base);
   // The deep steps keep the hue vivid even from a pastel base —
@@ -500,6 +513,33 @@ export function timeOffPassPalette(
     seam: mix(paper, band, 0.5),
     stamp: band,
   };
+}
+
+/**
+ * v392 — the ENTRY pass's palette: dyed by the entry's KIND, not
+ * the trip (his words, Oct 31: "I just want the event tickets in
+ * the schedule to match the color of the type (or kind) that was
+ * selected in the time off timeline editor"). The base is the
+ * kind's own set colour — itineraryKindColor(kind, tripBase),
+ * the very colour the editor's add-row chips fill with and the
+ * trip page's entry cards wear (tripBase is the caller's
+ * tripBaseColor resolution, the same base those chips step
+ * from) — run through the pass derivation above, so the pass
+ * keeps its paper/print family; only the colour's source moves.
+ * A kind with no set colour (a value outside ITINERARY_KINDS,
+ * e.g. from an import) falls back to the trip-colour palette,
+ * exactly as the pass resolved before v392.
+ */
+export function timeOffEntryPassPalette(
+  entry: Pick<ItineraryEntry, "kind">,
+  timeOff: Pick<TimeOff, "color" | "type">,
+  tripBase: string,
+  surface: string,
+): TimeOffPassPalette {
+  if (!ITINERARY_KINDS.includes(entry.kind)) {
+    return timeOffPassPalette(timeOff, surface);
+  }
+  return timeOffPassPaletteFromBase(itineraryKindColor(entry.kind, tripBase), surface);
 }
 
 /** Sort itinerary entries the way the timeline and the day page read: by date, then time. */

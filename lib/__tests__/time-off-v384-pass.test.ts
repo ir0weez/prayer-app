@@ -52,6 +52,18 @@
 // run holding it splits around the hero; the filled row is
 // gone. ("The 'Now' card is supposed to be the big one and
 // separated (just like the mockup!)")
+// v392 amendment (Oct 31, later): ONE pin below moved — the
+// entry pass's colour source. His words: "I just want the
+// event tickets in the schedule to match the color of the
+// type (or kind) that was selected in the time off timeline
+// editor." The pass is now dyed by the entry's KIND (the
+// itineraryKindColor set colour the editor chips and the trip
+// page's cards wear) through the same pass derivation —
+// timeOffEntryPassPalette. The lib palette pins here never
+// moved (the trip path still feeds the flight board and the
+// trip page); only the "component resolves the palette" pin
+// re-points at the entry resolver. The kind-colour pins live
+// in time-off-v392-pass-kind-color.test.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, expect, it } from "vitest";
@@ -160,11 +172,18 @@ describe("v384 pass palette — the trip's own chosen colour, whole family", () 
     expect(dark.print).not.toBe(light.print);
   });
 
-  it("the component resolves the palette from the record, through the one derivation", () => {
+  it("the component resolves the palette through the one derivation", () => {
     // v385: the wearer is the entry pass; the derivation is the
     // same call, from the parent trip record (entries carry no
     // colour of their own).
-    expect(entryPass).toContain("timeOffPassPalette(timeOff, colors.surface)");
+    // v392 amendment: the SOURCE moved, not the derivation —
+    // the entry pass now resolves through timeOffEntryPassPalette,
+    // dyed by the entry's KIND set colour (the trip base the
+    // chips step from resolved via tripBaseColor). The trip
+    // call survives on the flight board, pinned in the v386
+    // file; it no longer appears in the entry pass.
+    expect(entryPass).toContain("timeOffEntryPassPalette(entry, timeOff, tripBaseColor(timeOff), colors.surface)");
+    expect(entryPass).not.toContain("timeOffPassPalette(timeOff, colors.surface)");
     expect(entryPass).toContain("palette.paper");
     expect(entryPass).toContain("palette.band");
     expect(entryPass).toContain("palette.stub");

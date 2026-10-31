@@ -26,6 +26,13 @@
  * it as a filled row. See the flight board note above
  * ClaimedRestGroup. The passes stay on the entries; the
  * timeline is untouched; ordinary whites are untouched.
+ *
+ * v392 — the entry pass changes ONE thing: its colour source.
+ * The pass is dyed by the entry's KIND — the set colour the
+ * timeline editor's chips and the trip page's cards use — not
+ * the trip's colour (his ask, Oct 31). The flight board above
+ * keeps the trip colour exactly as shipped. See the note
+ * above ItineraryEntryPass.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -48,6 +55,7 @@ import {
   itineraryDetailLine,
   ITINERARY_KIND_WORDS,
   resolveItineraryKeyword,
+  timeOffEntryPassPalette,
   timeOffPassPalette,
   tripDayNumber,
   type ItineraryEntry,
@@ -941,13 +949,22 @@ export function ClaimedRestGroup({
  * duration exists anywhere in its record — so the pass prints
  * a departure, never an invented arrival: FROM carries the
  * time, and the stub's big print is the entry's kind. The
- * trip dyes the pass (entries carry no colour of their own —
- * the palette derives from the parent Time Off record's
- * stored colour, the type default as fallback, exactly as
- * timeOffPassPalette has always resolved it). The stamp is
- * the entry KIND's icon — the same glyph the creator's
+ * stamp is the entry KIND's icon — the same glyph the creator's
  * add-row chips and entry rows use — at the one modest size,
  * drifting as the pass stamps drift.
+ *
+ * v392 (Oct 31, later): the pass is dyed by the entry's KIND,
+ * not the trip (his words: "I just want the event tickets in
+ * the schedule to match the color of the type (or kind) that
+ * was selected in the time off timeline editor"). Until now
+ * the palette derived from the parent Time Off record's stored
+ * colour, so every entry on one trip wore the trip's colour;
+ * now it derives from the kind's own set colour — the
+ * itineraryKindColor step the editor chips and the trip page's
+ * entry cards already wear — through the same pass derivation
+ * (timeOffEntryPassPalette). The claimed flight board keeps
+ * the trip colour, untouched; a kind with no set colour falls
+ * back to the trip palette as before.
  *
  * Behaviour is the day card's own, unchanged: this card is
  * not a door and never completable — it renders inert,
@@ -963,7 +980,10 @@ export function ItineraryEntryPass({ entry, timeOff }: { entry: ItineraryEntry; 
     return <ItineraryDayCard entry={entry} timeOff={timeOff} />;
   }
   const startTime = entry.time;
-  const palette = timeOffPassPalette(timeOff, colors.surface);
+  // v392: the pass wears the entry KIND's set colour (see the
+  // note above) — the trip base the chips step from, resolved
+  // here the way the experience page resolves it.
+  const palette = timeOffEntryPassPalette(entry, timeOff, tripBaseColor(timeOff), colors.surface);
   const pageBg = isSkinned ? skinTokens.background ?? colors.background : colors.background;
   const remarks = itineraryDetailLine(entry);
   const kindLabel = getItineraryKindLabel(entry.kind).toUpperCase();

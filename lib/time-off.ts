@@ -353,6 +353,10 @@ export function getTimeOffIcon(type: TimeOffType): string {
  * DURATION in the drawing's convention ("1H"; halves carry the
  * fraction glyph, "5½H"; sub-hour blocks in minutes, "45M"; other
  * remainders spelled out, "1H 15M"). Formatted from real minutes.
+ * v385 (Oct 31): the pass moved to the itinerary entries, which
+ * carry no end or duration — no component prints a duration
+ * today. The helper and its pins stay: they are the pass
+ * family's duration convention, kept with the palette below.
  */
 export function formatPassDuration(durationMinutes: number): string {
   const m = Math.max(0, Math.round(durationMinutes));

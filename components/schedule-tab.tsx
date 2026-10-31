@@ -163,7 +163,7 @@ import { AlbumCard } from "./album-card";
 import { getAlbumPalette, WorshipAlbumDetail } from "./worship-album-detail";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { TimeOffExperience } from "./time-off-experience";
-import { TripBand, ItineraryDayCard, ClaimedRestGroup } from "./time-off-travel";
+import { TripBand, ItineraryDayCard, ItineraryEntryPass, ClaimedRestGroup } from "./time-off-travel";
 import { ReachedStampRow } from "./reached-stamp-row";
 import { KeywordThumbArt } from "./keyword-thumb-art";
 import { SceneThumbArt, ThumbBreatheWrap, thumbSpecForScene } from "./keyword-thumb-art";
@@ -14315,7 +14315,14 @@ export function ScheduleTab({
             />
           );
         case "itinerary":
-          return (
+          // v385 (his corrected spec, Oct 31): an entry placed in
+          // the schedule from the time off timeline wears the
+          // boarding pass — a TIMED entry prints its departure.
+          // An untimed entry has no departure to print and keeps
+          // the ordinary travel card, exactly as before.
+          return item.data.entry.time ? (
+            <ItineraryEntryPass entry={item.data.entry} timeOff={item.data.timeOff} />
+          ) : (
             <ItineraryDayCard entry={item.data.entry} timeOff={item.data.timeOff} />
           );
         case "birthday":
@@ -14833,7 +14840,6 @@ export function ScheduleTab({
             return (
               <ClaimedRestGroup
                 timeOff={dayTrip}
-                date={selectedDate}
                 blocks={[{ block: b, height: whiteBlockHeight(b.durationMinutes, remaining) }]}
                 onPressBlock={() => openTimeOffExperience(dayTrip.id)}
               />
@@ -14868,7 +14874,6 @@ export function ScheduleTab({
                   <ClaimedRestGroup
                     key={run[0].id}
                     timeOff={dayTrip}
-                    date={selectedDate}
                     blocks={run.map((b) => {
                       const remaining = nm != null && timeToMinutes(b.startTime) <= nm && nm < timeToMinutes(b.endTime)
                         ? timeToMinutes(b.endTime) - nm

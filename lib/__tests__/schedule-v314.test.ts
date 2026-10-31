@@ -113,6 +113,12 @@ describe("v314 claimed grouping — the day page renders ONE box per run", () =>
   // component per run, own tap target per block, never
   // completable) stand exactly as v314 left them; the full pass
   // spec lives in time-off-v384-pass.test.ts.
+  // v385 amendment (Oct 31, later): the DRESS pins flip back —
+  // his correction the same day ("I wanted the time off events
+  // to be the tickets, not the white spaces") put the tickets
+  // on the itinerary entries placed in the schedule, so the
+  // connected box is restored and the v384 re-pin below is
+  // itself re-pinned. The behaviour pins never changed.
   const groupCase = scheduleTab.slice(
     scheduleTab.indexOf('case "time-block-group"'),
     scheduleTab.indexOf('case "current-time-indicator"'),
@@ -129,26 +135,32 @@ describe("v314 claimed grouping — the day page renders ONE box per run", () =>
     expect(groupCase).not.toContain("<ClaimedRestBlock");
   });
 
-  it("v384 re-pin: NOT one box — each block in the run is its own boarding pass, gaps between", () => {
-    // Was v314: "the group is ONE outer box with hairline
-    // dividers between rows" (borderRadius: 22 + hairlineWidth
-    // dividers). Superseded by his Oct 31 pass pick — the
-    // connected box read as one long band; the drawing shows
-    // separate passes. The hairline divider and the shared
-    // radius-22 box are gone; the run still maps block by block.
+  it("v385 re-pin: ONE box again — the connected group dress is restored (the pass moved to the entries)", () => {
+    // Was v384: "NOT one box — each block in the run is its own
+    // boarding pass, gaps between" (a pass component per block,
+    // no hairline dividers, no radius-22 box). Superseded the
+    // SAME DAY by his correction — the tickets belong to the
+    // itinerary entries placed in the schedule, not to the
+    // white spaces — so the v314 dress stands again: ONE outer
+    // box in the trip's tonal family, a hairline divider
+    // between rows, the whites' proportional heights driving
+    // each row. The pass component is deleted from this file's
+    // claimed faces entirely (it lives on the entries now).
     expect(claimedGroup).toContain("blocks.map(");
-    expect(claimedGroup).toContain("<ClaimedRestPass");
-    expect(claimedGroup).toContain("marginBottom: 10");
-    expect(claimedGroup).not.toContain("StyleSheet.hairlineWidth");
-    expect(claimedGroup).not.toContain("borderRadius: 22");
+    expect(claimedGroup).toContain("borderRadius: 22");
+    expect(claimedGroup).toContain("StyleSheet.hairlineWidth");
+    expect(claimedGroup).toContain("height,");
+    expect(claimedGroup).not.toContain("ClaimedRestPass");
   });
 
   it("each block keeps its OWN tap target, labelled with its own range", () => {
     expect(claimedGroup).toContain("onPress={() => onPressBlock(block)}");
     expect(claimedGroup).toContain("format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}");
-    // v384: the old centred face line ("Time off — {title}") is
-    // retired with the box; the trip's title now prints as the
-    // pass's NAME field (pinned in time-off-v384-pass.test.ts).
+    // v385: the centred face line is RESTORED with the box —
+    // the trip's title prints on the claimed face again (the
+    // pass's NAME field belongs to the entries now; pinned in
+    // time-off-v384-pass.test.ts).
+    expect(claimedGroup).toContain("Time off — {timeOff.title}");
   });
 
   it("claimed blocks are never completable — no toggle, no completed state", () => {

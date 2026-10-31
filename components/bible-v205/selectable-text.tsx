@@ -46,6 +46,44 @@
 // just build it like the mockups?"): each handle drags its own
 // end token-by-token while the other end stays fixed, so a
 // mis-drag is repaired in place instead of restarted.
+//
+// ─── v381: SELECTION MODE — gesture ownership made deterministic ───────────
+// His third report on the same feel (Oct 30, 21:59, on v378):
+// "Sometimes it wants to scroll, other times it wants to move
+// the cursor… I can't win." v378 fixed the selection MATHS and
+// restored the handles, but ownership of the finger was still
+// arbitrated per-gesture by timing: the page's scroll lock
+// engaged only while a drag callback said a drag was live
+// (onDragChange), so it landed a beat after the long-press —
+// sometimes after his already-travelling finger had set the
+// scroll in motion — and it RELEASED the moment a drag ended,
+// while the selection still stood. The next touch to adjust a
+// handle or extend the span then raced the scroll again. Two
+// gesture systems arm-wrestling, the loser decided by timing.
+//
+// v381 removes the arbitration instead of tuning it:
+//  1. The chapter ScrollView's scrollEnabled derives from
+//     whether a selection STANDS (this module's registry,
+//     below — the one source of truth), not from whether a
+//     drag is live. Long-press creates a selection → the
+//     registry reports it → the page does not scroll AT ALL
+//     for the selection's whole life: across drags, between
+//     drags, while the bar stands. Scroll returns the instant
+//     the selection clears (tap-outside, a bar action, the
+//     registry's clear). If the finger was already scrolling
+//     when the long-press fired, the flip to scrollEnabled=
+//     false halts the scroll where it stands — no scrollTo is
+//     issued on selection entry, so the position freezes in
+//     place rather than jumping.
+//  2. During an active selection drag the text root claims
+//     the responder in the CAPTURE phase (onMoveShouldSet-
+//     ResponderCapture) and refuses termination, so a move is
+//     the selection's from its first pixel — including the
+//     first move after a long-press on a travelling finger.
+//     The handle seats carry the same capture claim.
+// Everything else is v378's behaviour, untouched: the maths,
+// the 350ms threshold, tap-outside clearing, the bar, the
+// handles' geometry, the storage.
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
@@ -98,6 +136,34 @@ export function clearActiveSelection(): void {
   const clear = activeSelectionClear;
   activeSelectionClear = null;
   clear?.();
+  emitSelectionStands();
+}
+
+// ─── v381: the registry is also the page's scroll-lock signal ──────────────
+// The chapter page locks its ScrollView for the whole life of
+// a selection, and THIS registry is the one place that knows a
+// selection exists — so it is the one place that says so. The
+// registration effect below and clearActiveSelection are the
+// only paths that change the registry, and both end in
+// emitSelectionStands; the page subscribes once and derives
+// scrollEnabled from the reports. No second channel: a drag
+// callback (onDragChange) said "a drag is live", this says
+// "a selection stands" — the lock follows the second.
+const selectionStandListeners = new Set<(stands: boolean) => void>();
+let lastSelectionStands = false;
+
+function emitSelectionStands() {
+  const stands = activeSelectionClear !== null;
+  if (stands === lastSelectionStands) return;
+  lastSelectionStands = stands;
+  for (const listener of [...selectionStandListeners]) listener(stands);
+}
+
+export function subscribeActiveSelection(listener: (stands: boolean) => void): () => void {
+  selectionStandListeners.add(listener);
+  return () => {
+    selectionStandListeners.delete(listener);
+  };
 }
 
 /** v378: one selection handle, in the approved drawing's
@@ -121,6 +187,9 @@ function SelectionHandle(props: {
       style={[styles.handleSeat, { left: props.cornerX - 20, top: props.cornerY - 20 }]}
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => true}
+      // v381: the same capture claim the text root makes — a
+      // handle's move is the handle's from its first pixel.
+      onMoveShouldSetResponderCapture={() => true}
       onResponderTerminationRequest={() => false}
       onTouchStart={props.onDragStart}
     >
@@ -163,7 +232,11 @@ export function SelectableText(props: {
   onBubble: (range: { start: number; end: number }) => void;
   onNote: (range: { start: number; end: number }) => void;
   /** The drag half of a selection started/ended — the page locks
-   * its scroll while a drag is live so the two never fight. */
+   * its scroll while a drag is live so the two never fight.
+   * v381: the drag lock is now the belt to the registry's
+   * braces — the page ALSO locks for the selection's whole
+   * standing life (subscribeActiveSelection), which this
+   * callback alone could never express. */
   onDragChange?: (active: boolean) => void;
 }) {
   const { palette } = props;
@@ -237,7 +310,25 @@ export function SelectableText(props: {
     } else if (activeSelectionClear === ownClearRef.current) {
       activeSelectionClear = null;
     }
+    // v381: every registry transition — a selection rising, a
+    // selection clearing, a registration swap — ends here, so
+    // the page's scroll lock hears about all of them from the
+    // one source.
+    emitSelectionStands();
   }, [sel]);
+
+  // v381: an instance that unmounts while its selection stands
+  // (leaving the chapter mid-selection) must not leave the
+  // registry claiming a selection — and a locked scroll —
+  // behind it.
+  useEffect(() => {
+    return () => {
+      if (activeSelectionClear === ownClearRef.current) {
+        activeSelectionClear = null;
+        emitSelectionStands();
+      }
+    };
+  }, []);
 
   const fontSize = (() => {
     const s = Array.isArray(props.textStyle) ? props.textStyle[0] : props.textStyle;
@@ -422,6 +513,20 @@ export function SelectableText(props: {
       onTouchMove={onTouchMove}
       onTouchEnd={onRootTouchEnd}
       onTouchCancel={onRootTouchCancel}
+      // v381: while a selection drag is live (a word drag or a
+      // handle drag) the root claims move events in the CAPTURE
+      // phase and refuses to hand the responder over — the
+      // drag owns the finger from its first move, including
+      // the first move after a long-press on a finger that was
+      // already travelling. While NO drag is live the claim is
+      // off, so ordinary touches and taps negotiate exactly as
+      // before. The responder path feeds the same move and
+      // cancel handlers the touch path uses; both are guarded,
+      // so a move arriving on both paths settles once.
+      onMoveShouldSetResponderCapture={() => draggingRef.current || handleDragRef.current !== null}
+      onResponderTerminationRequest={() => !(draggingRef.current || handleDragRef.current !== null)}
+      onResponderMove={onTouchMove}
+      onResponderTerminate={onRootTouchCancel}
     >
       <View style={[styles.wrap, props.wholeTint ? { backgroundColor: props.wholeTint } : null]}>
         {props.lead}

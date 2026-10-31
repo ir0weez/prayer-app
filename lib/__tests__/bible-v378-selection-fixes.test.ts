@@ -225,8 +225,15 @@ describe('v378 the drag — resolution, gating, and the release swallow', () => 
       selectable.indexOf('const onTouchMove'),
     );
     expect(finish).toContain('props.onDragChange?.(false);');
-    // The page side of the lock is the v361 wiring, unchanged.
-    expect(chapter).toContain('scrollEnabled={!selectionDrag}');
+    // The page side of the lock is the v361 wiring.
+    // v381 amendment (dated, Oct 30): the lock's condition
+    // widened — it now ALSO holds for the selection's whole
+    // standing life (selectionStands, from this file's own
+    // registry), because the drag-only lock raced the finger
+    // between drags. The drag half this pin checks is
+    // unchanged; bible-v381-selection-mode.test.ts pins the
+    // widened condition.
+    expect(chapter).toContain('scrollEnabled={!selectionDrag && !selectionStands}');
   });
 });
 

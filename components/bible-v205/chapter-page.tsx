@@ -119,6 +119,9 @@ import { BitSettle } from '@/components/bit-motion';
 import { useSkin } from '@/hooks/use-skin';
 import { BlockView, CategoryTag, Ornament, ReadChip, SectionBand, SelfLineBlock, StatusChip } from './blocks';
 import { SelectableText, clearActiveSelection, hasActiveSelection } from './selectable-text';
+// v381: the registry's standing-selection subscription — the
+// page's scroll lock follows it (see selectionStands below).
+import { subscribeActiveSelection } from './selectable-text';
 import { AuthorFace, AuthorPicker, LivingBubbles, kindLabelFor, spanLabelFor, type BloomTiming } from './bubbles';
 import { IndexSheet } from './index-sheet';
 import { StoriesView } from './stories-view';
@@ -319,6 +322,22 @@ export function ChapterPageView(props: ChapterPageProps) {
   // whether a drag is live (its scroll locks for the drag, so the
   // two never fight over the same finger).
   const [selectionDrag, setSelectionDrag] = useState(false);
+  // v381: SELECTION MODE — the scroll lock's second, load-bearing
+  // half. v361–v378 locked the scroll only while a drag callback
+  // said a drag was live, so the lock's timing raced the finger:
+  // it landed a beat after the long-press and released the moment
+  // a drag ended, though the selection still stood — and the next
+  // adjusting touch raced the scroll again ("sometimes it wants
+  // to scroll, other times it wants to move the cursor"). Now the
+  // lock also follows whether a selection STANDS, reported by
+  // SelectableText's own registry — the one place that knows —
+  // so the page does not scroll at all for the selection's whole
+  // life, and scrolls again the instant it clears. Every
+  // SelectableText on this page (the verses, his own lines)
+  // rides this one ScrollView, so the registry's word is the
+  // page's whole truth.
+  const [selectionStands, setSelectionStands] = useState(() => hasActiveSelection());
+  useEffect(() => subscribeActiveSelection(setSelectionStands), []);
   // v361: composer-seat extents — each entry whose mark cluster is
   // standing reports the cluster's bottom edge within the entry,
   // so the seat check below can keep the unfurled composer's
@@ -889,7 +908,14 @@ export function ChapterPageView(props: ChapterPageProps) {
         scrollEventThrottle={32}
         // v361: while a text drag-selection is live the page holds
         // still — the drag and the scroll never fight over a finger.
-        scrollEnabled={!selectionDrag}
+        // v381: the hold now lasts the selection's whole life, not
+        // just its drags — while a selection stands the page does
+        // not scroll AT ALL, so an adjusting touch can never be
+        // read as a scroll. Entering selection mode also freezes
+        // a scroll already in flight: the flip to false halts the
+        // scroll where it stands, and nothing on selection entry
+        // issues a scrollTo, so the position never jumps.
+        scrollEnabled={!selectionDrag && !selectionStands}
       >
         {/* v251: the measured header spacer — the content's first
             box is exactly the overlay header's measured height, so

@@ -183,7 +183,15 @@ describe('v249 — no page scroll lock; the thread keeps its own internal scroll
     // page still so the drag and the scroll never fight over one
     // finger (his approved selection model). An open bubble thread
     // still never locks the page: v249's ruling stands untouched.
-    expect(pageSrc).toContain('scrollEnabled={!selectionDrag}');
+    // v381 amendment (dated, Oct 30): the selection lock's
+    // expression widened with a second conjunct — the page now
+    // also holds still while a selection merely STANDS
+    // (selectionStands, from SelectableText's registry), because
+    // the drag-only lock kept racing the finger between drags.
+    // NEITHER conjunct reads bubble state: with a thread open
+    // and no selection standing, the page scrolls exactly as
+    // v249 ruled. See bible-v381-selection-mode.test.ts.
+    expect(pageSrc).toContain('scrollEnabled={!selectionDrag && !selectionStands}');
     expect(pageSrc).not.toContain('scrollEnabled={!openBubbles');
   });
 

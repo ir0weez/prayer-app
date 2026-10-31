@@ -337,6 +337,11 @@ describe('v361 reader surface — the selection model wired in', () => {
     expect(src).toContain('SEAT_FAB_CLEARANCE_PX = 76');
     expect(src).toContain('seatSpacer');
     // The page scroll locks while a selection drag is live.
-    expect(src).toContain('scrollEnabled={!selectionDrag}');
+    // v381 amendment (dated, Oct 30): the expression widened —
+    // the lock now ALSO holds while a selection merely stands
+    // (selectionStands), not only during its drags; the drag
+    // lock this pin was written for is the first conjunct and
+    // is unchanged. See bible-v381-selection-mode.test.ts.
+    expect(src).toContain('scrollEnabled={!selectionDrag && !selectionStands}');
   });
 });

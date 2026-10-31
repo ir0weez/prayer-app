@@ -42,7 +42,7 @@ import { useJournalMaterial } from "@/hooks/use-journal-material";
 import { usePeopleFrontDoor, usePeopleMaterial } from "@/hooks/use-people-material";
 import { queueFaceStatus, queueFirstName, sortQueueFaces } from "@/lib/people-queue";
 import { PEOPLE_EMERGENCY_RED, PEOPLE_GOLD_PILL_INK } from "@/lib/people-material";
-import { bibleAccentInk } from "@/lib/bible-v205/palette-accents";
+import { bibleAccentInk, hexToRgba } from "@/lib/bible-v205/palette-accents";
 import type { PeopleFrontDoorFamily } from "@/lib/people-material";
 import { CarouselDots, FrontDoorCarousel } from "@/components/front-door-carousel";
 import { PeopleStreakCard } from "@/components/people-streak-card";
@@ -3525,6 +3525,19 @@ export default function HomeScreen() {
     // live praises the way the banner pages emergencies — each page
     // is one person's praise, with its own Post to Journal. One
     // praise = the static card exactly as drawn, no dots.
+    // v382 (his Oct 30 22:17 ask, screenshot of the red-seed dark
+    // People page): the card's DRESS now derives from the family
+    // (pmf) like every sibling card — the pinned cream/gold island
+    // (#FFF3D6 → #FFE9B8 gradient, #F5D67B line, #B26E12 deep,
+    // #4A3205/#7A5A14 inks, #F59E0B avatar ring) is gone. Surface =
+    // the family's primary-container register (wash → wash2
+    // gradient, the gradient SHAPE kept), inks are the wash-walked
+    // roles, Pray now is the family's filled seed pill, Post to
+    // Journal its tonal card pill. This supersedes the Oct 25
+    // "praise gold never follows the seed" ruling FOR THIS CARD
+    // ONLY — PRAISE_CARD (the Pray Today session's praise lead),
+    // the bell's praise ring, the slip card's gold pills and every
+    // other gold accent keep the constant untouched.
     const peopleFocused = activeTab === "people" || activeTab === "home";
     return (
       <PeopleEntrance index={3}>
@@ -3539,46 +3552,48 @@ export default function HomeScreen() {
               ? Math.max(0, Math.round((new Date(praisedPerson.praiseExpiresAt).getTime() - Date.now()) / 3600000))
               : null;
             return (
-              <View style={{ borderRadius: 26, overflow: "hidden", borderWidth: 1.5, borderColor: "#F5D67B", shadowColor: "#B26E12", shadowOpacity: 0.16, shadowRadius: 11, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
+              <View style={{ borderRadius: 26, overflow: "hidden", borderWidth: 1.5, borderColor: pmf.wash2, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 11, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
                 <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
                   <Defs>
                     <LinearGradient id="v254PraiseGrad" x1="0" y1="0" x2="1" y2="0">
-                      <Stop offset="0" stopColor="#FFF3D6" />
-                      <Stop offset="1" stopColor="#FFE9B8" />
+                      <Stop offset="0" stopColor={pmf.wash} />
+                      <Stop offset="1" stopColor={pmf.wash2} />
                     </LinearGradient>
                   </Defs>
                   <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254PraiseGrad)" />
                 </Svg>
                 <View style={{ paddingHorizontal: 17, paddingVertical: 15 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <MaterialIcons name="star" size={14} color="#B26E12" />
-                    <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: "#B26E12" }}>PRAISE · {praisedPerson.name.toUpperCase()}</Text>
+                    <MaterialIcons name="star" size={14} color={pmf.deep} />
+                    <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: pmf.deep }}>PRAISE · {praisedPerson.name.toUpperCase()}</Text>
                   </View>
                   <View style={{ flexDirection: "row", gap: 11, marginTop: 9, alignItems: "flex-start" }}>
-                    <AvatarImage id={praisedPerson.id} name={praisedPerson.name} gender={praisedPerson.gender} avatarAsset={praisedPerson.avatarAsset} photoUri={praisedPerson.photoUri} size={44} thumbnail fallbackColor={praisedPerson.accentColor} style={{ borderWidth: 2.5, borderColor: "#F59E0B", borderRadius: 22 }} />
+                    <AvatarImage id={praisedPerson.id} name={praisedPerson.name} gender={praisedPerson.gender} avatarAsset={praisedPerson.avatarAsset} photoUri={praisedPerson.photoUri} size={44} thumbnail fallbackColor={praisedPerson.accentColor} style={{ borderWidth: 2.5, borderColor: pmf.seed, borderRadius: 22 }} />
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text numberOfLines={2} style={{ fontSize: 14.5, fontWeight: "800", lineHeight: 20, color: "#4A3205" }}>{praiseDisplay.headline}</Text>
+                      <Text numberOfLines={2} style={{ fontSize: 14.5, fontWeight: "800", lineHeight: 20, color: pmf.washInk }}>{praiseDisplay.headline}</Text>
                       {!!praiseDisplay.note && (
-                        <Text numberOfLines={2} style={{ fontSize: 13, fontWeight: "600", lineHeight: 18, color: "#7A5A14", marginTop: 2 }}>{praiseDisplay.note}</Text>
+                        <Text numberOfLines={2} style={{ fontSize: 13, fontWeight: "600", lineHeight: 18, color: pmf.washSub, marginTop: 2 }}>{praiseDisplay.note}</Text>
                       )}
                     </View>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 11 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                      <Text style={{ fontSize: 12, fontWeight: "700", color: "#B26E12" }}>{hoursLeft !== null ? `${hoursLeft}h left to celebrate` : "Celebrating today"}</Text>
-                      <CarouselDots count={praises.length} index={Math.min(pageIndex, praises.length - 1)} activeColor="#B26E12" inactiveColor="#E8C87A" />
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: pmf.deep }}>{hoursLeft !== null ? `${hoursLeft}h left to celebrate` : "Celebrating today"}</Text>
+                      <CarouselDots count={praises.length} index={Math.min(pageIndex, praises.length - 1)} activeColor={pmf.deep} inactiveColor={hexToRgba(pmf.deep, 0.35)} />
                     </View>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      {/* v269: the praise card gains its Pray now —
-                          the emergency card's pill exactly (white,
-                          its shadow), in the praise gold ink. It
-                          opens a prayer just for this person. */}
+                      {/* v269: the praise card gains its Pray now.
+                          It opens a prayer just for this person.
+                          v382: the pill is the family's filled pill
+                          now (pmf.seed, white ink — the queue card's
+                          Start praying dress), not the white pill in
+                          pinned gold ink. */}
                       <Pressable
                         onPressIn={registerTouch}
                         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openFocusedPrayerSession(praisedPerson.id, "praise"); }}
-                        style={({ pressed }) => [{ backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 }, pressed && { opacity: 0.85 }]}
+                        style={({ pressed }) => [{ backgroundColor: pmf.seed, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 }, pressed && { opacity: 0.85 }]}
                       >
-                        <Text style={{ fontSize: 13.5, fontWeight: "800", color: "#B26E12" }}>Pray now</Text>
+                        <Text style={{ fontSize: 13.5, fontWeight: "800", color: "#FFFFFF" }}>Pray now</Text>
                       </Pressable>
                       <Pressable
                         onPressIn={registerTouch}
@@ -3590,9 +3605,9 @@ export default function HomeScreen() {
                           setJournal((previous) => createPrayerJournalEntry(previous, { body: text, taggedPeople: [praisedPerson], kind: "praise" }, `journal-praise-${Date.now()}`));
                           setActiveTab("journal");
                         }}
-                        style={({ pressed }) => [{ backgroundColor: "#B26E12", borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}
+                        style={({ pressed }) => [{ backgroundColor: pmf.card, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}
                       >
-                        <Text style={{ fontSize: 12.5, fontWeight: "800", color: "#FFFFFF" }}>Post to Journal</Text>
+                        <Text style={{ fontSize: 12.5, fontWeight: "800", color: pmf.deep }}>Post to Journal</Text>
                       </Pressable>
                     </View>
                   </View>

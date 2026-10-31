@@ -114,7 +114,15 @@ describe("v269 source pins — the launch sites (index.tsx)", () => {
     const praise = index.slice(index.indexOf("const renderPraiseCard"), index.indexOf("const renderSlipCard"));
     expect(praise).toContain('openFocusedPrayerSession(praisedPerson.id, "praise")');
     expect(praise).toContain(">Pray now</Text>");
-    expect(praise).toContain('color: "#B26E12"');
+    // v382 amendment (Oct 30, his explicit ask — "Can we make the
+    // Praise card match the color theme please?"): the pinned gold
+    // ink this pin held ('color: "#B26E12"') is superseded FOR THE
+    // FRONT-DOOR CARD ONLY. Pray now is the family's filled seed
+    // pill now; the focused session's gold praise lead (below,
+    // PRAISE_CARD) is untouched. people-v382-praise-theme.test.ts
+    // pins the derived dress.
+    expect(praise).toContain("backgroundColor: pmf.seed");
+    expect(praise).not.toContain('color: "#B26E12"');
     // Post to Journal survives beside it, untouched.
     expect(praise).toContain("Post to Journal");
   });

@@ -19,11 +19,13 @@
  * panel in the trip's colour family; each block is a flight row
  * — its times as a route over a dotted path, a plane riding at
  * the elapsed spot, the planner's kind words cycling as the
- * destination — and the block holding "now" fills with the
- * trip's deep colour (the big NOW BOARDING hero when it stands
- * alone, a filled row inside its panel). See the flight board
- * note above ClaimedRestGroup. The passes stay on the entries;
- * the timeline is untouched; ordinary whites are untouched.
+ * destination — and the block holding "now" becomes the big
+ * NOW BOARDING hero, standing separated on its own. v387
+ * (Oct 31, his device verdict on v386): ALWAYS separated —
+ * a run holding now splits around the hero instead of wearing
+ * it as a filled row. See the flight board note above
+ * ClaimedRestGroup. The passes stay on the entries; the
+ * timeline is untouched; ordinary whites are untouched.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -704,17 +706,23 @@ export const timeOffTravelStyles = StyleSheet.create({});
  *
  * THE NOW CARD (the drawing's second half): when "now" falls
  * inside a claimed block — whiteBlockContainsNow — that block
- * fills with the trip's deep colour (palette.band). Standing
- * alone it is the big hero: plane chip, NOW BOARDING, a white
- * NOW tag, the destination word big, the route with its plane,
- * and the quiet line "X minutes in of Y · lands <end>, then
- * <next item>" (the next item's title arrives as nextTitle
- * from the schedule tab; the clause drops when there is none).
- * Inside a run, the now block is a FILLED ROW in the same
- * panel — filled colour, NOW tag, plane at its fraction,
- * "· X min in" beside the word — and its neighbours keep the
- * flight-row dress. When now is inside an event there is no
- * claimed block under it, so nothing fills.
+ * becomes the big NOW BOARDING hero: plane chip, NOW BOARDING,
+ * a white NOW tag, the destination word big, the route with
+ * its plane, and the quiet line "X minutes in of Y · lands
+ * <end>, then <next item>" (the next item's title arrives as
+ * nextTitle from the schedule tab; the clause drops when there
+ * is none).
+ *
+ * v387 (Oct 31, device verdict on v386): the hero is ALWAYS
+ * big and SEPARATED — "The 'Now' card is supposed to be the big
+ * one and separated (just like the mockup!)". v386 rendered a
+ * now block inside a run as a filled row in the panel; that
+ * branch is GONE. A run holding now SPLITS around the hero:
+ * the blocks before it form their own connected panel above,
+ * the blocks after it their own panel below, and the hero
+ * stands alone between them with its own margins and radius.
+ * When now is inside an event there is no claimed block under
+ * it, so nothing fills.
  */
 export function ClaimedRestGroup({
   timeOff,
@@ -741,12 +749,13 @@ export function ClaimedRestGroup({
   const labelFor = (block: TimeBlock) =>
     `${timeOff.title}, time off, ${format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}. Tap to open Time Off.`;
 
-  // The NOW hero — a lone claimed block holding "now".
-  if (blocks.length === 1 && nowIndex === 0) {
-    const block = blocks[0];
+  // The NOW hero — the claimed block holding "now", ALWAYS the
+  // big card and always standing on its own (v387; see the note
+  // above). A run holding now splits around this card.
+  const renderHero = (block: TimeBlock, startIndex: number) => {
     const minutesIn = (nowMinutes ?? timeToMinutes(block.startTime)) - timeToMinutes(block.startTime);
     return (
-      <View style={margin}>
+      <View key={`hero-${block.id}`} style={margin}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={labelFor(block)}
@@ -783,7 +792,7 @@ export function ClaimedRestGroup({
             </View>
           </View>
           <View style={{ marginTop: 9 }}>
-            <FlightDestination startIndex={0} color="#FFFFFF" fontSize={28} />
+            <FlightDestination startIndex={startIndex} color="#FFFFFF" fontSize={28} />
           </View>
           <View style={{ marginTop: 3 }}>
             <FlightRouteLine
@@ -803,11 +812,15 @@ export function ClaimedRestGroup({
         </Pressable>
       </View>
     );
-  }
+  };
 
-  // The connected panel — one row per block, hairline seams.
-  return (
+  // A connected panel — one flight row per block, hairline
+  // seams. `offset` keeps each row's destination-word phase at
+  // its seat in the whole run even after the run splits around
+  // the hero.
+  const renderPanel = (segment: TimeBlock[], offset: number) => (
     <View
+      key={`panel-${segment[0].id}`}
       style={{
         ...margin,
         borderRadius: 24,
@@ -815,11 +828,10 @@ export function ClaimedRestGroup({
         overflow: "hidden",
       }}
     >
-      {blocks.map((block, index) => {
-        const isNow = index === nowIndex;
+      {segment.map((block, i) => {
+        const index = offset + i;
         const fraction = whiteBlockElapsedFraction(block, nowMinutes);
         const landed = nowMinutes != null && timeToMinutes(block.endTime) <= nowMinutes;
-        const minutesIn = isNow ? (nowMinutes ?? timeToMinutes(block.startTime)) - timeToMinutes(block.startTime) : 0;
         return (
           <Pressable
             key={block.id}
@@ -831,8 +843,7 @@ export function ClaimedRestGroup({
                 paddingHorizontal: 14,
                 paddingVertical: 12,
                 opacity: pressed ? 0.75 : 1,
-                ...(isNow ? { backgroundColor: palette.band } : {}),
-                ...(index > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: seam } : {}),
+                ...(i > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: seam } : {}),
               },
             ]}
           >
@@ -841,34 +852,28 @@ export function ClaimedRestGroup({
                 <FlightRouteLine
                   block={block}
                   fraction={fraction}
-                  inkColor={isNow ? "#FFFFFF" : palette.print}
-                  dotColor={isNow ? filledDot : mix(palette.paper, palette.band, 0.55)}
-                  planeColor={isNow ? "#FFFFFF" : palette.band}
-                  maskColor={isNow ? palette.band : palette.paper}
+                  inkColor={palette.print}
+                  dotColor={mix(palette.paper, palette.band, 0.55)}
+                  planeColor={palette.band}
+                  maskColor={palette.paper}
                   fontSize={17}
                   fontWeight="800"
                 />
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 5 }}>
-                  <FlightDestination startIndex={index} color={isNow ? "#FFFFFF" : palette.print} fontSize={isNow ? 14 : 11.5} />
+                  <FlightDestination startIndex={index} color={palette.print} fontSize={11.5} />
                   <Text
                     style={{
                       fontSize: 11,
                       lineHeight: 14,
                       fontWeight: "600",
-                      color: isNow ? filledQuiet : palette.label,
+                      color: palette.label,
                     }}
                   >
-                    {isNow ? `· ${minutesIn} min in` : `· ${whiteBlockBadge(block.durationMinutes)}`}
+                    {`· ${whiteBlockBadge(block.durationMinutes)}`}
                   </Text>
                 </View>
               </View>
-              {isNow ? (
-                <View style={{ backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
-                  <Text style={{ fontSize: 10, lineHeight: 12, fontWeight: "800", letterSpacing: 1.4, color: palette.band }}>
-                    NOW
-                  </Text>
-                </View>
-              ) : landed ? null : (
+              {landed ? null : (
                 <View style={{ backgroundColor: palette.stub, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
                   <Text style={{ fontSize: 10, lineHeight: 12, fontWeight: "800", letterSpacing: 1, color: palette.print }}>
                     ON TIME
@@ -880,6 +885,20 @@ export function ClaimedRestGroup({
         );
       })}
     </View>
+  );
+
+  if (nowIndex === -1) return renderPanel(blocks, 0);
+
+  // The run splits around the hero: panel above, the big NOW
+  // card standing alone, panel below.
+  const before = blocks.slice(0, nowIndex);
+  const after = blocks.slice(nowIndex + 1);
+  return (
+    <>
+      {before.length > 0 ? renderPanel(before, 0) : null}
+      {renderHero(blocks[nowIndex], nowIndex)}
+      {after.length > 0 ? renderPanel(after, nowIndex + 1) : null}
+    </>
   );
 }
 

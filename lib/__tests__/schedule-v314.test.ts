@@ -126,6 +126,12 @@ describe("v314 claimed grouping — the day page renders ONE box per run", () =>
   // (radius 24, hairline seams, one tap target per block), but
   // the rows are flight rows and the proportional heights are
   // gone. The behaviour pins still never changed.
+  // v387 amendment (Oct 31, device verdict on v386): "The
+  // 'Now' card is supposed to be the big one and separated
+  // (just like the mockup!)" — a run holding "now" now SPLITS
+  // around the big hero, so the rows map per panel SEGMENT
+  // (segment.map) instead of over the whole run at once. The
+  // grouping/tap/never-completable behaviour pins stand.
   const groupCase = scheduleTab.slice(
     scheduleTab.indexOf('case "time-block-group"'),
     scheduleTab.indexOf('case "current-time-indicator"'),
@@ -161,7 +167,7 @@ describe("v314 claimed grouping — the day page renders ONE box per run", () =>
     // register (route line + destination line), the block
     // holding now filled (NOW BOARDING) — and the proportional
     // heights no longer drive anything here.
-    expect(claimedGroup).toContain("blocks.map(");
+    expect(claimedGroup).toContain("segment.map(");
     expect(claimedGroup).toContain("borderRadius: 24");
     expect(claimedGroup).toContain("StyleSheet.hairlineWidth");
     expect(claimedGroup).toContain("whiteBlockContainsNow");

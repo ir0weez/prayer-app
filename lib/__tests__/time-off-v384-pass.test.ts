@@ -47,6 +47,11 @@
 // palette, print, stamp, anatomy — never moved: the pass
 // still lives on the entries, untouched. The flight board's
 // own full spec lives in time-off-v386-flight-board.test.ts.
+// v387 amendment (Oct 31, device verdict on v386): the now
+// block is ALWAYS the big separated NOW BOARDING hero — a
+// run holding it splits around the hero; the filled row is
+// gone. ("The 'Now' card is supposed to be the big one and
+// separated (just like the mockup!)")
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, expect, it } from "vitest";

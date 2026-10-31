@@ -18,6 +18,16 @@
 // row inside a run. Ordinary whites and the Time Off page's
 // own timeline are untouched, and v385's passes stay on the
 // itinerary entries where they belong.
+//
+// v387 amendment (Oct 31, device verdict on v386): the flight
+// rows, panels, words, and the solo hero were right — but a
+// now block inside a run rendered as a filled ROW in the
+// panel, and he rejected it: "The 'Now' card is supposed to
+// be the big one and separated (just like the mockup!)". The
+// now block is now ALWAYS the big hero, standing separated;
+// a run holding it SPLITS around it (panel above, hero, panel
+// below). The filled-row pins are re-pinned to the split
+// below, with the history kept here.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, expect, it } from "vitest";
@@ -135,7 +145,9 @@ describe("v386 the board — one connected panel, flight rows, the now fill", ()
     expect(claimedGroup).toContain("borderRadius: 24");
     expect(claimedGroup).toContain("backgroundColor: palette.paper");
     expect(claimedGroup).toContain("StyleSheet.hairlineWidth");
-    expect(claimedGroup).toContain("blocks.map((block, index)");
+    // v387: rows map over a PANEL SEGMENT of the run — the run
+    // splits around the hero now, so the map is per segment.
+    expect(claimedGroup).toContain("segment.map((block, i)");
     // Every row is its own tap target into the Time Off page,
     // labelled with its own range — and nothing is completable.
     expect(claimedGroup).toContain("onPress={() => onPressBlock(block)}");
@@ -154,17 +166,40 @@ describe("v386 the board — one connected panel, flight rows, the now fill", ()
     expect(claimedGroup).toContain("<FlightDestination startIndex={index}");
   });
 
-  it("the now block fills with the deep step — hero standing alone, filled row inside a run", () => {
+  it("v387: the now block is ALWAYS the big separated hero — a run splits around it, no filled row remains", () => {
+    // Was v386: "the now block fills with the deep step — hero
+    // standing alone, filled row inside a run" (a solo-only
+    // hero branch plus an isNow fill on the panel rows).
+    // Superseded by his device verdict the same day: "The
+    // 'Now' card is supposed to be the big one and separated
+    // (just like the mockup!)". The hero form now renders for
+    // the now block wherever it sits, and the run splits into
+    // a panel above it and a panel below it.
     expect(claimedGroup).toContain("blocks.findIndex((b) => whiteBlockContainsNow(b, nowMinutes))");
-    // Solo hero form.
-    expect(claimedGroup).toContain("if (blocks.length === 1 && nowIndex === 0)");
+    // The hero form itself — the v386 solo form, now universal.
     expect(claimedGroup).toContain("NOW BOARDING");
     expect(claimedGroup).toContain("borderRadius: 28");
     expect(claimedGroup).toContain("backgroundColor: palette.band");
-    // Grouped filled-row form.
-    expect(claimedGroup).toContain("...(isNow ? { backgroundColor: palette.band } : {})");
-    expect(claimedGroup).toContain("· ${minutesIn} min in");
     expect(claimedGroup).toMatch(/>\s*NOW\s*<\/Text>/);
+    // The split: before-segment, hero, after-segment — in
+    // that source order, so a 3-block run with now in the
+    // middle renders panel(1 row) + hero + panel(1 row), and
+    // now at an edge renders hero + panel or panel + hero.
+    expect(claimedGroup).toContain("const before = blocks.slice(0, nowIndex);");
+    expect(claimedGroup).toContain("const after = blocks.slice(nowIndex + 1);");
+    expect(claimedGroup).toContain("if (nowIndex === -1) return renderPanel(blocks, 0);");
+    const beforeAt = claimedGroup.indexOf("renderPanel(before, 0)");
+    const heroAt = claimedGroup.indexOf("renderHero(blocks[nowIndex], nowIndex)");
+    const afterAt = claimedGroup.indexOf("renderPanel(after, nowIndex + 1)");
+    expect(beforeAt).toBeGreaterThan(-1);
+    expect(heroAt).toBeGreaterThan(beforeAt);
+    expect(afterAt).toBeGreaterThan(heroAt);
+    // The filled row is GONE — no dead branch of it remains:
+    // no solo-only hero gate, no isNow styling on panel rows,
+    // no "min in" text on a row (it lives on the hero only).
+    expect(claimedGroup).not.toContain("if (blocks.length === 1 && nowIndex === 0)");
+    expect(claimedGroup).not.toContain("isNow");
+    expect(claimedGroup).not.toContain("min in`");
   });
 
   it("the hero's quiet line: minutes in of the whole, when it lands, then the next item — clause dropped when there is none", () => {

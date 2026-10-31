@@ -294,12 +294,16 @@ export function bibleIsFinished(state: StudyState, imports: StudioImportsMap = {
  *                as written" is the union rule (bookIsWritten —
  *                stored Complete OR noted in the resolved data),
  *                not the stored status alone.
- *   Current    — the study store's currentBook first (unless it
- *                landed in Finished or Written), then every other
- *                book with ≥1 chapter carrying any state, in
- *                canonical Bible order.
+ *   Current    — the study store's currentBook first (v383: ALWAYS
+ *                first — the explicit mark outranks the channel
+ *                precedence below, so a fully written or fully read
+ *                book he marks current is pulled out of Written /
+ *                Finished into Current), then every other book with
+ *                ≥1 chapter carrying any state, in canonical Bible
+ *                order.
  *   Not Started — no chapter states at all, in canonical order.
- * Precedence: Finished (read) > Written > Current / Not Started —
+ * Precedence: the marked currentBook > Finished (read) > Written >
+ * Current / Not Started —
  * every book in canon lands in exactly one section (the pinned
  * currentBook is also lifted out of Not Started, which the v222
  * code could double-list). A book carrying only a 'not-started'
@@ -341,11 +345,23 @@ export function groupBooksByStudy(
     (hasState ? progressed : notStarted).push(book);
   }
   const current: string[] = [];
-  if (
-    state.currentBook &&
-    !finished.includes(state.currentBook) &&
-    !written.includes(state.currentBook)
-  ) {
+  // v383 — the explicit mark wins (his report, Oct 31 00:30: "I
+  // marked 1 John as current, and it's not in the current area...").
+  // Under the v322 code the channel precedence above silently
+  // DEMOTED a marked book that was fully written or fully read out
+  // of Current: 1 John (fully written) sat in Written wearing its
+  // filled pill, three sections down, while the Current area kept
+  // showing a merely-progressed book. An act he performed on purpose
+  // outranks a sort rule: the marked book is pulled out of Finished
+  // / Written and seated first in Current. Every OTHER book's
+  // membership is exactly the v322 ruling — Finished still means
+  // fully read only, Written fully written — and each book still
+  // lands in exactly one section.
+  if (state.currentBook && canon.includes(state.currentBook)) {
+    for (const list of [finished, written]) {
+      const i = list.indexOf(state.currentBook);
+      if (i >= 0) list.splice(i, 1);
+    }
     current.push(state.currentBook);
   }
   for (const book of progressed) {

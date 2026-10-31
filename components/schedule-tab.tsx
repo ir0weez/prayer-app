@@ -12995,6 +12995,21 @@ export function ScheduleTab({
       setBibleState(updated);
       const newDisplay = getCurrentBibleDisplay(updated);
       setCurrentBibleBook(newDisplay || 'No book marked as current');
+      // v383: the Books page (and the Personal Study position) read
+      // the STUDY store's currentBook — the unified write above has
+      // not reached them since the one-time v211 position seed, so a
+      // book marked current by saving a study session here never
+      // appeared in the Books Current area (his Oct 31 report marked
+      // 1 John current and the Books page never showed it). The mark
+      // now lands in BOTH stores: unified for this tab's own legacy
+      // displays, study for the Books page.
+      const {
+        loadStudyState,
+        saveStudyState,
+        setCurrentBook: setStudyCurrentBook,
+      } = await import('@/lib/bible-v205/study');
+      const studyState = await loadStudyState();
+      await saveStudyState(setStudyCurrentBook(studyState, formBibleBook));
     } catch (error) {
       console.error('Error setting current Bible book:', error);
     }

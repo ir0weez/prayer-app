@@ -513,7 +513,17 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
  * Current marker; every other unfinished book offers a tappable pill
  * that makes it current (writing the study store — see makeCurrent).
  * A finished book needs no pill: there is nothing left to read from
- * there. */
+ * there.
+ * v383: the offer pill's dress changes — it wore palette.band, a
+ * quarter-strength seed wash that in his dark theme renders as a
+ * solid-looking blue pill with light text, indistinguishable from
+ * the filled chip (his Oct 31 screenshot: Colossians' and Leviticus'
+ * pills read identical, so two books looked "current" while the
+ * book he had actually marked sat elsewhere). The offer is now a
+ * quiet tonal pill — raspTint with a hairline bandBorder — and it
+ * speaks as an action, "Set current", never as the state word. The
+ * filled chip (solid rasp, white CURRENT) is the only pill that
+ * states a fact. */
 function CurrentPill({
   book,
   studyState,
@@ -536,13 +546,13 @@ function CurrentPill({
   if (bookIsComplete(studyState, book)) return null;
   return (
     <Pressable
-      style={[styles.currentPill, { backgroundColor: palette.band }]}
+      style={[styles.currentPill, { backgroundColor: palette.raspTint, borderColor: palette.bandBorder, borderWidth: 1 }]}
       accessibilityRole="button"
       accessibilityLabel={`Make ${book} current`}
       hitSlop={6}
       onPress={() => onMakeCurrent(book)}
     >
-      <Text style={[styles.currentPillText, { color: palette.raspDeep }]}>Current</Text>
+      <Text style={[styles.currentPillText, { color: palette.raspDeep }]}>Set current</Text>
     </Pressable>
   );
 }

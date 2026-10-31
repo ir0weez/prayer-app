@@ -341,9 +341,15 @@ describe('v251 WS2 — the Books row shrinks its texts, never its chip', () => {
     expect(html).toContain('notes in 13 chapters');
     // The longest book name in the canon.
     expect(html).toContain('1 Thessalonians');
-    // A Current chip renders (the seed state puts every book in
+    // A current pill renders (the seed state puts every book in
     // Not Started, so the make-current pill paints on the rows).
-    expect(html).toContain('Current');
+    // v383 amendment: the offer pill's label is now the action "Set
+    // current" — under v251–v382 it stated "Current", the same word
+    // as the filled state chip, and in his dark theme the two pills
+    // were indistinguishable (his Oct 31 screenshot). The chip this
+    // pin protects is the same never-shrink pill; only its word and
+    // tonal dress changed. See bible-v383-current-mark.test.ts.
+    expect(html).toContain('Set current');
     // v311: the chip still carries the flex-shrink:0 atomic class
     // (r-flexShrink-1q142lx); the retired shrink container's inline
     // signature is gone from the render.

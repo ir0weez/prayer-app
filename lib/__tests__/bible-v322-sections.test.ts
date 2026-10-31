@@ -10,6 +10,9 @@
 //   Written  — written == chapters, not fully read.
 //   Both     — Finished only. Partial — neither.
 //   Precedence: Finished > Written > Current / Not Started, every
+//   book in exactly one section. (v383 amendment, Oct 31: the marked
+//   currentBook outranks the channel precedence — see the two
+//   superseded pins below and bible-v383-current-mark.test.ts.)
 //   book in exactly one section.
 
 import { readFileSync } from 'fs';
@@ -119,22 +122,30 @@ describe('v322 — Books sections: Finished counts the read ones', () => {
     expect(groups.current).toContain('Haggai');
   });
 
-  it('precedence: the current book, fully read, reads as Finished — not Current', () => {
+  it('precedence: the current book, fully read, reads as Finished — not Current — SUPERSEDED by v383: the explicit mark wins', () => {
+    // v383 amendment (his report, Oct 31 00:30): the demote is the
+    // bug — a book he marks current is seated in Current even when
+    // fully read; Finished keeps its read-only meaning for every
+    // unmarked book (the pins above and below still hold that).
     let state = seedStudyState();
     state = setCurrentBook(state, 'Jonah');
     state = fullyRead(state, 'Jonah');
     const groups = groupBooksByStudy(state, canon);
-    expect(groups.finished).toContain('Jonah');
-    expect(groups.current).not.toContain('Jonah');
+    expect(groups.current[0]).toBe('Jonah');
+    expect(groups.finished).not.toContain('Jonah');
   });
 
-  it('precedence: the current book, fully written only, lands in Written — not Current', () => {
+  it('precedence: the current book, fully written only, lands in Written — not Current — SUPERSEDED by v383: the explicit mark wins', () => {
+    // v383 amendment (his report, Oct 31 00:30 — the 1 John case
+    // exactly): a fully written book he marks current leaves Written
+    // for the Current area. Unmarked fully written books (below)
+    // still seat in Written.
     let state = seedStudyState();
     state = setCurrentBook(state, 'Ruth');
     state = fullyWritten(state, 'Ruth');
     const groups = groupBooksByStudy(state, canon);
-    expect(groups.written).toContain('Ruth');
-    expect(groups.current).not.toContain('Ruth');
+    expect(groups.current[0]).toBe('Ruth');
+    expect(groups.written).not.toContain('Ruth');
   });
 
   it('precedence: an in-progress current book still pins first in Current', () => {

@@ -500,18 +500,22 @@ describe('v222 WS3 — Books list: all 66, sections (v322: four, split by channe
     expect(afterPinned).toEqual([...afterPinned].sort((a, b) => canon.indexOf(a) - canon.indexOf(b)));
   });
 
-  it('a writing-complete currentBook lands in Written, not Current (v322: Finished is read-only)', () => {
+  it('a writing-complete currentBook lands in Written, not Current (v322) — SUPERSEDED by v383: the explicit mark wins', () => {
     let state = seedStudyState();
     state = setCurrentBook(state, 'Mark');
     for (let c = 1; c <= CHAPTER_COUNTS['Mark']; c++) {
       state = setChapterStatus(state, 'Mark', c, 'complete');
     }
     const groups = groupBooksByStudy(state, canon);
-    // v322 re-base: under v222 this fixture read "finished" via the
-    // writing channel; Finished is the read channel's now.
-    expect(groups.written).toContain('Mark');
+    // v383 amendment (his report, Oct 31 00:30 — he marked 1 John
+    // current and it never reached the Current area): the v322
+    // demote this pin held is the bug. A marked book is pulled out
+    // of Written into Current; Finished/Written membership is
+    // unchanged for every UNMARKED book. Full pins:
+    // bible-v383-current-mark.test.ts.
+    expect(groups.current[0]).toBe('Mark');
+    expect(groups.written).not.toContain('Mark');
     expect(groups.finished).not.toContain('Mark');
-    expect(groups.current).not.toContain('Mark');
   });
 
   it('a book carrying only a deliberate not-started override counts as started — it is Current, not Not Started', () => {

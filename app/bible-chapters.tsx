@@ -68,6 +68,7 @@ import {
   bookReadCount,
   resetReadingProgress,
 } from '@/lib/bible-v205/reading-progress';
+import { clearNoteCollapse } from '@/lib/bible-v205/note-collapse';
 import { BookReadingThread, StudyProgressHeader } from '@/components/bible-v205/reading-progress-card';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
@@ -278,10 +279,15 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   // from other screens too), empties ONLY the read track via
   // resetReadingProgress, and saves — notes, queues, study states,
   // current book and position all ride through untouched.
+  // v391 (his addendum): the reset also clears the note open/closed
+  // record, so the fresh read-through starts with every note back
+  // open at its default — the note TEXTS are untouched, only the
+  // remembered fold states go.
   const resetReading = async () => {
     const fresh = await loadStudyState();
     const next = resetReadingProgress(fresh);
     await saveStudyState(next);
+    await clearNoteCollapse();
     setStudyState(next);
     setResetOpen(false);
   };

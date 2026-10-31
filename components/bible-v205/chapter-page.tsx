@@ -118,6 +118,11 @@ import {
   type StudioImportsMap,
 } from '@/lib/bible-v205/studio-import';
 import { loadChapterVerses, type VerseText } from '@/lib/bible-v205/verses';
+import {
+  loadNoteCollapse,
+  recordedNoteOpen,
+  saveNoteCollapse,
+} from '@/lib/bible-v205/note-collapse';
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import { useSkin } from '@/hooks/use-skin';
@@ -319,6 +324,14 @@ export function ChapterPageView(props: ChapterPageProps) {
   const [readOnly, setReadOnly] = useState(false);
   const [labels, setLabels] = useState<UserLabels | null>(null);
   const [openMap, setOpenMap] = useState<Record<string, boolean> | null>(null);
+  // v391: whether the persisted note open/closed record (the
+  // note-collapse store) has landed. Writes to the store wait for
+  // it (see the write-through below); rendering does not — this
+  // page paints its note bodies ungated on first render like every
+  // other store here (marks, study state, read mode all hydrate
+  // into state after mount), and the record lands inside that same
+  // settle, ahead of the verses' own async load in practice.
+  const [collapseReady, setCollapseReady] = useState(false);
   const [sheet, setSheet] = useState<null | 'verses' | 'search'>(null);
   // v361: the selection model replaced the v212 number-tap tint
   // selection wholesale — a drag across the words IS the selection
@@ -432,6 +445,32 @@ export function ChapterPageView(props: ChapterPageProps) {
     AsyncStorage.setItem(READ_MODE_KEY, only ? 'read-only' : 'with-notes').catch(() => undefined);
   };
 
+  // v391: the note open/closed states are app-level too — the page
+  // restores each note the way he left it (his place in the study).
+  // The stored record loads once and sits UNDER anything this
+  // session has already set, so an early toggle is never clobbered
+  // by the landing read.
+  useEffect(() => {
+    let live = true;
+    loadNoteCollapse().then((stored) => {
+      if (!live) return;
+      setOpenMap((m) => ({ ...stored, ...(m ?? {}) }));
+      setCollapseReady(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  // v391: every change to the open map writes through to the store —
+  // but only once the stored record has landed, so a toggle made in
+  // the first moments can never overwrite notes from other chapters
+  // he isn't looking at.
+  useEffect(() => {
+    if (!collapseReady || openMap === null) return;
+    saveNoteCollapse(openMap);
+  }, [collapseReady, openMap]);
+
   const verseCount = verses.length ? verses[verses.length - 1].verse : 0;
   const rawNotesSections: DisplaySection[] = useMemo(
     () => buildDisplaySections(chapterData, verseCount),
@@ -540,7 +579,11 @@ export function ChapterPageView(props: ChapterPageProps) {
 
   const isOpen = (e: V205Entry) => {
     const key = entryKey(book, chapter, e.start, e.end);
-    if (openMap && key in openMap) return openMap[key];
+    // v391: openMap is backed by the persisted note-collapse store —
+    // a recorded state is the way he left the note; no record means
+    // the standing defaults below, untouched.
+    const recorded = recordedNoteOpen(openMap, key);
+    if (recorded !== null) return recorded;
     if (readOnly) return true;
     return e.blocks.length > 0;
   };

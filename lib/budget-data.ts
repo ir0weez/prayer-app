@@ -117,9 +117,17 @@ export function materializeRecurringExpenses(
   const result = normalizeRecurringExpenses(expenses);
   const recurringTemplates = new Map<string, MonthlyExpenseRecord>();
 
+  // v380: the LATEST occurrence of a series is its template (the
+  // normalized list is sorted by dueDate, so later records overwrite
+  // earlier ones). A bill edited from one month forward stores its
+  // new values on the newest occurrences, so months materialized
+  // after the stored window carry the edited values — a reload can
+  // never resurrect the old ones — while earlier months keep their
+  // historical values. Unedited series hold identical values on
+  // every occurrence, so their materialization is unchanged.
   for (const expense of result) {
     const recurrenceKey = getRecurrenceKey(expense);
-    if (!recurrenceKey || recurringTemplates.has(recurrenceKey)) continue;
+    if (!recurrenceKey) continue;
     recurringTemplates.set(recurrenceKey, { ...expense, recurrenceId: recurrenceKey });
   }
 
@@ -177,6 +185,98 @@ export function deleteExpense(
   expenseId: string,
 ): MonthlyExpenseRecord[] {
   return expenses.filter((expense) => expense.id !== expenseId);
+}
+
+export interface ExpenseEdits {
+  name: string;
+  amount: number;
+  day: number;
+  isRecurring: boolean;
+}
+
+/**
+ * v380: one occurrence with the edited values applied inside its own
+ * month — the due date is recomputed through getRecurringDueDate, so
+ * a day that does not exist in that month clamps exactly the way the
+ * create path clamps it. Paid state and identity ride along on the
+ * spread: editing a paid bill never unpays it.
+ */
+function withEditedValues(expense: MonthlyExpenseRecord, edits: ExpenseEdits): MonthlyExpenseRecord {
+  const [year, month] = expense.dueDate.split("-").map(Number);
+  const monthDate = new Date(year, (month || 1) - 1, 1);
+  const dueDate = getRecurringDueDate({ ...expense, day: edits.day }, monthDate);
+  return {
+    ...expense,
+    name: edits.name,
+    amount: edits.amount,
+    day: Number(dueDate.slice(-2)),
+    dueDate,
+  };
+}
+
+/** v380: a record with its series membership removed, values untouched. */
+function asOneOffRecord(expense: MonthlyExpenseRecord): MonthlyExpenseRecord {
+  const oneOff = { ...expense, isRecurring: false };
+  delete oneOff.recurrenceId;
+  return oneOff;
+}
+
+/**
+ * v380: the bill editor's save, applied through the record layer.
+ *
+ * - One-off, stays one-off: that occurrence alone takes the edits.
+ * - One-off switched to recurring: the occurrence becomes the series
+ *   root (recurrenceId = its own id, the createRecurringExpense
+ *   shape); the caller materializes the following months.
+ * - Recurring, stays recurring: the edits apply from the edited
+ *   occurrence FORWARD — it and every later occurrence take the new
+ *   name/amount/day, while earlier occurrences (paid history above
+ *   all) are returned untouched, object for object.
+ * - Recurring switched off: the series detaches forward. The edited
+ *   occurrence becomes a one-off carrying the edited values, later
+ *   occurrences are removed, and earlier occurrences keep their
+ *   values as plain one-off history — with no record left carrying
+ *   the series, the old bills can never materialize again.
+ */
+export function editExpense(
+  expenses: MonthlyExpenseRecord[],
+  expenseId: string,
+  edits: ExpenseEdits,
+): MonthlyExpenseRecord[] {
+  const target = expenses.find((expense) => expense.id === expenseId);
+  if (!target) return expenses;
+
+  const targetKey = getRecurrenceKey(target);
+
+  if (!targetKey && !edits.isRecurring) {
+    return expenses.map((expense) =>
+      expense.id === expenseId ? withEditedValues(expense, edits) : expense,
+    );
+  }
+
+  if (!targetKey && edits.isRecurring) {
+    return expenses.map((expense) =>
+      expense.id === expenseId
+        ? { ...withEditedValues(expense, edits), isRecurring: true, recurrenceId: expense.id }
+        : expense,
+    );
+  }
+
+  if (targetKey && edits.isRecurring) {
+    return expenses.map((expense) => {
+      if (getRecurrenceKey(expense) !== targetKey || expense.dueDate < target.dueDate) {
+        return expense;
+      }
+      return withEditedValues(expense, edits);
+    });
+  }
+
+  return expenses.flatMap((expense) => {
+    if (getRecurrenceKey(expense) !== targetKey) return [expense];
+    if (expense.dueDate > target.dueDate) return [];
+    if (expense.id === expenseId) return [asOneOffRecord(withEditedValues(expense, edits))];
+    return [asOneOffRecord(expense)];
+  });
 }
 
 /** A local YYYY-MM-DD key for a Date (never a UTC conversion). */

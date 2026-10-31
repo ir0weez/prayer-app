@@ -8,6 +8,7 @@ import {
   createRecurringExpense,
   deleteExpense as removeExpense,
   deleteRecurringSeries,
+  editExpense,
   getBudgetDaysLate,
   getBudgetMonthTotals,
   getBudgetNextDue,
@@ -48,8 +49,11 @@ export default function BudgetTrackerScreen() {
   const [expenses, setExpenses] = useState<MonthlyExpense[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newExpenseName, setNewExpenseName] = useState('');
-  const [newExpenseAmount, setNewExpenseAmount] = useState('');
+  // v380: the sheet is one form for both modes — editingExpense is
+  // null in Add mode and holds the bill being edited in Edit mode.
+  const [editingExpense, setEditingExpense] = useState<MonthlyExpense | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formAmount, setFormAmount] = useState('');
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [isRecurring, setIsRecurring] = useState(false);
 
@@ -88,20 +92,66 @@ export default function BudgetTrackerScreen() {
     }, [loadExpenses])
   );
 
-  const handleAddExpense = () => {
-    const amount = parseFloat(newExpenseAmount);
-    if (!newExpenseName.trim() || !Number.isFinite(amount) || amount <= 0 || selectedDay === null) {
+  const resetSheetForm = () => {
+    setFormName('');
+    setFormAmount('');
+    setSelectedDay(null);
+    setIsRecurring(false);
+    setEditingExpense(null);
+  };
+
+  const openAddSheet = () => {
+    resetSheetForm();
+    setShowAddModal(true);
+  };
+
+  const closeSheet = () => {
+    resetSheetForm();
+    setShowAddModal(false);
+  };
+
+  // v380: hold a bill to edit it — the same sheet, prefilled from
+  // the bill, in Edit mode.
+  const openEditSheet = (expense: MonthlyExpense) => {
+    setEditingExpense(expense);
+    setFormName(expense.name);
+    setFormAmount(String(expense.amount));
+    setSelectedDay(expense.day);
+    setIsRecurring(!!expense.isRecurring);
+    setShowAddModal(true);
+  };
+
+  const handleSaveSheet = () => {
+    const amount = parseFloat(formAmount);
+    if (!formName.trim() || !Number.isFinite(amount) || amount <= 0 || selectedDay === null) {
       Alert.alert('Error', 'Please enter a name, a positive amount, and a due day');
+      return;
+    }
+
+    if (editingExpense) {
+      // v380: edits land through the lib's record layer (forward
+      // for a series, in place for a one-off). A bill that is
+      // recurring after the edit gets the same materialization the
+      // create path runs, so the coming months in the window carry
+      // the saved values right away.
+      const updated = editExpense(expenses, editingExpense.id, {
+        name: formName.trim(),
+        amount,
+        day: selectedDay,
+        isRecurring,
+      });
+      saveExpenses(isRecurring ? materializeRecurringExpenses(updated, currentMonth, 12) : updated);
+      closeSheet();
       return;
     }
 
     const id = Date.now().toString();
     const newExpense: MonthlyExpense = isRecurring
-      ? createRecurringExpense(id, newExpenseName.trim(), amount, selectedDay, currentMonth)
+      ? createRecurringExpense(id, formName.trim(), amount, selectedDay, currentMonth)
       : {
           id,
           day: selectedDay,
-          name: newExpenseName.trim(),
+          name: formName.trim(),
           amount,
           isPaid: false,
           dueDate: `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`,
@@ -112,11 +162,7 @@ export default function BudgetTrackerScreen() {
       ? materializeRecurringExpenses([...expenses, newExpense], currentMonth, 12)
       : [...expenses, newExpense];
     saveExpenses(updated);
-    setNewExpenseName('');
-    setNewExpenseAmount('');
-    setSelectedDay(null);
-    setIsRecurring(false);
-    setShowAddModal(false);
+    closeSheet();
   };
 
   const toggleExpensePaid = (expenseId: string) => {
@@ -561,7 +607,19 @@ export default function BudgetTrackerScreen() {
       ? `Due ${formatDueDate(expense.dueDate)} · ${daysLate} ${daysLate === 1 ? 'day' : 'days'} late`
       : `Due ${formatDueDate(expense.dueDate)}${!expense.isPaid && !expense.isRecurring ? ' · one-time' : ''}`;
     return (
-      <View key={expense.id} style={styles.bill}>
+      // v380: the row itself is the press target — a tap toggles
+      // paid, a hold opens the editor (Pressable keeps the two
+      // apart: once the hold fires, the tap never does). The check
+      // circle and the delete button keep their own targets inside.
+      <Pressable
+        key={expense.id}
+        style={styles.bill}
+        onPress={() => toggleExpensePaid(expense.id)}
+        onLongPress={() => openEditSheet(expense)}
+        accessibilityRole="button"
+        accessibilityLabel={expense.name}
+        accessibilityHint="Tap to toggle paid, hold to edit"
+      >
         <Pressable
           accessibilityRole="checkbox"
           accessibilityLabel={expense.isPaid ? `Mark ${expense.name} unpaid` : `Mark ${expense.name} paid`}
@@ -590,7 +648,7 @@ export default function BudgetTrackerScreen() {
         >
           <MaterialIcons name="delete" size={19} color={bm.inkSoft} />
         </Pressable>
-      </View>
+      </Pressable>
     );
   };
 
@@ -687,7 +745,7 @@ export default function BudgetTrackerScreen() {
           )}
 
           {/* Add a bill */}
-          <Pressable onPress={() => setShowAddModal(true)} style={styles.addPill} accessibilityRole="button" accessibilityLabel="Add a bill">
+          <Pressable onPress={openAddSheet} style={styles.addPill} accessibilityRole="button" accessibilityLabel="Add a bill">
             <MaterialIcons name="add" size={18} color="#FFFFFF" />
             <Text style={styles.addPillText}>Add a bill</Text>
           </Pressable>
@@ -699,31 +757,31 @@ export default function BudgetTrackerScreen() {
             header (fade scope ruling, Oct 29). */}
       </View>
 
-      {/* Add Bill sheet */}
+      {/* Add / Edit Bill sheet — one form, two modes (v380) */}
       <Modal
         visible={showAddModal}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowAddModal(false)}
+        onRequestClose={closeSheet}
       >
         <View style={styles.modal}>
           <View style={styles.sheet}>
-            <Text style={styles.sheetTitle}>Add a bill</Text>
+            <Text style={styles.sheetTitle}>{editingExpense ? 'Edit bill' : 'Add a bill'}</Text>
 
             <TextInput
               style={styles.field}
               placeholder="Name"
               placeholderTextColor={bm.inkSoft}
-              value={newExpenseName}
-              onChangeText={setNewExpenseName}
+              value={formName}
+              onChangeText={setFormName}
             />
 
             <TextInput
               style={styles.field}
               placeholder="Amount"
               placeholderTextColor={bm.inkSoft}
-              value={newExpenseAmount}
-              onChangeText={setNewExpenseAmount}
+              value={formAmount}
+              onChangeText={setFormAmount}
               keyboardType="decimal-pad"
             />
 
@@ -760,11 +818,11 @@ export default function BudgetTrackerScreen() {
             </Pressable>
 
             <View style={styles.sheetButtons}>
-              <Pressable onPress={() => setShowAddModal(false)} style={styles.cancelButton}>
+              <Pressable onPress={closeSheet} style={styles.cancelButton}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
-              <Pressable onPress={handleAddExpense} style={styles.addButton}>
-                <Text style={styles.addButtonText}>Add bill</Text>
+              <Pressable onPress={handleSaveSheet} style={styles.addButton}>
+                <Text style={styles.addButtonText}>{editingExpense ? 'Save' : 'Add bill'}</Text>
               </Pressable>
             </View>
           </View>

@@ -118,7 +118,7 @@ import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import { useSkin } from '@/hooks/use-skin';
 import { BlockView, CategoryTag, Ornament, ReadChip, SectionBand, SelfLineBlock, StatusChip } from './blocks';
-import { SelectableText } from './selectable-text';
+import { SelectableText, clearActiveSelection, hasActiveSelection } from './selectable-text';
 import { AuthorFace, AuthorPicker, LivingBubbles, kindLabelFor, spanLabelFor, type BloomTiming } from './bubbles';
 import { IndexSheet } from './index-sheet';
 import { StoriesView } from './stories-view';
@@ -2026,7 +2026,18 @@ function EntryView(props: {
             return (
               <Pressable
                 key={`${line.kind}-${line.fieldIndex}-${i}`}
-                onPress={() => editSelfLine(i)}
+                onPress={() => {
+                  // v378: a tap on the line while a selection
+                  // stands anywhere is an outside tap — it
+                  // clears the selection and does NOT open his
+                  // editor. With nothing standing, the tap is
+                  // the edit door it has always been.
+                  if (hasActiveSelection()) {
+                    clearActiveSelection();
+                    return;
+                  }
+                  editSelfLine(i);
+                }}
                 hitSlop={4}
               >
                 <SelfLineBlock

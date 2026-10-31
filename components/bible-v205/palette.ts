@@ -148,6 +148,10 @@ export interface BiblePalette {
   /** v361: the live drag-selection wash (the seed's own orange
    * family at selection strength, per the approved drawing). */
   selWash: string;
+  /** v378: the selection handles' solid fill — the selWash base
+   * at full strength (the drawing's handle hue), so a handle
+   * reads as the selection's own colour, not its wash. */
+  selHandle: string;
   isDark: boolean;
   /** v250 Material dress — one dress in every skin (see the
    * fragments in useBiblePalette). */
@@ -270,6 +274,7 @@ export function useBiblePalette(): BiblePalette {
     phraseTintRed: 'rgba(240,118,107,.42)',
     phraseTintOrange: 'rgba(245,158,76,.44)',
     selWash: 'rgba(242,87,0,.30)',
+    selHandle: 'rgb(242,87,0)',
     isDark,
     cardDress,
     btnDress,

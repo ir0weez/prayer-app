@@ -14833,6 +14833,7 @@ export function ScheduleTab({
             return (
               <ClaimedRestGroup
                 timeOff={dayTrip}
+                date={selectedDate}
                 blocks={[{ block: b, height: whiteBlockHeight(b.durationMinutes, remaining) }]}
                 onPressBlock={() => openTimeOffExperience(dayTrip.id)}
               />
@@ -14867,6 +14868,7 @@ export function ScheduleTab({
                   <ClaimedRestGroup
                     key={run[0].id}
                     timeOff={dayTrip}
+                    date={selectedDate}
                     blocks={run.map((b) => {
                       const remaining = nm != null && timeToMinutes(b.startTime) <= nm && nm < timeToMinutes(b.endTime)
                         ? timeToMinutes(b.endTime) - nm

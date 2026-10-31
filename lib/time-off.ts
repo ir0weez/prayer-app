@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateId, EVENT_KEYWORD_MAP, detectEventKeyword, type EventKeyword } from './schedule-data';
 import { stripSpelledSeasonEpisode } from './season-episode';
 import { mix } from './color-themes';
+import { hexContrast, hexLuminance, hexToHsl, hslToHex } from './skin-themes';
 
 export const TIME_OFF_STORAGE_KEY = 'prayercircle.timeoff.v1';
 
@@ -345,6 +346,145 @@ export function getTimeOffIcon(type: TimeOffType): string {
     other: 'event-busy',
   };
   return icons[type];
+}
+
+/**
+ * v384 — the boarding-pass print for a claimed block: the pass's
+ * DURATION in the drawing's convention ("1H"; halves carry the
+ * fraction glyph, "5½H"; sub-hour blocks in minutes, "45M"; other
+ * remainders spelled out, "1H 15M"). Formatted from real minutes.
+ */
+export function formatPassDuration(durationMinutes: number): string {
+  const m = Math.max(0, Math.round(durationMinutes));
+  if (m < 60) return `${m}M`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  if (rem === 0) return `${h}H`;
+  if (rem === 30) return `${h}½H`;
+  return `${h}H ${rem}M`;
+}
+
+/** v384 — the pass's DATE field, the drawing's form: "SAT, OCT 31". */
+export function formatPassDate(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(y, m - 1, d)
+    .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+    .toUpperCase();
+}
+
+export type TimeOffPassPalette = {
+  /** The paper itself — a light tint of the chosen colour. */
+  paper: string;
+  /** The stub — the paper stepped a touch deeper. */
+  stub: string;
+  /** The BOARDING PASS band — the family's deep saturated step. */
+  band: string;
+  /** Route + stub print — the deep step, contrast-walked on the paper. */
+  print: string;
+  /** Name / field-value ink — the deepest step, contrast-walked. */
+  ink: string;
+  /** The small-caps field labels — a quiet mid step. */
+  label: string;
+  /** The paper's edge. */
+  border: string;
+  /** The perforation seam. */
+  seam: string;
+  /** The keyword stamp's tint (the band step). */
+  stamp: string;
+};
+
+/**
+ * v384 — the pass's whole palette from the trip's OWN chosen colour
+ * (his ruling, Oct 31: "Will they match the colors that are chosen
+ * by the user? … They probably should."). The base is the record's
+ * stored colour — the editor's Color row writes it, createTimeOff
+ * falls back to the type default — and a record carrying none
+ * (imports, older records) falls back to TIME_OFF_COLORS[type]
+ * here: never an uncoloured pass. From that one base the family
+ * derives the way the drawing's sky family works (the drawing is
+ * the vacation-blue instance): paper = the base's light tint (a
+ * pastel base IS the paper), band/print = the hue at a deep
+ * saturated HSL step — the band walked until its white capitals
+ * clear 3.2:1, print and ink contrast-walked against
+ * the paper until they clear 4.5:1, stub/border/seam = paper
+ * stepped toward the band. Over a dark surface the family darkens
+ * the way its siblings do — paper and stub mix toward the surface
+ * and the print walks LIGHT instead of dark.
+ */
+export function timeOffPassPalette(
+  timeOff: Pick<TimeOff, "color" | "type">,
+  surface: string,
+): TimeOffPassPalette {
+  const base = timeOff.color || TIME_OFF_COLORS[timeOff.type];
+  const dark = hexLuminance(surface) < 0.5;
+  const { h, s } = hexToHsl(base);
+  // The deep steps keep the hue vivid even from a pastel base —
+  // the drawing's band is a saturated step of the paper's own hue.
+  const sat = Math.max(s, 0.82);
+  if (dark) {
+    const paper = mix(surface, base, 0.3);
+    // The band carries white capitals: walk its lightness down until
+    // they clear 3.2:1 (high-luminance hues — greens — need the help).
+    let bandL = 0.4;
+    let band = hslToHex({ h, s: sat, l: bandL });
+    while (hexContrast("#FFFFFF", band) < 3.2 && bandL > 0.26) {
+      bandL = Math.max(0.26, bandL - 0.03);
+      band = hslToHex({ h, s: sat, l: bandL });
+    }
+    let printL = 0.8;
+    let print = hslToHex({ h, s: sat, l: printL });
+    while (hexContrast(print, paper) < 4.5 && printL < 0.95) {
+      printL = Math.min(0.95, printL + 0.03);
+      print = hslToHex({ h, s: sat, l: printL });
+    }
+    let inkL = 0.88;
+    let ink = hslToHex({ h, s: Math.min(sat, 0.6), l: inkL });
+    while (hexContrast(ink, paper) < 4.5 && inkL < 0.97) {
+      inkL = Math.min(0.97, inkL + 0.03);
+      ink = hslToHex({ h, s: Math.min(sat, 0.6), l: inkL });
+    }
+    return {
+      paper,
+      stub: mix(surface, base, 0.42),
+      band,
+      print,
+      ink,
+      label: hslToHex({ h, s: Math.min(s, 0.5), l: 0.68 }),
+      border: mix(surface, base, 0.55),
+      seam: mix(surface, base, 0.6),
+      stamp: band,
+    };
+  }
+  const paper = hexLuminance(base) > 0.8 ? base : mix(base, "#FFFFFF", 0.87);
+  let bandL = 0.37;
+  let band = hslToHex({ h, s: sat, l: bandL });
+  while (hexContrast("#FFFFFF", band) < 3.2 && bandL > 0.28) {
+    bandL = Math.max(0.28, bandL - 0.03);
+    band = hslToHex({ h, s: sat, l: bandL });
+  }
+  let printL = 0.3;
+  let print = hslToHex({ h, s: sat, l: printL });
+  while (hexContrast(print, paper) < 4.5 && printL > 0.12) {
+    printL = Math.max(0.12, printL - 0.03);
+    print = hslToHex({ h, s: sat, l: printL });
+  }
+  let inkL = 0.22;
+  let ink = hslToHex({ h, s: Math.min(sat, 0.88), l: inkL });
+  while (hexContrast(ink, paper) < 6 && inkL > 0.08) {
+    inkL = Math.max(0.08, inkL - 0.03);
+    ink = hslToHex({ h, s: Math.min(sat, 0.88), l: inkL });
+  }
+  return {
+    paper,
+    stub: mix(paper, band, 0.18),
+    band,
+    print,
+    ink,
+    label: hslToHex({ h, s: Math.min(s, 0.45), l: 0.49 }),
+    border: mix(paper, band, 0.45),
+    seam: mix(paper, band, 0.5),
+    stamp: band,
+  };
 }
 
 /** Sort itinerary entries the way the timeline and the day page read: by date, then time. */

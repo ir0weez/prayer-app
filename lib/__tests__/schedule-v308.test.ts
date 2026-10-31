@@ -130,9 +130,15 @@ describe("v308 day off band — the slim band (v314's card reversed by v317)", (
   });
 
   it("the claimed-block chips are a different element — their face is untouched", () => {
+    // v384 amendment (Oct 31): this pin held through v383 — the
+    // claimed face was NOT the band and v308 left it alone. It is
+    // amended now because v384 replaces the claimed face itself
+    // (his boarding-pass pick, Depth A — Slim): ClaimedRestBlock
+    // renders ClaimedRestPass, and the old centred face line is
+    // retired. The band pins above are untouched by v384.
     const chips = timeOffTravel.slice(timeOffTravel.indexOf("export function ClaimedRestBlock"));
-    expect(chips).toContain("Time off — {timeOff.title}");
-    expect(chips).toContain("format12HourTime(startTime)} → {format12HourTime(endTime)");
+    expect(chips).toContain("<ClaimedRestPass");
+    expect(chips).not.toContain("Time off — {timeOff.title}");
   });
 });
 

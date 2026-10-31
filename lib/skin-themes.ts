@@ -201,9 +201,9 @@ export const PAPER_SHADOW_ALPHA = 0.28;
 // the card's color at paper lightness, the way the full-strength tiles
 // (the red and yellow schedule tiles) read as theirs.
 
-type Hsl = { h: number; s: number; l: number };
+export type Hsl = { h: number; s: number; l: number };
 
-function hexToHsl(hex: string): Hsl {
+export function hexToHsl(hex: string): Hsl {
   const clean = hex.replace("#", "");
   const r = parseInt(clean.slice(0, 2), 16) / 255;
   const g = parseInt(clean.slice(2, 4), 16) / 255;
@@ -221,7 +221,7 @@ function hexToHsl(hex: string): Hsl {
   return { h, s, l };
 }
 
-function hslToHex({ h, s, l }: Hsl): string {
+export function hslToHex({ h, s, l }: Hsl): string {
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
   const m = l - c / 2;

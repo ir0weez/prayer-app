@@ -105,6 +105,14 @@ describe("v314 claimed grouping — the whites' adjacency rule", () => {
 });
 
 describe("v314 claimed grouping — the day page renders ONE box per run", () => {
+  // v384 amendment (Oct 31): the DRESS pins in this block are
+  // superseded — Jonathan picked the boarding pass (Depth A —
+  // Slim, time-off-ticket-concepts-v4.html) and the connected
+  // box is gone: each block renders as its OWN pass. The
+  // grouping behaviour pins (adjacency re-grouping, one group
+  // component per run, own tap target per block, never
+  // completable) stand exactly as v314 left them; the full pass
+  // spec lives in time-off-v384-pass.test.ts.
   const groupCase = scheduleTab.slice(
     scheduleTab.indexOf('case "time-block-group"'),
     scheduleTab.indexOf('case "current-time-indicator"'),
@@ -121,17 +129,26 @@ describe("v314 claimed grouping — the day page renders ONE box per run", () =>
     expect(groupCase).not.toContain("<ClaimedRestBlock");
   });
 
-  it("the group is ONE outer box with hairline dividers between rows", () => {
-    expect(claimedGroup).toContain("borderRadius: 22");
-    expect(claimedGroup).toContain("overflow: \"hidden\"");
-    expect(claimedGroup).toContain("borderTopWidth: StyleSheet.hairlineWidth");
+  it("v384 re-pin: NOT one box — each block in the run is its own boarding pass, gaps between", () => {
+    // Was v314: "the group is ONE outer box with hairline
+    // dividers between rows" (borderRadius: 22 + hairlineWidth
+    // dividers). Superseded by his Oct 31 pass pick — the
+    // connected box read as one long band; the drawing shows
+    // separate passes. The hairline divider and the shared
+    // radius-22 box are gone; the run still maps block by block.
     expect(claimedGroup).toContain("blocks.map(");
+    expect(claimedGroup).toContain("<ClaimedRestPass");
+    expect(claimedGroup).toContain("marginBottom: 10");
+    expect(claimedGroup).not.toContain("StyleSheet.hairlineWidth");
+    expect(claimedGroup).not.toContain("borderRadius: 22");
   });
 
   it("each block keeps its OWN tap target, labelled with its own range", () => {
     expect(claimedGroup).toContain("onPress={() => onPressBlock(block)}");
     expect(claimedGroup).toContain("format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}");
-    expect(claimedGroup).toContain("Time off — {timeOff.title}");
+    // v384: the old centred face line ("Time off — {title}") is
+    // retired with the box; the trip's title now prints as the
+    // pass's NAME field (pinned in time-off-v384-pass.test.ts).
   });
 
   it("claimed blocks are never completable — no toggle, no completed state", () => {

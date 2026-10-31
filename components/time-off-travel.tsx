@@ -8,15 +8,18 @@
  * tapping it opens the Time Off page.
  */
 
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Easing, View, Text, Pressable, StyleSheet } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
 import { mix } from "@/lib/color-themes";
 import { hexLuminance } from "@/lib/skin-themes";
 import { format12HourTime } from "@/lib/utils";
-import type { TimeBlock } from "@/lib/time-blocks";
+import { timeToMinutes, type TimeBlock } from "@/lib/time-blocks";
 import {
+  formatPassDate,
+  formatPassDuration,
   getItineraryKindIcon,
   getItineraryKindLabel,
   getTimeOffIcon,
@@ -24,6 +27,7 @@ import {
   itineraryKindColor,
   itineraryDetailLine,
   resolveItineraryKeyword,
+  timeOffPassPalette,
   tripDayNumber,
   type ItineraryEntry,
   type TimeOff,
@@ -45,6 +49,220 @@ function formatRange(startDate: string, endDate: string): string {
     return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   };
   return `${fmt(startDate)} – ${fmt(endDate)}`;
+}
+
+/**
+ * v384 — the claimed block as a BOARDING PASS (his pick, Oct 31:
+ * Depth A — Slim from time-off-ticket-concepts-v4.html; the v3
+ * FINAL drawing underneath it). The whole palette derives from
+ * the trip's OWN chosen colour (lib/time-off timeOffPassPalette):
+ * paper, band, print, stub — a purple trip reads purple across
+ * the entire pass. NOTHING fake prints on it (his explicit
+ * ruling): no scan codes, no seat/gate/flight/serial numbers —
+ * only the trip's real title, the block's real times, the day's
+ * date, the block's duration, and the trip's note as REMARKS.
+ * Height discipline (his core complaint, twice): the plain pass
+ * stands at the drawing's ≈95px register — band ≈19, name row
+ * ≈30, route ≈25, paddings trimmed; a REMARKS line adds ≈17.
+ * Each block is its OWN pass — the v314 connected box is gone.
+ */
+export const PASS_STUB_WIDTH = 96;
+/**
+ * The keyword stamp's size — ONE modest footprint for every type
+ * (his correction, Oct 31: the drawing's palm sprawled across
+ * most of the pass and stopped reading as a shape; "It just
+ * needs to come down more"). ≈ a third of the plain pass's
+ * height, a filled silhouette seated low in the paper's body,
+ * clear of the stub seam. Presence comes from the compact
+ * readable shape, not sprawl and not opacity.
+ */
+export const PASS_STAMP_SIZE = 36;
+export const PASS_STAMP_OPACITY_MIN = 0.13;
+export const PASS_STAMP_OPACITY_MAX = 0.2;
+
+/**
+ * The stamp's slow drift (his "Shadow animations" note): the
+ * house keyword-scene pattern — RN Animated, Animated.timing
+ * with Easing.inOut(Easing.sin), transform/opacity only,
+ * useNativeDriver, a start delay, cleanup on unmount (TwinkleStar
+ * / RisingDot in schedule-tab are the models). One ≈9.2s loop;
+ * the phase delay derives from the block's own start time, so a
+ * wall of passes never pulses in sync. The print never moves.
+ */
+function PassStamp({ icon, color, phaseDelay }: { icon: string; color: string; phaseDelay: number }) {
+  const drift = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(drift, { toValue: 1, duration: 4600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(drift, { toValue: 0, duration: 4600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => loop.start(), phaseDelay);
+    return () => {
+      clearTimeout(startTimeout);
+      loop.stop();
+    };
+  }, [drift, phaseDelay]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        right: 4,
+        bottom: -8,
+        opacity: drift.interpolate({ inputRange: [0, 1], outputRange: [PASS_STAMP_OPACITY_MIN, PASS_STAMP_OPACITY_MAX] }),
+        transform: [
+          { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) },
+          { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) },
+        ],
+      }}
+    >
+      <MaterialIcons name={icon as any} size={PASS_STAMP_SIZE} color={color} />
+    </Animated.View>
+  );
+}
+
+const passLabelStyle = { fontSize: 8.5, lineHeight: 11, fontWeight: "800" as const, letterSpacing: 1.6 };
+
+/** One claimed block as its own boarding pass. A door, never a checkbox. */
+function ClaimedRestPass({
+  timeOff,
+  date,
+  startTime,
+  endTime,
+  durationMinutes,
+  accessibilityLabel,
+  onPress,
+}: {
+  timeOff: TimeOff;
+  date: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  accessibilityLabel: string;
+  onPress: () => void;
+}) {
+  const colors = useColors();
+  const { isSkinned, tokens: skinTokens } = useSkin();
+  const palette = timeOffPassPalette(timeOff, colors.surface);
+  const pageBg = isSkinned ? skinTokens.background ?? colors.background : colors.background;
+  const remarks = timeOff.notes?.trim() ? timeOff.notes.trim() : null;
+  const duration = formatPassDuration(durationMinutes);
+  const phaseDelay = (timeToMinutes(startTime) * 13) % 3500;
+  const [fromTime, fromAmpm] = format12HourTime(startTime).split(" ");
+  const [toTime, toAmpm] = format12HourTime(endTime).split(" ");
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={({ pressed }) => [{ opacity: pressed ? 0.75 : 1 }]}
+    >
+      <View
+        style={{
+          borderRadius: 10,
+          borderWidth: 1.5,
+          borderColor: palette.border,
+          backgroundColor: palette.paper,
+          overflow: "hidden",
+        }}
+      >
+        <View style={{ backgroundColor: palette.band, paddingTop: 3, paddingBottom: 4, paddingHorizontal: 14 }}>
+          <Text style={{ fontSize: 9.5, lineHeight: 12, fontWeight: "800", letterSpacing: 4, color: "#FFFFFF" }}>
+            BOARDING PASS
+          </Text>
+        </View>
+        <View style={{ flexDirection: "row" }}>
+          <View style={{ flex: 1, minWidth: 0, paddingTop: 5, paddingBottom: 4, paddingLeft: 14, paddingRight: 12, position: "relative", overflow: "hidden" }}>
+            <PassStamp icon={getTimeOffIcon(timeOff.type)} color={palette.stamp} phaseDelay={phaseDelay} />
+            <View style={{ position: "relative" }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                <View style={{ flexShrink: 1, minWidth: 0 }}>
+                  <Text style={{ ...passLabelStyle, color: palette.label }}>NAME</Text>
+                  <Text style={{ fontSize: 15.5, lineHeight: 19, fontWeight: "800", letterSpacing: 0.4, color: palette.ink }} numberOfLines={1}>
+                    {timeOff.title.toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", gap: 14, flexShrink: 0 }}>
+                  <View>
+                    <Text style={{ ...passLabelStyle, color: palette.label }}>DATE</Text>
+                    <Text style={{ fontSize: 12, lineHeight: 15, fontWeight: "700", color: palette.ink }}>
+                      {formatPassDate(date)}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text style={{ ...passLabelStyle, color: palette.label }}>DURATION</Text>
+                    <Text style={{ fontSize: 12, lineHeight: 15, fontWeight: "700", color: palette.ink }}>
+                      {duration}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 7, marginTop: 4 }}>
+                <View>
+                  <Text style={{ ...passLabelStyle, color: palette.label }}>FROM</Text>
+                  <Text style={{ fontSize: 17, lineHeight: 21, fontWeight: "800", letterSpacing: -0.4, color: palette.print }}>
+                    {fromTime} <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 0.2 }}>{fromAmpm}</Text>
+                  </Text>
+                </View>
+                <View style={{ paddingBottom: 3 }}>
+                  <MaterialIcons name="flight" size={13} color={palette.band} style={{ transform: [{ rotate: "90deg" }] }} />
+                </View>
+                <View>
+                  <Text style={{ ...passLabelStyle, color: palette.label }}>TO</Text>
+                  <Text style={{ fontSize: 17, lineHeight: 21, fontWeight: "800", letterSpacing: -0.4, color: palette.print }}>
+                    {toTime} <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 0.2 }}>{toAmpm}</Text>
+                  </Text>
+                </View>
+              </View>
+              {remarks && (
+                <View style={{ flexDirection: "row", alignItems: "baseline", gap: 7, marginTop: 3 }}>
+                  <Text style={{ ...passLabelStyle, color: palette.label }}>REMARKS</Text>
+                  <Text style={{ fontSize: 11.5, lineHeight: 14, fontWeight: "700", color: palette.ink, flexShrink: 1 }} numberOfLines={1}>
+                    {remarks}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+          <View
+            style={{
+              width: PASS_STUB_WIDTH,
+              backgroundColor: palette.stub,
+              borderLeftWidth: 2,
+              borderLeftColor: palette.seam,
+              borderStyle: "dashed",
+              paddingTop: 5,
+              paddingBottom: 4,
+              paddingLeft: 10,
+              paddingRight: 8,
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ fontSize: 10.5, lineHeight: 13, fontWeight: "800", color: palette.print }}>
+              {format12HourTime(startTime)}
+            </Text>
+            <Text style={{ fontSize: 8, lineHeight: 10, color: palette.band, marginLeft: 1 }}>▼</Text>
+            <Text style={{ fontSize: 10.5, lineHeight: 13, fontWeight: "800", color: palette.print }}>
+              {format12HourTime(endTime)}
+            </Text>
+            <View style={{ marginTop: 3 }}>
+              <Text style={{ fontSize: 8, lineHeight: 10, fontWeight: "800", letterSpacing: 1.6, color: palette.label }}>
+                DURATION
+              </Text>
+              <Text style={{ fontSize: 16.5, lineHeight: 19, fontWeight: "800", letterSpacing: -0.4, color: palette.print }}>
+                {duration}
+              </Text>
+            </View>
+          </View>
+        </View>
+        {/* The perforation's punched notches, seated on the seam. */}
+        <View style={{ position: "absolute", right: PASS_STUB_WIDTH - 8, top: 12, width: 16, height: 16, borderRadius: 8, backgroundColor: pageBg, zIndex: 3 }} />
+        <View style={{ position: "absolute", right: PASS_STUB_WIDTH - 8, bottom: -8, width: 16, height: 16, borderRadius: 8, backgroundColor: pageBg, zIndex: 3 }} />
+      </View>
+    </Pressable>
+  );
 }
 
 /** The trip band at the head of a time-off day. A door, never a checkbox. */
@@ -367,198 +585,84 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
 
 /**
  * Claimed rest — on a time-off day the open stretches are not white blocks
- * to fill; the trip claims them. A quiet tonal expanse in the trip's
- * colour family: no add rows, no cycling words, nothing to complete.
- * Tapping it opens the Time Off page, like the band.
+ * to fill; the trip claims them. v384: the claimed block renders as
+ * its own boarding pass (see ClaimedRestPass above) — no add rows,
+ * no cycling words, nothing to complete. Tapping it opens the
+ * Time Off page, like the band. The pass's height is its own
+ * (≈95px register); the old proportional white-block height no
+ * longer applies, so the prop is gone.
  */
 export function ClaimedRestBlock({
   timeOff,
+  date,
   startTime,
   endTime,
-  height,
   onPress,
 }: {
   timeOff: TimeOff;
+  date?: string;
   startTime: string;
   endTime: string;
-  height: number;
   onPress: () => void;
 }) {
-  const colors = useColors();
   const { isSkinned } = useSkin();
-  const base = tripBaseColor(timeOff);
-  // v295 (Classic): the Friday drawing's claimed block — the trip's
-  // icon and name CENTRED over the claimed range, in the trip's
-  // colour family. Skins keep the left/right row.
-  if (!isSkinned) {
-    return (
-      <Pressable
-        accessibilityRole="button"
+  return (
+    <View style={{ marginHorizontal: isSkinned ? 16 : 12, marginBottom: isSkinned ? 10 : 12 }}>
+      <ClaimedRestPass
+        timeOff={timeOff}
+        date={date ?? timeOff.startDate}
+        startTime={startTime}
+        endTime={endTime}
+        durationMinutes={timeToMinutes(endTime) - timeToMinutes(startTime)}
         accessibilityLabel={`${timeOff.title}, time off. Tap to open Time Off.`}
         onPress={onPress}
-        style={({ pressed }) => [{ marginHorizontal: 12, marginBottom: 12, opacity: pressed ? 0.75 : 1 }]}
-      >
-        <View
-          style={{
-            height,
-            borderRadius: 22,
-            backgroundColor: mix(colors.surface, base, 0.16),
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 2,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-            <MaterialIcons name={getTimeOffIcon(timeOff.type) as any} size={16} color={base} />
-            <Text style={{ fontSize: 13, fontWeight: "700", color: base }}>
-              Time off — {timeOff.title}
-            </Text>
-          </View>
-          <Text style={{ fontSize: 11.5, fontWeight: "500", color: mix(base, colors.muted, 0.4) }}>
-            {format12HourTime(startTime)} → {format12HourTime(endTime)}
-          </Text>
-        </View>
-      </Pressable>
-    );
-  }
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${timeOff.title}, time off. Tap to open Time Off.`}
-      onPress={onPress}
-      style={({ pressed }) => [{ marginHorizontal: 16, marginBottom: 10, opacity: pressed ? 0.75 : 1 }]}
-    >
-      <View
-        style={{
-          height,
-          borderRadius: 22,
-          backgroundColor: mix(colors.surface, base, hexLuminance(colors.surface) < 0.5 ? 0.26 : 0.16),
-          paddingHorizontal: 14,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-          <MaterialIcons name={getTimeOffIcon(timeOff.type) as any} size={16} color={base} />
-          <Text style={{ fontSize: 12.5, fontWeight: "700", color: colors.foreground }}>
-            {timeOff.title} · Time off
-          </Text>
-        </View>
-        <Text style={{ fontSize: 12, fontWeight: "500", color: colors.muted }}>
-          {format12HourTime(startTime)} → {format12HourTime(endTime)}
-        </Text>
-      </View>
-    </Pressable>
+      />
+    </View>
   );
 }
 
 export const timeOffTravelStyles = StyleSheet.create({});
 
 /**
- * v314 — a run of ADJACENT claimed blocks as ONE connected group
- * (his ruling, Oct 28 14:35: "Time off blocks that are close to
- * each other should work the same as the white blocks… these two
- * should be connected to each other"). The geometry mirrors the
- * whites' group (TimeBlockGroup): ONE outer box in the trip's
- * tonal family, a hairline divider between blocks, and EACH block
- * still its own tap target opening the Time Off page — the blocks
- * are grouped by groupAdjacentClaimed (lib/whites) before they get
- * here, and a run of one renders the same box with no divider.
- * Never completable: nothing here toggles, checks, or collapses.
+ * v314 — a run of ADJACENT claimed blocks, grouped by
+ * groupAdjacentClaimed (lib/whites) before they get here.
+ * v384 (supersedes the v314 dress): the ONE connected box with
+ * hairline dividers is GONE — each block in the run renders as
+ * its OWN boarding pass with a gap between passes (the approved
+ * drawing shows separate passes). The grouping still arrives
+ * here as a run; EACH block keeps its own tap target opening
+ * the Time Off page. The entries' `height` (the whites'
+ * proportional sizing) no longer drives anything — a pass
+ * stands at its own ≈95px register. Never completable: nothing
+ * here toggles, checks, or collapses.
  */
 export function ClaimedRestGroup({
   timeOff,
+  date,
   blocks,
   onPressBlock,
 }: {
   timeOff: TimeOff;
+  date: string;
   blocks: Array<{ block: TimeBlock; height: number }>;
   onPressBlock: (block: TimeBlock) => void;
 }) {
-  const colors = useColors();
   const { isSkinned } = useSkin();
-  const base = tripBaseColor(timeOff);
   if (blocks.length === 0) return null;
-  // v295 (Classic): the claimed face — the trip's icon and name
-  // CENTRED over the claimed range, as the single block renders it;
-  // in the group the same face repeats per row inside the one box.
-  if (!isSkinned) {
-    return (
-      <View
-        style={{
-          marginHorizontal: 12,
-          marginBottom: 12,
-          borderRadius: 22,
-          backgroundColor: mix(colors.surface, base, 0.16),
-          overflow: "hidden",
-        }}
-      >
-        {blocks.map(({ block, height }, index) => (
-          <Pressable
-            key={block.id}
-            accessibilityRole="button"
+  return (
+    <View style={{ marginHorizontal: isSkinned ? 16 : 12, marginBottom: isSkinned ? 10 : 12 }}>
+      {blocks.map(({ block }, index) => (
+        <View key={block.id} style={index < blocks.length - 1 ? { marginBottom: 10 } : undefined}>
+          <ClaimedRestPass
+            timeOff={timeOff}
+            date={date}
+            startTime={block.startTime}
+            endTime={block.endTime}
+            durationMinutes={block.durationMinutes}
             accessibilityLabel={`${timeOff.title}, time off, ${format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}. Tap to open Time Off.`}
             onPress={() => onPressBlock(block)}
-            style={({ pressed }) => [{
-              height,
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 2,
-              opacity: pressed ? 0.75 : 1,
-              ...(index > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: mix(colors.surface, base, 0.5) } : {}),
-            }]}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-              <MaterialIcons name={getTimeOffIcon(timeOff.type) as any} size={16} color={base} />
-              <Text style={{ fontSize: 13, fontWeight: "700", color: base }}>
-                Time off — {timeOff.title}
-              </Text>
-            </View>
-            <Text style={{ fontSize: 11.5, fontWeight: "500", color: mix(base, colors.muted, 0.4) }}>
-              {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    );
-  }
-  return (
-    <View
-      style={{
-        marginHorizontal: 16,
-        marginBottom: 10,
-        borderRadius: 22,
-        backgroundColor: mix(colors.surface, base, hexLuminance(colors.surface) < 0.5 ? 0.26 : 0.16),
-        overflow: "hidden",
-      }}
-    >
-      {blocks.map(({ block, height }, index) => (
-        <Pressable
-          key={block.id}
-          accessibilityRole="button"
-          accessibilityLabel={`${timeOff.title}, time off, ${format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}. Tap to open Time Off.`}
-          onPress={() => onPressBlock(block)}
-          style={({ pressed }) => [{
-            height,
-            paddingHorizontal: 14,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            opacity: pressed ? 0.75 : 1,
-            ...(index > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border } : {}),
-          }]}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-            <MaterialIcons name={getTimeOffIcon(timeOff.type) as any} size={16} color={base} />
-            <Text style={{ fontSize: 12.5, fontWeight: "700", color: colors.foreground }}>
-              {timeOff.title} · Time off
-            </Text>
-          </View>
-          <Text style={{ fontSize: 12, fontWeight: "500", color: colors.muted }}>
-            {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
-          </Text>
-        </Pressable>
+          />
+        </View>
       ))}
     </View>
   );

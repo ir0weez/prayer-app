@@ -11,9 +11,22 @@
  * placed in the schedule day (ItineraryEntryPass); the claimed
  * rest wears its pre-v384 dress again. See the pass machinery
  * note above PASS_STUB_WIDTH for the move and his words for it.
+ *
+ * v386 — the CLAIMED blocks get their own approved dress at
+ * last: the FLIGHT BOARD (final drawing
+ * time-off-flight-board-final-v4.html, his Oct 31 verdict:
+ * "this looks great!"). A run of claimed blocks is one connected
+ * panel in the trip's colour family; each block is a flight row
+ * — its times as a route over a dotted path, a plane riding at
+ * the elapsed spot, the planner's kind words cycling as the
+ * destination — and the block holding "now" fills with the
+ * trip's deep colour (the big NOW BOARDING hero when it stands
+ * alone, a filled row inside its panel). See the flight board
+ * note above ClaimedRestGroup. The passes stay on the entries;
+ * the timeline is untouched; ordinary whites are untouched.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, View, Text, Pressable, StyleSheet } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
@@ -21,7 +34,8 @@ import { useSkin } from "@/hooks/use-skin";
 import { mix } from "@/lib/color-themes";
 import { hexLuminance } from "@/lib/skin-themes";
 import { format12HourTime } from "@/lib/utils";
-import { timeToMinutes, type TimeBlock } from "@/lib/time-blocks";
+import { timeToMinutes, whiteBlockBadge, type TimeBlock } from "@/lib/time-blocks";
+import { whiteBlockContainsNow, whiteBlockElapsedFraction } from "@/lib/whites";
 import {
   formatPassDate,
   getItineraryKindIcon,
@@ -30,6 +44,7 @@ import {
   getTimeOffLabel,
   itineraryKindColor,
   itineraryDetailLine,
+  ITINERARY_KIND_WORDS,
   resolveItineraryKeyword,
   timeOffPassPalette,
   tripDayNumber,
@@ -37,6 +52,7 @@ import {
   type TimeOff,
 } from "@/lib/time-off";
 import { KeywordAmbientAnimation } from "./schedule-tab";
+import { CyclingWord } from "./cycling-word";
 import { detectShowFont } from "@/lib/show-fonts";
 import { showNameSegments } from "./show-sub-line";
 
@@ -455,97 +471,197 @@ export function ItineraryDayCard({ entry, timeOff }: { entry: ItineraryEntry; ti
 }
 
 /**
- * Claimed rest — on a time-off day the open stretches are not white blocks
- * to fill; the trip claims them. A quiet tonal expanse in the trip's
- * colour family: no add rows, no cycling words, nothing to complete.
- * Tapping it opens the Time Off page, like the band.
+ * v386 — the FLIGHT BOARD machinery for the claimed blocks.
  *
- * v385 (Oct 31): this dress is RESTORED exactly as v383 left it.
- * v384 put the boarding pass here; his correction the same day
- * ("I wanted the time off events to be the tickets, not the
- * white spaces") moved the pass to the itinerary entries placed
- * in the schedule — ItineraryEntryPass, at the foot of this
- * file — and the claimed blocks went back to this face.
+ * The dotted path a flight rides, with the plane seated on it
+ * at the elapsed fraction (lib/whites whiteBlockElapsedFraction:
+ * 0 before the block, its elapsed share inside it, 1 once it
+ * has landed). The glide is the house way: RN Animated,
+ * Animated.timing, transform only, JS-driven off the schedule
+ * tab's own clock (nowMinutes refreshes with clockNow), no
+ * springs, no bounce. The plane's seat is masked by the row's
+ * own surface colour so the dots break around it, as drawn.
+ */
+const FLIGHT_PLANE_SIZE = 14;
+
+function FlightPath({
+  fraction,
+  dotColor,
+  planeColor,
+  maskColor,
+}: {
+  fraction: number;
+  dotColor: string;
+  planeColor: string;
+  maskColor: string;
+}) {
+  const [trackWidth, setTrackWidth] = useState(0);
+  const anim = useRef(new Animated.Value(fraction)).current;
+  useEffect(() => {
+    const glide = Animated.timing(anim, {
+      toValue: fraction,
+      duration: 800,
+      easing: Easing.linear,
+      useNativeDriver: true,
+    });
+    glide.start();
+    return () => glide.stop();
+  }, [anim, fraction]);
+  const travel = Math.max(0, trackWidth - FLIGHT_PLANE_SIZE);
+  return (
+    <View
+      style={{ flex: 1, height: 16, justifyContent: "center" }}
+      onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+    >
+      <View style={{ borderTopWidth: 2, borderStyle: "dotted", borderColor: dotColor }} />
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 1,
+          opacity: trackWidth > 0 ? 1 : 0,
+          transform: [
+            {
+              translateX: anim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, travel],
+              }),
+            },
+          ],
+        }}
+      >
+        <View style={{ backgroundColor: maskColor, paddingHorizontal: 2 }}>
+          <MaterialIcons
+            name="flight"
+            size={FLIGHT_PLANE_SIZE}
+            color={planeColor}
+            style={{ transform: [{ rotate: "90deg" }] }}
+          />
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
+
+/** One route line: start time, the dotted path with its plane, end time. */
+function FlightRouteLine({
+  block,
+  fraction,
+  inkColor,
+  dotColor,
+  planeColor,
+  maskColor,
+  fontSize,
+  fontWeight,
+}: {
+  block: TimeBlock;
+  fraction: number;
+  inkColor: string;
+  dotColor: string;
+  planeColor: string;
+  maskColor: string;
+  fontSize: number;
+  fontWeight: "700" | "800";
+}) {
+  const [startLabel, startAmpm] = format12HourTime(block.startTime).split(" ");
+  const [endLabel, endAmpm] = format12HourTime(block.endTime).split(" ");
+  const timeStyle = { fontSize, lineHeight: fontSize + 4, fontWeight, color: inkColor };
+  const ampmStyle = { fontSize: fontSize - 6.5, fontWeight: "700" as const };
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+      <Text style={timeStyle}>
+        {startLabel} <Text style={ampmStyle}>{startAmpm}</Text>
+      </Text>
+      <FlightPath fraction={fraction} dotColor={dotColor} planeColor={planeColor} maskColor={maskColor} />
+      <Text style={timeStyle}>
+        {endLabel} <Text style={ampmStyle}>{endAmpm}</Text>
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * The destination slot — the planner's kind words cycling as
+ * the flight's destination (his ruling, Oct 31: "use the
+ * timeline words in the day off planner 'add to the timeline'
+ * words"). The list is lib/time-off's ITINERARY_KIND_WORDS —
+ * Travel, Stay, Plan, Food, Ride, View, the chips' own labels
+ * in chip order — and the rotator is the shared CyclingWord
+ * (the white blocks' cadence and crossfade, extracted in
+ * components/cycling-word.tsx). The words print verbatim; the
+ * spaced capitals are the destination style, as drawn.
+ */
+function FlightDestination({
+  startIndex,
+  color,
+  fontSize,
+}: {
+  startIndex: number;
+  color: string;
+  fontSize: number;
+}) {
+  return (
+    <CyclingWord
+      words={ITINERARY_KIND_WORDS}
+      startIndex={startIndex}
+      style={{
+        fontSize,
+        lineHeight: fontSize + 4,
+        fontWeight: "800",
+        letterSpacing: 2,
+        color,
+        textTransform: "uppercase",
+      }}
+    />
+  );
+}
+
+/**
+ * Claimed rest — on a time-off day the open stretches are not white blocks
+ * to fill; the trip claims them.
+ *
+ * v295–v385 history: the face was the trip's icon and name
+ * centred over the range (Classic) / a left-right row (skins),
+ * restored whole in v385 when the boarding pass moved to the
+ * itinerary entries. v386 (Oct 31): the face is the FLIGHT
+ * BOARD now — the lone block renders through the same group
+ * machinery as a run of one (a run holding "now" wears the
+ * NOW BOARDING hero form). This component keeps its seat for
+ * a single block; the board itself lives in ClaimedRestGroup
+ * below. Tapping opens the Time Off page, like the band;
+ * never anything to complete.
  */
 export function ClaimedRestBlock({
   timeOff,
   startTime,
   endTime,
-  height,
   onPress,
+  nowMinutes,
+  nextTitle,
 }: {
   timeOff: TimeOff;
   startTime: string;
   endTime: string;
-  height: number;
   onPress: () => void;
+  nowMinutes?: number | null;
+  nextTitle?: string | null;
 }) {
-  const colors = useColors();
-  const { isSkinned } = useSkin();
-  const base = tripBaseColor(timeOff);
-  // v295 (Classic): the Friday drawing's claimed block — the trip's
-  // icon and name CENTRED over the claimed range, in the trip's
-  // colour family. Skins keep the left/right row.
-  if (!isSkinned) {
-    return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${timeOff.title}, time off. Tap to open Time Off.`}
-        onPress={onPress}
-        style={({ pressed }) => [{ marginHorizontal: 12, marginBottom: 12, opacity: pressed ? 0.75 : 1 }]}
-      >
-        <View
-          style={{
-            height,
-            borderRadius: 22,
-            backgroundColor: mix(colors.surface, base, 0.16),
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 2,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-            <MaterialIcons name={getTimeOffIcon(timeOff.type) as any} size={16} color={base} />
-            <Text style={{ fontSize: 13, fontWeight: "700", color: base }}>
-              Time off — {timeOff.title}
-            </Text>
-          </View>
-          <Text style={{ fontSize: 11.5, fontWeight: "500", color: mix(base, colors.muted, 0.4) }}>
-            {format12HourTime(startTime)} → {format12HourTime(endTime)}
-          </Text>
-        </View>
-      </Pressable>
-    );
-  }
+  const block: TimeBlock = {
+    id: `claimed-${startTime}-${endTime}`,
+    startTime,
+    endTime,
+    durationMinutes: timeToMinutes(endTime) - timeToMinutes(startTime),
+    label: `${timeToMinutes(endTime) - timeToMinutes(startTime)}m`,
+  };
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${timeOff.title}, time off. Tap to open Time Off.`}
-      onPress={onPress}
-      style={({ pressed }) => [{ marginHorizontal: 16, marginBottom: 10, opacity: pressed ? 0.75 : 1 }]}
-    >
-      <View
-        style={{
-          height,
-          borderRadius: 22,
-          backgroundColor: mix(colors.surface, base, hexLuminance(colors.surface) < 0.5 ? 0.26 : 0.16),
-          paddingHorizontal: 14,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-          <MaterialIcons name={getTimeOffIcon(timeOff.type) as any} size={16} color={base} />
-          <Text style={{ fontSize: 12.5, fontWeight: "700", color: colors.foreground }}>
-            {timeOff.title} · Time off
-          </Text>
-        </View>
-        <Text style={{ fontSize: 12, fontWeight: "500", color: colors.muted }}>
-          {format12HourTime(startTime)} → {format12HourTime(endTime)}
-        </Text>
-      </View>
-    </Pressable>
+    <ClaimedRestGroup
+      timeOff={timeOff}
+      blocks={[block]}
+      nowMinutes={nowMinutes}
+      nextTitle={nextTitle}
+      onPressBlock={onPress}
+    />
   );
 }
 
@@ -556,113 +672,213 @@ export const timeOffTravelStyles = StyleSheet.create({});
  * (his ruling, Oct 28 14:35: "Time off blocks that are close to
  * each other should work the same as the white blocks… these two
  * should be connected to each other"). The geometry mirrors the
- * whites' group (TimeBlockGroup): ONE outer box in the trip's
- * tonal family, a hairline divider between blocks, and EACH block
- * still its own tap target opening the Time Off page — the blocks
- * are grouped by groupAdjacentClaimed (lib/whites) before they get
- * here, and a run of one renders the same box with no divider.
- * Never completable: nothing here toggles, checks, or collapses.
+ * whites' group: ONE outer box, a hairline divider between
+ * blocks, and EACH block still its own tap target opening the
+ * Time Off page — the blocks are grouped by groupAdjacentClaimed
+ * (lib/whites) before they get here, and a run of one renders
+ * the same box with no divider. Never completable: nothing here
+ * toggles, checks, or collapses.
  *
- * v385 (Oct 31): the connected box is RESTORED with the rest of
- * the pre-v384 claimed dress — v384's separate passes on these
- * blocks were the wrong surface (his correction, same day: the
- * tickets belong to the itinerary entries placed in the
- * schedule). The grouping, per-block tap targets, and
- * never-completable behaviour stand exactly as v314 left them.
+ * v385 (Oct 31): the connected box was RESTORED with the rest
+ * of the pre-v384 claimed dress when the boarding pass moved
+ * to the itinerary entries.
+ *
+ * v386 (Oct 31, later) — the box becomes the FLIGHT BOARD (the
+ * approved final, time-off-flight-board-final-v4.html; his
+ * verdict on the drawing: "this looks great!"). The connected
+ * panel stands — radius 24 now, in the trip's own colour family
+ * through timeOffPassPalette (tonal paper, deep band step,
+ * contrast-walked print, both appearances, every skin — one
+ * dress, like the entry pass) — but the rows are FLIGHT ROWS,
+ * and the whites' proportional heights no longer drive them:
+ * a row stands at the drawing's slim register (route line over
+ * destination line). Each row prints its block's real times as
+ * a route — start, a dotted path with the plane riding at the
+ * elapsed spot, end — and beneath it the destination: the Time
+ * Off planner's kind words cycling (ITINERARY_KIND_WORDS via
+ * the shared CyclingWord; his correction: "use the timeline
+ * words in the day off planner 'add to the timeline' words",
+ * NOT the white blocks' add-words), with the block's duration
+ * beside it. Upcoming rows carry an ON TIME pill; a row that
+ * has already landed sits quiet, plane at the path's end.
+ *
+ * THE NOW CARD (the drawing's second half): when "now" falls
+ * inside a claimed block — whiteBlockContainsNow — that block
+ * fills with the trip's deep colour (palette.band). Standing
+ * alone it is the big hero: plane chip, NOW BOARDING, a white
+ * NOW tag, the destination word big, the route with its plane,
+ * and the quiet line "X minutes in of Y · lands <end>, then
+ * <next item>" (the next item's title arrives as nextTitle
+ * from the schedule tab; the clause drops when there is none).
+ * Inside a run, the now block is a FILLED ROW in the same
+ * panel — filled colour, NOW tag, plane at its fraction,
+ * "· X min in" beside the word — and its neighbours keep the
+ * flight-row dress. When now is inside an event there is no
+ * claimed block under it, so nothing fills.
  */
 export function ClaimedRestGroup({
   timeOff,
   blocks,
+  nowMinutes,
+  nextTitle,
   onPressBlock,
 }: {
   timeOff: TimeOff;
-  blocks: Array<{ block: TimeBlock; height: number }>;
+  blocks: TimeBlock[];
+  nowMinutes?: number | null;
+  nextTitle?: string | null;
   onPressBlock: (block: TimeBlock) => void;
 }) {
   const colors = useColors();
   const { isSkinned } = useSkin();
-  const base = tripBaseColor(timeOff);
+  const palette = timeOffPassPalette(timeOff, colors.surface);
   if (blocks.length === 0) return null;
-  // v295 (Classic): the claimed face — the trip's icon and name
-  // CENTRED over the claimed range, as the single block renders it;
-  // in the group the same face repeats per row inside the one box.
-  if (!isSkinned) {
+  const margin = { marginHorizontal: isSkinned ? 16 : 12, marginBottom: isSkinned ? 10 : 12 };
+  const nowIndex = blocks.findIndex((b) => whiteBlockContainsNow(b, nowMinutes));
+  const filledDot = "rgba(255,255,255,0.65)";
+  const filledQuiet = mix(palette.band, "#FFFFFF", 0.72);
+  const seam = mix(palette.paper, palette.band, 0.3);
+  const labelFor = (block: TimeBlock) =>
+    `${timeOff.title}, time off, ${format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}. Tap to open Time Off.`;
+
+  // The NOW hero — a lone claimed block holding "now".
+  if (blocks.length === 1 && nowIndex === 0) {
+    const block = blocks[0];
+    const minutesIn = (nowMinutes ?? timeToMinutes(block.startTime)) - timeToMinutes(block.startTime);
     return (
-      <View
-        style={{
-          marginHorizontal: 12,
-          marginBottom: 12,
-          borderRadius: 22,
-          backgroundColor: mix(colors.surface, base, 0.16),
-          overflow: "hidden",
-        }}
-      >
-        {blocks.map(({ block, height }, index) => (
-          <Pressable
-            key={block.id}
-            accessibilityRole="button"
-            accessibilityLabel={`${timeOff.title}, time off, ${format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}. Tap to open Time Off.`}
-            onPress={() => onPressBlock(block)}
-            style={({ pressed }) => [{
-              height,
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 2,
+      <View style={margin}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={labelFor(block)}
+          onPress={() => onPressBlock(block)}
+          style={({ pressed }) => [
+            {
+              backgroundColor: palette.band,
+              borderRadius: 28,
+              padding: 16,
               opacity: pressed ? 0.75 : 1,
-              ...(index > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: mix(colors.surface, base, 0.5) } : {}),
-            }]}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-              <MaterialIcons name={getTimeOffIcon(timeOff.type) as any} size={16} color={base} />
-              <Text style={{ fontSize: 13, fontWeight: "700", color: base }}>
-                Time off — {timeOff.title}
+            },
+          ]}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 12,
+                backgroundColor: "rgba(255,255,255,0.22)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <MaterialIcons name="flight" size={17} color="#FFFFFF" style={{ transform: [{ rotate: "90deg" }] }} />
+            </View>
+            <Text style={{ fontSize: 11, lineHeight: 14, fontWeight: "800", letterSpacing: 2.2, color: "#FFFFFF" }}>
+              NOW BOARDING
+            </Text>
+            <View style={{ marginLeft: "auto", backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
+              <Text style={{ fontSize: 10, lineHeight: 12, fontWeight: "800", letterSpacing: 1.4, color: palette.band }}>
+                NOW
               </Text>
             </View>
-            <Text style={{ fontSize: 11.5, fontWeight: "500", color: mix(base, colors.muted, 0.4) }}>
-              {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
-            </Text>
-          </Pressable>
-        ))}
+          </View>
+          <View style={{ marginTop: 9 }}>
+            <FlightDestination startIndex={0} color="#FFFFFF" fontSize={28} />
+          </View>
+          <View style={{ marginTop: 3 }}>
+            <FlightRouteLine
+              block={block}
+              fraction={whiteBlockElapsedFraction(block, nowMinutes)}
+              inkColor="#FFFFFF"
+              dotColor={filledDot}
+              planeColor="#FFFFFF"
+              maskColor={palette.band}
+              fontSize={15.5}
+              fontWeight="700"
+            />
+          </View>
+          <Text style={{ fontSize: 12, lineHeight: 15, fontWeight: "600", color: filledQuiet, marginTop: 9 }}>
+            {`${minutesIn} ${minutesIn === 1 ? "minute" : "minutes"} in of ${whiteBlockBadge(block.durationMinutes)} · lands ${format12HourTime(block.endTime)}${nextTitle ? `, then ${nextTitle}` : ""}`}
+          </Text>
+        </Pressable>
       </View>
     );
   }
+
+  // The connected panel — one row per block, hairline seams.
   return (
     <View
       style={{
-        marginHorizontal: 16,
-        marginBottom: 10,
-        borderRadius: 22,
-        backgroundColor: mix(colors.surface, base, hexLuminance(colors.surface) < 0.5 ? 0.26 : 0.16),
+        ...margin,
+        borderRadius: 24,
+        backgroundColor: palette.paper,
         overflow: "hidden",
       }}
     >
-      {blocks.map(({ block, height }, index) => (
-        <Pressable
-          key={block.id}
-          accessibilityRole="button"
-          accessibilityLabel={`${timeOff.title}, time off, ${format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}. Tap to open Time Off.`}
-          onPress={() => onPressBlock(block)}
-          style={({ pressed }) => [{
-            height,
-            paddingHorizontal: 14,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            opacity: pressed ? 0.75 : 1,
-            ...(index > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border } : {}),
-          }]}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-            <MaterialIcons name={getTimeOffIcon(timeOff.type) as any} size={16} color={base} />
-            <Text style={{ fontSize: 12.5, fontWeight: "700", color: colors.foreground }}>
-              {timeOff.title} · Time off
-            </Text>
-          </View>
-          <Text style={{ fontSize: 12, fontWeight: "500", color: colors.muted }}>
-            {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
-          </Text>
-        </Pressable>
-      ))}
+      {blocks.map((block, index) => {
+        const isNow = index === nowIndex;
+        const fraction = whiteBlockElapsedFraction(block, nowMinutes);
+        const landed = nowMinutes != null && timeToMinutes(block.endTime) <= nowMinutes;
+        const minutesIn = isNow ? (nowMinutes ?? timeToMinutes(block.startTime)) - timeToMinutes(block.startTime) : 0;
+        return (
+          <Pressable
+            key={block.id}
+            accessibilityRole="button"
+            accessibilityLabel={labelFor(block)}
+            onPress={() => onPressBlock(block)}
+            style={({ pressed }) => [
+              {
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                opacity: pressed ? 0.75 : 1,
+                ...(isNow ? { backgroundColor: palette.band } : {}),
+                ...(index > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: seam } : {}),
+              },
+            ]}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <FlightRouteLine
+                  block={block}
+                  fraction={fraction}
+                  inkColor={isNow ? "#FFFFFF" : palette.print}
+                  dotColor={isNow ? filledDot : mix(palette.paper, palette.band, 0.55)}
+                  planeColor={isNow ? "#FFFFFF" : palette.band}
+                  maskColor={isNow ? palette.band : palette.paper}
+                  fontSize={17}
+                  fontWeight="800"
+                />
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 5 }}>
+                  <FlightDestination startIndex={index} color={isNow ? "#FFFFFF" : palette.print} fontSize={isNow ? 14 : 11.5} />
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      lineHeight: 14,
+                      fontWeight: "600",
+                      color: isNow ? filledQuiet : palette.label,
+                    }}
+                  >
+                    {isNow ? `· ${minutesIn} min in` : `· ${whiteBlockBadge(block.durationMinutes)}`}
+                  </Text>
+                </View>
+              </View>
+              {isNow ? (
+                <View style={{ backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
+                  <Text style={{ fontSize: 10, lineHeight: 12, fontWeight: "800", letterSpacing: 1.4, color: palette.band }}>
+                    NOW
+                  </Text>
+                </View>
+              ) : landed ? null : (
+                <View style={{ backgroundColor: palette.stub, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
+                  <Text style={{ fontSize: 10, lineHeight: 12, fontWeight: "800", letterSpacing: 1, color: palette.print }}>
+                    ON TIME
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }

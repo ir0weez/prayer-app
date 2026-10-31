@@ -124,6 +124,22 @@ export function whiteBlockContainsNow(block: TimeBlock, nowMinutes?: number | nu
 }
 
 /**
+ * v386 — where "now" sits inside this block, as a fraction
+ * 0..1: 0 before it starts (and when no now is known), the
+ * elapsed share while inside it, 1 once it has ended. The
+ * flight board's plane rides at exactly this spot on the
+ * claimed blocks' dotted path.
+ */
+export function whiteBlockElapsedFraction(block: TimeBlock, nowMinutes?: number | null): number {
+  if (nowMinutes == null) return 0;
+  const start = timeToMinutes(block.startTime);
+  const end = timeToMinutes(block.endTime);
+  if (nowMinutes <= start) return 0;
+  if (nowMinutes >= end) return 1;
+  return (nowMinutes - start) / (end - start);
+}
+
+/**
  * Group hour-adjacent blocks into runs (one box per run, a row per block),
  * preserving order. Blocks are adjacent when one starts where the last ends.
  */

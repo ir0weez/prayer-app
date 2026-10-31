@@ -13223,6 +13223,38 @@ export function ScheduleTab({
     // Sort all items chronologically
     allTimedItems.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
 
+    // v386: each white block learns the next timed item after it —
+    // the claimed blocks' flight board prints it on the NOW hero
+    // ("…lands 7:00 PM, then Halloween"). The next item is the
+    // first non-block item starting at or after the block's end
+    // that carries a name of its own (an itinerary entry's title,
+    // a study's book + chapter, an item's title); no name, no
+    // clause — the hero simply omits it.
+    const timedItemTitle = (t: { type: string; data: any }): string | null => {
+      if (t.type === "itinerary") return t.data?.entry?.title ?? null;
+      if (t.type === "bible-study") return t.data ? `${t.data.book} ${t.data.chapter}` : null;
+      return t.data?.title ?? null;
+    };
+    for (let i = 0; i < allTimedItems.length; i++) {
+      const item = allTimedItems[i];
+      if (item.type !== "time-block") continue;
+      const blockEnd = (item.data.block as TimeBlock).endTime;
+      let nextTitle: string | null = null;
+      for (let j = i + 1; j < allTimedItems.length; j++) {
+        const candidate = allTimedItems[j];
+        if (candidate.type === "time-block") continue;
+        const candidateStart =
+          candidate.type === "itinerary" ? candidate.data?.entry?.time : candidate.data?.startTime;
+        if (!candidateStart || candidateStart < blockEnd) continue;
+        const title = timedItemTitle(candidate);
+        if (title) {
+          nextTitle = title;
+          break;
+        }
+      }
+      item.data.nextTitle = nextTitle;
+    }
+
     // Merge hour-adjacent white blocks into single groups so a run of free
     // hours renders as one touching box with a tappable row per hour.
     const mergedTimedItems: typeof allTimedItems = [];
@@ -13233,11 +13265,12 @@ export function ScheduleTab({
         : null;
       if (item.type === "time-block" && lastBlock && item.data.block.startTime === lastBlock.endTime) {
         last.data.blocks.push(item.data.block);
+        last.data.nextTitle = item.data.nextTitle ?? last.data.nextTitle;
       } else if (item.type === "time-block") {
         mergedTimedItems.push({
           type: "time-block-group",
           id: `time-block-group-${item.id}`,
-          data: { blocks: [item.data.block], nowMinutes: item.data.nowMinutes },
+          data: { blocks: [item.data.block], nowMinutes: item.data.nowMinutes, nextTitle: item.data.nextTitle ?? null },
           sortTime: item.sortTime,
         });
       } else {
@@ -14830,17 +14863,19 @@ export function ScheduleTab({
           // not a white block — no add menu, nothing to fill.
           // v314: a lone claimed block renders through the claimed
           // GROUP (one box, no divider) so its face matches a run's.
+          // v386: the group wears the flight board — it needs the
+          // live now (its plane rides at the elapsed spot; the
+          // block holding now fills) and the next item's title
+          // (the hero's "then …" clause), both riding item.data.
           const dayTrip = timeOffList.find((to) => selectedDate >= to.startDate && selectedDate <= to.endDate);
           if (dayTrip) {
             const b = item.data.block as TimeBlock;
-            const nm = item.data.nowMinutes ?? null;
-            const remaining = nm != null && timeToMinutes(b.startTime) <= nm && nm < timeToMinutes(b.endTime)
-              ? timeToMinutes(b.endTime) - nm
-              : null;
             return (
               <ClaimedRestGroup
                 timeOff={dayTrip}
-                blocks={[{ block: b, height: whiteBlockHeight(b.durationMinutes, remaining) }]}
+                blocks={[b]}
+                nowMinutes={item.data.nowMinutes ?? null}
+                nextTitle={item.data.nextTitle ?? null}
                 onPressBlock={() => openTimeOffExperience(dayTrip.id)}
               />
             );
@@ -14866,6 +14901,10 @@ export function ScheduleTab({
             // (groupAdjacentClaimed) so the claimed face can never
             // drift from the whites' grouping; non-adjacent blocks
             // stay in separate boxes.
+            // v386: the runs render as flight-board panels — the
+            // live now rides along (plane at the elapsed spot,
+            // the now block filled) with the group's next title
+            // for the hero's "then …" clause.
             const nm = item.data.nowMinutes ?? null;
             const runs = groupAdjacentClaimed(item.data.blocks as TimeBlock[]);
             return (
@@ -14874,12 +14913,9 @@ export function ScheduleTab({
                   <ClaimedRestGroup
                     key={run[0].id}
                     timeOff={dayTrip}
-                    blocks={run.map((b) => {
-                      const remaining = nm != null && timeToMinutes(b.startTime) <= nm && nm < timeToMinutes(b.endTime)
-                        ? timeToMinutes(b.endTime) - nm
-                        : null;
-                      return { block: b, height: whiteBlockHeight(b.durationMinutes, remaining) };
-                    })}
+                    blocks={run}
+                    nowMinutes={nm}
+                    nextTitle={item.data.nextTitle ?? null}
                     onPressBlock={() => openTimeOffExperience(dayTrip.id)}
                   />
                 ))}

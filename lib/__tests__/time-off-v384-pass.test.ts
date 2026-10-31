@@ -34,6 +34,19 @@
 // carries the entry's time, the stub's big print is the
 // entry's kind — and prints NO arrival and NO duration.
 // Inventing either would break his nothing-fake ruling.
+//
+// v386 amendment (Oct 31, later still): the claimed blocks'
+// restored dress was itself a waystation. The approved flight
+// board (time-off-flight-board-final-v4.html — connected
+// flight panels, a plane riding at the elapsed spot, the now
+// block filled as a NOW BOARDING hero or filled row, the
+// destination cycling the Time Off planner's "Add to the
+// timeline" kind words) now dresses the claimed blocks, and
+// the two claimed-dress pins in the wiring describe below are
+// re-pinned to it with their history kept. The pass pins —
+// palette, print, stamp, anatomy — never moved: the pass
+// still lives on the entries, untouched. The flight board's
+// own full spec lives in time-off-v386-flight-board.test.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, expect, it } from "vitest";
@@ -290,25 +303,47 @@ describe("v385 wiring — pass on placed entries, claimed dress restored, timeli
     expect(entryPass).toContain("return <ItineraryDayCard entry={entry} timeOff={timeOff} />;");
   });
 
-  it("the claimed blocks wear their pre-v384 dress again — centred face, connected box, heights driving", () => {
-    // The v295/v308 centred face is back on both claimed faces.
-    expect(claimedBlock).toContain("Time off — {timeOff.title}");
-    expect(claimedGroup).toContain("Time off — {timeOff.title}");
-    // The v314 connected box: one radius-22 box, hairline dividers.
-    expect(claimedGroup).toContain("borderRadius: 22");
+  it("v386: the claimed blocks wear the FLIGHT BOARD — connected panel, flight rows, the now block filled", () => {
+    // Was v385: "the claimed blocks wear their pre-v384 dress
+    // again — centred face, connected box, heights driving"
+    // (the v295/v308 centred face back on both claimed faces,
+    // the radius-22 box, hairlines, proportional heights, no
+    // pass anywhere). Superseded the same day by the approved
+    // flight-board final: the connected panel stands (radius
+    // 24, hairlines, one tap target per block), but the face
+    // is flight rows in the pass palette — and the lone block
+    // delegates to the same group machinery.
+    expect(claimedBlock).toContain("<ClaimedRestGroup");
+    expect(claimedGroup).toContain("borderRadius: 24");
     expect(claimedGroup).toContain("StyleSheet.hairlineWidth");
-    // The whites' proportional heights drive the rows again.
-    expect(claimedGroup).toContain("height,");
-    expect(claimedBlock).toContain("height,");
-    // No pass anywhere on the claimed faces.
+    expect(claimedGroup).toContain("whiteBlockContainsNow");
+    expect(claimedGroup).toContain("NOW BOARDING");
+    // The centred face line and the proportional heights are gone.
+    expect(claimedBlock).not.toContain("Time off — {timeOff.title}");
+    expect(claimedGroup).not.toContain("Time off — {timeOff.title}");
+    expect(claimedGroup).not.toContain("height,");
+    expect(claimedBlock).not.toContain("height,");
+    // Still no pass anywhere on the claimed faces — the
+    // BOARDING PASS print belongs to the entries alone (the
+    // hero's NOW BOARDING is a different line entirely).
     expect(claimedBlock).not.toContain("BOARDING PASS");
     expect(claimedGroup).not.toContain("BOARDING PASS");
   });
 
-  it("both schedule call sites hand the group blocks WITH heights — and no date (v384's prop is gone)", () => {
+  it("v386: both schedule call sites hand the group plain blocks + now + next title — and no date (v384's prop is gone)", () => {
+    // Was v385: "…hand the group blocks WITH heights" (each
+    // block wrapped as { block, height } from
+    // whiteBlockHeight(b.durationMinutes, remaining)). The
+    // flight rows stand at their own slim register, so the
+    // call sites hand the bare blocks, the live nowMinutes
+    // (the plane's elapsed spot; the now fill), and the next
+    // item's title (the hero's "then …" clause).
     expect(timeBlockCases.match(/<ClaimedRestGroup/g)).toHaveLength(2);
     expect(timeBlockCases).not.toContain("date={selectedDate}");
-    expect(timeBlockCases).toContain("whiteBlockHeight(b.durationMinutes, remaining)");
+    expect(timeBlockCases).not.toContain("whiteBlockHeight(b.durationMinutes, remaining)");
+    expect(timeBlockCases).toContain("nowMinutes={item.data.nowMinutes ?? null}");
+    expect(timeBlockCases).toContain("nextTitle={item.data.nextTitle ?? null}");
+    expect(timeBlockCases).toContain("blocks={run}");
   });
 
   it("the Time Off page's own timeline is untouched — its entries keep their artwork cards there", () => {

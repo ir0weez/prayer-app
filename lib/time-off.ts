@@ -56,6 +56,17 @@ export function getItineraryKindIcon(kind: ItineraryKind): string {
 }
 
 /**
+ * v386 — the planner's own words, in chip order: Travel, Stay,
+ * Plan, Food, Ride, View. The flight board's destination slot
+ * cycles these (his ruling, Oct 31: "use the timeline words in
+ * the day off planner 'add to the timeline' words" — NOT the
+ * white blocks' add-words). Derived from ITINERARY_KINDS through
+ * the very labels the chips print, so the board can never drift
+ * from the planner: one source, no second copy.
+ */
+export const ITINERARY_KIND_WORDS: string[] = ITINERARY_KINDS.map((kind) => getItineraryKindLabel(kind));
+
+/**
  * v302 — a kind's own colour: a tonal step of the TRIP's colour, never a
  * foreign hue dropped in. Travel keeps the trip colour itself (it is the
  * journey's anchor, as before); every other kind steps from that colour

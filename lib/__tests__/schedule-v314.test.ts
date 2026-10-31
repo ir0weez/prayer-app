@@ -119,6 +119,13 @@ describe("v314 claimed grouping — the day page renders ONE box per run", () =>
   // on the itinerary entries placed in the schedule, so the
   // connected box is restored and the v384 re-pin below is
   // itself re-pinned. The behaviour pins never changed.
+  // v386 amendment (Oct 31, later still): the DRESS pins flip
+  // once more — the flight board (approved final
+  // time-off-flight-board-final-v4.html, "this looks great!")
+  // dresses the claimed blocks: the connected panel STANDS
+  // (radius 24, hairline seams, one tap target per block), but
+  // the rows are flight rows and the proportional heights are
+  // gone. The behaviour pins still never changed.
   const groupCase = scheduleTab.slice(
     scheduleTab.indexOf('case "time-block-group"'),
     scheduleTab.indexOf('case "current-time-indicator"'),
@@ -135,7 +142,7 @@ describe("v314 claimed grouping — the day page renders ONE box per run", () =>
     expect(groupCase).not.toContain("<ClaimedRestBlock");
   });
 
-  it("v385 re-pin: ONE box again — the connected group dress is restored (the pass moved to the entries)", () => {
+  it("v386 re-pin: ONE panel still — the flight board dress (connected panel stands, rows are flights, heights gone)", () => {
     // Was v384: "NOT one box — each block in the run is its own
     // boarding pass, gaps between" (a pass component per block,
     // no hairline dividers, no radius-22 box). Superseded the
@@ -146,10 +153,21 @@ describe("v314 claimed grouping — the day page renders ONE box per run", () =>
     // between rows, the whites' proportional heights driving
     // each row. The pass component is deleted from this file's
     // claimed faces entirely (it lives on the entries now).
+    // v386 (Oct 31, later): was the v385 re-pin above — "ONE box
+    // again, connected group dress restored, radius 22, heights
+    // driving". The flight board keeps the connected panel and
+    // the hairlines but replaces the face: radius 24 in the
+    // pass palette's paper, flight rows at their own slim
+    // register (route line + destination line), the block
+    // holding now filled (NOW BOARDING) — and the proportional
+    // heights no longer drive anything here.
     expect(claimedGroup).toContain("blocks.map(");
-    expect(claimedGroup).toContain("borderRadius: 22");
+    expect(claimedGroup).toContain("borderRadius: 24");
     expect(claimedGroup).toContain("StyleSheet.hairlineWidth");
-    expect(claimedGroup).toContain("height,");
+    expect(claimedGroup).toContain("whiteBlockContainsNow");
+    expect(claimedGroup).toContain("NOW BOARDING");
+    expect(claimedGroup).not.toContain("borderRadius: 22");
+    expect(claimedGroup).not.toContain("height,");
     expect(claimedGroup).not.toContain("ClaimedRestPass");
   });
 
@@ -160,7 +178,11 @@ describe("v314 claimed grouping — the day page renders ONE box per run", () =>
     // the trip's title prints on the claimed face again (the
     // pass's NAME field belongs to the entries now; pinned in
     // time-off-v384-pass.test.ts).
-    expect(claimedGroup).toContain("Time off — {timeOff.title}");
+    // v386: the face line is RETIRED again — the flight board's
+    // rows print times and the cycling kind words, not the
+    // trip's name (the name still rides the accessibility
+    // label above, and the band at the day's head).
+    expect(claimedGroup).not.toContain("Time off — {timeOff.title}");
   });
 
   it("claimed blocks are never completable — no toggle, no completed state", () => {

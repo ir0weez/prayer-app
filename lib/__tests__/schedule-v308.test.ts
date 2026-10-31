@@ -142,8 +142,15 @@ describe("v308 day off band — the slim band (v314's card reversed by v317)", (
     // tickets, not the white spaces"); the claimed face is the
     // pre-v384 centred face again and this pin reads as v308
     // wrote it. The band pins above are untouched by v385 too.
+    // v386 amendment (Oct 31, later still): the claimed face is
+    // the FLIGHT BOARD (approved final) — ClaimedRestBlock now
+    // delegates to the connected flight panel, and the centred
+    // face line is retired again (the board prints times and
+    // the planner's cycling kind words). The band pins above
+    // are untouched by v386 too.
     const chips = timeOffTravel.slice(timeOffTravel.indexOf("export function ClaimedRestBlock"));
-    expect(chips).toContain("Time off — {timeOff.title}");
+    expect(chips).toContain("<ClaimedRestGroup");
+    expect(chips).not.toContain("Time off — {timeOff.title}");
     expect(chips).not.toContain("<ClaimedRestPass");
   });
 });

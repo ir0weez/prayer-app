@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Pressable, Animated, Easing, type GestureResponderEvent } from "react-native";
+import React from "react";
+import { View, Text, StyleSheet, Pressable, type GestureResponderEvent } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useSkin } from "@/hooks/use-skin";
@@ -10,6 +10,7 @@ import { schedulePaperSurface } from "@/lib/schedule-material";
 import { mix } from "@/lib/color-themes";
 import { format12HourTime } from "@/lib/utils";
 import { NowPill } from "./now-indicator";
+import { CyclingWord } from "./cycling-word";
 
 interface TimeBlockIndicatorProps {
   block: TimeBlock;
@@ -228,7 +229,6 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPre
 }
 
 const ADD_WORDS = ["event", "todo", "ministry", "rest"];
-const WORD_CYCLE_MS = 2800;
 
 /**
  * Terminal prompt label (v186): the mockup's white-block row —
@@ -253,34 +253,17 @@ function TermPromptLabel({ startIndex }: { startIndex: number }) {
  * the loop and they all cycle together, so neighboring rows always say
  * something different. The switch is a soft fade with a slight rise — calm,
  * no bounce. The word itself sits still (his ruling: no letter wave).
+ * v386: the rotator itself now lives in components/cycling-word.tsx
+ * (CyclingWord) — the flight board's destination cycles through it
+ * too, with its own word list; the words and behaviour here are
+ * unchanged.
  */
 function CyclingAddLabel({ startIndex, mutedColor, accentColor }: { startIndex: number; mutedColor: string; accentColor: string }) {
-  const [wordIndex, setWordIndex] = useState(startIndex);
-  const anim = useRef(new Animated.Value(0)).current;
-
-  const translateY = anim.interpolate({ inputRange: [-1, 0, 1], outputRange: [6, 0, -6] });
-  const opacity = anim.interpolate({ inputRange: [-1, 0, 1], outputRange: [0, 1, 0] });
-
-  useEffect(() => {
-    const wordTimer = setInterval(() => {
-      Animated.timing(anim, { toValue: 1, duration: 200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }).start(() => {
-        setWordIndex((w) => (w + 1) % ADD_WORDS.length);
-        anim.setValue(-1);
-        Animated.timing(anim, { toValue: 0, duration: 240, easing: Easing.inOut(Easing.quad), useNativeDriver: true }).start();
-      });
-    }, WORD_CYCLE_MS);
-    return () => clearInterval(wordTimer);
-  }, [anim]);
-
   return (
     <View style={styles.left}>
       <MaterialIcons name="add" size={18} color={mutedColor} />
       <Text style={[styles.label, { color: mutedColor }]}>add </Text>
-      <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-        <Text style={[styles.label, { color: accentColor, fontWeight: "800" }]}>
-          {ADD_WORDS[wordIndex % ADD_WORDS.length]}
-        </Text>
-      </Animated.View>
+      <CyclingWord words={ADD_WORDS} startIndex={startIndex} style={[styles.label, { color: accentColor, fontWeight: "800" }]} />
       <Text style={[styles.label, { color: mutedColor }]}>?</Text>
     </View>
   );

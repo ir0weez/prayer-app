@@ -11,8 +11,11 @@
 // with and the trip page's entry cards wear (v302) — run
 // through the SAME pass derivation (timeOffPassPaletteFromBase,
 // lifted out of timeOffPassPalette unchanged), so the pass
-// keeps its shape, fields, stamp, perforation and inert tap
-// behaviour; only the colour's source moves.
+// keeps its shape, fields, stamp and perforation; only the
+// colour's source moves. (v393 note, Oct 31: the "inert tap
+// behaviour" this head described at writing is superseded by
+// his ticket-checkoff ruling — the pass takes a toggle now.
+// The colour pins below are untouched by that change.)
 //
 // Scope, pinned below: the claimed FLIGHT BOARD (connected
 // panels, rows, NOW hero, v389 word animation) keeps the trip
@@ -142,11 +145,14 @@ describe("v392 wiring — only the entry pass changes source", () => {
     expect(claimedGroup).not.toContain("timeOffEntryPassPalette");
   });
 
-  it("the pass itself is otherwise the v385 pass — band, fields, stamp, perforation, inert", () => {
+  it("the pass itself is otherwise the v385 pass — band, fields, stamp, perforation", () => {
+    // v393 amendment: the "inert" tail of this pin's name is
+    // superseded by his Oct 31 ruling ("Make the tickets
+    // check off like normal events") — the pass now renders
+    // a Pressable when handed onToggleDone. Its DRESS is
+    // what this pin guards, and the dress is unchanged.
     expect(entryPass).toContain("BOARDING PASS");
     expect(entryPass).toContain("icon={getItineraryKindIcon(entry.kind)}");
     expect(entryPass).toContain("right: PASS_STUB_WIDTH - 8");
-    expect(entryPass).not.toContain("Pressable");
-    expect(entryPass).not.toContain("onPress");
   });
 });

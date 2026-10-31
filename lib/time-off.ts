@@ -106,6 +106,17 @@ export interface ItineraryEntry {
   /** v303 — TV Show entries: season / episode numbers, like events. */
   season?: number;
   episode?: number;
+  /**
+   * v393 — the entry's done state (his ruling, Oct 31: the schedule
+   * tickets "check off like normal events"). Lives ON the entry
+   * record, inside the trip's stored itinerary, so it survives
+   * restarts and re-projection, rides the backup's whole-store
+   * round-trip, is kept when the entry is edited (same id), and
+   * disappears with the entry when it is removed. The claimed
+   * BLOCKS stay never-completable — this flag belongs to entries
+   * only, and the one toggle below is the only writer.
+   */
+  done?: boolean;
 }
 
 /**
@@ -260,6 +271,42 @@ export async function updateTimeOff(
     updatedAt: new Date().toISOString(),
   };
 
+  allTimeOff[index] = updated;
+  await AsyncStorage.setItem(TIME_OFF_STORAGE_KEY, JSON.stringify(allTimeOff));
+
+  return updated;
+}
+
+/**
+ * v393 — flip one itinerary entry's done flag inside an itinerary
+ * array (pure). Every other field of the entry rides through the
+ * spread untouched, so editing an entry never loses its state;
+ * an unknown id returns the array's entries unchanged.
+ */
+export function toggleItineraryEntryDoneInList(entries: ItineraryEntry[], entryId: string): ItineraryEntry[] {
+  return entries.map((entry) => (entry.id === entryId ? { ...entry, done: !entry.done } : entry));
+}
+
+/**
+ * v393 — THE one writer of an entry's done state: the schedule
+ * ticket's tap and the timeline card's tap both land here, on the
+ * same stored record (TIME_OFF_STORAGE_KEY), so the two surfaces
+ * can never disagree — check it off in the schedule and it reads
+ * done on the timeline, and the other way around. Returns the
+ * updated trip, or null when the trip or entry is gone.
+ */
+export async function toggleItineraryEntryDone(timeOffId: string, entryId: string): Promise<TimeOff | null> {
+  const allTimeOff = await getAllTimeOff();
+  const index = allTimeOff.findIndex((t) => t.id === timeOffId);
+  if (index === -1) return null;
+  const trip = allTimeOff[index];
+  if (!(trip.itinerary ?? []).some((entry) => entry.id === entryId)) return null;
+
+  const updated: TimeOff = {
+    ...trip,
+    itinerary: toggleItineraryEntryDoneInList(trip.itinerary ?? [], entryId),
+    updatedAt: new Date().toISOString(),
+  };
   allTimeOff[index] = updated;
   await AsyncStorage.setItem(TIME_OFF_STORAGE_KEY, JSON.stringify(allTimeOff));
 

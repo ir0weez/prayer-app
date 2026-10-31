@@ -111,6 +111,7 @@ import {
   heroTrip,
   pastTrips,
   sortItinerary,
+  toggleItineraryEntryDone,
   tripDayNumber,
   upcomingTrips,
   updateTimeOff,
@@ -379,6 +380,17 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
     if (!activeTrip) return;
     const itinerary = (activeTrip.itinerary ?? []).filter((e) => e.id !== entry.id);
     await updateTimeOff(activeTrip.id, { itinerary });
+    await load();
+    onChanged?.();
+  };
+
+  // v393 (his addendum, Oct 31): the timeline body tap toggles
+  // the SAME done state the schedule ticket reads — one flag,
+  // one writer (the lib toggle, on the same stored record);
+  // the × above stays the only removal.
+  const handleToggleEntryDone = async (entry: ItineraryEntry) => {
+    if (!activeTrip) return;
+    await toggleItineraryEntryDone(activeTrip.id, entry.id);
     await load();
     onChanged?.();
   };
@@ -857,7 +869,7 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
               </View>
               <View style={{ gap: 12, paddingBottom: 4 }}>
                 {group.entries.map((entry) => (
-                  <TimelineEntry key={entry.id} entry={entry} base={base} palette={palette} checkoutDate={checkoutFor(entry)} onDelete={() => handleDeleteEntry(entry)} />
+                  <TimelineEntry key={entry.id} entry={entry} base={base} palette={palette} checkoutDate={checkoutFor(entry)} onDelete={() => handleDeleteEntry(entry)} onToggleDone={() => handleToggleEntryDone(entry)} />
                 ))}
               </View>
             </View>
@@ -1112,10 +1124,16 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
  * banner that headed this card from v303 to v387 is GONE from
  * this face: it was the generic banner card of his Oct 31 flag.
  * The artwork lives on the day list's cards, untouched. Every
- * card keeps the same × removal and the same inert body — an
- * entry here is planned, never completed, never a door.
+ * card keeps the same × removal.
+ *
+ * v393 (his addendum, Oct 31): the body is no longer inert —
+ * "They can strike through in the time-off timeline page as
+ * well." A body tap toggles the entry's done flag (the same
+ * stored state the schedule ticket checks off), and a done
+ * entry's title strikes through here. The × keeps removing;
+ * nothing else about the cards changes.
  */
-function TimelineEntry({ entry, base, palette, checkoutDate, onDelete }: { entry: ItineraryEntry; base: string; palette: TimeOffPassPalette; checkoutDate: string; onDelete: () => void }) {
+function TimelineEntry({ entry, base, palette, checkoutDate, onDelete, onToggleDone }: { entry: ItineraryEntry; base: string; palette: TimeOffPassPalette; checkoutDate: string; onDelete: () => void; onToggleDone: () => void }) {
   // v302: the entry's kind identity — its icon, its label, and
   // its own colour step of the trip's colour.
   const kindColor = itineraryKindColor(entry.kind, base);
@@ -1142,6 +1160,7 @@ function TimelineEntry({ entry, base, palette, checkoutDate, onDelete }: { entry
         detailLine={detailLine}
         detailSegments={detailSegments}
         onDelete={onDelete}
+        onToggleDone={onToggleDone}
       />
     );
   }
@@ -1157,6 +1176,7 @@ function TimelineEntry({ entry, base, palette, checkoutDate, onDelete }: { entry
         detailLine={detailLine}
         detailSegments={detailSegments}
         onDelete={onDelete}
+        onToggleDone={onToggleDone}
       />
     );
   }
@@ -1169,6 +1189,7 @@ function TimelineEntry({ entry, base, palette, checkoutDate, onDelete }: { entry
       detailLine={detailLine}
       detailSegments={detailSegments}
       onDelete={onDelete}
+      onToggleDone={onToggleDone}
     />
   );
 }
@@ -1221,7 +1242,7 @@ const entryCardShadow = {
  * its own FROM or TO eyebrow — a second city is never invented.
  * An entry storing no route prints its title as the big print.
  */
-function TravelRouteCard({ entry, palette, kindColor, kindLabel, kindIcon, detailLine, detailSegments, onDelete }: {
+function TravelRouteCard({ entry, palette, kindColor, kindLabel, kindIcon, detailLine, detailSegments, onDelete, onToggleDone }: {
   entry: ItineraryEntry;
   palette: TimeOffPassPalette;
   kindColor: string;
@@ -1230,6 +1251,7 @@ function TravelRouteCard({ entry, palette, kindColor, kindLabel, kindIcon, detai
   detailLine: string | null;
   detailSegments: React.ReactNode;
   onDelete: () => void;
+  onToggleDone: () => void;
 }) {
   const route = itineraryTravelRoute(entry);
   // The detail's code pair already prints as the card's big
@@ -1246,7 +1268,13 @@ function TravelRouteCard({ entry, palette, kindColor, kindLabel, kindIcon, detai
   const eyebrow = { fontSize: 9, fontWeight: "800" as const, letterSpacing: 1.4, color: palette.label };
   const place = { fontSize: 23, fontWeight: "900" as const, color: palette.print };
   return (
-    <View style={{ backgroundColor: palette.paper, borderWidth: 1, borderColor: palette.border, borderRadius: 24, padding: 16, ...entryCardShadow }}>
+    <Pressable
+      onPress={onToggleDone}
+      accessibilityRole="button"
+      accessibilityLabel={`Mark ${entry.title} ${entry.done ? "incomplete" : "complete"}`}
+      accessibilityState={{ checked: !!entry.done }}
+      style={({ pressed }) => [{ backgroundColor: palette.paper, borderWidth: 1, borderColor: palette.border, borderRadius: 24, padding: 16, ...entryCardShadow, opacity: pressed ? 0.75 : 1 }]}
+    >
       <EntryHead
         icon={kindIcon}
         tileBg={mix(palette.paper, kindColor, 0.2)}
@@ -1283,10 +1311,10 @@ function TravelRouteCard({ entry, palette, kindColor, kindLabel, kindIcon, detai
           <Text style={place} numberOfLines={1} adjustsFontSizeToFit>{route.to ?? route.from}</Text>
         </View>
       ) : (
-        <Text style={{ fontSize: 21, fontWeight: "900", color: palette.ink, marginTop: 12 }}>{entry.title}</Text>
+        <Text style={{ fontSize: 21, fontWeight: "900", color: palette.ink, marginTop: 12, textDecorationLine: entry.done ? "line-through" : "none" }}>{entry.title}</Text>
       )}
       {route && !route.titleConsumed && (
-        <Text style={{ fontSize: 15.5, fontWeight: "700", color: palette.ink, marginTop: 9 }}>{entry.title}</Text>
+        <Text style={{ fontSize: 15.5, fontWeight: "700", color: palette.ink, marginTop: 9, textDecorationLine: entry.done ? "line-through" : "none" }}>{entry.title}</Text>
       )}
       {entry.address && (
         <View style={{ alignSelf: "flex-start", backgroundColor: palette.stub, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, marginTop: 9 }}>
@@ -1298,7 +1326,7 @@ function TravelRouteCard({ entry, palette, kindColor, kindLabel, kindIcon, detai
           {Array.isArray(spokenSegments) ? spokenSegments : spokenLine}
         </Text>
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -1311,7 +1339,7 @@ function TravelRouteCard({ entry, palette, kindColor, kindLabel, kindIcon, detai
  * stored: it is where a confirmation lives when the trip
  * carries one, and nothing is invented when it does not.
  */
-function StayBookingBlock({ entry, palette, kindColor, kindLabel, kindIcon, checkoutDate, detailLine, detailSegments, onDelete }: {
+function StayBookingBlock({ entry, palette, kindColor, kindLabel, kindIcon, checkoutDate, detailLine, detailSegments, onDelete, onToggleDone }: {
   entry: ItineraryEntry;
   palette: TimeOffPassPalette;
   kindColor: string;
@@ -1321,11 +1349,18 @@ function StayBookingBlock({ entry, palette, kindColor, kindLabel, kindIcon, chec
   detailLine: string | null;
   detailSegments: React.ReactNode;
   onDelete: () => void;
+  onToggleDone: () => void;
 }) {
   const cellLabel = { fontSize: 9.5, fontWeight: "800" as const, letterSpacing: 1.2, color: palette.label };
   const cellValue = { fontSize: 13.5, fontWeight: "800" as const, color: palette.ink, marginTop: 2 };
   return (
-    <View style={{ backgroundColor: palette.paper, borderWidth: 1, borderColor: palette.border, borderRadius: 24, padding: 16, ...entryCardShadow }}>
+    <Pressable
+      onPress={onToggleDone}
+      accessibilityRole="button"
+      accessibilityLabel={`Mark ${entry.title} ${entry.done ? "incomplete" : "complete"}`}
+      accessibilityState={{ checked: !!entry.done }}
+      style={({ pressed }) => [{ backgroundColor: palette.paper, borderWidth: 1, borderColor: palette.border, borderRadius: 24, padding: 16, ...entryCardShadow, opacity: pressed ? 0.75 : 1 }]}
+    >
       <EntryHead
         icon={kindIcon}
         tileBg={mix(palette.paper, kindColor, 0.2)}
@@ -1338,7 +1373,7 @@ function StayBookingBlock({ entry, palette, kindColor, kindLabel, kindIcon, chec
         title={entry.title}
         onDelete={onDelete}
       />
-      <Text style={{ fontSize: 20, fontWeight: "900", color: palette.ink, marginTop: 10 }}>{entry.title}</Text>
+      <Text style={{ fontSize: 20, fontWeight: "900", color: palette.ink, marginTop: 10, textDecorationLine: entry.done ? "line-through" : "none" }}>{entry.title}</Text>
       <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
         <View style={{ flex: 1, backgroundColor: palette.stub, borderRadius: 14, paddingHorizontal: 11, paddingVertical: 9 }}>
           <Text style={cellLabel}>CHECK-IN</Text>
@@ -1360,7 +1395,7 @@ function StayBookingBlock({ entry, palette, kindColor, kindLabel, kindIcon, chec
           {Array.isArray(detailSegments) ? detailSegments : detailLine}
         </Text>
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -1371,7 +1406,7 @@ function StayBookingBlock({ entry, palette, kindColor, kindLabel, kindIcon, chec
  * rows" grown chunky and colourful, in the family the add-row
  * chips already speak.
  */
-function ChunkyEntryCard({ entry, kindColor, kindLabel, kindIcon, detailLine, detailSegments, onDelete }: {
+function ChunkyEntryCard({ entry, kindColor, kindLabel, kindIcon, detailLine, detailSegments, onDelete, onToggleDone }: {
   entry: ItineraryEntry;
   kindColor: string;
   kindLabel: string;
@@ -1379,10 +1414,17 @@ function ChunkyEntryCard({ entry, kindColor, kindLabel, kindIcon, detailLine, de
   detailLine: string | null;
   detailSegments: React.ReactNode;
   onDelete: () => void;
+  onToggleDone: () => void;
 }) {
   const colors = useColors();
   return (
-    <View style={{ backgroundColor: mix(colors.surface, kindColor, 0.13), borderRadius: 24, padding: 15, ...entryCardShadow }}>
+    <Pressable
+      onPress={onToggleDone}
+      accessibilityRole="button"
+      accessibilityLabel={`Mark ${entry.title} ${entry.done ? "incomplete" : "complete"}`}
+      accessibilityState={{ checked: !!entry.done }}
+      style={({ pressed }) => [{ backgroundColor: mix(colors.surface, kindColor, 0.13), borderRadius: 24, padding: 15, ...entryCardShadow, opacity: pressed ? 0.75 : 1 }]}
+    >
       <EntryHead
         icon={kindIcon}
         tileBg={kindColor}
@@ -1395,7 +1437,7 @@ function ChunkyEntryCard({ entry, kindColor, kindLabel, kindIcon, detailLine, de
         title={entry.title}
         onDelete={onDelete}
       />
-      <Text style={{ fontSize: 17, fontWeight: "800", color: colors.foreground, marginTop: 9 }}>{entry.title}</Text>
+      <Text style={{ fontSize: 17, fontWeight: "800", color: colors.foreground, marginTop: 9, textDecorationLine: entry.done ? "line-through" : "none" }}>{entry.title}</Text>
       {entry.address && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 6 }}>
           <MaterialIcons name="place" size={13} color={kindColor} />
@@ -1407,6 +1449,6 @@ function ChunkyEntryCard({ entry, kindColor, kindLabel, kindIcon, detailLine, de
           {Array.isArray(detailSegments) ? detailSegments : detailLine}
         </Text>
       )}
-    </View>
+    </Pressable>
   );
 }

@@ -307,7 +307,11 @@ describe("v385 wiring — pass on placed entries, claimed dress restored, timeli
 
   it("a TIMED entry placed in the schedule renders the pass; an UNTIMED one keeps its day card", () => {
     expect(itinCase).toContain("item.data.entry.time ?");
-    expect(itinCase).toContain("<ItineraryEntryPass entry={item.data.entry} timeOff={item.data.timeOff} />");
+    // v393 amendment: the pass JSX now carries the toggle
+    // handler (his ruling: the tickets check off) across its
+    // own lines; the routing this pin guards is unchanged.
+    expect(itinCase).toContain("<ItineraryEntryPass");
+    expect(itinCase).toContain("onToggleDone={() => handleToggleItineraryEntry(item.data.timeOff.id, item.data.entry.id)}");
     expect(itinCase).toContain("<ItineraryDayCard entry={item.data.entry} timeOff={item.data.timeOff} />");
   });
 
@@ -378,8 +382,13 @@ describe("v385 wiring — pass on placed entries, claimed dress restored, timeli
     expect(timeOffTravel).toContain("export function ItineraryDayCard");
   });
 
-  it("claimed blocks and entry passes are never completable — no toggle, no completed state", () => {
-    for (const region of [claimedBlock, claimedGroup, entryPass]) {
+  it("claimed blocks are never completable — no toggle, no completed state", () => {
+    // v393 amendment (his ruling, Oct 31: "Make the tickets
+    // check off like normal events"): the rule SPLIT — it
+    // stands entire for the claimed blocks, and the entry
+    // pass left this pin's company. The pass's own toggle
+    // pins live in time-off-v393-ticket-checkoff.test.ts.
+    for (const region of [claimedBlock, claimedGroup]) {
       expect(region).not.toContain("isCompleted");
       expect(region).not.toContain("onToggle");
       expect(region).not.toContain("check-circle");
@@ -387,9 +396,15 @@ describe("v385 wiring — pass on placed entries, claimed dress restored, timeli
   });
 
   it("the entry pass keeps the day card's behaviour: inert — no press handler of its own", () => {
-    // ItineraryDayCard today is a plain View; the pass replaces
-    // its dress, not its behaviour. No Pressable, no onPress.
-    expect(entryPass).not.toContain("Pressable");
-    expect(entryPass).not.toContain("onPress");
+    // v393 amendment: SUPERSEDED by his Oct 31 ruling — the
+    // pass now takes onToggleDone and renders a Pressable
+    // when the schedule hands it one (inert only without a
+    // handler). The live pins are in
+    // time-off-v393-ticket-checkoff.test.ts; this body keeps
+    // the one part of the old rule that survives: the pass
+    // carries no completed STATE of its own — done lives on
+    // the entry record, never in the component.
+    expect(entryPass).not.toContain("useState");
+    expect(entryPass).not.toContain("isCompleted");
   });
 });

@@ -138,6 +138,13 @@ describe("v314 claimed grouping — the day page renders ONE box per run", () =>
   );
   const claimedGroup = timeOffTravel.slice(
     timeOffTravel.indexOf("export function ClaimedRestGroup"),
+    // v393 amendment: the slice used to run to end of file,
+    // which now takes in ItineraryEntryPass — and the pass
+    // legitimately carries a toggle since his Oct 31 ruling
+    // ("Make the tickets check off like normal events"). The
+    // group this describe pins ends where the pass's note
+    // begins (the same bound time-off-v384-pass.test.ts uses).
+    timeOffTravel.indexOf("\n/**\n * v385 — one itinerary entry"),
   );
 
   it("the group case re-groups claimed blocks by the adjacency rule and renders the group", () => {

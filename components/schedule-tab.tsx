@@ -163,13 +163,13 @@ import { AlbumCard } from "./album-card";
 import { getAlbumPalette, WorshipAlbumDetail } from "./worship-album-detail";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { TimeOffExperience } from "./time-off-experience";
-import { TripBand, ItineraryDayCard, ItineraryEntryPass, ClaimedRestGroup } from "./time-off-travel";
+import { TripBand, ItineraryDayCard, ItineraryEntryPass, ClaimedRestGroup, tripBaseColor } from "./time-off-travel";
 import { ReachedStampRow } from "./reached-stamp-row";
 import { KeywordThumbArt } from "./keyword-thumb-art";
 import { SceneThumbArt, ThumbBreatheWrap, thumbSpecForScene } from "./keyword-thumb-art";
 import { paperSceneIdFor } from "@/lib/paper-keywords";
 import { MINISTRY_TYPE_THUMB_SCENE, todoThumbSceneForTitle } from "@/lib/keyword-thumb-motion";
-import { getAllTimeOff, getItineraryForDate, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
+import { getAllTimeOff, getItineraryForDate, isDateDuringTimeOff, itineraryKindColor, toggleItineraryEntryDone, type ItineraryEntry, type TimeOff } from "@/lib/time-off";
 import { calculateWhites, groupAdjacentClaimed } from "@/lib/whites";
 import { extractPosterColor, getTimeOffEventColor, isTimeOffEventVisible, readableTextColor } from "@/lib/poster-color";
 import { calculateActiveAvailableTimeBlocks, getCurrentTimeInsertionIndex, getLiveCursorPosition, timeToMinutes, minutesToTime, whiteBlockHeight, whiteBlockBadge, type TimeBlock } from "@/lib/time-blocks";
@@ -8859,6 +8859,51 @@ function EventCard(props: {
   );
 }
 
+// ─── Completed Itinerary Ticket ─────────────────────────────────────────────
+/**
+ * v393 — a finished ticket's seat in the Completed stack: the
+ * stack's own EVENT form (EventCard's completed bar — colour
+ * dot, struck title, time, check-circle), wearing the ticket's
+ * KIND colour the way the pass does (v392), so a done Denny's
+ * reads as a done event in Food's colour. Its tap un-completes,
+ * like every bar in the stack. The ticket's editing still lives
+ * on the Time Off page, so the bar carries no long-press menu.
+ */
+function CompletedItineraryBar({ entry, timeOff, onToggle }: { entry: ItineraryEntry; timeOff: TimeOff; onToggle: () => void }) {
+  const { isSkinned, tokens: skinTokens } = useSkin();
+  const completedColor = itineraryKindColor(entry.kind, tripBaseColor(timeOff));
+  const completedBarStyle = isSkinned
+    ? { backgroundColor: paperCompletedTint(completedColor, skinTokens.surface), borderColor: paperStockEdge(completedColor) }
+    : { backgroundColor: completedColor + "30", borderColor: completedColor + "50" };
+  const completedTitleColor = isSkinned ? paperStockInk(completedColor, skinTokens.surface) : completedColor;
+  const completedTimeColor = isSkinned ? paperStockInkSoft(completedColor, skinTokens.surface) : completedColor + "99";
+  return (
+    <Pressable
+      onPress={() => {
+        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onToggle();
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={`Mark ${entry.title} incomplete`}
+      accessibilityState={{ checked: true }}
+      style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+    >
+      <View style={[eventStyles.completedCard, { ...completedBarStyle, ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(hasTypeScale(skinTokens) ? { paddingVertical: 10 + skinTokens.type.gapBoost } : {}) }]}>
+        <View style={[eventStyles.completedDot, { backgroundColor: completedColor }]} />
+        <Text style={[eventStyles.completedTitle, { color: completedTitleColor, ...bitDisplay(skinTokens, 10), ...skinText(skinTokens, skinTokens.type.barTitle) }]} numberOfLines={1}>
+          {entry.title}
+        </Text>
+        {entry.time && (
+          <Text style={[eventStyles.completedTime, { color: completedTimeColor, ...skinText(skinTokens, skinTokens.type.cardMeta) }]}>
+            {format12HourTime(entry.time)}
+          </Text>
+        )}
+        <MaterialIcons name="check-circle" size={18} color={completedTitleColor} style={{ marginLeft: "auto" }} />
+      </View>
+    </Pressable>
+  );
+}
+
 // ─── Todo Item Component ─────────────────────────────────────────────────────
 function TodoItem({
   todo,
@@ -11364,6 +11409,14 @@ export function ScheduleTab({
     setShowTimeOffExperience(true);
   }, []);
   const [timeOffList, setTimeOffList] = useState<TimeOff[]>([]); // List of time-off periods
+  // v393 (his ruling, Oct 31): a ticket's tap toggles the entry's
+  // done flag through the lib's ONE writer — the same store the
+  // timeline page reads — then the list refreshes the way the
+  // experience's onChanged refresh does.
+  const handleToggleItineraryEntry = useCallback(async (timeOffId: string, entryId: string) => {
+    await toggleItineraryEntryDone(timeOffId, entryId);
+    setTimeOffList(await getAllTimeOff());
+  }, []);
   const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>(null);
   const [albumHistory, setAlbumHistory] = useState<StoredWorshipAlbum[]>([]);
   const [isAlbumStateHydrated, setIsAlbumStateHydrated] = useState(false);
@@ -13137,18 +13190,29 @@ export function ScheduleTab({
 
     // v294: the day's itinerary entries (flights, check-ins, plans) join
     // the timed flow as travel cards, in time order among the day's items.
+    // v393 (his ruling, Oct 31): a DONE entry leaves the flow like a
+    // completed event does — collected here, pushed into the Completed
+    // stack below (after the end-of-day divider, with the completed
+    // events). Untimed entries are untouched by this: done or not,
+    // they close the day's flow on their day cards, as before.
+    const completedItineraryItems: Array<{ type: string; id: string; data: any; sortTime?: string }> = [];
     dayTimeOff.forEach((to) => {
       getItineraryForDate(to, selectedDate)
         .filter((entry) => entry.time)
         .forEach((entry) => {
-          timedItems.push({
-            type: "itinerary",
-            id: entry.id,
-            data: { entry, timeOff: to },
-            sortTime: entry.time!,
-          });
+          if (entry.done) {
+            completedItineraryItems.push({ type: "itinerary", id: entry.id, data: { entry, timeOff: to }, sortTime: entry.time! });
+          } else {
+            timedItems.push({
+              type: "itinerary",
+              id: entry.id,
+              data: { entry, timeOff: to },
+              sortTime: entry.time!,
+            });
+          }
         });
     });
+    completedItineraryItems.sort((a, b) => (a.sortTime || "23:59").localeCompare(b.sortTime || "23:59"));
 
     // Calculate available time blocks from every reserved commitment. Completion
     // does not reopen the scheduled time, which keeps the total stable.
@@ -13418,13 +13482,17 @@ export function ScheduleTab({
     // immediately before worship; the drawing puts it over the
     // stack. Pushed here, before every completed item, whenever the
     // day has anything completed in it.
-    if (dayTodos.some((t) => t.isCompleted) || dayEvents.some((e) => e.isCompleted) || dayMinistries.some((m) => m.isCompleted)) {
+    if (dayTodos.some((t) => t.isCompleted) || dayEvents.some((e) => e.isCompleted) || dayMinistries.some((m) => m.isCompleted) || completedItineraryItems.length > 0) {
       items.push({ type: "end-of-day", id: "end-of-day", data: null });
     }
 
     // Add completed events at the end (after current-time-indicator if present)
     const completedEvents = dayEvents.filter((e) => e.isCompleted);
     completedEvents.forEach((e) => items.push({ type: "event", id: e.id, data: e }));
+
+    // v393: completed itinerary tickets join the stack with the
+    // completed events — the ticket's destination under his ruling.
+    completedItineraryItems.forEach((item) => items.push(item));
 
     // Add completed Bible Study sessions
     const completedBibleStudies = dayBibleStudies.filter((bs) => bs.isCompleted);
@@ -14353,8 +14421,28 @@ export function ScheduleTab({
           // boarding pass — a TIMED entry prints its departure.
           // An untimed entry has no departure to print and keeps
           // the ordinary travel card, exactly as before.
+          // v393 (his ruling, Oct 31): the ticket checks off like
+          // a normal event — its tap toggles the entry's done
+          // flag; a done ticket renders HERE only from the
+          // Completed stack, in the stack's event form (the bar),
+          // and its tap there un-completes. Untimed entries keep
+          // the day card's behaviour entire — this ruling is the
+          // tickets'.
+          if (item.data.entry.done) {
+            return (
+              <CompletedItineraryBar
+                entry={item.data.entry}
+                timeOff={item.data.timeOff}
+                onToggle={() => handleToggleItineraryEntry(item.data.timeOff.id, item.data.entry.id)}
+              />
+            );
+          }
           return item.data.entry.time ? (
-            <ItineraryEntryPass entry={item.data.entry} timeOff={item.data.timeOff} />
+            <ItineraryEntryPass
+              entry={item.data.entry}
+              timeOff={item.data.timeOff}
+              onToggleDone={() => handleToggleItineraryEntry(item.data.timeOff.id, item.data.entry.id)}
+            />
           ) : (
             <ItineraryDayCard entry={item.data.entry} timeOff={item.data.timeOff} />
           );

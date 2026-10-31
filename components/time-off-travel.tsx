@@ -33,6 +33,14 @@
  * the trip's colour (his ask, Oct 31). The flight board above
  * keeps the trip colour exactly as shipped. See the note
  * above ItineraryEntryPass.
+ *
+ * v393 — the entry pass becomes completable (his ruling,
+ * Oct 31, splitting the Oct 27 rule): the TICKETS "check off
+ * like normal events" — a whole-card tap toggles the entry's
+ * stored done flag and the finished ticket joins the day's
+ * Completed stack. The claimed BLOCKS and the trip band keep
+ * the Oct 27 rule entire: never completable, tap opens the
+ * Time Off page. See the note above ItineraryEntryPass.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -966,14 +974,19 @@ export function ClaimedRestGroup({
  * the trip colour, untouched; a kind with no set colour falls
  * back to the trip palette as before.
  *
- * Behaviour is the day card's own, unchanged: this card is
- * not a door and never completable — it renders inert,
- * exactly as ItineraryDayCard does today. An entry with NO
- * time cannot print a departure, so it keeps the ordinary
- * day card: the fallback below, mirrored at the schedule-tab
- * call site.
+ * Behaviour WAS the day card's own: inert. v393 (his ruling,
+ * Oct 31: the tickets "check off like normal events") splits
+ * the Oct 27 rule for the tickets ONLY: given onToggleDone,
+ * the whole pass is the tap target and toggles the entry's
+ * done flag, exactly the way an event card's tap toggles its
+ * own; the schedule retires the finished ticket to the
+ * Completed stack. With no handler the pass renders inert,
+ * exactly as before. An entry with NO time cannot print a
+ * departure, so it keeps the ordinary day card: the fallback
+ * below, mirrored at the schedule-tab call site — untimed
+ * entries keep the day card's behaviour, toggle or not.
  */
-export function ItineraryEntryPass({ entry, timeOff }: { entry: ItineraryEntry; timeOff: TimeOff }) {
+export function ItineraryEntryPass({ entry, timeOff, onToggleDone }: { entry: ItineraryEntry; timeOff: TimeOff; onToggleDone?: () => void }) {
   const colors = useColors();
   const { isSkinned, tokens: skinTokens } = useSkin();
   if (!entry.time) {
@@ -990,8 +1003,7 @@ export function ItineraryEntryPass({ entry, timeOff }: { entry: ItineraryEntry; 
   const day = tripDayNumber(timeOff, entry.date);
   const phaseDelay = (timeToMinutes(startTime) * 13) % 3500;
   const [fromTime, fromAmpm] = format12HourTime(startTime).split(" ");
-  return (
-    <View style={{ marginHorizontal: isSkinned ? 16 : 12, marginBottom: isSkinned ? 10 : 12 }}>
+  const passBody = (
       <View
         style={{
           borderRadius: 10,
@@ -1086,6 +1098,30 @@ export function ItineraryEntryPass({ entry, timeOff }: { entry: ItineraryEntry; 
         <View style={{ position: "absolute", right: PASS_STUB_WIDTH - 8, top: 12, width: 16, height: 16, borderRadius: 8, backgroundColor: pageBg, zIndex: 3 }} />
         <View style={{ position: "absolute", right: PASS_STUB_WIDTH - 8, bottom: -8, width: 16, height: 16, borderRadius: 8, backgroundColor: pageBg, zIndex: 3 }} />
       </View>
+  );
+  // v393: with a toggle handler the whole pass is the tap
+  // target — the event card's whole-card tap in pass dress.
+  // Without one the pass renders inert, exactly as before.
+  if (onToggleDone) {
+    return (
+      <Pressable
+        onPress={onToggleDone}
+        accessibilityRole="button"
+        accessibilityLabel={`Mark ${entry.title} complete`}
+        accessibilityState={{ checked: !!entry.done }}
+        style={({ pressed }) => [{
+          marginHorizontal: isSkinned ? 16 : 12,
+          marginBottom: isSkinned ? 10 : 12,
+          opacity: pressed ? 0.75 : 1,
+        }]}
+      >
+        {passBody}
+      </Pressable>
+    );
+  }
+  return (
+    <View style={{ marginHorizontal: isSkinned ? 16 : 12, marginBottom: isSkinned ? 10 : 12 }}>
+      {passBody}
     </View>
   );
 }

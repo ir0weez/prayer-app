@@ -208,8 +208,17 @@ describe("v303 surfaces — special, not copies (source pins)", () => {
   });
 
   it("the day card never becomes completable", () => {
-    expect(dayCard).not.toContain("isCompleted");
-    expect(dayCard).not.toContain("onToggle");
+    // v393 amendment: this pin used to read the WHOLE travel
+    // file — true when nothing in it toggled. Since his
+    // Oct 31 ruling the entry PASS (same file) toggles the
+    // entry's done flag; the DAY CARD's own region is what
+    // this pin guards, so it slices the function itself.
+    const dayCardFn = dayCard.slice(
+      dayCard.indexOf("export function ItineraryDayCard"),
+      dayCard.indexOf("export function ClaimedRestBlock"),
+    );
+    expect(dayCardFn).not.toContain("isCompleted");
+    expect(dayCardFn).not.toContain("onToggle");
   });
 });
 

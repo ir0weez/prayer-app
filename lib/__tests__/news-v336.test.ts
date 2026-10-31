@@ -455,13 +455,16 @@ describe("v336 wiring (source pins)", () => {
     // which now also takes the card's resolved label — the call
     // gained its second argument and the keyword map its third
     // arm. The v336 routing shape is otherwise unchanged.
+    // v379 amendment (Oct 30): the Gas door joined — the keyword
+    // map gained its fourth arm ("Get Gas", the map's own gas
+    // label). The routing shape is still otherwise unchanged.
     expect(tab).toContain("keywordPageKindForEvent(event, detectedKeyword?.label)");
     expect(tab).toContain("keywordPagePath(pageKind)");
     expect(tab).toContain("params: { eventId: event.id, eventDate: event.date }");
     // The card wears the door's keyword wholesale (scene, colours,
     // icon) — the call sites keep their long-standing shape.
     expect(tab).toContain("const keyword = pageKind");
-    expect(tab).toContain('pageKind === "news" ? "News" : pageKind === "email" ? "Email" : "Meal"');
+    expect(tab).toContain('pageKind === "news" ? "News" : pageKind === "email" ? "Email" : pageKind === "food" ? "Meal" : "Get Gas"');
     expect(tab).toContain("label={keyword.label}");
   });
 

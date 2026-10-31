@@ -22,9 +22,20 @@
  * passes in as `resolvedLabel`. A stored non-Meal keyword still
  * wins outright (rule 1), so a Church event titled "Dinner" is
  * not a door; an unstored "Dinner" is.
+ *
+ * v379 — the Gas door (his idea Oct 29, Concept 1 "Cheapest
+ * First" loved, build ordered Oct 30): an event claimed by the
+ * gas keyword opens the Gas page (station prices, lib/gas-prices
+ * .ts). The claim mirrors Meal's: the stored label ("Get Gas" —
+ * the keyword map's own label; a stored bare "Gas" counts too)
+ * wins outright; an unstored event whose detected label resolves
+ * to "Get Gas" ("Fill up", "Fuel", "Gas station"…) is claimed;
+ * and a title LEADING with "Gas" claims it the way "News" does —
+ * the drawing's own event is a bare "Gas". A stored non-gas
+ * keyword still wins outright, exactly like Meal.
  */
 
-export type KeywordPageKind = "news" | "email" | "food";
+export type KeywordPageKind = "news" | "email" | "food" | "gas";
 
 export function keywordPageKindForEvent(
   event: {
@@ -37,16 +48,25 @@ export function keywordPageKindForEvent(
     if (event.keyword === "News") return "news";
     if (event.keyword === "Email") return "email";
     if (event.keyword === "Meal") return "food";
+    if (event.keyword === "Get Gas" || event.keyword === "Gas") return "gas";
     return null;
   }
   const title = (event.title ?? "").trim().toLowerCase();
   if (/^news\b/.test(title)) return "news";
   if (/^(e-mail|email|gmail|mail)\b/.test(title)) return "email";
+  if (/^gas\b/.test(title)) return "gas";
   if (resolvedLabel === "Meal") return "food";
+  if (resolvedLabel === "Get Gas") return "gas";
   return null;
 }
 
 /** The route a keyword page opens at. */
-export function keywordPagePath(kind: KeywordPageKind): "/news" | "/email" | "/food" {
-  return kind === "news" ? "/news" : kind === "email" ? "/email" : "/food";
+export function keywordPagePath(kind: KeywordPageKind): "/news" | "/email" | "/food" | "/gas" {
+  return kind === "news"
+    ? "/news"
+    : kind === "email"
+      ? "/email"
+      : kind === "food"
+        ? "/food"
+        : "/gas";
 }

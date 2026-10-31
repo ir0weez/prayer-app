@@ -8130,9 +8130,11 @@ function EventCardInner({
   // v370: the Food door joins News/Email — the detection also
   // takes the card's resolved label, so an unstored Lunch/Dinner
   // (detected "Meal") is claimed as a door too.
+  // v379: the Gas door joins them — its card wears the "Get Gas"
+  // keyword (the map's own gas label) wholesale, like the others.
   const pageKind = keywordPageKindForEvent(event, detectedKeyword?.label);
   const keyword = pageKind
-    ? EVENT_KEYWORD_MAP.find((k) => k.label === (pageKind === "news" ? "News" : pageKind === "email" ? "Email" : "Meal")) ?? detectedKeyword
+    ? EVENT_KEYWORD_MAP.find((k) => k.label === (pageKind === "news" ? "News" : pageKind === "email" ? "Email" : pageKind === "food" ? "Meal" : "Get Gas")) ?? detectedKeyword
     : detectedKeyword;
   // v313: on the branches that ALSO render the compact S/E read, a
   // note spelling out that same "Season {n} Episode {m}" says the

@@ -99,6 +99,7 @@ import {
   type StudioMinistriesPack,
 } from './studio-ministries';
 import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY } from '../prayercircle-storage';
+import { storeGasSnapshotForwardOnly } from '../gas-prices';
 import { chapterStatus, loadStudyState, saveStudyState } from './study';
 import { applyStudioStatesReads, type StudioStateEntry } from './studio-states';
 import { transitionChapterStatus } from './rewards';
@@ -741,6 +742,19 @@ export async function checkDriveFolder(): Promise<
       appliedHere += items;
       summary.ministriesApplied += items;
       noteParts.push('Ministries pack — upserts and explicit deletes only');
+    }
+    if (filePlan.gasPrices) {
+      // v379: the gas snapshot rides this door too — its own key
+      // only (prayercircle.gas-prices.v1), and FORWARD-ONLY: the
+      // write keeps whichever snapshot carries the newer
+      // preparedAt, so a stale file in the folder can never
+      // rewind the prices on the Gas page. An older snapshot
+      // changes nothing and notes nothing.
+      const appliedGas = await storeGasSnapshotForwardOnly(filePlan.gasPrices);
+      if (appliedGas) {
+        appliedHere += 1;
+        noteParts.push('Gas prices — newest snapshot kept');
+      }
     }
     if (plan.ministryLinks.length > 0) {
       // v237/v239: a schedule pack's Ministry rows can carry the

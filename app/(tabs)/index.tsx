@@ -209,6 +209,7 @@ import {
   type StudioFilePlan,
 } from "@/lib/bible-v205/studio-import";
 import { EMAIL_DIGEST_KEY } from "@/lib/email-digest";
+import { storeGasSnapshotForwardOnly } from "@/lib/gas-prices";
 import {
   applyStudioPeoplePack,
   collectStudioJournal,
@@ -4556,6 +4557,17 @@ export default function HomeScreen() {
       if (plan.emailDigest) {
         await AsyncStorage.setItem(EMAIL_DIGEST_KEY, JSON.stringify(plan.emailDigest));
         counts.emailDigest = 1;
+      }
+
+      // v379 — the gas snapshot's safe door, the digest's sibling:
+      // the section writes ONLY its own key
+      // (prayercircle.gas-prices.v1), and the write is
+      // FORWARD-ONLY — an older snapshot arriving late never
+      // rewinds the prices waiting on the Gas page
+      // (lib/gas-prices.ts). The count follows what happened.
+      if (plan.gasPrices) {
+        const appliedGas = await storeGasSnapshotForwardOnly(plan.gasPrices);
+        if (appliedGas) counts.gasPrices = 1;
       }
 
       // v237/v239: a schedule pack's Ministry rows may carry the

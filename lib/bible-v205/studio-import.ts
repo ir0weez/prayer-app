@@ -63,6 +63,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { EmailDigest } from '@/lib/email-digest';
+import type { GasPriceSnapshot } from '@/lib/gas-prices';
 import { CHAPTER_COUNTS, chapterCountFor, getChapterData } from './index';
 import {
   createScheduleEvent,
@@ -1012,10 +1013,17 @@ export interface StudioFilePlan {
    *  by writing ONLY the prayercircle.email-digest.v1 key. A pack
    *  carrying only a digest changes nothing else in the app. */
   emailDigest: EmailDigest | null;
+  /** v379 — the gas price snapshot (the `gasPrices` section).
+   *  The same safe-door shape as the digest: validated here,
+   *  applied by writing ONLY the prayercircle.gas-prices.v1 key,
+   *  and FORWARD-ONLY — the apply step keeps whichever snapshot
+   *  carries the newer preparedAt (lib/gas-prices.ts). A pack
+   *  carrying only a gas snapshot changes nothing else. */
+  gasPrices: GasPriceSnapshot | null;
 }
 
 export function emptyStudioFilePlan(): StudioFilePlan {
-  return { notes: null, states: null, schedule: null, people: null, ministries: null, emailDigest: null };
+  return { notes: null, states: null, schedule: null, people: null, ministries: null, emailDigest: null, gasPrices: null };
 }
 
 export function studioFileHasSections(plan: StudioFilePlan): boolean {
@@ -1025,7 +1033,8 @@ export function studioFileHasSections(plan: StudioFilePlan): boolean {
     plan.schedule !== null ||
     plan.people !== null ||
     plan.ministries !== null ||
-    plan.emailDigest !== null
+    plan.emailDigest !== null ||
+    plan.gasPrices !== null
   );
 }
 
@@ -1144,6 +1153,89 @@ export function validateEmailDigestSection(value: unknown): EmailDigest {
   return digest;
 }
 
+/**
+ * v379 — validate the `gasPrices` section into the Gas page's
+ * own shape (lib/gas-prices.ts). Eva's prep emits:
+ *   { preparedAt: ISO string,
+ *     areaLabel: string,
+ *     stations: [{ name, brand?, priceRegular (number|null),
+ *                  reportedAt (ISO|null), distanceMiles
+ *                  (number|null), membersOnly (bool), note? }] }
+ * Structural garbage fails the whole file, like every other
+ * section. A price is a positive number or an explicit null —
+ * "no price listed" is a fact the page renders, never a zero.
+ * Stations without a name carry nothing and are dropped; a
+ * section left with no stations is refused — writing it would
+ * clear the prices already waiting on the Gas page. preparedAt
+ * must read as a time: the apply is forward-only on that stamp.
+ */
+export function validateGasPricesSection(value: unknown): GasPriceSnapshot {
+  if (!isRecord(value)) fail('The gasPrices section is not an object.');
+  const preparedAt = typeof value.preparedAt === 'string' ? value.preparedAt : '';
+  if (!preparedAt || Number.isNaN(Date.parse(preparedAt))) {
+    fail('The gasPrices section has no readable preparedAt time.');
+  }
+  const areaLabel = typeof value.areaLabel === 'string' ? value.areaLabel : '';
+  if (value.areaLabel !== undefined && typeof value.areaLabel !== 'string') {
+    fail('The gasPrices areaLabel is not a string.');
+  }
+  const stationsRaw = value.stations;
+  if (!Array.isArray(stationsRaw)) fail('The gasPrices stations list is not a list.');
+  const stations: GasPriceSnapshot['stations'] = [];
+  stationsRaw.forEach((entry, i) => {
+    if (!isRecord(entry)) fail(`The gasPrices station ${i} is not an object.`);
+    const leafString = (key: string): string => {
+      const v = entry[key];
+      if (v === undefined) return '';
+      if (typeof v !== 'string') fail(`The gasPrices station ${i} has a non-string ${key}.`);
+      return v as string;
+    };
+    const leafPrice = (key: string): number | null => {
+      const v = entry[key];
+      if (v === undefined || v === null) return null;
+      if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
+        fail(`The gasPrices station ${i} has an unreadable ${key}.`);
+      }
+      return v as number;
+    };
+    const leafIso = (key: string): string | null => {
+      const v = entry[key];
+      if (v === undefined || v === null) return null;
+      if (typeof v !== 'string' || Number.isNaN(Date.parse(v))) {
+        fail(`The gasPrices station ${i} has an unreadable ${key}.`);
+      }
+      return v as string;
+    };
+    const leafDistance = (key: string): number | null => {
+      const v = entry[key];
+      if (v === undefined || v === null) return null;
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
+        fail(`The gasPrices station ${i} has an unreadable ${key}.`);
+      }
+      return v as number;
+    };
+    const name = leafString('name').trim();
+    if (!name) return; // a nameless station carries nothing — dropped, like a digest row with no subject
+    const station: GasPriceSnapshot['stations'][number] = {
+      name,
+      priceRegular: leafPrice('priceRegular'),
+      reportedAt: leafIso('reportedAt'),
+      distanceMiles: leafDistance('distanceMiles'),
+      membersOnly: entry.membersOnly === true,
+    };
+    if (entry.membersOnly !== undefined && typeof entry.membersOnly !== 'boolean') {
+      fail(`The gasPrices station ${i} has a non-boolean membersOnly.`);
+    }
+    const brand = leafString('brand').trim();
+    if (brand) station.brand = brand;
+    const note = leafString('note').trim();
+    if (note) station.note = note;
+    stations.push(station);
+  });
+  if (stations.length === 0) fail('The gasPrices section carries no stations.');
+  return { preparedAt, areaLabel, stations };
+}
+
 export function parseStudioFileFull(parsed: unknown): StudioFilePlan {
   if (!isRecord(parsed)) fail('That file is not a studio pack (expected a JSON object).');
   const plan = emptyStudioFilePlan();
@@ -1151,6 +1243,11 @@ export function parseStudioFileFull(parsed: unknown): StudioFilePlan {
   // pack; applied by writing only its own storage key.
   if (parsed.emailDigest !== undefined) {
     plan.emailDigest = validateEmailDigestSection(parsed.emailDigest);
+  }
+  // The gas snapshot (v379): the digest's sibling — its own key,
+  // forward-only at apply time.
+  if (parsed.gasPrices !== undefined) {
+    plan.gasPrices = validateGasPricesSection(parsed.gasPrices);
   }
   // The two marks (v228): the studioStates section, wherever it rides.
   if (parsed.studioStates !== undefined) {
@@ -1256,6 +1353,11 @@ export interface StudioApplyCounts {
    *  Email page's store (the section is a single snapshot, so the
    *  count is boolean in spirit). */
   emailDigest: number;
+  /** v379: 1 when the file's gasPrices section was written to the
+   *  Gas page's store. The write is forward-only, so an older
+   *  snapshot arriving late counts 0 — the summary says what
+   *  actually happened. */
+  gasPrices: number;
 }
 
 export function emptyStudioApplyCounts(): StudioApplyCounts {
@@ -1278,6 +1380,7 @@ export function emptyStudioApplyCounts(): StudioApplyCounts {
     ministriesDeleted: 0,
     ministriesLinked: 0,
     emailDigest: 0,
+    gasPrices: 0,
   };
 }
 
@@ -1328,6 +1431,10 @@ export function formatStudioImportSummary(plan: StudioFilePlan, counts: StudioAp
     );
   }
   if (plan.emailDigest) parts.push('Email digest: updated');
+  // v379: the segment keys off the count, not the plan — the gas
+  // write is forward-only, so an older snapshot that changed
+  // nothing must not read as an update.
+  if (plan.gasPrices && counts.gasPrices > 0) parts.push('Gas prices: updated');
   return parts.join(' · ');
 }
 

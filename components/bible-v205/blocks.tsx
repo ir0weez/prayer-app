@@ -15,7 +15,7 @@
 // (the Stories cover field wears noteFill now).
 
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NoteCategory, StudyStatus, V205Block } from '@/lib/bible-v205/types';
 import { CATEGORY_META, blockCategory, type CategoryMeta } from '@/lib/bible-v205/categories';
@@ -84,6 +84,72 @@ export function SectionBand({
 }
 
 /**
+ * v390: the selection the chapter page can hand a block of his
+ * commentary prose — the same shape SelfLineBlock takes for his
+ * stored lines (drag-select the words; the bar offers the six
+ * tints, Bubble, Note). Optional everywhere: Stories passes none
+ * and renders exactly as before, the same split SelfLineBlock
+ * already keeps.
+ */
+export interface BlockTextSelection {
+  highlights: readonly PhraseHighlight[];
+  onApplyTint: (range: { start: number; end: number }, tint: TintColor) => void;
+  /** The bar's Bubble / Note — they act on the block's parent
+   * verse (his ruling: bubbles dock on verses, never in notes). */
+  onBubble: () => void;
+  onNote: () => void;
+  onDragChange?: (active: boolean) => void;
+}
+
+function SelectableOrText({
+  text,
+  palette,
+  textStyle,
+  wrapStyle,
+  selection,
+  lead,
+}: {
+  text: string;
+  palette: BiblePalette;
+  /** The words' font dress ONLY — margins and padding ride
+   * wrapStyle, because SelectableText applies textStyle to every
+   * word; the plain Text path used to carry them itself. */
+  textStyle: TextStyle | TextStyle[];
+  /** Block-level spacing (the old Text's own margins/padding),
+   * applied to a wrapper so both paths lay out identically. */
+  wrapStyle?: StyleProp<ViewStyle>;
+  selection?: BlockTextSelection;
+  /** A non-selectable lead ahead of the words (the conversation
+   * prefix): nested in the Text on the plain path, SelectableText's
+   * first flex item on the selection path. Offsets never see it. */
+  lead?: ReactNode;
+}) {
+  if (!selection) {
+    const plain = (
+      <Text style={textStyle}>
+        {lead}
+        {text}
+      </Text>
+    );
+    return wrapStyle ? <View style={wrapStyle}>{plain}</View> : plain;
+  }
+  const body = (
+    <SelectableText
+      text={text}
+      palette={palette}
+      textStyle={textStyle}
+      lead={lead}
+      highlights={selection.highlights}
+      onApplyTint={selection.onApplyTint}
+      onBubble={selection.onBubble}
+      onNote={selection.onNote}
+      onDragChange={selection.onDragChange}
+    />
+  );
+  return wrapStyle ? <View style={wrapStyle}>{body}</View> : body;
+}
+
+/**
  * v311: one of the four typed kinds in its family box — the drawing's
  * nbox: radius 12, no border, the family ground, a small uppercase
  * kind tag in the family's ink, the words in plain ink. (Highlight's
@@ -96,18 +162,31 @@ function CategoryBox({
   text,
   palette,
   big,
+  selection,
 }: {
   meta: CategoryMeta;
   tag: string;
   text: string;
   palette: BiblePalette;
   big?: boolean;
+  /** v390: when the caller supplies it, the box's words are
+   * drag-selectable like the verses and his lines. */
+  selection?: BlockTextSelection;
 }) {
   const bg = meta.id === 'good-thought' ? palette.yellowBg : meta.bg;
   return (
     <View style={[styles.nbox, { backgroundColor: bg }]}>
       <Text style={[styles.ktag, { color: meta.ink }]}>{tag}</Text>
-      <Text style={[styles.nboxText, { color: palette.ink }, big ? styles.nboxTextBig : null]}>{text}</Text>
+      <SelectableOrText
+        text={text}
+        palette={palette}
+        textStyle={
+          big
+            ? [styles.nboxText, { color: palette.ink }, styles.nboxTextBig]
+            : [styles.nboxText, { color: palette.ink }]
+        }
+        selection={selection}
+      />
     </View>
   );
 }
@@ -117,10 +196,17 @@ export function BlockView({
   block,
   palette,
   big,
+  selection,
 }: {
   block: V205Block;
   palette: BiblePalette;
   big?: boolean;
+  /** v390: when the caller (the chapter page) supplies it, the
+   * block's words render through the selection machinery — before
+   * v390 every branch below was plain Text and none of his
+   * commentary prose could be selected or given a tint at all.
+   * Stories passes none and renders exactly as before. */
+  selection?: BlockTextSelection;
 }) {
   if (block.kind === 'para' || block.kind === 'conversation' || block.kind === 'note') {
     // v311: a block carrying one of his four categories (a Studio
@@ -131,20 +217,29 @@ export function BlockView({
     const cat = blockCategory(block);
     if (cat) {
       const meta = CATEGORY_META[cat];
-      return <CategoryBox meta={meta} tag={meta.label} text={block.text} palette={palette} big={big} />;
+      return <CategoryBox meta={meta} tag={meta.label} text={block.text} palette={palette} big={big} selection={selection} />;
     }
     return (
-      <Text
-        style={[
-          styles.para,
+      <SelectableOrText
+        text={block.text}
+        palette={palette}
+        textStyle={[
+          styles.paraWords,
           { color: palette.ink },
-          block.kind === 'note' ? styles.notePara : null,
-          block.kind === 'conversation' ? { fontStyle: 'italic' } : null,
+          ...(block.kind === 'conversation' ? [{ fontStyle: 'italic' as const }] : []),
         ]}
-      >
-        {block.kind === 'conversation' ? <Text style={{ fontStyle: 'normal', fontWeight: '700' }}>Conversation — </Text> : null}
-        {block.text}
-      </Text>
+        wrapStyle={
+          block.kind === 'note'
+            ? [styles.paraWrap, styles.notePara as ViewStyle]
+            : styles.paraWrap
+        }
+        selection={selection}
+        lead={
+          block.kind === 'conversation' ? (
+            <Text style={{ fontStyle: 'normal', fontWeight: '700', color: palette.ink }}>Conversation — </Text>
+          ) : undefined
+        }
+      />
     );
   }
   if (block.kind === 'scripture') {
@@ -156,7 +251,12 @@ export function BlockView({
           { backgroundColor: palette.calloutPaper, borderColor: palette.greyBorder, borderLeftColor: palette.rasp },
         ]}
       >
-        <Text style={[styles.scriptureQuote, { color: palette.greyInk }]}>“{block.text}”</Text>
+        <SelectableOrText
+          text={`“${block.text}”`}
+          palette={palette}
+          textStyle={[styles.scriptureQuote, { color: palette.greyInk }]}
+          selection={selection}
+        />
         {block.ref ? <Text style={[styles.scriptureRef, { color: palette.ink }]}>{block.ref}</Text> : null}
       </View>
     );
@@ -165,7 +265,7 @@ export function BlockView({
     // v311: the Highlight wears the drawing's yellow box (his yellow
     // class by construction — blockCategory reads it as good-thought).
     return (
-      <CategoryBox meta={CATEGORY_META['good-thought']} tag="Highlight" text={block.text} palette={palette} big={big} />
+      <CategoryBox meta={CATEGORY_META['good-thought']} tag="Highlight" text={block.text} palette={palette} big={big} selection={selection} />
     );
   }
   // v223: a quote is someone else's words, shown WITH the author's name —
@@ -181,13 +281,22 @@ export function BlockView({
         text={block.text}
         palette={palette}
         big={big}
+        selection={selection}
       />
     );
   }
   // thought — v311: a Main Thought flows as plain text in the note
   // flow (his Oct 28 ruling: it was not in the boxed list). The grey
   // callout is retired.
-  return <Text style={[styles.para, { color: palette.ink }]}>{block.text}</Text>;
+  return (
+    <SelectableOrText
+      text={block.text}
+      palette={palette}
+      textStyle={[styles.paraWords, { color: palette.ink }]}
+      wrapStyle={styles.paraWrap}
+      selection={selection}
+    />
+  );
 }
 
 /**
@@ -378,6 +487,11 @@ const styles = StyleSheet.create({
   flowSpan: { fontSize: 12.5, fontWeight: '500' },
   flowText: { fontSize: 15.5, lineHeight: 24 },
   para: { fontSize: 15, lineHeight: 25.5, marginBottom: 12, paddingHorizontal: 5, marginLeft: -5 },
+  // v390: styles.para split for the selectable path — the words'
+  // font dress and the block's spacing travel separately (see
+  // SelectableOrText); together they equal styles.para exactly.
+  paraWords: { fontSize: 15, lineHeight: 25.5 },
+  paraWrap: { marginBottom: 12, paddingHorizontal: 5, marginLeft: -5 },
   // v313: his Notion rule in its final form — the note's main text
   // sits at the SAME width as the verses it belongs to; the old 8px
   // inset (a v5-era narrowing he ruled against) is gone.

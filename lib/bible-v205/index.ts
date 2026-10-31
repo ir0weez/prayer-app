@@ -382,6 +382,11 @@ export function splitEntryByHashNotes(entry: DisplayEntry, entryMarks: EntryMark
     verseTints: verseTintsWithin(s.start, s.end),
     phraseHighlights: phraseHighlightsWithin(s.start, s.end),
     lineHighlights: [],
+    // v390: block highlights likewise never partition — they are
+    // addressed on the parent entry's record (or the chapter
+    // prose record) and read back through blockHighlightsFor
+    // against the raw marks map, so the pieces carry none.
+    blockHighlights: [],
     category: i === firstSeg ? entryMarks.category : null,
   }));
   const pieceOrigins: Record<KeeperField, number[]>[] = segs.map(() => ({
@@ -488,6 +493,9 @@ export function splitSectionsByHashNotes(
               // Line ranges stay the storage record's own.
               phraseHighlights: [...piece.marks.phraseHighlights, ...atKey.phraseHighlights],
               lineHighlights: atKey.lineHighlights,
+              // v390: the piece-key record's own block ranges, as
+              // with its line ranges; the parent's stay the parent's.
+              blockHighlights: atKey.blockHighlights,
               category: atKey.category,
             }
           : piece.marks;

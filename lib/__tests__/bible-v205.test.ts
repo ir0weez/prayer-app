@@ -1080,6 +1080,8 @@ describe("v210 — '#' verse splitting: a note's leading #N / #N-M sets those ve
       // v361 amendment: the record shape grew the two range lists.
       phraseHighlights: [],
       lineHighlights: [],
+      // v390 amendment: the record shape grew the block range list.
+      blockHighlights: [],
       category: 'quote',
     };
     const pieces = splitEntryByHashNotes(entry, m);

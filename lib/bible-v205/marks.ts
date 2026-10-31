@@ -117,6 +117,41 @@ export interface LinePhraseHighlight extends PhraseHighlight {
   index: number;
 }
 
+/**
+ * v390: the prose surfaces of a chapter page that are NOT verses
+ * and NOT his stored lines — the commentary's own text. A block
+ * highlight is addressed by the surface it was made on plus the
+ * block's index within that surface's array:
+ *  - 'blocks': the rendered entry's commentary blocks, indexed
+ *    into the PARENT entry's blocks array (the array the split
+ *    deals whole to its first piece);
+ *  - 'intro': the chapter opener's blocks (chapterData.intro);
+ *  - 'previously': the chapter's Previously paragraphs.
+ */
+export type BlockSurface = 'blocks' | 'intro' | 'previously';
+
+/** v390: a phrase highlight inside one block of his commentary
+ * prose. Lives in its OWN list on the record — never in
+ * phraseHighlights (verse-addressed) or lineHighlights
+ * (line-addressed) — so a note range can never collide with a
+ * verse or line range, whatever the offsets. */
+export interface BlockPhraseHighlight extends PhraseHighlight {
+  surface: BlockSurface;
+  index: number;
+}
+
+/**
+ * v390: chapter-level prose (the opener, Previously) has no entry
+ * span of its own. Its block highlights live on a dedicated
+ * record at this pseudo-span — a key no real entry can carry
+ * (verses start at 1) and no covering resolution can reach
+ * (covering requires start ≤ span.start and end ≥ span.end, and
+ * 0 ≥ end fails for every real span), so the record is inert to
+ * every other marks consumer and only ever read back through
+ * blockHighlightsFor at this exact key.
+ */
+export const CHAPTER_PROSE_SPAN = { start: 0, end: 0 } as const;
+
 export interface EntryMarks {
   kept: boolean;
   /** His own Highlight lines (yellow callouts), in the order he added them. */
@@ -161,6 +196,18 @@ export interface EntryMarks {
    * ranges always sit on the record the line itself lives on.
    */
   lineHighlights: LinePhraseHighlight[];
+  /**
+   * v390: phrase highlights inside the commentary's own prose —
+   * entry blocks, the chapter opener, the Previously paragraphs
+   * (BlockPhraseHighlight: surface + block index). Entry blocks
+   * are addressed on the PARENT entry's record, like his lines;
+   * chapter prose lives on the CHAPTER_PROSE_SPAN record. Before
+   * v390 none of that prose could be selected at all — it rendered
+   * as plain Text while the selection model covered only verses
+   * and his stored lines (his report, 2026-10-31, two screenshots
+   * from 1 John 1: the opener and the note under verse 7).
+   */
+  blockHighlights: BlockPhraseHighlight[];
   /**
    * His color-code category applied to this entry in the app (blue =
    * definition, red = quote, yellow = good thought, green = personal
@@ -209,11 +256,12 @@ const EMPTY: EntryMarks = {
   verseTints: {},
   phraseHighlights: [],
   lineHighlights: [],
+  blockHighlights: [],
   category: null,
 };
 
 export function emptyMarks(): EntryMarks {
-  return { ...EMPTY, highlights: [], thoughts: [], notes: [], verseTints: {}, phraseHighlights: [], lineHighlights: [] };
+  return { ...EMPTY, highlights: [], thoughts: [], notes: [], verseTints: {}, phraseHighlights: [], lineHighlights: [], blockHighlights: [] };
 }
 
 const TINT_HUES: readonly string[] = ['yellow', 'rose', 'green', 'blue', 'red', 'orange'];
@@ -260,6 +308,22 @@ export function sanitizeLinePhraseHighlights(raw: unknown): LinePhraseHighlight[
   return out;
 }
 
+const BLOCK_SURFACES: readonly string[] = ['blocks', 'intro', 'previously'];
+
+/** Stored block phrase highlights read back clean, same discipline. */
+export function sanitizeBlockPhraseHighlights(raw: unknown): BlockPhraseHighlight[] {
+  if (!Array.isArray(raw)) return [];
+  const out: BlockPhraseHighlight[] = [];
+  for (const item of raw) {
+    const base = validRange(item);
+    const o = item as { surface?: unknown; index?: unknown };
+    if (base && typeof o?.surface === 'string' && BLOCK_SURFACES.includes(o.surface) && Number.isInteger(o?.index) && (o.index as number) >= 0) {
+      out.push({ surface: o.surface as BlockSurface, index: o.index as number, ...base });
+    }
+  }
+  return out;
+}
+
 /** Stored verse tints read back clean: numeric verse keys, known hues only. */
 export function sanitizeVerseTints(raw: unknown): Record<number, TintColor> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
@@ -285,6 +349,7 @@ export function normalizeMarks(m: Partial<EntryMarks> | undefined): EntryMarks {
     verseTints: sanitizeVerseTints(m.verseTints),
     phraseHighlights: sanitizeVersePhraseHighlights(m.phraseHighlights),
     lineHighlights: sanitizeLinePhraseHighlights(m.lineHighlights),
+    blockHighlights: sanitizeBlockPhraseHighlights(m.blockHighlights),
     // v245: a stored 'conversation' (pre-merge) reads as personal-story.
     category: normalizeCategory(m.category),
   };
@@ -641,6 +706,46 @@ export function lineHighlightsFor(
   const rec = normalizeMarks(marks[entryKey(book, chapter, target.start, target.end)]);
   return rec.lineHighlights
     .filter((h) => h.field === target.field && h.index === target.index)
+    .map(({ start, end, tint }) => ({ start, end, tint }));
+}
+
+/** The same application inside one block of his commentary prose
+ * (surface + block index on the block's host record): toggle on an
+ * exact re-selection, strip overlaps on that block only, never
+ * touch another block, another surface, or another list. */
+export function applyBlockPhraseHighlight(
+  list: readonly BlockPhraseHighlight[],
+  target: { surface: BlockSurface; index: number },
+  range: PhraseHighlight,
+): BlockPhraseHighlight[] {
+  const mine = (h: BlockPhraseHighlight) => h.surface === target.surface && h.index === target.index;
+  const exact = list.find(
+    (h) => mine(h) && h.start === range.start && h.end === range.end && h.tint === range.tint,
+  );
+  if (exact) {
+    return list.filter((h) => h !== exact);
+  }
+  const kept = list.filter((h) => !(mine(h) && rangesOverlap(h.start, h.end, range.start, range.end)));
+  return [...kept, { surface: target.surface, index: target.index, ...range }].sort(
+    (a, b) => a.start - b.start,
+  );
+}
+
+/** The phrase highlights one rendered block carries — read off the
+ * record that hosts the block (the parent entry's record for
+ * 'blocks', the CHAPTER_PROSE_SPAN record for chapter prose),
+ * addressed by the block's surface + index. */
+export function blockHighlightsFor(
+  marks: MarksMap,
+  book: string,
+  chapter: number,
+  span: { start: number; end: number },
+  surface: BlockSurface,
+  index: number,
+): PhraseHighlight[] {
+  const rec = normalizeMarks(marks[entryKey(book, chapter, span.start, span.end)]);
+  return rec.blockHighlights
+    .filter((h) => h.surface === surface && h.index === index)
     .map(({ start, end, tint }) => ({ start, end, tint }));
 }
 

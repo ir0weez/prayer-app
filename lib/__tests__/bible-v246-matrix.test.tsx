@@ -271,12 +271,29 @@ function renderedPaper(html: string): string {
 }
 
 function renderedTextColor(html: string, needle: string): string {
-  const i = html.indexOf(needle);
+  const i = phraseIndex(html, needle);
   expect(i, `"${needle}" present in render`).toBeGreaterThan(-1);
   const before = html.slice(Math.max(0, i - 900), i);
   const matches = [...before.matchAll(/color:rgba\((\d+),(\d+),(\d+)/g)];
   expect(matches.length, `a text color precedes "${needle}"`).toBeGreaterThan(0);
   return rgbaToHex(matches[matches.length - 1]);
+}
+
+// v390 amendment: the chapter's own prose (opener, notes) now
+// renders through the selection model — his ruling that his
+// notes select and tint like the verses — so a phrase's words
+// arrive as separate word elements with markup between them.
+// The probe therefore locates a phrase across the tags instead
+// of as one raw substring. What it measures is unchanged: the
+// words are painted, in order, in a text element whose colour
+// the contrast check reads.
+function phraseIndex(html: string, phrase: string): number {
+  const pattern = phrase
+    .split(' ')
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('(?:<[^>]*>|\\s)*');
+  const m = new RegExp(pattern).exec(html);
+  return m ? m.index : -1;
 }
 
 const chapterEl = (book: string, chapter: number, stories = false) =>
@@ -322,7 +339,7 @@ describe('v246 — the Bible matrix: skin × accent × scheme', () => {
           const chapter = renderToString(chapterEl('Genesis', 1)).replace(/<!-- -->/g, '');
           expectRootUngated(chapter, `${label} Chapter`);
           expect(chapter).toContain('Genesis · Chapter 01');
-          expect(chapter).toContain('In the beginning');
+          expect(phraseIndex(chapter, 'In the beginning')).toBeGreaterThan(-1);
           const paper = renderedPaper(chapter);
           const ink = renderedTextColor(chapter, 'In the beginning');
           expect(

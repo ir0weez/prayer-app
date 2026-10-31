@@ -68,8 +68,11 @@ import { entrySourceCategory } from '@/lib/bible-v205/categories';
 import { loadUserLabels, type UserLabels } from '@/lib/bible-v205/user-labels';
 import {
   addKeeperLine,
+  applyBlockPhraseHighlight,
   applyLinePhraseHighlight,
   applyVersePhraseHighlight,
+  blockHighlightsFor,
+  CHAPTER_PROSE_SPAN,
   isKept,
   lineHighlightsFor,
   loadMarks,
@@ -83,6 +86,7 @@ import {
   toggleKept,
   updateKeeperLineAt,
   withMarks,
+  type BlockSurface,
   type EntryMarks,
   type LineAuthor,
   type MarksMap,
@@ -117,7 +121,7 @@ import { loadChapterVerses, type VerseText } from '@/lib/bible-v205/verses';
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import { useSkin } from '@/hooks/use-skin';
-import { BlockView, CategoryTag, Ornament, ReadChip, SectionBand, SelfLineBlock, StatusChip } from './blocks';
+import { BlockView, CategoryTag, Ornament, ReadChip, SectionBand, SelfLineBlock, StatusChip, type BlockTextSelection } from './blocks';
 import { SelectableText, clearActiveSelection, hasActiveSelection } from './selectable-text';
 // v381: the registry's standing-selection subscription — the
 // page's scroll lock follows it (see selectionStands below).
@@ -338,6 +342,19 @@ export function ChapterPageView(props: ChapterPageProps) {
   // page's whole truth.
   const [selectionStands, setSelectionStands] = useState(() => hasActiveSelection());
   useEffect(() => subscribeActiveSelection(setSelectionStands), []);
+  // v390: a verse-seat request from the page's own prose — the
+  // chapter opener's and Previously's selection bars carry the
+  // same Bubble / Note actions as every other surface, and those
+  // actions live in an EntryView's composer (homed on a verse).
+  // Chapter prose anchors on verse 1: the request names the entry
+  // covering it, and that entry's view seats its composer there
+  // when the nonce lands (the flashKey pattern, page → entry).
+  const [seatRequest, setSeatRequest] = useState<{
+    entryKey: string;
+    verse: number;
+    bubble: boolean;
+    nonce: number;
+  } | null>(null);
   // v361: composer-seat extents — each entry whose mark cluster is
   // standing reports the cluster's bottom edge within the entry,
   // so the seat check below can keep the unfurled composer's
@@ -716,6 +733,49 @@ export function ChapterPageView(props: ChapterPageProps) {
     setMarks(next);
     await saveMarks(next);
   };
+  // v390: a tint chosen from the selection bar inside his
+  // commentary prose — an entry block, the chapter opener, a
+  // Previously paragraph. The line handler's discipline, at block
+  // grain: the write lands on the record that hosts the block
+  // (the parent entry's record for 'blocks', the CHAPTER_PROSE_
+  // SPAN record for chapter prose), addressed by surface + index,
+  // and the render reads the ranges back through the same address.
+  const handleBlockPhraseTint = async (
+    span: { start: number; end: number },
+    surface: BlockSurface,
+    index: number,
+    range: { start: number; end: number },
+    tint: TintColor,
+  ) => {
+    const rec = marksFor(marks, book, chapter, span.start, span.end);
+    const nextList = applyBlockPhraseHighlight(rec.blockHighlights, { surface, index }, { ...range, tint });
+    const next = withMarks(marks, book, chapter, span.start, span.end, { blockHighlights: nextList });
+    setMarks(next);
+    await saveMarks(next);
+  };
+  // v390: the selection bundle for a piece of CHAPTER prose (the
+  // opener, Previously). Tint writes to the prose record; Bubble
+  // and Note seat the verse-1 entry's composer (chapter prose has
+  // no verse of its own — verse 1 is its head).
+  const proseSelection = (surface: BlockSurface, index: number): BlockTextSelection => ({
+    highlights: blockHighlightsFor(marks, book, chapter, CHAPTER_PROSE_SPAN, surface, index),
+    onApplyTint: (range, tint) => handleBlockPhraseTint(CHAPTER_PROSE_SPAN, surface, index, range, tint),
+    onBubble: () => requestProseSeat(true),
+    onNote: () => requestProseSeat(false),
+    onDragChange: setSelectionDrag,
+  });
+  const requestProseSeat = (bubble: boolean) => {
+    const host = sections
+      .flatMap((s) => s.entries)
+      .find((e) => e.start <= 1 && e.end >= 1);
+    if (!host) return;
+    setSeatRequest({
+      entryKey: entryKey(book, chapter, host.start, host.end),
+      verse: 1,
+      bubble,
+      nonce: Date.now(),
+    });
+  };
   // v228 — the reader's ONLY mark control (his ruling): Mark as Read.
   // The notes-written state is set from the book grid's editor and
   // the studio, never here — a Complete button on the reading surface
@@ -1054,7 +1114,14 @@ export function ChapterPageView(props: ChapterPageProps) {
           <View style={styles.block}>
             <Text style={[styles.label, { color: palette.inkFaint }]}>Previously</Text>
             {chapterData.previously.map((p, i) => (
-              <Text key={i} style={[styles.bodyPara, { color: palette.ink }]}>{p}</Text>
+              <View key={i} style={styles.paraGap}>
+                <SelectableText
+                  text={p}
+                  palette={palette}
+                  textStyle={[styles.bodyWords, { color: palette.ink }]}
+                  {...proseSelection('previously', i)}
+                />
+              </View>
             ))}
           </View>
         ) : null}
@@ -1073,9 +1140,16 @@ export function ChapterPageView(props: ChapterPageProps) {
             </View>
             {chapterData.intro.map((b, i) =>
               b.kind === 'para' ? (
-                <Text key={i} style={[styles.openerPara, { color: palette.ink }]}>{b.text}</Text>
+                <View key={i} style={styles.paraGap}>
+                  <SelectableText
+                    text={b.text}
+                    palette={palette}
+                    textStyle={[styles.openerWords, { color: palette.ink }]}
+                    {...proseSelection('intro', i)}
+                  />
+                </View>
               ) : (
-                <BlockView key={i} block={b} palette={palette} />
+                <BlockView key={i} block={b} palette={palette} selection={proseSelection('intro', i)} />
               ),
             )}
           </View>
@@ -1195,6 +1269,16 @@ export function ChapterPageView(props: ChapterPageProps) {
                 onRemoveLine={handleRemoveLine}
                 onPhraseTint={(verse, range, tint) => handlePhraseTint(entry.start, entry.end, verse, range, tint)}
                 onLinePhraseTint={handleLinePhraseTint}
+                blockSpan={(() => {
+                  // v390: the blocks this entry renders live on the
+                  // PARENT entry's record when the entry is a split
+                  // piece (the split deals the blocks whole to its
+                  // first piece), else on the entry's own record.
+                  const prov = notesSplit.provenance[entryKey(book, chapter, entry.start, entry.end)];
+                  return prov ? { start: prov.parentStart, end: prov.parentEnd } : { start: entry.start, end: entry.end };
+                })()}
+                onBlockPhraseTint={handleBlockPhraseTint}
+                seatRequest={seatRequest}
                 onSelectionDragChange={setSelectionDrag}
                 onClusterExtent={(bottom) => {
                   // v361: the seat check's raw material — this
@@ -1536,6 +1620,24 @@ function EntryView(props: {
   onPhraseTint: (verse: number, range: { start: number; end: number }, tint: TintColor) => void;
   /** v361: a tint picked from the selection bar inside his line. */
   onLinePhraseTint: (target: LineStorageTarget, range: { start: number; end: number }, tint: TintColor) => void;
+  /** v390: the span of the record that hosts this entry's
+   * commentary blocks — the PARENT entry's span when a '#' split
+   * dealt the blocks to this piece, else the entry's own. Block
+   * phrase ranges are written to and read from that record. */
+  blockSpan: { start: number; end: number };
+  /** v390: a tint picked from the selection bar inside one of
+   * this entry's commentary blocks. */
+  onBlockPhraseTint: (
+    span: { start: number; end: number },
+    surface: BlockSurface,
+    index: number,
+    range: { start: number; end: number },
+    tint: TintColor,
+  ) => void;
+  /** v390: a verse-seat request routed from the page's chapter
+   * prose (the opener / Previously bars' Bubble and Note actions);
+   * honoured only by the entry whose key it names. */
+  seatRequest?: { entryKey: string; verse: number; bubble: boolean; nonce: number } | null;
   /** v361: a drag-selection started/ended — the page locks scroll. */
   onSelectionDragChange?: (active: boolean) => void;
   /** v361: the standing mark cluster's bottom edge within this
@@ -1670,6 +1772,19 @@ function EntryView(props: {
     setComposerVerse(verse);
     props.onVerseSeatOpen?.(versesBoxYRef.current + (verseYRef.current.get(verse) ?? 0));
   };
+  // v390: the page routes its chapter prose's Bubble / Note
+  // actions here — the request names an entry key and a verse;
+  // the named entry seats its composer on that verse, once per
+  // nonce. Every other entry ignores it.
+  const lastSeatNonceRef = useRef(0);
+  useEffect(() => {
+    const req = props.seatRequest;
+    if (!req || req.nonce === lastSeatNonceRef.current) return;
+    if (req.entryKey !== entryKey(props.book, props.chapter, entry.start, entry.end)) return;
+    lastSeatNonceRef.current = req.nonce;
+    openComposerForVerse(req.verse, { bubble: req.bubble });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.seatRequest]);
   const finishCloseComposer = () => {
     closingRef.current = false;
     setComposerClosing(false);
@@ -1911,7 +2026,13 @@ function EntryView(props: {
   // as a block any more — it lives in the margin as that person's
   // face bubble (buildBubblePieces picks it up from the same entry).
   // A name-only quote keeps its ❝ callout here, untouched.
-  const blocks = entry.blocks.filter((b) => !(b.kind === 'quote' && b.authorId));
+  // v390: the rendered blocks keep their index into the PARENT
+  // entry's blocks array — that index is the block's storage
+  // address for its phrase highlights (blockSpan's record).
+  const renderBlocks = entry.blocks
+    .map((b, idx) => ({ b, idx }))
+    .filter(({ b }) => !(b.kind === 'quote' && b.authorId));
+  const blocks = renderBlocks.map(({ b }) => b);
   const selfLines = props.bubblePiece?.selfLines ?? [];
   // `lines` on the piece is other people's lines only (v217), so an
   // entry carrying solely his own words gets NO bubble inset.
@@ -2122,8 +2243,25 @@ function EntryView(props: {
               <Text style={[styles.addNoteText, { color: palette.inkSoft }]}>+ Add a note</Text>
             </Pressable>
           ) : (
-            blocks.map((b, i) => (
-              <BlockView key={i} block={b} palette={palette} />
+            renderBlocks.map(({ b, idx }) => (
+              <BlockView
+                key={idx}
+                block={b}
+                palette={palette}
+                selection={{
+                  // v390: the block's own words are selectable —
+                  // ranges read off the parent record (marksMap is
+                  // the RAW map; the display record's block list
+                  // stays empty by the split's design), Bubble and
+                  // Note act on the entry's first verse, the same
+                  // anchor his lines fall back to.
+                  highlights: blockHighlightsFor(props.marksMap, props.book, props.chapter, props.blockSpan, 'blocks', idx),
+                  onApplyTint: (range, tint) => props.onBlockPhraseTint(props.blockSpan, 'blocks', idx, range, tint),
+                  onBubble: () => openComposerForVerse(entry.start, { bubble: true }),
+                  onNote: () => openComposerForVerse(entry.start),
+                  onDragChange: props.onSelectionDragChange,
+                }}
+              />
             ))
           )}
 
@@ -2222,12 +2360,18 @@ const styles = StyleSheet.create({
   block: { marginTop: 30 },
   label: { fontSize: 10.5, letterSpacing: 2.2, textTransform: 'uppercase', fontWeight: '800', marginBottom: 12 },
   bodyPara: { fontSize: 15, lineHeight: 25.5, marginBottom: 12 },
+  // v390: the font-only halves of bodyPara / openerPara for the
+  // selectable path (SelectableText applies textStyle per word —
+  // margins ride the styles.paraGap wrapper instead).
+  bodyWords: { fontSize: 15, lineHeight: 25.5 },
+  paraGap: { marginBottom: 12 },
   // v311: the chapter opener's head — face + name, the plain
   // CHAPTER OPENER word right-aligned (text, never a badge chip).
   openerHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 10 },
   openerName: { fontSize: 13.5, fontWeight: '700', flexShrink: 1 },
   openerTag: { marginLeft: 'auto', fontSize: 11, fontWeight: '700', letterSpacing: 1.6, textTransform: 'uppercase' },
   openerPara: { fontSize: 16, lineHeight: 25, marginBottom: 12 },
+  openerWords: { fontSize: 16, lineHeight: 25 },
   refCallout: { borderLeftWidth: 3, borderRadius: 4, paddingVertical: 12, paddingHorizontal: 15, marginVertical: 12 },
   refQuote: { fontStyle: 'italic', fontSize: 14, lineHeight: 23 },
   contentsHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },

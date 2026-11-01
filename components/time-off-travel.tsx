@@ -982,7 +982,9 @@ export function ClaimedRestGroup({
  * NAME is the entry's title, DATE is the entry's day, the big
  * print is the entry's own time, REMARKS is the entry's own
  * detail line (composed the day card's way, season/episode
- * read included). An entry carries ONE time — no end, no
+ * read included). v409 adds PLACE under REMARKS when the entry
+ * carries an address — real printed info the pass used to drop.
+ * An entry carries ONE time — no end, no
  * duration exists anywhere in its record — so the pass prints
  * a departure, never an invented arrival: FROM carries the
  * time, and the stub's big print is the entry's kind. The
@@ -1028,6 +1030,12 @@ export function ItineraryEntryPass({ entry, timeOff, onToggleDone }: { entry: It
   const palette = timeOffEntryPassPalette(entry, timeOff, tripBaseColor(timeOff), colors.surface);
   const pageBg = isSkinned ? skinTokens.background ?? colors.background : colors.background;
   const remarks = itineraryDetailLine(entry);
+  // v409 — the entry's place (his pick, Nov 1): the entry carries an
+  // address and the Time Off page's own cards print it, but the pass
+  // never did. When present it prints as one more labelled row under
+  // REMARKS, in the remarks row's exact style; when absent the pass
+  // renders exactly as before — nothing reserved, nothing invented.
+  const place = entry.address?.trim() ? entry.address : undefined;
   const kindLabel = getItineraryKindLabel(entry.kind).toUpperCase();
   const day = tripDayNumber(timeOff, entry.date);
   const phaseDelay = (timeToMinutes(startTime) * 13) % 3500;
@@ -1091,6 +1099,14 @@ export function ItineraryEntryPass({ entry, timeOff, onToggleDone }: { entry: It
                   <Text style={{ ...passLabelStyle, color: palette.label }}>REMARKS</Text>
                   <Text style={{ fontSize: 11.5, lineHeight: 14, fontWeight: "700", color: palette.ink, flexShrink: 1 }} numberOfLines={1}>
                     {remarks}
+                  </Text>
+                </View>
+              )}
+              {place && (
+                <View style={{ flexDirection: "row", alignItems: "baseline", gap: 7, marginTop: 3 }}>
+                  <Text style={{ ...passLabelStyle, color: palette.label }}>PLACE</Text>
+                  <Text style={{ fontSize: 11.5, lineHeight: 14, fontWeight: "700", color: palette.ink, flexShrink: 1 }} numberOfLines={1}>
+                    {place}
                   </Text>
                 </View>
               )}

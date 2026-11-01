@@ -19,6 +19,10 @@ import {
   consumePendingPrayerEndRequest,
   stopPrayerTimerNotification,
 } from "@/modules/expo-prayer-timer/src/index";
+import {
+  addShieldOccupyListener,
+  consumeShieldOccupyRequest,
+} from "@/modules/expo-stay-busy-shield/src/index";
 import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider, useThemeContext } from "@/lib/theme-provider";
@@ -104,6 +108,30 @@ function RootLayoutContent() {
       // Best-effort
     }
   }, []);
+
+  // v401: the Stay Busy Shield's "Occupy me" brings the app
+  // forward pointed at the games. Warm, the module's event lands
+  // here; cold, the pending flag is waiting to be consumed. The
+  // two paths clear the same flag, so a tap lands him on Keep Me
+  // Occupied exactly once.
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    let live = true;
+    try {
+      if (consumeShieldOccupyRequest()) {
+        router.push("/keep-me-occupied");
+      }
+    } catch {
+      // Best-effort
+    }
+    const sub = addShieldOccupyListener(() => {
+      if (live) router.push("/keep-me-occupied");
+    });
+    return () => {
+      live = false;
+      sub?.remove();
+    };
+  }, [router]);
 
   useEffect(() => {
     if (Platform.OS === "web") return;

@@ -104,7 +104,21 @@ const config: ExpoConfig = {
     // press is never again indistinguishable from an ignored swipe.
     predictiveBackGestureEnabled: true,
     package: androidPackage,
-    permissions: ["POST_NOTIFICATIONS"],
+    permissions: [
+      "POST_NOTIFICATIONS",
+      // v401 Stay Busy Shield (modules/expo-stay-busy-shield
+      // declares these too; listing them here keeps them in the
+      // generated manifest's own hand): usage access is granted
+      // by the user in Settings, the overlay draws the prompt,
+      // the rest keep the watcher alive and able to list apps.
+      "PACKAGE_USAGE_STATS",
+      "QUERY_ALL_PACKAGES",
+      "SYSTEM_ALERT_WINDOW",
+      "FOREGROUND_SERVICE",
+      "FOREGROUND_SERVICE_SPECIAL_USE",
+      "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      "RECEIVE_BOOT_COMPLETED",
+    ],
     intentFilters: [
       {
         action: "VIEW",

@@ -509,8 +509,6 @@ export function tendTap(cells: TendCell[], index: number): TendCell[] {
 export interface KmoSession {
   /** When the flow opened. Displayed once at the wave check, then forgotten. */
   startedAt: number;
-  /** The optional entry rating (1–10), if he gave one. Never required. */
-  entryRating: number | null;
   /** The item on the table and when it was dealt. */
   itemId: KmoItemId;
   dealtAt: number;
@@ -519,7 +517,10 @@ export interface KmoSession {
 }
 
 export function startSession(itemId: KmoItemId, activityLabel: string, now: number): KmoSession {
-  return { startedAt: now, entryRating: null, itemId, dealtAt: now, activityLabel };
+  // v401: no entryRating field — the entry rating row was removed
+  // from the dealt screen (his screenshot feedback), so a session
+  // no longer carries a "before" number at all.
+  return { startedAt: now, itemId, dealtAt: now, activityLabel };
 }
 
 /** "under a minute" / "1 minute" / "11 minutes" — for the wave-check line. */

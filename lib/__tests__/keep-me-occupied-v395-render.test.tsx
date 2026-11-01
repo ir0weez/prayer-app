@@ -73,12 +73,16 @@ describe("v395 renders", () => {
     expect(html).toContain("no choosing");
   });
 
+  // v401 (dated note): the wave check no longer takes an entry
+  // rating at all — the entry row was removed from the dealt
+  // screen (his screenshot feedback), so the before/after read
+  // this file pinned in v395 is retired. What remains is the one
+  // question, asked once.
   it("the wave check shows the session line and all three doors", () => {
     const html = plain(renderToString(
       <WaveCheck
         m={m}
         sessionLineText="You played Echo Lights for 11 minutes."
-        entryRating={8}
         onDoor={() => {}}
       />,
     ));
@@ -89,9 +93,9 @@ describe("v395 renders", () => {
     expect(html).toContain("Back to my day");
   });
 
-  it("the wave check without an entry rating just asks — no before/after is invented", () => {
+  it("the wave check asks the one question — no before/after is invented", () => {
     const html = plain(renderToString(
-      <WaveCheck m={m} sessionLineText="You read Psalm 91 for 12 minutes." entryRating={null} onDoor={() => {}} />,
+      <WaveCheck m={m} sessionLineText="You read Psalm 91 for 12 minutes." onDoor={() => {}} />,
     ));
     expect(html).toContain("How strong is it now?");
     expect(html).not.toContain("when you came in");

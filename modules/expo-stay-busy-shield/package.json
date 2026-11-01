@@ -1,0 +1,1 @@
+{"description":"Stay Busy Shield: watches for user-chosen apps opening and offers the Keep Me Occupied prompt over them","keywords":["expo","android","usage-stats","overlay","shield"],"main":"src/index.ts","name":"expo-stay-busy-shield","types":"src/index.ts","version":"1.0.0"}

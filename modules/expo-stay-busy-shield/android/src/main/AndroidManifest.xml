@@ -1,0 +1,39 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+  <!-- The shield's grants. PACKAGE_USAGE_STATS and QUERY_ALL_PACKAGES
+       are declared here; both are granted by the user in system
+       Settings (usage access) or simply held (package visibility for
+       a self-installed app). SYSTEM_ALERT_WINDOW is what lets the
+       prompt lie over the opened app — a cover, not a wall. -->
+  <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+      tools:ignore="ProtectedPermissions" />
+  <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+      tools:ignore="QueryAllPackagesPermission" />
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+  <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+  <application>
+    <!-- The watcher. Runs only while the master toggle is on, at
+         least one app is shielded, and usage access is granted. -->
+    <service
+      android:name="expo.modules.staybusyshield.ShieldWatcherService"
+      android:exported="false"
+      android:foregroundServiceType="specialUse">
+      <property
+        android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+        android:value="Watches for the user-chosen apps opening so it can offer the Stay Busy Shield prompt the user configured." />
+    </service>
+    <!-- Restarts the watcher after a reboot, under the same
+         conditions the service itself enforces. -->
+    <receiver
+      android:name="expo.modules.staybusyshield.ShieldBootReceiver"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+      </intent-filter>
+    </receiver>
+  </application>
+</manifest>

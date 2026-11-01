@@ -19,6 +19,13 @@
  * shared coin/XP systems have them. (The study store is read once,
  * read-only, to weight the chapter and dig deals — the reader's
  * own data, never KMO's.)
+ *
+ * v401 — the entry rating row is GONE from this screen (his
+ * screenshot feedback, Oct 31: the 1–10 line stood here AND on
+ * the wave check — one ask too many). Dealing goes straight to
+ * the game; the wave check keeps the single strength question.
+ * With no "before" there is no before→now read: the wave check
+ * shows the one rating and the earnings line, nothing invented.
  */
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
@@ -105,7 +112,6 @@ export default function KeepMeOccupiedScreen() {
   const m = useKeepMeOccupiedMaterial();
   const [phase, setPhase] = useState<"dealt" | "wave" | "shelf">("dealt");
   const [deal, setDeal] = useState<LiveDeal | null>(null);
-  const [entryRating, setEntryRating] = useState<number | null>(null);
   const [progression, setProgression] = useState<KmoProgression>(() => parseKmoProgression(null));
   const [balance, setBalance] = useState(0);
   const [sessionScore, setSessionScore] = useState(0);
@@ -368,12 +374,6 @@ export default function KeepMeOccupiedScreen() {
     [dealAgain, router],
   );
 
-  const rateEntry = (n: number) => {
-    if (entryRating != null) return;
-    setEntryRating(n);
-    if (sessionRef.current) sessionRef.current = { ...sessionRef.current, entryRating: n };
-  };
-
   const bestForDeal = deal ? progression.best[deal.item.id] : undefined;
   // v400 addendum: the live coin readout — purse as it stands and
   // "+N this visit" (settled this visit + the score still on the
@@ -416,7 +416,6 @@ export default function KeepMeOccupiedScreen() {
           <WaveCheck
             m={m}
             sessionLineText={sessionLine(sessionRef.current, Date.now())}
-            entryRating={entryRating}
             earnings={earnings}
             onDoor={onWaveDoor}
           />
@@ -469,8 +468,6 @@ export default function KeepMeOccupiedScreen() {
                 </View>
               ) : null}
             </View>
-
-            <RatingRow m={m} entryRating={entryRating} onRate={rateEntry} />
 
             <View style={styles.actions}>
               <Pressable
@@ -682,48 +679,6 @@ function renderDealContent(
   }
 }
 
-/**
- * The optional entry rating: one quiet row on the dealt screen.
- * Never blocking, never required — skipping it is invisible, and
- * the first tap is the only one that counts (it is the "when you
- * came in" number the wave check reads back).
- */
-function RatingRow({
-  m,
-  entryRating,
-  onRate,
-}: {
-  m: KeepMeOccupiedMaterialFamily;
-  entryRating: number | null;
-  onRate: (n: number) => void;
-}) {
-  if (entryRating != null) {
-    return (
-      <Text style={[styles.ratedNote, { color: m.inkSoft }]}>
-        Rated {entryRating} on the way in — the wave check will hold it against where you land.
-      </Text>
-    );
-  }
-  return (
-    <View style={styles.ratingRow}>
-      <Text style={[styles.ratingLabel, { color: m.inkSoft }]}>How strong is it right now?</Text>
-      <View style={styles.ratingChips}>
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-          <Pressable
-            key={n}
-            onPress={() => onRate(n)}
-            accessibilityRole="button"
-            accessibilityLabel={`Rate ${n} out of 10`}
-            style={[styles.ratingChip, { backgroundColor: m.tonal, borderColor: m.line }]}
-          >
-            <Text style={[styles.ratingChipText, { color: m.tonalInk }]}>{n}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 34 },
   header: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -741,12 +696,6 @@ const styles = StyleSheet.create({
   scoreRow: { flexDirection: "row", gap: 7, marginTop: 16 },
   scoreChip: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 },
   scoreChipText: { fontSize: 12, fontWeight: "800" },
-  ratingRow: { marginTop: 20 },
-  ratingLabel: { fontSize: 12.5, fontWeight: "700" },
-  ratingChips: { flexDirection: "row", gap: 5, marginTop: 8, flexWrap: "wrap" },
-  ratingChip: { width: 30, height: 34, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  ratingChipText: { fontSize: 13.5, fontWeight: "800" },
-  ratedNote: { fontSize: 12, marginTop: 20, lineHeight: 17 },
   actions: { marginTop: 16, gap: 9 },
   actionMain: { borderRadius: 999, paddingVertical: 13, alignItems: "center" },
   actionMainText: { color: "#FFFFFF", fontSize: 14.5, fontWeight: "800" },

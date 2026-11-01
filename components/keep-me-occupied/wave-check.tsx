@@ -9,26 +9,30 @@ import type { SessionEarnings } from "@/lib/kmo-progression";
  * v395 The Way Back Down — the wave check (the screen Jonathan
  * screenshotted from concept v1 and kept through v3): one honest
  * question, the session's one line ("You played Echo Lights for
- * 11 minutes"), the before → now read when he rated on the way in,
- * and three Material doors. Everything about the WAVE shown here
- * is shown ONCE, to him, and forgotten: ratings and minutes are
- * never persisted (the v397 law keeps them ledger-free).
+ * 11 minutes"), and three Material doors. Everything about the
+ * WAVE shown here is shown ONCE, to him, and forgotten: ratings
+ * and minutes are never persisted (the v397 law keeps them
+ * ledger-free).
  *
  * v397: the card also carries the session's earnings line — the
  * score the game just converted into his coin purse and XP track.
  * The earnings were real the moment they were credited; this line
  * is just their receipt, and it is not stored either.
+ *
+ * v401: the entry rating is gone (his screenshot feedback — the
+ * 1–10 line stood on the dealt screen AND here). This card now
+ * asks the one question once: the rating chips, the session
+ * line, the earnings line. There is no "before" to read back,
+ * so no before→now scale is drawn — nothing is invented.
  */
 export function WaveCheck({
   m,
   sessionLineText,
-  entryRating,
   earnings,
   onDoor,
 }: {
   m: KeepMeOccupiedMaterialFamily;
   sessionLineText: string;
-  entryRating: number | null;
   earnings?: SessionEarnings | null;
   onDoor: (door: WaveDoorId) => void;
 }) {
@@ -43,23 +47,6 @@ export function WaveCheck({
           <Text style={[styles.earnings, { color: m.deep }]}>
             +{earnings.coins} coins · +{earnings.xp} XP
           </Text>
-        ) : null}
-
-        {entryRating != null && nowRating != null ? (
-          <View>
-            <View style={styles.scale}>
-              <Text style={[styles.from, { color: m.redFill }]}>{entryRating}</Text>
-              <Text style={styles.arrow}>⟶</Text>
-              <Text style={styles.to}>{nowRating}</Text>
-              <View style={styles.scaleLabels}>
-                <Text style={[styles.scaleLabel, { color: m.inkSoft }]}>when you came in</Text>
-                <Text style={[styles.scaleLabel, { color: m.inkSoft }]}>where you are</Text>
-              </View>
-            </View>
-            <View style={styles.track}>
-              <View style={[styles.trackMarker, { left: `${Math.max(2, Math.min(98, nowRating * 10))}%` }]} />
-            </View>
-          </View>
         ) : null}
 
         <View style={styles.chips}>
@@ -82,9 +69,6 @@ export function WaveCheck({
             );
           })}
         </View>
-        {entryRating != null && nowRating == null ? (
-          <Text style={[styles.hint, { color: m.inkSoft }]}>You rated it {entryRating} when you came in.</Text>
-        ) : null}
       </View>
 
       <View style={styles.doors}>
@@ -130,28 +114,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 18.5, fontWeight: "900" },
   sub: { fontSize: 12.5, lineHeight: 18, marginTop: 4 },
   earnings: { fontSize: 14, fontWeight: "900", marginTop: 9 },
-  scale: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 14 },
-  from: { fontSize: 31, fontWeight: "900" },
-  arrow: { fontSize: 19, color: "#9A7B4F" },
-  to: { fontSize: 31, fontWeight: "900", color: "#2E8A57" },
-  scaleLabels: { marginLeft: "auto" },
-  scaleLabel: { fontSize: 11.5, fontWeight: "800", textAlign: "right", lineHeight: 17 },
-  track: { height: 9, borderRadius: 99, backgroundColor: "#D9A05F", marginTop: 12, position: "relative" },
-  trackMarker: {
-    position: "absolute",
-    top: "50%",
-    width: 19,
-    height: 19,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 3,
-    borderColor: "#7FB069",
-    transform: [{ translateX: -9 }, { translateY: -9 }],
-  },
   chips: { flexDirection: "row", gap: 5, marginTop: 16, flexWrap: "wrap" },
   chip: { width: 30, height: 34, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   chipText: { fontSize: 13.5, fontWeight: "800" },
-  hint: { fontSize: 12, marginTop: 10 },
   doors: { marginTop: 13, gap: 9 },
   door: { borderRadius: 999, paddingVertical: 14, paddingHorizontal: 18, flexDirection: "row", alignItems: "center" },
   doorLabel: { fontSize: 14.5, fontWeight: "800" },

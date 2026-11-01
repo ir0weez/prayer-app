@@ -324,9 +324,16 @@ describe("v397 wave data stays ledger-free", () => {
     await convertSessionScore(40, "tok-wave");
     await recordBestScore("sort-it-out", 40);
     await unlockGame("backbeat");
-    // The wave itself: a session with a rating is held and read — pure memory.
-    const session = { ...startSession("sort-it-out", "Sort It Out", 1_000_000), entryRating: 7 };
+    // The wave itself: a session is held and read — pure memory.
+    // v401 (dated note): sessions no longer carry an entryRating
+    // (the entry row was removed from the dealt screen), so the
+    // wave-shaped value this pin watches for is held in memory
+    // alongside the session instead — the law it proves is the
+    // same: a rating in memory never reaches a stored record.
+    const waveMemory = { entryRating: 7, rating: 7 };
+    const session = startSession("sort-it-out", "Sort It Out", 1_000_000);
     expect(sessionLine(session, 1_000_000 + 11 * 60000)).toContain("11 minutes");
+    expect(waveMemory.entryRating).toBe(7);
 
     const allowed = new Set([COINS_STORAGE_KEY, XP_STORAGE_KEY, XP_AWARDS_STORAGE_KEY, KMO_PROGRESSION_KEY]);
     for (const key of writtenKeys) expect(allowed.has(key), key).toBe(true);

@@ -5608,6 +5608,11 @@ export default function HomeScreen() {
       // v395: the Keep Me Occupied door — the same destination the
       // Fasting Tracker's card opens (Jonathan's idea, Oct 31).
       { key: "keep-me-occupied", icon: "shuffle", label: "Keep Me Occupied", sub: "A game, a chapter, or a dig — dealt at random", onPress: () => router.push("/keep-me-occupied") },
+      // v401: the Stay Busy Shield's door — the same row dress,
+      // straight under the feature it guards (Jonathan's order:
+      // pick the apps that pull at him; the shield offers the
+      // games when one opens).
+      { key: "stay-busy-shield", icon: "shield", label: "Stay Busy Shield", sub: "A prompt over the apps you pick — occupy, or carry on", onPress: () => router.push("/stay-busy-shield") },
       { key: "devotional", icon: "menu-book", label: "Devotional", onPress: () => router.push("/devotional") },
       // v283: interim homes, moved off the fasting page at
       // Jonathan's word (Oct 27 08:46: "Put the badges in 'More'

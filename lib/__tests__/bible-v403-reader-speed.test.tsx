@@ -1,5 +1,16 @@
 /**
  * v403 — the reader opens in slices, never in one stall.
+ * v405 SUPERSESSION (Nov 1): the slicing this file was written
+ * for is REMOVED, because its root cause is gone. Jonathan's
+ * pick — native selection everywhere — replaced the per-word
+ * engine, so a chapter is ~113 plain text elements instead of
+ * ~20,541 components; the whole chapter mounts in one commit,
+ * the load effect runs once per (book, chapter) with its five
+ * non-verse stores batched into a single landing, verses seed
+ * synchronously from the embedded text, EntryView is memoized,
+ * and scroll progress lives in an external store the header
+ * subscribes to — the page never re-renders for scroll. The
+ * describes below pin THAT behaviour; the rig is v403's.
  *
  * Jonathan, Oct 31, 23:24 PDT: "Loading into 1 John 2 was
  * extremely laggy. So much so that the little box popped up
@@ -303,13 +314,33 @@ const ACCENTS = ['default', 'sunset'] as const;
 const SCHEMES = ['light', 'dark'] as const;
 
 
-describe('v403 — the chapter page mounts in slices', () => {
-  it('the source carries the budget, the gate, and the frame-stepper', () => {
-    expect(chapterPageSrc).toContain('MOUNT_FIRST_CHARS');
-    expect(chapterPageSrc).toContain('MOUNT_STEP_CHARS');
-    expect(chapterPageSrc).toContain('mountedEntryKeys');
-    expect(chapterPageSrc).toContain('if (!mountedEntryKeys.has(entryKey(book, chapter, entry.start, entry.end))) return null;');
-    expect(chapterPageSrc).toContain('requestAnimationFrame(() => setMountChars((c) => c + MOUNT_STEP_CHARS))');
+describe('v405 — the chapter mounts whole, as plain native text elements', () => {
+  it('the v403 slicing is gone: no budget, no gate, no frame-stepper', () => {
+    expect(chapterPageSrc).not.toContain('MOUNT_FIRST_CHARS');
+    expect(chapterPageSrc).not.toContain('MOUNT_STEP_CHARS');
+    expect(chapterPageSrc).not.toContain('mountedEntryKeys');
+    expect(chapterPageSrc).not.toContain('setMountChars');
+    expect(chapterPageSrc).not.toContain('MOUNT_STEP');
+  });
+
+  it('verses seed synchronously from the embedded text; the stores load once per chapter, batched', () => {
+    expect(chapterPageSrc).toContain('embeddedVerses(book, chapter) ?? []');
+    expect(chapterPageSrc).toContain(
+      'Promise.all([loadMarks(), loadStudyState(), loadStudioImports(), loadPeopleList(), loadProfileIdentity()])',
+    );
+    // The dependency loop is dead: the load effect no longer
+    // depends on chapterData (which derives from a state the
+    // effect itself sets).
+    expect(chapterPageSrc).not.toContain('}, [book, chapter, chapterData]);');
+    expect(chapterPageSrc).toContain('}, [book, chapter]);');
+  });
+
+  it('EntryView is memoized behind one stable actions object; scroll state left the page', () => {
+    expect(chapterPageSrc).toContain('const EntryView = memo(function EntryView');
+    expect(chapterPageSrc).toContain('actions={entryActions}');
+    expect(chapterPageSrc).toContain('useSyncExternalStore');
+    expect(chapterPageSrc).not.toContain('scrollEnabled');
+    expect(chapterPageSrc).not.toContain('const [progress, setProgress]');
   });
 
   it('the scroll handler quantizes its progress commits', () => {
@@ -317,19 +348,24 @@ describe('v403 — the chapter page mounts in slices', () => {
     expect(chapterPageSrc).toContain('Math.abs(nextProgress - progressRef.current) >= 0.002');
   });
 
-  it('a first paint of 1 John 2 carries its opening words, not its closing ones', () => {
+  it('a first paint of 1 John 2 carries the WHOLE chapter — opening and closing words together', () => {
     rig.skin = 'classic';
     rig.accent = 'default';
     rig.scheme = 'dark';
     const html = renderToString(chapterEl('1 John', 2)).replace(/<!-- -->/g, '');
     expect(html).toContain('1 John · Chapter 02');
-    // The first entry's opening line — inside the first slice.
     expect(phraseIndex(html, 'Notice the way in which John is addressing')).toBeGreaterThan(-1);
-    // A line unique to the final entry (verse 29) — past the
-    // budget, so it waits for a later slice and must NOT be in
-    // the first paint. Before v403 the whole chapter mounted at
-    // once and this line was in the first commit — the stall.
-    expect(phraseIndex(html, 'Another great thing to live in')).toBe(-1);
+    // The final entry's line (verse 29) is in the FIRST commit
+    // now — the mount is ~113 text elements, not the old
+    // engine's ~20,541 per-word components, so nothing needs
+    // slicing any more.
+    expect(phraseIndex(html, 'Another great thing to live in')).toBeGreaterThan(-1);
+    // The element census is the honest witness: the per-word
+    // engine would have emitted tens of thousands of elements
+    // for this chapter; the plain native-text tree stays in the
+    // low thousands even counting RNW's wrapper divs.
+    const elementCount = (html.match(/<[a-z]/g) ?? []).length;
+    expect(elementCount).toBeLessThan(6000);
   });
 
   it('a small chapter still paints whole on first paint (Genesis 1 fits the story)', () => {

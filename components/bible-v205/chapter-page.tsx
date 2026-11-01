@@ -32,7 +32,7 @@
 // survives, and the v251 measured-header machinery is untouched —
 // it simply measures a shorter header now.
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import {
   AccessibilityInfo,
   Alert,
@@ -118,7 +118,7 @@ import {
   resolveChapterData,
   type StudioImportsMap,
 } from '@/lib/bible-v205/studio-import';
-import { loadChapterVerses, type VerseText } from '@/lib/bible-v205/verses';
+import { embeddedVerses, loadChapterVerses, type VerseText } from '@/lib/bible-v205/verses';
 import {
   assembleChapterPdfData,
   pdfThemeFromSeed,
@@ -133,10 +133,10 @@ import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import { useSkin } from '@/hooks/use-skin';
 import { BlockView, CategoryTag, Ornament, ReadChip, SectionBand, SelfLineBlock, StatusChip, type BlockTextSelection } from './blocks';
-import { SelectableText, clearActiveSelection, hasActiveSelection } from './selectable-text';
-// v381: the registry's standing-selection subscription — the
-// page's scroll lock follows it (see selectionStands below).
-import { subscribeActiveSelection } from './selectable-text';
+// v405: native selection (his Nov 1 pick) — one native text
+// element per surface, the platform menu carrying Highlight /
+// Note / Bubble / Copy. The v361 per-word engine is deleted.
+import { NativeSelectableText } from './native-selectable-text';
 import { AuthorFace, AuthorPicker, LivingBubbles, kindLabelFor, spanLabelFor, type BloomTiming } from './bubbles';
 import { IndexSheet } from './index-sheet';
 import { StoriesView } from './stories-view';
@@ -302,15 +302,52 @@ function ChapterProgressThread({
   );
 }
 
-// ─── v403: progressive entry mounting ────────────────────────────────────────
-// The character budget a chapter's entries mount under: the first
-// slice paints with the page, then one more slice lands per frame
-// until the whole chapter stands. Sized so one slice is a few
-// hundred words — a commit the JS thread clears in a blink — while
-// even his wordiest chapters finish mounting within a second or
-// so of opening, below the fold, while he is already reading.
-const MOUNT_FIRST_CHARS = 9000;
-const MOUNT_STEP_CHARS = 9000;
+// ─── v405: scroll stats live OUTSIDE the page's state ─────────────
+// The header's two scroll readers (the progress thread, the
+// verse-range label) subscribe to a tiny external store the
+// ScrollView's handler writes; the page component itself holds
+// NO scroll state any more, so a scroll stream can never
+// re-render the chapter tree (the v403 quantization survives —
+// progress commits only on a 0.2% step — it just commits to the
+// store, not to setState).
+export interface ChapterScrollStats {
+  progress: number;
+  headEnd: number | null;
+}
+
+function ScrollProgressThread({
+  palette,
+  subscribe,
+  getSnapshot,
+}: {
+  palette: BiblePalette;
+  subscribe: (cb: () => void) => () => void;
+  getSnapshot: () => ChapterScrollStats;
+}) {
+  const stats = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return <ChapterProgressThread palette={palette} progress={stats.progress} />;
+}
+
+function ScrollHeadLabel({
+  palette,
+  verseCount,
+  fallbackEnd,
+  subscribe,
+  getSnapshot,
+}: {
+  palette: BiblePalette;
+  verseCount: number;
+  fallbackEnd: number | undefined;
+  subscribe: (cb: () => void) => () => void;
+  getSnapshot: () => ChapterScrollStats;
+}) {
+  const stats = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return (
+    <Text testID="chapter-verse-range" style={[styles.metaRange, { color: palette.inkSoft }]} numberOfLines={1}>
+      {verseCount > 0 ? `Ver. 1–${stats.headEnd ?? fallbackEnd ?? verseCount} of ${verseCount} verses` : ''}
+    </Text>
+  );
+}
 
 export function ChapterPageView(props: ChapterPageProps) {
   const { book, chapter } = props;
@@ -333,8 +370,13 @@ export function ChapterPageView(props: ChapterPageProps) {
   );
   const totalChapters = chapterCountFor(book);
 
-  const [verses, setVerses] = useState<VerseText[]>([]);
-  const [versesLoaded, setVersesLoaded] = useState(false);
+  // v405: verses seed SYNCHRONOUSLY from the embedded text when
+  // the book ships it — the first render already carries the
+  // chapter, so embedded books never build the tree twice (empty
+  // sections first, verses second). Fetch-only books (Genesis /
+  // Psalms, no embedded verses) keep the async path below.
+  const [verses, setVerses] = useState<VerseText[]>(() => embeddedVerses(book, chapter) ?? []);
+  const [versesLoaded, setVersesLoaded] = useState<boolean>(() => embeddedVerses(book, chapter) !== null);
   const [marks, setMarks] = useState<MarksMap>({});
   const [studyState, setStudyState] = useState<StudyState | null>(null);
   const [readOnly, setReadOnly] = useState(false);
@@ -349,28 +391,12 @@ export function ChapterPageView(props: ChapterPageProps) {
   // settle, ahead of the verses' own async load in practice.
   const [collapseReady, setCollapseReady] = useState(false);
   const [sheet, setSheet] = useState<null | 'verses' | 'search'>(null);
-  // v361: the selection model replaced the v212 number-tap tint
-  // selection wholesale — a drag across the words IS the selection
-  // now, and it lives inside SelectableText. All the page holds is
-  // whether a drag is live (its scroll locks for the drag, so the
-  // two never fight over the same finger).
-  const [selectionDrag, setSelectionDrag] = useState(false);
-  // v381: SELECTION MODE — the scroll lock's second, load-bearing
-  // half. v361–v378 locked the scroll only while a drag callback
-  // said a drag was live, so the lock's timing raced the finger:
-  // it landed a beat after the long-press and released the moment
-  // a drag ended, though the selection still stood — and the next
-  // adjusting touch raced the scroll again ("sometimes it wants
-  // to scroll, other times it wants to move the cursor"). Now the
-  // lock also follows whether a selection STANDS, reported by
-  // SelectableText's own registry — the one place that knows —
-  // so the page does not scroll at all for the selection's whole
-  // life, and scrolls again the instant it clears. Every
-  // SelectableText on this page (the verses, his own lines)
-  // rides this one ScrollView, so the registry's word is the
-  // page's whole truth.
-  const [selectionStands, setSelectionStands] = useState(() => hasActiveSelection());
-  useEffect(() => subscribeActiveSelection(setSelectionStands), []);
+  // v405: native selection owns its own gestures now — there is
+  // no drag state, no standing-selection registry, and NO SCROLL
+  // LOCK anywhere on this page (the v361/v381 lock machinery is
+  // deleted with the engine it served). The platform's selection
+  // handles and the ScrollView divide the touches the way every
+  // native reader does.
   // v390: a verse-seat request from the page's own prose — the
   // chapter opener's and Previously's selection bars carry the
   // same Bubble / Note actions as every other surface, and those
@@ -399,8 +425,22 @@ export function ChapterPageView(props: ChapterPageProps) {
   const [profile, setProfile] = useState<ProfileIdentity>({ name: '' });
   const [openBubblesKey, setOpenBubblesKey] = useState<string | null>(null);
   const scrollYRef = useRef(0);
-  // v403: the last progress value actually committed to state —
-  // the scroll handler quantizes against it (see onScroll).
+  // v405: the scroll-stats store (see ScrollProgressThread /
+  // ScrollHeadLabel above) — written by onScroll, read by the two
+  // header subscribers, never by the page's own render.
+  const scrollStatsRef = useRef<{ value: ChapterScrollStats; listeners: Set<() => void> }>({
+    value: { progress: 0, headEnd: null },
+    listeners: new Set(),
+  });
+  const scrollStats = scrollStatsRef.current;
+  const subscribeScrollStats = useCallback((cb: () => void) => {
+    scrollStats.listeners.add(cb);
+    return () => {
+      scrollStats.listeners.delete(cb);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const getScrollStats = useCallback(() => scrollStats.value, []);
   const progressRef = useRef(0);
   // v251: the sticky header's MEASURED height — the header reports
   // it through onLayout; the ref mirrors it for the scroll
@@ -408,11 +448,9 @@ export function ChapterPageView(props: ChapterPageProps) {
   const [headerH, setHeaderH] = useState(() => estimateChapterHeaderHeight(topInset));
   const headerHRef = useRef(headerH);
   const [stories, setStories] = useState(!!props.initialStories);
-  const [progress, setProgress] = useState(0);
-  // v250: the section at the scroll head — the progress card's label
-  // names it ("Ver. 1–8 of 37 verses"), from the sections' measured
-  // positions, never a decorative number.
-  const [headSectionEnd, setHeadSectionEnd] = useState<number | null>(null);
+  // v405: progress + the head-section label are NOT page state
+  // any more — they live in the scroll-stats store above, and
+  // only the header's two subscribers re-render when they move.
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const flashAnim = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<ScrollView>(null);
@@ -420,9 +458,23 @@ export function ChapterPageView(props: ChapterPageProps) {
   const viewHeight = useRef(0);
   const contentHeight = useRef(0);
 
+  // v405: this effect loads ONCE per (book, chapter). The old
+  // deps carried chapterData — which DERIVES from studioImports,
+  // a state this very effect sets — so the effect ran twice per
+  // chapter and each of the six landings re-rendered the whole
+  // tree separately (~12 commits before the reader settled). Now:
+  // verses seed synchronously from the embedded text (the state
+  // initializer) and re-confirm through loadChapterVerses; the
+  // other five stores land TOGETHER in one Promise.all commit.
   useEffect(() => {
     let live = true;
-    setVersesLoaded(false);
+    const embedded = embeddedVerses(book, chapter);
+    if (embedded !== null) {
+      setVerses(embedded);
+      setVersesLoaded(true);
+    } else {
+      setVersesLoaded(false);
+    }
     loadChapterVerses(book, chapter)
       .then((v) => {
         if (!live) return;
@@ -437,15 +489,20 @@ export function ChapterPageView(props: ChapterPageProps) {
         setVerses([]);
         setVersesLoaded(true);
       });
-    loadMarks().then((m) => live && setMarks(m));
-    loadStudyState().then((s) => live && setStudyState(s));
-    loadStudioImports().then((m) => live && setStudioImports(m));
-    loadPeopleList().then((p) => live && setPeople(p));
-    loadProfileIdentity().then((p) => live && setProfile(p));
+    Promise.all([loadMarks(), loadStudyState(), loadStudioImports(), loadPeopleList(), loadProfileIdentity()])
+      .then(([m, s, si, p, pi]) => {
+        if (!live) return;
+        setMarks(m);
+        setStudyState(s);
+        setStudioImports(si);
+        setPeople(p);
+        setProfile(pi);
+      })
+      .catch(() => undefined);
     return () => {
       live = false;
     };
-  }, [book, chapter, chapterData]);
+  }, [book, chapter]);
 
   // The read-mode preference is app-level: the page reopens the way he
   // left it. Switching modes never touches notes, marks, or states.
@@ -581,57 +638,13 @@ export function ChapterPageView(props: ChapterPageProps) {
   // its marks were actually stored on.
   const notesFlat = useMemo(() => flattenEntries(rawNotesSections), [rawNotesSections]);
   const verseText = useMemo(() => new Map(verses.map((v) => [v.verse, v.text])), [verses]);
-  // v403: entries mount PROGRESSIVELY, in slices under a character
-  // budget. His report (Oct 31, 23:24): opening 1 John 2 froze for
-  // a minute and drew Android's wait-or-force-quit box. The data is
-  // not the problem — his stores are small and the chapter's text
-  // ships in the app. The MOUNT is: the selection model renders
-  // every word as its own touchable + view + text, so a wordy
-  // chapter (1 John 2 carries ~6,700 words of verses and notes)
-  // asked the JS thread to build ~20,000 components in a single
-  // commit, with the page's store landings re-rendering the tree
-  // on top of that. Now the first slice paints with the page and
-  // the rest land a slice per frame — no single commit runs long
-  // enough to stall, and the chapter reads from the top at once.
-  // Everything downstream (measured entry positions, Contents
-  // jumps, the composer seat checks) already tolerates entries
-  // arriving after first paint; Stories reads the sections data
-  // itself, ungated. An entry never splits across slices: a single
-  // entry larger than the budget still mounts whole, as one entry
-  // always has.
-  const entryChars = (e: V205Entry): number => {
-    let n = 0;
-    for (const b of e.blocks) n += (b.text ?? '').length;
-    for (let v = e.start; v <= e.end; v++) n += verseText.get(v)?.length ?? 0;
-    return n;
-  };
-  const totalEntryChars = useMemo(
-    () => flat.reduce((sum, f) => sum + entryChars(f.entry), 0),
-    // entryChars reads verseText; both it and flat are the inputs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [flat, verseText],
-  );
-  const [mountChars, setMountChars] = useState(MOUNT_FIRST_CHARS);
-  useEffect(() => {
-    setMountChars(MOUNT_FIRST_CHARS);
-  }, [book, chapter]);
-  useEffect(() => {
-    if (mountChars >= totalEntryChars) return;
-    const id = requestAnimationFrame(() => setMountChars((c) => c + MOUNT_STEP_CHARS));
-    return () => cancelAnimationFrame(id);
-  }, [mountChars, totalEntryChars]);
-  const mountedEntryKeys = useMemo(() => {
-    const keys = new Set<string>();
-    let used = 0;
-    for (const f of flat) {
-      const c = entryChars(f.entry);
-      if (keys.size > 0 && used + c > mountChars) break;
-      used += c;
-      keys.add(entryKey(book, chapter, f.entry.start, f.entry.end));
-    }
-    return keys;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flat, verseText, mountChars, book, chapter]);
+  // v405: the v403 progressive entry slicing is REMOVED. It existed
+  // to spread one impossible mount — the per-word selection
+  // engine's ~20,000 components for a chapter like 1 John 2 — over
+  // frames. With native selection each surface is ONE text element
+  // (the same chapter is ~113 elements now), so the whole chapter
+  // mounts in a single commit and the slicing is dead weight: no
+  // budget, no rAF ladder, no mount gate in the entry map.
   const status: StudyStatus = studyState ? chapterStatus(studyState, book, chapter) : 'none';
   // v228: the READ track, displayed on this page but never derived
   // from the notes status above — the two marks are independent.
@@ -691,6 +704,49 @@ export function ChapterPageView(props: ChapterPageProps) {
     for (const [key, m] of Object.entries(displayMarks)) map.set(key, m.category ?? null);
     return map;
   }, [displayMarks]);
+
+  // v405: per-entry resolved render data, computed ONCE per
+  // (flat, displayMarks) change instead of inline in the entry
+  // map on every render (resolveTintFields alone was being called
+  // twice per entry per render). Stable per-entry identities are
+  // what let the memoized EntryView skip unchanged entries.
+  const entryDerived = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        marksEntry: EntryMarks;
+        entryTint: TintColor | null;
+        verseTints: Record<number, TintColor>;
+        phraseHighlights: VersePhraseHighlight[];
+        blockSpan: { start: number; end: number };
+      }
+    >();
+    for (const f of flat) {
+      const key = entryKey(book, chapter, f.entry.start, f.entry.end);
+      const tints = resolveTintFields(displayMarks, book, chapter, f.entry.start, f.entry.end);
+      // v390: the blocks this entry renders live on the PARENT
+      // entry's record when the entry is a split piece (the split
+      // deals the blocks whole to its first piece), else on the
+      // entry's own record.
+      const prov = notesSplit.provenance[key];
+      map.set(key, {
+        marksEntry: marksFor(displayMarks, book, chapter, f.entry.start, f.entry.end),
+        entryTint: tints.tint,
+        verseTints: tints.verseTints,
+        phraseHighlights: resolvePhraseHighlights(displayMarks, book, chapter, f.entry.start, f.entry.end),
+        blockSpan: prov ? { start: prov.parentStart, end: prov.parentEnd } : { start: f.entry.start, end: f.entry.end },
+      });
+    }
+    return map;
+  }, [flat, displayMarks, notesSplit, book, chapter]);
+
+  // v405: section tones are objects — memoize them per
+  // (sections, palette) so an entry's tone prop is identity-stable
+  // across unrelated re-renders (EntryView is memoized now).
+  const sectionTones = useMemo(
+    () => sections.map((_, i) => sectionToneFor(palette, i)),
+    [sections, palette],
+  );
 
   const scrollToY = (y: number) => {
     // v251: the landing offset is the header's MEASURED height
@@ -875,7 +931,6 @@ export function ChapterPageView(props: ChapterPageProps) {
     onApplyTint: (range, tint) => handleBlockPhraseTint(CHAPTER_PROSE_SPAN, surface, index, range, tint),
     onBubble: () => requestProseSeat(true),
     onNote: () => requestProseSeat(false),
-    onDragChange: setSelectionDrag,
   });
   const requestProseSeat = (bubble: boolean) => {
     const host = sections
@@ -889,6 +944,67 @@ export function ChapterPageView(props: ChapterPageProps) {
       nonce: Date.now(),
     });
   };
+  // v405: EntryView is memoized — its callbacks ride ONE stable
+  // actions object (below) whose methods forward through this ref
+  // to the CURRENT render's handlers, so an entry's props change
+  // only when its data does. The ref is re-pointed every render;
+  // the actions object's identity never changes.
+  const entryHandlersRef = useRef<EntryActions | null>(null);
+  entryHandlersRef.current = {
+    toggleOpen: (e) => toggleOpen(e),
+    toggleKept: (e) => handleToggleKept(e.start, e.end, e.blocks.some((b) => b.kind === 'highlight')),
+    addLine: (e, kind, text, author) => handleAddLine(e.start, e.end, kind, text, author),
+    updateLine: (target, patch) => handleUpdateLine(target, patch),
+    removeLine: (target) => handleRemoveLine(target),
+    phraseTint: (e, verse, range, tint) => handlePhraseTint(e.start, e.end, verse, range, tint),
+    linePhraseTint: (target, range, tint) => handleLinePhraseTint(target, range, tint),
+    blockPhraseTint: (span, surface, index, range, tint) => handleBlockPhraseTint(span, surface, index, range, tint),
+    bubbleToggle: (key, next) => setOpenBubblesKey(next && key ? key : null),
+    clusterExtent: (e, bottom) => {
+      const key = entryKey(book, chapter, e.start, e.end);
+      if (bottom === null) seatExtentsRef.current.delete(key);
+      else seatExtentsRef.current.set(key, bottom);
+      ensureSeatVisible();
+    },
+    registerY: (e, sectionStart, y) => {
+      yByKey.current.set(
+        entryKey(book, chapter, e.start, e.end),
+        (yByKey.current.get(`secwrap-${sectionStart}`) ?? 0) + y,
+      );
+    },
+    verseSeatOpen: (e, yWithinEntry) => {
+      const key = entryKey(book, chapter, e.start, e.end);
+      const entryY = yByKey.current.get(key);
+      if (entryY === undefined) return;
+      const verseTop = entryY + yWithinEntry;
+      const screenTop = verseTop - scrollYRef.current;
+      const vh = viewHeight.current > 0 ? viewHeight.current : Dimensions.get('window').height;
+      if (
+        screenTop < headerHRef.current + CHAPTER_HEADER_LAND_GAP ||
+        screenTop > vh - VERSE_COMPOSER_ROOM_PX
+      ) {
+        scrollToY(verseTop);
+      }
+    },
+  };
+  const entryActions = useMemo<EntryActions>(
+    () => ({
+      toggleOpen: (e) => entryHandlersRef.current?.toggleOpen(e),
+      toggleKept: (e) => entryHandlersRef.current?.toggleKept(e),
+      addLine: (e, kind, text, author) => entryHandlersRef.current?.addLine(e, kind, text, author),
+      updateLine: (target, patch) => entryHandlersRef.current?.updateLine(target, patch),
+      removeLine: (target) => entryHandlersRef.current?.removeLine(target),
+      phraseTint: (e, verse, range, tint) => entryHandlersRef.current?.phraseTint(e, verse, range, tint),
+      linePhraseTint: (target, range, tint) => entryHandlersRef.current?.linePhraseTint(target, range, tint),
+      blockPhraseTint: (span, surface, index, range, tint) =>
+        entryHandlersRef.current?.blockPhraseTint(span, surface, index, range, tint),
+      bubbleToggle: (key, next) => entryHandlersRef.current?.bubbleToggle(key, next),
+      clusterExtent: (e, bottom) => entryHandlersRef.current?.clusterExtent(e, bottom),
+      registerY: (e, sectionStart, y) => entryHandlersRef.current?.registerY(e, sectionStart, y),
+      verseSeatOpen: (e, yWithinEntry) => entryHandlersRef.current?.verseSeatOpen(e, yWithinEntry),
+    }),
+    [],
+  );
   // v228 — the reader's ONLY mark control (his ruling): Mark as Read.
   // The notes-written state is set from the book grid's editor and
   // the studio, never here — a Complete button on the reading surface
@@ -1065,15 +1181,13 @@ export function ChapterPageView(props: ChapterPageProps) {
             pill, slimmed — at its right. The progress card itself
             is gone; its fill lives on as the thread below. */}
         <View style={styles.metaRow}>
-          <Text
-            testID="chapter-verse-range"
-            style={[styles.metaRange, { color: palette.inkSoft }]}
-            numberOfLines={1}
-          >
-            {verseCount > 0
-              ? `Ver. 1–${headSectionEnd ?? sections[0]?.end ?? verseCount} of ${verseCount} verses`
-              : ''}
-          </Text>
+          <ScrollHeadLabel
+            palette={palette}
+            verseCount={verseCount}
+            fallbackEnd={sections[0]?.end}
+            subscribe={subscribeScrollStats}
+            getSnapshot={getScrollStats}
+          />
           <View style={[styles.modeSeg, { borderColor: palette.line }]}>
             <Pressable
               style={[styles.modeBtn, !readOnly ? { backgroundColor: palette.band } : null]}
@@ -1090,8 +1204,10 @@ export function ChapterPageView(props: ChapterPageProps) {
           </View>
         </View>
         {/* v304: the progress thread — the card's scroll-fraction
-            fill on a 4px line spanning the header's bottom edge. */}
-        <ChapterProgressThread palette={palette} progress={progress} />
+            fill on a 4px line spanning the header's bottom edge.
+            v405: it subscribes to the scroll-stats store; the page
+            itself never re-renders for scroll. */}
+        <ScrollProgressThread palette={palette} subscribe={subscribeScrollStats} getSnapshot={getScrollStats} />
       </View>
 
       <ScrollView
@@ -1112,20 +1228,21 @@ export function ChapterPageView(props: ChapterPageProps) {
           contentHeight.current = contentSize.height;
           scrollYRef.current = contentOffset.y;
           const max = contentSize.height - layoutMeasurement.height;
-          // v403: progress commits to state only when it has moved
-          // a visible step (or lands exactly on an end) — on a
-          // wordy chapter a state commit re-renders the whole
-          // mounted tree, and a 32ms-throttled scroll stream of
-          // those is its own stall. A fifth of a percent is far
-          // finer than the header thread can show.
+          // v403: progress commits only when it has moved a
+          // visible step (or lands exactly on an end) — the 0.2%
+          // quantization. v405: the commit goes to the SCROLL-
+          // STATS STORE, not page state, so the chapter tree
+          // never re-renders for scroll; only the header's two
+          // subscribers (thread + range label) repaint.
           const nextProgress = max > 0 ? Math.min(1, contentOffset.y / max) : 0;
+          let next = scrollStats.value;
           if (
             Math.abs(nextProgress - progressRef.current) >= 0.002 ||
             nextProgress === 0 ||
             nextProgress === 1
           ) {
             progressRef.current = nextProgress;
-            setProgress(nextProgress);
+            next = { ...next, progress: nextProgress };
           }
           // v250: the section at the scroll head, from the measured
           // section positions — the last section whose top has
@@ -1137,19 +1254,16 @@ export function ChapterPageView(props: ChapterPageProps) {
             const y = yByKey.current.get(`secwrap-${s.start}`);
             if (y !== undefined && y <= contentOffset.y + headerHRef.current) headEnd = s.end;
           }
-          setHeadSectionEnd((prev) => (prev === headEnd ? prev : headEnd));
+          if (headEnd !== next.headEnd) next = { ...next, headEnd };
+          if (next !== scrollStats.value) {
+            scrollStats.value = next;
+            for (const cb of scrollStats.listeners) cb();
+          }
         }}
         scrollEventThrottle={32}
-        // v361: while a text drag-selection is live the page holds
-        // still — the drag and the scroll never fight over a finger.
-        // v381: the hold now lasts the selection's whole life, not
-        // just its drags — while a selection stands the page does
-        // not scroll AT ALL, so an adjusting touch can never be
-        // read as a scroll. Entering selection mode also freezes
-        // a scroll already in flight: the flip to false halts the
-        // scroll where it stands, and nothing on selection entry
-        // issues a scrollTo, so the position never jumps.
-        scrollEnabled={!selectionDrag && !selectionStands}
+        // v405: NO scroll lock, ever — native selection and the
+        // ScrollView divide touches the platform way (the v361 /
+        // v381 selection scroll lock is deleted with its engine).
       >
         {/* v251: the measured header spacer — the content's first
             box is exactly the overlay header's measured height, so
@@ -1289,7 +1403,7 @@ export function ChapterPageView(props: ChapterPageProps) {
             <Text style={[styles.label, { color: palette.inkFaint }]}>Previously</Text>
             {chapterData.previously.map((p, i) => (
               <View key={i} style={styles.paraGap}>
-                <SelectableText
+                <NativeSelectableText
                   text={p}
                   palette={palette}
                   textStyle={[styles.bodyWords, { color: palette.ink }]}
@@ -1315,7 +1429,7 @@ export function ChapterPageView(props: ChapterPageProps) {
             {chapterData.intro.map((b, i) =>
               b.kind === 'para' ? (
                 <View key={i} style={styles.paraGap}>
-                  <SelectableText
+                  <NativeSelectableText
                     text={b.text}
                     palette={palette}
                     textStyle={[styles.openerWords, { color: palette.ink }]}
@@ -1386,7 +1500,7 @@ export function ChapterPageView(props: ChapterPageProps) {
           // v250: every section is a tonal CARD in its own derived
           // hue — the family cycles by section index, and the tone
           // rides into the band and every entry inside it.
-          const tone = sectionToneFor(palette, sIdx);
+          const tone = sectionTones[sIdx];
           return (
           <View
             key={section.start}
@@ -1400,10 +1514,13 @@ export function ChapterPageView(props: ChapterPageProps) {
           >
             <SectionBand start={section.start} end={section.end} title={section.title} palette={palette} tone={tone} />
             {section.entries.map((entry) => {
-              // v403: an entry past the mount budget waits for a
-              // later slice (see mountedEntryKeys above) — the
-              // section card and band stand from the first paint.
-              if (!mountedEntryKeys.has(entryKey(book, chapter, entry.start, entry.end))) return null;
+              // v405: the whole chapter mounts in one commit (no
+              // v403 slicing gate) and every entry renders through
+              // the memoized EntryView with pre-resolved data +
+              // the one stable actions object.
+              const key = entryKey(book, chapter, entry.start, entry.end);
+              const derived = entryDerived.get(key);
+              if (!derived) return null;
               // v214: the bubble piece riding on this rendered entry —
               // in With-notes the entry IS the piece; in Read-only the
               // piece whose span starts at this verse anchors here.
@@ -1419,10 +1536,10 @@ export function ChapterPageView(props: ChapterPageProps) {
                 book={book}
                 chapter={chapter}
                 verseText={verseText}
-                marksEntry={marksFor(displayMarks, book, chapter, entry.start, entry.end)}
-                entryTint={resolveTintFields(displayMarks, book, chapter, entry.start, entry.end).tint}
-                verseTints={resolveTintFields(displayMarks, book, chapter, entry.start, entry.end).verseTints}
-                phraseHighlights={resolvePhraseHighlights(displayMarks, book, chapter, entry.start, entry.end)}
+                marksEntry={derived.marksEntry}
+                entryTint={derived.entryTint}
+                verseTints={derived.verseTints}
+                phraseHighlights={derived.phraseHighlights}
                 marksMap={marks}
                 kept={entryStatus.get(entryKey(book, chapter, entry.start, entry.end))?.kept ?? false}
                 open={isOpen(entry)}
@@ -1439,61 +1556,11 @@ export function ChapterPageView(props: ChapterPageProps) {
                 topChrome={headerH}
                 bottomReserve={112}
                 entryScreenTop={entryY !== undefined ? entryY - scrollYRef.current : null}
-                onBubbleToggle={(next) => setOpenBubblesKey(next && pieceKey ? pieceKey : null)}
-                onToggleOpen={() => toggleOpen(entry)}
-                onToggleKept={() => handleToggleKept(entry.start, entry.end, entry.blocks.some((b) => b.kind === 'highlight'))}
-                onAddLine={(kind, text, author) => handleAddLine(entry.start, entry.end, kind, text, author)}
-                onUpdateLine={handleUpdateLine}
-                onRemoveLine={handleRemoveLine}
-                onPhraseTint={(verse, range, tint) => handlePhraseTint(entry.start, entry.end, verse, range, tint)}
-                onLinePhraseTint={handleLinePhraseTint}
-                blockSpan={(() => {
-                  // v390: the blocks this entry renders live on the
-                  // PARENT entry's record when the entry is a split
-                  // piece (the split deals the blocks whole to its
-                  // first piece), else on the entry's own record.
-                  const prov = notesSplit.provenance[entryKey(book, chapter, entry.start, entry.end)];
-                  return prov ? { start: prov.parentStart, end: prov.parentEnd } : { start: entry.start, end: entry.end };
-                })()}
-                onBlockPhraseTint={handleBlockPhraseTint}
+                sectionStart={section.start}
+                blockSpan={derived.blockSpan}
                 seatRequest={seatRequest}
-                onSelectionDragChange={setSelectionDrag}
-                onClusterExtent={(bottom) => {
-                  // v361: the seat check's raw material — this
-                  // entry's standing cluster bottom (within-entry
-                  // coordinates), or null when it folds away.
-                  const key = entryKey(book, chapter, entry.start, entry.end);
-                  if (bottom === null) seatExtentsRef.current.delete(key);
-                  else seatExtentsRef.current.set(key, bottom);
-                  ensureSeatVisible();
-                }}
-                registerY={(y) =>
-                  yByKey.current.set(
-                    entryKey(book, chapter, entry.start, entry.end),
-                    (yByKey.current.get(`secwrap-${section.start}`) ?? 0) + y,
-                  )
-                }
+                actions={entryActions}
                 topAuthorIds={topAuthorIds}
-                onVerseSeatOpen={(yWithinEntry) => {
-                  // v356: a verse's composer just seated beneath it —
-                  // land the verse on screen ONLY when verse + box
-                  // would not already be visible together: the verse
-                  // tucked under the header, or too little room left
-                  // beneath it for the unfurling cluster. A verse
-                  // already sitting comfortably never yanks the page.
-                  const key = entryKey(book, chapter, entry.start, entry.end);
-                  const entryY = yByKey.current.get(key);
-                  if (entryY === undefined) return;
-                  const verseTop = entryY + yWithinEntry;
-                  const screenTop = verseTop - scrollYRef.current;
-                  const vh = viewHeight.current > 0 ? viewHeight.current : Dimensions.get('window').height;
-                  if (
-                    screenTop < headerHRef.current + CHAPTER_HEADER_LAND_GAP ||
-                    screenTop > vh - VERSE_COMPOSER_ROOM_PX
-                  ) {
-                    scrollToY(verseTop);
-                  }
-                }}
               />
               );
             })}
@@ -1751,7 +1818,44 @@ function VerseUnfurl(props: {
   );
 }
 
-function EntryView(props: {
+/**
+ * v405: everything an EntryView can ask the page to do, behind
+ * ONE stable object (see entryActions in ChapterPageView). The
+ * entry itself rides as the first argument so no per-entry
+ * closures are ever created in the entry map — that, plus the
+ * pre-resolved data props, is what makes the memo below real.
+ */
+export interface EntryActions {
+  toggleOpen: (entry: V205Entry) => void;
+  toggleKept: (entry: V205Entry) => void;
+  addLine: (entry: V205Entry, kind: 'highlight' | 'thought' | 'note', text: string, author: LineAuthor | null) => void;
+  updateLine: (target: LineStorageTarget, patch: { text?: string; author?: LineAuthor | null }) => void;
+  removeLine: (target: LineStorageTarget) => void;
+  /** A tint picked from a verse's native selection bar. */
+  phraseTint: (entry: V205Entry, verse: number, range: { start: number; end: number }, tint: TintColor) => void;
+  /** A tint picked from the selection bar inside his line. */
+  linePhraseTint: (target: LineStorageTarget, range: { start: number; end: number }, tint: TintColor) => void;
+  /** A tint picked from the selection bar inside a commentary block. */
+  blockPhraseTint: (
+    span: { start: number; end: number },
+    surface: BlockSurface,
+    index: number,
+    range: { start: number; end: number },
+    tint: TintColor,
+  ) => void;
+  bubbleToggle: (pieceKey: string | null, open: boolean) => void;
+  /** The standing mark cluster's bottom edge within the entry
+   * (the page's seat check keeps the composer's action row clear
+   * of the Verses pill); null when no cluster stands. */
+  clusterExtent: (entry: V205Entry, bottomWithinEntry: number | null) => void;
+  registerY: (entry: V205Entry, sectionStart: number, y: number) => void;
+  /** A verse's selection action seated its composer — the verse's
+   * top within the entry, so the page can land the verse (with
+   * room beneath it for the unfurling box) on screen. */
+  verseSeatOpen: (entry: V205Entry, yWithinEntry: number) => void;
+}
+
+const EntryView = memo(function EntryView(props: {
   entry: V205Entry;
   book: string;
   chapter: number;
@@ -1762,7 +1866,7 @@ function EntryView(props: {
    * covering grouped records in Read-only). */
   entryTint: TintColor | null;
   verseTints: Record<number, TintColor>;
-  /** v361: this span's drag-selected phrase ranges on the verses,
+  /** v361: this span's selected phrase ranges on the verses,
    * resolved by the page like the tint fields above them. */
   phraseHighlights: VersePhraseHighlight[];
   /** v361: the RAW marks map — his lines' phrase ranges are looked
@@ -1788,50 +1892,30 @@ function EntryView(props: {
   topChrome: number;
   bottomReserve: number;
   entryScreenTop: number | null;
-  onBubbleToggle: (open: boolean) => void;
-  onToggleOpen: () => void;
-  onToggleKept: () => void;
-  onAddLine: (kind: 'highlight' | 'thought' | 'note', text: string, author: LineAuthor | null) => void;
-  onUpdateLine: (target: LineStorageTarget, patch: { text?: string; author?: LineAuthor | null }) => void;
-  onRemoveLine: (target: LineStorageTarget) => void;
-  /** v361: a tint picked from a verse selection bar. */
-  onPhraseTint: (verse: number, range: { start: number; end: number }, tint: TintColor) => void;
-  /** v361: a tint picked from the selection bar inside his line. */
-  onLinePhraseTint: (target: LineStorageTarget, range: { start: number; end: number }, tint: TintColor) => void;
+  /** The start verse of the section this entry sits in (the
+   * registerY anchor's other half). */
+  sectionStart: number;
   /** v390: the span of the record that hosts this entry's
    * commentary blocks — the PARENT entry's span when a '#' split
    * dealt the blocks to this piece, else the entry's own. Block
    * phrase ranges are written to and read from that record. */
   blockSpan: { start: number; end: number };
-  /** v390: a tint picked from the selection bar inside one of
-   * this entry's commentary blocks. */
-  onBlockPhraseTint: (
-    span: { start: number; end: number },
-    surface: BlockSurface,
-    index: number,
-    range: { start: number; end: number },
-    tint: TintColor,
-  ) => void;
   /** v390: a verse-seat request routed from the page's chapter
    * prose (the opener / Previously bars' Bubble and Note actions);
    * honoured only by the entry whose key it names. */
   seatRequest?: { entryKey: string; verse: number; bubble: boolean; nonce: number } | null;
-  /** v361: a drag-selection started/ended — the page locks scroll. */
-  onSelectionDragChange?: (active: boolean) => void;
-  /** v361: the standing mark cluster's bottom edge within this
-   * entry (the page's seat check keeps the composer's action row
-   * clear of the Verses pill); null when no cluster stands. */
-  onClusterExtent?: (bottomWithinEntry: number | null) => void;
-  registerY: (y: number) => void;
-  /** v356: a verse's selection action seated its composer —
-   * the verse's top within this entry, so the page can land the
-   * verse (with room beneath it for the unfurling box) on screen. */
-  onVerseSeatOpen?: (yWithinEntry: number) => void;
+  /** v405: the page's one stable actions object. */
+  actions: EntryActions;
   /** v356: the composer's Top 5 — people most often credited on
    * his stored notes (rankedAuthorIds over the whole marks map). */
   topAuthorIds?: string[];
 }) {
   const { entry, palette } = props;
+  const actions = props.actions;
+  // v405: this entry's bubble piece key, for the actions object.
+  const pieceKey = props.bubblePiece
+    ? entryKey(props.book, props.chapter, props.bubblePiece.start, props.bubblePiece.end)
+    : null;
   const [composer, setComposer] = useState<null | 'highlight' | 'thought' | 'note'>(null);
   const [draft, setDraft] = useState('');
   // v214: the composer's "Who said this?" pick (null = Me) and, when
@@ -1887,22 +1971,22 @@ function EntryView(props: {
     // bare markbar is short and rides anywhere (reporting it would
     // scroll the page merely for opening an entry near the foot).
     if (!composer) {
-      props.onClusterExtent?.(null);
+      actions.clusterExtent(entry, null);
       return;
     }
     const root = entryRootRef.current as unknown as View | null;
     const cluster = clusterRef.current;
-    if (!root || !cluster || !props.onClusterExtent) return;
+    if (!root || !cluster) return;
     cluster.measureLayout(
       root,
-      (_x, y, _w, h) => props.onClusterExtent?.(y + h),
+      (_x, y, _w, h) => actions.clusterExtent(entry, y + h),
       () => {},
     );
   };
   // v361: when the composer folds away entirely, the seat report
   // clears — nothing stands, nothing to keep clear of the pill.
   useEffect(() => {
-    if (!composer) props.onClusterExtent?.(null);
+    if (!composer) actions.clusterExtent(entry, null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [composer]);
   // v361: whether this composer was opened by the selection bar's
@@ -1929,7 +2013,7 @@ function EntryView(props: {
     // that opens the entry (a retarget rides the seat already open
     // and keeps the first action's record).
     if (composerVerse === null) openedEntryForVerseRef.current = !props.open;
-    if (!props.open) props.onToggleOpen();
+    if (!props.open) actions.toggleOpen(entry);
     setComposer('note');
     setDraft(`#${verse} `);
     setComposerAuthor(null);
@@ -1948,7 +2032,7 @@ function EntryView(props: {
     closingRef.current = false;
     setComposerClosing(false);
     setComposerVerse(verse);
-    props.onVerseSeatOpen?.(versesBoxYRef.current + (verseYRef.current.get(verse) ?? 0));
+    actions.verseSeatOpen(entry, versesBoxYRef.current + (verseYRef.current.get(verse) ?? 0));
   };
   // v390: the page routes its chapter prose's Bubble / Note
   // actions here — the request names an entry key and a verse;
@@ -1978,7 +2062,7 @@ function EntryView(props: {
     // closed, so a Save loses nothing by folding.)
     if (openedEntryForVerseRef.current) {
       openedEntryForVerseRef.current = false;
-      if (props.open) props.onToggleOpen();
+      if (props.open) actions.toggleOpen(entry);
     }
   };
   const closeComposer = () => {
@@ -2040,8 +2124,8 @@ function EntryView(props: {
     setDraft(line.text);
     setComposerAuthor(line.author);
     setEditingTarget(target);
-    props.onBubbleToggle(false);
-    if (!props.open) props.onToggleOpen();
+    actions.bubbleToggle(pieceKey, false);
+    if (!props.open) actions.toggleOpen(entry);
   };
   // v217: tapping one of his in-flow lines opens the SAME composer,
   // prefilled with its words and its face pick — saving an edit, a
@@ -2068,13 +2152,13 @@ function EntryView(props: {
     setDraft(line.text);
     setComposerAuthor(line.author);
     setEditingTarget(target);
-    props.onBubbleToggle(false);
-    if (!props.open) props.onToggleOpen();
+    actions.bubbleToggle(pieceKey, false);
+    if (!props.open) actions.toggleOpen(entry);
   };
   const deleteEditingLine = () => {
     if (!editingTarget) return;
-    props.onRemoveLine(editingTarget);
-    props.onBubbleToggle(false);
+    actions.removeLine(editingTarget);
+    actions.bubbleToggle(pieceKey, false);
     closeComposer();
   };
   const removeBubbleLine = (lineIndex: number) => {
@@ -2084,8 +2168,8 @@ function EntryView(props: {
     if (piece.lines[lineIndex]?.source === 'quote') return;
     const target = piece.targets[lineIndex];
     if (!target) return;
-    props.onRemoveLine(target);
-    if (piece.lines.length <= 1) props.onBubbleToggle(false);
+    actions.removeLine(target);
+    if (piece.lines.length <= 1) actions.bubbleToggle(pieceKey, false);
   };
   // v212: the entry tint washes the whole entry container — head and
   // body, open or closed. (The jump-flash still wins while it runs.)
@@ -2114,7 +2198,7 @@ function EntryView(props: {
   const renderMarkCluster = () => (
     <View ref={clusterRef} onLayout={reportClusterExtent}>
       <View style={[styles.markbar, { borderTopColor: palette.line }]}>
-        <Pressable style={styles.markBtn} onPress={props.onToggleKept}>
+        <Pressable style={styles.markBtn} onPress={() => actions.toggleKept(entry)}>
           <Text style={{ color: props.kept ? palette.rose : palette.inkSoft, fontSize: 13 }}>♥</Text>
           <Text style={[styles.markBtnText, { color: palette.inkSoft }]}>{props.kept ? 'Kept' : 'Keep'}</Text>
         </Pressable>
@@ -2172,12 +2256,12 @@ function EntryView(props: {
               onPress={() => {
                 const text = draft.trim();
                 if (text) {
-                  if (editingTarget) props.onUpdateLine(editingTarget, { text, author: composerAuthor });
-                  else props.onAddLine(composer, text, composerAuthor);
+                  if (editingTarget) actions.updateLine(editingTarget, { text, author: composerAuthor });
+                  else actions.addLine(entry, composer, text, composerAuthor);
                 } else if (editingTarget) {
                   // An author-only change (re-face) still saves
                   // with the text untouched.
-                  props.onUpdateLine(editingTarget, { author: composerAuthor });
+                  actions.updateLine(editingTarget, { author: composerAuthor });
                 }
                 closeComposer();
               }}
@@ -2220,7 +2304,7 @@ function EntryView(props: {
     <Animated.View
       ref={entryRootRef as never}
       style={[styles.entry, { backgroundColor: flashBg }, props.bubbleOpen ? styles.entryOpen : null]}
-      onLayout={(e) => props.registerY(e.nativeEvent.layout.y)}
+      onLayout={(e) => actions.registerY(entry, props.sectionStart, e.nativeEvent.layout.y)}
     >
       <View
         style={[styles.entryHead, hasBubbles ? styles.entryHeadBubbled : null]}
@@ -2243,21 +2327,23 @@ function EntryView(props: {
             const verseStr = props.verseText.get(v) ?? '';
             // v352: each verse is its own block (the entryVerses gap
             // separates the blocks). v367: a plain tap on the verse
-            // TEXT is inert; the selection bar's actions are what
+            // TEXT is inert; the selection actions are what
             // open the note composer homed on that verse
             // (openComposerForVerse).
             // v356: the verse block also caches its top inside
             // entryVerses (onLayout), for the verse-open scroll.
-            // v361: the verse's words render through SelectableText —
-            // a long-press starts a drag-selection on the words and
-            // the bar offers the six tints, Bubble, Note; stored
-            // phrase ranges wash their words; the LEGACY whole-verse
+            // v405: the verse's words render through
+            // NativeSelectableText — ONE native text element; a
+            // long-press raises the platform selection with the
+            // Highlight / Note / Bubble / Copy menu; stored phrase
+            // ranges paint as tint spans; the LEGACY whole-verse
             // tint still paints behind the whole verse exactly as
-            // before (wholeTint), so no tint he already has is lost.
-            // The verse number leads as a plain superscript token:
-            // its v212 tint-selection tap is retired — selection is
-            // the drag now. A verse with no text loaded yet keeps
-            // the plain rendering.
+            // before (wholeTint), so no tint he already has is
+            // lost. The verse number leads as a nested superscript
+            // span — its length is subtracted from reported
+            // offsets, so stored ranges address the verse's words
+            // exactly as they always have. A verse with no text
+            // loaded yet keeps the plain rendering.
             const verseBlock = (
               <View
                 key={v}
@@ -2265,22 +2351,17 @@ function EntryView(props: {
                 onLayout={(e) => verseYRef.current.set(v, e.nativeEvent.layout.y)}
               >
                 {verseStr ? (
-                  <SelectableText
+                  <NativeSelectableText
                     text={verseStr}
                     palette={palette}
                     textStyle={[styles.entryVerse, { color: palette.ink }]}
                     wholeTint={verseBg}
                     highlights={props.phraseHighlights.filter((h) => h.verse === v)}
-                    lead={
-                      <View style={styles.supSeat}>
-                        <Text style={[styles.supTap, { color: props.tone.deep }]}>{v}</Text>
-                      </View>
-                    }
-                    tapInert
-                    onApplyTint={(range, tint) => props.onPhraseTint(v, range, tint)}
+                    lead={{ text: `${v} `, style: [styles.supTap, { color: props.tone.deep }] }}
+                    onApplyTint={(range, tint) => actions.phraseTint(entry, v, range, tint)}
                     onBubble={() => openComposerForVerse(v, { bubble: true })}
                     onNote={() => openComposerForVerse(v)}
-                    onDragChange={props.onSelectionDragChange}
+                    style={{ flex: 1 }}
                   />
                 ) : (
                   <Text
@@ -2300,7 +2381,7 @@ function EntryView(props: {
                     chevron — one per verse. v367: it is now the
                     ONLY tap door for opening or folding this
                     entry's notes body. */}
-                <Pressable onPress={props.onToggleOpen} hitSlop={6} style={{ marginTop: 3 }}>
+                <Pressable onPress={() => actions.toggleOpen(entry)} hitSlop={6} style={{ marginTop: 3 }}>
                   <MaterialIcons
                     name={props.open ? 'expand-less' : 'expand-more'}
                     size={19}
@@ -2352,15 +2433,12 @@ function EntryView(props: {
               <Pressable
                 key={`${line.kind}-${line.fieldIndex}-${i}`}
                 onPress={() => {
-                  // v378: a tap on the line while a selection
-                  // stands anywhere is an outside tap — it
-                  // clears the selection and does NOT open his
-                  // editor. With nothing standing, the tap is
-                  // the edit door it has always been.
-                  if (hasActiveSelection()) {
-                    clearActiveSelection();
-                    return;
-                  }
+                  // v405: a plain tap is the edit door it has
+                  // always been — native selection needs no
+                  // outside-tap clearing (the platform owns and
+                  // dismisses its own selection), so the v378
+                  // standing-selection guard is gone with the
+                  // registry it consulted.
                   editSelfLine(i);
                 }}
                 hitSlop={4}
@@ -2378,15 +2456,13 @@ function EntryView(props: {
                     />
                   }
                   spanText={spanLabelFor(entry.start, entry.end)}
-                  onPressText={() => editSelfLine(i)}
                   selection={
                     target
                       ? {
                           highlights: lineHighlightsFor(props.marksMap, props.book, props.chapter, target),
-                          onApplyTint: (range, tint) => props.onLinePhraseTint(target, range, tint),
+                          onApplyTint: (range, tint) => actions.linePhraseTint(target, range, tint),
                           onBubble: () => openComposerForVerse(anchorVerse, { bubble: true }),
                           onNote: () => openComposerForVerse(anchorVerse),
-                          onDragChange: props.onSelectionDragChange,
                         }
                       : undefined
                   }
@@ -2434,10 +2510,9 @@ function EntryView(props: {
                   // Note act on the entry's first verse, the same
                   // anchor his lines fall back to.
                   highlights: blockHighlightsFor(props.marksMap, props.book, props.chapter, props.blockSpan, 'blocks', idx),
-                  onApplyTint: (range, tint) => props.onBlockPhraseTint(props.blockSpan, 'blocks', idx, range, tint),
+                  onApplyTint: (range, tint) => actions.blockPhraseTint(props.blockSpan, 'blocks', idx, range, tint),
                   onBubble: () => openComposerForVerse(entry.start, { bubble: true }),
                   onNote: () => openComposerForVerse(entry.start),
-                  onDragChange: props.onSelectionDragChange,
                 }}
               />
             ))
@@ -2467,14 +2542,14 @@ function EntryView(props: {
           topChrome={props.topChrome}
           bottomReserve={props.bottomReserve}
           entryScreenTop={props.entryScreenTop}
-          onToggle={props.onBubbleToggle}
+          onToggle={(next) => actions.bubbleToggle(pieceKey, next)}
           onEditLine={editBubbleLine}
           onRemoveLine={removeBubbleLine}
         />
       ) : null}
     </Animated.View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   // v251: the header is a measured OVERLAY — absolute over the
@@ -2542,7 +2617,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 10.5, letterSpacing: 2.2, textTransform: 'uppercase', fontWeight: '800', marginBottom: 12 },
   bodyPara: { fontSize: 15, lineHeight: 25.5, marginBottom: 12 },
   // v390: the font-only halves of bodyPara / openerPara for the
-  // selectable path (SelectableText applies textStyle per word —
+  // selectable path (the one native Text carries textStyle —
   // margins ride the styles.paraGap wrapper instead).
   bodyWords: { fontSize: 15, lineHeight: 25.5 },
   paraGap: { marginBottom: 12 },
@@ -2596,9 +2671,6 @@ const styles = StyleSheet.create({
   // span inside the verse text (see the head render) — a text style,
   // no longer an in-flow rail with width of its own.
   supTap: { fontSize: 10.5, fontWeight: '800' },
-  // v361: the verse number's seat as the selection text's lead
-  // token — superscript height against the verse's first line.
-  supSeat: { paddingTop: 4, marginRight: 3 },
   // v217: his own lines' in-flow column — the same measure as the
   // entry body, at the full text width (no bubble inset, ever).
   // v352: the measure moved with the rail's removal — verses now

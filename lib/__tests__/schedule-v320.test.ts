@@ -159,7 +159,7 @@ describe("v320 — TV shows in Up Next take the BIG TV treatment", () => {
 
   it("non-TV rows keep the plain form: title only, no second line, kind word still at the right", () => {
     expect(upNextCase).toContain("{tvLineNodes ? (");
-    expect(upNextCase).toContain('entry.kind === "event" ? "Event" : entry.kind === "todo" ? "Todo" : "Ministry"');
+    expect(upNextCase).toContain('entry.kind === "event" ? "Event" : entry.kind === "todo" ? "Todo" : entry.kind === "itinerary" ? getItineraryKindLabel(entry.item.entry.kind) : "Ministry"');
     expect(upNextCase).toContain("fontSize: 15.5, fontWeight: \"700\"");
   });
 });

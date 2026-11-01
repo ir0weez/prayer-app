@@ -325,7 +325,9 @@ describe('v250 — source contracts (async-surfaces the harness cannot paint)', 
     // now holds the thread's presence where the card's stood.
     expect(src).toContain('chapter-progress-thread');
     expect(src).not.toContain('rgba(230,73,128');
-    expect(src).toContain('sectionToneFor(palette, sIdx)');
+    // v405 re-base: tones are memoized per section (the same
+    // derivation, identity-stable for the memoized EntryView).
+    expect(src).toContain('sectionToneFor(palette, i)');
   });
 
   it('his own note flows unboxed in blocks.tsx (v311 supersedes the filled card)', () => {

@@ -251,7 +251,9 @@ describe('v304 — the progress card is gone; the thread carries its fill', () =
   it('the header order is title row → slim row → thread at the bottom edge', () => {
     const topbar = page.indexOf('styles.topbar');
     const meta = page.indexOf('styles.metaRow');
-    const thread = page.indexOf('<ChapterProgressThread');
+    // v405: the thread the header mounts is the scroll-store
+    // subscriber wrapping ChapterProgressThread.
+    const thread = page.indexOf('<ScrollProgressThread');
     expect(topbar).toBeGreaterThan(-1);
     expect(meta).toBeGreaterThan(topbar);
     expect(thread).toBeGreaterThan(meta);
@@ -265,9 +267,12 @@ describe('v304 — one slim row: the verse range and the mode control share it',
     expect(page).toContain("metaRange: { flex: 1, fontSize: 12, fontWeight: '600' }");
     expect(page).toContain('style={[styles.metaRange, { color: palette.inkSoft }]}');
     // The same real label the card carried — the section at the
-    // scroll head against the chapter's verse count.
+    // scroll head against the chapter's verse count. v405: the
+    // label is rendered by ScrollHeadLabel off the scroll-stats
+    // store (stats.headEnd, with the first section's end as the
+    // fallback before any scroll).
     expect(page).toContain(
-      '`Ver. 1–${headSectionEnd ?? sections[0]?.end ?? verseCount} of ${verseCount} verses`',
+      '`Ver. 1–${stats.headEnd ?? fallbackEnd ?? verseCount} of ${verseCount} verses`',
     );
     expect(page).toContain(
       "metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 }",

@@ -254,7 +254,9 @@ describe("v350 — TV rows are a deliberate hold (v320 treatment, unanimated)", 
     expect(thumb.indexOf('keyword.label === "TV Show"')).toBeLessThan(thumb.indexOf("<SceneThumbArt"));
   });
 
-  it("the thumb still carries exactly four white 22px glyphs (TV, colour-only event, todo fallback, ministry fallback)", () => {
-    expect(thumb.match(/size=\{22\} color="#FFFFFF"/g) ?? []).toHaveLength(4);
+  it("the thumb still carries exactly five white 22px glyphs (TV, colour-only event, todo fallback, ministry fallback, itinerary kind tile)", () => {
+    // v405: the itinerary row's kind tile joins the set.
+    expect(thumb.match(/size=\{22\} color="#FFFFFF"/g) ?? []).toHaveLength(5);
+    expect(thumb).toContain('getItineraryKindIcon(item.entry.kind)');
   });
 });

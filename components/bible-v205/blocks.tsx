@@ -21,7 +21,7 @@ import type { NoteCategory, StudyStatus, V205Block } from '@/lib/bible-v205/type
 import { CATEGORY_META, blockCategory, type CategoryMeta } from '@/lib/bible-v205/categories';
 import type { PhraseHighlight, TintColor } from '@/lib/bible-v205/marks';
 import { rangeLabel, useBiblePalette, type BiblePalette, type BibleSectionTone } from './palette';
-import { SelectableText } from './selectable-text';
+import { NativeSelectableText } from './native-selectable-text';
 
 /**
  * His color code made visible: a small labeled tag in the category's
@@ -90,6 +90,9 @@ export function SectionBand({
  * tints, Bubble, Note). Optional everywhere: Stories passes none
  * and renders exactly as before, the same split SelfLineBlock
  * already keeps.
+ * v405: the selection is NATIVE now (native-selectable-text.tsx) —
+ * the bundle carries data and actions only; the old engine's
+ * drag/scroll plumbing (onDragChange) is gone with the engine.
  */
 export interface BlockTextSelection {
   highlights: readonly PhraseHighlight[];
@@ -98,7 +101,6 @@ export interface BlockTextSelection {
    * verse (his ruling: bubbles dock on verses, never in notes). */
   onBubble: () => void;
   onNote: () => void;
-  onDragChange?: (active: boolean) => void;
 }
 
 function SelectableOrText({
@@ -112,29 +114,29 @@ function SelectableOrText({
   text: string;
   palette: BiblePalette;
   /** The words' font dress ONLY — margins and padding ride
-   * wrapStyle, because SelectableText applies textStyle to every
-   * word; the plain Text path used to carry them itself. */
+   * wrapStyle, because the selectable path applies textStyle to
+   * the one Text; the plain Text path used to carry them itself. */
   textStyle: TextStyle | TextStyle[];
   /** Block-level spacing (the old Text's own margins/padding),
    * applied to a wrapper so both paths lay out identically. */
   wrapStyle?: StyleProp<ViewStyle>;
   selection?: BlockTextSelection;
-  /** A non-selectable lead ahead of the words (the conversation
-   * prefix): nested in the Text on the plain path, SelectableText's
-   * first flex item on the selection path. Offsets never see it. */
-  lead?: ReactNode;
+  /** A lead ahead of the words (the conversation prefix): nested
+   * in the Text on both paths. Stored offsets never see it — the
+   * native seam subtracts its length from reported ranges. */
+  lead?: { text: string; style?: StyleProp<TextStyle> };
 }) {
   if (!selection) {
     const plain = (
       <Text style={textStyle}>
-        {lead}
+        {lead ? <Text style={lead.style}>{lead.text}</Text> : null}
         {text}
       </Text>
     );
     return wrapStyle ? <View style={wrapStyle}>{plain}</View> : plain;
   }
   const body = (
-    <SelectableText
+    <NativeSelectableText
       text={text}
       palette={palette}
       textStyle={textStyle}
@@ -143,7 +145,6 @@ function SelectableOrText({
       onApplyTint={selection.onApplyTint}
       onBubble={selection.onBubble}
       onNote={selection.onNote}
-      onDragChange={selection.onDragChange}
     />
   );
   return wrapStyle ? <View style={wrapStyle}>{body}</View> : body;
@@ -235,9 +236,12 @@ export function BlockView({
         }
         selection={selection}
         lead={
-          block.kind === 'conversation' ? (
-            <Text style={{ fontStyle: 'normal', fontWeight: '700', color: palette.ink }}>Conversation — </Text>
-          ) : undefined
+          block.kind === 'conversation'
+            ? {
+                text: 'Conversation — ',
+                style: { fontStyle: 'normal', fontWeight: '700', color: palette.ink },
+              }
+            : undefined
         }
       />
     );
@@ -317,7 +321,6 @@ export function SelfLineBlock({
   face,
   spanText,
   selection,
-  onPressText,
 }: {
   kind: 'note' | 'highlight' | 'thought';
   text: string;
@@ -342,12 +345,7 @@ export function SelfLineBlock({
     onApplyTint: (range: { start: number; end: number }, tint: TintColor) => void;
     onBubble: () => void;
     onNote: () => void;
-    onDragChange?: (active: boolean) => void;
   };
-  /** v361: a plain tap on the words when selection renders them
-   * (the caller's edit affordance, previously the wrapping
-   * Pressable's job). */
-  onPressText?: () => void;
 }) {
   if (kind === 'highlight') {
     // v311: the drawing's bubble-highlight — the yellow box with the
@@ -366,16 +364,14 @@ export function SelfLineBlock({
           <Text style={[styles.ktag, { color: CATEGORY_META['good-thought'].ink }]}>Highlight</Text>
         )}
         {selection ? (
-          <SelectableText
+          <NativeSelectableText
             text={text}
             palette={palette}
             textStyle={[styles.nboxText, { color: palette.ink }]}
             highlights={selection.highlights}
-            onPressText={onPressText}
             onApplyTint={selection.onApplyTint}
             onBubble={selection.onBubble}
             onNote={selection.onNote}
-            onDragChange={selection.onDragChange}
           />
         ) : (
           <Text style={[styles.nboxText, { color: palette.ink }]}>{text}</Text>
@@ -388,8 +384,9 @@ export function SelfLineBlock({
     // as bare text. No card, no background, no tag chip (the v250
     // filled seed card is retired by his Oct 28 ruling).
     // v361: when the caller hands over selection, the words render
-    // through SelectableText — same bare dress, now drag-selectable,
-    // his phrase highlights washing the words they were made on.
+    // through the selectable path — same bare dress, now natively
+    // drag-selectable, his phrase highlights washing the words
+    // they were made on (v405: NativeSelectableText).
     return (
       <View style={styles.flowWrap}>
         <View style={styles.flowHead}>
@@ -400,16 +397,14 @@ export function SelfLineBlock({
           {spanText ? <Text style={[styles.flowSpan, { color: palette.inkSoft }]}>{spanText}</Text> : null}
         </View>
         {selection ? (
-          <SelectableText
+          <NativeSelectableText
             text={text}
             palette={palette}
             textStyle={[styles.flowText, { color: palette.ink }]}
             highlights={selection.highlights}
-            onPressText={onPressText}
             onApplyTint={selection.onApplyTint}
             onBubble={selection.onBubble}
             onNote={selection.onNote}
-            onDragChange={selection.onDragChange}
           />
         ) : (
           <Text style={[styles.flowText, { color: palette.ink }]}>{text}</Text>
@@ -417,7 +412,9 @@ export function SelfLineBlock({
       </View>
     );
   }
-  return <BlockView block={{ kind, text }} palette={palette} />;
+  // v405: the no-face fallback takes the selection too — his lines
+  // are selectable everywhere, not only where a face renders.
+  return <BlockView block={{ kind, text }} palette={palette} selection={selection} />;
 }
 
 // ─── Study status chips (his Notion words, the study-system mockup) ─────────

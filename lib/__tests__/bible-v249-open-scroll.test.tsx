@@ -178,20 +178,19 @@ function renderLayer(open: boolean): string {
 describe('v249 — no page scroll lock; the thread keeps its own internal scroll', () => {
   it('the chapter page no longer disables its ScrollView for an open bubble', () => {
     expect(pageSrc).not.toContain('scrollEnabled={!openBubblesKey}');
-    // v361 amendment: the ScrollView carries exactly one lock, and
-    // it is NOT the bubble's — a live text drag-selection holds the
-    // page still so the drag and the scroll never fight over one
+    // v361 amendment: the ScrollView carried exactly one lock, and
+    // it was NOT the bubble's — a live text drag-selection held the
+    // page still so the drag and the scroll never fought over one
     // finger (his approved selection model). An open bubble thread
-    // still never locks the page: v249's ruling stands untouched.
+    // still never locked the page: v249's ruling stands untouched.
     // v381 amendment (dated, Oct 30): the selection lock's
-    // expression widened with a second conjunct — the page now
-    // also holds still while a selection merely STANDS
-    // (selectionStands, from SelectableText's registry), because
-    // the drag-only lock kept racing the finger between drags.
-    // NEITHER conjunct reads bubble state: with a thread open
-    // and no selection standing, the page scrolls exactly as
-    // v249 ruled. See bible-v381-selection-mode.test.ts.
-    expect(pageSrc).toContain('scrollEnabled={!selectionDrag && !selectionStands}');
+    // expression widened with a second conjunct — the page also
+    // held still while a selection merely STOOD (selectionStands).
+    // v405 (Nov 1): the selection lock is DELETED with the custom
+    // engine — native selection owns the gestures, and the page
+    // carries no scrollEnabled at all. v249's ruling now holds in
+    // its strongest form: nothing disables this ScrollView.
+    expect(pageSrc).not.toContain('scrollEnabled');
     expect(pageSrc).not.toContain('scrollEnabled={!openBubbles');
   });
 

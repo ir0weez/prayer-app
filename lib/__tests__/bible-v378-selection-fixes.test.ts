@@ -1,4 +1,15 @@
 // ─── v378 — tap outside to deselect + the drag, un-finickied ─────────────
+// v405 SUPERSESSION (Nov 1): the custom engine this file's
+// component pins describe is DELETED — Jonathan picked native
+// selection ("native selection with Highlight/Note in its menu,
+// everywhere") after the model failed on his phone a fourth
+// time. The platform owns selection, dismissal, and handles now;
+// there is no registry, no drag math on the render path, and no
+// scroll lock. The lib/selection MATH tests below still stand
+// (the pure module survives, unused by the reader), and the
+// final describe pins the replacement's truths where the old
+// pins stood.
+// ────────────────────────────────────────────────────────────────────────
 // Jonathan, Oct 30, on a screen recording of Leviticus 1 (v376):
 // "First of all, the selection feature is really finicky and
 // difficult to use. Second, why can't I tap outside of it to
@@ -30,7 +41,7 @@ import {
 } from '../bible-v205/selection';
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
-const selectable = read('components/bible-v205/selectable-text.tsx');
+const nativeSel = read('components/bible-v205/native-selectable-text.tsx');
 const chapter = read('components/bible-v205/chapter-page.tsx');
 
 // Two wrapped lines, verse-shaped (line 2 runs long, line 1 ends
@@ -130,180 +141,41 @@ describe('v378 clampHandleFocus — a handle drag moves only its own end', () =>
   });
 });
 
-describe('v378 tap outside clears — the registry and the tap paths', () => {
-  it('one standing selection is registered and reachable from any surface', () => {
-    expect(selectable).toContain('let activeSelectionClear: (() => void) | null = null;');
-    expect(selectable).toContain('export function hasActiveSelection(): boolean');
-    expect(selectable).toContain('export function clearActiveSelection(): void');
-    // Registering a new selection clears the one that stood before.
-    expect(selectable).toContain('const prev = activeSelectionClear;');
+describe('v405 native selection — the platform owns what the registry did', () => {
+  it('there is no registry, no drag state, and no scroll lock anywhere on the page', () => {
+    expect(chapter).not.toContain('hasActiveSelection');
+    expect(chapter).not.toContain('clearActiveSelection');
+    expect(chapter).not.toContain('subscribeActiveSelection');
+    expect(chapter).not.toContain('scrollEnabled');
+    expect(chapter).not.toContain('selectionDrag');
+    expect(nativeSel).not.toContain('onDragChange');
   });
 
-  it('the word press order: drag-release swallow, standing-selection clear, inert, edit', () => {
-    const press = selectable.slice(selectable.indexOf(' dragReleaseRef'));
-    const swallow = press.indexOf('dragReleaseRef.current = null;');
-    const clear = press.indexOf('if (touchStampRef.current) {');
-    const inert = press.indexOf('if (props.tapInert) return;');
-    const edit = press.indexOf('props.onPressText?.();');
-    expect(swallow).toBeGreaterThan(-1);
-    expect(clear).toBeGreaterThan(swallow);
-    expect(inert).toBeGreaterThan(clear);
-    expect(edit).toBeGreaterThan(inert);
-    // The clear branch clears BOTH the registry's selection and
-    // this text's own, and returns — a tap that clears never
-    // also opens anything.
-    const branch = press.slice(clear, inert);
-    expect(branch).toContain('clearActiveSelection();');
-    expect(branch).toContain('clearSelection();');
-    expect(branch).toContain('return;');
+  it('a plain tap on his own line is the edit door again — no standing-selection guard', () => {
+    const wrap = chapter.slice(chapter.indexOf('v405: a plain tap is the edit door'));
+    expect(wrap).toContain('editSelfLine(i);');
+    expect(wrap).not.toContain('hasActiveSelection');
   });
 
-  it('a plain tap still never starts a selection and never opens the composer', () => {
-    expect(selectable.match(/\(\) => begin\(i\)/g)).toHaveLength(1);
-    expect(selectable).toContain('delayLongPress={350}');
-    // The verse surface passes no tap-to-composer prop at all.
-    expect(chapter).toContain('tapInert');
-    expect(chapter).not.toContain('onPressText={() => openComposerForVerse(v)}');
+  it('a plain tap on a verse still never starts a selection and never opens the composer', () => {
+    // Verses render through the native surface; the composer
+    // opens only from its menu actions.
+    expect(chapter).toContain('<NativeSelectableText');
+    expect(chapter).toContain('onNote={() => openComposerForVerse(v)}');
+    expect(chapter).not.toContain('onPressText');
   });
 
-  it('the root dead-space tap clears, but drag ends and bar/handle touches never read as taps', () => {
-    expect(selectable).toContain('onTouchEnd={onRootTouchEnd}');
-    const end = selectable.slice(
-      selectable.indexOf('const onRootTouchEnd'),
-      selectable.indexOf('const onRootTouchCancel'),
-    );
-    expect(end).toContain('const wasDrag = draggingRef.current;');
-    expect(end).toContain('const onBar = barTouchRef.current;');
-    expect(end).toContain('const onHandle = handleTouchRef.current;');
-    expect(end).toContain('if (wasDrag || wasHandleDrag || onBar || onHandle) return;');
-    expect(end).toContain('if (touchStampRef.current) clearActiveSelection();');
-    // The stamp is taken at the root's touch start.
-    expect(selectable).toContain('touchStampRef.current = hasActiveSelection();');
-  });
-
-  it('markbar controls act BEFORE any clear — the bar is never an outside tap', () => {
-    expect(selectable).toContain('barTouchRef.current = true;');
-    const tint = selectable.slice(selectable.indexOf('props.onApplyTint(charRange, t);'));
-    expect(tint.indexOf('props.onApplyTint(charRange, t);')).toBeLessThan(tint.indexOf('clearSelection();'));
-    const bubble = selectable.slice(selectable.indexOf('props.onBubble(charRange);'));
-    expect(bubble.indexOf('props.onBubble(charRange);')).toBeLessThan(bubble.indexOf('clearSelection();'));
-    const note = selectable.slice(selectable.indexOf('props.onNote(charRange);'));
-    expect(note.indexOf('props.onNote(charRange);')).toBeLessThan(note.indexOf('clearSelection();'));
-  });
-
-  it("his own lines: the wrapper tap clears a standing selection instead of opening the editor", () => {
-    expect(chapter).toContain(
-      "import { SelectableText, clearActiveSelection, hasActiveSelection } from './selectable-text';",
-    );
-    const wrap = chapter.slice(chapter.indexOf('v378: a tap on the line'));
-    expect(wrap.indexOf('if (hasActiveSelection()) {')).toBeLessThan(wrap.indexOf('editSelfLine(i);'));
-    expect(wrap).toContain('clearActiveSelection();');
-    // ...and with nothing standing, tap-to-edit is untouched.
-    expect(chapter).toContain('onPressText={() => editSelfLine(i)}');
-  });
-});
-
-describe('v378 the drag — resolution, gating, and the release swallow', () => {
-  it('hit-testing runs through the line-band resolver, not the euclidean scan', () => {
-    expect(selectable).toContain('return resolveTokenAtPoint(boxesRef.current, pageX - origin.x, pageY - origin.y);');
-    expect(selectable).not.toContain('bestDist');
-  });
-
-  it('both drags hold their moves until their own origin measurement lands', () => {
-    expect(selectable.match(/if \(!originReady\(\)\) return;/g)).toHaveLength(2);
-    expect(selectable).toContain('if (originDragRef.current !== dragId) return;');
-  });
-
-  it('the scroll lock is engaged by handle drags too, and released with them', () => {
-    const begin = selectable.slice(
-      selectable.indexOf('const beginHandleDrag'),
-      selectable.indexOf('const finishHandleDrag'),
-    );
-    expect(begin).toContain('props.onDragChange?.(true);');
-    const finish = selectable.slice(
-      selectable.indexOf('const finishHandleDrag'),
-      selectable.indexOf('const onTouchMove'),
-    );
-    expect(finish).toContain('props.onDragChange?.(false);');
-    // The page side of the lock is the v361 wiring.
-    // v381 amendment (dated, Oct 30): the lock's condition
-    // widened — it now ALSO holds for the selection's whole
-    // standing life (selectionStands, from this file's own
-    // registry), because the drag-only lock raced the finger
-    // between drags. The drag half this pin checks is
-    // unchanged; bible-v381-selection-mode.test.ts pins the
-    // widened condition.
-    expect(chapter).toContain('scrollEnabled={!selectionDrag && !selectionStands}');
-  });
-});
-
-describe("v378 the drawing's handles", () => {
-  it('handles render exactly while a selection stands, at its two corners', () => {
-    expect(selectable).toContain('{sel && firstBox ? (');
-    expect(selectable).toContain('{sel && lastBox ? (');
-    expect(selectable).toContain('<SelectionHandle');
-    expect(selectable).toContain('cornerX={firstBox.x}');
-    expect(selectable).toContain('cornerY={firstBox.y}');
-    expect(selectable).toContain('cornerX={lastBox.x + lastBox.w}');
-    expect(selectable).toContain('cornerY={lastBox.y + lastBox.h}');
-    // Nothing renders a handle on a condition of its own.
-    expect(selectable.match(/<SelectionHandle/g)).toHaveLength(2);
-  });
-
-  it("the handle dress is the drawing's: selection-colour dot, white ring, stem", () => {
-    expect(selectable).toContain('color={palette.selHandle}');
+  it("the platform's handles wear the palette's selection colours (the drawing's orange)", () => {
     const palette = read('components/bible-v205/palette.ts');
     expect(palette).toContain("selHandle: 'rgb(242,87,0)'");
-    expect(selectable).toContain('handleDotStart');
-    expect(selectable).toContain('handleDotEnd');
-    expect(selectable).toContain("borderColor: '#FFFFFF'");
+    expect(nativeSel).toContain('selectionColor={palette.selWash}');
+    expect(nativeSel).toContain('handleColor={palette.selHandle}');
   });
 
-  it('a handle seat claims the responder and refuses termination (no scroll steal)', () => {
-    const seat = selectable.slice(
-      selectable.indexOf('function SelectionHandle'),
-      selectable.indexOf('export function SelectableText'),
+  it('the menu is the platform menu, carrying exactly his four items', () => {
+    expect(nativeSel).toContain(
+      "export const SELECTION_MENU_OPTIONS = ['Highlight', 'Note', 'Bubble', 'Copy'] as const;",
     );
-    expect(seat).toContain('onStartShouldSetResponder={() => true}');
-    expect(seat).toContain('onMoveShouldSetResponder={() => true}');
-    expect(seat).toContain('onResponderTerminationRequest={() => false}');
-    expect(seat).toContain('onTouchStart={props.onDragStart}');
-  });
-
-  it('a handle drag re-seats anchor=FIXED end and moves only the dragged end', () => {
-    const begin = selectable.slice(
-      selectable.indexOf('const beginHandleDrag'),
-      selectable.indexOf('const finishHandleDrag'),
-    );
-    expect(begin).toContain("fixed: end === 'start' ? hiNow : loNow");
-    expect(begin).toContain("anchor: end === 'start' ? hiNow : loNow");
-    const move = selectable.slice(
-      selectable.indexOf('const onTouchMove'),
-      selectable.indexOf('// v378: the root'),
-    );
-    expect(move).toContain('clampHandleFocus(hd.end, hit, hd.fixed)');
-    expect(move).toContain('extendSelection(s, clampHandleFocus(hd.end, hit, hd.fixed))');
-  });
-
-  it('releasing a handle keeps the selection and the bar — finish clears nothing', () => {
-    const finish = selectable.slice(
-      selectable.indexOf('const finishHandleDrag'),
-      selectable.indexOf('const onTouchMove'),
-    );
-    expect(finish).not.toContain('setSel');
-    expect(finish).not.toContain('clearSelection');
-    expect(finish).not.toContain('clearActiveSelection');
-  });
-
-  it('tap-outside clears handles WITH the selection — one condition drives all three', () => {
-    // Handles, bar and wash all key off the same `sel` state;
-    // the clear paths null it, so they fall together.
-    expect(selectable).toContain('const clearSelection = () => {');
-    const clear = selectable.slice(
-      selectable.indexOf('const clearSelection = () => {'),
-      selectable.indexOf('// The drags'),
-    );
-    expect(clear).toContain('setSel(null);');
-    expect(selectable).toContain('{sel && charRange ? (');
+    expect(nativeSel).toContain('menuOptions={[...SELECTION_MENU_OPTIONS]}');
   });
 });

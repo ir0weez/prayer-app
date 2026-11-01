@@ -198,7 +198,8 @@ describe('v390 render pins — the dead surfaces are wired', () => {
     expect(src).not.toContain('selection=');
   });
 
-  it('verse selection wiring is untouched — the verse bar still lands on onPhraseTint', () => {
-    expect(chapterPage()).toContain('onApplyTint={(range, tint) => props.onPhraseTint(v, range, tint)}');
+  it('verse selection wiring is untouched — the verse menu still lands on phraseTint', () => {
+    // v405: the landing is the page's actions object now.
+    expect(chapterPage()).toContain('onApplyTint={(range, tint) => actions.phraseTint(entry, v, range, tint)}');
   });
 });

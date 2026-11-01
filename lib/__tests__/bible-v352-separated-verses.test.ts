@@ -62,7 +62,9 @@ describe('v352 — the rail is gone', () => {
     // v361 amendment: the number still leads every verse — now as
     // the SelectableText lead token (styles.supSeat) — but its
     // tint-selection tap is retired; selection is the drag.
-    expect(entryView).toContain('styles.supSeat');
+    // v405 amendment: the lead is a nested span in the one native
+    // Text; the supSeat seat is gone with the per-word engine.
+    expect(entryView).toContain('lead={{ text: `${v} `');
     expect(entryView).not.toContain('onToggleVerse');
   });
 
@@ -88,10 +90,13 @@ describe('v352 — separated verses', () => {
     // selects). The pin's intent is unchanged: one keyed block per
     // verse, carrying its text and its tint dress.
     // v367 amendment (Oct 30): the verse words' plain tap is
-    // retired — SelectableText is tap-inert for Scripture, and
-    // only the long-press selection's actions open the composer.
+    // retired — the text is tap-inert for Scripture, and only the
+    // long-press selection's actions open the composer.
+    // v405 amendment (Nov 1): the words are ONE native text
+    // element (NativeSelectableText) — no tap handler exists on
+    // them at all; the platform menu's actions open the composer.
     expect(entryView).toContain('key={v}');
-    expect(entryView).toContain('tapInert');
+    expect(entryView).toContain('<NativeSelectableText');
     expect(entryView).not.toContain('onPressText={() => openComposerForVerse(v)}');
     expect(entryView).toContain('styles.entryVerse');
     expect(entryView).toContain('props.verseText.get(v)');
@@ -134,7 +139,7 @@ describe('v352 — a verse selection action gets its composer (v367: never a pla
       entryView.indexOf('const openComposerForVerse'),
       entryView.indexOf('const closeComposer'),
     );
-    expect(fn).toContain('if (!props.open) props.onToggleOpen();');
+    expect(fn).toContain('if (!props.open) actions.toggleOpen(entry);');
     expect(fn).toContain("setComposer('note');");
     expect(fn).toContain('setDraft(`#${verse} `);');
     expect(fn).toContain('setEditingTarget(null);');
@@ -163,7 +168,7 @@ describe('v352 — a verse selection action gets its composer (v367: never a pla
     // Pressable either — the per-verse chevron is the only tap
     // that carries onToggleOpen, exactly once in the entry.
     expect(entryView).not.toContain('onToggleVerse');
-    expect(entryView.match(/<Pressable onPress=\{props\.onToggleOpen\}/g)).toHaveLength(1);
+    expect(entryView.match(/<Pressable onPress=\{\(\) => actions\.toggleOpen\(entry\)\}/g)).toHaveLength(1);
     expect(entryView).toContain('styles.supTap');
   });
 });

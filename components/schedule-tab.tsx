@@ -169,7 +169,8 @@ import { KeywordThumbArt } from "./keyword-thumb-art";
 import { SceneThumbArt, ThumbBreatheWrap, thumbSpecForScene } from "./keyword-thumb-art";
 import { paperSceneIdFor } from "@/lib/paper-keywords";
 import { MINISTRY_TYPE_THUMB_SCENE, todoThumbSceneForTitle } from "@/lib/keyword-thumb-motion";
-import { getAllTimeOff, getItineraryForDate, isDateDuringTimeOff, itineraryKindColor, toggleItineraryEntryDone, type ItineraryEntry, type TimeOff } from "@/lib/time-off";
+import { getAllTimeOff, getItineraryForDate, getItineraryKindIcon, getItineraryKindLabel, isDateDuringTimeOff, itineraryKindColor, toggleItineraryEntryDone, type ItineraryEntry, type TimeOff } from "@/lib/time-off";
+import { buildUpNextGroup } from "@/lib/up-next";
 import { calculateWhites, groupAdjacentClaimed } from "@/lib/whites";
 import { extractPosterColor, getTimeOffEventColor, isTimeOffEventVisible, readableTextColor } from "@/lib/poster-color";
 import { calculateActiveAvailableTimeBlocks, getCurrentTimeInsertionIndex, getLiveCursorPosition, timeToMinutes, minutesToTime, whiteBlockHeight, whiteBlockBadge, type TimeBlock } from "@/lib/time-blocks";
@@ -7995,8 +7996,19 @@ function UpNextPulseDot({ color, style }: { color: string; style?: any }) {
     KeywordThumbArt through KEYWORD_LABEL_THUMB_SCENE. Both new
     scene sets live only in the thumb layer — the paper routing
     and RestSquare are untouched. */
-function UpNextThumb({ kind, item }: { kind: "todo" | "event" | "ministry"; item: any }) {
+function UpNextThumb({ kind, item }: { kind: "todo" | "event" | "ministry" | "itinerary"; item: any }) {
   const colors = useColors();
+  if (kind === "itinerary") {
+    // v405: the itinerary row's tile is the kind's own glyph on
+    // the entry's kind colour (the same colour the day cards and
+    // the boarding passes derive from the trip colour).
+    const tileColor = item.color || colors.primary;
+    return (
+      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: tileColor, alignItems: "center", justifyContent: "center" }}>
+        <MaterialIcons name={getItineraryKindIcon(item.entry.kind) as any} size={22} color="#FFFFFF" />
+      </View>
+    );
+  }
   if (kind === "event") {
     const keyword = item.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === item.keyword) : detectEventKeyword(item.title, item.location, item.notes);
     if (keyword && !item.isOffEvent) {
@@ -13592,27 +13604,56 @@ export function ScheduleTab({
     // 5:00 AM window start when the group leads the day.
     if (!isSkinned && selectedDate === today) {
       const nowMin = clockNow.getHours() * 60 + clockNow.getMinutes();
-      const upcoming = [
-        ...dayTodos.filter((t: any) => t.startTime && !t.isCompleted).map((t: any) => ({ kind: "todo" as const, item: t })),
-        ...dayEvents.filter((e: any) => e.startTime && !e.isCompleted && !e.isHoliday).map((e: any) => ({ kind: "event" as const, item: e })),
-        ...dayMinistries.filter((m: any) => m.startTime && !m.isCompleted).map((m: any) => ({ kind: "ministry" as const, item: m })),
-      ]
-        .filter((c) => timeToMinutes(c.item.startTime) > nowMin)
-        .sort((a, b) => timeToMinutes(a.item.startTime) - timeToMinutes(b.item.startTime));
-      const leadCandidate = upcoming[0];
-      if (leadCandidate) {
-        const startMin = timeToMinutes(leadCandidate.item.startTime);
-        const entries = upcoming.filter((c) => timeToMinutes(c.item.startTime) === startMin);
-        let anchorMin = 5 * 60;
-        for (const it of [...dayTodos, ...dayEvents, ...dayMinistries] as any[]) {
-          if (!it.startTime) continue;
-          const s = timeToMinutes(it.startTime);
-          if (s >= startMin) continue;
-          const e = it.endTime ? timeToMinutes(it.endTime) : s;
-          if (e > anchorMin && e <= startMin) anchorMin = e;
-        }
+      // v405: TIME-OFF ITINERARY entries join the pool — a timed,
+      // not-done entry (a 12:00 "Lunch" on a trip day) is a real
+      // event in his day; before v405 a 5:30 PM Gas event could
+      // be named Up Next over a noon lunch that was never even
+      // considered. The candidate item is normalized to the
+      // pool's shape, carrying its kind colour (a tonal step of
+      // the trip's colour) plus the entry + trip for the row's
+      // tile, label and toggle. Untimed entries and claimed
+      // white blocks stay OUT — they are not events.
+      const itineraryCandidates = dayTimeOff.flatMap((to) =>
+        getItineraryForDate(to, selectedDate)
+          .filter((e) => e.time && !e.done)
+          .map((e) => ({
+            kind: "itinerary" as const,
+            item: {
+              id: e.id,
+              title: e.title,
+              startTime: e.time as string,
+              color: itineraryKindColor(e.kind, tripBaseColor(to)),
+              entry: e,
+              timeOff: to,
+            },
+          })),
+      );
+      const group = buildUpNextGroup(
+        [
+          ...dayTodos.filter((t: any) => t.startTime && !t.isCompleted).map((t: any) => ({ kind: "todo" as const, item: t })),
+          ...dayEvents.filter((e: any) => e.startTime && !e.isCompleted && !e.isHoliday).map((e: any) => ({ kind: "event" as const, item: e })),
+          ...dayMinistries.filter((m: any) => m.startTime && !m.isCompleted).map((m: any) => ({ kind: "ministry" as const, item: m })),
+          ...itineraryCandidates,
+        ],
+        [
+          ...dayTodos,
+          ...dayEvents,
+          ...dayMinistries,
+          // The anchor scan reads EVERY timed item of the day,
+          // done or not (the old scan's discipline for the other
+          // kinds) — itinerary entries carry no end, so they
+          // anchor on their start.
+          ...dayTimeOff.flatMap((to) =>
+            getItineraryForDate(to, selectedDate)
+              .filter((e) => e.time)
+              .map((e) => ({ id: e.id, title: e.title, startTime: e.time as string })),
+          ),
+        ] as any[],
+        nowMin,
+      );
+      if (group) {
         const studyIdx = items.findIndex((i) => i.type === "personal-study-card");
-        items.splice(studyIdx >= 0 ? studyIdx + 1 : 0, 0, { type: "up-next", id: "up-next", data: { entries, startMinutes: startMin, anchorMinutes: anchorMin } });
+        items.splice(studyIdx >= 0 ? studyIdx + 1 : 0, 0, { type: "up-next", id: "up-next", data: { entries: group.entries, startMinutes: group.startMinutes, anchorMinutes: group.anchorMinutes } });
       }
     }
 
@@ -14254,7 +14295,7 @@ export function ScheduleTab({
           // day cards' themed sub-line) and keeps the tap
           // behaviour its own card has — the row toggles its item
           // through the same handlers (his no-bubbles model).
-          const upData = item.data as { entries: Array<{ kind: "todo" | "event" | "ministry"; item: any }>; startMinutes: number; anchorMinutes: number };
+          const upData = item.data as { entries: Array<{ kind: "todo" | "event" | "ministry" | "itinerary"; item: any }>; startMinutes: number; anchorMinutes: number };
           const entries = upData.entries;
           const leadEntry = entries[0];
           const leadItem = leadEntry.item;
@@ -14265,7 +14306,9 @@ export function ScheduleTab({
             ? (leadItem.color || leadKeyword?.accentColor || colors.primary)
             : leadEntry.kind === "todo"
               ? (leadItem.color || colors.primary)
-              : (leadItem.color || "#7C5CFF");
+              : leadEntry.kind === "itinerary"
+                ? (leadItem.color || colors.primary)
+                : (leadItem.color || "#7C5CFF");
           const leadRamp = tonalRamp(leadColor, colors.surface);
           const upNextSurface = mix(leadColor, colors.surface, 0.86);
           // The thread settles from stored times at render — no
@@ -14276,7 +14319,13 @@ export function ScheduleTab({
           const nowMin = clockNow.getHours() * 60 + clockNow.getMinutes();
           const upNextSpan = Math.max(1, upData.startMinutes - upData.anchorMinutes);
           const upNextProgress = Math.min(1, Math.max(0, (nowMin - upData.anchorMinutes) / upNextSpan));
-          const toggleEntry = (entry: { kind: "todo" | "event" | "ministry"; item: any }) => (e: any) => {
+          const toggleEntry = (entry: { kind: "todo" | "event" | "ministry" | "itinerary"; item: any }) => (e: any) => {
+            // v405: an itinerary row toggles its entry through the
+            // itinerary handler — no XP rides an itinerary toggle.
+            if (entry.kind === "itinerary") {
+              handleToggleItineraryEntry(entry.item.timeOff.id, entry.item.entry.id);
+              return;
+            }
             const nd = entry.item;
             const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
             if (entry.kind === "todo") {
@@ -14396,7 +14445,7 @@ export function ScheduleTab({
                         <Text style={{ color: colors.muted, fontSize: 13.5, fontWeight: "600", lineHeight: 25, marginTop: 1 }}>{tvLineNodes}</Text>
                       ) : null}
                     </View>
-                    <Text style={{ color: colors.muted, fontSize: 12.5, fontWeight: "600" }}>{entry.kind === "event" ? "Event" : entry.kind === "todo" ? "Todo" : "Ministry"}</Text>
+                    <Text style={{ color: colors.muted, fontSize: 12.5, fontWeight: "600" }}>{entry.kind === "event" ? "Event" : entry.kind === "todo" ? "Todo" : entry.kind === "itinerary" ? getItineraryKindLabel(entry.item.entry.kind) : "Ministry"}</Text>
                   </Pressable>
                   );
                 })}

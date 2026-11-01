@@ -264,9 +264,10 @@ describe('v361 the six washes (palette source pins — the palette module itself
   });
 
   it('the selection bar offers the six dots in the approved order, from the marks layer', () => {
-    const sel = read('components/bible-v205/selectable-text.tsx');
+    // v405: the bar lives in the native-selection wrapper now.
+    const sel = read('components/bible-v205/native-selectable-text.tsx');
     expect(sel).toContain('TINT_ORDER.map');
-    expect(sel).toContain('TINT_DOT_HEX[t]');
+    expect(sel).toContain('TINT_DOT_HEX[tint]');
     const marks = read('lib/bible-v205/marks.ts');
     expect(marks).toContain("export const TINT_ORDER: readonly TintColor[] = ['yellow', 'rose', 'green', 'blue', 'red', 'orange'];");
     // The bar's dots are the mockup's hexes (purple stayed out —
@@ -278,19 +279,21 @@ describe('v361 the six washes (palette source pins — the palette module itself
 });
 
 describe('v361 reader surface — the selection model wired in', () => {
-  it('verses render through SelectableText; the legacy whole-verse tint still paints', () => {
+  it('verses render through NativeSelectableText; the legacy whole-verse tint still paints', () => {
     const src = chapterPage();
-    expect(src).toContain('<SelectableText');
+    expect(src).toContain('<NativeSelectableText');
     expect(src).toContain('wholeTint={verseBg}');
     expect(src).toContain('verseTintFor(palette, props.verseTints[v])');
     expect(src).toContain('highlights={props.phraseHighlights.filter((h) => h.verse === v)}');
   });
 
-  it('the verse number is a plain lead token — its tint-selection tap is retired', () => {
+  it('the verse number is a nested lead span — its tint-selection tap is retired', () => {
     const src = chapterPage();
     expect(src).not.toContain('onToggleVerse');
     expect(src).not.toContain('props.onToggleVerse(v)');
-    expect(src).toContain('styles.supSeat');
+    // v405: the number rides INSIDE the one native Text as its
+    // lead span; the seam subtracts its length from offsets.
+    expect(src).toContain('lead={{ text: `${v} `');
   });
 
   it('the bar actions: Bubble seats the verse composer as "Someone said"; Note as today\'s tap', () => {
@@ -305,7 +308,7 @@ describe('v361 reader surface — the selection model wired in', () => {
   it('the mark cluster is slimmed: Keep + Note only — no kind buttons, no chips, no tint row', () => {
     const src = chapterPage();
     const cluster = src.slice(src.indexOf('const renderMarkCluster'), src.indexOf('const renderMarkCluster') + 4000);
-    expect(cluster).toContain('onToggleKept');
+    expect(cluster).toContain('actions.toggleKept(entry)');
     expect(cluster).toContain("openComposer('note')");
     expect(cluster).not.toContain("openComposer('highlight')");
     expect(cluster).not.toContain("openComposer('thought')");
@@ -321,9 +324,9 @@ describe('v361 reader surface — the selection model wired in', () => {
   it('his own lines render selectable in the chapter page (blocks.tsx flow + box)', () => {
     const src = chapterPage();
     expect(src).toContain('lineHighlightsFor(props.marksMap, props.book, props.chapter, target)');
-    expect(src).toContain('onLinePhraseTint(target, range, tint)');
+    expect(src).toContain('actions.linePhraseTint(target, range, tint)');
     const blocks = read('components/bible-v205/blocks.tsx');
-    expect(blocks).toContain('<SelectableText');
+    expect(blocks).toContain('<NativeSelectableText');
     // Stories passes no selection — its rendering stands untouched.
     const stories = read('components/bible-v205/stories-view.tsx');
     expect(stories).not.toContain('SelectableText');
@@ -331,17 +334,15 @@ describe('v361 reader surface — the selection model wired in', () => {
 
   it('seat fix: clusters report their bottom; the page scrolls and lends spacer room', () => {
     const src = chapterPage();
-    expect(src).toContain('onClusterExtent');
+    expect(src).toContain('clusterExtent');
     expect(src).toContain('measureLayout');
     expect(src).toContain('ensureSeatVisible');
     expect(src).toContain('SEAT_FAB_CLEARANCE_PX = 76');
     expect(src).toContain('seatSpacer');
-    // The page scroll locks while a selection drag is live.
-    // v381 amendment (dated, Oct 30): the expression widened —
-    // the lock now ALSO holds while a selection merely stands
-    // (selectionStands), not only during its drags; the drag
-    // lock this pin was written for is the first conjunct and
-    // is unchanged. See bible-v381-selection-mode.test.ts.
-    expect(src).toContain('scrollEnabled={!selectionDrag && !selectionStands}');
+    // v405: the selection scroll lock is DELETED with the engine
+    // (his native-selection pick) — the page carries no
+    // scrollEnabled at all; native selection and the ScrollView
+    // divide touches the platform way.
+    expect(src).not.toContain('scrollEnabled');
   });
 });

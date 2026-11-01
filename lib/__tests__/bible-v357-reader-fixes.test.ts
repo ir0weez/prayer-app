@@ -77,7 +77,7 @@ describe('v357 — the seat can never be left standing on the wrong verse', () =
   it('a fresh verse seat records whether the tap itself opened the entry', () => {
     const fn = sliceBetween(entryView, 'const openComposerForVerse', 'const finishCloseComposer');
     expect(fn).toContain('if (composerVerse === null) openedEntryForVerseRef.current = !props.open;');
-    expect(fn).toContain('if (!props.open) props.onToggleOpen();');
+    expect(fn).toContain('if (!props.open) actions.toggleOpen(entry);');
   });
 
   it('every close lands in finishCloseComposer, which folds an entry the verse tap opened', () => {
@@ -86,7 +86,7 @@ describe('v357 — the seat can never be left standing on the wrong verse', () =
     expect(finish).toContain('setComposer(null);');
     expect(finish).toContain('if (openedEntryForVerseRef.current) {');
     expect(finish).toContain('openedEntryForVerseRef.current = false;');
-    expect(finish).toContain('if (props.open) props.onToggleOpen();');
+    expect(finish).toContain('if (props.open) actions.toggleOpen(entry);');
     // The close paths all funnel here: the verse-seat collapse
     // defers to it, the body seat calls it directly.
     const close = sliceBetween(entryView, 'const closeComposer = () => {', 'const handleUnfurlExited');
@@ -111,7 +111,7 @@ describe('v357 — the seat can never be left standing on the wrong verse', () =
 describe('v357 — every verse row carries its own chevron', () => {
   it('the chevron renders inside the verse map, one per verse block', () => {
     const map = sliceBetween(entryView, 'const verseBlock = (', 'return [verseBlock, seat];');
-    expect(map).toContain('onPress={props.onToggleOpen}');
+    expect(map).toContain('onPress={() => actions.toggleOpen(entry)}');
     expect(map).toContain("name={props.open ? 'expand-less' : 'expand-more'}");
     expect(map).toContain('styles.verseBlock');
   });
@@ -151,7 +151,7 @@ describe('v357 — the notes declutter', () => {
     expect(cluster).not.toContain('NOTE_CATEGORIES.map');
     expect(cluster).not.toContain('good-thought');
     expect(cluster).toContain("openComposer('note')");
-    expect(cluster).toContain('onToggleKept');
+    expect(cluster).toContain('actions.toggleKept(entry)');
     // The category itself survives intact for stored data: it
     // still normalizes to itself, so stored entries render and
     // save exactly as before.

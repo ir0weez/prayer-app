@@ -59,7 +59,11 @@ describe('v356 — the per-verse seat', () => {
     // v367 amendment (Oct 30): that plain tap is retired. The
     // seat is reached through the selection bar's Note/Bubble
     // actions, and the verse words are explicitly tap-inert.
-    expect(map).toContain('tapInert');
+    // v405 amendment (Nov 1): the words are one native text
+    // element — tap-inert by construction (no tap handler
+    // exists); the seat is reached through the PLATFORM menu's
+    // Note/Bubble items on the native surface.
+    expect(map).toContain('<NativeSelectableText');
     expect(map).not.toContain('onPressText={() => openComposerForVerse(v)}');
     expect(map).toContain('onNote={() => openComposerForVerse(v)}');
     expect(map).toContain("onBubble={() => openComposerForVerse(v, { bubble: true })}");
@@ -84,8 +88,8 @@ describe('v356 — the per-verse seat', () => {
     expect(cluster).toContain("openComposer('note')");
     expect(cluster).not.toContain('NOTE_CATEGORIES.map');
     expect(cluster).toContain('styles.composer');
-    expect(cluster).toContain('props.onAddLine(composer, text, composerAuthor)');
-    expect(cluster).toContain('props.onUpdateLine(editingTarget, { text, author: composerAuthor })');
+    expect(cluster).toContain('actions.addLine(entry, composer, text, composerAuthor)');
+    expect(cluster).toContain('actions.updateLine(editingTarget, { text, author: composerAuthor })');
   });
 
   it('the seat wrapper shields the box from the head toggle', () => {
@@ -153,14 +157,16 @@ describe('v356 — retargeting', () => {
 
 describe('v356 — the verse-open scroll', () => {
   it('the entry reports the tapped verse top from its onLayout cache', () => {
-    expect(entryView).toContain('props.onVerseSeatOpen?.(versesBoxYRef.current + (verseYRef.current.get(verse) ?? 0));');
+    expect(entryView).toContain('actions.verseSeatOpen(entry, versesBoxYRef.current + (verseYRef.current.get(verse) ?? 0));');
     expect(entryView).toContain('onLayout={(e) => verseYRef.current.set(v, e.nativeEvent.layout.y)}');
     expect(entryView).toContain('versesBoxYRef.current = e.nativeEvent.layout.y;');
   });
 
   it('the page lands the verse only when verse + box would not already fit', () => {
     expect(page).toContain('export const VERSE_COMPOSER_ROOM_PX = 360;');
-    const handler = sliceBetween(page, 'onVerseSeatOpen={(yWithinEntry) => {', '}}\n              />');
+    // v405: the handler lives in the page's entry-handlers ref
+    // (the actions object's verseSeatOpen) — same body, same rule.
+    const handler = sliceBetween(page, 'verseSeatOpen: (e, yWithinEntry) => {', 'const entryActions = useMemo<EntryActions>');
     expect(handler).toContain('const verseTop = entryY + yWithinEntry;');
     expect(handler).toContain('screenTop < headerHRef.current + CHAPTER_HEADER_LAND_GAP');
     expect(handler).toContain('screenTop > vh - VERSE_COMPOSER_ROOM_PX');
@@ -178,7 +184,7 @@ describe('v356 — preservation', () => {
     // v361 amendment: the number's tint-selection tap is retired
     // with the v212 selection model — selection is the drag.
     expect(entryView).not.toContain('onToggleVerse');
-    expect(entryView).toContain('onPress={props.onToggleOpen}');
+    expect(entryView).toContain('onPress={() => actions.toggleOpen(entry)}');
   });
 });
 

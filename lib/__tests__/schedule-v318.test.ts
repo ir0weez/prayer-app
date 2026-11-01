@@ -58,22 +58,28 @@ const pulseDot = scheduleTab.slice(
 );
 
 describe("v318 up next — the seat computes the same-time GROUP", () => {
+  // v405: the group math is the pure helper's (lib/up-next.ts),
+  // extracted so the rule is behaviourally pinned — see
+  // schedule-v405-up-next.test.ts. The tab wires it and hands it
+  // the itinerary candidates too.
+  const upNextLib = read("lib/up-next.ts");
+
   it("the group is every upcoming item sharing the earliest start time", () => {
-    expect(scheduleTab).toContain("const startMin = timeToMinutes(leadCandidate.item.startTime);");
-    expect(scheduleTab).toContain("const entries = upcoming.filter((c) => timeToMinutes(c.item.startTime) === startMin);");
-    expect(scheduleTab).toContain('data: { entries, startMinutes: startMin, anchorMinutes: anchorMin }');
+    expect(upNextLib).toContain("const startMinutes = upNextMinutes(lead.item.startTime);");
+    expect(upNextLib).toContain("const entries = upcoming.filter((c) => upNextMinutes(c.item.startTime) === startMinutes);");
+    expect(scheduleTab).toContain("data: { entries: group.entries, startMinutes: group.startMinutes, anchorMinutes: group.anchorMinutes }");
   });
 
   it("the seat itself is unchanged: today only, Classic only, spliced after the study card", () => {
     expect(scheduleTab).toContain("if (!isSkinned && selectedDate === today)");
-    expect(scheduleTab).toContain('items.splice(studyIdx >= 0 ? studyIdx + 1 : 0, 0, { type: "up-next", id: "up-next", data: { entries, startMinutes: startMin, anchorMinutes: anchorMin } })');
+    expect(scheduleTab).toContain('items.splice(studyIdx >= 0 ? studyIdx + 1 : 0, 0, { type: "up-next", id: "up-next", data: { entries: group.entries, startMinutes: group.startMinutes, anchorMinutes: group.anchorMinutes } })');
     expect(scheduleTab.indexOf('case "up-next"')).toBeGreaterThan(scheduleTab.indexOf('case "personal-study-card"'));
   });
 
   it("the thread anchor is the previous timed item's end, or the 5:00 AM window start", () => {
-    expect(scheduleTab).toContain("let anchorMin = 5 * 60;");
-    expect(scheduleTab).toContain("const e = it.endTime ? timeToMinutes(it.endTime) : s;");
-    expect(scheduleTab).toContain("if (e > anchorMin && e <= startMin) anchorMin = e;");
+    expect(upNextLib).toContain("let anchorMinutes = 5 * 60;");
+    expect(upNextLib).toContain("const e = it.endTime ? upNextMinutes(it.endTime) : s;");
+    expect(upNextLib).toContain("if (e > anchorMinutes && e <= startMinutes) anchorMinutes = e;");
   });
 });
 
@@ -139,7 +145,7 @@ describe("v318 up next — the rows: artwork, titles, kinds, per-item taps", () 
     expect(upNextCase).toContain("<UpNextThumb kind={entry.kind} item={entry.item} />");
     expect(upNextCase).toContain("fontSize: 15.5, fontWeight: \"700\"");
     expect(upNextCase).toContain("{entry.item.title}");
-    expect(upNextCase).toContain('entry.kind === "event" ? "Event" : entry.kind === "todo" ? "Todo" : "Ministry"');
+    expect(upNextCase).toContain('entry.kind === "event" ? "Event" : entry.kind === "todo" ? "Todo" : entry.kind === "itinerary" ? getItineraryKindLabel(entry.item.entry.kind) : "Ministry"');
     expect(upNextCase).toContain("color: colors.muted, fontSize: 12.5, fontWeight: \"600\"");
     expect(upNextCase).not.toContain("numberOfLines");
   });
@@ -176,7 +182,7 @@ describe("v318 up next — the thumbnails (re-pinned v320: the scene miniature w
     expect(thumb).toContain("getMinistryTypeIcon(item.type as any)");
   });
 
-  it("glyphs are white at 22px on the colour tiles — re-pinned v320: four tiles now (the TV tile joined the colour-only event, todo and ministry tiles); his device ruling 2026-10-28 19:54", () => {
-    expect(thumb.match(/size=\{22\} color="#FFFFFF"/g) ?? []).toHaveLength(4);
+  it("glyphs are white at 22px on the colour tiles — re-pinned v320: four tiles now (the TV tile joined the colour-only event, todo and ministry tiles); his device ruling 2026-10-28 19:54 — v405: five (the itinerary kind tile joins)", () => {
+    expect(thumb.match(/size=\{22\} color="#FFFFFF"/g) ?? []).toHaveLength(5);
   });
 });

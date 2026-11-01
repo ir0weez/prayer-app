@@ -1,198 +1,71 @@
 // ─── v381 — SELECTION MODE: gesture ownership made deterministic ─────────
-// Jonathan, Oct 30, 21:59, on v378 — the THIRD report on the
-// selection's feel: "the selector tool for the bible area is
-// still really finicky. Sometimes it wants to scroll, other
-// times it wants to move the cursor… I can't win."
+// v405 SUPERSESSION (Nov 1): the model this file pinned is
+// RETIRED, on Jonathan's own word. v381 was the third attempt
+// to make the custom selection engine's gesture ownership
+// deterministic (the scroll lock that followed a standing
+// selection for its whole life). The engine failed on his
+// phone a fourth time (v390 wiring, same gesture core), and
+// his pick replaced the model instead of tuning it again:
+// "native selection with Highlight/Note in its menu,
+// everywhere." The platform owns gesture arbitration now —
+// there is no lock to strand, no registry to orphan, no
+// capture claim to race. The pins below hold the retirement:
+// the machinery is GONE, and stays gone.
 //
-// v378 fixed the selection MATHS (line bands, anchor stability,
-// per-drag origins) and restored the drawing's handles — and
-// its scroll lock was honest as far as it went: onDragChange
-// locked the chapter ScrollView while a drag was live. But
-// that left ownership of the finger arbitrated per-gesture by
-// TIMING: the lock landed a beat after the long-press (state →
-// render), sometimes after his already-travelling finger had
-// set the scroll in motion, and it RELEASED the instant a drag
-// ended — while the selection still stood — so the next touch
-// to adjust a handle or extend the span raced the scroll all
-// over again. Sometimes scroll won, sometimes selection won.
-//
-// v381 changes the MODEL, not the tuning:
-//  1. The lock follows whether a selection STANDS, for its
-//     whole life. The signal is SelectableText's own module
-//     registry (v378) — the one place that knows a selection
-//     exists — extended with a subscription; the chapter page
-//     derives scrollEnabled from it. No second channel.
-//  2. While a selection drag is live, the text root claims
-//     move events in the CAPTURE phase and refuses responder
-//     termination, so a drag owns the finger from its first
-//     move; the handle seats carry the same capture claim.
-//  3. Entering selection mode issues no scroll command: if
-//     the page was mid-scroll when the long-press fired, the
-//     scrollEnabled flip halts it where it stands — the
-//     position freezes, it never jumps.
-//
-// Everything else is v378's behaviour, byte-stable: the maths,
-// the 350ms threshold, tap-outside clearing (which now also
-// restores scroll, through the same registry transition), the
-// bar acting before any clear, the handles' geometry.
+// The history this file was written against (Oct 30, 21:59,
+// on v378 — the third report on the selection's feel): "the
+// selector tool for the bible area is still really finicky.
+// Sometimes it wants to scroll, other times it wants to move
+// the cursor… I can't win." v381's answer was a model change
+// (lock follows the standing selection); v405's answer is a
+// bigger one (the platform's own selection, end to end).
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
-const selectable = read('components/bible-v205/selectable-text.tsx');
 const chapter = read('components/bible-v205/chapter-page.tsx');
+const nativeSel = read('components/bible-v205/native-selectable-text.tsx');
 
-describe('v381 the registry reports standing — the one source of truth', () => {
-  it('the registry carries a subscription, and stands is read off the registry alone', () => {
-    expect(selectable).toContain('const selectionStandListeners = new Set<(stands: boolean) => void>();');
-    expect(selectable).toContain(
-      'export function subscribeActiveSelection(listener: (stands: boolean) => void): () => void {',
-    );
-    expect(selectable).toContain('selectionStandListeners.add(listener);');
-    expect(selectable).toContain('selectionStandListeners.delete(listener);');
-    // "Stands" is DERIVED from the registry's contents — the
-    // same fact hasActiveSelection reports — never tracked
-    // separately anywhere.
-    expect(selectable).toContain('const stands = activeSelectionClear !== null;');
-    expect(selectable).toContain('if (stands === lastSelectionStands) return;');
+describe('v405 — the custom engine and its scroll lock are deleted', () => {
+  it('the engine file itself is gone', () => {
+    expect(existsSync(join(process.cwd(), 'components/bible-v205/selectable-text.tsx'))).toBe(false);
   });
 
-  it('every registry transition ends in an emit — registration, swap, clear, external clear', () => {
-    // The registration effect is the only place instances
-    // raise or lower the registry; it emits unconditionally.
-    const effect = selectable.slice(
-      selectable.indexOf('useEffect(() => {', selectable.indexOf('ownClearRef')),
-      selectable.indexOf('}, [sel]);'),
-    );
-    expect(effect).toContain('activeSelectionClear = null;');
-    expect(effect).toContain('emitSelectionStands();');
-    // The page-level clear emits too.
-    const clear = selectable.slice(
-      selectable.indexOf('export function clearActiveSelection(): void'),
-      selectable.indexOf('// ─── v381: the registry is also'),
-    );
-    expect(clear).toContain('emitSelectionStands();');
-    // Registry nullings: the effect's clear branch, the
-    // external clear, and the v381 unmount cleanup — three,
-    // no more hiding anywhere.
-    expect(selectable.match(/activeSelectionClear = null;/g)).toHaveLength(3);
+  it('the page carries no selection state, no registry subscription, no scroll lock', () => {
+    expect(chapter).not.toContain('selectionStands');
+    expect(chapter).not.toContain('selectionDrag');
+    expect(chapter).not.toContain('subscribeActiveSelection');
+    expect(chapter).not.toContain('hasActiveSelection');
+    expect(chapter).not.toContain('scrollEnabled');
   });
 
-  it('an instance unmounting mid-selection releases the registry (no orphaned lock)', () => {
-    const cleanup = selectable.slice(selectable.indexOf('// v381: an instance that unmounts'));
-    expect(cleanup).toContain('if (activeSelectionClear === ownClearRef.current) {');
-    expect(cleanup).toContain('activeSelectionClear = null;');
-    expect(cleanup).toContain('emitSelectionStands();');
-  });
-});
-
-describe('v381 the chapter page — scroll dies for the selection’s whole life', () => {
-  it('the page subscribes once and is written by nothing else', () => {
-    expect(chapter).toContain("import { subscribeActiveSelection } from './selectable-text';");
-    // A page mounted while a selection somehow stands starts
-    // locked — the initial state reads the registry itself.
-    expect(chapter).toContain(
-      'const [selectionStands, setSelectionStands] = useState(() => hasActiveSelection());',
-    );
-    expect(chapter).toContain('useEffect(() => subscribeActiveSelection(setSelectionStands), []);');
-    // The setter is touched by the declaration and the
-    // subscription ONLY — no other code path can raise or
-    // strand the lock.
-    expect(chapter.match(/setSelectionStands/g)).toHaveLength(2);
-  });
-
-  it('scrollEnabled is drag-AND-standing — and it is the page’s only scrollEnabled', () => {
-    expect(chapter).toContain('scrollEnabled={!selectionDrag && !selectionStands}');
-    expect(chapter.match(/scrollEnabled=\{/g)).toHaveLength(1);
-    // v249's ruling is untouched: neither conjunct is the
-    // bubble's — an open thread with no selection standing
-    // leaves the page free to scroll.
-    expect(chapter).not.toContain('scrollEnabled={!openBubbles');
-    // Standing alone locks: the expression does not ask
-    // whether a drag is live before honouring a standing
-    // selection (the second conjunct is independent state).
-    const expr = chapter.slice(chapter.indexOf('scrollEnabled={'));
-    expect(expr.startsWith('scrollEnabled={!selectionDrag && !selectionStands}')).toBe(true);
-  });
-
-  it('entering selection mode issues no scroll command — a mid-scroll entry freezes in place', () => {
-    // The whole entry wiring — state, subscription — contains
-    // no scrollTo: the freeze comes from the scrollEnabled
-    // flip alone, so the position halts where it stands
-    // instead of jumping to a commanded offset.
-    const wiring = chapter.slice(
-      chapter.indexOf('const [selectionStands, setSelectionStands]'),
-      chapter.indexOf('useEffect(() => subscribeActiveSelection(setSelectionStands), []);'),
-    );
-    expect(wiring).not.toContain('scrollTo');
-    expect(wiring).not.toContain('scrollRef');
-  });
-
-  it('his own lines share the chapter ScrollView — the same lock covers them automatically', () => {
-    // Self lines render their SelectableText inside entries
-    // in this page's one ScrollView (no second scroll
-    // container exists for them to escape the lock through).
-    expect(chapter).toContain('onDragChange: props.onSelectionDragChange,');
+  it('the chapter ScrollView is the page’s only one, and it is never disabled', () => {
     expect(chapter.match(/<ScrollView\n/g)).toHaveLength(1);
+    const scrollView = chapter.slice(chapter.indexOf('<ScrollView'));
+    expect(scrollView.slice(0, scrollView.indexOf('>'))).not.toContain('scrollEnabled');
   });
 });
 
-describe('v381 capture — a live drag owns the finger from its first move', () => {
-  const root = selectable.slice(
-    selectable.indexOf('ref={rootRef}'),
-    selectable.indexOf('style={[styles.wrap'),
-  );
-
-  it('the root claims moves in the capture phase ONLY while a drag is live', () => {
-    expect(root).toContain(
-      'onMoveShouldSetResponderCapture={() => draggingRef.current || handleDragRef.current !== null}',
-    );
-    // Never a blanket claim: with no drag live, ordinary
-    // touches and page scroll negotiate exactly as before.
-    expect(root).not.toContain('onMoveShouldSetResponderCapture={() => true}');
+describe('v405 — the platform owns the gestures', () => {
+  it('surfaces render through the native selectable text, one element each', () => {
+    expect(chapter).toContain("import { NativeSelectableText } from './native-selectable-text';");
+    expect(chapter).toContain('<NativeSelectableText');
+    expect(nativeSel).toContain('@physiotutors/react-native-selectable-text');
   });
 
-  it('termination is refused while selecting, and the responder path feeds the same handlers', () => {
-    expect(root).toContain(
-      'onResponderTerminationRequest={() => !(draggingRef.current || handleDragRef.current !== null)}',
-    );
-    expect(root).toContain('onResponderMove={onTouchMove}');
-    expect(root).toContain('onResponderTerminate={onRootTouchCancel}');
+  it('the menu carries Highlight / Note / Bubble / Copy — dismissal is the platform’s', () => {
+    expect(nativeSel).toContain("['Highlight', 'Note', 'Bubble', 'Copy']");
+    // No tap-outside machinery exists to pin: the wrapper has
+    // no clear-on-tap path at all.
+    expect(nativeSel).not.toContain('onTouchEnd');
+    expect(nativeSel).not.toContain('clearActiveSelection');
   });
 
-  it('the handle seats inherit the same capture claim', () => {
-    const seat = selectable.slice(
-      selectable.indexOf('function SelectionHandle'),
-      selectable.indexOf('export function SelectableText'),
-    );
-    expect(seat).toContain('onMoveShouldSetResponderCapture={() => true}');
-    expect(seat).toContain('onResponderTerminationRequest={() => false}');
-  });
-});
-
-describe('v381 clear paths restore scroll through the same transition', () => {
-  it('tap-outside still clears through the registry — which is what re-opens the scroll', () => {
-    // v378's clear paths null the selection state; the
-    // registration effect turns that into registry-null +
-    // emit, and the page's stands state follows. No clear
-    // path touches scrollEnabled directly — it cannot forget.
-    expect(chapter).not.toContain('setSelectionStands(false)');
-    expect(chapter).not.toContain('setSelectionStands(true)');
-    const end = selectable.slice(
-      selectable.indexOf('const onRootTouchEnd'),
-      selectable.indexOf('const onRootTouchCancel'),
-    );
-    expect(end).toContain('if (touchStampRef.current) clearActiveSelection();');
-  });
-
-  it('the drag lock (v361’s channel) still stands beside the standing lock, unchanged', () => {
-    expect(chapter).toContain('onSelectionDragChange={setSelectionDrag}');
-    const begin = selectable.slice(
-      selectable.indexOf('const begin = (i: number)'),
-      selectable.indexOf('const finishDrag'),
-    );
-    expect(begin).toContain('props.onDragChange?.(true);');
+  it('his own lines live in the same ScrollView, selectable the same native way', () => {
+    expect(chapter).toContain('lineHighlightsFor(props.marksMap, props.book, props.chapter, target)');
+    const blocks = read('components/bible-v205/blocks.tsx');
+    expect(blocks).toContain('<NativeSelectableText');
   });
 });

@@ -157,7 +157,10 @@ describe('v391 chapter page — the open map is backed by the store', () => {
   });
 
   it('the chevron remains the toggle door into the same map', () => {
-    expect(chapterPage()).toContain('onToggleOpen={() => toggleOpen(entry)}');
+    // v405: the door rides the page's stable actions object into
+    // the same toggleOpen over the same map.
+    expect(chapterPage()).toContain('toggleOpen: (e) => toggleOpen(e),');
+    expect(chapterPage()).toContain('onPress={() => actions.toggleOpen(entry)}');
   });
 });
 

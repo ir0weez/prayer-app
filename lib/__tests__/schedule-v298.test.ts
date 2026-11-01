@@ -199,11 +199,17 @@ describe("v298 study card — the drawing's size and resting face", () => {
 describe("v298 up next — the drawing's strip, built", () => {
   it("the strip is computed for today only, from the earliest uncompleted timed items still ahead", () => {
     expect(scheduleTab).toContain('if (!isSkinned && selectedDate === today)');
-    expect(scheduleTab).toContain("timeToMinutes(c.item.startTime) > nowMin");
+    // v405: the group math is the pure helper's now (lib/up-next)
+    // — the strict-future rule lives there, and TIME-OFF
+    // ITINERARY entries join the pool the tab hands it.
+    const upNext = readFileSync(join(process.cwd(), "lib/up-next.ts"), "utf8");
+    expect(upNext).toContain("upNextMinutes(c.item.startTime) > nowMin");
+    expect(scheduleTab).toContain("buildUpNextGroup(");
+    expect(scheduleTab).toContain('kind: "itinerary" as const');
     // v318 — Concept 1 v4 approved 2026-10-28 18:53: the seat
     // carries the whole same-time GROUP plus the thread anchor,
     // not the single nextCandidate of v298–v317.
-    expect(scheduleTab).toContain('items.splice(studyIdx >= 0 ? studyIdx + 1 : 0, 0, { type: "up-next", id: "up-next", data: { entries, startMinutes: startMin, anchorMinutes: anchorMin } })');
+    expect(scheduleTab).toContain('items.splice(studyIdx >= 0 ? studyIdx + 1 : 0, 0, { type: "up-next", id: "up-next", data: { entries: group.entries, startMinutes: group.startMinutes, anchorMinutes: group.anchorMinutes } })');
   });
 
   it("the case seats after the study card and takes the current card's metrics", () => {

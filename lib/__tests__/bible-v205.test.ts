@@ -1269,10 +1269,13 @@ describe("v210 — the plain personal Note: no box, just inset text", () => {
     expect(page).not.toContain('styles.verseRow');
     expect(page).not.toContain('minWidth: 17');
     expect(page).toContain('styles.supTap');
-    // v361 amendment: the number still leads inline (now as the
-    // selection text's lead token, styles.supSeat) — no rail — but
-    // its tap is retired: selection is the drag, not the number.
-    expect(page).toContain('styles.supSeat');
+    // v361 amendment: the number still leads inline (as the
+    // selection text's lead token) — no rail — but its tap is
+    // retired: selection is the drag, not the number.
+    // v405 amendment: the lead is a nested span inside the one
+    // native Text (lead={{ text … }}); the supSeat flex token
+    // and its styles are gone with the per-word engine.
+    expect(page).toContain('lead={{ text: `${v} `');
     expect(page).not.toContain('onToggleVerse');
   });
 });
@@ -1707,20 +1710,23 @@ describe('v212 — tint that actually shows: the whole entry, and per-verse', ()
     expect(blocks).not.toContain('tinted');
   });
 
-  it('render: verse numbers are plain lead tokens now — selection is the drag (v361)', () => {
+  it('render: verse numbers are plain lead tokens now — selection is native (v361, v405)', () => {
     const page = pageSrc();
     // RE-BASED (v361): the v212 number-tap selection model is
     // retired wholesale by his approved selection model — the
     // number carries no tap and no dashed-underline selection
-    // state; a long-press drag across the words IS the selection
-    // (SelectableText), and the number leads every verse as the
-    // selection text's plain superscript token.
+    // state; a long-press drag across the words IS the selection,
+    // and the number leads every verse as the selection text's
+    // plain superscript token.
+    // v405: the selection is the PLATFORM's, in one native text
+    // element per verse (NativeSelectableText); the number is
+    // its nested lead span.
     expect(page).not.toContain('props.onToggleVerse(entry.start)');
     expect(page).not.toContain('styles.vnumTap');
     expect(page).not.toContain('props.onToggleVerse(v)');
     expect(page).not.toContain("textDecorationStyle: 'dashed'");
     expect(page).toContain('styles.supTap');
-    expect(page).toContain('<SelectableText');
+    expect(page).toContain('<NativeSelectableText');
     // A verse wearing a tint paints the highlighter color behind its text.
     expect(page).toContain('verseTintFor(palette, props.verseTints[v])');
   });
@@ -1728,11 +1734,12 @@ describe('v212 — tint that actually shows: the whole entry, and per-verse', ()
   it('render: the tint dots live on the selection bar now, not the markbar (v361)', () => {
     const page = pageSrc();
     // RE-BASED (v361): the markbar tint row is gone — the six dots
-    // ride the floating selection bar inside SelectableText, and
-    // entry tints are no longer set from the reader surface at all.
+    // ride the selection bar, and entry tints are no longer set
+    // from the reader surface at all. v405: the bar lives in the
+    // native-selection wrapper (the per-word engine is deleted).
     expect(page).not.toContain('onApplyVerseTint');
     expect(page).not.toContain('props.selectedVerses');
-    const sel = readFileSync(join(process.cwd(), 'components/bible-v205/selectable-text.tsx'), 'utf8');
+    const sel = readFileSync(join(process.cwd(), 'components/bible-v205/native-selectable-text.tsx'), 'utf8');
     expect(sel).toContain('TINT_ORDER.map');
   });
 

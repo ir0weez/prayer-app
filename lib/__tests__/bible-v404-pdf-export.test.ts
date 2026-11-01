@@ -19,6 +19,19 @@
 //     book panel's "Download PDF" both call the one shared
 //     exporter (shareChapterPdf), and the share path prints with
 //     mimeType application/pdf.
+//  7. THE OPENER PRINTS — the chapter opener (Previously, then the
+//     Introduction, the page's own order) rides after the hero,
+//     under its seed-deep label; 1 Kings 4 is pinned whole: all
+//     four section bands verbatim, all 34 verses, the opener
+//     text, and a rendered-block count equal to the assembled
+//     display model's count.
+//  8. THE LIBRARY SWEEP — EVERY chapter in the shipped commentary
+//     data is built and checked: every section title appears as
+//     a band title in order, the rendered note-block count equals
+//     the display-model count, the opener text appears, and every
+//     verse of the chapter appears. Completeness is library-wide
+//     (Jonathan, Nov 1: "It's other chapters. I never said
+//     specific ones.").
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -56,7 +69,7 @@ import {
   shareChapterPdf,
   type ChapterPdfData,
 } from '../bible-v205/pdf-export';
-import { getChapterData } from '../bible-v205/index';
+import { COMMENTARY_DATA, getChapterData } from '../bible-v205/index';
 import { embeddedVerses } from '../bible-v205/verses';
 import { emptyMarks, type MarksMap } from '../bible-v205/marks';
 import type { V205ChapterData } from '../bible-v205/types';
@@ -253,6 +266,298 @@ describe('v404 — the shared generate + share path', () => {
     expect(src).not.toMatch(/^import .* from 'expo-print'/m);
     expect(src).not.toMatch(/^import .* from 'expo-sharing'/m);
   });
+});
+
+// ─── Completeness helpers ────────────────────────────────────────────────────
+// The builder escapes text with escapeHtml; the checks below mirror
+// that escaping exactly so a title or verse is searched for in the
+// form the HTML actually carries, then unescaped to compare the
+// words themselves verbatim.
+
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function unesc(s: string): string {
+  return s
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+function bodyOf(html: string): string {
+  return html.slice(html.indexOf('<body>'));
+}
+
+function countOccurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}
+
+/** The band titles the HTML carries, in print order (escaped form). */
+function bandTitles(html: string): string[] {
+  const out: string[] = [];
+  const re = /<span class="stitle">([^<]*)<\/span>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) out.push(m[1]);
+  return out;
+}
+
+/** One rendered note block = one bare main-text paragraph, one
+ * kind box, or one scripture quote block — the three shapes
+ * blockHtml emits. Added-note cards are counted separately. */
+function renderedBlockCount(body: string): number {
+  return (
+    countOccurrences(body, '<p class="main-text">') +
+    countOccurrences(body, '<div class="note-card"') +
+    countOccurrences(body, '<div class="scripture-quote">')
+  );
+}
+
+function addedNoteCount(body: string): number {
+  return countOccurrences(body, '<div class="anote">');
+}
+
+/** The block accounting of one assembled chapter: every block in
+ * the display model must surface exactly once — as a block element,
+ * or (a quote block carrying a speaker id) as an added-note card,
+ * mirroring entryHtml's filter and quoteBubbleLines' selection.
+ * The opener's blocks and Previously paragraphs count too: they
+ * render through the same block shapes. */
+function modelBlockCounts(data: ChapterPdfData): { blockEls: number; addedNotes: number } {
+  let blocks = 0;
+  let bubbled = 0;
+  let vanished = 0;
+  for (const s of data.sections) {
+    for (const e of s.entries) {
+      for (const b of e.blocks) {
+        blocks++;
+        if (b.kind === 'quote' && typeof b.authorId === 'string' && b.authorId) {
+          if (b.authorId.trim()) bubbled++;
+          else vanished++;
+        }
+      }
+    }
+  }
+  const opener = (data.chapterData?.intro.length ?? 0) + (data.chapterData?.previously.length ?? 0);
+  return { blockEls: blocks - bubbled - vanished + opener, addedNotes: bubbled };
+}
+
+describe('v404 — 1 Kings 4, whole (his screenshot chapter)', () => {
+  function kingsFourPdf(): { data: ChapterPdfData; html: string } {
+    const chapterData = getChapterData('1 Kings', 4);
+    if (!chapterData) throw new Error('1 Kings 4 commentary data missing');
+    // 1 Kings carries no embedded verse text in the shipped data
+    // (the app fetches it), so the test seats 34 verse rows the
+    // way the device's loader hands them over.
+    const verses = Array.from({ length: 34 }, (_, i) => ({
+      verse: i + 1,
+      text: `The ${i + 1} verse of the fourth chapter of the first book of the Kings.`,
+    }));
+    const data = assembleChapterPdfData({
+      book: '1 Kings',
+      chapter: 4,
+      chapterData,
+      marks: {},
+      verses,
+      people: [],
+      profile: PROFILE,
+    });
+    const html = buildChapterPdfHtml({ data, theme: pdfThemeFromSeed('#256EE6'), authorName: 'Jonathan Roberts' });
+    return { data, html };
+  }
+
+  it('prints all four section bands verbatim, in order, with their range pills', () => {
+    const { html } = kingsFourPdf();
+    expect(bandTitles(html).map(unesc)).toEqual([
+      "Solomon's Closest",
+      "Solomon's Officers",
+      'A Prosperous Nation',
+      'Wisdom Exceeding',
+    ]);
+    expect(html).toContain('VERSES 1–6');
+    expect(html).toContain('VERSES 7–19');
+    expect(html).toContain('VERSES 20–28');
+    expect(html).toContain('VERSES 29–34');
+  });
+
+  it('prints all 34 verses', () => {
+    const { html } = kingsFourPdf();
+    for (let v = 1; v <= 34; v++) {
+      expect(html).toContain(`<span class="vn">${v}</span>`);
+    }
+  });
+
+  it('prints the chapter opener under its label, before the first band', () => {
+    const { html } = kingsFourPdf();
+    const body = bodyOf(html);
+    expect(body).toContain('INTRODUCTION');
+    // The opener's own words — his "Previously:" recap lives in
+    // the introduction blocks of the shipped data for this
+    // chapter, and every intro block's text stands on the page.
+    expect(body).toContain('Previously: In our last chapter, we see Solomon struggle');
+    const chapterData = getChapterData('1 Kings', 4);
+    if (!chapterData) throw new Error('1 Kings 4 commentary data missing');
+    for (const b of chapterData.intro) {
+      expect(body).toContain(esc(b.text));
+    }
+    expect(body.indexOf('INTRODUCTION')).toBeLessThan(body.indexOf('VERSES 1–6'));
+  });
+
+  it('renders exactly the display model’s note blocks — none dropped, none doubled', () => {
+    const { data, html } = kingsFourPdf();
+    const body = bodyOf(html);
+    const model = modelBlockCounts(data);
+    expect(renderedBlockCount(body)).toBe(model.blockEls);
+    expect(addedNoteCount(body)).toBe(model.addedNotes);
+    // The chapter's own totals, counted from the shipped data:
+    // 42 entry blocks + 4 opener blocks.
+    expect(model.blockEls).toBe(46);
+    expect(model.addedNotes).toBe(0);
+  });
+});
+
+describe('v404 — the library sweep: every chapter, complete', () => {
+  it(
+    'no chapter in the shipped commentary loses a headline, a block, an opener, or a verse',
+    { timeout: 300_000 },
+    () => {
+      const theme = pdfThemeFromSeed('#256EE6');
+      const failures: string[] = [];
+      let booksChecked = 0;
+      let chaptersChecked = 0;
+      let chaptersClean = 0;
+      let titlesChecked = 0;
+      let blocksChecked = 0;
+      let versesChecked = 0;
+
+      for (const [book, bookData] of Object.entries(COMMENTARY_DATA)) {
+        booksChecked++;
+        for (const [chapterKey, chapterData] of Object.entries(bookData.chapters)) {
+          const chapter = parseInt(chapterKey, 10);
+          const carries =
+            chapterData.sections.length > 0 ||
+            chapterData.intro.length > 0 ||
+            chapterData.previously.length > 0;
+          if (!carries) continue;
+          chaptersChecked++;
+          const where = `${book} ${chapter}`;
+          const failuresBefore = failures.length;
+
+          // Verses: the embedded text where the shipped data
+          // carries it; elsewhere verse rows spanning the
+          // chapter's covered range, as the device's fetch would
+          // hand them over — the verse NUMBERS are then the check.
+          const embedded = embeddedVerses(book, chapter);
+          let maxVerse = 0;
+          for (const s of chapterData.sections) {
+            maxVerse = Math.max(maxVerse, s.end);
+            for (const e of s.entries) maxVerse = Math.max(maxVerse, e.end);
+          }
+          for (const st of chapterData.stories) maxVerse = Math.max(maxVerse, st.end);
+          const verses =
+            embedded ??
+            Array.from({ length: maxVerse }, (_, i) => ({ verse: i + 1, text: '' }));
+
+          const data = assembleChapterPdfData({
+            book,
+            chapter,
+            chapterData,
+            marks: {},
+            verses,
+            people: [],
+            profile: PROFILE,
+          });
+          const html = buildChapterPdfHtml({ data, theme, authorName: 'Jonathan Roberts' });
+          const body = bodyOf(html);
+
+          // (a) Every section title in the data is a band title in
+          // the HTML, in the display model's order — and the
+          // assembly itself neither drops nor invents a headline.
+          const rawTitles = chapterData.sections.map((s) => s.title).filter(Boolean) as string[];
+          const displayTitles = data.sections.map((s) => s.title).filter(Boolean) as string[];
+          if ([...rawTitles].sort().join('') !== [...displayTitles].sort().join('')) {
+            failures.push(`${where}: assembly changed the headline set`);
+          }
+          const printedTitles = bandTitles(body);
+          titlesChecked += displayTitles.length;
+          if (printedTitles.length !== displayTitles.length) {
+            failures.push(
+              `${where}: ${printedTitles.length} band titles printed for ${displayTitles.length} in the model`,
+            );
+          } else {
+            displayTitles.forEach((title, i) => {
+              if (printedTitles[i] !== esc(title)) {
+                failures.push(`${where}: band ${i + 1} prints "${unesc(printedTitles[i])}", data says "${title}"`);
+              }
+            });
+          }
+
+          // (b) The rendered note-block count equals the display
+          // model's — nothing dropped, nothing doubled.
+          const model = modelBlockCounts(data);
+          blocksChecked += model.blockEls + model.addedNotes;
+          if (renderedBlockCount(body) !== model.blockEls) {
+            failures.push(
+              `${where}: ${renderedBlockCount(body)} blocks rendered, model carries ${model.blockEls}`,
+            );
+          }
+          if (addedNoteCount(body) !== model.addedNotes) {
+            failures.push(
+              `${where}: ${addedNoteCount(body)} added-note cards rendered, model carries ${model.addedNotes}`,
+            );
+          }
+
+          // (c) The opener text appears — every introduction block
+          // and every Previously paragraph, when non-empty.
+          for (const b of chapterData.intro) {
+            if (b.text.trim() && !body.includes(esc(b.text))) {
+              failures.push(`${where}: introduction block missing from the print: "${b.text.slice(0, 60)}…"`);
+            }
+          }
+          for (const p of chapterData.previously) {
+            if (p.trim() && !body.includes(esc(p))) {
+              failures.push(`${where}: Previously paragraph missing from the print: "${p.slice(0, 60)}…"`);
+            }
+          }
+
+          // (d) Every verse of the chapter appears — its text where
+          // the shipped data embeds it, its number everywhere.
+          if (embedded) {
+            for (const v of embedded) {
+              versesChecked++;
+              if (v.text && !body.includes(esc(v.text))) {
+                failures.push(`${where}: verse ${v.verse} text missing from the print`);
+              }
+            }
+          } else {
+            for (let v = 1; v <= maxVerse; v++) {
+              versesChecked++;
+              if (!body.includes(`<span class="vn">${v}</span>`)) {
+                failures.push(`${where}: verse ${v} missing from the print`);
+              }
+            }
+          }
+
+          if (failures.length === failuresBefore) chaptersClean++;
+        }
+      }
+
+      console.log(
+        `LIBRARY SWEEP — books: ${booksChecked}, chapters checked: ${chaptersChecked}, ` +
+          `chapters clean: ${chaptersClean}, section titles checked: ${titlesChecked}, ` +
+          `note blocks checked: ${blocksChecked}, verses checked: ${versesChecked}, ` +
+          `failures: ${failures.length}`,
+      );
+      expect(failures, failures.slice(0, 40).join('\n')).toEqual([]);
+    },
+  );
 });
 
 describe('v404 — both seats call the shared exporter', () => {

@@ -6,7 +6,9 @@
 // hairline), the whole chapter's verses with his highlight colours
 // painted on the words, his notes in the reader's own treatment (main
 // text bare, the typed kinds boxed in their colours, scripture as the
-// quote block), the lines added on the phone carried in as added-note
+// quote block), the chapter opener (Previously, then the
+// Introduction — the page's own order) under its small seed-deep
+// label, the lines added on the phone carried in as added-note
 // cards with their author's name, and a plain footer. One chapter per
 // PDF, for handing to people who missed the teaching (his original
 // Oct 23 ask). NO cream anywhere — that was Concept 3's paper, not
@@ -42,6 +44,7 @@ import {
 import { entryKey, type V205Block, type V205ChapterData } from './types';
 import {
   blockHighlightsFor,
+  CHAPTER_PROSE_SPAN,
   lineHighlightsFor,
   loadMarks,
   resolvePhraseHighlights,
@@ -487,6 +490,45 @@ function entryHtml(ctx: BuildCtx, entry: DisplaySection['entries'][number]): str
   return `<div class="entry"${wash ? ` style="background:${wash}"` : ''}>${out}</div>`;
 }
 
+/** The chapter opener — Previously first, then the Introduction,
+ * the chapter page's own order — under its small seed-deep label,
+ * in the Concept 1 dress the Studio print uses. The blocks render
+ * with the same treatment as entry blocks (plain paragraphs bare,
+ * typed kinds boxed); his prose phrase highlights (v390) ride
+ * along, resolved off the chapter-prose record exactly as the
+ * page resolves them. The opener is read from the RESOLVED
+ * chapter data, so a Studio-written opener prints too. An absent
+ * or empty opener prints nothing. */
+function openerHtml(ctx: BuildCtx): string {
+  const { data, theme } = ctx;
+  const cd = data.chapterData;
+  if (!cd) return '';
+  const { book, chapter } = data;
+  let out = '';
+  if (cd.previously?.length) {
+    const paras = cd.previously
+      .map(
+        (p, i) =>
+          `<p class="main-text">${paintRanges(
+            p,
+            blockHighlightsFor(data.rawMarks, book, chapter, CHAPTER_PROSE_SPAN, 'previously', i),
+            theme,
+          )}</p>`,
+      )
+      .join('');
+    out += `<div class="opener"><div class="opener-label">PREVIOUSLY</div>${paras}</div>`;
+  }
+  if (cd.intro?.length) {
+    const blocks = cd.intro
+      .map((b, i) =>
+        blockHtml(ctx, b, blockHighlightsFor(data.rawMarks, book, chapter, CHAPTER_PROSE_SPAN, 'intro', i)),
+      )
+      .join('');
+    out += `<div class="opener"><div class="opener-label">INTRODUCTION</div>${blocks}</div>`;
+  }
+  return out;
+}
+
 function sectionHtml(ctx: BuildCtx, section: DisplaySection): string {
   const pill =
     section.start === section.end ? `VERSE ${section.start}` : `VERSES ${section.start}–${section.end}`;
@@ -532,6 +574,8 @@ export function buildChapterPdfHtml(input: {
     .hero .kicker { font-size: 10.5px; font-weight: 800; letter-spacing: 2.2px; opacity: 0.85; text-transform: uppercase; }
     .hero h1 { font-size: 40px; font-weight: 800; margin: 4px 0 0 0; letter-spacing: 0.2px; }
     .hero .meta { margin-top: 8px; font-size: 12.5px; opacity: 0.92; line-height: 1.5; }
+    .opener { margin: 20px 0 0 0; }
+    .opener-label { font-size: 10.5px; font-weight: 800; letter-spacing: 2px; color: ${theme.seedDeep}; margin-bottom: 2px; break-after: avoid; }
     .secband { display: flex; align-items: center; gap: 10px; margin: 24px 0 2px 0; break-after: avoid; }
     .secband .pill { background: ${theme.container}; color: ${theme.seedInk}; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; padding: 5px 12px; border-radius: 999px; white-space: nowrap; }
     .secband .stitle { font-size: 11.5px; color: ${theme.inkFaint}; font-weight: 700; white-space: nowrap; }
@@ -559,6 +603,7 @@ export function buildChapterPdfHtml(input: {
     `<div class="meta">Notes by ${escapeHtml(authorName)}<br>${
       hasNotes ? 'Whole chapter, with highlights and added notes' : 'Whole chapter'
     }</div></div>` +
+    openerHtml(ctx) +
     data.sections.map((s) => sectionHtml(ctx, s)).join('');
   return `<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8"><style>${css}</style></head><body>${body}</body></html>`;
 }

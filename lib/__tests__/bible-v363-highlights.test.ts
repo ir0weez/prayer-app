@@ -228,7 +228,10 @@ describe('v363 — the section is import-blind', () => {
 
 describe('v363 — the door carries the section', () => {
   it('the export payload in Settings → DATA includes studioHighlights beside studioBubbles', () => {
-    const src = readFileSync(join(process.cwd(), 'app', '(tabs)', 'index.tsx'), 'utf8');
+    // v408: the payload builder moved verbatim into
+    // lib/bible-v205/export-payload.ts (shared by the Export Data
+    // tap and the nightly auto-export) — the section rides there.
+    const src = readFileSync(join(process.cwd(), 'lib', 'bible-v205', 'export-payload.ts'), 'utf8');
     expect(src).toContain('collectHighlightsForExport');
     expect(src).toContain('studioBubbles, studioHighlights,');
   });

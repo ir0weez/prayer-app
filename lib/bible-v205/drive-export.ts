@@ -10,8 +10,13 @@
 //    linked folder, and the only name it ever writes is
 //    DRIVE_EXPORT_FILENAME — created on the first export, truncated and
 //    rewritten on every later one.
-//  - It writes ONLY on an explicit Export Data tap (the caller is the
-//    export handler; nothing here runs at launch or on a timer).
+//  - It writes from exactly two callers, both through the one entry
+//    below (writeExportToDriveFolder): the explicit Export Data tap,
+//    and — since v408, by Jonathan's own amendment of this boundary
+//    (Nov 1, 2026) — the nightly auto-export task, and then ONLY when
+//    his Nightly auto-export switch is on (auto-export.ts). The write
+//    itself still lives only here; the task adds no second write
+//    path, and nothing writes at launch or on any other timer.
 //  - It never deletes, renames, moves, or copies anything, and it never
 //    touches the studio's own files in that folder (the notes,
 //    schedule, and library packs) or any other file. The read side
@@ -145,10 +150,12 @@ export type DriveExportOutcome =
   | { status: 'failed'; reason: string };
 
 /**
- * Export Data's first stop: write the payload into the linked folder
+ * The export's only door: write the payload into the linked folder
  * when (and only when) that folder is linked with writing enabled.
- * Every other outcome is reported, never thrown, so the caller can
- * fall back to the share/save flow with the right one-line hint.
+ * The Export Data tap and the nightly auto-export task (v408) both
+ * come through here. Every other outcome is reported, never thrown,
+ * so the tap can fall back to the share/save flow with the right
+ * one-line hint, and the task can record why the night was skipped.
  */
 export async function writeExportToDriveFolder(payload: string): Promise<DriveExportOutcome> {
   const link = await loadDriveLink().catch(() => null);

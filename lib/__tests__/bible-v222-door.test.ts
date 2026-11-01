@@ -442,8 +442,13 @@ describe('v222 WS2 — the studio pack door', () => {
     expect(src).toContain('Import Studio Pack');
     expect(src).toContain('handleImportStudioPack');
     expect(src).toContain('parseStudioFile');
-    expect(src).toContain('studioBubbles');
-    expect(src).toContain('collectBubbleLinesForExport');
+    // v408: the payload builder moved verbatim into
+    // lib/bible-v205/export-payload.ts (shared by the Export Data
+    // tap and the nightly auto-export) — the export half of this
+    // pin reads it there now.
+    const builder = readFileSync(join(process.cwd(), 'lib', 'bible-v205', 'export-payload.ts'), 'utf8');
+    expect(builder).toContain('studioBubbles');
+    expect(builder).toContain('collectBubbleLinesForExport');
   });
 });
 

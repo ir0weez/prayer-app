@@ -60,7 +60,7 @@ import { DEFAULT_ACHIEVEMENT_STATE, loadAchievementState, qualifyAchievements, u
 import { ScheduleTab } from "@/components/schedule-tab";
 import { StampCollectionModal } from "@/components/reached-stamp-row";
 import { PrayerJournalTab } from "@/components/prayer-journal-tab";
-import { createPhotoBackup, getPhotoBackupPayload, restorePhotoBackup } from "@/lib/photo-backup";
+import { restorePhotoBackup } from "@/lib/photo-backup";
 import {
   cancelPersonReminderNotifications,
   cancelScheduledEventNotifications,
@@ -189,18 +189,14 @@ import {
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, LAST_EXPORT_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { loadStudyState, saveStudyState } from "@/lib/bible-v205/study";
-import { applyStudioStatesReads, collectStudioStates } from "@/lib/bible-v205/studio-states";
-import { loadMarks, MARKS_KEY } from "@/lib/bible-v205/marks";
+import { applyStudioStatesReads } from "@/lib/bible-v205/studio-states";
 import { transitionChapterStatus } from "@/lib/bible-v205/rewards";
 import {
   applyScheduleTombstones,
   applyStudioChapters,
-  collectBubbleLinesForExport,
-  collectHighlightsForExport,
   emptyStudioApplyCounts,
   formatStudioImportSummary,
   loadStudioImports,
-  STUDIO_IMPORT_KEY,
   mergeStudioSchedule,
   mergeStudioScheduleMinistries,
   parseStudioFileFull,
@@ -213,15 +209,11 @@ import { storeGasSnapshotForwardOnly } from "@/lib/gas-prices";
 import { storeNewsBriefingForwardOnly } from "@/lib/news-briefing";
 import {
   applyStudioPeoplePack,
-  collectStudioJournal,
-  collectStudioPeople,
   loadStoredJournal,
   loadStoredPeople,
 } from "@/lib/bible-v205/studio-people";
-import { collectStudioSchedule } from "@/lib/bible-v205/studio-schedule";
 import {
   applyStudioMinistriesPack,
-  collectStudioMinistries,
   loadStoredMinistries,
 } from "@/lib/bible-v205/studio-ministries";
 import type { StudyStatus } from "@/lib/bible-v205/types";
@@ -244,6 +236,14 @@ import {
   driveFolderCanWrite,
   writeExportToDriveFolder,
 } from "@/lib/bible-v205/drive-export";
+import { buildExportPayload } from "@/lib/bible-v205/export-payload";
+import {
+  autoExportStatusLine,
+  loadAutoExportRecord,
+  setAutoExportEnabled,
+  type AutoExportRecord,
+} from "@/lib/bible-v205/auto-export";
+import { syncAutoExportRegistration } from "@/lib/bible-v205/auto-export-task";
 import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from "@/lib/schedule-data";
 import { getReadingPosition, readingPositionDisplay } from "@/lib/bible-v205/position";
 import { createPrayerJournalEntry, normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
@@ -1222,6 +1222,14 @@ export default function HomeScreen() {
   const [lastExportAt, setLastExportAt] = useState<string | null>(null);
   useEffect(() => {
     AsyncStorage.getItem(LAST_EXPORT_STORAGE_KEY).then(setLastExportAt).catch(() => undefined);
+  }, []);
+  // v408: the nightly auto-export record — the DATA & BACKUP switch
+  // reads it, and it is the same record the background task writes
+  // (lib/bible-v205/auto-export.ts), so the row can show his switch
+  // and the last night's truth from one small store.
+  const [autoExportRecord, setAutoExportRecord] = useState<AutoExportRecord | null>(null);
+  useEffect(() => {
+    loadAutoExportRecord().then(setAutoExportRecord).catch(() => undefined);
   }, []);
   // v315: the update check's honest state — "current"/"available" are
   // only ever set from a real release comparison; anything else is
@@ -4141,77 +4149,20 @@ export default function HomeScreen() {
     AsyncStorage.setItem(LAST_EXPORT_STORAGE_KEY, stamp).catch(() => undefined);
   };
 
+  // v408: the Nightly auto-export switch — persist his choice to
+  // the task's own record, then bring the OS registration in line
+  // (register while on, unregister while off).
+  const handleAutoExportToggle = (next: boolean) => {
+    void (async () => {
+      const saved = await setAutoExportEnabled(next).catch(() => null);
+      if (saved) setAutoExportRecord(saved);
+      await syncAutoExportRegistration(next);
+    })();
+  };
+
   const handleExportData = async () => {
     try {
-      const keys = await AsyncStorage.getAllKeys();
-      const entries = await AsyncStorage.multiGet(keys);
-      const storage: Record<string, string | null> = {};
-      entries.forEach(([key, value]) => { storage[key] = value; });
-      // v245: the two category-carrying stores are re-serialized from
-      // their loaders, not dumped raw — both loaders normalize at the
-      // read boundary (a pre-merge 'conversation' reads as
-      // personal-story), so the export only ever emits the four
-      // working categories. Keys that were never stored stay absent.
-      if (storage[MARKS_KEY] != null) {
-        storage[MARKS_KEY] = JSON.stringify(await loadMarks());
-      }
-      if (storage[STUDIO_IMPORT_KEY] != null) {
-        storage[STUDIO_IMPORT_KEY] = JSON.stringify(await loadStudioImports());
-      }
-      const photos = await createPhotoBackup(storage);
-      // v222 (WS2c): the app's bubble lines ride the backup as their own
-      // section, so the studio can later read them into its "From the
-      // app" inbox. Export-only — nothing else about the backup changes.
-      const studioBubbles = collectBubbleLinesForExport(await loadMarks());
-      // v363: the highlights bridge — his tints (phrase ranges, verse
-      // tints, entry tints, line ranges) ride the same payload as the
-      // studioHighlights section, so they show at the desk too.
-      // Export-only like the bubbles: no import ever reads them back.
-      const studioHighlights = collectHighlightsForExport(await loadMarks());
-      // v225: his people ride the backup as the studioPeople pack (the
-      // studio's People page loads his real list from it on unlock), and
-      // the Journal moments ride as studioJournal — the read feed for
-      // the studio's News tab. Both sections are export-only.
-      const exportPeople = await loadStoredPeople();
-      const exportJournal = await loadStoredJournal();
-      const studioPeople = collectStudioPeople(exportPeople, exportJournal);
-      const studioJournal = collectStudioJournal(exportJournal);
-      // v227: his schedule answers back — every dated event/todo in the
-      // stores, in the studio's own pack shape, so the studio can see
-      // the phone-side week too. Export-only, like the sections above.
-      // Only the title is demanded of a stored row here: a row with no
-      // usable date must still REACH the collector so it gets counted
-      // (undatedExcluded), never silently dropped at this door.
-      const parseStoredItems = (raw: string | null | undefined): unknown[] => {
-        try {
-          const value = raw ? JSON.parse(raw) : [];
-          return Array.isArray(value) ? value : [];
-        } catch {
-          return [];
-        }
-      };
-      const exportEvents = parseStoredItems(storage[SCHEDULE_EVENTS_KEY]).filter(
-        (item): item is ScheduleEvent => !!item && typeof item === "object" && typeof (item as ScheduleEvent).title === "string",
-      );
-      const exportTodos = parseStoredItems(storage[SCHEDULE_TODOS_KEY]).filter(
-        (item): item is ScheduleTodo => !!item && typeof item === "object" && typeof (item as ScheduleTodo).title === "string",
-      );
-      // v229: ministries live in their own store of DATED records, so
-      // they join the schedule projection as type 'Ministry' rows —
-      // and, below, ride whole as the studioMinistries section.
-      const exportMinistries = parseStoredItems(storage[SCHEDULE_MINISTRIES_KEY]).filter(
-        (item): item is ScheduleMinistry => !!item && typeof item === "object" && typeof (item as ScheduleMinistry).id === "string" && typeof (item as ScheduleMinistry).title === "string",
-      );
-      const studioSchedule = collectStudioSchedule(exportEvents, exportTodos, new Date(), exportMinistries);
-      // v228: both chapter marks ride the backup as studioStates —
-      // the notes-written status and the read date, per chapter — so
-      // the studio can see (and send back) the two honest tracks.
-      const studioStates = collectStudioStates(await loadStudyState());
-      // v229: the complete ministry records ride the backup as
-      // studioMinistries — the section the studio's Ministries manager
-      // mirrors, and the records' way home through the door.
-      const studioMinistries = collectStudioMinistries(exportMinistries);
-      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos), studioBubbles, studioHighlights, studioPeople, studioJournal, studioSchedule, studioStates, studioMinistries }, null, 2);
+      const payload = await buildExportPayload();
       // v235 — "One Export, Overwritten": when the Drive folder is
       // linked with export writing enabled, the export overwrites the
       // ONE fixed file there (prayercircle-export.json) instead of the
@@ -4815,6 +4766,10 @@ export default function HomeScreen() {
     const lastExportLabel = lastExportAt
       ? `Last export: ${new Date(lastExportAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
       : "Not exported yet";
+    // v408: the auto-export status line — the last run from the
+    // task's record, or the live blocker (no link / writing not
+    // enabled). Null renders nothing (nothing before the first run).
+    const autoExportStatus = autoExportRecord ? autoExportStatusLine(autoExportRecord, driveLink) : null;
 
     // The update check is a REAL comparison or it says nothing:
     // "current" / "available" are only set from the repo's latest
@@ -5161,6 +5116,15 @@ export default function HomeScreen() {
             <Pressable onPress={handleExportData} style={({ pressed }) => [{ backgroundColor: sm.primaryContainer, borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16 }, pressed && { opacity: 0.75 }]}>
               <Text style={{ fontSize: 13.5, fontWeight: "800", color: sm.onPrimaryContainer }}>Export</Text>
             </Pressable>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 1, borderTopColor: sm.line }}>
+            {tile("schedule")}
+            <View style={{ flex: 1 }}>
+              <Text style={rowTitleStyle}>Nightly auto-export</Text>
+              <Text style={rowSubStyle}>Export to the Studio folder at about 11:30pm</Text>
+              {autoExportStatus ? <Text style={[rowSubStyle, { marginTop: 2 }]}>{autoExportStatus}</Text> : null}
+            </View>
+            <M3Switch value={autoExportRecord?.enabled ?? true} onValueChange={handleAutoExportToggle} />
           </View>
           {navRow({ icon: "file-upload", title: "Import data", sub: "Restore a PrayerCircle backup", onPress: handleImportData })}
           {navRow({ icon: "note-add", title: "Import Studio Pack", sub: "Notes, people & schedule from the Studio", onPress: handleImportStudioPack })}

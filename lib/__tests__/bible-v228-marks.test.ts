@@ -344,9 +344,13 @@ describe('surfaces — the reader carries no notes-state control; the grid shows
   });
 
   it('the DATA export carries studioStates next to the other studio sections', () => {
-    const src = read('app/(tabs)/index.tsx');
+    // v408: the payload builder moved verbatim into
+    // lib/bible-v205/export-payload.ts (shared by the Export Data
+    // tap and the nightly auto-export) — the export half of this pin
+    // reads it there; the import door still lives in the screen.
+    const src = read('lib/bible-v205/export-payload.ts');
     expect(src).toContain('collectStudioStates');
     expect(src).toContain('studioSchedule, studioStates');
-    expect(src).toContain('applyStudioStatesReads');
+    expect(read('app/(tabs)/index.tsx')).toContain('applyStudioStatesReads');
   });
 });

@@ -247,10 +247,16 @@ describe('v245 — quote renders red, and the export emits only the four', () =>
     expect(JSON.stringify(await loadStudioImports())).not.toContain('"category":"conversation"');
   });
 
-  it('handleExportData re-serializes both category stores from their loaders', () => {
-    const src = readFileSync(join(__dirname, '..', '..', 'app/(tabs)/index.tsx'), 'utf8');
-    const handler = src.slice(src.indexOf('handleExportData'), src.indexOf('prayercircle-backup'));
+  it('the export builder re-serializes both category stores from their loaders', () => {
+    // v408: the builder moved verbatim from handleExportData into
+    // lib/bible-v205/export-payload.ts, shared by the tap and the
+    // nightly auto-export — the re-serialization this pin guards
+    // lives there now, and the Settings handler calls it.
+    const src = readFileSync(join(__dirname, '..', 'bible-v205', 'export-payload.ts'), 'utf8');
+    const handler = src.slice(src.indexOf('buildExportPayload'), src.indexOf('prayercircle-backup'));
     expect(handler).toContain('storage[MARKS_KEY] = JSON.stringify(await loadMarks())');
     expect(handler).toContain('storage[STUDIO_IMPORT_KEY] = JSON.stringify(await loadStudioImports())');
+    const settings = readFileSync(join(__dirname, '..', '..', 'app/(tabs)/index.tsx'), 'utf8');
+    expect(settings).toContain('const payload = await buildExportPayload();');
   });
 });

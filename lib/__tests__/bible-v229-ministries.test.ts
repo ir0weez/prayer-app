@@ -283,10 +283,15 @@ describe('surfaces — the backup and the DATA rows carry ministries', () => {
   const src = readFileSync(join(process.cwd(), 'app/(tabs)/index.tsx'), 'utf8');
 
   it('the DATA export carries studioMinistries and feeds ministries into the schedule section', () => {
-    expect(src).toContain('collectStudioMinistries');
-    expect(src).toContain('studioMinistries');
-    expect(src).toContain('studioSchedule, studioStates, studioMinistries');
-    expect(src).toContain('collectStudioSchedule(exportEvents, exportTodos, new Date(), exportMinistries)');
+    // v408: the payload builder moved verbatim into
+    // lib/bible-v205/export-payload.ts (shared by the Export Data
+    // tap and the nightly auto-export) — the export half of this
+    // describe reads it there now.
+    const builder = readFileSync(join(process.cwd(), 'lib/bible-v205/export-payload.ts'), 'utf8');
+    expect(builder).toContain('collectStudioMinistries');
+    expect(builder).toContain('studioMinistries');
+    expect(builder).toContain('studioSchedule, studioStates, studioMinistries');
+    expect(builder).toContain('collectStudioSchedule(exportEvents, exportTodos, new Date(), exportMinistries)');
   });
 
   // v231 "One Door" superseded the dedicated Ministries row and its

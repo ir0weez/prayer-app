@@ -296,6 +296,16 @@ function ChapterProgressThread({
   );
 }
 
+// ─── v403: progressive entry mounting ────────────────────────────────────────
+// The character budget a chapter's entries mount under: the first
+// slice paints with the page, then one more slice lands per frame
+// until the whole chapter stands. Sized so one slice is a few
+// hundred words — a commit the JS thread clears in a blink — while
+// even his wordiest chapters finish mounting within a second or
+// so of opening, below the fold, while he is already reading.
+const MOUNT_FIRST_CHARS = 9000;
+const MOUNT_STEP_CHARS = 9000;
+
 export function ChapterPageView(props: ChapterPageProps) {
   const { book, chapter } = props;
   // v207: top safe-area inset, as the rest of the app applies.
@@ -383,6 +393,9 @@ export function ChapterPageView(props: ChapterPageProps) {
   const [profile, setProfile] = useState<ProfileIdentity>({ name: '' });
   const [openBubblesKey, setOpenBubblesKey] = useState<string | null>(null);
   const scrollYRef = useRef(0);
+  // v403: the last progress value actually committed to state —
+  // the scroll handler quantizes against it (see onScroll).
+  const progressRef = useRef(0);
   // v251: the sticky header's MEASURED height — the header reports
   // it through onLayout; the ref mirrors it for the scroll
   // callbacks, which must never read a stale render's state.
@@ -562,6 +575,57 @@ export function ChapterPageView(props: ChapterPageProps) {
   // its marks were actually stored on.
   const notesFlat = useMemo(() => flattenEntries(rawNotesSections), [rawNotesSections]);
   const verseText = useMemo(() => new Map(verses.map((v) => [v.verse, v.text])), [verses]);
+  // v403: entries mount PROGRESSIVELY, in slices under a character
+  // budget. His report (Oct 31, 23:24): opening 1 John 2 froze for
+  // a minute and drew Android's wait-or-force-quit box. The data is
+  // not the problem — his stores are small and the chapter's text
+  // ships in the app. The MOUNT is: the selection model renders
+  // every word as its own touchable + view + text, so a wordy
+  // chapter (1 John 2 carries ~6,700 words of verses and notes)
+  // asked the JS thread to build ~20,000 components in a single
+  // commit, with the page's store landings re-rendering the tree
+  // on top of that. Now the first slice paints with the page and
+  // the rest land a slice per frame — no single commit runs long
+  // enough to stall, and the chapter reads from the top at once.
+  // Everything downstream (measured entry positions, Contents
+  // jumps, the composer seat checks) already tolerates entries
+  // arriving after first paint; Stories reads the sections data
+  // itself, ungated. An entry never splits across slices: a single
+  // entry larger than the budget still mounts whole, as one entry
+  // always has.
+  const entryChars = (e: V205Entry): number => {
+    let n = 0;
+    for (const b of e.blocks) n += (b.text ?? '').length;
+    for (let v = e.start; v <= e.end; v++) n += verseText.get(v)?.length ?? 0;
+    return n;
+  };
+  const totalEntryChars = useMemo(
+    () => flat.reduce((sum, f) => sum + entryChars(f.entry), 0),
+    // entryChars reads verseText; both it and flat are the inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [flat, verseText],
+  );
+  const [mountChars, setMountChars] = useState(MOUNT_FIRST_CHARS);
+  useEffect(() => {
+    setMountChars(MOUNT_FIRST_CHARS);
+  }, [book, chapter]);
+  useEffect(() => {
+    if (mountChars >= totalEntryChars) return;
+    const id = requestAnimationFrame(() => setMountChars((c) => c + MOUNT_STEP_CHARS));
+    return () => cancelAnimationFrame(id);
+  }, [mountChars, totalEntryChars]);
+  const mountedEntryKeys = useMemo(() => {
+    const keys = new Set<string>();
+    let used = 0;
+    for (const f of flat) {
+      const c = entryChars(f.entry);
+      if (keys.size > 0 && used + c > mountChars) break;
+      used += c;
+      keys.add(entryKey(book, chapter, f.entry.start, f.entry.end));
+    }
+    return keys;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flat, verseText, mountChars, book, chapter]);
   const status: StudyStatus = studyState ? chapterStatus(studyState, book, chapter) : 'none';
   // v228: the READ track, displayed on this page but never derived
   // from the notes status above — the two marks are independent.
@@ -995,7 +1059,21 @@ export function ChapterPageView(props: ChapterPageProps) {
           contentHeight.current = contentSize.height;
           scrollYRef.current = contentOffset.y;
           const max = contentSize.height - layoutMeasurement.height;
-          setProgress(max > 0 ? Math.min(1, contentOffset.y / max) : 0);
+          // v403: progress commits to state only when it has moved
+          // a visible step (or lands exactly on an end) — on a
+          // wordy chapter a state commit re-renders the whole
+          // mounted tree, and a 32ms-throttled scroll stream of
+          // those is its own stall. A fifth of a percent is far
+          // finer than the header thread can show.
+          const nextProgress = max > 0 ? Math.min(1, contentOffset.y / max) : 0;
+          if (
+            Math.abs(nextProgress - progressRef.current) >= 0.002 ||
+            nextProgress === 0 ||
+            nextProgress === 1
+          ) {
+            progressRef.current = nextProgress;
+            setProgress(nextProgress);
+          }
           // v250: the section at the scroll head, from the measured
           // section positions — the last section whose top has
           // scrolled up to the header line. v251: the header line is
@@ -1269,6 +1347,10 @@ export function ChapterPageView(props: ChapterPageProps) {
           >
             <SectionBand start={section.start} end={section.end} title={section.title} palette={palette} tone={tone} />
             {section.entries.map((entry) => {
+              // v403: an entry past the mount budget waits for a
+              // later slice (see mountedEntryKeys above) — the
+              // section card and band stand from the first paint.
+              if (!mountedEntryKeys.has(entryKey(book, chapter, entry.start, entry.end))) return null;
               // v214: the bubble piece riding on this rendered entry —
               // in With-notes the entry IS the piece; in Read-only the
               // piece whose span starts at this verse anchors here.

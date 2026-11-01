@@ -261,7 +261,7 @@ describe("v397 unlocks", () => {
     expect(seen.has("chapter")).toBe(true);
     expect(seen.has("word-dig")).toBe(true);
     for (const id of KMO_DEFAULT_UNLOCKED) expect(seen.has(id)).toBe(true);
-    expect(KMO_POOL).toHaveLength(14); // v398: was 7 before the endless roster landed
+    expect(KMO_POOL).toHaveLength(20); // v398: was 7 before the endless roster landed; v399: 20 with six more games
 
     const all = [...KMO_DEFAULT_UNLOCKED, "backbeat", "tend"] as const;
     const seenAll = new Set<string>();

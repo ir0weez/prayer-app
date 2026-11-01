@@ -29,7 +29,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { applyCoinsDelta, loadCoinsRecord } from "@/lib/hometown";
-import type { KmoItemId, TendCell } from "@/lib/keep-me-occupied";
+import type { KmoItemId, RockSize, TendCell } from "@/lib/keep-me-occupied";
 import { awardCustomXP } from "@/lib/xp-engine";
 
 export const KMO_PROGRESSION_KEY = "prayercircle.kmo-progression.v1";
@@ -56,8 +56,9 @@ export const KMO_DEFAULT_UNLOCKED: readonly KmoItemId[] = [
  * Chapters have no price and never will; neither does the dig.
  * v398 ladder (Jonathan's order — "kind of neverending stuff to
  * unlock"): the Runner flagship sits early and cheap on purpose;
- * prices climb to Drop Match at the top. Backbeat and Tend keep
- * their v397 prices exactly.
+ * prices climb to Drop Match. Backbeat and Tend keep their v397
+ * prices exactly. v399 climbs on from there to Slide 2048 at
+ * 75,000 — the ladder is meant never to run out of next doors.
  */
 export const KMO_UNLOCK_PRICES: Partial<Record<KmoItemId, number>> = {
   runner: 2000,
@@ -69,11 +70,19 @@ export const KMO_UNLOCK_PRICES: Partial<Record<KmoItemId, number>> = {
   crossroads: 12500,
   breakout: 15000,
   "drop-match": 25000,
+  // v399: the ladder climbs on — six more doors, Slide 2048 at the top.
+  "plinko-drop": 30000,
+  "cave-flyer": 35000,
+  "colour-rush": 40000,
+  rockfall: 50000,
+  "mole-patrol": 60000,
+  "slide-2048": 75000,
 };
 
 const GAME_IDS: readonly KmoItemId[] = [
   "echo-lights", "sort-it-out", "stack", "backbeat", "tend",
   "runner", "glide", "jumper", "snake", "crossroads", "breakout", "drop-match",
+  "plinko-drop", "cave-flyer", "colour-rush", "rockfall", "mole-patrol", "slide-2048",
 ];
 
 export function parseKmoProgression(value: unknown): KmoProgression {
@@ -296,6 +305,48 @@ export const JUMPER_COIN_POINTS = 20;
 export function jumperScoreFor(altitude: number, coins: number): number {
   return Math.floor(altitude) + coins * JUMPER_COIN_POINTS;
 }
+
+// ─── v399 games — scoring ────────────────────────────────────────────────────
+
+// Plinko Drop: a run is ten balls; each banks its landing slot —
+// the edges pay (250/100), the near slots 25, the mid 50, and the
+// dead centre just 10.
+export const PLINKO_SLOT_VALUES = [250, 100, 50, 25, 10, 25, 50, 100, 250] as const;
+export function plinkoScoreForSlot(slot: number): number {
+  return PLINKO_SLOT_VALUES[Math.min(PLINKO_SLOT_VALUES.length - 1, Math.max(0, Math.floor(slot)))] ?? 0;
+}
+
+// Cave Flyer: +1 per metre, +30 per coin ring flown through.
+export const CAVE_RING_POINTS = 30;
+export function caveScoreFor(distanceM: number, rings: number): number {
+  return Math.floor(distanceM) + rings * CAVE_RING_POINTS;
+}
+
+// Colour Rush: +15 for tapping the ink (not the word), +5 more
+// when the answer lands inside a second.
+export const RUSH_CORRECT_POINTS = 15;
+export const RUSH_FAST_BONUS = 5;
+export function rushAnswerPoints(elapsedMs: number): number {
+  return RUSH_CORRECT_POINTS + (elapsedMs < 1000 ? RUSH_FAST_BONUS : 0);
+}
+
+// Rockfall: cracking a rock pays by size — small 10, medium 20,
+// large 30 (and the large splits into two fast smalls on top).
+export function rockPointsForSize(size: RockSize): number {
+  return size === "small" ? 10 : size === "medium" ? 20 : 30;
+}
+
+// Mole Patrol: a mole pays 10 plus 2 per chain step; the golden
+// mole pays a flat 100.
+export const MOLE_TAP_POINTS = 10;
+export const MOLE_GOLDEN_POINTS = 100;
+export const MOLE_CHAIN_STEP = 2;
+export function moleTapPoints(chain: number): number {
+  return MOLE_TAP_POINTS + MOLE_CHAIN_STEP * Math.max(0, Math.floor(chain));
+}
+
+// Slide 2048 needs no table: the score IS the sum of merged tiles,
+// composed by the merge itself (pinned in the game logic tests).
 
 // ─── Conversion ──────────────────────────────────────────────────────────────
 

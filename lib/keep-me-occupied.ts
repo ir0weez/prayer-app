@@ -53,6 +53,12 @@ export type KmoItemId =
   | "crossroads"
   | "breakout"
   | "drop-match"
+  | "plinko-drop"
+  | "cave-flyer"
+  | "colour-rush"
+  | "rockfall"
+  | "mole-patrol"
+  | "slide-2048"
   | "word-dig"
   | "chapter";
 
@@ -86,6 +92,15 @@ export const KMO_POOL: readonly KmoPoolItem[] = [
   { id: "crossroads", kind: "game", title: "Crossroads", chip: "DEALT · A GAME", verb: "directed traffic" },
   { id: "breakout", kind: "game", title: "Breakout", chip: "DEALT · A GAME", verb: "played Breakout" },
   { id: "drop-match", kind: "game", title: "Drop Match", chip: "DEALT · A GAME", verb: "played Drop Match" },
+  // v399 — six more doors on the ladder (Jonathan tapped "Add all
+  // six to the ladder", Oct 31). Same law as the v398 runs: a score
+  // with a best to beat, coins for playing, coins unlock more.
+  { id: "plinko-drop", kind: "game", title: "Plinko Drop", chip: "DEALT · A GAME", verb: "dropped the balls" },
+  { id: "cave-flyer", kind: "game", title: "Cave Flyer", chip: "DEALT · A GAME", verb: "flew the cave" },
+  { id: "colour-rush", kind: "game", title: "Colour Rush", chip: "DEALT · A GAME", verb: "rushed the colours" },
+  { id: "rockfall", kind: "game", title: "Rockfall", chip: "DEALT · A GAME", verb: "guarded the garden" },
+  { id: "mole-patrol", kind: "game", title: "Mole Patrol", chip: "DEALT · A GAME", verb: "patrolled the beds" },
+  { id: "slide-2048", kind: "game", title: "Slide 2048", chip: "DEALT · A GAME", verb: "slid the tiles" },
   { id: "word-dig", kind: "dig", title: "Word Dig", chip: "DEALT · THE DIG", verb: "dug in the Word" },
   { id: "chapter", kind: "chapter", title: "A Chapter", chip: "DEALT · A CHAPTER", verb: "read" },
 ];
@@ -1123,4 +1138,690 @@ export function jumpStep(state: JumpState, dt: number, steer: -1 | 0 | 1, rng: R
 
 export function jumpScore(state: JumpState): number {
   return Math.floor(state.altMax) + state.coinsCollected * 20;
+}
+
+// ─── v399 — six more run games ───────────────────────────────────────────────
+// Same architecture as the v398 seven: a small state object, pure
+// step functions, the score composed in the state or by a score fn.
+// A run CAN end in each of them — Plinko after its tenth ball,
+// Cave Flyer on the cave wall, Colour Rush on its third lost life,
+// Rockfall when the garden's third life goes, Mole Patrol when its
+// sixty seconds run out, Slide 2048 when no move remains — and
+// ending settles through the same v397 conversion.
+
+// ─── Plinko Drop ─────────────────────────────────────────────────────────────
+
+export const PLINKO_W = 320;
+export const PLINKO_ROWS = 8; // peg rows — eight deflections, nine slots
+export const PLINKO_BALLS_PER_RUN = 10;
+/** Slot values, left to right: the edges pay, the centre barely does. */
+export const PLINKO_SLOTS = [250, 100, 50, 25, 10, 25, 50, 100, 250] as const;
+
+export interface PlinkoBall {
+  /** Position in slot units (0–8); each peg row shifts it half a slot. */
+  bin: number;
+  /** Peg rows passed so far. */
+  row: number;
+}
+export interface PlinkoState {
+  over: boolean;
+  /** Where the next ball will drop, in slot units (0–8). */
+  aim: number;
+  ball: PlinkoBall | null;
+  /** Balls dropped so far this run. */
+  dropped: number;
+  score: number;
+  lastSlot: number | null;
+  lastPoints: number;
+}
+
+export function plinkoStart(): PlinkoState {
+  return { over: false, aim: 4, ball: null, dropped: 0, score: 0, lastSlot: null, lastPoints: 0 };
+}
+
+/** Slide the drop point along the top rail. Applies to the next drop. */
+export function plinkoAim(state: PlinkoState, aim: number): PlinkoState {
+  return { ...state, aim: Math.min(8, Math.max(0, aim)) };
+}
+
+/** Release a ball from the chute the aim sits over. One at a time. */
+export function plinkoDrop(state: PlinkoState): PlinkoState {
+  if (state.over || state.ball || state.dropped >= PLINKO_BALLS_PER_RUN) return state;
+  return {
+    ...state,
+    ball: { bin: Math.round(state.aim), row: 0 },
+    dropped: state.dropped + 1,
+    lastSlot: null,
+    lastPoints: 0,
+  };
+}
+
+/**
+ * The ball falls one peg row per step, deflecting half a slot left
+ * or right at each peg (the walls keep it on the board). After the
+ * eighth row it settles into a slot and banks that slot's value;
+ * the run ends when the tenth ball settles.
+ */
+export function plinkoStep(state: PlinkoState, rng: Rng): PlinkoState {
+  const ball = state.ball;
+  if (!ball || state.over) return state;
+  if (ball.row >= PLINKO_ROWS) {
+    const slot = Math.min(PLINKO_SLOTS.length - 1, Math.max(0, Math.round(ball.bin)));
+    const points = PLINKO_SLOTS[slot];
+    return {
+      ...state,
+      ball: null,
+      score: state.score + points,
+      lastSlot: slot,
+      lastPoints: points,
+      over: state.dropped >= PLINKO_BALLS_PER_RUN,
+    };
+  }
+  const bin = Math.min(8, Math.max(0, ball.bin + (rng() < 0.5 ? -0.5 : 0.5)));
+  return { ...state, ball: { bin, row: ball.row + 1 } };
+}
+
+export function plinkoScore(state: PlinkoState): number {
+  return state.score;
+}
+
+// ─── Cave Flyer ──────────────────────────────────────────────────────────────
+
+export const CAVE_W = 320;
+export const CAVE_H = 300;
+export const CAVE_X = 62;
+export const CAVE_SIZE = 18;
+export const CAVE_COL_W = 26;
+export const CAVE_COLS = Math.ceil(CAVE_W / CAVE_COL_W) + 3;
+export const CAVE_RING_POINTS = 30;
+
+export interface CaveRing { id: number; x: number; y: number; taken: boolean }
+export interface CaveState {
+  alive: boolean;
+  /** The flyer's centre height, px from the top. */
+  y: number;
+  vy: number;
+  /** Metres flown (float); the score floors it. */
+  distance: number;
+  /** Ceiling bottom edge per screen column. */
+  ceil: number[];
+  /** Floor top edge per screen column. */
+  floor: number[];
+  /** Sub-column scroll, px. */
+  scroll: number;
+  gapCenter: number;
+  gapHalf: number;
+  rings: CaveRing[];
+  ringsCollected: number;
+  nextId: number;
+}
+
+const CAVE_PX_PER_M = 46;
+const CAVE_GRAVITY = 1080;
+const CAVE_THRUST = -1980;
+const caveSpeed = (distance: number) => Math.min(192, 128 + distance * 0.55);
+const caveColOfFlyer = Math.floor(CAVE_X / CAVE_COL_W);
+
+interface CaveColumn { ceil: number; floor: number; center: number; half: number }
+
+/** Generate the next column past the right edge: the gap wanders, narrows, roughens. */
+function caveNextColumn(center: number, half: number, distance: number, rng: Rng): CaveColumn {
+  const targetHalf = Math.max(54, 96 - distance * 0.3);
+  const nextHalf = half + Math.max(-1.5, Math.min(1.5, targetHalf - half));
+  const wander = Math.min(26, 10 + distance * 0.012);
+  const nextCenter = Math.min(
+    CAVE_H - nextHalf - 10,
+    Math.max(nextHalf + 10, center + (rng() - 0.5) * 2 * wander),
+  );
+  const ceil = Math.min(CAVE_H - 84, Math.max(2, nextCenter - nextHalf + (rng() - 0.5) * 13));
+  const floor = Math.max(ceil + 66, Math.min(CAVE_H - 2, nextCenter + nextHalf + (rng() - 0.5) * 13));
+  return { ceil, floor, center: nextCenter, half: nextHalf };
+}
+
+export function caveStart(): CaveState {
+  const ceil: number[] = [];
+  const floor: number[] = [];
+  for (let i = 0; i < CAVE_COLS; i++) {
+    ceil.push(CAVE_H / 2 - 96);
+    floor.push(CAVE_H / 2 + 96);
+  }
+  return {
+    alive: true, y: CAVE_H / 2, vy: 0, distance: 0,
+    ceil, floor, scroll: 0, gapCenter: CAVE_H / 2, gapHalf: 96,
+    rings: [], ringsCollected: 0, nextId: 1,
+  };
+}
+
+/**
+ * One step of the cave. Hold to rise, release to fall — the old
+ * helicopter contract. The terrain scrolls left; a fresh column
+ * generates per column-width scrolled, and its gap is a little
+ * meaner than the last. Touching ceiling or floor ends the run.
+ */
+export function caveStep(state: CaveState, dt: number, thrust: boolean, rng: Rng): CaveState {
+  if (!state.alive) return state;
+  const s: CaveState = {
+    ...state,
+    ceil: [...state.ceil],
+    floor: [...state.floor],
+    rings: state.rings.map((r) => ({ ...r })),
+  };
+  s.vy += (thrust ? CAVE_THRUST : CAVE_GRAVITY) * dt;
+  s.vy = Math.max(-335, Math.min(385, s.vy));
+  s.y += s.vy * dt;
+  const dx = caveSpeed(s.distance) * dt;
+  s.distance += dx / CAVE_PX_PER_M;
+  // Scroll: whole columns shift out, new ones generate in.
+  s.scroll += dx;
+  while (s.scroll >= CAVE_COL_W) {
+    s.scroll -= CAVE_COL_W;
+    s.ceil.shift();
+    s.floor.shift();
+    const col = caveNextColumn(s.gapCenter, s.gapHalf, s.distance, rng);
+    s.ceil.push(col.ceil);
+    s.floor.push(col.floor);
+    s.gapCenter = col.center;
+    s.gapHalf = col.half;
+    if (rng() < 0.14) {
+      s.rings.push({
+        id: s.nextId++,
+        x: CAVE_W + 26,
+        y: col.center + (rng() - 0.5) * col.half * 0.8,
+        taken: false,
+      });
+    }
+  }
+  // Rings drift with the terrain; flying through one pays 30.
+  for (const ring of s.rings) {
+    ring.x -= dx;
+    if (!ring.taken && Math.abs(ring.x - CAVE_X) < 17 && Math.abs(ring.y - s.y) < 27) {
+      ring.taken = true;
+      s.ringsCollected++;
+    }
+  }
+  s.rings = s.rings.filter((r) => !r.taken && r.x > -24);
+  // The wall is the end of it.
+  const ceilY = s.ceil[caveColOfFlyer] ?? 0;
+  const floorY = s.floor[caveColOfFlyer] ?? CAVE_H;
+  if (s.y - CAVE_SIZE / 2 <= ceilY || s.y + CAVE_SIZE / 2 >= floorY) {
+    s.alive = false;
+  }
+  return s;
+}
+
+export function caveScore(state: CaveState): number {
+  return Math.floor(state.distance) + state.ringsCollected * CAVE_RING_POINTS;
+}
+
+// ─── Colour Rush ─────────────────────────────────────────────────────────────
+
+export interface RushColor { name: string; hex: string }
+export const RUSH_COLORS: readonly RushColor[] = [
+  { name: "RED", hex: "#C0392B" },
+  { name: "BLUE", hex: "#2F6FDE" },
+  { name: "GREEN", hex: "#3E8E4F" },
+  { name: "GOLD", hex: "#D9940A" },
+  { name: "PURPLE", hex: "#7C4DBD" },
+];
+export const RUSH_START_LIVES = 3;
+export const RUSH_CORRECT_POINTS = 15;
+export const RUSH_FAST_BONUS = 5;
+export const RUSH_FAST_MS = 1000;
+
+export interface RushRound {
+  /** Index of the word's colour name. */
+  word: number;
+  /** Index of the ink it is printed in — the answer. */
+  ink: number;
+  /** The four answer swatches (colour indices), shuffled. */
+  choices: number[];
+}
+export interface RushState {
+  alive: boolean;
+  lives: number;
+  correct: number;
+  score: number;
+  round: RushRound;
+}
+
+function rushShuffle(values: number[], rng: Rng): number[] {
+  const out = [...values];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = pickIndex(i + 1, rng);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/**
+ * Deal a round: three times in four the word lies about the ink —
+ * that disagreement is the whole game. The ink is always among the
+ * four swatches.
+ */
+export function rushRound(rng: Rng): RushRound {
+  const ink = pickIndex(RUSH_COLORS.length, rng);
+  let word = ink;
+  if (rng() < 0.75) {
+    do {
+      word = pickIndex(RUSH_COLORS.length, rng);
+    } while (word === ink);
+  }
+  const distractors = rushShuffle(
+    RUSH_COLORS.map((_, i) => i).filter((i) => i !== ink),
+    rng,
+  ).slice(0, 3);
+  return { word, ink, choices: rushShuffle([ink, ...distractors], rng) };
+}
+
+/** +15 for the right ink, +5 more when the answer lands inside a second. */
+export function rushPoints(elapsedMs: number): number {
+  return RUSH_CORRECT_POINTS + (elapsedMs < RUSH_FAST_MS ? RUSH_FAST_BONUS : 0);
+}
+
+/** The per-round clock: three seconds at first, shrinking toward 1.2s. */
+export function rushTimeLimitMs(correct: number): number {
+  return Math.max(1200, 3000 - correct * 80);
+}
+
+export function rushStart(rng: Rng): RushState {
+  return { alive: true, lives: RUSH_START_LIVES, correct: 0, score: 0, round: rushRound(rng) };
+}
+
+export interface RushAnswerResult {
+  state: RushState;
+  result: "correct" | "wrong" | "over";
+}
+
+/** Answer a round: right ink banks the points; a wrong one costs a life. */
+export function rushAnswer(state: RushState, choice: number, elapsedMs: number, rng: Rng): RushAnswerResult {
+  if (!state.alive) return { state, result: "over" };
+  if (choice === state.round.ink) {
+    const next: RushState = {
+      ...state,
+      correct: state.correct + 1,
+      score: state.score + rushPoints(elapsedMs),
+      round: rushRound(rng),
+    };
+    return { state: next, result: "correct" };
+  }
+  const lives = state.lives - 1;
+  const next: RushState = {
+    ...state,
+    lives,
+    alive: lives > 0,
+    round: lives > 0 ? rushRound(rng) : state.round,
+  };
+  return { state: next, result: "wrong" };
+}
+
+/** The clock running out costs exactly what a wrong tap costs. */
+export function rushTimeout(state: RushState, rng: Rng): RushState {
+  if (!state.alive) return state;
+  const lives = state.lives - 1;
+  return {
+    ...state,
+    lives,
+    alive: lives > 0,
+    round: lives > 0 ? rushRound(rng) : state.round,
+  };
+}
+
+export function rushScore(state: RushState): number {
+  return state.score;
+}
+
+// ─── Rockfall ────────────────────────────────────────────────────────────────
+
+export const ROCK_W = 320;
+export const ROCK_H = 300;
+export const ROCK_GARDEN_Y = ROCK_H - 34;
+export const ROCK_START_LIVES = 3;
+
+export type RockSize = "small" | "medium" | "large";
+export const ROCK_HP: Record<RockSize, number> = { small: 1, medium: 2, large: 3 };
+export const ROCK_POINTS: Record<RockSize, number> = { small: 10, medium: 20, large: 30 };
+export const ROCK_RADIUS: Record<RockSize, number> = { small: 13, medium: 19, large: 27 };
+
+export interface Rock {
+  id: number;
+  x: number;
+  y: number;
+  size: RockSize;
+  hp: number;
+  /** Fall speed, px/s, snapshotted at spawn (splits fall faster). */
+  speed: number;
+  fast: boolean;
+}
+export interface RockState {
+  alive: boolean;
+  lives: number;
+  rocks: Rock[];
+  score: number;
+  elapsed: number;
+  spawnIn: number;
+  nextId: number;
+}
+
+const rockBaseSpeed = (size: RockSize) => (size === "small" ? 58 : size === "medium" ? 50 : 42);
+const rockRamp = (elapsed: number) => 1 + elapsed * 0.012;
+
+function rockSpawn(state: RockState, rng: Rng): Rock {
+  const roll = rng();
+  const size: RockSize = roll < 0.45 ? "small" : roll < 0.78 ? "medium" : "large";
+  return {
+    id: state.nextId,
+    x: 24 + rng() * (ROCK_W - 48),
+    y: -ROCK_RADIUS[size],
+    size,
+    hp: ROCK_HP[size],
+    speed: rockBaseSpeed(size) * rockRamp(state.elapsed),
+    fast: false,
+  };
+}
+
+export function rockStart(): RockState {
+  return { alive: true, lives: ROCK_START_LIVES, rocks: [], score: 0, elapsed: 0, spawnIn: 0.5, nextId: 1 };
+}
+
+/**
+ * Rocks fall; spawns thicken and everything falls a little faster
+ * as the run ages. A rock that reaches the garden strip costs one
+ * of three garden lives; the third costs the run.
+ */
+export function rockStep(state: RockState, dt: number, rng: Rng): RockState {
+  if (!state.alive) return state;
+  const s: RockState = { ...state, rocks: state.rocks.map((r) => ({ ...r })) };
+  s.elapsed += dt;
+  s.spawnIn -= dt;
+  if (s.spawnIn <= 0) {
+    s.rocks.push(rockSpawn(s, rng));
+    s.nextId++;
+    s.spawnIn = Math.max(0.55, 1.15 - s.elapsed * 0.008) * (0.7 + rng() * 0.6);
+  }
+  let lives = s.lives;
+  const kept: Rock[] = [];
+  for (const rock of s.rocks) {
+    rock.y += rock.speed * dt;
+    if (rock.y + ROCK_RADIUS[rock.size] >= ROCK_GARDEN_Y) {
+      lives--;
+      continue;
+    }
+    kept.push(rock);
+  }
+  s.rocks = kept;
+  s.lives = Math.max(0, lives);
+  if (s.lives <= 0) s.alive = false;
+  return s;
+}
+
+/**
+ * Tap a rock to crack it. Small rocks break in one tap, mediums in
+ * two, larges in three — and a large, when it finally breaks, pays
+ * its 30 and splits into two fast smalls where it fell.
+ */
+export function rockTap(state: RockState, id: number): RockState {
+  if (!state.alive) return state;
+  const rock = state.rocks.find((r) => r.id === id);
+  if (!rock) return state;
+  const hp = rock.hp - 1;
+  if (hp > 0) {
+    return { ...state, rocks: state.rocks.map((r) => (r.id === id ? { ...r, hp } : r)) };
+  }
+  const rocks = state.rocks.filter((r) => r.id !== id);
+  let nextId = state.nextId;
+  if (rock.size === "large") {
+    for (const offset of [-17, 17]) {
+      rocks.push({
+        id: nextId++,
+        x: Math.min(ROCK_W - 16, Math.max(16, rock.x + offset)),
+        y: rock.y,
+        size: "small",
+        hp: ROCK_HP.small,
+        speed: rockBaseSpeed("small") * rockRamp(state.elapsed) * 1.6,
+        fast: true,
+      });
+    }
+  }
+  return {
+    ...state,
+    rocks,
+    nextId,
+    score: state.score + ROCK_POINTS[rock.size],
+  };
+}
+
+export function rockScore(state: RockState): number {
+  return state.score;
+}
+
+// ─── Mole Patrol ─────────────────────────────────────────────────────────────
+
+export const MOLE_HOLES = 9;
+export const MOLE_RUN_SECONDS = 60;
+export const MOLE_TAP_POINTS = 10;
+export const MOLE_GOLDEN_POINTS = 100;
+export const MOLE_CHAIN_STEP = 2;
+export const MOLE_CHAIN_WINDOW = 1.6; // seconds between taps before the chain cools
+
+export type MoleKind = "mole" | "golden" | "flower";
+export interface MoleHole { kind: MoleKind; age: number }
+export interface MoleState {
+  over: boolean;
+  holes: (MoleHole | null)[];
+  score: number;
+  /** Consecutive scoring taps inside the window. */
+  chain: number;
+  chainAge: number;
+  timeLeft: number;
+  spawnIn: number;
+}
+
+/** How long each visitor stays up, in seconds. Gold is in a hurry. */
+export function moleLifetime(kind: MoleKind): number {
+  return kind === "golden" ? 0.75 : kind === "flower" ? 1.4 : 1.15;
+}
+
+export function moleStart(): MoleState {
+  return {
+    over: false,
+    holes: Array(MOLE_HOLES).fill(null),
+    score: 0,
+    chain: 0,
+    chainAge: 0,
+    timeLeft: MOLE_RUN_SECONDS,
+    spawnIn: 0.25,
+  };
+}
+
+/**
+ * The sixty-second patrol: visitors pop on a quickening clock —
+ * moles mostly, a rare golden, and (once the run is ten seconds
+ * old) the odd flower you must NOT tap. Un-tapped visitors duck
+ * back down on their own; only the clock ends this run.
+ */
+export function moleStep(state: MoleState, dt: number, rng: Rng): MoleState {
+  if (state.over) return state;
+  const s: MoleState = { ...state, holes: state.holes.map((h) => (h ? { ...h } : null)) };
+  s.timeLeft -= dt;
+  if (s.timeLeft <= 0) {
+    return { ...s, timeLeft: 0, over: true };
+  }
+  s.chainAge += dt;
+  if (s.chainAge > MOLE_CHAIN_WINDOW) s.chain = 0;
+  const elapsed = MOLE_RUN_SECONDS - s.timeLeft;
+  for (let i = 0; i < s.holes.length; i++) {
+    const hole = s.holes[i];
+    if (!hole) continue;
+    hole.age += dt;
+    if (hole.age >= moleLifetime(hole.kind)) s.holes[i] = null;
+  }
+  s.spawnIn -= dt;
+  if (s.spawnIn <= 0) {
+    const empty = s.holes.map((h, i) => (h ? -1 : i)).filter((i) => i >= 0);
+    if (empty.length > 0) {
+      const idx = empty[pickIndex(empty.length, rng)];
+      const roll = rng();
+      const kind: MoleKind = roll < 0.06 ? "golden" : elapsed > 10 && roll < 0.22 ? "flower" : "mole";
+      s.holes[idx] = { kind, age: 0 };
+    }
+    s.spawnIn = Math.max(0.38, 0.85 - elapsed * 0.006) * (0.7 + rng() * 0.6);
+  }
+  return s;
+}
+
+/**
+ * Tap a bed. A mole pays 10 plus the chain (2 per step); the golden
+ * mole pays a flat 100. An empty bed — or the flower — breaks the
+ * chain and pays nothing; no tap here can cost a life.
+ */
+export function moleTap(state: MoleState, index: number): MoleState {
+  if (state.over) return state;
+  const hole = state.holes[index];
+  const holes = [...state.holes];
+  if (!hole || hole.kind === "flower") {
+    holes[index] = null;
+    return { ...state, holes, chain: 0, chainAge: 0 };
+  }
+  const points = hole.kind === "golden"
+    ? MOLE_GOLDEN_POINTS
+    : MOLE_TAP_POINTS + MOLE_CHAIN_STEP * state.chain;
+  holes[index] = null;
+  return {
+    ...state,
+    holes,
+    score: state.score + points,
+    chain: state.chain + 1,
+    chainAge: 0,
+  };
+}
+
+export function moleScore(state: MoleState): number {
+  return state.score;
+}
+
+// ─── Slide 2048 ──────────────────────────────────────────────────────────────
+
+export const SLIDE_SIZE = 4;
+export const SLIDE_CELLS = SLIDE_SIZE * SLIDE_SIZE;
+
+export type SlideGrid = number[];
+export type SlideDirection = "left" | "right" | "up" | "down";
+export interface SlideState {
+  grid: SlideGrid;
+  score: number;
+  bestTile: number;
+  over: boolean;
+}
+
+/**
+ * The four lines a direction slides, as cell indices in traversal
+ * order — running from the edge the tiles slide TOWARD, so a line
+ * always reads front-to-back the way slideMergeLine compacts it.
+ */
+function slideLines(dir: SlideDirection): number[][] {
+  const lines: number[][] = [];
+  for (let a = 0; a < SLIDE_SIZE; a++) {
+    const line: number[] = [];
+    for (let b = 0; b < SLIDE_SIZE; b++) {
+      const t = dir === "left" || dir === "up" ? b : SLIDE_SIZE - 1 - b;
+      line.push(dir === "left" || dir === "right" ? a * SLIDE_SIZE + t : t * SLIDE_SIZE + a);
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+
+/** Compact one line toward its front, merging each pair once. Returns the merged sum. */
+function slideMergeLine(values: number[]): { line: number[]; gained: number } {
+  const tiles = values.filter((v) => v > 0);
+  const line: number[] = [];
+  let gained = 0;
+  for (let i = 0; i < tiles.length; i++) {
+    if (i + 1 < tiles.length && tiles[i] === tiles[i + 1]) {
+      const merged = tiles[i] * 2;
+      line.push(merged);
+      gained += merged;
+      i++;
+    } else {
+      line.push(tiles[i]);
+    }
+  }
+  while (line.length < SLIDE_SIZE) line.push(0);
+  return { line, gained };
+}
+
+export interface SlideMoveResult {
+  grid: SlideGrid;
+  /** The sum of the tiles this move merged — the score it earned. */
+  gained: number;
+  moved: boolean;
+}
+
+/** Slide the whole grid one way (no spawn — slideSwipe owns the full turn). */
+export function slideMoveGrid(grid: SlideGrid, dir: SlideDirection): SlideMoveResult {
+  const next = [...grid];
+  let gained = 0;
+  let moved = false;
+  for (const line of slideLines(dir)) {
+    const values = line.map((idx) => grid[idx]);
+    const { line: merged, gained: g } = slideMergeLine(values);
+    gained += g;
+    line.forEach((idx, i) => {
+      if (next[idx] !== merged[i]) moved = true;
+      next[idx] = merged[i];
+    });
+  }
+  return { grid: next, gained, moved };
+}
+
+/** A fresh tile in a random empty cell: a 2 nine times in ten, else a 4. */
+export function slideSpawn(grid: SlideGrid, rng: Rng): SlideGrid {
+  const empty = grid.map((v, i) => (v === 0 ? i : -1)).filter((i) => i >= 0);
+  if (empty.length === 0) return grid;
+  const next = [...grid];
+  next[empty[pickIndex(empty.length, rng)]] = rng() < 0.9 ? 2 : 4;
+  return next;
+}
+
+export function slideBestTile(grid: SlideGrid): number {
+  return grid.reduce((max, v) => Math.max(max, v), 0);
+}
+
+/** No moves remain: a full board with no equal neighbours. */
+export function slideGameOver(grid: SlideGrid): boolean {
+  for (let i = 0; i < SLIDE_CELLS; i++) {
+    if (grid[i] === 0) return false;
+    const row = Math.floor(i / SLIDE_SIZE);
+    const col = i % SLIDE_SIZE;
+    if (col + 1 < SLIDE_SIZE && grid[i + 1] === grid[i]) return false;
+    if (row + 1 < SLIDE_SIZE && grid[i + SLIDE_SIZE] === grid[i]) return false;
+  }
+  return true;
+}
+
+export function slideStart(rng: Rng): SlideState {
+  const grid = slideSpawn(slideSpawn(Array(SLIDE_CELLS).fill(0), rng), rng);
+  return { grid, score: 0, bestTile: slideBestTile(grid), over: false };
+}
+
+/**
+ * One full turn: slide, and only if something actually moved,
+ * spawn the next tile. The score is the classic one — the sum of
+ * everything you merged. No moves left ends the run.
+ */
+export function slideSwipe(state: SlideState, dir: SlideDirection, rng: Rng): SlideState {
+  if (state.over) return state;
+  const { grid, gained, moved } = slideMoveGrid(state.grid, dir);
+  if (!moved) return state;
+  const spawned = slideSpawn(grid, rng);
+  return {
+    grid: spawned,
+    score: state.score + gained,
+    bestTile: Math.max(state.bestTile, slideBestTile(spawned)),
+    over: slideGameOver(spawned),
+  };
+}
+
+export function slideScore(state: SlideState): number {
+  return state.score;
 }

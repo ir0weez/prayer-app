@@ -32,6 +32,7 @@ export function RunEndCard({
   coins,
   xp,
   overLine,
+  extraLine,
   onAgain,
   onGood,
 }: {
@@ -41,6 +42,8 @@ export function RunEndCard({
   coins: number;
   xp: number;
   overLine: string;
+  /** v399: one optional extra fact under the score (Slide 2048's best tile). */
+  extraLine?: string;
   onAgain: () => void;
   onGood: () => void;
 }) {
@@ -53,6 +56,9 @@ export function RunEndCard({
       </View>
       {coins > 0 || xp > 0 ? (
         <Text style={[styles.earnings, { color: m.deep }]}>+{coins} coins · +{xp} XP</Text>
+      ) : null}
+      {extraLine ? (
+        <Text style={[styles.extra, { color: m.inkSoft }]}>{extraLine}</Text>
       ) : null}
       <View style={styles.actions}>
         <Pressable
@@ -87,6 +93,7 @@ const styles = StyleSheet.create({
   score: { fontSize: 30, fontWeight: "900" },
   best: { fontSize: 12.5, fontWeight: "800" },
   earnings: { fontSize: 13.5, fontWeight: "900", marginTop: 4 },
+  extra: { fontSize: 12.5, fontWeight: "700", marginTop: 3 },
   actions: { flexDirection: "row", gap: 9, marginTop: 12 },
   again: { flex: 1, borderRadius: 999, paddingVertical: 11, alignItems: "center" },
   againText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },

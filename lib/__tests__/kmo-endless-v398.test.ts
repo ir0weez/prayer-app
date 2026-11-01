@@ -124,6 +124,9 @@ beforeEach(() => {
 
 describe("v398 the ladder", () => {
   it("nine priced games in his order; Backbeat and Tend keep their v397 prices", () => {
+    // v399 note: the ladder grew six more priced doors on top of
+    // these nine (pinned in full in the v399 tests); the v398 nine
+    // keep their prices exactly, and the whole table now reads:
     expect(KMO_UNLOCK_PRICES).toEqual({
       runner: 2000,
       backbeat: 3000,
@@ -134,6 +137,12 @@ describe("v398 the ladder", () => {
       crossroads: 12500,
       breakout: 15000,
       "drop-match": 25000,
+      "plinko-drop": 30000,
+      "cave-flyer": 35000,
+      "colour-rush": 40000,
+      rockfall: 50000,
+      "mole-patrol": 60000,
+      "slide-2048": 75000,
     });
     expect(unlockPrice("runner")).toBe(2000);
     expect(unlockPrice("crossroads")).toBe(12500);
@@ -141,9 +150,13 @@ describe("v398 the ladder", () => {
   });
 
   it("the pool registry carries all seven new games between Tend and the dig", () => {
+    // v399 note: six more games registered after Drop Match
+    // (pinned as v399's own in the v399 tests); the v398 seven
+    // stand in their places, and the roster now ends:
     expect(KMO_POOL.map((i) => i.id)).toEqual([
       "echo-lights", "sort-it-out", "stack", "backbeat", "tend",
       "runner", "glide", "jumper", "snake", "crossroads", "breakout", "drop-match",
+      "plinko-drop", "cave-flyer", "colour-rush", "rockfall", "mole-patrol", "slide-2048",
       "word-dig", "chapter",
     ]);
     for (const id of NEW_GAMES) {

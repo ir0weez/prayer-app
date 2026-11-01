@@ -28,14 +28,20 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { BackbeatGame } from "@/components/keep-me-occupied/backbeat";
 import { BreakoutGame } from "@/components/keep-me-occupied/breakout";
+import { CaveFlyerGame } from "@/components/keep-me-occupied/cave-flyer";
 import { ChapterDealCard } from "@/components/keep-me-occupied/chapter-deal";
+import { ColourRushGame } from "@/components/keep-me-occupied/colour-rush";
 import { CrossroadsGame } from "@/components/keep-me-occupied/crossroads";
 import { DropMatchGame } from "@/components/keep-me-occupied/drop-match";
 import { EchoLightsGame } from "@/components/keep-me-occupied/echo-lights";
 import { GamesShelf } from "@/components/keep-me-occupied/games-shelf";
 import { GlideGame } from "@/components/keep-me-occupied/glide";
 import { JumperGame } from "@/components/keep-me-occupied/jumper";
+import { MolePatrolGame } from "@/components/keep-me-occupied/mole-patrol";
+import { PlinkoDropGame } from "@/components/keep-me-occupied/plinko-drop";
+import { RockfallGame } from "@/components/keep-me-occupied/rockfall";
 import { RunnerGame } from "@/components/keep-me-occupied/runner";
+import { Slide2048Game } from "@/components/keep-me-occupied/slide-2048";
 import { SnakeGame } from "@/components/keep-me-occupied/snake";
 import { SortItOutGame } from "@/components/keep-me-occupied/sort-it-out";
 import { StackGame } from "@/components/keep-me-occupied/stack-game";
@@ -488,6 +494,18 @@ function gameSub(id: KmoPoolItem["id"]): string {
       return "Drag the paddle. The bricks keep coming.";
     case "drop-match":
       return "Tap a group of three or more. Mind the rising pile.";
+    case "plinko-drop":
+      return "Slide the chute, drop the ball. Ten balls — the edges pay.";
+    case "cave-flyer":
+      return "Hold to rise, let go to fall. Mind the cave walls.";
+    case "colour-rush":
+      return "Tap the ink, not the word. Three lives, a shrinking clock.";
+    case "rockfall":
+      return "Tap rocks to crack them before they hit the garden.";
+    case "mole-patrol":
+      return "Sixty seconds. Moles pay, gold pays big, flowers break the chain.";
+    case "slide-2048":
+      return "Swipe to slide and merge. The ladder's top shelf.";
     case "word-dig":
       return "A word buried in a verse. Six digs, and the verse is the hint.";
     default:
@@ -495,9 +513,10 @@ function gameSub(id: KmoPoolItem["id"]): string {
   }
 }
 
-/** The v398 run games: gesture- and hold-driven, so the page scroll locks while one is dealt. */
+/** The run games: gesture- and hold-driven, so the page scroll locks while one is dealt. */
 const RUN_GAME_IDS: readonly KmoItemId[] = [
   "runner", "glide", "jumper", "snake", "crossroads", "breakout", "drop-match",
+  "plinko-drop", "cave-flyer", "colour-rush", "rockfall", "mole-patrol", "slide-2048",
 ];
 
 function renderDealContent(
@@ -534,6 +553,18 @@ function renderDealContent(
       return <BreakoutGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
     case "drop-match":
       return <DropMatchGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "plinko-drop":
+      return <PlinkoDropGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "cave-flyer":
+      return <CaveFlyerGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "colour-rush":
+      return <ColourRushGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "rockfall":
+      return <RockfallGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "mole-patrol":
+      return <MolePatrolGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "slide-2048":
+      return <Slide2048Game m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
     case "word-dig":
       return (
         <WordDigGame

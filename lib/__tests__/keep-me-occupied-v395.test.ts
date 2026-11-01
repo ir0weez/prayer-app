@@ -159,12 +159,15 @@ describe("v395 the deal", () => {
     // crossroads, breakout, drop-match). The original seven stand
     // first, in their approved order; the full roster is pinned in
     // the v398 tests.
+    // v399 note (Oct 31): six more doors (plinko-drop, cave-flyer,
+    // colour-rush, rockfall, mole-patrol, slide-2048) registered
+    // after Drop Match; the full roster is pinned in the v399 tests.
     expect(KMO_POOL.map((i) => i.id).slice(0, 5)).toEqual([
       "echo-lights", "sort-it-out", "stack", "backbeat", "tend",
     ]);
     expect(KMO_POOL.map((i) => i.id).slice(-2)).toEqual(["word-dig", "chapter"]);
-    expect(KMO_POOL).toHaveLength(14);
-    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(12);
+    expect(KMO_POOL).toHaveLength(20);
+    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(18);
   });
 });
 

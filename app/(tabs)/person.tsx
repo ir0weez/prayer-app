@@ -14,7 +14,7 @@ import { AnchoredSheet, measureEventAnchor, type AnchorRect } from "@/components
 import { BitSettle } from "@/components/bit-motion";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT } from "@/lib/skin-themes";
+import { BIT_ON_DUSK, BIT_ON_DUSK_SOFT, hexLuminance } from "@/lib/skin-themes";
 import {
   addPrayerItem,
   formatDaysSinceLastPrayer,
@@ -53,6 +53,12 @@ import {
   type ReminderFrequency,
 } from "@/lib/prayercircle-data";
 import { usePeopleMaterial } from "@/hooks/use-people-material";
+import { PEOPLE_EMERGENCY_DEEP, PEOPLE_PRAYED_DEEP, PEOPLE_PRAYED_GREEN } from "@/lib/people-material";
+import { deriveSettingsMaterial } from "@/lib/settings-material";
+import { scheduleMaterialTones, schedulePanelStep } from "@/lib/schedule-material";
+import { deriveBibleMaterial } from "@/lib/bible-v205/palette-accents";
+import { mix } from "@/lib/color-themes";
+import { buildWeekDots, checkInStatus, countPrayedThisMonth, daysUntilBirthday, meanReachedGapDays } from "@/lib/person-page-facts";
 import { getPraiseDisplay } from "@/lib/praise-display";
 import { PeopleEntrance } from "@/components/people-entrance";
 import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
@@ -123,6 +129,12 @@ function getStatusText(person: Person) {
   if (daysSince === 999) return "Not reached yet";
   if (daysSince === 0) return "Reached today";
   return `Last reached ${formatDaysSinceLastPrayer(daysSince)} ago`;
+}
+
+/** v406: "Oct 27"-style short label for an ISO day, parsed at local
+ *  noon the way the rest of the page parses stored dates. */
+function shortDateLabel(iso: string): string {
+  return new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function getInitialsFromName(name: string) {
@@ -440,6 +452,44 @@ export default function PersonScreen() {
   const lastReachedColor = currentPerson ? getLastReachedAccentColor(currentPerson) : colors.primary;
   const daysSinceLastReached = currentPerson ? getDaysSinceLastPrayed(currentPerson.lastPrayedDate) : 999;
   const hasPrayedToday = currentPerson ? currentPerson.lastPrayerCompletedDate === getTodayISOString() : false;
+
+  // v406: the redesigned page's derivations. Every surface derives
+  // from the live palette (seed x appearance x skin) through the
+  // app's standing helpers — the Settings ladder for the portrait
+  // band, the Daily Summary's panel step for the blue box, the
+  // Bible's section tone for the prayer cards — and every fact
+  // comes from lib/person-page-facts over the person's own records.
+  const sm = deriveSettingsMaterial(colors.primary, {
+    background: colors.background,
+    surface: colors.surface,
+    foreground: colors.foreground,
+    muted: colors.muted,
+    border: colors.border,
+  });
+  const panel = schedulePanelStep(colors.primary);
+  const scheduleTones = scheduleMaterialTones(colors.primary, colors.surface);
+  const bibleMat = deriveBibleMaterial(colors.primary, mix(colors.background, colors.primary, hexLuminance(colors.background) < 0.5 ? 0.05 : 0.04));
+  const secTone = bibleMat.sections[0];
+  const answeredChipBg = mix(colors.surface, PEOPLE_PRAYED_GREEN, 0.16);
+  const personStamps = useMemo(
+    () => reachedStamps.filter((stamp) => stamp.personId === personId).slice().sort((a, b) => (a.date < b.date ? 1 : -1)),
+    [reachedStamps, personId],
+  );
+  const orderedFaces = currentPerson?.familyId
+    ? [currentPerson, ...familyMembers.filter((member) => member.id !== currentPerson.id)]
+    : [];
+  const leadItem = currentPerson?.prayerItems.find((item) => item.isUrgent && !item.isDone && !item.isEmergency);
+  const birthdayDays = currentPerson ? daysUntilBirthday(currentPerson.birthday, getTodayISOString()) : null;
+  const weekDots = currentPerson ? buildWeekDots(currentPerson.prayedDates, currentPerson.lastPrayerCompletedDate, getTodayISOString()) : [];
+  const monthPrayedCount = currentPerson ? countPrayedThisMonth(currentPerson.prayedDates, currentPerson.lastPrayerCompletedDate, getTodayISOString()) : 0;
+  const meanGapDays = meanReachedGapDays(personStamps.map((stamp) => stamp.date));
+  const checkIn = currentPerson && currentPerson.showInPrayerCheckIns !== false
+    ? checkInStatus(currentPerson.lastPrayedDate, getTodayISOString())
+    : null;
+  const lastPrayedStat = currentPerson?.lastPrayerCompletedDate
+    ? new Date(`${currentPerson.lastPrayerCompletedDate}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+    : "—";
+  const lastReachedStat = currentPerson?.lastPrayedDate ? shortDateLabel(currentPerson.lastPrayedDate) : "Never";
 
   const updatePeople = (updater: (previousPeople: Person[]) => Person[]) => {
     setPeople((previousPeople) => updater(previousPeople));
@@ -885,122 +935,125 @@ export default function PersonScreen() {
 
       <View style={{ flex: 1 }}>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
-        {/* v202: the person's header sheet settles in under Paper. */}
+        {/* v406: the portrait band — the person's photo placed large
+            with their family riding with them (his Nov 1 pick: the
+            v5 blend, revised). The band keeps the v202 settle shell
+            and the v254 PaperSettle pin; its ground is the Settings
+            container-low step, derived like every surface here. */}
         <PeopleEntrance emphasis>
-        <PaperSettle style={[styles.profileSection, !isSkinned && { backgroundColor: pm.wash, borderRadius: 28, marginHorizontal: 16, marginTop: 8, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 3 }]}>
+        <PaperSettle style={[styles.profileSection, !isSkinned && { backgroundColor: sm.containerLow, borderRadius: 28, marginHorizontal: 16, marginTop: 8, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 3 }]}>
 <BitSettle style={{ alignItems: "center" }}>
-          <AvatarImage id={currentPerson.id} name={currentPerson.name} gender={currentPerson.gender} avatarAsset={currentPerson.avatarAsset} photoUri={currentPerson.photoUri} size={96} fallbackColor={currentPerson.avatarColor} style={{ borderWidth: 3, borderColor: currentPerson.accentColor, borderRadius: 48, backgroundColor: "transparent" }} />
-          <Text style={[styles.personName, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, null]}>{currentPerson.name}</Text>
-          {!isSkinned ? (
-            <View style={{ backgroundColor: currentPerson.accentColor, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginTop: 8 }}>
-              <Text style={{ color: "#FFFFFF", fontSize: 11.5, fontWeight: "800" }}>{currentPerson.relationship}</Text>
+          <View style={{ alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: 16 }}>
+            <AvatarImage id={currentPerson.id} name={currentPerson.name} gender={currentPerson.gender} avatarAsset={currentPerson.avatarAsset} photoUri={currentPerson.photoUri} size={88} fallbackColor={currentPerson.avatarColor} style={{ borderWidth: 3, borderColor: currentPerson.accentColor, borderRadius: 44, backgroundColor: "transparent" }} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.personName, { fontSize: 26, lineHeight: 30 }, skinTokens.isEightBit ? { color: BIT_ON_DUSK } : null, null]}>{currentPerson.name}</Text>
+              {!isSkinned ? (
+                <View style={{ alignSelf: "flex-start", backgroundColor: currentPerson.accentColor, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginTop: 7 }}>
+                  <Text style={{ color: "#FFFFFF", fontSize: 11.5, fontWeight: "800" }}>{currentPerson.relationship}</Text>
+                </View>
+              ) : (
+                <Text style={[styles.personRelationship, { color: currentPerson.accentColor }]}>{currentPerson.relationship}</Text>
+              )}
+              {currentPerson.birthday && (
+                <Text style={[styles.personBirthday, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null, null]}>Birthday: {currentPerson.birthday}</Text>
+              )}
+              {birthdayDays !== null && (
+                <View style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: pm.card, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginTop: 6 }}>
+                  <MaterialIcons name={iconName("cake")} size={13} color={pm.deep} />
+                  <Text style={{ fontSize: 11.5, fontWeight: "800", color: pm.deep }}>{birthdayDays === 0 ? "Birthday today" : `Birthday in ${birthdayDays} ${birthdayDays === 1 ? "day" : "days"}`}</Text>
+                </View>
+              )}
             </View>
-          ) : (
-            <Text style={[styles.personRelationship, { color: currentPerson.accentColor }]}>{currentPerson.relationship}</Text>
+          </View>
+          {currentPerson.familyId && familyMembers.length > 0 && (
+            <>
+              <View style={{ alignSelf: "stretch", height: 1, backgroundColor: pm.line, marginTop: 16, marginBottom: 13 }} />
+              <Pressable
+                accessibilityLabel="Family Group"
+                accessibilityRole="button"
+                onPress={() => { if (currentPerson.familyId) router.push({ pathname: "/family", params: { familyId: currentPerson.familyId } }); }}
+                style={({ pressed }) => [{ alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: 12 }, pressed && styles.pressed]}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  {orderedFaces.map((member, index) => (
+                    <AvatarImage key={member.id} id={member.id} name={member.name} gender={member.gender} avatarAsset={member.avatarAsset} photoUri={member.photoUri} size={34} thumbnail fallbackColor={member.accentColor} style={{ borderWidth: 2, borderColor: !isSkinned ? sm.containerLow : colors.surface, borderRadius: 17, marginLeft: index === 0 ? 0 : -9, backgroundColor: "transparent" }} />
+                  ))}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14.5, fontWeight: "800", color: pm.ink }}>{currentPerson.familyName || "Family"}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: pm.inkSoft, marginTop: 1 }}>{familyMembers.length} in this family</Text>
+                </View>
+                <MaterialIcons name={iconName("chevron-right")} size={22} color={pm.inkSoft} />
+              </Pressable>
+            </>
           )}
-          {currentPerson.birthday && (
-            <Text style={[styles.personBirthday, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null, null]}>Birthday: {currentPerson.birthday}</Text>
-          )}
-          <Pressable onPress={openReminderModal} style={({ pressed }) => [styles.reminderChip, !isSkinned && { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: pm.line, borderRadius: 999, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 }, pressed && styles.pressed]}>
-             <MaterialIcons name={iconName("notifications")} size={17} color={colors.primary} />
-            <Text style={styles.reminderChipText}>
-              {getReminderScheduleText(currentPerson)}
-            </Text>
-          </Pressable>
-          <Text style={[styles.statusText, skinTokens.isEightBit ? { color: BIT_ON_DUSK_SOFT } : null, null]}>{getStatusText(currentPerson)}</Text>
-          {currentPerson.lastMeetingLocation ? (
-            <Text style={styles.personBirthday}>Last met at {currentPerson.lastMeetingLocation}</Text>
-          ) : null}
         </BitSettle>
 </PaperSettle>
         </PeopleEntrance>
 
-        {!isSkinned ? (
-          <View style={{ flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 14 }}>
-            {[
-              { label: "LAST PRAYED", value: currentPerson.lastPrayerCompletedDate ? new Date(`${currentPerson.lastPrayerCompletedDate}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "—", badge: null as string | null, badgeColor: "" },
-              { label: "LAST REACHED", value: currentPerson.lastPrayedDate ? new Date(`${currentPerson.lastPrayedDate}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Never", badge: daysSinceLastReached === 999 ? null : formatDaysSinceLastPrayer(daysSinceLastReached), badgeColor: daysSinceLastReached >= 15 ? "#EF4444" : "#F59E0B" },
-              { label: "TODAY", value: hasPrayedToday ? "Prayed" : "Not yet", badge: null as string | null, badgeColor: "" },
-            ].map((chip) => (
-              <View key={chip.label} style={{ flex: 1, backgroundColor: pm.card, borderWidth: 1, borderColor: pm.line, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 9, alignItems: "center", shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 }}>
-                <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.9, color: pm.inkSoft }}>{chip.label}</Text>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                  {chip.label === "TODAY" && hasPrayedToday ? <MaterialIcons name={iconName("check")} size={14} color="#2E9E5B" /> : null}
-                  <Text style={{ fontSize: 13, fontWeight: "800", color: chip.label === "TODAY" && hasPrayedToday ? "#2E9E5B" : pm.ink }}>{chip.value}</Text>
-                  {chip.badge ? (
-                    <View style={{ backgroundColor: `${chip.badgeColor}22`, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
-                      <Text style={{ fontSize: 10.5, fontWeight: "800", color: chip.badgeColor }}>{chip.badge}</Text>
-                    </View>
-                  ) : null}
-                </View>
+        {/* v406: the big blue box — the Daily Summary's filled panel
+            step (schedulePanelStep) as the page's information hub:
+            the mark-as-prayed action, the three stats, the reached
+            row, the reminder chip, and the last-met place, packed
+            into the one saturated surface he picked. */}
+        <View style={{ backgroundColor: panel, borderRadius: 24, marginHorizontal: 16, marginTop: 14, padding: 20, shadowColor: panel, shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 }}>
+          <Pressable onPress={handleMarkAsPrayed} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 10 }, pressed && styles.pressed]}>
+            <MaterialIcons name={iconName(hasPrayedToday ? "check-circle" : "volunteer-activism")} size={24} color="#FFFFFF" />
+            <Text style={{ color: "#FFFFFF", fontSize: 20, fontWeight: "900" }}>{hasPrayedToday ? "Prayed Today" : "Mark as Prayed"}</Text>
+            <View style={{ marginLeft: "auto", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+              <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800", letterSpacing: 1.6 }}>TODAY</Text>
+            </View>
+          </Pressable>
+          <View style={{ flexDirection: "row", marginTop: 16 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.9, color: "rgba(255,255,255,0.72)" }}>LAST PRAYED</Text>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#FFFFFF", marginTop: 3 }}>{lastPrayedStat}</Text>
+            </View>
+            <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.25)", marginVertical: 2, marginRight: 12 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.9, color: "rgba(255,255,255,0.72)" }}>LAST REACHED</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
+                <Text style={{ fontSize: 15, fontWeight: "800", color: "#FFFFFF" }}>{lastReachedStat}</Text>
+                {daysSinceLastReached !== 999 && (
+                  <View style={{ backgroundColor: daysSinceLastReached >= 15 ? pm.redWash : pm.amberWash, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 10.5, fontWeight: "800", color: daysSinceLastReached >= 15 ? PEOPLE_EMERGENCY_DEEP : pm.amberDeep }}>{formatDaysSinceLastPrayer(daysSinceLastReached)}</Text>
+                  </View>
+                )}
               </View>
-            ))}
-          </View>
-        ) : null}
-
-        <Pressable
-          onPress={handleMarkAsPrayed}
-          style={({ pressed }) => [styles.actionButton, { backgroundColor: hasPrayedToday ? "#31C48D" : currentPerson.accentColor }, !isSkinned && { borderRadius: 999, marginHorizontal: 16 }, pressed && styles.pressed]}
-        >
-          <MaterialIcons name={iconName(hasPrayedToday ? "check-circle" : "volunteer-activism")} size={22} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>{hasPrayedToday ? "Prayed Today" : "Mark as Prayed"}</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={(event) => handleMarkReachedToday({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
-          onLongPress={openLastReachedDateModal}
-          delayLongPress={350}
-          style={({ pressed }) => [styles.actionButton, { backgroundColor: lastReachedColor }, !isSkinned && { borderRadius: 999, marginHorizontal: 16, backgroundColor: `${lastReachedColor}1F`, shadowOpacity: 0, elevation: 0 }, pressed && styles.pressed]}
-        >
-          <MaterialIcons name={iconName("event")} size={22} color={!isSkinned ? lastReachedColor : "#FFFFFF"} />
-          <Text style={[styles.actionButtonText, !isSkinned && { color: lastReachedColor }]}>Last reached: {formatIsoDateForDisplay(currentPerson.lastPrayedDate)}</Text>
-          <View style={[styles.actionButtonBadge, !isSkinned && { backgroundColor: lastReachedColor }]}>
-            <Text style={styles.actionButtonBadgeText}>{daysSinceLastReached === 999 ? "—" : formatDaysSinceLastPrayer(daysSinceLastReached)}</Text>
-          </View>
-        </Pressable>
-        <View style={[styles.scheduleCheckInsRow, !isSkinned && { borderRadius: 18, marginHorizontal: 16, backgroundColor: pm.card, borderColor: pm.line }]}>
-          <View style={styles.scheduleCheckInsCopy}>
-            <Text style={styles.scheduleCheckInsLabel}>Schedule check-ins</Text>
-            <Text style={styles.scheduleCheckInsHint}>Keep this contact visible after 14 days until they are reached</Text>
-          </View>
-          <Switch
-            value={currentPerson.showInPrayerCheckIns !== false}
-            onValueChange={handleToggleScheduleCheckIns}
-            trackColor={{ false: "#D9D2E5", true: colors.primary }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
-        {/* v329: the same per-person emergency mute that rides the
-            Emergency Prayer sheet — here beside the person's other
-            standing switch. Off silences only the tray pill; the
-            in-app emergency is unchanged. */}
-        <View style={[styles.scheduleCheckInsRow, !isSkinned && { borderRadius: 18, marginHorizontal: 16, backgroundColor: pm.card, borderColor: pm.line }]}>
-          <View style={styles.scheduleCheckInsCopy}>
-            <Text style={styles.scheduleCheckInsLabel}>Emergency notifications</Text>
-            <Text style={styles.scheduleCheckInsHint}>Show the tray notification for this person's emergency prayers</Text>
-          </View>
-          <Switch
-            value={currentPerson.emergencyNotificationsMuted !== true}
-            onValueChange={handleToggleEmergencyNotifications}
-            trackColor={{ false: "#D9D2E5", true: colors.primary }}
-            thumbColor="#FFFFFF"
-            accessibilityLabel={`Emergency notifications for ${currentPerson.name}`}
-          />
-        </View>
-        <Text style={styles.longPressHint}>Tap to set today. Long-press to choose a previous date.</Text>
-
-        {reachedStamps.some((stamp) => stamp.personId === currentPerson.id) && (
-          <View style={{ marginTop: 12, padding: 12, borderRadius: isSkinned ? 12 : 20, backgroundColor: isSkinned ? getThemeAwareColor("#FBF8FF", colors) : pm.card, borderWidth: isSkinned ? 0 : 1, borderColor: pm.line, marginHorizontal: isSkinned ? 0 : 16 }}>
-            <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800", marginBottom: 7 }}>Reached stamps</Text>
-            {reachedStamps.filter((stamp) => stamp.personId === currentPerson.id).slice().reverse().map((stamp) => (
-              <View key={stamp.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 }}>
-                <MaterialIcons name={iconName("verified")} size={16} color={colors.primary} />
-                <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "700" }}>{formatIsoDateForDisplay(stamp.date)}</Text>
-                {!!stamp.note && <Text numberOfLines={1} style={{ flex: 1, color: colors.muted, fontSize: 12 }}>{stamp.note}</Text>}
+            </View>
+            <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.25)", marginVertical: 2, marginRight: 12 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.9, color: "rgba(255,255,255,0.72)" }}>TODAY</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
+                {hasPrayedToday ? <MaterialIcons name={iconName("check")} size={14} color="#FFFFFF" /> : null}
+                <Text style={{ fontSize: 15, fontWeight: "800", color: hasPrayedToday ? "#FFFFFF" : "rgba(255,255,255,0.78)" }}>{hasPrayedToday ? "Prayed" : "Not yet"}</Text>
               </View>
-            ))}
+            </View>
           </View>
-        )}
+          <View style={{ height: 1, backgroundColor: "rgba(255,255,255,0.22)", marginVertical: 15 }} />
+          <Pressable
+            onPress={(event) => handleMarkReachedToday({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
+            onLongPress={openLastReachedDateModal}
+            delayLongPress={350}
+            style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 9 }, pressed && styles.pressed]}
+          >
+            <MaterialIcons name={iconName("event")} size={20} color="#FFFFFF" />
+            <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "800" }}>Last reached: {formatIsoDateForDisplay(currentPerson.lastPrayedDate)}</Text>
+            <View style={{ marginLeft: "auto", backgroundColor: "#FFFFFF", borderRadius: 999, minWidth: 30, alignItems: "center", paddingHorizontal: 7, paddingVertical: 3 }}>
+              <Text style={{ fontSize: 11, fontWeight: "800", color: scheduleTones.primaryDeep }}>{daysSinceLastReached === 999 ? "—" : formatDaysSinceLastPrayer(daysSinceLastReached)}</Text>
+            </View>
+          </Pressable>
+          <Text style={{ fontSize: 12.5, fontWeight: "500", color: "rgba(255,255,255,0.78)", marginTop: 9 }}>Tap to set today. Long-press to choose a previous date.</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 13, flexWrap: "wrap" }}>
+            <Pressable onPress={openReminderModal} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 }, pressed && styles.pressed]}>
+              <MaterialIcons name={iconName("notifications")} size={15} color="#FFFFFF" />
+              <Text style={{ fontSize: 12.5, fontWeight: "800", color: "#FFFFFF" }}>{getReminderScheduleText(currentPerson)}</Text>
+            </Pressable>
+            {currentPerson.lastMeetingLocation ? (
+              <Text style={{ fontSize: 12.5, fontWeight: "600", color: "rgba(255,255,255,0.85)" }}>Last met at {currentPerson.lastMeetingLocation}</Text>
+            ) : null}
+          </View>
+        </View>
 
         <View style={!isSkinned ? { flexDirection: "row", gap: 9, marginHorizontal: 16 } : undefined}>
           <Pressable
@@ -1020,41 +1073,49 @@ export default function PersonScreen() {
           </Pressable>
         </View>
 
-        {currentPerson.familyId && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Family Group</Text>
+        {/* v406: the LEAD NEED — the first urgent (non-emergency,
+            not-yet-answered) prayer item, given the Bible section
+            card's full presence. Emergency items keep their own red
+            rendering in the list below and never double here. */}
+        {leadItem && (
+          <View style={{ backgroundColor: secTone.bg, borderRadius: 16, marginHorizontal: 16, marginTop: 14, padding: 18 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+              <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: secTone.hue }} />
+              <Text style={{ fontSize: 13, fontWeight: "800", letterSpacing: 2.2, color: secTone.deep }}>LEAD NEED</Text>
+              <MaterialIcons name={iconName("flash-on")} size={16} color={pm.amberDeep} style={{ marginLeft: "auto" }} />
             </View>
-            <View style={[styles.familyGroupCard, { backgroundColor: getThemeAwareColor("#F5F3F7", colors) }, paperCardShadow, !isSkinned && { backgroundColor: pm.card, borderColor: pm.line, borderRadius: 20, flexDirection: "column", alignItems: "stretch", justifyContent: "flex-start" }]}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <View style={styles.familyGroupInfo}>
-                  <Text style={styles.familyGroupName}>{currentPerson.familyName || "Family"}</Text>
-                  <Text style={styles.familyGroupMeta}>{familyMembers.length} {familyMembers.length === 1 ? "member" : "members"}</Text>
-                </View>
-                <MaterialIcons name={iconName(isSkinned ? "people" : "chevron-right")} size={24} color={colors.primary} />
+            <View style={{ backgroundColor: pm.card, borderRadius: 12, padding: 15, marginTop: 13, flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: pm.amberWash, alignItems: "center", justifyContent: "center" }}>
+                <MaterialIcons name={iconName("flash-on")} size={20} color={pm.amberDeep} />
               </View>
-              {!isSkinned ? (
-                <View style={{ flexDirection: "row", gap: 12, marginTop: 11 }}>
-                  {familyMembers.map((member) => (
-                    <View key={member.id} style={{ alignItems: "center", width: 52 }}>
-                      <AvatarImage id={member.id} name={member.name} gender={member.gender} avatarAsset={member.avatarAsset} photoUri={member.photoUri} size={46} thumbnail fallbackColor={member.accentColor} style={{ borderWidth: 2.5, borderColor: member.accentColor, borderRadius: 23 }} />
-                      <Text numberOfLines={1} style={{ fontSize: 10.5, fontWeight: "800", color: pm.ink, marginTop: 4 }}>{member.name.split(" ")[0]}</Text>
-                      <Text numberOfLines={1} style={{ fontSize: 9.5, fontWeight: "600", color: pm.inkSoft }}>{member.familyType ?? "Other"}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14.5, fontWeight: "700", lineHeight: 19, color: pm.ink }}>{leadItem.title}</Text>
+                {!!leadItem.note && (
+                  <Text numberOfLines={2} style={{ fontSize: 12.5, color: pm.inkSoft, marginTop: 2 }}>{leadItem.note}</Text>
+                )}
+              </View>
             </View>
-          </>
+          </View>
         )}
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Prayer Items</Text>
-          <Text style={styles.sectionStats}>{doneCount}/{currentPerson.prayerItems.length} done</Text>
-        </View>
+        {/* v406: Prayer Items in the Bible tonal section card —
+            white inner cards, the answered chip in the header, the
+            praise card keeping its shipped seat at the top. */}
+        <View style={{ backgroundColor: secTone.bg, borderRadius: 16, marginHorizontal: 16, marginTop: 12, padding: 18, paddingBottom: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+            <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: secTone.hue }} />
+            <Text style={{ fontSize: 15, fontWeight: "800", color: pm.ink }}>Prayer Items</Text>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: pm.inkSoft }}>{currentPerson.prayerItems.length}</Text>
+            {doneCount > 0 && (
+              <View style={{ marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: answeredChipBg, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
+                <MaterialIcons name={iconName("check")} size={11} color={PEOPLE_PRAYED_DEEP} />
+                <Text style={{ fontSize: 11, fontWeight: "800", color: PEOPLE_PRAYED_DEEP }}>{doneCount} answered</Text>
+              </View>
+            )}
+          </View>
 
         {currentPerson.isPraised && currentPerson.praiseExpiresAt && (
-          <View style={[styles.prayerItem, { backgroundColor: getThemeAwareColor("#DBEAFE", colors), borderColor: "#3B82F6", borderWidth: 1 }, paperCardShadow, !isSkinned && { backgroundColor: pm.goldTint, borderColor: "#F0DFA6", borderRadius: 20 }]}>
+          <View style={[styles.prayerItem, { backgroundColor: getThemeAwareColor("#DBEAFE", colors), borderColor: "#3B82F6", borderWidth: 1 }, paperCardShadow, !isSkinned && { backgroundColor: pm.goldTint, borderColor: "#F0DFA6", borderRadius: 20 }, { marginHorizontal: 0, marginTop: 10, marginBottom: 0 }]}>
             <View style={[styles.prayerItemCheckbox, { backgroundColor: "transparent" }]} />
             <View style={{ flex: 1 }}>
               <Text numberOfLines={2} style={[styles.prayerItemTitle, { color: !isSkinned ? pm.goldDeep : "#1E40AF" }]}>{getPraiseDisplay(currentPerson).headline}</Text>
@@ -1076,7 +1137,7 @@ export default function PersonScreen() {
         )}
 
         {currentPerson.prayerItems.length === 0 ? (
-          <View style={styles.emptyCard}>
+          <View style={{ backgroundColor: pm.card, borderRadius: 12, marginTop: 10, padding: 22, alignItems: "center", gap: 8 }}>
              <MaterialIcons name={iconName("playlist-add-check")} size={34} color={colors.primary} />
             <Text style={styles.emptyStateText}>No prayer items yet</Text>
           </View>
@@ -1086,7 +1147,7 @@ export default function PersonScreen() {
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
-              <View style={[styles.prayerItem, item.isUrgent && { ...styles.prayerItemUrgent, backgroundColor: getThemeAwareColor("#FFF7F8", colors) }, item.isEmergency && { backgroundColor: getThemeAwareColor("#FEE2E2", colors), borderColor: "#EF4444", borderWidth: 1 }, paperCardShadow, !isSkinned && { borderRadius: 20, borderWidth: 1, borderColor: pm.line, backgroundColor: pm.card }, !isSkinned && item.isEmergency && { borderColor: "#EF4444", borderWidth: 1.5, backgroundColor: pm.card }, !isSkinned && item.isDone && { opacity: 0.72 }]}>
+              <View style={[{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: pm.card, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, marginTop: 10 }, item.isEmergency && { borderColor: "#EF4444", borderWidth: 1.5 }, item.isDone && { opacity: 0.72 }, paperCardShadow]}>
                 <Pressable
                   onPress={() => handleToggleDone(item.id)}
                   style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, !isSkinned && { borderRadius: 8, width: 24, height: 24 }, !isSkinned && item.isDone && { backgroundColor: "#2E9E5B", borderColor: "#2E9E5B" }, pressed && styles.pressed]}
@@ -1120,7 +1181,7 @@ export default function PersonScreen() {
                   <MaterialIcons name={iconName("local-fire-department")} size={20} color="#EF4444" />
                 ) : (
                   <Pressable onPress={() => handleToggleUrgent(item.id)} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: getThemeAwareColor("#F4EEF9", colors) }, item.isUrgent && { ...styles.iconCircleUrgent, backgroundColor: getThemeAwareColor("#FFE8EA", colors) }, pressed && styles.pressed]}>
-                    <Text style={[styles.lightningText, item.isUrgent && styles.lightningTextActive]}>⚡</Text>
+                    <MaterialIcons name={iconName("flash-on")} size={18} color={item.isUrgent ? WARNING : colors.muted} />
                   </Pressable>
                 )}
 
@@ -1132,30 +1193,31 @@ export default function PersonScreen() {
           />
         )}
 
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={[styles.input, !isSkinned && { backgroundColor: pm.wash, borderWidth: 0, borderRadius: 999, paddingHorizontal: 16 }]}
-            placeholder="Add prayer item..."
-            placeholderTextColor={colors.muted}
-            value={newItemTitle}
-            onChangeText={setNewItemTitle}
-            onSubmitEditing={handleAddItem}
-            returnKeyType="done"
-          />
-          <Pressable style={({ pressed }) => [styles.addButton, !isSkinned && { backgroundColor: pm.seed, width: 44, height: 44, borderRadius: 22 }, pressed && styles.pressed]} onPress={handleAddItem}>
-            <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
-          </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 12, paddingBottom: 4 }}>
+            <TextInput
+              style={{ flex: 1, backgroundColor: pm.card, borderRadius: 999, paddingHorizontal: 16, minHeight: 46, fontSize: 13.5, fontWeight: "600", color: pm.ink }}
+              placeholder="Add prayer item..."
+              placeholderTextColor={colors.muted}
+              value={newItemTitle}
+              onChangeText={setNewItemTitle}
+              onSubmitEditing={handleAddItem}
+              returnKeyType="done"
+            />
+            <Pressable style={({ pressed }) => [{ width: 44, height: 44, borderRadius: 22, backgroundColor: pm.seed, alignItems: "center", justifyContent: "center" }, pressed && styles.pressed]} onPress={handleAddItem}>
+              <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
+            </Pressable>
+          </View>
         </View>
 
         {currentPerson.isPersonal && (
-          <>
-            <View style={styles.sectionHeader}>
+          <View style={{ marginHorizontal: 16 }}>
+            <View style={[styles.sectionHeader, { paddingHorizontal: 2 }]}>
               <Text style={styles.sectionTitle}>To-Do List</Text>
               <Text style={styles.sectionStats}>{(currentPerson.personalTodos || []).filter(t => !t.isDone).length} pending</Text>
             </View>
 
             {(currentPerson.personalTodos || []).length === 0 ? (
-              <View style={styles.emptyCard}>
+              <View style={[styles.emptyCard, { marginHorizontal: 0 }]}>
                 <MaterialIcons name={iconName("checklist")} size={34} color={colors.primary} />
                 <Text style={styles.emptyStateText}>No to-dos yet</Text>
               </View>
@@ -1167,7 +1229,7 @@ export default function PersonScreen() {
                 renderItem={({ item }) => {
                   const todoColor = item.color || "#8B5CF6";
                   return (
-                  <View style={[styles.prayerItem, item.isDone && { opacity: 0.5 }, { borderLeftColor: todoColor, borderLeftWidth: 4 }, paperCardShadow]}>
+                  <View style={[styles.prayerItem, { marginHorizontal: 0 }, item.isDone && { opacity: 0.5 }, { borderLeftColor: todoColor, borderLeftWidth: 4 }, paperCardShadow]}>
                     <Pressable
                       onPress={() => {
                         if (!currentPerson) return;
@@ -1238,7 +1300,7 @@ export default function PersonScreen() {
               />
             )}
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, { marginHorizontal: 0 }]}>
               <TextInput
                 style={styles.input}
                 placeholder="Add to-do..."
@@ -1251,8 +1313,141 @@ export default function PersonScreen() {
                 <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
               </Pressable>
             </View>
+          </View>
+        )}
+
+        {/* v406: THIS WEEK — the prayed-days rhythm from the v279
+            log, as plain facts. No progress bar and no grade —
+            he rejected both; the dots just say what happened. */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 20, marginTop: 26, marginBottom: 11 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: pm.seed }} />
+          <Text style={{ fontSize: 12, fontWeight: "800", letterSpacing: 2.2, color: pm.seed }}>THIS WEEK</Text>
+          <Text style={{ marginLeft: "auto", fontSize: 12, fontWeight: "600", color: pm.inkSoft }}>{monthPrayedCount}× this month</Text>
+        </View>
+        <View style={{ backgroundColor: pm.card, borderWidth: 1, borderColor: pm.line, borderRadius: 24, marginHorizontal: 16, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 13 }}>
+          <View style={{ flexDirection: "row" }}>
+            {weekDots.map((dot) => (
+              <View key={dot.iso} style={{ flex: 1, alignItems: "center", gap: 6 }}>
+                <View style={{ borderWidth: 2, borderColor: dot.isToday ? pm.seed : "transparent", borderRadius: 999, padding: 2 }}>
+                  <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: dot.filled ? pm.seed : sm.containerHigh, backgroundColor: dot.filled ? pm.seed : pm.card }} />
+                </View>
+                <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 0.6, color: dot.isToday ? pm.seed : pm.inkSoft }}>{dot.label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* v406: CONNECTION — the two most recent reached stamps on
+            a rail, the stamp rhythm when three or more stamps prove
+            one, and the 14-day check-in standing when check-ins are
+            on for this person. */}
+        {(personStamps.length > 0 || checkIn) && (
+          <>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 20, marginTop: 26, marginBottom: 11 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: pm.seed }} />
+              <Text style={{ fontSize: 12, fontWeight: "800", letterSpacing: 2.2, color: pm.seed }}>CONNECTION</Text>
+            </View>
+            <View style={{ backgroundColor: pm.card, borderWidth: 1, borderColor: pm.line, borderRadius: 24, marginHorizontal: 16, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 12 }}>
+              {personStamps.length > 0 && (
+                <View style={{ position: "relative" }}>
+                  <View style={{ position: "absolute", left: 15, top: 18, bottom: 18, width: 2, backgroundColor: bibleMat.primCont }} />
+                  {personStamps.slice(0, 2).map((stamp) => (
+                    <View key={stamp.id} style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 5 }}>
+                      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: pm.card, borderWidth: 1, borderColor: bibleMat.primCont, alignItems: "center", justifyContent: "center" }}>
+                        <MaterialIcons name={iconName("verified")} size={16} color={pm.seed} />
+                      </View>
+                      <Text style={{ fontSize: 13.5, fontWeight: "700", color: pm.ink }}>{shortDateLabel(stamp.date)}</Text>
+                      {!!stamp.note && <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: pm.inkSoft }}>{stamp.note}</Text>}
+                    </View>
+                  ))}
+                </View>
+              )}
+              {meanGapDays !== null && (
+                <>
+                  <View style={{ height: 1, backgroundColor: pm.line, marginTop: 8, marginBottom: 2 }} />
+                  <View style={{ paddingVertical: 9 }}>
+                    <Text style={{ fontSize: 14.5, fontWeight: "600", color: pm.ink }}>Reached every ~{meanGapDays} days</Text>
+                  </View>
+                </>
+              )}
+              {checkIn && (
+                <>
+                  <View style={{ height: 1, backgroundColor: pm.line, marginBottom: 2 }} />
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 9, paddingBottom: 2 }}>
+                    <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: sm.containerLow, alignItems: "center", justifyContent: "center" }}>
+                      <MaterialIcons name={iconName("event-available")} size={19} color={scheduleTones.primaryDeep} />
+                    </View>
+                    <Text style={{ flex: 1, fontSize: 14.5, fontWeight: "600", color: pm.ink }}>{checkIn.days >= 0 ? `Check-in due in ${checkIn.days} ${checkIn.days === 1 ? "day" : "days"}` : `Check-in overdue by ${-checkIn.days} ${checkIn.days === -1 ? "day" : "days"}`}</Text>
+                    <Text style={{ fontSize: 12.5, fontWeight: "600", color: pm.inkSoft }}>{shortDateLabel(checkIn.dueIso)}</Text>
+                  </View>
+                </>
+              )}
+            </View>
           </>
         )}
+
+        {/* v406: the full reached-stamp history as plain rows. */}
+        {personStamps.length > 0 && (
+          <>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 20, marginTop: 26, marginBottom: 11 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: pm.seed }} />
+              <Text style={{ fontSize: 12, fontWeight: "800", letterSpacing: 2.2, color: pm.seed }}>REACHED STAMPS</Text>
+            </View>
+            <View style={{ backgroundColor: pm.card, borderWidth: 1, borderColor: pm.line, borderRadius: 24, marginHorizontal: 16, paddingVertical: 8, overflow: "hidden" }}>
+              {personStamps.map((stamp, index) => (
+                <View key={stamp.id}>
+                  {index > 0 && <View style={{ height: 1, backgroundColor: pm.line, marginHorizontal: 18 }} />}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 18, paddingVertical: 12 }}>
+                    <MaterialIcons name={iconName("verified")} size={17} color={pm.seed} />
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: pm.ink }}>{formatIsoDateForDisplay(stamp.date)}</Text>
+                    {!!stamp.note && <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: pm.inkSoft }}>{stamp.note}</Text>}
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* v406: ALERTS — the two standing switches in Settings
+            group language, wired to the same fields as always. */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 20, marginTop: 26, marginBottom: 11 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: pm.seed }} />
+          <Text style={{ fontSize: 12, fontWeight: "800", letterSpacing: 2.2, color: pm.seed }}>ALERTS</Text>
+        </View>
+        <View style={{ backgroundColor: pm.card, borderWidth: 1, borderColor: pm.line, borderRadius: 24, marginHorizontal: 16, paddingVertical: 8, overflow: "hidden" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, paddingVertical: 14 }}>
+            <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: sm.containerLow, alignItems: "center", justifyContent: "center" }}>
+              <MaterialIcons name={iconName("event-available")} size={22} color={pm.seed} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: "600", color: pm.ink }}>Schedule check-ins</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: "500", color: pm.inkSoft, marginTop: 1 }}>Keep this contact visible after 14 days until they are reached</Text>
+            </View>
+            <Switch
+              value={currentPerson.showInPrayerCheckIns !== false}
+              onValueChange={handleToggleScheduleCheckIns}
+              trackColor={{ false: "#D9D2E5", true: colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+          <View style={{ height: 1, backgroundColor: pm.line }} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, paddingVertical: 14 }}>
+            <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: sm.containerLow, alignItems: "center", justifyContent: "center" }}>
+              <MaterialIcons name={iconName("notifications")} size={22} color={pm.seed} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: "600", color: pm.ink }}>Emergency notifications</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: "500", color: pm.inkSoft, marginTop: 1 }}>Show the tray notification for this person's emergency prayers</Text>
+            </View>
+            <Switch
+              value={currentPerson.emergencyNotificationsMuted !== true}
+              onValueChange={handleToggleEmergencyNotifications}
+              trackColor={{ false: "#D9D2E5", true: colors.primary }}
+              thumbColor="#FFFFFF"
+              accessibilityLabel={`Emergency notifications for ${currentPerson.name}`}
+            />
+          </View>
+        </View>
 
       </ScrollView>
       {/* v334: the top fade (his Oct 29 ruling, all pages) — the
@@ -1807,10 +2002,10 @@ function createStyles(themeColors: any) {
     paddingBottom: 36,
   },
   profileSection: {
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 22,
+    alignItems: "stretch",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 18,
   },
   avatar: {
     width: 108,

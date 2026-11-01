@@ -28,6 +28,15 @@
 // a run holding it SPLITS around it (panel above, hero, panel
 // below). The filled-row pins are re-pinned to the split
 // below, with the history kept here.
+//
+// v402 amendment (Oct 31, his screenshot ask): the hero's
+// FIELD colour leaves the trip family — "Can you make the
+// time off now card color match the users chosen app color
+// (like mines blue right now)?" The hero pins below are
+// re-pinned from palette.band to heroBand (the app seed's
+// saturated step); the panel rows keep the trip palette
+// byte-for-byte, as his v392 addendum settled. The mechanism
+// itself is pinned in time-off-v402-now-hero-seed.test.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, expect, it } from "vitest";
@@ -177,9 +186,12 @@ describe("v386 the board — one connected panel, flight rows, the now fill", ()
     // a panel above it and a panel below it.
     expect(claimedGroup).toContain("blocks.findIndex((b) => whiteBlockContainsNow(b, nowMinutes))");
     // The hero form itself — the v386 solo form, now universal.
+    // v402: its field is heroBand (the seed step), not the trip
+    // family's band — see the amendment at the top of this file.
     expect(claimedGroup).toContain("NOW BOARDING");
     expect(claimedGroup).toContain("borderRadius: 28");
-    expect(claimedGroup).toContain("backgroundColor: palette.band");
+    expect(claimedGroup).toContain("backgroundColor: heroBand");
+    expect(claimedGroup).not.toContain("backgroundColor: palette.band");
     expect(claimedGroup).toMatch(/>\s*NOW\s*<\/Text>/);
     // The split: before-segment, hero, after-segment — in
     // that source order, so a 3-block run with now in the
@@ -213,8 +225,13 @@ describe("v386 the board — one connected panel, flight rows, the now fill", ()
   });
 
   it("the palette is the pass's own derivation — one family for tickets and board", () => {
+    // v402: the PANEL rows still run on the pass family entire
+    // (paper field, print, the stub pill, the band riding the
+    // rows' planes) — only the hero's field left the family,
+    // for the app seed's step (heroBand).
     expect(claimedGroup).toContain("palette.print");
     expect(claimedGroup).toContain("palette.band");
+    expect(claimedGroup).toContain("planeColor={palette.band}");
     expect(claimedGroup).toContain("palette.stub");
     // No second colour source sneaks in for the claimed face.
     expect(claimedGroup).not.toContain("tripBaseColor");

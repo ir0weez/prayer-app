@@ -48,7 +48,9 @@ import { Animated, Easing, View, Text, Pressable, StyleSheet } from "react-nativ
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
 import { useSkin } from "@/hooks/use-skin";
-import { mix } from "@/lib/color-themes";
+import { getAccentThemeDefinition, mix } from "@/lib/color-themes";
+import { useThemeContext } from "@/lib/theme-provider";
+import { schedulePanelStep } from "@/lib/schedule-material";
 import { hexLuminance } from "@/lib/skin-themes";
 import { format12HourTime } from "@/lib/utils";
 import { timeToMinutes, whiteBlockBadge, type TimeBlock } from "@/lib/time-blocks";
@@ -759,6 +761,24 @@ export const timeOffTravelStyles = StyleSheet.create({});
  * words cascade. Grouping, splitting, palettes, plane,
  * pills, and tap targets are exactly as v387 left them; see
  * FlightDestination and components/cycling-word.tsx.
+ *
+ * v402 (Oct 31, his screenshot ask): the hero's FIELD leaves
+ * the trip family. The panel rows keep the trip palette
+ * entire — his v392 addendum settled the flight cards'
+ * colours ("whatever they currently are set to") and this
+ * ask names the NOW card only: "Can you make the time off
+ * now card color match the users chosen app color (like
+ * mines blue right now)?" The hero now derives from the APP
+ * SEED × appearance the way the schedule's other saturated
+ * heroes do — the summary panel's own derivation
+ * (schedulePanelStep over the accent theme's light primary:
+ * the saturated seed in BOTH appearances, stepped in HSL).
+ * Field, the NOW pill's print, the route line's mask, and
+ * the quiet line's step all follow that one seed step; the
+ * white capitals, plane, and dots were already white and
+ * stay. Under his blue seed the hero is blue; under the
+ * default violet seed it lands back in the violet family —
+ * derived, never pinned, like every other shipped surface.
  */
 export function ClaimedRestGroup({
   timeOff,
@@ -774,13 +794,22 @@ export function ClaimedRestGroup({
   onPressBlock: (block: TimeBlock) => void;
 }) {
   const colors = useColors();
+  const { accentTheme } = useThemeContext();
   const { isSkinned } = useSkin();
   const palette = timeOffPassPalette(timeOff, colors.surface);
+  // v402: the NOW hero's field — the app seed's saturated step,
+  // the summary panel's derivation verbatim (the accent theme's
+  // light primary is the saturated seed in both appearances;
+  // colors.primary under dark is its lightened step and would
+  // render the hero pale — v296's lesson on the summary panel).
+  // The panel rows keep `palette` (the trip family) untouched.
+  const seedPrimary = getAccentThemeDefinition(accentTheme).light?.primary ?? colors.primary;
+  const heroBand = schedulePanelStep(seedPrimary);
   if (blocks.length === 0) return null;
   const margin = { marginHorizontal: isSkinned ? 16 : 12, marginBottom: isSkinned ? 10 : 12 };
   const nowIndex = blocks.findIndex((b) => whiteBlockContainsNow(b, nowMinutes));
   const filledDot = "rgba(255,255,255,0.65)";
-  const filledQuiet = mix(palette.band, "#FFFFFF", 0.72);
+  const filledQuiet = mix(heroBand, "#FFFFFF", 0.72);
   const seam = mix(palette.paper, palette.band, 0.3);
   const labelFor = (block: TimeBlock) =>
     `${timeOff.title}, time off, ${format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}. Tap to open Time Off.`;
@@ -798,7 +827,7 @@ export function ClaimedRestGroup({
           onPress={() => onPressBlock(block)}
           style={({ pressed }) => [
             {
-              backgroundColor: palette.band,
+              backgroundColor: heroBand,
               borderRadius: 28,
               padding: 16,
               opacity: pressed ? 0.75 : 1,
@@ -822,7 +851,7 @@ export function ClaimedRestGroup({
               NOW BOARDING
             </Text>
             <View style={{ marginLeft: "auto", backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
-              <Text style={{ fontSize: 10, lineHeight: 12, fontWeight: "800", letterSpacing: 1.4, color: palette.band }}>
+              <Text style={{ fontSize: 10, lineHeight: 12, fontWeight: "800", letterSpacing: 1.4, color: heroBand }}>
                 NOW
               </Text>
             </View>
@@ -837,7 +866,7 @@ export function ClaimedRestGroup({
               inkColor="#FFFFFF"
               dotColor={filledDot}
               planeColor="#FFFFFF"
-              maskColor={palette.band}
+              maskColor={heroBand}
               fontSize={15.5}
               fontWeight="700"
             />

@@ -22,9 +22,13 @@
 // scores — lives in lib/kmo-progression.ts under its own stated
 // law: game data may persist; wave data still may not.
 //
-// Every pool item is endless and UNFAILABLE: no game over, no score
-// shame, no fail states. The helpers below are written so a miss
-// can only ever produce "again", never "ended".
+// The original items are endless and UNFAILABLE: no game over, no
+// score shame, no fail states — a miss there can only ever produce
+// "again", never "ended". v398 scope note: the seven endless games
+// added below are scored RUNS and a run CAN end (crash, fall, lost
+// ball); ending settles the run's score through the same v397
+// conversion and offers Again — the run ends, the occupation
+// doesn't have to.
 
 import { CHAPTER_COUNTS } from "@/lib/bible-v205";
 import { bookReadCount } from "@/lib/bible-v205/reading-progress";
@@ -42,6 +46,13 @@ export type KmoItemId =
   | "stack"
   | "backbeat"
   | "tend"
+  | "runner"
+  | "glide"
+  | "jumper"
+  | "snake"
+  | "crossroads"
+  | "breakout"
+  | "drop-match"
   | "word-dig"
   | "chapter";
 
@@ -63,6 +74,18 @@ export const KMO_POOL: readonly KmoPoolItem[] = [
   { id: "stack", kind: "game", title: "Stack", chip: "DEALT · A GAME", verb: "played Stack" },
   { id: "backbeat", kind: "game", title: "Backbeat", chip: "DEALT · A GAME", verb: "played Backbeat" },
   { id: "tend", kind: "game", title: "Tend", chip: "DEALT · A GAME", verb: "tended the garden" },
+  // v398 — the endless roster (Jonathan: "We need some scored
+  // endless games and stuff. Like endless runners, or something…
+  // so it's kind of neverending stuff to unlock."). These seven
+  // are scored RUNS: a run can end (a crash, a fall, a lost ball),
+  // and ending a run settles its score like any session segment.
+  { id: "runner", kind: "game", title: "Runner", chip: "DEALT · A GAME", verb: "ran the road" },
+  { id: "glide", kind: "game", title: "Glide", chip: "DEALT · A GAME", verb: "glided the gates" },
+  { id: "jumper", kind: "game", title: "Jumper", chip: "DEALT · A GAME", verb: "climbed" },
+  { id: "snake", kind: "game", title: "Snake", chip: "DEALT · A GAME", verb: "played Snake" },
+  { id: "crossroads", kind: "game", title: "Crossroads", chip: "DEALT · A GAME", verb: "directed traffic" },
+  { id: "breakout", kind: "game", title: "Breakout", chip: "DEALT · A GAME", verb: "played Breakout" },
+  { id: "drop-match", kind: "game", title: "Drop Match", chip: "DEALT · A GAME", verb: "played Drop Match" },
   { id: "word-dig", kind: "dig", title: "Word Dig", chip: "DEALT · THE DIG", verb: "dug in the Word" },
   { id: "chapter", kind: "chapter", title: "A Chapter", chip: "DEALT · A CHAPTER", verb: "read" },
 ];
@@ -473,3 +496,631 @@ export const WAVE_DOORS = [
 ] as const;
 
 export type WaveDoorId = (typeof WAVE_DOORS)[number]["id"];
+
+// ─── v398 endless games — pure logic ─────────────────────────────────────────
+// Each run game keeps a small state object; step functions advance
+// it by dt seconds and are pure enough to pin in tests. Components
+// hold the state in a ref, tick it, render a snapshot, and report
+// score deltas upward. Coordinates are logical pixels on a
+// 320-wide field; components scale by their measured width.
+
+// ─── Runner ──────────────────────────────────────────────────────────────────
+
+export const RUNNER_W = 320;
+export const RUNNER_GROUND_H = 150; // field height above the ground line the runner runs on
+export const RUNNER_X = 54;
+export const RUNNER_SIZE = 22;
+
+export interface RunnerObstacle { id: number; x: number; w: number; h: number; counted: boolean }
+export interface RunnerCoin { id: number; x: number; y: number; taken: boolean }
+export interface RunnerState {
+  alive: boolean;
+  /** Metres run (float); the score floors it. */
+  distance: number;
+  speed: number;
+  /** Runner's feet height above the ground, px. */
+  y: number;
+  vy: number;
+  obstacles: RunnerObstacle[];
+  coins: RunnerCoin[];
+  coinCount: number;
+  nearMisses: number;
+  nextId: number;
+  spawnIn: number;
+}
+
+export function runnerStart(): RunnerState {
+  return {
+    alive: true, distance: 0, speed: 120, y: 0, vy: 0,
+    obstacles: [], coins: [], coinCount: 0, nearMisses: 0, nextId: 1, spawnIn: 190,
+  };
+}
+
+/** Jump when grounded: a hop, or a higher big jump (the one extra-jump mechanic). */
+export function runnerJump(state: RunnerState, big: boolean): RunnerState {
+  if (!state.alive || state.y > 0.01) return state;
+  return { ...state, vy: big ? 760 : 560 };
+}
+
+const RUNNER_GRAVITY = 1650;
+const RUNNER_PX_PER_M = 46;
+
+export function runnerStep(state: RunnerState, dt: number, rng: Rng): RunnerState {
+  if (!state.alive) return state;
+  const s: RunnerState = {
+    ...state,
+    obstacles: state.obstacles.map((o) => ({ ...o })),
+    coins: state.coins.map((c) => ({ ...c })),
+  };
+  s.speed = Math.min(265, 120 + s.distance * 1.15);
+  const dx = s.speed * dt;
+  s.distance += dx / RUNNER_PX_PER_M;
+  // Vertical physics.
+  if (s.y > 0 || s.vy > 0) {
+    s.vy -= RUNNER_GRAVITY * dt;
+    s.y += s.vy * dt;
+    if (s.y <= 0) { s.y = 0; s.vy = 0; }
+  }
+  // Obstacles and coins scroll toward the runner.
+  for (const o of s.obstacles) o.x -= dx;
+  for (const c of s.coins) c.x -= dx;
+  // Spawn the next obstacle (and sometimes a coin string) off-screen right.
+  s.spawnIn -= dx;
+  if (s.spawnIn <= 0) {
+    const h = 24 + Math.floor(rng() * 32); // 24–55
+    const w = 20 + Math.floor(rng() * 14); // 20–33
+    s.obstacles.push({ id: s.nextId++, x: RUNNER_W + 12, w, h, counted: false });
+    if (rng() < 0.65) {
+      const cy = rng() < 0.5 ? 16 : 78;
+      for (let i = 0; i < 3; i++) s.coins.push({ id: s.nextId++, x: RUNNER_W + 30 + i * 26, y: cy, taken: false });
+    }
+    s.spawnIn = 165 + rng() * 130;
+  }
+  s.obstacles = s.obstacles.filter((o) => o.x + o.w > -20);
+  s.coins = s.coins.filter((c) => c.x > -20 && !c.taken);
+  // Coin pickups: the coin is at the runner's x and near his body.
+  for (const c of s.coins) {
+    if (Math.abs(c.x - RUNNER_X) < 20 && Math.abs(c.y - s.y) < 30) {
+      c.taken = true;
+      s.coinCount++;
+    }
+  }
+  s.coins = s.coins.filter((c) => !c.taken);
+  // Obstacles: collision, then the pass moment (near-miss lives there).
+  for (const o of s.obstacles) {
+    const overlapX = o.x < RUNNER_X + RUNNER_SIZE - 4 && o.x + o.w > RUNNER_X + 4;
+    if (overlapX && s.y < o.h - 2) {
+      s.alive = false;
+      return s;
+    }
+    if (!o.counted && o.x + o.w < RUNNER_X) {
+      o.counted = true;
+      const clearance = s.y - o.h;
+      if (clearance >= 0 && clearance < 20) s.nearMisses++;
+    }
+  }
+  return s;
+}
+
+export function runnerScore(state: RunnerState): number {
+  return Math.floor(state.distance) + state.coinCount * 25 + state.nearMisses * 5;
+}
+
+// ─── Glide ───────────────────────────────────────────────────────────────────
+
+export const GLIDE_W = 320;
+export const GLIDE_H = 300;
+export const GLIDE_X = 66;
+export const GLIDE_SIZE = 20;
+
+export interface GlideGate { id: number; x: number; gapY: number; passed: boolean }
+export interface GlideState {
+  alive: boolean;
+  y: number;
+  vy: number;
+  gates: GlideGate[];
+  gatesCleared: number;
+  nextId: number;
+  spawnIn: number;
+}
+
+export function glideStart(): GlideState {
+  return { alive: true, y: GLIDE_H / 2, vy: 0, gates: [], gatesCleared: 0, nextId: 1, spawnIn: 210 };
+}
+
+const GLIDE_GRAVITY = 1350;
+const GLIDE_FLAP = -430;
+const GLIDE_GAP = 112;
+const GLIDE_SPEED = 118;
+
+export function glideStep(state: GlideState, dt: number, flap: boolean, rng: Rng): GlideState {
+  if (!state.alive) return state;
+  const s: GlideState = { ...state, gates: state.gates.map((g) => ({ ...g })) };
+  s.vy = flap ? GLIDE_FLAP : s.vy + GLIDE_GRAVITY * dt;
+  s.y += s.vy * dt;
+  const dx = GLIDE_SPEED * dt;
+  for (const g of s.gates) g.x -= dx;
+  s.spawnIn -= dx;
+  if (s.spawnIn <= 0) {
+    s.gates.push({ id: s.nextId++, x: GLIDE_W + 10, gapY: 60 + rng() * (GLIDE_H - 120 - GLIDE_GAP), passed: false });
+    s.spawnIn = 168;
+  }
+  s.gates = s.gates.filter((g) => g.x > -60);
+  if (s.y <= 0 || s.y >= GLIDE_H - GLIDE_SIZE) {
+    s.alive = false;
+    return s;
+  }
+  for (const g of s.gates) {
+    const inGateX = g.x < GLIDE_X + GLIDE_SIZE - 3 && g.x + 46 > GLIDE_X + 3;
+    if (inGateX) {
+      const inGap = s.y > g.gapY + 2 && s.y + GLIDE_SIZE < g.gapY + GLIDE_GAP - 2;
+      if (!inGap) {
+        s.alive = false;
+        return s;
+      }
+    }
+    if (!g.passed && g.x + 46 < GLIDE_X) {
+      g.passed = true;
+      s.gatesCleared++;
+    }
+  }
+  return s;
+}
+
+export function glideScore(state: GlideState): number {
+  return state.gatesCleared * 20;
+}
+
+// ─── Snake ───────────────────────────────────────────────────────────────────
+
+export const SNAKE_COLS = 14;
+export const SNAKE_ROWS = 14;
+export const SNAKE_TICK_MS = 160;
+
+export type SnakeDir = { x: number; y: number };
+export interface SnakeCell { x: number; y: number }
+export interface SnakeState {
+  alive: boolean;
+  cells: SnakeCell[];
+  dir: SnakeDir;
+  pendingDir: SnakeDir;
+  food: SnakeCell;
+  foodEaten: number;
+  ticks: number;
+}
+
+function snakeSpawnFood(cells: SnakeCell[], rng: Rng): SnakeCell {
+  for (let guard = 0; guard < 200; guard++) {
+    const spot = { x: Math.floor(rng() * SNAKE_COLS), y: Math.floor(rng() * SNAKE_ROWS) };
+    if (!cells.some((c) => c.x === spot.x && c.y === spot.y)) return spot;
+  }
+  return { x: 0, y: 0 };
+}
+
+export function snakeStart(rng: Rng): SnakeState {
+  const cells = [{ x: 6, y: 7 }, { x: 5, y: 7 }, { x: 4, y: 7 }];
+  return {
+    alive: true, cells, dir: { x: 1, y: 0 }, pendingDir: { x: 1, y: 0 },
+    food: snakeSpawnFood(cells, rng), foodEaten: 0, ticks: 0,
+  };
+}
+
+/** Queue a turn; reversing into your own neck is refused. */
+export function snakeTurn(state: SnakeState, dir: SnakeDir): SnakeState {
+  if (dir.x === -state.dir.x && dir.y === -state.dir.y) return state;
+  return { ...state, pendingDir: dir };
+}
+
+export function snakeStep(state: SnakeState, rng: Rng): SnakeState {
+  if (!state.alive) return state;
+  const dir = state.pendingDir;
+  const head = { x: state.cells[0].x + dir.x, y: state.cells[0].y + dir.y };
+  if (head.x < 0 || head.y < 0 || head.x >= SNAKE_COLS || head.y >= SNAKE_ROWS) {
+    return { ...state, alive: false, dir };
+  }
+  const eating = head.x === state.food.x && head.y === state.food.y;
+  const bodyToCheck = eating ? state.cells : state.cells.slice(0, -1);
+  if (bodyToCheck.some((c) => c.x === head.x && c.y === head.y)) {
+    return { ...state, alive: false, dir };
+  }
+  const cells = [head, ...state.cells];
+  if (!eating) cells.pop();
+  return {
+    alive: true,
+    cells,
+    dir,
+    pendingDir: dir,
+    food: eating ? snakeSpawnFood(cells, rng) : state.food,
+    foodEaten: state.foodEaten + (eating ? 1 : 0),
+    ticks: state.ticks + 1,
+  };
+}
+
+export function snakeScore(state: SnakeState): number {
+  return state.foodEaten * 15 + Math.floor((state.ticks * SNAKE_TICK_MS) / 1000);
+}
+
+// ─── Breakout ────────────────────────────────────────────────────────────────
+
+export const BREAKOUT_W = 320;
+export const BREAKOUT_H = 300;
+export const BREAKOUT_PADDLE_W = 64;
+export const BREAKOUT_PADDLE_Y = BREAKOUT_H - 26;
+
+export interface BreakoutBrick { id: number; row: number; x: number; y: number; alive: boolean }
+export interface BreakoutState {
+  alive: boolean;
+  paddleX: number;
+  ball: { x: number; y: number; vx: number; vy: number };
+  bricks: BreakoutBrick[];
+  bricksBroken: number;
+  rowsCleared: number;
+  rowsSpawned: number;
+  nextId: number;
+  rowTimer: number;
+  clearedRows: number[];
+}
+
+const BRICK_COLS = 6;
+const BRICK_W = 48;
+const BRICK_H = 15;
+const BRICK_GAP = 4;
+
+function breakoutRow(row: number, y: number, nextId: number): BreakoutBrick[] {
+  const out: BreakoutBrick[] = [];
+  for (let c = 0; c < BRICK_COLS; c++) {
+    out.push({ id: nextId + c, row, x: 6 + c * (BRICK_W + BRICK_GAP), y, alive: true });
+  }
+  return out;
+}
+
+export function breakoutStart(): BreakoutState {
+  const bricks = [...breakoutRow(0, 18, 1), ...breakoutRow(1, 18 + BRICK_H + 6, 100)];
+  return {
+    alive: true,
+    paddleX: (BREAKOUT_W - BREAKOUT_PADDLE_W) / 2,
+    ball: { x: BREAKOUT_W / 2, y: BREAKOUT_PADDLE_Y - 30, vx: 130, vy: -190 },
+    bricks, bricksBroken: 0, rowsCleared: 0, rowsSpawned: 2, nextId: 200, rowTimer: 0, clearedRows: [],
+  };
+}
+
+export function breakoutStep(state: BreakoutState, dt: number): BreakoutState {
+  if (!state.alive) return state;
+  const s: BreakoutState = {
+    ...state,
+    ball: { ...state.ball },
+    bricks: state.bricks.map((b) => ({ ...b })),
+    clearedRows: [...state.clearedRows],
+  };
+  // A fresh row lands every six seconds; standing rows ease down,
+  // and any brick that slides past the paddle line is swept away
+  // (the only way this run ends is losing the ball).
+  s.rowTimer += dt;
+  if (s.rowTimer >= 6) {
+    s.rowTimer = 0;
+    for (const b of s.bricks) b.y += BRICK_H + 6;
+    const rowIndex = s.rowsSpawned++;
+    s.bricks.push(...breakoutRow(rowIndex, 18, s.nextId));
+    s.nextId += 100;
+  }
+  s.bricks = s.bricks.filter((b) => b.y < BREAKOUT_PADDLE_Y - 6);
+  // Ball flight.
+  const b = s.ball;
+  b.x += b.vx * dt;
+  b.y += b.vy * dt;
+  if (b.x < 8) { b.x = 8; b.vx = Math.abs(b.vx); }
+  if (b.x > BREAKOUT_W - 8) { b.x = BREAKOUT_W - 8; b.vx = -Math.abs(b.vx); }
+  if (b.y < 8) { b.y = 8; b.vy = Math.abs(b.vy); }
+  if (b.y > BREAKOUT_H + 12) {
+    s.alive = false;
+    return s;
+  }
+  // Paddle bounce: angle follows where the ball met the paddle.
+  if (b.vy > 0 && b.y + 8 >= BREAKOUT_PADDLE_Y && b.y < BREAKOUT_PADDLE_Y + 12 && b.x >= s.paddleX - 6 && b.x <= s.paddleX + BREAKOUT_PADDLE_W + 6) {
+    const offset = (b.x - (s.paddleX + BREAKOUT_PADDLE_W / 2)) / (BREAKOUT_PADDLE_W / 2);
+    const speed = Math.min(300, Math.hypot(b.vx, b.vy) * 1.02);
+    const angle = offset * 1.05;
+    b.vx = speed * Math.sin(angle);
+    b.vy = -speed * Math.cos(angle);
+    b.y = BREAKOUT_PADDLE_Y - 9;
+  }
+  // Brick hits.
+  for (const brick of s.bricks) {
+    if (!brick.alive) continue;
+    if (b.x + 7 >= brick.x && b.x - 7 <= brick.x + BRICK_W && b.y + 7 >= brick.y && b.y - 7 <= brick.y + BRICK_H) {
+      brick.alive = false;
+      s.bricksBroken++;
+      b.vy = -b.vy;
+      const rowAlive = s.bricks.some((o) => o.row === brick.row && o.alive);
+      if (!rowAlive && !s.clearedRows.includes(brick.row)) {
+        s.clearedRows.push(brick.row);
+        s.rowsCleared++;
+      }
+      break;
+    }
+  }
+  return s;
+}
+
+export function breakoutScore(state: BreakoutState): number {
+  return state.bricksBroken * 10 + state.rowsCleared * 100;
+}
+
+// ─── Drop Match ──────────────────────────────────────────────────────────────
+
+export const DROP_COLS = 6;
+export const DROP_ROWS = 10;
+export const DROP_COLORS = ["#C9452F", "#F5C04A", "#7FB069", "#4A7FC9", "#8B6FD8"] as const;
+export type DropColor = (typeof DROP_COLORS)[number];
+
+/** Columns, each a bottom-up stack of colours (index 0 = the floor). */
+export type DropGrid = DropColor[][];
+
+export function dropStart(): DropGrid {
+  return Array.from({ length: DROP_COLS }, () => []);
+}
+
+/** A new row lands: one block per column, inserted at the floor. True when the pile tops out. */
+export function dropAddRow(grid: DropGrid, rng: Rng): { grid: DropGrid; toppedOut: boolean } {
+  const next = grid.map((col, c) => {
+    const color = DROP_COLORS[Math.min(DROP_COLORS.length - 1, Math.floor(rng() * DROP_COLORS.length))];
+    void c;
+    return [color, ...col];
+  });
+  return { grid: next, toppedOut: next.some((col) => col.length > DROP_ROWS) };
+}
+
+/** The connected same-colour group touching (col, row), row counted from the floor. */
+export function dropFindGroup(grid: DropGrid, col: number, row: number): { col: number; row: number }[] {
+  const color = grid[col]?.[row];
+  if (!color) return [];
+  const seen = new Set<string>([`${col},${row}`]);
+  const queue = [{ col, row }];
+  const out: { col: number; row: number }[] = [];
+  while (queue.length) {
+    const cell = queue.pop()!;
+    out.push(cell);
+    const neighbours = [
+      { col: cell.col + 1, row: cell.row }, { col: cell.col - 1, row: cell.row },
+      { col: cell.col, row: cell.row + 1 }, { col: cell.col, row: cell.row - 1 },
+    ];
+    for (const n of neighbours) {
+      const key = `${n.col},${n.row}`;
+      if (seen.has(key)) continue;
+      if (grid[n.col]?.[n.row] === color) {
+        seen.add(key);
+        queue.push(n);
+      }
+    }
+  }
+  return out;
+}
+
+/** Clear a group (3+): those blocks vanish and each column settles. Smaller taps do nothing. */
+export function dropClearGroup(grid: DropGrid, group: { col: number; row: number }[]): DropGrid {
+  if (group.length < 3) return grid;
+  const removed = new Set(group.map((g) => `${g.col},${g.row}`));
+  return grid.map((column, c) => column.filter((_, r) => !removed.has(`${c},${r}`)));
+}
+
+// ─── Crossroads ──────────────────────────────────────────────────────────────
+
+export const CROSS_SIZE = 300;
+export const CROSS_CENTER = CROSS_SIZE / 2;
+export const CROSS_BOX = 34; // half-width of the middle box a crossing pair can share
+
+export type CrossDir = "N" | "S" | "E" | "W";
+export interface CrossCar {
+  id: number;
+  dir: CrossDir;
+  /** Distance along its approach axis, px; the intersection centre sits at CROSS_CENTER. */
+  pos: number;
+  stopped: boolean;
+  nearCounted: boolean;
+}
+export interface CrossState {
+  alive: boolean;
+  cars: CrossCar[];
+  cleared: number;
+  nearMisses: number;
+  elapsed: number;
+  nextId: number;
+  spawnIn: number;
+  countedPairs: string[];
+}
+
+export function crossStart(): CrossState {
+  return { alive: true, cars: [], cleared: 0, nearMisses: 0, elapsed: 0, nextId: 1, spawnIn: 0.4, countedPairs: [] };
+}
+
+const CROSS_DIRS: CrossDir[] = ["N", "S", "E", "W"];
+const perpendicular = (a: CrossDir, b: CrossDir) => (a === "N" || a === "S") !== (b === "N" || b === "S");
+const crossSpeed = (elapsed: number) => Math.min(96, 46 + elapsed * 0.55);
+const crossInBox = (car: CrossCar) => Math.abs(car.pos - CROSS_CENTER) < CROSS_BOX;
+
+export function crossToggle(state: CrossState, id: number): CrossState {
+  return { ...state, cars: state.cars.map((c) => (c.id === id ? { ...c, stopped: !c.stopped } : c)) };
+}
+
+export function crossStep(state: CrossState, dt: number, rng: Rng): CrossState {
+  if (!state.alive) return state;
+  const s: CrossState = {
+    ...state,
+    cars: state.cars.map((c) => ({ ...c })),
+    countedPairs: [...state.countedPairs],
+  };
+  s.elapsed += dt;
+  // Spawning ramps: the gap between cars shrinks as the run ages.
+  s.spawnIn -= dt;
+  if (s.spawnIn <= 0) {
+    const dir = CROSS_DIRS[Math.min(3, Math.floor(rng() * 4))];
+    if (!s.cars.some((c) => c.dir === dir && c.pos < 46)) {
+      s.cars.push({ id: s.nextId++, dir, pos: -24, stopped: false, nearCounted: false });
+    }
+    s.spawnIn = Math.max(0.85, 2.1 - s.elapsed * 0.016) * (0.75 + rng() * 0.5);
+  }
+  const speed = crossSpeed(s.elapsed);
+  // Movement: stopped cars wait; a moving car also waits behind a
+  // slower/stopped car in its own lane. No impatience — they just queue.
+  for (const car of s.cars) {
+    if (car.stopped) continue;
+    const ahead = s.cars.some((o) => o.id !== car.id && o.dir === car.dir && o.pos > car.pos && o.pos - car.pos < 44);
+    if (!ahead) car.pos += speed * dt;
+  }
+  // Cleared the far side: +1 car home safe.
+  const before = s.cars.length;
+  s.cars = s.cars.filter((c) => c.pos < CROSS_SIZE + 26);
+  s.cleared += before - s.cars.length;
+  // Collision: two cars from crossing directions inside the middle
+  // box at the same time. (Same-axis pairs pass on offset lanes.)
+  for (let i = 0; i < s.cars.length; i++) {
+    for (let j = i + 1; j < s.cars.length; j++) {
+      const a = s.cars[i];
+      const b = s.cars[j];
+      if (perpendicular(a.dir, b.dir) && crossInBox(a) && crossInBox(b)) {
+        s.alive = false;
+        return s;
+      }
+    }
+  }
+  // Near-miss: a car leaves the box while a crossing car is in the
+  // wider near zone but NOT in the box — they threaded the needle.
+  for (const car of s.cars) {
+    if (car.nearCounted) continue;
+    if (Math.abs(car.pos - CROSS_CENTER) >= CROSS_BOX && car.pos > CROSS_CENTER) {
+      const other = s.cars.find(
+        (o) => o.id !== car.id && perpendicular(o.dir, car.dir) && Math.abs(o.pos - CROSS_CENTER) < 68 && !crossInBox(o),
+      );
+      if (other) {
+        const key = [Math.min(car.id, other.id), Math.max(car.id, other.id)].join(":");
+        if (!s.countedPairs.includes(key)) {
+          s.countedPairs.push(key);
+          s.nearMisses++;
+        }
+      }
+      car.nearCounted = true;
+    }
+  }
+  return s;
+}
+
+export function crossScore(state: CrossState): number {
+  return state.cleared * 10 + state.nearMisses * 15;
+}
+
+// ─── Jumper ──────────────────────────────────────────────────────────────────
+
+export const JUMP_VIEW = 340;
+export const JUMP_W = 320;
+
+export type JumpPlatformType = "steady" | "moving" | "crumble";
+export interface JumpPlatform { id: number; x: number; y: number; type: JumpPlatformType; vx: number; used: boolean }
+export interface JumpCoin { id: number; x: number; y: number; taken: boolean }
+export interface JumpState {
+  alive: boolean;
+  x: number;
+  /** World altitude of the player's feet (up is positive). */
+  y: number;
+  vy: number;
+  camY: number;
+  altMax: number;
+  coinsCollected: number;
+  platforms: JumpPlatform[];
+  coins: JumpCoin[];
+  nextId: number;
+  topY: number;
+}
+
+const JUMP_GRAVITY = 1500;
+const JUMP_BOUNCE = 640;
+const JUMP_STEER = 235;
+export const JUMP_PLAT_W = 56;
+
+function jumpPlatform(id: number, y: number, rng: Rng): JumpPlatform {
+  const roll = rng();
+  const type: JumpPlatformType = roll < 0.55 ? "steady" : roll < 0.8 ? "moving" : "crumble";
+  return {
+    id, x: rng() * (JUMP_W - JUMP_PLAT_W), y, type,
+    vx: type === "moving" ? (rng() < 0.5 ? -42 : 42) : 0, used: false,
+  };
+}
+
+export function jumpStart(rng: Rng): JumpState {
+  const platforms: JumpPlatform[] = [{ id: 0, x: JUMP_W / 2 - JUMP_PLAT_W / 2, y: 0, type: "steady", vx: 0, used: false }];
+  const coins: JumpCoin[] = [];
+  let y = 0;
+  let id = 1;
+  while (y < JUMP_VIEW + 160) {
+    y += 52 + rng() * 30;
+    const p = jumpPlatform(id++, y, rng);
+    platforms.push(p);
+    if (rng() < 0.3) coins.push({ id: id++, x: p.x + JUMP_PLAT_W / 2 - 7, y: y + 26, taken: false });
+  }
+  return {
+    alive: true, x: JUMP_W / 2, y: 8, vy: JUMP_BOUNCE, camY: 0, altMax: 0,
+    coinsCollected: 0, platforms, coins, nextId: id, topY: y,
+  };
+}
+
+export function jumpStep(state: JumpState, dt: number, steer: -1 | 0 | 1, rng: Rng): JumpState {
+  if (!state.alive) return state;
+  const s: JumpState = {
+    ...state,
+    platforms: state.platforms.map((p) => ({ ...p })),
+    coins: state.coins.map((c) => ({ ...c })),
+  };
+  const prevFeet = s.y;
+  s.vy -= JUMP_GRAVITY * dt;
+  s.y += s.vy * dt;
+  s.x += steer * JUMP_STEER * dt;
+  if (s.x < -18) s.x = JUMP_W + 18;
+  if (s.x > JUMP_W + 18) s.x = -18;
+  // Moving platforms patrol their stretch.
+  for (const p of s.platforms) {
+    if (p.type === "moving") {
+      p.x += p.vx * dt;
+      if (p.x < 0) { p.x = 0; p.vx = Math.abs(p.vx); }
+      if (p.x > JUMP_W - JUMP_PLAT_W) { p.x = JUMP_W - JUMP_PLAT_W; p.vx = -Math.abs(p.vx); }
+    }
+  }
+  // Bounce: only while falling, only crossing a platform top.
+  if (s.vy < 0) {
+    for (const p of s.platforms) {
+      if (p.used && p.type === "crumble") continue;
+      const crossed = prevFeet >= p.y && s.y <= p.y;
+      const overX = s.x + 14 > p.x && s.x - 14 < p.x + JUMP_PLAT_W;
+      if (crossed && overX) {
+        s.y = p.y;
+        s.vy = JUMP_BOUNCE;
+        if (p.type === "crumble") p.used = true;
+        break;
+      }
+    }
+  }
+  s.platforms = s.platforms.filter((p) => !(p.type === "crumble" && p.used && p.y < s.y - 4));
+  // Coins hang just above platforms; passing through one collects it.
+  for (const c of s.coins) {
+    if (!c.taken && Math.abs(c.x + 7 - s.x) < 22 && Math.abs(c.y - (s.y + 16)) < 24) {
+      c.taken = true;
+      s.coinsCollected++;
+    }
+  }
+  // The camera only climbs; fresh platforms and coins spawn above.
+  s.altMax = Math.max(s.altMax, s.y);
+  if (s.y - s.camY > JUMP_VIEW * 0.45) s.camY = s.y - JUMP_VIEW * 0.45;
+  while (s.topY < s.camY + JUMP_VIEW + 140) {
+    s.topY += 52 + rng() * 30;
+    const p = jumpPlatform(s.nextId++, s.topY, rng);
+    s.platforms.push(p);
+    if (rng() < 0.3) s.coins.push({ id: s.nextId++, x: p.x + JUMP_PLAT_W / 2 - 7, y: s.topY + 26, taken: false });
+  }
+  s.platforms = s.platforms.filter((p) => p.y > s.camY - 30);
+  s.coins = s.coins.filter((c) => !c.taken && c.y > s.camY - 30);
+  // Fell below the camera: the run ends.
+  if (s.y < s.camY - 6) s.alive = false;
+  return s;
+}
+
+export function jumpScore(state: JumpState): number {
+  return Math.floor(state.altMax) + state.coinsCollected * 20;
+}

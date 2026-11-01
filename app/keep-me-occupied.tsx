@@ -27,9 +27,16 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { BackbeatGame } from "@/components/keep-me-occupied/backbeat";
+import { BreakoutGame } from "@/components/keep-me-occupied/breakout";
 import { ChapterDealCard } from "@/components/keep-me-occupied/chapter-deal";
+import { CrossroadsGame } from "@/components/keep-me-occupied/crossroads";
+import { DropMatchGame } from "@/components/keep-me-occupied/drop-match";
 import { EchoLightsGame } from "@/components/keep-me-occupied/echo-lights";
 import { GamesShelf } from "@/components/keep-me-occupied/games-shelf";
+import { GlideGame } from "@/components/keep-me-occupied/glide";
+import { JumperGame } from "@/components/keep-me-occupied/jumper";
+import { RunnerGame } from "@/components/keep-me-occupied/runner";
+import { SnakeGame } from "@/components/keep-me-occupied/snake";
 import { SortItOutGame } from "@/components/keep-me-occupied/sort-it-out";
 import { StackGame } from "@/components/keep-me-occupied/stack-game";
 import { TendGame } from "@/components/keep-me-occupied/tend-game";
@@ -91,6 +98,7 @@ export default function KeepMeOccupiedScreen() {
   const scoreRef = useRef(0);
   const sessionTokenRef = useRef("");
   const convertedRef = useRef<Set<string>>(new Set());
+  const earningsShownRef = useRef(false);
   const chapterCreditedRef = useRef(-1);
 
   const addScore = useCallback((points: number) => {
@@ -106,7 +114,7 @@ export default function KeepMeOccupiedScreen() {
    * item's best score is recorded. Wave data is untouched by all
    * of this: no rating, minute, or count is ever written.
    */
-  const settleSession = useCallback(async () => {
+  const settleSession = useCallback(async (): Promise<{ score: number; earnings: SessionEarnings; best: number } | null> => {
     const session = sessionRef.current;
     const score = scoreRef.current;
     const token = sessionTokenRef.current;
@@ -117,8 +125,11 @@ export default function KeepMeOccupiedScreen() {
     // (e.g. back from the wave check for another round).
     sessionTokenRef.current = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     if (!session || score <= 0 || convertedRef.current.has(token)) {
-      setEarnings(null);
-      return;
+      // Nothing new to settle. If this deal already produced a
+      // receipt (a v398 run-end settled it), keep that receipt for
+      // the wave check instead of wiping it.
+      if (!earningsShownRef.current) setEarnings(null);
+      return null;
     }
     convertedRef.current.add(token);
     const itemId = session.itemId;
@@ -126,12 +137,34 @@ export default function KeepMeOccupiedScreen() {
       convertSessionScore(score, token),
       recordBestScore(itemId, score),
     ]);
+    earningsShownRef.current = true;
     setEarnings(earnt);
     setProgression((current) => {
       const next = { ...current, best: { ...current.best, [itemId]: best } };
       progRef.current = next;
       return next;
     });
+    return { score, earnings: earnt, best };
+  }, []);
+
+  /**
+   * v398: a RUN ended inside one of the endless games. A run end
+   * is a session-segment settle — the same conversion, the same
+   * exactly-once token, the same best-score record — it just
+   * happens mid-deal, and the receipt goes back to the game so its
+   * run-end card can show it. "Again" then plays a fresh segment
+   * on the rotated token; no run can ever convert twice.
+   */
+  const handleRunEnd = useCallback(async () => {
+    const settled = await settleSession();
+    return settled
+      ? { coins: settled.earnings.coins, xp: settled.earnings.xp, score: settled.score, best: settled.best }
+      : null;
+  }, [settleSession]);
+
+  /** From a run-end card's "I'm good": the settle already happened. */
+  const exitRunToWave = useCallback(() => {
+    setPhase("wave");
   }, []);
 
   const resolveDig = useCallback(async (nonce: number) => {
@@ -172,6 +205,7 @@ export default function KeepMeOccupiedScreen() {
   const applyDeal = useCallback(
     (item: KmoPoolItem) => {
       const nonce = ++nonceRef.current;
+      earningsShownRef.current = false;
       const now = Date.now();
       sessionTokenRef.current = `${nonce}-${now}`;
       if (item.id === "chapter") {
@@ -315,6 +349,7 @@ export default function KeepMeOccupiedScreen() {
         style={{ backgroundColor: m.ground }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={!(phase === "dealt" && deal != null && RUN_GAME_IDS.includes(deal.item.id))}
       >
         <View style={styles.header}>
           <Pressable
@@ -373,7 +408,7 @@ export default function KeepMeOccupiedScreen() {
               </>
             ) : null}
 
-            {renderDealContent(deal, m, onNextDig, addScore, openChapter)}
+            {renderDealContent(deal, m, onNextDig, addScore, openChapter, handleRunEnd, exitRunToWave)}
 
             <View style={styles.scoreRow}>
               <View style={[styles.scoreChip, { backgroundColor: m.tonal }]}>
@@ -439,6 +474,20 @@ function gameSub(id: KmoPoolItem["id"]): string {
       return "The beat lights up; tap it back as the sweep passes.";
     case "tend":
       return "A small garden that always needs two minutes of hands.";
+    case "runner":
+      return "Tap to hop, hold for the big jump. The road speeds up.";
+    case "glide":
+      return "Tap to flap. Thread the gates.";
+    case "jumper":
+      return "He bounces on his own — hold a side to steer. Edges wrap.";
+    case "snake":
+      return "Swipe or use the pad. Eat, grow, mind the walls.";
+    case "crossroads":
+      return "Tap a car to stop it, tap again to send it. Keep the middle clear.";
+    case "breakout":
+      return "Drag the paddle. The bricks keep coming.";
+    case "drop-match":
+      return "Tap a group of three or more. Mind the rising pile.";
     case "word-dig":
       return "A word buried in a verse. Six digs, and the verse is the hint.";
     default:
@@ -446,12 +495,19 @@ function gameSub(id: KmoPoolItem["id"]): string {
   }
 }
 
+/** The v398 run games: gesture- and hold-driven, so the page scroll locks while one is dealt. */
+const RUN_GAME_IDS: readonly KmoItemId[] = [
+  "runner", "glide", "jumper", "snake", "crossroads", "breakout", "drop-match",
+];
+
 function renderDealContent(
   deal: LiveDeal,
   m: KeepMeOccupiedMaterialFamily,
   onNextDig: () => void,
   onScore: (points: number) => void,
   onChapterOpen: (snapshot: LiveDeal) => void,
+  onRunEnd: () => Promise<{ coins: number; xp: number; score: number; best: number } | null>,
+  onRunExit: () => void,
 ) {
   switch (deal.item.id) {
     case "echo-lights":
@@ -464,6 +520,20 @@ function renderDealContent(
       return <BackbeatGame m={m} onScore={onScore} />;
     case "tend":
       return <TendGame m={m} onScore={onScore} />;
+    case "runner":
+      return <RunnerGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "glide":
+      return <GlideGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "jumper":
+      return <JumperGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "snake":
+      return <SnakeGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "crossroads":
+      return <CrossroadsGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "breakout":
+      return <BreakoutGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "drop-match":
+      return <DropMatchGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
     case "word-dig":
       return (
         <WordDigGame

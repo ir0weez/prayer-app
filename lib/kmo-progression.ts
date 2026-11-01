@@ -54,13 +54,27 @@ export const KMO_DEFAULT_UNLOCKED: readonly KmoItemId[] = [
 /**
  * Coin prices for the locked games, bought from the shared purse.
  * Chapters have no price and never will; neither does the dig.
+ * v398 ladder (Jonathan's order — "kind of neverending stuff to
+ * unlock"): the Runner flagship sits early and cheap on purpose;
+ * prices climb to Drop Match at the top. Backbeat and Tend keep
+ * their v397 prices exactly.
  */
 export const KMO_UNLOCK_PRICES: Partial<Record<KmoItemId, number>> = {
+  runner: 2000,
   backbeat: 3000,
+  glide: 5000,
+  jumper: 6500,
   tend: 7500,
+  snake: 10000,
+  crossroads: 12500,
+  breakout: 15000,
+  "drop-match": 25000,
 };
 
-const GAME_IDS: readonly KmoItemId[] = ["echo-lights", "sort-it-out", "stack", "backbeat", "tend"];
+const GAME_IDS: readonly KmoItemId[] = [
+  "echo-lights", "sort-it-out", "stack", "backbeat", "tend",
+  "runner", "glide", "jumper", "snake", "crossroads", "breakout", "drop-match",
+];
 
 export function parseKmoProgression(value: unknown): KmoProgression {
   const raw = (value && typeof value === "object" ? value : {}) as Partial<KmoProgression>;
@@ -230,6 +244,58 @@ export function digScoreForGuesses(guessesUsed: number, found: boolean): number 
 // (Credited on the Open tap — the reader offers no read-completion
 // signal the flow could honestly wait for.)
 export const CHAPTER_READ_SCORE = 40;
+
+// ─── v398 endless games — scoring ────────────────────────────────────────────
+// Each is a scored RUN. A run's score is composed by these rules in
+// the game's lib state; the numbers here are the single source the
+// components display and the pins hold.
+
+// Runner: +1 per metre, +25 per coin, +5 per near-miss (clearing an
+// obstacle by a whisker, detected at the pass moment).
+export const RUNNER_COIN_POINTS = 25;
+export const RUNNER_NEAR_MISS_POINTS = 5;
+export function runnerScoreFor(distanceM: number, coins: number, nearMisses: number): number {
+  return Math.floor(distanceM) + coins * RUNNER_COIN_POINTS + nearMisses * RUNNER_NEAR_MISS_POINTS;
+}
+
+// Glide: +20 per gate cleared.
+export const GLIDE_GATE_POINTS = 20;
+export function glideScoreFor(gates: number): number {
+  return gates * GLIDE_GATE_POINTS;
+}
+
+// Snake: +15 per food, +1 per second survived.
+export const SNAKE_FOOD_POINTS = 15;
+export function snakeScoreFor(food: number, seconds: number): number {
+  return food * SNAKE_FOOD_POINTS + Math.floor(seconds);
+}
+
+// Breakout: +10 per brick, +100 per full row cleared.
+export const BREAKOUT_BRICK_POINTS = 10;
+export const BREAKOUT_ROW_BONUS = 100;
+export function breakoutScoreFor(bricks: number, rows: number): number {
+  return bricks * BREAKOUT_BRICK_POINTS + rows * BREAKOUT_ROW_BONUS;
+}
+
+// Drop Match: +8 per block cleared, times the chain multiplier
+// (consecutive clears without a new row landing: ×1, ×2, ×3…).
+export const DROP_BLOCK_POINTS = 8;
+export function dropMatchClearPoints(blocks: number, chain: number): number {
+  return blocks * DROP_BLOCK_POINTS * Math.max(1, Math.floor(chain));
+}
+
+// Crossroads: +10 per car home safe, +15 per near-miss.
+export const CROSSROADS_CLEAR_POINTS = 10;
+export const CROSSROADS_NEAR_MISS_POINTS = 15;
+export function crossroadsScoreFor(cleared: number, nearMisses: number): number {
+  return cleared * CROSSROADS_CLEAR_POINTS + nearMisses * CROSSROADS_NEAR_MISS_POINTS;
+}
+
+// Jumper: +1 per altitude unit climbed, +20 per coin.
+export const JUMPER_COIN_POINTS = 20;
+export function jumperScoreFor(altitude: number, coins: number): number {
+  return Math.floor(altitude) + coins * JUMPER_COIN_POINTS;
+}
 
 // ─── Conversion ──────────────────────────────────────────────────────────────
 

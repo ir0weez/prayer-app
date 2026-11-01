@@ -154,10 +154,17 @@ describe("v395 the deal", () => {
   });
 
   it("the pool is the seven approved items: five games, the dig, a chapter", () => {
-    expect(KMO_POOL.map((i) => i.id)).toEqual([
-      "echo-lights", "sort-it-out", "stack", "backbeat", "tend", "word-dig", "chapter",
+    // v398 note (Oct 31): the pool grew — seven endless games were
+    // registered into the same pool (runner, glide, jumper, snake,
+    // crossroads, breakout, drop-match). The original seven stand
+    // first, in their approved order; the full roster is pinned in
+    // the v398 tests.
+    expect(KMO_POOL.map((i) => i.id).slice(0, 5)).toEqual([
+      "echo-lights", "sort-it-out", "stack", "backbeat", "tend",
     ]);
-    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(5);
+    expect(KMO_POOL.map((i) => i.id).slice(-2)).toEqual(["word-dig", "chapter"]);
+    expect(KMO_POOL).toHaveLength(14);
+    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(12);
   });
 });
 

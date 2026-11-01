@@ -195,7 +195,10 @@ describe("v397 unlocks", () => {
     expect(isItemUnlocked(fresh, "sort-it-out")).toBe(true);
     expect(isItemUnlocked(fresh, "backbeat")).toBe(false);
     expect(isItemUnlocked(fresh, "tend")).toBe(false);
-    expect(KMO_UNLOCK_PRICES).toEqual({ backbeat: 3000, tend: 7500 });
+    // v398 note: the ladder grew to nine priced games (pinned in
+    // full in the v398 tests); Backbeat and Tend keep these prices.
+    expect(KMO_UNLOCK_PRICES.backbeat).toBe(3000);
+    expect(KMO_UNLOCK_PRICES.tend).toBe(7500);
     expect(unlockPrice("backbeat")).toBe(3000);
     expect(unlockPrice("tend")).toBe(7500);
   });
@@ -258,7 +261,7 @@ describe("v397 unlocks", () => {
     expect(seen.has("chapter")).toBe(true);
     expect(seen.has("word-dig")).toBe(true);
     for (const id of KMO_DEFAULT_UNLOCKED) expect(seen.has(id)).toBe(true);
-    expect(KMO_POOL).toHaveLength(7);
+    expect(KMO_POOL).toHaveLength(14); // v398: was 7 before the endless roster landed
 
     const all = [...KMO_DEFAULT_UNLOCKED, "backbeat", "tend"] as const;
     const seenAll = new Set<string>();

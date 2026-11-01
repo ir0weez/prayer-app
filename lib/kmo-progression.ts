@@ -59,30 +59,51 @@ export const KMO_DEFAULT_UNLOCKED: readonly KmoItemId[] = [
  * prices climb to Drop Match. Backbeat and Tend keep their v397
  * prices exactly. v399 climbs on from there to Slide 2048 at
  * 75,000 — the ladder is meant never to run out of next doors.
+ * v400 ("Add all 12 if you can") weaves six puzzles between the
+ * prices and climbs six action games past Slide 2048 to Order Up
+ * at 250,000 — thirty-one games deep and still not done.
  */
 export const KMO_UNLOCK_PRICES: Partial<Record<KmoItemId, number>> = {
   runner: 2000,
   backbeat: 3000,
+  // v400: the puzzles weave between the action prices (Pipe
+  // Dreams 4,500 sits between Backbeat and Glide) so the climb
+  // always has a near door; the action six climb past Slide 2048
+  // to Order Up at 250,000, the new prestige top.
+  "pipe-dreams": 4500,
   glide: 5000,
   jumper: 6500,
   tend: 7500,
+  "block-fit": 8500,
   snake: 10000,
   crossroads: 12500,
   breakout: 15000,
+  "lights-out": 18000,
   "drop-match": 25000,
   // v399: the ladder climbs on — six more doors, Slide 2048 at the top.
   "plinko-drop": 30000,
   "cave-flyer": 35000,
   "colour-rush": 40000,
+  "flood-it": 45000,
   rockfall: 50000,
   "mole-patrol": 60000,
   "slide-2048": 75000,
+  "picross-mini": 85000,
+  "knife-log": 90000,
+  "bubble-pop": 110000,
+  "mines-mini": 130000,
+  "tile-tap": 135000,
+  "paper-toss": 160000,
+  "first-cast": 200000,
+  "order-up": 250000,
 };
 
 const GAME_IDS: readonly KmoItemId[] = [
   "echo-lights", "sort-it-out", "stack", "backbeat", "tend",
   "runner", "glide", "jumper", "snake", "crossroads", "breakout", "drop-match",
   "plinko-drop", "cave-flyer", "colour-rush", "rockfall", "mole-patrol", "slide-2048",
+  "knife-log", "bubble-pop", "tile-tap", "paper-toss", "first-cast", "order-up",
+  "pipe-dreams", "block-fit", "lights-out", "flood-it", "picross-mini", "mines-mini",
 ];
 
 export function parseKmoProgression(value: unknown): KmoProgression {
@@ -348,6 +369,94 @@ export function moleTapPoints(chain: number): number {
 // Slide 2048 needs no table: the score IS the sum of merged tiles,
 // composed by the merge itself (pinned in the game logic tests).
 
+// ─── v400 games — scoring ────────────────────────────────────────────────────
+
+// Knife Log: +15 per knife stuck, +50 per stage cleared.
+export const KNIFE_STUCK_POINTS = 15;
+export const KNIFE_STAGE_BONUS = 50;
+export function knifeScoreFor(stuckTotal: number, stagesCleared: number): number {
+  return stuckTotal * KNIFE_STUCK_POINTS + stagesCleared * KNIFE_STAGE_BONUS;
+}
+
+// Bubble Pop Wrap: 2 per bubble at the chain's rate multiplier —
+// ×2 once the chain reaches 8 quick pops, ×3 at 16.
+export const BUBBLE_POP_POINTS = 2;
+export function bubbleMultiplierFor(chain: number): number {
+  if (chain >= 16) return 3;
+  if (chain >= 8) return 2;
+  return 1;
+}
+export function bubblePopPoints(chain: number): number {
+  return BUBBLE_POP_POINTS * bubbleMultiplierFor(chain);
+}
+
+// Tile Tap: +10 per dark tile tapped.
+export const TILE_TAP_POINTS = 10;
+export function tileTapScoreFor(tiles: number): number {
+  return tiles * TILE_TAP_POINTS;
+}
+
+// Paper Toss: a make pays 25 plus 10 per make already in the streak.
+export const PAPER_MAKE_POINTS = 25;
+export const PAPER_STREAK_STEP = 10;
+export function paperMakePointsFor(streak: number): number {
+  return PAPER_MAKE_POINTS + PAPER_STREAK_STEP * Math.max(0, Math.floor(streak));
+}
+
+// First Cast: the fish pays by rarity — common 30, uncommon 75, rare 200.
+export const FISH_POINTS_TABLE: Record<"common" | "uncommon" | "rare", number> = {
+  common: 30,
+  uncommon: 75,
+  rare: 200,
+};
+export function fishPointsForRarity(rarity: "common" | "uncommon" | "rare"): number {
+  return FISH_POINTS_TABLE[rarity];
+}
+
+// Order Up: serving pays 40 + 5 per ingredient + up to 20 for speed.
+export const ORDER_BASE_POINTS = 40;
+export const ORDER_PER_INGREDIENT_POINTS = 5;
+export const ORDER_SPEED_BONUS_MAX = 20;
+export function orderServePointsFor(stackLength: number, patienceFraction: number): number {
+  const frac = Math.min(1, Math.max(0, patienceFraction));
+  return ORDER_BASE_POINTS + ORDER_PER_INGREDIENT_POINTS * stackLength + Math.round(ORDER_SPEED_BONUS_MAX * frac);
+}
+
+// Pipe Dreams: a connected board pays 300 − 5/second − 10 per
+// rotation beyond par, floored at 0. Skipping pays nothing.
+export function pipeBoardScoreFor(elapsedSeconds: number, rotations: number, par: number): number {
+  return Math.max(0, 300 - 5 * Math.floor(elapsedSeconds) - 10 * Math.max(0, rotations - par));
+}
+
+// Block Fit: 10 per cleared cell, +50 per line beyond the first.
+export const BLOCK_CELL_POINTS = 10;
+export const BLOCK_COMBO_PER_EXTRA_LINE = 50;
+export function blockFitClearPointsFor(cellsCleared: number, lines: number): number {
+  if (lines <= 0) return 0;
+  return cellsCleared * BLOCK_CELL_POINTS + (lines - 1) * BLOCK_COMBO_PER_EXTRA_LINE;
+}
+
+// Lights Out: a dark board pays 200 − 10 per tap beyond par.
+export function lightsBoardScoreFor(taps: number, par: number): number {
+  return Math.max(0, 200 - 10 * Math.max(0, taps - par));
+}
+
+// Flood It: a flooded board pays (21 − steps) × 15.
+export function floodBoardScoreFor(steps: number): number {
+  return steps <= 20 ? (21 - steps) * 15 : 0;
+}
+
+// Picross Mini: a finished picture pays 300 − 5/second − 25 per mistake.
+export function picrossBoardScoreFor(seconds: number, mistakes: number): number {
+  return Math.max(0, 300 - 5 * Math.floor(seconds) - 25 * mistakes);
+}
+
+// Mines Mini: a cleared field pays 200 plus a fading speed bonus.
+export const MINES_CLEAR_POINTS = 200;
+export function minesBoardScoreFor(seconds: number): number {
+  return MINES_CLEAR_POINTS + Math.max(0, 150 - Math.floor(seconds));
+}
+
 // ─── Conversion ──────────────────────────────────────────────────────────────
 
 export function scoreToCoins(score: number): number {
@@ -390,4 +499,33 @@ export async function convertSessionScore(
   await applyCoinsDelta(coins, "none");
   const xpResult = await awardCustomXP(scoreToXp(coins), `kmo:${sessionToken}`);
   return { coins, xp: xpResult.awarded ? xpResult.points : 0 };
+}
+
+// ─── The live coin readout (v400 addendum) ───────────────────────────────────
+// Jonathan, mid-v400: "I need something that shows how many coins
+// I have and how many I'm accumulating while I'm playing." So the
+// dealt screen's chrome carries a compact readout: the purse as it
+// stands, and "+N this visit" — everything this visit has earned,
+// settled and still on the table together.
+
+export interface VisitReadout {
+  /** The purse balance right now (whole coins; display via formatCoins). */
+  purse: number;
+  /** Coins earned this visit: settled so far + the live session score. */
+  accumulating: number;
+}
+
+/**
+ * The readout's arithmetic. The live session score converts 1:1
+ * at settlement, so accumulating = settled-this-visit + live score.
+ * Settlement moves an amount from the live score into both the
+ * purse and the settled total at once: the accumulating number
+ * does not move when a run settles (no flicker backwards), and it
+ * never counts a coin twice. Display-only — nothing here persists.
+ */
+export function visitReadout(balance: number, settledThisVisit: number, liveScore: number): VisitReadout {
+  return {
+    purse: Math.max(0, Math.floor(balance)),
+    accumulating: Math.max(0, Math.floor(settledThisVisit)) + Math.max(0, Math.floor(liveScore)),
+  };
 }

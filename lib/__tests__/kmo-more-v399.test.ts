@@ -124,36 +124,57 @@ beforeEach(() => {
 
 describe("v399 the ladder", () => {
   it("fifteen priced games in his order, climbing to Slide 2048 at 75,000", () => {
+    // v400 note: twelve more priced doors joined — twenty-seven
+    // in all, the full table pinned in the v400 tests; the v399
+    // fifteen keep their prices exactly, and the table now reads:
     expect(KMO_UNLOCK_PRICES).toEqual({
       runner: 2000,
       backbeat: 3000,
+      "pipe-dreams": 4500,
       glide: 5000,
       jumper: 6500,
       tend: 7500,
+      "block-fit": 8500,
       snake: 10000,
       crossroads: 12500,
       breakout: 15000,
+      "lights-out": 18000,
       "drop-match": 25000,
       "plinko-drop": 30000,
       "cave-flyer": 35000,
       "colour-rush": 40000,
+      "flood-it": 45000,
       rockfall: 50000,
       "mole-patrol": 60000,
       "slide-2048": 75000,
+      "picross-mini": 85000,
+      "knife-log": 90000,
+      "bubble-pop": 110000,
+      "mines-mini": 130000,
+      "tile-tap": 135000,
+      "paper-toss": 160000,
+      "first-cast": 200000,
+      "order-up": 250000,
     });
-    expect(Object.keys(KMO_UNLOCK_PRICES)).toHaveLength(15);
+    expect(Object.keys(KMO_UNLOCK_PRICES)).toHaveLength(27);
     expect(unlockPrice("plinko-drop")).toBe(30000);
     expect(unlockPrice("slide-2048")).toBe(75000);
   });
 
   it("the pool registry carries all nineteen games; the six new ones sit after Drop Match", () => {
+    // v400 note: the shelf order became the ladder order —
+    // starters first, then every priced game in climbing price
+    // order (the full 32 pinned in the v400 tests). The v399 six
+    // stand in their price places in that order:
     expect(KMO_POOL.map((i) => i.id)).toEqual([
-      "echo-lights", "sort-it-out", "stack", "backbeat", "tend",
-      "runner", "glide", "jumper", "snake", "crossroads", "breakout", "drop-match",
-      "plinko-drop", "cave-flyer", "colour-rush", "rockfall", "mole-patrol", "slide-2048",
+      "echo-lights", "sort-it-out", "stack",
+      "runner", "backbeat", "pipe-dreams", "glide", "jumper", "tend", "block-fit",
+      "snake", "crossroads", "breakout", "lights-out", "drop-match",
+      "plinko-drop", "cave-flyer", "colour-rush", "flood-it", "rockfall", "mole-patrol", "slide-2048",
+      "picross-mini", "knife-log", "bubble-pop", "mines-mini", "tile-tap", "paper-toss", "first-cast", "order-up",
       "word-dig", "chapter",
     ]);
-    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(18);
+    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(30);
     for (const id of NEW_GAMES) {
       const item = KMO_POOL.find((i) => i.id === id)!;
       expect(item.kind).toBe("game");

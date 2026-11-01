@@ -27,17 +27,28 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { BackbeatGame } from "@/components/keep-me-occupied/backbeat";
+import { BlockFitGame } from "@/components/keep-me-occupied/block-fit";
 import { BreakoutGame } from "@/components/keep-me-occupied/breakout";
+import { BubblePopGame } from "@/components/keep-me-occupied/bubble-pop";
 import { CaveFlyerGame } from "@/components/keep-me-occupied/cave-flyer";
 import { ChapterDealCard } from "@/components/keep-me-occupied/chapter-deal";
 import { ColourRushGame } from "@/components/keep-me-occupied/colour-rush";
 import { CrossroadsGame } from "@/components/keep-me-occupied/crossroads";
 import { DropMatchGame } from "@/components/keep-me-occupied/drop-match";
 import { EchoLightsGame } from "@/components/keep-me-occupied/echo-lights";
+import { FirstCastGame } from "@/components/keep-me-occupied/first-cast";
+import { FloodItGame } from "@/components/keep-me-occupied/flood-it";
 import { GamesShelf } from "@/components/keep-me-occupied/games-shelf";
 import { GlideGame } from "@/components/keep-me-occupied/glide";
 import { JumperGame } from "@/components/keep-me-occupied/jumper";
+import { KnifeLogGame } from "@/components/keep-me-occupied/knife-log";
+import { LightsOutGame } from "@/components/keep-me-occupied/lights-out";
+import { MinesMiniGame } from "@/components/keep-me-occupied/mines-mini";
 import { MolePatrolGame } from "@/components/keep-me-occupied/mole-patrol";
+import { OrderUpGame } from "@/components/keep-me-occupied/order-up";
+import { PaperTossGame } from "@/components/keep-me-occupied/paper-toss";
+import { PicrossMiniGame } from "@/components/keep-me-occupied/picross-mini";
+import { PipeDreamsGame } from "@/components/keep-me-occupied/pipe-dreams";
 import { PlinkoDropGame } from "@/components/keep-me-occupied/plinko-drop";
 import { RockfallGame } from "@/components/keep-me-occupied/rockfall";
 import { RunnerGame } from "@/components/keep-me-occupied/runner";
@@ -46,6 +57,7 @@ import { SnakeGame } from "@/components/keep-me-occupied/snake";
 import { SortItOutGame } from "@/components/keep-me-occupied/sort-it-out";
 import { StackGame } from "@/components/keep-me-occupied/stack-game";
 import { TendGame } from "@/components/keep-me-occupied/tend-game";
+import { TileTapGame } from "@/components/keep-me-occupied/tile-tap";
 import { WaveCheck } from "@/components/keep-me-occupied/wave-check";
 import { WordDigGame } from "@/components/keep-me-occupied/word-dig";
 import { useKeepMeOccupiedMaterial } from "@/hooks/use-keep-me-occupied-material";
@@ -64,7 +76,7 @@ import {
   type WaveDoorId,
 } from "@/lib/keep-me-occupied";
 import type { KeepMeOccupiedMaterialFamily } from "@/lib/keep-me-occupied-material";
-import { loadCoinsRecord } from "@/lib/hometown";
+import { loadCoinsRecord, formatCoins } from "@/lib/hometown";
 import {
   CHAPTER_READ_SCORE,
   convertSessionScore,
@@ -72,6 +84,7 @@ import {
   parseKmoProgression,
   recordBestScore,
   unlockGame,
+  visitReadout,
   type KmoProgression,
   type SessionEarnings,
 } from "@/lib/kmo-progression";
@@ -96,6 +109,9 @@ export default function KeepMeOccupiedScreen() {
   const [progression, setProgression] = useState<KmoProgression>(() => parseKmoProgression(null));
   const [balance, setBalance] = useState(0);
   const [sessionScore, setSessionScore] = useState(0);
+  // v400 addendum: coins settled during THIS visit, for the live
+  // readout ("+N this visit" = this plus the unsettled score).
+  const [visitSettled, setVisitSettled] = useState(0);
   const [earnings, setEarnings] = useState<SessionEarnings | null>(null);
   const studyRef = useRef<StudyState | null>(null);
   const sessionRef = useRef<KmoSession | null>(null);
@@ -143,6 +159,14 @@ export default function KeepMeOccupiedScreen() {
       convertSessionScore(score, token),
       recordBestScore(itemId, score),
     ]);
+    // v400 addendum: the readout's two numbers move together here
+    // — the settled coins join the visit total (so "+N this visit"
+    // doesn't dip as the live score zeroes) and the purse refresh
+    // shows the settlement landing.
+    if (earnt.coins > 0) {
+      setVisitSettled((v) => v + earnt.coins);
+      void loadCoinsRecord().then((coins) => setBalance(coins.balance)).catch(() => {});
+    }
     earningsShownRef.current = true;
     setEarnings(earnt);
     setProgression((current) => {
@@ -252,18 +276,21 @@ export default function KeepMeOccupiedScreen() {
     [resolveDig],
   );
 
-  // Open: read the study store once (read-only weighting) and the
-  // progression store (unlocks), then deal from what he owns.
+  // Open: read the study store once (read-only weighting), the
+  // progression store (unlocks), and the purse (the readout), then
+  // deal from what he owns.
   useEffect(() => {
     let live = true;
     Promise.all([
       loadStudyState().catch(() => null),
       loadKmoProgression(),
+      loadCoinsRecord().catch(() => null),
     ])
-      .then(([state, prog]) => {
+      .then(([state, prog, coins]) => {
         studyRef.current = state;
         progRef.current = prog;
         setProgression(prog);
+        if (coins) setBalance(coins.balance);
       })
       .catch(() => {
         studyRef.current = null;
@@ -348,6 +375,11 @@ export default function KeepMeOccupiedScreen() {
   };
 
   const bestForDeal = deal ? progression.best[deal.item.id] : undefined;
+  // v400 addendum: the live coin readout — purse as it stands and
+  // "+N this visit" (settled this visit + the score still on the
+  // table). One readout in the screen chrome, above every phase,
+  // so it never covers or shrinks a game's play area.
+  const readout = visitReadout(balance, visitSettled, sessionScore);
 
   return (
     <ScreenContainer className="p-0">
@@ -367,6 +399,17 @@ export default function KeepMeOccupiedScreen() {
             <MaterialIcons name="chevron-left" size={22} color={m.tonalInk} />
           </Pressable>
           <Text style={[styles.title, { color: m.ink }]}>Keep Me Occupied</Text>
+        </View>
+
+        <View style={styles.coinRow}>
+          <View style={[styles.coinChip, { backgroundColor: m.tonal }]}>
+            <Text style={[styles.coinChipText, { color: m.tonalInk }]}>🪙 {formatCoins(readout.purse)}</Text>
+          </View>
+          <View style={[styles.coinChip, { backgroundColor: m.tonal }]}>
+            <Text style={[styles.coinChipText, { color: m.deep }]}>
+              +{formatCoins(readout.accumulating)} this visit
+            </Text>
+          </View>
         </View>
 
         {phase === "wave" && sessionRef.current ? (
@@ -505,7 +548,31 @@ function gameSub(id: KmoPoolItem["id"]): string {
     case "mole-patrol":
       return "Sixty seconds. Moles pay, gold pays big, flowers break the chain.";
     case "slide-2048":
-      return "Swipe to slide and merge. The ladder's top shelf.";
+      return "Swipe to slide and merge. Was the top — the ladder grew.";
+    case "knife-log":
+      return "Tap to throw. Stick the quota, mind the steel already in.";
+    case "bubble-pop":
+      return "Sixty seconds of bubble wrap. Quick pops raise the rate.";
+    case "tile-tap":
+      return "Dark tiles only, faster and faster. The white ends it.";
+    case "paper-toss":
+      return "Flick paper at the bin. The fan keeps changing its mind.";
+    case "first-cast":
+      return "Cast, wait, set the hook, work the reel. Calm pays.";
+    case "order-up":
+      return "Build the ticket's burger in order. The ladder's new top.";
+    case "pipe-dreams":
+      return "Rotate the pipes — run the spring's water to the garden.";
+    case "block-fit":
+      return "Fit the tray pieces. Full lines clear. Mind the corners.";
+    case "lights-out":
+      return "Tap a lamp, flip its neighbours. All dark banks the board.";
+    case "flood-it":
+      return "Spread one colour from the corner inside twenty steps.";
+    case "picross-mini":
+      return "The clues draw a picture. Three mistakes end it.";
+    case "mines-mini":
+      return "Ten mines in the field. First tap is always safe.";
     case "word-dig":
       return "A word buried in a verse. Six digs, and the verse is the hint.";
     default:
@@ -517,6 +584,12 @@ function gameSub(id: KmoPoolItem["id"]): string {
 const RUN_GAME_IDS: readonly KmoItemId[] = [
   "runner", "glide", "jumper", "snake", "crossroads", "breakout", "drop-match",
   "plinko-drop", "cave-flyer", "colour-rush", "rockfall", "mole-patrol", "slide-2048",
+  // v400: the twelve — the action six end runs, and so do four of
+  // the puzzles (Block Fit, Flood It, Picross, Mines); Pipe
+  // Dreams and Lights Out ride along so their grids never fight
+  // the page either.
+  "knife-log", "bubble-pop", "tile-tap", "paper-toss", "first-cast", "order-up",
+  "pipe-dreams", "block-fit", "lights-out", "flood-it", "picross-mini", "mines-mini",
 ];
 
 function renderDealContent(
@@ -565,6 +638,30 @@ function renderDealContent(
       return <MolePatrolGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
     case "slide-2048":
       return <Slide2048Game m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "knife-log":
+      return <KnifeLogGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "bubble-pop":
+      return <BubblePopGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "tile-tap":
+      return <TileTapGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "paper-toss":
+      return <PaperTossGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "first-cast":
+      return <FirstCastGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "order-up":
+      return <OrderUpGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "pipe-dreams":
+      return <PipeDreamsGame m={m} onScore={onScore} />;
+    case "block-fit":
+      return <BlockFitGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "lights-out":
+      return <LightsOutGame m={m} onScore={onScore} />;
+    case "flood-it":
+      return <FloodItGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "picross-mini":
+      return <PicrossMiniGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "mines-mini":
+      return <MinesMiniGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
     case "word-dig":
       return (
         <WordDigGame
@@ -632,6 +729,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 10 },
   backButton: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 22, fontWeight: "900" },
+  coinRow: { flexDirection: "row", gap: 7, marginTop: 12 },
+  coinChip: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 },
+  coinChipText: { fontSize: 12.5, fontWeight: "800" },
   chipRow: { marginTop: 16, flexDirection: "row" },
   dealtChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   dealtChipText: { fontSize: 10, fontWeight: "900", letterSpacing: 1.4 },

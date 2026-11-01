@@ -34,6 +34,11 @@ export function GamesShelf({
       <Text style={[styles.sub, { color: m.inkSoft }]}>
         The deal still chooses — this shelf is only for looking, best scores, and unlocking.
       </Text>
+      {/* v400 addendum: the purse stands at the TOP of the shelf —
+          the same balance the dealt screen's readout shows (both
+          read the one purse through loadCoinsRecord), where the
+          prices below can be weighed against it. */}
+      <Text style={[styles.balanceTop, { color: m.deep }]}>Your purse: {formatCoins(balance)} coins</Text>
       <View style={styles.rows}>
         {KMO_POOL.map((item) => {
           const owned = isItemUnlocked(progression, item.id);
@@ -77,7 +82,6 @@ export function GamesShelf({
           );
         })}
       </View>
-      <Text style={[styles.balance, { color: m.inkSoft }]}>Your purse: {formatCoins(balance)} coins</Text>
       <Pressable
         onPress={onBack}
         accessibilityRole="button"
@@ -113,7 +117,7 @@ const styles = StyleSheet.create({
   unlock: { borderRadius: 999, paddingVertical: 9, paddingHorizontal: 13 },
   unlockText: { fontSize: 12.5, fontWeight: "800" },
   best: { fontSize: 13, fontWeight: "800" },
-  balance: { fontSize: 12.5, marginTop: 14, fontWeight: "700" },
+  balanceTop: { fontSize: 14, marginTop: 10, fontWeight: "900" },
   back: { marginTop: 12, borderRadius: 999, paddingVertical: 13, alignItems: "center", borderWidth: 1.5 },
   backText: { fontSize: 14.5, fontWeight: "800" },
 });

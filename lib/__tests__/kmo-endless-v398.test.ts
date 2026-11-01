@@ -127,22 +127,38 @@ describe("v398 the ladder", () => {
     // v399 note: the ladder grew six more priced doors on top of
     // these nine (pinned in full in the v399 tests); the v398 nine
     // keep their prices exactly, and the whole table now reads:
+    // v400 note: twelve more priced doors joined (twenty-seven in
+    // all — six puzzles woven between the action prices and six
+    // action games above Slide 2048, pinned in full in the v400
+    // tests); the v398 nine still keep their prices exactly:
     expect(KMO_UNLOCK_PRICES).toEqual({
       runner: 2000,
       backbeat: 3000,
+      "pipe-dreams": 4500,
       glide: 5000,
       jumper: 6500,
       tend: 7500,
+      "block-fit": 8500,
       snake: 10000,
       crossroads: 12500,
       breakout: 15000,
+      "lights-out": 18000,
       "drop-match": 25000,
       "plinko-drop": 30000,
       "cave-flyer": 35000,
       "colour-rush": 40000,
+      "flood-it": 45000,
       rockfall: 50000,
       "mole-patrol": 60000,
       "slide-2048": 75000,
+      "picross-mini": 85000,
+      "knife-log": 90000,
+      "bubble-pop": 110000,
+      "mines-mini": 130000,
+      "tile-tap": 135000,
+      "paper-toss": 160000,
+      "first-cast": 200000,
+      "order-up": 250000,
     });
     expect(unlockPrice("runner")).toBe(2000);
     expect(unlockPrice("crossroads")).toBe(12500);
@@ -153,10 +169,16 @@ describe("v398 the ladder", () => {
     // v399 note: six more games registered after Drop Match
     // (pinned as v399's own in the v399 tests); the v398 seven
     // stand in their places, and the roster now ends:
+    // v400 note: twelve more games joined and the shelf order
+    // became the ladder order (starters first, then climbing
+    // prices — pinned in full in the v400 tests); the v398 seven
+    // stand in their price places, and the roster now reads:
     expect(KMO_POOL.map((i) => i.id)).toEqual([
-      "echo-lights", "sort-it-out", "stack", "backbeat", "tend",
-      "runner", "glide", "jumper", "snake", "crossroads", "breakout", "drop-match",
-      "plinko-drop", "cave-flyer", "colour-rush", "rockfall", "mole-patrol", "slide-2048",
+      "echo-lights", "sort-it-out", "stack",
+      "runner", "backbeat", "pipe-dreams", "glide", "jumper", "tend", "block-fit",
+      "snake", "crossroads", "breakout", "lights-out", "drop-match",
+      "plinko-drop", "cave-flyer", "colour-rush", "flood-it", "rockfall", "mole-patrol", "slide-2048",
+      "picross-mini", "knife-log", "bubble-pop", "mines-mini", "tile-tap", "paper-toss", "first-cast", "order-up",
       "word-dig", "chapter",
     ]);
     for (const id of NEW_GAMES) {

@@ -162,12 +162,20 @@ describe("v395 the deal", () => {
     // v399 note (Oct 31): six more doors (plinko-drop, cave-flyer,
     // colour-rush, rockfall, mole-patrol, slide-2048) registered
     // after Drop Match; the full roster is pinned in the v399 tests.
-    expect(KMO_POOL.map((i) => i.id).slice(0, 5)).toEqual([
-      "echo-lights", "sort-it-out", "stack", "backbeat", "tend",
-    ]);
-    expect(KMO_POOL.map((i) => i.id).slice(-2)).toEqual(["word-dig", "chapter"]);
-    expect(KMO_POOL).toHaveLength(20);
-    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(18);
+    // v400 note (Oct 31): twelve more (six action, six puzzles),
+    // and the shelf order became the LADDER order — the open
+    // starters stand first, then priced games climb by price. The
+    // original five games keep their approved relative order
+    // (echo, sort, stack before backbeat before tend); the full
+    // 32-item roster is pinned in the v400 tests.
+    const ids = KMO_POOL.map((i) => i.id);
+    expect(ids.slice(0, 3)).toEqual(["echo-lights", "sort-it-out", "stack"]);
+    const originals = ["echo-lights", "sort-it-out", "stack", "backbeat", "tend"] as const;
+    const positions = originals.map((id) => ids.indexOf(id));
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    expect(ids.slice(-2)).toEqual(["word-dig", "chapter"]);
+    expect(KMO_POOL).toHaveLength(32);
+    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(30);
   });
 });
 

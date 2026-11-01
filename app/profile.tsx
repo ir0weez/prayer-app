@@ -450,13 +450,7 @@ export default function ProfileScreen() {
 
         <Text style={[styles.lifeGroupLabel, { color: trackerFamily.inkSoft }]}>YOUR TOWN</Text>
         <View style={[styles.lifeCard, { backgroundColor: trackerFamily.card }]}>
-          <Pressable onPress={() => router.push("/hometown")} style={({ pressed }) => [styles.lifeRow, pressed && styles.pressed]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.lifeRowTitle, { color: trackerFamily.ink }]}>Hometown</Text>
-            </View>
-            <MaterialIcons name={iconName("chevron-right")} size={20} color={trackerFamily.inkSoft} />
-          </Pressable>
-          <Pressable onPress={() => router.push("/character")} style={({ pressed }) => [styles.lifeRow, styles.lifeRowDivider, { borderTopColor: trackerFamily.line }, pressed && styles.pressed]}>
+          <Pressable onPress={() => router.push("/character")} style={({ pressed }) => [styles.lifeRow, pressed && styles.pressed]}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.lifeRowTitle, { color: trackerFamily.ink }]}>Character</Text>
             </View>

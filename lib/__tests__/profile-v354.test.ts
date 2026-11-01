@@ -135,7 +135,9 @@ describe("v354 — the two life cards run on real stores", () => {
 
   it("the town doors stand as quiet rows with their routes", () => {
     expect(profile).toContain("YOUR TOWN");
-    expect(profile).toContain('router.push("/hometown")');
+    // v394: the Hometown door was removed with the town itself
+    // (Jonathan's order, Oct 31); the Character door remains.
+    expect(profile).not.toContain('router.push("/hometown")');
     expect(profile).toContain('router.push("/character")');
   });
 

@@ -146,15 +146,9 @@ describe("v280 seam: the board layer is deleted, not hidden", () => {
     expect(people).not.toContain("<FastSummaryCard fast={activeFast} colors={colors} />");
   });
 
-  it("the shop's hero skins survive as cosmetics through pawn-preview", () => {
-    const preview = read("components/pawn-preview.tsx");
-    expect(preview).toContain("export const FastPawnShape = memo(");
-    expect(preview).toContain('"pebble-shadow"');
-    expect(preview).toContain('"pebble-rainbow"');
-    expect(preview).toContain('"pebble-diamond"');
-    expect(preview).toContain("RAINBOW_HERO_ART");
-    expect(read("app/hometown-shop.tsx")).toContain('import { FastPawnShape } from "@/components/pawn-preview";');
-  });
+  // v394: the "shop's hero skins" pin retired with the town —
+  // components/pawn-preview.tsx and app/hometown-shop.tsx were
+  // removed with the Hometown game (Jonathan's order, Oct 31).
 
   it("hearts stay fast-core engine: cap 6, level milestones, town wipe intact", () => {
     const xp = read("lib/xp-engine.ts");
@@ -196,9 +190,13 @@ describe("v280 fidelity: the fasting section is the mockup", () => {
     // Profile — a door, not the entry card. What this test still
     // guards: the ENTRY CARD stays off the page (its copy below,
     // forbidden), and People's own door stands as it did.
-    expect(profile).toContain('router.push("/hometown")');
+    // v394 re-pin: the town itself is gone now (Jonathan's order,
+    // Oct 31) — the Hometown doors left My Profile and the People
+    // hub with it. What this test still guards: the ENTRY CARD
+    // stays off the fasting page (its copy below, forbidden).
+    expect(profile).not.toContain('router.push("/hometown")');
     expect(profile).not.toContain("Build your town with fast coins");
-    expect(read("app/(tabs)/index.tsx")).toContain('router.push("/hometown")');
+    expect(read("app/(tabs)/index.tsx")).not.toContain('router.push("/hometown")');
   });
 
   it("the Record card wears the container tone; no quarter caption survives", () => {

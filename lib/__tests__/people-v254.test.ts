@@ -334,15 +334,15 @@ describe("v254 source pins — nav as drawn (People · Schedule · Study · Jour
     const hub = index.slice(index.indexOf("const renderMoreScreen"), index.indexOf("// v259: the bar itself lives in"));
     const settingsAt = hub.indexOf('label: "Settings"');
     const familiesAt = hub.indexOf('label: "Families"');
-    const hometownAt = hub.indexOf('"/hometown"');
+    // v394: the Hometown row left the hub with the town's removal
+    // (Jonathan's order, Oct 31) — Profile now follows Families.
     const profileAt = hub.indexOf('"/profile"');
     const characterAt = hub.indexOf('"/character"');
     const fastAt = hub.indexOf('"/fast-collection"');
     const devotionalAt = hub.indexOf('"/devotional"');
     expect(settingsAt).toBeGreaterThan(-1);
     expect(familiesAt).toBeGreaterThan(settingsAt);
-    expect(hometownAt).toBeGreaterThan(familiesAt);
-    expect(profileAt).toBeGreaterThan(hometownAt);
+    expect(profileAt).toBeGreaterThan(familiesAt);
     expect(characterAt).toBeGreaterThan(profileAt);
     expect(fastAt).toBeGreaterThan(characterAt);
     expect(devotionalAt).toBeGreaterThan(fastAt);

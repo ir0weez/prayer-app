@@ -71,12 +71,8 @@ describe("no coin display still emits two decimals", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("the Collect All surfaces render whole coins", () => {
-    // Map pill + breakdown sheet (hometown) go through formatCoins…
-    const town = read("app/hometown.tsx");
-    expect(town).toContain("const headerCoinText = (n: number) => formatCoins(n)");
-    // …and the Main Office bar delegates to the same formatter.
-    const office = read("app/main-office-interior.tsx");
-    expect(office).toContain("const formatCoinTotal = formatCoins");
-  });
+  // v394: the "Collect All surfaces" pin retired with the town —
+  // app/hometown.tsx and app/main-office-interior.tsx were removed
+  // with the Hometown game (Jonathan's order, Oct 31). formatCoins
+  // itself survives in lib/hometown.ts and is pinned above.
 });

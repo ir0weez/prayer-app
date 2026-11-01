@@ -277,54 +277,17 @@ describe("v323 (c) — the era turn is announced once", () => {
     expect(shouldAnnounceEra(9, 10)).toBe(true);
   });
 
-  it("dismissal is what records the era as seen (the screen's wiring)", () => {
-    const screen = read("app/hometown.tsx");
-    expect(screen).toContain("const seenEra = await loadLastSeenEra();");
-    expect(screen).toContain("if (shouldAnnounceEra(seenEra, eraLocal.index))");
-    expect(screen).toContain("void saveLastSeenEra(seenIndex);");
-    // the card moves no coins and settles nothing — it only speaks
-    const cardAt = screen.indexOf("A NEW AGE");
-    const card = screen.slice(cardAt, screen.indexOf("{activeMap === \"town\" && !isTownWorld", cardAt));
-    expect(card).toContain("eraTurnEra.name");
-    expect(card).toContain("eraTurnEra.line");
-    expect(card).not.toContain("addCoins");
-    expect(card).not.toContain("accrueAwayIncome");
-  });
+  // v394: the "dismissal records the era as seen (the screen's
+  // wiring)" pin retired with the town — it read app/hometown.tsx,
+  // removed with the Hometown game (Jonathan's order, Oct 31). The
+  // era record's parse + offer logic above survives in
+  // lib/hometown-eras.ts with the fast.
 });
 
-describe("v323 (d) — labels stand wide enough to speak", () => {
-  it("the points' stands fit their longest labels (no more 'Miss…')", () => {
-    const points = read("components/street-world-points.tsx");
-    // v327 re-pin: v323's stands (76/64/84) still clipped "Town
-    // Shop" — the chip's padding left the words ~50px of the 64px
-    // stand. The Diorama's fix is the pattern, not just the
-    // numbers: stands sized to their longest labels with slack,
-    // and no point label carries a line limit anymore (see
-    // hometown-v327-diorama.test.ts (d)).
-    expect(points).toContain("export const NOTICE_BOARD_W = 92;");
-    expect(points).toContain("export const SHOP_STALL_W = 84;");
-    expect(points).toContain("export const TESTIMONY_STONES_W = 104;");
-    // RE-BASED in v355 (Oct 29): the board's and stones' stand
-    // widths are MEASURED by the one label system now
-    // (noticeBoardStandW / testimonyStonesStandW, from
-    // lib/stage-labels) with the v323 constants standing as
-    // floors — a stand is as wide as its actual label at its
-    // actual count, so "12 missions" can never outgrow it. The
-    // shop stall (compat only, unplaced) keeps its constant.
-    expect(points).toContain("width: noticeBoardStandW(pendingCount, s)");
-    expect(points).toContain("width: SHOP_STALL_W");
-    expect(points).toContain("width: testimonyStonesStandW(count, s)");
-    // the board's art keeps its drawn size, centered in the stand.
-    // v333 re-pin: the drawn size is now expressed through the
-    // point's stage scale (46×34 at scale 1 — the 40px reference
-    // cell), because the fixed stage scales its furniture from the
-    // cell (R13). The stands' widths scale the same way.
-    // RE-BASED (v343): the board's FACE grew to the brief's ruling —
-    // about 19% of the stage, big enough to read as the town's
-    // "nobody slips" surface — 84×62 at scale 1.
-    expect(points).toContain("<View style={{ width: 84 * s, height: 62 * s }}>");
-  });
-});
+// v394: describe (d) — "labels stand wide enough to speak" —
+// retired with the town. Its only pin read
+// components/street-world-points.tsx, removed with the Hometown
+// game (Jonathan's order, Oct 31).
 
 describe("v323 (e) — the rider + the screen's era wiring", () => {
   it("the Daily Summary's fasting prose reads the live counter", () => {
@@ -334,21 +297,10 @@ describe("v323 (e) — the rider + the screen's era wiring", () => {
     expect(tab).not.toContain("(1000 * 60 * 60 * 24)) + 1");
   });
 
-  it("the era reaches the HUD, the street, the villagers and the settle", () => {
-    const screen = read("app/hometown.tsx");
-    expect(screen).toContain("era={townEra}");
-    expect(screen).toContain("townEra.name.toUpperCase()");
-    expect(screen).toContain("eraIncomeMult: eraEconomyLocal.incomeMult");
-    expect(screen).toContain("eraPrayerBoostMult: eraEconomyLocal.prayerBoostMult");
-    expect(screen).toContain("setEraCostMult(eraEconomyLocal.costMult)");
-    expect(screen).toContain("eraDress={");
-    const street = read("components/wide-street.tsx");
-    expect(street).toContain("eraGroundFor(era, phase)");
-    expect(street).toContain("era?.palette.river");
-    expect(street).toContain("era?.palette.rain");
-    expect(street).toContain("era?.palette.torn");
-    expect(street).toContain("dress={dress}");
-  });
+  // v394: "the era reaches the HUD, the street, the villagers and
+  // the settle" retired with the town — it read app/hometown.tsx
+  // and components/wide-street.tsx, both removed with the
+  // Hometown game (Jonathan's order, Oct 31).
 
   it("the dressed eras carry place dress; the nine wear palette only", () => {
     expect(ERA_DEFS[10].palette.dress).toBeDefined(); // Millennium, dressed in full

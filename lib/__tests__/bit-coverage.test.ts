@@ -206,10 +206,8 @@ describe("8-bit coverage — v203 animation pass", () => {
     expect(ministryForm).not.toContain('? "fade" : "slide"');
   });
 
-  it("tappable bit chrome depresses in the shared game chrome", () => {
-    const interior = read("components/interior-shell.tsx");
-    expect(count(interior, "paperPressedLift(tokens, pressed), bitPressedSnap(tokens, pressed)")).toBe(2);
-    const games = read("components/mini-game-scene.tsx");
-    expect(count(games, "paperPressedLift(tokens, pressed), bitPressedSnap(tokens, pressed)")).toBe(2);
-  });
+  // v394: "tappable bit chrome depresses in the shared game chrome"
+  // retired with the town — it read components/interior-shell.tsx
+  // and components/mini-game-scene.tsx, both removed with the
+  // Hometown game (Jonathan's order, Oct 31).
 });

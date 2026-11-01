@@ -303,15 +303,11 @@ describe("v339 wavy progress — adoption pins (headline seats)", () => {
     expect(budget).not.toContain("WavyProgress");
   });
 
-  it("Collections, the Road, and the town stock bars wear it", () => {
-    expect(read("components/collections-book.tsx")).toContain('trackColor="rgba(0,0,0,0.08)" height={8}');
-    expect(read("components/road-badges.tsx")).toContain('color="#C9963C" trackColor="rgba(0,0,0,0.08)" height={8}');
-    const town = read("app/hometown.tsx");
-    expect(town).toContain('color={isFull ? "#DC2626" : "#F59E0B"} trackColor={pt.bg} height={8}');
-    // RE-BASED (v343): the cafeteria room file was renamed with
-    // its route — app/school-cafeteria-interior.tsx.
-    expect(read("app/school-cafeteria-interior.tsx")).toContain('trackColor="#F3E9CF" height={9}');
-  });
+  // v394: "Collections, the Road, and the town stock bars wear it"
+  // retired with the town — every surface it read
+  // (collections-book, road-badges, hometown, the school cafeteria
+  // interior) was removed with the Hometown game (Jonathan's
+  // order, Oct 31).
 });
 
 describe("v339 wavy progress — adoption pins (the long tail)", () => {

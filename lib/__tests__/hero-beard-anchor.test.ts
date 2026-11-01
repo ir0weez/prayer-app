@@ -141,25 +141,11 @@ describe("day-1 growth renders a non-empty beard for every style (candidate b)",
 });
 
 describe("hero call sites pass the beard through (candidate c audit)", () => {
-  it("the paper hero derives style + live growth from the pawn itself", () => {
-    const kit = readSrc("components/paper-interior.tsx");
-    expect(kit).toContain("beardGrowthFor(pawn)");
-    expect(kit).toContain("beardShapeFor(beardStyle, beardLength)");
-    expect(kit).toContain("paperBeardFront({");
-  });
-
-  it("the house pose heads use the same live growth + shape vocabulary", () => {
-    const room = readSrc("components/paper-room.tsx");
-    expect(room).toContain("beardGrowthFor(pawn)");
-    expect(room).toContain("beardShapeFor(pawn.beardStyle, beardLength)");
-  });
-
-  it("the Dark Forest hero receives the pawn's style and its live-grown length", () => {
-    const sprite = readSrc("components/hero-sprite.tsx");
-    expect(sprite).toContain("beardGrowthFor(pawn)");
-    expect(sprite).toContain("beardStyle={pawn.beardStyle}");
-    expect(sprite).toContain("beardLength={beardLength}");
-  });
+  // v394: the three component call-site pins (paper-interior,
+  // paper-room, hero-sprite) retired with the town — those
+  // components were removed with the Hometown game (Jonathan's
+  // order, Oct 31). lib/pawn.ts survives with the character
+  // system, and its parse pin below stands.
 
   it("parse resolves trim anchors through the legacy-aware helper", () => {
     const pawn = readSrc("lib/pawn.ts");

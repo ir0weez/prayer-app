@@ -250,22 +250,8 @@ describe("Boss Gate visibility — last day or pending offer, never mid-fast", (
   });
 });
 
-describe("wiring guards", () => {
-  const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
-
-  it("the fight loop rolls crits from combat stats at 150% damage", () => {
-    const src = read("components/dark-forest.tsx");
-    // v160 healing wave: the fight loop rolls from the EFFECTIVE stats
-    // (base combat stats with the Set-for-the-Day boon applied), so the
-    // crit read is effStats.critChance — same stats, boon-scaled.
-    expect(src).toContain("effStats.critChance");
-    expect(src).toContain("CRIT_DAMAGE_MULT");
-    expect(src).toContain("bossGateOpensOn");
-  });
-
-  it("hometown gates the panel through the visibility predicate", () => {
-    const src = read("app/hometown.tsx");
-    expect(src).toContain("bossGateVisibility(fastsRef.current, prestigeStateRef.current, getTodayISOString())");
-    expect(src).toContain("bossGateVis.visible && prestigeOfferState");
-  });
-});
+// v394: the "wiring guards" describe retired with the town — both
+// pins read surfaces removed with the Hometown game
+// (components/dark-forest.tsx, app/hometown.tsx; Jonathan's order,
+// Oct 31). The combat stat math they guarded is pinned above
+// against the surviving libs.

@@ -5602,7 +5602,6 @@ export default function HomeScreen() {
     const rows: Array<{ key: string; icon: string; label: string; sub?: string; onPress: () => void }> = [
       { key: "settings", icon: "settings", label: "Settings", onPress: () => setActiveTab("settings") },
       { key: "families", icon: "groups", label: "Families", onPress: () => setMoreShowFamilies(true) },
-      { key: "hometown", icon: "location-city", label: "Hometown", onPress: () => router.push("/hometown") },
       { key: "profile", icon: "person", label: "My Profile", onPress: () => router.push("/profile") },
       { key: "character", icon: "face", label: "Character", onPress: () => router.push("/character") },
       { key: "fast-collection", icon: "collections-bookmark", label: "Fast Collection", onPress: () => router.push("/fast-collection") },

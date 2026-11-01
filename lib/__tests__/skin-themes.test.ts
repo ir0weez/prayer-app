@@ -390,13 +390,9 @@ describe("Classic stays byte-for-byte (source pins)", () => {
     expect(container).toContain("isPaper ? <PaperGrainOverlay /> : null");
     expect(container).toContain("tokens.background");
 
-    const shell = read("components/interior-shell.tsx");
-    // Only the default-white header takes the paper surface; scene
-    // headers (mine, shops) keep their exact colors.
-    expect(shell).toContain('bg === "#FFFFFF"');
-
-    const games = read("components/mini-game-scene.tsx");
-    expect(games).toContain("isSkinned ? tokens.cardShadow : null");
+    // v394: the interior-shell and mini-game-scene halves of this
+    // pin retired with the town — both components were removed
+    // with the Hometown game (Jonathan's order, Oct 31).
 
     const modal = read("components/status-modal.tsx");
     expect(modal).toContain("isPaper ? <PaperGrainOverlay /> : null");
@@ -435,29 +431,12 @@ describe("Classic stays byte-for-byte (source pins)", () => {
   });
 });
 
-describe("exclusions: the forest and the maps consume no skin (source pins)", () => {
-  const excluded = [
-    "components/dark-forest.tsx",
-    "app/hometown.tsx",
-    "components/paper-building-art.tsx",
-    "components/town-npcs.tsx",
-    "components/river.tsx",
-    "components/city-delights.tsx",
-    "components/city-traffic.tsx",
-    "components/mission-field.tsx",
-    "components/the-well.tsx",
-    "components/garden-of-remembrance.tsx",
-  ];
-  for (const file of excluded) {
-    it(`${file} has no skin wiring`, () => {
-      const src = read(file);
-      expect(src).not.toContain("useSkin");
-      expect(src).not.toContain("getSkinTokens");
-      expect(src).not.toContain("SkinTokens");
-      expect(src).not.toContain("skinTokens");
-    });
-  }
-});
+// v394: the "exclusions" describe retired with the town — every
+// file it pinned (the Dark Forest component, the hometown screen,
+// the paper building art, town NPCs, the river, city delights and
+// traffic, the mission field, the well, the garden of remembrance)
+// was removed with the Hometown game (Jonathan's order, Oct 31).
+// There are no skin-exempt worlds left to pin.
 
 describe("Jonathan's paper rules (source pins)", () => {
   const touched = [
@@ -467,20 +446,16 @@ describe("Jonathan's paper rules (source pins)", () => {
     "components/paper-grain.tsx",
     "components/paper-keyword-scenes.tsx",
     "components/screen-container.tsx",
-    "components/interior-shell.tsx",
-    "components/mini-game-scene.tsx",
+    // v394: interior-shell and mini-game-scene left this list with
+    // the town (removed with the Hometown game, Oct 31).
     "components/status-modal.tsx",
     "components/entrance-animation.tsx",
     "lib/theme-provider.tsx",
     "app/(tabs)/index.tsx",
     "app/profile.tsx",
-    "app/gear-shop.tsx",
+    // v394: gear-shop, pawn-creator, barbershop, hometown-shop,
+    // mine-mouth and mine-interior left this list with the town.
     "app/character.tsx",
-    "app/pawn-creator.tsx",
-    "app/barbershop.tsx",
-    "app/hometown-shop.tsx",
-    "app/mine-mouth.tsx",
-    "app/mine-interior.tsx",
     "components/schedule-tab.tsx",
   ];
   for (const file of touched) {
@@ -1458,15 +1433,11 @@ describe("v189 — Paper, Not Buttons", () => {
     expect(schedule).toContain("skinTokens.isPaper ? { borderRadius: 6 } : {}), ...((skinTokens.isEightBit || skinTokens.isTerminal)");
   });
 
-  it("actual buttons keep the offset shadow under Paper: interior actions + the mini-game Done button", () => {
-    const shell = read("components/interior-shell.tsx");
-    expect(shell.split("tokens.isPaper ? tokens.buttonShadow : tokens.cardShadow").length - 1).toBe(2);
-    const games = read("components/mini-game-scene.tsx");
-    expect(games.split("tokens.isPaper ? tokens.buttonShadow : tokens.cardShadow").length - 1).toBe(1);
-    // The game cards themselves are content — they keep the plain
-    // cardShadow spread (the sheet edge under Paper).
-    expect(games).toContain("isSkinned ? tokens.cardShadow : null");
-  });
+  // v394: "actual buttons keep the offset shadow under Paper:
+  // interior actions + the mini-game Done button" retired with
+  // the town — it read components/interior-shell.tsx and
+  // components/mini-game-scene.tsx, both removed with the
+  // Hometown game (Jonathan's order, Oct 31).
 });
 
 describe("v190 — Paper, Bigger", () => {

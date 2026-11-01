@@ -137,10 +137,9 @@ describe("v179 paper coverage — every named surface consumes the skin", () => 
     expect(tokens).toContain("grainOpacity: 0");
   });
 
-  it("exempt worlds stay exempt: hometown and the Dark Forest take no schedule-skin conversion", () => {
-    expect(read("app/hometown.tsx")).not.toContain("useSkin");
-    expect(read("components/dark-forest.tsx")).not.toContain("useSkin");
-  });
+  // v394: "exempt worlds stay exempt" retired with the town — it
+  // read app/hometown.tsx and components/dark-forest.tsx, both
+  // removed with the Hometown game (Jonathan's order, Oct 31).
 });
 
 describe("v183 8-bit coverage — every surface that wears Paper wears 8-bit", () => {
@@ -155,8 +154,9 @@ describe("v183 8-bit coverage — every surface that wears Paper wears 8-bit", (
       "components/prayer-journal-tab.tsx",
       "components/screen-container.tsx",
       "components/status-modal.tsx",
-      "components/interior-shell.tsx",
-      "components/mini-game-scene.tsx",
+      // v394: interior-shell, mini-game-scene, mine-mouth and
+      // mine-interior left this list with the town (removed with
+      // the Hometown game, Jonathan's order, Oct 31).
       "components/time-block-indicator.tsx",
       "components/monthly-calendar-view.tsx",
       "components/weekly-calendar-view.tsx",
@@ -169,8 +169,6 @@ describe("v183 8-bit coverage — every surface that wears Paper wears 8-bit", (
       "app/budget-tracker.tsx",
       "app/fast-collection.tsx",
       "app/personal-prayer.tsx",
-      "app/mine-mouth.tsx",
-      "app/mine-interior.tsx",
     ]) {
       expect(read(file), file).toContain("isSkinned");
     }
@@ -186,9 +184,8 @@ describe("v183 8-bit coverage — every surface that wears Paper wears 8-bit", (
     // the status modal's backdrop.
     expect(read("components/bit-background.tsx")).toContain("width={16}");
     expect(read("components/screen-container.tsx")).toContain("isEightBit ? <BitBackground /> : null");
-    // The Dark Forest keeps its own rendering — no dither, no skin.
-    expect(read("components/dark-forest.tsx")).not.toContain("BitDitherOverlay");
-    expect(read("components/dark-forest.tsx")).not.toContain("BitBackground");
+    // v394: the Dark Forest lines left with the town — the forest
+    // component was removed with the Hometown game (Oct 31).
   });
 });
 
@@ -458,10 +455,8 @@ describe("Paper coverage — v202 animation pass", () => {
     expect(ministryForm).not.toContain('? "fade" : "slide"');
   });
 
-  it("tappable paper lifts in the shared game chrome", () => {
-    const interior = read("components/interior-shell.tsx");
-    expect(count(interior, "paperPressedLift(tokens, pressed)")).toBe(2);
-    const games = read("components/mini-game-scene.tsx");
-    expect(count(games, "paperPressedLift(tokens, pressed)")).toBe(2);
-  });
+  // v394: "tappable paper lifts in the shared game chrome" retired
+  // with the town — it read components/interior-shell.tsx and
+  // components/mini-game-scene.tsx, both removed with the
+  // Hometown game (Jonathan's order, Oct 31).
 });

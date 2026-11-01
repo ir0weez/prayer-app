@@ -121,28 +121,9 @@ describe("chrome surfaces converted to the terminal dialect", () => {
   });
 });
 
-describe("exemptions hold under Terminal", () => {
-  it("the Dark Forest and the Hometown world carry no terminal wiring at all", () => {
-    for (const file of ["components/dark-forest.tsx", "app/hometown.tsx"]) {
-      const src = read(file);
-      expect(src).not.toContain("TerminalBackground");
-      expect(src).not.toContain("terminal-keyword-scenes");
-      expect(src).not.toContain("TermSceneRoot");
-    }
-  });
-
-  it("the energy flames keep their own art (shared with the exempt worlds)", () => {
-    // v280: the FastBoard half of this pin retired — the board
-    // file was deleted with the board layer, so there is no board
-    // art left to exempt. The flames half stands.
-    const flames = read("components/energy-flames.tsx");
-    expect(flames).not.toContain("TERM_PHOS");
-    expect(flames).not.toContain("isTerminal");
-  });
-
-  it("the interior shell follows the established contract: header chrome only, room art unswitched", () => {
-    const shell = read("components/interior-shell.tsx");
-    expect(shell).not.toContain("terminal-keyword-scenes");
-    expect(shell).not.toContain("TerminalBackground");
-  });
-});
+// v394: the whole "exemptions hold under Terminal" describe
+// retired with the town — its three pins read the exempt worlds
+// themselves (components/dark-forest.tsx, app/hometown.tsx,
+// components/energy-flames.tsx, components/interior-shell.tsx),
+// all removed with the Hometown game (Jonathan's order, Oct 31).
+// The Terminal coverage of surviving surfaces stands above.

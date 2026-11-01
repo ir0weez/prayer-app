@@ -35,6 +35,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo,
+  Alert,
   Animated,
   BackHandler,
   Dimensions,
@@ -118,6 +119,11 @@ import {
   type StudioImportsMap,
 } from '@/lib/bible-v205/studio-import';
 import { loadChapterVerses, type VerseText } from '@/lib/bible-v205/verses';
+import {
+  assembleChapterPdfData,
+  pdfThemeFromSeed,
+  shareChapterPdf,
+} from '@/lib/bible-v205/pdf-export';
 import {
   loadNoteCollapse,
   recordedNoteOpen,
@@ -903,6 +909,39 @@ export function ChapterPageView(props: ChapterPageProps) {
     if (readDate !== null) await handleClearRead();
     else await handleMarkRead();
   };
+  // v404: the chapter as a PDF (his pick, Nov 1 — Concept 1, "The
+  // Chapter Page, Printed"). The export gathers THIS page's own
+  // resolved model — the studio-resolved chapter data, the stored
+  // marks, the People and profile already loaded for the bubble
+  // layer — and runs the one shared gather+generate+share path;
+  // the book screen's chapter panel runs the same path from its
+  // own load. A failure speaks once and leaves the page untouched.
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const handleExportPdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const vs = verses.length ? verses : await loadChapterVerses(book, chapter).catch(() => verses);
+      const data = assembleChapterPdfData({
+        book,
+        chapter,
+        chapterData,
+        marks,
+        verses: vs,
+        people,
+        profile,
+      });
+      await shareChapterPdf({
+        data,
+        theme: pdfThemeFromSeed(palette.rasp),
+        authorName: profile.name || 'Jonathan Roberts',
+      });
+    } catch {
+      Alert.alert('Could not make the PDF', 'Something went wrong building this chapter’s PDF. Please try again.');
+    } finally {
+      setPdfBusy(false);
+    }
+  };
   const allComplete =
     studyState !== null &&
     totalChapters > 0 &&
@@ -1003,6 +1042,20 @@ export function ChapterPageView(props: ChapterPageProps) {
               accessibilityLabel="Search this chapter"
             >
               <MaterialIcons name="search" size={20} color={palette.raspDeep} />
+            </Pressable>
+            {/* v404: the chapter PDF door — a quiet pill in the
+                header cluster (his seat pick, Nov 1: "a little
+                button in the app's chapter"). Busy while the PDF
+                builds; the share sheet is the delivery. */}
+            <Pressable
+              onPress={handleExportPdf}
+              disabled={pdfBusy}
+              hitSlop={8}
+              style={[styles.pdfBtn, { backgroundColor: palette.raspTint, opacity: pdfBusy ? 0.55 : 1 }]}
+              accessibilityLabel={`Export ${book} chapter ${chapter} as a PDF`}
+            >
+              <MaterialIcons name="picture-as-pdf" size={17} color={palette.raspDeep} />
+              <Text style={[styles.pdfBtnText, { color: palette.raspDeep }]}>{pdfBusy ? 'PDF…' : 'PDF'}</Text>
             </Pressable>
           </View>
         </View>
@@ -2438,6 +2491,9 @@ const styles = StyleSheet.create({
   iconBtn: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   keptPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12 },
   keptPillText: { fontSize: 12.5, fontWeight: '700' },
+  // v404: the header's PDF pill — the kept pill's dress, icon + word.
+  pdfBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 11 },
+  pdfBtnText: { fontSize: 12.5, fontWeight: '700' },
   // v304: the card's chrome is gone — the progress is a 4px thread
   // spanning the header's full width at its bottom edge (track and
   // fill colors inline, as the card's were); the shimmer survives.

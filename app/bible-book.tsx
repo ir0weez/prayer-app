@@ -24,7 +24,7 @@
 // screenshot: the writing channel was hard to discern).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -48,6 +48,11 @@ import {
   loadStudioImports,
   type StudioImportsMap,
 } from '@/lib/bible-v205/studio-import';
+import {
+  loadChapterPdfData,
+  pdfThemeFromSeed,
+  shareChapterPdf,
+} from '@/lib/bible-v205/pdf-export';
 import {
   bookChapterTallies,
   bookWrittenCount,
@@ -244,6 +249,30 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
     }
   };
 
+  // v404: the chapter PDF (his pick, Nov 1 — Concept 1, "The
+  // Chapter Page, Printed") from the chapter panel's Reading group,
+  // his second seat beside the chapter page's own button. This
+  // panel holds no chapter model, so the shared loader gathers it
+  // (studio imports, marks, verses, People, profile) and the same
+  // generate+share path runs. A failure speaks once, plainly.
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const handleDownloadPdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const data = await loadChapterPdfData(book, selected);
+      await shareChapterPdf({
+        data,
+        theme: pdfThemeFromSeed(palette.rasp),
+        authorName: data.profile.name || 'Jonathan Roberts',
+      });
+    } catch {
+      Alert.alert('Could not make the PDF', 'Something went wrong building this chapter’s PDF. Please try again.');
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const content = (
     <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
       <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: inPane ? 8 : insets.top + 8 }]}>
@@ -425,6 +454,23 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
               <Text style={[styles.btnText, { color: palette.raspDeep }]}>Read as Stories</Text>
             </Pressable>
           </View>
+          {/* v404: the panel's PDF door — same Reading group, the
+              two read doors' tonal dress, full width under them. */}
+          <Pressable
+            style={[
+              styles.btn,
+              styles.pdfRowBtn,
+              { backgroundColor: palette.band },
+              palette.btnDress,
+              pdfBusy ? { opacity: 0.55 } : null,
+            ]}
+            onPress={handleDownloadPdf}
+            disabled={pdfBusy}
+            accessibilityLabel={`Download ${book} chapter ${selected} as a PDF`}
+          >
+            <MaterialIcons name="picture-as-pdf" size={17} color={palette.raspDeep} />
+            <Text style={[styles.btnText, { color: palette.raspDeep }]}>{pdfBusy ? 'Making PDF…' : 'Download PDF'}</Text>
+          </Pressable>
 
           <Text style={[styles.groupLabel, { color: palette.inkSoft }]}>My Writing</Text>
           <View style={styles.chipRow}>
@@ -557,6 +603,9 @@ const styles = StyleSheet.create({
   readCardSub: { fontSize: 12.5, marginTop: 1 },
   sheetBtns: { flexDirection: 'row', gap: 10, marginTop: 12 },
   sheetBtn: { flex: 1, alignItems: 'center', paddingVertical: 13 },
+  // v404: the Reading group's PDF row — the read doors' measure,
+  // full width, icon + word centered as one door.
+  pdfRowBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 10, paddingVertical: 13 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   stateChip: { height: 36, borderRadius: 8, borderWidth: 1.5, paddingHorizontal: 15, alignItems: 'center', justifyContent: 'center' },
   stateChipText: { fontSize: 13, fontWeight: '600' },

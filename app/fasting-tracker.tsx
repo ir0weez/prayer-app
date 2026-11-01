@@ -11,6 +11,7 @@ import { PaperGrainOverlay } from "@/components/paper-grain";
 import { PaperSettle } from "@/components/paper-motion";
 import { BitSettle } from "@/components/bit-motion";
 import { FastDaySheetContent, FastRecapDocument, FastRecapsCard, FastRecordCard, FastTodayHero, FastWhyCard, type FastRecapTarget } from "@/components/fast-tracker";
+import { KeepMeOccupiedCard } from "@/components/keep-me-occupied/door-card";
 import { AnchoredSheet } from "@/components/anchored-sheet";
 import { PrestigePrompt } from "@/components/prestige-prompt";
 import { COINS_STORAGE_KEY, parseCoins, type HometownCoins, applyCoinsDelta } from "@/lib/hometown";
@@ -599,6 +600,13 @@ export default function FastingTrackerScreen() {
               onMark={(status, position) => setFastStatus(today, status, position)}
               onOpenDay={(date) => setSheetDate(date)}
             />
+            {/* v395 "Keep Me Occupied" (Jonathan's idea, mockup
+                keep-me-occupied-concept-v3 Screen 1): the card sits
+                directly under the TODAY hero and above THE RECORD,
+                exactly where the approved drawing seats it. It is a
+                door only — the deal flow lives in
+                app/keep-me-occupied.tsx and writes nothing. */}
+            <KeepMeOccupiedCard onPress={() => router.push("/keep-me-occupied")} />
             <FastRecordCard
               family={trackerFamily}
               fast={selectedFast}

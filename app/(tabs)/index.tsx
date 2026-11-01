@@ -5605,6 +5605,9 @@ export default function HomeScreen() {
       { key: "profile", icon: "person", label: "My Profile", onPress: () => router.push("/profile") },
       { key: "character", icon: "face", label: "Character", onPress: () => router.push("/character") },
       { key: "fast-collection", icon: "collections-bookmark", label: "Fast Collection", onPress: () => router.push("/fast-collection") },
+      // v395: the Keep Me Occupied door — the same destination the
+      // Fasting Tracker's card opens (Jonathan's idea, Oct 31).
+      { key: "keep-me-occupied", icon: "shuffle", label: "Keep Me Occupied", sub: "A game, a chapter, or a dig — dealt at random", onPress: () => router.push("/keep-me-occupied") },
       { key: "devotional", icon: "menu-book", label: "Devotional", onPress: () => router.push("/devotional") },
       // v283: interim homes, moved off the fasting page at
       // Jonathan's word (Oct 27 08:46: "Put the badges in 'More'

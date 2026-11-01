@@ -36,12 +36,20 @@ const ITINERARY_KIND_LABELS: Record<ItineraryKind, string> = {
   view: 'View',
 };
 
+/**
+ * v396 — Ride's glyph is the ferris wheel (Material's "attractions"):
+ * his correction, Oct 31 — "when I said 'Ride' I meant amusement park
+ * ride." Ride is an experience-ride (coaster, wheel, boat), never
+ * transport; it shipped wearing a car glyph under that wrong
+ * assumption. The kind string, label, colour, and stored data are
+ * untouched — only the picture changes.
+ */
 const ITINERARY_KIND_ICONS: Record<ItineraryKind, string> = {
   travel: 'flight',
   stay: 'hotel',
   plan: 'place',
   food: 'restaurant',
-  ride: 'directions-car',
+  ride: 'attractions',
   view: 'landscape',
 };
 
@@ -71,7 +79,7 @@ export const ITINERARY_KIND_WORDS: string[] = ITINERARY_KINDS.map((kind) => getI
  * foreign hue dropped in. Travel keeps the trip colour itself (it is the
  * journey's anchor, as before); every other kind steps from that colour
  * toward a kindred Material anchor — violet for the stay's evening rest,
- * teal for plans, warm orange for food, indigo for the road, green for
+ * teal for plans, warm orange for food, indigo for the ride, green for
  * scenery — so the six read as one family and never as one grey.
  */
 const ITINERARY_KIND_ANCHORS: Record<ItineraryKind, string | null> = {

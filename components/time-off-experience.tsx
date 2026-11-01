@@ -982,7 +982,7 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
             onChangeText={setEntryTitle}
             onFocus={() => setEntryTitleFocused(true)}
             onBlur={() => setTimeout(() => setEntryTitleFocused(false), 150)}
-            placeholder={entryKind === "travel" ? "e.g., Flight to Denver" : entryKind === "stay" ? "e.g., Check in — Canyon Inn" : entryKind === "food" ? "e.g., Dinner at Carmine's" : entryKind === "ride" ? "e.g., Ride to the airport" : entryKind === "view" ? "e.g., Sunset over the canyon" : "e.g., Arches National Park"}
+            placeholder={entryKind === "travel" ? "e.g., Flight to Denver" : entryKind === "stay" ? "e.g., Check in — Canyon Inn" : entryKind === "food" ? "e.g., Dinner at Carmine's" : entryKind === "ride" ? "e.g., Ferris wheel at the pier" : entryKind === "view" ? "e.g., Sunset over the canyon" : "e.g., Arches National Park"}
             placeholderTextColor={colors.muted}
             style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, color: colors.foreground, fontSize: 15, backgroundColor: colors.surface }}
           />
@@ -1052,7 +1052,7 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
           <TextInput
             value={entryDetail}
             onChangeText={setEntryDetail}
-            placeholder={entryIsTVShow ? "e.g., The Bear" : entryKind === "travel" ? "e.g., LAX → DEN · Flight UA 1847" : entryKind === "stay" ? "e.g., Check-out Mon, Nov 23 · Conf. #A7K2Q" : entryKind === "food" ? "e.g., Reservation for 4 · Conf. #D221" : entryKind === "ride" ? "e.g., Pickup at the lobby · 6 seats" : entryKind === "view" ? "e.g., Best light before 7 PM" : "e.g., Timed-entry pass in the app"}
+            placeholder={entryIsTVShow ? "e.g., The Bear" : entryKind === "travel" ? "e.g., LAX → DEN · Flight UA 1847" : entryKind === "stay" ? "e.g., Check-out Mon, Nov 23 · Conf. #A7K2Q" : entryKind === "food" ? "e.g., Reservation for 4 · Conf. #D221" : entryKind === "ride" ? "e.g., Express pass in the app" : entryKind === "view" ? "e.g., Best light before 7 PM" : "e.g., Timed-entry pass in the app"}
             placeholderTextColor={colors.muted}
             style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, color: colors.foreground, fontSize: 15, backgroundColor: colors.surface }}
           />

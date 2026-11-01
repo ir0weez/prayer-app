@@ -68,7 +68,11 @@ describe("v302 itinerary kinds — model", () => {
 
   it("every kind has its own Material icon; the originals keep theirs", () => {
     expect(getItineraryKindIcon("food")).toBe("restaurant");
-    expect(getItineraryKindIcon("ride")).toBe("directions-car");
+    // v396 (Oct 31): Ride's glyph corrected to the ferris wheel — his
+    // words: "when I said 'Ride' I meant amusement park ride." It
+    // shipped as "directions-car" under a transport assumption; the
+    // experience-ride glyph is Material's "attractions".
+    expect(getItineraryKindIcon("ride")).toBe("attractions");
     expect(getItineraryKindIcon("view")).toBe("landscape");
     expect(getItineraryKindIcon("travel")).toBe("flight");
     expect(getItineraryKindIcon("stay")).toBe("hotel");

@@ -100,6 +100,8 @@ import {
 } from './studio-ministries';
 import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY } from '../prayercircle-storage';
 import { storeGasSnapshotForwardOnly } from '../gas-prices';
+import { storeEmailDigestForwardOnly } from '../email-digest';
+import { storeNewsBriefingForwardOnly } from '../news-briefing';
 import { chapterStatus, loadStudyState, saveStudyState } from './study';
 import { applyStudioStatesReads, type StudioStateEntry } from './studio-states';
 import { transitionChapterStatus } from './rewards';
@@ -754,6 +756,33 @@ export async function checkDriveFolder(): Promise<
       if (appliedGas) {
         appliedHere += 1;
         noteParts.push('Gas prices — newest snapshot kept');
+      }
+    }
+    if (filePlan.emailDigest) {
+      // v407: the email digest rides this door too — until v407
+      // the folder check validated the section into the plan
+      // and then never applied it, so a digest file in the
+      // folder silently landed nowhere (only the manual file
+      // import and the backup round-trip could write the key).
+      // Its own key only (prayercircle.email-digest.v1),
+      // FORWARD-ONLY like its siblings: a stale file in the
+      // folder can never rewind the digest on the Email page.
+      const appliedDigest = await storeEmailDigestForwardOnly(filePlan.emailDigest);
+      if (appliedDigest) {
+        appliedHere += 1;
+        noteParts.push('Email digest — newest snapshot kept');
+      }
+    }
+    if (filePlan.newsBriefing) {
+      // v407: the news briefing rides this door — its own key
+      // only (prayercircle.news-briefing.v1), FORWARD-ONLY: a
+      // stale file in the folder can never rewind the headlines
+      // on the News page. While the snapshot is stored, the
+      // page renders it instead of fetching live.
+      const appliedNews = await storeNewsBriefingForwardOnly(filePlan.newsBriefing);
+      if (appliedNews) {
+        appliedHere += 1;
+        noteParts.push('News briefing — newest snapshot kept');
       }
     }
     if (plan.ministryLinks.length > 0) {

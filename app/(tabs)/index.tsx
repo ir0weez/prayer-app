@@ -208,8 +208,9 @@ import {
   type StudioApplyCounts,
   type StudioFilePlan,
 } from "@/lib/bible-v205/studio-import";
-import { EMAIL_DIGEST_KEY } from "@/lib/email-digest";
+import { storeEmailDigestForwardOnly } from "@/lib/email-digest";
 import { storeGasSnapshotForwardOnly } from "@/lib/gas-prices";
+import { storeNewsBriefingForwardOnly } from "@/lib/news-briefing";
 import {
   applyStudioPeoplePack,
   collectStudioJournal,
@@ -4569,9 +4570,14 @@ export default function HomeScreen() {
       // fallbacks would wipe people/journal/fasts/streak/profile
       // if a digest-only file ever reached it — a pack carrying
       // only a digest changes nothing else in the app.
+      // v407: the write is FORWARD-ONLY now, like the gas
+      // snapshot's — until v407 this door rewrote the key
+      // unconditionally, so a stale digest file arriving late
+      // could rewind the Email page. The count follows what
+      // happened.
       if (plan.emailDigest) {
-        await AsyncStorage.setItem(EMAIL_DIGEST_KEY, JSON.stringify(plan.emailDigest));
-        counts.emailDigest = 1;
+        const appliedDigest = await storeEmailDigestForwardOnly(plan.emailDigest);
+        if (appliedDigest) counts.emailDigest = 1;
       }
 
       // v379 — the gas snapshot's safe door, the digest's sibling:
@@ -4583,6 +4589,18 @@ export default function HomeScreen() {
       if (plan.gasPrices) {
         const appliedGas = await storeGasSnapshotForwardOnly(plan.gasPrices);
         if (appliedGas) counts.gasPrices = 1;
+      }
+
+      // v407 — the news briefing's safe door, the third morning
+      // sibling: the section writes ONLY its own key
+      // (prayercircle.news-briefing.v1), FORWARD-ONLY — an older
+      // briefing arriving late never rewinds the headlines
+      // waiting on the News page (lib/news-briefing.ts). While
+      // a snapshot is stored, the page renders it instead of
+      // fetching live. The count follows what happened.
+      if (plan.newsBriefing) {
+        const appliedNews = await storeNewsBriefingForwardOnly(plan.newsBriefing);
+        if (appliedNews) counts.newsBriefing = 1;
       }
 
       // v237/v239: a schedule pack's Ministry rows may carry the

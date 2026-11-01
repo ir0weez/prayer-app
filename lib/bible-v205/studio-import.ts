@@ -64,6 +64,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { EmailDigest } from '@/lib/email-digest';
 import type { GasPriceSnapshot } from '@/lib/gas-prices';
+import type { NewsBriefingSnapshot, NewsBriefingItem } from '@/lib/news-briefing';
+import { NEWS_AREAS, type NewsArea } from '@/lib/news';
 import { CHAPTER_COUNTS, chapterCountFor, getChapterData } from './index';
 import {
   createScheduleEvent,
@@ -1020,10 +1022,21 @@ export interface StudioFilePlan {
    *  carries the newer preparedAt (lib/gas-prices.ts). A pack
    *  carrying only a gas snapshot changes nothing else. */
   gasPrices: GasPriceSnapshot | null;
+  /** v407 — the prepared news briefing (the `newsBriefing`
+   *  section). The News page's snapshot store
+   *  (lib/news-briefing.ts) could not be written by ANY door —
+   *  the page fetched its feeds live and its only storage was a
+   *  cache of its own fetch — so the morning pack's news file
+   *  had nowhere to land. This section is the safe door, the
+   *  digest's and the gas snapshot's sibling: validated here,
+   *  applied by writing ONLY the prayercircle.news-briefing.v1
+   *  key, FORWARD-ONLY by preparedAt. A pack carrying only a
+   *  briefing changes nothing else in the app. */
+  newsBriefing: NewsBriefingSnapshot | null;
 }
 
 export function emptyStudioFilePlan(): StudioFilePlan {
-  return { notes: null, states: null, schedule: null, people: null, ministries: null, emailDigest: null, gasPrices: null };
+  return { notes: null, states: null, schedule: null, people: null, ministries: null, emailDigest: null, gasPrices: null, newsBriefing: null };
 }
 
 export function studioFileHasSections(plan: StudioFilePlan): boolean {
@@ -1034,7 +1047,8 @@ export function studioFileHasSections(plan: StudioFilePlan): boolean {
     plan.people !== null ||
     plan.ministries !== null ||
     plan.emailDigest !== null ||
-    plan.gasPrices !== null
+    plan.gasPrices !== null ||
+    plan.newsBriefing !== null
   );
 }
 
@@ -1062,6 +1076,17 @@ export function studioFileHasSections(plan: StudioFilePlan): boolean {
  *     "ministries":  [ … ],                // ministries records
  *     "deletedIds":  [ … ]                 //   optional tombstones
  *   }
+ *
+ * v407 — the envelope also carries the three MORNING sections
+ * (the digest / gas / news doors above), each under its own key
+ * with its own preparedAt inside the section:
+ *     "emailDigest":  { … },  "gasPrices": { … },  "newsBriefing": { … }
+ * so the morning transfer is ONE file too — one combined pack
+ * out of Eva's prep, one import, each section landing on its
+ * own page and nothing else. A section that omits its own
+ * preparedAt borrows the pack's top-level "preparedAt" when the
+ * pack carries one (a present-but-unreadable section stamp
+ * still fails, exactly as a standalone section always has).
  *
  * Why flat: this parser has always detected sections by presence and
  * read each from exactly the top-level keys its standalone pack uses,
@@ -1093,9 +1118,15 @@ export function studioFileHasSections(plan: StudioFilePlan): boolean {
  * no content at all is refused — writing it would clear the digest
  * already waiting on the Email page.
  */
-export function validateEmailDigestSection(value: unknown): EmailDigest {
+export function validateEmailDigestSection(value: unknown, fallbackPreparedAt = ''): EmailDigest {
   if (!isRecord(value)) fail('The emailDigest section is not an object.');
-  const preparedAt = typeof value.preparedAt === 'string' ? value.preparedAt : '';
+  // v407: a section with no stamp of its own borrows the pack's.
+  const preparedAt =
+    typeof value.preparedAt === 'string'
+      ? value.preparedAt
+      : value.preparedAt === undefined
+        ? fallbackPreparedAt
+        : '';
   if (!preparedAt) fail('The emailDigest section has no preparedAt time.');
   const leaf = (row: Record<string, unknown>, key: string): string => {
     const v = row[key];
@@ -1169,9 +1200,15 @@ export function validateEmailDigestSection(value: unknown): EmailDigest {
  * clear the prices already waiting on the Gas page. preparedAt
  * must read as a time: the apply is forward-only on that stamp.
  */
-export function validateGasPricesSection(value: unknown): GasPriceSnapshot {
+export function validateGasPricesSection(value: unknown, fallbackPreparedAt = ''): GasPriceSnapshot {
   if (!isRecord(value)) fail('The gasPrices section is not an object.');
-  const preparedAt = typeof value.preparedAt === 'string' ? value.preparedAt : '';
+  // v407: a section with no stamp of its own borrows the pack's.
+  const preparedAt =
+    typeof value.preparedAt === 'string'
+      ? value.preparedAt
+      : value.preparedAt === undefined
+        ? fallbackPreparedAt
+        : '';
   if (!preparedAt || Number.isNaN(Date.parse(preparedAt))) {
     fail('The gasPrices section has no readable preparedAt time.');
   }
@@ -1236,18 +1273,96 @@ export function validateGasPricesSection(value: unknown): GasPriceSnapshot {
   return { preparedAt, areaLabel, stations };
 }
 
+/**
+ * v407 — validate the `newsBriefing` section into the News
+ * page's snapshot shape (lib/news-briefing.ts). Eva's morning
+ * prep emits (news-briefing.json):
+ *   { preparedAt: ISO string,
+ *     items: [{ area, date, headline, source, summary, url }] }
+ * — the picked Briefing set, one flat list, each item carrying
+ * its area (one of the four: Church News / Church Leadership /
+ * Prayer & Fasting / For Ministers). An optional `more` list
+ * of the same item shape rides for "More from your sources".
+ * Structural garbage fails the whole file, like every other
+ * section. An item with no headline or no link carries nothing
+ * and is dropped (a nameless gas station, a subject-less digest
+ * row); an item naming an area the page has no head for is
+ * malformed, not droppable — it could never render anywhere.
+ * A section left with no briefing items is refused — writing
+ * it would clear the briefing already waiting on the News
+ * page. preparedAt must read as a time: the apply is
+ * forward-only on that stamp.
+ */
+export function validateNewsBriefingSection(value: unknown, fallbackPreparedAt = ''): NewsBriefingSnapshot {
+  if (!isRecord(value)) fail('The newsBriefing section is not an object.');
+  // A section with no stamp of its own borrows the pack's.
+  const preparedAt =
+    typeof value.preparedAt === 'string'
+      ? value.preparedAt
+      : value.preparedAt === undefined
+        ? fallbackPreparedAt
+        : '';
+  if (!preparedAt || Number.isNaN(Date.parse(preparedAt))) {
+    fail('The newsBriefing section has no readable preparedAt time.');
+  }
+  const leaf = (row: Record<string, unknown>, key: string, where: string, i: number): string => {
+    const v = row[key];
+    if (v === undefined) return '';
+    if (typeof v !== 'string') fail(`The newsBriefing ${where} entry ${i} has a non-string ${key}.`);
+    return v as string;
+  };
+  const items = (raw: unknown, where: string): NewsBriefingItem[] => {
+    if (raw === undefined) return [];
+    if (!Array.isArray(raw)) fail(`The newsBriefing ${where} list is not a list.`);
+    const out: NewsBriefingItem[] = [];
+    raw.forEach((entry, i) => {
+      if (!isRecord(entry)) fail(`The newsBriefing ${where} entry ${i} is not an object.`);
+      const headline = leaf(entry, 'headline', where, i).trim();
+      const url = leaf(entry, 'url', where, i).trim();
+      if (!headline || !url) return; // carries nothing — dropped, like a nameless station
+      const area = leaf(entry, 'area', where, i).trim();
+      if (!(NEWS_AREAS as readonly string[]).includes(area)) {
+        fail(`The newsBriefing ${where} entry ${i} names an unknown area "${area}".`);
+      }
+      out.push({
+        area: area as NewsArea,
+        date: leaf(entry, 'date', where, i).trim(),
+        headline,
+        source: leaf(entry, 'source', where, i).trim(),
+        summary: leaf(entry, 'summary', where, i).trim(),
+        url,
+      });
+    });
+    return out;
+  };
+  const briefing = items(value.items, 'items');
+  const more = items(value.more, 'more');
+  if (briefing.length === 0) fail('The newsBriefing section carries no briefing items.');
+  return { preparedAt, briefing, more };
+}
+
 export function parseStudioFileFull(parsed: unknown): StudioFilePlan {
   if (!isRecord(parsed)) fail('That file is not a studio pack (expected a JSON object).');
   const plan = emptyStudioFilePlan();
+  // v407: the pack's own stamp — a morning section that omits
+  // its preparedAt borrows this one (see the validators).
+  const packPreparedAt = typeof parsed.preparedAt === 'string' ? parsed.preparedAt : '';
   // The morning digest (v360): a top-level section of the combined
   // pack; applied by writing only its own storage key.
   if (parsed.emailDigest !== undefined) {
-    plan.emailDigest = validateEmailDigestSection(parsed.emailDigest);
+    plan.emailDigest = validateEmailDigestSection(parsed.emailDigest, packPreparedAt);
   }
   // The gas snapshot (v379): the digest's sibling — its own key,
   // forward-only at apply time.
   if (parsed.gasPrices !== undefined) {
-    plan.gasPrices = validateGasPricesSection(parsed.gasPrices);
+    plan.gasPrices = validateGasPricesSection(parsed.gasPrices, packPreparedAt);
+  }
+  // The news briefing (v407): the third morning sibling — its
+  // own key (prayercircle.news-briefing.v1), forward-only at
+  // apply time; while a snapshot is stored, the News page
+  // renders it instead of fetching live.
+  if (parsed.newsBriefing !== undefined) {
+    plan.newsBriefing = validateNewsBriefingSection(parsed.newsBriefing, packPreparedAt);
   }
   // The two marks (v228): the studioStates section, wherever it rides.
   if (parsed.studioStates !== undefined) {
@@ -1358,6 +1473,10 @@ export interface StudioApplyCounts {
    *  snapshot arriving late counts 0 — the summary says what
    *  actually happened. */
   gasPrices: number;
+  /** v407: 1 when the file's newsBriefing section was written to
+   *  the News page's store. Forward-only, like its siblings —
+   *  an older briefing arriving late counts 0. */
+  newsBriefing: number;
 }
 
 export function emptyStudioApplyCounts(): StudioApplyCounts {
@@ -1381,6 +1500,7 @@ export function emptyStudioApplyCounts(): StudioApplyCounts {
     ministriesLinked: 0,
     emailDigest: 0,
     gasPrices: 0,
+    newsBriefing: 0,
   };
 }
 
@@ -1430,11 +1550,19 @@ export function formatStudioImportSummary(plan: StudioFilePlan, counts: StudioAp
       `Ministries: ${counts.ministriesAdded} added / ${counts.ministriesUpdated} updated / ${counts.ministriesDeleted} deleted`,
     );
   }
-  if (plan.emailDigest) parts.push('Email digest: updated');
+  // v407: the digest segment keys off the count too — its write
+  // is forward-only from v407 (see storeEmailDigestForwardOnly),
+  // so a stale digest that changed nothing must not read as an
+  // update either. (Before v407 it keyed off the plan because
+  // the write was unconditional.)
+  if (plan.emailDigest && counts.emailDigest > 0) parts.push('Email digest: updated');
   // v379: the segment keys off the count, not the plan — the gas
   // write is forward-only, so an older snapshot that changed
   // nothing must not read as an update.
   if (plan.gasPrices && counts.gasPrices > 0) parts.push('Gas prices: updated');
+  // v407: the news briefing, the third morning sibling — same
+  // count-keyed honesty.
+  if (plan.newsBriefing && counts.newsBriefing > 0) parts.push('News briefing: updated');
   return parts.join(' · ');
 }
 

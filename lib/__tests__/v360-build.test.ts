@@ -163,7 +163,10 @@ describe("v360 Item 6 — the Studio pack door accepts an emailDigest section, s
     const summary = formatStudioImportSummary(plan, { ...emptyStudioApplyCounts(), emailDigest: 1 });
     expect(summary).toContain("Email digest: updated");
     const index = read("app/(tabs)/index.tsx");
-    expect(index).toContain("await AsyncStorage.setItem(EMAIL_DIGEST_KEY, JSON.stringify(plan.emailDigest));");
+    // v407: the write runs through the forward-only door now (the
+    // unconditional setItem this pin used to name let a stale
+    // digest rewind the page — see news-v407-snapshot-door).
+    expect(index).toContain("storeEmailDigestForwardOnly(plan.emailDigest)");
     expect(index).toContain('from "@/lib/email-digest"');
   });
 });

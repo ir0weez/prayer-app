@@ -10,6 +10,16 @@
  * the briefing is five items across Church News · Church
  * Leadership · Prayer & Fasting · For Ministers, one open at a
  * time in the seed-derived container box.
+ *
+ * v407 — a prepared snapshot outranks the live engine: when the
+ * morning pack's newsBriefing section has landed in the
+ * snapshot store (lib/news-briefing.ts), the page renders IT —
+ * Eva's picks as delivered, under a "Prepared …" line — and
+ * never fetches over it; pull-to-refresh steps aside while a
+ * snapshot is active, so nothing on this page can silently
+ * replace it. Replacement happens only by importing a newer
+ * pack. With no snapshot stored, the live behaviour above is
+ * unchanged, word for word.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -35,6 +45,13 @@ import {
   type NewsArea,
   type NewsItem,
 } from "@/lib/news";
+import {
+  formatNewsPreparedLine,
+  loadNewsBriefing,
+  snapshotToBriefingItems,
+  snapshotToMoreGroups,
+  type NewsBriefingSnapshot,
+} from "@/lib/news-briefing";
 import { finishScheduleEvent } from "@/lib/finish-event";
 
 const AREA_ICONS: Record<NewsArea, string> = {
@@ -51,6 +68,7 @@ export default function NewsPage() {
   const eventId = typeof params.eventId === "string" && params.eventId ? params.eventId : null;
 
   const [items, setItems] = useState<NewsItem[] | null>(null);
+  const [snapshot, setSnapshot] = useState<NewsBriefingSnapshot | null>(null);
   const [fetchedAt, setFetchedAt] = useState<number | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -83,6 +101,15 @@ export default function NewsPage() {
     if (startedRef.current) return;
     startedRef.current = true;
     (async () => {
+      // v407: the prepared snapshot is checked first — when one
+      // is stored, the page renders it and the live engine never
+      // runs at all (no cache paint, no fetch on open).
+      const snap = await loadNewsBriefing();
+      if (snap) {
+        setSnapshot(snap);
+        setAttempted(true);
+        return;
+      }
       const cache = await loadNewsCache();
       if (cache) {
         setItems(cache.items);
@@ -92,11 +119,22 @@ export default function NewsPage() {
     })();
   }, [refresh]);
 
-  const briefing = useMemo(() => (items ? selectBriefing(items) : []), [items]);
-  const more = useMemo(
-    () => (items ? groupMoreByArea(items, briefing) : []),
-    [items, briefing]
+  const liveBriefing = useMemo(() => (items ? selectBriefing(items) : []), [items]);
+  const liveMore = useMemo(
+    () => (items ? groupMoreByArea(items, liveBriefing) : []),
+    [items, liveBriefing]
   );
+  const snapshotItems = useMemo(
+    () => (snapshot ? snapshotToBriefingItems(snapshot) : null),
+    [snapshot]
+  );
+  const snapshotMore = useMemo(
+    () => (snapshot ? snapshotToMoreGroups(snapshot) : null),
+    [snapshot]
+  );
+  const briefing = snapshotItems ?? liveBriefing;
+  const more = snapshotMore ?? liveMore;
+  const ready = snapshot !== null || items !== null;
 
   // The briefing opens with its first story open (his accordion
   // ruling: exactly one item is open).
@@ -130,7 +168,12 @@ export default function NewsPage() {
             paddingTop: 16,
             paddingBottom: eventId ? 112 : 40,
           }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+          refreshControl={
+            // v407: no pull-to-refresh while a snapshot is active —
+            // a live fetch must never silently replace what Eva
+            // prepared; a newer pack is the only replacement.
+            snapshot ? undefined : <RefreshControl refreshing={refreshing} onRefresh={refresh} />
+          }
         >
           <KeywordPageHeader m={m} title="News" dateChip={dateChip} onBack={() => router.back()} />
           <Text style={[styles.dated, { color: m.deep }]}>{dateLong}</Text>
@@ -140,11 +183,15 @@ export default function NewsPage() {
               ? `${numberWord(briefing.length)} ${briefing.length === 1 ? "thing" : "things"} worth knowing before the day gets loud.`
               : "The morning's five, from across the church world."}
           </Text>
-          {fetchedAt ? (
+          {snapshot ? (
+            <Text style={[styles.updated, { color: m.inkSoft }]}>
+              {formatNewsPreparedLine(snapshot.preparedAt)}
+            </Text>
+          ) : fetchedAt ? (
             <Text style={[styles.updated, { color: m.inkSoft }]}>{formatUpdatedLine(fetchedAt)}</Text>
           ) : null}
 
-          {items === null ? (
+          {!ready ? (
             <Text style={[styles.quiet, { color: m.inkSoft }]}>Gathering the morning's briefing…</Text>
           ) : briefing.length === 0 ? (
             <View style={[styles.emptyBox, { backgroundColor: m.card }]}>

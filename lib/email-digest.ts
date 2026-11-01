@@ -131,6 +131,38 @@ export async function loadEmailDigest(): Promise<EmailDigest | null> {
   }
 }
 
+/** Forward-only: true when the incoming digest is strictly
+ * newer than the stored one (or there is none). An equal stamp
+ * is a re-delivery, not an update. (v407: until now the pack
+ * door rewrote this key unconditionally, so a stale digest
+ * file arriving late could rewind the Email page; the gas
+ * snapshot's discipline — storeGasSnapshotForwardOnly — is
+ * the digest's own rule too, and both doors now keep it.) */
+export function isNewerEmailDigest(
+  stored: EmailDigest | null,
+  incoming: EmailDigest,
+): boolean {
+  if (!stored) return true;
+  const incomingMs = Date.parse(incoming.preparedAt);
+  const storedMs = Date.parse(stored.preparedAt);
+  if (Number.isNaN(incomingMs)) return false;
+  if (Number.isNaN(storedMs)) return true;
+  return incomingMs > storedMs;
+}
+
+/** The one write door for delivered digests (Studio pack,
+ * Drive folder): writes ONLY its own key, and only when the
+ * incoming digest is newer than the stored one. Returns
+ * whether it wrote. */
+export async function storeEmailDigestForwardOnly(
+  incoming: EmailDigest,
+): Promise<boolean> {
+  const stored = await loadEmailDigest();
+  if (!isNewerEmailDigest(stored, incoming)) return false;
+  await AsyncStorage.setItem(EMAIL_DIGEST_KEY, JSON.stringify(incoming));
+  return true;
+}
+
 /** "Prepared 7:04 AM" — the snapshot's freshness, in its own words. */
 export function formatPreparedLine(preparedAt: string): string {
   const date = new Date(preparedAt);

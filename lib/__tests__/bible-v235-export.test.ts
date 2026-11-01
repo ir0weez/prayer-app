@@ -14,6 +14,12 @@
 //  5. GRANT UPGRADE — Settings shows "Enable export writing" only for a
 //     linked-but-not-enabled folder, and the export handler tries the
 //     folder write before the share sheet with the payload untouched.
+// v408 amendment (his ruling, Nov 1): the boundary now has TWO callers
+// — the tap and the nightly auto-export task, through the same entry;
+// pinned in bible-v408-auto-export.test.ts. The same build also moved
+// the payload builder verbatim into bible-v205/export-payload.ts
+// (shared by both callers), so the two payload pins below read that
+// module instead of the Settings screen.
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -220,13 +226,19 @@ describe('Settings wiring (source pins)', () => {
   });
 
   it('the payload itself is untouched — same serializer, same format tag', () => {
-    expect(src).toContain('format: "prayercircle-backup", version: 1');
+    // v408: the builder moved verbatim to export-payload.ts (see the
+    // header note) — the serializer and format tag live there now.
+    const builder = readFileSync(join(ROOT, 'bible-v205', 'export-payload.ts'), 'utf8');
+    expect(builder).toContain('format: "prayercircle-backup", version: 1');
     // v363 amendment (Oct 30): the payload gains ONE section —
     // studioHighlights, riding beside studioBubbles (the highlights
     // bridge; export-only, imports never read it). The serializer and
     // format tag this pin guards are unchanged; every v235 section
     // still rides, in its place.
-    expect(src).toContain('studioBubbles, studioHighlights, studioPeople, studioJournal, studioSchedule, studioStates, studioMinistries');
+    expect(builder).toContain('studioBubbles, studioHighlights, studioPeople, studioJournal, studioSchedule, studioStates, studioMinistries');
+    // The tap handler builds through the shared builder, so what the
+    // folder write receives is the payload this pin just verified.
+    expect(src).toContain('const payload = await buildExportPayload();');
   });
 
   it('a written export confirms in the settings voice, naming the folder', () => {

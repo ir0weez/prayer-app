@@ -34,6 +34,13 @@ import {
 } from "react-native-safe-area-context";
 import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
+// v408: the nightly auto-export task DEFINITION must evaluate in
+// the app's global scope, ahead of any screen, so the OS can wake
+// the JS runtime headlessly and find the executor registered (the
+// same reason the text-scale import above runs first). The named
+// import is the side effect; the sync call below keeps the OS
+// registration in step with his switch.
+import { syncAutoExportRegistration } from "@/lib/bible-v205/auto-export-task";
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 import { refreshGearBoostCache } from "@/lib/gear";
@@ -94,6 +101,9 @@ function RootLayoutContent() {
   useEffect(() => {
     initManusRuntime();
     configureLocalNotifications();
+    // v408: bring the nightly auto-export's OS registration in line
+    // with his switch (it registers/unregisters itself; best-effort).
+    void syncAutoExportRegistration();
     // Warm the gear boost cache so XP/coin boosts apply everywhere.
     refreshGearBoostCache().catch(() => {});
     // Warm the character stat boost cache too.

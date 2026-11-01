@@ -140,6 +140,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     "./plugins/with-app-icons.js",
+    "expo-background-task",
     "expo-router",
     "expo-font",
     "expo-web-browser",

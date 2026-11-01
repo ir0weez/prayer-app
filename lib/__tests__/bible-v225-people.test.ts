@@ -520,9 +520,13 @@ describe('v225 — the DATA screen wiring (source pins)', () => {
   });
 
   it('the backup payload carries studioPeople and studioJournal sections', () => {
-    expect(src).toContain('collectStudioPeople');
-    expect(src).toContain('collectStudioJournal');
-    expect(src).toContain('studioPeople, studioJournal');
+    // v408: the payload builder moved verbatim into
+    // lib/bible-v205/export-payload.ts (shared by the Export Data
+    // tap and the nightly auto-export) — this pin reads it there.
+    const builder = readFileSync(join(process.cwd(), 'lib', 'bible-v205', 'export-payload.ts'), 'utf8');
+    expect(builder).toContain('collectStudioPeople');
+    expect(builder).toContain('collectStudioJournal');
+    expect(builder).toContain('studioPeople, studioJournal');
   });
 
   it('the drive journal list renders the per-file note', () => {

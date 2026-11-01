@@ -3,12 +3,16 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { tendStart, tendTap, tendTick, type TendCell } from "@/lib/keep-me-occupied";
 import type { KeepMeOccupiedMaterialFamily } from "@/lib/keep-me-occupied-material";
+import { tendTapPoints } from "@/lib/kmo-progression";
 
 /**
  * v395 Tend — a small garden that always needs two minutes of
  * hands. Weeds and dry spots appear gently; tap to clear and
- * water. No timer pressure, no score, nothing can die. Calm and
- * ambient by design — the quiet seat in the pool.
+ * water. No timer pressure, nothing can die. Calm and ambient
+ * by design — the quiet seat in the pool.
+ *
+ * v397: the gentlest scoring in the pool — +5 per weed cleared or
+ * dry spot watered, nothing for the rest.
  */
 const CELL_ART: Record<TendCell, { emoji: string; label: string }> = {
   bloom: { emoji: "🌸", label: "In bloom" },
@@ -17,8 +21,15 @@ const CELL_ART: Record<TendCell, { emoji: string; label: string }> = {
   weed: { emoji: "🌿", label: "A weed — tap to clear" },
 };
 
-export function TendGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
+export function TendGame({
+  m,
+  onScore,
+}: {
+  m: KeepMeOccupiedMaterialFamily;
+  onScore?: (points: number) => void;
+}) {
   const [cells, setCells] = useState<TendCell[]>(() => tendStart(Math.random));
+  const [score, setScore] = useState(0);
   const [message, setMessage] = useState("Weeds and dry spots show up on their own. Tap to tend.");
 
   useEffect(() => {
@@ -30,6 +41,11 @@ export function TendGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
 
   const tap = (i: number) => {
     const before = cells[i];
+    const points = tendTapPoints(before);
+    if (points > 0) {
+      setScore((s) => s + points);
+      onScore?.(points);
+    }
     setCells(tendTap(cells, i));
     if (before === "weed") setMessage("Weed cleared. A sprout takes its place.");
     else if (before === "dry") setMessage("Watered. It'll bloom again.");
@@ -53,6 +69,7 @@ export function TendGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
         ))}
       </View>
       <Text style={[styles.message, { color: m.inkSoft }]}>{message}</Text>
+      <Text style={[styles.message, { color: m.inkSoft }]}>score {score} · the garden doesn't keep score back</Text>
     </View>
   );
 }

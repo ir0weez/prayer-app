@@ -3,19 +3,30 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { echoExtend, echoGrade } from "@/lib/keep-me-occupied";
 import type { KeepMeOccupiedMaterialFamily } from "@/lib/keep-me-occupied-material";
+import { echoRunPoints } from "@/lib/kmo-progression";
 
 /**
  * v395 Echo Lights — 2×2 pads, a growing pattern, repeat it back.
  * A miss NEVER ends anything: the pattern simply plays again.
  * Endless rounds; the pattern only ever grows.
+ *
+ * v397: scored — +15 per pad correctly repeated and +50 for a
+ * finished pattern; a broken run still banks its correct pads.
  */
 const PAD_COLORS = ["#F5C04A", "#7FB069", "#4A7FC9", "#C9452F"];
 
-export function EchoLightsGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
+export function EchoLightsGame({
+  m,
+  onScore,
+}: {
+  m: KeepMeOccupiedMaterialFamily;
+  onScore?: (points: number) => void;
+}) {
   const [pattern, setPattern] = useState<number[]>(() => echoExtend([], Math.random));
   const [lit, setLit] = useState<number | null>(null);
   const [phase, setPhase] = useState<"showing" | "input" | "round-complete">("showing");
   const [message, setMessage] = useState("Watch the pattern.");
+  const [score, setScore] = useState(0);
   const inputRef = useRef<number[]>([]);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -47,6 +58,13 @@ export function EchoLightsGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
     setTimeout(() => setLit(null), 220);
     inputRef.current = [...inputRef.current, pad];
     const grade = echoGrade(pattern, inputRef.current);
+    if (grade === "replay" || grade === "round-complete") {
+      const points = echoRunPoints(pattern, inputRef.current);
+      if (points > 0) {
+        setScore((s) => s + points);
+        onScore?.(points);
+      }
+    }
     if (grade === "replay") {
       setMessage("Not quite — watch it again. Nothing lost.");
       timers.current.push(setTimeout(() => playPattern(pattern), 750));
@@ -82,6 +100,9 @@ export function EchoLightsGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
         </View>
         <View style={[styles.chip, { backgroundColor: m.card, borderColor: m.line }]}>
           <Text style={[styles.chipText, { color: m.inkSoft }]}>pattern length {pattern.length}</Text>
+        </View>
+        <View style={[styles.chip, { backgroundColor: m.card, borderColor: m.line }]}>
+          <Text style={[styles.chipText, { color: m.inkSoft }]}>score {score}</Text>
         </View>
       </View>
       <Text style={[styles.message, { color: m.inkSoft }]}>{message}</Text>

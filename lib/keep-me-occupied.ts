@@ -16,6 +16,12 @@
 // React memory and it dies with the flow. This module imports no
 // storage at all.
 //
+// v397 SCOPE NOTE: the law above still governs THIS module and all
+// WAVE data (ratings, minutes, taps, deals) without exception.
+// What v397 added — scores, coin/XP earnings, game unlocks, best
+// scores — lives in lib/kmo-progression.ts under its own stated
+// law: game data may persist; wave data still may not.
+//
 // Every pool item is endless and UNFAILABLE: no game over, no score
 // shame, no fail states. The helpers below are written so a miss
 // can only ever produce "again", never "ended".
@@ -77,9 +83,19 @@ function pickIndex(length: number, rng: Rng): number {
  * Deal one item from the pool. A re-deal (excludeId set) never deals
  * the item already on the table — "Something else" always changes
  * the screen.
+ *
+ * v397: when an owned-games list is passed, locked games stay out
+ * of the deck. Chapters and the Word Dig are never locked (the dig
+ * is a starter; scripture is not merchandise), so they are in every
+ * deck whatever the list says. With no list passed, the whole pool
+ * deals — the v395 behaviour the original pins hold.
  */
-export function dealItem(rng: Rng, excludeId?: KmoItemId): KmoPoolItem {
-  const candidates = excludeId ? KMO_POOL.filter((item) => item.id !== excludeId) : [...KMO_POOL];
+export function dealItem(rng: Rng, excludeId?: KmoItemId, unlocked?: readonly KmoItemId[]): KmoPoolItem {
+  const candidates = KMO_POOL.filter((item) => {
+    if (excludeId && item.id === excludeId) return false;
+    if (unlocked && item.kind === "game" && item.id !== "word-dig" && !unlocked.includes(item.id)) return false;
+    return true;
+  });
   return candidates[pickIndex(candidates.length, rng)];
 }
 
@@ -453,7 +469,7 @@ export function sessionLine(session: KmoSession, now: number): string {
 export const WAVE_DOORS = [
   { id: "another", label: "Deal me another", sub: "no shame in round two" },
   { id: "pray", label: "Pray it out", sub: "opens your prayer list" },
-  { id: "day", label: "Back to my day", sub: "wave ridden · nothing logged" },
+  { id: "day", label: "Back to my day", sub: "wave ridden · the wave itself is never logged" },
 ] as const;
 
 export type WaveDoorId = (typeof WAVE_DOORS)[number]["id"];

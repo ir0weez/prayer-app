@@ -16,14 +16,22 @@
 //      end state.
 //   6. The wave check's three doors, in the mockup's order, wired
 //      to the right navigation in the screen source.
-//   7. THE NO-LEDGER LAW: the feature writes no storage keys —
-//      proven statically (no storage API in any feature file) and
-//      at runtime (a spied AsyncStorage sees zero calls while the
-//      whole engine runs). The one storage contact the flow has —
-//      reading the study store to weight deals, and the reader's
-//      own verse cache inside loadChapterVerses — belongs to the
-//      reader, predates this feature, and holds Bible text, never
-//      KMO data.
+//   7. THE LEDGER LAW, AS AMENDED BY v397 (Oct 31, his direction:
+//      "you should earn coins as you play, and that allows you to
+//      unlock more games and collect XP over time as well"): GAME
+//      data may now persist — unlocks and best scores in
+//      lib/kmo-progression.ts's store, earnings in the shared
+//      coin/XP systems. WAVE data may not: ratings, minutes, tap
+//      and deal counts are still never written anywhere. These
+//      pins therefore hold the WAVE PATH (the engine, the screen,
+//      the games, the shelf) to the original rule — none of those
+//      files touches a storage API directly; every write routes
+//      through lib/kmo-progression.ts or the shared helpers — and
+//      the engine still performs zero storage calls at runtime.
+//      The one storage contact the flow has — reading the study
+//      store to weight deals, and the reader's own verse cache
+//      inside loadChapterVerses — belongs to the reader, predates
+//      this feature, and holds Bible text, never KMO data.
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -350,9 +358,9 @@ describe("v395 material family", () => {
   });
 });
 
-// ─── 7. The no-ledger law ────────────────────────────────────────────────────
+// ─── 7. The ledger law (v397 scope: the wave path stays clean) ──────────────
 
-describe("v395 the no-ledger law", () => {
+describe("v395 the no-ledger law — wave path (v397 scope)", () => {
   beforeEach(() => {
     storageCalls.getItem = 0;
     storageCalls.setItem = 0;
@@ -360,7 +368,7 @@ describe("v395 the no-ledger law", () => {
     storageCalls.multiSet = 0;
   });
 
-  it("no feature file touches a storage API", () => {
+  it("no wave-path file touches a storage API directly", () => {
     const files = [
       "lib/keep-me-occupied.ts",
       "lib/keep-me-occupied-material.ts",
@@ -382,6 +390,10 @@ describe("v395 the no-ledger law", () => {
     const screen = read("app/keep-me-occupied.tsx");
     expect(screen).toContain("loadStudyState");
     expect(screen).not.toContain("saveStudyState");
+    // v397: the screen's only writes route through the progression
+    // layer (unlocks, bests, conversion) — never a storage API here.
+    expect(screen).toContain("loadKmoProgression");
+    expect(screen).toContain("convertSessionScore");
   });
 
   it("running the whole engine performs zero storage calls", () => {

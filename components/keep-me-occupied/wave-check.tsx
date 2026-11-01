@@ -3,25 +3,33 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { WAVE_DOORS, type WaveDoorId } from "@/lib/keep-me-occupied";
 import type { KeepMeOccupiedMaterialFamily } from "@/lib/keep-me-occupied-material";
+import type { SessionEarnings } from "@/lib/kmo-progression";
 
 /**
  * v395 The Way Back Down — the wave check (the screen Jonathan
  * screenshotted from concept v1 and kept through v3): one honest
  * question, the session's one line ("You played Echo Lights for
  * 11 minutes"), the before → now read when he rated on the way in,
- * and three Material doors. Everything shown here is shown ONCE,
- * to him, and forgotten: the no-ledger law means this component's
- * state is all that ever exists of it.
+ * and three Material doors. Everything about the WAVE shown here
+ * is shown ONCE, to him, and forgotten: ratings and minutes are
+ * never persisted (the v397 law keeps them ledger-free).
+ *
+ * v397: the card also carries the session's earnings line — the
+ * score the game just converted into his coin purse and XP track.
+ * The earnings were real the moment they were credited; this line
+ * is just their receipt, and it is not stored either.
  */
 export function WaveCheck({
   m,
   sessionLineText,
   entryRating,
+  earnings,
   onDoor,
 }: {
   m: KeepMeOccupiedMaterialFamily;
   sessionLineText: string;
   entryRating: number | null;
+  earnings?: SessionEarnings | null;
   onDoor: (door: WaveDoorId) => void;
 }) {
   const [nowRating, setNowRating] = useState<number | null>(null);
@@ -31,6 +39,11 @@ export function WaveCheck({
       <View style={[styles.card, { backgroundColor: m.card, borderColor: m.line, shadowColor: m.shadow }]}>
         <Text style={[styles.title, { color: m.ink }]}>How strong is it now?</Text>
         <Text style={[styles.sub, { color: m.inkSoft }]}>{sessionLineText}</Text>
+        {earnings && (earnings.coins > 0 || earnings.xp > 0) ? (
+          <Text style={[styles.earnings, { color: m.deep }]}>
+            +{earnings.coins} coins · +{earnings.xp} XP
+          </Text>
+        ) : null}
 
         {entryRating != null && nowRating != null ? (
           <View>
@@ -116,6 +129,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 18.5, fontWeight: "900" },
   sub: { fontSize: 12.5, lineHeight: 18, marginTop: 4 },
+  earnings: { fontSize: 14, fontWeight: "900", marginTop: 9 },
   scale: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 14 },
   from: { fontSize: 31, fontWeight: "900" },
   arrow: { fontSize: 19, color: "#9A7B4F" },

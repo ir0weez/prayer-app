@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
@@ -11,6 +11,7 @@ import {
   type DigTarget,
 } from "@/lib/keep-me-occupied";
 import type { KeepMeOccupiedMaterialFamily } from "@/lib/keep-me-occupied-material";
+import { digScoreForGuesses } from "@/lib/kmo-progression";
 
 /**
  * v395 Word Dig — a five-letter word buried in a verse from a book
@@ -19,6 +20,10 @@ import type { KeepMeOccupiedMaterialFamily } from "@/lib/keep-me-occupied-materi
  * to paper. Every wrong guess uncovers more of the verse — the
  * verse is the hint. After six guesses the word is simply
  * revealed and a new one is dealt: there is no loss state.
+ *
+ * v397: scored on the find — 120 for a first-dig find, stepping
+ * down 20 per guess to 20 on the sixth. A revealed word scores 0
+ * and still never reads as a loss.
  */
 const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
 const STATE_RANK: Record<DigLetterState, number> = { absent: 0, present: 1, "in-place": 2 };
@@ -28,11 +33,13 @@ export function WordDigGame({
   target,
   loading,
   onNextDig,
+  onScore,
 }: {
   m: KeepMeOccupiedMaterialFamily;
   target: DigTarget | null;
   loading: boolean;
   onNextDig: () => void;
+  onScore?: (points: number) => void;
 }) {
   const [guesses, setGuesses] = useState<string[]>([]);
   const [current, setCurrent] = useState("");
@@ -48,6 +55,17 @@ export function WordDigGame({
 
   const outcome = target ? digOutcome(guesses, target.word) : "digging";
   const ended = outcome !== "digging";
+
+  // v397: a find pays out once per buried word, on the guess count
+  // it took. A reveal pays nothing and asks for another dig.
+  const awardedRef = useRef<string>("");
+  useEffect(() => {
+    if (outcome === "found" && targetKey && awardedRef.current !== targetKey) {
+      awardedRef.current = targetKey;
+      onScore?.(digScoreForGuesses(guesses.length, true));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outcome, targetKey]);
   const wrongCount = target
     ? guesses.filter((g) => g.toUpperCase() !== target.word).length
     : 0;
@@ -104,7 +122,7 @@ export function WordDigGame({
         <Text style={[styles.verse, { color: m.ink }]}>{digVerseReveal(target, wrongCount, ended)}</Text>
         <Text style={[styles.note, { color: m.inkSoft }]}>
           {outcome === "found"
-            ? `Found — ${target.word}. It's yours.`
+            ? `Found — ${target.word}. It's yours (+${digScoreForGuesses(guesses.length, true)}).`
             : outcome === "revealed"
               ? `The word was ${target.word}. Another one's already buried.`
               : "The hidden word is in this verse. Every miss uncovers more of it."}

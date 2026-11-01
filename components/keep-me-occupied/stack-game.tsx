@@ -3,22 +3,34 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-nativ
 
 import { stackDrop, type StackBlock } from "@/lib/keep-me-occupied";
 import type { KeepMeOccupiedMaterialFamily } from "@/lib/keep-me-occupied-material";
+import { stackLandingPoints } from "@/lib/kmo-progression";
 
 /**
  * v395 Stack — a block slides side to side (Animated transform
  * only); tap to drop it. Overhang trims away; the tower keeps
  * rising. A total miss places a fresh base block — the tower
  * starts again, and nothing has ended.
+ *
+ * v397: scored — +10 per block landed, +5 more for a near-perfect
+ * landing; tower height is the standing stat.
  */
 const FIELD_H = 300;
 const BLOCK_H = 22;
 const BASE_WIDTH = 150;
 const BLOCK_COLORS = ["#C9452F", "#E8873A", "#F5C04A", "#7FB069", "#4A7FC9", "#8B6FD8"];
 
-export function StackGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
+export function StackGame({
+  m,
+  onScore,
+}: {
+  m: KeepMeOccupiedMaterialFamily;
+  onScore?: (points: number) => void;
+}) {
   const [fieldW, setFieldW] = useState(0);
   const [blocks, setBlocks] = useState<StackBlock[]>([]);
   const [width, setWidth] = useState(BASE_WIDTH);
+  const [score, setScore] = useState(0);
+  const [bestHeight, setBestHeight] = useState(0);
   const [message, setMessage] = useState("Tap anywhere to drop the block.");
   const pos = useRef(new Animated.Value(0)).current;
   const posRef = useRef(0);
@@ -52,9 +64,13 @@ export function StackGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
       const fresh: StackBlock = { left: Math.max(0, (fieldW - BASE_WIDTH) / 2), width: BASE_WIDTH };
       setBlocks([fresh]);
       setWidth(BASE_WIDTH);
+      setBestHeight((h) => Math.max(h, blocks.length));
       setMessage("Clean miss — fresh base placed. Stacking again, no harm done.");
       return;
     }
+    const points = stackLandingPoints(moving.width, placed.width);
+    setScore((s) => s + points);
+    onScore?.(points);
     setBlocks([...blocks, placed]);
     setWidth(placed.width);
     setMessage(blocks.length === 0 ? "First block down. Keep stacking." : `${blocks.length + 1} high. It only goes up from here.`);
@@ -101,6 +117,9 @@ export function StackGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
         <View style={[styles.ground, { backgroundColor: m.line }]} />
       </Pressable>
       <Text style={[styles.message, { color: m.inkSoft }]}>{message}</Text>
+      <Text style={[styles.message, { color: m.inkSoft }]}>
+        score {score} · tower {blocks.length} high{bestHeight > 0 ? ` · tallest ${Math.max(bestHeight, blocks.length)}` : ""}
+      </Text>
     </View>
   );
 }

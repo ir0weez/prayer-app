@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { beatGrade, beatPattern } from "@/lib/keep-me-occupied";
 import type { KeepMeOccupiedMaterialFamily } from "@/lib/keep-me-occupied-material";
+import { beatTapPoints } from "@/lib/kmo-progression";
 
 /**
  * v395 Backbeat — a rhythm pattern flashes across an 8-step strip
@@ -10,17 +11,28 @@ import type { KeepMeOccupiedMaterialFamily } from "@/lib/keep-me-occupied-materi
  * the drum on the lit steps. Visual-first: it works fully muted.
  * Timing is forgiving (a step either side counts) and a short
  * count just plays the pattern again — there is no failing it.
+ *
+ * v397: scored per tap — +10 right on a pattern step, +4 a step
+ * either side, each step paying once per sweep.
  */
 const STEP_MS = 430;
 
-export function BackbeatGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
+export function BackbeatGame({
+  m,
+  onScore,
+}: {
+  m: KeepMeOccupiedMaterialFamily;
+  onScore?: (points: number) => void;
+}) {
   const [hits, setHits] = useState(3);
   const [pattern, setPattern] = useState<number[]>(() => beatPattern(3, Math.random));
   const [step, setStep] = useState(-1);
   const [phase, setPhase] = useState<"show" | "play" | "rest">("show");
   const [tapped, setTapped] = useState<number[]>([]);
+  const [score, setScore] = useState(0);
   const [message, setMessage] = useState("Watch the beat light up.");
   const tapsRef = useRef<number[]>([]);
+  const awardedRef = useRef<Set<number>>(new Set());
   const stepRef = useRef(-1);
   const sweepsRef = useRef(0);
   const aliveRef = useRef(true);
@@ -57,6 +69,7 @@ export function BackbeatGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
             setPhase("play");
             setMessage("Now — tap the drum on the lit steps as the sweep passes.");
             tapsRef.current = [];
+            awardedRef.current = new Set();
             setTapped([]);
             stepRef.current = -1;
             setStep(-1);
@@ -95,6 +108,14 @@ export function BackbeatGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
     if (phase !== "play" || stepRef.current < 0) return;
     tapsRef.current = [...tapsRef.current, stepRef.current];
     setTapped(tapsRef.current);
+    if (!awardedRef.current.has(stepRef.current)) {
+      awardedRef.current.add(stepRef.current);
+      const points = beatTapPoints(stepRef.current, pattern);
+      if (points > 0) {
+        setScore((s) => s + points);
+        onScore?.(points);
+      }
+    }
   };
 
   return (
@@ -132,6 +153,7 @@ export function BackbeatGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
         <Text style={[styles.drumText, { color: m.redFillInk }]}>🥁 TAP THE BEAT</Text>
       </Pressable>
       <Text style={[styles.message, { color: m.inkSoft }]}>{message}</Text>
+      <Text style={[styles.message, { color: m.inkSoft }]}>score {score}</Text>
     </View>
   );
 }

@@ -3,26 +3,42 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { sortDeal, sortResolve } from "@/lib/keep-me-occupied";
 import type { KeepMeOccupiedMaterialFamily } from "@/lib/keep-me-occupied-material";
+import { sortScored, type SortScoreState } from "@/lib/kmo-progression";
 
 /**
  * v395 Sort It Out — items arrive one at a time; tap the bin it
  * belongs in. The category rotates between rounds (colors, numbers,
  * kinds). A wrong bin just bounces the item back — there is no way
  * to lose, only another item coming.
+ *
+ * v397: scored — +10 a sort, with a streak bonus once consecutive
+ * correct sorts run past three (lib/kmo-progression.ts). A wrong
+ * bin resets the streak and takes nothing away.
  */
-export function SortItOutGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
+export function SortItOutGame({
+  m,
+  onScore,
+}: {
+  m: KeepMeOccupiedMaterialFamily;
+  onScore?: (points: number) => void;
+}) {
   const [round, setRound] = useState(0);
   const [deal, setDeal] = useState(() => sortDeal(0, Math.random));
   const [sorted, setSorted] = useState(0);
+  const [tally, setTally] = useState<SortScoreState>({ streak: 0, score: 0 });
   const [message, setMessage] = useState("Tap the bin it belongs in.");
 
   const choose = (bin: number) => {
-    if (sortResolve(deal.item, bin) === "sorted") {
+    const correct = sortResolve(deal.item, bin) === "sorted";
+    const next = sortScored(tally, correct);
+    if (next.score !== tally.score) onScore?.(next.score - tally.score);
+    setTally(next);
+    if (correct) {
       const nextRound = round + 1;
       setRound(nextRound);
       setSorted(sorted + 1);
       setDeal(sortDeal(nextRound, Math.random));
-      setMessage("Sorted. Here's the next one.");
+      setMessage(next.streak > 3 ? `Sorted — streak ${next.streak}, bonus growing.` : "Sorted. Here's the next one.");
     } else {
       setMessage("That one bounced back — try another bin.");
     }
@@ -51,7 +67,9 @@ export function SortItOutGame({ m }: { m: KeepMeOccupiedMaterialFamily }) {
           </Pressable>
         ))}
       </View>
-      <Text style={[styles.count, { color: m.inkSoft }]}>{sorted} sorted this visit · the pile never runs out</Text>
+      <Text style={[styles.count, { color: m.inkSoft }]}>
+        {sorted} sorted this visit · the pile never runs out · score {tally.score}
+      </Text>
     </View>
   );
 }

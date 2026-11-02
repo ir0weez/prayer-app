@@ -34,13 +34,18 @@
  * the drawing's own event is a bare "Gas". A stored non-gas
  * keyword still wins outright, exactly like Meal.
  *
- * v414 — the Daily Brief door: the schedule's generated 8:00 AM
- * event (lib/daily-brief.ts) carries the stored keyword "Daily
- * Brief" and opens the Brief page. The claim follows this file's
- * own rules: the stored label wins outright; a title LEADING with
- * "Daily Brief" claims it the way "News" does (so an event of his
- * own with that title is the same door); any other stored keyword
- * still wins over the title.
+ * v414 — the Daily Brief door: an event carrying the stored
+ * keyword "Daily Brief" opens the Brief page. The claim follows
+ * this file's own rules: the stored label wins outright; a title
+ * LEADING with "Daily Brief" claims it the way "News" does; any
+ * other stored keyword still wins over the title.
+ *
+ * v416 — the v414 build ALSO generated a Daily Brief event into
+ * every day at 8:00 AM; Jonathan rejected that on v414 installed
+ * (Nov 2: "I don't want the Daily Brief on there all the time.
+ * Just when I add it as an event."). The generation is gone. The
+ * claim above is all that remains: the door exists only where his
+ * own stored event carries it, exactly like News and Email.
  */
 
 export type KeywordPageKind = "news" | "email" | "food" | "gas" | "dailyBrief";

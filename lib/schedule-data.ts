@@ -45,7 +45,6 @@ export type ScheduleEvent = {
   color?: string; // Override color
   keyword?: string; // Detected keyword for illustration
   isHoliday?: boolean; // Auto-seeded US holiday (render-only, never editable/persisted)
-  isDailyBrief?: boolean; // v414: the generated 8 AM Daily Brief door (render-only like a holiday, never editable/persisted)
   linkedPeopleIds?: string[]; // IDs of people from prayer list linked to this event
   season?: number; // TV Show season number
   episode?: number; // TV Show episode number

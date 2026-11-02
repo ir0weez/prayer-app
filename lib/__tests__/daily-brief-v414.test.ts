@@ -1,12 +1,10 @@
 /**
  * v414 — the Daily Brief (Jonathan approved daily-breakdown-
  * concepts-v6.html on Nov 2: "love it all, do it"). Pins:
- *  - the door claim (lib/keyword-pages.ts): the generated event's
- *    stored keyword "Daily Brief" wins outright; a title LEADING
- *    with "Daily Brief" claims it the way "News" does; any other
- *    stored keyword still beats the title;
- *  - the generated 8:00 AM event's shape (render-only, like a
- *    holiday — deterministic id, zero-length span, never stored);
+ *  - the door claim (lib/keyword-pages.ts): a stored keyword
+ *    "Daily Brief" wins outright; a title LEADING with "Daily
+ *    Brief" claims it the way "News" does; any other stored
+ *    keyword still beats the title;
  *  - the prep line's derivation priority — note, leave time,
  *    location, a tied person's lead need, an attached todo — and
  *    the factual nothing line when none of those exist;
@@ -15,15 +13,26 @@
  *  - GOOD TO KNOW rows: one per pack section actually present,
  *    stamped with the section's own prepared time; absent sections
  *    yield no rows and nothing is fabricated.
+ *
+ * v416 — the v414 build ALSO pinned a code-generated 8:00 AM
+ * event injected into every day; Jonathan rejected it on v414
+ * installed (Nov 2: "I don't want the Daily Brief on there all
+ * the time. Just when I add it as an event."). Those pins are
+ * replaced below: the door now claims only HIS stored events, a
+ * day without one has no Daily Brief, and source pins hold the
+ * generator out of the schedule tab and the lib. The date-travel
+ * pins lock the chain that briefs the tapped event's day: the
+ * card's tap passes eventDate (the shared door params) and the
+ * Brief page assembles for it, defaulting to today.
  */
+import { readFileSync } from "fs";
+import { join } from "path";
 import { describe, expect, it } from "vitest";
 
 import { keywordPageKindForEvent, keywordPagePath } from "../keyword-pages";
 import {
   briefDayLine,
-  dailyBriefEventForDate,
   goodToKnowRows,
-  isDailyBriefEvent,
   plannedShareForDay,
   prepLineForEvent,
 } from "../daily-brief";
@@ -93,21 +102,51 @@ describe("v414 daily brief — the door claim", () => {
   });
 });
 
-describe("v414 daily brief — the generated 8 AM event", () => {
-  it("is deterministic, zero-length, and flagged render-only", () => {
-    const event = dailyBriefEventForDate("2026-11-02");
-    expect(event.id).toBe("daily-brief-2026-11-02");
-    expect(event.startTime).toBe("08:00");
-    expect(event.endTime).toBe("08:00");
-    expect(event.keyword).toBe("Daily Brief");
-    expect(event.isDailyBrief).toBe(true);
-    expect(isDailyBriefEvent(event)).toBe(true);
-    expect(isDailyBriefEvent({})).toBe(false);
-    expect(isDailyBriefEvent({ isDailyBrief: false })).toBe(false);
+describe("v416 daily brief — only his stored events claim the door", () => {
+  // Jonathan, Nov 2: "I don't want the Daily Brief on there all
+  // the time. Just when I add it as an event." The door rides a
+  // stored event of his, at HIS time — no generated event, no
+  // fixed 8:00 AM, no flag.
+  it("a stored event with the Daily Brief keyword claims the door", () => {
+    const mine = makeEvent({ keyword: "Daily Brief", title: "Daily Brief", startTime: "07:30", endTime: "07:30" });
+    expect(keywordPageKindForEvent(mine)).toBe("dailyBrief");
   });
 
-  it("its note names the day from the date itself", () => {
-    expect(dailyBriefEventForDate("2026-11-02").notes).toContain("Monday, November 2");
+  it("a stored event titled Daily Brief claims it at whatever time he set", () => {
+    const mine = makeEvent({ title: "Daily Brief", startTime: "18:00", endTime: "18:00" });
+    expect(keywordPageKindForEvent(mine)).toBe("dailyBrief");
+  });
+
+  it("a day of ordinary stored events has no Daily Brief at all", () => {
+    const day = [
+      makeEvent({ id: "a", title: "Pray", keyword: "Prayer" }),
+      makeEvent({ id: "b", title: "Gardening — Left", keyword: "Gardening" }),
+      makeEvent({ id: "c", title: "Morning Meeting" }),
+      makeEvent({ id: "d", title: "Lunch", keyword: "Meal" }),
+    ];
+    for (const event of day) {
+      expect(keywordPageKindForEvent(event)).not.toBe("dailyBrief");
+    }
+  });
+
+  it("the generator stays out of the schedule tab and the lib", () => {
+    const root = join(__dirname, "..", "..");
+    const scheduleTab = readFileSync(join(root, "components/schedule-tab.tsx"), "utf8");
+    const lib = readFileSync(join(root, "lib/daily-brief.ts"), "utf8");
+    expect(scheduleTab).not.toContain("dailyBriefEventForDate");
+    expect(scheduleTab).not.toContain("isDailyBrief");
+    expect(lib).not.toContain("dailyBriefEventForDate");
+    expect(lib).not.toContain("isDailyBrief");
+  });
+
+  it("the tapped event's date travels to the Brief page", () => {
+    const root = join(__dirname, "..", "..");
+    const scheduleTab = readFileSync(join(root, "components/schedule-tab.tsx"), "utf8");
+    const page = readFileSync(join(root, "app/daily-brief.tsx"), "utf8");
+    // The door chain's shared tap params carry the event's date…
+    expect(scheduleTab).toContain("params: { eventId: event.id, eventDate: event.date }");
+    // …and the page assembles for it, defaulting to today.
+    expect(page).toContain("params.eventDate ?? getTodayISOString()");
   });
 });
 

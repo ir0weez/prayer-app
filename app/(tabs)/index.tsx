@@ -4647,13 +4647,13 @@ export default function HomeScreen() {
         return;
       }
       if (summary.permissionLost) {
-        if (!silent) notifyAlert("Drive folders", "PrayerCircle lost access to the linked folder. Tap the Drive row and choose Reconnect.");
+        if (!silent) notifyAlert("Drive folders", "PrayerCircle lost access to the linked folder. Unlink it in Settings → DATA, then tap the Drive row and pick the folder again.");
         // v362: the silent launch toast fires once per loss run —
         // the check verifies the loss (one retry) and reports
         // whether this loss has already had its say. A folder that
         // is still lost stays quiet on later opens; the Settings →
         // DATA row keeps showing the true state regardless.
-        else if (summary.permissionLostNoticeDue) showDriveToast("Drive: folder access lost — reconnect in Settings → DATA");
+        else if (summary.permissionLostNoticeDue) showDriveToast("Drive: folder access lost — unlink and pick it again in Settings → DATA");
         return;
       }
       if (summary.errors.length > 0 && !silent) {

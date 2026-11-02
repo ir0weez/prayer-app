@@ -233,7 +233,6 @@ import {
   partitionGroupedTodosForSchedule,
 } from "@/lib/schedule-data";
 import { keywordPageKindForEvent, keywordPagePath } from "@/lib/keyword-pages";
-import { dailyBriefEventForDate, isDailyBriefEvent } from "@/lib/daily-brief";
 import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, getPrayerCheckInPeople, type PrayerItem } from "@/lib/prayercircle-data";
 import { WeeklyCalendarView } from "./weekly-calendar-view";
 import { getWeekStart, formatDateISO, formatDateLocal } from "@/lib/date-utils";
@@ -12214,19 +12213,17 @@ export function ScheduleTab({
   const dayEvents = useMemo(() => {
     const isTimeOffDay = isDateDuringTimeOff(timeOffList, selectedDate);
     const base = getEventsForDate(events, selectedDate).filter((event) => isTimeOffEventVisible(event, isTimeOffDay));
-    // v414: the Daily Brief door joins every day at 8:00 AM as a
-    // generated render-only event (lib/daily-brief.ts) — the
-    // holidays' mechanism below, with a door's routing on top. It
-    // is never written back to state or storage; the whites, the
-    // Up Next pools, and the header count keep it out by its flag,
-    // the way they keep holidays out by theirs.
-    const briefEvent = dailyBriefEventForDate(selectedDate);
-    if (!holidaysEnabled) return [...base, briefEvent];
+    // v416: nothing is generated into the day for the Daily Brief
+    // any more (Jonathan, Nov 2: "I don't want the Daily Brief on
+    // there all the time. Just when I add it as an event.") — the
+    // Brief appears only where his own stored event carries the
+    // keyword, claimed as a door like News/Email at render.
+    if (!holidaysEnabled) return base;
     // Auto-seeded US holidays: render-only synthetic events. They carry no
     // startTime (so white-space blocks ignore them) and are never written
     // back to state, storage, notifications, or export.
     const year = parseInt(selectedDate.slice(0, 4), 10);
-    if (Number.isNaN(year)) return [...base, briefEvent];
+    if (Number.isNaN(year)) return base;
     const holidayEvents: ScheduleEvent[] = getHolidaysForYear(year)
       .filter((h) => h.date === selectedDate)
       .map((h) => ({
@@ -12237,7 +12234,7 @@ export function ScheduleTab({
         isHoliday: true,
         isCompleted: false,
       }));
-    return [...base, ...holidayEvents, briefEvent];
+    return [...base, ...holidayEvents];
   }, [events, selectedDate, timeOffList, holidaysEnabled]);
   const dayTodos = useMemo(() => getTodosForDate(todos, selectedDate), [todos, selectedDate]);
   const dayMinistries = useMemo(() => getMinistriesForDate(ministries, selectedDate), [ministries, selectedDate]);
@@ -13312,7 +13309,7 @@ export function ScheduleTab({
       activeBlocks = calculateWhites(
         [
           ...dayTodos.filter((t) => t.startTime).map((t) => ({ ...t, kind: "todo" as const })),
-          ...dayEvents.filter((e) => e.startTime && !isDailyBriefEvent(e)).map((e) => ({ ...e, kind: "event" as const })),
+          ...dayEvents.filter((e) => e.startTime).map((e) => ({ ...e, kind: "event" as const })),
           ...dayMinistries.filter((m) => m.startTime).map((m) => ({ ...m, kind: "ministry" as const })),
           ...dayBibleStudies.filter((study) => study.startTime).map((study) => ({ ...study, kind: "study" as const })),
         ],
@@ -13669,15 +13666,13 @@ export function ScheduleTab({
       const group = buildUpNextGroup(
         [
           ...dayTodos.filter((t: any) => t.startTime && !t.isCompleted).map((t: any) => ({ kind: "todo" as const, item: t })),
-          ...dayEvents.filter((e: any) => e.startTime && !e.isCompleted && !e.isHoliday && !e.isDailyBrief).map((e: any) => ({ kind: "event" as const, item: e })),
+          ...dayEvents.filter((e: any) => e.startTime && !e.isCompleted && !e.isHoliday).map((e: any) => ({ kind: "event" as const, item: e })),
           ...dayMinistries.filter((m: any) => m.startTime && !m.isCompleted).map((m: any) => ({ kind: "ministry" as const, item: m })),
           ...itineraryCandidates,
         ],
         [
           ...dayTodos,
-          // v414: the generated Daily Brief door is not a timed
-          // commitment — it never anchors the Up Next thread.
-          ...dayEvents.filter((e: any) => !e.isDailyBrief),
+          ...dayEvents,
           ...dayMinistries,
           // The anchor scan reads EVERY timed item of the day,
           // done or not (the old scan's discipline for the other
@@ -14671,25 +14666,23 @@ export function ScheduleTab({
         case "event": {
           const showActiveNow = Boolean(isToday && !item.data.isCompleted && item.data.startTime && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id);
           // Auto-seeded holidays are display-only: tapping does nothing and
-          // there is no editor or context menu.
+          // there is no editor or context menu. (A stored Daily Brief
+          // event is NOT display-only since v416: it is his own event,
+          // edited and deleted like any other — only its tap is
+          // claimed inside the card by the door routing.)
           const isHoliday = Boolean(item.data.isHoliday);
-          // v414: the generated Daily Brief door is display-only the
-          // same way — its tap is claimed inside the card by the door
-          // routing (it opens the Brief page), and there is no editor
-          // or delete for an event that exists only at render time.
-          const isBriefDoor = Boolean(item.data.isDailyBrief);
           return (
             <EventCard
               event={item.data}
               people={people}
               isNew={item.data.id === justAddedId}
-              onToggle={isHoliday || isBriefDoor ? () => {} : (position) => {
+              onToggle={isHoliday ? () => {} : (position) => {
                 if (!item.data.isCompleted) onAwardXP?.(xpActionForDate(item.data.date), item.data.id, position);
                 else revokeTodoXP(item.data.id, position);
                 setEvents((prev) => toggleEventCompleted(prev, item.data.id));
               }}
-              onOpenEdit={isHoliday || isBriefDoor ? undefined : openEventEditor}
-              onDelete={isHoliday || isBriefDoor ? undefined : () => {
+              onOpenEdit={isHoliday ? undefined : openEventEditor}
+              onDelete={isHoliday ? undefined : () => {
                 Alert.alert(
                   'Delete Event',
                   `Are you sure you want to delete "${item.data.title}"?`,
@@ -15159,7 +15152,7 @@ export function ScheduleTab({
               the selected day spelled out ("Tuesday, October 27") —
               not the legacy "N of M events left" count (the summary
               prose carries the counts). Skins keep the count. */}
-          <Text style={{ color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12, ...skinText(skinTokens, skinTokens.type.screenSubtitle) }}>{!isSkinned ? `${dateHeader.dayName}, ${dateHeader.monthName} ${dateHeader.dayNum}` : (() => { const ownEvents = dayEvents.filter((e) => !e.isDailyBrief); const total = ownEvents.length; const remaining = ownEvents.filter((e) => !e.isCompleted).length; return remaining === total ? `${total} events today` : `${remaining} of ${total} events left`; })()}</Text>
+          <Text style={{ color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12, ...skinText(skinTokens, skinTokens.type.screenSubtitle) }}>{!isSkinned ? `${dateHeader.dayName}, ${dateHeader.monthName} ${dateHeader.dayNum}` : (() => { const ownEvents = dayEvents; const total = ownEvents.length; const remaining = ownEvents.filter((e) => !e.isCompleted).length; return remaining === total ? `${total} events today` : `${remaining} of ${total} events left`; })()}</Text>
         </View>
         <ReAnimated.View
           style={{

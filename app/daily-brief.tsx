@@ -1,7 +1,14 @@
 /**
  * v414 — the Daily Brief page (daily-breakdown-concepts-v6.html,
- * first view; Jonathan, Nov 2: "love it all, do it"). The 8:00 AM
- * keyword door on the schedule opens here.
+ * first view; Jonathan, Nov 2: "love it all, do it"). The Daily
+ * Brief keyword door on the schedule opens here.
+ *
+ * v416 — the door is his own stored event (the v414 build's
+ * generated daily event was removed on his ruling: "Just when I
+ * add it as an event"), and the page briefs THAT EVENT'S day: the
+ * door chain passes eventDate with the tap (the same params every
+ * keyword page receives), and everything below assembles for it.
+ * No param — a direct open — briefs today.
  *
  * The page assembles on open from the phone's own stores — the
  * day's events, ministries and studies, the day's todos, the
@@ -16,8 +23,8 @@
  *  - GOOD TO KNOW shows a row only for a pack section actually
  *    present, stamped with when that section was prepared;
  *  - a section with no data does not render at all.
- * There is deliberately no Finished bar: the door event is
- * generated at render time and exists in no store to finish.
+ * There is deliberately no Finished bar (the v6 drawing has
+ * none).
  */
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -435,7 +442,7 @@ export default function DailyBriefScreen() {
               {/* Todos due — real checkboxes on the app's own path. */}
               {dayTodos.length > 0 ? (
                 <>
-                  <SectionHead m={m} title="Todos Due Today" count={String(dayTodos.length)} />
+                  <SectionHead m={m} title={date === getTodayISOString() ? "Todos Due Today" : "Todos Due"} count={String(dayTodos.length)} />
                   <View style={[styles.card, { backgroundColor: m.card, shadowColor: m.shadow }]}>
                     {dayTodos.map((todo, i) => (
                       <Pressable

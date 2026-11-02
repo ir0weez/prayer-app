@@ -1,18 +1,17 @@
 /**
  * v414 — the Daily Brief (Jonathan, Nov 2: "love it all, do it" on
- * daily-breakdown-concepts-v6.html). The pure model behind the 8 AM
+ * daily-breakdown-concepts-v6.html). The pure model behind the
  * keyword door and its page:
  *
- *  - The door itself is a CODE-GENERATED event, built here and
- *    injected into the day list render-only — the exact mechanism
- *    the auto-seeded US holidays use (lib/holidays.ts): a
- *    deterministic id, never persisted, never editable, and its
- *    tap is claimed by the door routing (lib/keyword-pages.ts)
- *    before any toggle can see it. News and Email are doors over
- *    HIS stored events; the Brief has no stored event of his to
- *    ride on — it must exist every day at 8:00 AM whether or not
- *    he ever typed it — so it takes the holidays' generated seat
- *    instead, wearing a door's routing.
+ *  - The door rides HIS stored events, exactly like News and
+ *    Email: an event carrying the "Daily Brief" keyword (or a
+ *    title leading with it) is claimed by the door routing
+ *    (lib/keyword-pages.ts) and opens the Brief page for that
+ *    event's day. v416 removed the v414 build's code-generated
+ *    daily event — Jonathan, Nov 2, on v414 installed: "I don't
+ *    want the Daily Brief on there all the time. Just when I add
+ *    it as an event." Nothing generates the Brief into a day any
+ *    more; it appears only where he put it.
  *  - The prep line under each event derives ONLY from the event's
  *    own stored fields, in the brief's priority: its note, its
  *    leave time, its location, a tied person's lead need, an
@@ -37,51 +36,6 @@ import type { GasPriceSnapshot } from "./gas-prices";
 import { formatGasPrice } from "./gas-prices";
 import type { EmailDigest } from "./email-digest";
 import type { NewsBriefingSnapshot } from "./news-briefing";
-
-export const DAILY_BRIEF_TIME = "08:00";
-export const DAILY_BRIEF_TITLE = "Daily Brief";
-
-const FULL_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const FULL_MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-/** The card's note line, from the date alone: "Monday, November 2 —
- *  the whole day, and how to get ready for it" (the v6 drawing's
- *  caption, with the day filled in from the date itself). */
-export function dailyBriefNoteForDate(date: string): string {
-  const d = new Date(`${date}T12:00:00Z`);
-  if (Number.isNaN(d.getTime())) return "The whole day, and how to get ready for it";
-  return `${FULL_DAYS[d.getUTCDay()]}, ${FULL_MONTHS[d.getUTCMonth()]} ${d.getUTCDate()} — the whole day, and how to get ready for it`;
-}
-
-/**
- * The generated 8:00 AM Daily Brief event for a date — render-only,
- * like a holiday: it is never written to the schedule store, so it
- * cannot be edited, deleted, completed, exported, or notified. Its
- * zero-length span (start = end) keeps it out of the live cursor's
- * way beyond its own minute, and the schedule tab keeps it out of
- * the whites and Up Next pools by its flag, the way holidays are
- * kept out by theirs.
- */
-export function dailyBriefEventForDate(date: string): ScheduleEvent {
-  return {
-    id: `daily-brief-${date}`,
-    title: DAILY_BRIEF_TITLE,
-    date,
-    startTime: DAILY_BRIEF_TIME,
-    endTime: DAILY_BRIEF_TIME,
-    notes: dailyBriefNoteForDate(date),
-    isCompleted: false,
-    keyword: DAILY_BRIEF_TITLE,
-    isDailyBrief: true,
-  };
-}
-
-export function isDailyBriefEvent(event: { isDailyBrief?: boolean }): boolean {
-  return event.isDailyBrief === true;
-}
 
 /* ─── The prep line ─────────────────────────────────────────────── */
 

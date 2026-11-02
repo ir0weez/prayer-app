@@ -8,6 +8,13 @@ import {
   type FastDayStatus,
   type PersonalFast,
 } from "./prayercircle-fasting";
+import {
+  countFastDayEntryKinds,
+  getFastDayEntries,
+  hasFastDayEntries,
+  resolveFastDayNotes,
+} from "./fast-day-entries";
+import type { PrayerJournalEntry } from "./prayer-journal";
 
 /**
  * v276 "The Fast, As a Tracker" — the pure model behind the tracker
@@ -240,8 +247,28 @@ export type FastNoteEntry = {
   note: string;
 };
 
-export function getFastNoteStream(fast: PersonalFast, limit = 3): FastNoteEntry[] {
+export function getFastNoteStream(
+  fast: PersonalFast,
+  limit = 3,
+  entries?: PrayerJournalEntry[],
+): FastNoteEntry[] {
   const dates = getFastCalendarDays(fast);
+  // v410: the stream reads the day's journal entries when the
+  // journal holds this fast's moments — one stream row per moment,
+  // newest first, exactly the words that were logged.
+  if (entries && hasFastDayEntries(entries, fast.id)) {
+    const dayNumbers = new Map(dates.map((date, i) => [date, i + 1] as const));
+    return getFastDayEntries(entries, fast.id)
+      .filter((entry) => dayNumbers.has(entry.date) && entry.body.trim().length > 0)
+      .reverse()
+      .slice(0, limit)
+      .map((entry) => ({
+        date: entry.date,
+        dayNumber: dayNumbers.get(entry.date) ?? 0,
+        status: fast.dayStatuses[entry.date] as FastDayState,
+        note: entry.body.trim(),
+      }));
+  }
   const notes = fast.dailyNotes ?? {};
   return dates
     .map((date, i) => ({ date, dayNumber: i + 1, status: fast.dayStatuses[date] as FastDayState, note: notes[date]?.trim() ?? "" }))
@@ -310,6 +337,12 @@ export type RecapScheduleItem = {
 export type RecapContext = {
   people?: Person[];
   scheduleItems?: RecapScheduleItem[];
+  /** v410: the journal store's entries. When they carry this
+   *  fast's day moments, the recap quotes THEM (the one record)
+   *  and counts their kinds for its encouragement lines; when
+   *  absent, the record's legacy dailyNotes are quoted, as before
+   *  the move. */
+  entries?: PrayerJournalEntry[];
 };
 
 /** The Week Ahead companion (his ask, Oct 29): the next Sun–Sat,
@@ -373,17 +406,65 @@ function countsSentence(counts: FastRecap["counts"], scope: string): string {
   return `${scope}: ${parts.join(" · ")}.`;
 }
 
-function noteQuoteParagraphs(fast: PersonalFast, dates: string[], maxQuotes = 5): string[] {
-  const notes = fast.dailyNotes ?? {};
+function noteQuoteParagraphs(
+  fast: PersonalFast,
+  dates: string[],
+  maxQuotes = 5,
+  entries?: PrayerJournalEntry[],
+): string[] {
+  const notes = resolveFastDayNotes(fast, entries);
   const dayNumbers = new Map(getFastCalendarDays(fast).map((date, i) => [date, i + 1]));
-  const entries = dates
+  const quoted = dates
     .map((date) => ({ date, dayNumber: dayNumbers.get(date) ?? 0, note: notes[date]?.trim() ?? "" }))
     .filter((entry) => entry.note.length > 0);
-  const paragraphs = entries.slice(0, maxQuotes).map((entry) => `On Day ${entry.dayNumber} you wrote: “${entry.note}”`);
-  if (entries.length > maxQuotes) {
-    paragraphs.push(`…and ${entries.length - maxQuotes} more ${entries.length - maxQuotes === 1 ? "note" : "notes"} in the record.`);
+  const paragraphs = quoted.slice(0, maxQuotes).map((entry) => `On Day ${entry.dayNumber} you wrote: “${entry.note}”`);
+  if (quoted.length > maxQuotes) {
+    paragraphs.push(`…and ${quoted.length - maxQuotes} more ${quoted.length - maxQuotes === 1 ? "note" : "notes"} in the record.`);
   }
   return paragraphs;
+}
+
+// ─── v410: the entry kinds, counted into encouragement lines ────
+// A day now holds moments, not one note — and the moments have
+// kinds. The recaps learn two lines from them, composed only from
+// what the entries and the day statuses actually say: the close
+// calls (and how many of those days still ended kept), and a fall
+// the fast demonstrably went on past. Nothing is inferred beyond
+// the record: a close call on an unmarked day is counted, never
+// claimed as held.
+type FastKindLines = {
+  closeCall: RecapSegments | null;
+  fell: string | null;
+};
+
+function composeFastKindLines(
+  fast: PersonalFast,
+  entries: PrayerJournalEntry[] | undefined,
+  dates: string[],
+  scope: "week" | "fast",
+): FastKindLines {
+  if (!entries || !hasFastDayEntries(entries, fast.id)) return { closeCall: null, fell: null };
+  const counts = countFastDayEntryKinds(fast, entries, dates);
+  const scopeWords = scope === "week" ? " this week" : " across the fast";
+  let closeCall: RecapSegments | null = null;
+  if (counts.closeCall > 0 && counts.closeCallsHeld === counts.closeCall) {
+    closeCall = [
+      seg(`${numberWord(counts.closeCall, true)} close call${counts.closeCall === 1 ? "" : "s"}${scopeWords} — `),
+      seg("held every one", true),
+      seg("."),
+    ];
+  } else if (counts.closeCall > 0 && counts.closeCallsHeld > 0) {
+    closeCall = [
+      seg(`${numberWord(counts.closeCall, true)} close call${counts.closeCall === 1 ? "" : "s"}${scopeWords} — `),
+      seg(`${numberWord(counts.closeCallsHeld)} of them held`, true),
+      seg("."),
+    ];
+  }
+  const fell =
+    counts.fell > 0 && counts.fellFollowedByKept
+      ? `${numberWord(counts.fell, true)} ${counts.fell === 1 ? "fall" : "falls"} in the record — and the fast went on.`
+      : null;
+  return { closeCall, fell };
 }
 
 // ─── Calendar weeks (v342) ──────────────────────────────────────
@@ -614,7 +695,9 @@ export function composeWeeklyRecap(
 ): FastRecap {
   const dates = week.days.map((d) => d.date);
   const counts = countStatuses(fast, dates);
-  const notes = fast.dailyNotes ?? {};
+  // v410: the week's quotes read the day entries when the journal
+  // carries them — the same words, from the one record.
+  const notes = resolveFastDayNotes(fast, context.entries);
   const noteOf = (date: string) => notes[date]?.trim() ?? "";
   const label = formatRecapWeekLabel(week.startDate, week.endDate);
   const heroDates = formatRecapHeroDates(week.startDate, week.endDate);
@@ -782,6 +865,11 @@ export function composeWeeklyRecap(
     }
   }
 
+  // v410: the week's close calls, counted from the day entries —
+  // a Highs line when the days behind them held.
+  const kindLines = composeFastKindLines(fast, context.entries, dates, "week");
+  if (kindLines.closeCall) highs.push(lineRow(kindLines.closeCall));
+
   const blocks: RecapBlock[] = [];
   if (highs.length > 0) blocks.push({ title: "Highs", tone: "plain", marker: "circle", rows: highs });
   if (lows.length > 0) blocks.push({ title: "Lows", tone: "tonal", marker: "diamond", rows: lows });
@@ -801,6 +889,9 @@ export function composeWeeklyRecap(
   } else if (struggleDays.length > 0) {
     encSentences.push(`The hardest day was ${weekdayLong(struggleDays[0].date)}, and you still held.`);
   }
+  // v410: a fall the fast went on past is an encouragement fact,
+  // stated plainly among the week's other facts.
+  if (kindLines.fell) encSentences.push(kindLines.fell);
   if (prayer.daysCount > 0) {
     encSentences.push(
       `You prayed for people on ${numberWord(prayer.daysCount)} of ${numberWord(windowDays)} days${prayer.peopleCount > 0 ? ` — ${numberWord(prayer.peopleCount)} ${prayer.peopleCount === 1 ? "person" : "people"} across the week` : ""}.`,
@@ -1051,7 +1142,7 @@ export function getFastLongestStreak(fast: PersonalFast): number {
   return longest;
 }
 
-export function composeFinalRecap(fast: PersonalFast): FastRecap {
+export function composeFinalRecap(fast: PersonalFast, entries?: PrayerJournalEntry[]): FastRecap {
   const dates = getFastCalendarDays(fast);
   const counts = countStatuses(fast, dates);
   const progress = getFastProgress(fast);
@@ -1059,7 +1150,12 @@ export function composeFinalRecap(fast: PersonalFast): FastRecap {
   const why = fast.why?.trim();
   if (why) paragraphs.push(`Your why, in your words: “${why}”`);
   paragraphs.push(countsSentence(counts, `Across all ${progress.total} days`));
-  paragraphs.push(...noteQuoteParagraphs(fast, dates, 5));
+  paragraphs.push(...noteQuoteParagraphs(fast, dates, 5, entries));
+  // v410: the whole fast's kind counts ride the final recap as
+  // encouragement lines, in the paragraphs and in their own block.
+  const kindLines = composeFastKindLines(fast, entries, dates, "fast");
+  if (kindLines.closeCall) paragraphs.push(segmentsText(kindLines.closeCall));
+  if (kindLines.fell) paragraphs.push(kindLines.fell);
   // v342: the final recap wears the same v5 document — the hero is
   // the whole road, its thread the fast's kept fraction; the notes
   // ride as one "In your words" block; the encouragement carries
@@ -1067,16 +1163,26 @@ export function composeFinalRecap(fast: PersonalFast): FastRecap {
   const total = Math.max(1, progress.total);
   const hard = counts.kept * 2 < counts.kept + counts.skipped + counts.missed;
   const dayNumbers = new Map(dates.map((date, i) => [date, i + 1] as const));
+  // v410: the quoted words read the day entries when the journal
+  // carries them — the migrated notes quote exactly as they did
+  // from the record.
+  const notes = resolveFastDayNotes(fast, entries);
   const noteRows: RecapBlockRow[] = dates
-    .filter((date) => (fast.dailyNotes?.[date]?.trim() ?? "").length > 0)
+    .filter((date) => (notes[date]?.trim() ?? "").length > 0)
     .slice(0, 5)
     .map((date) => ({
       kind: "quote" as const,
       whenLabel: `${weekdayLong(date)} · Day ${dayNumbers.get(date)}`,
-      text: fast.dailyNotes![date].trim(),
+      text: notes[date].trim(),
     }));
   const blocks: RecapBlock[] =
     noteRows.length > 0 ? [{ title: "In your words", tone: "plain", marker: "circle", rows: noteRows }] : [];
+  if (kindLines.closeCall || kindLines.fell) {
+    const kindRows: RecapBlockRow[] = [];
+    if (kindLines.closeCall) kindRows.push(lineRow(kindLines.closeCall));
+    if (kindLines.fell) kindRows.push(lineRow([seg(kindLines.fell)]));
+    blocks.push({ title: "Held, in moments", tone: "tonal", marker: "diamond", rows: kindRows });
+  }
   const encouragement: RecapEncouragement = {
     paragraphs: [
       countsSentence(counts, `Across all ${progress.total} days`),

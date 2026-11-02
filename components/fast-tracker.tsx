@@ -1,9 +1,10 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, StyleSheet, Text, TextInput, View, type ViewStyle } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import type { PeopleFrontDoorFamily } from "@/lib/people-material";
+import type { PrayerJournalEntry } from "@/lib/prayer-journal";
 import {
   FAST_KEPT,
   FAST_KEPT_DEEP,
@@ -12,8 +13,6 @@ import {
   FAST_SKIPPED_DEEP,
   FAST_SKIPPED_WASH,
   formatRecapWeekLabel,
-  getFastCalendarWeeks,
-  getFastEncouragement,
   getFastNoteStream,
   getFastRecordWeeks,
   getFastWeekKeptLabel,
@@ -72,13 +71,7 @@ const STATUS_LABEL: Record<FastDayStatus, string> = {
   missed: "Missed",
 };
 
-const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const WEEKDAY_SHORT = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
-function weekdayName(date: string): string {
-  const parsed = new Date(`${date}T00:00:00Z`);
-  return Number.isNaN(parsed.getTime()) ? "" : WEEKDAY_NAMES[parsed.getUTCDay()];
-}
 
 function weekdayShort(date: string): string {
   const parsed = new Date(`${date}T00:00:00Z`);
@@ -268,9 +261,12 @@ export function FastRecordCard(props: {
   activeQuarter: number;
   onQuarterChange: (index: number) => void;
   onOpenDay: (date: string) => void;
+  /** v410: the journal entries — the note stream reads the day's
+   *  moments from them when they carry this fast. */
+  entries?: PrayerJournalEntry[];
 }) {
-  const { family, fast, today, weeks, quarters, activeQuarter, onQuarterChange, onOpenDay } = props;
-  const notes = getFastNoteStream(fast, 3);
+  const { family, fast, today, weeks, quarters, activeQuarter, onQuarterChange, onOpenDay, entries } = props;
+  const notes = getFastNoteStream(fast, 3, entries);
   // v283: the Record shows the weeks that have begun, current week
   // first (the model's ruling) — v280 reversed ALL of the quarter's
   // weeks, so Q4 opened on Week 53 stamped "0 of 7 kept".
@@ -484,77 +480,14 @@ export function FastRecapsCard(props: {
   );
 }
 
-// ─── 4 · The day sheet ───────────────────────────────────────────────
-export function FastDaySheetContent(props: {
-  family: FastTrackerFamily;
-  fast: PersonalFast;
-  date: string;
-  onSave: (status: FastDayStatus | null, note: string) => void;
-  onClose: () => void;
-}) {
-  const { family, fast, date, onSave, onClose } = props;
-  const days = getFastCalendarDays(fast);
-  const dayNumber = days.indexOf(date) + 1;
-  // v342 (amendment #6): the day sheet's week is the CALENDAR week
-  // (Sun–Sat) holding the day — the same index the Record and the
-  // Recaps count by, not a 7-day block from the fast's start.
-  const weekNumber =
-    dayNumber > 0 ? getFastCalendarWeeks(fast).findIndex((w) => w.startDate <= date && date <= w.endDate) + 1 : 0;
-  const [status, setStatus] = useState<FastDayStatus | null>(fast.dayStatuses[date] ?? null);
-  const [note, setNote] = useState(fast.dailyNotes?.[date] ?? "");
-  const encouragement = getFastEncouragement(status ?? undefined);
-  return (
-    <View>
-      <View style={[styles.handle, { backgroundColor: family.wash2 }]} />
-      <Text style={[styles.sheetTitle, { color: family.ink }]}>Day {dayNumber}</Text>
-      <Text style={[styles.sheetSub, { color: family.inkSoft }]}>
-        {weekdayName(date)} · Week {weekNumber} of the fast
-      </Text>
-
-      <View style={{ marginTop: 16 }}>
-        <FastSegmentedControl
-          family={family}
-          options={STATUS_OPTIONS}
-          value={status}
-          // The mockup's sheet carries no Clear-mark button: tapping
-          // the standing segment again unmarks the day (v280).
-          onChange={(next) => setStatus(next === status ? null : next)}
-          selectedPaints={{
-            missed: { backgroundColor: FAST_MISSED_WASH, color: FAST_MISSED_DEEP },
-            skipped: { backgroundColor: FAST_SKIPPED_WASH, color: FAST_SKIPPED_DEEP },
-          }}
-        />
-      </View>
-
-      <View style={[styles.field, { borderColor: family.inkSoft }]}>
-        <Text style={[styles.fieldLabel, { backgroundColor: family.card, color: family.deep }]}>Note for this day</Text>
-        <TextInput
-          value={note}
-          onChangeText={setNote}
-          placeholder="Why did this day go the way it went?"
-          placeholderTextColor={family.inkSoft}
-          multiline
-          style={[styles.fieldInput, { color: family.ink }]}
-        />
-      </View>
-
-      <View style={[styles.encourage, { backgroundColor: family.wash }]}>
-        <Text style={[styles.encourageKicker, { color: family.washSub }]}>{encouragement.kicker}</Text>
-        <Text style={[styles.encourageText, { color: family.ink }]}>&ldquo;{encouragement.text}&rdquo;</Text>
-        <Text style={[styles.encourageRef, { color: family.inkSoft }]}>{encouragement.ref}</Text>
-      </View>
-
-      <View style={styles.actions}>
-        <Pressable onPress={onClose} style={styles.textButton}>
-          <Text style={[styles.textButtonLabel, { color: family.deep }]}>Cancel</Text>
-        </Pressable>
-        <Pressable onPress={() => onSave(status, note)} style={[styles.filledButton, { backgroundColor: family.seed }]}>
-          <Text style={styles.filledButtonLabel}>Save</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
+// ─── 4 · The day sheet — RETIRED in v410 ─────────────────────────────
+// The pop-up day sheet is gone (Jonathan, Nov 1: "I hate these
+// little pop-up cards"). The Day Page (app/fast-day.tsx, the
+// approved v13 Frame 2) replaces it at every entry point: the
+// day's status segmented control, its encouragement verse, and
+// its moments all live there now — the moments as journal
+// entries, not a single note string. Nothing renders a bottom-
+// sheet day editor anymore.
 
 // ─── 5b · The recap document ─────────────────────────────────────────
 /* ─── The recap document (v342) ───────────────────────────────────
@@ -1021,19 +954,11 @@ const styles = StyleSheet.create({
   stateTag: { fontSize: 12, lineHeight: 16, fontWeight: "500", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 1 },
   noteText: { fontSize: 14, lineHeight: 20, letterSpacing: 0.25 },
 
-  handle: { width: 32, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 16 },
-  sheetTitle: { fontSize: 22, lineHeight: 28, fontWeight: "500" },
-  sheetSub: { fontSize: 14, lineHeight: 20, letterSpacing: 0.25, marginTop: 2 },
-  field: { borderWidth: 1.5, borderRadius: 4, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10, marginTop: 22, position: "relative" },
-  fieldLabel: { position: "absolute", top: -9, left: 12, paddingHorizontal: 4, fontSize: 12, lineHeight: 16, fontWeight: "500", letterSpacing: 0.5 },
-  fieldInput: { fontSize: 16, lineHeight: 24, letterSpacing: 0.5, minHeight: 48, textAlignVertical: "top" },
-  encourage: { borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, marginTop: 16 },
-  encourageKicker: { fontSize: 11, lineHeight: 16, fontWeight: "500", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 4 },
-  encourageText: { fontSize: 14, lineHeight: 20, letterSpacing: 0.25, fontStyle: "italic" },
-  encourageRef: { fontSize: 12, lineHeight: 16, letterSpacing: 0.4, marginTop: 6 },
-  actions: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 4, marginTop: 16 },
-  filledButton: { height: 40, paddingHorizontal: 24, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  filledButtonLabel: { color: "#FFFFFF", fontSize: 14, lineHeight: 20, fontWeight: "500", letterSpacing: 0.1 },
+  // v410: the day sheet's styles (handle, sheetTitle, field,
+  // encourage, actions) retired with the sheet itself — the Day
+  // Page carries its own dress in app/fast-day.tsx.
+  // v410: filledButton/filledButtonLabel retired with the day
+  // sheet (its Save button was their last user).
 
   docCard: { borderRadius: 16, overflow: "hidden", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 1, shadowRadius: 10, elevation: 2 },
   docBand: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 16 },

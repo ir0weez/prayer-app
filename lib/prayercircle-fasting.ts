@@ -30,16 +30,20 @@ export type FocusItemDailyStatus = {
   status: FocusItemStatus;
 };
 
-// Generate a summary of a completed fast from notes and stats
-export function generateFastSummary(fast: PersonalFast): string {
+// Generate a summary of a completed fast from notes and stats.
+// v410: the day's words live in the journal now (fast-day entries)
+// — the caller passes the resolved notes map (lib/fast-day-entries'
+// resolveFastDayNotes) when it has one; without it the record's
+// own dailyNotes are read, as before the move.
+export function generateFastSummary(fast: PersonalFast, dayNotes?: Record<string, string>): string {
   const days = Object.keys(fast.dayStatuses).sort();
   const completed = days.filter(d => fast.dayStatuses[d] === "completed").length;
   const skipped = days.filter(d => fast.dayStatuses[d] === "skipped").length;
   const missed = days.filter(d => fast.dayStatuses[d] === "missed").length;
   const total = fast.durationDays;
   const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-  
-  const notes = fast.dailyNotes || {};
+
+  const notes = dayNotes ?? fast.dailyNotes ?? {};
   const noteEntries = Object.entries(notes).filter(([_, note]) => note.trim().length > 0);
   
   let summary = `Completed ${completed} of ${total} days (${completionRate}%).`;

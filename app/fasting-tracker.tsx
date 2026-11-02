@@ -10,9 +10,8 @@ import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/t
 import { PaperGrainOverlay } from "@/components/paper-grain";
 import { PaperSettle } from "@/components/paper-motion";
 import { BitSettle } from "@/components/bit-motion";
-import { FastDaySheetContent, FastRecapDocument, FastRecapsCard, FastRecordCard, FastTodayHero, FastWhyCard, type FastRecapTarget } from "@/components/fast-tracker";
+import { FastRecapDocument, FastRecapsCard, FastRecordCard, FastTodayHero, FastWhyCard, type FastRecapTarget } from "@/components/fast-tracker";
 import { KeepMeOccupiedCard } from "@/components/keep-me-occupied/door-card";
-import { AnchoredSheet } from "@/components/anchored-sheet";
 import { PrestigePrompt } from "@/components/prestige-prompt";
 import { COINS_STORAGE_KEY, parseCoins, type HometownCoins, applyCoinsDelta } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
@@ -33,7 +32,8 @@ import {
   recapToJournalBody,
   type FastRecap,
 } from "@/lib/fast-tracker";
-import { createPrayerJournalEntry, normalizePrayerJournalEntries } from "@/lib/prayer-journal";
+import { createPrayerJournalEntry, normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
+import { migrateDailyNotesToJournalEntries, resolveFastDayNotes } from "@/lib/fast-day-entries";
 import { hasTypeScale, skinText } from "@/lib/skin-themes";
 import { getTodayISOString, normalizePeopleForStorage, type Person } from "@/lib/prayercircle-data";
 import {
@@ -139,8 +139,11 @@ export default function FastingTrackerScreen() {
   const fadeScrollY = useTopFadeScrollY();
   const [activeQuarter, setActiveQuarter] = useState(0);
   const [quarterAutoSet, setQuarterAutoSet] = useState(false);
-  // The day sheet and the recap viewer.
-  const [sheetDate, setSheetDate] = useState<string | null>(null);
+  // v410: the day sheet is retired — days open on the Day Page
+  // (app/fast-day.tsx). The journal entries ride along in state:
+  // the migration moves the day notes into them on load, the
+  // recaps quote them, and the Record's note stream reads them.
+  const [journalEntries, setJournalEntries] = useState<PrayerJournalEntry[]>([]);
   const [recapTarget, setRecapTarget] = useState<FastRecapTarget | null>(null);
   // v299: the real keyboard height (0 when hidden) — the fasting
   // sheets pad their modal roots by it so they ride above the
@@ -158,18 +161,38 @@ export default function FastingTrackerScreen() {
       let isActive = true;
       historyScrollDone.current = false;
       AsyncStorage.getItem(COINS_STORAGE_KEY).then(v => { try { setCoins(parseCoins(v ? JSON.parse(v) : {})); } catch {} }).catch(() => undefined);
-      AsyncStorage.getItem(FASTS_STORAGE_KEY)
-        .then((storedFasts) => {
+      Promise.all([AsyncStorage.getItem(FASTS_STORAGE_KEY), AsyncStorage.getItem(JOURNAL_STORAGE_KEY)])
+        .then(([storedFasts, storedJournal]) => {
           if (!isActive) return;
           // v326: heal-and-persist — parse + normalize the stored
           // fasts, and when normalization repaired anything write
           // the healed array back once, so the fix reaches every
           // reader of the key, not just this screen.
           const stored = parseStoredFasts(storedFasts);
-          if (stored.healedJson) {
+          // v410: the day notes move into the journal on this same
+          // load — each dailyNotes string becomes the day's first
+          // journal entry, word for word, and the fast records come
+          // back without the field. Idempotent: once moved, there
+          // is nothing left to move. When the migration writes, it
+          // supersedes the heal write (its fasts ARE the healed
+          // fasts, moved); the journal write happens only here.
+          let loadedEntries: PrayerJournalEntry[] = [];
+          if (storedJournal) {
+            try {
+              loadedEntries = normalizePrayerJournalEntries(JSON.parse(storedJournal));
+            } catch {
+              loadedEntries = [];
+            }
+          }
+          const migration = migrateDailyNotesToJournalEntries(stored.fasts, loadedEntries);
+          if (migration.changed) {
+            AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify(migration.fasts)).catch(() => undefined);
+            AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(migration.entries)).catch(() => undefined);
+          } else if (stored.healedJson) {
             AsyncStorage.setItem(FASTS_STORAGE_KEY, stored.healedJson).catch(() => undefined);
           }
-          const nextFasts = stored.fasts.map((fast) => ({
+          setJournalEntries(migration.entries);
+          const nextFasts = migration.fasts.map((fast) => ({
             ...fast,
             focusItemDailyStatuses: resetFocusItemsForNewDay(fast.focusItemDailyStatuses, today),
           }));
@@ -260,13 +283,19 @@ export default function FastingTrackerScreen() {
   };
 
   const maybeGenerateFastSummary = (updatedFasts: PersonalFast[]) => {
-    // Auto-generate summary if fast is complete and no summary yet
+    // Auto-generate summary if fast is complete and no summary yet.
+    // v410: the summary's "Key moments" quote the day entries now —
+    // the resolved notes map is the journal's words when the
+    // journal carries this fast, the record's own notes otherwise.
     const updatedFast = updatedFasts.find(f => f.id === selectedFast?.id);
     if (updatedFast && !updatedFast.summary) {
       const days = getFastCalendarDays(updatedFast);
       const allMarked = days.every(d => updatedFast.dayStatuses[d]);
       if (allMarked && days.length > 0) {
-        const withSummary = { ...updatedFast, summary: generateFastSummary(updatedFast) };
+        const withSummary = {
+          ...updatedFast,
+          summary: generateFastSummary(updatedFast, resolveFastDayNotes(updatedFast, journalEntries)),
+        };
         persistFasts(updatedFasts.map(f => f.id === updatedFast.id ? withSummary : f));
       }
     }
@@ -291,31 +320,13 @@ export default function FastingTrackerScreen() {
     persistFasts(removeFastDayStatus(fasts, selectedFast.id, dateString));
   };
 
-  // v276 day sheet save: the state and the day's note land in ONE
-  // persist, so the two can never clobber each other. The note is the
-  // existing dailyNotes record (the board's note field, now reached
-  // through the sheet); an emptied note removes the key.
-  const saveDaySheet = (dateString: string, status: FastDayStatus | null, note: string) => {
+  // v410: the day sheet's save is retired with the sheet — the
+  // Day Page (app/fast-day.tsx) writes the day's status through
+  // the same status engine and logs the day's moments as journal
+  // entries. Days open there now, never in a sheet on this page.
+  const openDayPage = (date: string) => {
     if (!selectedFast) return;
-    const previousStatus = selectedFast.dayStatuses[dateString];
-    let nextFasts = fasts;
-    if (status !== previousStatus) {
-      applyFastStatusEffects(dateString, status, previousStatus);
-      nextFasts = status
-        ? upsertFastDayStatus(nextFasts, selectedFast.id, dateString, status)
-        : removeFastDayStatus(nextFasts, selectedFast.id, dateString);
-    }
-    const trimmedNote = note.trim();
-    nextFasts = nextFasts.map((fast) => {
-      if (fast.id !== selectedFast.id) return fast;
-      const dailyNotes = { ...(fast.dailyNotes ?? {}) };
-      if (trimmedNote) dailyNotes[dateString] = trimmedNote;
-      else delete dailyNotes[dateString];
-      return { ...fast, dailyNotes };
-    });
-    persistFasts(nextFasts);
-    maybeGenerateFastSummary(nextFasts);
-    setSheetDate(null);
+    router.push({ pathname: "/fast-day", params: { fastId: selectedFast.id, date } });
   };
 
   // v276 recaps: composed on-device from the record + his notes
@@ -356,7 +367,7 @@ export default function FastingTrackerScreen() {
 
   const activeRecap: FastRecap | null = useMemo(() => {
     if (!selectedFast || !recapTarget) return null;
-    if (recapTarget.kind === "final") return composeFinalRecap(selectedFast);
+    if (recapTarget.kind === "final") return composeFinalRecap(selectedFast, journalEntries);
     const week = recapWeeks.find((w) => w.startDate === recapTarget.startDate);
     return week
       ? composeWeeklyRecap(selectedFast, week, {
@@ -367,9 +378,11 @@ export default function FastingTrackerScreen() {
             startTime: e.startTime,
             endTime: e.endTime,
           })),
+          // v410: the recap quotes the day entries — the one record.
+          entries: journalEntries,
         })
       : null;
-  }, [selectedFast, recapTarget, recapWeeks, recapPeople, recapEvents]);
+  }, [selectedFast, recapTarget, recapWeeks, recapPeople, recapEvents, journalEntries]);
 
   const recapSavedKey = recapTarget
     ? recapTarget.kind === "week"
@@ -588,7 +601,7 @@ export default function FastingTrackerScreen() {
                 board, pawn picker) are replaced by the tracker the
                 mockup drew: Why card, Today hero, Record, Recaps.
                 Every write still runs through the same engine
-                (setFastStatus / saveDaySheet), and the focus data
+                (setFastStatus; the Day Page since v410), and the focus data
                 stays stored on the fast record. v280: the board
                 layer itself is now deleted (see the engine note) —
                 nothing of it remains to switch back on. */}
@@ -598,7 +611,7 @@ export default function FastingTrackerScreen() {
               fast={selectedFast}
               today={today}
               onMark={(status, position) => setFastStatus(today, status, position)}
-              onOpenDay={(date) => setSheetDate(date)}
+              onOpenDay={openDayPage}
             />
             {/* v395 "Keep Me Occupied" (Jonathan's idea, mockup
                 keep-me-occupied-concept-v3 Screen 1): the card sits
@@ -615,7 +628,8 @@ export default function FastingTrackerScreen() {
               quarters={trackerQuarters}
               activeQuarter={activeQuarterIndex}
               onQuarterChange={setActiveQuarter}
-              onOpenDay={(date) => setSheetDate(date)}
+              onOpenDay={openDayPage}
+              entries={journalEntries}
             />
             <FastRecapsCard
               family={trackerFamily}
@@ -710,31 +724,9 @@ export default function FastingTrackerScreen() {
           The sheets after this are Modals and paint in their own
           windows, above the fade. */}
       <TopFade color={skinTokens.background ?? colors.background} scrollY={fadeScrollY} topInset={insets.top} />
-      {/* v276 day sheet — a Material bottom sheet (28px top radius,
-          drag handle) over the dimmed page: the day's state, its
-          note, and the encouragement fitted to the selected state.
-          It replaces the old centered Daily Note modal; the note it
-          saves is the same dailyNotes record. */}
-      <AnchoredSheet visible={sheetDate !== null && !!selectedFast} onClose={() => setSheetDate(null)} scrimColor="rgba(20,16,40,0.5)" containerStyle={{ flex: 1, justifyContent: "flex-end", paddingBottom: keyboardHeight }}>
-        {/* v299: paddingBottom = the live keyboard height, so when
-            the note field raises the keyboard the whole sheet rides
-            up and seats directly above it — note input, status
-            control and Save/Cancel all stay visible; when the
-            keyboard dismisses the height returns to 0 and the sheet
-            settles back to the bottom edge. */}
-          <View style={{ backgroundColor: trackerFamily.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 28, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }}>
-            {sheetDate && selectedFast ? (
-              <FastDaySheetContent
-                key={sheetDate}
-                family={trackerFamily}
-                fast={selectedFast}
-                date={sheetDate}
-                onSave={(status, note) => saveDaySheet(sheetDate, status, note)}
-                onClose={() => setSheetDate(null)}
-              />
-            ) : null}
-          </View>
-      </AnchoredSheet>
+      {/* v410: the v276 day sheet stood here — retired. Days open
+          on the Day Page (app/fast-day.tsx); the only Modal left
+          on this page is the recap viewer below and the creator. */}
 
       {/* v276 recap viewer — the weekly/final recap document as a
           full page over the profile. (v280: the all-recaps list
@@ -782,7 +774,7 @@ export default function FastingTrackerScreen() {
         setIsEditingFast(false);
         resetFastCreator();
       }}>
-        {/* v299: same keyboard lift as the day sheet — this editor
+        {/* v299: the keyboard lift the day sheet first needed — this editor
             (fast name / "Why are you fasting?" / start date / focus)
             is the same bottom-sheet class and buried its lower
             fields and Save under the keyboard the same way. */}

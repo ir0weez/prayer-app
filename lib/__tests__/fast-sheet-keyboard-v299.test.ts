@@ -57,19 +57,27 @@ describe("v299 — fasting day sheet keyboard avoidance", () => {
   });
 
   it("the day-sheet modal root pads by the keyboard height", () => {
-    const start = profile.indexOf("sheetDate !== null");
-    expect(start).toBeGreaterThan(-1);
-    const end = profile.indexOf("</Modal>", start);
-    const daySheetModal = profile.slice(start, end);
-    // The lift lives on the modal's flex-end root, so the whole
-    // sheet (note field + status control + Save/Cancel) rides up.
-    expect(daySheetModal).toContain("paddingBottom: keyboardHeight");
-    expect(daySheetModal).toContain('justifyContent: "flex-end"');
+    // RE-BASED (v410): the day sheet is retired — the Day Page
+    // replaced it, and the lift moved with the day's composer:
+    // the Day Page pads its docked composer by the same live
+    // keyboard height, so the kind chips + field + Log ride
+    // above the keyboard exactly as the sheet's contents did.
+    const dayPage = read("app/fast-day.tsx");
+    expect(dayPage).toContain("useKeyboardHeight");
+    expect(dayPage).toContain("keyboardHeight");
+    expect(profile).not.toContain("sheetDate !== null");
   });
 
   it("the day sheet still carries its note field and save wiring (content unchanged)", () => {
-    expect(fastTracker).toContain("Note for this day");
-    expect(profile).toContain("saveDaySheet(sheetDate, status, note)");
+    // RE-BASED (v410): the note field and the sheet save are gone
+    // with the sheet. The day's words are written on the Day Page
+    // as journal entries (appendFastDayEntry), and its status
+    // through the same day-status writes the sheet's save used.
+    expect(fastTracker).not.toContain("Note for this day");
+    expect(profile).not.toContain("saveDaySheet");
+    const dayPage = read("app/fast-day.tsx");
+    expect(dayPage).toContain("appendFastDayEntry");
+    expect(dayPage).toContain("upsertFastDayStatus");
   });
 
   it("the fast creator/editor sheet (Why editor) carries the same lift", () => {

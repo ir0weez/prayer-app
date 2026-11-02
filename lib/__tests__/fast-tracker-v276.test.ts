@@ -269,14 +269,24 @@ describe("the page: tracker mounted, game furniture gone", () => {
     expect(profile).toContain("<FastTodayHero");
     expect(profile).toContain("<FastRecordCard");
     expect(profile).toContain("<FastRecapsCard");
-    expect(profile).toContain("<FastDaySheetContent");
+    // RE-BASED (v410): the day sheet surface is retired — days
+    // open on the Day Page (app/fast-day.tsx) since his Nov 1
+    // ruling against the pop-up cards.
+    expect(profile).not.toContain("<FastDaySheetContent");
     expect(profile).toContain("derivePeopleFrontDoor(colors.primary");
   });
 
   it("the hero marks TODAY through the real engine; the sheet saves state + note together", () => {
     expect(profile).toContain("onMark={(status, position) => setFastStatus(today, status, position)}");
-    expect(profile).toContain("onSave={(status, note) => saveDaySheet(sheetDate, status, note)}");
-    expect(profile).toContain("const saveDaySheet =");
+    // RE-BASED (v410): state + the day's words are written on the
+    // Day Page now — the status through the same day-status
+    // writes, the words as journal entries — in place of the
+    // sheet's single save.
+    expect(profile).not.toContain("const saveDaySheet =");
+    expect(profile).toContain('pathname: "/fast-day"');
+    const dayPage = read("app/fast-day.tsx");
+    expect(dayPage).toContain("upsertFastDayStatus");
+    expect(dayPage).toContain("appendFastDayEntry");
   });
 
   it("the creator gained the Why field", () => {
@@ -292,8 +302,13 @@ describe("the page: tracker mounted, game furniture gone", () => {
   });
 
   it("the day sheet fits its encouragement card to the selected segment", () => {
+    // RE-BASED (v410): the encouragement card moved with the day
+    // to the Day Page, still fitted to the selected segment by
+    // the same source; the Record's note stream now reads the
+    // day entries it is handed.
+    const dayPage = read("app/fast-day.tsx");
+    expect(dayPage).toContain("getFastEncouragement(status ?? undefined)");
     const tracker = read("components/fast-tracker.tsx");
-    expect(tracker).toContain("getFastEncouragement(status ?? undefined)");
-    expect(tracker).toContain("getFastNoteStream(fast, 3)");
+    expect(tracker).toContain("getFastNoteStream(fast, 3, entries)");
   });
 });

@@ -17,6 +17,8 @@ import {
   type PersonalFast,
 } from "@/lib/prayercircle-fasting";
 import { getTodayISOString } from "@/lib/prayercircle-data";
+import { fastDayNotesFromEntries, migrateFastDayEntriesInStorage } from "@/lib/fast-day-entries";
+import type { PrayerJournalEntry } from "@/lib/prayer-journal";
 
 function typeMeta(fast: PersonalFast) {
   return (
@@ -84,10 +86,14 @@ function FastTrophyCard({
   fast,
   expanded,
   onToggle,
+  entries,
 }: {
   fast: PersonalFast;
   expanded: boolean;
   onToggle: () => void;
+  /** v410: the journal entries — the trophy's Daily Notes read
+   *  the day's moments from them when they carry this fast. */
+  entries?: PrayerJournalEntry[];
 }) {
   const colors = useColors();
   const meta = typeMeta(fast);
@@ -98,7 +104,7 @@ function FastTrophyCard({
   const active = isActiveFast(fast);
   const fullyComplete = percentage === 100;
   const days = useMemo(() => getFastCalendarDays(fast), [fast]);
-  const notes = fast.dailyNotes ?? {};
+  const notes = fastDayNotesFromEntries(fast, entries) ?? fast.dailyNotes ?? {};
   const noteDates = useMemo(
     () => days.filter((d) => notes[d]?.trim()),
     [days, notes]
@@ -340,10 +346,19 @@ export default function FastCollectionScreen() {
   const colors = useColors();
   const { isSkinned, tokens: skinTokens } = useSkin();
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
+  const [journalEntries, setJournalEntries] = useState<PrayerJournalEntry[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
+      // v410: run the day-notes migration (idempotent) so the
+      // trophies read the same one record as everywhere else.
+      try {
+        const migrated = await migrateFastDayEntriesInStorage();
+        setJournalEntries(migrated.entries);
+      } catch {
+        // The trophies still render from the fast records.
+      }
       try {
         const raw = await AsyncStorage.getItem(FASTS_STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
@@ -403,6 +418,7 @@ export default function FastCollectionScreen() {
             <FastTrophyCard
               key={fast.id}
               fast={fast}
+              entries={journalEntries}
               expanded={expandedId === fast.id}
               onToggle={() =>
                 setExpandedId((prev) => (prev === fast.id ? null : fast.id))

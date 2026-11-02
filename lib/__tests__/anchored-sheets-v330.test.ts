@@ -183,11 +183,17 @@ describe("v330 — every in-scope surface rides the mechanism", () => {
     // — the editor on My Profile, the day sheet on the Fasting
     // Tracker page — one AnchoredSheet each, same mechanism,
     // same keyboard lift, same save wiring.
+    // RE-BASED (v410): the day sheet is retired outright (his
+    // Nov 1 ruling) — the Day Page replaces it, so the tracker
+    // page carries NO AnchoredSheet; its keyboard lift survives
+    // on the fast creator's overlay, and the day doors route to
+    // the page. My Profile's editor sheet is untouched.
     const tracker = read("app/fasting-tracker.tsx");
     expect(count(profile, "<AnchoredSheet")).toBe(1);
-    expect(count(tracker, "<AnchoredSheet")).toBe(1);
+    expect(count(tracker, "<AnchoredSheet")).toBe(0);
     expect(tracker).toContain("paddingBottom: keyboardHeight");
-    expect(tracker).toContain("onSave={(status, note) => saveDaySheet(sheetDate, status, note)}");
+    expect(tracker).not.toContain("saveDaySheet");
+    expect(tracker).toContain('pathname: "/fast-day"');
     // The fast creator (Part 2) and the recap viewer (a full-page
     // document) keep their Modals.
     expect(tracker).toContain("visible={showFastCreator}");

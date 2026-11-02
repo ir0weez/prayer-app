@@ -139,7 +139,13 @@ describe("source pins — the three defects and the ruling", () => {
   });
 
   it("the day sheet's handle takes the family's wash2 (the mockup's handle tone)", () => {
-    expect(tracker).toContain("styles.handle, { backgroundColor: family.wash2 }");
+    // RE-BASED (v410): there is no handle anymore — the sheet is
+    // retired and the Day Page mounts plainly (a page, not a
+    // sheet grown from a drag handle). The pin now holds the
+    // absence it replaced: no sheet handle in the tracker kit,
+    // and the day doors route to the page.
+    expect(tracker).not.toContain("styles.handle");
+    expect(read("app/fasting-tracker.tsx")).toContain('pathname: "/fast-day"');
   });
 
   it("defect 3 + 08:37/08:46 rulings: the page is the tracker plus Fast History — everything else is off it", () => {

@@ -162,7 +162,11 @@ describe("v354 — the tracker stands untouched (on its own page since v360)", (
     expect(why).toBeLessThan(todayHero);
     expect(todayHero).toBeLessThan(record);
     expect(record).toBeLessThan(recaps);
-    expect(profile).toContain("onSave={(status, note) => saveDaySheet(sheetDate, status, note)}");
+    // RE-BASED (v410): the day sheet's onSave pin retired with
+    // the sheet — the day doors (hero ring, Record circles) now
+    // route to the Day Page, which is where days are written.
+    expect(profile).not.toContain("saveDaySheet");
+    expect(profile).toContain('pathname: "/fast-day"');
     expect(profile).toContain("onMark={(status, position) => setFastStatus(today, status, position)}");
   });
 

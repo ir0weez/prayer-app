@@ -44,8 +44,14 @@ describe("profile chrome is Material 3 (theme tokens, no one-off hex)", () => {
     // v276: the standalone "Add a note for today" action retired;
     // the note is a field inside the day sheet (fast-tracker.tsx),
     // saved together with the day's state via saveDaySheet.
-    expect(profile).toContain("<FastDaySheetContent");
-    expect(read("components/fast-tracker.tsx")).toContain("Note for this day");
+    // RE-BASED (v410): the day sheet itself is retired (his
+    // Nov 1 ruling — the Day Page replaces the pop-up cards).
+    // The day's words now live on the Day Page as journal
+    // entries, logged through appendFastDayEntry; no sheet and
+    // no note field remain on the tracker page or its kit.
+    expect(profile).not.toContain("<FastDaySheetContent");
+    expect(read("components/fast-tracker.tsx")).not.toContain("Note for this day");
+    expect(read("app/fast-day.tsx")).toContain("appendFastDayEntry");
     expect(profile).not.toContain("📝");
     // v280: the borderColor: colors.border pin guarded the
     // Hometown entry card's M3 border — the card itself is removed
@@ -82,10 +88,18 @@ describe("profile chrome is Material 3 (theme tokens, no one-off hex)", () => {
     // day sheet's Save carries state + note via saveDaySheet, and
     // clearing a mark unwinds through unmarkFastDay — the same
     // side-effect engine the old buttons drove.
+    // RE-BASED (v410): the sheet's save is gone with the sheet.
+    // The engine itself is unchanged — the hero still marks today
+    // through it here, and the Day Page runs the same effects
+    // (same XP keys, same heart key) from its own applyStatus.
     expect(profile).toContain("onMark={(status, position) => setFastStatus(today, status, position)}");
-    expect(profile).toContain("const saveDaySheet =");
+    expect(profile).not.toContain("const saveDaySheet =");
     expect(profile).toContain("const unmarkFastDay =");
     expect(profile).toContain("applyFastStatusEffects(");
+    const dayPage = read("app/fast-day.tsx");
+    expect(dayPage).toContain("fasting-day-missed:");
+    expect(dayPage).toContain("upsertFastDayStatus");
+    expect(dayPage).toContain("removeFastDayStatus");
   });
 });
 

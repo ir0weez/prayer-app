@@ -31,11 +31,44 @@ export type PrayerJournalReply = {
 // its exact shape.
 export type PrayerJournalEntryKind = "praise" | "answered";
 
+// v410 (Journal/Fast Rework, Part 1 — Jonathan's Nov 1 build word):
+// a fast day's moments live in this same store. ONE record: the
+// fast's Day Page writes them, the Journal feed (Part 2) renders
+// them, the recaps quote them. The linkage rides on the entry —
+// the fast it belongs to, the moment's kind within the day, and,
+// for the entries the v410 migration made out of the old per-day
+// note strings, a migrated flag: a migrated moment's clock time
+// was never recorded, and no surface may invent one for it.
+export type FastDayEntryKind = "held" | "close-call" | "fell" | "note";
+
+export type PrayerJournalFastDayLink = {
+  fastId: string;
+  kind: FastDayEntryKind;
+  migrated?: boolean;
+};
+
+const FAST_DAY_ENTRY_KINDS: readonly FastDayEntryKind[] = ["held", "close-call", "fell", "note"];
+
+function normalizeFastDayLink(value: unknown): PrayerJournalFastDayLink | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = value as Partial<PrayerJournalFastDayLink>;
+  const fastId = typeof candidate.fastId === "string" ? candidate.fastId.trim() : "";
+  if (!fastId) return undefined;
+  // Pack tolerance: a link with a fast id but an unrecognized kind
+  // still belongs to its fast — it reads as a plain note rather
+  // than being orphaned out of the day.
+  const kind = FAST_DAY_ENTRY_KINDS.includes(candidate.kind as FastDayEntryKind)
+    ? (candidate.kind as FastDayEntryKind)
+    : "note";
+  return { fastId, kind, ...(candidate.migrated === true ? { migrated: true as const } : {}) };
+}
+
 export type PrayerJournalEntry = {
   id: string;
   title?: string;
   body: string;
   kind?: PrayerJournalEntryKind;
+  fastDay?: PrayerJournalFastDayLink;
   date: string;
   taggedPeople: PrayerJournalTaggedPerson[];
   places?: PrayerJournalTaggedPlace[];
@@ -158,6 +191,7 @@ type PrayerJournalEntryInput = {
   title?: string;
   body: string;
   kind?: PrayerJournalEntryKind;
+  fastDay?: PrayerJournalFastDayLink;
   date?: string;
   taggedPeople?: Person[];
   places?: PrayerJournalTaggedPlace[];
@@ -231,6 +265,7 @@ export function createPrayerJournalEntry(
     mood: input.mood,
     photos,
     ...(input.kind ? { kind: input.kind } : {}),
+    ...(input.fastDay ? { fastDay: input.fastDay } : {}),
   };
   return sortPrayerJournalEntries([entry, ...entries]);
 }
@@ -436,6 +471,11 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
     // its praise/answered entries; a pack from before the field
     // existed (or carrying anything else) loads as ordinary.
     const kind = candidate.kind === "praise" || candidate.kind === "answered" ? candidate.kind : undefined;
+    // v410: the fast-day linkage round-trips with the same
+    // tolerance — a pack written before the field existed (or by
+    // the Studio) loads its fast entries as ordinary moments only
+    // when the link itself is unusable.
+    const fastDay = normalizeFastDayLink(candidate.fastDay);
     const color = typeof candidate.color === "string" && candidate.color.trim() ? candidate.color.trim() : undefined;
     const location = typeof candidate.location === "string" && candidate.location.trim() ? candidate.location.trim() : undefined;
     const weather = typeof candidate.weather === "string" && candidate.weather.trim() ? candidate.weather.trim() : undefined;
@@ -466,6 +506,7 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
         ...(mood ? { mood } : {}),
         ...(candidatePhotos ? { photos: candidatePhotos } : {}),
         ...(kind ? { kind } : {}),
+        ...(fastDay ? { fastDay } : {}),
       } satisfies PrayerJournalEntry,
     ];
   });

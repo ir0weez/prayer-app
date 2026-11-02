@@ -124,9 +124,15 @@ describe("v179 paper coverage — every named surface consumes the skin", () => 
     // declared-but-never-applied helper in the old combined
     // file — dead code the split dropped; the live paper chrome
     // is the shadow spread and the grain below.
+    // RE-BASED (v410): the day sheet — the fasting page's last
+    // sheetShadow carrier — is retired for the Day Page (his
+    // Nov 1 ruling: no pop-up cards), which mounts plainly and
+    // wears no sheet shadow. The shadow itself lives on where
+    // sheets remain: My Profile's editor sheet carries it still.
     const profile = read("app/fasting-tracker.tsx");
-    expect(profile).toContain("skinTokens.sheetShadow");
+    expect(profile).not.toContain("skinTokens.sheetShadow");
     expect(profile).not.toContain("paperSurfaceStyle");
+    expect(read("app/profile.tsx")).toContain("skinTokens.sheetShadow");
   });
 
   it("flat paper only: the grain component renders nothing, anywhere", () => {
@@ -424,7 +430,11 @@ describe("Paper coverage — v202 animation pass", () => {
     // in the v360 separation — this page (the tracker) carries
     // the day sheet alone; the editor's sheet stands on My
     // Profile. The combined count across both pages is still 2.
-    expect(count(profile, "<AnchoredSheet")).toBe(1);
+    // RE-BASED (v410): the day sheet is retired — the Day Page
+    // (app/fast-day.tsx) replaces it, a plain page mount with no
+    // sheet at all. This page's AnchoredSheet count is 0 now;
+    // the editor's sheet on My Profile is the one that remains.
+    expect(count(profile, "<AnchoredSheet")).toBe(0);
     expect(profile).toContain("<PaperSettle style={styles.sheet}>");
   });
 

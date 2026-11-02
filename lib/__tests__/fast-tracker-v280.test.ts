@@ -237,10 +237,15 @@ describe("v280 fidelity: the fasting section is the mockup", () => {
   });
 
   it("the day sheet: no Clear-mark button, no date in the sub-line; re-tap toggles off", () => {
+    // RE-BASED (v410): the day sheet is retired — its rules moved
+    // to the Day Page with the day: still no Clear-mark button,
+    // and re-tapping the standing segment still unmarks the day
+    // (the page's segmented row applies the toggle directly).
     expect(tracker).not.toContain("Clear mark");
     expect(tracker).not.toContain("formatIsoToMmDdYyyy");
-    expect(tracker).toContain("· Week {weekNumber} of the fast");
-    expect(tracker).toContain("onChange={(next) => setStatus(next === status ? null : next)}");
+    const dayPage = read("app/fast-day.tsx");
+    expect(dayPage).not.toContain("Clear mark");
+    expect(dayPage).toContain("applyStatus(selected ? null : segment.value)");
   });
 
   it("the recap document: the week's DATES as its headline; counts as shaped tiles", () => {

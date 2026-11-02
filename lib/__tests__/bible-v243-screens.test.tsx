@@ -252,6 +252,15 @@ describe('v243 — the Book screen mounts whole with the poison in storage', () 
     expect(html).toContain('50 chapters');
   });
 
+  it('paints no on-paper chip or mark (v422)', () => {
+    // v422 (his word, Nov 2): the detail sheet's on-paper chip is
+    // removed — nothing on the painted page names it. (The sheet
+    // is a closed Modal at first paint, so the chip's source-level
+    // absence is pinned in bible-v422-on-paper-removed.test.ts.)
+    expect(html).not.toContain('On paper');
+    expect(html).not.toContain('on paper');
+  });
+
   it('paints the chapter grid through the new shell (the sheet opens on tap — a closed Modal paints nothing)', () => {
     // v311 re-base (with citation): the v243 detail strip is now the
     // chapter SHEET — a Modal, closed at first paint, so its groups

@@ -26,6 +26,14 @@
 // never did). The row keeps the card anatomy; its pill seat
 // carries ↻ RESTUDY and a line under the counts names the next
 // queued chapter.
+// v422 (his word, Nov 2 — "get rid of this on paper thing"): every
+// visible on-paper surface is removed from this screen — the chip
+// under the progress header (and the notes-source label editor it
+// opened; that editor carried only the source label, whose sole
+// consumers were these marks) and the per-row marks fed by the
+// handwritten coverage. The coverage record itself is NOT touched:
+// lib/bible-v205/handwritten keeps its store, seed and loaders,
+// dormant. The book page's chapter chip goes in the same pass.
 // v324 (his words, 2026-10-28 21:00 — "I have multiple entire books
 // finished with notes"): Written membership and the rows' written
 // counts now follow the union rule (rewards.ts chapterIsWritten —
@@ -43,7 +51,7 @@
 // "1 of 4 written · 4 to write" double count.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -83,13 +91,7 @@ import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 import { useBiblePalette, useBookBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from '@/components/top-fade';
 import {
-  handwrittenNoteFor,
-  loadHandwritten,
-  type HandwrittenEntry,
-} from '@/lib/bible-v205/handwritten';
-import {
   loadUserLabels,
-  saveSourceLabel,
   type UserLabels,
 } from '@/lib/bible-v205/user-labels';
 import { bibleShellParamsForRoute, type BiblePaneNav } from '@/lib/bible-pane';
@@ -134,7 +136,6 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   useEffect(() => {
     if (inPane && !paneFocused) {
       setBookNavOpen(false);
-      setLabelEditor(false);
       setResetOpen(false);
     }
   }, [inPane, paneFocused]);
@@ -152,9 +153,6 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   // chapters carry notes, hence Written membership and row counts.
   const [studioImports, setStudioImports] = useState<StudioImportsMap>({});
   const [labels, setLabels] = useState<UserLabels | null>(null);
-  const [handwritten, setHandwritten] = useState<HandwrittenEntry[]>([]);
-  const [labelEditor, setLabelEditor] = useState(false);
-  const [labelDraft, setLabelDraft] = useState('');
   // v305: the reading reset's confirmation — the card's quiet door
   // opens this; nothing clears until he confirms here.
   const [resetOpen, setResetOpen] = useState(false);
@@ -186,19 +184,19 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     return reloadStudyState();
   }, [inPane, paneFocused, reloadStudyState]);
 
-  // v263: labels and handwritten coverage load ONCE, on mount.
-  // They only ever change on this screen (the notes-source label
-  // editor lives here and updates its own state as it saves), so
-  // re-reading them on every focus was pure cost on the tab-switch
-  // path: three storage loads and up to three full 66-row
+  // v263: labels load ONCE, on mount. They only ever change from
+  // the profile, so re-reading them on every focus was pure cost
+  // on the tab-switch path: extra storage loads and full 66-row
   // re-renders landed inside the switch's first frames every time
   // he hopped People → Study. A refocus now costs one load and one
   // re-render, and unrelated re-renders (the sheets opening) reuse
   // the memoized grouping below.
+  // v422: this effect also loaded the handwritten coverage, which
+  // fed only the on-paper marks removed in this pass — the load
+  // goes with them. The coverage store itself is untouched.
   useEffect(() => {
     let live = true;
     loadUserLabels().then((l) => live && setLabels(l));
-    loadHandwritten().then((h) => live && setHandwritten(h));
     return () => {
       live = false;
     };
@@ -230,16 +228,6 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   // the other four, so the total still lands on 66 exactly.
   const totalBooks = groups.current.length + groups.restudy.length + groups.finished.length + groups.written.length + groups.notStarted.length;
   const possessive = labels?.possessive ?? 'Your';
-  const sourceLabel = labels?.sourceLabel ?? 'Handwritten notes';
-
-  // The ✎ on-paper marker for a row: the shipped handwritten coverage
-  // (non-only entries) or, for a handwritten-only book, its range.
-  const paperNoteFor = (book: string): string | null => {
-    const note = handwrittenNoteFor(handwritten, book);
-    if (note) return note;
-    const only = handwritten.find((e) => e.book === book && e.only);
-    return only ? `${only.from}–${only.to}` : null;
-  };
 
   const renderBookRow = (book: string) => (
     <BookRow
@@ -247,7 +235,6 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
       book={book}
       studyState={effectiveState}
       palette={palette}
-      paperNote={paperNoteFor(book)}
       notesCount={notesChapterCount(book)}
       imports={studioImports}
       onPress={() => openBook(book)}
@@ -264,7 +251,6 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
       book={book}
       studyState={effectiveState}
       palette={palette}
-      paperNote={paperNoteFor(book)}
       notesCount={notesChapterCount(book)}
       imports={studioImports}
       onPress={() => openBook(book)}
@@ -365,22 +351,10 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
           />
         </View>
 
-        {/* v311: the legend is reduced to the drawing's quiet form —
-            no status chips at all. Only the ✎ door stays: it is not
-            a legend entry but the notes-source label editor's home
-            (v222), and it keeps its words. */}
-        <View style={styles.legend}>
-          <Pressable
-            style={[styles.chip, { backgroundColor: palette.band }]}
-            accessibilityLabel="Name your notes source"
-            onPress={() => {
-              setLabelDraft(sourceLabel);
-              setLabelEditor(true);
-            }}
-          >
-            <Text style={[styles.chipText, { color: palette.inkSoft }]}>✎ On paper</Text>
-          </Pressable>
-        </View>
+        {/* v311's legend held one last chip here — the notes-source
+            door (v222). v422 removes it with the rest of the
+            on-paper surfaces (see the header note): the sections
+            now follow the progress header directly. */}
 
         {totalBooks === 0 ? (
           <View style={styles.emptyGuard}>
@@ -440,38 +414,10 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
       <TopFade color={palette.paper} scrollY={fadeScrollY} topInset={insets.top} />
       </View>
 
-        <Modal visible={labelEditor} transparent animationType="fade" onRequestClose={() => setLabelEditor(false)}>
-          <Pressable style={styles.scrim} onPress={() => setLabelEditor(false)} />
-          <View style={[styles.editorCard, { backgroundColor: palette.paper2 }, palette.sheetDress]}>
-            <Text style={[styles.editorTitle, { color: palette.ink }]}>Name your notes source</Text>
-            <Text style={[styles.editorSub, { color: palette.inkSoft }]}>
-              Where your handwritten notes live — a reMarkable, a notebook, anything. However you want to put it.
-            </Text>
-            <TextInput
-              style={[styles.editorInput, { borderColor: palette.lineDark, color: palette.ink, backgroundColor: palette.paper2 }]}
-              value={labelDraft}
-              onChangeText={setLabelDraft}
-              placeholder="Handwritten notes"
-              placeholderTextColor={palette.inkFaint}
-              autoFocus
-            />
-            <View style={styles.editorBtns}>
-              <Pressable onPress={() => setLabelEditor(false)}>
-                <Text style={{ color: palette.inkSoft, fontWeight: '600', fontSize: 13.5 }}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.editorSave, { backgroundColor: palette.rasp }, palette.btnDress]}
-                onPress={async () => {
-                  const saved = await saveSourceLabel(labelDraft);
-                  setLabels((l) => (l ? { ...l, sourceLabel: saved } : l));
-                  setLabelEditor(false);
-                }}
-              >
-                <Text style={styles.editorSaveText}>Save</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
+        {/* v422: the notes-source label editor that used to sit
+            here is removed with the chip that opened it — it
+            carried only the source label for the on-paper marks.
+            The stored label itself stays in its store, dormant. */}
 
         {/* v305: the reset's one explicit confirmation — it names
             exactly what clears (every chapter's read mark) and what
@@ -623,7 +569,6 @@ function BookRow({
   book,
   studyState,
   palette,
-  paperNote,
   notesCount,
   imports,
   onPress,
@@ -633,7 +578,6 @@ function BookRow({
   book: string;
   studyState: StudyState | null;
   palette: BiblePalette;
-  paperNote: string | null;
   /** Chapters carrying his commentary — the signal the old "Chapter
    * notes" section used to carry, now on the row itself. */
   notesCount: number;
@@ -679,7 +623,6 @@ function BookRow({
   // study counts above: Leviticus can read 0 complete here while
   // its reading thread fills.
   const readCount = studyState ? bookReadCount(studyState, book) : 0;
-  const paper = paperNote ? `handwritten notes, ${paperNote}` : null;
   const parts: string[] = [];
   // v313: the drawing's counts word — "0 of 27 written", his word
   // for the writing track everywhere in the approved drawing.
@@ -688,7 +631,6 @@ function BookRow({
   if (prog) parts.push(total === prog ? `all ${prog} in progress` : `${prog} in progress`);
   if (notStarted && writtenCount === 0 && !prog) parts.push('not started');
   if (notesCount) parts.push(`notes in ${notesCount} ${notesCount === 1 ? 'chapter' : 'chapters'}`);
-  if (paper) parts.push(paper);
 
   return (
     <Pressable
@@ -703,7 +645,6 @@ function BookRow({
       <View style={styles.bnameRow}>
         <Text style={[styles.bname, { color: palette.ink }]}>
           {book} <Text style={{ color: bookPal.rasp }}>›</Text>
-          {paperNote ? <Text style={[styles.papermark, { color: palette.inkSoft }]}>  ✎ on paper</Text> : null}
         </Text>
         {restudyNextChapter != null ? (
           <RestudyPill book={book} />
@@ -757,9 +698,6 @@ const styles = StyleSheet.create({
   kicker: { fontSize: 11, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '700', textAlign: 'center' },
   h2: { fontSize: 34, fontWeight: '700', letterSpacing: -0.6, marginTop: 8, textAlign: 'center' },
   vsub: { fontSize: 13.5, lineHeight: 21, textAlign: 'center', marginTop: 14, paddingHorizontal: 6 },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, justifyContent: 'center', marginTop: 18 },
-  chip: { borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9 },
-  chipText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
   subhead: { fontSize: 12, letterSpacing: 1.8, textTransform: 'uppercase', fontWeight: '700', paddingTop: 26, paddingBottom: 12 },
   emptyGuard: { alignItems: 'center', paddingTop: 34, paddingHorizontal: 8 },
   emptyTitle: { fontSize: 19, fontWeight: '800', letterSpacing: -0.4, textAlign: 'center' },
@@ -776,7 +714,6 @@ const styles = StyleSheet.create({
   // v311: the name at 22/700 on its own line — flex 1 and NO
   // numberOfLines, so it wraps whole instead of truncating.
   bname: { fontSize: 22, fontWeight: '700', flex: 1 },
-  papermark: { fontSize: 12.5, fontWeight: '600' },
   bcount: { fontSize: 13.5, lineHeight: 19, fontWeight: '500', marginTop: 4 },
   bcountLead: { fontWeight: '700' },
   // v421: the Restudy row's next-chapter line (approved drawing:
@@ -788,7 +725,6 @@ const styles = StyleSheet.create({
   editorCard: { position: 'absolute', left: 20, right: 20, top: '30%', borderRadius: 28, padding: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   editorTitle: { fontSize: 16, fontWeight: '800' },
   editorSub: { fontSize: 12.5, lineHeight: 18, marginTop: 5 },
-  editorInput: { borderWidth: 1.5, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, fontSize: 15, marginTop: 14 },
   editorBtns: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, marginTop: 16 },
   editorSave: { borderRadius: 999, paddingVertical: 8, paddingHorizontal: 18 },
   editorSaveText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13.5 },

@@ -314,9 +314,14 @@ describe("v265 source pins — load-once / focus-refresh survive the move", () =
     expect(chapter).toContain('key={`${book}-${chapter}`}');
   });
 
-  it("(g) Books' load-once data (labels, handwritten coverage) still loads on mount only — pane or route", () => {
-    expect(chapters).toContain("labels and handwritten coverage load ONCE, on mount");
+  it("(g) Books' load-once data (labels) still loads on mount only — pane or route", () => {
+    // v422 re-base (his word, Nov 2): the mount effect no longer
+    // loads the handwritten coverage — it fed only the on-paper
+    // marks removed in that pass. The labels load-once behaviour
+    // this pin guards is unchanged; the coverage store itself is
+    // untouched and still loads wherever else it is read.
+    expect(chapters).toContain("labels load ONCE, on mount");
     expect(chapters).toContain("loadUserLabels().then((l) => live && setLabels(l));");
-    expect(chapters).toContain("loadHandwritten().then((h) => live && setHandwritten(h));");
+    expect(chapters).not.toContain("loadHandwritten");
   });
 });

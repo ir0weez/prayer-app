@@ -544,7 +544,11 @@ describe('v222 WS3 — Books list: all 66, sections (v322: four, split by channe
     expect(src).toContain('>Written<');
     expect(src).toContain('>Not Started<');
     expect(src).toContain('CurrentPill');
-    expect(src).toContain('✎ on paper');
+    // v422 re-base (his word, Nov 2 — "get rid of this on paper
+    // thing"): the row marks this pin asserted are removed from
+    // the Books view; the pin now asserts their absence.
+    expect(src).not.toContain('✎ on paper');
+    expect(src).not.toContain('paperNote');
     // v313 re-base: the counts lead takes the drawing's word.
     expect(src).toContain('of ${total} written');
     expect(src).toContain('notes in ${notesCount}');

@@ -60,7 +60,6 @@ import {
   transitionChapterStatus,
   unmarkChapterRead,
 } from '@/lib/bible-v205/rewards';
-import { loadHandwritten, type HandwrittenEntry } from '@/lib/bible-v205/handwritten';
 import { STATUS_LABEL } from '@/components/bible-v205/blocks';
 import { BookCompleteCelebration } from '@/components/bible-v205/celebration';
 import {
@@ -115,14 +114,12 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
   const [studyState, setStudyState] = useState<StudyState | null>(null);
   const [studioImports, setStudioImports] = useState<StudioImportsMap>({});
   const [selected, setSelected] = useState(1);
-  const [handwritten, setHandwritten] = useState<HandwrittenEntry[]>([]);
   const [celebration, setCelebration] = useState<{ book: string; bibleComplete: boolean } | null>(null);
 
   const reloadFocusData = useCallback(() => {
     let live = true;
     loadStudyState().then((s) => live && setStudyState(s));
     loadStudioImports().then((m) => live && setStudioImports(m));
-    loadHandwritten().then((h) => live && setHandwritten(h));
     return () => {
       live = false;
     };
@@ -206,10 +203,10 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
   const selStatus = statusOf(selected);
   const selReadDate = readDateOf(selected);
   const selDisplay = displayOf(selected);
-  // v311: the box's On-paper chip — real data (the handwritten
-  // archive's chapter ranges), shown only when this chapter is
-  // covered. It is a fact, not a state: nothing sets it here.
-  const selOnPaper = handwritten.some((e) => e.book === book && selected >= e.from && selected <= e.to);
+  // v422 (his word, Nov 2): the detail box's on-paper chip is
+  // removed with the rest of the on-paper surfaces (see the Books
+  // list header note). The handwritten coverage record is not
+  // read here anymore; its store is untouched.
   const applyRead = async () => {
     if (!studyState) return;
     const result = await markChapterRead(studyState, book, selected, undefined, studioImports);
@@ -498,11 +495,6 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
                 </Pressable>
               );
             })}
-            {selOnPaper ? (
-              <View style={[styles.stateChip, { backgroundColor: bookPal.paperBg, borderColor: bookPal.paperBg }]}>
-                <Text style={[styles.stateChipText, { color: bookPal.paperInk }]}>✎ On paper</Text>
-              </View>
-            ) : null}
           </View>
           {selStatus !== 'none' && selStatus !== 'not-started' ? (
             <Pressable style={styles.clearRow} onPress={() => applyStatus('none')} hitSlop={8}>

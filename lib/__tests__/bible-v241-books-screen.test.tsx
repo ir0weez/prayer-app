@@ -253,10 +253,14 @@ describe('v241 — Books screen first paint, dark scheme + Classic (his phone st
     expect(html).toContain('icon:arrow-back');
   });
 
-  it('paints the header and legend', () => {
+  it('paints the header — and no on-paper legend or marks (v422)', () => {
     expect(html).toContain('Your Books');
     expect(html).toContain('PrayerCircle');
-    expect(html).toContain('On paper');
+    // v422 re-base (his word, Nov 2 — "get rid of this on paper
+    // thing"): the legend chip that painted "On paper" here is
+    // removed, and no row carries an on-paper mark.
+    expect(html).not.toContain('On paper');
+    expect(html).not.toContain('on paper');
   });
 
   it('renders all 66 book rows from the canon', () => {

@@ -100,7 +100,9 @@ describe("v353 — the Up Next-only thumb set is exact and self-consistent", () 
     // v372: 171 — td-shawarma-rice-bar joined the scene set.
     // v373: 172 — td-risotto joined the scene set.
     // v376: 173 — td-mississippi-pot-roast joined the scene set.
-    expect(specKeysOf("KEYWORD_THUMB_SPECS").length).toBe(173);
+    // v414: 174 — daily-brief joined the scene set (the Daily Brief door;
+    // Jonathan approved daily-breakdown-concepts-v6, Nov 2).
+    expect(specKeysOf("KEYWORD_THUMB_SPECS").length).toBe(174);
   });
 
   it("every thumb-only motion names a vocabulary kind inside the calm band", () => {

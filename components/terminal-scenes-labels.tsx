@@ -978,6 +978,34 @@ export function TermStPatricksScene() {
   );
 }
 
+export function TermDailyBriefScene() {
+  return (
+    <TermSceneRoot>
+      {/* Line clouds */}
+      <LP d="M 18 26 h30 M 24 20 h18" c={TERM_MID} w={1.6} />
+      <LP d="M 148 36 h26 M 153 30 h15" c={TERM_MID} w={1.6} />
+      {/* The sun — outline disc with short rays, over the hills. */}
+      <LC cx={100} cy={56} r={17} c={TERM_PHOS} w={2.2} />
+      <LC cx={100} cy={56} r={10.5} c={TERM_MID} w={1.5} />
+      <LL x1={100} y1={28} x2={100} y2={34} c={TERM_PHOS} w={2} />
+      <LL x1={100} y1={78} x2={100} y2={84} c={TERM_PHOS} w={2} />
+      <LL x1={72} y1={56} x2={78} y2={56} c={TERM_PHOS} w={2} />
+      <LL x1={122} y1={56} x2={128} y2={56} c={TERM_PHOS} w={2} />
+      <LL x1={80} y1={36} x2={84} y2={40} c={TERM_PHOS} w={2} />
+      <LL x1={116} y1={72} x2={120} y2={76} c={TERM_PHOS} w={2} />
+      <LL x1={120} y1={36} x2={116} y2={40} c={TERM_PHOS} w={2} />
+      <LL x1={84} y1={72} x2={80} y2={76} c={TERM_PHOS} w={2} />
+      {/* Layered hill lines. */}
+      <LP d="M 0 92 Q 55 72 115 88 T 200 84" c={TERM_MID} w={1.8} />
+      <LP d="M 0 104 Q 70 86 135 100 T 200 96" c={TERM_PHOS} w={2.1} />
+      <LL x1={8} y1={112} x2={192} y2={112} c={TERM_DIM} w={1.8} />
+      {/* The open book at the foot. */}
+      <LP d="M 86 108 L 100 104 L 114 108 L 114 114 L 100 110 L 86 114 Z" c={TERM_SOFT} w={1.5} />
+      <LL x1={100} y1={104} x2={100} y2={110} c={TERM_SOFT} w={1.3} />
+    </TermSceneRoot>
+  );
+}
+
 export function TermNewsScene() {
   return (
     <TermSceneRoot>

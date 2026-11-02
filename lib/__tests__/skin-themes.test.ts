@@ -327,7 +327,9 @@ describe("v180+v181 bespoke scenes: the shared emblem shells are dead (source pi
     // v372: 171 — the shawarma rice bar (td-shawarma-rice-bar) joined it.
     // v373: 172 — the risotto (td-risotto) joined the routable set.
     // v376: 173 — the Mississippi pot roast (td-mississippi-pot-roast) joined it.
-    expect(ids.length).toBe(173);
+    // v414: 174 — daily-brief joined the routable set (the Daily Brief door;
+    // Jonathan approved daily-breakdown-concepts-v6, Nov 2).
+    expect(ids.length).toBe(174);
     const seenComponents = new Set<string>();
     for (const id of ids) {
       const name = componentFor(id);
@@ -344,7 +346,7 @@ describe("v180+v181 bespoke scenes: the shared emblem shells are dead (source pi
       expect(body, `${id} → ${name}`).not.toContain("EmblemScene");
       expect(body, `${id} → ${name}`).not.toContain("movieScene(");
     }
-    expect(seenComponents.size).toBe(173);
+    expect(seenComponents.size).toBe(174);
   });
 
   it("the Sopranos flagship is the pool with the ducks, house behind (source pin)", () => {

@@ -232,6 +232,7 @@ import {
   partitionGroupedTodosForSchedule,
 } from "@/lib/schedule-data";
 import { keywordPageKindForEvent, keywordPagePath } from "@/lib/keyword-pages";
+import { dailyBriefEventForDate, isDailyBriefEvent } from "@/lib/daily-brief";
 import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, getPrayerCheckInPeople, type PrayerItem } from "@/lib/prayercircle-data";
 import { WeeklyCalendarView } from "./weekly-calendar-view";
 import { getWeekStart, formatDateISO, formatDateLocal } from "@/lib/date-utils";
@@ -2575,6 +2576,34 @@ function EmailScene() {
       <View style={{ position: "absolute", left: "10%", bottom: 28, width: 52, height: 34 }}>
         <View style={{ position: "absolute", left: 0, bottom: 0, width: 52, height: 34, borderRadius: 4, backgroundColor: "#B79CFF" }} />
         <View style={{ position: "absolute", left: 8, bottom: 14, width: 36, height: 8, backgroundColor: "#8F73E8", transform: [{ rotate: "18deg" }] }} />
+      </View>
+    </SceneRoot>
+  );
+}
+
+/** Daily Brief (v414): the morning's sunrise — a flat sun breathing
+ * over layered hills, two clouds drifting, the day's book open at
+ * the foot (the approved drawing, daily-breakdown-concepts-v6.html). */
+function DailyBriefScene() {
+  return (
+    <SceneRoot base="#BFD9F2">
+      <DriftingCloud top={16} size={42} duration={34000} delay={1500} />
+      <DriftingCloud top={42} size={28} duration={42000} delay={12000} />
+      {/* The sun, breathing (halo + disc, centred on the card). */}
+      <GentlePulse left="50%" bottom={20} width={92} height={92} min={1} max={1.06} duration={3400}>
+        <View style={{ marginLeft: -46, width: 92, height: 92 }}>
+          <View style={{ position: "absolute", left: 0, top: 0, width: 92, height: 92, borderRadius: 46, backgroundColor: "rgba(245,166,35,0.25)" }} />
+          <View style={{ position: "absolute", left: 9, top: 9, width: 74, height: 74, borderRadius: 37, backgroundColor: "#F5A623" }} />
+        </View>
+      </GentlePulse>
+      {/* Layered hills — the sun sets down behind the front one. */}
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -26, height: 66, borderRadius: 32, backgroundColor: "#7FA8D9" }} />
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -30, height: 44, borderRadius: 30, backgroundColor: "#4E7CB8" }} />
+      {/* The open book at the foot of the hills. */}
+      <View style={{ position: "absolute", left: "50%", marginLeft: -32, bottom: 8, width: 64, height: 22 }}>
+        <View style={{ position: "absolute", left: 1, top: 3, width: 31, height: 17, borderTopLeftRadius: 3, borderBottomLeftRadius: 5, backgroundColor: "#FFFFFF", transform: [{ rotate: "-5deg" }] }} />
+        <View style={{ position: "absolute", right: 1, top: 3, width: 31, height: 17, borderTopRightRadius: 3, borderBottomRightRadius: 5, backgroundColor: "#FFFFFF", transform: [{ rotate: "5deg" }] }} />
+        <View style={{ position: "absolute", left: 31, top: 2, width: 2, height: 19, backgroundColor: "#C9DEF9" }} />
       </View>
     </SceneRoot>
   );
@@ -7553,6 +7582,7 @@ export function KeywordAmbientAnimation({ label, title = "", location = "", note
     case "Meeting": return <MeetingScene />;
     case "News": return <NewsScene />;
     case "Email": return <EmailScene />;
+    case "Daily Brief": return <DailyBriefScene />;
     case "Workout": return <WorkoutScene />;
     case "Basketball": return <BasketballScene />;
     case "Soccer": return <SoccerScene />;
@@ -8146,7 +8176,7 @@ function EventCardInner({
   // keyword (the map's own gas label) wholesale, like the others.
   const pageKind = keywordPageKindForEvent(event, detectedKeyword?.label);
   const keyword = pageKind
-    ? EVENT_KEYWORD_MAP.find((k) => k.label === (pageKind === "news" ? "News" : pageKind === "email" ? "Email" : pageKind === "food" ? "Meal" : "Get Gas")) ?? detectedKeyword
+    ? EVENT_KEYWORD_MAP.find((k) => k.label === (pageKind === "news" ? "News" : pageKind === "email" ? "Email" : pageKind === "food" ? "Meal" : pageKind === "dailyBrief" ? "Daily Brief" : "Get Gas")) ?? detectedKeyword
     : detectedKeyword;
   // v313: on the branches that ALSO render the compact S/E read, a
   // note spelling out that same "Season {n} Episode {m}" says the
@@ -12183,12 +12213,19 @@ export function ScheduleTab({
   const dayEvents = useMemo(() => {
     const isTimeOffDay = isDateDuringTimeOff(timeOffList, selectedDate);
     const base = getEventsForDate(events, selectedDate).filter((event) => isTimeOffEventVisible(event, isTimeOffDay));
-    if (!holidaysEnabled) return base;
+    // v414: the Daily Brief door joins every day at 8:00 AM as a
+    // generated render-only event (lib/daily-brief.ts) — the
+    // holidays' mechanism below, with a door's routing on top. It
+    // is never written back to state or storage; the whites, the
+    // Up Next pools, and the header count keep it out by its flag,
+    // the way they keep holidays out by theirs.
+    const briefEvent = dailyBriefEventForDate(selectedDate);
+    if (!holidaysEnabled) return [...base, briefEvent];
     // Auto-seeded US holidays: render-only synthetic events. They carry no
     // startTime (so white-space blocks ignore them) and are never written
     // back to state, storage, notifications, or export.
     const year = parseInt(selectedDate.slice(0, 4), 10);
-    if (Number.isNaN(year)) return base;
+    if (Number.isNaN(year)) return [...base, briefEvent];
     const holidayEvents: ScheduleEvent[] = getHolidaysForYear(year)
       .filter((h) => h.date === selectedDate)
       .map((h) => ({
@@ -12199,7 +12236,7 @@ export function ScheduleTab({
         isHoliday: true,
         isCompleted: false,
       }));
-    return [...base, ...holidayEvents];
+    return [...base, ...holidayEvents, briefEvent];
   }, [events, selectedDate, timeOffList, holidaysEnabled]);
   const dayTodos = useMemo(() => getTodosForDate(todos, selectedDate), [todos, selectedDate]);
   const dayMinistries = useMemo(() => getMinistriesForDate(ministries, selectedDate), [ministries, selectedDate]);
@@ -13274,7 +13311,7 @@ export function ScheduleTab({
       activeBlocks = calculateWhites(
         [
           ...dayTodos.filter((t) => t.startTime).map((t) => ({ ...t, kind: "todo" as const })),
-          ...dayEvents.filter((e) => e.startTime).map((e) => ({ ...e, kind: "event" as const })),
+          ...dayEvents.filter((e) => e.startTime && !isDailyBriefEvent(e)).map((e) => ({ ...e, kind: "event" as const })),
           ...dayMinistries.filter((m) => m.startTime).map((m) => ({ ...m, kind: "ministry" as const })),
           ...dayBibleStudies.filter((study) => study.startTime).map((study) => ({ ...study, kind: "study" as const })),
         ],
@@ -13631,13 +13668,15 @@ export function ScheduleTab({
       const group = buildUpNextGroup(
         [
           ...dayTodos.filter((t: any) => t.startTime && !t.isCompleted).map((t: any) => ({ kind: "todo" as const, item: t })),
-          ...dayEvents.filter((e: any) => e.startTime && !e.isCompleted && !e.isHoliday).map((e: any) => ({ kind: "event" as const, item: e })),
+          ...dayEvents.filter((e: any) => e.startTime && !e.isCompleted && !e.isHoliday && !e.isDailyBrief).map((e: any) => ({ kind: "event" as const, item: e })),
           ...dayMinistries.filter((m: any) => m.startTime && !m.isCompleted).map((m: any) => ({ kind: "ministry" as const, item: m })),
           ...itineraryCandidates,
         ],
         [
           ...dayTodos,
-          ...dayEvents,
+          // v414: the generated Daily Brief door is not a timed
+          // commitment — it never anchors the Up Next thread.
+          ...dayEvents.filter((e: any) => !e.isDailyBrief),
           ...dayMinistries,
           // The anchor scan reads EVERY timed item of the day,
           // done or not (the old scan's discipline for the other
@@ -14633,18 +14672,23 @@ export function ScheduleTab({
           // Auto-seeded holidays are display-only: tapping does nothing and
           // there is no editor or context menu.
           const isHoliday = Boolean(item.data.isHoliday);
+          // v414: the generated Daily Brief door is display-only the
+          // same way — its tap is claimed inside the card by the door
+          // routing (it opens the Brief page), and there is no editor
+          // or delete for an event that exists only at render time.
+          const isBriefDoor = Boolean(item.data.isDailyBrief);
           return (
             <EventCard
               event={item.data}
               people={people}
               isNew={item.data.id === justAddedId}
-              onToggle={isHoliday ? () => {} : (position) => {
+              onToggle={isHoliday || isBriefDoor ? () => {} : (position) => {
                 if (!item.data.isCompleted) onAwardXP?.(xpActionForDate(item.data.date), item.data.id, position);
                 else revokeTodoXP(item.data.id, position);
                 setEvents((prev) => toggleEventCompleted(prev, item.data.id));
               }}
-              onOpenEdit={isHoliday ? undefined : openEventEditor}
-              onDelete={isHoliday ? undefined : () => {
+              onOpenEdit={isHoliday || isBriefDoor ? undefined : openEventEditor}
+              onDelete={isHoliday || isBriefDoor ? undefined : () => {
                 Alert.alert(
                   'Delete Event',
                   `Are you sure you want to delete "${item.data.title}"?`,
@@ -15114,7 +15158,7 @@ export function ScheduleTab({
               the selected day spelled out ("Tuesday, October 27") —
               not the legacy "N of M events left" count (the summary
               prose carries the counts). Skins keep the count. */}
-          <Text style={{ color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12, ...skinText(skinTokens, skinTokens.type.screenSubtitle) }}>{!isSkinned ? `${dateHeader.dayName}, ${dateHeader.monthName} ${dateHeader.dayNum}` : (() => { const total = dayEvents.length; const remaining = dayEvents.filter((e) => !e.isCompleted).length; return remaining === total ? `${total} events today` : `${remaining} of ${total} events left`; })()}</Text>
+          <Text style={{ color: skinTokens.isTerminal ? TERM_MID : skinTokens.isEightBit ? BIT_ON_DUSK_FAINT : colors.muted, fontSize: 12, ...skinText(skinTokens, skinTokens.type.screenSubtitle) }}>{!isSkinned ? `${dateHeader.dayName}, ${dateHeader.monthName} ${dateHeader.dayNum}` : (() => { const ownEvents = dayEvents.filter((e) => !e.isDailyBrief); const total = ownEvents.length; const remaining = ownEvents.filter((e) => !e.isCompleted).length; return remaining === total ? `${total} events today` : `${remaining} of ${total} events left`; })()}</Text>
         </View>
         <ReAnimated.View
           style={{

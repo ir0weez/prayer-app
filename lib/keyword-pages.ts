@@ -33,9 +33,17 @@
  * and a title LEADING with "Gas" claims it the way "News" does —
  * the drawing's own event is a bare "Gas". A stored non-gas
  * keyword still wins outright, exactly like Meal.
+ *
+ * v414 — the Daily Brief door: the schedule's generated 8:00 AM
+ * event (lib/daily-brief.ts) carries the stored keyword "Daily
+ * Brief" and opens the Brief page. The claim follows this file's
+ * own rules: the stored label wins outright; a title LEADING with
+ * "Daily Brief" claims it the way "News" does (so an event of his
+ * own with that title is the same door); any other stored keyword
+ * still wins over the title.
  */
 
-export type KeywordPageKind = "news" | "email" | "food" | "gas";
+export type KeywordPageKind = "news" | "email" | "food" | "gas" | "dailyBrief";
 
 export function keywordPageKindForEvent(
   event: {
@@ -49,24 +57,29 @@ export function keywordPageKindForEvent(
     if (event.keyword === "Email") return "email";
     if (event.keyword === "Meal") return "food";
     if (event.keyword === "Get Gas" || event.keyword === "Gas") return "gas";
+    if (event.keyword === "Daily Brief") return "dailyBrief";
     return null;
   }
   const title = (event.title ?? "").trim().toLowerCase();
   if (/^news\b/.test(title)) return "news";
   if (/^(e-mail|email|gmail|mail)\b/.test(title)) return "email";
   if (/^gas\b/.test(title)) return "gas";
+  if (/^daily brief\b/.test(title)) return "dailyBrief";
   if (resolvedLabel === "Meal") return "food";
   if (resolvedLabel === "Get Gas") return "gas";
+  if (resolvedLabel === "Daily Brief") return "dailyBrief";
   return null;
 }
 
 /** The route a keyword page opens at. */
-export function keywordPagePath(kind: KeywordPageKind): "/news" | "/email" | "/food" | "/gas" {
+export function keywordPagePath(kind: KeywordPageKind): "/news" | "/email" | "/food" | "/gas" | "/daily-brief" {
   return kind === "news"
     ? "/news"
     : kind === "email"
       ? "/email"
       : kind === "food"
         ? "/food"
-        : "/gas";
+        : kind === "dailyBrief"
+          ? "/daily-brief"
+          : "/gas";
 }

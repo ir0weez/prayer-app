@@ -112,7 +112,11 @@ describe("v379 Gas door routing", () => {
   it("the path is /gas, and the card wears the Get Gas keyword dress", () => {
     expect(keywordPagePath("gas")).toBe("/gas");
     const scheduleTab = read("components/schedule-tab.tsx");
-    expect(scheduleTab).toContain('pageKind === "food" ? "Meal" : "Get Gas"');
+    // v414 amendment (Nov 2): the Daily Brief door joined the chain
+    // ahead of the Get Gas fallback (Jonathan approved
+    // daily-breakdown-concepts-v6, "love it all, do it"); the Gas
+    // arm's own shape is unchanged.
+    expect(scheduleTab).toContain('pageKind === "food" ? "Meal" : pageKind === "dailyBrief" ? "Daily Brief" : "Get Gas"');
   });
 });
 

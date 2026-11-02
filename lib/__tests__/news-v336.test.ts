@@ -130,7 +130,9 @@ describe("v336 scenes", () => {
     // v372: 171 — td-shawarma-rice-bar joined the set.
     // v373: 172 — td-risotto joined the set after this pin was written.
     // v376: 173 — td-mississippi-pot-roast joined the set after this pin was written.
-    expect(ids.length).toBe(173);
+    // v414: 174 — daily-brief joined the set (the Daily Brief door;
+    // Jonathan approved daily-breakdown-concepts-v6, Nov 2).
+    expect(ids.length).toBe(174);
     expect(ids).toContain("news");
     expect(ids).toContain("email");
   });
@@ -458,13 +460,16 @@ describe("v336 wiring (source pins)", () => {
     // v379 amendment (Oct 30): the Gas door joined — the keyword
     // map gained its fourth arm ("Get Gas", the map's own gas
     // label). The routing shape is still otherwise unchanged.
+    // v414 amendment (Nov 2): the Daily Brief door joined — the
+    // chain gained its fifth arm ("Daily Brief"); Jonathan
+    // approved daily-breakdown-concepts-v6 ("love it all, do it").
     expect(tab).toContain("keywordPageKindForEvent(event, detectedKeyword?.label)");
     expect(tab).toContain("keywordPagePath(pageKind)");
     expect(tab).toContain("params: { eventId: event.id, eventDate: event.date }");
     // The card wears the door's keyword wholesale (scene, colours,
     // icon) — the call sites keep their long-standing shape.
     expect(tab).toContain("const keyword = pageKind");
-    expect(tab).toContain('pageKind === "news" ? "News" : pageKind === "email" ? "Email" : pageKind === "food" ? "Meal" : "Get Gas"');
+    expect(tab).toContain('pageKind === "news" ? "News" : pageKind === "email" ? "Email" : pageKind === "food" ? "Meal" : pageKind === "dailyBrief" ? "Daily Brief" : "Get Gas"');
     expect(tab).toContain("label={keyword.label}");
   });
 

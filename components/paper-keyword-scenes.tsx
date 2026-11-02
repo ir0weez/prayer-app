@@ -5683,6 +5683,37 @@ export function PaperMvWildwoodScene() {
 /* News (v336): a folded newspaper on a desk, coffee beside it         */
 /* ------------------------------------------------------------------ */
 
+export function PaperDailyBriefScene() {
+  return (
+    <PaperSceneRoot base="#BFD9F2">
+      <PaperCloud top={16} size={40} duration={34000} delay={1500} />
+      <PaperCloud top={42} size={27} duration={42000} delay={12000} />
+      {/* The sun — one cut disc on its halo ring, settled in. */}
+      <SettleIn delay={60} style={{ position: "absolute", left: "50%", bottom: 20, width: 92, height: 92 }}>
+        <View style={{ marginLeft: -46, width: 92, height: 92 }}>
+          <PaperPiece style={{ position: "absolute", left: 0, top: 0, width: 92, height: 92, borderRadius: 46, backgroundColor: "#F8CD7E" }} />
+          <PaperPiece style={{ position: "absolute", left: 9, top: 9, width: 74, height: 74, borderRadius: 37, backgroundColor: "#F5A623" }} />
+        </View>
+      </SettleIn>
+      {/* Layered cut hills. */}
+      <SettleIn delay={140} style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -26, height: 66 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, right: 0, top: 0, height: 66, borderRadius: 32, backgroundColor: "#7FA8D9" }} />
+      </SettleIn>
+      <SettleIn delay={220} style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -30, height: 44 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, right: 0, top: 0, height: 44, borderRadius: 30, backgroundColor: "#4E7CB8" }} />
+      </SettleIn>
+      {/* The open book at the foot of the hills. */}
+      <SettleIn delay={300} style={{ position: "absolute", left: "50%", bottom: 8, width: 64, height: 22 }}>
+        <View style={{ marginLeft: -32, width: 64, height: 22 }}>
+          <PaperPiece style={{ position: "absolute", left: 1, top: 3, width: 31, height: 17, borderTopLeftRadius: 3, borderBottomLeftRadius: 5, backgroundColor: "#FFFFFF", transform: [{ rotate: "-5deg" }] }} />
+          <PaperPiece style={{ position: "absolute", right: 1, top: 3, width: 31, height: 17, borderTopRightRadius: 3, borderBottomRightRadius: 5, backgroundColor: "#FFFFFF", transform: [{ rotate: "5deg" }] }} />
+          <View style={{ position: "absolute", left: 31, top: 2, width: 2, height: 19, backgroundColor: "#C9DEF9" }} />
+        </View>
+      </SettleIn>
+    </PaperSceneRoot>
+  );
+}
+
 export function PaperNewsScene() {
   return (
     <PaperSceneRoot base="#31456B">
@@ -5774,6 +5805,7 @@ const PAPER_SCENE_REGISTRY: Record<PaperSceneId, () => ReactNode> = {
   // Labels
   "news": PaperNewsScene,
   "email": PaperEmailScene,
+  "daily-brief": PaperDailyBriefScene,
   "bbq": PaperBBQScene,
   "fast": PaperFastScene,
   "church": PaperChurchScene,

@@ -11,6 +11,7 @@ import { PaperGrainOverlay } from "@/components/paper-grain";
 import { PaperSettle } from "@/components/paper-motion";
 import { BitSettle } from "@/components/bit-motion";
 import { FastRecapDocument, FastRecapsCard, FastRecordCard, FastTodayHero, FastWhyCard, type FastRecapTarget } from "@/components/fast-tracker";
+import { FastYearReviewBox } from "@/components/year-review-box";
 import { KeepMeOccupiedCard } from "@/components/keep-me-occupied/door-card";
 import { PrestigePrompt } from "@/components/prestige-prompt";
 import { COINS_STORAGE_KEY, parseCoins, type HometownCoins, applyCoinsDelta } from "@/lib/hometown";
@@ -637,6 +638,18 @@ export default function FastingTrackerScreen() {
               recapWeeks={recapWeeks}
               finalReady={finalRecapReady}
               onOpenRecap={setRecapTarget}
+            />
+            {/* v414: the Year in Review box — its own filled box
+                directly under Recaps. It renders NOTHING until
+                Dec 31 of the fast's year (the gate lives in
+                lib/year-review.ts); once visible it stays. */}
+            <FastYearReviewBox
+              family={trackerFamily}
+              fast={selectedFast}
+              today={today}
+              onPress={() =>
+                router.push({ pathname: "/year-in-review", params: { fastId: selectedFast.id } })
+              }
             />
             {/* v280: the Hometown entry card that stood here in v276
                 is removed — the mockup's fasting page has no such

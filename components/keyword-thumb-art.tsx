@@ -106,6 +106,8 @@ function ShapeView({ sh }: { sh: ThumbShape }) {
 export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
   // ── Keyword labels — the scene's own ground, one bold mark. ──
   "news": { g: "#31456B", icon: "article" },
+  // v414: the Daily Brief thumb — the front hill's blue under a sun.
+  "daily-brief": { g: "#4E7CB8", icon: "wb-sunny" },
   "email": { g: "#4C2E91", icon: "mail" },
   "bbq": { g: "#5D2E1E", icon: "outdoor-grill" },
   // v360 — THE SHEET REDRAW (Jonathan, Oct 30: "the up next icons

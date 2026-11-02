@@ -201,6 +201,9 @@ const LABEL_SCENES: Record<string, PaperSceneId> = {
   // keyword — a folded newspaper and an envelope.
   "News": "news",
   "Email": "email",
+  // v414: the Daily Brief door's sunrise, in every skin like the
+  // doors above it.
+  "Daily Brief": "daily-brief",
   "BBQ": "bbq",
   "Fast": "fast",
   "Church": "church",

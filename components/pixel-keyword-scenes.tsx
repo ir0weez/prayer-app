@@ -42,6 +42,7 @@ import {
   PixelMeetingScene,
   PixelNewsScene,
   PixelEmailScene,
+  PixelDailyBriefScene,
   PixelWorkoutScene,
   PixelBasketballScene,
   PixelSoccerScene,
@@ -202,6 +203,7 @@ import {
 export const PIXEL_SCENE_REGISTRY: Record<PaperSceneId, () => ReactNode> = {
   "news": PixelNewsScene,
   "email": PixelEmailScene,
+  "daily-brief": PixelDailyBriefScene,
   "bbq": PixelBBQScene,
   "fast": PixelFastScene,
   "church": PixelChurchScene,

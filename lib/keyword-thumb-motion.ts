@@ -148,6 +148,8 @@ export const KEYWORD_THUMB_MOTIONS: Record<string, ThumbMotionSpec> = {
   "mv-zootopia": { kind: "bob", duration: 2800 },
   "new-year": { kind: "flare", duration: 3600 },
   "news": { kind: "bob", duration: 2800 },
+  // v414: the sunrise breathes, the way the full scene's sun does.
+  "daily-brief": { kind: "breathe", duration: 3200 },
   "outreach": { kind: "breathe", duration: 3600 },
   "park": { kind: "sway", duration: 3400 },
   "park-disney": { kind: "twinkle", duration: 3000 },

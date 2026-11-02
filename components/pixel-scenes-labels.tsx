@@ -1164,6 +1164,30 @@ export function PixelStPatricksScene() {
   );
 }
 
+export function PixelDailyBriefScene() {
+  return (
+    <PixelSceneRoot base="#BFD9F2">
+      <PxCloud left="8%" top={10} width={56} />
+      <PxCloud left="70%" top={28} width={40} />
+      {/* The square sun, bobbing in steps over the hills. */}
+      <StepBob left="43%" bottom={46} width={56} height={56} distance={4} period={1200}>
+        <PxSun left={0} bottom={8} size={40} color="#F5A623" core="#FFC65C" ray="#F5A623" />
+      </StepBob>
+      {/* Stepped hills — squares stacked into slopes. */}
+      <Px style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 20, backgroundColor: "#7FA8D9" }} />
+      <Px style={{ position: "absolute", left: 0, width: "62%", bottom: 20, height: 12, backgroundColor: "#7FA8D9" }} />
+      <Px style={{ position: "absolute", left: 0, width: "34%", bottom: 32, height: 12, backgroundColor: "#7FA8D9" }} />
+      <Px style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 12, backgroundColor: "#4E7CB8" }} />
+      <Px style={{ position: "absolute", right: 0, width: "58%", bottom: 12, height: 10, backgroundColor: "#4E7CB8" }} />
+      <Px style={{ position: "absolute", right: 0, width: "30%", bottom: 22, height: 10, backgroundColor: "#4E7CB8" }} />
+      {/* The open book, in squares. */}
+      <Px style={{ position: "absolute", left: "50%", marginLeft: -32, bottom: 6, width: 30, height: 14, backgroundColor: "#FFFFFF" }} />
+      <Px style={{ position: "absolute", left: "50%", marginLeft: 2, bottom: 6, width: 30, height: 14, backgroundColor: "#FFFFFF" }} />
+      <Px style={{ position: "absolute", left: "50%", marginLeft: -2, bottom: 6, width: 4, height: 14, backgroundColor: "#C9DEF9" }} />
+    </PixelSceneRoot>
+  );
+}
+
 export function PixelNewsScene() {
   return (
     <PixelSceneRoot base="#31456B">

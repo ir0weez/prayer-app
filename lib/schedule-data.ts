@@ -45,6 +45,7 @@ export type ScheduleEvent = {
   color?: string; // Override color
   keyword?: string; // Detected keyword for illustration
   isHoliday?: boolean; // Auto-seeded US holiday (render-only, never editable/persisted)
+  isDailyBrief?: boolean; // v414: the generated 8 AM Daily Brief door (render-only like a holiday, never editable/persisted)
   linkedPeopleIds?: string[]; // IDs of people from prayer list linked to this event
   season?: number; // TV Show season number
   episode?: number; // TV Show episode number
@@ -211,6 +212,13 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   // still wins; a standalone "News" / "Email" / "Mail" / "Gmail"
   // title matches nothing earlier and lands here.
   { keywords: ["news"], label: "News", emoji: "🗞️", icon: "article", bgColor: "#31456B", textColor: "#E8EDF5", accentColor: "#7E93B2" },
+  // v414: the Daily Brief door — the generated 8 AM event's own
+  // keyword (lib/daily-brief.ts). It sits with the doors on
+  // purpose, for the same reason: in combined-text detection a
+  // more specific scene still wins over a note that merely
+  // mentions a daily brief; the door's own card is bound by its
+  // stored label, never by detection.
+  { keywords: ["daily brief"], label: "Daily Brief", emoji: "", icon: "wb-sunny", bgColor: "#BFD9F2", textColor: "#1B4FA8", accentColor: "#4E7CB8" },
   { keywords: ["email", "e-mail", "gmail", "mail"], label: "Email", emoji: "✉️", icon: "mail", bgColor: "#4C2E91", textColor: "#EFE9FF", accentColor: "#7C5CFF" },
   { keywords: ["tv", "tv show", "television", "show", "episode", "series"], label: "TV Show", emoji: "📺", icon: "tv", bgColor: "#2A2A4E", textColor: "#1A237E", accentColor: "#5C6BC0" },
 ];

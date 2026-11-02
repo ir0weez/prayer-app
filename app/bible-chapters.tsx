@@ -18,7 +18,14 @@
 // channel — Finished now counts the READ ones only (Genesis sat
 // there at 50 of 50 written, 0 read), and writing-complete books
 // get their own Written section. The grouping itself lives in
-// groupBooksByStudy; this screen only renders its four sections.
+// groupBooksByStudy; this screen only renders its sections.
+// v421 (his ask, Nov 2): a fifth section — RESTUDY, directly under
+// Current, rendered only when non-empty. Books with chapters in
+// the restudy queue finally surface here (the queue predates this
+// screen's sections; the Queue screen listed them, the Books list
+// never did). The row keeps the card anatomy; its pill seat
+// carries ↻ RESTUDY and a line under the counts names the next
+// queued chapter.
 // v324 (his words, 2026-10-28 21:00 — "I have multiple entire books
 // finished with notes"): Written membership and the rows' written
 // counts now follow the union rule (rewards.ts chapterIsWritten —
@@ -58,6 +65,7 @@ import {
   bookChapterTallies,
   bookIsComplete,
   groupBooksByStudy,
+  nextRestudyChapter,
   studyProgressTotals,
 } from '@/lib/bible-v205/rewards';
 import {
@@ -198,7 +206,8 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
 
   // v222: all 66 books, from the study store alone. v322: FOUR
   // sections — Finished (fully read) and Written (fully written)
-  // split by channel, then Current and Not Started. v324: Written
+  // split by channel, then Current and Not Started. v421: a fifth
+  // — Restudy, out of the same store's queue. v324: Written
   // also reads the resolved notes data (imports included), so the
   // fully-noted books seat there from the first paint — the seed
   // state no longer puts every book in Not Started.
@@ -215,9 +224,11 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     [effectiveState, studioImports],
   );
   // v241: the canon is 66 books — a grouping with zero books across
-  // all four sections is impossible in a healthy build, so it gets a
-  // visible word (below) instead of an empty page.
-  const totalBooks = groups.current.length + groups.finished.length + groups.written.length + groups.notStarted.length;
+  // all five sections is impossible in a healthy build, so it gets a
+  // visible word (below) instead of an empty page. v421: the sum
+  // counts the Restudy section too — its books are pulled OUT of
+  // the other four, so the total still lands on 66 exactly.
+  const totalBooks = groups.current.length + groups.restudy.length + groups.finished.length + groups.written.length + groups.notStarted.length;
   const possessive = labels?.possessive ?? 'Your';
   const sourceLabel = labels?.sourceLabel ?? 'Handwritten notes';
 
@@ -241,6 +252,24 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
       imports={studioImports}
       onPress={() => openBook(book)}
       onMakeCurrent={makeCurrent}
+    />
+  );
+
+  // v421: a Restudy row is the same card wearing its ↻ pill and
+  // naming the next queued chapter (the book's first entry in the
+  // restudy queue, in queue order — rewards.ts nextRestudyChapter).
+  const renderRestudyRow = (book: string) => (
+    <BookRow
+      key={book}
+      book={book}
+      studyState={effectiveState}
+      palette={palette}
+      paperNote={paperNoteFor(book)}
+      notesCount={notesChapterCount(book)}
+      imports={studioImports}
+      onPress={() => openBook(book)}
+      onMakeCurrent={makeCurrent}
+      restudyNextChapter={nextRestudyChapter(effectiveState, book)}
     />
   );
 
@@ -376,6 +405,13 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
           <Text style={[styles.subhead, { color: palette.inkSoft }]}>Current</Text>
         ) : null}
         {groups.current.map(renderBookRow)}
+
+        {/* v421: the Restudy section, directly under Current —
+            rendered only when the queue seats a book here. */}
+        {groups.restudy.length ? (
+          <Text style={[styles.subhead, { color: palette.inkSoft }]}>Restudy</Text>
+        ) : null}
+        {groups.restudy.map(renderRestudyRow)}
 
         {groups.finished.length ? (
           <Text style={[styles.subhead, { color: palette.inkSoft }]}>Finished</Text>
@@ -565,6 +601,24 @@ function CurrentPill({
   );
 }
 
+/** v421: the Restudy pill — the pill seat's quiet tonal dress (the
+ * v383 offer dress: tint + hairline + deep), in the book's own
+ * ROYGBIV colour, stating the state with the app's own glyph for
+ * it (the chapter panel's "↻ ReStudy"). It is a fact, not a button:
+ * chapters enter and leave the queue at the chapter panel, never
+ * from this list. */
+function RestudyPill({ book }: { book: string }) {
+  const palette = useBookBiblePalette(book);
+  return (
+    <View
+      style={[styles.currentPill, { backgroundColor: palette.raspTint, borderColor: palette.bandBorder, borderWidth: 1 }]}
+      accessibilityLabel={`${book} is being restudied`}
+    >
+      <Text style={[styles.currentPillText, { color: palette.raspDeep }]}>↻ RESTUDY</Text>
+    </View>
+  );
+}
+
 function BookRow({
   book,
   studyState,
@@ -574,6 +628,7 @@ function BookRow({
   imports,
   onPress,
   onMakeCurrent,
+  restudyNextChapter,
 }: {
   book: string;
   studyState: StudyState | null;
@@ -586,6 +641,11 @@ function BookRow({
   imports: StudioImportsMap;
   onPress: () => void;
   onMakeCurrent: (book: string) => void;
+  /** v421: on a Restudy-section row, the book's next queued
+   * chapter — the pill seat carries ↻ RESTUDY instead of the
+   * Current pill, and the card names this chapter under the
+   * counts line. Null/absent on every other section's rows. */
+  restudyNextChapter?: number | null;
 }) {
   // v420: the row's own accents — chevron, both threads, the
   // Current pill — wear the book's ROYGBIV colour; the card, name
@@ -645,12 +705,23 @@ function BookRow({
           {book} <Text style={{ color: bookPal.rasp }}>›</Text>
           {paperNote ? <Text style={[styles.papermark, { color: palette.inkSoft }]}>  ✎ on paper</Text> : null}
         </Text>
-        <CurrentPill book={book} studyState={studyState} onMakeCurrent={onMakeCurrent} />
+        {restudyNextChapter != null ? (
+          <RestudyPill book={book} />
+        ) : (
+          <CurrentPill book={book} studyState={studyState} onMakeCurrent={onMakeCurrent} />
+        )}
       </View>
       <Text style={[styles.bcount, { color: palette.inkSoft }]}>
         <Text style={[styles.bcountLead, { color: palette.ink }]}>{parts[0]}</Text>
         {parts.length > 1 ? ` · ${parts.slice(1).join(' · ')}` : ''}
       </Text>
+      {/* v421: the Restudy row names its next queued chapter
+          under the counts line, in the book colour's deep tone. */}
+      {restudyNextChapter != null ? (
+        <Text style={[styles.bnext, { color: bookPal.raspDeep }]}>
+          Next restudy · Chapter {restudyNextChapter}
+        </Text>
+      ) : null}
       {/* v342 (his ruling, Oct 29 14:46, on the Books screenshot:
           "all the lines below the top ones can be straight"): the
           per-book written thread is a RECORD bar, so v341's wavy
@@ -708,6 +779,9 @@ const styles = StyleSheet.create({
   papermark: { fontSize: 12.5, fontWeight: '600' },
   bcount: { fontSize: 13.5, lineHeight: 19, fontWeight: '500', marginTop: 4 },
   bcountLead: { fontWeight: '700' },
+  // v421: the Restudy row's next-chapter line (approved drawing:
+  // 13px semibold-deep under the counts line).
+  bnext: { fontSize: 13, lineHeight: 18, fontWeight: '700', marginTop: 6 },
   thread: { height: 8, borderRadius: 999, overflow: 'hidden', position: 'relative', marginTop: 16 },
   threadFill: { height: 8, borderRadius: 999 },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,16,20,.45)' },

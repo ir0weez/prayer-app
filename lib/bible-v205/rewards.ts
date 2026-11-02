@@ -315,12 +315,27 @@ export function bibleIsFinished(state: StudyState, imports: StudioImportsMap = {
  * through chapterHasNotes, so a book living only in studio imports
  * (Leviticus, no bundled file) counts its notes exactly as shipped
  * data does.
+ * v421 — a fifth section, Restudy: every book with ≥1 chapter in
+ * the study store's restudyQueue, seated between Current and
+ * Finished in QUEUE order. Precedence CURRENT > RESTUDY >
+ * FINISHED > WRITTEN > NOT STARTED (see the block at the return).
  */
+/** v421 — the next chapter of `book` waiting in the restudy queue:
+ * the FIRST queue entry for the book, in queue order. The queue's
+ * head is the app's "next" everywhere it is read (the schedule
+ * doorway reads restudyQueue[0] the same way), so per book the
+ * first matching entry is that book's next. Null when the book
+ * carries no queued chapter. */
+export function nextRestudyChapter(state: StudyState, book: string): number | null {
+  const item = state.restudyQueue.find((q) => q.book === book);
+  return item ? item.chapter : null;
+}
+
 export function groupBooksByStudy(
   state: StudyState,
   canon: string[],
   imports: StudioImportsMap = {},
-): { current: string[]; finished: string[]; written: string[]; notStarted: string[] } {
+): { current: string[]; finished: string[]; written: string[]; restudy: string[]; notStarted: string[] } {
   const finished: string[] = [];
   const written: string[] = [];
   const progressed: string[] = [];
@@ -364,14 +379,40 @@ export function groupBooksByStudy(
     }
     current.push(state.currentBook);
   }
+  // v421 — RESTUDY (his ask, Nov 2): the restudy queue has existed
+  // in the study store since v205, but no Books section gathered
+  // it, so a book he was re-studying sat buried in Written or
+  // Finished. Every book with ≥1 chapter in restudyQueue now gets
+  // the Restudy section, in QUEUE order (first appearance — the
+  // order he queued them, the same order the Queue screen and the
+  // doorway read). Precedence: CURRENT > RESTUDY > FINISHED >
+  // WRITTEN > NOT STARTED — a restudy book leaves Finished /
+  // Written (and the progressed bucket) for Restudy, but the
+  // marked currentBook keeps its home in Current even when it also
+  // carries queued chapters: the v383 doctrine again, an explicit
+  // mark outranks the pull. With an empty queue the section is
+  // empty and every other group is exactly the v322/v383 result.
+  const restudy: string[] = [];
+  for (const item of state.restudyQueue) {
+    if (!canon.includes(item.book)) continue;
+    if (item.book === state.currentBook) continue;
+    if (!restudy.includes(item.book)) restudy.push(item.book);
+  }
+  const restudySet = new Set(restudy);
+  for (const list of [finished, written]) {
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (restudySet.has(list[i])) list.splice(i, 1);
+    }
+  }
   for (const book of progressed) {
-    if (book !== state.currentBook) current.push(book);
+    if (book !== state.currentBook && !restudySet.has(book)) current.push(book);
   }
   return {
     current,
     finished,
     written,
-    notStarted: notStarted.filter((book) => !current.includes(book)),
+    restudy,
+    notStarted: notStarted.filter((book) => !current.includes(book) && !restudySet.has(book)),
   };
 }
 

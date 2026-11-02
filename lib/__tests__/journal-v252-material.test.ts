@@ -128,7 +128,14 @@ describe("v252 — the derivation sweep (every palette × scheme)", () => {
     // v281 re-base (audit D6): the praise gold plus the three
     // count hues — all meaning constants, each mixed over the
     // card and ink-walked. Pinned mockup pastels stay banned.
-    expect([...new Set(literals)]).toEqual(["#F59E0B", "#22C55E", "#3B82F6", "#EC4899"]);
+    // v411 re-base: the kind hues join the sanctioned set — the
+    // plum of Prayer, the rose of Gratitude, the two fast-state
+    // meaning hues the green already represented, and the white
+    // the Answered banner's ink walks toward. Same rule: meaning
+    // constants only, each mixed over the card and ink-walked.
+    expect([...new Set(literals)]).toEqual([
+      "#F59E0B", "#22C55E", "#3B82F6", "#EC4899", "#7C3AED", "#DB2777", "#D97706", "#DC2626", "#FFFFFF",
+    ]);
   });
 });
 
@@ -179,28 +186,34 @@ describe("v252 — the dress is wired (source pins)", () => {
 });
 
 describe("v252 — the composer morph is preserved byte-for-byte (source pins)", () => {
-  it("morph wiring, timing, geometry and the box-none wrap are untouched", () => {
+  // v411 re-base of the whole describe: the morph this block
+  // preserved is RETIRED by Jonathan's Nov 1 ruling ("I hate
+  // these little pop-up cards") and the approved Desk drawings.
+  // The preservation contract transfers to what replaced it: the
+  // writing card is the composer, in flow, inside the entrance
+  // layer, and nothing in the tab animates with springs.
+  it("the morph is gone; the writing card is the composer (v411 re-base)", () => {
     const tab = read("components/prayer-journal-tab.tsx");
-    expect(tab).toContain('accessibilityLabel="Write a moment"');
-    expect(tab).toContain("withTiming(composing ? 1 : 0, skinMotion.settle)");
+    expect(tab).not.toContain('accessibilityLabel="Write a moment"');
+    expect(tab).not.toContain("withTiming(composing ? 1 : 0, skinMotion.settle)");
     expect(tab).not.toContain("withSpring");
-    expect(tab).toContain("morphKeyboardLift");
-    expect(tab).toContain('<PaperSettle style={[styles.composerWrap, { zIndex: 30 }]} pointerEvents="box-none">');
-    expect(tab).toContain("{ borderColor: momentsBorder, backgroundColor: composerBackground }");
-    // Exactly two closeCompose presses: tap-out backdrop + the
-    // keyboard-hide button (the v215 contract).
-    expect(tab.split("onPress={closeCompose}").length - 1).toBe(2);
-    // The composer's solid ground: terminal panel, else the
-    // family's composer ground (which resolves to the surface).
-    const ground = tab.slice(tab.indexOf("const composerBackground"), tab.indexOf("// The resting FAB"));
-    expect(ground).toContain("TERM_PANEL");
-    expect(ground).toContain("jm.composerGround");
+    expect(tab).not.toContain("morphKeyboardLift");
+    expect(tab).not.toContain("composerWrap");
+    expect(tab).not.toContain("composerBackground");
+    expect(tab).not.toContain("closeCompose");
+    expect(tab).toContain("Today's page");
+    expect(tab).toContain("postQuickCard");
+    expect(tab).toContain("composeDeskPost");
   });
 
-  it("the resting FAB still wears the seed in its default branch", () => {
+  it("the FAB is gone too; the Post button wears the seed (v411 re-base)", () => {
     const tab = read("components/prayer-journal-tab.tsx");
-    expect(tab).toContain('const fabBackground = skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary;');
-    expect(tab).toContain("{ backgroundColor: fabBackground }");
+    expect(tab).not.toContain("fabBackground");
+    expect(tab).not.toContain("journalFabRestBottom");
+    // The writing card's Post is the family's filled button —
+    // the seed itself, as the v13 drawing shows it, dimmed only
+    // while the card holds nothing postable.
+    expect(tab).toContain("{ backgroundColor: jm.seed, opacity: canPostCard ? 1 : 0.45 }");
   });
 });
 

@@ -340,14 +340,17 @@ describe("Paper coverage — v202 animation pass", () => {
 
   it("journal: masthead + day pill, rows, and the composer all settle", () => {
     const journal = read("components/prayer-journal-tab.tsx");
-    // v204: the import also brings paperPressedLift — the morphing
-    // composer's FAB face lifts like tappable paper while pressed.
-    expect(journal).toContain('import { PaperSettle, paperPressedLift } from "@/components/paper-motion";');
+    // v411 re-base: the morphing composer (and its FAB face, the
+    // paperPressedLift import's reason) is retired — the Desk's
+    // writing card is the composer, settling with the page head.
+    expect(journal).toContain('import { PaperSettle } from "@/components/paper-motion";');
     // Rows and separators settle on first mount (index-staggered).
     expect(journal).toContain("<PaperSettle index={index} style={styles.separator}>");
     expect(journal).toContain("<PaperSettle index={index}>");
-    // The composer rises as a sheet.
-    expect(journal).toContain("<PaperSettle style={[styles.composerWrap,");
+    // The Desk head (masthead + writing card + question) settles
+    // as one sheet at the top of the list.
+    expect(journal).toContain("<PaperSettle>");
+    expect(journal).not.toContain("composerWrap");
     // The sheets (day/person/tag/calendar) share one shell: fade +
     // settle under Paper.
     const sheets = read("components/journal-sheets.tsx");

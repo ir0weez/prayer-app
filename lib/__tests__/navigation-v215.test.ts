@@ -54,13 +54,19 @@ describe("v215 — the home back handler can never fire under a pushed screen", 
 });
 
 describe("v215 — the Journal composer is a link in the ordered back chain", () => {
-  it("back while composing closes the composer first, gated on composing + focus", () => {
+  it("back while the Write Page is open closes it first, gated on the page + focus (v411 re-base)", () => {
     const tab = read("components/prayer-journal-tab.tsx");
+    // v411: the morph composer this link closed is retired; the
+    // Write Page is the composer's full-page form, and it holds
+    // the same seat in the chain (Modal → composer → tab →
+    // exit) under the same discipline: gated on the page being
+    // open AND the screen being focused, so it can never fire
+    // from under a pushed screen.
     expect(tab).toContain("const journalScreenFocused = useIsFocused();");
-    expect(tab).toContain("if (!composing || !journalScreenFocused) return;");
-    const handler = tab.slice(tab.indexOf("v215: Android back while the composer"), tab.indexOf("// Action sheet"));
+    expect(tab).toContain("if (!writePage || !journalScreenFocused) return;");
+    const handler = tab.slice(tab.indexOf("v215, carried forward by v411"), tab.indexOf("// Action sheet + reply"));
     expect(handler).toContain('BackHandler.addEventListener("hardwareBackPress"');
-    expect(handler).toContain("closeCompose();");
+    expect(handler).toContain("setWritePage(null);");
     expect(handler).toContain("return true;");
   });
 });

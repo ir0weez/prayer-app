@@ -29,7 +29,72 @@ export type PrayerJournalReply = {
 // teal card). Ordinary moments carry NO kind field at all — absence
 // is the ordinary kind, so every entry written before v281 keeps
 // its exact shape.
-export type PrayerJournalEntryKind = "praise" | "answered";
+// v411 (Journal/Fast Rework, Part 2 — the Desk): the kind set grows
+// to the approved taxonomy (journal-kind-formats-v24): the Desk
+// composer's kinds — "prayer" (the plum split card, people-tagged),
+// "gratitude" (the rose keepsake), "verse" (the Bible card, its
+// reference riding in `verse`), "answer" (a post carrying the
+// week's question, riding in `question`) — and "entry", the plain
+// moment named explicitly when the composer files it. Absence
+// still reads as the plain moment it has always been.
+export type PrayerJournalEntryKind =
+  | "praise"
+  | "answered"
+  | "entry"
+  | "prayer"
+  | "gratitude"
+  | "verse"
+  | "answer";
+
+/** v411: a verse post's reference — the book by its reader name
+ *  ("Isaiah"), chapter and verse numbers, and the verse's own
+ *  words, carried on the entry so the Bible card renders from the
+ *  record and OPEN IN BIBLE can route from it. */
+export type PrayerJournalVerseRef = {
+  book: string;
+  chapter: number;
+  verse: number;
+  text: string;
+};
+
+/** v411: the week's question, carried by the post that answers
+ *  it — the question's own words plus the Sunday its week began,
+ *  so the pair survives in yesterday and beyond (v12) and the Desk
+ *  can tell the week has been answered. */
+export type PrayerJournalQuestionRef = {
+  text: string;
+  weekStart: string;
+};
+
+const PRAYER_JOURNAL_ENTRY_KINDS: readonly PrayerJournalEntryKind[] = [
+  "praise",
+  "answered",
+  "entry",
+  "prayer",
+  "gratitude",
+  "verse",
+  "answer",
+];
+
+function normalizeVerseRef(value: unknown): PrayerJournalVerseRef | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = value as Partial<PrayerJournalVerseRef>;
+  const book = typeof candidate.book === "string" ? candidate.book.trim() : "";
+  const text = typeof candidate.text === "string" ? candidate.text.trim() : "";
+  const chapter = typeof candidate.chapter === "number" && Number.isFinite(candidate.chapter) ? Math.max(1, Math.floor(candidate.chapter)) : 0;
+  const verse = typeof candidate.verse === "number" && Number.isFinite(candidate.verse) ? Math.max(1, Math.floor(candidate.verse)) : 0;
+  if (!book || !text || chapter < 1 || verse < 1) return undefined;
+  return { book, chapter, verse, text };
+}
+
+function normalizeQuestionRef(value: unknown): PrayerJournalQuestionRef | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = value as Partial<PrayerJournalQuestionRef>;
+  const text = typeof candidate.text === "string" ? candidate.text.trim() : "";
+  const weekStart = typeof candidate.weekStart === "string" ? candidate.weekStart.trim() : "";
+  if (!text || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) return undefined;
+  return { text, weekStart };
+}
 
 // v410 (Journal/Fast Rework, Part 1 — Jonathan's Nov 1 build word):
 // a fast day's moments live in this same store. ONE record: the
@@ -69,6 +134,10 @@ export type PrayerJournalEntry = {
   body: string;
   kind?: PrayerJournalEntryKind;
   fastDay?: PrayerJournalFastDayLink;
+  /** v411: the verse reference, on kind "verse" entries. */
+  verse?: PrayerJournalVerseRef;
+  /** v411: the week's question this post answers, on kind "answer". */
+  question?: PrayerJournalQuestionRef;
   date: string;
   taggedPeople: PrayerJournalTaggedPerson[];
   places?: PrayerJournalTaggedPlace[];
@@ -192,6 +261,8 @@ type PrayerJournalEntryInput = {
   body: string;
   kind?: PrayerJournalEntryKind;
   fastDay?: PrayerJournalFastDayLink;
+  verse?: PrayerJournalVerseRef;
+  question?: PrayerJournalQuestionRef;
   date?: string;
   taggedPeople?: Person[];
   places?: PrayerJournalTaggedPlace[];
@@ -266,6 +337,8 @@ export function createPrayerJournalEntry(
     photos,
     ...(input.kind ? { kind: input.kind } : {}),
     ...(input.fastDay ? { fastDay: input.fastDay } : {}),
+    ...(normalizeVerseRef(input.verse) ? { verse: normalizeVerseRef(input.verse) } : {}),
+    ...(normalizeQuestionRef(input.question) ? { question: normalizeQuestionRef(input.question) } : {}),
   };
   return sortPrayerJournalEntries([entry, ...entries]);
 }
@@ -293,6 +366,11 @@ export function updatePrayerJournalEntry(
             // entry's structural place links — rewording the body
             // in the editor must not strip them.
             places: input.places !== undefined ? normalizeTaggedPlaces(input.places) : entry.places,
+            // v411: the same rule for the verse reference and the
+            // carried question — an edit that doesn't pass them
+            // keeps the entry's.
+            verse: input.verse !== undefined ? normalizeVerseRef(input.verse) : entry.verse,
+            question: input.question !== undefined ? normalizeQuestionRef(input.question) : entry.question,
             updatedAt,
             color: input.color,
             location: input.location,
@@ -470,7 +548,16 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
     // v281: the kind round-trips — a pack written by v281 keeps
     // its praise/answered entries; a pack from before the field
     // existed (or carrying anything else) loads as ordinary.
-    const kind = candidate.kind === "praise" || candidate.kind === "answered" ? candidate.kind : undefined;
+    // v411: the Desk kinds round-trip the same way.
+    const kind =
+      typeof candidate.kind === "string" && PRAYER_JOURNAL_ENTRY_KINDS.includes(candidate.kind as PrayerJournalEntryKind)
+        ? (candidate.kind as PrayerJournalEntryKind)
+        : undefined;
+    // v411: the verse reference and the carried question
+    // round-trip alongside — a malformed one drops, never
+    // orphans the entry it rode on.
+    const verse = normalizeVerseRef(candidate.verse);
+    const question = normalizeQuestionRef(candidate.question);
     // v410: the fast-day linkage round-trips with the same
     // tolerance — a pack written before the field existed (or by
     // the Studio) loads its fast entries as ordinary moments only
@@ -507,6 +594,8 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
         ...(candidatePhotos ? { photos: candidatePhotos } : {}),
         ...(kind ? { kind } : {}),
         ...(fastDay ? { fastDay } : {}),
+        ...(verse ? { verse } : {}),
+        ...(question ? { question } : {}),
       } satisfies PrayerJournalEntry,
     ];
   });

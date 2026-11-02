@@ -204,20 +204,28 @@ describe("v281 — the dress is wired (source pins)", () => {
     expect(post).not.toContain("colorRule");
   });
 
-  it("the tab: title block + subline, tonal chips, filled Today strip (D1/D4/D5/D6)", () => {
+  it("the tab: title block + date subline + fast chip, tonal chips, the Desk head (D1/D4/D5 + v411)", () => {
     const tab = read("components/prayer-journal-tab.tsx");
-    expect(tab).toContain("Your story, as it happens");
+    // v411 re-base: the Desk drawing (v13) carries the DATE as
+    // the masthead's subline, with the fast's day as a chip
+    // beside the title — D4's title block survives, its subline
+    // is the drawing's. D6's Today strip is retired into the
+    // writing card's count and the day headers.
+    expect(tab).toContain("deskDateLabel(todayIso)");
+    expect(tab).toContain("fastChip");
+    expect(tab).not.toContain("Your story, as it happens");
     expect(tab).not.toContain("logoMark");
-    expect(tab).toContain("{ backgroundColor: jm.tonal, borderColor: jm.line }");
-    expect(tab).toContain('pillChipBg("entries")');
+    expect(tab).toContain("{ backgroundColor: jm.tonal, borderColor: jm.line, borderRadius: skinTokens.cardRadius ?? 12 }");
     expect(tab).toContain("color={jm.deep}");
     expect(tab).not.toContain("#E4572E");
     expect(tab).not.toContain("#DFF3DF");
-    // The FAB ⇄ composer morph is untouched (D13's audit
-    // recommendation stands: the FAB stays a circle) — the same
-    // timing contract the v204/v252 pins hold.
-    expect(tab).toContain("withTiming(composing ? 1 : 0, skinMotion.settle)");
-    expect(tab.split("onPress={closeCompose}")).toHaveLength(3);
+    // The morph D13 kept is retired by the Nov 1 Desk ruling;
+    // the composer is the writing card + Write Page now, posting
+    // through the one Desk path.
+    expect(tab).not.toContain("withTiming(composing ? 1 : 0, skinMotion.settle)");
+    expect(tab).not.toContain("closeCompose");
+    expect(tab).toContain("composeDeskPost");
+    expect(tab).toContain("postsTodayCount");
   });
 
   it("the Day view: count chips and path chrome derive from the family (D12)", () => {

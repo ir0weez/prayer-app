@@ -36,6 +36,23 @@ export const JOURNAL_COUNT_HUES = {
   events: "#EC4899",
 } as const;
 
+// v411 (the Desk, journal-kind-formats-v24): the kind formats'
+// hues — plum for Prayer, rose for Gratitude, green for the fast
+// log — are MEANING hues like the count chips': fixed hues, mixed
+// over the card with their inks walked to the contrast floor, so
+// each kind keeps its identity on every palette while its tones
+// re-derive with the seed family around it. (Praise gold and the
+// answered teal already live above; the fast states' own meaning
+// colors — held green, close-call amber, fell red — stay with
+// lib/fast-tracker's constants, as the Day Page wears them.)
+export const JOURNAL_KIND_HUES = {
+  prayer: "#7C3AED",
+  gratitude: "#DB2777",
+  fastLog: "#22C55E",
+  closeCall: "#D97706",
+  fell: "#DC2626",
+} as const;
+
 export type JournalPaletteTokens = {
   background: string;
   surface: string;
@@ -73,6 +90,11 @@ export interface JournalMaterialFamily {
   tealInk: string;
   /** v281: soft ink walked on the teal tint (answered cards). */
   tealInkSoft: string;
+  /** v411: the answered BANNER's filled form (v24) — the teal
+   *  seed mixed deep over the card in light; in dark the tint
+   *  itself, so the banner never glares. Its ink walks on it. */
+  tealFill: string;
+  tealFillInk: string;
   /** v281: the count chips (Today strip + Day view) — a meaning
    *  hue mixed over the card, and that hue walked to ink on it. */
   entriesChipBg: string;
@@ -81,6 +103,35 @@ export interface JournalMaterialFamily {
   photosChipInk: string;
   eventsChipBg: string;
   eventsChipInk: string;
+  /** v411 (the Desk): the kind formats' derived tones — each a
+   *  meaning hue mixed over the card, its ink walked on the mix
+   *  (the count-chip method), plus the deep form for labels and
+   *  filled pills. */
+  prayerTint: string;
+  prayerInk: string;
+  prayerDeep: string;
+  gratitudeTint: string;
+  gratitudeInk: string;
+  gratitudeDeep: string;
+  fastTint: string;
+  fastInk: string;
+  fastDeep: string;
+  /** The fast log's state dots: the meaning hues themselves,
+   *  deepened until they read on the fast tint. */
+  heldDot: string;
+  closeCallDot: string;
+  fellDot: string;
+  noteDot: string;
+  /** v411: the Verse card's flat primary-container tonal — the
+   *  Bible family's tapped-verse tone, mixed from the seed (never
+   *  a gradient), and ink walked on it. */
+  verseContainer: string;
+  verseInk: string;
+  verseInkSoft: string;
+  /** v411: the question card's tonal (the family's container —
+   *  the seed mixed deeper than the chip tonal), and its ink. */
+  questionTint: string;
+  questionInk: string;
   /** The active palette's primary, untouched — fills, the FAB, the Post arrow. */
   seed: string;
   /** Soft seed-colored shadow paint for the cards (an rgba string). */
@@ -116,6 +167,17 @@ export function deriveJournalMaterial(primary: string, tokens: JournalPaletteTok
   const entriesChip = countChip(JOURNAL_COUNT_HUES.entries);
   const photosChip = countChip(JOURNAL_COUNT_HUES.photos);
   const eventsChip = countChip(JOURNAL_COUNT_HUES.events);
+  // v411: the kind tones — the count-chip method per kind: the
+  // meaning hue mixed over the card, body ink walked on the mix,
+  // and the hue itself walked to ink on the mix for labels/pills.
+  const kindTone = (hue: string) => {
+    const tint = mix(card, hue, dark ? 0.3 : 0.2);
+    return { tint, ink: bibleAccentInk(tokens.foreground, tint), deep: bibleAccentInk(hue, tint) };
+  };
+  const prayerTone = kindTone(JOURNAL_KIND_HUES.prayer);
+  const gratitudeTone = kindTone(JOURNAL_KIND_HUES.gratitude);
+  const fastTone = kindTone(JOURNAL_KIND_HUES.fastLog);
+  const verseContainer = mix(card, primary, dark ? 0.34 : 0.26);
   return {
     // v281 (D1): the ground step deepens — v252's 4% wash left
     // card and ground nearly one tone, and the page read flat.
@@ -134,12 +196,34 @@ export function deriveJournalMaterial(primary: string, tokens: JournalPaletteTok
     tealTintInk: bibleAccentInk(tealSeed, tealTint),
     tealInk: bibleAccentInk(tokens.foreground, tealTint),
     tealInkSoft: bibleAccentInk(tokens.muted, tealTint),
+    tealFill: dark ? tealTint : mix(card, tealSeed, 0.82),
+    tealFillInk: dark
+      ? bibleAccentInk(tokens.foreground, tealTint)
+      : bibleAccentInk("#FFFFFF", mix(card, tealSeed, 0.82)),
     entriesChipBg: entriesChip.bg,
     entriesChipInk: entriesChip.ink,
     photosChipBg: photosChip.bg,
     photosChipInk: photosChip.ink,
     eventsChipBg: eventsChip.bg,
     eventsChipInk: eventsChip.ink,
+    prayerTint: prayerTone.tint,
+    prayerInk: prayerTone.ink,
+    prayerDeep: prayerTone.deep,
+    gratitudeTint: gratitudeTone.tint,
+    gratitudeInk: gratitudeTone.ink,
+    gratitudeDeep: gratitudeTone.deep,
+    fastTint: fastTone.tint,
+    fastInk: fastTone.ink,
+    fastDeep: fastTone.deep,
+    heldDot: bibleAccentInk(JOURNAL_KIND_HUES.fastLog, fastTone.tint),
+    closeCallDot: bibleAccentInk(JOURNAL_KIND_HUES.closeCall, fastTone.tint),
+    fellDot: bibleAccentInk(JOURNAL_KIND_HUES.fell, fastTone.tint),
+    noteDot: bibleAccentInk(primary, fastTone.tint),
+    verseContainer,
+    verseInk: bibleAccentInk(tokens.foreground, verseContainer),
+    verseInkSoft: bibleAccentInk(tokens.muted, verseContainer),
+    questionTint: mix(card, primary, dark ? 0.3 : 0.22),
+    questionInk: bibleAccentInk(tokens.foreground, mix(card, primary, dark ? 0.3 : 0.22)),
     seed: primary,
     shadow: hexToRgba(primary, dark ? 0.4 : 0.1),
     gold: JOURNAL_PRAISE_GOLD,

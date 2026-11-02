@@ -2,50 +2,46 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BackHandler,
   FlatList,
-  Keyboard,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from "react-native";
-import ReAnimated, {
-  Easing,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AvatarImage } from "@/components/avatar-system";
 import { DateTimePicker } from "@/components/date-time-picker";
 import { JournalDay } from "@/components/journal-day";
+import { FastLogCard, JournalKindPost, timeLabel12 } from "@/components/journal-kind-post";
 import { JournalPost, type JournalAuthor } from "@/components/journal-post";
 import { CalendarSheet, PersonSheet, TagSheet } from "@/components/journal-sheets";
-import { MoodFace } from "@/components/mood-face";
+import { JournalWrite } from "@/components/journal-write";
 import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
-import { PaperSettle, paperPressedLift } from "@/components/paper-motion";
-import { BitSettle, bitPressedSnap } from "@/components/bit-motion";
-import { MOODS, MoodPicker, type JournalMood } from "@/components/mood-picker";
+import { PaperSettle } from "@/components/paper-motion";
+import { BitSettle } from "@/components/bit-motion";
+import { MoodPicker, type JournalMood } from "@/components/mood-picker";
 import { useColors } from "@/hooks/use-colors";
 import { useKeyboardHeight } from "@/hooks/use-keyboard-height";
 import { useSkin } from "@/hooks/use-skin";
-import { useTabBarOccupiedHeight } from "@/components/app-tab-bar";
+import {
+  FAST_DAY_ENTRY_KIND_LABELS,
+  getFastDayEntries,
+  migrateFastDayEntriesInStorage,
+  type FastDayEntryKind,
+} from "@/lib/fast-day-entries";
 import {
   activeTokenAt,
   addDaysToIso,
   applySuggestion,
-  dayCounts,
   formatClock,
   isoDateOf,
   knownPlaces,
@@ -53,9 +49,23 @@ import {
   peopleSuggestions,
   placeSuggestions,
   placeTagFor,
-  type ActiveToken,
   type MomentsFeedItem,
 } from "@/lib/journal-moments";
+import {
+  DESK_POST_KIND_LABELS,
+  activeFastChip,
+  composeDeskPost,
+  deskDateLabel,
+  deskEntryFormat,
+  deskFeedItems,
+  deskKindPostsInPlace,
+  postsTodayCount,
+  weekQuestionAnswered,
+  weekQuestionFor,
+  type DeskFeedItem,
+  type DeskPostInput,
+  type DeskPostKind,
+} from "@/lib/journal-desk";
 import { useJournalMaterial } from "@/hooks/use-journal-material";
 import type { Person } from "@/lib/prayercircle-data";
 import {
@@ -68,11 +78,12 @@ import {
   updatePrayerJournalEntry,
   updatePrayerJournalReply,
   type PrayerJournalEntry,
+  type PrayerJournalQuestionRef,
   type PrayerJournalReply,
   type PrayerJournalTaggedPlace,
 } from "@/lib/prayer-journal";
-import type { PersonalFast } from "@/lib/prayercircle-fasting";
-import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
+import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { SCHEDULE_EVENTS_KEY, type ScheduleEvent } from "@/lib/schedule-data";
 import {
   BIT_ON_DUSK,
@@ -106,7 +117,11 @@ type PrayerJournalTabProps = {
 // v196: the feed item type + the filter/grouping itself live in
 // lib/journal-moments (momentsFeedItems) so the post → feed round
 // trip is covered by tests, not just by this component.
+// v411: the Desk's item model lives beside it in lib/journal-desk
+// (deskFeedItems); the list renders Desk items at rest and the
+// filtered Moments items while a search/bookmark filter is on.
 type FeedItem = MomentsFeedItem;
+type DeskListItem = FeedItem | DeskFeedItem;
 
 function parseDateKey(value: string): Date {
   const [year, month, day] = value.split("-").map(Number);
@@ -167,25 +182,30 @@ function createId(prefix: string): string {
 // from the token at the cursor, and picks are stored structurally
 // on the entry (taggedPeople / places), so the links are data,
 // not render-time guesses.
+// v411 (Journal/Fast Rework, Part 2 — THE DESK; his Nov 1 build
+// word, drawings v13/v24/v6/v11/v12): the Journal home is rebuilt
+// as the Desk. The masthead carries the date and the fast's day
+// chip; the writing card is the hero composer (the v204 morph
+// retires — the card is in the flow, plain-mounted, kind chosen
+// by a flat text link, Prayer/Verse/More as doors to the Write
+// Page); the week's question sits directly under it and pins
+// into the draft on tap; the feed renders each kind in its v24
+// format, fast days grouped into one log; Carried This Week and
+// Memories hold their seats; yesterday shows its real posts and
+// older days rest as one-line headers into the Day view. Search,
+// bookmarks, the calendar, the person/tag pages, the Day view,
+// the long-form EDITOR (edits), replies, bookmarks and both
+// write-in paths all survive — the filtered feed keeps the v281
+// post dress, and only the unfiltered home wears the Desk.
 export function PrayerJournalTab({ entries, people, onChange, onComposeChange, headerBell }: PrayerJournalTabProps) {
   const fadeScrollY = useTopFadeScrollY();
   const colors = useColors();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
-  const { isSkinned, tokens: skinTokens, motion: skinMotion } = useSkin();
-  // v306: the composer FAB's resting seat derives from the tab
-  // bar's own occupied height under Classic (the schedule FAB's
-  // v298 rule, + the same 12 clearance) — the legacy flat seat was
-  // drawn for the skins' floating bar and left the FAB's lower
-  // half sunk behind the attached Classic bar (Oct 28, screenshot
-  // 10825). The skins keep their notch seat (60, beside the
-  // floating bar); because the seat reads the same metric the bar
-  // reports, the two can never drift apart again.
-  const tabBarOccupied = useTabBarOccupiedHeight();
-  const journalFabRestBottom = skinTokens.id === "classic" ? tabBarOccupied + 12 : 60;
+  const { isSkinned, tokens: skinTokens } = useSkin();
   // v252: the Journal's Material family (seed-derived, lib/journal-material).
   const jm = useJournalMaterial();
-  const { width: windowWidth } = useWindowDimensions();
   // The 8-bit pixel face for small caps labels (was a local helper in
   // the old Journal too; the skin pins look for it here).
   const bitText = (size: number) =>
@@ -205,18 +225,23 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
   const [author, setAuthor] = useState<JournalAuthor>({ name: "You" });
   const refreshSideData = useCallback(async () => {
     try {
-      const [eventsRaw, fastsRaw, profileRaw] = await Promise.all([
+      // v411: the fasts arrive through Part 1's migration runner —
+      // the Desk's question, chip, logs and memories all read the
+      // migrated record (dailyNotes already journal entries), and
+      // when the migration moved something the shell hears it
+      // through onChange like any other journal write.
+      const [eventsRaw, profileRaw, migration] = await Promise.all([
         AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
-        AsyncStorage.getItem(FASTS_STORAGE_KEY),
         AsyncStorage.getItem(PROFILE_STORAGE_KEY),
+        migrateFastDayEntriesInStorage().catch(() => null),
       ]);
       if (eventsRaw) {
         const parsed: unknown = JSON.parse(eventsRaw);
         if (Array.isArray(parsed)) setScheduleEvents(parsed as ScheduleEvent[]);
       }
-      if (fastsRaw) {
-        const parsed: unknown = JSON.parse(fastsRaw);
-        if (Array.isArray(parsed)) setFasts(parsed as PersonalFast[]);
+      if (migration) {
+        setFasts(migration.fasts);
+        if (migration.changed) onChange(migration.entries);
       }
       if (profileRaw) {
         const profile = JSON.parse(profileRaw) as { name?: string; photoUri?: string; avatarAsset?: string };
@@ -229,7 +254,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
     } catch {
       // Quiet: the feed works without the side data.
     }
-  }, []);
+  }, [onChange]);
   useEffect(() => {
     void refreshSideData();
   }, [refreshSideData]);
@@ -250,105 +275,41 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
   const [searchOpen, setSearchOpen] = useState(false);
   const [bookmarksOnly, setBookmarksOnly] = useState(false);
 
-  // Composer state
+  // Composer state — v411: the Desk's writing card. The card is
+  // in the flow at the head of the feed; its draft is plain text,
+  // its kind is chosen by the footer's flat text link, and kinds
+  // that need tools (Prayer, Verse, and More) are doors to the
+  // Write Page carrying the draft with them. The v204 morph and
+  // its FAB are retired — the shell's tab bar is never hidden by
+  // this tab now, so onComposeChange only ever reports false.
   const [draft, setDraft] = useState("");
-  const [draftMood, setDraftMood] = useState<JournalMood | null>(null);
-  const [draftPhotos, setDraftPhotos] = useState<string[]>([]);
-  const [moodRowOpen, setMoodRowOpen] = useState(false);
-  const [tagWord, setTagWord] = useState("");
-  const [tagRowOpen, setTagRowOpen] = useState(false);
+  const [quickKind, setQuickKind] = useState<DeskPostKind>("entry");
+  const [quickFastKind, setQuickFastKind] = useState<FastDayEntryKind>("note");
+  const [kindChooserOpen, setKindChooserOpen] = useState(false);
+  const [writePage, setWritePage] = useState<{ kind: DeskPostKind; body: string } | null>(null);
+  // v411 (v12): the week's question, pinned into the draft. Set
+  // by tapping the question card; the X unpins it and the draft
+  // stays. A post made while pinned carries the question.
+  const [pinnedQuestion, setPinnedQuestion] = useState<PrayerJournalQuestionRef | null>(null);
 
-  // v204 — the composer is a MORPH, not a bar (his asks, Oct 23).
-  // At rest there is no composer at all: the tab bar shows and a
-  // "+" FAB floats where the shell's FAB floats on the other tabs.
-  // Tapping it runs ONE fluid animation — the FAB expands into the
-  // text box in the tab bar's place (the shell hides the bar; see
-  // onComposeChange) — and tapping out, posting, or the close
-  // button reverses it. The box is CLEAR (frosted, translucent):
-  // the solid grey bar that sat under everything is gone in every
-  // state. The morph timing is the skin's own settle config —
-  // timing only, no springs, like every dialect in the app.
-  const [composing, setComposing] = useState(false);
-  const composerInputRef = useRef<TextInput>(null);
-  // The @ / # autocomplete reads the token at the cursor; the
-  // selection is mirrored so a pick can splice text and leave the
-  // cursor exactly after the inserted name.
-  const [draftCursor, setDraftCursor] = useState(0);
-  const [draftSelection, setDraftSelection] = useState<{ start: number; end: number } | undefined>(undefined);
-  // Picks are stored structurally on the entry when it posts —
-  // people as taggedPeople snapshots, places as {name, tag} — the
-  // same models the entry already had, now actually fed.
-  const [draftMentions, setDraftMentions] = useState<Person[]>([]);
-  const [draftPlaces, setDraftPlaces] = useState<PrayerJournalTaggedPlace[]>([]);
-  const morphProgress = useSharedValue(0);
-  const morphKeyboardLift = useSharedValue(0);
-  const morphContentHeight = useSharedValue(56);
-
-  useEffect(() => {
-    morphProgress.value = withTiming(composing ? 1 : 0, skinMotion.settle);
-  }, [composing, morphProgress, skinMotion]);
-  useEffect(() => {
-    morphKeyboardLift.value = withTiming(keyboardHeight, { duration: 200, easing: Easing.out(Easing.quad) });
-  }, [keyboardHeight, morphKeyboardLift]);
-  // The shell hears about compose state (and stops hearing it the
-  // moment the Day view replaces Moments, or the tab unmounts).
-  useEffect(() => {
-    onComposeChange?.(composing && !dayViewDate);
-  }, [composing, dayViewDate, onComposeChange]);
   useEffect(() => () => onComposeChange?.(false), [onComposeChange]);
 
-  const morphStyle = useAnimatedStyle(() => {
-    const progress = morphProgress.value;
-    return {
-      width: 58 + (windowWidth - 20 - 58) * progress,
-      height: 58 + (Math.max(morphContentHeight.value, 58) - 58) * progress,
-      marginRight: 15 - 5 * progress,
-      // v306: rest at journalFabRestBottom; as the morph opens the
-      // bar steps aside and the box settles to its open seat (52)
-      // on every skin — under the skins that's the same 60 → 52
-      // travel the flat constants always drew.
-      marginBottom: journalFabRestBottom + (52 - journalFabRestBottom) * progress + morphKeyboardLift.value * progress,
-      borderRadius: 29 - 3 * progress,
-    };
-  });
-  const morphContentStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(morphProgress.value, [0.3, 0.9], [0, 1]),
-  }));
-  const morphFabStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(morphProgress.value, [0, 0.35], [1, 0]),
-  }));
-
-  const openCompose = useCallback(() => {
-    setComposing(true);
-    // Focus as the box lands, so the keyboard's rise meets the
-    // morph instead of racing it.
-    setTimeout(() => composerInputRef.current?.focus(), 280);
-  }, []);
-  const closeCompose = useCallback(() => {
-    setComposing(false);
-    composerInputRef.current?.blur();
-    Keyboard.dismiss();
-  }, []);
-
-  // v215: Android back while the composer is open folds the morph
-  // FIRST (his ask — the ordered back chain: Modal → composer →
-  // tab → exit). This handler is the composer's own link in that
-  // chain: it exists only while composing AND only while this
-  // screen is the focused route, so it can never fire from under a
-  // pushed screen (the same defect class the shell's handler had).
-  // Registered when the composer opens — after the shell's handler
-  // — so in BackHandler's LIFO order it is consulted first, and
-  // closeCompose here is the very same dismiss the keyboard-hide
-  // button and the tap-out backdrop call.
+  // v215, carried forward by v411: the Journal's full-page
+  // composer stays a link in the ordered back chain (Modal →
+  // composer → tab → exit). The v204 morph's link retired with
+  // the morph; the Write Page is the composer's full form now, so
+  // back while it is open closes the page first — gated on the
+  // page being open AND this screen being focused, so it can
+  // never fire from under a pushed screen.
   const journalScreenFocused = useIsFocused();
   useEffect(() => {
-    if (!composing || !journalScreenFocused) return;
+    if (!writePage || !journalScreenFocused) return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      closeCompose();
+      setWritePage(null);
       return true;
     });
     return () => sub.remove();
-  }, [composing, journalScreenFocused, closeCompose]);
+  }, [writePage, journalScreenFocused]);
 
   // Action sheet + reply + long-form editor state
   const [actionEntry, setActionEntry] = useState<PrayerJournalEntry | null>(null);
@@ -376,7 +337,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
   const [editSelection, setEditSelection] = useState<{ start: number; end: number } | undefined>(undefined);
   const editorInputRef = useRef<TextInput>(null);
 
-  const feedListRef = useRef<FlatList<FeedItem>>(null);
+  const feedListRef = useRef<FlatList<DeskListItem>>(null);
 
   // v196: the grouping/filter is lib/journal-moments'
   // momentsFeedItems now (unit-tested round trip). The Day view and
@@ -400,12 +361,25 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
     });
   }, []);
 
-  const todayCounts = useMemo(() => dayCounts(entries, scheduleEvents, todayIso), [entries, scheduleEvents, todayIso]);
-  const yesterdayCounts = useMemo(
-    () => dayCounts(entries, scheduleEvents, yesterdayIso),
-    [entries, scheduleEvents, yesterdayIso],
+  // ── v411: the Desk's derived state ─────────────────────────────
+  const filtering = query.trim().length > 0 || bookmarksOnly;
+  const deskItems = useMemo<DeskFeedItem[]>(
+    () => (filtering ? [] : deskFeedItems(entries, fasts, todayIso)),
+    [entries, fasts, todayIso, filtering],
   );
-  const showYesterdayPeek = todayCounts.entries === 0 && yesterdayCounts.entries > 0 && !query && !bookmarksOnly;
+  const todayPostCount = useMemo(() => postsTodayCount(entries, todayIso), [entries, todayIso]);
+  const fastChip = useMemo(() => activeFastChip(fasts, todayIso), [fasts, todayIso]);
+  const weekQuestion = useMemo(() => weekQuestionFor(fasts, entries, todayIso), [fasts, entries, todayIso]);
+  const questionAnswered = weekQuestion ? weekQuestionAnswered(entries, weekQuestion.weekStart) : false;
+  const showQuestionCard = Boolean(weekQuestion) && !questionAnswered && !pinnedQuestion && !filtering;
+  const activeFast = useMemo(() => getActiveFast(fasts, todayIso), [fasts, todayIso]);
+  const deskWeekLabel = useMemo(() => {
+    const parsed = parseDateKey(todayIso);
+    const jan1 = new Date(parsed.getFullYear(), 0, 1);
+    const dayOfYear = Math.floor((parsed.getTime() - jan1.getTime()) / 86400000) + 1;
+    const week = Math.floor((dayOfYear + jan1.getDay()) / 7) + 1;
+    return `${parsed.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()} · WEEK ${week}`;
+  }, [todayIso]);
 
   // v204: a structurally stored mention can outlive the person on
   // the People list — resolve those ids from the entries' own
@@ -425,41 +399,6 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
   // The places the # strip can suggest: schedule locations (the
   // Places Path's own strings) plus places his entries carry.
   const knownPlaceNames = useMemo(() => knownPlaces(scheduleEvents, entries), [scheduleEvents, entries]);
-
-  const draftToken = useMemo(() => activeTokenAt(draft, draftCursor), [draft, draftCursor]);
-  const draftPeople = useMemo(
-    () => (draftToken?.trigger === "@" ? peopleSuggestions(people, draftToken.query) : []),
-    [draftToken, people],
-  );
-  const draftPlaceNames = useMemo(
-    () => (draftToken?.trigger === "#" ? placeSuggestions(knownPlaceNames, draftToken.query) : []),
-    [draftToken, knownPlaceNames],
-  );
-
-  const pickDraftPerson = (person: Person) => {
-    if (!draftToken) return;
-    const next = applySuggestion(draft, draftToken, `@${person.name}`);
-    setDraft(next.text);
-    setDraftCursor(next.cursor);
-    setDraftSelection({ start: next.cursor, end: next.cursor });
-    setDraftMentions((current) =>
-      current.some((picked) => picked.id === person.id) ? current : [...current, person],
-    );
-    composerInputRef.current?.focus();
-  };
-
-  const pickDraftPlace = (name: string) => {
-    if (!draftToken) return;
-    const tag = placeTagFor(name);
-    const next = applySuggestion(draft, draftToken, `#${tag}`);
-    setDraft(next.text);
-    setDraftCursor(next.cursor);
-    setDraftSelection({ start: next.cursor, end: next.cursor });
-    setDraftPlaces((current) =>
-      current.some((picked) => picked.tag.toLowerCase() === tag.toLowerCase()) ? current : [...current, { name, tag }],
-    );
-    composerInputRef.current?.focus();
-  };
 
   const editToken = useMemo(() => activeTokenAt(editBody, editCursor), [editBody, editCursor]);
   const editPeopleSuggestions = useMemo(
@@ -525,57 +464,65 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
 
   // ── Composer ─────────────────────────────────────────────────────────────
 
-  const pickPhotos = async (target: "quick" | "editor") => {
+  const pickPhotoUris = async (): Promise<string[]> => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
+    if (!permission.granted) return [];
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsMultipleSelection: true,
       selectionLimit: 4,
       quality: 0.85,
     });
-    if (result.canceled) return;
-    const uris = result.assets.map((asset) => asset.uri);
-    if (target === "quick") setDraftPhotos((current) => [...current, ...uris].slice(0, 6));
-    else setEditPhotos((current) => [...current, ...uris].slice(0, 6));
+    if (result.canceled) return [];
+    return result.assets.map((asset) => asset.uri);
   };
 
-  const postQuick = () => {
-    let body = draft.trim();
-    const tag = tagWord.trim().replace(/^#/, "").toLowerCase();
-    if (tag) body = body ? `${body} #${tag}` : `#${tag}`;
-    const next = createPrayerJournalEntry(
-      entries,
-      {
-        body,
-        date: todayIso,
-        mood: draftMood ?? undefined,
-        photos: draftPhotos.length > 0 ? draftPhotos : undefined,
-        // v204: the @ / # picks land structurally on the entry —
-        // taggedPeople snapshots for the people, {name, tag} for
-        // the places — so the links are stored, not re-guessed
-        // from the text at render time.
-        taggedPeople: draftMentions.length > 0 ? draftMentions : undefined,
-        places: draftPlaces.length > 0 ? draftPlaces : undefined,
-      },
-      createId("journal"),
-    );
-    if (next === entries) return; // nothing postable (empty, no mood/photo)
+  const pickPhotos = async (target: "editor") => {
+    const uris = await pickPhotoUris();
+    if (uris.length === 0) return;
+    if (target === "editor") setEditPhotos((current) => [...current, ...uris].slice(0, 6));
+  };
+
+  // v411: THE posting path — the writing card and the Write Page
+  // both land here, and both walk lib/journal-desk's
+  // composeDeskPost, so the record (and every place it lands) is
+  // identical whichever surface wrote it (v6's rule).
+  const postFromDesk = (input: DeskPostInput): boolean => {
+    const next = composeDeskPost(entries, input, createId("journal"));
+    if (next === entries) return false;
     onChange(next);
-    setDraft("");
-    setDraftCursor(0);
-    setDraftSelection(undefined);
-    setDraftMentions([]);
-    setDraftPlaces([]);
-    setDraftMood(null);
-    setDraftPhotos([]);
-    setTagWord("");
-    setTagRowOpen(false);
-    setMoodRowOpen(false);
     revealFreshPost();
-    // Posting completes the morph: the box folds back to the FAB
-    // and the tab bar returns.
-    closeCompose();
+    return true;
+  };
+
+  const postQuickCard = () => {
+    const posted = postFromDesk({
+      kind: quickKind,
+      body: draft,
+      date: todayIso,
+      ...(quickKind === "fast" ? { fastKind: quickFastKind, fast: activeFast } : {}),
+      ...(pinnedQuestion && quickKind === "entry" ? { question: pinnedQuestion } : {}),
+    });
+    if (posted) {
+      setDraft("");
+      setPinnedQuestion(null);
+      setKindChooserOpen(false);
+    }
+  };
+
+  const canPostCard = draft.trim().length > 0 && (quickKind !== "fast" || Boolean(activeFast));
+
+  /** v6: kinds that need their tools are DOORS — tapping one in
+   *  the card's chooser (or "More") opens the Write Page with the
+   *  draft and kind already in it; nothing is retyped. */
+  const chooseQuickKind = (kind: DeskPostKind | "more") => {
+    if (kind !== "more" && deskKindPostsInPlace(kind)) {
+      setQuickKind(kind);
+      setKindChooserOpen(false);
+      return;
+    }
+    setWritePage({ kind: kind === "more" ? quickKind : kind, body: draft });
+    setKindChooserOpen(false);
   };
 
   const logMoodOnly = (moodId: string) => {
@@ -589,8 +536,6 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
       revealFreshPost();
     }
   };
-
-  const canPost = draft.trim().length > 0 || draftMood !== null || draftPhotos.length > 0 || tagWord.trim().length > 0;
 
   // ── Long-form editor ─────────────────────────────────────────────────────
 
@@ -619,19 +564,20 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
       // and back out on save — an edit never strips them.
       setEditPlaces(entry.places ?? []);
     } else {
+      // v411: new entries are born on the Write Page now; the
+      // editor's create branch survives only as a fallback and
+      // starts empty.
       setEditingEntry(null);
       setEditTitle("");
-      setEditBody(draft);
+      setEditBody("");
       setEditDate(new Date());
-      setEditMood(draftMood ?? undefined);
+      setEditMood(undefined);
       setEditColor(undefined);
       setEditLocation("");
       setEditWeather("");
-      setEditPhotos(draftPhotos);
-      // v204: a long entry started from the composer carries the
-      // composer's @ / # picks with it.
-      setEditPeople(draftMentions);
-      setEditPlaces(draftPlaces);
+      setEditPhotos([]);
+      setEditPeople([]);
+      setEditPlaces([]);
     }
     setEditCursor(0);
     setEditSelection(undefined);
@@ -661,14 +607,6 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
     if (!editingEntry) revealFreshPost();
     setEditorOpen(false);
     setEditingEntry(null);
-    setDraft("");
-    setDraftCursor(0);
-    setDraftSelection(undefined);
-    setDraftMentions([]);
-    setDraftPlaces([]);
-    setDraftMood(null);
-    setDraftPhotos([]);
-    closeCompose();
   };
 
   const toggleTaggedPerson = (person: Person) => {
@@ -716,6 +654,161 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
     );
   }
 
+  // ── v411: the Write Page ─────────────────────────────────────────────────
+  // The same composer, opened all the way (v6/v13 Frame 3) — a
+  // plain in-place mount like the Day view, sharing this tab's
+  // entries and the one posting path, so a post from here lands
+  // exactly where a quick post lands.
+
+  if (writePage) {
+    return (
+      <View style={[styles.container, { backgroundColor: isSkinned ? skinTokens.background ?? undefined : jm.ground }]}>
+        <JournalWrite
+          jm={jm}
+          initialKind={writePage.kind}
+          initialBody={writePage.body}
+          people={people}
+          fasts={fasts}
+          todayIso={todayIso}
+          question={pinnedQuestion}
+          onUnpinQuestion={() => setPinnedQuestion(null)}
+          onPickPhotos={pickPhotoUris}
+          onPost={(input) => {
+            if (postFromDesk(input)) {
+              setWritePage(null);
+              setDraft("");
+              setPinnedQuestion(null);
+            }
+          }}
+          onClose={() => setWritePage(null)}
+        />
+        {renderOverlays()}
+      </View>
+    );
+  }
+
+  // v411: the kind formats' callbacks — the sheets' own set plus
+  // the verse card's door into the Bible reader.
+  const kindCallbacks = {
+    ...sheetCallbacks,
+    onOpenVerse: (entry: PrayerJournalEntry) => {
+      if (!entry.verse) return;
+      router.push({
+        pathname: "/bible-chapter",
+        params: { book: entry.verse.book, chapter: String(entry.verse.chapter) },
+      });
+    },
+    onOpenFastDay: (fast: PersonalFast, date: string) => {
+      router.push({ pathname: "/fast-day", params: { fastId: fast.id, date } });
+    },
+  };
+
+  // v411: one Desk feed item → its surface. The order itself is
+  // lib/journal-desk's deskFeedItems; this is only the dress.
+  const renderDeskItem = (item: DeskFeedItem) => {
+    switch (item.type) {
+      case "todayLabel":
+        return (
+          <Text style={[styles.secLabel, { color: skinTokens.isTerminal ? TERM_MID : colors.muted }]}>EARLIER TODAY</Text>
+        );
+      case "post":
+        return <JournalKindPost entry={item.entry} jm={jm} {...kindCallbacks} />;
+      case "fastLog":
+        return (
+          <FastLogCard
+            fast={item.fast}
+            date={item.date}
+            dayNumber={item.dayNumber}
+            entries={item.entries}
+            jm={jm}
+            onOpenDay={kindCallbacks.onOpenFastDay}
+            onShowActions={sheetCallbacks.onShowActions}
+          />
+        );
+      case "carried":
+        return (
+          <View style={[styles.carriedCard, { backgroundColor: jm.tonal }]}>
+            <Text style={[styles.carriedLabel, { color: jm.deep }]}>CARRIED THIS WEEK</Text>
+            <View style={styles.carriedFaces}>
+              {item.people.map((person) => (
+                <Pressable key={person.id} onPress={() => setPersonId(person.id)} style={({ pressed }) => [pressed && styles.pressed]}>
+                  <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={38} fallbackColor={person.avatarColor} />
+                </Pressable>
+              ))}
+            </View>
+            <Text style={[styles.carriedNames, { color: jm.ink }]}>
+              {item.people.map((person) => person.name).join(", ")}
+            </Text>
+          </View>
+        );
+      case "memory": {
+        const memory = item.memory;
+        const memoryFast = memory.entry.fastDay
+          ? fasts.find((fast) => fast.id === memory.entry.fastDay?.fastId)
+          : undefined;
+        return (
+          <View style={styles.memoryWrap}>
+            <Text style={[styles.memoryLabel, { color: jm.deep }]}>
+              MEMORIES — ONE WEEK AGO{memory.dayNumber ? `, DAY ${memory.dayNumber}` : ""}
+            </Text>
+            {memoryFast && memory.entry.fastDay ? (
+              <FastLogCard
+                fast={memoryFast}
+                date={memory.entry.date}
+                dayNumber={memory.dayNumber ?? 0}
+                entries={getFastDayEntries(entries, memoryFast.id, memory.entry.date)}
+                jm={jm}
+                bare
+                onOpenDay={kindCallbacks.onOpenFastDay}
+                onShowActions={sheetCallbacks.onShowActions}
+              />
+            ) : (
+              <JournalKindPost entry={memory.entry} jm={jm} bare {...kindCallbacks} />
+            )}
+            {memory.keptLine ? <Text style={[styles.memoryKept, { color: jm.inkSoft }]}>{memory.keptLine}</Text> : null}
+          </View>
+        );
+      }
+      case "yesterdayHead": {
+        const label = parseDateKey(item.date)
+          .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+          .toUpperCase();
+        return (
+          <Pressable onPress={() => setDayViewDate(item.date)} style={styles.dayHeadRow}>
+            <Text style={[styles.dayHeadText, { color: jm.ink }]}>YESTERDAY — {label}</Text>
+            <View style={[styles.dayHeadLine, { backgroundColor: jm.line }]} />
+            {item.dayNumber ? (
+              <Text style={[styles.dayHeadMeta, { color: jm.inkSoft }]}>
+                Day {item.dayNumber}
+                {item.kept ? " · kept" : ""}
+              </Text>
+            ) : null}
+          </Pressable>
+        );
+      }
+      case "dayHead": {
+        const label = parseDateKey(item.date)
+          .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+          .toUpperCase();
+        return (
+          <Pressable
+            onPress={() => setDayViewDate(item.date)}
+            style={({ pressed }) => [styles.restDay, { borderColor: jm.line, backgroundColor: jm.card }, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${label}`}
+          >
+            <Text style={[styles.restDayDate, { color: jm.ink }]}>{label}</Text>
+            <Text style={[styles.restDayMeta, { color: jm.inkSoft }]}>
+              {item.dayNumber ? `Day ${item.dayNumber} · ` : ""}
+              {item.count} {item.count === 1 ? "entry" : "entries"}
+            </Text>
+            <MaterialIcons name="expand-more" size={16} color={jm.inkSoft} />
+          </Pressable>
+        );
+      }
+    }
+  };
+
   // ── Moments ──────────────────────────────────────────────────────────────
 
   // v196: v195 painted the Moments screen with the mockup's own
@@ -729,67 +822,17 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
   const faint = skinTokens.isTerminal ? TERM_MID : colors.muted;
   const momentsSurface = colors.surface;
   const momentsBorder = colors.border;
-  // v281 (D6): the day pill's count chips wear the journal
-  // family's derived pairs — a meaning hue mixed over the card
-  // with its ink walked to the floor (lib/journal-material). The
-  // fixed pastels and fixed ink are gone; Terminal and 8-bit keep
-  // their own panel dress, as everywhere in the app.
-  const pillChipBg = (kind: "entries" | "photos" | "events") =>
-    skinTokens.isTerminal
-      ? TERM_PANEL
-      : skinTokens.isEightBit
-        ? BIT_PANEL
-        : kind === "entries"
-          ? jm.entriesChipBg
-          : kind === "photos"
-            ? jm.photosChipBg
-            : jm.eventsChipBg;
-  const pillChipInk = (kind: "entries" | "photos" | "events") =>
-    skinTokens.isTerminal
-      ? TERM_PHOS
-      : skinTokens.isEightBit
-        ? BIT_ON_DUSK
-        : kind === "entries"
-          ? jm.entriesChipInk
-          : kind === "photos"
-            ? jm.photosChipInk
-            : jm.eventsChipInk;
-  // v213: the morphing composer's ground — SOLID, in every skin.
-  // v204's frost (Classic's surface at 90% over a blur layer;
-  // translucent white under Paper) rendered on his phone as a
-  // muddy GREY slab with the feed ghosting through it — his
-  // verdict, Oct 23: "the grey doesn't really work here in the
-  // status update..." The box now wears the Journal's own surface
-  // language at full opacity — the same ladder the head pill
-  // above uses (terminal panel, then the surface
-  // token) — so in light it is the Journal's white, in dark the
-  // dark surface, and nothing behind it ever shows through. The
-  // morph's own shadow (styles.morph) lifts it off the feed.
-  // (8-bit folded into the surface branch: momentsSurface IS
-  // colors.surface, its v204 value, unchanged.)
-  // v252: the ladder's second rung is the Material family's
-  // composer ground — which resolves to that same surface token
-  // (deriveJournalMaterial: composerGround = the palette surface),
-  // so the box's color is unchanged; what changed is that the
-  // family now owns it, and the SOLID rule above is untouched.
-  const composerBackground = skinTokens.isTerminal
-      ? TERM_PANEL
-      : jm.composerGround;
-  // The resting FAB wears the shell FAB's own colors per skin.
-  const fabBackground = skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary;
-  const fabInk = skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF";
-
   return (
     <View
       style={[
         styles.container,
         {
           backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : jm.ground,
-          // v204: the screen no longer pads for the keyboard — the
-          // composer is an overlay now, and its own morph lifts by
-          // the keyboard height (morphKeyboardLift), so the box
-          // still lands directly above the keyboard as v196
-          // required, without shifting the whole screen.
+          // v411: the writing card is in the flow at the head of
+          // the feed — the screen pads by the real keyboard height
+          // while it is up, so typing in the card is never blind
+          // (v196's rule, kept for the Desk's composer).
+          paddingBottom: keyboardHeight,
         },
       ]}
     >
@@ -800,11 +843,11 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
           at rest the masthead sits exactly where it sat. */}
       <FlatList
         ref={feedListRef}
-        data={feedItems}
+        data={filtering ? feedItems : deskItems}
         keyExtractor={(item) => item.key}
         keyboardShouldPersistTaps="handled"
         style={{ flex: 1, marginTop: -insets.top }}
-        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 148 + insets.bottom }}
+        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 40 + insets.bottom }}
         onScroll={topFadeScrollHandler(fadeScrollY)}
         scrollEventThrottle={16}
         ListHeaderComponent={
@@ -824,8 +867,19 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
                 carries it. */}
             <View style={styles.header}>
               <View style={styles.titleBlock}>
-                <Text style={[styles.journalTitle, { color: ink }, skinText(skinTokens, skinTokens.type.screenTitle)]}>Journal</Text>
-                <Text style={[styles.journalSub, { color: jm.inkSoft }]}>Your story, as it happens</Text>
+                {/* v411 (the Desk, v13): the masthead carries the
+                    date under the title and the fast's day chip
+                    beside it — "Day 305 of the fast" — while a
+                    fast is active. */}
+                <View style={styles.titleRow}>
+                  <Text style={[styles.journalTitle, { color: ink }, skinText(skinTokens, skinTokens.type.screenTitle)]}>Journal</Text>
+                  {fastChip && !filtering ? (
+                    <View style={[styles.dayChip, { backgroundColor: jm.tonal }]}>
+                      <Text style={[styles.dayChipText, { color: jm.deep }]}>{fastChip}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={[styles.journalSub, { color: jm.inkSoft }]}>{deskDateLabel(todayIso)}</Text>
               </View>
               <View style={styles.headCluster}>
                 <View style={[styles.headPill, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : jm.tonal, borderColor: skinTokens.isTerminal ? momentsBorder : "transparent" }]}>
@@ -850,7 +904,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
                 </View>
                 <Pressable
                   accessibilityLabel="Write a long entry"
-                  onPress={() => openEditor()}
+                  onPress={() => setWritePage({ kind: "entry", body: draft })}
                   style={({ pressed }) => [styles.personBtn, { borderColor: momentsBorder }, pressed && styles.pressed]}
                 >
                   <AvatarImage id="journal-author" name={author.name} avatarAsset={author.avatarAsset} photoUri={author.photoUri} size={40} fallbackColor="#7C4DFF" />
@@ -898,69 +952,127 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
                 <MaterialIcons name="bookmark" size={14} color={bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : jm.deep} />
                 <Text style={[styles.filterChipText, { color: bookmarksOnly ? (skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF") : jm.deep }]}>Bookmarks</Text>
               </Pressable>
-              <Pressable onPress={() => openEditor()} style={[styles.filterChip, { backgroundColor: jm.tonal }]}>
+              <Pressable onPress={() => setWritePage({ kind: "entry", body: draft })} style={[styles.filterChip, { backgroundColor: jm.tonal }]}>
                 <MaterialIcons name="edit-note" size={15} color={jm.deep} />
                 <Text style={[styles.filterChipText, { color: jm.deep }]}>Long entry</Text>
               </Pressable>
             </View>
 
-            {/* v195: the day pill lives IN the flow at the head of
-                the feed, as in the mockup — v194 floated it at a
-                fixed bottom offset, where it landed on top of
-                entries mid-scroll. */}
-            <Pressable
-              onPress={() => setDayViewDate(todayIso)}
-              style={({ pressed }) => [
-                styles.dayPill,
-                // v204: flattened to the mockup's shape — an
-                // in-flow pill ROW on the one surface, hairline
-                // border, no shadow, no panel fill of its own.
-                // v281 (D1/D6): the row carries the family's tonal
-                // fill now — the transparent v204 shape is what
-                // let the \"Today header block\" collapse into the
-                // page in v252. The calendar glyph takes the
-                // seed's deep ink; the count chips wear the
-                // family's derived meaning-hue pairs.
-                { backgroundColor: jm.tonal, borderColor: jm.line },
-                pressed && styles.pressed,
-              ]}
-            >
-              <MaterialIcons name="calendar-month" size={16} color={jm.deep} />
-              <Text style={[styles.dayPillToday, { color: ink }]}>Today</Text>
-              <View style={[styles.dayPillChip, { backgroundColor: pillChipBg("entries") }]}>
-                <Text style={[styles.dayPillChipText, { color: pillChipInk("entries") }]}>
-                  {todayCounts.entries} {todayCounts.entries === 1 ? "entry" : "entries"}
-                </Text>
-              </View>
-              <View style={[styles.dayPillChip, { backgroundColor: pillChipBg("photos") }]}>
-                <Text style={[styles.dayPillChipText, { color: pillChipInk("photos") }]}>{todayCounts.photos} photos</Text>
-              </View>
-              <View style={[styles.dayPillChip, { backgroundColor: pillChipBg("events") }]}>
-                <Text style={[styles.dayPillChipText, { color: pillChipInk("events") }]}>{todayCounts.events} events</Text>
-              </View>
-              <View style={styles.dayPillStack}>
-                {todayCounts.people.slice(0, 3).map((person, index) => (
-                  <View key={person.id} style={[styles.dayPillAvatar, { marginLeft: index === 0 ? 0 : -8, zIndex: 3 - index, borderColor: jm.card }]}>
-                    <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={22} fallbackColor={person.avatarColor} />
+            {/* v411 — the Desk's head: the writing card (hero)
+                and, directly under it, the week's question (v13's
+                settled order; v11's placement ruling). Both live
+                only on the unfiltered home — a search or the
+                bookmarks filter returns the head to its furniture. */}
+            {!filtering ? (
+              <>
+                <View style={[styles.writeCard, { backgroundColor: jm.card, borderColor: jm.line, shadowColor: jm.shadow }]}>
+                  <View style={styles.writeHead}>
+                    <Text style={[styles.writeTitle, { color: jm.ink }]}>Today's page</Text>
+                    <Text style={[styles.writeDay, { color: jm.inkSoft }]}>{deskWeekLabel}</Text>
                   </View>
-                ))}
-              </View>
-              <MaterialIcons name="chevron-right" size={18} color={faint} />
-            </Pressable>
+                  {pinnedQuestion ? (
+                    <View style={[styles.pinnedStrip, { backgroundColor: jm.tonal }]}>
+                      <View style={[styles.pinnedBar, { backgroundColor: jm.seed }]} />
+                      <Text style={[styles.pinnedText, { color: jm.inkSoft }]}>“{pinnedQuestion.text}”</Text>
+                      <Pressable accessibilityLabel="Unpin question" onPress={() => setPinnedQuestion(null)} hitSlop={8}>
+                        <MaterialIcons name="close" size={14} color={jm.inkSoft} />
+                      </Pressable>
+                    </View>
+                  ) : null}
+                  <TextInput
+                    value={draft}
+                    onChangeText={setDraft}
+                    placeholder="Write it down while it's still today…"
+                    placeholderTextColor={jm.inkSoft}
+                    multiline
+                    style={[styles.writeArea, { color: jm.ink }]}
+                  />
+                  {quickKind === "fast" ? (
+                    <View style={styles.quickFastChips}>
+                      {(Object.keys(FAST_DAY_ENTRY_KIND_LABELS) as FastDayEntryKind[]).map((candidate) => {
+                        const selected = candidate === quickFastKind;
+                        return (
+                          <Pressable
+                            key={candidate}
+                            onPress={() => setQuickFastKind(candidate)}
+                            style={[
+                              styles.quickFastChip,
+                              selected
+                                ? { backgroundColor: jm.fastDeep, borderColor: jm.fastDeep }
+                                : { borderColor: jm.line },
+                            ]}
+                          >
+                            <Text style={[styles.quickFastChipText, { color: selected ? "#FFFFFF" : jm.inkSoft }]}>
+                              {FAST_DAY_ENTRY_KIND_LABELS[candidate]}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                  {kindChooserOpen ? (
+                    <View style={styles.kindChooser}>
+                      {(["entry", "fast", "prayer", "answered", "gratitude", "verse"] as DeskPostKind[]).map((candidate) => (
+                        <Pressable key={candidate} onPress={() => chooseQuickKind(candidate)} hitSlop={4}>
+                          <Text style={[styles.kindLink, { color: candidate === quickKind ? jm.deep : jm.inkSoft }]}>
+                            {DESK_POST_KIND_LABELS[candidate]}
+                          </Text>
+                        </Pressable>
+                      ))}
+                      <Pressable onPress={() => chooseQuickKind("more")} hitSlop={4}>
+                        <Text style={[styles.kindLink, { color: jm.inkSoft }]}>More</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                  <View style={[styles.writeFoot, { borderTopColor: jm.line }]}>
+                    <Pressable
+                      onPress={() => setKindChooserOpen((current) => !current)}
+                      style={({ pressed }) => [styles.kindText, pressed && styles.pressed]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Choose a kind"
+                    >
+                      <MaterialIcons name="edit" size={13} color={jm.deep} />
+                      <Text style={[styles.kindTextLabel, { color: jm.deep }]}>{DESK_POST_KIND_LABELS[quickKind]}</Text>
+                      <MaterialIcons name="chevron-right" size={12} color={jm.deep} />
+                    </Pressable>
+                    <Text style={[styles.writeCount, { color: jm.inkSoft }]}>
+                      {pinnedQuestion
+                        ? "Answering the week's question"
+                        : `${todayPostCount} ${todayPostCount === 1 ? "post" : "posts"} today`}
+                    </Text>
+                    <Pressable
+                      onPress={postQuickCard}
+                      disabled={!canPostCard}
+                      style={({ pressed }) => [
+                        styles.postBtn,
+                        { backgroundColor: jm.seed, opacity: canPostCard ? 1 : 0.45 },
+                        pressed && styles.pressed,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Post"
+                    >
+                      <Text style={styles.postBtnText}>Post</Text>
+                    </Pressable>
+                  </View>
+                </View>
 
-            {showYesterdayPeek ? (
-              <Pressable
-                onPress={() => setDayViewDate(yesterdayIso)}
-                style={({ pressed }) => [styles.peek, { backgroundColor: jm.tonal, borderColor: jm.line }, pressed && styles.pressed]}
-              >
-                <Text style={[styles.peekKicker, { color: faint }]}>Yesterday</Text>
-                <Text style={[styles.peekText, { color: ink }]}>
-                  {yesterdayCounts.entries} {yesterdayCounts.entries === 1 ? "moment" : "moments"}
-                  {yesterdayCounts.events > 0 ? ` and ${yesterdayCounts.events} ${yesterdayCounts.events === 1 ? "event" : "events"}` : ""} — see the whole day
-                </Text>
-                <MaterialIcons name="chevron-right" size={20} color={faint} />
-              </Pressable>
+                {showQuestionCard && weekQuestion ? (
+                  <Pressable
+                    onPress={() => setPinnedQuestion({ text: weekQuestion.text, weekStart: weekQuestion.weekStart })}
+                    style={({ pressed }) => [styles.questCard, { borderColor: jm.line, backgroundColor: jm.card }, pressed && styles.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Answer the week's question"
+                  >
+                    <View style={styles.questLabel}>
+                      <MaterialIcons name="help-outline" size={12} color={jm.deep} />
+                      <Text style={[styles.questLabelText, { color: jm.deep }]}>ONE QUESTION, FROM YOUR OWN WEEK</Text>
+                    </View>
+                    <Text style={[styles.questText, { color: jm.ink }]}>{weekQuestion.text}</Text>
+                  </Pressable>
+                ) : null}
+              </>
             ) : null}
+
           </BitSettle>
 </PaperSettle>
         }
@@ -971,11 +1083,15 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
             <Text style={[styles.emptyText, { color: faint }]}>
               {bookmarksOnly
                 ? "Bookmark a moment from its ··· menu and it will wait for you here."
-                : "Write the first one below — a sentence, a photo, or just how the day feels."}
+                : "Write the first one in the card above — a sentence, a photo, or just how the day feels."}
             </Text>
           </View>
         }
         renderItem={({ item, index }) => {
+          // v411: Desk items carry `type`; Moments items carry `kind`.
+          if ("type" in item) {
+            return renderDeskItem(item);
+          }
           if (item.kind === "separator") {
             return (
               <PaperSettle index={index} style={styles.separator}>
@@ -1020,196 +1136,6 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
           edge instead of cutting off hard. The composer morph
           (zIndex 30) and everything after it paint above the fade. */}
       <TopFade color={(skinTokens.isEightBit || skinTokens.isTerminal) ? skinTokens.background ?? jm.ground : jm.ground} scrollY={fadeScrollY} topInset={insets.top} />
-
-      {/* v204 — the composer MORPH (his asks, Oct 23). v195–v196's
-          always-visible in-flow bar is retired: at rest there is
-          NO bar — the tab bar shows, and the "+" FAB floats at the
-          shell FAB's own resting place. Tapping it runs one fluid
-          animation (morphStyle, on the skin's settle timing): the
-          FAB expands into the text box in the tab bar's place —
-          the shell hides the bar on onComposeChange — and the box
-          rides the keyboard via morphKeyboardLift, keeping v196's
-          "never type blind" rule. Tap-out (the clear backdrop),
-          posting, or the close button folds it back. v213: the
-          box is SOLID — the Journal's surface at full opacity
-          (composerBackground above); v204's frost read on his
-          phone as a grey slab with the feed ghosting through.
-          v202/v203's entrance kits
-          still wrap the mount (PaperSettle/BitSettle), so under
-          Paper the whole thing settles in, under 8-bit it snaps.
-          v215: the wrap and its inner settle are "box-none" now.
-          Neither wrapper used to take a pointerEvents prop, so
-          the full-screen anchor layer was hit-testable end to
-          end: feed pans died inside its subtree before reaching
-          the list (his "can't scroll up"), and this tap-out
-          backdrop — sitting beneath the layer at zIndex 20 —
-          never received a tap either (his tap-out report). With
-          box-none, the wrappers' frames are transparent to
-          touches while the morph and FAB inside stay tappable:
-          pans reach the FlatList, taps-out reach the backdrop. */}
-      {composing ? (
-        <Pressable accessibilityLabel="Close composer" onPress={closeCompose} style={styles.composeBackdrop} />
-      ) : null}
-      <PaperSettle style={[styles.composerWrap, { zIndex: 30 }]} pointerEvents="box-none">
-<BitSettle pointerEvents="box-none">
-        <ReAnimated.View style={[styles.morph, morphStyle, { borderColor: momentsBorder, backgroundColor: composerBackground }]}>
-          <ReAnimated.View
-            pointerEvents={composing ? "auto" : "none"}
-            style={[styles.morphContent, { width: windowWidth - 20 }, morphContentStyle]}
-            onLayout={(event) => {
-              morphContentHeight.value = withTiming(event.nativeEvent.layout.height, skinMotion.settle);
-            }}
-          >
-            {draftPeople.length > 0 || draftPlaceNames.length > 0 ? (
-              <View style={[styles.suggestStrip, { borderBottomColor: momentsBorder }]}>
-                {draftPeople.map((person) => (
-                  <Pressable
-                    key={person.id}
-                    onPress={() => pickDraftPerson(person)}
-                    style={({ pressed }) => [styles.suggestRow, pressed && styles.pressed]}
-                  >
-                    <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={28} fallbackColor={person.avatarColor} />
-                    <Text style={[styles.suggestName, { color: ink }]} numberOfLines={1}>{person.name}</Text>
-                    <Text style={[styles.suggestHint, { color: faint }]}>@mention</Text>
-                  </Pressable>
-                ))}
-                {draftPlaceNames.map((name) => (
-                  <Pressable
-                    key={name}
-                    onPress={() => pickDraftPlace(name)}
-                    style={({ pressed }) => [styles.suggestRow, pressed && styles.pressed]}
-                  >
-                    <MaterialIcons name="place" size={18} color={faint} />
-                    <Text style={[styles.suggestName, { color: ink }]} numberOfLines={1}>{name}</Text>
-                    <Text style={[styles.suggestHint, { color: faint }]}>#{placeTagFor(name)}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-
-            {moodRowOpen ? (
-              <View style={[styles.composerRow, { borderBottomColor: momentsBorder }]}>
-                <Text style={[styles.composerRowLabel, { color: faint }]}>Feels like</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: "center" }}>
-                  {MOODS.map((mood) => {
-                    const selected = draftMood?.id === mood.id;
-                    return (
-                      <Pressable
-                        key={mood.id}
-                        onPress={() => setDraftMood(selected ? null : { id: mood.id, intensity: 2 })}
-                        style={[styles.moodPick, selected && { backgroundColor: colors.primary + "22", borderColor: colors.primary, borderWidth: 1 }]}
-                      >
-                        <MoodFace moodId={mood.id} size={24} />
-                        <Text style={[styles.moodPickText, { color: ink }]}>{mood.label}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            ) : null}
-
-            {tagRowOpen ? (
-              <View style={[styles.composerRow, { borderBottomColor: momentsBorder }]}>
-                <MaterialIcons name="sell" size={16} color={faint} />
-                <TextInput
-                  value={tagWord}
-                  onChangeText={(value) => setTagWord(value.replace(/\s+/g, ""))}
-                  placeholder="tag — one word, like garden"
-                  placeholderTextColor={faint}
-                  autoCapitalize="none"
-                  style={[styles.tagInput, { color: ink }]}
-                />
-                {tagWord ? (
-                  <Pressable onPress={() => setTagWord("")}>
-                    <MaterialIcons name="close" size={16} color={faint} />
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : null}
-
-            {draftPhotos.length > 0 ? (
-              <View style={[styles.draftPhotos, { paddingHorizontal: 12, paddingTop: 8, marginBottom: 0 }]}>
-                {draftPhotos.map((uri) => (
-                  <View key={uri}>
-                    <Image source={{ uri }} style={styles.draftPhoto} contentFit="cover" />
-                    <Pressable
-                      accessibilityLabel="Remove photo"
-                      onPress={() => setDraftPhotos((current) => current.filter((candidate) => candidate !== uri))}
-                      style={styles.draftPhotoRemove}
-                    >
-                      <MaterialIcons name="close" size={13} color="#FFFFFF" />
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-
-            <View style={styles.composerBar}>
-              <Pressable
-                accessibilityLabel="Close composer"
-                onPress={closeCompose}
-                style={[styles.composerBtn, { backgroundColor: "transparent" }]}
-              >
-                <MaterialIcons name="keyboard-hide" size={19} color={faint} />
-              </Pressable>
-              <Pressable accessibilityLabel="Add a photo" onPress={() => void pickPhotos("quick")} style={[styles.composerBtn, { backgroundColor: colors.primary }]}>
-                <MaterialIcons name="add" size={20} color="#FFFFFF" />
-              </Pressable>
-              <Pressable
-                accessibilityLabel="Add a mood"
-                onPress={() => setMoodRowOpen((current) => !current)}
-                style={[styles.composerBtn, { backgroundColor: draftMood || moodRowOpen ? colors.primary + "26" : "transparent", borderColor: momentsBorder, borderWidth: draftMood || moodRowOpen ? 0 : 1 }]}
-              >
-                {draftMood ? <MoodFace moodId={draftMood.id} size={19} /> : <MaterialIcons name="sentiment-satisfied-alt" size={19} color={colors.primary} />}
-              </Pressable>
-              <TextInput
-                ref={composerInputRef}
-                value={draft}
-                onChangeText={setDraft}
-                selection={draftSelection}
-                onSelectionChange={(event) => {
-                  setDraftCursor(event.nativeEvent.selection.start);
-                  setDraftSelection(event.nativeEvent.selection);
-                }}
-                placeholder="What's up?"
-                placeholderTextColor={faint}
-                multiline
-                style={[styles.composerInput, { color: ink }]}
-              />
-              <Pressable
-                accessibilityLabel="Add a tag"
-                onPress={() => setTagRowOpen((current) => !current)}
-                style={[styles.composerBtn, { backgroundColor: tagRowOpen || tagWord ? colors.primary + "26" : "transparent", borderColor: momentsBorder, borderWidth: tagRowOpen || tagWord ? 0 : 1 }]}
-              >
-                <MaterialIcons name="sell" size={17} color={colors.primary} />
-              </Pressable>
-              <Pressable
-                accessibilityLabel="Post"
-                onPress={postQuick}
-                disabled={!canPost}
-                style={[styles.composerBtn, { backgroundColor: canPost ? colors.primary : colors.border }]}
-              >
-                <MaterialIcons name="arrow-upward" size={19} color="#FFFFFF" />
-              </Pressable>
-            </View>
-          </ReAnimated.View>
-
-          <ReAnimated.View pointerEvents={composing ? "none" : "auto"} style={[styles.morphFabFace, morphFabStyle]}>
-            <Pressable
-              accessibilityLabel="Write a moment"
-              onPress={openCompose}
-              style={({ pressed }) => [
-                styles.morphFabBtn,
-                { backgroundColor: fabBackground },
-                pressed && (skinTokens.isPaper ? paperPressedLift(skinTokens, pressed) : skinTokens.isEightBit ? bitPressedSnap(skinTokens, pressed) : styles.pressed),
-              ]}
-            >
-              <MaterialIcons name="add" size={30} color={fabInk} />
-            </Pressable>
-          </ReAnimated.View>
-        </ReAnimated.View>
-      </BitSettle>
-</PaperSettle>
 
       {renderOverlays()}
     </View>
@@ -1603,18 +1529,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   filterChipText: { fontSize: 12.5, fontWeight: "800" },
-  peek: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  peekKicker: { fontSize: 11, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" },
-  peekText: { flex: 1, fontSize: 14, fontWeight: "700" },
   separator: {
     flexDirection: "row",
     alignItems: "center",
@@ -1637,76 +1551,6 @@ const styles = StyleSheet.create({
   // v195: in-flow day pill — a full-width row in the feed header
   // with the mockup's pastel count chips and avatar stack, not a
   // floating overlay.
-  dayPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    // v204: no shadow, no elevation — the pill is a row in the
-    // flow (the mockup's shape), not a card floating over it.
-  },
-  dayPillToday: { fontSize: 14.5, fontWeight: "800", marginRight: 2 },
-  dayPillChip: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  dayPillChipText: { fontSize: 11.5, fontWeight: "800" },
-  dayPillStack: { flexDirection: "row", alignItems: "center", marginLeft: "auto" },
-  // v281 (D1): the stack's ring derives from the family's card —
-  // the pinned #FFFFFF is overridden inline at the render site.
-  dayPillAvatar: { borderRadius: 999, borderWidth: 2, overflow: "hidden" },
-  // v204: the settle kits wrap a full-screen anchor layer; the
-  // morph itself is the layer's only child, pinned bottom-right
-  // where the shell's FAB rests on the other tabs.
-  composerWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    justifyContent: "flex-end",
-    alignItems: "flex-end",
-  },
-  composeBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 20,
-  },
-  morph: {
-    borderWidth: 1,
-    overflow: "hidden",
-    shadowColor: "#1E1246",
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-  },
-  morphContent: {
-    position: "absolute",
-    left: 0,
-    bottom: 0,
-  },
-  morphFabFace: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    width: 58,
-    height: 58,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  morphFabBtn: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  suggestStrip: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 4,
-  },
   suggestStripBox: {
     borderWidth: 1,
     borderRadius: 14,
@@ -1722,18 +1566,6 @@ const styles = StyleSheet.create({
   },
   suggestName: { flex: 1, fontSize: 14.5, fontWeight: "700" },
   suggestHint: { fontSize: 12, fontWeight: "600" },
-  composerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  composerRowLabel: { fontSize: 12.5, fontWeight: "700" },
-  moodPick: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
-  moodPickText: { fontSize: 12.5, fontWeight: "700" },
-  tagInput: { flex: 1, fontSize: 14 },
   draftPhotos: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
   draftPhoto: { width: 56, height: 56, borderRadius: 12 },
   draftPhotoRemove: {
@@ -1747,17 +1579,106 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // v204: the bar is a row INSIDE the morph box now — the box
-  // carries the border, radius and clipping.
-  composerBar: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 7,
-    paddingHorizontal: 9,
-    paddingVertical: 8,
+  // v411 — the Desk's styles.
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 9 },
+  dayChip: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 },
+  dayChipText: { fontSize: 11, fontWeight: "800" },
+  writeCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 24,
+    paddingHorizontal: 15,
+    paddingTop: 14,
+    paddingBottom: 13,
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
-  composerBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  composerInput: { flex: 1, fontSize: 15.5, maxHeight: 110, paddingTop: 7, paddingBottom: 7 },
+  writeHead: { flexDirection: "row", alignItems: "baseline", gap: 8 },
+  writeTitle: { fontSize: 15.5, fontWeight: "800" },
+  writeDay: { marginLeft: "auto", fontSize: 10.5, fontWeight: "800", letterSpacing: 0.8 },
+  pinnedStrip: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginTop: 11,
+  },
+  pinnedBar: { width: 3, alignSelf: "stretch", borderRadius: 99 },
+  pinnedText: { flex: 1, fontSize: 12.5, lineHeight: 17.5, fontStyle: "italic", fontWeight: "600" },
+  writeArea: { marginTop: 10, minHeight: 56, fontSize: 14, lineHeight: 21, textAlignVertical: "top" },
+  quickFastChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4, marginBottom: 2 },
+  quickFastChip: { borderRadius: 999, borderWidth: 1.5, paddingHorizontal: 11, paddingVertical: 6 },
+  quickFastChipText: { fontSize: 11.5, fontWeight: "800" },
+  kindChooser: { flexDirection: "row", flexWrap: "wrap", gap: 14, paddingTop: 10, paddingBottom: 2 },
+  kindLink: { fontSize: 13, fontWeight: "800" },
+  writeFoot: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 11,
+    marginTop: 8,
+  },
+  kindText: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 5, paddingHorizontal: 2 },
+  kindTextLabel: { fontSize: 12.5, fontWeight: "800" },
+  writeCount: { fontSize: 11.5, fontWeight: "700", marginLeft: "auto" },
+  postBtn: { borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 },
+  postBtnText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
+  questCard: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderWidth: 1.5,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  questLabel: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 5 },
+  questLabelText: { fontSize: 9.5, fontWeight: "800", letterSpacing: 1.8 },
+  questText: { fontSize: 15, lineHeight: 21, fontWeight: "700" },
+  secLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.7,
+    paddingHorizontal: 18,
+    marginTop: 16,
+    marginBottom: 2,
+  },
+  carriedCard: { marginHorizontal: 14, marginTop: 14, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 13 },
+  carriedLabel: { fontSize: 9.5, fontWeight: "800", letterSpacing: 1.8, marginBottom: 9 },
+  carriedFaces: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  carriedNames: { fontSize: 13, lineHeight: 19, marginTop: 9, fontWeight: "600" },
+  memoryWrap: { marginHorizontal: 14, marginTop: 14 },
+  memoryLabel: { fontSize: 9.5, fontWeight: "800", letterSpacing: 1.6, marginBottom: 8 },
+  memoryKept: { fontSize: 11.5, fontWeight: "700", marginTop: 7 },
+  dayHeadRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 18,
+    marginTop: 19,
+    marginBottom: 2,
+  },
+  dayHeadText: { fontSize: 11.5, fontWeight: "800", letterSpacing: 1.3 },
+  dayHeadLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  dayHeadMeta: { fontSize: 11.5, fontWeight: "700" },
+  restDay: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    marginHorizontal: 14,
+    marginTop: 10,
+    borderWidth: 1,
+    borderRadius: 15,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+  },
+  restDayDate: { fontSize: 12.5, fontWeight: "800", letterSpacing: 0.4 },
+  restDayMeta: { fontSize: 12, fontWeight: "600", marginLeft: "auto" },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(24,12,50,0.35)" },
   actionSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28, gap: 4 },

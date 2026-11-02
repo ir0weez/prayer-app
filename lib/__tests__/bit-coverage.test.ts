@@ -111,16 +111,17 @@ describe("8-bit coverage — v203 animation pass", () => {
 
   it("journal: masthead, rows, separators, and the composer all snap in", () => {
     const journal = read("components/prayer-journal-tab.tsx");
-    // v204: the import also brings bitPressedSnap — the morphing
-    // composer's FAB face depresses like bit chrome while pressed.
-    expect(journal).toContain('import { BitSettle, bitPressedSnap } from "@/components/bit-motion";');
+    // v411 re-base: the morphing composer (and its FAB face, the
+    // bitPressedSnap import's reason) is retired — the Desk's
+    // writing card is the composer and it settles with the head.
+    expect(journal).toContain('import { BitSettle } from "@/components/bit-motion";');
     // Separators and Moment rows carry the indexed bit entrance.
     expect(count(journal, "<BitSettle index={index}>")).toBe(2);
-    // v215: one of the two bare BitSettles is the composer's inner
-    // wrap, which now carries pointerEvents="box-none" (its frame
-    // must not eat the feed's touches — see journal-v204.test.ts).
+    // The one bare BitSettle is the Desk head's wrap (masthead +
+    // writing card + question). The v215 box-none wrap retired
+    // with the morph's anchor layer — nothing overlays the feed.
     expect(count(journal, "<BitSettle>")).toBe(1);
-    expect(count(journal, '<BitSettle pointerEvents="box-none">')).toBe(1);
+    expect(count(journal, '<BitSettle pointerEvents="box-none">')).toBe(0);
     const sheets = read("components/journal-sheets.tsx");
     expect(sheets).toContain("<BitSettle style={{ flex: 1 }}>");
   });

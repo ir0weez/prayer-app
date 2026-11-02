@@ -236,7 +236,9 @@ describe("v347 — edge-to-edge seats: the scroller reaches the screen's literal
 
   it("Journal — the feed bleeds, its content padding returns the inset", () => {
     expect(journal).toContain("marginTop: -insets.top");
-    expect(journal).toContain("paddingTop: insets.top, paddingBottom: 148");
+    // v411 re-base: the bottom padding was the retired FAB/morph
+    // clearance (148); the Desk's in-flow feed needs only 40.
+    expect(journal).toContain("paddingTop: insets.top, paddingBottom: 40");
   });
 
   it("Profile — the scroll view bleeds, a spacer returns the inset", () => {

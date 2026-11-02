@@ -59,11 +59,13 @@ describe("v306 source contracts — one metric, every seat derives from it", () 
     expect(tabBar).not.toContain('tokens.id === "classic" ? 91 : 126');
   });
 
-  it("the journal FAB rests on the occupied height under Classic", () => {
-    expect(journal).toContain("useTabBarOccupiedHeight");
-    expect(journal).toContain('skinTokens.id === "classic" ? tabBarOccupied + 12 : 60');
-    expect(journal).toContain("journalFabRestBottom + (52 - journalFabRestBottom) * progress");
-    expect(journal).not.toContain("60 - 8 * progress");
+  it("the journal FAB is retired (v411 re-base): the Desk needs no clearance seat", () => {
+    // v411: the Journal's FAB ⇄ morph composer is gone — the
+    // writing card is in flow, so the tab no longer reads the
+    // occupied height at all. The metric itself is untouched;
+    // the schedule FAB below still derives from it.
+    expect(journal).not.toContain("useTabBarOccupiedHeight");
+    expect(journal).not.toContain("journalFabRestBottom");
   });
 
   it("the schedule FAB and devotional pill still derive from the same hook", () => {

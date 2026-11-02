@@ -300,42 +300,40 @@ describe("v204 — flat composition + the morph (source pins)", () => {
     expect(post).toContain("place ? place.name : capitalize(tag)");
   });
 
-  it("the day pill is a flat in-flow row: no shadow, no elevation", () => {
+  it("the day pill is retired (v411 re-base): its jobs live in the writing card and the day headers", () => {
     const tab = read("components/prayer-journal-tab.tsx");
-    const dayPill = tab.slice(tab.indexOf("dayPill: {"), tab.indexOf("dayPillToday:"));
-    expect(dayPill).not.toContain("shadowColor");
-    expect(dayPill).not.toContain("shadowOpacity");
-    expect(dayPill).not.toContain("elevation:");
-    // v281 re-base (audit D1/D6): the pill's fill is the family's
-    // tonal now, not v204's transparent — the transparent shape is
-    // what let the Today block collapse into the page in v252.
-    // The v204 flatness contract (no shadow, no elevation) holds.
-    expect(tab).toContain('{ backgroundColor: jm.tonal, borderColor: jm.line }');
+    // v411: the Desk carries no day pill. The count it showed
+    // rides the writing card's footer (postsTodayCount); its
+    // Day-view door is the calendar plus the feed's day headers.
+    // The v204 flatness contract is moot with the pill itself gone.
+    expect(tab).not.toContain("dayPill");
+    expect(tab).toContain("postsTodayCount");
+    expect(tab).toContain("setDayViewDate(item.date)");
+    // The tonal family fill the pill wore (v281's D1 re-base)
+    // still dresses the Desk's empty state.
+    expect(tab).toContain('{ backgroundColor: jm.tonal, borderColor: jm.line, borderRadius: skinTokens.cardRadius ?? 12 }');
     expect(tab).not.toContain('{ backgroundColor: "transparent", borderColor: momentsBorder }');
   });
 
-  it("the composer is a morph: FAB at rest, one timing animation, no springs, no leftover bar", () => {
+  it("the composer is the writing card now (v411 re-base — the morph is retired)", () => {
     const tab = read("components/prayer-journal-tab.tsx");
-    expect(tab).toContain('accessibilityLabel="Write a moment"');
-    expect(tab).toContain("withTiming(composing ? 1 : 0, skinMotion.settle)");
+    // v411: Jonathan, Nov 1 — "I hate these little pop-up cards."
+    // The FAB ⇄ morph composer is gone. The Desk's writing card
+    // is the composer, in flow at the head of the page, and the
+    // Write Page is its full form; both post through ONE path.
+    expect(tab).not.toContain('accessibilityLabel="Write a moment"');
+    expect(tab).not.toContain("withTiming(composing ? 1 : 0, skinMotion.settle)");
     expect(tab).not.toContain("withSpring");
-    // The old in-flow bar's clearance math is gone with the bar.
-    expect(tab).not.toContain("96 + insets.bottom");
-    // The keyboard lift rides the morph itself.
-    expect(tab).toContain("morphKeyboardLift");
-    // Tap-out backdrop + close affordance both fold the morph.
-    expect(tab).toContain("styles.composeBackdrop");
-    expect(tab).toContain('accessibilityLabel="Close composer"');
-    // The box's ground (v213 reversed this pin — the CLEAR box
-    // is now SOLID; see the v213 block at the end of this file).
-    expect(tab).toContain("backgroundColor: composerBackground");
-    // The entrance kits still wrap the mount (v202/v203 contract).
-    expect(tab).toContain("<PaperSettle style={[styles.composerWrap,");
-    // Picks are wired: suggestions computed from the token at the cursor.
-    expect(tab).toContain("activeTokenAt(draft, draftCursor)");
+    expect(tab).not.toContain("morphKeyboardLift");
+    expect(tab).not.toContain("styles.composeBackdrop");
+    expect(tab).not.toContain("composerBackground");
+    expect(tab).toContain("Today's page");
+    expect(tab).toContain("<JournalWrite");
+    expect(tab).toContain("composeDeskPost");
+    // The long-form editor's @-mention picks (v204's wiring,
+    // still the edit path) are untouched.
     expect(tab).toContain("activeTokenAt(editBody, editCursor)");
-    expect(tab).toContain("taggedPeople: draftMentions.length > 0 ? draftMentions : undefined");
-    expect(tab).toContain("places: draftPlaces.length > 0 ? draftPlaces : undefined");
+    expect(tab).toContain("places: editPlaces,");
   });
 
   it("the shell hides its tab bar only while the Journal composes", () => {
@@ -372,46 +370,37 @@ describe("v213 — the composer is solid, no frost (source pins)", () => {
     expect(tab).not.toContain("frostBackground");
   });
 
-  it("the composer ground is fully opaque in every skin branch — no alpha, no rgba", () => {
+  it("the composer's ground is fully opaque — the writing card paints the family's solid card (v411 re-base)", () => {
     const tab = read("components/prayer-journal-tab.tsx");
     expect(tab).not.toContain("${colors.surface}E6");
-    const ground = tab.slice(tab.indexOf("const composerBackground"), tab.indexOf("// The resting FAB"));
-    expect(ground).not.toContain("rgba");
-    expect(ground).not.toContain("E6");
-    // The ladder is the Journal's own chrome ladder (the head
-    // pill's): terminal panel, then the surface
-    // token — momentsSurface, i.e. colors.surface, which is the
-    // light Journal white in light mode and the dark surface
-    // in dark mode. (v221: the ladder's glass rung, "#241D33",
-    // left with the Stained Glass skin itself.)
-    // v252 re-base: the ladder's second rung is now the Material
-    // family's composer ground (jm.composerGround). The family
-    // resolves it to that very same surface token
-    // (deriveJournalMaterial: composerGround = the palette
-    // surface), so the property this pin protects — a SOLID,
-    // fully opaque box in every skin — is unchanged; only the
-    // token's owner moved.
-    expect(ground).not.toContain('"#241D33"');
-    expect(ground).toContain("TERM_PANEL");
-    expect(ground).toContain("jm.composerGround");
+    expect(tab).not.toContain("composerBackground");
+    // The v213 property — a SOLID, fully opaque composer surface
+    // in every skin — now belongs to the Desk's writing card: it
+    // paints the Material family's card token outright, with the
+    // family's line and shadow beside it. No alpha, no rgba in
+    // the card's own paint.
+    expect(tab).toContain("{ backgroundColor: jm.card, borderColor: jm.line, shadowColor: jm.shadow }");
+    const card = tab.slice(tab.indexOf("writeCard: {"), tab.indexOf("writeHead:"));
+    expect(card).not.toContain("rgba");
     expect(tab).toContain("const momentsSurface = colors.surface;");
   });
 
-  it("the morph container itself paints the solid ground and keeps its lift shadow", () => {
+  it("the writing card keeps the composer's lift shadow (v411 re-base)", () => {
     const tab = read("components/prayer-journal-tab.tsx");
-    expect(tab).toContain("{ borderColor: momentsBorder, backgroundColor: composerBackground }");
-    const morph = tab.slice(tab.indexOf("morph: {"), tab.indexOf("morphContent:"));
-    expect(morph).toContain("shadowOpacity: 0.18");
-    expect(morph).toContain("elevation: 8");
+    const card = tab.slice(tab.indexOf("writeCard: {"), tab.indexOf("writeHead:"));
+    expect(card).toContain("shadowRadius: 10");
+    expect(card).toContain("elevation: 3");
+    expect(card).toContain("borderRadius: 24");
   });
 
-  it("composer text renders at full token opacity on the solid ground (unchanged tokens)", () => {
+  it("composer text renders at full token opacity on the solid ground (v411 re-base)", () => {
     const tab = read("components/prayer-journal-tab.tsx");
-    expect(tab).toContain("placeholder=\"What's up?\"");
-    expect(tab).toContain("styles.composerInput, { color: ink }");
-    // The morph itself is untouched: same timing, same keyboard lift.
-    expect(tab).toContain("withTiming(composing ? 1 : 0, skinMotion.settle)");
-    expect(tab).toContain("morphKeyboardLift");
+    expect(tab).toContain("placeholder=\"Write it down while it's still today…\"");
+    expect(tab).toContain("styles.writeArea, { color: jm.ink }");
+    // No morph remains to lift: the card is in flow, and the
+    // screen still pads by the real keyboard height (v196).
+    expect(tab).not.toContain("morphKeyboardLift");
+    expect(tab).toContain("paddingBottom: keyboardHeight");
   });
 });
 
@@ -425,14 +414,16 @@ describe("v213 — the composer is solid, no frost (source pins)", () => {
 // morph and FAB inside still tappable — via an optional
 // pointerEvents prop both settle kits forward on both branches.
 describe("v215 — the composer wrap is box-none; the feed and the backdrop are reachable", () => {
-  it("the wrap call site and its inner settle both carry box-none", () => {
+  it("the anchor layer is gone entirely (v411 re-base) — nothing overlays the feed", () => {
     const tab = read("components/prayer-journal-tab.tsx");
-    expect(tab).toContain('<PaperSettle style={[styles.composerWrap, { zIndex: 30 }]} pointerEvents="box-none">');
-    expect(tab).toContain('<BitSettle pointerEvents="box-none">');
-    // The anchor layer itself is unchanged (v213/v204 contract).
-    const wrap = tab.slice(tab.indexOf("composerWrap: {"), tab.indexOf("composeBackdrop:"));
-    expect(wrap).toContain('position: "absolute"');
-    expect(wrap).toContain("bottom: 0");
+    // v411 retired the morph, and with it the full-screen anchor
+    // layer this pin guarded: the writing card is ordinary
+    // in-flow content, so there is nothing to make touch-
+    // transparent. The property v215 protected — the feed is
+    // reachable everywhere — now holds by construction.
+    expect(tab).not.toContain("composerWrap");
+    expect(tab).not.toContain("composeBackdrop");
+    expect(tab).toContain('keyboardShouldPersistTaps="handled"');
   });
 
   it("both settle kits forward pointerEvents on BOTH render branches", () => {
@@ -448,20 +439,15 @@ describe("v215 — the composer wrap is box-none; the feed and the backdrop are 
     }
   });
 
-  it("tap-outside is the pre-existing backdrop, wired to the same dismiss as the keyboard-hide button", () => {
+  it("there is no tap-outside dismiss anymore (v411 re-base): the draft simply lives in the card", () => {
     const tab = read("components/prayer-journal-tab.tsx");
-    // The backdrop exists only while composing and calls closeCompose.
-    expect(tab).toContain("onPress={closeCompose} style={styles.composeBackdrop}");
-    // The keyboard-hide button calls the very same function —
-    // exactly two onPress={closeCompose} sites (backdrop + button),
-    // so draft behavior is identical by construction: closeCompose
-    // never touches the draft state.
-    expect(tab.split("onPress={closeCompose}").length - 1).toBe(2);
-    const close = tab.slice(tab.indexOf("const closeCompose"), tab.indexOf("v215: Android back"));
-    expect(close).toContain("setComposing(false);");
-    expect(close).toContain("Keyboard.dismiss();");
-    expect(close).not.toContain("setDraft");
-    // The list and its props are untouched by the fix.
+    // The morph's backdrop and its shared dismiss retired with
+    // it. The Desk's draft is in-flow state: nothing dismisses
+    // it, nothing overlays it, and it survives until posted or
+    // cleared by posting.
+    expect(tab).not.toContain("closeCompose");
+    expect(tab).not.toContain("composeBackdrop");
+    expect(tab).toContain("const [draft, setDraft] = useState(\"\")");
     expect(tab).toContain('keyboardShouldPersistTaps="handled"');
   });
 });

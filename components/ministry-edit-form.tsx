@@ -14,6 +14,8 @@ import { useSkin } from "@/hooks/use-skin";
 import { PaperSettle } from "./paper-motion";
 import { BitSettle } from "./bit-motion";
 import { ScheduleMinistry } from "@/lib/schedule-data";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EDITOR_HEADER_CLOSE_HITSLOP, EDITOR_HEADER_SAVE_HITSLOP } from "@/lib/editor-header";
 import { DateTimePicker } from "./date-time-picker";
 
 interface MinistryEditFormProps {
@@ -33,6 +35,7 @@ export function MinistryEditForm({
   anchor,
 }: MinistryEditFormProps) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const { isPaper } = useSkin();
   const [formTitle, setFormTitle] = useState(ministry.title);
   const [formType, setFormType] = useState(ministry.type);
@@ -85,16 +88,16 @@ export function MinistryEditForm({
     <AnchoredSheet visible={visible} onClose={onClose} anchor={anchor} fill>
       {/* v202: under Paper the editor is a page laid down (fade +
           settle) instead of a slide-up. */}
-      <PaperSettle style={[styles.overlay, { backgroundColor: colors.background }]}>
+      <PaperSettle style={[styles.overlay, { backgroundColor: colors.background, paddingTop: Math.max(40, insets.top) }]}>
 <BitSettle style={{ flex: 1 }}>
         <View style={styles.header}>
-          <Pressable onPress={onClose}>
+          <Pressable onPress={onClose} hitSlop={EDITOR_HEADER_CLOSE_HITSLOP}>
             <MaterialIcons name="close" size={28} color={colors.foreground} />
           </Pressable>
           <Text style={[styles.title, { color: colors.foreground }]}>
             Edit Ministry
           </Text>
-          <Pressable onPress={handleSave}>
+          <Pressable onPress={handleSave} hitSlop={EDITOR_HEADER_SAVE_HITSLOP}>
             <Text style={[styles.saveButton, { color: colors.primary }]}>
               Save
             </Text>

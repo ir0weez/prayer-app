@@ -6,6 +6,8 @@ import { BitDitherOverlay } from '@/components/bit-dither';
 import { PaperGrainOverlay } from '@/components/paper-grain';
 import { TermScanlineOverlay } from '@/components/terminal-background';
 import { useSkin } from '@/hooks/use-skin';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { EDITOR_HEADER_CLOSE_HITSLOP, EDITOR_HEADER_SAVE_HITSLOP } from '@/lib/editor-header';
 import { PaperSettle } from './paper-motion';
 import { BitSettle } from './bit-motion';
 
@@ -33,6 +35,7 @@ export function StatusModal({
   const [isHighlighted, setIsHighlighted] = useState(!!statusHighlight);
   // Paper skin (v174): the modal's page becomes a sheet of paper.
   const { isPaper, isEightBit, isTerminal, isSkinned, tokens } = useSkin();
+  const insets = useSafeAreaInsets();
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -65,18 +68,18 @@ export function StatusModal({
     <Modal visible={visible} animationType={isPaper ? "fade" : "slide"} transparent>
       {/* v202: under Paper the status page is laid down as one sheet
           (fade + settle) instead of sliding up like the default. */}
-      <PaperSettle style={[styles.container, isSkinned && tokens.surface ? { backgroundColor: tokens.surface } : null]}>
+      <PaperSettle style={[styles.container, isSkinned && tokens.surface ? { backgroundColor: tokens.surface } : null, { paddingTop: Math.max(40, insets.top) }]}>
 <BitSettle style={{ flex: 1 }}>
         {isPaper ? <PaperGrainOverlay /> : null}
         {isEightBit ? <BitDitherOverlay /> : null}
         {isTerminal ? <TermScanlineOverlay /> : null}
         {isTerminal ? <TermScanlineOverlay /> : null}
         <View style={styles.header}>
-          <Pressable onPress={handleClose}>
+          <Pressable onPress={handleClose} hitSlop={EDITOR_HEADER_CLOSE_HITSLOP}>
             <MaterialIcons name="close" size={28} color="#000" />
           </Pressable>
           <Text style={styles.headerTitle}>Add Status</Text>
-          <Pressable onPress={handleSave}>
+          <Pressable onPress={handleSave} hitSlop={EDITOR_HEADER_SAVE_HITSLOP}>
             <Text style={[styles.saveButton, { color: primaryColor }]}>Save</Text>
           </Pressable>
         </View>

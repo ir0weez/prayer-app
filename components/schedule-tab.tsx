@@ -54,6 +54,7 @@ import { TerminalBackground } from "./terminal-background";
 import { TerminalRestSky, terminalKeywordSceneFor } from "./terminal-keyword-scenes";
 import { BIT_DUSK, BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, hasTypeScale, hexLuminance, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint, skinText, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
 import { setScheduleFabConfig } from "@/lib/schedule-fab-bridge";
+import { EDITOR_HEADER_CLOSE_HITSLOP, EDITOR_HEADER_SAVE_HITSLOP } from "@/lib/editor-header";
 import { scheduleRowKey } from "@/lib/schedule-row-key";
 import { scheduleMaterialTones, tonalRamp } from "@/lib/schedule-material";
 import { detectShowFont, splitShowName } from "@/lib/show-fonts";
@@ -15792,12 +15793,12 @@ export function ScheduleTab({
         <View style={scheduleStyles.formOverlay}>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
-            <View style={scheduleStyles.formHeader}>
-              <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+            <View style={[scheduleStyles.formHeader, { paddingTop: Math.max(48, safeInsets.top) }]}>
+              <Pressable onPress={() => { setAddType(null); resetForm(); }} hitSlop={EDITOR_HEADER_CLOSE_HITSLOP} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
               <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>New Event</Text>
-              <Pressable onPress={handleSaveEvent} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+              <Pressable onPress={handleSaveEvent} hitSlop={EDITOR_HEADER_SAVE_HITSLOP} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Save</Text>
               </Pressable>
             </View>
@@ -15937,12 +15938,12 @@ export function ScheduleTab({
       <AnchoredSheet visible={addType === "todo"} onClose={() => { setAddType(null); resetForm(); }} scrimColor="rgba(0,0,0,0.3)" containerStyle={{ flex: 1, justifyContent: "flex-end" }} fill>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
-            <View style={scheduleStyles.formHeader}>
-              <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+            <View style={[scheduleStyles.formHeader, { paddingTop: Math.max(48, safeInsets.top) }]}>
+              <Pressable onPress={() => { setAddType(null); resetForm(); }} hitSlop={EDITOR_HEADER_CLOSE_HITSLOP} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
               <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>{editingTodoId ? "Edit Todo" : "New Todo"}</Text>
-              <Pressable onPress={handleSaveTodo} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+              <Pressable onPress={handleSaveTodo} hitSlop={EDITOR_HEADER_SAVE_HITSLOP} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Save</Text>
               </Pressable>
             </View>
@@ -16198,12 +16199,12 @@ export function ScheduleTab({
       <AnchoredSheet visible={addType === "ministry"} onClose={() => { setAddType(null); resetForm(); }} scrimColor="rgba(0,0,0,0.3)" containerStyle={{ flex: 1, justifyContent: "flex-end" }} fill>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
-            <View style={scheduleStyles.formHeader}>
-              <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+            <View style={[scheduleStyles.formHeader, { paddingTop: Math.max(48, safeInsets.top) }]}>
+              <Pressable onPress={() => { setAddType(null); resetForm(); }} hitSlop={EDITOR_HEADER_CLOSE_HITSLOP} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
               <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>New Ministry</Text>
-              <Pressable onPress={handleSaveMinistry} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+              <Pressable onPress={handleSaveMinistry} hitSlop={EDITOR_HEADER_SAVE_HITSLOP} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Save</Text>
               </Pressable>
             </View>
@@ -16375,12 +16376,12 @@ export function ScheduleTab({
       <AnchoredSheet visible={addType === "bible-study"} onClose={() => { setAddType(null); resetForm(); }} scrimColor="rgba(0,0,0,0.3)" containerStyle={{ flex: 1, justifyContent: "flex-end" }} fill>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
-            <View style={scheduleStyles.formHeader}>
-              <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+            <View style={[scheduleStyles.formHeader, { paddingTop: Math.max(48, safeInsets.top) }]}>
+              <Pressable onPress={() => { setAddType(null); resetForm(); }} hitSlop={EDITOR_HEADER_CLOSE_HITSLOP} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
               <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>Bible Study</Text>
-              <Pressable onPress={handleSaveBibleStudy} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+              <Pressable onPress={handleSaveBibleStudy} hitSlop={EDITOR_HEADER_SAVE_HITSLOP} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Save</Text>
               </Pressable>
             </View>
@@ -16461,12 +16462,12 @@ export function ScheduleTab({
       <AnchoredSheet visible={addType === "worship"} onClose={() => { setAddType(null); resetForm(); }} scrimColor="rgba(0,0,0,0.3)" containerStyle={{ flex: 1, justifyContent: "flex-end" }} fill>
           <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : scheduleTones.page, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }]}>
 <BitSettle style={{ flex: 1 }}>
-            <View style={scheduleStyles.formHeader}>
-              <Pressable onPress={() => { setAddType(null); resetForm(); setShowAddModal(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+            <View style={[scheduleStyles.formHeader, { paddingTop: Math.max(48, safeInsets.top) }]}>
+              <Pressable onPress={() => { setAddType(null); resetForm(); setShowAddModal(false); }} hitSlop={EDITOR_HEADER_CLOSE_HITSLOP} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
               <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>{editingWorshipAlbumId ? 'Edit Worship Setlist' : 'Add Worship Setlist'}</Text>
-              <Pressable onPress={handleSaveWorshipAlbum} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+              <Pressable onPress={handleSaveWorshipAlbum} hitSlop={EDITOR_HEADER_SAVE_HITSLOP} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>{editingWorshipAlbumId ? 'Save' : 'Add'}</Text>
               </Pressable>
             </View>
@@ -16714,8 +16715,8 @@ export function ScheduleTab({
           <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
             <PaperSettle style={[scheduleStyles.formSheet, { backgroundColor: isSkinned ? skinTokens.surface ?? colors.surface : colors.surface, flex: 1, maxHeight: '100%', minHeight: '100%', borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingBottom: 0 }]}>
 <BitSettle style={{ flex: 1 }}>
-              <View style={scheduleStyles.formHeader}>
-                <Pressable onPress={() => setShowAlbumLibrary(false)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+              <View style={[scheduleStyles.formHeader, { paddingTop: Math.max(48, safeInsets.top) }]}>
+                <Pressable onPress={() => setShowAlbumLibrary(false)} hitSlop={EDITOR_HEADER_CLOSE_HITSLOP} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                   <MaterialIcons name="close" size={28} color={colors.foreground} />
                 </Pressable>
                 <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>Saved Albums</Text>

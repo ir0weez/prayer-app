@@ -41,6 +41,7 @@ import { PeopleEntrance, EmergencyLiveDot, EmergencyBreathGlow, PEOPLE_ENTRANCE_
 import { useJournalMaterial } from "@/hooks/use-journal-material";
 import { usePeopleFrontDoor, usePeopleMaterial } from "@/hooks/use-people-material";
 import { queueFaceStatus, queueFirstName, sortQueueFaces } from "@/lib/people-queue";
+import { EDITOR_HEADER_CLOSE_HITSLOP, EDITOR_HEADER_SAVE_HITSLOP } from "@/lib/editor-header";
 import { PEOPLE_EMERGENCY_RED, PEOPLE_GOLD_PILL_INK } from "@/lib/people-material";
 import { bibleAccentInk, hexToRgba } from "@/lib/bible-v205/palette-accents";
 import type { PeopleFrontDoorFamily } from "@/lib/people-material";
@@ -5680,11 +5681,11 @@ export default function HomeScreen() {
     return (
       <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.addScreenRoot, { backgroundColor: (skinTokens.isEightBit) ? "transparent" : colors.background }]}>
         <View style={styles.addTopBar}>
-          <Pressable onPress={() => setShowAddPerson(false)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
+          <Pressable onPress={() => setShowAddPerson(false)} hitSlop={EDITOR_HEADER_CLOSE_HITSLOP} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("close")} size={30} color="#46525D" />
           </Pressable>
           <Text style={styles.addTitle}>{editingPersonId ? "Edit Person" : "Add Person"}</Text>
-          {editingPersonId ? <Pressable onPress={handleDeleteEditedPerson} style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}><MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" /></Pressable> : <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.saveButton, !isSkinned && { backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 }, pressed && styles.pressed]}>
+          {editingPersonId ? <Pressable onPress={handleDeleteEditedPerson} hitSlop={EDITOR_HEADER_SAVE_HITSLOP} style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}><MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" /></Pressable> : <Pressable onPress={handleSavePerson} hitSlop={EDITOR_HEADER_SAVE_HITSLOP} style={({ pressed }) => [styles.saveButton, !isSkinned && { backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 }, pressed && styles.pressed]}>
             <Text style={[styles.saveButtonText, !isSkinned && { color: pm.deep }]}>Save</Text>
           </Pressable>}
         </View>
@@ -6013,11 +6014,11 @@ export default function HomeScreen() {
           <PaperSettle style={styles.avatarComposerCard}>
 <BitSettle>
             <View style={[styles.sheetHeader, styles.avatarComposerHeader]}>
-              <Pressable onPress={() => { setAvatarComposer(null); setAvatarComposerText(""); }}>
+              <Pressable onPress={() => { setAvatarComposer(null); setAvatarComposerText(""); }} hitSlop={EDITOR_HEADER_SAVE_HITSLOP}>
                 <Text style={styles.sheetDone}>Cancel</Text>
               </Pressable>
               <Text style={styles.sheetTitle}>{avatarComposer?.kind === "praise" ? "Praise" : "Emergency Prayer"}</Text>
-              <Pressable onPress={submitAvatarComposer}>
+              <Pressable onPress={submitAvatarComposer} hitSlop={EDITOR_HEADER_SAVE_HITSLOP}>
                 <Text style={styles.sheetDone}>Save</Text>
               </Pressable>
             </View>

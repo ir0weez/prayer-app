@@ -16,6 +16,7 @@ import { useKeyboardHeight } from "@/hooks/use-keyboard-height";
 import { derivePeopleFrontDoor } from "@/lib/people-material";
 import { skinText } from "@/lib/skin-themes";
 import { getTodayISOString, normalizePeopleForStorage, type Person } from "@/lib/prayercircle-data";
+import { EDITOR_HEADER_CLOSE_HITSLOP, EDITOR_HEADER_SAVE_HITSLOP } from "@/lib/editor-header";
 import {
   calculateFastStreak,
   getActiveFast,
@@ -476,11 +477,11 @@ export default function ProfileScreen() {
       <AnchoredSheet visible={showProfileEditor} onClose={() => setShowProfileEditor(false)} anchor={profileEditorAnchor} scrimColor="rgba(20,16,40,0.5)" containerStyle={{ flex: 1, justifyContent: "flex-end", paddingBottom: keyboardHeight }}>
         <View style={{ backgroundColor: trackerFamily.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 16, paddingBottom: 28, ...(isSkinned ? skinTokens.sheetShadow ?? {} : {}) }}>
           <View style={styles.profileEditorHeader}>
-            <Pressable onPress={() => setShowProfileEditor(false)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close editor">
+            <Pressable onPress={() => setShowProfileEditor(false)} hitSlop={EDITOR_HEADER_CLOSE_HITSLOP} accessibilityRole="button" accessibilityLabel="Close editor">
               <MaterialIcons name={iconName("close")} size={24} color={trackerFamily.ink} />
             </Pressable>
             <Text style={[styles.profileEditorTitle, { color: trackerFamily.ink }]}>Edit Profile</Text>
-            <Pressable onPress={() => void handleSaveProfile()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Save profile">
+            <Pressable onPress={() => void handleSaveProfile()} hitSlop={EDITOR_HEADER_SAVE_HITSLOP} accessibilityRole="button" accessibilityLabel="Save profile">
               <Text style={[styles.profileEditorSave, { color: trackerFamily.seed }]}>Save</Text>
             </Pressable>
           </View>

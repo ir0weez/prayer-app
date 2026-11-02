@@ -23,6 +23,8 @@ import {
   type RecipeStore,
 } from "@/lib/food";
 import { beginRecipePick, consumeRecipePickResult } from "@/lib/recipe-pick";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EDITOR_HEADER_CLOSE_HITSLOP, EDITOR_HEADER_SAVE_HITSLOP } from "@/lib/editor-header";
 import { DateTimePicker } from "./date-time-picker";
 import { PaperSettle } from "./paper-motion";
 import { BitSettle } from "./bit-motion";
@@ -51,6 +53,7 @@ export function EventEditForm({
 }: EventEditFormProps) {
   const colors = useColors();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { isSkinned, tokens: skinTokens } = useSkin();
   const [formTitle, setFormTitle] = useState(event.title);
   const [formDate, setFormDate] = useState(event.date);
@@ -234,16 +237,16 @@ export function EventEditForm({
     >
       {/* v202: under Paper the editor is a page laid down (fade +
           settle) instead of a slide-up. */}
-      <PaperSettle style={[styles.overlay, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : tones.page }]}>
+      <PaperSettle style={[styles.overlay, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : tones.page, paddingTop: Math.max(40, insets.top) }]}>
 <BitSettle style={{ flex: 1 }}>
         <View style={styles.header}>
-          <Pressable onPress={onClose}>
+          <Pressable onPress={onClose} hitSlop={EDITOR_HEADER_CLOSE_HITSLOP}>
             <MaterialIcons name="close" size={28} color={colors.foreground} />
           </Pressable>
           <Text style={[styles.title, { color: colors.foreground }]}>
             {isNew ? "New Event" : "Edit Event"}
           </Text>
-          <Pressable onPress={handleSave}>
+          <Pressable onPress={handleSave} hitSlop={EDITOR_HEADER_SAVE_HITSLOP}>
             <Text style={[styles.saveButton, { color: colors.primary }]}>
               Save
             </Text>

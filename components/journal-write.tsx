@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AvatarImage } from "@/components/avatar-system";
 import { FAST_DAY_ENTRY_KIND_LABELS, type FastDayEntryKind } from "@/lib/fast-day-entries";
+import { EDITOR_HEADER_CLOSE_HITSLOP, EDITOR_HEADER_PILL_HITSLOP } from "@/lib/editor-header";
 import {
   DESK_POST_KINDS,
   DESK_POST_KIND_LABELS,
@@ -152,7 +153,7 @@ export function JournalWrite({
   return (
     <View style={[styles.root, { backgroundColor: jm.ground, paddingTop: insets.top + 10 }]}>
       <View style={styles.head}>
-        <Pressable accessibilityLabel="Close" onPress={onClose} hitSlop={10} style={({ pressed }) => [pressed && styles.pressed]}>
+        <Pressable accessibilityLabel="Close" onPress={onClose} hitSlop={EDITOR_HEADER_CLOSE_HITSLOP} style={({ pressed }) => [pressed && styles.pressed]}>
           <MaterialIcons name="close" size={22} color={jm.inkSoft} />
         </Pressable>
         <Text style={[styles.title, { color: jm.ink }]}>{deskPostTitle(kind)}</Text>
@@ -160,6 +161,7 @@ export function JournalWrite({
           accessibilityLabel="Post"
           onPress={submit}
           disabled={!canPost}
+          hitSlop={EDITOR_HEADER_PILL_HITSLOP}
           style={({ pressed }) => [
             styles.postBtn,
             { backgroundColor: jm.seed, opacity: canPost ? 1 : 0.45 },

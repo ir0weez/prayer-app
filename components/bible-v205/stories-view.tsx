@@ -28,7 +28,7 @@ import {
 } from '@/lib/bible-v205/bubbles';
 import type { Person } from '@/lib/prayercircle-data';
 import type { Devotional } from '@/lib/devotionals';
-import { BlockView, CategoryTag, SectionBand, SelfLineBlock } from './blocks';
+import { BlockView, CategoryTag, SectionBand, SelfLineBlock, fmtSpans } from './blocks';
 import { AuthorFace, BubbleChatRow, spanLabelFor } from './bubbles';
 import { entrySourceCategory } from '@/lib/bible-v205/categories';
 import { chapterLabel, rangeLabel, sectionToneFor, tintWashFor, verseTintFor, type BiblePalette } from './palette';
@@ -322,7 +322,7 @@ export function StoriesView(props: StoriesViewProps) {
           {hl ? (
             <View style={[styles.bigCallout, { backgroundColor: palette.yellowBg, borderColor: palette.yellowBorder }]}>
               <Text style={[styles.calloutLabel, { color: palette.yellowLabel }]}>✦ Highlight</Text>
-              <Text style={[styles.bigCalloutText, { color: '#54420A' }]}>{hl.text}</Text>
+              <Text style={[styles.bigCalloutText, { color: '#54420A' }]}>{fmtSpans(hl.text)}</Text>
             </View>
           ) : null}
           <Text style={[styles.hlRef, { color: palette.inkSoft }]}>

@@ -68,6 +68,7 @@ import {
 } from './bubbles';
 import { loadChapterVerses, type VerseText } from './verses';
 import { loadStudioImports, resolveChapterData } from './studio-import';
+import { stripFmtText } from './fmt-text';
 import { bibleAccentInk, hexToHsl, hexToRgba, hslToHex } from './palette-accents';
 
 // ─── Theme — the seed family on white paper ──────────────────────────────────
@@ -385,17 +386,25 @@ function kindBox(bg: string, tagColor: string, tag: string, bodyHtml: string): s
 
 /** One commentary block in the reader's own treatment (v311):
  * main text bare, the typed kinds boxed in their colours, scripture
- * as the quote-style block. */
+ * as the quote-style block.
+ * v418: his own words print without their **bold** / *italic*
+ * markers — strip-only, because this builder registers no
+ * bold/italic fonts of its own (it names CSS families for the
+ * print engine and styles weight through them). His ranges are
+ * stripped coordinates (the fmt-text marks contract), so they
+ * paint over the stripped text and land on the same words.
+ * Scripture blocks stay literal, markers and all. */
 function blockHtml(ctx: BuildCtx, block: V205Block, highlights: readonly PhraseHighlight[]): string {
   const { theme } = ctx;
-  const painted = paintRanges(block.text, highlights, theme);
   if (block.kind === 'scripture') {
+    const painted = paintRanges(block.text, highlights, theme);
     return (
       `<div class="scripture-quote"><p>&ldquo;${painted}&rdquo;</p>` +
       (block.ref ? `<div class="ref">${escapeHtml(block.ref)}</div>` : '') +
       `</div>`
     );
   }
+  const painted = paintRanges(stripFmtText(block.text), highlights, theme);
   if (block.kind === 'highlight') {
     return kindBox(theme.highlightBg, theme.highlightTag, 'Highlight', painted);
   }
@@ -432,7 +441,9 @@ function lineHtml(
   const { data, theme } = ctx;
   const author = resolveBubbleAuthor(line.author, data.people, data.profile);
   const ranges = target ? lineHighlightsFor(data.rawMarks, data.book, data.chapter, target) : [];
-  const painted = paintRanges(line.text, ranges, theme);
+  // v418: line ranges are stripped coordinates too — paint over
+  // the stripped words, markers removed (see blockHtml).
+  const painted = paintRanges(stripFmtText(line.text), ranges, theme);
   const style = theme.lineStyles[line.kind];
   const disc = author.isSelf
     ? theme.seed
@@ -510,7 +521,7 @@ function openerHtml(ctx: BuildCtx): string {
       .map(
         (p, i) =>
           `<p class="main-text">${paintRanges(
-            p,
+            stripFmtText(p),
             blockHighlightsFor(data.rawMarks, book, chapter, CHAPTER_PROSE_SPAN, 'previously', i),
             theme,
           )}</p>`,

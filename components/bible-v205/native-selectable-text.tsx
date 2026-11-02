@@ -58,6 +58,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { TINT_ORDER, type PhraseHighlight, type TintColor } from '@/lib/bible-v205/marks';
+import type { FmtStyleRange } from '@/lib/bible-v205/fmt-text';
 import { phraseTintFor, type BiblePalette } from './palette';
 
 /** The menu the native callback offers, in order. */
@@ -95,6 +96,10 @@ export interface TintSegment {
   text: string;
   /** The stored tint's paint for this span, or null for plain words. */
   backgroundColor: string | null;
+  /** v418: his **bold** / *italic* emphasis on this span (the text
+   * is the STRIPPED string; the emphasis ranges address it in the
+   * same coordinates as the tints). Absent = plain dress. */
+  fmt?: 'b' | 'i' | 'bi';
 }
 
 /**
@@ -103,22 +108,33 @@ export interface TintSegment {
  * left them: where two records cover the same words, the LATER
  * record in the stored list wins (the apply helpers append the
  * newest write last). Words under no record render untinted.
+ * v418: emphasis ranges (fmt-text.ts, stripped coordinates) sweep
+ * as boundaries too, so a span never straddles a bold or italic
+ * edge; adjacent spans merge only when tint AND emphasis agree.
  */
 export function buildTintSegments(
   text: string,
   highlights: readonly PhraseHighlight[],
   palette: BiblePalette,
+  fmtRanges?: readonly FmtStyleRange[],
 ): TintSegment[] {
   if (!text) return [];
   const clamp = (n: number) => Math.max(0, Math.min(text.length, n));
   const ranges = highlights
     .map((h) => ({ start: clamp(h.start), end: clamp(h.end), tint: h.tint }))
     .filter((h) => h.end > h.start);
-  if (ranges.length === 0) return [{ key: 's0', text, backgroundColor: null }];
+  const fmts = (fmtRanges ?? [])
+    .map((f) => ({ start: clamp(f.start), end: clamp(f.end), k: f.k }))
+    .filter((f) => f.end > f.start);
+  if (ranges.length === 0 && fmts.length === 0) return [{ key: 's0', text, backgroundColor: null }];
   const points = new Set<number>([0, text.length]);
   for (const r of ranges) {
     points.add(r.start);
     points.add(r.end);
+  }
+  for (const f of fmts) {
+    points.add(f.start);
+    points.add(f.end);
   }
   const sorted = [...points].sort((a, b) => a - b);
   const segments: TintSegment[] = [];
@@ -130,13 +146,19 @@ export function buildTintSegments(
     for (const r of ranges) {
       if (r.start <= start && r.end >= end) tint = r.tint;
     }
+    let fmt: FmtStyleRange['k'] | null = null;
+    for (const f of fmts) {
+      if (f.start <= start && f.end >= end) fmt = f.k;
+    }
     const backgroundColor = tint ? phraseTintFor(palette, tint) : null;
     const slice = text.slice(start, end);
     const prev = segments[segments.length - 1];
-    if (prev && prev.backgroundColor === backgroundColor) {
+    if (prev && prev.backgroundColor === backgroundColor && (prev.fmt ?? null) === fmt) {
       prev.text += slice;
     } else {
-      segments.push({ key: `s${start}`, text: slice, backgroundColor });
+      const seg: TintSegment = { key: `s${start}`, text: slice, backgroundColor };
+      if (fmt) seg.fmt = fmt;
+      segments.push(seg);
     }
   }
   return segments;
@@ -224,6 +246,10 @@ export interface NativeSelectableTextProps {
   wholeTint?: string | null;
   /** This surface's stored phrase ranges, in `text` coordinates. */
   highlights: readonly PhraseHighlight[];
+  /** v418: his emphasis spans over `text` (fmtStyleRanges of the
+   * stored text — `text` here is already the stripped string, so
+   * the ranges share the stored highlights' coordinates). */
+  fmtRanges?: readonly FmtStyleRange[];
   /** A tint picked in the bar. (Clearing a range's tint is the
    * marks layer's own toggle: re-applying the range's tint
    * removes it — the v361 model, unchanged.) */
@@ -289,8 +315,8 @@ export function NativeSelectableText(props: NativeSelectableTextProps) {
   );
 
   const segments = useMemo(
-    () => buildTintSegments(text, props.highlights, palette),
-    [text, props.highlights, palette],
+    () => buildTintSegments(text, props.highlights, palette, props.fmtRanges),
+    [text, props.highlights, palette, props.fmtRanges],
   );
 
   // The surface's one Text: the lead span (never addressed by
@@ -305,15 +331,27 @@ export function NativeSelectableText(props: NativeSelectableTextProps) {
     );
   }
   for (const seg of segments) {
-    spans.push(
-      seg.backgroundColor ? (
-        <Text key={seg.key} style={{ backgroundColor: seg.backgroundColor }}>
+    // v418: emphasis dresses the span the way the codebase bolds
+    // inline text elsewhere (fontWeight '700'), italic as
+    // fontStyle — composed with the tint wash when both land.
+    const fmtStyle: TextStyle | null = seg.fmt
+      ? {
+          ...(seg.fmt === 'b' || seg.fmt === 'bi' ? { fontWeight: '700' as const } : null),
+          ...(seg.fmt === 'i' || seg.fmt === 'bi' ? { fontStyle: 'italic' as const } : null),
+        }
+      : null;
+    if (!seg.backgroundColor && !fmtStyle) {
+      spans.push(seg.text);
+    } else {
+      spans.push(
+        <Text
+          key={seg.key}
+          style={[seg.backgroundColor ? { backgroundColor: seg.backgroundColor } : null, fmtStyle]}
+        >
           {seg.text}
-        </Text>
-      ) : (
-        seg.text
-      ),
-    );
+        </Text>,
+      );
+    }
   }
   const textStyle = [props.textStyle, props.wholeTint ? { backgroundColor: props.wholeTint } : null];
   const words = <Text style={textStyle}>{spans}</Text>;

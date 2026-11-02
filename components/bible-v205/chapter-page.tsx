@@ -66,6 +66,8 @@ import {
 } from '@/lib/bible-v205/index';
 import { entryKey, type NoteCategory, type StudyStatus, type V205Entry } from '@/lib/bible-v205/types';
 import { entrySourceCategory } from '@/lib/bible-v205/categories';
+import { fmtStyleRanges, stripFmtText } from '@/lib/bible-v205/fmt-text';
+import { computeSeatPlacements } from '@/lib/bible-v205/seat-boxes';
 import { loadUserLabels, type UserLabels } from '@/lib/bible-v205/user-labels';
 import {
   addKeeperLine,
@@ -132,7 +134,7 @@ import {
 import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import { useSkin } from '@/hooks/use-skin';
-import { BlockView, CategoryTag, Ornament, ReadChip, SectionBand, SelfLineBlock, StatusChip, type BlockTextSelection } from './blocks';
+import { BlockView, CategoryTag, Ornament, ReadChip, SeatedBlockView, SectionBand, SelfLineBlock, StatusChip, type BlockTextSelection } from './blocks';
 // v405: native selection (his Nov 1 pick) — one native text
 // element per surface, the platform menu carrying Highlight /
 // Note / Bubble / Copy. The v361 per-word engine is deleted.
@@ -1404,7 +1406,8 @@ export function ChapterPageView(props: ChapterPageProps) {
             {chapterData.previously.map((p, i) => (
               <View key={i} style={styles.paraGap}>
                 <NativeSelectableText
-                  text={p}
+                  text={stripFmtText(p)}
+                  fmtRanges={fmtStyleRanges(p)}
                   palette={palette}
                   textStyle={[styles.bodyWords, { color: palette.ink }]}
                   {...proseSelection('previously', i)}
@@ -1430,7 +1433,8 @@ export function ChapterPageView(props: ChapterPageProps) {
               b.kind === 'para' ? (
                 <View key={i} style={styles.paraGap}>
                   <NativeSelectableText
-                    text={b.text}
+                    text={stripFmtText(b.text)}
+                    fmtRanges={fmtStyleRanges(b.text)}
                     palette={palette}
                     textStyle={[styles.openerWords, { color: palette.ink }]}
                     {...proseSelection('intro', i)}
@@ -2295,6 +2299,33 @@ const EntryView = memo(function EntryView(props: {
     .map((b, idx) => ({ b, idx }))
     .filter(({ b }) => !(b.kind === 'quote' && b.authorId));
   const blocks = renderBlocks.map(({ b }) => b);
+  // v418: seat placement (seat-boxes.ts) — a box block whose words
+  // are a highlighted run inside an earlier prose block of this
+  // entry renders IN that paragraph, not as a card at the note's
+  // end. Computed over the PARENT blocks array (the indices the
+  // marks record addresses); unproved boxes keep their cards.
+  const blockSelectionFor = (idx: number): BlockTextSelection => ({
+    // v390: the block's own words are selectable — ranges read off
+    // the parent record (marksMap is the RAW map; the display
+    // record's block list stays empty by the split's design),
+    // Bubble and Note act on the entry's first verse, the same
+    // anchor his lines fall back to.
+    highlights: blockHighlightsFor(props.marksMap, props.book, props.chapter, props.blockSpan, 'blocks', idx),
+    onApplyTint: (range, tint) => actions.blockPhraseTint(props.blockSpan, 'blocks', idx, range, tint),
+    onBubble: () => openComposerForVerse(entry.start, { bubble: true }),
+    onNote: () => openComposerForVerse(entry.start),
+  });
+  const seatPlacements = computeSeatPlacements(entry.blocks, (idx) =>
+    blockHighlightsFor(props.marksMap, props.book, props.chapter, props.blockSpan, 'blocks', idx),
+  );
+  const seatsByHostIdx = new Map<number, typeof seatPlacements>();
+  const seatedBoxIdx = new Set<number>();
+  for (const p of seatPlacements) {
+    seatedBoxIdx.add(p.boxIndex);
+    const list = seatsByHostIdx.get(p.hostIndex) ?? [];
+    list.push(p);
+    seatsByHostIdx.set(p.hostIndex, list);
+  }
   const selfLines = props.bubblePiece?.selfLines ?? [];
   // `lines` on the piece is other people's lines only (v217), so an
   // entry carrying solely his own words gets NO bubble inset.
@@ -2497,25 +2528,31 @@ const EntryView = memo(function EntryView(props: {
               <Text style={[styles.addNoteText, { color: palette.inkSoft }]}>+ Add a note</Text>
             </Pressable>
           ) : (
-            renderBlocks.map(({ b, idx }) => (
-              <BlockView
-                key={idx}
-                block={b}
-                palette={palette}
-                selection={{
-                  // v390: the block's own words are selectable —
-                  // ranges read off the parent record (marksMap is
-                  // the RAW map; the display record's block list
-                  // stays empty by the split's design), Bubble and
-                  // Note act on the entry's first verse, the same
-                  // anchor his lines fall back to.
-                  highlights: blockHighlightsFor(props.marksMap, props.book, props.chapter, props.blockSpan, 'blocks', idx),
-                  onApplyTint: (range, tint) => actions.blockPhraseTint(props.blockSpan, 'blocks', idx, range, tint),
-                  onBubble: () => openComposerForVerse(entry.start, { bubble: true }),
-                  onNote: () => openComposerForVerse(entry.start),
-                }}
-              />
-            ))
+            renderBlocks.map(({ b, idx }) => {
+              // v418: a seated box renders no card of its own — it
+              // sits in its host paragraph (SeatedBlockView, below).
+              if (seatedBoxIdx.has(idx)) return null;
+              const seats = seatsByHostIdx.get(idx);
+              if (seats) {
+                return (
+                  <SeatedBlockView
+                    key={idx}
+                    block={b}
+                    palette={palette}
+                    selection={blockSelectionFor(idx)}
+                    seats={seats.map((p) => ({
+                      block: entry.blocks[p.boxIndex],
+                      selection: blockSelectionFor(p.boxIndex),
+                      start: p.start,
+                      end: p.end,
+                    }))}
+                  />
+                );
+              }
+              return (
+                <BlockView key={idx} block={b} palette={palette} selection={blockSelectionFor(idx)} />
+              );
+            })
           )}
 
           {/* v356: the mark cluster renders here only while no verse

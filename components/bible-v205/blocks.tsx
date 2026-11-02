@@ -20,6 +20,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NoteCategory, StudyStatus, V205Block } from '@/lib/bible-v205/types';
 import { CATEGORY_META, blockCategory, type CategoryMeta } from '@/lib/bible-v205/categories';
 import type { PhraseHighlight, TintColor } from '@/lib/bible-v205/marks';
+import { fmtStyleRanges, fmtTokens, stripFmtText, type FmtKind } from '@/lib/bible-v205/fmt-text';
 import { rangeLabel, useBiblePalette, type BiblePalette, type BibleSectionTone } from './palette';
 import { NativeSelectableText } from './native-selectable-text';
 
@@ -103,6 +104,33 @@ export interface BlockTextSelection {
   onNote: () => void;
 }
 
+/**
+ * v418: his **bold** / *italic* markers as nested spans — the
+ * plain-Text path's half of the fmt rendering (the selectable path
+ * goes through NativeSelectableText's fmtRanges instead). Bold
+ * wears fontWeight '700', the codebase's inline-bold dress;
+ * italic wears fontStyle. Plain runs stay bare strings, so an
+ * unmarked text renders exactly as it always did.
+ */
+function fmtSpanStyle(k: FmtKind): TextStyle | undefined {
+  if (k === 'b') return { fontWeight: '700' };
+  if (k === 'i') return { fontStyle: 'italic' };
+  if (k === 'bi') return { fontWeight: '700', fontStyle: 'italic' };
+  return undefined;
+}
+
+export function fmtSpans(text: string): ReactNode[] {
+  return fmtTokens(text).map((t, i) =>
+    t.k === '' ? (
+      t.s
+    ) : (
+      <Text key={i} style={fmtSpanStyle(t.k)}>
+        {t.s}
+      </Text>
+    ),
+  );
+}
+
 function SelectableOrText({
   text,
   palette,
@@ -110,6 +138,7 @@ function SelectableOrText({
   wrapStyle,
   selection,
   lead,
+  format,
 }: {
   text: string;
   palette: BiblePalette;
@@ -125,23 +154,33 @@ function SelectableOrText({
    * in the Text on both paths. Stored offsets never see it — the
    * native seam subtracts its length from reported ranges. */
   lead?: { text: string; style?: StyleProp<TextStyle> };
+  /** v418: the words are HIS, carrying his **bold** / *italic*
+   * markers (fmt-text.ts). The plain path renders the marker
+   * tokens as styled spans; the selectable path hands the native
+   * text the STRIPPED string plus the emphasis ranges, so the
+   * words it paints and the offsets it reports are the stripped
+   * coordinates every stored range addresses (the marks
+   * contract). Scripture never sets this — its words stay
+   * literal, markers and all. */
+  format?: boolean;
 }) {
   if (!selection) {
     const plain = (
       <Text style={textStyle}>
         {lead ? <Text style={lead.style}>{lead.text}</Text> : null}
-        {text}
+        {format ? fmtSpans(text) : text}
       </Text>
     );
     return wrapStyle ? <View style={wrapStyle}>{plain}</View> : plain;
   }
   const body = (
     <NativeSelectableText
-      text={text}
+      text={format ? stripFmtText(text) : text}
       palette={palette}
       textStyle={textStyle}
       lead={lead}
       highlights={selection.highlights}
+      fmtRanges={format ? fmtStyleRanges(text) : undefined}
       onApplyTint={selection.onApplyTint}
       onBubble={selection.onBubble}
       onNote={selection.onNote}
@@ -187,6 +226,7 @@ function CategoryBox({
             : [styles.nboxText, { color: palette.ink }]
         }
         selection={selection}
+        format
       />
     </View>
   );
@@ -235,6 +275,7 @@ export function BlockView({
             : styles.paraWrap
         }
         selection={selection}
+        format
         lead={
           block.kind === 'conversation'
             ? {
@@ -299,7 +340,128 @@ export function BlockView({
       textStyle={[styles.paraWords, { color: palette.ink }]}
       wrapStyle={styles.paraWrap}
       selection={selection}
+      format
     />
+  );
+}
+
+/** One box seated in a host paragraph (seat-boxes.ts decides). */
+export interface SeatedBoxRender {
+  block: V205Block;
+  /** The box's own selection bundle — its addressed washes still
+   * paint inside the seated box, exactly as in its card. */
+  selection?: BlockTextSelection;
+  /** The run in the host block's STRIPPED coordinates. */
+  start: number;
+  end: number;
+}
+
+/**
+ * v418: a host paragraph with boxes seated in it. The paragraph
+ * renders as pieces — the prose before a run, the box in its
+ * normal standalone dress (BlockView itself), the prose after —
+ * cut in ONE pass over the block's stripped text, so wash ranges
+ * and seat runs share the stripped coordinates and no offset ever
+ * shifts. A wash range overlapping a seated run is not painted
+ * in the prose (the box takes that seat); every other wash of the
+ * block paints in its piece, re-based to the piece, and a
+ * selection made inside a piece reports back in full-block
+ * coordinates through the host block's own bundle. The run's
+ * words are NOT repeated in the prose — they live in the box.
+ * A seat whose run cannot be proved against the stripped text at
+ * render time falls back to its standalone card under the
+ * paragraph — a box must never vanish.
+ */
+export function SeatedBlockView({
+  block,
+  palette,
+  selection,
+  seats,
+}: {
+  block: V205Block;
+  palette: BiblePalette;
+  selection?: BlockTextSelection;
+  seats: readonly SeatedBoxRender[];
+}) {
+  const stripped = stripFmtText(block.text);
+  // Defensive partition (computeSeatPlacements already proved
+  // every seat it hands over — same inputs, same stripped text):
+  // a seat whose run does not fit, or that overlaps an earlier
+  // seat, falls back to its standalone card below the paragraph.
+  // A box must never vanish.
+  const dropped: SeatedBoxRender[] = [];
+  const valid: SeatedBoxRender[] = [];
+  for (const s of seats) {
+    if (s.start >= 0 && s.end > s.start && s.end <= stripped.length) valid.push(s);
+    else dropped.push(s);
+  }
+  valid.sort((a, b) => a.start - b.start);
+  for (let i = valid.length - 1; i > 0; i--) {
+    if (valid[i].start < valid[i - 1].end) dropped.push(...valid.splice(i, 1));
+  }
+  const droppedCards = dropped.map((s) => (
+    <BlockView key={`card-${s.start}-${s.end}`} block={s.block} palette={palette} selection={s.selection} />
+  ));
+  if (valid.length === 0) {
+    return (
+      <>
+        <BlockView block={block} palette={palette} selection={selection} />
+        {droppedCards}
+      </>
+    );
+  }
+  const fmts = fmtStyleRanges(block.text);
+  const washes = (selection?.highlights ?? []).filter(
+    (w) => !valid.some((s) => w.start < s.end && s.start < w.end),
+  );
+  const prosePiece = (from: number, to: number): ReactNode => {
+    if (to <= from) return null;
+    const pieceWashes = washes
+      .filter((w) => w.start >= from && w.end <= to)
+      .map((w) => ({ start: w.start - from, end: w.end - from, tint: w.tint }));
+    const pieceFmts = fmts
+      .map((f) => ({ start: Math.max(f.start, from), end: Math.min(f.end, to), k: f.k }))
+      .filter((f) => f.end > f.start)
+      .map((f) => ({ start: f.start - from, end: f.end - from, k: f.k }));
+    return (
+      <NativeSelectableText
+        key={`prose-${from}`}
+        text={stripped.slice(from, to)}
+        palette={palette}
+        textStyle={[styles.paraWords, { color: palette.ink }]}
+        highlights={pieceWashes}
+        fmtRanges={pieceFmts}
+        onApplyTint={
+          selection
+            ? (range, tint) =>
+                selection.onApplyTint({ start: range.start + from, end: range.end + from }, tint)
+            : undefined
+        }
+        onBubble={selection?.onBubble}
+        onNote={selection?.onNote}
+      />
+    );
+  };
+  const pieces: ReactNode[] = [];
+  let cursor = 0;
+  for (const seat of valid) {
+    pieces.push(prosePiece(cursor, seat.start));
+    pieces.push(
+      <BlockView
+        key={`seat-${seat.start}`}
+        block={seat.block}
+        palette={palette}
+        selection={seat.selection}
+      />,
+    );
+    cursor = seat.end;
+  }
+  pieces.push(prosePiece(cursor, stripped.length));
+  return (
+    <>
+      <View style={styles.paraWrap}>{pieces}</View>
+      {droppedCards}
+    </>
   );
 }
 
@@ -339,6 +501,10 @@ export function SelfLineBlock({
    * renders exactly as before). The tint action carries the range;
    * Bubble and Note act on the line's parent VERSE — his ruling:
    * bubbles are a verse-level thing, full stop — so they take none.
+   * v418: the line's words render STRIPPED of his bold/italic
+   * markers (fmt-text.ts), with the emphasis as styled spans — the
+   * stored line ranges address the stripped string, so the
+   * selectable path is handed the stripped text, never the raw.
    */
   selection?: {
     highlights: readonly PhraseHighlight[];
@@ -365,16 +531,17 @@ export function SelfLineBlock({
         )}
         {selection ? (
           <NativeSelectableText
-            text={text}
+            text={stripFmtText(text)}
             palette={palette}
             textStyle={[styles.nboxText, { color: palette.ink }]}
             highlights={selection.highlights}
+            fmtRanges={fmtStyleRanges(text)}
             onApplyTint={selection.onApplyTint}
             onBubble={selection.onBubble}
             onNote={selection.onNote}
           />
         ) : (
-          <Text style={[styles.nboxText, { color: palette.ink }]}>{text}</Text>
+          <Text style={[styles.nboxText, { color: palette.ink }]}>{fmtSpans(text)}</Text>
         )}
       </View>
     );
@@ -398,16 +565,17 @@ export function SelfLineBlock({
         </View>
         {selection ? (
           <NativeSelectableText
-            text={text}
+            text={stripFmtText(text)}
             palette={palette}
             textStyle={[styles.flowText, { color: palette.ink }]}
             highlights={selection.highlights}
+            fmtRanges={fmtStyleRanges(text)}
             onApplyTint={selection.onApplyTint}
             onBubble={selection.onBubble}
             onNote={selection.onNote}
           />
         ) : (
-          <Text style={[styles.flowText, { color: palette.ink }]}>{text}</Text>
+          <Text style={[styles.flowText, { color: palette.ink }]}>{fmtSpans(text)}</Text>
         )}
       </View>
     );

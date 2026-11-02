@@ -8,6 +8,7 @@ import { COMMENTARY_DATA } from './data/index';
 import { chapterStatus, type StudyState } from './study';
 import { entrySourceCategory } from './categories';
 import { lineText, marksFor, normalizeMarks, type EntryMarks, type KeeperField, type MarksMap, type TintColor, type VersePhraseHighlight } from './marks';
+import { stripFmtText } from './fmt-text';
 import {
   entryKey,
   type NoteCategory,
@@ -619,14 +620,19 @@ export function searchChapter(
   const verseText = new Map(verses.map((v) => [v.verse, v.text]));
   for (const { entry, sectionTitle } of flattenEntries(sections)) {
     const hl = sentencesMatching(entry.blocks, 'highlight', terms);
-    if (hl) { hits.push({ entry, display: hl, tier: 'highlight', sectionTitle }); continue; }
+    if (hl) { hits.push({ entry, display: stripFmtText(hl), tier: 'highlight', sectionTitle }); continue; }
     const th = sentencesMatching(entry.blocks, 'thought', terms);
-    if (th) { hits.push({ entry, display: th, tier: 'thought', sectionTitle }); continue; }
+    if (th) { hits.push({ entry, display: stripFmtText(th), tier: 'thought', sectionTitle }); continue; }
     let cmt: string | null = null;
     for (const b of entry.blocks) {
       if (b.kind === 'para' || b.kind === 'conversation' || b.kind === 'scripture') {
-        cmt = firstSentenceWith(b.text, terms);
-        if (cmt) break;
+        const sentence = firstSentenceWith(b.text, terms);
+        if (sentence) {
+          // v418: his own words display without their bold/italic
+          // markers; a scripture block's words stay literal.
+          cmt = b.kind === 'scripture' ? sentence : stripFmtText(sentence);
+          break;
+        }
       }
     }
     if (cmt) { hits.push({ entry, display: cmt, tier: 'commentary', sectionTitle }); continue; }

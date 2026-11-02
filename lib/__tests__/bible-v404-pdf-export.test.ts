@@ -71,6 +71,7 @@ import {
 } from '../bible-v205/pdf-export';
 import { COMMENTARY_DATA, getChapterData } from '../bible-v205/index';
 import { embeddedVerses } from '../bible-v205/verses';
+import { stripFmtText } from '../bible-v205/fmt-text';
 import { emptyMarks, type MarksMap } from '../bible-v205/marks';
 import type { V205ChapterData } from '../bible-v205/types';
 import type { Person } from '../prayercircle-data';
@@ -516,13 +517,17 @@ describe('v404 — the library sweep: every chapter, complete', () => {
 
           // (c) The opener text appears — every introduction block
           // and every Previously paragraph, when non-empty.
+          // v418: the print strips his ** / * emphasis markers
+          // (the PDF carries no bold/italic fonts for them), so
+          // the completeness check compares the STRIPPED words —
+          // every word must still reach the paper.
           for (const b of chapterData.intro) {
-            if (b.text.trim() && !body.includes(esc(b.text))) {
+            if (b.text.trim() && !body.includes(esc(stripFmtText(b.text)))) {
               failures.push(`${where}: introduction block missing from the print: "${b.text.slice(0, 60)}…"`);
             }
           }
           for (const p of chapterData.previously) {
-            if (p.trim() && !body.includes(esc(p))) {
+            if (p.trim() && !body.includes(esc(stripFmtText(p)))) {
               failures.push(`${where}: Previously paragraph missing from the print: "${p.slice(0, 60)}…"`);
             }
           }

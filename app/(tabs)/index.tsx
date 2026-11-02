@@ -217,6 +217,7 @@ import {
   applyStudioMinistriesPack,
   loadStoredMinistries,
 } from "@/lib/bible-v205/studio-ministries";
+import { applyStudioMarkChanges } from "@/lib/bible-v205/studio-marks";
 import type { StudyStatus } from "@/lib/bible-v205/types";
 import {
   applyHeldItem,
@@ -4323,7 +4324,8 @@ export default function HomeScreen() {
   // parseStudioFileFull) validates EVERYTHING first, so a malformed
   // file changes nothing: no partial application, ever. Notes replace
   // that chapter's imported commentary entries only — the marks layer
-  // is a different store and is never touched. Chapter states walk
+  // is a different store and is never touched (the v417 mark-changes
+  // section below is the one named exception). Chapter states walk
   // transitionChapterStatus, the same door as tapping in the app.
   // Schedule events land as planned items, deduped by
   // (date, start, title); whiteSpace is advisory and is never stored.
@@ -4381,6 +4383,11 @@ export default function HomeScreen() {
   //   ministries → applyStudioMinistriesPack: upsert by id plus the
   //               deletedIds tombstones the file explicitly names —
   //               the one authorized deletion channel, ministries only
+  //   markChanges → applyStudioMarkChanges (v417): the ONE exception
+  //               to the marks layer's import immunity — a change
+  //               list merged item-by-item, touching only the
+  //               highlights it names (upserts + named tombstones),
+  //               after a one-deep snapshot of the pre-apply map
   //   v365: the schedule section grew its own tombstone channel —
   //               a pack's deletedSchedule names events/todos by exact
   //               (date, start, title) key, the desk's Option B word;
@@ -4525,6 +4532,18 @@ export default function HomeScreen() {
         counts.ministriesAdded = result.summary.added;
         counts.ministriesUpdated = result.summary.updated;
         counts.ministriesDeleted = result.summary.deleted;
+      }
+
+      // v417 — the mark-changes door: the one authorized exception
+      // to the marks layer's import immunity. The section is a
+      // change list, never a snapshot: applyStudioMarkChanges
+      // merges it item-by-item into the marks store (touching only
+      // the highlights the file names), after stashing a one-deep
+      // snapshot of the pre-apply map — see studio-marks.ts.
+      if (plan.markChanges) {
+        const result = await applyStudioMarkChanges(plan.markChanges);
+        counts.markChangesUpserted = result.upserted;
+        counts.markChangesRemoved = result.removed;
       }
 
       // v360 — the email digest's safe door: the section writes

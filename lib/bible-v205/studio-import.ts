@@ -45,7 +45,11 @@
 // Rules the import obeys, from Jonathan's own asks:
 //  · NOTES REPLACE that chapter's imported commentary entries only. The
 //    marks layer (EntryMarks: hearts, tints, bubble lines in marks.ts) is
-//    a DIFFERENT store and is never touched by an import.
+//    a DIFFERENT store and is never touched by an import — with ONE
+//    exception since v417: a file's studioMarkChanges section, a change
+//    list that merges into the marks layer item-by-item, naming every
+//    highlight it touches (studio-marks.ts). No other section can reach
+//    the marks layer, and a change list can never reach an unnamed mark.
 //  · chapterState, when present, goes through the same transition
 //    semantics as tapping in the app (transitionChapterStatus): XP is
 //    idempotent, backward moves are allowed, nothing is ever revoked.
@@ -60,6 +64,15 @@
 //    highlights bridge, so his colours show at the desk too. Export-
 //    only like the bubbles: imports never read the section and never
 //    touch the marks layer.
+//  · v417: the studioHighlights section grows a fifth array (blocks —
+//    the v390 commentary-block highlights the bridge used to drop) and
+//    every item gains the span of the marks record it came from
+//    (entryStart/entryEnd). The RETURN path is a different section
+//    entirely — studioMarkChanges, a change list the door merges
+//    item-by-item into the marks layer (studio-marks.ts): the one
+//    authorized exception to the marks layer's import immunity,
+//    granted by Jonathan's ruling (Nov 2) for desk-side highlight
+//    editing. The snapshot section above stays export-only forever.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { EmailDigest } from '@/lib/email-digest';
@@ -102,6 +115,10 @@ import {
   validateStudioMinistriesPack,
   type StudioMinistriesPack,
 } from './studio-ministries';
+import {
+  validateStudioMarkChanges,
+  type StudioMarkChangesSection,
+} from './studio-marks';
 
 // ── Studio pack shapes (exactly what studio.js exports) ─────────────────────
 
@@ -1033,10 +1050,19 @@ export interface StudioFilePlan {
    *  key, FORWARD-ONLY by preparedAt. A pack carrying only a
    *  briefing changes nothing else in the app. */
   newsBriefing: NewsBriefingSnapshot | null;
+  /** v417 — the mark-changes list (the `studioMarkChanges`
+   *  section): desk-side highlight edits coming home. The ONE
+   *  authorized exception to the marks layer's import immunity —
+   *  a change list, never a snapshot: applied by
+   *  applyStudioMarkChanges (studio-marks.ts), which merges
+   *  item-by-item into the marks store, touching only the
+   *  highlights the list names, after stashing a one-deep
+   *  snapshot of the pre-apply map. */
+  markChanges: StudioMarkChangesSection | null;
 }
 
 export function emptyStudioFilePlan(): StudioFilePlan {
-  return { notes: null, states: null, schedule: null, people: null, ministries: null, emailDigest: null, gasPrices: null, newsBriefing: null };
+  return { notes: null, states: null, schedule: null, people: null, ministries: null, emailDigest: null, gasPrices: null, newsBriefing: null, markChanges: null };
 }
 
 export function studioFileHasSections(plan: StudioFilePlan): boolean {
@@ -1048,7 +1074,8 @@ export function studioFileHasSections(plan: StudioFilePlan): boolean {
     plan.ministries !== null ||
     plan.emailDigest !== null ||
     plan.gasPrices !== null ||
-    plan.newsBriefing !== null
+    plan.newsBriefing !== null ||
+    plan.markChanges !== null
   );
 }
 
@@ -1375,6 +1402,13 @@ export function parseStudioFileFull(parsed: unknown): StudioFilePlan {
   } else if (parsed.studioMinistries !== undefined) {
     plan.ministries = validateStudioMinistriesPack(parsed.studioMinistries);
   }
+  // Mark changes (v417): the studioMarkChanges section — a change
+  // list for the marks layer, validated completely like every other
+  // section. Validated here, applied by studio-marks.ts (the merge
+  // is item-by-item and names every highlight it touches).
+  if (parsed.studioMarkChanges !== undefined) {
+    plan.markChanges = validateStudioMarkChanges(parsed.studioMarkChanges);
+  }
   // People (v225): standalone pack keys at the top; a backup's
   // studioPeople section is the same { people, journal } shape.
   if (Array.isArray(parsed.people)) {
@@ -1477,6 +1511,11 @@ export interface StudioApplyCounts {
    *  the News page's store. Forward-only, like its siblings —
    *  an older briefing arriving late counts 0. */
   newsBriefing: number;
+  /** v417: mark changes applied to the marks layer — upserts that
+   *  landed and removals that removed something (a removal naming
+   *  a missing highlight is a no-op and counts neither). */
+  markChangesUpserted: number;
+  markChangesRemoved: number;
 }
 
 export function emptyStudioApplyCounts(): StudioApplyCounts {
@@ -1501,6 +1540,8 @@ export function emptyStudioApplyCounts(): StudioApplyCounts {
     emailDigest: 0,
     gasPrices: 0,
     newsBriefing: 0,
+    markChangesUpserted: 0,
+    markChangesRemoved: 0,
   };
 }
 
@@ -1563,6 +1604,13 @@ export function formatStudioImportSummary(plan: StudioFilePlan, counts: StudioAp
   // v407: the news briefing, the third morning sibling — same
   // count-keyed honesty.
   if (plan.newsBriefing && counts.newsBriefing > 0) parts.push('News briefing: updated');
+  // v417: the mark changes — the segment names both directions and
+  // only appears when the file carried the section.
+  if (plan.markChanges) {
+    parts.push(
+      `Mark changes: ${counts.markChangesUpserted} upserted · ${counts.markChangesRemoved} removed`,
+    );
+  }
   return parts.join(' · ');
 }
 
@@ -2433,11 +2481,23 @@ export function collectBubbleLinesForExport(marks: MarksMap): BubbleLineExport[]
 // lines: parseStudioFileFull reads sections by presence and simply
 // never reads this one, so a file carrying it imports cleanly and no
 // import can add, remove, or alter a phone highlight.
+//
+// v417: the bridge used to DROP the v390 block highlights outright —
+// selections inside his rendered commentary blocks never crossed
+// (47 of them sat on his phone the day this was found, Nov 2), and no
+// item named the marks record it came from, so a desk edit could not
+// be addressed back to its record. Every item now carries its owning
+// record's span (entryStart/entryEnd) and the block highlights cross
+// in a fifth array (blocks). Additions only — every v363 field keeps
+// its name and meaning, so the desk's existing reader is unaffected.
 
 /** One drag-selected range of a verse's Scripture text, in chars. */
 export interface StudioPhraseHighlightExport {
   book: string;
   chapter: number;
+  /** The span of the marks record this range lives on (v417). */
+  entryStart: number;
+  entryEnd: number;
   verse: number;
   /** Char offset of the range's start inside that verse's text. */
   start: number;
@@ -2451,6 +2511,9 @@ export interface StudioPhraseHighlightExport {
 export interface StudioVerseTintExport {
   book: string;
   chapter: number;
+  /** The span of the marks record these tints live on (v417). */
+  entryStart: number;
+  entryEnd: number;
   start: number;
   end: number;
   hue: TintColor;
@@ -2460,6 +2523,10 @@ export interface StudioVerseTintExport {
 export interface StudioEntryTintExport {
   book: string;
   chapter: number;
+  /** The owning record's span — for an entry tint, the same span
+   *  as start/end below (v417). */
+  entryStart: number;
+  entryEnd: number;
   start: number;
   end: number;
   hue: TintColor;
@@ -2467,20 +2534,56 @@ export interface StudioEntryTintExport {
 
 /**
  * A phrase range inside one of HIS OWN keeper lines. The line is
- * identified the only way that survives the crossing: its entry span
- * (start/end), its kind, and its EXACT text — the studio matches the
- * words, never a storage index. Offsets are char positions inside
- * that line's text.
+ * identified by its entry span (start/end), its kind, and its EXACT
+ * text — and, since v417, by its storage coordinate too (field +
+ * index), the address the desk's line edits and the mark-changes
+ * door both speak. Offsets are char positions inside that line's
+ * text.
  */
 export interface StudioLineHighlightExport {
   book: string;
   chapter: number;
+  /** The span of the marks record this range lives on (v417) —
+   *  the same span as start/end below. */
+  entryStart: number;
+  entryEnd: number;
   start: number;
   end: number;
   kind: 'highlight' | 'thought' | 'note';
+  /**
+   * v417: the line's storage coordinate on its record — the
+   * KeeperField it lives in and its index there. Until v417 the
+   * wire named a line only by kind + exact text; the desk's line
+   * editor addresses changes by (field, index) — the same address
+   * a studioMarkChanges line change carries — so both ride now.
+   */
+  field: KeeperField;
+  index: number;
   text: string;
   startOffset: number;
   endOffset: number;
+  hue: TintColor;
+}
+
+/**
+ * v417: one drag-selected range inside a rendered commentary BLOCK
+ * (the v390 block highlights). Only the 'blocks' surface crosses —
+ * it is the only surface the wire addresses; any other stored
+ * surface is skipped by the collector rather than mis-addressed.
+ * `block` is the block's index within its host entry's blocks
+ * array; offsets are char positions inside that block's text.
+ */
+export interface StudioBlockHighlightExport {
+  book: string;
+  chapter: number;
+  /** The span of the marks record this range lives on. */
+  entryStart: number;
+  entryEnd: number;
+  block: number;
+  /** Char offset of the range's start inside that block's text. */
+  start: number;
+  /** Char offset of the range's end (exclusive) inside that text. */
+  end: number;
   hue: TintColor;
 }
 
@@ -2489,6 +2592,8 @@ export interface StudioHighlightsSection {
   verses: StudioVerseTintExport[];
   entries: StudioEntryTintExport[];
   lines: StudioLineHighlightExport[];
+  /** v417: the v390 block highlights — see StudioBlockHighlightExport. */
+  blocks: StudioBlockHighlightExport[];
 }
 
 const HIGHLIGHT_FIELD_KIND: Record<KeeperField, StudioLineHighlightExport['kind']> = {
@@ -2511,13 +2616,22 @@ export function collectHighlightsForExport(marks: MarksMap): StudioHighlightsSec
   const verses: StudioVerseTintExport[] = [];
   const entries: StudioEntryTintExport[] = [];
   const lines: StudioLineHighlightExport[] = [];
+  const blocks: StudioBlockHighlightExport[] = [];
   for (const [key, raw] of Object.entries(marks)) {
     const span = parseEntryKey(key);
     if (!span) continue;
     const entry = normalizeMarks(raw);
     const { book, chapter } = span;
     if (entry.tint) {
-      entries.push({ book, chapter, start: span.start, end: span.end, hue: entry.tint });
+      entries.push({
+        book,
+        chapter,
+        entryStart: span.start,
+        entryEnd: span.end,
+        start: span.start,
+        end: span.end,
+        hue: entry.tint,
+      });
     }
     // Whole-verse tints cross as spans: a run of consecutive verses
     // in one hue is one span; a hue change or a gap closes the run.
@@ -2528,7 +2642,17 @@ export function collectHighlightsForExport(marks: MarksMap): StudioHighlightsSec
     let runEnd = 0;
     let runHue: TintColor | null = null;
     const flushRun = () => {
-      if (runHue) verses.push({ book, chapter, start: runStart, end: runEnd, hue: runHue });
+      if (runHue) {
+        verses.push({
+          book,
+          chapter,
+          entryStart: span.start,
+          entryEnd: span.end,
+          start: runStart,
+          end: runEnd,
+          hue: runHue,
+        });
+      }
     };
     for (const v of tinted) {
       const hue = entry.verseTints[v];
@@ -2543,7 +2667,16 @@ export function collectHighlightsForExport(marks: MarksMap): StudioHighlightsSec
     }
     flushRun();
     for (const h of entry.phraseHighlights) {
-      phrase.push({ book, chapter, verse: h.verse, start: h.start, end: h.end, hue: h.tint });
+      phrase.push({
+        book,
+        chapter,
+        entryStart: span.start,
+        entryEnd: span.end,
+        verse: h.verse,
+        start: h.start,
+        end: h.end,
+        hue: h.tint,
+      });
     }
     for (const h of entry.lineHighlights) {
       // Line highlights sit on the record the line itself lives on
@@ -2553,12 +2686,34 @@ export function collectHighlightsForExport(marks: MarksMap): StudioHighlightsSec
       lines.push({
         book,
         chapter,
+        entryStart: span.start,
+        entryEnd: span.end,
         start: span.start,
         end: span.end,
         kind: HIGHLIGHT_FIELD_KIND[h.field],
+        field: h.field,
+        index: h.index,
         text: lineText(line),
         startOffset: h.start,
         endOffset: h.end,
+        hue: h.tint,
+      });
+    }
+    for (const h of entry.blockHighlights) {
+      // v417: block highlights cross in their own array, in the
+      // stored model's own terms (block index + char offsets).
+      // Only the 'blocks' surface crosses — it is the only surface
+      // the stored model carries today; any other surface value is
+      // skipped rather than mis-addressed at the desk.
+      if (h.surface !== 'blocks') continue;
+      blocks.push({
+        book,
+        chapter,
+        entryStart: span.start,
+        entryEnd: span.end,
+        block: h.index,
+        start: h.start,
+        end: h.end,
         hue: h.tint,
       });
     }
@@ -2595,7 +2750,18 @@ export function collectHighlightsForExport(marks: MarksMap): StudioHighlightsSec
       a.endOffset - b.endOffset ||
       a.hue.localeCompare(b.hue),
   );
-  return { phrase, verses, entries, lines };
+  blocks.sort(
+    (a, b) =>
+      a.book.localeCompare(b.book) ||
+      a.chapter - b.chapter ||
+      a.entryStart - b.entryStart ||
+      a.entryEnd - b.entryEnd ||
+      a.block - b.block ||
+      a.start - b.start ||
+      a.end - b.end ||
+      a.hue.localeCompare(b.hue),
+  );
+  return { phrase, verses, entries, lines, blocks };
 }
 
 /** Keep the type import honest for callers that only need the book shape. */

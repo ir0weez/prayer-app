@@ -98,6 +98,7 @@ import {
   loadStoredMinistries,
   type StudioMinistriesPack,
 } from './studio-ministries';
+import { applyStudioMarkChanges } from './studio-marks';
 import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY } from '../prayercircle-storage';
 import { storeGasSnapshotForwardOnly } from '../gas-prices';
 import { storeEmailDigestForwardOnly } from '../email-digest';
@@ -744,6 +745,22 @@ export async function checkDriveFolder(): Promise<
       appliedHere += items;
       summary.ministriesApplied += items;
       noteParts.push('Ministries pack — upserts and explicit deletes only');
+    }
+    if (filePlan.markChanges) {
+      // v417: mark changes ride whole, like ministries — the merge
+      // is item-by-item with explicit tombstones, so there is no
+      // regression shape to hold: a change is in the file or it
+      // doesn't happen (see studio-marks.ts). The applier stashes
+      // a one-deep snapshot of the marks map before it writes, and
+      // touches only the highlights the list names.
+      const result = await applyStudioMarkChanges(filePlan.markChanges);
+      const items = result.upserted + result.removed;
+      appliedHere += items;
+      if (items > 0) {
+        noteParts.push(
+          `Mark changes: ${result.upserted} upserted · ${result.removed} removed — named highlights only`,
+        );
+      }
     }
     if (filePlan.gasPrices) {
       // v379: the gas snapshot rides this door too — its own key

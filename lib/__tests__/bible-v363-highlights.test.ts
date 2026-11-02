@@ -65,26 +65,35 @@ const FIXTURE_MARKS: MarksMap = {
   },
 };
 
+// v417: every item also carries its owning record's span
+// (entryStart/entryEnd), and the section gains the fifth array,
+// blocks (empty here — the fixture carries no block highlights;
+// bible-v417-studio-marks.test.ts pins their crossing).
 const FIXTURE_SECTION: StudioHighlightsSection = {
-  phrase: [{ book: 'Colossians', chapter: 1, verse: 2, start: 5, end: 12, hue: 'blue' }],
+  phrase: [{ book: 'Colossians', chapter: 1, entryStart: 1, entryEnd: 2, verse: 2, start: 5, end: 12, hue: 'blue' }],
   verses: [
-    { book: 'Colossians', chapter: 1, start: 1, end: 2, hue: 'yellow' },
-    { book: 'Colossians', chapter: 1, start: 3, end: 3, hue: 'red' },
+    { book: 'Colossians', chapter: 1, entryStart: 1, entryEnd: 2, start: 1, end: 2, hue: 'yellow' },
+    { book: 'Colossians', chapter: 1, entryStart: 3, entryEnd: 3, start: 3, end: 3, hue: 'red' },
   ],
-  entries: [{ book: 'Colossians', chapter: 1, start: 1, end: 2, hue: 'green' }],
+  entries: [{ book: 'Colossians', chapter: 1, entryStart: 1, entryEnd: 2, start: 1, end: 2, hue: 'green' }],
   lines: [
     {
       book: 'Colossians',
       chapter: 1,
+      entryStart: 1,
+      entryEnd: 2,
       start: 1,
       end: 2,
       kind: 'note',
+      field: 'notes',
+      index: 0,
       text: 'grace upon grace, always',
       startOffset: 0,
       endOffset: 5,
       hue: 'rose',
     },
   ],
+  blocks: [],
 };
 
 // A minimal valid combined-pack chapter (the v231 fixture shape), so
@@ -132,26 +141,27 @@ describe('v363 — collectHighlightsForExport', () => {
     expect(section.phrase).toEqual([]);
     expect(section.lines).toEqual([]);
     expect(section.entries).toEqual([
-      { book: 'Romans', chapter: 8, start: 1, end: 4, hue: 'rose' },
+      { book: 'Romans', chapter: 8, entryStart: 1, entryEnd: 4, start: 1, end: 4, hue: 'rose' },
     ]);
     expect(section.verses).toEqual([
-      { book: 'Romans', chapter: 8, start: 1, end: 1, hue: 'yellow' },
-      { book: 'Romans', chapter: 8, start: 2, end: 3, hue: 'red' },
-      { book: 'Romans', chapter: 8, start: 5, end: 5, hue: 'yellow' },
+      { book: 'Romans', chapter: 8, entryStart: 1, entryEnd: 4, start: 1, end: 1, hue: 'yellow' },
+      { book: 'Romans', chapter: 8, entryStart: 1, entryEnd: 4, start: 2, end: 3, hue: 'red' },
+      { book: 'Romans', chapter: 8, entryStart: 1, entryEnd: 4, start: 5, end: 5, hue: 'yellow' },
     ]);
   });
 
-  it('no highlights at all still emits the section, all four arrays empty', () => {
-    expect(collectHighlightsForExport({})).toEqual({ phrase: [], verses: [], entries: [], lines: [] });
+  it('no highlights at all still emits the section, all five arrays empty', () => {
+    expect(collectHighlightsForExport({})).toEqual({ phrase: [], verses: [], entries: [], lines: [], blocks: [] });
     expect(collectHighlightsForExport({ 'Romans|8|1-4': emptyMarks() })).toEqual({
       phrase: [],
       verses: [],
       entries: [],
       lines: [],
+      blocks: [],
     });
   });
 
-  it("a line highlight on a credited line carries the line's words and kind — never its storage index or author", () => {
+  it("a line highlight on a credited line carries the line's words and kind — never its author (v417: field + index ride, the desk's line address)", () => {
     const marks: MarksMap = {
       'John|1|1-1': {
         ...emptyMarks(),
@@ -164,9 +174,13 @@ describe('v363 — collectHighlightsForExport', () => {
       {
         book: 'John',
         chapter: 1,
+        entryStart: 1,
+        entryEnd: 1,
         start: 1,
         end: 1,
         kind: 'highlight',
+        field: 'highlights',
+        index: 0,
         text: 'Cody on the Word',
         startOffset: 0,
         endOffset: 4,
@@ -174,7 +188,6 @@ describe('v363 — collectHighlightsForExport', () => {
       },
     ]);
     expect(JSON.stringify(section)).not.toContain('author');
-    expect(JSON.stringify(section)).not.toContain('index');
   });
 
   it('a line highlight whose line is gone from its record is skipped — it cannot be named, so it cannot cross', () => {

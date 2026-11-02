@@ -214,6 +214,7 @@ import {
   deriveBibleMaterial,
   hexToHsl,
 } from '../bible-v205/palette-accents';
+import { bookColorsFor } from '../bible-v205/book-colors';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -345,9 +346,14 @@ describe('v250 — source contracts (async-surfaces the harness cannot paint)', 
     expect(src).toContain('styles.nbox');
   });
 
-  it('the palette resolves the Material family from colors.primary', () => {
+  it('the palette resolves the Material family from its hue source (v420: seed by default, the book’s hue on book surfaces)', () => {
+    // v420 re-base: buildBiblePalette feeds the families from
+    // hueSource — colors.primary for the seed palette (the v250
+    // contract, unchanged), the book's ROYGBIV light constant when
+    // a book name is given.
     const src = read('components/bible-v205/palette.ts');
-    expect(src).toContain('deriveBibleMaterial(colors.primary, paper)');
+    expect(src).toContain('deriveBibleMaterial(hueSource, paper)');
+    expect(src).toContain('const hueSource = bookSet ? BOOK_HUE_LIGHT[bookSet.hue].primary : colors.primary;');
   });
 });
 
@@ -387,7 +393,7 @@ describe('v250 — the render matrix: Material dress, every skin, seed from the 
     for (const accent of ['sunset', 'pomegranate'] as const) {
       for (const scheme of ['light', 'dark'] as const) {
         const label = `${skin} × ${accent} × ${scheme}`;
-        it(`${label}: ungated root, no skin sheet treatment, first section card in this palette's hue`, () => {
+        it(`${label}: ungated root, no skin sheet treatment, first section card in the book's hue (v420)`, () => {
           rig.skin = skin;
           rig.accent = accent;
           rig.scheme = scheme;
@@ -407,10 +413,22 @@ describe('v250 — the render matrix: Material dress, every skin, seed from the 
           // v304 re-base: the progress card is a slim thread now —
           // its testID is what paints where the card's label did.
           expect(chapter, `${label}: the progress thread is on the page`).toContain('chapter-progress-thread');
+          // v420 re-base: the chapter page wears the BOOK's colour,
+          // not the seed — Genesis 1's first section card paints
+          // Red's first tint for the scheme, whatever seed the
+          // palette carries; the seed's own derived ground must NOT
+          // be what painted.
+          const bookSet = bookColorsFor('Genesis', eff === 'dark')!;
           expect(
-            chapter.includes(`background-color:${hexToRgbaCss(family.sections[0].bg)}`),
-            `${label}: first section card paints the derived ground ${family.sections[0].bg}`,
+            chapter.includes(`background-color:${hexToRgbaCss(bookSet.tintA)}`),
+            `${label}: first section card paints the book's ground ${bookSet.tintA}`,
           ).toBe(true);
+          if (family.sections[0].bg !== bookSet.tintA) {
+            expect(
+              chapter.includes(`background-color:${hexToRgbaCss(family.sections[0].bg)}`),
+              `${label}: the seed palette's card ground is absent`,
+            ).toBe(false);
+          }
           // A different palette's first card must NOT be what painted.
           const other = accent === 'sunset' ? 'pomegranate' : 'sunset';
           const otherGround = groundFor(eff, other);

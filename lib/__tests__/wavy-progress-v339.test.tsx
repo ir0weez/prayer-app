@@ -210,8 +210,12 @@ describe("v339 wavy progress — adoption pins (headline seats)", () => {
     // the written share, the in-progress share as an absolute
     // yellow segment directly behind it (the job the wavy's
     // trailing segment did for one build).
+    // v420 re-base: the straight thread's fill is the row's book
+    // colour (bookPal.rasp) — the form this pin guards (straight,
+    // in-progress share behind it, no wavy trailing segment) is
+    // unchanged.
     const books = read("app/bible-chapters.tsx");
-    expect(books).toContain("backgroundColor: palette.rasp, width: `${pct}%`");
+    expect(books).toContain("backgroundColor: bookPal.rasp, width: `${pct}%`");
     expect(books).toContain("backgroundColor: palette.yellowBorder, width: `${ppct}%`");
     expect(books).not.toContain("trailingValue={ppct / 100}");
   });

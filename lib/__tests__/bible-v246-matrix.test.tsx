@@ -556,9 +556,15 @@ describe('v248 — the derivation: text shades of the chosen color truly read', 
     }
   });
 
-  it('wiring: the palette derives from colors.primary; no surface keeps a fixed accent literal', () => {
+  it('wiring: the palette derives from its hue source (the seed’s colors.primary by default; a book’s ROYGBIV hue on book surfaces — v420); no surface keeps a fixed accent literal', () => {
+    // v420 re-base: buildBiblePalette feeds the families from
+    // hueSource — colors.primary for the seed palette (the v248
+    // contract, unchanged), the book's spectrum constant when a
+    // book name is given. The constants live in lib (book-colors),
+    // never in a surface — the dead-literal sweep below stands.
     const pal = read('components/bible-v205/palette.ts');
-    expect(pal).toContain('deriveBibleAccents(colors.primary, paper)');
+    expect(pal).toContain('deriveBibleAccents(hueSource, paper)');
+    expect(pal).toContain('const hueSource = bookSet ? BOOK_HUE_LIGHT[bookSet.hue].primary : colors.primary;');
     for (const f of [
       'app/bible-chapters.tsx',
       'app/bible-book.tsx',

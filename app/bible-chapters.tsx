@@ -72,7 +72,7 @@ import { clearNoteCollapse } from '@/lib/bible-v205/note-collapse';
 import { BookReadingThread, StudyProgressHeader } from '@/components/bible-v205/reading-progress-card';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
-import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
+import { useBiblePalette, useBookBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from '@/components/top-fade';
 import {
   handwrittenNoteFor,
@@ -489,7 +489,7 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
                     }}
                   >
                     <Text style={[styles.navName, { color: palette.ink, fontWeight: isCurrent ? '800' : '600' }]} numberOfLines={1}>{book}</Text>
-                    <CurrentPill book={book} studyState={studyState} palette={palette} onMakeCurrent={makeCurrent} />
+                    <CurrentPill book={book} studyState={studyState} onMakeCurrent={makeCurrent} />
                   </Pressable>
                 );
               })}
@@ -533,14 +533,16 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
 function CurrentPill({
   book,
   studyState,
-  palette,
   onMakeCurrent,
 }: {
   book: string;
   studyState: StudyState | null;
-  palette: BiblePalette;
   onMakeCurrent: (book: string) => void;
 }) {
+  // v420: the pill sits on a book's own row (or its Jump-to-Book
+  // row), so it wears that book's ROYGBIV colour — the filled chip
+  // is the book's primary, the offer its pill tint + deep.
+  const palette = useBookBiblePalette(book);
   if (!studyState) return null;
   if (studyState.currentBook === book) {
     return (
@@ -585,6 +587,10 @@ function BookRow({
   onPress: () => void;
   onMakeCurrent: (book: string) => void;
 }) {
+  // v420: the row's own accents — chevron, both threads, the
+  // Current pill — wear the book's ROYGBIV colour; the card, name
+  // and counts keep the page palette.
+  const bookPal = useBookBiblePalette(book);
   // v206: counts run over the book's full chapter count — the v205
   // CSV "tracked subset" (Psalms 40) is gone.
   // v324: the WRITTEN count is the union rule (rewards.ts
@@ -636,10 +642,10 @@ function BookRow({
           The Current pill rides the name row's right edge. */}
       <View style={styles.bnameRow}>
         <Text style={[styles.bname, { color: palette.ink }]}>
-          {book} <Text style={{ color: palette.rasp }}>›</Text>
+          {book} <Text style={{ color: bookPal.rasp }}>›</Text>
           {paperNote ? <Text style={[styles.papermark, { color: palette.inkSoft }]}>  ✎ on paper</Text> : null}
         </Text>
-        <CurrentPill book={book} studyState={studyState} palette={palette} onMakeCurrent={onMakeCurrent} />
+        <CurrentPill book={book} studyState={studyState} onMakeCurrent={onMakeCurrent} />
       </View>
       <Text style={[styles.bcount, { color: palette.inkSoft }]}>
         <Text style={[styles.bcountLead, { color: palette.ink }]}>{parts[0]}</Text>
@@ -652,8 +658,8 @@ function BookRow({
           written in the seed on the tint track with the
           in-progress share riding behind it in yellow. The Study
           header's two threads at the top of the page stay wavy. */}
-      <View style={[styles.thread, { backgroundColor: palette.raspTint }]}>
-        <View style={[styles.threadFill, { backgroundColor: palette.rasp, width: `${pct}%` }]} />
+      <View style={[styles.thread, { backgroundColor: bookPal.raspTint }]}>
+        <View style={[styles.threadFill, { backgroundColor: bookPal.rasp, width: `${pct}%` }]} />
         {ppct ? (
           <View
             style={[styles.threadFill, { backgroundColor: palette.yellowBorder, width: `${ppct}%`, marginLeft: `${pct}%`, position: 'absolute', left: 0 }]}
@@ -663,7 +669,7 @@ function BookRow({
       {/* v305: the reading thread — slimmer and deeper than the
           study thread above it, with its own count. */}
       <View style={{ marginTop: 8 }}>
-        <BookReadingThread read={readCount} total={total} palette={palette} />
+        <BookReadingThread read={readCount} total={total} palette={bookPal} />
       </View>
     </Pressable>
   );

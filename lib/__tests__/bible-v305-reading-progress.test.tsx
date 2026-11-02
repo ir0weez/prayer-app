@@ -267,7 +267,9 @@ describe('v305 — the Books screen wiring (source pins)', () => {
 
   it('every book row carries the reading thread under its study thread', () => {
     expect(screen).toContain('bookReadCount(studyState, book)');
-    expect(screen).toContain('<BookReadingThread read={readCount} total={total} palette={palette} />');
+    // v420 re-base: the thread rides the row's own book palette —
+    // its fill is the book's deep on the book's tint track.
+    expect(screen).toContain('<BookReadingThread read={readCount} total={total} palette={bookPal} />');
   });
 
   it('the study bar and its counts follow the written rule (v324: union count)', () => {
@@ -282,8 +284,12 @@ describe('v305 — the Books screen wiring (source pins)', () => {
     // union-count width with the in-progress share behind it in
     // yellow. (v341's wavy form stood for one build.) The counts
     // promise above is untouched.
+    // v420 re-base: the thread's fill is the row's book colour
+    // (bookPal.rasp); the in-progress share behind it still rides
+    // the palette's yellowBorder, and the counts promise above is
+    // untouched.
     expect(screen).toContain('parts.push(`${writtenCount} of ${total} written`)');
-    expect(screen).toContain('backgroundColor: palette.rasp, width: `${pct}%`');
+    expect(screen).toContain('backgroundColor: bookPal.rasp, width: `${pct}%`');
     expect(screen).toContain('backgroundColor: palette.yellowBorder, width: `${ppct}%`');
     expect(screen).not.toContain('value={pct / 100}');
   });

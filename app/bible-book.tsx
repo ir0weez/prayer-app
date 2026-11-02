@@ -68,6 +68,7 @@ import {
   chapterLabel,
   sheetChipDress,
   useBiblePalette,
+  useBookBiblePalette,
 } from '@/components/bible-v205/palette';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
@@ -106,6 +107,10 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
     ? props.pane.book
     : typeof params.book === 'string' && params.book ? params.book : 'Genesis';
   const total = chapterCountFor(book);
+  // v420: the page's own content wears the book's ROYGBIV colour
+  // (bookPal); the seed palette above stays for the shared chrome —
+  // the top bar with its Study Queue pill — and the PDF theme.
+  const bookPal = useBookBiblePalette(book);
 
   const [studyState, setStudyState] = useState<StudyState | null>(null);
   const [studioImports, setStudioImports] = useState<StudioImportsMap>({});
@@ -291,30 +296,30 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
       <View style={{ flex: 1 }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.page}>
         <View style={styles.vhead}>
-          <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
-          <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{book}</Text>
+          <Text style={[styles.kicker, { color: bookPal.rasp }]}>PrayerCircle · Bible</Text>
+          <Text style={[styles.h2, { color: bookPal.ink }, bookPal.h2Size != null ? { fontSize: bookPal.h2Size } : null]}>{book}</Text>
         </View>
 
         {/* v311: the drawing's countline — one centered line of
             counts replaces the chip pile. v313: the drawing's
             order — written · read · in hand · chapters (the read
             count rides second, in the read channel's deep step). */}
-        <Text style={[styles.countText, { color: palette.inkSoft }]}>
+        <Text style={[styles.countText, { color: bookPal.inkSoft }]}>
           {writtenCount > 0 ? (
             <>
-              <Text style={[styles.countStrong, { color: palette.ink }]}>{writtenCount} written</Text>
+              <Text style={[styles.countStrong, { color: bookPal.ink }]}>{writtenCount} written</Text>
               {'  ·  '}
             </>
           ) : null}
           {readCount > 0 ? (
             <>
-              <Text style={[styles.countStrong, { color: palette.raspDeep }]}>{readCount} read</Text>
+              <Text style={[styles.countStrong, { color: bookPal.raspDeep }]}>{readCount} read</Text>
               {'  ·  '}
             </>
           ) : null}
           {inHandCount > 0 ? (
             <>
-              <Text style={[styles.countStrong, { color: palette.ink }]}>{inHandCount} in hand</Text>
+              <Text style={[styles.countStrong, { color: bookPal.ink }]}>{inHandCount} in hand</Text>
               {'  ·  '}
             </>
           ) : null}
@@ -337,7 +342,7 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
                 // the BOOKMARK is the read mark (displayRead — a real
                 // read mark in the store, v329; a Complete cell no
                 // longer grows one it never earned).
-                const st = cellDressFor(palette, d.status);
+                const st = cellDressFor(bookPal, d.status);
                 const isSel = c === selected;
                 return (
                   <Pressable
@@ -345,7 +350,7 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
                     style={[
                       styles.cell,
                       { backgroundColor: st.backgroundColor, borderColor: st.borderColor ?? 'transparent' },
-                      isSel ? { borderColor: palette.ink, borderWidth: 2 } : null,
+                      isSel ? { borderColor: bookPal.ink, borderWidth: 2 } : null,
                     ]}
                     onPress={() => setSelected(c)}
                   >
@@ -356,12 +361,12 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
                       // from the cell's top edge, its notch cut by a
                       // triangle of the cell's own fill. On a Complete
                       // cell it deepens a step (the drawing's #2E1065
-                      // role: palette.readPill).
+                      // role: bookPal.readPill).
                       <View style={styles.cellRibbon} pointerEvents="none">
                         <View
                           style={[
                             styles.cellRibbonBody,
-                            { backgroundColor: d.status === 'complete' ? palette.readPill : palette.raspDeep },
+                            { backgroundColor: d.status === 'complete' ? bookPal.readPill : bookPal.raspDeep },
                           ]}
                         />
                         <View style={[styles.cellRibbonNotch, { borderBottomColor: st.backgroundColor }]} />
@@ -396,11 +401,11 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
             MY WRITING (the pipeline chips, ReStudy standing once,
             Not Started/None merged into the single Clear state).
             No explanatory captions. ── */}
-        <View style={[styles.detailBox, { backgroundColor: palette.paper2 }, palette.cardDress]}>
+        <View style={[styles.detailBox, { backgroundColor: bookPal.paper2 }, bookPal.cardDress]}>
           <View style={styles.sheetHead}>
-            <Text style={[styles.sheetTitle, { color: palette.ink }]}>{chapterLabel(selected)}</Text>
+            <Text style={[styles.sheetTitle, { color: bookPal.ink }]}>{chapterLabel(selected)}</Text>
             {selDisplay.headline === 'read' ? (
-              <View style={[styles.sheetPill, { backgroundColor: palette.raspDeep }]}>
+              <View style={[styles.sheetPill, { backgroundColor: bookPal.raspDeep }]}>
                 <Text style={styles.sheetPillText}>Read</Text>
               </View>
             ) : selStatus !== 'none' && selStatus !== 'not-started' ? (
@@ -408,50 +413,50 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
                 style={[
                   styles.sheetPill,
                   {
-                    backgroundColor: cellDressFor(palette, selStatus).backgroundColor,
-                    borderColor: cellDressFor(palette, selStatus).borderColor ?? 'transparent',
-                    borderWidth: cellDressFor(palette, selStatus).borderColor ? 1 : 0,
+                    backgroundColor: cellDressFor(bookPal, selStatus).backgroundColor,
+                    borderColor: cellDressFor(bookPal, selStatus).borderColor ?? 'transparent',
+                    borderWidth: cellDressFor(bookPal, selStatus).borderColor ? 1 : 0,
                   },
                 ]}
               >
-                <Text style={[styles.sheetPillText, { color: cellDressFor(palette, selStatus).color }]}>
+                <Text style={[styles.sheetPillText, { color: cellDressFor(bookPal, selStatus).color }]}>
                   {STATUS_LABEL[selStatus]}
                 </Text>
               </View>
             ) : null}
           </View>
 
-          <Text style={[styles.groupLabel, { color: palette.inkSoft }]}>Reading</Text>
-          <View style={[styles.readCard, { backgroundColor: palette.band }]}>
-            <View style={[styles.readIconChip, { backgroundColor: palette.primCont }]}>
-              <MaterialIcons name="bookmark" size={19} color={palette.raspDeep} />
+          <Text style={[styles.groupLabel, { color: bookPal.inkSoft }]}>Reading</Text>
+          <View style={[styles.readCard, { backgroundColor: bookPal.band }]}>
+            <View style={[styles.readIconChip, { backgroundColor: bookPal.primCont }]}>
+              <MaterialIcons name="bookmark" size={19} color={bookPal.raspDeep} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.readCardTitle, { color: palette.ink }]}>Read</Text>
-              <Text style={[styles.readCardSub, { color: palette.inkSoft }]}>
+              <Text style={[styles.readCardTitle, { color: bookPal.ink }]}>Read</Text>
+              <Text style={[styles.readCardSub, { color: bookPal.inkSoft }]}>
                 {selReadDate ? formatReadDate(selReadDate) : 'Not read yet'}
               </Text>
             </View>
             <Switch
               value={!!selReadDate}
               onValueChange={(v) => (v ? applyRead() : clearRead())}
-              trackColor={{ false: palette.line, true: palette.rasp }}
-              thumbColor={palette.paper2}
+              trackColor={{ false: bookPal.line, true: bookPal.rasp }}
+              thumbColor={bookPal.paper2}
               accessibilityLabel={`Mark ${book} ${selected} as read`}
             />
           </View>
           <View style={styles.sheetBtns}>
             <Pressable
-              style={[styles.btn, styles.sheetBtn, { backgroundColor: palette.rasp }, palette.btnDress]}
+              style={[styles.btn, styles.sheetBtn, { backgroundColor: bookPal.rasp }, bookPal.btnDress]}
               onPress={() => openChapter(false)}
             >
               <Text style={styles.btnPrimaryText}>Read Chapter</Text>
             </Pressable>
             <Pressable
-              style={[styles.btn, styles.sheetBtn, { backgroundColor: palette.band }, palette.btnDress]}
+              style={[styles.btn, styles.sheetBtn, { backgroundColor: bookPal.band }, bookPal.btnDress]}
               onPress={() => openChapter(true)}
             >
-              <Text style={[styles.btnText, { color: palette.raspDeep }]}>Read as Stories</Text>
+              <Text style={[styles.btnText, { color: bookPal.raspDeep }]}>Read as Stories</Text>
             </Pressable>
           </View>
           {/* v404: the panel's PDF door — same Reading group, the
@@ -460,23 +465,23 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
             style={[
               styles.btn,
               styles.pdfRowBtn,
-              { backgroundColor: palette.band },
-              palette.btnDress,
+              { backgroundColor: bookPal.band },
+              bookPal.btnDress,
               pdfBusy ? { opacity: 0.55 } : null,
             ]}
             onPress={handleDownloadPdf}
             disabled={pdfBusy}
             accessibilityLabel={`Download ${book} chapter ${selected} as a PDF`}
           >
-            <MaterialIcons name="picture-as-pdf" size={17} color={palette.raspDeep} />
-            <Text style={[styles.btnText, { color: palette.raspDeep }]}>{pdfBusy ? 'Making PDF…' : 'Download PDF'}</Text>
+            <MaterialIcons name="picture-as-pdf" size={17} color={bookPal.raspDeep} />
+            <Text style={[styles.btnText, { color: bookPal.raspDeep }]}>{pdfBusy ? 'Making PDF…' : 'Download PDF'}</Text>
           </Pressable>
 
-          <Text style={[styles.groupLabel, { color: palette.inkSoft }]}>My Writing</Text>
+          <Text style={[styles.groupLabel, { color: bookPal.inkSoft }]}>My Writing</Text>
           <View style={styles.chipRow}>
             {SHEET_STATUS_ORDER.map((s) => {
               const isCurrent = s === selStatus;
-              const cd = sheetChipDress(palette, s, isCurrent);
+              const cd = sheetChipDress(bookPal, s, isCurrent);
               return (
                 <Pressable
                   key={s}
@@ -494,14 +499,14 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
               );
             })}
             {selOnPaper ? (
-              <View style={[styles.stateChip, { backgroundColor: palette.paperBg, borderColor: palette.paperBg }]}>
-                <Text style={[styles.stateChipText, { color: palette.paperInk }]}>✎ On paper</Text>
+              <View style={[styles.stateChip, { backgroundColor: bookPal.paperBg, borderColor: bookPal.paperBg }]}>
+                <Text style={[styles.stateChipText, { color: bookPal.paperInk }]}>✎ On paper</Text>
               </View>
             ) : null}
           </View>
           {selStatus !== 'none' && selStatus !== 'not-started' ? (
             <Pressable style={styles.clearRow} onPress={() => applyStatus('none')} hitSlop={8}>
-              <Text style={[styles.clearText, { color: palette.raspDeep }]}>Clear state</Text>
+              <Text style={[styles.clearText, { color: bookPal.raspDeep }]}>Clear state</Text>
             </Pressable>
           ) : null}
         </View>

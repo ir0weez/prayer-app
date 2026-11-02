@@ -148,6 +148,7 @@ import {
   sectionToneFor,
   tintWashFor,
   useBiblePalette,
+  useBookBiblePalette,
   verseTintFor,
   type BiblePalette,
   type BibleSectionTone,
@@ -358,7 +359,13 @@ export function ChapterPageView(props: ChapterPageProps) {
   // v265: inside the Study pane the shell already applied this
   // inset — the override (0) keeps the header from double-stepping.
   const topInset = props.topInsetOverride ?? insets.top;
-  const palette = useBiblePalette();
+  // v420: the chapter page is the book's own surface — its palette
+  // is the book's ROYGBIV palette (sections in the book's two
+  // tints, accents in its primary/deep). The seed palette stands
+  // beside it for the one thing that must not follow the book: the
+  // in-app PDF's theme.
+  const palette = useBookBiblePalette(book);
+  const seedPalette = useBiblePalette();
   // v230: this chapter's devotional, if the registry carries one.
   const devotional = useMemo(() => getDevotional(book, chapter), [book, chapter]);
   const { skin, motion: skinMotion, isSkinned } = useSkin();
@@ -1051,7 +1058,7 @@ export function ChapterPageView(props: ChapterPageProps) {
       });
       await shareChapterPdf({
         data,
-        theme: pdfThemeFromSeed(palette.rasp),
+        theme: pdfThemeFromSeed(seedPalette.rasp),
         authorName: profile.name || 'Jonathan Roberts',
       });
     } catch {

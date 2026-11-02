@@ -32,11 +32,23 @@
 // (the v246/v247 paint gates live there), not dress, and stay.
 
 import { useColors } from '@/hooks/use-colors';
+import type { ThemeColorPalette } from '@/constants/theme';
 import { hexLuminance } from '@/lib/skin-themes';
 import { mix } from '@/lib/color-themes';
 import { resolveBibleInk } from '@/lib/bible-v205/palette-ink';
 import { deriveBibleAccents, deriveBibleMaterial, type BibleSectionTone } from '@/lib/bible-v205/palette-accents';
+import { BOOK_HUE_LIGHT, bookColorsFor } from '@/lib/bible-v205/book-colors';
 import type { TintColor } from '@/lib/bible-v205/marks';
+
+export {
+  BOOK_HUE_LIGHT,
+  BOOK_HUE_BY_NAME,
+  bookColorsFor,
+  bookHueFor,
+  type BookColors,
+  type BookHueId,
+  type BookHueValues,
+} from '@/lib/bible-v205/book-colors';
 
 export { resolveBibleInk } from '@/lib/bible-v205/palette-ink';
 export {
@@ -164,18 +176,50 @@ export interface BiblePalette {
   h2Size: number | null;
 }
 
-export function useBiblePalette(): BiblePalette {
-  const colors = useColors();
+/**
+ * The one palette builder behind both hooks below. Without a book
+ * name it resolves exactly the seed palette useBiblePalette has
+ * always returned. With one (v420), the palette is the SAME shape
+ * sourced from the book's ROYGBIV hue instead of the seed: the
+ * derivation families run on the hue (so the harmonized relatives —
+ * note fill, progress container, edges — stay in the book's family),
+ * and the roles the approved drawing pins wear its exact values:
+ * rasp is the book's primary, raspDeep its deep, the band family is
+ * its pill tint, the section cycle is its two tints alternating,
+ * and the primary container is the pill tint. The page ground,
+ * inks, hairlines and every meaning colour (category code, keeper
+ * yellow, tint washes) are untouched — they never derived from the
+ * primary the drawing recolours.
+ */
+export function buildBiblePalette(colors: ThemeColorPalette, bookName?: string): BiblePalette {
   const isDark = hexLuminance(colors.background) < 0.5;
   // v250: the Bible's ground is the PALETTE's ground in every skin —
   // the themed background with a breath of the seed mixed in (the
   // mockup's palest-seed page). The skin's surface token no longer
   // dresses this section at all.
   const paper = mix(colors.background, colors.primary, isDark ? 0.05 : 0.04);
+  // v420: a book palette's hue source is the book's own spectrum
+  // colour (its light constant, in both appearances — the dark
+  // derivation branches inside the families handle the rest).
+  const bookSet = bookName ? bookColorsFor(bookName, isDark) : null;
+  const hueSource = bookSet ? BOOK_HUE_LIGHT[bookSet.hue].primary : colors.primary;
   // v248/v250: the accent + Material families derive from the chosen
   // color theme's primary — the token every sibling screen consumes.
-  const accents = deriveBibleAccents(colors.primary, paper);
-  const material = deriveBibleMaterial(colors.primary, paper);
+  const accents = deriveBibleAccents(hueSource, paper);
+  const material = deriveBibleMaterial(hueSource, paper);
+  if (bookSet) {
+    accents.rasp = bookSet.primary;
+    accents.raspDeep = bookSet.deep;
+    accents.bandInk = bookSet.deep;
+    accents.band = bookSet.tintA;
+    accents.raspSoft = bookSet.tintA;
+    accents.raspTint = bookSet.tintA;
+    material.sections = [
+      { bg: bookSet.tintA, deep: bookSet.deep, hue: bookSet.primary },
+      { bg: bookSet.tintB, deep: bookSet.deep, hue: bookSet.primary },
+    ];
+    material.primCont = bookSet.tintA;
+  }
   // v250 Material dress fragments — ONE dress in every skin:
   //  · cards — 28px radius and the seed's own soft shade;
   //  · buttons — full pills with the seed's button shade;
@@ -288,8 +332,22 @@ export function useBiblePalette(): BiblePalette {
   };
 }
 
+export function useBiblePalette(): BiblePalette {
+  return buildBiblePalette(useColors());
+}
+
+/** v420: the palette for one book's own surfaces — the same shape
+ * as the seed palette, sourced from the book's ROYGBIV hue (see
+ * buildBiblePalette). Surfaces that span books (the Books list
+ * chrome, the study progress header) keep useBiblePalette. */
+export function useBookBiblePalette(bookName: string): BiblePalette {
+  return buildBiblePalette(useColors(), bookName);
+}
+
 /** v250: the section card tone for a section index — the derived
- * family cycles, so every chapter's cards walk the same harmony. */
+ * family cycles, so every chapter's cards walk the same harmony.
+ * v420: under a book palette the cycle is the book's two tints, so
+ * a chapter's cards alternate tintA / tintB of its own hue. */
 export function sectionToneFor(palette: BiblePalette, index: number): BibleSectionTone {
   const n = palette.sections.length;
   return palette.sections[((index % n) + n) % n];

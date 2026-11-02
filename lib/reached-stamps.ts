@@ -4,6 +4,10 @@ export type ReachedStamp = {
   personName: string;
   date: string;
   note?: string;
+  /** v412: where the reach happened, written by the Mark Reached
+   *  editor page (its location field is required). Stamps written
+   *  before v412 carry no location — readers fall back to the note. */
+  location?: string;
 };
 
 export type ReachedStampSkin = "classic" | "postmark" | "linen" | "sticker" | "coin";
@@ -51,13 +55,14 @@ export function normalizeReachedStamps(value: unknown): ReachedStamp[] {
       personName: item.personName.trim() || "Unnamed Person",
       date,
       note: cleanText(item.note),
+      location: cleanText(item.location),
     }];
   });
 }
 
 export function upsertReachedStamp(
   stamps: ReachedStamp[],
-  input: Pick<ReachedStamp, "personId" | "personName" | "date"> & { note?: string },
+  input: Pick<ReachedStamp, "personId" | "personName" | "date"> & { note?: string; location?: string },
 ): ReachedStamp[] {
   const existing = stamps.find((stamp) => stamp.personId === input.personId && stamp.date === input.date);
   const next: ReachedStamp = {
@@ -66,6 +71,7 @@ export function upsertReachedStamp(
     personName: input.personName.trim() || "Unnamed Person",
     date: input.date,
     note: input.note === undefined ? existing?.note : cleanText(input.note),
+    location: input.location === undefined ? existing?.location : cleanText(input.location),
   };
   return existing ? stamps.map((stamp) => stamp.id === existing.id ? next : stamp) : [...stamps, next];
 }

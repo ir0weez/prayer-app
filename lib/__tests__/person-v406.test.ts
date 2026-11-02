@@ -128,7 +128,11 @@ describe("v406 wiring — source pins", () => {
     expect(person).toContain("LAST PRAYED");
     expect(person).toContain("LAST REACHED");
     expect(person).toContain("Last reached: {formatIsoDateForDisplay(currentPerson.lastPrayedDate)}");
-    expect(person).toContain("Tap to set today. Long-press to choose a previous date.");
+    // RE-BASED (v412, Nov 2 — button concepts Variant 2, his pick):
+    // the hint line is gone; the row carries the inline white
+    // Mark reached pill with its reached state instead.
+    expect(person).not.toContain("Tap to set today. Long-press to choose a previous date.");
+    expect(person).toContain('reachedToday ? "Reached today" : "Mark reached"');
     expect(person).toContain("Last met at {currentPerson.lastMeetingLocation}");
   });
 

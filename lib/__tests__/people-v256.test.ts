@@ -159,15 +159,15 @@ describe("v256 source pins — story bar removal + queue (index.tsx)", () => {
 describe("v256 source pins — slip card (index.tsx)", () => {
   const index = read("app/(tabs)/index.tsx");
 
-  it("the header carries the gold count chip; the narration caption is gone", () => {
+  it("RE-BASED (v412, Nov 2) — the header is Concept 1's: filled REACH OUT pill + the due count in the deep ink; the gold chip and the narration caption are both gone", () => {
     expect(index).not.toContain("Reach · every 14 days");
-    expect(index).toContain("backgroundColor: pmf.gold, borderRadius: 999");
-    expect(index).toContain("color: PEOPLE_GOLD_PILL_INK }}>{reachEntries.length}</Text>");
+    expect(index).toContain(">REACH OUT</Text>");
+    expect(index).toContain("DUE TODAY</Text>");
   });
 
-  it("Reach out pills are gold with the gold-pill ink", () => {
-    expect(index).toContain("backgroundColor: pmf.gold, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8");
-    expect(index).toContain("color: PEOPLE_GOLD_PILL_INK }}>Reach out</Text>");
+  it("RE-BASED (v412, Nov 2) — the seat's Reach out pill is the filled seed pill (Concept 1), not gold", () => {
+    expect(index).toContain("backgroundColor: pmf.seed, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 12");
+    expect(index).toContain('color: "#FFFFFF" }}>Reach out</Text>');
   });
 });
 

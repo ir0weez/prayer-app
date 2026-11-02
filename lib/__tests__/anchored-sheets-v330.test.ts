@@ -152,12 +152,11 @@ describe("v330 — every in-scope surface rides the mechanism", () => {
     expect(schedule).toContain("onPress={handleSaveWorshipAlbum}");
   });
 
-  it("person page: six quick sheets anchored; Edit Person stays for Part 2", () => {
-    expect(count(person, "<AnchoredSheet")).toBe(6);
+  it("person page: five quick sheets anchored; Edit Person stays for Part 2 (RE-BASED v412, Nov 2 — the date sheet retired: the full mark-reached flow is the editor section under the blue box now, so its sheet, its measure, and its save handler are gone)", () => {
+    expect(count(person, "<AnchoredSheet")).toBe(5);
     for (const v of [
       "showFamilyModal",
       "showReminderModal",
-      "showDateModal",
       "showEmergencyPrayerModal",
       "showPraiseModal",
       "showPersonalTodoModal",
@@ -167,10 +166,11 @@ describe("v330 — every in-scope surface rides the mechanism", () => {
     expect(count(person, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(1);
     expect(person).toContain("visible={showEditModal}");
     // The summons measure their own rects at press time.
-    expect(count(person, "measureEventAnchor(event,")).toBeGreaterThanOrEqual(5);
+    expect(count(person, "measureEventAnchor(event,")).toBeGreaterThanOrEqual(4);
     // Save paths unchanged.
     expect(person).toContain("onPress={handleAddEmergencyPrayer}");
-    expect(person).toContain("handleSaveLastReachedDate");
+    expect(person).not.toContain("handleSaveLastReachedDate");
+    expect(person).toContain("openMarkReachedEditor");
   });
 
   it("profile: the fast day sheet is anchored, keyboard lift intact on its container", () => {

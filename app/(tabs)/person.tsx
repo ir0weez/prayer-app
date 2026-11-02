@@ -32,7 +32,6 @@ import {
   removePrayerItem,
   togglePrayerItemDone,
   togglePrayerItemUrgent,
-  updatePersonLastReachedDate,
   updatePersonReminderWithTime,
   groupIntoFamily,
   sortFamilyMembers,
@@ -63,7 +62,9 @@ import { getPraiseDisplay } from "@/lib/praise-display";
 import { PeopleEntrance } from "@/components/people-entrance";
 import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { addAnsweredPrayerJournalEntry, normalizePrayerJournalEntries } from "@/lib/prayer-journal";
-import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
+import { normalizeReachedStamps, type ReachedStamp } from "@/lib/reached-stamps";
+import { calendarCells, formatDateValue } from "@/lib/picker-maths";
+import { commonLocationChips, markReachedOnDate, stampWhere } from "@/lib/reach-out";
 import { awardXP } from "@/lib/xp-engine";
 import { applyQuietHoursToTrigger, getNotificationPreferences, type NotificationPreferences } from "@/lib/notification-scheduler";
 
@@ -172,16 +173,6 @@ function normalizeBirthdayInput(value: string) {
     return `${month}/${day}`;
   }
   return null;
-}
-
-function isValidIsoDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
-}
-
-function isFutureIsoDate(value: string) {
-  return value > getTodayISOString();
 }
 
 function parseReminderTime(time: string) {
@@ -313,6 +304,13 @@ async function schedulePersonReminders(
   }
 }
 
+// v412: the Mark Reached editor section's calendar furniture.
+const REACHED_EDITOR_WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
+const REACHED_EDITOR_MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
 export default function PersonScreen() {
   const router = useRouter();
   const colors = useColors();
@@ -327,11 +325,15 @@ export default function PersonScreen() {
   const [draftReminderDays, setDraftReminderDays] = useState<number[]>([]);
   const [draftReminderMonthDay, setDraftReminderMonthDay] = useState("1");
   const [draftReminderTime, setDraftReminderTime] = useState("08:00");
-  const [showDateModal, setShowDateModal] = useState(false);
-  const [draftLastReachedDate, setDraftLastReachedDate] = useState(getTodayISOString());
-  const [draftLastMeetingLocation, setDraftLastMeetingLocation] = useState("");
-  const [draftReachedStampNote, setDraftReachedStampNote] = useState("");
   const [reachedStamps, setReachedStamps] = useState<ReachedStamp[]>([]);
+  // v412: the Mark Reached editor section's state — it expands in
+  // place under the blue box (his placement pick), so its day,
+  // month in view, and location field live here with the page.
+  const [showReachedEditor, setShowReachedEditor] = useState(false);
+  const [editorDateIso, setEditorDateIso] = useState(getTodayISOString());
+  const [editorViewYear, setEditorViewYear] = useState(() => Number(getTodayISOString().split("-")[0]));
+  const [editorViewMonth, setEditorViewMonth] = useState(() => Number(getTodayISOString().split("-")[1]) - 1);
+  const [editorLocation, setEditorLocation] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftRelationship, setDraftRelationship] = useState<RelationshipType>("Friends");
@@ -451,6 +453,8 @@ export default function PersonScreen() {
   const doneCount = currentPerson?.prayerItems.filter((item) => item.isDone).length ?? 0;
   const lastReachedColor = currentPerson ? getLastReachedAccentColor(currentPerson) : colors.primary;
   const daysSinceLastReached = currentPerson ? getDaysSinceLastPrayed(currentPerson.lastPrayedDate) : 999;
+  // v412: the inline Mark reached pill's reached state (Variant 2).
+  const reachedToday = daysSinceLastReached === 0;
   const hasPrayedToday = currentPerson ? currentPerson.lastPrayerCompletedDate === getTodayISOString() : false;
 
   // v406: the redesigned page's derivations. Every surface derives
@@ -647,17 +651,18 @@ export default function PersonScreen() {
     updatePeople((previousPeople) => markPersonPrayed(previousPeople, personId));
   };
 
+  // v412: ONE write door for every reached mark — this quick tap, the
+  // Due to reach page's quick action, and the Mark Reached editor
+  // section all run markReachedOnDate, so a stamp always lands the
+  // same way (person date + stamp together, XP once when created).
   const handleMarkReachedToday = (position?: { x: number; y: number }) => {
-    if (!personId) return;
+    if (!personId || !currentPerson) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, getTodayISOString()));
-    if (currentPerson) {
-      const next = upsertReachedStamp(reachedStamps, { personId, personName: currentPerson.name, date: getTodayISOString() });
-      setReachedStamps(next);
-      AsyncStorage.setItem(REACHED_STAMPS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
-      const created = next.find((stamp) => !reachedStamps.some((previous) => previous.id === stamp.id));
-      if (created) void awardXP("reached-stamp", created.id, position).catch(() => undefined);
-    }
+    const result = markReachedOnDate(people, reachedStamps, personId, currentPerson.name, getTodayISOString());
+    updatePeople(() => result.people);
+    setReachedStamps(result.stamps);
+    AsyncStorage.setItem(REACHED_STAMPS_STORAGE_KEY, JSON.stringify(result.stamps)).catch(() => undefined);
+    if (result.createdStampId) void awardXP("reached-stamp", result.createdStampId, position).catch(() => undefined);
   };
 
   const handleAddEmergencyPrayer = () => {
@@ -845,41 +850,63 @@ export default function PersonScreen() {
     setShowReminderModal(false);
   };
 
-  const openLastReachedDateModal = (event?: unknown) => {
+  // v412: the full mark-reached flow is the Mark Reached editor
+  // SECTION — it expands in place directly under the blue box
+  // (his placement pick: "Stay on his page, under the blue box";
+  // a separate page and a blue-box takeover were both rejected).
+  // Both long-press doors, the Last reached row and the inline
+  // Mark reached button, open it. The v406 date sheet is retired:
+  // it silently dropped a past date's stamp note, and the flow
+  // now lives in one place. Opening starts the day on today and
+  // the location on his last-met place for this person — the
+  // asking starts answered; he can keep it, change it, or clear
+  // it, and the stamp saves either way.
+  const openMarkReachedEditor = () => {
     if (!currentPerson) return;
-    setDraftLastReachedDate(currentPerson.lastPrayedDate ?? getTodayISOString());
-    setDraftLastMeetingLocation(currentPerson.lastMeetingLocation ?? "");
-    setDraftReachedStampNote(reachedStamps.find((stamp) => stamp.personId === currentPerson.id && stamp.date === getTodayISOString())?.note ?? "");
-    // v330: the last-reached sheet grows out of the Last Reached button.
-    measureEventAnchor(event, (rect) => { setSheetAnchor(rect); setShowDateModal(true); });
-  };
-
-  const handleSaveLastReachedDate = () => {
-    if (!personId) return;
-    if (!isValidIsoDate(draftLastReachedDate)) {
-      Alert.alert("Check date", "Use the YYYY-MM-DD format, such as 2026-04-29.");
-      return;
-    }
-    if (isFutureIsoDate(draftLastReachedDate)) {
-      Alert.alert("Choose a past date", "Last Reached should be today or an earlier date.");
-      return;
-    }
-
-    updatePeople((previousPeople) =>
-      updatePersonLastReachedDate(previousPeople, personId, draftLastReachedDate, draftLastMeetingLocation),
+    const today = getTodayISOString();
+    setEditorDateIso(today);
+    const [year, month] = today.split("-").map(Number);
+    setEditorViewYear(year);
+    setEditorViewMonth(month - 1);
+    setEditorLocation(
+      currentPerson.lastMeetingLocation ?? (personStamps[0] ? (stampWhere(personStamps[0]) ?? "") : ""),
     );
-    if (currentPerson && draftLastReachedDate === getTodayISOString()) {
-      const next = upsertReachedStamp(reachedStamps, { personId, personName: currentPerson.name, date: draftLastReachedDate, note: draftReachedStampNote });
-      setReachedStamps(next);
-      AsyncStorage.setItem(REACHED_STAMPS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
-    }
-    setShowDateModal(false);
+    setShowReachedEditor(true);
   };
 
-  const handleDeleteLastReachedDate = () => {
-    if (!personId) return;
-    updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, "", ""));
-    setShowDateModal(false);
+  const shiftEditorMonth = (delta: number) => {
+    const next = new Date(editorViewYear, editorViewMonth + delta, 1);
+    setEditorViewYear(next.getFullYear());
+    setEditorViewMonth(next.getMonth());
+  };
+
+  const handleEditorSelectDate = (iso: string) => {
+    if (iso > getTodayISOString()) return;
+    setEditorDateIso(iso);
+    // Tapping a stamped day edits that stamp: its where takes the
+    // field. Tapping an unstamped day leaves the field alone, so
+    // backfilling several days at one spot stays one typing.
+    const stamp = personStamps.find((s) => s.date === iso);
+    if (stamp) setEditorLocation(stampWhere(stamp) ?? "");
+  };
+
+  const handleSaveReachedEditor = () => {
+    if (!personId || !currentPerson) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const trimmed = editorLocation.trim();
+    const result = markReachedOnDate(
+      people,
+      reachedStamps,
+      personId,
+      currentPerson.name,
+      editorDateIso,
+      trimmed ? { location: trimmed } : undefined,
+    );
+    updatePeople(() => result.people);
+    setReachedStamps(result.stamps);
+    AsyncStorage.setItem(REACHED_STAMPS_STORAGE_KEY, JSON.stringify(result.stamps)).catch(() => undefined);
+    if (result.createdStampId) void awardXP("reached-stamp", result.createdStampId).catch(() => undefined);
+    setShowReachedEditor(false);
   };
 
   const { isSkinned, tokens: skinTokens } = useSkin();
@@ -919,6 +946,20 @@ export default function PersonScreen() {
       </ScreenContainer>
     );
   }
+
+  // v412: the editor section's derived values — the month in view,
+  // the stamped days, and the location chips as ALTERNATES (the
+  // field shows the chosen location; its value never appears in
+  // the chips too).
+  const editorCells = calendarCells(editorViewYear, editorViewMonth);
+  const editorStampedDates = new Set(personStamps.map((stamp) => stamp.date));
+  const editorSelectedStamp = personStamps.find((stamp) => stamp.date === editorDateIso);
+  const editorTrimmedLocation = editorLocation.trim();
+  const editorChips = commonLocationChips(people, reachedStamps).filter((chip) => chip !== editorTrimmedLocation);
+  const editorSelectedDate = new Date(`${editorDateIso}T12:00:00`);
+  const editorSummaryWhen = editorDateIso === getTodayISOString()
+    ? `today, ${editorSelectedDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`
+    : editorSelectedDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
   return (
     <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.container, skinTokens.isEightBit ? { backgroundColor: "transparent" } : null, null]}>
@@ -1031,19 +1072,31 @@ export default function PersonScreen() {
             </View>
           </View>
           <View style={{ height: 1, backgroundColor: "rgba(255,255,255,0.22)", marginVertical: 15 }} />
+          {/* v412 (Nov 2, his pick — button concepts Variant 2): the
+              Mark reached button lives INSIDE this row as a white
+              filled pill; the row's old days badge and the hint line
+              are gone and the box does not grow. Tap (row or pill) =
+              the quick today-stamp; long-press (row or pill) opens
+              the Mark Reached editor page. Reached today, the pill
+              settles into the quiet state from the same drawing. */}
           <Pressable
             onPress={(event) => handleMarkReachedToday({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
-            onLongPress={openLastReachedDateModal}
+            onLongPress={openMarkReachedEditor}
             delayLongPress={350}
             style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 9 }, pressed && styles.pressed]}
           >
             <MaterialIcons name={iconName("event")} size={20} color="#FFFFFF" />
-            <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "800" }}>Last reached: {formatIsoDateForDisplay(currentPerson.lastPrayedDate)}</Text>
-            <View style={{ marginLeft: "auto", backgroundColor: "#FFFFFF", borderRadius: 999, minWidth: 30, alignItems: "center", paddingHorizontal: 7, paddingVertical: 3 }}>
-              <Text style={{ fontSize: 11, fontWeight: "800", color: scheduleTones.primaryDeep }}>{daysSinceLastReached === 999 ? "—" : formatDaysSinceLastPrayer(daysSinceLastReached)}</Text>
-            </View>
+            <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "800", flexShrink: 1 }}>Last reached: {formatIsoDateForDisplay(currentPerson.lastPrayedDate)}</Text>
+            <Pressable
+              onPress={(event) => handleMarkReachedToday({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
+              onLongPress={openMarkReachedEditor}
+              delayLongPress={350}
+              style={({ pressed }) => [{ marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: reachedToday ? "rgba(255,255,255,0.16)" : "#FFFFFF", borderWidth: reachedToday ? 1 : 0, borderColor: "rgba(255,255,255,0.35)" }, pressed && styles.pressed]}
+            >
+              <MaterialIcons name={iconName(reachedToday ? "check-circle" : "check")} size={15} color={reachedToday ? "#D7E4FD" : scheduleTones.primaryDeep} />
+              <Text style={{ fontSize: 13, fontWeight: "800", color: reachedToday ? "#D7E4FD" : scheduleTones.primaryDeep }}>{reachedToday ? "Reached today" : "Mark reached"}</Text>
+            </Pressable>
           </Pressable>
-          <Text style={{ fontSize: 12.5, fontWeight: "500", color: "rgba(255,255,255,0.78)", marginTop: 9 }}>Tap to set today. Long-press to choose a previous date.</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 13, flexWrap: "wrap" }}>
             <Pressable onPress={openReminderModal} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 }, pressed && styles.pressed]}>
               <MaterialIcons name={iconName("notifications")} size={15} color="#FFFFFF" />
@@ -1054,6 +1107,111 @@ export default function PersonScreen() {
             ) : null}
           </View>
         </View>
+
+        {/* v412: the Mark Reached editor — a section ON this page,
+            directly under the blue box, expanded in place by the
+            long-press doors (his placement pick). Dress = the
+            page's plain below-box card language (scaffold — two
+            dressed concepts for this flow were rejected Nov 2 and
+            the final dress is a follow-up pass on this wiring).
+            The flow: a real month calendar (fixed square cells,
+            the picked day a true circle), the location asked +
+            prefilled but never required, chips as alternates only,
+            and the one write door on save. */}
+        {showReachedEditor ? (
+          <View style={{ backgroundColor: pm.card, borderRadius: 16, marginHorizontal: 16, marginTop: 12, padding: 18, shadowColor: pm.shadow, shadowOpacity: 1, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 3 }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text style={{ fontSize: 16, fontWeight: "800", color: pm.ink }}>Mark reached</Text>
+              <Pressable onPress={() => setShowReachedEditor(false)} style={({ pressed }) => [{ marginLeft: "auto", width: 30, height: 30, alignItems: "center", justifyContent: "center" }, pressed && styles.pressed]}>
+                <MaterialIcons name={iconName("close")} size={19} color={pm.inkSoft} />
+              </Pressable>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 8 }}>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: pm.ink }}>{REACHED_EDITOR_MONTHS[editorViewMonth]} {editorViewYear}</Text>
+              <View style={{ marginLeft: "auto", flexDirection: "row", gap: 8 }}>
+                <Pressable onPress={() => shiftEditorMonth(-1)} style={({ pressed }) => [{ width: 32, height: 32, borderRadius: 16, backgroundColor: pm.wash, alignItems: "center", justifyContent: "center" }, pressed && styles.pressed]}>
+                  <MaterialIcons name={iconName("chevron-left")} size={18} color={pm.deep} />
+                </Pressable>
+                <Pressable onPress={() => shiftEditorMonth(1)} style={({ pressed }) => [{ width: 32, height: 32, borderRadius: 16, backgroundColor: pm.wash, alignItems: "center", justifyContent: "center" }, pressed && styles.pressed]}>
+                  <MaterialIcons name={iconName("chevron-right")} size={18} color={pm.deep} />
+                </Pressable>
+              </View>
+            </View>
+            <View style={{ flexDirection: "row" }}>
+              {REACHED_EDITOR_WEEKDAYS.map((letter, index) => (
+                <View key={index} style={{ width: "14.2857%", alignItems: "center", paddingVertical: 4 }}>
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: pm.inkSoft }}>{letter}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              {editorCells.map((cell) => {
+                const iso = formatDateValue(cell.year, cell.month, cell.day);
+                const isFuture = iso > getTodayISOString();
+                const isSelected = iso === editorDateIso;
+                const isTodayCell = iso === getTodayISOString();
+                const hasStamp = editorStampedDates.has(iso);
+                return (
+                  <Pressable
+                    key={iso}
+                    disabled={isFuture}
+                    onPress={() => handleEditorSelectDate(iso)}
+                    style={{ width: "14.2857%", alignItems: "center", paddingVertical: 2 }}
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: isSelected ? colors.primary : "transparent",
+                        borderWidth: isTodayCell && !isSelected ? 1.5 : 0,
+                        borderColor: colors.primary,
+                        opacity: isFuture ? 0.32 : cell.inMonth ? 1 : 0.38,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13.5, fontWeight: isSelected || isTodayCell ? "800" : "600", color: isSelected ? "#FFFFFF" : pm.ink }}>{cell.day}</Text>
+                      <View style={{ width: 4, height: 4, borderRadius: 2, marginTop: 1, backgroundColor: hasStamp ? (isSelected ? "#FFFFFF" : pm.deep) : "transparent" }} />
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={{ fontSize: 12, fontWeight: "800", letterSpacing: 0.9, color: pm.inkSoft, marginTop: 16, marginBottom: 7 }}>LOCATION</Text>
+            <TextInput
+              value={editorLocation}
+              onChangeText={setEditorLocation}
+              placeholder="Add a location…"
+              placeholderTextColor={pm.inkSoft}
+              returnKeyType="done"
+              style={{ backgroundColor: pm.wash, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 14.5, fontWeight: "600", color: pm.ink }}
+            />
+            {editorChips.length > 0 ? (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                {editorChips.map((chip) => (
+                  <Pressable
+                    key={chip}
+                    onPress={() => setEditorLocation(chip)}
+                    style={({ pressed }) => [{ backgroundColor: pm.wash, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }, pressed && styles.pressed]}
+                  >
+                    <Text style={{ fontSize: 12.5, fontWeight: "700", color: pm.deep }}>{chip}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            <Text style={{ fontSize: 12.5, fontWeight: "600", color: pm.inkSoft, marginTop: 14 }}>
+              {`Stamp for ${editorSummaryWhen} · ${editorTrimmedLocation || "no location"}`}
+            </Text>
+            <Pressable
+              onPress={handleSaveReachedEditor}
+              style={({ pressed }) => [{ backgroundColor: colors.primary, borderRadius: 999, paddingVertical: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12 }, pressed && styles.pressed]}
+            >
+              <MaterialIcons name={iconName("save")} size={16} color="#FFFFFF" />
+              <Text style={{ fontSize: 14.5, fontWeight: "800", color: "#FFFFFF" }}>{editorSelectedStamp ? "Save stamp" : "Add stamp"}</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={!isSkinned ? { flexDirection: "row", gap: 9, marginHorizontal: 16 } : undefined}>
           <Pressable
@@ -1357,7 +1515,7 @@ export default function PersonScreen() {
                         <MaterialIcons name={iconName("verified")} size={16} color={pm.seed} />
                       </View>
                       <Text style={{ fontSize: 13.5, fontWeight: "700", color: pm.ink }}>{shortDateLabel(stamp.date)}</Text>
-                      {!!stamp.note && <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: pm.inkSoft }}>{stamp.note}</Text>}
+                      {!!stampWhere(stamp) && <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: pm.inkSoft }}>{stampWhere(stamp)}</Text>}
                     </View>
                   ))}
                 </View>
@@ -1400,7 +1558,7 @@ export default function PersonScreen() {
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 18, paddingVertical: 12 }}>
                     <MaterialIcons name={iconName("verified")} size={17} color={pm.seed} />
                     <Text style={{ fontSize: 13, fontWeight: "700", color: pm.ink }}>{formatIsoDateForDisplay(stamp.date)}</Text>
-                    {!!stamp.note && <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: pm.inkSoft }}>{stamp.note}</Text>}
+                    {!!stampWhere(stamp) && <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: pm.inkSoft }}>{stampWhere(stamp)}</Text>}
                   </View>
                 </View>
               ))}
@@ -1709,54 +1867,7 @@ export default function PersonScreen() {
         
       </AnchoredSheet>
 
-      <AnchoredSheet visible={showDateModal} onClose={() => setShowDateModal(false)} anchor={sheetAnchor} scrimColor="rgba(20, 19, 38, 0.28)" containerStyle={[styles.modalOverlay, { backgroundColor: "transparent" }]}>
-          <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>
-<BitSettle>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Last Reached</Text>
-              <Pressable onPress={() => setShowDateModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
-                <MaterialIcons name={iconName("close")} size={23} color={colors.muted} />
-              </Pressable>
-            </View>
-            <Text style={styles.modalDescription}>Enter a previous contact date. This date updates the home-screen progress color.</Text>
-            <Text style={styles.modalFieldLabel}>Date</Text>
-            <TextInput
-              value={draftLastReachedDate}
-              onChangeText={setDraftLastReachedDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.muted}
-              keyboardType="numbers-and-punctuation"
-              returnKeyType="done"
-              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
-            />
-            <Text style={styles.modalFieldLabel}>Last met at (optional)</Text>
-            <TextInput
-              value={draftLastMeetingLocation}
-              onChangeText={setDraftLastMeetingLocation}
-              placeholder="e.g., Coffee shop, church, school"
-              placeholderTextColor={colors.muted}
-              returnKeyType="done"
-              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
-            />
-            <Text style={styles.modalFieldLabel}>Stamp note (optional)</Text>
-            <TextInput
-              value={draftReachedStampNote}
-              onChangeText={setDraftReachedStampNote}
-              placeholder="e.g., phone call, coffee shop"
-              placeholderTextColor={colors.muted}
-              returnKeyType="done"
-              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
-            />
-            <Pressable onPress={handleSaveLastReachedDate} style={({ pressed }) => [styles.modalPrimaryButton, !isSkinned && { borderRadius: 999 }, pressed && styles.pressed]}>
-              <Text style={styles.modalPrimaryButtonText}>Save Last Reached</Text>
-            </Pressable>
-            <Pressable onPress={handleDeleteLastReachedDate} style={({ pressed }) => [{ ...styles.modalSecondaryButton, backgroundColor: getThemeAwareColor("#EFE8FB", colors) }, pressed && styles.pressed]}>
-              <Text style={styles.modalSecondaryButtonText}>Delete Date</Text>
-            </Pressable>
-          </BitSettle>
-</PaperSettle>
-        
-      </AnchoredSheet>
+
 
       <AnchoredSheet visible={showEmergencyPrayerModal} onClose={() => setShowEmergencyPrayerModal(false)} anchor={sheetAnchor} scrimColor="rgba(20, 19, 38, 0.28)" containerStyle={[styles.modalOverlay, { backgroundColor: "transparent" }]}>
           <PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned && { borderRadius: 28 }]}>

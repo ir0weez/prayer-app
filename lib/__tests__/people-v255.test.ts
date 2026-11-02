@@ -9,7 +9,9 @@
  *     at the top of People;
  *  3. the Today's prayer list card carries the FULL queue with
  *     Waiting/Prayed statuses;
- *  4. Don't let anyone slip STACKS one row per due person;
+ *  4. Don't let anyone slip STACKS one row per due person
+ *     (SUPERSEDED by v412, Nov 2 — Concept 1 seats one; see the
+ *     re-based pin 4 below);
  *  5. roster sub-lines are full text (no ellipsis), no day pill on
  *     household heads;
  *  6. the tab bar is the mockup's flat light bar with the wash pill
@@ -182,11 +184,12 @@ describe("v255 source pins — front door (index.tsx)", () => {
     expect(queue).not.toContain("visiblePrayTodayList");
   });
 
-  it("4 · the slip card stacks every due person's row", () => {
+  it("4 · RE-BASED (v412, Nov 2) — the slip card is Concept 1 now: one seat + one slim others row (SEE ALL → the Due page); the v255 stack and the v256 gold dress are superseded by his pick", () => {
     const slip = index.slice(index.indexOf("const renderSlipCard"), index.indexOf("const renderRosterHead"));
-    expect(slip).toContain("reachEntries.map");
-    // v256: the header's washSub caption became the gold count chip.
-    expect(slip).toContain("pmf.gold");
+    expect(slip).not.toContain("reachEntries.map");
+    expect(slip).toContain("reachEntries.slice(1, 3)");
+    expect(slip).toContain("SEE ALL");
+    expect(slip).not.toContain("pmf.gold");
     expect(slip).not.toContain("slipIndex");
   });
 

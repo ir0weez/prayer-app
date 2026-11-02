@@ -390,9 +390,12 @@ describe("Paper coverage — v202 animation pass", () => {
     // AnchoredSheets now — the slide/fade Modal string survives
     // only on the Edit Person modal (1), which is Part 2 by his
     // ruling. The PaperSettle modal cards are unchanged (7).
+    // RE-BASED (v412, Nov 2): the date modal retired — the full
+    // mark-reached flow is the editor section under the blue box —
+    // so five AnchoredSheets and six modal cards remain.
     expect(count(person, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(1);
-    expect(count(person, "<AnchoredSheet")).toBe(6);
-    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned &&")).toBe(7);
+    expect(count(person, "<AnchoredSheet")).toBe(5);
+    expect(count(person, "<PaperSettle style={[styles.modalCard, paperModalCard, !isSkinned &&")).toBe(6);
   });
 
   it("fasting profile: the above-fold sheets settle; its modals fade as pages", () => {

@@ -253,16 +253,20 @@ describe("v254 source pins — People front door + roster (index.tsx)", () => {
     expect(index).toContain("renderPraiseCard");
     expect(index).toContain("renderSlipCard");
     expect(index).toContain("Today's prayer list");
-    expect(index).toContain("Don't let anyone slip");
+    // RE-BASED (v412, Nov 2): the don't-slip box is replaced by his
+    // Concept 1 reach-out card — the "Don't let anyone slip" title
+    // is gone; the card's face is the filled REACH OUT pill.
+    expect(index).toContain(">REACH OUT</Text>");
     expect(index).toContain("Your people");
     expect(index).toContain("Pray now");
     expect(index).toContain("Post to Journal");
   });
 
-  it("the don't-slip card STACKS one row per due person (v255 supersedes the rotation — it hid everyone but the current face; the mockup stacks them)", () => {
-    expect(index).toContain("reachEntries.map");
+  it("RE-BASED (v412, Nov 2) — the reach-out card seats ONE person (Concept 1 + the approved multi behavior supersede the v255 stack: he didn't want a list lingering on the page); the rest wait in one slim row and the full list lives on the Due page", () => {
+    expect(index).not.toContain("reachEntries.map");
     expect(index).not.toContain("slipIndex");
-    expect(index).toContain("getReachOutEntries");
+    expect(index).toContain("getDueReachOut");
+    expect(index).toContain("reachEntries.slice(1, 3)");
   });
 
   it("there is NO day/study strip on People — the front door is app bar, cards, roster (v256: the story bar is gone too)", () => {

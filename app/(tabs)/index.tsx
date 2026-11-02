@@ -48,7 +48,8 @@ import { CarouselDots, FrontDoorCarousel } from "@/components/front-door-carouse
 import { PeopleStreakCard } from "@/components/people-streak-card";
 import { WavyProgress } from "@/components/wavy-progress";
 import { getPraiseDisplay, getPraiseJournalText } from "@/lib/praise-display";
-import { getReachOutEntries, formatHoursLeft } from "@/lib/bell-header";
+import { formatHoursLeft } from "@/lib/bell-header";
+import { getDueReachOut, reachOutCardSubline } from "@/lib/reach-out";
 import { getWhatsNext, type WhatsNextItem } from "@/lib/whats-next";
 import { paperKeywordSceneFor } from "@/components/paper-keyword-scenes";
 import { pixelKeywordSceneFor } from "@/components/pixel-keyword-scenes";
@@ -116,7 +117,6 @@ import {
   getLastReachedAccentColor,
   getPrayTodayList,
   hasActivePraise,
-  hasActiveEmergencyPrayer,
   sortPrayTodayListByPriority,
   getTodayISOString,
   getUrgentPrayerItems,
@@ -1770,13 +1770,13 @@ export default function HomeScreen() {
     if (at <= 0) return prayablePrayTodayList;
     return [...prayablePrayTodayList.slice(at), ...prayablePrayTodayList.slice(0, at)];
   }, [people, prayerSessionFocusId, prayablePrayTodayList, prayerSessionStartId]);
-  // The don't-slip card's reach rows — the bell lib's reach entries
+  // The reach-out card's due set — the bell lib's reach entries
   // (a real last-reached date, 14+ days old; never-reached is never
-  // due). v255: the card STACKS one row per due person, as the
-  // approved mockup draws it — v254's one-row rotation hid everyone
-  // but the current face. (The Daily Summary's Reach area keeps its
-  // own rotation; that is a different surface.)
-  const reachEntries = useMemo(() => getReachOutEntries(people, new Date()), [people]);
+  // due), ordered most overdue first by lib/reach-out. v412: the
+  // card seats ONE person (the most overdue) however many are due;
+  // the rest wait on the Due page. (The Daily Summary's Reach area
+  // keeps its own rotation; that is a different surface.)
+  const reachEntries = useMemo(() => getDueReachOut(people, new Date()), [people]);
   // v339: the queue bar's v255 shine loop is retired — the bar
   // wears the wavy fill now, and its only motion is the sweep when
   // the prayed share changes (his Oct 29 ruling).
@@ -3631,40 +3631,51 @@ export default function HomeScreen() {
 
   const renderSlipCard = () => {
     if (reachEntries.length === 0) return null;
-    // v255: the mockup STACKS the reach candidates — every due
-    // person gets their own row with their own Reach out pill.
+    // v412 (his Nov 2 pick — Concept 1 + the approved multi-person
+    // behavior, reach-out-card-concepts-v1/v2): ONE tonal card
+    // however many are due. The seat holds the most overdue person;
+    // the next two wait in one slim row at the foot, and the full
+    // list lives on the Due page — the card never becomes a list,
+    // and with nobody due it isn't on the page at all (the early
+    // return above). The Reach out pill keeps its standing action:
+    // it opens the person's page.
+    const lead = reachEntries[0];
+    const leadPerson = lead.person;
+    const others = reachEntries.slice(1, 3);
     return (
       <PeopleEntrance index={4}>
-        <View style={{ backgroundColor: pmf.wash, borderRadius: 26, paddingHorizontal: 17, paddingVertical: 15, marginHorizontal: 16, marginTop: 12 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <Text style={{ fontSize: 14.5, fontWeight: "800", color: pmf.washInk }}>Don't let anyone slip</Text>
-            {/* v256: the header carries the gold count chip (the due
-                count) — the old cadence caption is gone
-                (no-captions rule: the card behaves, it doesn't
-                narrate). */}
-            <View style={{ backgroundColor: pmf.gold, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
-              <Text style={{ fontSize: 12, fontWeight: "900", color: PEOPLE_GOLD_PILL_INK }}>{reachEntries.length}</Text>
+        <View style={{ backgroundColor: pmf.wash2, borderRadius: 28, paddingHorizontal: 16, paddingTop: 15, paddingBottom: 14, marginHorizontal: 16, marginTop: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={{ backgroundColor: pmf.seed, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+              <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 1.4, color: "#FFFFFF" }}>REACH OUT</Text>
             </View>
+            <Text style={{ marginLeft: "auto", fontSize: 11, fontWeight: "800", letterSpacing: 1, color: pmf.deep }}>{reachEntries.length} DUE TODAY</Text>
           </View>
-          {reachEntries.map((entry) => {
-            const person = entry.person;
-            const alsoEmergency = hasActiveEmergencyPrayer(person);
-            const meta = entry.days === 14
-              ? "Due to reach today · last talked 14 days ago"
-              : `Last talked ${entry.days} days ago${alsoEmergency ? " · also today's emergency" : ""}`;
-            return (
-              <View key={person.id} style={{ flexDirection: "row", alignItems: "center", gap: 11, backgroundColor: pmf.card, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-                <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={42} thumbnail fallbackColor={person.accentColor} />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: "800", color: pmf.ink }}>{person.name}</Text>
-                  <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: "600", color: pmf.inkSoft, marginTop: 1 }}>{meta}</Text>
-                </View>
-                <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [{ backgroundColor: pmf.gold, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}>
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: PEOPLE_GOLD_PILL_INK }}>Reach out</Text>
-                </Pressable>
-              </View>
-            );
-          })}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 13 }}>
+            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 }}>
+              <AvatarImage id={leadPerson.id} name={leadPerson.name} gender={leadPerson.gender} avatarAsset={leadPerson.avatarAsset} photoUri={leadPerson.photoUri} size={54} thumbnail fallbackColor={leadPerson.accentColor} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={{ fontSize: 17, fontWeight: "800", color: pmf.washInk }}>{leadPerson.name}</Text>
+              <Text numberOfLines={2} style={{ fontSize: 12, fontWeight: "600", color: pmf.washSub, marginTop: 2, lineHeight: 16 }}>{reachOutCardSubline(lead)}</Text>
+            </View>
+            <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: leadPerson.id } })} style={({ pressed }) => [{ backgroundColor: pmf.seed, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 12, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 }, pressed && { opacity: 0.85 }]}>
+              <Text style={{ fontSize: 13.5, fontWeight: "800", color: "#FFFFFF" }}>Reach out</Text>
+            </Pressable>
+          </View>
+          {reachEntries.length > 1 ? (
+            <Pressable
+              onPress={() => router.push("/due-to-reach")}
+              style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 13, paddingTop: 11, borderTopWidth: 1, borderTopColor: `${pmf.deep}2E` }, pressed && { opacity: 0.85 }]}
+            >
+              {others.map((entry) => (
+                <AvatarImage key={entry.person.id} id={entry.person.id} name={entry.person.name} gender={entry.person.gender} avatarAsset={entry.person.avatarAsset} photoUri={entry.person.photoUri} size={26} thumbnail fallbackColor={entry.person.accentColor} />
+              ))}
+              <Text numberOfLines={1} style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: "700", color: pmf.washSub }}>{others.map((entry) => entry.person.name).join(" · ")}</Text>
+              <Text style={{ fontSize: 12, fontWeight: "800", color: pmf.deep }}>SEE ALL</Text>
+              <MaterialIcons name="chevron-right" size={13} color={pmf.deep} />
+            </Pressable>
+          ) : null}
         </View>
       </PeopleEntrance>
     );

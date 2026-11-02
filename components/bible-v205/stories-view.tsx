@@ -297,11 +297,17 @@ export function StoriesView(props: StoriesViewProps) {
             ) : null;
           })()}
           <View style={{ marginTop: 14 }}>
-            {e.blocks
-              .filter((b) => !(b.kind === 'quote' && b.authorId))
-              .map((b, i) => (
-                <BlockView key={i} block={b} palette={palette} />
-              ))}
+            {(() => {
+              const flow = e.blocks.filter((b) => !(b.kind === 'quote' && b.authorId));
+              return flow.map((b, i) => (
+                <BlockView
+                  key={i}
+                  block={b}
+                  palette={palette}
+                  firstPara={!flow.slice(0, i).some((x) => x.kind === 'para')}
+                />
+              ));
+            })()}
             {renderUserBlocks(e.start, e.end)}
             {renderQuoteRows(e.blocks)}
           </View>
@@ -329,7 +335,12 @@ export function StoriesView(props: StoriesViewProps) {
             — {props.possessiveLower} line on {rangeLabel(e.start, e.end)}{sec?.title ? ` · ${sec.title}` : ''}
           </Text>
           {rest.map((b, i) => (
-            <BlockView key={i} block={b} palette={palette} />
+            <BlockView
+              key={i}
+              block={b}
+              palette={palette}
+              firstPara={!rest.slice(0, i).some((x) => x.kind === 'para')}
+            />
           ))}
           {renderUserBlocks(e.start, e.end)}
           {renderQuoteRows(e.blocks)}

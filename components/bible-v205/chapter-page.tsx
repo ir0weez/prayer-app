@@ -1441,7 +1441,13 @@ export function ChapterPageView(props: ChapterPageProps) {
                   />
                 </View>
               ) : (
-                <BlockView key={i} block={b} palette={palette} selection={proseSelection('intro', i)} />
+                <BlockView
+                  key={i}
+                  block={b}
+                  palette={palette}
+                  selection={proseSelection('intro', i)}
+                  firstPara={!chapterData.intro.slice(0, i).some((x) => x.kind === 'para')}
+                />
               ),
             )}
           </View>
@@ -2532,6 +2538,9 @@ const EntryView = memo(function EntryView(props: {
               // v418: a seated box renders no card of its own — it
               // sits in its host paragraph (SeatedBlockView, below).
               if (seatedBoxIdx.has(idx)) return null;
+              // v419: the Definition term rule styles a term only in
+              // the entry's first paragraph — no para before this one.
+              const isFirstPara = !entry.blocks.slice(0, idx).some((x) => x.kind === 'para');
               const seats = seatsByHostIdx.get(idx);
               if (seats) {
                 return (
@@ -2540,6 +2549,7 @@ const EntryView = memo(function EntryView(props: {
                     block={b}
                     palette={palette}
                     selection={blockSelectionFor(idx)}
+                    firstPara={isFirstPara}
                     seats={seats.map((p) => ({
                       block: entry.blocks[p.boxIndex],
                       selection: blockSelectionFor(p.boxIndex),
@@ -2550,7 +2560,13 @@ const EntryView = memo(function EntryView(props: {
                 );
               }
               return (
-                <BlockView key={idx} block={b} palette={palette} selection={blockSelectionFor(idx)} />
+                <BlockView
+                  key={idx}
+                  block={b}
+                  palette={palette}
+                  selection={blockSelectionFor(idx)}
+                  firstPara={isFirstPara}
+                />
               );
             })
           )}

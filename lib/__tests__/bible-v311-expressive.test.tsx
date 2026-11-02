@@ -22,6 +22,11 @@
 //    in the right family colours, and the main text — para, note,
 //    Main Thought, and his faced note line — renders with NO box
 //    (no background at all), the v250 filled card retired.
+//    RE-BASED (v419): the typed kinds and the Main Thought wear the
+//    approved v3 Material box set now (bible-v419-box-dresses pins
+//    the set itself); the two note-flow pins below assert the new
+//    dresses where v419 superseded the family boxes, and para/note
+//    still render bare.
 
 import React from 'react';
 import { renderToString } from 'react-dom/server';
@@ -285,29 +290,35 @@ describe('v311 — the note flow: kinds boxed in sequence, main text bare', () =
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
 
-  it('the four typed kinds wear their family colours with their tags', () => {
-    expect(html).toContain(hexToRgbaCss(palette.yellowBg)); // Highlight
+  it('the typed kinds wear their dresses with their labels (v419 re-base)', () => {
+    // v419: Highlight and Definition wear the approved box set;
+    // the Someone said kind-'quote' callout keeps its settled
+    // family dress (v311's box, tag with the author); Personal
+    // Story wears the set's outlined white card.
+    expect(html).toContain(hexToRgbaCss('#F9E79A')); // Highlight dress
+    expect(html).toContain(hexToRgbaCss('#EDD374')); // its fold
     expect(html).toContain('Highlight');
-    expect(html).toContain(hexToRgbaCss(CATEGORY_META.definition.bg));
+    expect(html).toContain(hexToRgbaCss('#F8F1E5')); // Definition dress
     expect(html).toContain('Definition');
     expect(html).toContain(hexToRgbaCss(CATEGORY_META.quote.bg));
     expect(html).toContain('Quote — Vernon McGee');
-    expect(html).toContain(hexToRgbaCss(CATEGORY_META['personal-story'].bg));
-    expect(html).toContain('Personal story');
+    expect(html).toContain(hexToRgbaCss('#55804F')); // Personal Story outline
+    expect(html).toContain('Personal Story');
   });
 
-  it('the main text carries NO box — para, note and Main Thought render bare', () => {
+  it('the main text carries NO box — para and note render bare (v419 re-base)', () => {
     for (const block of [
       { kind: 'para', text: 'bare para' } as V205Block,
       { kind: 'note', text: 'bare note' } as V205Block,
-      { kind: 'thought', text: 'bare thought' } as V205Block,
     ]) {
       const one = renderToString(React.createElement(BlockView, { block, palette }));
       expect(one, block.kind).not.toContain('background-color');
       expect(one).toContain(block.text);
     }
-    // The grey Main Thought callout is retired with the filled card.
+    // v419: the Main Thought wears its serif headline card now —
+    // and the grey callout stays retired.
     const thought = renderToString(React.createElement(BlockView, { block: blocks[4], palette }));
+    expect(thought).toContain(hexToRgbaCss('#FBDDB4'));
     expect(thought).not.toContain(hexToRgbaCss(palette.greyBg));
   });
 

@@ -13,14 +13,22 @@
 // Thought flows as plain text too (it was never in his boxed list).
 // The v250 filled-card dress survives only in the palette derivation
 // (the Stories cover field wears noteFill now).
+//
+// v419 (approved Nov 2 — the v3 Material box set, Studio pass -61's
+// phone half): the typed kinds wear their own per-kind Material
+// dresses now (box-dresses.ts holds the selection + the values),
+// and Main Thought joins them in its serif headline card. Plain
+// prose still flows bare; the v311 family box below survives only
+// for the Someone said kind-'quote' callout, whose dress is settled.
 
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NoteCategory, StudyStatus, V205Block } from '@/lib/bible-v205/types';
-import { CATEGORY_META, blockCategory, type CategoryMeta } from '@/lib/bible-v205/categories';
+import { CATEGORY_META, type CategoryMeta } from '@/lib/bible-v205/categories';
 import type { PhraseHighlight, TintColor } from '@/lib/bible-v205/marks';
 import { fmtStyleRanges, fmtTokens, stripFmtText, type FmtKind } from '@/lib/bible-v205/fmt-text';
+import { boxDressColors, boxDressFor, definitionTerm } from '@/lib/bible-v205/box-dresses';
 import { rangeLabel, useBiblePalette, type BiblePalette, type BibleSectionTone } from './palette';
 import { NativeSelectableText } from './native-selectable-text';
 
@@ -139,6 +147,8 @@ function SelectableOrText({
   selection,
   lead,
   format,
+  termRange,
+  termStyle,
 }: {
   text: string;
   palette: BiblePalette;
@@ -163,6 +173,12 @@ function SelectableOrText({
    * contract). Scripture never sets this — its words stay
    * literal, markers and all. */
   format?: boolean;
+  /** v419: a Definition box's term range + style, forwarded to the
+   * selectable path (stripped coordinates, like the fmt ranges).
+   * The plain path ignores these — the Definition dress composes
+   * its term span itself there. */
+  termRange?: { start: number; end: number } | null;
+  termStyle?: StyleProp<TextStyle>;
 }) {
   if (!selection) {
     const plain = (
@@ -181,6 +197,8 @@ function SelectableOrText({
       lead={lead}
       highlights={selection.highlights}
       fmtRanges={format ? fmtStyleRanges(text) : undefined}
+      termRange={termRange}
+      termStyle={termStyle}
       onApplyTint={selection.onApplyTint}
       onBubble={selection.onBubble}
       onNote={selection.onNote}
@@ -190,11 +208,12 @@ function SelectableOrText({
 }
 
 /**
- * v311: one of the four typed kinds in its family box — the drawing's
+ * v311: one of the typed kinds in its family box — the drawing's
  * nbox: radius 12, no border, the family ground, a small uppercase
- * kind tag in the family's ink, the words in plain ink. (Highlight's
- * ground is the palette's keeper yellow — the same #FFF3BF the
- * category code itself names for good-thought.)
+ * kind tag in the family's ink, the words in plain ink.
+ * v419: the typed kinds wear their own dresses now (below); this
+ * box remains for the Someone said kind-'quote' callout only,
+ * whose dress is settled and unchanged.
  */
 function CategoryBox({
   meta,
@@ -232,12 +251,213 @@ function CategoryBox({
   );
 }
 
+// ─── v419: the box dresses (the approved v3 Material set) ───────────────────
+// One dress per box kind; box-dresses.ts holds the selection and the
+// values (the Studio's pass -61 is the same set at the desk). Every
+// dress keeps the box's words selectable through the same helper the
+// prose uses, and the surfaces stay flat Material tones with no
+// offset drops, per the approved drawing.
+
+/** The set's label: a filled pill in the kind's deep colour, white
+ * bold uppercase letterspaced text, fully rounded. Quote wears no
+ * pill — its big serif mark is its label. */
+function BoxPill({ label, bg, ink }: { label: string; bg: string; ink: string }) {
+  return (
+    <View style={[styles.boxPill, { backgroundColor: bg }]}>
+      <Text style={[styles.boxPillText, { color: ink }]}>{label}</Text>
+    </View>
+  );
+}
+
+/** Highlight — the yellow class: a warm gold card, radius 24 with
+ * the top-right corner cut to 6 and a deeper-tonal fold triangle in
+ * that corner; the words semibold. A good-thought paragraph wears
+ * this same dress under its own label (box-dresses.ts). */
+function HighlightDress({
+  block,
+  palette,
+  label,
+  selection,
+}: {
+  block: V205Block;
+  palette: BiblePalette;
+  label: string;
+  selection?: BlockTextSelection;
+}) {
+  const c = boxDressColors('highlight', palette.isDark);
+  return (
+    <View style={[styles.boxCard, styles.hlCard, { backgroundColor: c.container }]}>
+      <View
+        pointerEvents="none"
+        style={[styles.hlFold, { borderRightColor: c.fold }]}
+      />
+      <BoxPill label={label} bg={c.pillBg!} ink={c.pillInk!} />
+      <SelectableOrText
+        text={block.text}
+        palette={palette}
+        textStyle={[styles.hlText, { color: c.ink }]}
+        wrapStyle={styles.boxBody}
+        selection={selection}
+        format
+      />
+    </View>
+  );
+}
+
+/** Main Thought — a peach card, radius 24, the thought set as a
+ * serif headline (19px), the way the drawing sets it apart from
+ * the reading text around it. */
+function MainThoughtDress({
+  block,
+  palette,
+  selection,
+}: {
+  block: V205Block;
+  palette: BiblePalette;
+  selection?: BlockTextSelection;
+}) {
+  const c = boxDressColors('main-thought', palette.isDark);
+  return (
+    <View style={[styles.boxCard, styles.mtCard, { backgroundColor: c.container }]}>
+      <BoxPill label="Main Thought" bg={c.pillBg!} ink={c.pillInk!} />
+      <SelectableOrText
+        text={block.text}
+        palette={palette}
+        textStyle={[styles.mtText, { color: c.ink }]}
+        wrapStyle={styles.boxBody}
+        selection={selection}
+        format
+      />
+    </View>
+  );
+}
+
+/** Definition — a quiet paper-toned card, radius 16: the pill, a
+ * hairline, then the paragraph. When the entry's first paragraph
+ * opens with a short term set off by a dash, the term is styled
+ * INSIDE the paragraph (small-caps effect: uppercase, letterspaced,
+ * extrabold) — never lifted out, so the rendered words stay
+ * word-for-word what he wrote and every stored range still lands. */
+function DefinitionDress({
+  block,
+  palette,
+  selection,
+  firstPara,
+}: {
+  block: V205Block;
+  palette: BiblePalette;
+  selection?: BlockTextSelection;
+  firstPara: boolean;
+}) {
+  const c = boxDressColors('definition', palette.isDark);
+  const split = firstPara ? definitionTerm(block.text) : null;
+  const termStyle: TextStyle = {
+    color: c.term ?? c.ink,
+    fontWeight: '800',
+    fontSize: 16.5,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  };
+  const bodyStyle = [styles.defText, { color: c.ink }];
+  return (
+    <View style={[styles.boxCard, styles.defCard, { backgroundColor: c.container }]}>
+      <BoxPill label="Definition" bg={c.pillBg!} ink={c.pillInk!} />
+      <View style={[styles.defDivider, { backgroundColor: c.divider ?? palette.line }]} />
+      {selection ? (
+        <SelectableOrText
+          text={block.text}
+          palette={palette}
+          textStyle={bodyStyle}
+          selection={selection}
+          format
+          termRange={split ? { start: 0, end: split.termStrippedLength } : null}
+          termStyle={termStyle}
+        />
+      ) : split ? (
+        <Text style={bodyStyle}>
+          <Text style={termStyle}>{fmtSpans(split.term)}</Text>
+          <Text>{fmtSpans(split.dash)}</Text>
+          <Text>{fmtSpans(split.rest)}</Text>
+        </Text>
+      ) : (
+        <SelectableOrText text={block.text} palette={palette} textStyle={bodyStyle} format />
+      )}
+    </View>
+  );
+}
+
+/** Quote (the category — a quote BOX he wrote, not a Someone said
+ * line): a rose card with one small corner, no pill — a big serif
+ * quote mark stands over an italic serif body, and the author
+ * byline rides under the body when the block carries one. */
+function QuoteDress({
+  block,
+  palette,
+  selection,
+}: {
+  block: V205Block;
+  palette: BiblePalette;
+  selection?: BlockTextSelection;
+}) {
+  const c = boxDressColors('quote', palette.isDark);
+  return (
+    <View style={[styles.boxCard, styles.qCard, { backgroundColor: c.container }]}>
+      <Text style={[styles.qMark, { color: c.mark }]}>“</Text>
+      <SelectableOrText
+        text={block.text}
+        palette={palette}
+        textStyle={[styles.qText, { color: c.ink }]}
+        selection={selection}
+        format
+      />
+      {block.authorName ? (
+        <Text style={[styles.qByline, { color: c.ink }]}>— {block.authorName}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+/** Personal Story — a white card held by a 1.5px green outline
+ * (dark mode: the app's own dark surface inside the same outline):
+ * his initial in a green disc beside the pill, then the story. */
+function PersonalStoryDress({
+  block,
+  palette,
+  selection,
+}: {
+  block: V205Block;
+  palette: BiblePalette;
+  selection?: BlockTextSelection;
+}) {
+  const c = boxDressColors('personal-story', palette.isDark);
+  const surface = palette.isDark ? palette.paper2 : c.container;
+  return (
+    <View style={[styles.boxCard, styles.psCard, { backgroundColor: surface, borderColor: c.outline }]}>
+      <View style={styles.psHead}>
+        <View style={[styles.psDisc, { backgroundColor: c.pillBg }]}>
+          <Text style={styles.psDiscText}>J</Text>
+        </View>
+        <BoxPill label="Personal Story" bg={c.pillBg!} ink={c.pillInk!} />
+      </View>
+      <SelectableOrText
+        text={block.text}
+        palette={palette}
+        textStyle={[styles.psText, { color: c.ink }]}
+        wrapStyle={styles.boxBody}
+        selection={selection}
+        format
+      />
+    </View>
+  );
+}
+
 /** One content block of an entry: paragraph, cross-reference, or a keeper callout. */
 export function BlockView({
   block,
   palette,
   big,
   selection,
+  firstPara = true,
 }: {
   block: V205Block;
   palette: BiblePalette;
@@ -248,17 +468,35 @@ export function BlockView({
    * commentary prose could be selected or given a tint at all.
    * Stories passes none and renders exactly as before. */
   selection?: BlockTextSelection;
+  /** v419: whether this block is its entry's first paragraph —
+   * the Definition dress styles a term only in the first
+   * paragraph (the Studio's term rule, identical). Callers
+   * rendering an entry's block list pass the real answer; a
+   * standalone block (a seated box, a dropped card) is its own
+   * first paragraph, hence the default. */
+  firstPara?: boolean;
 }) {
   if (block.kind === 'para' || block.kind === 'conversation' || block.kind === 'note') {
-    // v311: a block carrying one of his four categories (a Studio
-    // Definition / Personal Story / Quote / Good-thought box arrives
-    // as a categorized paragraph) sits in its family box; everything
-    // else flows as bare text — the note kind included (v210's
-    // no-box ruling, now the whole flow's rule).
-    const cat = blockCategory(block);
-    if (cat) {
-      const meta = CATEGORY_META[cat];
-      return <CategoryBox meta={meta} tag={meta.label} text={block.text} palette={palette} big={big} selection={selection} />;
+    // v419: a categorized block (a Studio Definition / Quote /
+    // Personal Story / Good-thought box arrives as a categorized
+    // paragraph) wears its kind's dress from the approved box
+    // set — box-dresses.ts holds the selection. Uncategorized
+    // prose flows as bare text — the note kind included (v210's
+    // no-box ruling, the whole flow's rule since v311).
+    const dress = boxDressFor(block);
+    if (dress === 'definition') {
+      return <DefinitionDress block={block} palette={palette} selection={selection} firstPara={firstPara} />;
+    }
+    if (dress === 'quote') {
+      return <QuoteDress block={block} palette={palette} selection={selection} />;
+    }
+    if (dress === 'personal-story') {
+      return <PersonalStoryDress block={block} palette={palette} selection={selection} />;
+    }
+    if (dress === 'highlight') {
+      // A good-thought paragraph: the yellow class's own dress,
+      // under its own label.
+      return <HighlightDress block={block} palette={palette} label="Good thought" selection={selection} />;
     }
     return (
       <SelectableOrText
@@ -307,11 +545,9 @@ export function BlockView({
     );
   }
   if (block.kind === 'highlight') {
-    // v311: the Highlight wears the drawing's yellow box (his yellow
-    // class by construction — blockCategory reads it as good-thought).
-    return (
-      <CategoryBox meta={CATEGORY_META['good-thought']} tag="Highlight" text={block.text} palette={palette} big={big} selection={selection} />
-    );
+    // v419: the Highlight wears the approved yellow dress — the
+    // folded top-right corner and the filled pill (box-dresses.ts).
+    return <HighlightDress block={block} palette={palette} label="Highlight" selection={selection} />;
   }
   // v223: a quote is someone else's words, shown WITH the author's name —
   // never rendered as a plain note, never dropped. v245 (his ruling,
@@ -330,9 +566,13 @@ export function BlockView({
       />
     );
   }
-  // thought — v311: a Main Thought flows as plain text in the note
-  // flow (his Oct 28 ruling: it was not in the boxed list). The grey
-  // callout is retired.
+  // thought — v419: the Main Thought wears its own dress in the
+  // approved set (the serif headline card), superseding v311's
+  // plain-flow ruling — the desk's composer has written thoughts
+  // as boxes all along, and the set gives the kind its own card.
+  if (block.kind === 'thought') {
+    return <MainThoughtDress block={block} palette={palette} selection={selection} />;
+  }
   return (
     <SelectableOrText
       text={block.text}
@@ -377,11 +617,17 @@ export function SeatedBlockView({
   palette,
   selection,
   seats,
+  firstPara,
 }: {
   block: V205Block;
   palette: BiblePalette;
   selection?: BlockTextSelection;
   seats: readonly SeatedBoxRender[];
+  /** v419: the host block's own first-paragraph answer, forwarded
+   * to the no-seat fallback render of the host itself. The seated
+   * boxes are standalone blocks — each is its own first paragraph
+   * and keeps BlockView's default. */
+  firstPara?: boolean;
 }) {
   const stripped = stripFmtText(block.text);
   // Defensive partition (computeSeatPlacements already proved
@@ -405,7 +651,7 @@ export function SeatedBlockView({
   if (valid.length === 0) {
     return (
       <>
-        <BlockView block={block} palette={palette} selection={selection} />
+        <BlockView block={block} palette={palette} selection={selection} firstPara={firstPara} />
         {droppedCards}
       </>
     );
@@ -644,6 +890,38 @@ const styles = StyleSheet.create({
   nbox: { borderRadius: 12, paddingVertical: 13, paddingHorizontal: 15, marginTop: 12, marginBottom: 12 },
   ktag: { fontSize: 10.5, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 },
   nboxText: { fontSize: 15, lineHeight: 23.5 },
+  // v419: the box dresses — flat Material cards in the flow's own
+  // margins, a filled pill for a label, no shadows anywhere.
+  boxCard: { marginTop: 12, marginBottom: 12, paddingTop: 13, paddingBottom: 14, paddingHorizontal: 16 },
+  boxPill: { alignSelf: 'flex-start', height: 26, borderRadius: 999, paddingHorizontal: 12, justifyContent: 'center' },
+  boxPillText: { fontSize: 10, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase' },
+  boxBody: { marginTop: 9 },
+  hlCard: { borderRadius: 24, borderTopRightRadius: 6, overflow: 'hidden' },
+  hlFold: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 0,
+    height: 0,
+    borderRightWidth: 22,
+    borderBottomWidth: 22,
+    borderBottomColor: 'transparent',
+  },
+  hlText: { fontSize: 16, lineHeight: 24, fontWeight: '600' },
+  mtCard: { borderRadius: 24 },
+  mtText: { fontFamily: 'serif', fontSize: 19, lineHeight: 27.5 },
+  defCard: { borderRadius: 16 },
+  defDivider: { height: 1, marginTop: 9, marginBottom: 9 },
+  defText: { fontSize: 15, lineHeight: 23 },
+  qCard: { borderRadius: 22, borderBottomLeftRadius: 6 },
+  qMark: { fontFamily: 'serif', fontSize: 36, lineHeight: 24, marginTop: 4, marginBottom: 4 },
+  qText: { fontFamily: 'serif', fontStyle: 'italic', fontSize: 16.5, lineHeight: 24.75 },
+  qByline: { fontSize: 12.5, opacity: 0.75, marginTop: 7 },
+  psCard: { borderRadius: 24, borderWidth: 1.5 },
+  psHead: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  psDisc: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  psDiscText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  psText: { fontSize: 15, lineHeight: 23.5 },
   nboxTextBig: { fontSize: 20.5, lineHeight: 31, fontWeight: '700' },
   // v311 unboxed note flow: attribution head over bare text.
   flowWrap: { marginTop: 14, marginBottom: 12 },

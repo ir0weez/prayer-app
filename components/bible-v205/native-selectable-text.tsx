@@ -100,6 +100,10 @@ export interface TintSegment {
    * is the STRIPPED string; the emphasis ranges address it in the
    * same coordinates as the tints). Absent = plain dress. */
   fmt?: 'b' | 'i' | 'bi';
+  /** v419: this span is a Definition box's styled term (box-dresses'
+   * term rule) — dressed by the surface's termStyle, in the same
+   * stripped coordinates as everything else here. */
+  term?: boolean;
 }
 
 /**
@@ -117,6 +121,7 @@ export function buildTintSegments(
   highlights: readonly PhraseHighlight[],
   palette: BiblePalette,
   fmtRanges?: readonly FmtStyleRange[],
+  termRange?: { start: number; end: number } | null,
 ): TintSegment[] {
   if (!text) return [];
   const clamp = (n: number) => Math.max(0, Math.min(text.length, n));
@@ -126,7 +131,13 @@ export function buildTintSegments(
   const fmts = (fmtRanges ?? [])
     .map((f) => ({ start: clamp(f.start), end: clamp(f.end), k: f.k }))
     .filter((f) => f.end > f.start);
-  if (ranges.length === 0 && fmts.length === 0) return [{ key: 's0', text, backgroundColor: null }];
+  // v419: a Definition term range sweeps as boundaries too, so the
+  // term is always its own span, never straddled by a tint edge.
+  const term =
+    termRange && termRange.end > termRange.start
+      ? { start: clamp(termRange.start), end: clamp(termRange.end) }
+      : null;
+  if (ranges.length === 0 && fmts.length === 0 && !term) return [{ key: 's0', text, backgroundColor: null }];
   const points = new Set<number>([0, text.length]);
   for (const r of ranges) {
     points.add(r.start);
@@ -135,6 +146,10 @@ export function buildTintSegments(
   for (const f of fmts) {
     points.add(f.start);
     points.add(f.end);
+  }
+  if (term) {
+    points.add(term.start);
+    points.add(term.end);
   }
   const sorted = [...points].sort((a, b) => a - b);
   const segments: TintSegment[] = [];
@@ -150,14 +165,21 @@ export function buildTintSegments(
     for (const f of fmts) {
       if (f.start <= start && f.end >= end) fmt = f.k;
     }
+    const inTerm = term != null && start >= term.start && end <= term.end;
     const backgroundColor = tint ? phraseTintFor(palette, tint) : null;
     const slice = text.slice(start, end);
     const prev = segments[segments.length - 1];
-    if (prev && prev.backgroundColor === backgroundColor && (prev.fmt ?? null) === fmt) {
+    if (
+      prev &&
+      prev.backgroundColor === backgroundColor &&
+      (prev.fmt ?? null) === fmt &&
+      (prev.term ?? false) === inTerm
+    ) {
       prev.text += slice;
     } else {
       const seg: TintSegment = { key: `s${start}`, text: slice, backgroundColor };
       if (fmt) seg.fmt = fmt;
+      if (inTerm) seg.term = true;
       segments.push(seg);
     }
   }
@@ -250,6 +272,12 @@ export interface NativeSelectableTextProps {
    * stored text — `text` here is already the stripped string, so
    * the ranges share the stored highlights' coordinates). */
   fmtRanges?: readonly FmtStyleRange[];
+  /** v419: a Definition box's term range over `text` (stripped
+   * coordinates, like everything else here) and the style its span
+   * wears. The term stays inside the paragraph — the style dresses
+   * the words in place, it never lifts them out. */
+  termRange?: { start: number; end: number } | null;
+  termStyle?: StyleProp<TextStyle>;
   /** A tint picked in the bar. (Clearing a range's tint is the
    * marks layer's own toggle: re-applying the range's tint
    * removes it — the v361 model, unchanged.) */
@@ -315,8 +343,8 @@ export function NativeSelectableText(props: NativeSelectableTextProps) {
   );
 
   const segments = useMemo(
-    () => buildTintSegments(text, props.highlights, palette, props.fmtRanges),
-    [text, props.highlights, palette, props.fmtRanges],
+    () => buildTintSegments(text, props.highlights, palette, props.fmtRanges, props.termRange),
+    [text, props.highlights, palette, props.fmtRanges, props.termRange],
   );
 
   // The surface's one Text: the lead span (never addressed by
@@ -340,13 +368,17 @@ export function NativeSelectableText(props: NativeSelectableTextProps) {
           ...(seg.fmt === 'i' || seg.fmt === 'bi' ? { fontStyle: 'italic' as const } : null),
         }
       : null;
-    if (!seg.backgroundColor && !fmtStyle) {
+    // v419: a Definition term span wears the surface's termStyle,
+    // composed after the wash and the emphasis so the term's ink
+    // and weight win on its own words.
+    const termStyle = seg.term ? props.termStyle : null;
+    if (!seg.backgroundColor && !fmtStyle && !termStyle) {
       spans.push(seg.text);
     } else {
       spans.push(
         <Text
           key={seg.key}
-          style={[seg.backgroundColor ? { backgroundColor: seg.backgroundColor } : null, fmtStyle]}
+          style={[seg.backgroundColor ? { backgroundColor: seg.backgroundColor } : null, fmtStyle, termStyle]}
         >
           {seg.text}
         </Text>,

@@ -37,6 +37,10 @@ type JournalWriteProps = {
   initialKind: DeskPostKind;
   initialBody: string;
   people: Person[];
+  /** v413: the people picker's Top 5 — the people his journal
+   *  posts have carried most (rankedTaggedPeopleIds over the
+   *  entries), most first. */
+  topPeopleIds?: string[];
   fasts: PersonalFast[];
   todayIso: string;
   /** The pinned week's question, when the page opens over one. */
@@ -52,6 +56,7 @@ export function JournalWrite({
   initialKind,
   initialBody,
   people,
+  topPeopleIds,
   fasts,
   todayIso,
   question,
@@ -64,6 +69,7 @@ export function JournalWrite({
   const [kind, setKind] = useState<DeskPostKind>(initialKind);
   const [body, setBody] = useState(initialBody);
   const [pickedPeople, setPickedPeople] = useState<Person[]>([]);
+  const [peopleQuery, setPeopleQuery] = useState("");
   const [fastKind, setFastKind] = useState<FastDayEntryKind>("note");
   const [verseBook, setVerseBook] = useState("");
   const [verseChapter, setVerseChapter] = useState("");
@@ -88,21 +94,15 @@ export function JournalWrite({
         ? Boolean(activeFast) && body.trim().length > 0
         : body.trim().length > 0 || photos.length > 0;
 
-  const kindFill = (candidate: DeskPostKind): string => {
-    switch (candidate) {
-      case "prayer":
-        return jm.prayerDeep;
-      case "answered":
-        return jm.tealDeep;
-      case "gratitude":
-        return jm.gratitudeDeep;
-      case "fast":
-        return jm.fastDeep;
-      default:
-        return jm.seed;
-    }
-  };
-
+  // v413 (derive, never pin): the composer's chrome — the kind
+  // selector's selected fill, the fast chips, the people chips —
+  // takes the SEED like the rest of the app. The kind hues (the
+  // plum Prayer, the teal Answered, the gold Praise, the fast
+  // meaning colours) live only on the POSTED cards' faces
+  // (components/journal-kind-post.tsx, the approved v24 formats),
+  // never on the selector that writes them. Before v413 the
+  // selected Prayer chip filled with the pinned violet #7C3AED
+  // even under a blue seed.
   const submit = () => {
     if (!canPost) return;
     onPost({
@@ -124,6 +124,30 @@ export function JournalWrite({
         : [...current, person],
     );
   };
+
+  // v413 — the people picker, his Oct 30 rule (the v357 reader
+  // picker's behaviour, carried here): at rest the picker is the
+  // search field and the Top 5 — the full roster is never listed
+  // in any form; typing searches the WHOLE roster and shows every
+  // match, so nobody is unreachable. His current picks stay in
+  // sight under both states: a picked person who is neither in
+  // the Top 5 nor among the matches still renders, selected —
+  // the selection is his; only the roster stays unlisted.
+  const peopleQueryNorm = peopleQuery.trim().toLowerCase();
+  const searchingPeople = peopleQueryNorm.length > 0;
+  const peopleMatches = searchingPeople
+    ? people.filter((person) => person.name.toLowerCase().includes(peopleQueryNorm))
+    : [];
+  const topPeople = searchingPeople
+    ? []
+    : (topPeopleIds ?? [])
+        .map((id) => people.find((person) => person.id === id))
+        .filter((person): person is Person => !!person)
+        .slice(0, 5);
+  const shownPeople = [...(searchingPeople ? peopleMatches : topPeople)];
+  for (const picked of pickedPeople) {
+    if (!shownPeople.some((person) => person.id === picked.id)) shownPeople.push(picked);
+  }
 
   return (
     <View style={[styles.root, { backgroundColor: jm.ground, paddingTop: insets.top + 10 }]}>
@@ -157,7 +181,7 @@ export function JournalWrite({
                 style={({ pressed }) => [
                   styles.kindChip,
                   selected
-                    ? { backgroundColor: kindFill(candidate), borderColor: kindFill(candidate) }
+                    ? { backgroundColor: jm.seed, borderColor: jm.seed }
                     : { borderColor: jm.line },
                   pressed && styles.pressed,
                 ]}
@@ -215,7 +239,7 @@ export function JournalWrite({
                         style={[
                           styles.fastChip,
                           selected
-                            ? { backgroundColor: jm.fastDeep, borderColor: jm.fastDeep }
+                            ? { backgroundColor: jm.seed, borderColor: jm.seed }
                             : { borderColor: jm.line },
                         ]}
                       >
@@ -240,27 +264,43 @@ export function JournalWrite({
           <View style={[styles.tool, { borderColor: jm.line, backgroundColor: jm.card }]}>
             <Text style={[styles.toolLabel, { color: jm.ink }]}>Who is this for?</Text>
             {people.length > 0 ? (
-              <View style={styles.peopleChips}>
-                {people.map((person) => {
-                  const selected = pickedPeople.some((picked) => picked.id === person.id);
-                  return (
-                    <Pressable
-                      key={person.id}
-                      onPress={() => togglePerson(person)}
-                      style={[
-                        styles.personChip,
-                        {
-                          borderColor: selected ? jm.prayerDeep : jm.line,
-                          backgroundColor: selected ? jm.prayerTint : jm.card,
-                        },
-                      ]}
-                    >
-                      <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={20} fallbackColor={person.avatarColor} />
-                      <Text style={{ color: jm.ink, fontWeight: "600", fontSize: 13 }}>{person.name}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <>
+                <TextInput
+                  value={peopleQuery}
+                  onChangeText={setPeopleQuery}
+                  placeholder="Search people…"
+                  placeholderTextColor={jm.inkSoft}
+                  autoCorrect={false}
+                  style={[styles.peopleSearch, { borderColor: jm.line, backgroundColor: jm.card, color: jm.ink }]}
+                />
+                {!searchingPeople && topPeople.length > 0 ? (
+                  <Text style={[styles.peopleTopLabel, { color: jm.inkSoft }]}>Top 5</Text>
+                ) : null}
+                <View style={styles.peopleChips}>
+                  {shownPeople.map((person) => {
+                    const selected = pickedPeople.some((picked) => picked.id === person.id);
+                    return (
+                      <Pressable
+                        key={person.id}
+                        onPress={() => togglePerson(person)}
+                        style={[
+                          styles.personChip,
+                          {
+                            borderColor: selected ? jm.deep : jm.line,
+                            backgroundColor: selected ? jm.tonal : jm.card,
+                          },
+                        ]}
+                      >
+                        <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={20} fallbackColor={person.avatarColor} />
+                        <Text style={{ color: jm.ink, fontWeight: "600", fontSize: 13 }}>{person.name}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {searchingPeople && shownPeople.length === 0 ? (
+                  <Text style={[styles.peopleEmpty, { color: jm.inkSoft }]}>No one by that name.</Text>
+                ) : null}
+              </>
             ) : null}
           </View>
         ) : null}
@@ -384,7 +424,10 @@ const styles = StyleSheet.create({
   toolLabel: { fontSize: 12.5, fontWeight: "700" },
   toolValue: { marginLeft: "auto", fontSize: 11.5, fontWeight: "700" },
   toolNote: { fontSize: 11.5, fontWeight: "700" },
+  peopleSearch: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7, fontSize: 13.5, width: "100%", marginTop: 4 },
+  peopleTopLabel: { fontSize: 10.5, fontWeight: "800", letterSpacing: 1.4, textTransform: "uppercase", width: "100%", marginTop: 2 },
   peopleChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, width: "100%", marginTop: 4 },
+  peopleEmpty: { fontSize: 12, width: "100%", marginTop: 2 },
   personChip: {
     flexDirection: "row",
     alignItems: "center",

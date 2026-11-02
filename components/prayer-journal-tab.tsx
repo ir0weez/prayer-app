@@ -32,12 +32,7 @@ import { MoodPicker, type JournalMood } from "@/components/mood-picker";
 import { useColors } from "@/hooks/use-colors";
 import { useKeyboardHeight } from "@/hooks/use-keyboard-height";
 import { useSkin } from "@/hooks/use-skin";
-import {
-  FAST_DAY_ENTRY_KIND_LABELS,
-  getFastDayEntries,
-  migrateFastDayEntriesInStorage,
-  type FastDayEntryKind,
-} from "@/lib/fast-day-entries";
+import { getFastDayEntries, migrateFastDayEntriesInStorage } from "@/lib/fast-day-entries";
 import {
   activeTokenAt,
   addDaysToIso,
@@ -58,8 +53,8 @@ import {
   deskDateLabel,
   deskEntryFormat,
   deskFeedItems,
-  deskKindPostsInPlace,
   postsTodayCount,
+  rankedTaggedPeopleIds,
   weekQuestionAnswered,
   weekQuestionFor,
   type DeskFeedItem,
@@ -82,7 +77,7 @@ import {
   type PrayerJournalReply,
   type PrayerJournalTaggedPlace,
 } from "@/lib/prayer-journal";
-import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
+import type { PersonalFast } from "@/lib/prayercircle-fasting";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { SCHEDULE_EVENTS_KEY, type ScheduleEvent } from "@/lib/schedule-data";
 import {
@@ -277,15 +272,17 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
 
   // Composer state — v411: the Desk's writing card. The card is
   // in the flow at the head of the feed; its draft is plain text,
-  // its kind is chosen by the footer's flat text link, and kinds
-  // that need tools (Prayer, Verse, and More) are doors to the
-  // Write Page carrying the draft with them. The v204 morph and
-  // its FAB are retired — the shell's tab bar is never hidden by
-  // this tab now, so onComposeChange only ever reports false.
+  // and the card itself only ever quick-posts a plain Entry.
+  // v413 (his ruling, Nov 2): the footer's flat kind link is a
+  // DOOR, like the avatar and the Long entry chip — pressing it
+  // opens the full Write Page with the kind and the draft already
+  // in it; the kind itself is chosen on the Write Page's own kind
+  // row. The card's old inline kind chooser is retired. The v204
+  // morph and its FAB are retired — the shell's tab bar is never
+  // hidden by this tab now, so onComposeChange only ever reports
+  // false.
   const [draft, setDraft] = useState("");
-  const [quickKind, setQuickKind] = useState<DeskPostKind>("entry");
-  const [quickFastKind, setQuickFastKind] = useState<FastDayEntryKind>("note");
-  const [kindChooserOpen, setKindChooserOpen] = useState(false);
+  const quickKind: DeskPostKind = "entry";
   const [writePage, setWritePage] = useState<{ kind: DeskPostKind; body: string } | null>(null);
   // v411 (v12): the week's question, pinned into the draft. Set
   // by tapping the question card; the X unpins it and the draft
@@ -372,7 +369,9 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
   const weekQuestion = useMemo(() => weekQuestionFor(fasts, entries, todayIso), [fasts, entries, todayIso]);
   const questionAnswered = weekQuestion ? weekQuestionAnswered(entries, weekQuestion.weekStart) : false;
   const showQuestionCard = Boolean(weekQuestion) && !questionAnswered && !pinnedQuestion && !filtering;
-  const activeFast = useMemo(() => getActiveFast(fasts, todayIso), [fasts, todayIso]);
+  // v413: the Write Page people picker's Top 5 — the people his
+  // journal posts have carried most (his Oct 30 picker rule).
+  const topPeopleIds = useMemo(() => rankedTaggedPeopleIds(entries), [entries]);
   const deskWeekLabel = useMemo(() => {
     const parsed = parseDateKey(todayIso);
     const jan1 = new Date(parsed.getFullYear(), 0, 1);
@@ -500,30 +499,15 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
       kind: quickKind,
       body: draft,
       date: todayIso,
-      ...(quickKind === "fast" ? { fastKind: quickFastKind, fast: activeFast } : {}),
       ...(pinnedQuestion && quickKind === "entry" ? { question: pinnedQuestion } : {}),
     });
     if (posted) {
       setDraft("");
       setPinnedQuestion(null);
-      setKindChooserOpen(false);
     }
   };
 
-  const canPostCard = draft.trim().length > 0 && (quickKind !== "fast" || Boolean(activeFast));
-
-  /** v6: kinds that need their tools are DOORS — tapping one in
-   *  the card's chooser (or "More") opens the Write Page with the
-   *  draft and kind already in it; nothing is retyped. */
-  const chooseQuickKind = (kind: DeskPostKind | "more") => {
-    if (kind !== "more" && deskKindPostsInPlace(kind)) {
-      setQuickKind(kind);
-      setKindChooserOpen(false);
-      return;
-    }
-    setWritePage({ kind: kind === "more" ? quickKind : kind, body: draft });
-    setKindChooserOpen(false);
-  };
+  const canPostCard = draft.trim().length > 0;
 
   const logMoodOnly = (moodId: string) => {
     const next = createPrayerJournalEntry(
@@ -668,6 +652,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
           initialKind={writePage.kind}
           initialBody={writePage.body}
           people={people}
+          topPeopleIds={topPeopleIds}
           fasts={fasts}
           todayIso={todayIso}
           question={pinnedQuestion}
@@ -987,49 +972,16 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
                     multiline
                     style={[styles.writeArea, { color: jm.ink }]}
                   />
-                  {quickKind === "fast" ? (
-                    <View style={styles.quickFastChips}>
-                      {(Object.keys(FAST_DAY_ENTRY_KIND_LABELS) as FastDayEntryKind[]).map((candidate) => {
-                        const selected = candidate === quickFastKind;
-                        return (
-                          <Pressable
-                            key={candidate}
-                            onPress={() => setQuickFastKind(candidate)}
-                            style={[
-                              styles.quickFastChip,
-                              selected
-                                ? { backgroundColor: jm.fastDeep, borderColor: jm.fastDeep }
-                                : { borderColor: jm.line },
-                            ]}
-                          >
-                            <Text style={[styles.quickFastChipText, { color: selected ? "#FFFFFF" : jm.inkSoft }]}>
-                              {FAST_DAY_ENTRY_KIND_LABELS[candidate]}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  ) : null}
-                  {kindChooserOpen ? (
-                    <View style={styles.kindChooser}>
-                      {(["entry", "fast", "prayer", "answered", "gratitude", "verse"] as DeskPostKind[]).map((candidate) => (
-                        <Pressable key={candidate} onPress={() => chooseQuickKind(candidate)} hitSlop={4}>
-                          <Text style={[styles.kindLink, { color: candidate === quickKind ? jm.deep : jm.inkSoft }]}>
-                            {DESK_POST_KIND_LABELS[candidate]}
-                          </Text>
-                        </Pressable>
-                      ))}
-                      <Pressable onPress={() => chooseQuickKind("more")} hitSlop={4}>
-                        <Text style={[styles.kindLink, { color: jm.inkSoft }]}>More</Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
                   <View style={[styles.writeFoot, { borderTopColor: jm.line }]}>
+                    {/* v413 (his ruling, Nov 2): the footer's kind
+                        link opens the full Write Page — the same
+                        door the avatar and the Long entry chip are —
+                        with the kind and the draft carried in. */}
                     <Pressable
-                      onPress={() => setKindChooserOpen((current) => !current)}
+                      onPress={() => setWritePage({ kind: quickKind, body: draft })}
                       style={({ pressed }) => [styles.kindText, pressed && styles.pressed]}
                       accessibilityRole="button"
-                      accessibilityLabel="Choose a kind"
+                      accessibilityLabel="Open the full editor"
                     >
                       <MaterialIcons name="edit" size={13} color={jm.deep} />
                       <Text style={[styles.kindTextLabel, { color: jm.deep }]}>{DESK_POST_KIND_LABELS[quickKind]}</Text>
@@ -1611,11 +1563,6 @@ const styles = StyleSheet.create({
   pinnedBar: { width: 3, alignSelf: "stretch", borderRadius: 99 },
   pinnedText: { flex: 1, fontSize: 12.5, lineHeight: 17.5, fontStyle: "italic", fontWeight: "600" },
   writeArea: { marginTop: 10, minHeight: 56, fontSize: 14, lineHeight: 21, textAlignVertical: "top" },
-  quickFastChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4, marginBottom: 2 },
-  quickFastChip: { borderRadius: 999, borderWidth: 1.5, paddingHorizontal: 11, paddingVertical: 6 },
-  quickFastChipText: { fontSize: 11.5, fontWeight: "800" },
-  kindChooser: { flexDirection: "row", flexWrap: "wrap", gap: 14, paddingTop: 10, paddingBottom: 2 },
-  kindLink: { fontSize: 13, fontWeight: "800" },
   writeFoot: {
     flexDirection: "row",
     alignItems: "center",

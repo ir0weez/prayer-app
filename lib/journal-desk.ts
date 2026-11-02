@@ -54,12 +54,37 @@ export function deskPostTitle(kind: DeskPostKind): string {
   return `New ${DESK_POST_KIND_LABELS[kind].toLowerCase()}`;
 }
 
-/** Kinds that post right from the home writing card (v6: Fast and
- *  Gratitude stay; Prayer and Verse are doors to the Write Page,
- *  because they need their tools). "More" is a door too — the tab
- *  routes it to the Write Page. */
-export function deskKindPostsInPlace(kind: DeskPostKind): boolean {
-  return kind === "entry" || kind === "fast" || kind === "gratitude";
+/** v413 (his ruling, Nov 2): the home writing card quick-posts a
+ *  plain Entry and nothing else — its footer's kind link opens
+ *  the Write Page for every kind (the v6 in-place/door split and
+ *  its chooser are retired), and the kind is chosen on the Write
+ *  Page's own kind row. */
+
+/**
+ * v413: the Write Page people picker's Top 5 — the people his
+ * journal posts have carried most, counted from the entries'
+ * taggedPeople (the same stored signal the Bible composer's
+ * rankedAuthorIds reads from its marks; his Oct 30 picker rule:
+ * at rest the picker is a search field and this Top 5, and the
+ * full roster is never listed). Most-carried first; ties break
+ * by the carried name, then id, so the order is deterministic.
+ * Returns person ids.
+ */
+export function rankedTaggedPeopleIds(entries: PrayerJournalEntry[], limit = 5): string[] {
+  const counts = new Map<string, { count: number; name: string }>();
+  for (const entry of entries) {
+    for (const person of entry.taggedPeople) {
+      const prev = counts.get(person.id);
+      counts.set(person.id, {
+        count: (prev?.count ?? 0) + 1,
+        name: person.name || prev?.name || "",
+      });
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1].count - a[1].count || a[1].name.localeCompare(b[1].name) || a[0].localeCompare(b[0]))
+    .slice(0, Math.max(0, limit))
+    .map(([id]) => id);
 }
 
 /** The feed format an entry renders in on the Desk. Fast-day

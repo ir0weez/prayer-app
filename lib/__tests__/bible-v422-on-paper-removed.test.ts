@@ -67,10 +67,15 @@ describe('v422 — no on-paper surface remains on either screen', () => {
     expect(book).not.toContain('loadHandwritten');
   });
 
+  // v424 re-base: the "restudy wiring" this pin protected changed
+  // shape by his ruling (Concept 2) — the v421 section/pill wiring
+  // is retired and the queue reaches the screen as the top card's
+  // summary model instead. The grouping itself survives, and the
+  // on-paper removals above are untouched by the change.
   it('the sections, grouping and restudy wiring survive untouched', () => {
     expect(chapters).toContain('groupBooksByStudy');
-    expect(chapters).toContain('Restudy');
-    expect(chapters).toContain('nextRestudyChapter');
+    expect(chapters).toContain('Restudy queue');
+    expect(chapters).toContain('restudyQueueSummary');
   });
 });
 

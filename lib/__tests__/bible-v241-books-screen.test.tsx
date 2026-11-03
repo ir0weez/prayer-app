@@ -367,9 +367,9 @@ describe('v241 — wiring pins', () => {
     expect(src).toContain('totalBooks === 0');
     // v322 re-base: the guard sums all FOUR sections now — the
     // Written section (writing-complete books) counts too.
-    // v421 re-base: a fifth section (Restudy, under Current) joins
-    // the sum — its books are pulled out of the other four, so the
-    // guard still totals the whole canon.
-    expect(src).toContain('groups.current.length + groups.restudy.length + groups.finished.length + groups.written.length + groups.notStarted.length');
+    // v424 re-base: the v421 fifth section (Restudy) is retired —
+    // the sum is the four sections again, and the whole canon
+    // still totals 66.
+    expect(src).toContain('groups.current.length + groups.finished.length + groups.written.length + groups.notStarted.length');
   });
 });

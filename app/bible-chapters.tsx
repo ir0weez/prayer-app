@@ -21,11 +21,19 @@
 // groupBooksByStudy; this screen only renders its sections.
 // v421 (his ask, Nov 2): a fifth section — RESTUDY, directly under
 // Current, rendered only when non-empty. Books with chapters in
-// the restudy queue finally surface here (the queue predates this
-// screen's sections; the Queue screen listed them, the Books list
-// never did). The row keeps the card anatomy; its pill seat
-// carries ↻ RESTUDY and a line under the counts names the next
-// queued chapter.
+// the restudy queue surfaced here; the row kept the card anatomy,
+// its pill seat carried ↻ RESTUDY and a line under the counts
+// named the next queued chapter.
+// v424 (his ruling, Nov 2 — Concept 2 of
+// restudy-reading-concepts-v1.html, "make it material design
+// though"): the Restudy SECTION is retired. Reading and restudy
+// are separate tracks that coexist — a book he is reading through
+// now (Genesis) must not be evicted from its reading/writing
+// section by a queue he means to work later. The grouping is the
+// four sections of v322/v383 again, the book cards carry NO
+// restudy pill or line, and the queue's one home on this page is
+// a single Material tonal card at the top (RestudyQueueCard
+// below), rendered only while the queue is non-empty.
 // v422 (his word, Nov 2 — "get rid of this on paper thing"): every
 // visible on-paper surface is removed from this screen — the chip
 // under the progress header (and the notes-source label editor it
@@ -73,8 +81,9 @@ import {
   bookChapterTallies,
   bookIsComplete,
   groupBooksByStudy,
-  nextRestudyChapter,
+  restudyQueueSummary,
   studyProgressTotals,
+  type RestudyQueueSummary,
 } from '@/lib/bible-v205/rewards';
 import {
   loadStudioImports,
@@ -204,8 +213,10 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
 
   // v222: all 66 books, from the study store alone. v322: FOUR
   // sections — Finished (fully read) and Written (fully written)
-  // split by channel, then Current and Not Started. v421: a fifth
-  // — Restudy, out of the same store's queue. v324: Written
+  // split by channel, then Current and Not Started. v424: the
+  // four sections stand as they were (the v421 Restudy section is
+  // retired — see the header note); the queue reaches this screen
+  // only through the summary that feeds the top card. v324: Written
   // also reads the resolved notes data (imports included), so the
   // fully-noted books seat there from the first paint — the seed
   // state no longer puts every book in Not Started.
@@ -213,6 +224,12 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   const groups = useMemo(
     () => groupBooksByStudy(effectiveState, CANON, studioImports),
     [effectiveState, studioImports],
+  );
+  // v424: the Restudy queue card's model — null while the queue is
+  // empty, and the card simply does not render.
+  const restudySummary = useMemo(
+    () => restudyQueueSummary(effectiveState),
+    [effectiveState],
   );
   // v305: the READING aggregate over the same state — the v228 read
   // track counted by lib/bible-v205/reading-progress, a different
@@ -222,11 +239,9 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     [effectiveState, studioImports],
   );
   // v241: the canon is 66 books — a grouping with zero books across
-  // all five sections is impossible in a healthy build, so it gets a
-  // visible word (below) instead of an empty page. v421: the sum
-  // counts the Restudy section too — its books are pulled OUT of
-  // the other four, so the total still lands on 66 exactly.
-  const totalBooks = groups.current.length + groups.restudy.length + groups.finished.length + groups.written.length + groups.notStarted.length;
+  // all four sections is impossible in a healthy build, so it gets a
+  // visible word (below) instead of an empty page.
+  const totalBooks = groups.current.length + groups.finished.length + groups.written.length + groups.notStarted.length;
   const possessive = labels?.possessive ?? 'Your';
 
   const renderBookRow = (book: string) => (
@@ -239,23 +254,6 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
       imports={studioImports}
       onPress={() => openBook(book)}
       onMakeCurrent={makeCurrent}
-    />
-  );
-
-  // v421: a Restudy row is the same card wearing its ↻ pill and
-  // naming the next queued chapter (the book's first entry in the
-  // restudy queue, in queue order — rewards.ts nextRestudyChapter).
-  const renderRestudyRow = (book: string) => (
-    <BookRow
-      key={book}
-      book={book}
-      studyState={effectiveState}
-      palette={palette}
-      notesCount={notesChapterCount(book)}
-      imports={studioImports}
-      onPress={() => openBook(book)}
-      onMakeCurrent={makeCurrent}
-      restudyNextChapter={nextRestudyChapter(effectiveState, book)}
     />
   );
 
@@ -351,10 +349,16 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
           />
         </View>
 
-        {/* v311's legend held one last chip here — the notes-source
-            door (v222). v422 removes it with the rest of the
-            on-paper surfaces (see the header note): the sections
-            now follow the progress header directly. */}
+        {/* v424: the Restudy queue's one home on this page — a
+            single Material tonal card above the first section,
+            present only while the queue is non-empty. It names
+            the queue's next chapter and how many books wait; the
+            whole card opens the Study Queue, the same door as
+            the topbar button. The book cards below carry no
+            restudy marks at all (Concept 2). */}
+        {restudySummary ? (
+          <RestudyQueueCard summary={restudySummary} palette={palette} onPress={openQueue} />
+        ) : null}
 
         {totalBooks === 0 ? (
           <View style={styles.emptyGuard}>
@@ -379,13 +383,6 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
           <Text style={[styles.subhead, { color: palette.inkSoft }]}>Current</Text>
         ) : null}
         {groups.current.map(renderBookRow)}
-
-        {/* v421: the Restudy section, directly under Current —
-            rendered only when the queue seats a book here. */}
-        {groups.restudy.length ? (
-          <Text style={[styles.subhead, { color: palette.inkSoft }]}>Restudy</Text>
-        ) : null}
-        {groups.restudy.map(renderRestudyRow)}
 
         {groups.finished.length ? (
           <Text style={[styles.subhead, { color: palette.inkSoft }]}>Finished</Text>
@@ -547,21 +544,48 @@ function CurrentPill({
   );
 }
 
-/** v421: the Restudy pill — the pill seat's quiet tonal dress (the
- * v383 offer dress: tint + hairline + deep), in the book's own
- * ROYGBIV colour, stating the state with the app's own glyph for
- * it (the chapter panel's "↻ ReStudy"). It is a fact, not a button:
- * chapters enter and leave the queue at the chapter panel, never
- * from this list. */
-function RestudyPill({ book }: { book: string }) {
-  const palette = useBookBiblePalette(book);
+/** v424: the Restudy queue card — the queue's one home on the
+ * Books page (his pick: Concept 2 of
+ * restudy-reading-concepts-v1.html, with "make it material design
+ * though"). A filled Material TONAL card: its ground is the page
+ * palette's primary container (palette.primCont — derived from
+ * his seed × light/dark like every surface here, never pinned),
+ * radius 24 in the register of the schedule's Up Next card, and
+ * NO shadow — tonal layering does the lifting. Leading: the
+ * restudy glyph the app already speaks (the chapter panel's
+ * "↻ ReStudy" mark, blocks.tsx STATUS_LABEL) in a circular
+ * primary container, white on palette.rasp exactly as the filled
+ * Current chip dresses. Title in the page's title weight; the
+ * supporting line (the summary's own wording, rewards.ts
+ * restudyQueueSummary) in the soft ink; a chevron in the same
+ * soft ink closes the row. The whole card is one tap target into
+ * the Study Queue — the same openQueue door the topbar button
+ * uses. It renders only while the queue is non-empty. */
+function RestudyQueueCard({
+  summary,
+  palette,
+  onPress,
+}: {
+  summary: RestudyQueueSummary;
+  palette: BiblePalette;
+  onPress: () => void;
+}) {
   return (
-    <View
-      style={[styles.currentPill, { backgroundColor: palette.raspTint, borderColor: palette.bandBorder, borderWidth: 1 }]}
-      accessibilityLabel={`${book} is being restudied`}
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Restudy queue. ${summary.line}. Open the Study Queue.`}
+      style={[styles.queueCard, { backgroundColor: palette.primCont }]}
     >
-      <Text style={[styles.currentPillText, { color: palette.raspDeep }]}>↻ RESTUDY</Text>
-    </View>
+      <View style={[styles.queueIcon, { backgroundColor: palette.rasp }]}>
+        <Text style={styles.queueGlyph}>↻</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.queueTitle, { color: palette.ink }]}>Restudy queue</Text>
+        <Text style={[styles.queueLine, { color: palette.inkSoft }]}>{summary.line}</Text>
+      </View>
+      <MaterialIcons name="chevron-right" size={22} color={palette.inkSoft} />
+    </Pressable>
   );
 }
 
@@ -573,7 +597,6 @@ function BookRow({
   imports,
   onPress,
   onMakeCurrent,
-  restudyNextChapter,
 }: {
   book: string;
   studyState: StudyState | null;
@@ -585,11 +608,6 @@ function BookRow({
   imports: StudioImportsMap;
   onPress: () => void;
   onMakeCurrent: (book: string) => void;
-  /** v421: on a Restudy-section row, the book's next queued
-   * chapter — the pill seat carries ↻ RESTUDY instead of the
-   * Current pill, and the card names this chapter under the
-   * counts line. Null/absent on every other section's rows. */
-  restudyNextChapter?: number | null;
 }) {
   // v420: the row's own accents — chevron, both threads, the
   // Current pill — wear the book's ROYGBIV colour; the card, name
@@ -646,23 +664,12 @@ function BookRow({
         <Text style={[styles.bname, { color: palette.ink }]}>
           {book} <Text style={{ color: bookPal.rasp }}>›</Text>
         </Text>
-        {restudyNextChapter != null ? (
-          <RestudyPill book={book} />
-        ) : (
-          <CurrentPill book={book} studyState={studyState} onMakeCurrent={onMakeCurrent} />
-        )}
+        <CurrentPill book={book} studyState={studyState} onMakeCurrent={onMakeCurrent} />
       </View>
       <Text style={[styles.bcount, { color: palette.inkSoft }]}>
         <Text style={[styles.bcountLead, { color: palette.ink }]}>{parts[0]}</Text>
         {parts.length > 1 ? ` · ${parts.slice(1).join(' · ')}` : ''}
       </Text>
-      {/* v421: the Restudy row names its next queued chapter
-          under the counts line, in the book colour's deep tone. */}
-      {restudyNextChapter != null ? (
-        <Text style={[styles.bnext, { color: bookPal.raspDeep }]}>
-          Next restudy · Chapter {restudyNextChapter}
-        </Text>
-      ) : null}
       {/* v342 (his ruling, Oct 29 14:46, on the Books screenshot:
           "all the lines below the top ones can be straight"): the
           per-book written thread is a RECORD bar, so v341's wavy
@@ -716,9 +723,14 @@ const styles = StyleSheet.create({
   bname: { fontSize: 22, fontWeight: '700', flex: 1 },
   bcount: { fontSize: 13.5, lineHeight: 19, fontWeight: '500', marginTop: 4 },
   bcountLead: { fontWeight: '700' },
-  // v421: the Restudy row's next-chapter line (approved drawing:
-  // 13px semibold-deep under the counts line).
-  bnext: { fontSize: 13, lineHeight: 18, fontWeight: '700', marginTop: 6 },
+  // v424: the Restudy queue card (Concept 2, Material): a row at
+  // radius 24 — circular icon container, title + line, chevron —
+  // seated under the progress header with the sections' rhythm.
+  queueCard: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 24, paddingVertical: 15, paddingHorizontal: 18, marginTop: 14 },
+  queueIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  queueGlyph: { fontSize: 19, fontWeight: '700', color: '#FFFFFF', lineHeight: 22 },
+  queueTitle: { fontSize: 16, fontWeight: '700' },
+  queueLine: { fontSize: 13.5, lineHeight: 19, fontWeight: '500', marginTop: 2 },
   thread: { height: 8, borderRadius: 999, overflow: 'hidden', position: 'relative', marginTop: 16 },
   threadFill: { height: 8, borderRadius: 999 },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26,16,20,.45)' },

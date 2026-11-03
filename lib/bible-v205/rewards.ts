@@ -42,7 +42,7 @@ import {
   type StudyState,
 } from './study';
 import { bookHasNotedChapters, chapterHasNotes, type StudioImportsMap } from './studio-import';
-import type { StudyStatus } from './types';
+import type { QueueItem, StudyStatus } from './types';
 
 export interface StatusTransitionResult {
   state: StudyState;
@@ -315,27 +315,47 @@ export function bibleIsFinished(state: StudyState, imports: StudioImportsMap = {
  * through chapterHasNotes, so a book living only in studio imports
  * (Leviticus, no bundled file) counts its notes exactly as shipped
  * data does.
- * v421 — a fifth section, Restudy: every book with ≥1 chapter in
- * the study store's restudyQueue, seated between Current and
- * Finished in QUEUE order. Precedence CURRENT > RESTUDY >
- * FINISHED > WRITTEN > NOT STARTED (see the block at the return).
+ * v424 — the v421 Restudy section is RETIRED (his pick of
+ * Concept 2 from restudy-reading-concepts-v1.html, Nov 2): reading
+ * and restudy are separate tracks that coexist, so the queue no
+ * longer pulls a book out of its reading/writing section — Genesis
+ * can be the book he is reading through now AND stay queued for
+ * restudy later. The grouping is exactly the four sections above
+ * again (the v322/v383 result); the queue's one home on the Books
+ * page is the queue card at the top, whose model is
+ * restudyQueueSummary below.
  */
-/** v421 — the next chapter of `book` waiting in the restudy queue:
- * the FIRST queue entry for the book, in queue order. The queue's
- * head is the app's "next" everywhere it is read (the schedule
- * doorway reads restudyQueue[0] the same way), so per book the
- * first matching entry is that book's next. Null when the book
- * carries no queued chapter. */
-export function nextRestudyChapter(state: StudyState, book: string): number | null {
-  const item = state.restudyQueue.find((q) => q.book === book);
-  return item ? item.chapter : null;
+/** v424 — the Books page's Restudy queue card, as one pure model:
+ * null while the queue is empty (the card does not render at all),
+ * else the queue's head as "next" (restudyQueue[0] — the same head
+ * the schedule doorway and the Queue screen read), the count of
+ * DISTINCT books carrying a queued chapter, and the supporting
+ * line fully worded: "Genesis · Chapter 1 is next — 4 books
+ * waiting" (singular "1 book waiting"). A book with several
+ * chapters queued still names only the next one. */
+export interface RestudyQueueSummary {
+  next: QueueItem;
+  bookCount: number;
+  line: string;
+}
+
+export function restudyQueueSummary(state: StudyState): RestudyQueueSummary | null {
+  const queue = state.restudyQueue;
+  if (!queue.length) return null;
+  const next = queue[0];
+  const bookCount = new Set(queue.map((q) => q.book)).size;
+  return {
+    next,
+    bookCount,
+    line: `${next.book} · Chapter ${next.chapter} is next — ${bookCount} ${bookCount === 1 ? 'book' : 'books'} waiting`,
+  };
 }
 
 export function groupBooksByStudy(
   state: StudyState,
   canon: string[],
   imports: StudioImportsMap = {},
-): { current: string[]; finished: string[]; written: string[]; restudy: string[]; notStarted: string[] } {
+): { current: string[]; finished: string[]; written: string[]; notStarted: string[] } {
   const finished: string[] = [];
   const written: string[] = [];
   const progressed: string[] = [];
@@ -379,40 +399,17 @@ export function groupBooksByStudy(
     }
     current.push(state.currentBook);
   }
-  // v421 — RESTUDY (his ask, Nov 2): the restudy queue has existed
-  // in the study store since v205, but no Books section gathered
-  // it, so a book he was re-studying sat buried in Written or
-  // Finished. Every book with ≥1 chapter in restudyQueue now gets
-  // the Restudy section, in QUEUE order (first appearance — the
-  // order he queued them, the same order the Queue screen and the
-  // doorway read). Precedence: CURRENT > RESTUDY > FINISHED >
-  // WRITTEN > NOT STARTED — a restudy book leaves Finished /
-  // Written (and the progressed bucket) for Restudy, but the
-  // marked currentBook keeps its home in Current even when it also
-  // carries queued chapters: the v383 doctrine again, an explicit
-  // mark outranks the pull. With an empty queue the section is
-  // empty and every other group is exactly the v322/v383 result.
-  const restudy: string[] = [];
-  for (const item of state.restudyQueue) {
-    if (!canon.includes(item.book)) continue;
-    if (item.book === state.currentBook) continue;
-    if (!restudy.includes(item.book)) restudy.push(item.book);
-  }
-  const restudySet = new Set(restudy);
-  for (const list of [finished, written]) {
-    for (let i = list.length - 1; i >= 0; i--) {
-      if (restudySet.has(list[i])) list.splice(i, 1);
-    }
-  }
+  // v424: no restudy pull — a queued book keeps the home its
+  // reading/writing state earns (the v421 section that lifted it
+  // out is retired; see the note at the return's doc block).
   for (const book of progressed) {
-    if (book !== state.currentBook && !restudySet.has(book)) current.push(book);
+    if (book !== state.currentBook) current.push(book);
   }
   return {
     current,
     finished,
     written,
-    restudy,
-    notStarted: notStarted.filter((book) => !current.includes(book) && !restudySet.has(book)),
+    notStarted: notStarted.filter((book) => !current.includes(book)),
   };
 }
 

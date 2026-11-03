@@ -181,15 +181,15 @@ describe('v322 — Books sections: Finished counts the read ones', () => {
     // Section order on the page: Finished, then Written, then Not Started.
     expect(src.indexOf('>Finished<')).toBeLessThan(src.indexOf('>Written<'));
     expect(src.indexOf('>Written<')).toBeLessThan(src.indexOf('>Not Started<'));
-    // v421 RE-BASE (his ask, Nov 2): a fifth section — Restudy,
-    // seated between Current and Finished — joins the guard's sum.
-    // The v322 ruling this pin protects (Finished counts reads;
-    // Written under it) is untouched: the sum now counts all FIVE
-    // groups, and Restudy's books are pulled out of the other
-    // four, so the total is still the whole canon. The Restudy
-    // section itself is pinned in bible-v421-restudy.test.ts(x).
+    // v424 RE-BASE (his Concept 2 pick, Nov 2): the Restudy
+    // section the v421 pin named is retired — Restudy's books are
+    // no longer pulled out of the other four, so the sum counts
+    // the four sections of the v322 ruling again and the total is
+    // still the whole canon. The queue now reaches the screen as
+    // the top card's summary; it is pinned in
+    // bible-v424-restudy-concept2.test.ts(x).
     expect(src).toContain(
-      'groups.current.length + groups.restudy.length + groups.finished.length + groups.written.length + groups.notStarted.length',
+      'groups.current.length + groups.finished.length + groups.written.length + groups.notStarted.length',
     );
   });
 });

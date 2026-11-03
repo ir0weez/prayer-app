@@ -1700,6 +1700,28 @@ export type StudioImportsMap = Record<string, V205ChapterData>;
 
 export const studioImportKey = (book: string, chapter: number) => `${book}|${chapter}`;
 
+// ── v423: the store is CHUNKED — one AsyncStorage value per chapter ───────
+// The single-value store above is the pre-v423 layout. On Jonathan's
+// phone the whole-map JSON grew past what Android's AsyncStorage can
+// hand back: setItem of the multi-MB string succeeds (every import
+// reported success, with chapter counts), but getItem of the same
+// value fails — and the loader's catch turned the failure into {},
+// so every screen silently fell back to the shipped chapter text and
+// imported notes never rendered (the Nov 2 paragraph rollout: 310
+// chapters imported "successfully", none ever shown). The store is
+// therefore split: an index naming the imported chapters, and one
+// small value per chapter that reads back on its own. The legacy key
+// is read exactly once — to migrate a map small enough to come back —
+// and removed only after the chunked write lands.
+
+export const STUDIO_IMPORT_INDEX_KEY = 'prayercircle.bible.v205.studio-imports.index.v2';
+export const STUDIO_IMPORT_CHAPTER_KEY_PREFIX = 'prayercircle.bible.v205.studio-import.v2.';
+
+/** The storage key one imported chapter lives under: the prefix plus
+ * the chapter's map key (`studioImportKey(book, chapter)`). */
+const studioImportChapterStorageKey = (mapKey: string): string =>
+  `${STUDIO_IMPORT_CHAPTER_KEY_PREFIX}${mapKey}`;
+
 // ── v243: the stored map is sanitized at this read boundary ────────────────
 // Until v243, loadStudioImports handed the parsed JSON to consumers
 // verbatim, and consumers dereference the stored chapter shape
@@ -1878,18 +1900,130 @@ export function sanitizeStudioImportsMap(parsed: unknown): StudioImportsMap {
   return out;
 }
 
+// The batch verbs, with a single-key fallback: the runtime's
+// AsyncStorage carries multiGet/multiSet/multiRemove, but the suite's
+// storage doubles implement only the single-key surface — the store
+// must behave identically over either.
+async function chunkedGet(keys: string[]): Promise<(string | null)[]> {
+  if (keys.length === 0) return [];
+  if (typeof AsyncStorage.multiGet === 'function') {
+    const pairs = await AsyncStorage.multiGet(keys);
+    const byKey = new Map<string, string | null>(pairs.map(([k, v]) => [k, v]));
+    return keys.map((k) => byKey.get(k) ?? null);
+  }
+  return Promise.all(keys.map((k) => AsyncStorage.getItem(k)));
+}
+
+async function chunkedSet(pairs: [string, string][]): Promise<void> {
+  if (pairs.length === 0) return;
+  if (typeof AsyncStorage.multiSet === 'function') {
+    await AsyncStorage.multiSet(pairs);
+    return;
+  }
+  await Promise.all(pairs.map(([k, v]) => AsyncStorage.setItem(k, v)));
+}
+
+async function chunkedRemove(keys: string[]): Promise<void> {
+  if (keys.length === 0) return;
+  if (typeof AsyncStorage.multiRemove === 'function') {
+    await AsyncStorage.multiRemove(keys);
+    return;
+  }
+  await Promise.all(keys.map((k) => AsyncStorage.removeItem(k)));
+}
+
+/** The stored index: a JSON array of chapter map keys. Null when the
+ * stored value is unreadable as an index — the caller then tries the
+ * legacy store. (An absent index reads null before this is called.) */
+function parseStudioImportIndex(raw: string): string[] | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    const keys: string[] = [];
+    for (const k of parsed) {
+      if (typeof k === 'string' && k.length > 0 && !keys.includes(k)) keys.push(k);
+    }
+    return keys;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the whole map in the chunked layout: every chapter under
+ * its own key first, then the index naming them. */
+async function writeChunkedStudioImports(map: StudioImportsMap): Promise<void> {
+  const keys = Object.keys(map);
+  await chunkedSet(
+    keys.map((k) => [studioImportChapterStorageKey(k), JSON.stringify(map[k])] as [string, string]),
+  );
+  await AsyncStorage.setItem(STUDIO_IMPORT_INDEX_KEY, JSON.stringify(keys));
+}
+
 export async function loadStudioImports(): Promise<StudioImportsMap> {
   try {
+    const indexRaw = await AsyncStorage.getItem(STUDIO_IMPORT_INDEX_KEY);
+    const index = indexRaw ? parseStudioImportIndex(indexRaw) : null;
+    if (index) {
+      const values = await chunkedGet(index.map(studioImportChapterStorageKey));
+      const assembled: Record<string, unknown> = {};
+      index.forEach((key, i) => {
+        const raw = values[i];
+        if (raw == null) return;
+        try {
+          assembled[key] = JSON.parse(raw);
+        } catch {
+          // One unreadable chapter value drops alone; the rest load.
+        }
+      });
+      return sanitizeStudioImportsMap(assembled);
+    }
+    // No chunked index: the pre-v423 single-value store, read once
+    // for migration. A map small enough to read back moves into the
+    // chunked layout (the legacy key is removed only after that write
+    // lands) and is returned either way; an unreadable legacy value
+    // degrades to the same {} the old loader produced, never a throw.
     const raw = await AsyncStorage.getItem(STUDIO_IMPORT_KEY);
     if (!raw) return {};
-    return sanitizeStudioImportsMap(JSON.parse(raw));
+    const migrated = sanitizeStudioImportsMap(JSON.parse(raw));
+    if (Object.keys(migrated).length > 0) {
+      try {
+        await writeChunkedStudioImports(migrated);
+        await AsyncStorage.removeItem(STUDIO_IMPORT_KEY);
+      } catch {
+        // Best-effort: the entries are already in hand; a failed
+        // migration simply retries on the next load.
+      }
+    }
+    return migrated;
   } catch {
     return {};
   }
 }
 
 export async function saveStudioImports(map: StudioImportsMap): Promise<void> {
-  await AsyncStorage.setItem(STUDIO_IMPORT_KEY, JSON.stringify(map));
+  // Chapters dropped from the map lose their values: read the current
+  // index first (absent or unreadable → nothing to diff) so a stale
+  // per-chapter key never lingers past the save that removed it.
+  let previous: string[] = [];
+  try {
+    const raw = await AsyncStorage.getItem(STUDIO_IMPORT_INDEX_KEY);
+    const parsed = raw ? parseStudioImportIndex(raw) : null;
+    if (parsed) previous = parsed;
+  } catch {
+    previous = [];
+  }
+  await writeChunkedStudioImports(map);
+  const stale = previous.filter((k) => !(k in map)).map(studioImportChapterStorageKey);
+  if (stale.length > 0) await chunkedRemove(stale);
+  // The legacy single-value store is superseded the moment a chunked
+  // save lands; clear it so an oversized pre-v423 value can never be
+  // mistaken for the store again. Guarded: its failure must not fail
+  // the save that already succeeded.
+  try {
+    await AsyncStorage.removeItem(STUDIO_IMPORT_KEY);
+  } catch {
+    // Housekeeping only — the chunked store is already authoritative.
+  }
 }
 
 /** Replace each payload's chapter data. Same payload twice = same map. */

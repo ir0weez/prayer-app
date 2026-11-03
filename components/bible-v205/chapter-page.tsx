@@ -48,6 +48,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Easing } from 'react-native-reanimated';
@@ -512,6 +513,26 @@ export function ChapterPageView(props: ChapterPageProps) {
       live = false;
     };
   }, [book, chapter]);
+
+  // v423: the load above runs once per (book, chapter) — a studio
+  // import applied while this screen sat open underneath (Settings
+  // lives on another tab) never reached it, and an already-open
+  // chapter kept showing its shipped text. Regaining focus re-reads
+  // the imports store alone, so an imported chapter shows the moment
+  // he comes back to it.
+  useFocusEffect(
+    useCallback(() => {
+      let live = true;
+      loadStudioImports()
+        .then((si) => {
+          if (live) setStudioImports(si);
+        })
+        .catch(() => undefined);
+      return () => {
+        live = false;
+      };
+    }, []),
+  );
 
   // The read-mode preference is app-level: the page reopens the way he
   // left it. Switching modes never touches notes, marks, or states.

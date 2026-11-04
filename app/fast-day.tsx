@@ -19,13 +19,21 @@
  * tracker family, never pinned; the state colors (kept green,
  * struggle amber, fell red) are meaning colors and never follow
  * the seed.
+ *
+ * v431 — the page never fakes a save: both writes (the journal
+ * log, the day-status persist) run through the honest saves in
+ * lib/fast-day-entries — awaited, retried once after the news
+ * cache is cleared, and reported. The timeline shows an entry
+ * only after its write lands and the draft clears only then; a
+ * failed status write puts the day back the way it was. Either
+ * failure is named in an alert, never swallowed.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/use-colors";
@@ -44,9 +52,10 @@ import {
 } from "@/lib/fast-tracker";
 import {
   FAST_DAY_ENTRY_KIND_LABELS,
-  appendFastDayEntry,
   getFastDayEntries,
+  logFastDayEntryToStorage,
   migrateFastDayEntriesInStorage,
+  persistFastsToStorage,
   resolveFastDayNotes,
   type FastDayEntryKind,
 } from "@/lib/fast-day-entries";
@@ -61,7 +70,6 @@ import {
   type FastDayStatus,
   type PersonalFast,
 } from "@/lib/prayercircle-fasting";
-import { FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { awardXP, loseHeart, restoreHeart, revokeXP } from "@/lib/xp-engine";
 
 const MONTH_NAMES = [
@@ -113,6 +121,7 @@ export default function FastDayPage() {
   const [entries, setEntries] = useState<PrayerJournalEntry[]>([]);
   const [kind, setKind] = useState<FastDayEntryKind>("held");
   const [draft, setDraft] = useState("");
+  const [logging, setLogging] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -149,9 +158,19 @@ export default function FastDayPage() {
     [entries, fast, date],
   );
 
-  const persistFasts = (nextFasts: PersonalFast[]) => {
+  // v431: the day's state shows the change at once, but the write
+  // is awaited and reported — if it doesn't land, the page puts
+  // the day back the way it was and says so. Nothing is swallowed.
+  const persistFasts = async (nextFasts: PersonalFast[], previousFasts: PersonalFast[]) => {
     setFasts(nextFasts);
-    AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify(nextFasts)).catch(() => undefined);
+    const result = await persistFastsToStorage(AsyncStorage, nextFasts);
+    if (!result.saved) {
+      setFasts(previousFasts);
+      Alert.alert(
+        "Couldn't save that yet",
+        `That day's mark didn't save, so it's been put back the way it was. The app's storage may be full — the write didn't land. (${result.error})`,
+      );
+    }
   };
 
   const maybeGenerateFastSummary = (updatedFasts: PersonalFast[]) => {
@@ -165,7 +184,10 @@ export default function FastDayPage() {
         ...updatedFast,
         summary: generateFastSummary(updatedFast, resolveFastDayNotes(updatedFast, entries)),
       };
-      persistFasts(updatedFasts.map((candidate) => (candidate.id === updatedFast.id ? withSummary : candidate)));
+      void persistFasts(
+        updatedFasts.map((candidate) => (candidate.id === updatedFast.id ? withSummary : candidate)),
+        updatedFasts,
+      );
     }
   };
 
@@ -195,17 +217,36 @@ export default function FastDayPage() {
     const nextFasts = next
       ? upsertFastDayStatus(fasts, fast.id, date, next)
       : removeFastDayStatus(fasts, fast.id, date);
-    persistFasts(nextFasts);
+    void persistFasts(nextFasts, fasts);
     maybeGenerateFastSummary(nextFasts);
   };
 
-  const logEntry = () => {
-    if (!fast || !draft.trim()) return;
-    const next = appendFastDayEntry(entries, { fastId: fast.id, date, kind, text: draft }, new Date());
-    setEntries(next);
-    AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
-    setDraft("");
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  // v431: write-then-show. The entry joins the timeline only
+  // after its write lands, and the draft clears only then too —
+  // on a failed save his words stay in the box, nothing phantom
+  // is shown, and an alert says plainly that it didn't save.
+  const logEntry = async () => {
+    if (!fast || !draft.trim() || logging) return;
+    setLogging(true);
+    try {
+      const result = await logFastDayEntryToStorage(
+        AsyncStorage,
+        { fastId: fast.id, date, kind, text: draft },
+        new Date(),
+      );
+      if (result.saved) {
+        setEntries(result.entries);
+        setDraft("");
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } else {
+        Alert.alert(
+          "Couldn't save that yet",
+          `That entry didn't save — nothing was logged, and your words are still in the box. The app's storage may be full — the write didn't land. (${result.error})`,
+        );
+      }
+    } finally {
+      setLogging(false);
+    }
   };
 
   const kindPaint = (entryKind: FastDayEntryKind): { wash: string; deep: string } => {
@@ -463,13 +504,13 @@ export default function FastDayPage() {
             />
             <Pressable
               onPress={logEntry}
-              disabled={!draft.trim()}
+              disabled={!draft.trim() || logging}
               style={{
                 backgroundColor: family.seed,
                 borderRadius: 999,
                 paddingHorizontal: 16,
                 paddingVertical: 11,
-                opacity: draft.trim() ? 1 : 0.45,
+                opacity: draft.trim() && !logging ? 1 : 0.45,
               }}
               accessibilityRole="button"
               accessibilityLabel="Log entry"

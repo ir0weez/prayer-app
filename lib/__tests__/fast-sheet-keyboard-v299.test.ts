@@ -73,10 +73,14 @@ describe("v299 — fasting day sheet keyboard avoidance", () => {
     // with the sheet. The day's words are written on the Day Page
     // as journal entries (appendFastDayEntry), and its status
     // through the same day-status writes the sheet's save used.
+    // RE-BASED (v431): the page logs through logFastDayEntryToStorage
+    // — the honest read-modify-write save in lib/fast-day-entries,
+    // which appends via appendFastDayEntry over the freshly-read
+    // journal — in place of calling appendFastDayEntry itself.
     expect(fastTracker).not.toContain("Note for this day");
     expect(profile).not.toContain("saveDaySheet");
     const dayPage = read("app/fast-day.tsx");
-    expect(dayPage).toContain("appendFastDayEntry");
+    expect(dayPage).toContain("logFastDayEntryToStorage");
     expect(dayPage).toContain("upsertFastDayStatus");
   });
 

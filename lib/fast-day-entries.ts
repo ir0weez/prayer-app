@@ -7,6 +7,7 @@ import {
   type FastDayEntryKind,
   type PrayerJournalEntry,
 } from "./prayer-journal";
+import { NEWS_CACHE_KEY } from "./news";
 import {
   getFastCalendarDays,
   parseStoredFasts,
@@ -254,4 +255,117 @@ export async function migrateFastDayEntriesInStorage(): Promise<{
     ]);
   }
   return result;
+}
+
+/**
+ * v431 — honest saves for the Day Page (Jonathan, Nov 4: "I start
+ * with a fresh one, add a note, it shows it's saved, I restart the
+ * app, and it's not there"). The page used to write both stores
+ * fire-and-forget — `setItem(...).catch(() => undefined)` — on a
+ * phone whose AsyncStorage sits at its ceiling, so a rejected
+ * write was swallowed while the page showed the entry from memory
+ * and cleared the draft like a save. The saves below never fake
+ * it: the write is awaited, one failure earns a single retry after
+ * the news cache (a regenerable snapshot, the loosest bytes in
+ * the store) is cleared, and the outcome is always reported, so
+ * the page can show only what was stored — and say so when
+ * nothing was.
+ */
+
+/** The slice of AsyncStorage the honest saves run over, passed
+ *  in so a test can play a full disk without mocking the module. */
+export interface FastDayStorage {
+  getItem: (key: string) => Promise<string | null>;
+  setItem: (key: string, value: string) => Promise<void>;
+  removeItem: (key: string) => Promise<void>;
+}
+
+export type FastDayLogResult =
+  | { saved: true; entries: PrayerJournalEntry[] }
+  | { saved: false; error: string };
+
+export type FastDayPersistResult = { saved: true } | { saved: false; error: string };
+
+function saveErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function writeWithRetry(
+  storage: FastDayStorage,
+  key: string,
+  value: string,
+): Promise<FastDayPersistResult> {
+  try {
+    await storage.setItem(key, value);
+    return { saved: true };
+  } catch {
+    try {
+      await storage.removeItem(NEWS_CACHE_KEY);
+    } catch {
+      // Freeing the space is best-effort; the retry goes ahead
+      // either way, and its own outcome is what gets reported.
+    }
+    try {
+      await storage.setItem(key, value);
+      return { saved: true };
+    } catch (error) {
+      return { saved: false, error: saveErrorMessage(error) };
+    }
+  }
+}
+
+/**
+ * Log one moment to a fast day, read-modify-write: the journal is
+ * re-read fresh at log time and the entry appended to THAT list,
+ * so a moment another surface stored since this page loaded is
+ * never dropped by the page's stale in-memory copy. Success
+ * returns the list exactly as written; failure stores nothing
+ * and says why. A stored journal that cannot be read is never
+ * written over — the log reports failure instead.
+ */
+export async function logFastDayEntryToStorage(
+  storage: FastDayStorage,
+  input: { fastId: string; date: string; kind: FastDayEntryKind; text: string },
+  now = new Date(),
+): Promise<FastDayLogResult> {
+  let raw: string | null;
+  try {
+    raw = await storage.getItem(JOURNAL_STORAGE_KEY);
+  } catch (error) {
+    return { saved: false, error: saveErrorMessage(error) };
+  }
+  let stored: PrayerJournalEntry[] = [];
+  if (raw) {
+    try {
+      stored = normalizePrayerJournalEntries(JSON.parse(raw));
+    } catch {
+      return {
+        saved: false,
+        error: "The stored journal couldn't be read, so nothing was written over it.",
+      };
+    }
+  }
+  const next = appendFastDayEntry(stored, input, now);
+  if (next === stored) {
+    // Nothing to log (empty text never becomes an entry) — the
+    // stored list already stands as the truth.
+    return { saved: true, entries: stored };
+  }
+  const write = await writeWithRetry(storage, JOURNAL_STORAGE_KEY, JSON.stringify(next));
+  if (!write.saved) return write;
+  return { saved: true, entries: next };
+}
+
+/**
+ * Persist the fasts list (a day-status change) with the same
+ * honesty as the journal log: the write is awaited, retried once
+ * after the news cache is cleared, and the outcome is always
+ * reported — so the caller can put the day back the way it was
+ * when the write didn't land.
+ */
+export async function persistFastsToStorage(
+  storage: FastDayStorage,
+  fasts: PersonalFast[],
+): Promise<FastDayPersistResult> {
+  return writeWithRetry(storage, FASTS_STORAGE_KEY, JSON.stringify(fasts));
 }

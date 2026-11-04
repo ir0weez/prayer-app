@@ -334,7 +334,13 @@ describe("v410 surfaces — the Day Page stands, the sheet is gone", () => {
     expect(page).toContain("Struggled");
     expect(page).toContain("Broke");
     expect(page).toContain("getFastEncouragement(status ?? undefined)");
-    expect(page).toContain("appendFastDayEntry");
+    // v431 amendment: the page no longer calls appendFastDayEntry
+    // itself — it logs through logFastDayEntryToStorage, the honest
+    // read-modify-write save in the same module, which appends via
+    // appendFastDayEntry over the freshly-read journal. The pin's
+    // intent stands: the page's moments go through this module's
+    // append path, never a page-side shadow of it.
+    expect(page).toContain("logFastDayEntryToStorage");
     expect(page).toContain("migrateFastDayEntriesInStorage");
     expect(page).toContain("upsertFastDayStatus");
     expect(page).toContain("removeFastDayStatus");

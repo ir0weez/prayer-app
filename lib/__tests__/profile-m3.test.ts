@@ -49,9 +49,14 @@ describe("profile chrome is Material 3 (theme tokens, no one-off hex)", () => {
     // The day's words now live on the Day Page as journal
     // entries, logged through appendFastDayEntry; no sheet and
     // no note field remain on the tracker page or its kit.
+    // RE-BASED (v431): the Day Page logs through
+    // logFastDayEntryToStorage — the honest read-modify-write save
+    // in lib/fast-day-entries, which appends via appendFastDayEntry
+    // over the freshly-read journal — in place of calling
+    // appendFastDayEntry itself.
     expect(profile).not.toContain("<FastDaySheetContent");
     expect(read("components/fast-tracker.tsx")).not.toContain("Note for this day");
-    expect(read("app/fast-day.tsx")).toContain("appendFastDayEntry");
+    expect(read("app/fast-day.tsx")).toContain("logFastDayEntryToStorage");
     expect(profile).not.toContain("📝");
     // v280: the borderColor: colors.border pin guarded the
     // Hometown entry card's M3 border — the card itself is removed

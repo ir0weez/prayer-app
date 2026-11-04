@@ -286,7 +286,13 @@ describe("the page: tracker mounted, game furniture gone", () => {
     expect(profile).toContain('pathname: "/fast-day"');
     const dayPage = read("app/fast-day.tsx");
     expect(dayPage).toContain("upsertFastDayStatus");
-    expect(dayPage).toContain("appendFastDayEntry");
+    // RE-BASED (v431): the page logs through logFastDayEntryToStorage
+    // — the honest read-modify-write save in lib/fast-day-entries,
+    // which appends via appendFastDayEntry over the freshly-read
+    // journal — in place of calling appendFastDayEntry itself. The
+    // pin's intent stands: state + words are written on the Day
+    // Page through the same module paths.
+    expect(dayPage).toContain("logFastDayEntryToStorage");
   });
 
   it("the creator gained the Why field", () => {

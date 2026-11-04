@@ -37,12 +37,32 @@
  * all four take the `-done` key when completed. Rows whose data
  * carries no completion flag (white blocks, groups, headers,
  * dividers) keep their bare id.
+ *
+ * v428 (Nov 4) — the cover learns the itinerary wrapper. v393
+ * (a day AFTER v369) gave the Time Off tickets a done flag, but
+ * an itinerary row's data is not the item itself — it is the
+ * wrapper { entry, timeOff }, and the flag lives at
+ * data.entry.done, where this helper never looked. Done tickets
+ * therefore kept the bare key and got exactly the in-place
+ * transplant this file exists to forbid: the tap wrote the flag,
+ * the cell wedged on the open pass, and the ticket read as
+ * un-tappable on device ("once again"). v426's hour-blocking
+ * widened the blast radius — completing an entry now re-flows
+ * the whites around the row in the same moment. A done itinerary
+ * entry takes the same `-done` split as every other entity.
  */
 export function scheduleRowKey(
   item: { id: string; data?: unknown },
   justAddedId: string | null,
 ): string {
   const base = item.id === justAddedId ? `${item.id}-new` : item.id;
-  const data = item.data as { isCompleted?: unknown } | null | undefined;
-  return data != null && data.isCompleted === true ? `${base}-done` : base;
+  const data = item.data as
+    | { isCompleted?: unknown; entry?: { done?: unknown } | null }
+    | null
+    | undefined;
+  if (data == null) return base;
+  if (data.isCompleted === true) return `${base}-done`;
+  // v428: an itinerary row's completion flag rides on its entry.
+  if (data.entry != null && data.entry.done === true) return `${base}-done`;
+  return base;
 }

@@ -150,11 +150,27 @@ export function JournalKindPost({ entry, jm, bare, ...callbacks }: KindPostProps
       <View style={[styles.prayer, { backgroundColor: jm.prayerTint }]}>
         {people.length > 0 ? (
           <View style={styles.prayerFaces}>
+            {/* v429 (his correction, Nov 4): the overlap is back —
+                he liked the stacked look; what he wanted fixed was
+                the circles. The pre-v426 stack painted DESCENDING
+                (zIndex 3 - index): each later face slid UNDER the
+                one above, so the front face's disc sliced it — its
+                top read as a concave cut, its disc pinched to a
+                pointed tail where it emerged at the front face's
+                lower-right, and two same-coloured faces merged
+                into one speech-bubble blob. The 3px tint ring
+                never saved it: the only ring visible between the
+                fills belonged to the face in front, outlining the
+                cutter, never the cut face. Now each later face
+                paints OVER the previous one (ascending zIndex), so
+                every face's own tint ring is drawn against the
+                face behind it and its disc reads as a complete
+                circle; earlier faces peek out from behind. */}
             {people.slice(0, 3).map((person, index) => (
               <Pressable
                 key={person.id}
                 onPress={() => callbacks.onOpenPerson(person.id)}
-                style={[styles.prayerFace, { borderColor: jm.prayerTint, marginTop: index === 0 ? 0 : 6, zIndex: 3 - index }]}
+                style={[styles.prayerFace, { borderColor: jm.prayerTint, marginTop: index === 0 ? 0 : -12, marginLeft: index === 0 ? 0 : 15, zIndex: index + 1 }]}
               >
                 <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={40} fallbackColor={person.avatarColor} />
               </Pressable>
@@ -517,6 +533,13 @@ const styles = StyleSheet.create({
   // circle — the old stack overlapped faces (marginTop -12, shifted
   // 15 right), so two same-coloured faces sliced into one blob with a
   // pointed tail. Faces now sit in a plain column with a small gap.
+  // v429 amendment (his correction, later Nov 4): the separation
+  // threw away a look he likes — "I just wanted them to be fixed
+  // into circles." The overlap composition is restored at the render
+  // site; the circles are fixed by the stacking order (each later
+  // face paints over the previous, its own ring against the face
+  // behind), not by separation. See the v429 note in the prayer
+  // branch above.
   prayerFaces: { flexDirection: "column" },
   prayerFace: { borderRadius: 999, borderWidth: 3, overflow: "hidden" },
   prayerWho: { fontSize: 15.5, fontWeight: "800", lineHeight: 19, marginTop: 1 },

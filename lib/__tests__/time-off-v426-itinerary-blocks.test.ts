@@ -99,11 +99,19 @@ describe("v426 wiring (source pins)", () => {
 describe("v426 journal prayer faces (source pins)", () => {
   const kindPost = read("components/journal-kind-post.tsx");
 
-  it("no negative overlap and no diagonal shift on the prayer faces", () => {
-    expect(kindPost).not.toContain("marginTop: index === 0 ? 0 : -12");
-    expect(kindPost).not.toContain("marginLeft: index === 0 ? 0 : 15");
-    // The faces stand apart in the column instead.
-    expect(kindPost).toContain("marginTop: index === 0 ? 0 : 6");
+  // v429 amendment (his correction, later Nov 4): this pin asserted
+  // v426's separated column — and v426 really shipped that way
+  // (apk-20261104-v426). His verdict on it: "I like the way the
+  // avatars overlapped before. I just wanted them to be fixed into
+  // circles..." So v429 restored the overlap and fixed the circles
+  // by stacking order (ascending zIndex — each later face paints
+  // over the previous, its own ring against the face behind); the
+  // live pins live in journal-v429-avatar-overlap.test.tsx. This
+  // pin now records the supersession: the v426 separation is gone.
+  it("v429 amendment: the v426 separated column is superseded — the overlap is back", () => {
+    expect(kindPost).not.toContain("marginTop: index === 0 ? 0 : 6");
+    expect(kindPost).toContain("marginTop: index === 0 ? 0 : -12");
+    expect(kindPost).toContain("marginLeft: index === 0 ? 0 : 15");
   });
 
   it("each face keeps its full circle dress: round, 3px tint ring, size 40", () => {

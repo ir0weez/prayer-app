@@ -388,9 +388,20 @@ export function TimeOffExperience({ visible, onClose, onChanged, initialTripId =
   // the SAME done state the schedule ticket reads — one flag,
   // one writer (the lib toggle, on the same stored record);
   // the × above stays the only removal.
+  // v432: the writer throws when its write can't land — catch it
+  // and say so in the v431 voice, the same words the schedule
+  // ticket uses, so neither surface can fail in silence.
   const handleToggleEntryDone = async (entry: ItineraryEntry) => {
     if (!activeTrip) return;
-    await toggleItineraryEntryDone(activeTrip.id, entry.id);
+    try {
+      await toggleItineraryEntryDone(activeTrip.id, entry.id);
+    } catch (error) {
+      Alert.alert(
+        "Couldn't save that yet",
+        `That check-off didn't save — the entry is still as it was. The app's storage may be full — the write didn't land. (${error instanceof Error ? error.message : String(error)})`,
+      );
+      return;
+    }
     await load();
     onChanged?.();
   };

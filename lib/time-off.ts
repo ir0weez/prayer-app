@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateId, EVENT_KEYWORD_MAP, detectEventKeyword, type EventKeyword } from './schedule-data';
+import { NEWS_CACHE_KEY } from './news';
 import { stripSpelledSeasonEpisode } from './season-episode';
 import { mix } from './color-themes';
 import { hexContrast, hexLuminance, hexToHsl, hslToHex } from './skin-themes';
@@ -286,6 +287,30 @@ export async function updateTimeOff(
 }
 
 /**
+ * v432 — the honest write for the time-off store, mirroring the
+ * fast-day saves (v431): a rejected write clears the regenerable
+ * news cache and retries exactly once, and a second rejection
+ * THROWS — the error's message rides up to the caller, whose job
+ * is to say out loud that the save didn't land. Nothing here
+ * swallows: on a phone whose storage sits at its ceiling, a write
+ * that didn't happen must never look like one that did.
+ */
+async function writeTimeOffStoreWithRetry(allTimeOff: TimeOff[]): Promise<void> {
+  const value = JSON.stringify(allTimeOff);
+  try {
+    await AsyncStorage.setItem(TIME_OFF_STORAGE_KEY, value);
+  } catch {
+    try {
+      await AsyncStorage.removeItem(NEWS_CACHE_KEY);
+    } catch {
+      // Freeing the space is best-effort; the retry goes ahead
+      // either way, and its own outcome is what the caller hears.
+    }
+    await AsyncStorage.setItem(TIME_OFF_STORAGE_KEY, value);
+  }
+}
+
+/**
  * v393 — flip one itinerary entry's done flag inside an itinerary
  * array (pure). Every other field of the entry rides through the
  * spread untouched, so editing an entry never loses its state;
@@ -302,6 +327,12 @@ export function toggleItineraryEntryDoneInList(entries: ItineraryEntry[], entryI
  * can never disagree — check it off in the schedule and it reads
  * done on the timeline, and the other way around. Returns the
  * updated trip, or null when the trip or entry is gone.
+ * v432 — the write goes through writeTimeOffStoreWithRetry: a
+ * rejected write (his phone's storage sits at its ceiling) is
+ * retried once and then THROWS, so both callers can name the
+ * failure instead of the tap dying in silence. The null cases
+ * still return before any write is attempted — a trip or entry
+ * that's gone is not a save failure and must never alert.
  */
 export async function toggleItineraryEntryDone(timeOffId: string, entryId: string): Promise<TimeOff | null> {
   const allTimeOff = await getAllTimeOff();
@@ -316,7 +347,7 @@ export async function toggleItineraryEntryDone(timeOffId: string, entryId: strin
     updatedAt: new Date().toISOString(),
   };
   allTimeOff[index] = updated;
-  await AsyncStorage.setItem(TIME_OFF_STORAGE_KEY, JSON.stringify(allTimeOff));
+  await writeTimeOffStoreWithRetry(allTimeOff);
 
   return updated;
 }

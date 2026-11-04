@@ -11456,7 +11456,20 @@ export function ScheduleTab({
   // timeline page reads — then the list refreshes the way the
   // experience's onChanged refresh does.
   const handleToggleItineraryEntry = useCallback(async (timeOffId: string, entryId: string) => {
-    await toggleItineraryEntryDone(timeOffId, entryId);
+    // v432: the writer now throws when its write can't land (a
+    // full store, after its one retry) — catch it and say so in
+    // the v431 voice, instead of the rejection skipping the
+    // refresh below and the tap looking completely dead. The
+    // refresh still runs on every non-throw, null included.
+    try {
+      await toggleItineraryEntryDone(timeOffId, entryId);
+    } catch (error) {
+      Alert.alert(
+        "Couldn't save that yet",
+        `That check-off didn't save — the ticket is still open. The app's storage may be full — the write didn't land. (${error instanceof Error ? error.message : String(error)})`,
+      );
+      return;
+    }
     setTimeOffList(await getAllTimeOff());
   }, []);
   const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>(null);

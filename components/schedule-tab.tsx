@@ -13312,6 +13312,16 @@ export function ScheduleTab({
           ...dayEvents.filter((e) => e.startTime).map((e) => ({ ...e, kind: "event" as const })),
           ...dayMinistries.filter((m) => m.startTime).map((m) => ({ ...m, kind: "ministry" as const })),
           ...dayBibleStudies.filter((study) => study.startTime).map((study) => ({ ...study, kind: "study" as const })),
+          // v426 (his pick, Nov 4): a timed Time Off itinerary entry
+          // blocks one hour from its start — entries carry no end of
+          // their own, so the span is derived here, never stored. A
+          // done entry frees the hour (isCompleted), like any other
+          // checked-off item.
+          ...dayTimeOff.flatMap((to) =>
+            getItineraryForDate(to, selectedDate)
+              .filter((entry) => entry.time)
+              .map((entry) => ({ id: entry.id, startTime: entry.time as string, isCompleted: !!entry.done, kind: "itinerary" as const })),
+          ),
         ],
         { isToday: selectedDate === todayISO, nowMinutes: currentMinutes },
       );
@@ -13779,6 +13789,14 @@ export function ScheduleTab({
         ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && !e.isCompleted),
         ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
         ...getBibleStudiesForDate(bibleStudies, selectedDate).filter((study) => study.startTime && !study.isCompleted),
+        // v426: same hour-blocking itinerary entries as the summary
+        // and the timeline — the first open block this finds is the
+        // day's real first opening.
+        ...timeOffList.flatMap((to) =>
+          getItineraryForDate(to, selectedDate)
+            .filter((entry) => entry.time && !entry.done)
+            .map((entry) => ({ id: entry.id, startTime: entry.time as string })),
+        ),
       ];
       const reachBlocks = calculateActiveAvailableTimeBlocks(reachItems, selectedDate, clockNow, "05:00", "24:00");
       openNewEventEditorAtTime(reachBlocks[0]?.startTime ?? "09:00", "Reach Out");
@@ -13828,6 +13846,15 @@ export function ScheduleTab({
       ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && !e.isCompleted),
       ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
       ...getBibleStudiesForDate(bibleStudies, selectedDate).filter((study) => study.startTime && !study.isCompleted),
+      // v426: the day's timed, not-done itinerary entries block the
+      // same hour here as on the timeline (no endTime — the time-block
+      // math defaults to +60), so the summary total can't disagree
+      // with the day list.
+      ...timeOffList.flatMap((to) =>
+        getItineraryForDate(to, selectedDate)
+          .filter((entry) => entry.time && !entry.done)
+          .map((entry) => ({ id: entry.id, startTime: entry.time as string })),
+      ),
     ];
     // v294: the summary's available time reads over the same settled
     // window as the whites — 05:00–24:00.

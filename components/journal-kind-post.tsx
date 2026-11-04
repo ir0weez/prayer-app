@@ -154,7 +154,7 @@ export function JournalKindPost({ entry, jm, bare, ...callbacks }: KindPostProps
               <Pressable
                 key={person.id}
                 onPress={() => callbacks.onOpenPerson(person.id)}
-                style={[styles.prayerFace, { borderColor: jm.prayerTint, marginTop: index === 0 ? 0 : -12, marginLeft: index === 0 ? 0 : 15, zIndex: 3 - index }]}
+                style={[styles.prayerFace, { borderColor: jm.prayerTint, marginTop: index === 0 ? 0 : 6, zIndex: 3 - index }]}
               >
                 <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={40} fallbackColor={person.avatarColor} />
               </Pressable>
@@ -513,6 +513,10 @@ const styles = StyleSheet.create({
 
   // Prayer
   prayer: { borderRadius: 28, paddingHorizontal: 15, paddingTop: 14, paddingBottom: 12, flexDirection: "row", gap: 13 },
+  // v426 (his report, Nov 4): each face is one complete, separate
+  // circle — the old stack overlapped faces (marginTop -12, shifted
+  // 15 right), so two same-coloured faces sliced into one blob with a
+  // pointed tail. Faces now sit in a plain column with a small gap.
   prayerFaces: { flexDirection: "column" },
   prayerFace: { borderRadius: 999, borderWidth: 3, overflow: "hidden" },
   prayerWho: { fontSize: 15.5, fontWeight: "800", lineHeight: 19, marginTop: 1 },

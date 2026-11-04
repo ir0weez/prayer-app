@@ -6,6 +6,10 @@
  *   people's days start at 5").
  * - Only UNCOMPLETED timed items block time — checking an item off frees
  *   its time and the whites grow back.
+ * - v426: a Time Off itinerary entry blocks exactly 60 minutes from its
+ *   start (his pick, Nov 4 — entries carry no end of their own, so the
+ *   non-todo default span applies; a done entry frees the hour like any
+ *   completed item).
  * - A todo blocks at most 30 minutes.
  * - Free gaps split into blocks of 30 / 60 / 90: 30–59 minutes is one
  *   30 block; 60+ becomes 60-blocks with a trailing 30–59 remainder
@@ -30,7 +34,7 @@ export type WhiteSourceItem = {
   endTime?: string;
   isCompleted?: boolean;
   /** Todos cap at 30 minutes; everything else blocks its full span. */
-  kind?: "todo" | "event" | "ministry" | "study";
+  kind?: "todo" | "event" | "ministry" | "study" | "itinerary";
 };
 
 type Span = { start: number; end: number };

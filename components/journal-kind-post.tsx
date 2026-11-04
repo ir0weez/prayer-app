@@ -394,7 +394,7 @@ export function FastLogCard({
     status === "completed"
       ? { label: "ON TRACK", fill: jm.heldDot }
       : status === "skipped"
-        ? { label: "STRUGLED", fill: jm.closeCallDot }
+        ? { label: "STRUGGLED", fill: jm.closeCallDot }
         : status === "missed"
           ? { label: "BROKE", fill: jm.fellDot }
           : null;

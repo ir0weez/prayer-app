@@ -2390,25 +2390,24 @@ const EntryView = memo(function EntryView(props: {
           {Array.from({ length: entry.end - entry.start + 1 }, (_, i) => entry.start + i).map((v) => {
             const verseBg = verseTintFor(palette, props.verseTints[v]);
             const verseStr = props.verseText.get(v) ?? '';
-            // v352: each verse is its own block (the entryVerses gap
-            // separates the blocks). v367: a plain tap on the verse
-            // TEXT is inert; the selection actions are what
-            // open the note composer homed on that verse
-            // (openComposerForVerse).
-            // v356: the verse block also caches its top inside
-            // entryVerses (onLayout), for the verse-open scroll.
-            // v405: the verse's words render through
-            // NativeSelectableText — ONE native text element; a
-            // long-press raises the platform selection with the
-            // Highlight / Note / Bubble / Copy menu; stored phrase
-            // ranges paint as tint spans; the LEGACY whole-verse
-            // tint still paints behind the whole verse exactly as
-            // before (wholeTint), so no tint he already has is
-            // lost. The verse number leads as a nested superscript
-            // span — its length is subtracted from reported
-            // offsets, so stored ranges address the verse's words
-            // exactly as they always have. A verse with no text
-            // loaded yet keeps the plain rendering.
+            // v425 (Jonathan's order, Nov 3): "I want them to be
+            // together based on my notes. I put the verses together
+            // and wrote notes for those sets of verses." The entry's
+            // verses now render as ONE flowing passage in the
+            // entryVerses flow (row + wrap, no block gap) — the way
+            // his Commentary Studio desk renders a set — instead of
+            // v352's one-block-per-verse separation. The join is at
+            // the BLOCK level only: each verse still renders through
+            // its own NativeSelectableText (v405), so stored phrase
+            // ranges, whole-verse tints and the platform selection
+            // keep addressing exactly the verse's own words.
+            // v367: a plain tap on the verse TEXT is inert; the
+            // selection actions are what open the note composer
+            // homed on that verse (openComposerForVerse).
+            // v356: the verse item also caches its top inside
+            // entryVerses (onLayout), for the verse-open scroll —
+            // in the flow that is the top of the line the verse
+            // starts on, which is what the scroll landing needs.
             const verseBlock = (
               <View
                 key={v}
@@ -2426,13 +2425,12 @@ const EntryView = memo(function EntryView(props: {
                     onApplyTint={(range, tint) => actions.phraseTint(entry, v, range, tint)}
                     onBubble={() => openComposerForVerse(v, { bubble: true })}
                     onNote={() => openComposerForVerse(v)}
-                    style={{ flex: 1 }}
                   />
                 ) : (
                   <Text
                     style={[
                       styles.entryVerse,
-                      { flex: 1, color: palette.ink },
+                      { color: palette.ink },
                       verseBg ? { backgroundColor: verseBg } : null,
                     ]}
                   >
@@ -2442,17 +2440,6 @@ const EntryView = memo(function EntryView(props: {
                     {verseStr}
                   </Text>
                 )}
-                {/* v357: EVERY verse row carries its own expand
-                    chevron — one per verse. v367: it is now the
-                    ONLY tap door for opening or folding this
-                    entry's notes body. */}
-                <Pressable onPress={() => actions.toggleOpen(entry)} hitSlop={6} style={{ marginTop: 3 }}>
-                  <MaterialIcons
-                    name={props.open ? 'expand-less' : 'expand-more'}
-                    size={19}
-                    color={palette.inkFaint}
-                  />
-                </Pressable>
               </View>
             );
             // v356: the verse seat. When this verse holds the
@@ -2463,9 +2450,19 @@ const EntryView = memo(function EntryView(props: {
             // responder for its dead space so taps inside the box
             // stay local to the composer (its buttons and input
             // claim their own, like the verse blocks above them).
+            // v425: in the flowed head the seat wrapper takes a
+            // full-width flex basis, so the passage splits exactly
+            // here — the cluster stands on its own line immediately
+            // after this verse's element, before the next verse
+            // flows on beneath it. The Oct 30 substance is
+            // unchanged: the box seats only under the tapped verse.
             const seat =
               composerVerse === v ? (
-                <View key={`verse-composer-${v}`} onStartShouldSetResponder={() => true}>
+                <View
+                  key={`verse-composer-${v}`}
+                  style={styles.verseSeatFlow}
+                  onStartShouldSetResponder={() => true}
+                >
                   <VerseUnfurl closing={composerClosing} onExited={handleUnfurlExited}>
                     {renderMarkCluster()}
                   </VerseUnfurl>
@@ -2473,6 +2470,22 @@ const EntryView = memo(function EntryView(props: {
               ) : null;
             return [verseBlock, seat];
           })}
+        </View>
+        {/* v425: the entry's ONE fold chevron, at the head's tail.
+            v357 put a chevron on every verse row (it toggled this
+            same body from every row); Jonathan's Nov 3 order joins
+            the verses into one passage, and the duplication ends
+            with the rows — this single chevron is now the only tap
+            door for opening or folding the entry's notes body
+            (v367's substance: no other head tap toggles). */}
+        <View style={styles.chevSlot}>
+          <Pressable onPress={() => actions.toggleOpen(entry)} hitSlop={6} style={{ marginTop: 3 }}>
+            <MaterialIcons
+              name={props.open ? 'expand-less' : 'expand-more'}
+              size={19}
+              color={palette.inkFaint}
+            />
+          </Pressable>
         </View>
       </View>
 
@@ -2737,13 +2750,27 @@ const styles = StyleSheet.create({
   // v352: the rail styles (vnumBig / vnumRange / vnumTap) are gone
   // with the rail itself — the inline supTap span is the only
   // numeral the head carries now, in both modes.
-  // v352: the verses stand as separate blocks — the gap between
-  // verse blocks is 12 (the head's own rhythm is 10/13; 12 reads
-  // as a clear paragraph step against the 26.5 leading without
-  // scattering the chapter).
-  entryVerses: { flex: 1, gap: 12 },
-  // v357: a verse row is text + its own chevron, side by side.
-  verseBlock: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  // v352: the verses stood as separate blocks (a 12 gap between
+  // verse blocks). v425 supersedes the separation, by Jonathan's
+  // Nov 3 order: the head's verses FLOW as one passage — a row
+  // container with wrap, the verse items packing left to right
+  // and wrapping at verse seams; the 5 column gap is the single
+  // space the desk puts between verses. No row gap: the text's
+  // own 26.5 leading carries the lines.
+  entryVerses: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: 5 },
+  // v425: a verse's seat in the flow — it shrinks as its line
+  // demands (a long verse wraps inside its own element), and it
+  // never grows: the passage's measure belongs to the words as
+  // written, verse after verse.
+  verseBlock: { flexShrink: 1 },
+  // v425: the verse seat in the flow — a full-width basis splits
+  // the passage at the tapped verse: the composer stands on its
+  // own line immediately after that verse's element.
+  verseSeatFlow: { flexBasis: '100%', flexShrink: 0 },
+  // v425: the head's tail slot for the entry's one fold chevron —
+  // the heartSlot's mirror (25 wide against its 20: the chevron
+  // glyph is 19 with its hitSlop riding free).
+  chevSlot: { width: 25, alignItems: 'center' },
   // v313: the verse type at the drawing's weight — 17.5 at
   // fontWeight 450 (RN steps to 500); the size and leading were
   // already the drawing's.

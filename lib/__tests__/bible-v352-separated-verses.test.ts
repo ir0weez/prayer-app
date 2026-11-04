@@ -75,9 +75,20 @@ describe('v352 — the rail is gone', () => {
   });
 });
 
-describe('v352 — separated verses', () => {
+describe('v352 — separated verses (v425: joined again, by his sets)', () => {
   it('the verse blocks are separated by a 12 gap (was 3, continuous prose)', () => {
-    expect(page).toContain('entryVerses: { flex: 1, gap: 12 }');
+    // v425 amendment (Nov 3, Jonathan's order — "I want them to
+    // be together based on my notes. I put the verses together
+    // and wrote notes for those sets of verses"): the separation
+    // v352 shipped is superseded. The verses of an entry flow as
+    // ONE passage again — but the unit is now his note SET (the
+    // entry span), not the old pre-v352 chapter-wide prose: a
+    // row+wrap flow, a 5 column gap for the desk's single space
+    // between verses, no block gap anywhere.
+    expect(page).toContain(
+      "entryVerses: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: 5 }",
+    );
+    expect(page).not.toContain('entryVerses: { flex: 1, gap: 12 }');
     expect(page).not.toContain('entryVerses: { flex: 1, gap: 3 }');
   });
 

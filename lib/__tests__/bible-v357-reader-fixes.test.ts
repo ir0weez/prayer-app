@@ -108,18 +108,34 @@ describe('v357 — the seat can never be left standing on the wrong verse', () =
   });
 });
 
-describe('v357 — every verse row carries its own chevron', () => {
+describe('v357 — every verse row carries its own chevron (v425: one chevron per entry)', () => {
   it('the chevron renders inside the verse map, one per verse block', () => {
+    // v425 amendment (Nov 3, Jonathan's order joining each
+    // entry's verses into one passage): the per-verse chevron
+    // duplication v357 shipped ends with the verse rows it rode
+    // on. The verse map carries NO chevron now — the verses flow
+    // bare, numbers inline, exactly as the desk prints a set.
     const map = sliceBetween(entryView, 'const verseBlock = (', 'return [verseBlock, seat];');
-    expect(map).toContain('onPress={() => actions.toggleOpen(entry)}');
-    expect(map).toContain("name={props.open ? 'expand-less' : 'expand-more'}");
+    expect(map).not.toContain('onPress={() => actions.toggleOpen(entry)}');
+    expect(map).not.toContain('expand-more');
     expect(map).toContain('styles.verseBlock');
   });
 
-  it('the single head-level chevron is gone — exactly one chevron source in the entry', () => {
+  it('the single head-level chevron is the entry\u2019s one chevron (v425)', () => {
+    // v425 amendment: the head-level chevron v357 removed is
+    // back as the entry's ONLY fold door — it sits in the
+    // head's tail slot (styles.chevSlot) after the flowed
+    // verses, toggling the same body the per-verse chevrons
+    // toggled. Exactly one chevron source stands in the entry,
+    // as before — only its seat moved.
     expect(entryView.split('expand-less').length - 1).toBe(1);
-    const headTail = sliceBetween(entryView, 'return [verseBlock, seat];', '</Pressable>');
-    expect(headTail).not.toContain('MaterialIcons');
+    // Sliced from the map's return to the NEXT closing Pressable
+    // tag after it — that Pressable is the head-tail chevron.
+    const retAt = entryView.indexOf('return [verseBlock, seat];');
+    const headTail = entryView.slice(retAt, entryView.indexOf('</Pressable>', retAt));
+    expect(headTail).toContain('styles.chevSlot');
+    expect(headTail).toContain('MaterialIcons');
+    expect(headTail).toContain("name={props.open ? 'expand-less' : 'expand-more'}");
   });
 });
 

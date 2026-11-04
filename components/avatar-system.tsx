@@ -45,6 +45,33 @@ const AURA_PARTICLES: Record<AvatarAuraStyle, Array<{ left: number; top: number;
   prismatic: [{ left: 0, top: 8, size: 4, color: "accent" }, { left: 52, top: 12, size: 4, color: "secondary" }, { left: 8, top: 48, size: 3, color: "accent" }, { left: 48, top: 48, size: 3, color: "primary" }],
 };
 
+/** v425: relative luminance (WCAG) of a #RGB / #RRGGBB colour,
+ * 0 (black) to 1 (white); null when the value is not a hex colour
+ * this helper can read. */
+export function hexRelativeLuminance(hex: string): number | null {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const raw = m[1].length === 3 ? m[1].split("").map((c) => c + c).join("") : m[1];
+  const channel = (i: number) => {
+    const s = parseInt(raw.slice(i, i + 2), 16) / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+}
+
+/** v425: the initials ink for a fallback ground — white on dark
+ * or saturated colours (exactly as before), the dark ink on pale
+ * ones. A stored cream avatar colour washed the white initials
+ * out to invisibility (William Fren's Journal "Carried this
+ * week" row). An unreadable colour value keeps the historic
+ * white. Only the initials fallback reads this; the photo,
+ * character, shiny and hero branches never reach it. */
+export function initialsColorForBackground(background: string, darkInk: string): string {
+  const lum = hexRelativeLuminance(background);
+  if (lum === null) return "#FFFFFF";
+  return lum > 0.5 ? darkInk : "#FFFFFF";
+}
+
 export const AvatarImage = React.memo(function AvatarImage({ id, name, gender, avatarAsset, photoUri, size = 48, style, imageStyle, fallbackColor, thumbnail = false, auraId, auraMode = "static", profileLevel = 1 }: AvatarImageProps) {
   const colors = useColors();
   const definition = getAvatarDefinitionForPerson(id, gender, avatarAsset);
@@ -75,12 +102,16 @@ export const AvatarImage = React.memo(function AvatarImage({ id, name, gender, a
   const particles = aura ? AURA_PARTICLES[aura.style] : [];
   const particleColor = (kind: "primary" | "secondary" | "accent") => kind === "primary" ? aura?.glowColor : kind === "secondary" ? aura?.secondaryColor : aura?.accentColors[0];
   const initials = name?.trim().split(/\s+/).map((part) => part[0]).join("").toUpperCase().slice(0, 2) || "?";
+  // v425: the initials pick their ink from the ground they stand
+  // on (see initialsColorForBackground) — pale grounds get the
+  // dark ink, everything else keeps the white.
+  const initialsColor = initialsColorForBackground(fallbackColor || colors.surface, colors.foreground);
   return (
     <View style={[{ width: size, height: size, alignItems: "center", justifyContent: "center" }, style]}>
       {aura && auraMode !== "none" && <Animated.View style={[auraRingStyle(aura, size, animated), animated && { transform: [{ scale: pulse }] }]} pointerEvents="none" />}
       {aura && animated && particles.map((particle, index) => <View key={`${aura.id}-particle-${index}`} pointerEvents="none" style={[styles.auraParticle, { left: particle.left, top: particle.top, width: particle.size, height: particle.size, borderRadius: particle.size / 2, backgroundColor: particleColor(particle.color) }]} />)}
       <View style={{ width: size, height: size, borderRadius: size / 2, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: fallbackColor || colors.surface }}>
-        {photoUri ? <Image source={{ uri: photoUri }} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : definition ? <Image source={thumbnail ? definition.thumbnail : definition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : bookDefinition ? <Image source={thumbnail ? bookDefinition.thumbnail : bookDefinition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : shinySource ? <Image source={thumbnail ? shinyThumbnail : shinySource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : heroSource ? <Image source={heroSource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : shinyHeroSource ? <Image source={shinyHeroSource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>{initials}</Text>}
+        {photoUri ? <Image source={{ uri: photoUri }} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : definition ? <Image source={thumbnail ? definition.thumbnail : definition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : bookDefinition ? <Image source={thumbnail ? bookDefinition.thumbnail : bookDefinition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : shinySource ? <Image source={thumbnail ? shinyThumbnail : shinySource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : heroSource ? <Image source={heroSource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : shinyHeroSource ? <Image source={shinyHeroSource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : <Text style={{ color: initialsColor, fontWeight: "800" }}>{initials}</Text>}
       </View>
     </View>
   );

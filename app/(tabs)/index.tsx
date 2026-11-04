@@ -195,8 +195,10 @@ import { transitionChapterStatus } from "@/lib/bible-v205/rewards";
 import {
   applyScheduleTombstones,
   applyStudioChapters,
+  attemptStudioSection,
   emptyStudioApplyCounts,
   formatStudioImportSummary,
+  formatStudioSectionFailures,
   loadStudioImports,
   mergeStudioSchedule,
   mergeStudioScheduleMinistries,
@@ -204,6 +206,7 @@ import {
   saveStudioImports,
   type StudioApplyCounts,
   type StudioFilePlan,
+  type StudioSectionFailure,
 } from "@/lib/bible-v205/studio-import";
 import { storeEmailDigestForwardOnly } from "@/lib/email-digest";
 import { storeGasSnapshotForwardOnly } from "@/lib/gas-prices";
@@ -4439,99 +4442,133 @@ export default function HomeScreen() {
 
       const counts: StudioApplyCounts = emptyStudioApplyCounts();
 
-      if (plan.notes) {
-        const current = await loadStudioImports();
-        const { next, chaptersUpdated } = applyStudioChapters(current, plan.notes);
-        await saveStudioImports(next);
-        counts.chaptersUpdated = chaptersUpdated;
-      }
+      // v430 — every section applies under its own guard. A section
+      // whose write throws (a full storage database is the known
+      // case) is recorded by name with its reason, and the sections
+      // behind it still land; the final alert below reports what
+      // landed and names what didn't, instead of the old catch-all
+      // blaming the file. Validation still happens for the WHOLE
+      // file before any of this — a malformed section still rejects
+      // the file untouched, and the people pre-flight above still
+      // refuses before a single write.
+      const sectionFailures: StudioSectionFailure[] = [];
+      let sectionsAttempted = 0;
+      const attemptSection = async (section: string, apply: () => Promise<void>): Promise<void> => {
+        sectionsAttempted += 1;
+        await attemptStudioSection(sectionFailures, section, apply);
+      };
 
       // Chapter states from BOTH sources walk the same transition
       // door: a notes payload's chapterState, then a states section's
-      // notesState. transitionChapterStatus saves as it goes.
-      let state = await loadStudyState();
+      // notesState. transitionChapterStatus saves as it goes. The
+      // study state is shared by both walks and loads lazily — the
+      // first walk that needs it brings it in.
+      let studyState: Awaited<ReturnType<typeof loadStudyState>> | null = null;
       const walkState = async (book: string, chapter: number, to: StudyStatus) => {
-        const result = await transitionChapterStatus(state, book, chapter, to);
-        state = result.state;
+        if (studyState === null) studyState = await loadStudyState();
+        const result = await transitionChapterStatus(studyState, book, chapter, to);
+        studyState = result.state;
         counts.statesSet += 1;
       };
+
       if (plan.notes) {
-        for (const chapter of plan.notes) {
-          if (chapter.chapterState === undefined) continue;
-          await walkState(chapter.book, chapter.chapter, chapter.chapterState);
-        }
+        const notes = plan.notes;
+        await attemptSection("Notes", async () => {
+          const current = await loadStudioImports();
+          const { next, chaptersUpdated } = applyStudioChapters(current, notes);
+          await saveStudioImports(next);
+          counts.chaptersUpdated = chaptersUpdated;
+          for (const chapter of notes) {
+            if (chapter.chapterState === undefined) continue;
+            await walkState(chapter.book, chapter.chapter, chapter.chapterState);
+          }
+        });
       }
+
       if (plan.states) {
-        for (const entry of plan.states.chapters) {
-          if (entry.notesState === null) continue;
-          await walkState(entry.book, entry.chapter, entry.notesState);
-        }
-        // Read marks merge forward-only: a stale export never
-        // un-reads a chapter or re-dates one backwards (v228).
-        const reads = applyStudioStatesReads(state, plan.states.chapters);
-        counts.readMarks = reads.applied;
-        counts.readMarksAlreadyThere = reads.alreadyThere;
-        if (reads.applied > 0) {
-          state = reads.state;
-          await saveStudyState(state);
-        }
+        const states = plan.states;
+        await attemptSection("States", async () => {
+          for (const entry of states.chapters) {
+            if (entry.notesState === null) continue;
+            await walkState(entry.book, entry.chapter, entry.notesState);
+          }
+          // Read marks merge forward-only: a stale export never
+          // un-reads a chapter or re-dates one backwards (v228).
+          if (studyState === null) studyState = await loadStudyState();
+          const reads = applyStudioStatesReads(studyState, states.chapters);
+          counts.readMarks = reads.applied;
+          counts.readMarksAlreadyThere = reads.alreadyThere;
+          if (reads.applied > 0) {
+            studyState = reads.state;
+            await saveStudyState(studyState);
+          }
+        });
       }
 
       if (plan.schedule) {
-        const readStoredArray = async (key: string): Promise<unknown[]> => {
-          try {
-            const stored = await AsyncStorage.getItem(key);
-            const value = stored ? JSON.parse(stored) : [];
-            return Array.isArray(value) ? value : [];
-          } catch {
-            return [];
-          }
-        };
-        const existingEvents = (await readStoredArray(SCHEDULE_EVENTS_KEY))
-          .filter((item): item is ScheduleEvent => !!item && typeof item === "object" && typeof (item as ScheduleEvent).title === "string" && typeof (item as ScheduleEvent).date === "string");
-        const existingTodos = (await readStoredArray(SCHEDULE_TODOS_KEY))
-          .filter((item): item is ScheduleTodo => !!item && typeof item === "object" && typeof (item as ScheduleTodo).title === "string" && typeof (item as ScheduleTodo).date === "string");
-        const merged = mergeStudioSchedule(existingEvents, existingTodos, plan.schedule);
-        // v365: the pack's schedule tombstones (Option B) land after
-        // the merge — exact-key deletions of items the desk itself
-        // once held, the only deletion the schedule bridge performs.
-        // An absent list removes nothing; the count feeds the honest
-        // summary's "Removed: N".
-        const afterTombstones = applyScheduleTombstones(
-          merged.events,
-          merged.todos,
-          plan.schedule.deletedSchedule,
-        );
-        await AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(afterTombstones.events));
-        await AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(afterTombstones.todos));
-        // v345: the split counts feed the honest summary (events and
-        // todos apart, dedupe matches named), and the minutes the
-        // validator repaired ride along so the repair is reported.
-        counts.scheduleEventsAdded = merged.eventsAdded;
-        counts.scheduleTodosAdded = merged.todosAdded;
-        counts.scheduleEventsAlreadyThere = merged.eventsAlreadyThere;
-        counts.scheduleTodosAlreadyThere = merged.todosAlreadyThere;
-        counts.scheduleRemoved = afterTombstones.removed;
-        counts.minutesRepaired = plan.schedule.minutesRepaired ?? 0;
+        await attemptSection("Schedule", async () => {
+          if (!plan.schedule) return;
+          const readStoredArray = async (key: string): Promise<unknown[]> => {
+            try {
+              const stored = await AsyncStorage.getItem(key);
+              const value = stored ? JSON.parse(stored) : [];
+              return Array.isArray(value) ? value : [];
+            } catch {
+              return [];
+            }
+          };
+          const existingEvents = (await readStoredArray(SCHEDULE_EVENTS_KEY))
+            .filter((item): item is ScheduleEvent => !!item && typeof item === "object" && typeof (item as ScheduleEvent).title === "string" && typeof (item as ScheduleEvent).date === "string");
+          const existingTodos = (await readStoredArray(SCHEDULE_TODOS_KEY))
+            .filter((item): item is ScheduleTodo => !!item && typeof item === "object" && typeof (item as ScheduleTodo).title === "string" && typeof (item as ScheduleTodo).date === "string");
+          const merged = mergeStudioSchedule(existingEvents, existingTodos, plan.schedule);
+          // v365: the pack's schedule tombstones (Option B) land after
+          // the merge — exact-key deletions of items the desk itself
+          // once held, the only deletion the schedule bridge performs.
+          // An absent list removes nothing; the count feeds the honest
+          // summary's "Removed: N".
+          const afterTombstones = applyScheduleTombstones(
+            merged.events,
+            merged.todos,
+            plan.schedule.deletedSchedule,
+          );
+          await AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(afterTombstones.events));
+          await AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(afterTombstones.todos));
+          // v345: the split counts feed the honest summary (events and
+          // todos apart, dedupe matches named), and the minutes the
+          // validator repaired ride along so the repair is reported.
+          counts.scheduleEventsAdded = merged.eventsAdded;
+          counts.scheduleTodosAdded = merged.todosAdded;
+          counts.scheduleEventsAlreadyThere = merged.eventsAlreadyThere;
+          counts.scheduleTodosAlreadyThere = merged.todosAlreadyThere;
+          counts.scheduleRemoved = afterTombstones.removed;
+          counts.minutesRepaired = plan.schedule.minutesRepaired ?? 0;
+        });
       }
 
       if (peopleResult) {
-        await AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(peopleResult.people));
-        await AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(peopleResult.journal));
-        setPeople(resetDailyPrayerCompletionsIfNeeded(peopleResult.people, today));
-        setJournal(peopleResult.journal);
-        counts.peopleUpdated = peopleResult.summary.peopleUpdated;
-        counts.needs = peopleResult.summary.needs;
-        counts.journalEntries = peopleResult.summary.journalEntries;
+        await attemptSection("People", async () => {
+          if (!peopleResult) return;
+          await AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(peopleResult.people));
+          await AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(peopleResult.journal));
+          setPeople(resetDailyPrayerCompletionsIfNeeded(peopleResult.people, today));
+          setJournal(peopleResult.journal);
+          counts.peopleUpdated = peopleResult.summary.peopleUpdated;
+          counts.needs = peopleResult.summary.needs;
+          counts.journalEntries = peopleResult.summary.journalEntries;
+        });
       }
 
       if (plan.ministries) {
-        const storedMinistries = await loadStoredMinistries();
-        const result = applyStudioMinistriesPack(storedMinistries, plan.ministries);
-        await AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(result.ministries));
-        counts.ministriesAdded = result.summary.added;
-        counts.ministriesUpdated = result.summary.updated;
-        counts.ministriesDeleted = result.summary.deleted;
+        const ministries = plan.ministries;
+        await attemptSection("Ministries", async () => {
+          const storedMinistries = await loadStoredMinistries();
+          const result = applyStudioMinistriesPack(storedMinistries, ministries);
+          await AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(result.ministries));
+          counts.ministriesAdded = result.summary.added;
+          counts.ministriesUpdated = result.summary.updated;
+          counts.ministriesDeleted = result.summary.deleted;
+        });
       }
 
       // v417 — the mark-changes door: the one authorized exception
@@ -4541,9 +4578,12 @@ export default function HomeScreen() {
       // the highlights the file names), after stashing a one-deep
       // snapshot of the pre-apply map — see studio-marks.ts.
       if (plan.markChanges) {
-        const result = await applyStudioMarkChanges(plan.markChanges);
-        counts.markChangesUpserted = result.upserted;
-        counts.markChangesRemoved = result.removed;
+        const markChanges = plan.markChanges;
+        await attemptSection("Mark changes", async () => {
+          const result = await applyStudioMarkChanges(markChanges);
+          counts.markChangesUpserted = result.upserted;
+          counts.markChangesRemoved = result.removed;
+        });
       }
 
       // v360 — the email digest's safe door: the section writes
@@ -4558,8 +4598,11 @@ export default function HomeScreen() {
       // could rewind the Email page. The count follows what
       // happened.
       if (plan.emailDigest) {
-        const appliedDigest = await storeEmailDigestForwardOnly(plan.emailDigest);
-        if (appliedDigest) counts.emailDigest = 1;
+        await attemptSection("Email digest", async () => {
+          if (!plan.emailDigest) return;
+          const appliedDigest = await storeEmailDigestForwardOnly(plan.emailDigest);
+          if (appliedDigest) counts.emailDigest = 1;
+        });
       }
 
       // v379 — the gas snapshot's safe door, the digest's sibling:
@@ -4569,8 +4612,11 @@ export default function HomeScreen() {
       // rewinds the prices waiting on the Gas page
       // (lib/gas-prices.ts). The count follows what happened.
       if (plan.gasPrices) {
-        const appliedGas = await storeGasSnapshotForwardOnly(plan.gasPrices);
-        if (appliedGas) counts.gasPrices = 1;
+        await attemptSection("Gas prices", async () => {
+          if (!plan.gasPrices) return;
+          const appliedGas = await storeGasSnapshotForwardOnly(plan.gasPrices);
+          if (appliedGas) counts.gasPrices = 1;
+        });
       }
 
       // v407 — the news briefing's safe door, the third morning
@@ -4581,8 +4627,11 @@ export default function HomeScreen() {
       // a snapshot is stored, the page renders it instead of
       // fetching live. The count follows what happened.
       if (plan.newsBriefing) {
-        const appliedNews = await storeNewsBriefingForwardOnly(plan.newsBriefing);
-        if (appliedNews) counts.newsBriefing = 1;
+        await attemptSection("News briefing", async () => {
+          if (!plan.newsBriefing) return;
+          const appliedNews = await storeNewsBriefingForwardOnly(plan.newsBriefing);
+          if (appliedNews) counts.newsBriefing = 1;
+        });
       }
 
       // v237/v239: a schedule pack's Ministry rows may carry the
@@ -4597,19 +4646,42 @@ export default function HomeScreen() {
       if (plan.schedule) {
         const linkRows = plan.schedule.events.filter((ev) => ev.type === 'Ministry');
         if (linkRows.length > 0) {
-          const storedMinistries = await loadStoredMinistries();
-          const linked = mergeStudioScheduleMinistries(storedMinistries, {
-            weekOf: plan.schedule.weekOf,
-            events: linkRows,
+          // v430: the link step stays HERE, after the ministries
+          // pack (the ordering the paragraphs above exist for), but
+          // it is part of the schedule section — its guard carries
+          // the Schedule name, and it is only attempted when the
+          // file actually carries Ministry rows to tie.
+          const schedule = plan.schedule;
+          await attemptSection("Schedule", async () => {
+            const storedMinistries = await loadStoredMinistries();
+            const linked = mergeStudioScheduleMinistries(storedMinistries, {
+              weekOf: schedule.weekOf,
+              events: linkRows,
+            });
+            if (linked.linked > 0) {
+              await AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(linked.ministries));
+              counts.ministriesLinked = linked.linked;
+            }
           });
-          if (linked.linked > 0) {
-            await AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(linked.ministries));
-            counts.ministriesLinked = linked.linked;
-          }
         }
       }
 
-      notifyAlert("Studio pack imported", formatStudioImportSummary(plan, counts));
+      // v430 — the report follows what actually happened. Nothing
+      // failed: the standing summary, unchanged. Some sections
+      // failed: the same summary of what landed, then a plain line
+      // per failed section with its reason. Everything attempted
+      // failed: no summary (nothing landed to summarize) — the
+      // failure lines carry the reasons, starting with the first.
+      if (sectionFailures.length === 0) {
+        notifyAlert("Studio pack imported", formatStudioImportSummary(plan, counts));
+      } else if (sectionFailures.length < sectionsAttempted) {
+        notifyAlert(
+          "Studio pack partly imported",
+          `${formatStudioImportSummary(plan, counts)}\n\n${formatStudioSectionFailures(sectionFailures)}`,
+        );
+      } else {
+        notifyAlert("Import failed", formatStudioSectionFailures(sectionFailures));
+      }
     } catch (error) {
       console.error("PrayerCircle studio import failed", error);
       notifyAlert("Import failed", "PrayerCircle could not read that studio pack file.");

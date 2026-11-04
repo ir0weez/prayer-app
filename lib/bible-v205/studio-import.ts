@@ -1614,6 +1614,44 @@ export function formatStudioImportSummary(plan: StudioFilePlan, counts: StudioAp
   return parts.join(' · ');
 }
 
+// ── v430: section-isolated applies ──────────────────────────────────
+// The import door applies a whole file section by section. Before
+// v430 the applies ran bare inside one try: the first section whose
+// write threw (the Nov 4 notes write, on a full storage database)
+// sank every section behind it and the alert could only say the file
+// "could not be read". The door now wraps each section in
+// attemptStudioSection: a throwing section is recorded here by name
+// with its reason, the sections after it still apply, and the final
+// alert names what didn't save instead of guessing.
+
+/** One section that did not land, and why — the error's own words. */
+export interface StudioSectionFailure {
+  section: string;
+  reason: string;
+}
+
+/** Run one section's apply; on a throw, record it and move on. */
+export async function attemptStudioSection(
+  failures: StudioSectionFailure[],
+  section: string,
+  apply: () => Promise<void>,
+): Promise<void> {
+  try {
+    await apply();
+  } catch (error) {
+    failures.push({
+      section,
+      reason: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/** The alert lines naming each failed section with its reason:
+ * "Schedule didn't save: database or disk is full". */
+export function formatStudioSectionFailures(failures: StudioSectionFailure[]): string {
+  return failures.map((f) => `${f.section} didn't save: ${f.reason}`).join('\n');
+}
+
 // ── Notes conversion: studio payload → the chapter data the page renders ────
 
 /**
@@ -1950,7 +1988,10 @@ function parseStudioImportIndex(raw: string): string[] | null {
 }
 
 /** Persist the whole map in the chunked layout: every chapter under
- * its own key first, then the index naming them. */
+ * its own key first, then the index naming them. This is the legacy
+ * MIGRATION writer (loadStudioImports, moving a readable pre-v423
+ * value once, best-effort) — saves proper go through the diff-write
+ * in saveStudioImports (v430). */
 async function writeChunkedStudioImports(map: StudioImportsMap): Promise<void> {
   const keys = Object.keys(map);
   await chunkedSet(
@@ -2000,6 +2041,42 @@ export async function loadStudioImports(): Promise<StudioImportsMap> {
   }
 }
 
+/** v430 — the most pairs one write batch may carry. A save touches
+ * storage in slices of this size, never in one whole-map transaction. */
+const STUDIO_IMPORT_WRITE_BATCH = 25;
+
+/**
+ * v430 — canonical JSON: a stringify with object keys sorted, so two
+ * values with the same CONTENT compare equal even when their key
+ * order differs. The comparison below must be by content, not bytes:
+ * the loader rebuilds every stored chapter field by field
+ * (sanitizeStoredChapter), so a chapter that round-trips through
+ * load → apply → save does not necessarily carry the converter's key
+ * order — a byte comparison would call every untouched chapter
+ * "changed" on every import, forever.
+ */
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? '';
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((k) => `${JSON.stringify(k)}:${canonicalJson(record[k])}`)
+    .join(',')}}`;
+}
+
+/** Does the stored string hold exactly this chapter's content? A
+ * missing value, an unparseable one, or different content all count
+ * as changed — the save writes the chapter again. */
+function storedChapterMatches(stored: string | null, chapter: V205ChapterData): boolean {
+  if (stored === null) return false;
+  try {
+    return canonicalJson(JSON.parse(stored)) === canonicalJson(chapter);
+  } catch {
+    return false;
+  }
+}
+
 export async function saveStudioImports(map: StudioImportsMap): Promise<void> {
   // Chapters dropped from the map lose their values: read the current
   // index first (absent or unreadable → nothing to diff) so a stale
@@ -2012,7 +2089,37 @@ export async function saveStudioImports(map: StudioImportsMap): Promise<void> {
   } catch {
     previous = [];
   }
-  await writeChunkedStudioImports(map);
+  // v430 — DIFF-WRITE. The pre-v430 save rewrote EVERY chapter of the
+  // merged map in one multiSet. On Jonathan's phone the imports store
+  // already holds ~4.4MB across 243 chapter values, hard against the
+  // AsyncStorage ceiling — that single giant transaction is the write
+  // that throws on a full database (Nov 4: a pack converting
+  // byte-identical to the stored chapters still "failed" at the
+  // notes step, and every section behind it never ran). Now each
+  // chapter's stored value is read back and compared by content;
+  // only added/changed chapters are written, in batches of at most
+  // STUDIO_IMPORT_WRITE_BATCH pairs. A no-change import writes no
+  // chapter values at all; a small change stays a small write.
+  const keys = Object.keys(map);
+  for (let at = 0; at < keys.length; at += STUDIO_IMPORT_WRITE_BATCH) {
+    const batchKeys = keys.slice(at, at + STUDIO_IMPORT_WRITE_BATCH);
+    let stored: (string | null)[];
+    try {
+      stored = await chunkedGet(batchKeys.map(studioImportChapterStorageKey));
+    } catch {
+      // A value that cannot even be read back counts as changed —
+      // the write below replaces it with one that can.
+      stored = batchKeys.map(() => null);
+    }
+    const changed: [string, string][] = [];
+    batchKeys.forEach((key, i) => {
+      if (!storedChapterMatches(stored[i], map[key])) {
+        changed.push([studioImportChapterStorageKey(key), JSON.stringify(map[key])]);
+      }
+    });
+    if (changed.length > 0) await chunkedSet(changed);
+  }
+  await AsyncStorage.setItem(STUDIO_IMPORT_INDEX_KEY, JSON.stringify(keys));
   const stale = previous.filter((k) => !(k in map)).map(studioImportChapterStorageKey);
   if (stale.length > 0) await chunkedRemove(stale);
   // The legacy single-value store is superseded the moment a chunked

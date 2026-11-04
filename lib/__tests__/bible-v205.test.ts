@@ -1240,7 +1240,9 @@ describe("v210 — the plain personal Note: no box, just inset text", () => {
     // keeps its full text width. (The inset's VALUE was 48dp for the
     // 34px faces; v244 grew the faces to 51 — his "really small"
     // verdict, 2026-10-25 — and the inset grew with them to 66.)
-    expect(entryView).toContain('const hasBubbles = !!props.bubblePiece && props.bubblePiece.lines.length > 0;');
+    // v427 amendment: a folded lead piece's lines are other-authored
+    // by the same construction, so they count toward the same inset.
+    expect(entryView).toContain('(!!props.bubblePiece && props.bubblePiece.lines.length > 0)');
     expect(entryView).toContain('hasBubbles ? styles.entryHeadBubbled : null');
     expect(entryView).toContain('entryHeadBubbled: { paddingRight: 66 }');
   });
@@ -1728,7 +1730,10 @@ describe('v212 — tint that actually shows: the whole entry, and per-verse', ()
     expect(page).toContain('styles.supTap');
     expect(page).toContain('<NativeSelectableText');
     // A verse wearing a tint paints the highlighter color behind its text.
-    expect(page).toContain('verseTintFor(palette, props.verseTints[v])');
+    // v427 amendment: the tint source is the merged map — this
+    // entry's own verseTints plus, for a folded passage, the lead
+    // spans' (for an unfolded entry the merge IS props.verseTints).
+    expect(page).toContain('verseTintFor(palette, mergedVerseTints[v])');
   });
 
   it('render: the tint dots live on the selection bar now, not the markbar (v361)', () => {

@@ -153,7 +153,9 @@ describe('v405 native selection — the platform owns what the registry did', ()
 
   it('a plain tap on his own line is the edit door again — no standing-selection guard', () => {
     const wrap = chapter.slice(chapter.indexOf('v405: a plain tap is the edit door'));
-    expect(wrap).toContain('editSelfLine(i);');
+    // v427 amendment: the handler takes its piece (host or folded
+    // lead) — the tap itself is unchanged.
+    expect(wrap).toContain('editSelfLine(piece, i);');
     expect(wrap).not.toContain('hasActiveSelection');
   });
 

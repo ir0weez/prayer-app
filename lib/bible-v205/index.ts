@@ -94,6 +94,22 @@ export function booksWithProgress(state: StudyState, canon: string[]): string[] 
 export interface DisplayEntry extends V205Entry {
   /** True when the entry carries none of his commentary blocks. */
   verseOnly: boolean;
+  /**
+   * v427: true only on a SYNTHETIC entry buildDisplaySections itself
+   * created to fill a gap inside a section, when the real entry the
+   * gap fills toward carries blocks. His notes are usually anchored
+   * at the LAST verse of the run they cover (Genesis 4: the note
+   * sits on v7, v6 carries no entry), and his desk's anchoring rule
+   * makes the entry-less verses leading into a noted entry part of
+   * that entry's group. The flag marks exactly those lead-in fills
+   * so the chapter page can fold them into the following entry's
+   * passage (foldLeadInEntries below) — display-only: the entry's
+   * span and key are never rewritten, and no other consumer (Stories,
+   * the PDF, read-only) reads the flag. Absent (never false) on real
+   * entries, trailing fills, and fills toward verse-only entries, so
+   * every pre-v427 entry shape is byte-identical.
+   */
+  gapFill?: boolean;
 }
 
 /** v207: verses per Stories slide for a chapter with nothing to pace
@@ -137,7 +153,18 @@ export function buildDisplaySections(
       const filled: DisplayEntry[] = [];
       let cursor = s.start;
       for (const e of [...entries].sort((a, b) => a.start - b.start)) {
-        if (e.start > cursor) filled.push({ start: cursor, end: e.start - 1, blocks: [], verseOnly: true });
+        // v427: a fill toward a blocks-carrying entry is a lead-in —
+        // the verses belong to that entry's group by his anchoring
+        // rule, so the fill is flagged for the page's fold. A fill
+        // toward a verse-only entry stays an ordinary fill.
+        if (e.start > cursor)
+          filled.push({
+            start: cursor,
+            end: e.start - 1,
+            blocks: [],
+            verseOnly: true,
+            ...(e.blocks.length > 0 ? { gapFill: true } : {}),
+          });
         filled.push(e);
         cursor = Math.max(cursor, e.end + 1);
       }
@@ -174,6 +201,52 @@ export function buildDisplaySections(
     }
   }
   return sections.sort((a, b) => a.start - b.start);
+}
+
+/** One render row of a section after the v427 lead-in fold. */
+export interface FoldedDisplayEntry {
+  entry: DisplayEntry;
+  /**
+   * The synthetic lead-in entries folded into this entry's passage,
+   * in verse order (empty for almost every entry). They render as
+   * the passage's first verses — never as entries of their own.
+   */
+  leads: DisplayEntry[];
+}
+
+/**
+ * v427: fold each section's synthetic lead-in fills (gapFill) into
+ * the blocks-carrying entry they lead into, so the chapter page
+ * renders ONE passage per noted entry — the desk's grouping — while
+ * every real entry keeps its own span and key. Pure list shaping:
+ * nothing is re-spanned, merged, or rewritten; a flagged fill whose
+ * run is interrupted by an ordinary entry (or reaches the section's
+ * end) stands as its own row, exactly as before. Read-only sections
+ * never carry the flag, so they pass through untouched; Stories and
+ * the PDF never call this, so their pacing is unchanged.
+ */
+export function foldLeadInEntries(entries: DisplayEntry[]): FoldedDisplayEntry[] {
+  const out: FoldedDisplayEntry[] = [];
+  let pending: DisplayEntry[] = [];
+  const flush = () => {
+    for (const p of pending) out.push({ entry: p, leads: [] });
+    pending = [];
+  };
+  for (const e of entries) {
+    if (e.gapFill) {
+      pending.push(e);
+      continue;
+    }
+    if (e.blocks.length > 0 && pending.length > 0) {
+      out.push({ entry: e, leads: pending });
+      pending = [];
+      continue;
+    }
+    flush();
+    out.push({ entry: e, leads: [] });
+  }
+  flush();
+  return out;
 }
 
 /**

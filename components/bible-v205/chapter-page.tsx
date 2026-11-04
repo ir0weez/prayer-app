@@ -58,11 +58,13 @@ import {
   buildReadOnlySections,
   chapterCountFor,
   flattenEntries,
+  foldLeadInEntries,
   getBookData,
   isBareChapter,
   mergeVerseOnlyEntries,
   parseHashVerseRef,
   splitSectionsByHashNotes,
+  type DisplayEntry,
   type DisplaySection,
 } from '@/lib/bible-v205/index';
 import { entryKey, type NoteCategory, type StudyStatus, type V205Entry } from '@/lib/bible-v205/types';
@@ -605,6 +607,18 @@ export function ChapterPageView(props: ChapterPageProps) {
     () => (readOnly && isBareChapter(chapterData) ? mergeVerseOnlyEntries(sections) : sections),
     [readOnly, chapterData, sections],
   );
+  // v427: the lead-in fold, computed once per sections change. Each
+  // section's render rows pair a real entry with the synthetic
+  // lead-in fills folded into its passage (foldLeadInEntries — the
+  // entries themselves are never re-spanned, so every key below is
+  // computed from the same spans as before). Read-only sections
+  // carry no gapFill flags, so their rows all come back lead-less.
+  const foldedSections = useMemo(
+    () => sections.map((section) => ({ section, folded: foldLeadInEntries(section.entries) })),
+    [sections],
+  );
+  // v427: the per-host lead bundles are computed below, beside
+  // entryDerived (they resolve FROM it) — see leadBundles there.
   // v210: Stories consumes the same splits as the page. With-notes
   // sections arrive already split; read-only Stories re-chunks first
   // (mergeVerseOnlyEntries above), so its split runs AFTER that step.
@@ -770,6 +784,49 @@ export function ChapterPageView(props: ChapterPageProps) {
     return map;
   }, [flat, displayMarks, notesSplit, book, chapter]);
 
+  // v427: per-host lead bundles — everything an EntryView needs to
+  // render its folded lead verses with their OWN identity: the lead
+  // entries (per-verse write routing), their resolved verse tints
+  // and phrase highlights (resolved per lead span above, exactly as
+  // the lead entries' own views resolved them), their bubble pieces
+  // (his lines on the lead spans render in the passage, never
+  // dropped), and their kept state. Keyed by the HOST entry's key.
+  const leadBundles = useMemo(() => {
+    const map = new Map<string, LeadBundle>();
+    for (const { folded } of foldedSections) {
+      for (const f of folded) {
+        if (!f.leads.length) continue;
+        const verseTints: Record<number, TintColor> = {};
+        const phraseHighlights: VersePhraseHighlight[] = [];
+        const pieces: BubblePiece[] = [];
+        let kept = false;
+        for (const le of f.leads) {
+          const lk = entryKey(book, chapter, le.start, le.end);
+          const ld = entryDerived.get(lk);
+          if (ld) {
+            for (let v = le.start; v <= le.end; v++) {
+              if (ld.verseTints[v]) verseTints[v] = ld.verseTints[v];
+            }
+            phraseHighlights.push(
+              ...ld.phraseHighlights.filter((h) => h.verse >= le.start && h.verse <= le.end),
+            );
+          }
+          const lp = readOnly ? undefined : bubblePieces.get(lk);
+          if (lp) pieces.push(lp);
+          if (entryStatus.get(lk)?.kept) kept = true;
+        }
+        map.set(entryKey(book, chapter, f.entry.start, f.entry.end), {
+          entries: f.leads,
+          verseTints,
+          phraseHighlights,
+          pieces,
+          kept,
+        });
+      }
+    }
+    return map;
+  }, [foldedSections, entryDerived, bubblePieces, entryStatus, readOnly, book, chapter]);
+
   // v405: section tones are objects — memoize them per
   // (sections, palette) so an entry's tone prop is identity-stable
   // across unrelated re-renders (EntryView is memoized now).
@@ -821,8 +878,23 @@ export function ChapterPageView(props: ChapterPageProps) {
   };
   const landOnVerse = (verse: number) => {
     setSheet(null);
-    const target = flat.find((f) => verse >= f.entry.start && verse <= f.entry.end);
-    if (!target) return;
+    const found = flat.find((f) => verse >= f.entry.start && verse <= f.entry.end);
+    if (!found) return;
+    // v427: a verse inside a folded lead span lands on the HOST
+    // entry — the passage that renders it (opening, flashing, and
+    // scrolling all address the rendered view, never the fill).
+    let target = found;
+    if (found.entry.gapFill) {
+      for (const { folded } of foldedSections) {
+        const host = folded.find((f) =>
+          f.leads.some((le) => le.start === found.entry.start && le.end === found.entry.end),
+        );
+        if (host) {
+          target = { ...found, entry: host.entry };
+          break;
+        }
+      }
+    }
     const key = entryKey(book, chapter, target.entry.start, target.entry.end);
     if (!isOpen(target.entry)) {
       setOpenMap((m) => ({ ...(m ?? {}), [key]: true }));
@@ -1534,7 +1606,7 @@ export function ChapterPageView(props: ChapterPageProps) {
         ) : null}
 
         {/* ── Sections + entries ── */}
-        {sections.map((section, sIdx) => {
+        {foldedSections.map(({ section, folded }, sIdx) => {
           // v250: every section is a tonal CARD in its own derived
           // hue — the family cycles by section index, and the tone
           // rides into the band and every entry inside it.
@@ -1551,7 +1623,7 @@ export function ChapterPageView(props: ChapterPageProps) {
             onLayout={(e) => yByKey.current.set(`secwrap-${section.start}`, e.nativeEvent.layout.y)}
           >
             <SectionBand start={section.start} end={section.end} title={section.title} palette={palette} tone={tone} />
-            {section.entries.map((entry) => {
+            {folded.map(({ entry }) => {
               // v405: the whole chapter mounts in one commit (no
               // v403 slicing gate) and every entry renders through
               // the memoized EntryView with pre-resolved data +
@@ -1599,6 +1671,8 @@ export function ChapterPageView(props: ChapterPageProps) {
                 seatRequest={seatRequest}
                 actions={entryActions}
                 topAuthorIds={topAuthorIds}
+                lead={leadBundles.get(key)}
+                leadBubbleOpenKey={leadBundles.has(key) ? openBubblesKey : undefined}
               />
               );
             })}
@@ -1857,6 +1931,27 @@ function VerseUnfurl(props: {
 }
 
 /**
+ * v427: one EntryView's folded lead-ins, pre-resolved by the page
+ * (leadBundles in ChapterPageView). The lead entries keep their own
+ * spans throughout: their verses paint from the lead spans'
+ * resolved tints/highlights, their selection writes route to the
+ * lead entries themselves, and their lines ride as their own
+ * pieces — only the RENDER folds them into the host's passage.
+ */
+export interface LeadBundle {
+  /** The folded synthetic lead-in entries, in verse order. */
+  entries: DisplayEntry[];
+  /** Verse tints resolved per lead span (lead verses only). */
+  verseTints: Record<number, TintColor>;
+  /** Phrase highlights resolved per lead span (lead verses only). */
+  phraseHighlights: VersePhraseHighlight[];
+  /** Bubble pieces keyed on the lead spans, in verse order. */
+  pieces: BubblePiece[];
+  /** True when any lead span's record is kept. */
+  kept: boolean;
+}
+
+/**
  * v405: everything an EntryView can ask the page to do, behind
  * ONE stable object (see entryActions in ChapterPageView). The
  * entry itself rides as the first argument so no per-entry
@@ -1922,6 +2017,13 @@ const EntryView = memo(function EntryView(props: {
   /** v214/v217: the line piece riding on this entry, partitioned by
    * authorship (undefined = the entry carries no user lines). */
   bubblePiece?: BubblePiece;
+  /** v427: the lead-in bundle folded into this entry's passage —
+   * the synthetic fills before this entry, with their own resolved
+   * data (undefined for almost every entry; see LeadBundle). */
+  lead?: LeadBundle;
+  /** v427: the page's open-bubble key, so a LEAD piece's thread
+   * knows when it is the open one (the host's rides bubbleOpen). */
+  leadBubbleOpenKey?: string | null;
   people: Person[];
   profile: ProfileIdentity;
   bubbleOpen: boolean;
@@ -1954,6 +2056,19 @@ const EntryView = memo(function EntryView(props: {
   const pieceKey = props.bubblePiece
     ? entryKey(props.book, props.chapter, props.bubblePiece.start, props.bubblePiece.end)
     : null;
+  // v427: the folded lead-ins riding on this entry. A lead verse
+  // keeps its own entry for everything keyed — selection writes
+  // route to the lead entry itself, exactly as they did when the
+  // fill rendered as its own view; only the passage is shared.
+  const lead = props.lead;
+  const leadForVerse = (v: number): DisplayEntry | null => {
+    if (!lead) return null;
+    return lead.entries.find((le) => v >= le.start && v <= le.end) ?? null;
+  };
+  // v427: while a line edit is open, the key of the piece it came
+  // from (host or lead) — the delete path closes THAT piece's
+  // bubble, not blindly the host's.
+  const [editingPieceKey, setEditingPieceKey] = useState<string | null>(null);
   const [composer, setComposer] = useState<null | 'highlight' | 'thought' | 'note'>(null);
   const [draft, setDraft] = useState('');
   // v214: the composer's "Who said this?" pick (null = Me) and, when
@@ -2080,7 +2195,14 @@ const EntryView = memo(function EntryView(props: {
   useEffect(() => {
     const req = props.seatRequest;
     if (!req || req.nonce === lastSeatNonceRef.current) return;
-    if (req.entryKey !== entryKey(props.book, props.chapter, entry.start, entry.end)) return;
+    // v427: a request naming a folded lead span's key is honoured
+    // here too — this view is the one rendering that verse.
+    const hostKey = entryKey(props.book, props.chapter, entry.start, entry.end);
+    const isLeadKey =
+      lead?.entries.some(
+        (le) => entryKey(props.book, props.chapter, le.start, le.end) === req.entryKey,
+      ) ?? false;
+    if (req.entryKey !== hostKey && !isLeadKey) return;
     lastSeatNonceRef.current = req.nonce;
     openComposerForVerse(req.verse, { bubble: req.bubble });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2091,6 +2213,7 @@ const EntryView = memo(function EntryView(props: {
     setComposerVerse(null);
     setComposer(null);
     setEditingTarget(null);
+    setEditingPieceKey(null);
     setComposerAuthor(null);
     setComposerBubble(false);
     // v357: the seat is fully cleared — and an entry this verse
@@ -2141,9 +2264,10 @@ const EntryView = memo(function EntryView(props: {
     });
     return () => sub.remove();
   }, [composerOpen]);
-  const editBubbleLine = (lineIndex: number) => {
-    const piece = props.bubblePiece;
-    if (!piece) return;
+  // v427: the line handlers take their piece — a folded lead
+  // piece's lines edit, re-face, and delete through the same paths
+  // as the host's, addressed by the piece's own key throughout.
+  const editBubbleLine = (piece: BubblePiece, lineIndex: number) => {
     const line = piece.lines[lineIndex];
     const target = piece.targets[lineIndex];
     if (!line || !target) return;
@@ -2162,7 +2286,8 @@ const EntryView = memo(function EntryView(props: {
     setDraft(line.text);
     setComposerAuthor(line.author);
     setEditingTarget(target);
-    actions.bubbleToggle(pieceKey, false);
+    setEditingPieceKey(entryKey(props.book, props.chapter, piece.start, piece.end));
+    actions.bubbleToggle(entryKey(props.book, props.chapter, piece.start, piece.end), false);
     if (!props.open) actions.toggleOpen(entry);
   };
   // v217: tapping one of his in-flow lines opens the SAME composer,
@@ -2170,9 +2295,7 @@ const EntryView = memo(function EntryView(props: {
   // re-face (to someone else it becomes a bubble; a bubble line
   // re-faced to Me lands here), or the composer's Delete all write
   // through the line's storage target, '#' provenance included.
-  const editSelfLine = (lineIndex: number) => {
-    const piece = props.bubblePiece;
-    if (!piece) return;
+  const editSelfLine = (piece: BubblePiece, lineIndex: number) => {
     const line = piece.selfLines[lineIndex];
     const target = piece.selfTargets[lineIndex];
     if (!line || !target) return;
@@ -2190,24 +2313,24 @@ const EntryView = memo(function EntryView(props: {
     setDraft(line.text);
     setComposerAuthor(line.author);
     setEditingTarget(target);
-    actions.bubbleToggle(pieceKey, false);
+    setEditingPieceKey(entryKey(props.book, props.chapter, piece.start, piece.end));
+    actions.bubbleToggle(entryKey(props.book, props.chapter, piece.start, piece.end), false);
     if (!props.open) actions.toggleOpen(entry);
   };
   const deleteEditingLine = () => {
     if (!editingTarget) return;
     actions.removeLine(editingTarget);
-    actions.bubbleToggle(pieceKey, false);
+    actions.bubbleToggle(editingPieceKey ?? pieceKey, false);
     closeComposer();
   };
-  const removeBubbleLine = (lineIndex: number) => {
-    const piece = props.bubblePiece;
-    if (!piece) return;
+  const removeBubbleLine = (piece: BubblePiece, lineIndex: number) => {
     // v244: a studio quote is never removed from the reading surface.
     if (piece.lines[lineIndex]?.source === 'quote') return;
     const target = piece.targets[lineIndex];
     if (!target) return;
     actions.removeLine(target);
-    if (piece.lines.length <= 1) actions.bubbleToggle(pieceKey, false);
+    if (piece.lines.length <= 1)
+      actions.bubbleToggle(entryKey(props.book, props.chapter, piece.start, piece.end), false);
   };
   // v212: the entry tint washes the whole entry container — head and
   // body, open or closed. (The jump-flash still wins while it runs.)
@@ -2295,7 +2418,15 @@ const EntryView = memo(function EntryView(props: {
                 const text = draft.trim();
                 if (text) {
                   if (editingTarget) actions.updateLine(editingTarget, { text, author: composerAuthor });
-                  else actions.addLine(entry, composer, text, composerAuthor);
+                  else {
+                    // v427: a fresh line composed at a verse living
+                    // in a folded lead is saved onto the LEAD entry
+                    // — the record it would have landed on when the
+                    // fill rendered as its own view.
+                    const saveEntry =
+                      composerVerse != null ? (leadForVerse(composerVerse) ?? entry) : entry;
+                    actions.addLine(saveEntry, composer, text, composerAuthor);
+                  }
                 } else if (editingTarget) {
                   // An author-only change (re-face) still saves
                   // with the text untouched.
@@ -2363,13 +2494,85 @@ const EntryView = memo(function EntryView(props: {
   const selfLines = props.bubblePiece?.selfLines ?? [];
   // `lines` on the piece is other people's lines only (v217), so an
   // entry carrying solely his own words gets NO bubble inset.
-  const hasBubbles = !!props.bubblePiece && props.bubblePiece.lines.length > 0;
+  // v427: a folded lead piece's other-people lines count too — the
+  // passage carries their bubbles exactly as its own view did.
+  const hasBubbles =
+    (!!props.bubblePiece && props.bubblePiece.lines.length > 0) ||
+    (lead?.pieces.some((p) => p.lines.length > 0) ?? false);
+
+  // v427: the folded passage runs the lead verses first, then the
+  // entry's own. Painting resolves per owning span: lead verses
+  // paint from the lead bundle (resolved on the lead spans' own
+  // records), host verses from this entry's props, as before.
+  const firstVerse = lead?.entries.length ? lead.entries[0].start : entry.start;
+  const mergedVerseTints = lead ? { ...props.verseTints, ...lead.verseTints } : props.verseTints;
+  const mergedHighlights = lead
+    ? [...lead.phraseHighlights, ...props.phraseHighlights]
+    : props.phraseHighlights;
+
+  // v427: his own in-flow lines render per piece — lead pieces
+  // first, in verse order, then the host's — through the one
+  // renderer both have always used, addressed by each piece's own
+  // targets, spans, and parent verses.
+  const renderPieceSelfLines = (piece: BubblePiece) =>
+    piece.selfLines.map((line, i) => {
+      // Self lines are marks lines by construction (v217) —
+      // a quote kind can never land in this group.
+      if (line.kind === 'quote') return null;
+      const target = piece.selfTargets[i];
+      // v361: the line's parent verse — its own '#ref' head
+      // when it carries one, else the piece's first verse.
+      const anchorVerse = parseHashVerseRef(line.text)?.start ?? piece.start;
+      const author = resolveBubbleAuthor(line.author, props.people, props.profile);
+      return (
+        <Pressable
+          key={`${piece.start}-${line.kind}-${line.fieldIndex}-${i}`}
+          onPress={() => {
+            // v405: a plain tap is the edit door it has always
+            // been — native selection needs no outside-tap
+            // clearing (the platform owns and dismisses it).
+            editSelfLine(piece, i);
+          }}
+          hitSlop={4}
+        >
+          <SelfLineBlock
+            kind={line.kind}
+            text={line.text}
+            palette={palette}
+            authorName={author.name}
+            face={<AuthorFace author={author} size={34} palette={palette} />}
+            spanText={spanLabelFor(piece.start, piece.end)}
+            selection={
+              target
+                ? {
+                    highlights: lineHighlightsFor(props.marksMap, props.book, props.chapter, target),
+                    onApplyTint: (range, tint) => actions.linePhraseTint(target, range, tint),
+                    onBubble: () => openComposerForVerse(anchorVerse, { bubble: true }),
+                    onNote: () => openComposerForVerse(anchorVerse),
+                  }
+                : undefined
+            }
+          />
+        </Pressable>
+      );
+    });
+  const leadSelfLines = lead ? lead.pieces.flatMap((p) => renderPieceSelfLines(p)) : [];
+  const hostSelfLines = props.bubblePiece ? renderPieceSelfLines(props.bubblePiece) : [];
 
   return (
     <Animated.View
       ref={entryRootRef as never}
       style={[styles.entry, { backgroundColor: flashBg }, props.bubbleOpen ? styles.entryOpen : null]}
-      onLayout={(e) => actions.registerY(entry, props.sectionStart, e.nativeEvent.layout.y)}
+      onLayout={(e) => {
+        actions.registerY(entry, props.sectionStart, e.nativeEvent.layout.y);
+        // v427: the folded lead spans register at the same top —
+        // the passage's head IS their verses, so a jump or scroll
+        // addressed to a lead verse lands on the passage that
+        // renders it.
+        if (lead)
+          for (const le of lead.entries)
+            actions.registerY(le, props.sectionStart, e.nativeEvent.layout.y);
+      }}
     >
       <View
         style={[styles.entryHead, hasBubbles ? styles.entryHeadBubbled : null]}
@@ -2379,7 +2582,11 @@ const EntryView = memo(function EntryView(props: {
         }}
       >
         <View style={styles.heartSlot}>
-          {props.kept ? <Text style={{ color: palette.rose, fontSize: 14 }}>♥</Text> : null}
+          {/* v427: a kept lead span shows the passage's heart too —
+              its record is part of this passage now. */}
+          {props.kept || lead?.kept ? (
+            <Text style={{ color: palette.rose, fontSize: 14 }}>♥</Text>
+          ) : null}
         </View>
         <View
           style={styles.entryVerses}
@@ -2387,8 +2594,8 @@ const EntryView = memo(function EntryView(props: {
             versesBoxYRef.current = e.nativeEvent.layout.y;
           }}
         >
-          {Array.from({ length: entry.end - entry.start + 1 }, (_, i) => entry.start + i).map((v) => {
-            const verseBg = verseTintFor(palette, props.verseTints[v]);
+          {Array.from({ length: entry.end - firstVerse + 1 }, (_, i) => firstVerse + i).map((v) => {
+            const verseBg = verseTintFor(palette, mergedVerseTints[v]);
             const verseStr = props.verseText.get(v) ?? '';
             // v425 (Jonathan's order, Nov 3): "I want them to be
             // together based on my notes. I put the verses together
@@ -2401,6 +2608,12 @@ const EntryView = memo(function EntryView(props: {
             // its own NativeSelectableText (v405), so stored phrase
             // ranges, whole-verse tints and the platform selection
             // keep addressing exactly the verse's own words.
+            // v427: the passage may open with folded lead-in
+            // verses (the entry-less verses before this entry's
+            // note anchor — his desk groups them into this entry).
+            // They flow through this same map: same selectable
+            // text, same per-verse identity, selection writes
+            // routed to the lead entry that owns the verse.
             // v367: a plain tap on the verse TEXT is inert; the
             // selection actions are what open the note composer
             // homed on that verse (openComposerForVerse).
@@ -2420,9 +2633,14 @@ const EntryView = memo(function EntryView(props: {
                     palette={palette}
                     textStyle={[styles.entryVerse, { color: palette.ink }]}
                     wholeTint={verseBg}
-                    highlights={props.phraseHighlights.filter((h) => h.verse === v)}
+                    highlights={mergedHighlights.filter((h) => h.verse === v)}
                     lead={{ text: `${v} `, style: [styles.supTap, { color: props.tone.deep }] }}
-                    onApplyTint={(range, tint) => actions.phraseTint(entry, v, range, tint)}
+                    onApplyTint={(range, tint) =>
+                      // v427: a lead verse's selection writes to
+                      // the LEAD entry — its own record, exactly
+                      // as when the fill stood alone.
+                      actions.phraseTint(leadForVerse(v) ?? entry, v, range, tint)
+                    }
                     onBubble={() => openComposerForVerse(v, { bubble: true })}
                     onNote={() => openComposerForVerse(v)}
                   />
@@ -2492,62 +2710,13 @@ const EntryView = memo(function EntryView(props: {
       {/* v217: HIS OWN lines, in the flow directly under the verses
           — rendered whether the entry body is open or closed, in
           With-notes and Read-only alike (his words are part of the
-          text). A tap opens his composer on that line. */}
-      {selfLines.length ? (
+          text). A tap opens his composer on that line.
+          v427: lead pieces' lines lead the host's, in verse order —
+          a note he wrote on a lead verse stays in the passage. */}
+      {leadSelfLines.length + hostSelfLines.length ? (
         <View style={styles.selfLines}>
-          {selfLines.map((line, i) => {
-            // Self lines are marks lines by construction (v217) —
-            // a quote kind can never land in this group.
-            if (line.kind === 'quote') return null;
-            const piece = props.bubblePiece;
-            const target = piece?.selfTargets[i];
-            // v361: the line's parent verse — its own '#ref' head
-            // when it carries one, else the piece's first verse.
-            // The selection bar inside the note acts HERE (his
-            // ruling: bubbles dock on verses, never in notes; the
-            // Note action opens this verse's composer).
-            const anchorVerse = parseHashVerseRef(line.text)?.start ?? piece?.start ?? entry.start;
-            return (
-              <Pressable
-                key={`${line.kind}-${line.fieldIndex}-${i}`}
-                onPress={() => {
-                  // v405: a plain tap is the edit door it has
-                  // always been — native selection needs no
-                  // outside-tap clearing (the platform owns and
-                  // dismisses its own selection), so the v378
-                  // standing-selection guard is gone with the
-                  // registry it consulted.
-                  editSelfLine(i);
-                }}
-                hitSlop={4}
-              >
-                <SelfLineBlock
-                  kind={line.kind}
-                  text={line.text}
-                  palette={palette}
-                  authorName={resolveBubbleAuthor(line.author, props.people, props.profile).name}
-                  face={
-                    <AuthorFace
-                      author={resolveBubbleAuthor(line.author, props.people, props.profile)}
-                      size={34}
-                      palette={palette}
-                    />
-                  }
-                  spanText={spanLabelFor(entry.start, entry.end)}
-                  selection={
-                    target
-                      ? {
-                          highlights: lineHighlightsFor(props.marksMap, props.book, props.chapter, target),
-                          onApplyTint: (range, tint) => actions.linePhraseTint(target, range, tint),
-                          onBubble: () => openComposerForVerse(anchorVerse, { bubble: true }),
-                          onNote: () => openComposerForVerse(anchorVerse),
-                        }
-                      : undefined
-                  }
-                />
-              </Pressable>
-            );
-          })}
+          {leadSelfLines}
+          {hostSelfLines}
         </View>
       ) : null}
 
@@ -2561,7 +2730,7 @@ const EntryView = memo(function EntryView(props: {
               </View>
             ) : null;
           })()}
-          {blocks.length === 0 && !hasBubbles && selfLines.length === 0 ? (
+          {blocks.length === 0 && !hasBubbles && selfLines.length === 0 && leadSelfLines.length === 0 ? (
             // v357 (his ruling, 2026-10-30): the old italic
             // no-notes placeholder line is deleted. An expanded
             // verse with no notes gets ONE
@@ -2637,10 +2806,41 @@ const EntryView = memo(function EntryView(props: {
           bottomReserve={props.bottomReserve}
           entryScreenTop={props.entryScreenTop}
           onToggle={(next) => actions.bubbleToggle(pieceKey, next)}
-          onEditLine={editBubbleLine}
-          onRemoveLine={removeBubbleLine}
+          onEditLine={(i) => {
+            if (props.bubblePiece) editBubbleLine(props.bubblePiece, i);
+          }}
+          onRemoveLine={(i) => {
+            if (props.bubblePiece) removeBubbleLine(props.bubblePiece, i);
+          }}
         />
       ) : null}
+      {/* v427: each folded lead piece with other-people lines gets
+          its own bubble layer in the same right margin, keyed and
+          toggled by its own span — nothing written on a lead verse
+          is hidden by the fold. */}
+      {lead?.pieces.map((p) => {
+        if (p.lines.length === 0) return null;
+        const pk = entryKey(props.book, props.chapter, p.start, p.end);
+        return (
+          <LivingBubbles
+            key={`lead-bubbles-${p.start}-${p.end}`}
+            piece={p}
+            people={props.people}
+            profile={props.profile}
+            palette={palette}
+            open={props.leadBubbleOpenKey === pk}
+            bloom={props.bloom}
+            versesBottom={headH}
+            viewportHeight={props.viewportHeight}
+            topChrome={props.topChrome}
+            bottomReserve={props.bottomReserve}
+            entryScreenTop={props.entryScreenTop}
+            onToggle={(next) => actions.bubbleToggle(pk, next)}
+            onEditLine={(i) => editBubbleLine(p, i)}
+            onRemoveLine={(i) => removeBubbleLine(p, i)}
+          />
+        );
+      })}
     </Animated.View>
   );
 });

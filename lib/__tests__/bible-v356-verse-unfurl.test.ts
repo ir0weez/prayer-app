@@ -88,7 +88,9 @@ describe('v356 — the per-verse seat', () => {
     expect(cluster).toContain("openComposer('note')");
     expect(cluster).not.toContain('NOTE_CATEGORIES.map');
     expect(cluster).toContain('styles.composer');
-    expect(cluster).toContain('actions.addLine(entry, composer, text, composerAuthor)');
+    // v427 amendment: a fresh save routes to the entry owning the
+    // composer verse (a folded lead verse saves onto the lead entry).
+    expect(cluster).toContain('actions.addLine(saveEntry, composer, text, composerAuthor)');
     expect(cluster).toContain('actions.updateLine(editingTarget, { text, author: composerAuthor })');
   });
 
@@ -177,7 +179,9 @@ describe('v356 — the verse-open scroll', () => {
 describe('v356 — preservation', () => {
   it('the bubbles layer is untouched (the no-notes line was retired by v357)', () => {
     expect(entryView).toContain('<LivingBubbles');
-    expect(entryView).toContain('onEditLine={editBubbleLine}');
+    // v427 amendment: the edit door now hands the handler its piece
+    // (host or folded lead) — same handler, same layer.
+    expect(entryView).toContain('editBubbleLine(props.bubblePiece, i)');
   });
 
   it('the head keeps its toggle; the verse number is a plain token now (v361)', () => {

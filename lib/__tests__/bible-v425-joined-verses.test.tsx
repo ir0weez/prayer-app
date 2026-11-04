@@ -324,8 +324,13 @@ describe('v425 — the verse seat splits the flowed passage at the tapped verse'
 
 describe('v425 — per-verse phrase highlights still resolve inside the joined passage', () => {
   it('the head hands each verse ONLY its own stored ranges', () => {
-    expect(entryView).toContain('highlights={props.phraseHighlights.filter((h) => h.verse === v)}');
-    expect(entryView).toContain('onApplyTint={(range, tint) => actions.phraseTint(entry, v, range, tint)}');
+    // v427 amendment: the filter is unchanged in substance — the
+    // source list is the merged one (this entry's ranges plus a
+    // folded passage's lead-span ranges), still handed per verse;
+    // and a selection write routes to the entry owning the verse
+    // (the host entry itself for every verse of an unfolded entry).
+    expect(entryView).toContain('highlights={mergedHighlights.filter((h) => h.verse === v)}');
+    expect(entryView).toContain('actions.phraseTint(leadForVerse(v) ?? entry, v, range, tint)');
   });
 
   it('a stored phrase tint on Isaiah 14:5 paints exactly its words', () => {

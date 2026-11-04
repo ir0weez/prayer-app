@@ -283,8 +283,11 @@ describe('v361 reader surface — the selection model wired in', () => {
     const src = chapterPage();
     expect(src).toContain('<NativeSelectableText');
     expect(src).toContain('wholeTint={verseBg}');
-    expect(src).toContain('verseTintFor(palette, props.verseTints[v])');
-    expect(src).toContain('highlights={props.phraseHighlights.filter((h) => h.verse === v)}');
+    // v427 amendment: painting resolves from the merged maps (the
+    // entry's own tints/highlights, plus a folded passage's
+    // lead-span ones) — still filtered to the verse's own ranges.
+    expect(src).toContain('verseTintFor(palette, mergedVerseTints[v])');
+    expect(src).toContain('highlights={mergedHighlights.filter((h) => h.verse === v)}');
   });
 
   it('the verse number is a nested lead span — its tint-selection tap is retired', () => {

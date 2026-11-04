@@ -371,7 +371,10 @@ describe('v251 WS3 — bubble stability audit guards (the refutation, pinned)', 
   });
 
   it('face rows keep stable keys in both SelfLineBlock callers', () => {
-    expect(page).toContain('key={`${line.kind}-${line.fieldIndex}-${i}`}');
+    // v427 amendment: the chapter-page caller keys by piece too —
+    // a folded passage renders several pieces' lines in one view,
+    // and the piece span keeps their keys apart (and stable).
+    expect(page).toContain('key={`${piece.start}-${line.kind}-${line.fieldIndex}-${i}`}');
     const stories = read('components/bible-v205/stories-view.tsx');
     expect(stories).toContain('key={`self-${line.kind}-${line.fieldIndex}-${i}`}');
   });

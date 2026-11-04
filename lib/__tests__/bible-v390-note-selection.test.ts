@@ -200,6 +200,8 @@ describe('v390 render pins — the dead surfaces are wired', () => {
 
   it('verse selection wiring is untouched — the verse menu still lands on phraseTint', () => {
     // v405: the landing is the page's actions object now.
-    expect(chapterPage()).toContain('onApplyTint={(range, tint) => actions.phraseTint(entry, v, range, tint)}');
+    // v427 amendment: it lands on the entry owning the verse (a
+    // folded lead verse lands on the lead entry) — same action.
+    expect(chapterPage()).toContain('actions.phraseTint(leadForVerse(v) ?? entry, v, range, tint)');
   });
 });

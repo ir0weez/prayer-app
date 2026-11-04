@@ -49,7 +49,10 @@ describe("v367 — selection and its actions are untouched (v405 form)", () => {
   });
 
   it("the selection menu still seats Bubble and Note on the verse", () => {
-    expect(chapter).toContain("onApplyTint={(range, tint) => actions.phraseTint(entry, v, range, tint)}");
+    // v427 amendment: the tint write routes to the entry owning
+    // the verse (a folded lead verse writes to the lead entry);
+    // for every verse of an unfolded entry that IS `entry`.
+    expect(chapter).toContain("actions.phraseTint(leadForVerse(v) ?? entry, v, range, tint)");
     expect(chapter).toContain("onBubble={() => openComposerForVerse(v, { bubble: true })}");
     expect(chapter).toContain("onNote={() => openComposerForVerse(v)}");
   });
@@ -59,7 +62,9 @@ describe("v367 — selection and its actions are untouched (v405 form)", () => {
     // no standing-selection guard (the platform dismisses its
     // own selection), so the v378 wrapper block is gone and
     // the tap calls editSelfLine exactly as v367 left it.
+    // v427 amendment: the handler now takes its piece (host or
+    // folded lead) — same direct tap, same edit door.
     expect(chapter).not.toContain("hasActiveSelection");
-    expect(chapter).toContain("editSelfLine(i);");
+    expect(chapter).toContain("editSelfLine(piece, i);");
   });
 });

@@ -111,7 +111,9 @@ describe('v352 — separated verses (v425: joined again, by his sets)', () => {
     expect(entryView).not.toContain('onPressText={() => openComposerForVerse(v)}');
     expect(entryView).toContain('styles.entryVerse');
     expect(entryView).toContain('props.verseText.get(v)');
-    expect(entryView).toContain('verseTintFor(palette, props.verseTints[v])');
+    // v427 amendment: tints paint from the merged map (the entry's
+    // own verseTints, plus a folded passage's lead-span tints).
+    expect(entryView).toContain('verseTintFor(palette, mergedVerseTints[v])');
   });
 });
 

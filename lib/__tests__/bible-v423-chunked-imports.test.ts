@@ -20,8 +20,18 @@
 // The storage double models the phone failure directly: setItem always
 // succeeds; a read (single or batched) of a value over rig.getLimit
 // throws, the way the oversized legacy read fails on device.
+//
+// ─── v433 amendment ─────────────────────────────────────────────────────
+// The store moved to files (bible-v433-imports-to-files.test.ts). The
+// pins below keep their claims — round-trip, the oversized legacy
+// value, the readable legacy map, deletion diffing — but the layout
+// they assert is now the FILE layout, read through a filesystem
+// double: an index file plus one file per chapter, and a database
+// that holds no chapters at all. The chunked database store survives
+// only as the loader's migration SOURCE (and the no-filesystem
+// fallback), which is why the legacy migration pin now ends in files.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const store = new Map<string, string>();
 const rig = { getLimit: Number.POSITIVE_INFINITY };
@@ -60,16 +70,55 @@ import {
   STUDIO_IMPORT_CHAPTER_KEY_PREFIX,
   STUDIO_IMPORT_INDEX_KEY,
   STUDIO_IMPORT_KEY,
+  STUDIO_IMPORTS_FILE_DIRECTORY,
   applyStudioChapters,
   loadStudioImports,
   resolveChapterData,
   saveStudioImports,
+  setStudioImportsFileSystemForTests,
+  studioImportChapterFileName,
   type StudioChapterPayload,
+  type StudioImportsFileSystem,
 } from '../bible-v205/studio-import';
+
+// ── v433: the filesystem double the layout pins now read ────────────────
+const fsFiles = new Map<string, string>();
+const fsDirs = new Set<string>();
+const FS_DOCS = 'file:///docs/';
+const FS_ROOT = `${FS_DOCS}${STUDIO_IMPORTS_FILE_DIRECTORY}/`;
+const fsIndexPath = `${FS_ROOT}index.json`;
+const fsChapterPath = (mapKey: string) => `${FS_ROOT}${studioImportChapterFileName(mapKey)}`;
+const fsDouble: StudioImportsFileSystem = {
+  documentDirectory: FS_DOCS,
+  getInfoAsync: async (path: string) => ({
+    exists: fsDirs.has(path) || fsFiles.has(path),
+  }),
+  makeDirectoryAsync: async (path: string) => {
+    fsDirs.add(path);
+  },
+  readAsStringAsync: async (path: string) => {
+    const value = fsFiles.get(path);
+    if (value === undefined) throw new Error(`ENOENT: no such file ${path}`);
+    return value;
+  },
+  writeAsStringAsync: async (path: string, contents: string) => {
+    fsFiles.set(path, contents);
+  },
+  deleteAsync: async (path: string) => {
+    fsFiles.delete(path);
+  },
+};
 
 beforeEach(() => {
   store.clear();
   rig.getLimit = Number.POSITIVE_INFINITY;
+  fsFiles.clear();
+  fsDirs.clear();
+  setStudioImportsFileSystemForTests(fsDouble);
+});
+
+afterEach(() => {
+  setStudioImportsFileSystemForTests(null);
 });
 
 /** The paragraph rollout's shape: one note whose blocks are MERGED
@@ -153,17 +202,18 @@ describe('v423 — the chunked store round-trips', () => {
   });
 
   it('the layout is an index plus one value per chapter — never the legacy key', async () => {
+    // v433 amendment: the layout is files now — an index file plus
+    // one file per chapter — and the database holds none of it.
     const { next } = applyStudioChapters({}, [MATTHEW_1, PSALMS_1]);
     await saveStudioImports(next);
     expect(store.has(STUDIO_IMPORT_KEY)).toBe(false);
-    const index = JSON.parse(store.get(STUDIO_IMPORT_INDEX_KEY)!) as string[];
-    expect([...index].sort()).toEqual(['Matthew|1', 'Psalms|1']);
-    expect(store.get(`${STUDIO_IMPORT_CHAPTER_KEY_PREFIX}Matthew|1`)).toBe(
-      JSON.stringify(next['Matthew|1']),
-    );
-    expect(store.get(`${STUDIO_IMPORT_CHAPTER_KEY_PREFIX}Psalms|1`)).toBe(
-      JSON.stringify(next['Psalms|1']),
-    );
+    expect(store.has(STUDIO_IMPORT_INDEX_KEY)).toBe(false);
+    expect(store.has(`${STUDIO_IMPORT_CHAPTER_KEY_PREFIX}Matthew|1`)).toBe(false);
+    const index = JSON.parse(fsFiles.get(fsIndexPath)!) as { keys: string[]; verified: boolean };
+    expect(index.verified).toBe(true);
+    expect([...index.keys].sort()).toEqual(['Matthew|1', 'Psalms|1']);
+    expect(fsFiles.get(fsChapterPath('Matthew|1'))).toBe(JSON.stringify(next['Matthew|1']));
+    expect(fsFiles.get(fsChapterPath('Psalms|1'))).toBe(JSON.stringify(next['Psalms|1']));
   });
 });
 
@@ -189,6 +239,9 @@ describe('v423 — the oversized legacy value (the phone failure, modeled)', () 
   const BIG_PACK = [bigPayload('Genesis', 1), bigPayload('Genesis', 2), bigPayload('Exodus', 1), bigPayload('Exodus', 2)];
 
   it('an unreadable legacy map loads as {} without throwing — then the chunked save lands', async () => {
+    // v433 amendment: the door's save now lands in FILES (one file
+    // per chapter, each under the read ceiling); the claim — the
+    // chapters come back whole — is unchanged.
     const { next } = applyStudioChapters({}, BIG_PACK);
     // The whole map is over the read ceiling; each chapter is under it.
     expect(JSON.stringify(next).length).toBeGreaterThan(LIMIT);
@@ -203,36 +256,50 @@ describe('v423 — the oversized legacy value (the phone failure, modeled)', () 
     const applied = applyStudioChapters(await loadStudioImports(), BIG_PACK);
     await saveStudioImports(applied.next);
     await expect(loadStudioImports()).resolves.toEqual(applied.next);
-    // Every value now in storage fits under the read ceiling.
+    // Every value now in storage fits under the read ceiling —
+    // database values and chapter files alike.
     for (const v of store.values()) expect(v.length).toBeLessThanOrEqual(LIMIT);
+    for (const v of fsFiles.values()) expect(v.length).toBeLessThanOrEqual(LIMIT);
   });
 });
 
 describe('v423 — a readable legacy map migrates on first load', () => {
   it('returns the entries, writes the chunked layout, removes the legacy key', async () => {
+    // v433 amendment: the migration target is the FILE store — the
+    // entries return, the file layout is written (verified), the
+    // legacy key is removed, and the database never holds the
+    // chapters, not even on the way through.
     const { next } = applyStudioChapters({}, [MATTHEW_1]);
     store.set(STUDIO_IMPORT_KEY, JSON.stringify(next));
     const loaded = await loadStudioImports();
     expect(loaded).toEqual(next);
     expect(store.has(STUDIO_IMPORT_KEY)).toBe(false);
-    expect(JSON.parse(store.get(STUDIO_IMPORT_INDEX_KEY)!)).toEqual(['Matthew|1']);
-    expect(store.get(`${STUDIO_IMPORT_CHAPTER_KEY_PREFIX}Matthew|1`)).toBe(
-      JSON.stringify(next['Matthew|1']),
-    );
-    // The legacy key is gone, so a second load can only be the
-    // chunked path — and it still returns the entries.
+    expect(store.has(STUDIO_IMPORT_INDEX_KEY)).toBe(false);
+    expect(store.has(`${STUDIO_IMPORT_CHAPTER_KEY_PREFIX}Matthew|1`)).toBe(false);
+    const index = JSON.parse(fsFiles.get(fsIndexPath)!) as { keys: string[]; verified: boolean };
+    expect(index.verified).toBe(true);
+    expect(index.keys).toEqual(['Matthew|1']);
+    expect(fsFiles.get(fsChapterPath('Matthew|1'))).toBe(JSON.stringify(next['Matthew|1']));
+    // The database is empty, so a second load can only be the file
+    // path — and it still returns the entries.
+    expect(store.size).toBe(0);
     await expect(loadStudioImports()).resolves.toEqual(next);
   });
 });
 
 describe('v423 — deletion diffing', () => {
   it('saving a smaller map removes the dropped chapter value and trims the index', async () => {
+    // v433 amendment: the dropped chapter's FILE is removed and the
+    // file index trimmed; the database assertion survives as the
+    // stronger one — it never holds the chapter at all.
     const a = applyStudioChapters({}, [MATTHEW_1, PSALMS_1]).next;
     await saveStudioImports(a);
     const b = { 'Matthew|1': a['Matthew|1'] };
     await saveStudioImports(b);
+    expect(fsFiles.has(fsChapterPath('Psalms|1'))).toBe(false);
     expect(store.has(`${STUDIO_IMPORT_CHAPTER_KEY_PREFIX}Psalms|1`)).toBe(false);
-    expect(JSON.parse(store.get(STUDIO_IMPORT_INDEX_KEY)!)).toEqual(['Matthew|1']);
+    const index = JSON.parse(fsFiles.get(fsIndexPath)!) as { keys: string[] };
+    expect(index.keys).toEqual(['Matthew|1']);
     await expect(loadStudioImports()).resolves.toEqual(b);
   });
 });

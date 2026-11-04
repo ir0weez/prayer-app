@@ -27,6 +27,8 @@ import {
   collectBubbleLinesForExport,
   collectHighlightsForExport,
   loadStudioImports,
+  STUDIO_IMPORT_CHAPTER_KEY_PREFIX,
+  STUDIO_IMPORT_INDEX_KEY,
   STUDIO_IMPORT_KEY,
 } from './studio-import';
 import { collectStudioMinistries } from './studio-ministries';
@@ -64,6 +66,36 @@ export async function buildExportPayload(): Promise<string> {
   }
   if (storage[STUDIO_IMPORT_KEY] != null) {
     storage[STUDIO_IMPORT_KEY] = JSON.stringify(await loadStudioImports());
+  }
+  // v433: the imported chapters live in the file store now, so the
+  // raw dump above no longer carries them — a backup taken after the
+  // move would hold no chapters at all, and a phone restore would
+  // silently lose the library. They still ride every backup, from the
+  // loader, in BOTH shapes their readers know: the whole map under
+  // the one key the desk reads (above, whenever he has imports at
+  // all — not only when a stale legacy key happens to sit in the
+  // dump), and the chunked keys a phone restore can write back small
+  // value by small value (the v423 lesson: a whole-map value cannot
+  // be read back on Android). Chunk keys in the dump that the live
+  // store no longer holds are the healed store's dropped chapters —
+  // they are nulled, like the re-serializations above, so the export
+  // only ever emits what the store holds.
+  const exportedImports = await loadStudioImports();
+  const exportedKeys = Object.keys(exportedImports);
+  if (exportedKeys.length > 0) {
+    if (storage[STUDIO_IMPORT_KEY] == null) {
+      storage[STUDIO_IMPORT_KEY] = JSON.stringify(exportedImports);
+    }
+    storage[STUDIO_IMPORT_INDEX_KEY] = JSON.stringify(exportedKeys);
+    for (const key of exportedKeys) {
+      storage[`${STUDIO_IMPORT_CHAPTER_KEY_PREFIX}${key}`] = JSON.stringify(exportedImports[key]);
+    }
+    for (const key of Object.keys(storage)) {
+      if (key.startsWith(STUDIO_IMPORT_CHAPTER_KEY_PREFIX)) {
+        const mapKey = key.slice(STUDIO_IMPORT_CHAPTER_KEY_PREFIX.length);
+        if (!(mapKey in exportedImports)) storage[key] = null;
+      }
+    }
   }
   const photos = await createPhotoBackup(storage);
   // v222 (WS2c): the app's bubble lines ride the backup as their own

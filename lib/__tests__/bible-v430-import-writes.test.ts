@@ -20,8 +20,21 @@
 //     section in) records a throwing section by name with its reason
 //     and lets the sections after it still run; a section that lands
 //     records nothing.
+//
+// ─── v433 amendment ─────────────────────────────────────────────────────
+// The store moved to files (bible-v433-imports-to-files.test.ts), so
+// the diff-write pins below now run against the FILE store through a
+// filesystem double: "chapter-value writes" are chapter-file writes,
+// the index assertions read the file index, and the batch pin watches
+// concurrent in-flight file writes instead of multiSet pair counts.
+// Every behavioural claim is unchanged — the diff discipline is the
+// same, only the surface it writes to moved. One pin keeps the old
+// surface on purpose: the single-key test now runs against the
+// database FALLBACK (no filesystem installed), where the v430
+// chunked diff-write still stands behind the file save, with its
+// original assertions intact.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type WriteCall =
   | { verb: 'setItem'; key: string }
@@ -79,38 +92,98 @@ vi.mock('@react-native-async-storage/async-storage', () => {
 import {
   STUDIO_IMPORT_CHAPTER_KEY_PREFIX,
   STUDIO_IMPORT_INDEX_KEY,
+  STUDIO_IMPORTS_FILE_DIRECTORY,
   applyStudioChapters,
   attemptStudioSection,
   formatStudioSectionFailures,
   loadStudioImports,
   saveStudioImports,
+  setStudioImportsFileSystemForTests,
+  studioImportChapterFileName,
   type StudioChapterPayload,
+  type StudioImportsFileSystem,
   type StudioSectionFailure,
 } from '../bible-v205/studio-import';
+
+// ── v433: the filesystem double the diff pins now write against ─────────
+// A flat path → contents map; the write log records every file write
+// (chapter files and the index alike — the helpers below separate
+// them), and in-flight tracking makes the batch size observable: a
+// write counts itself in, yields, and counts itself out, so the
+// deepest fan-out a save ever opens is on record.
+const fsFiles = new Map<string, string>();
+const fsDirs = new Set<string>();
+const fsWriteLog: string[] = [];
+const fsFlight = { inFlight: 0, maxInFlight: 0 };
+
+const FS_DOCS = 'file:///docs/';
+const FS_ROOT = `${FS_DOCS}${STUDIO_IMPORTS_FILE_DIRECTORY}/`;
+const fsIndexPath = `${FS_ROOT}index.json`;
+const fsChapterPath = (mapKey: string) => `${FS_ROOT}${studioImportChapterFileName(mapKey)}`;
+
+const fsDouble: StudioImportsFileSystem = {
+  documentDirectory: FS_DOCS,
+  getInfoAsync: async (path: string) => ({
+    exists: fsDirs.has(path) || fsFiles.has(path),
+  }),
+  makeDirectoryAsync: async (path: string) => {
+    fsDirs.add(path);
+  },
+  readAsStringAsync: async (path: string) => {
+    const value = fsFiles.get(path);
+    if (value === undefined) throw new Error(`ENOENT: no such file ${path}`);
+    return value;
+  },
+  writeAsStringAsync: async (path: string, contents: string) => {
+    fsFlight.inFlight += 1;
+    fsFlight.maxInFlight = Math.max(fsFlight.maxInFlight, fsFlight.inFlight);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fsFlight.inFlight -= 1;
+    fsWriteLog.push(path);
+    fsFiles.set(path, contents);
+  },
+  deleteAsync: async (path: string) => {
+    fsFiles.delete(path);
+  },
+};
 
 beforeEach(() => {
   store.clear();
   writeLog.length = 0;
   rig.useMulti = true;
+  fsFiles.clear();
+  fsDirs.clear();
+  fsWriteLog.length = 0;
+  fsFlight.inFlight = 0;
+  fsFlight.maxInFlight = 0;
+  setStudioImportsFileSystemForTests(fsDouble);
   vi.clearAllMocks();
+});
+
+afterEach(() => {
+  setStudioImportsFileSystemForTests(null);
 });
 
 const chapterKey = (mapKey: string) => `${STUDIO_IMPORT_CHAPTER_KEY_PREFIX}${mapKey}`;
 
-/** Every write call that touched a per-chapter value (the index key
- * and the legacy key are not chapter values). */
-const chapterWrites = (): WriteCall[] =>
+/** Every FILE write that touched a chapter file (the file index is
+ * not a chapter file). v433: the diff pins read the file store. */
+const chapterWrites = (): string[] =>
+  fsWriteLog.filter((p) => p.startsWith(FS_ROOT) && p !== fsIndexPath);
+
+/** The chapter map keys a file write carried. */
+const chapterKeysOf = (path: string): string[] => [
+  decodeURIComponent(path.slice(FS_ROOT.length).replace(/\.json$/, '')),
+];
+
+/** Every AsyncStorage write call that touched a per-chapter value —
+ * the pre-v433 accounting, kept for the one fallback-surface pin. */
+const dbChapterWrites = (): WriteCall[] =>
   writeLog.filter((c) =>
     c.verb === 'setItem' || c.verb === 'removeItem'
       ? c.key.startsWith(STUDIO_IMPORT_CHAPTER_KEY_PREFIX)
       : c.keys.some((k) => k.startsWith(STUDIO_IMPORT_CHAPTER_KEY_PREFIX)),
   );
-
-/** The chapter storage keys a write call carried. */
-const chapterKeysOf = (c: WriteCall): string[] =>
-  c.verb === 'setItem' || c.verb === 'removeItem'
-    ? [c.key]
-    : c.keys.filter((k) => k.startsWith(STUDIO_IMPORT_CHAPTER_KEY_PREFIX));
 
 const payload = (book: string, chapter: number, marker: string): StudioChapterPayload => ({
   book,
@@ -131,6 +204,8 @@ const seed = async (payloads: StudioChapterPayload[]) => {
   const { next } = applyStudioChapters({}, payloads);
   await saveStudioImports(next);
   writeLog.length = 0;
+  fsWriteLog.length = 0;
+  fsFlight.maxInFlight = 0;
   return next;
 };
 
@@ -150,8 +225,8 @@ describe('v430 — saveStudioImports writes only what changed', () => {
     await saveStudioImports(changed);
     const writes = chapterWrites();
     expect(writes).toHaveLength(1);
-    expect(chapterKeysOf(writes[0])).toEqual([chapterKey('Genesis|2')]);
-    expect(store.get(chapterKey('Genesis|2'))).toBe(JSON.stringify(changed['Genesis|2']));
+    expect(chapterKeysOf(writes[0])).toEqual(['Genesis|2']);
+    expect(fsFiles.get(fsChapterPath('Genesis|2'))).toBe(JSON.stringify(changed['Genesis|2']));
     await expect(loadStudioImports()).resolves.toEqual(changed);
   });
 
@@ -161,8 +236,8 @@ describe('v430 — saveStudioImports writes only what changed', () => {
     await saveStudioImports(grown);
     const writes = chapterWrites();
     expect(writes).toHaveLength(1);
-    expect(chapterKeysOf(writes[0])).toEqual([chapterKey('Exodus|1')]);
-    expect(JSON.parse(store.get(STUDIO_IMPORT_INDEX_KEY)!).sort()).toEqual([
+    expect(chapterKeysOf(writes[0])).toEqual(['Exodus|1']);
+    expect(JSON.parse(fsFiles.get(fsIndexPath)!).keys.sort()).toEqual([
       'Exodus|1',
       'Genesis|1',
     ]);
@@ -172,23 +247,20 @@ describe('v430 — saveStudioImports writes only what changed', () => {
     const map = await seed([payload('Genesis', 1, 'a'), payload('Genesis', 2, 'a')]);
     const smaller = { 'Genesis|1': map['Genesis|1'] };
     await saveStudioImports(smaller);
-    expect(store.has(chapterKey('Genesis|2'))).toBe(false);
-    const valueWrites = chapterWrites().filter(
-      (c) => c.verb === 'setItem' || c.verb === 'multiSet',
-    );
-    expect(valueWrites).toEqual([]);
-    expect(JSON.parse(store.get(STUDIO_IMPORT_INDEX_KEY)!)).toEqual(['Genesis|1']);
+    expect(fsFiles.has(fsChapterPath('Genesis|2'))).toBe(false);
+    expect(chapterWrites()).toEqual([]);
+    expect(JSON.parse(fsFiles.get(fsIndexPath)!).keys).toEqual(['Genesis|1']);
     await expect(loadStudioImports()).resolves.toEqual(smaller);
   });
 
   it('a stored value that no longer parses counts as changed', async () => {
     const map = await seed([payload('Genesis', 1, 'a'), payload('Genesis', 2, 'a')]);
-    store.set(chapterKey('Genesis|2'), '{corrupt');
+    fsFiles.set(fsChapterPath('Genesis|2'), '{corrupt');
     await saveStudioImports(map);
     const writes = chapterWrites();
     expect(writes).toHaveLength(1);
-    expect(chapterKeysOf(writes[0])).toEqual([chapterKey('Genesis|2')]);
-    expect(store.get(chapterKey('Genesis|2'))).toBe(JSON.stringify(map['Genesis|2']));
+    expect(chapterKeysOf(writes[0])).toEqual(['Genesis|2']);
+    expect(fsFiles.get(fsChapterPath('Genesis|2'))).toBe(JSON.stringify(map['Genesis|2']));
   });
 
   it('writes go in batches of at most 25 pairs', async () => {
@@ -202,22 +274,32 @@ describe('v430 — saveStudioImports writes only what changed', () => {
       books.map(([b, c]) => payload(b, c, 'b')),
     ).next;
     await saveStudioImports(allChanged);
-    const sets = writeLog.filter((c) => c.verb === 'multiSet');
-    expect(sets.length).toBeGreaterThanOrEqual(3);
-    for (const call of sets) {
-      if (call.verb === 'multiSet') expect(call.keys.length).toBeLessThanOrEqual(25);
-    }
-    const written = new Set(sets.flatMap((c) => (c.verb === 'multiSet' ? c.keys : [])));
-    expect(written.size).toBe(60);
+    // v433: the batch is a fan-out of file writes — all 60 land, and
+    // no more than one batch (25) is ever in flight at once.
+    expect(chapterWrites()).toHaveLength(60);
+    expect(new Set(chapterWrites()).size).toBe(60);
+    expect(fsFlight.maxInFlight).toBeLessThanOrEqual(25);
+    expect(fsFlight.maxInFlight).toBeGreaterThan(1);
     await expect(loadStudioImports()).resolves.toEqual(allChanged);
   });
 
   it('over the single-key surface, an identical map still writes nothing', async () => {
+    // v433 amendment: this pin now runs against the database
+    // FALLBACK — no filesystem installed, so the save is the v430
+    // chunked diff-write over the single-key AsyncStorage surface,
+    // with the pin's original assertions (over the database write
+    // log) intact.
+    setStudioImportsFileSystemForTests(null);
     rig.useMulti = false;
     const map = await seed([payload('Genesis', 1, 'a'), payload('Genesis', 2, 'a')]);
     await saveStudioImports(map);
-    expect(chapterWrites()).toEqual([]);
+    expect(dbChapterWrites()).toEqual([]);
     await expect(loadStudioImports()).resolves.toEqual(map);
+    expect(JSON.parse(store.get(STUDIO_IMPORT_INDEX_KEY)!).sort()).toEqual([
+      'Genesis|1',
+      'Genesis|2',
+    ]);
+    expect(store.get(chapterKey('Genesis|1'))).toBe(JSON.stringify(map['Genesis|1']));
   });
 });
 

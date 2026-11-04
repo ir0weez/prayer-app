@@ -1760,6 +1760,114 @@ export const STUDIO_IMPORT_CHAPTER_KEY_PREFIX = 'prayercircle.bible.v205.studio-
 const studioImportChapterStorageKey = (mapKey: string): string =>
   `${STUDIO_IMPORT_CHAPTER_KEY_PREFIX}${mapKey}`;
 
+// ── v433: the store moves to FILES — one file per chapter ────────────────
+// The chunked layout above kept the database workable, but it never
+// made it SMALL: on Jonathan's phone the imports alone are 243 values
+// / ~4.36MB of the ~5.82MB AsyncStorage database, hard against the
+// ~6MB ceiling — and every write that needs the database to GROW is
+// refused (SQLITE_FULL, Nov 4: a pack import landed its notes and
+// people, then its schedule and ministries sections could not save;
+// the same wall sat behind the vanished fast-day note and the
+// un-checkable Time Off tickets). The chapters therefore live as
+// files under the app's documents directory now — same chapters, same
+// map at every caller, just not database rows. The database keeps
+// only the app's small stores and drops to ~1.5MB.
+//
+// Layout (under documentDirectory):
+//   prayercircle-studio-imports/
+//     index.json            { format, version, verified, keys }
+//     <encoded key>.json    one file per chapter; the name is the
+//                           chapter's map key, URI-encoded.
+//
+// The index is the commit point: it names the chapters and, once a
+// migration has PROVEN its copy (below), carries verified: true. The
+// loader serves files only behind a verified index.
+//
+// Migration discipline (the never-lose-his-work rule): on load, when
+// files hold no verified index but the database does, the loader
+// copies every chapter to files, re-reads every written file and
+// compares its content against the database value, and only after
+// that proof rewrites the index verified and deletes the database
+// keys. Any failure along the way deletes NOTHING from the database
+// and the loader serves the database map — there is no state in which
+// his chapters are visible from neither store, and the move simply
+// retries on a later load. Saves heal the same way: a save that
+// arrives before the move completes runs it first, and a filesystem
+// that cannot be reached at all falls back to the v430 chunked save,
+// untouched.
+
+export const STUDIO_IMPORTS_FILE_DIRECTORY = 'prayercircle-studio-imports';
+export const STUDIO_IMPORTS_INDEX_FILE_NAME = 'index.json';
+const STUDIO_IMPORTS_FILE_INDEX_FORMAT = 'prayercircle-studio-imports-index';
+
+/** The file name one imported chapter lives under: its map key,
+ * URI-encoded so any book name is a safe file name, plus `.json`. */
+export const studioImportChapterFileName = (mapKey: string): string =>
+  `${encodeURIComponent(mapKey)}.json`;
+
+/** The slice of the legacy expo-file-system surface the file store
+ * needs — nothing more, so a test double stays a page long. */
+export interface StudioImportsFileSystem {
+  documentDirectory: string | null;
+  getInfoAsync: (path: string) => Promise<{ exists: boolean }>;
+  makeDirectoryAsync: (path: string, options?: { intermediates?: boolean }) => Promise<void>;
+  readAsStringAsync: (path: string) => Promise<string>;
+  writeAsStringAsync: (path: string, contents: string) => Promise<void>;
+  deleteAsync: (path: string, options?: { idempotent?: boolean }) => Promise<void>;
+}
+
+let studioImportsFileSystemOverride: StudioImportsFileSystem | null = null;
+
+/** Test-only: substitute the filesystem surface the imports store
+ * sees. Call with no argument (or null) to restore the real surface.
+ * The drive-folder seam (setDriveFolderOverridesForTests) is the
+ * model: production code loads the native module lazily so this
+ * module stays importable anywhere, tests included. */
+export function setStudioImportsFileSystemForTests(
+  fileSystem?: StudioImportsFileSystem | null,
+): void {
+  studioImportsFileSystemOverride = fileSystem ?? null;
+}
+
+function studioImportsFileSystem(): StudioImportsFileSystem | null {
+  if (studioImportsFileSystemOverride) return studioImportsFileSystemOverride;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const FileSystem = require('expo-file-system/legacy') as StudioImportsFileSystem;
+    // Trust only a surface shaped like the real one — anything else
+    // (a partial double in a neighbouring test, a platform without
+    // documents) means "no file store", never a crash.
+    if (
+      typeof FileSystem.documentDirectory !== 'string' ||
+      FileSystem.documentDirectory.length === 0 ||
+      typeof FileSystem.getInfoAsync !== 'function' ||
+      typeof FileSystem.makeDirectoryAsync !== 'function' ||
+      typeof FileSystem.readAsStringAsync !== 'function' ||
+      typeof FileSystem.writeAsStringAsync !== 'function' ||
+      typeof FileSystem.deleteAsync !== 'function'
+    ) {
+      return null;
+    }
+    return FileSystem;
+  } catch {
+    return null;
+  }
+}
+
+/** The imports directory URI, or null when there is no documents
+ * directory to hold it. */
+function studioImportsRoot(fileSystem: StudioImportsFileSystem): string | null {
+  const base = fileSystem.documentDirectory;
+  if (typeof base !== 'string' || base.length === 0) return null;
+  return `${base.endsWith('/') ? base : `${base}/`}${STUDIO_IMPORTS_FILE_DIRECTORY}/`;
+}
+
+const studioImportChapterFilePath = (root: string, mapKey: string): string =>
+  `${root}${studioImportChapterFileName(mapKey)}`;
+
+const studioImportsIndexFilePath = (root: string): string =>
+  `${root}${STUDIO_IMPORTS_INDEX_FILE_NAME}`;
+
 // ── v243: the stored map is sanitized at this read boundary ────────────────
 // Until v243, loadStudioImports handed the parsed JSON to consumers
 // verbatim, and consumers dereference the stored chapter shape
@@ -2000,42 +2108,288 @@ async function writeChunkedStudioImports(map: StudioImportsMap): Promise<void> {
   await AsyncStorage.setItem(STUDIO_IMPORT_INDEX_KEY, JSON.stringify(keys));
 }
 
+// ── v433: the file store — reads, the verified migration, writes ─────────
+
+/** The file index: the chapter map keys plus the verified flag the
+ * migration earns (see the v433 note at the constants). Null when the
+ * stored value is not an index of this format at all. */
+function parseStudioFileIndex(raw: string): { keys: string[]; verified: boolean } | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) return null;
+    if (parsed.format !== STUDIO_IMPORTS_FILE_INDEX_FORMAT) return null;
+    if (!Array.isArray(parsed.keys)) return null;
+    const keys: string[] = [];
+    for (const k of parsed.keys) {
+      if (typeof k === 'string' && k.length > 0 && !keys.includes(k)) keys.push(k);
+    }
+    return { keys, verified: parsed.verified === true };
+  } catch {
+    return null;
+  }
+}
+
+/** Read the file index; null when there is none (or it cannot be
+ * read as one) — the caller then looks to the database. */
+async function readStudioFileIndex(
+  fileSystem: StudioImportsFileSystem,
+  root: string,
+): Promise<{ keys: string[]; verified: boolean } | null> {
+  try {
+    const raw: unknown = await fileSystem.readAsStringAsync(studioImportsIndexFilePath(root));
+    if (typeof raw !== 'string') return null;
+    return parseStudioFileIndex(raw);
+  } catch {
+    return null;
+  }
+}
+
+function studioFileIndexJson(keys: string[], verified: boolean): string {
+  return JSON.stringify({
+    format: STUDIO_IMPORTS_FILE_INDEX_FORMAT,
+    version: 1,
+    verified,
+    keys,
+  });
+}
+
+/** One chapter file's contents; null when it cannot be read (a file
+ * that is missing, or there but unreadable, counts the same way the
+ * diff-write already treats an unreadable database value). */
+async function readStudioChapterFile(
+  fileSystem: StudioImportsFileSystem,
+  root: string,
+  mapKey: string,
+): Promise<string | null> {
+  try {
+    const raw: unknown = await fileSystem.readAsStringAsync(
+      studioImportChapterFilePath(root, mapKey),
+    );
+    return typeof raw === 'string' ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+async function ensureStudioImportsDirectory(
+  fileSystem: StudioImportsFileSystem,
+  root: string,
+): Promise<void> {
+  const info = await fileSystem.getInfoAsync(root);
+  if (info && info.exists) return;
+  await fileSystem.makeDirectoryAsync(root, { intermediates: true });
+}
+
+/**
+ * The map as the FILE store holds it — or null when files are not
+ * the store (yet): no filesystem, no index, or an index no migration
+ * has verified. Behind a verified index the read mirrors the chunked
+ * read exactly: one unreadable chapter drops alone, the rest load,
+ * and the assembled map crosses the same sanitize boundary.
+ */
+async function loadStudioImportsFromFiles(): Promise<StudioImportsMap | null> {
+  const fileSystem = studioImportsFileSystem();
+  if (!fileSystem) return null;
+  const root = studioImportsRoot(fileSystem);
+  if (!root) return null;
+  const index = await readStudioFileIndex(fileSystem, root);
+  if (!index || !index.verified) return null;
+  const assembled: Record<string, unknown> = {};
+  for (let at = 0; at < index.keys.length; at += STUDIO_IMPORT_WRITE_BATCH) {
+    const batch = index.keys.slice(at, at + STUDIO_IMPORT_WRITE_BATCH);
+    const values = await Promise.all(
+      batch.map((key) => readStudioChapterFile(fileSystem, root, key)),
+    );
+    batch.forEach((key, i) => {
+      const raw = values[i];
+      if (raw === null) return;
+      try {
+        assembled[key] = JSON.parse(raw);
+      } catch {
+        // One unreadable chapter file drops alone; the rest load.
+      }
+    });
+  }
+  return sanitizeStudioImportsMap(assembled);
+}
+
+/**
+ * The map as the DATABASE holds it, with its provenance: the chunked
+ * store when its index parses (it shadows the legacy value, exactly
+ * as the pre-v433 loader read it), else the pre-v423 legacy value,
+ * else nothing. `indexKeys` is the raw chunk-index list — the keys a
+ * migration must clean up even when a chapter value under one of
+ * them was itself unreadable. A legacy value that cannot be parsed
+ * throws, as it did into the old loader's catch.
+ */
+async function readDbStudioImports(): Promise<{
+  source: 'chunks' | 'legacy' | null;
+  map: StudioImportsMap;
+  indexKeys: string[];
+}> {
+  const indexRaw = await AsyncStorage.getItem(STUDIO_IMPORT_INDEX_KEY);
+  const index = indexRaw ? parseStudioImportIndex(indexRaw) : null;
+  if (index) {
+    const values = await chunkedGet(index.map(studioImportChapterStorageKey));
+    const assembled: Record<string, unknown> = {};
+    index.forEach((key, i) => {
+      const raw = values[i];
+      if (raw == null) return;
+      try {
+        assembled[key] = JSON.parse(raw);
+      } catch {
+        // One unreadable chapter value drops alone; the rest load.
+      }
+    });
+    return { source: 'chunks', map: sanitizeStudioImportsMap(assembled), indexKeys: index };
+  }
+  const raw = await AsyncStorage.getItem(STUDIO_IMPORT_KEY);
+  if (!raw) return { source: null, map: {}, indexKeys: [] };
+  return { source: 'legacy', map: sanitizeStudioImportsMap(JSON.parse(raw)), indexKeys: [] };
+}
+
+/**
+ * The migration's proof: re-read the index and EVERY written chapter
+ * file from disk; the copy counts as his chapters only when the index
+ * names exactly the map's keys and each file's content equals the
+ * chapter it was written from (the v430 content comparison, not
+ * bytes). Anything less — a short count, a file that will not parse,
+ * a chapter whose words differ — is not a copy, and the migration
+ * does not happen.
+ */
+async function verifyStudioImportFiles(
+  fileSystem: StudioImportsFileSystem,
+  root: string,
+  map: StudioImportsMap,
+): Promise<boolean> {
+  try {
+    const index = await readStudioFileIndex(fileSystem, root);
+    if (!index) return false;
+    const keys = Object.keys(map);
+    if (index.keys.length !== keys.length) return false;
+    for (const key of keys) {
+      if (!index.keys.includes(key)) return false;
+      const raw = await readStudioChapterFile(fileSystem, root, key);
+      if (raw === null) return false;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        return false;
+      }
+      if (canonicalJson(parsed) !== canonicalJson(map[key])) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Move a map from the database into the file store — the migration,
+ * all-or-nothing from his side of the glass:
+ *
+ *   1. every chapter is written to its file, then an UNVERIFIED index
+ *      naming them (a crash here leaves files the loader ignores);
+ *   2. the copy is verified by re-reading (verifyStudioImportFiles);
+ *   3. only on proof is the index rewritten verified — the commit —
+ *      and the database keys deleted: the chunk values the old index
+ *      named, the index key, and the legacy key when one rides along.
+ *
+ * Returns whether the move committed. On any failure the database is
+ * exactly as it was and the caller serves its map; the move retries
+ * on a later load or save. A cleanup failure after the commit is
+ * housekeeping only: files are authoritative, and a later save
+ * retries the removal.
+ */
+async function migrateStudioImportsToFiles(
+  map: StudioImportsMap,
+  dbIndexKeys: string[],
+): Promise<boolean> {
+  const fileSystem = studioImportsFileSystem();
+  if (!fileSystem) return false;
+  const root = studioImportsRoot(fileSystem);
+  if (!root) return false;
+  const keys = Object.keys(map);
+  try {
+    await ensureStudioImportsDirectory(fileSystem, root);
+    for (let at = 0; at < keys.length; at += STUDIO_IMPORT_WRITE_BATCH) {
+      const batch = keys.slice(at, at + STUDIO_IMPORT_WRITE_BATCH);
+      await Promise.all(
+        batch.map((key) =>
+          fileSystem.writeAsStringAsync(
+            studioImportChapterFilePath(root, key),
+            JSON.stringify(map[key]),
+          ),
+        ),
+      );
+    }
+    await fileSystem.writeAsStringAsync(
+      studioImportsIndexFilePath(root),
+      studioFileIndexJson(keys, false),
+    );
+    if (!(await verifyStudioImportFiles(fileSystem, root, map))) return false;
+    await fileSystem.writeAsStringAsync(
+      studioImportsIndexFilePath(root),
+      studioFileIndexJson(keys, true),
+    );
+  } catch {
+    return false;
+  }
+  try {
+    const doomed = [
+      ...new Set([
+        ...dbIndexKeys.map(studioImportChapterStorageKey),
+        STUDIO_IMPORT_INDEX_KEY,
+        STUDIO_IMPORT_KEY,
+      ]),
+    ];
+    await chunkedRemove(doomed);
+  } catch {
+    // Housekeeping only — the file store is already authoritative.
+  }
+  return true;
+}
+
 export async function loadStudioImports(): Promise<StudioImportsMap> {
   try {
-    const indexRaw = await AsyncStorage.getItem(STUDIO_IMPORT_INDEX_KEY);
-    const index = indexRaw ? parseStudioImportIndex(indexRaw) : null;
-    if (index) {
-      const values = await chunkedGet(index.map(studioImportChapterStorageKey));
-      const assembled: Record<string, unknown> = {};
-      index.forEach((key, i) => {
-        const raw = values[i];
-        if (raw == null) return;
-        try {
-          assembled[key] = JSON.parse(raw);
-        } catch {
-          // One unreadable chapter value drops alone; the rest load.
-        }
-      });
-      return sanitizeStudioImportsMap(assembled);
-    }
-    // No chunked index: the pre-v423 single-value store, read once
-    // for migration. A map small enough to read back moves into the
-    // chunked layout (the legacy key is removed only after that write
-    // lands) and is returned either way; an unreadable legacy value
-    // degrades to the same {} the old loader produced, never a throw.
-    const raw = await AsyncStorage.getItem(STUDIO_IMPORT_KEY);
-    if (!raw) return {};
-    const migrated = sanitizeStudioImportsMap(JSON.parse(raw));
-    if (Object.keys(migrated).length > 0) {
-      try {
-        await writeChunkedStudioImports(migrated);
-        await AsyncStorage.removeItem(STUDIO_IMPORT_KEY);
-      } catch {
-        // Best-effort: the entries are already in hand; a failed
-        // migration simply retries on the next load.
+    // v433: files first — behind a verified index they are the store.
+    const fromFiles = await loadStudioImportsFromFiles();
+    if (fromFiles) return fromFiles;
+    const db = await readDbStudioImports();
+    if (db.source === 'chunks') {
+      // The library still lives in the database: move it to files
+      // (best-effort — the map is already in hand, and a failed move
+      // leaves the database untouched and retries next load).
+      if (Object.keys(db.map).length > 0) {
+        await migrateStudioImportsToFiles(db.map, db.indexKeys);
       }
+      return db.map;
     }
-    return migrated;
+    if (db.source === 'legacy') {
+      // No chunked index: the pre-v423 single-value store, read once
+      // for migration. The map moves into the file store when files
+      // can take it, and into the chunked layout when they cannot
+      // (the v423 heal) — the legacy key is removed only after the
+      // move lands, and the map is returned either way; an unreadable
+      // legacy value degrades to the same {} the old loader produced,
+      // never a throw.
+      const migrated = db.map;
+      if (Object.keys(migrated).length > 0) {
+        const inFiles = await migrateStudioImportsToFiles(migrated, db.indexKeys);
+        if (!inFiles) {
+          try {
+            await writeChunkedStudioImports(migrated);
+            await AsyncStorage.removeItem(STUDIO_IMPORT_KEY);
+          } catch {
+            // Best-effort: the entries are already in hand; a failed
+            // migration simply retries on the next load.
+          }
+        }
+      }
+      return migrated;
+    }
+    return {};
   } catch {
     return {};
   }
@@ -2077,7 +2431,11 @@ function storedChapterMatches(stored: string | null, chapter: V205ChapterData): 
   }
 }
 
-export async function saveStudioImports(map: StudioImportsMap): Promise<void> {
+/** The v430 save, unchanged: the chunked-database diff-write. Since
+ * v433 it is the fallback the file save stands behind — used when
+ * there is no filesystem to write to, and when a pre-migration save
+ * could not complete the move to files. */
+async function saveStudioImportsToDb(map: StudioImportsMap): Promise<void> {
   // Chapters dropped from the map lose their values: read the current
   // index first (absent or unreadable → nothing to diff) so a stale
   // per-chapter key never lingers past the save that removed it.
@@ -2130,6 +2488,125 @@ export async function saveStudioImports(map: StudioImportsMap): Promise<void> {
     await AsyncStorage.removeItem(STUDIO_IMPORT_KEY);
   } catch {
     // Housekeeping only — the chunked store is already authoritative.
+  }
+}
+
+/**
+ * v433 — the save, against the file store, with v430's diff discipline
+ * unchanged: each chapter's stored content is read back and compared;
+ * only added/changed chapters are written, in batches of at most
+ * STUDIO_IMPORT_WRITE_BATCH; an identical map writes no chapter files
+ * at all. Dropped chapters lose their files, the index is rewritten
+ * verified, and the database copies a migration may have left behind
+ * (or a backup restore re-landed) are removed as housekeeping.
+ *
+ * The mode is chosen ONCE, up front: when there is no filesystem, or
+ * the store cannot even be probed (directory + index read), the v430
+ * database save runs instead — a save never lands half in one store
+ * and half in the other. When files hold no index yet but the
+ * database holds the library, the migration runs first (so the diff
+ * compares against real stored content, never against a store this
+ * save is superseding); if the move cannot complete, the database
+ * save runs and the library stays exactly where it was.
+ */
+export async function saveStudioImports(map: StudioImportsMap): Promise<void> {
+  const fileSystem = studioImportsFileSystem();
+  const root = fileSystem ? studioImportsRoot(fileSystem) : null;
+  if (!fileSystem || !root) {
+    await saveStudioImportsToDb(map);
+    return;
+  }
+  let fileIndex: { keys: string[]; verified: boolean } | null;
+  try {
+    await ensureStudioImportsDirectory(fileSystem, root);
+    fileIndex = await readStudioFileIndex(fileSystem, root);
+  } catch {
+    await saveStudioImportsToDb(map);
+    return;
+  }
+  let previous: string[];
+  // When files hold no index, a chapter the diff needs may still live
+  // only in the database — its value is the honest baseline (a value
+  // that cannot be read counts as changed, as it did in v430).
+  let diffAgainstDb = false;
+  if (fileIndex) {
+    previous = fileIndex.keys;
+  } else {
+    const db = await readDbStudioImports().catch(() => null);
+    if (db && Object.keys(db.map).length > 0) {
+      const moved = await migrateStudioImportsToFiles(db.map, db.indexKeys);
+      if (!moved) {
+        await saveStudioImportsToDb(map);
+        return;
+      }
+      previous = Object.keys(db.map);
+    } else {
+      previous = db ? db.indexKeys : [];
+      diffAgainstDb = db?.source === 'chunks';
+    }
+  }
+  const keys = Object.keys(map);
+  for (let at = 0; at < keys.length; at += STUDIO_IMPORT_WRITE_BATCH) {
+    const batchKeys = keys.slice(at, at + STUDIO_IMPORT_WRITE_BATCH);
+    const stored = await Promise.all(
+      batchKeys.map((key) => readStudioChapterFile(fileSystem, root, key)),
+    );
+    if (diffAgainstDb) {
+      let dbStored: (string | null)[];
+      try {
+        dbStored = await chunkedGet(batchKeys.map(studioImportChapterStorageKey));
+      } catch {
+        dbStored = batchKeys.map(() => null);
+      }
+      batchKeys.forEach((key, i) => {
+        if (stored[i] === null) stored[i] = dbStored[i];
+      });
+    }
+    const changed = batchKeys.filter((key, i) => !storedChapterMatches(stored[i], map[key]));
+    if (changed.length > 0) {
+      await Promise.all(
+        changed.map((key) =>
+          fileSystem.writeAsStringAsync(
+            studioImportChapterFilePath(root, key),
+            JSON.stringify(map[key]),
+          ),
+        ),
+      );
+    }
+  }
+  await fileSystem.writeAsStringAsync(
+    studioImportsIndexFilePath(root),
+    studioFileIndexJson(keys, true),
+  );
+  const stale = previous.filter((k) => !(k in map));
+  if (stale.length > 0) {
+    await Promise.all(
+      stale.map((key) =>
+        fileSystem.deleteAsync(studioImportChapterFilePath(root, key), { idempotent: true }),
+      ),
+    );
+  }
+  // Housekeeping: the database stops holding chapters the moment the
+  // file save lands. A restore can re-land the chunk keys and the
+  // legacy value under this save, so sweep whatever the database
+  // index currently names, plus both store keys. Guarded as a whole:
+  // its failure must not fail the save that already succeeded.
+  try {
+    let dbKeys: string[] = [];
+    const raw = await AsyncStorage.getItem(STUDIO_IMPORT_INDEX_KEY);
+    const parsed = raw ? parseStudioImportIndex(raw) : null;
+    if (parsed) dbKeys = parsed;
+    const doomed = [
+      ...new Set([
+        ...dbKeys.map(studioImportChapterStorageKey),
+        ...stale.map(studioImportChapterStorageKey),
+        STUDIO_IMPORT_INDEX_KEY,
+        STUDIO_IMPORT_KEY,
+      ]),
+    ];
+    await chunkedRemove(doomed);
+  } catch {
+    // Housekeeping only — the file store is already authoritative.
   }
 }
 

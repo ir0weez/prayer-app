@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_pray_today_label">Pray Today</string>
+  <string name="widget_pray_today_desc">Next up in today\'s prayer queue, with the day\'s faces</string>
+  <string name="widget_emergency_label">Emergency</string>
+  <string name="widget_emergency_desc">Active emergency prayers, soonest first</string>
+  <string name="widget_your_fast_label">Your Fast</string>
+  <string name="widget_your_fast_desc">Today\'s day of your fast, with your hearts</string>
+  <string name="widget_reach_out_label">Due to Reach Out</string>
+  <string name="widget_reach_out_desc">Who is due a reach-out, longest gap first</string>
+  <string name="widget_up_next_label">Up Next</string>
+  <string name="widget_up_next_desc">The next thing on today\'s schedule</string>
+  <string name="widget_your_study_label">Your Study</string>
+  <string name="widget_your_study_desc">Your current book: next chapter to write, its first verse, your progress</string>
+</resources>

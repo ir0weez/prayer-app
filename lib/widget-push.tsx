@@ -1,26 +1,32 @@
-// ─── v436 — widget snapshot loading + pushing ───────────────────────────────
+// ─── Widget snapshot loading + pushing (v436; native hand-off v438) ─────────
 // The IO half of the home-screen widgets (the pure half is
 // lib/widget-snapshots.ts). Loads every store the builders read
 // from AsyncStorage — the same keys and parsers the app itself
-// uses — builds the six snapshots, and hands each to
-// react-native-android-widget's requestWidgetUpdate. The widget
-// task handler (lib/widget-task-handler.tsx) reuses these loaders,
-// so an OS-scheduled refresh (updatePeriodMillis) reads the same
-// stored truth the app would push.
+// uses — builds the six snapshots, serializes them (plus the
+// deep-link scheme) into ONE JSON document, and hands it to the
+// native widget module (modules/expo-prayercircle-widgets), which
+// stores it in SharedPreferences and re-renders every placed
+// widget immediately.
+//
+// v438 is the third widget architecture and the simplest: the
+// render path is plain Android (AppWidgetProviders + compiled
+// layouts), and JS's only job is the data. v436/v437 drew the
+// widgets from JS through a JS-rendered widget library and shipped
+// blank on device twice — a headless render task the phone never
+// reliably ran. Natively, a widget's first render is its compiled
+// layout (the quiet face), snapshot or no snapshot.
 //
 // Honesty rules: a store that fails to load contributes its empty
 // form (the builders then produce the widgets' quiet states) — a
-// widget never shows invented data, and before the app's first
-// successful load a placed widget keeps the library's neutral
-// "Open PrayerCircle" placeholder. Everything here is best-effort:
-// a widget failure must never surface in the app.
+// widget never shows invented data. Everything here is
+// best-effort: a widget failure must never surface in the app, and
+// where the native module is absent (iOS, tests) the push is a
+// silent no-op.
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
-import { requestWidgetUpdate } from "react-native-android-widget";
 
-import { renderWidgetByName } from "@/components/widgets/prayercircle-widgets";
 import { loadStudyState, seedStudyState, type StudyState } from "@/lib/bible-v205/study";
 import { loadStudioImports, resolveChapterData, type StudioImportsMap } from "@/lib/bible-v205/studio-import";
 import { formatDateLocal } from "@/lib/date-utils";
@@ -41,14 +47,17 @@ import {
 } from "@/lib/schedule-data";
 import {
   buildAllWidgetSnapshots,
-  WIDGET_NAMES,
+  serializeWidgetSnapshots,
   type AllWidgetSnapshots,
 } from "@/lib/widget-snapshots";
 import { XP_STORAGE_KEY } from "@/lib/xp-engine";
+import { updateNativeWidgetSnapshot } from "@/modules/expo-prayercircle-widgets/src/index";
 
 /** The app's deep-link scheme from the resolved config (generated
  * from the bundle id in app.config.ts — never hardcoded, so the
- * test and production packages each link to themselves). */
+ * test and production packages each link to themselves). The
+ * native providers build their tap intents from this scheme,
+ * reusing the same link shapes lib/widget-snapshots defines. */
 export function widgetScheme(): string {
   const raw = Constants.expoConfig?.scheme;
   const scheme = Array.isArray(raw) ? raw[0] : raw;
@@ -128,12 +137,11 @@ export async function loadWidgetStores(
   };
 }
 
-/** v437: the all-empty form of the stores — every builder turns
- * these into the widgets' quiet states. The widget task handler
- * renders from this when a headless store load FAILS, so a widget
- * always draws something truthful ("nothing yet") instead of
- * sitting blank on its transparent initial layout. Pure data —
- * building it can never throw an IO error. */
+/** The all-empty form of the stores — every builder turns these
+ * into the widgets' quiet states. Pure data (carried over from
+ * v437, where it backed the never-blank rule; natively the same
+ * guarantee is structural — the layouts ARE the quiet faces — but
+ * the empty set remains the honest floor for any push). */
 export const EMPTY_WIDGET_STORES: LoadedWidgetStores = {
   people: [],
   fasts: [],
@@ -162,34 +170,18 @@ export function snapshotsFromStores(stores: LoadedWidgetStores, now = new Date()
 
 let lastPushedSignature: string | null = null;
 
-/** Push a built snapshot set to every placed widget. Identical
- * sets are not re-pushed (the signature rides the JSON), so state
- * churn elsewhere in the app doesn't churn the home screen. */
+/** Hand a built snapshot set to the native module, which stores it
+ * and refreshes every placed widget. Identical sets are not
+ * re-pushed (the signature rides the JSON), so state churn
+ * elsewhere in the app doesn't churn the home screen. */
 export async function pushWidgetSnapshots(snapshots: AllWidgetSnapshots): Promise<void> {
   if (Platform.OS !== "android") return;
-  const signature = JSON.stringify(snapshots);
-  if (signature === lastPushedSignature) return;
-  const scheme = widgetScheme();
-  const entries: Array<[string, AllWidgetSnapshots[keyof AllWidgetSnapshots]]> = [
-    [WIDGET_NAMES.prayToday, snapshots.prayToday],
-    [WIDGET_NAMES.emergency, snapshots.emergency],
-    [WIDGET_NAMES.yourFast, snapshots.fast],
-    [WIDGET_NAMES.reachOut, snapshots.reachOut],
-    [WIDGET_NAMES.upNext, snapshots.upNext],
-    [WIDGET_NAMES.yourStudy, snapshots.study],
-  ];
-  await Promise.all(
-    entries.map(([widgetName]) =>
-      requestWidgetUpdate({
-        widgetName,
-        renderWidget: (info) =>
-          renderWidgetByName(widgetName, snapshots, scheme, info.height < 200),
-      }).catch(() => undefined),
-    ),
-  );
-  // Only after the pushes have run — a failed pass must not mark
+  const json = serializeWidgetSnapshots(snapshots, widgetScheme());
+  if (json === lastPushedSignature) return;
+  updateNativeWidgetSnapshot(json);
+  // Only after the hand-off has run — a failed pass must not mark
   // this set as delivered and suppress the next attempt.
-  lastPushedSignature = signature;
+  lastPushedSignature = json;
 }
 
 /** Load → build → push, in one call. The root layout calls this on

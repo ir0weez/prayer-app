@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v438: provider info for the native widget. Sizes/labels/descriptions
+     carried over unchanged from the v437 registration; the OS refresh
+     sits at Android's 30-minute floor so countdowns re-render from the
+     stored snapshot without the app waking. initialLayout IS the first
+     render — the compiled layout's defaults are the quiet face, so a
+     fresh placement can never be blank. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+  android:minWidth="150dp"
+  android:minHeight="150dp"
+  android:targetCellWidth="2"
+  android:targetCellHeight="2"
+  android:updatePeriodMillis="1800000"
+  android:initialLayout="@layout/widget_your_fast"
+  android:previewLayout="@layout/widget_your_fast"
+  android:description="@string/widget_your_fast_desc"
+  android:resizeMode="horizontal|vertical"
+  android:widgetCategory="home_screen" />

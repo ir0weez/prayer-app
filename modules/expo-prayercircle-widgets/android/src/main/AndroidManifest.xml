@@ -1,0 +1,76 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- v438: the six home-screen widgets live ENTIRELY in this library
+         module — providers, layouts, provider-info xml and drawables
+         ride the library's manifest + res merge into the app. No JS
+         runs in the render path: each provider draws RemoteViews from
+         compiled layouts over the SharedPreferences snapshot the app
+         pushes through ExpoPrayerCircleWidgetsModule. -->
+    <receiver
+      android:name="expo.modules.prayercirclewidgets.PrayTodayWidgetProvider"
+      android:exported="true"
+      android:label="@string/widget_pray_today_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widgetprovider_praytoday" />
+    </receiver>
+    <receiver
+      android:name="expo.modules.prayercirclewidgets.EmergencyWidgetProvider"
+      android:exported="true"
+      android:label="@string/widget_emergency_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widgetprovider_emergency" />
+    </receiver>
+    <receiver
+      android:name="expo.modules.prayercirclewidgets.YourFastWidgetProvider"
+      android:exported="true"
+      android:label="@string/widget_your_fast_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widgetprovider_yourfast" />
+    </receiver>
+    <receiver
+      android:name="expo.modules.prayercirclewidgets.ReachOutWidgetProvider"
+      android:exported="true"
+      android:label="@string/widget_reach_out_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widgetprovider_reachout" />
+    </receiver>
+    <receiver
+      android:name="expo.modules.prayercirclewidgets.UpNextWidgetProvider"
+      android:exported="true"
+      android:label="@string/widget_up_next_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widgetprovider_upnext" />
+    </receiver>
+    <receiver
+      android:name="expo.modules.prayercirclewidgets.YourStudyWidgetProvider"
+      android:exported="true"
+      android:label="@string/widget_your_study_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widgetprovider_yourstudy" />
+    </receiver>
+  </application>
+</manifest>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plain white rounded rect — never shown white: every use is an
+     ImageView whose setColorFilter paints it (study background tint,
+     book tile, pills). The shape's alpha is what survives the tint. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="#FFFFFF" />
+  <corners android:radius="26dp" />
+</shape>

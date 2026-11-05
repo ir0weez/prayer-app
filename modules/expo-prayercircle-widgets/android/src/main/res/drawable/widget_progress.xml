@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pray Today's day bar: dim violet track, seed fill. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:id="@android:id/background">
+    <shape android:shape="rectangle">
+      <solid android:color="#453A75" />
+      <corners android:radius="3dp" />
+    </shape>
+  </item>
+  <item android:id="@android:id/progress">
+    <clip>
+      <shape android:shape="rectangle">
+        <solid android:color="#A78BFA" />
+        <corners android:radius="3dp" />
+      </shape>
+    </clip>
+  </item>
+</layer-list>

@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Emergency — wide. XML defaults are the quiet face ("No
+     emergencies" on the plain card dress — the provider swaps the
+     root background to the red gradient only when rows are active).
+     Two fixed row slots; the provider fills them soonest-first from
+     the snapshot and formats each countdown itself from
+     expiresAtMillis, so the OS's 30-minute refresh keeps the hours
+     honest while the app sleeps. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/em_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@drawable/widget_bg"
+  android:orientation="vertical"
+  android:padding="15dp">
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <ImageView
+      android:layout_width="8dp"
+      android:layout_height="8dp"
+      android:contentDescription="@null"
+      android:src="@drawable/widget_circle_white"
+      android:tint="#FF8A75" />
+
+    <TextView
+      android:id="@+id/em_kicker"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginStart="7dp"
+      android:letterSpacing="0.14"
+      android:text="EMERGENCY"
+      android:textColor="#FFD9D2"
+      android:textSize="11sp"
+      android:textStyle="bold" />
+  </LinearLayout>
+
+  <TextView
+    android:id="@+id/em_msg_title"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    android:text="No emergencies"
+    android:textColor="#F4F1FD"
+    android:textSize="17sp"
+    android:textStyle="bold" />
+
+  <TextView
+    android:id="@+id/em_msg_sub"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="2dp"
+    android:text="Nothing urgent right now."
+    android:textColor="#AAA2C6"
+    android:textSize="13sp" />
+  <LinearLayout
+    android:id="@+id/em_row_1"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    android:gravity="top"
+    android:orientation="horizontal"
+    android:visibility="gone">
+
+    <FrameLayout
+      android:layout_width="40dp"
+      android:layout_height="40dp">
+
+      <ImageView
+        android:id="@+id/em_avatar_img_1"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@null"
+        android:src="@drawable/widget_circle_white" />
+
+      <TextView
+        android:id="@+id/em_avatar_text_1"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:textColor="#FFFFFF"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+    </FrameLayout>
+
+    <LinearLayout
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_marginStart="11dp"
+      android:layout_weight="1"
+      android:orientation="vertical">
+
+      <TextView
+        android:id="@+id/em_name_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:letterSpacing="0.11"
+        android:maxLines="1"
+        android:textColor="#E8FFFFFF"
+        android:textSize="10.5sp"
+        android:textStyle="bold" />
+
+      <TextView
+        android:id="@+id/em_title_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#FFFFFF"
+        android:textSize="15.5sp"
+        android:textStyle="bold" />
+
+      <TextView
+        android:id="@+id/em_note_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#FEE2E2"
+        android:textSize="12.5sp" />
+
+      <TextView
+        android:id="@+id/em_left_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:textColor="#FECACA"
+        android:textSize="11.5sp" />
+    </LinearLayout>
+
+    <FrameLayout
+      android:id="@+id/em_pill_1"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginStart="8dp"
+      android:layout_marginTop="4dp">
+
+      <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_pill_white" />
+
+      <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="13dp"
+        android:paddingTop="7dp"
+        android:paddingEnd="13dp"
+        android:paddingBottom="7dp"
+        android:text="Pray now"
+        android:textColor="#8F1D16"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+    </FrameLayout>
+  </LinearLayout>
+  <LinearLayout
+    android:id="@+id/em_row_2"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    android:gravity="top"
+    android:orientation="horizontal"
+    android:visibility="gone">
+
+    <FrameLayout
+      android:layout_width="40dp"
+      android:layout_height="40dp">
+
+      <ImageView
+        android:id="@+id/em_avatar_img_2"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@null"
+        android:src="@drawable/widget_circle_white" />
+
+      <TextView
+        android:id="@+id/em_avatar_text_2"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:textColor="#FFFFFF"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+    </FrameLayout>
+
+    <LinearLayout
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_marginStart="11dp"
+      android:layout_weight="1"
+      android:orientation="vertical">
+
+      <TextView
+        android:id="@+id/em_name_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:letterSpacing="0.11"
+        android:maxLines="1"
+        android:textColor="#E8FFFFFF"
+        android:textSize="10.5sp"
+        android:textStyle="bold" />
+
+      <TextView
+        android:id="@+id/em_title_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#FFFFFF"
+        android:textSize="15.5sp"
+        android:textStyle="bold" />
+
+      <TextView
+        android:id="@+id/em_note_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#FEE2E2"
+        android:textSize="12.5sp" />
+
+      <TextView
+        android:id="@+id/em_left_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:textColor="#FECACA"
+        android:textSize="11.5sp" />
+    </LinearLayout>
+
+    <FrameLayout
+      android:id="@+id/em_pill_2"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginStart="8dp"
+      android:layout_marginTop="4dp">
+
+      <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_pill_white" />
+
+      <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="13dp"
+        android:paddingTop="7dp"
+        android:paddingEnd="13dp"
+        android:paddingBottom="7dp"
+        android:text="Pray now"
+        android:textColor="#8F1D16"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+    </FrameLayout>
+  </LinearLayout>
+</LinearLayout>

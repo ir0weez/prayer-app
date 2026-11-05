@@ -1,7 +1,6 @@
-// ─── v436 — home-screen widget snapshots ────────────────────────────────────
-// The pure data layer for PrayerCircle's Android home-screen widgets
-// (react-native-android-widget, route verified by prebuild — see
-// lib/widget-push.tsx). Every widget renders ONLY what a builder here
+// ─── v436 — home-screen widget snapshots (native render since v438) ─────────
+// The pure data layer for PrayerCircle's Android home-screen widgets.
+// Every widget renders ONLY what a builder here
 // computed from the app's real stores, through the SAME selectors the
 // in-app surfaces use — the builders invent nothing:
 //
@@ -28,8 +27,8 @@
 //
 // Builders are pure: callers pass the stores (and, for Study, the
 // chapter resolver) in. lib/widget-push.tsx owns the storage reads
-// and the requestWidgetUpdate calls; the widget task handler reuses
-// the same loaders so an OS-scheduled refresh reads the same truth.
+// and the hand-off to the native module (v438: one JSON document
+// the providers read from SharedPreferences — no JS renders).
 
 import { formatHoursLeft } from "./bell-header";
 import { BIBLE_BOOKS } from "./bible-books";
@@ -73,9 +72,10 @@ import { buildUpNextGroup, upNextMinutes, type UpNextCandidate, type UpNextItem 
 import { calculateWhites, type WhiteSourceItem } from "./whites";
 import { maxHeartsForLevel, normalizeXPState } from "./xp-engine";
 
-/** The six registered widget names (app.config.ts plugin props —
- * pinned by the v436 tests; the native providers are generated from
- * these names at prebuild). */
+/** The six widget names — since v438 these are the native providers'
+ * identities (modules/expo-prayercircle-widgets: provider classes
+ * PrayTodayWidgetProvider &c., named for these), pinned by the
+ * widget tests. */
 export const WIDGET_NAMES = {
   prayToday: "PrayToday",
   emergency: "Emergency",
@@ -202,11 +202,27 @@ export interface EmergencyWidgetRow {
   title: string;
   note: string;
   leftText: string;
+  /** v438: the window's end as epoch millis. The native provider
+   * re-formats the countdown from this on every OS refresh (its own
+   * mirror of formatHoursLeft) and drops the row once it passes —
+   * the hours stay honest while the app sleeps, and a dead
+   * emergency never lingers on the home screen. 0 when the item
+   * carried no parseable expiry (the row then renders leftText). */
+  expiresAtMillis: number;
 }
 
 export type EmergencyWidgetSnapshot =
   | { state: "none" }
-  | { state: "active"; total: number; rows: EmergencyWidgetRow[] };
+  | {
+      state: "active";
+      total: number;
+      /** The two rows the widget shows, soonest first. */
+      rows: EmergencyWidgetRow[];
+      /** v438: the remaining active emergencies, soonest first —
+       * the native provider promotes these into the visible slots
+       * as earlier rows expire between pushes. */
+      extraRows: EmergencyWidgetRow[];
+    };
 
 export function buildEmergencySnapshot(people: Person[], now: Date): EmergencyWidgetSnapshot {
   const entries = getAllActiveEmergencyPrayers(people)
@@ -217,10 +233,9 @@ export function buildEmergencySnapshot(people: Person[], now: Date): EmergencyWi
         new Date(b.item.emergencyExpiresAt ?? 0).getTime(),
     );
   if (entries.length === 0) return { state: "none" };
-  return {
-    state: "active",
-    total: entries.length,
-    rows: entries.slice(0, 2).map(({ person, item }) => ({
+  const toRow = ({ person, item }: (typeof entries)[number]): EmergencyWidgetRow => {
+    const expiryMs = new Date(item.emergencyExpiresAt ?? 0).getTime();
+    return {
       personId: person.id,
       name: person.name,
       initials: person.initials || firstNameOf(person.name).slice(0, 1),
@@ -228,7 +243,14 @@ export function buildEmergencySnapshot(people: Person[], now: Date): EmergencyWi
       title: item.title,
       note: item.note ?? "",
       leftText: emergencyLeftText(item.emergencyExpiresAt ?? "", now),
-    })),
+      expiresAtMillis: Number.isFinite(expiryMs) ? expiryMs : 0,
+    };
+  };
+  return {
+    state: "active",
+    total: entries.length,
+    rows: entries.slice(0, 2).map(toRow),
+    extraRows: entries.slice(2).map(toRow),
   };
 }
 
@@ -564,6 +586,14 @@ export function buildAllWidgetSnapshots(input: WidgetSnapshotInputs): AllWidgetS
     upNext: buildUpNextSnapshot(input.events, input.todos, input.ministries, todayIso, input.now),
     study: buildStudySnapshot(input.studyState, input.imports, input.resolveChapter),
   };
+}
+
+/** v438: the ONE JSON document the native providers read — the
+ * scheme their tap intents are built from, plus the six snapshots
+ * under their builder keys (WidgetRenderer.kt reads exactly
+ * these). Pure: the push layer only adds the storage reads. */
+export function serializeWidgetSnapshots(snapshots: AllWidgetSnapshots, scheme: string): string {
+  return JSON.stringify({ scheme, ...snapshots });
 }
 
 // ─── Deep links (open-to-act) ───────────────────────────────────────────────

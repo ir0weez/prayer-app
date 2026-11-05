@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The fast hearts — the same heart path the TSX faces drew as SVG,
+     here as a vector so the provider can tint it lit (seed) or resting
+     (dim violet) per slot via setColorFilter. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+  android:width="16dp"
+  android:height="16dp"
+  android:viewportWidth="24"
+  android:viewportHeight="24">
+  <path
+    android:fillColor="#FFFFFF"
+    android:pathData="M12 21s-7.5-4.7-10-9.3C.3 8.6 1.8 4.9 5.2 4.4c2-.3 3.9.7 4.9 2.2l1.9 2.7 1.9-2.7c1-1.5 2.9-2.5 4.9-2.2 3.4.5 4.9 4.2 3.2 7.3C19.5 16.3 12 21 12 21z" />
+</vector>

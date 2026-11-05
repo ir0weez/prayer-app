@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plain white full-round pill — Pray now / Open chapter buttons,
+     painted via setColorFilter (seed violet, emergency white stays
+     white, book hues). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="#FFFFFF" />
+  <corners android:radius="100dp" />
+</shape>

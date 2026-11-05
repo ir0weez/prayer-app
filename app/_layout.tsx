@@ -41,11 +41,10 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 // import is the side effect; the sync call below keeps the OS
 // registration in step with his switch.
 import { syncAutoExportRegistration } from "@/lib/bible-v205/auto-export-task";
-// v436: the home-screen widgets' task handler registers at module
-// scope (the OS wakes a headless JS context for widget refreshes
-// and must find the handler registered — the v408 reasoning above).
-// The named import is the side effect.
-import "@/lib/widget-task-handler";
+// v436: widget snapshots refresh on mount/foreground (below).
+// v438: that push is ALL the JS the widgets need — the render path
+// is native (modules/expo-prayercircle-widgets), so the v436/v437
+// headless task handler is gone: nothing registers here any more.
 import { refreshAndPushWidgets } from "@/lib/widget-push";
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";

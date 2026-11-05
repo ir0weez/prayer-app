@@ -2,17 +2,22 @@
  * v436 — the home-screen widgets (W-1 concepts, refined Nov 5 to
  * his real home-screen slots: Pray Today large on top, Fast +
  * Reach Out as the half-width pair, Emergency / Up Next / Study
- * wide). Route: react-native-android-widget (its config plugin
- * generates the AppWidgetProviders at prebuild — verified in the
- * v436 smoke test against this repo's Expo 54 / RN 0.81 config).
+ * wide).
  *
- * These tests pin the DATA layer (lib/widget-snapshots — pure
- * builders over the app's own selectors, so a widget can never
- * show data the app itself wouldn't), the registration (all six
- * widgets in app.config.ts + the dependency in package.json), the
- * deep-link shapes and their parse, and the wiring (task handler
- * registered in the root layout; the People page consumes the
- * widget pray intent and pushes live snapshots).
+ * v438 amendment: the RENDER route pinned here originally was
+ * react-native-android-widget (config-plugin-generated providers,
+ * TSX faces, a headless task handler). It shipped blank on device
+ * twice (v436, v437) and is gone: the widgets are native now
+ * (modules/expo-prayercircle-widgets — Kotlin AppWidgetProviders
+ * over compiled layouts, fed one snapshot JSON via
+ * SharedPreferences). What carries over unchanged is the DATA layer
+ * these tests exercise behaviourally (lib/widget-snapshots — pure
+ * builders over the app's own selectors, so a widget can never show
+ * data the app itself wouldn't) and the deep-link shapes + parse
+ * (the native providers build the same URIs; the People page still
+ * consumes the pray intent). The registration pins below were
+ * re-pointed at the native module in v438; the full native pin set
+ * lives in widgets-v438.test.ts.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -127,6 +132,14 @@ describe("v436 Emergency snapshot", () => {
     expect(snapshot.rows.map((row) => row.title)).toEqual(["Dad", "Mind"]);
     expect(snapshot.rows[0].leftText).toBe("About 9 hours left of 24");
     expect(snapshot.rows[1].leftText).toBe("About 20 hours left of 24");
+    // v438: each row carries its expiry as epoch millis (the native
+    // provider re-formats the countdown from it and drops dead
+    // rows), and the third emergency rides in extraRows — the
+    // provider promotes it as earlier rows expire between pushes.
+    expect(snapshot.rows[0].expiresAtMillis).toBe(new Date(inHours(9)).getTime());
+    expect(snapshot.rows[1].expiresAtMillis).toBe(new Date(inHours(20)).getTime());
+    expect(snapshot.extraRows.map((row) => row.title)).toEqual(["Later"]);
+    expect(snapshot.extraRows[0].expiresAtMillis).toBe(new Date(inHours(23)).getTime());
   });
 
   it("rests quiet when no emergency is active — never stale rows", () => {
@@ -365,26 +378,49 @@ describe("v436 all snapshots", () => {
 
 // ─── 8. Registration — six widgets, the dependency, the wiring ──────────────
 
-describe("v436 widget registration", () => {
-  it("registers all six widgets in app.config.ts at Android's 30-minute update floor", () => {
+describe("v436 widget registration (v438 amendment: native module)", () => {
+  it("stays six, distinct, and named — the native providers' identities", () => {
+    const names = Object.values(WIDGET_NAMES);
+    expect(names).toHaveLength(6);
+    expect(new Set(names).size).toBe(6);
+    // The native module's provider classes are named for these
+    // (PrayToday -> PrayTodayWidgetProvider, …) — widgets-v438
+    // pins the manifest side.
+    expect(WIDGET_NAMES).toEqual({
+      prayToday: "PrayToday",
+      emergency: "Emergency",
+      yourFast: "YourFast",
+      reachOut: "ReachOut",
+      upNext: "UpNext",
+      yourStudy: "YourStudy",
+    });
+  });
+
+  it("no longer registers through the JS-rendered widget library (v438)", () => {
     const config = read("app.config.ts");
-    for (const name of Object.values(WIDGET_NAMES)) {
-      expect(config).toContain(`name: "${name}"`);
-    }
-    expect(config.match(/updatePeriodMillis: 1800000/g)?.length).toBe(6);
-    expect(config).toContain('"react-native-android-widget"');
+    // The library's plugin entry and its six widget prop objects
+    // are gone from the config entirely.
+    expect(config).not.toContain("react-native-android-widget");
+    expect(config).not.toContain('name: "PrayToday"');
+    expect(config).not.toContain("widgetFeatures");
+    // ...and the dependency itself is out of package.json and the
+    // lockfile (two on-device blank ships; the render path is
+    // native now — modules/expo-prayercircle-widgets).
+    const pkg = JSON.parse(read("package.json")) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    expect(pkg.dependencies?.["react-native-android-widget"]).toBeUndefined();
+    expect(pkg.devDependencies?.["react-native-android-widget"]).toBeUndefined();
+    expect(read("pnpm-lock.yaml")).not.toContain("react-native-android-widget");
   });
 
-  it("carries the library as a real dependency (CI installs frozen from the lockfile)", () => {
-    const pkg = JSON.parse(read("package.json")) as { dependencies: Record<string, string> };
-    expect(pkg.dependencies["react-native-android-widget"]).toBe("0.26.0");
-    const lock = read("pnpm-lock.yaml");
-    expect(lock).toContain("react-native-android-widget@0.26.0:");
-  });
-
-  it("registers the task handler in the root layout and refreshes on foreground", () => {
+  it("pushes snapshots from the root layout; NO widget task handler exists (v438)", () => {
     const layout = read("app/_layout.tsx");
-    expect(layout).toContain('import "@/lib/widget-task-handler";');
+    // v436 registered the library's headless task handler here;
+    // v438 deleted it (native providers need no JS registration) —
+    // what remains is the snapshot push on mount/foreground.
+    expect(layout).not.toContain("widget-task-handler");
     expect(layout).toContain("refreshAndPushWidgets()");
   });
 
@@ -397,8 +433,20 @@ describe("v436 widget registration", () => {
   });
 
   it("no widget face carries an emoji (his standing rule)", () => {
-    const faces = read("components/widgets/prayercircle-widgets.tsx");
-    expect(faces).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+    // v438 amendment: the faces are native layouts + Kotlin now,
+    // so the sweep covers those files.
+    const moduleFiles = [
+      "modules/expo-prayercircle-widgets/android/src/main/res/layout/widget_pray_today.xml",
+      "modules/expo-prayercircle-widgets/android/src/main/res/layout/widget_emergency.xml",
+      "modules/expo-prayercircle-widgets/android/src/main/res/layout/widget_your_fast.xml",
+      "modules/expo-prayercircle-widgets/android/src/main/res/layout/widget_reach_out.xml",
+      "modules/expo-prayercircle-widgets/android/src/main/res/layout/widget_up_next.xml",
+      "modules/expo-prayercircle-widgets/android/src/main/res/layout/widget_your_study.xml",
+      "modules/expo-prayercircle-widgets/android/src/main/java/expo/modules/prayercirclewidgets/WidgetRenderer.kt",
+    ];
+    for (const file of moduleFiles) {
+      expect(read(file)).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+    }
   });
 });
 

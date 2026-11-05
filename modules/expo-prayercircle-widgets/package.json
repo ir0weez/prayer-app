@@ -1,0 +1,1 @@
+{"description":"PrayerCircle home-screen widgets rendered natively (AppWidgetProviders + RemoteViews) from a SharedPreferences snapshot the app pushes","keywords":["expo","android","widget","appwidget","prayer"],"main":"src/index.ts","name":"expo-prayercircle-widgets","types":"src/index.ts","version":"1.0.0"}

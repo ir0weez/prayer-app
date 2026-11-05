@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The widgets' dark violet dress (the W-1/W-2 card #241B45). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="#241B45" />
+  <corners android:radius="26dp" />
+</shape>

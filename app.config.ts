@@ -140,92 +140,12 @@ const config: ExpoConfig = {
   },
   plugins: [
     "./plugins/with-app-icons.js",
-    // v436: the six home-screen widgets (W-1 concepts, refined to
-    // his real home-screen slots Nov 5). react-native-android-
-    // widget's plugin generates one AppWidgetProvider per entry at
-    // prebuild (verified in the v436 smoke test: manifest receivers
-    // + res/xml provider files). The faces are TSX (components/
-    // widgets/), the data is lib/widget-snapshots.ts pushed via
-    // lib/widget-push.tsx, and the OS refresh handler is
-    // lib/widget-task-handler.tsx. updatePeriodMillis sits at
-    // Android's 30-minute floor — hours-left lines never sit frozen
-    // all day, and every app open pushes fresh snapshots anyway.
-    [
-      "react-native-android-widget",
-      {
-        widgets: [
-          {
-            // v437: 4×2 (was 4×3 in v436 — Jonathan: "way too
-            // big"). The face in components/widgets/ was refit to
-            // the shorter canvas in the same pass.
-            name: "PrayToday",
-            label: "Pray Today",
-            description: "Next up in today's prayer queue, with the day's faces",
-            minWidth: "320dp",
-            minHeight: "150dp",
-            targetCellWidth: 4,
-            targetCellHeight: 2,
-            resizeMode: "horizontal|vertical",
-            updatePeriodMillis: 1800000,
-          },
-          {
-            name: "Emergency",
-            label: "Emergency",
-            description: "Active emergency prayers, soonest first",
-            minWidth: "320dp",
-            minHeight: "150dp",
-            targetCellWidth: 4,
-            targetCellHeight: 2,
-            resizeMode: "horizontal|vertical",
-            updatePeriodMillis: 1800000,
-          },
-          {
-            name: "YourFast",
-            label: "Your Fast",
-            description: "Today's day of your fast, with your hearts",
-            minWidth: "150dp",
-            minHeight: "150dp",
-            targetCellWidth: 2,
-            targetCellHeight: 2,
-            resizeMode: "horizontal|vertical",
-            updatePeriodMillis: 1800000,
-          },
-          {
-            name: "ReachOut",
-            label: "Due to Reach Out",
-            description: "Who is due a reach-out, longest gap first",
-            minWidth: "150dp",
-            minHeight: "150dp",
-            targetCellWidth: 2,
-            targetCellHeight: 2,
-            resizeMode: "horizontal|vertical",
-            updatePeriodMillis: 1800000,
-          },
-          {
-            name: "UpNext",
-            label: "Up Next",
-            description: "The next thing on today's schedule",
-            minWidth: "320dp",
-            minHeight: "130dp",
-            targetCellWidth: 4,
-            targetCellHeight: 2,
-            resizeMode: "horizontal|vertical",
-            updatePeriodMillis: 1800000,
-          },
-          {
-            name: "YourStudy",
-            label: "Your Study",
-            description: "Your current book: next chapter to write, its first verse, your progress",
-            minWidth: "320dp",
-            minHeight: "170dp",
-            targetCellWidth: 4,
-            targetCellHeight: 2,
-            resizeMode: "horizontal|vertical",
-            updatePeriodMillis: 1800000,
-          },
-        ],
-      },
-    ],
+    // v438: the six home-screen widgets need NO config plugin —
+    // they are a local native module (modules/
+    // expo-prayercircle-widgets) whose AndroidManifest + res merge
+    // into the app at build time. (v436/v437 registered them here
+    // through a JS-rendered widget library; that render path
+    // shipped blank on device twice and is gone entirely.)
     "expo-background-task",
     "expo-router",
     "expo-font",

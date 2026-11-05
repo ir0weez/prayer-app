@@ -258,15 +258,21 @@ describe("v445 Up Next renderer", () => {
     expect(after).toContain("R.id.next_rail, View.GONE");
   });
 
-  it("the selection is height-budgeted: budget = heightSignal − 96, with the stated costs", () => {
+  it("the selection is height-budgeted: budget = heightSignal − 56, with the stated costs", () => {
+    // v447 re-pin: the allowance was − 96 while the card
+    // carried a footer; Jonathan removed the footer ("Why do
+    // we need that?") and its ~40dp went to the rail, so the
+    // allowance is − 56 now. The gap cost rose 26 → 32 in the
+    // same build: the gap wears a white box (in-box padding
+    // + box margins) where the bare line stood shorter.
     const body = rendererFn("selectRailRows");
-    expect(body).toContain("val railBudget = heightSignal - 96");
-    // Hero 64, plain 34, NOW 30, gap 26 — as decrements.
+    expect(body).toContain("val railBudget = heightSignal - 56");
+    // Hero 64, plain 34, NOW 30, gap 32 — as decrements.
     expect(body).toContain("remaining -= 64");
     expect(body).toContain("remaining -= 34");
     expect(body).toContain("remaining -= 30");
     // next2 rides with its gap only when both fit.
-    expect(body).toContain("34 + 26 <= remaining");
+    expect(body).toContain("34 + 32 <= remaining");
   });
 
   it("NOW is always its own rail row, and the current branch never stands the trailing label up", () => {
@@ -324,44 +330,40 @@ describe("v445 Emergency Strip", () => {
     expect(renderer).toContain("fun emergencyLeftText");
   });
 
-  it("the Pray now pill sits in a bottom row, after the need line", () => {
-    // v446 re-pin: the pill row moved INSIDE the name column
-    // (marginTop 4dp, below the need line) when the single face
-    // was recomposed around the 54dp avatar — it is no longer a
-    // full-width row under a separate face row. The invariant
-    // this test guards stands: the need line first, then the
-    // pill's own row, then the pill, at its fixed 26dp height.
-    const titleAt = strip.indexOf("@+id/es_s_title");
-    const bottomRowAt = strip.indexOf('android:layout_marginTop="4dp"');
-    const pillAt = strip.indexOf("@+id/es_s_pill");
-    expect(titleAt).toBeGreaterThan(-1);
-    expect(bottomRowAt).toBeGreaterThan(titleAt);
-    expect(pillAt).toBeGreaterThan(bottomRowAt);
-    // The pill frame is 26dp; its text 12.5sp with 11dp pads.
-    expect(tagWithId(strip, "es_s_pill")).toContain('android:layout_height="26dp"');
-    expect(tagWithId(strip, "es_s_pill_text")).toContain('android:textSize="12.5sp"');
-    expect(tagWithId(strip, "es_s_pill_text")).toContain('android:paddingStart="11dp"');
-    expect(tagWithId(strip, "es_s_pill_text")).toContain('android:paddingEnd="11dp"');
+  it("there is no pill row and no need line — the name stands alone in the column", () => {
+    // v447 re-pin: this test pinned the Pray now pill's seat
+    // (its own row under the need line, 26dp, 12.5sp, 11dp
+    // pads). Jonathan removed the pill AND the need line from
+    // the strip ("Just show the name. And the avatar."), so
+    // both views are absent now; the positive pins for what
+    // remains live in widgets-v447.test.ts.
+    expect(strip).not.toContain("es_s_title");
+    expect(strip).not.toContain("es_s_pill");
   });
 
-  it("the single face fits its cell: root padding 10/4, need 12sp", () => {
+  it("the single face fits its cell: root padding 10/4", () => {
     // v446 re-pin: the face and name sizes moved when the
     // single face was recomposed (avatar 40/36 → 54/50, name
     // 15sp → 15.5sp, root vertical padding 5 → 4 for the fit
     // audit); those values are pinned in widgets-v446.test.ts.
-    // What remains pinned here: the root's 10dp sides and the
-    // need line's 12sp.
+    // v447 re-pin: the need line's 12sp pin is dropped — the
+    // need line itself was removed at Jonathan's ruling.
+    // What remains pinned here: the root's 10dp sides and 4dp
+    // vertical padding.
     expect(strip).toContain('android:paddingStart="10dp"');
     expect(strip).toContain('android:paddingTop="4dp"');
-    expect(tagWithId(strip, "es_s_title")).toContain('android:textSize="12sp"');
   });
 
-  it("the two-active pills are tightened, and their lines are the need alone", () => {
-    expect(tagWithId(strip, "es_m_pill_text_1")).toContain('android:textSize="11.5sp"');
-    expect(tagWithId(strip, "es_m_pill_text_1")).toContain('android:paddingStart="9dp"');
-    expect(tagWithId(strip, "es_m_pill_text_2")).toContain('android:textSize="11.5sp"');
+  it("the two-active rows are name only — no pills, no need lines", () => {
+    // v447 re-pin: this test pinned the rows' tightened pills
+    // (11.5sp, 9dp pads) and their need-alone lines. Both are
+    // removed at Jonathan's ruling (v447): no pill views, no
+    // line views, and the renderer builds no line text. The
+    // hours-suffix absences from v445 still hold.
+    expect(strip).not.toContain("es_m_pill");
+    expect(strip).not.toContain("es_m_line");
     const body = rendererFn("renderEmergencyStrip");
-    expect(body).toContain("var line = need");
+    expect(body).not.toContain("var line = need");
     expect(body).not.toContain("val left =");
     expect(body).not.toContain("$need · $left");
   });

@@ -206,7 +206,12 @@ describe("v443 strip registration", () => {
 describe("v443 Emergency Strip (ES-1)", () => {
   const strip = layout("widget_emergency_strip");
 
-  it("carries the single and two-row compositions with their own pills", () => {
+  it("carries the single and two-row compositions", () => {
+    // v447 re-pin: "es_s_title", "es_s_pill", "es_m_line_1/2"
+    // and "es_m_pill_1/2" are gone from this list — Jonathan
+    // removed the Pray now button and the need line from the
+    // strip entirely ("Just show the name. And the avatar.");
+    // the absences are pinned in widgets-v447.test.ts.
     for (const id of [
       "es_root",
       "es_bg",
@@ -217,12 +222,10 @@ describe("v443 Emergency Strip (ES-1)", () => {
       "es_s_ring",
       "es_s_img",
       "es_s_name",
-      "es_s_title",
       // v445 re-pin: "es_s_left" (the hours chip) is gone from
       // this list — Jonathan removed the chip from the strip
       // entirely ("Not in the widget anyway."); the absence is
       // pinned in widgets-v445.test.ts.
-      "es_s_pill",
       "es_multi",
       "es_row_1",
       "es_row_2",
@@ -231,10 +234,6 @@ describe("v443 Emergency Strip (ES-1)", () => {
       "es_m_img_2",
       "es_m_name_1",
       "es_m_name_2",
-      "es_m_line_1",
-      "es_m_line_2",
-      "es_m_pill_1",
-      "es_m_pill_2",
     ]) {
       expect(strip, id).toContain(`@+id/${id}`);
     }
@@ -257,21 +256,24 @@ describe("v443 Emergency Strip (ES-1)", () => {
     // v445 re-pin: the strip countdown wording is gone —
     // Jonathan removed the hours chip and the hours suffix
     // from the strip entirely, and the strip countdown helpers
-    // were deleted with them. What survives of this test's
-    // original intent: rows still re-filter by expiry at
-    // render time, the +N fold still rides the second row,
-    // and each row's pill still prays for its own person.
+    // were deleted with them.
+    // v447 re-pin: the +N fold and each row's own pill tap are
+    // gone too — the need line they rode was removed with the
+    // Pray now button ("Just show the name. And the avatar.").
+    // What survives of this test's original intent: rows still
+    // re-filter by expiry at render time, and the whole card's
+    // one tap still prays for the lead person.
     const at = renderer.indexOf("private fun renderEmergencyStrip");
     expect(at).toBeGreaterThan(-1);
     const body = renderer.slice(at, at + 7500);
     expect(body).toContain("expiresAtMillis");
     expect(body).not.toContain("emergencyStripLeftText(expires, now)");
     expect(body).not.toContain("emergencyShortLeftText(expires, now)");
-    // The third-and-beyond emergencies fold into the second
-    // row's line, as the drawing rules.
-    expect(body).toContain("· +${live.size - 2} more");
-    // Each row's pill prays for its own person.
-    expect(body).toContain('prayUri(scheme, row.optString("personId"), "emergency")');
+    // The third-and-beyond fold no longer rides any line.
+    expect(body).not.toContain("· +${live.size - 2} more");
+    // No per-row pill tap remains; the card tap is the lead's.
+    expect(body).not.toContain('prayUri(scheme, row.optString("personId"), "emergency")');
+    expect(body).toContain('prayUri(scheme, live[0].optString("personId"), "emergency")');
   });
 });
 

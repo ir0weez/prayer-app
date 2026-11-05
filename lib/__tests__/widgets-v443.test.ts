@@ -232,9 +232,12 @@ describe("v443 height signal", () => {
     // selection (rail budget = heightSignal − 96 in
     // selectRailRows), because both thresholds still starved
     // rows on his phone. Emergency's tall bar at 190 stands.
+    // v447 re-pin: the budget allowance is − 56 now — the
+    // footer was removed from the card at Jonathan's ruling
+    // and its ~40dp went to the rail.
     expect(renderer).not.toContain("val full = minHeightDp >= 160");
     expect(renderer).toContain("val tall = minHeightDp >= 190");
-    expect(renderer).toContain("val railBudget = heightSignal - 96");
+    expect(renderer).toContain("val railBudget = heightSignal - 56");
     // The 190 belongs to renderEmergency, before renderUpNext.
     const upNextAt = renderer.indexOf("private fun renderUpNext");
     const emergencyAt = renderer.indexOf("private fun renderEmergency");

@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Up Next — the rail layout. v445: every nx_now_N label now
+<!-- Up Next — the rail layout. v447: the FOOTER is gone
+     (Jonathan, Nov 5: "Why do we need that?" — the Open
+     schedule / end-note bar was dead weight; the whole-card
+     tap already opens the schedule) and its ~40dp went to the
+     rail, whose budget allowance dropped 96 → 56 with it.
+     And every gap row now wears the WHITE BOX: the gap text
+     sits in a FrameLayout (nx_gapbox_N) whose ImageView
+     (nx_gap_img_N, widget_rounded16 — the hero band's own
+     background mechanism) the renderer fills with the
+     palette's lightest standing surface (surfaceAlt), the
+     schedule white-block dress; his open time reads as a
+     block, like his white blocks in the app, not a bare line
+     of text on the rail. The rail dot/line dressing is
+     unchanged.
+     v445: every nx_now_N label now
      sits INSIDE its nx_row_N, as the last child of the row's
      horizontal layout (in v444 it stood outside the row frame
      and rendered as a stray NOW line of its own), and the hero
@@ -239,16 +253,34 @@
                 android:textSize="13sp" />
             </LinearLayout>
 
-            <TextView
-              android:id="@+id/nx_gap_1"
+            <FrameLayout
+              android:id="@+id/nx_gapbox_1"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:paddingTop="5dp"
-              android:paddingBottom="5dp"
-              android:textColor="#7A72A0"
-              android:textSize="12.5sp"
-              android:textStyle="bold"
-              android:visibility="gone" />
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_gap_img_1"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/nx_gap_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp"
+                android:textColor="#7A72A0"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
+            </FrameLayout>
 
             <FrameLayout
               android:id="@+id/nx_band_1"
@@ -469,16 +501,34 @@
                 android:textSize="13sp" />
             </LinearLayout>
 
-            <TextView
-              android:id="@+id/nx_gap_2"
+            <FrameLayout
+              android:id="@+id/nx_gapbox_2"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:paddingTop="5dp"
-              android:paddingBottom="5dp"
-              android:textColor="#7A72A0"
-              android:textSize="12.5sp"
-              android:textStyle="bold"
-              android:visibility="gone" />
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_gap_img_2"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/nx_gap_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp"
+                android:textColor="#7A72A0"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
+            </FrameLayout>
 
             <FrameLayout
               android:id="@+id/nx_band_2"
@@ -699,16 +749,34 @@
                 android:textSize="13sp" />
             </LinearLayout>
 
-            <TextView
-              android:id="@+id/nx_gap_3"
+            <FrameLayout
+              android:id="@+id/nx_gapbox_3"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:paddingTop="5dp"
-              android:paddingBottom="5dp"
-              android:textColor="#7A72A0"
-              android:textSize="12.5sp"
-              android:textStyle="bold"
-              android:visibility="gone" />
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_gap_img_3"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/nx_gap_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp"
+                android:textColor="#7A72A0"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
+            </FrameLayout>
 
             <FrameLayout
               android:id="@+id/nx_band_3"
@@ -929,16 +997,34 @@
                 android:textSize="13sp" />
             </LinearLayout>
 
-            <TextView
-              android:id="@+id/nx_gap_4"
+            <FrameLayout
+              android:id="@+id/nx_gapbox_4"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:paddingTop="5dp"
-              android:paddingBottom="5dp"
-              android:textColor="#7A72A0"
-              android:textSize="12.5sp"
-              android:textStyle="bold"
-              android:visibility="gone" />
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_gap_img_4"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/nx_gap_4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp"
+                android:textColor="#7A72A0"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
+            </FrameLayout>
 
             <FrameLayout
               android:id="@+id/nx_band_4"
@@ -1159,16 +1245,34 @@
                 android:textSize="13sp" />
             </LinearLayout>
 
-            <TextView
-              android:id="@+id/nx_gap_5"
+            <FrameLayout
+              android:id="@+id/nx_gapbox_5"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:paddingTop="5dp"
-              android:paddingBottom="5dp"
-              android:textColor="#7A72A0"
-              android:textSize="12.5sp"
-              android:textStyle="bold"
-              android:visibility="gone" />
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_gap_img_5"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/nx_gap_5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp"
+                android:textColor="#7A72A0"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
+            </FrameLayout>
 
             <FrameLayout
               android:id="@+id/nx_band_5"
@@ -1389,16 +1493,34 @@
                 android:textSize="13sp" />
             </LinearLayout>
 
-            <TextView
-              android:id="@+id/nx_gap_6"
+            <FrameLayout
+              android:id="@+id/nx_gapbox_6"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:paddingTop="5dp"
-              android:paddingBottom="5dp"
-              android:textColor="#7A72A0"
-              android:textSize="12.5sp"
-              android:textStyle="bold"
-              android:visibility="gone" />
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_gap_img_6"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/nx_gap_6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp"
+                android:textColor="#7A72A0"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
+            </FrameLayout>
 
             <FrameLayout
               android:id="@+id/nx_band_6"
@@ -1619,16 +1741,34 @@
                 android:textSize="13sp" />
             </LinearLayout>
 
-            <TextView
-              android:id="@+id/nx_gap_7"
+            <FrameLayout
+              android:id="@+id/nx_gapbox_7"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:paddingTop="5dp"
-              android:paddingBottom="5dp"
-              android:textColor="#7A72A0"
-              android:textSize="12.5sp"
-              android:textStyle="bold"
-              android:visibility="gone" />
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_gap_img_7"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/nx_gap_7"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp"
+                android:textColor="#7A72A0"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
+            </FrameLayout>
 
             <FrameLayout
               android:id="@+id/nx_band_7"
@@ -1849,16 +1989,34 @@
                 android:textSize="13sp" />
             </LinearLayout>
 
-            <TextView
-              android:id="@+id/nx_gap_8"
+            <FrameLayout
+              android:id="@+id/nx_gapbox_8"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:paddingTop="5dp"
-              android:paddingBottom="5dp"
-              android:textColor="#7A72A0"
-              android:textSize="12.5sp"
-              android:textStyle="bold"
-              android:visibility="gone" />
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_gap_img_8"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/nx_gap_8"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp"
+                android:textColor="#7A72A0"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
+            </FrameLayout>
 
             <FrameLayout
               android:id="@+id/nx_band_8"
@@ -2079,16 +2237,34 @@
                 android:textSize="13sp" />
             </LinearLayout>
 
-            <TextView
-              android:id="@+id/nx_gap_9"
+            <FrameLayout
+              android:id="@+id/nx_gapbox_9"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:paddingTop="5dp"
-              android:paddingBottom="5dp"
-              android:textColor="#7A72A0"
-              android:textSize="12.5sp"
-              android:textStyle="bold"
-              android:visibility="gone" />
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_gap_img_9"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/nx_gap_9"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp"
+                android:textColor="#7A72A0"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
+            </FrameLayout>
 
             <FrameLayout
               android:id="@+id/nx_band_9"
@@ -2191,50 +2367,6 @@
       </FrameLayout>
 
 
-    </LinearLayout>
-
-    <LinearLayout
-      android:id="@+id/next_footer"
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:orientation="vertical"
-      android:visibility="gone">
-
-      <FrameLayout
-        android:id="@+id/next_foot_line"
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#E0D8F5" />
-
-      <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-          android:id="@+id/next_open"
-          android:layout_width="wrap_content"
-          android:layout_height="wrap_content"
-          android:text="Open schedule"
-          android:textColor="#6D4BD8"
-          android:textSize="13.5sp"
-          android:textStyle="bold" />
-
-        <FrameLayout
-          android:layout_width="0dp"
-          android:layout_height="1dp"
-          android:layout_weight="1" />
-
-        <TextView
-          android:id="@+id/next_endnote"
-          android:layout_width="wrap_content"
-          android:layout_height="wrap_content"
-          android:textColor="#7A72A0"
-          android:textSize="12sp"
-          android:textStyle="bold" />
-      </LinearLayout>
     </LinearLayout>
   </LinearLayout>
 </FrameLayout>

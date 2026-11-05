@@ -78,7 +78,12 @@ describe("v439 widget res — vanilla subset only", () => {
     // The three former <View> spots, by id/shape:
     // v442 amendment: the Up Next divider is the rail layout's
     // footer hairline now (next_foot_line), still a FrameLayout.
-    expect(tagWithId(layout("widget_up_next"), "next_foot_line")).toContain("<FrameLayout");
+    // v447 re-pin: the footer is REMOVED entirely (Jonathan:
+    // the Open schedule / end-note bar was dead weight), so
+    // the exemplar moves to the gap row's white box in the
+    // same layout (nx_gapbox_1), added in the same build —
+    // still a FrameLayout.
+    expect(tagWithId(layout("widget_up_next"), "nx_gapbox_1")).toContain("<FrameLayout");
     const study = layout("widget_your_study");
     expect(study).toContain("<FrameLayout");
     expect(layout("widget_pray_today")).toContain("<FrameLayout");

@@ -373,7 +373,7 @@ describe("v442 layouts", () => {
     expect(rounded16).toContain('android:radius="16dp"');
   });
 
-  it("Up Next: nine rail slots + footer in the full layout, three rows in the compact", () => {
+  it("Up Next: nine rail slots in the full layout, three rows in the compact", () => {
     const full = layout("widget_up_next");
     for (let slot = 1; slot <= 9; slot += 1) {
       expect(full).toContain(`@+id/nx_row_${slot}`);
@@ -382,8 +382,13 @@ describe("v442 layouts", () => {
       expect(full).toContain(`@+id/nx_band_${slot}`);
       expect(full).toContain(`@+id/nx_check_${slot}`);
     }
-    expect(full).toContain("@+id/next_foot_line");
-    expect(full).toContain("@+id/next_endnote");
+    // v447 re-pin: the footer this test once pinned
+    // (next_foot_line / next_endnote) is REMOVED — Jonathan
+    // ruled the Open schedule / end-note bar dead weight
+    // ("Why do we need that?") and its space went to the
+    // rail. The absence is pinned in widgets-v447.test.ts.
+    expect(full).not.toContain("@+id/next_foot_line");
+    expect(full).not.toContain("@+id/next_endnote");
     // v444 re-pin: the hero title slimmed 21sp → 18sp (with the
     // band's padding) so the short list's core rows fit the rail
     // a tall placement actually offers.

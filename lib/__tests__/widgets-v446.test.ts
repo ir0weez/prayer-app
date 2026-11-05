@@ -114,31 +114,30 @@ describe("v446 Emergency Strip — single face recomposed", () => {
     expect(tagWithId(strip, "es_s_name")).toContain('android:textStyle="bold"');
   });
 
-  it("column order in the file: name, then the need, then the pill row", () => {
+  it("the column holds the name alone — no need, no pill row under it", () => {
+    // v447 re-pin: this test pinned the column's file order
+    // (name, need, pill row). Jonathan removed the need line
+    // and the Pray now pill from the strip ("Just show the
+    // name. And the avatar."), so the name is the column's
+    // only child now and the other two views are absent.
     const nameAt = strip.indexOf("@+id/es_s_name");
-    const needAt = strip.indexOf("@+id/es_s_title");
-    const pillRowAt = strip.indexOf('android:layout_marginTop="4dp"');
-    const pillAt = strip.indexOf("@+id/es_s_pill");
     expect(nameAt).toBeGreaterThan(-1);
-    expect(needAt).toBeGreaterThan(nameAt);
-    expect(pillRowAt).toBeGreaterThan(needAt);
-    expect(pillAt).toBeGreaterThan(pillRowAt);
-    // The need keeps its v445 dress.
-    expect(tagWithId(strip, "es_s_title")).toContain('android:textSize="12sp"');
-    expect(tagWithId(strip, "es_s_title")).toContain('android:maxLines="1"');
+    expect(strip).not.toContain("es_s_title");
+    expect(strip).not.toContain("es_s_pill");
   });
 
-  it("the pill keeps the v445 construction, inside the column: 26dp, 12.5sp, 11dp pads", () => {
-    expect(tagWithId(strip, "es_s_pill")).toContain('android:layout_height="26dp"');
-    expect(tagWithId(strip, "es_s_pill_text")).toContain('android:textSize="12.5sp"');
-    expect(tagWithId(strip, "es_s_pill_text")).toContain('android:paddingStart="11dp"');
-    expect(tagWithId(strip, "es_s_pill_text")).toContain('android:paddingEnd="11dp"');
-    // And the renderer still stands its white ground up
-    // explicitly (the v443 lesson — the pill never paints if
-    // it is left to the layout alone).
+  it("no pill stands in the column any more", () => {
+    // v447 re-pin: this test pinned the pill's v445
+    // construction (26dp, 12.5sp, 11dp pads) and the renderer
+    // standing its white ground up explicitly. The pill is
+    // removed entirely at Jonathan's ruling (v447) — no view
+    // in the layout, no stand-up in the renderer. The big
+    // Emergency widget's pill construction is untouched and
+    // pinned in widgets-v447.test.ts.
+    expect(strip).not.toContain("es_s_pill");
     const body = rendererFn("renderEmergencyStrip");
-    expect(body).toContain("views.setViewVisibility(R.id.es_s_pill_img, View.VISIBLE)");
-    expect(body).toContain("views.setImageViewResource(R.id.es_s_pill_img, R.drawable.widget_pill_white)");
+    expect(body).not.toContain("es_s_pill_img");
+    expect(body).not.toContain("widget_pill_white");
   });
 
   it("the renderer decodes the single face at 50, the image view's new size", () => {
@@ -156,11 +155,16 @@ describe("v446 Emergency Strip — single face recomposed", () => {
     expect(strip).toContain('android:paddingBottom="4dp"');
   });
 
-  it("the two-active rows and the quiet face are untouched from v445", () => {
+  it("the two-active rows are name-only now; the quiet face is untouched", () => {
+    // v447 re-pin: this test pinned the rows as untouched
+    // from v445, pills included. Jonathan's v447 ruling
+    // changed the rows — avatar + name only, their pills and
+    // need lines removed — while the quiet face below really
+    // is untouched, as is the v446 face size.
     expect(tagWithId(strip, "es_m_img_1")).toContain('android:layout_width="28dp"');
-    expect(tagWithId(strip, "es_m_pill_text_1")).toContain('android:textSize="11.5sp"');
-    expect(tagWithId(strip, "es_m_pill_text_1")).toContain('android:paddingStart="9dp"');
-    expect(tagWithId(strip, "es_m_pill_1")).toContain('android:layout_height="26dp"');
+    expect(tagWithId(strip, "es_m_name_1")).toContain('android:textSize="14sp"');
+    expect(strip).not.toContain("es_m_pill");
+    expect(strip).not.toContain("es_m_line");
     expect(strip).toContain("No emergencies");
     expect(strip).toContain("Nothing urgent right now.");
     // No hours chip crept back in with the recomposition.

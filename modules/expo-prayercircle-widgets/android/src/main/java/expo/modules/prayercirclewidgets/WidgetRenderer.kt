@@ -1194,9 +1194,15 @@ object WidgetRenderer {
     // snapshot's entries remain as the fallback (below) for a
     // snapshot whose day has rolled over or that predates
     // dayItems. Both paths build one common row list (last,
-    // current, hero, gap, next2) and run it through the same
-    // height-budgeted selection (selectRailRows) before a slot
-    // is filled.
+    // current, hero, nowGap, gap, next2) and run it through
+    // the same height-budgeted selection (selectRailRows)
+    // before a slot is filled.
+    // v447: there is no footer any more (Jonathan: the Open
+    // schedule / end-note bar was dead weight — "Why do we
+    // need that?"), so nothing here reads or writes an end
+    // note; the snapshot still carries one, unread. And the
+    // render-time path adds the NOW→next open stretch as its
+    // own gap row (nowGap), below.
     val heightSignal = minHeightDp
     val views = RemoteViews(context.packageName, R.layout.widget_up_next)
     val base = 500
@@ -1213,12 +1219,10 @@ object WidgetRenderer {
       views.setViewVisibility(R.id.next_msg, View.VISIBLE)
       views.setViewVisibility(R.id.next_chip, View.GONE)
       views.setViewVisibility(R.id.next_rail, View.GONE)
-      views.setViewVisibility(R.id.next_footer, View.GONE)
       return views
     }
 
     var leftCount = snap.optInt("leftCount")
-    var endNote = snap.optString("endNote")
     val rows: List<RailRow>
     val dayArr = snap.optJSONArray("dayItems")
     if (dayArr != null && dayArr.length() > 0 && snap.optString("dateIso") == deviceDateIso()) {
@@ -1256,7 +1260,6 @@ object WidgetRenderer {
         views.setViewVisibility(R.id.next_msg, View.VISIBLE)
         views.setViewVisibility(R.id.next_chip, View.GONE)
         views.setViewVisibility(R.id.next_rail, View.GONE)
-        views.setViewVisibility(R.id.next_footer, View.GONE)
         return views
       }
       val chosenIdx = setOfNotNull(currentIdx, next1Idx, next2Idx)
@@ -1288,13 +1291,25 @@ object WidgetRenderer {
         }
         next2Row = RailRow("item", minutesToTimeLabel(next2.startMinutes), next2.title, next2.sub, next2.startMinutes, "")
       }
-      leftCount = aheadIdx.size
-      endNote = if (aheadIdx.isNotEmpty()) {
-        "Nothing after ${minutesToTimeLabel(dayItems[aheadIdx.last()].endMinutes)}"
-      } else {
-        ""
+      // v447: the open stretch he is standing in. When nothing
+      // is running, the time between NOW and the next thing is
+      // a gap too — v446 showed nothing for it at all (his
+      // 3:04 PM render: 56 open minutes before a 4:00 PM Rest,
+      // no gap anywhere). The stretch runs from the previous
+      // item's end, or from now when there is no previous
+      // item — measured from the later of the two, so the
+      // wording names the open time still ahead of him. Same
+      // ≥15-minute rule as the between-items gap.
+      var nowGapRow: RailRow? = null
+      if (currentIdx == null && next1Idx != null) {
+        val prevEnd = lastIdx?.let { overAt(dayItems[it]) } ?: nowMin
+        val openMinutes = dayItems[next1Idx].startMinutes - maxOf(nowMin, prevEnd)
+        if (openMinutes >= 15) {
+          nowGapRow = RailRow("gap", "", "", "", 0, openDurationText(openMinutes))
+        }
       }
-      rows = selectRailRows(lastRow, currentRow, heroRow, gapRow, next2Row, heightSignal)
+      leftCount = aheadIdx.size
+      rows = selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, next2Row, heightSignal)
     } else {
       // ── The fallback: the snapshot's entries walk (v444),
       // extended with the legacy pre-v444 kinds so a stale
@@ -1356,7 +1371,6 @@ object WidgetRenderer {
         views.setViewVisibility(R.id.next_msg, View.VISIBLE)
         views.setViewVisibility(R.id.next_chip, View.GONE)
         views.setViewVisibility(R.id.next_rail, View.GONE)
-        views.setViewVisibility(R.id.next_footer, View.GONE)
         return views
       }
       val lastRow = entries.firstOrNull { it.kind == "done" || it.kind == "past" }
@@ -1364,7 +1378,10 @@ object WidgetRenderer {
       val heroRow = entries.firstOrNull { it.kind == "hero" }
       val gapRow = entries.firstOrNull { it.kind == "gap" }
       val next2Row = entries.firstOrNull { it.kind == "item" }
-      rows = selectRailRows(lastRow, currentRow, heroRow, gapRow, next2Row, heightSignal)
+      // The fallback seats no NOW→next gap: its entries come
+      // from the snapshot as stored, gaps and all (v447's
+      // nowGap is a render-time computation only).
+      rows = selectRailRows(lastRow, currentRow, heroRow, null, gapRow, next2Row, heightSignal)
     }
 
     views.setViewVisibility(R.id.next_msg, View.GONE)
@@ -1372,7 +1389,7 @@ object WidgetRenderer {
     views.setInt(R.id.next_chip_img, "setColorFilter", pal.chip)
     views.setTextViewText(R.id.next_left, "${leftCount} LEFT")
     views.setTextColor(R.id.next_left, pal.onContainer)
-    fillRailFull(context, views, rows, endNote, pal)
+    fillRailFull(context, views, rows, pal)
     return views
   }
 
@@ -1417,38 +1434,50 @@ object WidgetRenderer {
   /** v445: the height-budgeted row selection — the ONE selection
    * both the render-time path and the entries fallback run.
    * The tall/short branch is gone: the rail budget is the
-   * height signal minus the card's fixed chrome (header +
-   * footer + padding ≈ 96), and rows are chosen in priority
-   * order against conservative costs — plain row (last /
-   * current / following) 34, NOW row 30, hero 64, gap 26:
+   * height signal minus the card's fixed chrome, and rows are
+   * chosen in priority order against conservative costs —
+   * plain row (last / current / following) 34, NOW row 30,
+   * hero 64, gap 32:
    *   (1) the hero, (2) the current row — or the NOW row when
-   *   nothing is current, (3) the last row, (4) the following
-   *   item, together with its gap when the gap also fits and
-   *   alone when it does not, (5) the NOW row when a current
-   *   exists (it was not already chosen at (2)).
+   *   nothing is current, (2½) the NOW→next gap (v447: the
+   *   open stretch he is standing in, between the NOW row and
+   *   the hero), (3) the last row, (4) the following item,
+   *   together with its gap when the gap also fits and alone
+   *   when it does not, (5) the NOW row when a current exists
+   *   (it was not already chosen at (2)).
    * A row is chosen only when its cost fits what remains of
    * the budget, EXCEPT (1) and (2), which are always chosen —
    * the hero and the now-anchor can never be starved out of
    * the rail again (the v443/v444 measurement starvation).
    * The chosen rows display in chronological order: last,
-   * current, NOW, hero, gap, next2. The NOW row is always the
-   * proper rail row (its own time, ringed dot, NOW title) —
-   * seated after last and current, before the hero. */
+   * current, NOW, nowGap, hero, gap, next2. The NOW row is
+   * always the proper rail row (its own time, ringed dot, NOW
+   * title) — seated after last and current, before the hero.
+   *
+   * v447 chrome: the allowance is 56, not 96 — the footer
+   * (divider + margins + its row ≈ 40) is REMOVED from the
+   * layout entirely at Jonathan's ruling, and its space went
+   * to the rail, so the budget honestly follows: header +
+   * padding ≈ 56. The gap cost rose 26 → 32 with the white
+   * box (the text's in-box padding plus the box's margins
+   * stand ≈ 33 tall where the bare line stood ≈ 27). */
   private fun selectRailRows(
     last: RailRow?,
     current: RailRow?,
     hero: RailRow?,
+    nowGap: RailRow?,
     gap: RailRow?,
     next2: RailRow?,
     heightSignal: Int,
   ): List<RailRow> {
-    val railBudget = heightSignal - 96
+    val railBudget = heightSignal - 56
     var remaining = railBudget
     val nowRow = RailRow("now", nowTimeLabel(), "NOW", "", 0, "")
     var lastChosen = false
     var currentChosen = false
     var nowChosen = false
     var heroChosen = false
+    var nowGapChosen = false
     var gapChosen = false
     var next2Chosen = false
     // (1) hero — always chosen.
@@ -1464,6 +1493,13 @@ object WidgetRenderer {
       nowChosen = true
       remaining -= 30
     }
+    // (2½) the NOW→next gap — when it fits. It exists only
+    // when nothing is current (the render-time path computes
+    // it so), seated between the NOW row and the hero.
+    if (nowGap != null && 32 <= remaining) {
+      nowGapChosen = true
+      remaining -= 32
+    }
     // (3) last — when it fits.
     if (last != null && 34 <= remaining) {
       lastChosen = true
@@ -1471,10 +1507,10 @@ object WidgetRenderer {
     }
     // (4) next2 — with its gap when both fit, else alone.
     if (next2 != null) {
-      if (gap != null && 34 + 26 <= remaining) {
+      if (gap != null && 34 + 32 <= remaining) {
         next2Chosen = true
         gapChosen = true
-        remaining -= 34 + 26
+        remaining -= 34 + 32
       } else if (34 <= remaining) {
         next2Chosen = true
         remaining -= 34
@@ -1489,16 +1525,18 @@ object WidgetRenderer {
     if (lastChosen && last != null) display.add(last)
     if (currentChosen && current != null) display.add(current)
     if (nowChosen) display.add(nowRow)
+    if (nowGapChosen && nowGap != null) display.add(nowGap)
     if (heroChosen && hero != null) display.add(hero)
     if (gapChosen && gap != null) display.add(gap)
     if (next2Chosen && next2 != null) display.add(next2)
     return display
   }
 
-  private fun fillRailFull(context: Context, views: RemoteViews, rows: List<RailRow>, endNote: String, pal: WidgetPalette) {
+  private fun fillRailFull(context: Context, views: RemoteViews, rows: List<RailRow>, pal: WidgetPalette) {
     // v445: rows arrive already selected by the height budget
     // (selectRailRows) — this walk only fills the slots in
-    // display order and stands the footer up.
+    // display order. v447: nothing stands below the rail any
+    // more; the footer is gone from the layout entirely.
     views.setViewVisibility(R.id.next_rail, View.VISIBLE)
     for (slot in 0 until 9) {
       val rowId = railId(context, "nx_row_${slot + 1}")
@@ -1507,16 +1545,6 @@ object WidgetRenderer {
         continue
       }
       fillRailSlot(context, views, slot + 1, rows[slot], slot == 0, slot == rows.size - 1, pal)
-    }
-    views.setViewVisibility(R.id.next_footer, View.VISIBLE)
-    views.setInt(R.id.next_foot_line, "setBackgroundColor", pal.track)
-    views.setTextColor(R.id.next_open, pal.primary)
-    if (endNote.isBlank()) {
-      views.setViewVisibility(R.id.next_endnote, View.GONE)
-    } else {
-      views.setViewVisibility(R.id.next_endnote, View.VISIBLE)
-      views.setTextViewText(R.id.next_endnote, endNote)
-      views.setTextColor(R.id.next_endnote, pal.muted)
     }
   }
 
@@ -1531,8 +1559,10 @@ object WidgetRenderer {
     views.setViewVisibility(id("seg_bot"), if (isLast) View.GONE else View.VISIBLE)
     // Reset the slot's faces first — kinds move between slots
     // across renders and RemoteViews reuses the placed views.
+    // (The gap TEXT is not reset: it lives inside the gap box,
+    // and the box's visibility is the gap face's switch.)
     views.setViewVisibility(id("line"), View.GONE)
-    views.setViewVisibility(id("gap"), View.GONE)
+    views.setViewVisibility(id("gapbox"), View.GONE)
     views.setViewVisibility(id("band"), View.GONE)
     views.setViewVisibility(id("check"), View.GONE)
     views.setViewVisibility(id("now"), View.GONE)
@@ -1629,11 +1659,22 @@ object WidgetRenderer {
         views.setTextColor(id("hcount"), pal.primary)
       }
       "gap" -> {
+        // v447: the gap wears the WHITE BOX, like his white
+        // blocks in the app — the text sits inside the box
+        // (nx_gapbox), whose image the renderer fills with the
+        // palette's lightest standing surface (surfaceAlt: the
+        // surface mixed a step toward the seed — pal.surface
+        // itself is the card's own colour and a box in it
+        // would vanish), through the hero band's own mechanism
+        // (widget_rounded16 + setColorFilter). The rail keeps
+        // its small softened dot, as before; the wording is
+        // unchanged, quiet grey on the box.
         views.setTextColor(id("time"), pal.muted)
         views.setViewVisibility(id("dot"), View.GONE)
         views.setViewVisibility(id("dot_small"), View.VISIBLE)
         views.setInt(id("dot_small"), "setColorFilter", pal.chip)
-        views.setViewVisibility(id("gap"), View.VISIBLE)
+        views.setViewVisibility(id("gapbox"), View.VISIBLE)
+        views.setInt(id("gap_img"), "setColorFilter", pal.surfaceAlt)
         views.setTextViewText(id("gap"), row.gapText)
         views.setTextColor(id("gap"), pal.muted)
       }
@@ -1875,9 +1916,6 @@ object WidgetRenderer {
   private val ES_M_IMGS = intArrayOf(R.id.es_m_img_1, R.id.es_m_img_2)
   private val ES_M_TEXTS = intArrayOf(R.id.es_m_text_1, R.id.es_m_text_2)
   private val ES_M_NAMES = intArrayOf(R.id.es_m_name_1, R.id.es_m_name_2)
-  private val ES_M_LINES = intArrayOf(R.id.es_m_line_1, R.id.es_m_line_2)
-  private val ES_M_PILLS = intArrayOf(R.id.es_m_pill_1, R.id.es_m_pill_2)
-  private val ES_M_PILL_IMGS = intArrayOf(R.id.es_m_pill_img_1, R.id.es_m_pill_img_2)
 
   /** ES-1 · Face first, at 2×1: the emergency snapshot in a wide,
    * short card. The red is the main widget's own gradient at the
@@ -1886,14 +1924,21 @@ object WidgetRenderer {
    * palette surface like its big sibling. Rows re-filter by
    * expiresAtMillis exactly as renderEmergency's do. One active
    * fills the strip; two or more split it into two slim rows,
-   * soonest first, the second row's line carrying "· +N more"
-   * when more are running.
+   * soonest first.
+   *
+   * v447 (Jonathan, on the v446 render): "Just get rid of the
+   * 'pray now' button altogether. Just show the name. And the
+   * avatar." The strip is avatar + name only in both
+   * compositions — no pill, no need line, no per-row tap; the
+   * whole card's tap into the lead emergency is the only tap.
+   * The big Emergency widget keeps its Pray now pills; nothing
+   * here touches renderEmergency.
    *
    * v446: the single face is recomposed — the avatar stands
    * 54dp at the left (decoded at 50, the image view's size)
    * and the name gets its own full-width line in the column
    * beside it (Jonathan: "make the avatar a bit bigger. I
-   * also want the name to fit."). The rows are unchanged. */
+   * also want the name to fit."). */
   private fun renderEmergencyStrip(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
     val views = RemoteViews(context.packageName, R.layout.widget_emergency_strip)
     val base = 1000
@@ -1940,24 +1985,10 @@ object WidgetRenderer {
       applyFace(context, views, R.id.es_s_img, R.id.es_s_text, row, SEED, 50)
       views.setTextColor(R.id.es_s_text, Color.WHITE)
       views.setTextViewText(R.id.es_s_name, row.optString("name"))
-      // The strip's one line is the emergency's NEED sentence —
-      // the note, the quick sentence the main widget prints
-      // under its headline — falling back to the title when the
-      // emergency carries no sentence. (v443 printed the title
-      // first; for his dad's emergency that surfaced the item's
-      // short label, "Dad", where the need belongs.)
-      // v445: no hours chip stands under it any more — the
-      // strip is face + name + need + Pray now, by his ruling.
-      val note = row.optString("note")
-      views.setTextViewText(R.id.es_s_title, if (note.isNotBlank()) note else row.optString("title"))
-      // The Pray now pill's white ground, set explicitly: v443
-      // left it to the layout alone and on his phone the pill
-      // never painted (red text straight on the card) — the
-      // pill frame now also carries a fixed height like the
-      // main widget's, and the image is stood up here.
-      views.setViewVisibility(R.id.es_s_pill_img, View.VISIBLE)
-      views.setImageViewResource(R.id.es_s_pill_img, R.drawable.widget_pill_white)
-      views.setOnClickPendingIntent(R.id.es_s_pill, leadTap)
+      // v447: the name is ALL the single face writes — the need
+      // line and the Pray now pill are gone at Jonathan's word
+      // ("Just show the name. And the avatar."). The root tap
+      // set above carries the whole card.
       return views
     }
     views.setViewVisibility(R.id.es_single, View.GONE)
@@ -1967,23 +1998,11 @@ object WidgetRenderer {
       applyFace(context, views, ES_M_IMGS[slot], ES_M_TEXTS[slot], row, SEED, 28)
       views.setTextColor(ES_M_TEXTS[slot], Color.WHITE)
       views.setTextViewText(ES_M_NAMES[slot], row.optString("name"))
-      // The need sentence, exactly as the single face: the note
-      // when the emergency carries one, else its title. v445:
-      // the line is the need ALONE — the "· {hours} left"
-      // suffix is gone with the strip's hours chip (his ruling:
-      // no hours in this widget). Only the +N fold for further
-      // emergencies still rides the second row's line.
-      val note = row.optString("note")
-      val need = if (note.isNotBlank()) note else row.optString("title")
-      var line = need
-      if (slot == 1 && live.size > 2) line += " · +${live.size - 2} more"
-      views.setTextViewText(ES_M_LINES[slot], line)
-      views.setViewVisibility(ES_M_PILL_IMGS[slot], View.VISIBLE)
-      views.setImageViewResource(ES_M_PILL_IMGS[slot], R.drawable.widget_pill_white)
-      if (scheme != null) {
-        val tap = uriPendingIntent(context, prayUri(scheme, row.optString("personId"), "emergency"), base + 1 + slot)
-        views.setOnClickPendingIntent(ES_M_PILLS[slot], tap)
-      }
+      // v447: the row writes the name and nothing else — the
+      // need line (and the +N fold that rode it) and each row's
+      // own Pray now pill are gone at Jonathan's word. Further
+      // emergencies beyond the two rows ride the card tap into
+      // the app, like the quiet face.
     }
     return views
   }

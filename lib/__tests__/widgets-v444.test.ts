@@ -354,8 +354,11 @@ describe("v444 Up Next renderer", () => {
     // current-or-NOW row are ALWAYS chosen (steps 1–2) and
     // nothing else fits, which is the same outcome by budget
     // instead of by branch. The pins move to selectRailRows.
+    // v447 re-pin: the budget allowance is − 56 now — the
+    // footer was removed at Jonathan's ruling and its ~40dp
+    // went to the rail; steps 1–2 are unchanged.
     const body = rendererFn("selectRailRows");
-    expect(body).toContain("val railBudget = heightSignal - 96");
+    expect(body).toContain("val railBudget = heightSignal - 56");
     expect(body).toContain('RailRow("now", nowTimeLabel(), "NOW", "", 0, "")');
     expect(body).toContain("heroChosen = true");
     expect(body).toContain("currentChosen = true");
@@ -402,28 +405,40 @@ describe("v444 Up Next renderer", () => {
 // ─── 3. Emergency Strip ─────────────────────────────────────────────────────
 
 describe("v444 Emergency Strip", () => {
-  it("the line leads with the need sentence (the note), the title as its fallback — single and rows", () => {
+  it("the strip no longer reads the need sentence or the title — name only", () => {
+    // v447 re-pin: this test pinned the need line's wording
+    // (note first, title as fallback). Jonathan removed the
+    // need line from the strip along with the Pray now button
+    // ("Just show the name. And the avatar."), so the strip
+    // renderer reads neither field any more. The absence is
+    // the pin now.
     const body = rendererFn("renderEmergencyStrip");
-    expect(body).toContain('if (note.isNotBlank()) note else row.optString("title")');
-    expect(body).toContain('val need = if (note.isNotBlank()) note else row.optString("title")');
+    expect(body).not.toContain('optString("note")');
+    expect(body).not.toContain('row.optString("title")');
   });
 
-  it("the Pray now pill's white ground is stood up explicitly in both compositions", () => {
+  it("no Pray now pill ground is stood up in the strip — there is no pill", () => {
+    // v447 re-pin: this test pinned the strip pills' white
+    // grounds being stood up explicitly. The pills are removed
+    // entirely at Jonathan's ruling (v447), so nothing in the
+    // strip renderer stands a pill up. The big widget's pills
+    // keep their explicit stand-up — pinned in
+    // widgets-v447.test.ts.
     const body = rendererFn("renderEmergencyStrip");
-    expect(body).toContain("views.setViewVisibility(R.id.es_s_pill_img, View.VISIBLE)");
-    expect(body).toContain("views.setImageViewResource(R.id.es_s_pill_img, R.drawable.widget_pill_white)");
-    expect(body).toContain("views.setViewVisibility(ES_M_PILL_IMGS[slot], View.VISIBLE)");
-    expect(body).toContain("views.setImageViewResource(ES_M_PILL_IMGS[slot], R.drawable.widget_pill_white)");
+    expect(body).not.toContain("es_s_pill_img");
+    expect(body).not.toContain("ES_M_PILL_IMGS");
+    expect(body).not.toContain("widget_pill_white");
   });
 
-  it("the pill frames carry fixed heights, like the main widget's 40dp pill", () => {
-    // v445 re-pin: the single pill is 26dp now (was 30dp) —
-    // shaved with the rest of the strip tightening so the
-    // recomposed single face fits its cell.
+  it("the strip carries no pill frames at all", () => {
+    // v447 re-pin: this test pinned the strip pill frames'
+    // fixed 26dp heights. The frames themselves are gone at
+    // Jonathan's ruling (v447) — no pill, no frame, no height
+    // to pin.
     const strip = layout("widget_emergency_strip");
-    expect(tagWithId(strip, "es_s_pill")).toContain('android:layout_height="26dp"');
-    expect(tagWithId(strip, "es_m_pill_1")).toContain('android:layout_height="26dp"');
-    expect(tagWithId(strip, "es_m_pill_2")).toContain('android:layout_height="26dp"');
+    expect(strip).not.toContain("es_s_pill");
+    expect(strip).not.toContain("es_m_pill_1");
+    expect(strip).not.toContain("es_m_pill_2");
   });
 
   it("the hours chip is an opaque deep-red pill worn as the text's own background", () => {

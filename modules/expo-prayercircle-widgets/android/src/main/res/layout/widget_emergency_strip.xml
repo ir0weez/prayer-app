@@ -3,45 +3,31 @@
      snapshot in a true 2×1 cell (~190×82dp): the main widget's
      red (widget_bg_emergency_24 — the meaning hue, never tinted)
      when something is burning, the pale palette surface when not.
+     v447 (Jonathan, Nov 5, on the v446 render): "Just get rid
+     of the 'pray now' button altogether. Just show the name.
+     And the avatar." The strip is now AVATAR + NAME ONLY — no
+     Pray now pill in either composition, no need line under the
+     name, no per-row tap: the whole card's tap (which opens the
+     lead emergency) is the only tap, exactly as the quiet face
+     already worked. The big Emergency widget and the in-app
+     card keep their Pray now buttons and hours text; this is
+     the strip only. What survives of the compositions: the
+     single face's 54dp avatar at the left (ring 54, image 50,
+     initials 17sp) with the name on its own full-width line in
+     the weighted column beside it, vertically centred now that
+     it stands alone; the two-active rows keep their 28dp faces
+     and 14sp names, hairline between them.
      v446 (Jonathan, Nov 5: "you can probably make the avatar a
      bit bigger. I also want the name to fit."): the single face
-     is recomposed — the avatar stands 54dp at the left (ring
-     54, image 50, initials 17sp), the card's height beside a
-     weighted column that holds the NAME ON ITS OWN LINE — the
-     column's whole width, shared with nothing, so the name
-     fits instead of squeezing into what the face left over —
-     the need under it, and the Pray now pill right-aligned in
-     a row of its own inside the column. Column: name ~22 +
-     need ~17 + 4 margin + pill 26 ≈ 69dp; root padding 10
-     across, 4 down → ≈ 77dp inside the ~82dp cell. The name
-     gets ≈ 185 − 20 (padding) − 54 (avatar) − 10 (margin) ≈
-     101dp — the widest it has ever had on this strip.
-     v445 (his rulings, Nov 5): the strip is face + name + need
-     + Pray now ONLY — the hours-left chip is REMOVED from the
-     strip entirely ("it doesn't need the little hours left
-     chip. Not in the widget anyway." The in-app emergency card
-     and the big Emergency widget keep their hours text; this
-     is the strip only.) His other verdict on v444 — "obviously
-     that everything doesn't fit," the white Pray now pill
-     clipped at the card's right edge — goes with the chip: the
-     bottom row held two rigid items (chip + pill) and
-     overflowed; with the chip gone the pill stays in a bottom
-     row (elastic spacer + pill at the right), the row's only
-     rigid item. Two or more: two slim rows, soonest first,
-     each with its own pill, their lines the need alone (the
-     "· {hours} left" suffix is gone with the chip); their
-     pills are tightened the same way (11.5sp, 9dp padding).
-     v444 fixes, from his phone (the chip itself was removed
-     in v445, above): the hours chip became a TextView wearing
-     the opaque deep-red pill (widget_pill_deep_red) as its
-     background — the main widget's proven chip construction
-     — where v443's translucent-white image under white text
-     rendered as a solid pale pill and the hours vanished into
-     it; and the Pray now pill frames carry FIXED heights (26dp
-     single since v445, 26dp rows) like the main widget's 40dp
-     pill, whose
-     absence left v443's match_parent pill image with no height
-     to fill — it never painted, leaving red text on the card.
+     was recomposed — the avatar stands 54dp at the left and the
+     name got its own full-width line in the weighted column
+     beside it (≈ 101dp — the widest it has ever had on this
+     strip). v447 keeps that composition; the need line and the
+     pill row that stood under the name are gone.
+     v445 (his rulings, Nov 5): the hours-left chip was REMOVED
+     from the strip entirely ("it doesn't need the little hours
+     left chip. Not in the widget anyway."), and the two-active
+     lines lost their "· {hours} left" suffix with it.
      XML defaults are the quiet face. Vanilla subset only. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/es_root"
@@ -128,9 +114,9 @@
         android:textSize="12sp" />
     </LinearLayout>
 
-    <!-- One active (v446: horizontal — the 54dp avatar stands
-         at the left; the column beside it holds the name on
-         its own full-width line, the need, and the pill row) -->
+    <!-- One active (v447: avatar + name only — the 54dp avatar
+         stands at the left; the weighted column beside it holds
+         the name alone, centred against the avatar) -->
     <LinearLayout
       android:id="@+id/es_single"
       android:layout_width="match_parent"
@@ -172,8 +158,10 @@
       <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
         android:layout_marginStart="10dp"
         android:layout_weight="1"
+        android:gravity="center_vertical"
         android:orientation="vertical">
 
         <TextView
@@ -186,60 +174,12 @@
           android:textColor="#FFFFFF"
           android:textSize="15.5sp"
           android:textStyle="bold" />
-
-        <TextView
-          android:id="@+id/es_s_title"
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:layout_marginTop="1dp"
-          android:ellipsize="end"
-          android:maxLines="1"
-          android:textColor="#E0FFFFFF"
-          android:textSize="12sp" />
-
-        <LinearLayout
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:layout_marginTop="4dp"
-          android:gravity="center_vertical"
-          android:orientation="horizontal">
-
-          <FrameLayout
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
-
-          <FrameLayout
-            android:id="@+id/es_s_pill"
-            android:layout_width="wrap_content"
-            android:layout_height="26dp"
-            android:layout_marginStart="8dp">
-
-            <ImageView
-              android:id="@+id/es_s_pill_img"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:contentDescription="@null"
-              android:scaleType="fitXY"
-              android:src="@drawable/widget_pill_white" />
-
-            <TextView
-              android:id="@+id/es_s_pill_text"
-              android:layout_width="wrap_content"
-              android:layout_height="match_parent"
-              android:gravity="center"
-              android:paddingStart="11dp"
-              android:paddingEnd="11dp"
-              android:text="Pray now"
-              android:textColor="#B91C1C"
-              android:textSize="12.5sp"
-              android:textStyle="bold" />
-          </FrameLayout>
-        </LinearLayout>
       </LinearLayout>
     </LinearLayout>
 
-    <!-- Two or more active -->
+    <!-- Two or more active (v447: each row is avatar + name
+         only, soonest first; further emergencies ride the
+         card tap into the app, as the quiet face does) -->
     <LinearLayout
       android:id="@+id/es_multi"
       android:layout_width="match_parent"
@@ -276,60 +216,17 @@
             android:textStyle="bold" />
         </FrameLayout>
 
-        <LinearLayout
+        <TextView
+          android:id="@+id/es_m_name_1"
           android:layout_width="0dp"
           android:layout_height="wrap_content"
           android:layout_marginStart="8dp"
           android:layout_weight="1"
-          android:orientation="vertical">
-
-          <TextView
-            android:id="@+id/es_m_name_1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-          <TextView
-            android:id="@+id/es_m_line_1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="#E0FFFFFF"
-            android:textSize="11.5sp" />
-        </LinearLayout>
-
-        <FrameLayout
-          android:id="@+id/es_m_pill_1"
-          android:layout_width="wrap_content"
-          android:layout_height="26dp"
-          android:layout_marginStart="8dp">
-
-          <ImageView
-            android:id="@+id/es_m_pill_img_1"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="@null"
-            android:scaleType="fitXY"
-            android:src="@drawable/widget_pill_white" />
-
-          <TextView
-            android:id="@+id/es_m_pill_text_1"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:paddingStart="9dp"
-            android:paddingEnd="9dp"
-            android:text="Pray now"
-            android:textColor="#B91C1C"
-            android:textSize="11.5sp"
-            android:textStyle="bold" />
-        </FrameLayout>
+          android:ellipsize="end"
+          android:maxLines="1"
+          android:textColor="#FFFFFF"
+          android:textSize="14sp"
+          android:textStyle="bold" />
       </LinearLayout>
 
       <FrameLayout
@@ -367,60 +264,17 @@
             android:textStyle="bold" />
         </FrameLayout>
 
-        <LinearLayout
+        <TextView
+          android:id="@+id/es_m_name_2"
           android:layout_width="0dp"
           android:layout_height="wrap_content"
           android:layout_marginStart="8dp"
           android:layout_weight="1"
-          android:orientation="vertical">
-
-          <TextView
-            android:id="@+id/es_m_name_2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-          <TextView
-            android:id="@+id/es_m_line_2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="#E0FFFFFF"
-            android:textSize="11.5sp" />
-        </LinearLayout>
-
-        <FrameLayout
-          android:id="@+id/es_m_pill_2"
-          android:layout_width="wrap_content"
-          android:layout_height="26dp"
-          android:layout_marginStart="8dp">
-
-          <ImageView
-            android:id="@+id/es_m_pill_img_2"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="@null"
-            android:scaleType="fitXY"
-            android:src="@drawable/widget_pill_white" />
-
-          <TextView
-            android:id="@+id/es_m_pill_text_2"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:paddingStart="9dp"
-            android:paddingEnd="9dp"
-            android:text="Pray now"
-            android:textColor="#B91C1C"
-            android:textSize="11.5sp"
-            android:textStyle="bold" />
-        </FrameLayout>
+          android:ellipsize="end"
+          android:maxLines="1"
+          android:textColor="#FFFFFF"
+          android:textSize="14sp"
+          android:textStyle="bold" />
       </LinearLayout>
     </LinearLayout>
   </LinearLayout>

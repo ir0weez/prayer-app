@@ -4,7 +4,12 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Path
 import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
@@ -132,7 +137,6 @@ object WidgetRenderer {
     views.setViewVisibility(R.id.pt_msg_title, View.GONE)
     views.setViewVisibility(R.id.pt_msg_sub, View.GONE)
     views.setViewVisibility(R.id.pt_hero, View.VISIBLE)
-    views.setViewVisibility(R.id.pt_bar, View.VISIBLE)
     views.setViewVisibility(R.id.pt_faces, View.VISIBLE)
     views.setInt(R.id.pt_avatar_img, "setColorFilter", colorOr(snap.optString("color"), SEED))
     views.setTextViewText(R.id.pt_avatar_text, snap.optString("initials"))
@@ -143,9 +147,6 @@ object WidgetRenderer {
     val needLine = snap.optString("needLine")
     views.setTextViewText(R.id.pt_line, needLine)
     views.setViewVisibility(R.id.pt_line, if (needLine.isBlank()) View.GONE else View.VISIBLE)
-    val total = snap.optInt("total")
-    val progress = if (total > 0) (snap.optInt("prayed") * 100) / total else 0
-    views.setProgressBar(R.id.pt_bar, 100, progress, false)
     val tap = if (scheme != null) {
       uriPendingIntent(context, prayUri(scheme, snap.optString("personId"), "today"), base + 1)
     } else {
@@ -317,7 +318,7 @@ object WidgetRenderer {
         views.setViewVisibility(FAST_HEARTS[i], View.GONE)
       } else {
         views.setViewVisibility(FAST_HEARTS[i], View.VISIBLE)
-        views.setInt(FAST_HEARTS[i], "setColorFilter", if (slot <= hearts) SEED else RING_OFF)
+        views.setImageViewBitmap(FAST_HEARTS[i], heartBitmap(if (slot <= hearts) SEED else RING_OFF))
       }
     }
   }
@@ -396,6 +397,7 @@ object WidgetRenderer {
     views.setInt(R.id.study_pill_img, "setColorFilter", primary)
     views.setViewVisibility(R.id.study_msg, View.GONE)
     views.setViewVisibility(R.id.study_main, View.VISIBLE)
+    views.setImageViewBitmap(R.id.study_book_glyph, bookBitmap())
     views.setViewVisibility(R.id.study_footer, View.VISIBLE)
     val nextChapter = if (snap.isNull("nextChapter")) null else snap.optInt("nextChapter")
     val book = snap.optString("book")
@@ -440,5 +442,110 @@ object WidgetRenderer {
     views.setOnClickPendingIntent(R.id.study_pill, tap)
     views.setTextColor(R.id.study_prog, MUTED)
     views.setTextColor(R.id.study_last, MUTED)
+  }
+
+  // ─── Runtime-drawn glyphs (v439) ──────────────────────────────────────────
+  //
+  // v438 shipped the fast hearts and the Study book as <vector>
+  // drawables in res — and on his phone the widgets carrying them
+  // failed to load at all ("Couldn't add widget"), while the
+  // vector-free Emergency widget rendered. RemoteViews inflation
+  // happens in the LAUNCHER's process, which cannot be trusted with
+  // anything beyond the vanilla widget subset. So the glyphs are
+  // drawn HERE, in our own process at render time, and shipped to
+  // the launcher as plain bitmaps — the one image form every
+  // launcher accepts. Nothing vector-based remains in res.
+
+  private val heartLitBitmap: Bitmap by lazy { drawHeartBitmap(SEED) }
+  private val heartRestingBitmap: Bitmap by lazy { drawHeartBitmap(RING_OFF) }
+  private val bookGlyphBitmap: Bitmap by lazy { drawBookBitmap() }
+
+  /** The heart for a fast slot: seed-lit or resting, cached per colour. */
+  private fun heartBitmap(color: Int): Bitmap = when (color) {
+    SEED -> heartLitBitmap
+    RING_OFF -> heartRestingBitmap
+    else -> drawHeartBitmap(color)
+  }
+
+  /** The Study tile's book glyph (white outline, drawn once, cached). */
+  private fun bookBitmap(): Bitmap = bookGlyphBitmap
+
+  /**
+   * The fast heart, drawn with the same path geometry the deleted
+   * vector carried (24-unit viewport): M12 21 s-7.5-4.7 -10-9.3
+   * C.3 8.6 1.8 4.9 5.2 4.4 c2-.3 3.9.7 4.9 2.2 l1.9 2.7 1.9-2.7
+   * c1-1.5 2.9-2.5 4.9-2.2 3.4.5 4.9 4.2 3.2 7.3 C19.5 16.3 12 21
+   * 12 21 z — the s/c shorthand expanded to absolute cubicTo calls
+   * below, scaled onto a 64x64 bitmap.
+   */
+  private fun drawHeartBitmap(color: Int): Bitmap {
+    val size = 64
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val path = Path().apply {
+      moveTo(12f, 21f)
+      // s-7.5-4.7 -10-9.3 (first control point = current point: the
+      // previous command was a move, so there is no curve to reflect)
+      cubicTo(12f, 21f, 4.5f, 16.3f, 2f, 11.7f)
+      // C.3 8.6 1.8 4.9 5.2 4.4
+      cubicTo(0.3f, 8.6f, 1.8f, 4.9f, 5.2f, 4.4f)
+      // c2-.3 3.9.7 4.9 2.2
+      cubicTo(7.2f, 4.1f, 9.1f, 5.1f, 10.1f, 6.6f)
+      // l1.9 2.7 1.9-2.7 (the notch at the top of the heart)
+      lineTo(12f, 9.3f)
+      lineTo(13.9f, 6.6f)
+      // c1-1.5 2.9-2.5 4.9-2.2, then its implicit second segment
+      // 3.4.5 4.9 4.2 3.2 7.3
+      cubicTo(14.9f, 5.1f, 16.8f, 4.1f, 18.8f, 4.4f)
+      cubicTo(22.2f, 4.9f, 23.7f, 8.6f, 22f, 11.7f)
+      // C19.5 16.3 12 21 12 21
+      cubicTo(19.5f, 16.3f, 12f, 21f, 12f, 21f)
+      close()
+    }
+    val matrix = Matrix().apply { setScale(size / 24f, size / 24f) }
+    path.transform(matrix)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.FILL
+      this.color = color
+    }
+    canvas.drawPath(path, paint)
+    return bitmap
+  }
+
+  /**
+   * An open-book outline for the Study tile, drawn with Path
+   * primitives only: two page curves (quadTo), the outer edges, the
+   * bottom page curves and the centre spine — a simple, legible
+   * book at the ~24dp it renders. 72x72, white stroke.
+   */
+  private fun drawBookBitmap(): Bitmap {
+    val size = 72
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.STROKE
+      color = Color.WHITE
+      strokeWidth = 5f
+      strokeCap = Paint.Cap.ROUND
+      strokeJoin = Paint.Join.ROUND
+    }
+    val path = Path().apply {
+      // Left page: top curve in from the spine, outer edge down,
+      // bottom curve back to the spine.
+      moveTo(36f, 14f)
+      quadTo(24f, 8f, 10f, 12f)
+      lineTo(10f, 54f)
+      quadTo(24f, 60f, 36f, 56f)
+      // Right page: bottom curve out from the spine, outer edge up,
+      // top curve back to the spine.
+      quadTo(48f, 60f, 62f, 54f)
+      lineTo(62f, 12f)
+      quadTo(48f, 8f, 36f, 14f)
+      // The spine.
+      moveTo(36f, 14f)
+      lineTo(36f, 56f)
+    }
+    canvas.drawPath(path, paint)
+    return bitmap
   }
 }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Seed-violet full-round pill — Pray Today's Pray now button wears
+     it directly as a TextView background (v439: the old
+     FrameLayout+ImageView pill collapsed on device, leaving bare
+     text; a background drawable on the TextView itself cannot). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="#A78BFA" />
+  <corners android:radius="100dp" />
+</shape>

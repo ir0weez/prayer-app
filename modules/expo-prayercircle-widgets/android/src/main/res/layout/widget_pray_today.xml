@@ -35,7 +35,7 @@
       android:textSize="11sp"
       android:textStyle="bold" />
 
-    <View
+    <FrameLayout
       android:layout_width="0dp"
       android:layout_height="1dp"
       android:layout_weight="1" />
@@ -71,20 +71,21 @@
   <LinearLayout
     android:id="@+id/pt_hero"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="0dp"
     android:layout_marginTop="8dp"
+    android:layout_weight="1"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:visibility="gone">
 
     <FrameLayout
-      android:layout_width="44dp"
-      android:layout_height="44dp">
+      android:layout_width="54dp"
+      android:layout_height="54dp">
 
       <ImageView
         android:id="@+id/pt_avatar_img"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
+        android:layout_width="54dp"
+        android:layout_height="54dp"
         android:contentDescription="@null"
         android:src="@drawable/widget_circle_white"
         android:tint="#7A4FD0" />
@@ -95,7 +96,7 @@
         android:layout_height="match_parent"
         android:gravity="center"
         android:textColor="#FFFFFF"
-        android:textSize="15sp"
+        android:textSize="17sp"
         android:textStyle="bold" />
     </FrameLayout>
 
@@ -124,7 +125,7 @@
         android:ellipsize="end"
         android:maxLines="1"
         android:textColor="#F4F1FD"
-        android:textSize="16sp"
+        android:textSize="18sp"
         android:textStyle="bold" />
 
       <TextView
@@ -137,44 +138,22 @@
         android:textSize="12.5sp" />
     </LinearLayout>
 
-    <FrameLayout
+    <TextView
       android:id="@+id/pt_pill"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:layout_marginStart="8dp">
-
-      <ImageView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:contentDescription="@null"
-        android:scaleType="fitXY"
-        android:src="@drawable/widget_pill_white"
-        android:tint="#A78BFA" />
-
-      <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:paddingStart="14dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="14dp"
-        android:paddingBottom="8dp"
-        android:text="Pray now"
-        android:textColor="#1D1430"
-        android:textSize="12.5sp"
-        android:textStyle="bold" />
-    </FrameLayout>
+      android:layout_marginStart="8dp"
+      android:background="@drawable/widget_pill_seed"
+      android:paddingStart="14dp"
+      android:paddingTop="8dp"
+      android:paddingEnd="14dp"
+      android:paddingBottom="8dp"
+      android:text="Pray now"
+      android:textColor="#1D1430"
+      android:textSize="12.5sp"
+      android:textStyle="bold" />
   </LinearLayout>
 
-  <ProgressBar
-    android:id="@+id/pt_bar"
-    style="?android:attr/progressBarStyleHorizontal"
-    android:layout_width="match_parent"
-    android:layout_height="6dp"
-    android:layout_marginTop="10dp"
-    android:max="100"
-    android:progress="0"
-    android:progressDrawable="@drawable/widget_progress"
-    android:visibility="gone" />
 
   <LinearLayout
     android:id="@+id/pt_faces"
@@ -191,27 +170,27 @@
          shape with their own ids. -->
     <LinearLayout
       android:id="@+id/pt_face_1"
-      android:layout_width="44dp"
+      android:layout_width="48dp"
       android:layout_height="wrap_content"
       android:gravity="center_horizontal"
       android:orientation="vertical">
 
       <FrameLayout
-        android:layout_width="28dp"
-        android:layout_height="28dp">
+        android:layout_width="34dp"
+        android:layout_height="34dp">
 
         <ImageView
           android:id="@+id/pt_face_ring_1"
-          android:layout_width="28dp"
-          android:layout_height="28dp"
+          android:layout_width="34dp"
+          android:layout_height="34dp"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white"
           android:tint="#4A3D78" />
 
         <ImageView
           android:id="@+id/pt_face_img_1"
-          android:layout_width="23dp"
-          android:layout_height="23dp"
+          android:layout_width="28dp"
+          android:layout_height="28dp"
           android:layout_gravity="center"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white" />
@@ -250,27 +229,27 @@
 
     <LinearLayout
       android:id="@+id/pt_face_2"
-      android:layout_width="44dp"
+      android:layout_width="48dp"
       android:layout_height="wrap_content"
       android:gravity="center_horizontal"
       android:orientation="vertical">
 
       <FrameLayout
-        android:layout_width="28dp"
-        android:layout_height="28dp">
+        android:layout_width="34dp"
+        android:layout_height="34dp">
 
         <ImageView
           android:id="@+id/pt_face_ring_2"
-          android:layout_width="28dp"
-          android:layout_height="28dp"
+          android:layout_width="34dp"
+          android:layout_height="34dp"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white"
           android:tint="#4A3D78" />
 
         <ImageView
           android:id="@+id/pt_face_img_2"
-          android:layout_width="23dp"
-          android:layout_height="23dp"
+          android:layout_width="28dp"
+          android:layout_height="28dp"
           android:layout_gravity="center"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white" />
@@ -309,27 +288,27 @@
 
     <LinearLayout
       android:id="@+id/pt_face_3"
-      android:layout_width="44dp"
+      android:layout_width="48dp"
       android:layout_height="wrap_content"
       android:gravity="center_horizontal"
       android:orientation="vertical">
 
       <FrameLayout
-        android:layout_width="28dp"
-        android:layout_height="28dp">
+        android:layout_width="34dp"
+        android:layout_height="34dp">
 
         <ImageView
           android:id="@+id/pt_face_ring_3"
-          android:layout_width="28dp"
-          android:layout_height="28dp"
+          android:layout_width="34dp"
+          android:layout_height="34dp"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white"
           android:tint="#4A3D78" />
 
         <ImageView
           android:id="@+id/pt_face_img_3"
-          android:layout_width="23dp"
-          android:layout_height="23dp"
+          android:layout_width="28dp"
+          android:layout_height="28dp"
           android:layout_gravity="center"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white" />
@@ -368,27 +347,27 @@
 
     <LinearLayout
       android:id="@+id/pt_face_4"
-      android:layout_width="44dp"
+      android:layout_width="48dp"
       android:layout_height="wrap_content"
       android:gravity="center_horizontal"
       android:orientation="vertical">
 
       <FrameLayout
-        android:layout_width="28dp"
-        android:layout_height="28dp">
+        android:layout_width="34dp"
+        android:layout_height="34dp">
 
         <ImageView
           android:id="@+id/pt_face_ring_4"
-          android:layout_width="28dp"
-          android:layout_height="28dp"
+          android:layout_width="34dp"
+          android:layout_height="34dp"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white"
           android:tint="#4A3D78" />
 
         <ImageView
           android:id="@+id/pt_face_img_4"
-          android:layout_width="23dp"
-          android:layout_height="23dp"
+          android:layout_width="28dp"
+          android:layout_height="28dp"
           android:layout_gravity="center"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white" />
@@ -427,27 +406,27 @@
 
     <LinearLayout
       android:id="@+id/pt_face_5"
-      android:layout_width="44dp"
+      android:layout_width="48dp"
       android:layout_height="wrap_content"
       android:gravity="center_horizontal"
       android:orientation="vertical">
 
       <FrameLayout
-        android:layout_width="28dp"
-        android:layout_height="28dp">
+        android:layout_width="34dp"
+        android:layout_height="34dp">
 
         <ImageView
           android:id="@+id/pt_face_ring_5"
-          android:layout_width="28dp"
-          android:layout_height="28dp"
+          android:layout_width="34dp"
+          android:layout_height="34dp"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white"
           android:tint="#4A3D78" />
 
         <ImageView
           android:id="@+id/pt_face_img_5"
-          android:layout_width="23dp"
-          android:layout_height="23dp"
+          android:layout_width="28dp"
+          android:layout_height="28dp"
           android:layout_gravity="center"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white" />
@@ -486,27 +465,27 @@
 
     <LinearLayout
       android:id="@+id/pt_face_6"
-      android:layout_width="44dp"
+      android:layout_width="48dp"
       android:layout_height="wrap_content"
       android:gravity="center_horizontal"
       android:orientation="vertical">
 
       <FrameLayout
-        android:layout_width="28dp"
-        android:layout_height="28dp">
+        android:layout_width="34dp"
+        android:layout_height="34dp">
 
         <ImageView
           android:id="@+id/pt_face_ring_6"
-          android:layout_width="28dp"
-          android:layout_height="28dp"
+          android:layout_width="34dp"
+          android:layout_height="34dp"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white"
           android:tint="#4A3D78" />
 
         <ImageView
           android:id="@+id/pt_face_img_6"
-          android:layout_width="23dp"
-          android:layout_height="23dp"
+          android:layout_width="28dp"
+          android:layout_height="28dp"
           android:layout_gravity="center"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white" />

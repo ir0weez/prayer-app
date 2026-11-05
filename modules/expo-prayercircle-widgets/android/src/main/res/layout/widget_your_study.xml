@@ -82,11 +82,11 @@
           android:src="@drawable/widget_tile_white" />
 
         <ImageView
+          android:id="@+id/study_book_glyph"
           android:layout_width="24dp"
           android:layout_height="24dp"
           android:layout_gravity="center"
-          android:contentDescription="@null"
-          android:src="@drawable/widget_book" />
+          android:contentDescription="@null" />
       </FrameLayout>
 
       <LinearLayout
@@ -185,7 +185,7 @@
           android:textStyle="bold" />
       </FrameLayout>
 
-      <View
+      <FrameLayout
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:layout_weight="1" />

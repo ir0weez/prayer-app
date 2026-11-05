@@ -21,6 +21,16 @@
  *    title, no strike, no check) and seats its NOW row after the
  *    done AND past rows; the time column widens 54dp → 64dp in
  *    both rail layouts so "12:00 PM" never ellipsizes again.
+ *
+ * v444 amendment (same day): the rail model is replaced by
+ * Jonathan's corrected spec — last / current / next / gap — after
+ * the ten-row walk starved the hero band into an empty sliver on
+ * his phone. The past-entry scenarios below are re-pinned to the
+ * "last" entry (the most recent thing that ended, completed or
+ * not); the height-signal and time-column sections stand as
+ * written (the signal and the 160 bar survive — the bar now
+ * picks the row set inside the one full layout). The deep v444
+ * pins live in widgets-v444.test.ts.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -50,9 +60,9 @@ function tagWithId(xml: string, id: string): string {
   return xml.slice(start, end + 1);
 }
 
-// ─── 1. The past entry ──────────────────────────────────────────────────────
+// ─── 1. The last entry (v444 re-pins of the past-entry scenarios) ───────────
 
-describe("v443 Up Next past entry", () => {
+describe("v443 Up Next past entry — v444 last entry", () => {
   const FIXED = new Date(2026, 10, 5, 10, 30, 0); // Nov 5 2026, 10:30 local
   const DAY = "2026-11-05";
   const event = (overrides: Partial<ScheduleEvent> = {}): ScheduleEvent => ({
@@ -71,10 +81,12 @@ describe("v443 Up Next past entry", () => {
     ...overrides,
   });
 
-  it("the started, uncompleted item rides as the past entry — after the dones, before the hero", () => {
+  it("the started, uncompleted item rides as the last entry — before the hero", () => {
     // His Thursday, as the widget saw it at 10:51: Rest done in
     // the garden, the 10:00 Feed (Aaron) started and never
-    // checked off, Lunch at noon as the hero.
+    // checked off, Lunch at noon as the hero. (v444: kinds
+    // done/past/item are now last/next, and the last carries
+    // its completed flag.)
     const snapshot = buildUpNextSnapshot(
       [
         event({ title: "Rest", startTime: "08:00", endTime: "09:00", isCompleted: true, location: "Garden" }),
@@ -87,23 +99,29 @@ describe("v443 Up Next past entry", () => {
     );
     expect(snapshot.state).toBe("next");
     if (snapshot.state !== "next") return;
-    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["done", "past", "item"]);
-    const past = snapshot.entries[1];
-    expect(past.title).toBe("Feed");
-    expect(past.timeLabel).toBe("10:00 AM");
-    // The past entry carries its sub by the same rule as items
-    // (a todo's notes).
-    expect(past.sub).toBe("Aaron");
-    const hero = snapshot.entries[2];
+    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["last", "next"]);
+    const last = snapshot.entries[0];
+    expect(last.title).toBe("Feed");
+    expect(last.timeLabel).toBe("10:00 AM");
+    expect(last.completed).toBe(false);
+    // The last entry carries its sub by the same rule as the
+    // next entries (a todo's notes).
+    expect(last.sub).toBe("Aaron");
+    const hero = snapshot.entries[1];
     expect(hero.isHero).toBe(true);
     expect(hero.title).toBe("Lunch");
-    // The past row is not "left" — leftCount still counts only
+    // The last row is not "left" — leftCount still counts only
     // what is ahead, hero included.
     expect(snapshot.leftCount).toBe(1);
     expect(snapshot.endNote).toBe("Nothing after 1:00 PM");
   });
 
-  it("a completed past item stays a done — it never duplicates as the past entry", () => {
+  it("one last only: the most recent end wins, completed or not", () => {
+    // Was: "a completed past item stays a done — it never
+    // duplicates as the past entry". The v444 model has ONE
+    // last slot: the uncompleted 9:45 item ended most recently
+    // (10:15), so it takes the slot and the completed 9:00 item
+    // does not ride at all.
     const snapshot = buildUpNextSnapshot(
       [
         event({ title: "Done thing", startTime: "09:00", endTime: "09:30", isCompleted: true }),
@@ -117,14 +135,13 @@ describe("v443 Up Next past entry", () => {
     );
     expect(snapshot.state).toBe("next");
     if (snapshot.state !== "next") return;
-    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["done", "past", "item"]);
-    const doneThing = snapshot.entries.filter((entry) => entry.title === "Done thing");
-    expect(doneThing).toHaveLength(1);
-    expect(doneThing[0].kind).toBe("done");
-    expect(snapshot.entries[1].title).toBe("Left hanging");
+    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["last", "next"]);
+    expect(snapshot.entries[0].title).toBe("Left hanging");
+    expect(snapshot.entries[0].completed).toBe(false);
+    expect(snapshot.entries.some((entry) => entry.title === "Done thing")).toBe(false);
   });
 
-  it("only the MOST RECENT uncompleted past item rides — earlier ones stay off the rail", () => {
+  it("only the MOST RECENT uncompleted past item rides — earlier ones stay off the list", () => {
     const snapshot = buildUpNextSnapshot(
       [
         event({ title: "Earlier", startTime: "09:00", endTime: "09:30" }),
@@ -138,13 +155,13 @@ describe("v443 Up Next past entry", () => {
     );
     expect(snapshot.state).toBe("next");
     if (snapshot.state !== "next") return;
-    const pasts = snapshot.entries.filter((entry) => entry.kind === "past");
-    expect(pasts).toHaveLength(1);
-    expect(pasts[0].title).toBe("Feed");
+    const lasts = snapshot.entries.filter((entry) => entry.kind === "last");
+    expect(lasts).toHaveLength(1);
+    expect(lasts[0].title).toBe("Feed");
     expect(snapshot.entries.some((entry) => entry.title === "Earlier")).toBe(false);
   });
 
-  it("no past entry when the hero is the day's first timed item", () => {
+  it("no last entry when the hero is the day's first timed item", () => {
     const snapshot = buildUpNextSnapshot(
       [
         event({ title: "Hero", startTime: "11:00", endTime: "11:30" }),
@@ -157,11 +174,16 @@ describe("v443 Up Next past entry", () => {
     );
     expect(snapshot.state).toBe("next");
     if (snapshot.state !== "next") return;
-    expect(snapshot.entries.some((entry) => entry.kind === "past")).toBe(false);
-    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["item", "item"]);
+    expect(snapshot.entries.some((entry) => entry.kind === "last")).toBe(false);
+    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["next", "next"]);
   });
 
-  it("the cap counts dones and past against the same 10 — the sequence fills what is left", () => {
+  it("no cap to count against any more — the list is last + the next two, however long the day", () => {
+    // Was: "the cap counts dones and past against the same 10".
+    // The v444 list is bounded by its model, not a cap: the
+    // 10:00 Feed is the last (it ended at 10:30), the two noon-
+    // ward items are the nexts, and the other ten ahead items
+    // live only in leftCount and the end note.
     const hours = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
     const snapshot = buildUpNextSnapshot(
       [
@@ -183,10 +205,9 @@ describe("v443 Up Next past entry", () => {
     );
     expect(snapshot.state).toBe("next");
     if (snapshot.state !== "next") return;
-    expect(snapshot.entries.length).toBe(10);
-    expect(snapshot.entries.map((entry) => entry.kind).slice(0, 3)).toEqual(["done", "done", "past"]);
-    expect(snapshot.entries[3].isHero).toBe(true);
-    expect(snapshot.entries[snapshot.entries.length - 1].kind).toBe("item");
+    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["last", "next", "next"]);
+    expect(snapshot.entries[0].title).toBe("Feed");
+    expect(snapshot.entries[1].isHero).toBe(true);
     expect(snapshot.leftCount).toBe(12);
     expect(snapshot.endNote).toBe("Nothing after 11:00 PM");
   });
@@ -222,8 +243,13 @@ describe("v443 height signal", () => {
 // ─── 3. The past row's dress + the NOW seat (source pins) ───────────────────
 
 describe("v443 past row rendering", () => {
-  it("the renderer maps the snapshot's past kind onto its own rail row", () => {
-    expect(renderer).toContain('"past" -> entries.add(RailRow("past"');
+  it("the renderer maps the snapshot's last kind onto its muted rail rows (v444 re-pin)", () => {
+    // Was: '"past" -> entries.add(RailRow("past"'. The snapshot
+    // kind is "last" now; the renderer maps it onto the done /
+    // past dresses by its completed flag — the two branches
+    // below are the same code this section already pinned.
+    expect(renderer).toContain('"last" -> entries.add(');
+    expect(renderer).toContain('if (e.optBoolean("completed")) "done" else "past"');
   });
 
   it("the NOW row seats after the done AND past rows", () => {

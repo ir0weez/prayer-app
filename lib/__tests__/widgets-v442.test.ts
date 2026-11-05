@@ -130,6 +130,12 @@ describe("v442 snapshot deltas", () => {
 });
 
 // ─── 2. Up Next: the day rail's entries ─────────────────────────────────────
+// v444 amendment: the rail model is replaced by Jonathan's
+// corrected spec (last / current / next / gap — see
+// widgets-v444.test.ts for the deep pins). The scenarios below
+// carry over in the new shape: two-most-recent-dones becomes
+// the single most-recent "last", and the 10-entry cap becomes
+// the two-next limit.
 
 describe("v442 Up Next rail entries", () => {
   const FIXED = new Date(2026, 10, 5, 10, 0, 0); // Nov 5 2026, 10:00 local
@@ -150,7 +156,10 @@ describe("v442 Up Next rail entries", () => {
     ...overrides,
   });
 
-  it("caps done entries at the two most recent, in day order", () => {
+  it("the last entry is the most recent thing that ended — one only (v444 re-pin)", () => {
+    // Was: "caps done entries at the two most recent, in day
+    // order". The v444 model carries ONE last thing: the most
+    // recent ended item, checked off or not.
     const snapshot = buildUpNextSnapshot(
       [
         event({ title: "Early", startTime: "07:00", endTime: "07:30", isCompleted: true }),
@@ -165,11 +174,17 @@ describe("v442 Up Next rail entries", () => {
     );
     expect(snapshot.state).toBe("next");
     if (snapshot.state !== "next") return;
-    const dones = snapshot.entries.filter((entry) => entry.kind === "done");
-    expect(dones.map((entry) => entry.title)).toEqual(["Middle", "Latest done"]);
+    const lasts = snapshot.entries.filter((entry) => entry.kind === "last");
+    expect(lasts.map((entry) => entry.title)).toEqual(["Latest done"]);
+    expect(lasts[0].completed).toBe(true);
+    expect(snapshot.entries.some((entry) => entry.title === "Middle")).toBe(false);
+    expect(snapshot.entries.some((entry) => entry.title === "Early")).toBe(false);
   });
 
-  it("a completed item whose start is still ahead is not a done entry", () => {
+  it("a completed item whose start is still ahead never rides (v444 re-pin)", () => {
+    // Was: "...is not a done entry". Under the v444 model a
+    // completed future item is not last (it has not ended), not
+    // current and not next (both uncompleted) — it is absent.
     const snapshot = buildUpNextSnapshot(
       [
         event({ title: "Checked early", startTime: "16:00", endTime: "17:00", isCompleted: true }),
@@ -182,7 +197,7 @@ describe("v442 Up Next rail entries", () => {
     );
     expect(snapshot.state).toBe("next");
     if (snapshot.state !== "next") return;
-    expect(snapshot.entries.some((entry) => entry.kind === "done")).toBe(false);
+    expect(snapshot.entries.some((entry) => entry.kind === "last")).toBe(false);
     expect(snapshot.entries.some((entry) => entry.title === "Checked early")).toBe(false);
   });
 
@@ -231,10 +246,11 @@ describe("v442 Up Next rail entries", () => {
     expect(snapshot.endNote).toBe("Nothing after 6:00 PM");
   });
 
-  it("caps the rail at 10 entries and never ends it on a gap", () => {
-    // v443 re-pin: the cap rose from 8 to 10 (the past row rides
-    // the rail now, and tall placements have the room) — the day
-    // below carries twelve ahead items so the cap still binds.
+  it("the list stops at the next two — the rest of the day is the count, not rows (v444 re-pin)", () => {
+    // Was: "caps the rail at 10 entries and never ends it on a
+    // gap" (v443 re-pin of the v442 8-cap). The v444 model shows
+    // at most last + current + next + gap + next; the day below
+    // carries twelve ahead items and only the first two ride.
     const hours = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
     const events = hours.map((h) =>
       event({
@@ -246,8 +262,8 @@ describe("v442 Up Next rail entries", () => {
     const snapshot = buildUpNextSnapshot(events, [], [], DAY, FIXED);
     expect(snapshot.state).toBe("next");
     if (snapshot.state !== "next") return;
-    expect(snapshot.entries.length).toBe(10);
-    expect(snapshot.entries[snapshot.entries.length - 1].kind).toBe("item");
+    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["next", "next"]);
+    expect(snapshot.entries.map((entry) => entry.title)).toEqual(["Item 11", "Item 12"]);
     expect(snapshot.leftCount).toBe(12);
     expect(snapshot.endNote).toBe("Nothing after 11:00 PM");
   });
@@ -368,7 +384,10 @@ describe("v442 layouts", () => {
     }
     expect(full).toContain("@+id/next_foot_line");
     expect(full).toContain("@+id/next_endnote");
-    expect(tagWithId(full, "nx_htitle_1")).toContain('android:textSize="21sp"');
+    // v444 re-pin: the hero title slimmed 21sp → 18sp (with the
+    // band's padding) so the short list's core rows fit the rail
+    // a tall placement actually offers.
+    expect(tagWithId(full, "nx_htitle_1")).toContain('android:textSize="18sp"');
     const compact = layout("widget_up_next_compact");
     expect(compact).toContain("@+id/nc_rows");
     expect(compact).toContain("@+id/nc_row_gap");
@@ -431,10 +450,15 @@ describe("v442 renderer", () => {
     expect(renderer).toContain("renderReachPair(context, root, scheme, pal)");
   });
 
-  it("selects the tall Emergency and the full/compact rail by the widget's real height", () => {
+  it("selects the tall Emergency by height; Up Next renders the full layout at both bands (v444 re-pin)", () => {
     expect(renderer).toContain("minHeightDp >= 190");
     expect(renderer).toContain("R.layout.widget_emergency_tall");
-    expect(renderer).toContain("R.layout.widget_up_next_compact");
+    // Was: "...and the full/compact rail by the widget's real
+    // height" — the compact layout was one of the two. v444:
+    // Up Next's short list renders through the full layout's
+    // slots at both bands (the ≥160 signal picks the row set),
+    // and the compact layout is never selected.
+    expect(renderer).not.toContain("R.layout.widget_up_next_compact");
     // The height itself arrives from the providers, which read it
     // from the AppWidgetManager options on every update/resize.
     // (v443 re-pin: the providers now pass a robust heightSignal —
@@ -473,10 +497,9 @@ describe("v442 renderer", () => {
     expect(renderer).toContain("checkBitmap(pal.green)");
     // Slot ids resolve by name — the nine stamped slots walk alike.
     expect(renderer).toContain("getIdentifier");
-    // The compact face's "then N more" counts what is left after
-    // the hero, the shown item included (leftCount - 1 more).
-    expect(renderer).toContain('"· then $more more"');
-    expect(renderer).toContain("val more = leftCount - 1");
+    // (v444: the compact face's "· then N more" line is gone
+    // with the compact path itself — the header's LEFT count
+    // carries what remains of the day.)
   });
 
   it("paints the Pray Today hero micro and the Study status in palette/meaning colours", () => {

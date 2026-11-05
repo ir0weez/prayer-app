@@ -404,29 +404,51 @@ export function formatOpenDuration(totalMinutes: number): string {
   return `${hours} hour${hours === 1 ? "" : "s"} ${rest} minute${rest === 1 ? "" : "s"}`;
 }
 
-/** v442 (W-6, Option A — the day rail): one entry on the rail.
- * The renderer walks these in order, seats its own NOW row after
- * the done and past entries, and dresses the hero entry as the
- * tinted band. Order is the day's order: done entries first
- * (behind now), then the one past entry when there is one, then
- * the hero and what follows it. v443 adds "past": the most recent
- * timed item that already started and was never completed — it
- * sat in neither the done bucket (completed only) nor the ahead
- * bucket (future only) and simply vanished from the rail. */
+/** One entry in the Up Next widget's short list.
+ *
+ * v444 — the model is Jonathan's corrected spec (Nov 5, after
+ * the v443 rail rendered on his phone): the widget shows ONLY
+ * the last thing (checked off or not), the current thing, and
+ * the next one or two things. The v442/v443 whole-day rail
+ * (done ≤ 2 + past + hero + following items + gaps, capped at
+ * 10) is superseded — do not revive it. Entries ride in display
+ * order and there are never more than five:
+ *
+ *   "last"    (≤1) the most recent timed item that is over —
+ *             its stored end has passed; an item with no stored
+ *             end (a point item) counts once it has started.
+ *             Completed or not; `completed` carries which, and
+ *             the renderer dresses it struck + checked when
+ *             true, plain muted when false.
+ *   "current" (≤1) the uncompleted timed item running right
+ *             now (start ≤ now < end; the latest start wins).
+ *   "next"    (1–2) the next uncompleted items after now, in
+ *             start order; the first carries isHero and wears
+ *             the band. The first is buildUpNextGroup's lead —
+ *             the schedule tab's own pick, never a second
+ *             opinion.
+ *   "gap"     (≤1) only between next-1 and next-2, when the
+ *             open time between them is 15 minutes or more.
+ *
+ * With neither a current nor a next, the snapshot is the quiet
+ * "none" state even when a last exists. */
 export interface UpNextDayEntry {
-  kind: "done" | "past" | "item" | "gap";
-  /** done / past / item: the item's title. */
+  kind: "last" | "current" | "next" | "gap";
+  /** last / current / next: the item's title. */
   title?: string;
-  /** past / item: the sub line (the event's location/notes, the
-   * same line the pre-v442 widget composed for its lead). */
+  /** last / current / next: the sub line (the event's
+   * location/notes, the same line the pre-v442 widget composed
+   * for its lead). */
   sub?: string;
-  /** done / past / item: "9:00 AM". */
+  /** last / current / next: "9:00 AM". */
   timeLabel?: string;
-  /** item: minutes since midnight — the renderer counts the
+  /** next: minutes since midnight — the renderer counts the
    * hero's "IN 44 MIN" down from it at render time. */
   startMinutes?: number;
-  /** item: true on the hero (the next thing — the band). */
+  /** next: true on the first next (the band). */
   isHero?: boolean;
+  /** last: whether the item was checked off. */
+  completed?: boolean;
   /** gap: "1 hour 30 minutes open". */
   text?: string;
 }
@@ -435,16 +457,14 @@ export type UpNextWidgetSnapshot =
   | { state: "none" }
   | {
       state: "next";
-      /** The rail, in day order (done ≤ 2, past ≤ 1, hero,
-       * following items with their gaps interleaved; capped at
-       * 10 entries — the renderer truncates at its 9 slots plus
-       * its own NOW row). */
+      /** The short list, in display order: last?, current?,
+       * next (hero), gap?, next? — never more than five. */
       entries: UpNextDayEntry[];
       /** Timed items still ahead today, hero included — the
        * header's "{leftCount} LEFT". */
       leftCount: number;
       /** "Nothing after 3:00 PM", from the last ahead item's
-       * end; null only when that end can't be stated. */
+       * end; null when nothing is ahead to state it from. */
       endNote: string | null;
     };
 
@@ -500,22 +520,28 @@ export function buildUpNextSnapshot(
       endTime: item.endTime,
     }));
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  // The hero is the schedule tab's own pick (buildUpNextGroup's
-  // lead) — the rail is built around it, never a second opinion.
+  // The next thing is the schedule tab's own pick
+  // (buildUpNextGroup's lead) — the list is built around it,
+  // never a second opinion. The group only ever names a strictly
+  // future item, so it can be null while a current still runs.
   const group = buildUpNextGroup(candidates, allTimed, nowMin);
-  if (!group) return { state: "none" };
-  const heroId = group.entries[0].item.id;
+  const heroId = group ? group.entries[0].item.id : null;
 
   // The day itself, unified from the same three stores the push
   // layer loads — every timed item with its kind, its completion
   // state and its sub line (location, else notes). Holidays are
-  // not items on his rail and never enter it.
+  // not items on his list and never enter it. `hasEnd` keeps the
+  // stored end distinct from the rule's default (+30/+60): a
+  // point item (no stored end) counts as "over" once it has
+  // started, an item with a stored end only once that end has
+  // passed.
   interface RawDayItem {
     id: string;
     kind: "todo" | "event" | "ministry";
     title: string;
     startMinutes: number;
     endMinutes: number;
+    hasEnd: boolean;
     completed: boolean;
     sub: string;
   }
@@ -528,6 +554,7 @@ export function buildUpNextSnapshot(
         title: todo.title,
         startMinutes: upNextMinutes(todo.startTime as string),
         endMinutes: upNextEndMinutes("todo", todo.startTime as string, todo.endTime),
+        hasEnd: !!todo.endTime,
         completed: todo.isCompleted,
         sub: todo.notes ?? "",
       })),
@@ -539,6 +566,7 @@ export function buildUpNextSnapshot(
         title: event.title,
         startMinutes: upNextMinutes(event.startTime as string),
         endMinutes: upNextEndMinutes("event", event.startTime as string, event.endTime),
+        hasEnd: !!event.endTime,
         completed: event.isCompleted,
         sub: event.location ?? event.notes ?? "",
       })),
@@ -550,78 +578,98 @@ export function buildUpNextSnapshot(
         title: ministry.title,
         startMinutes: upNextMinutes(ministry.startTime as string),
         endMinutes: upNextEndMinutes("ministry", ministry.startTime as string, ministry.endTime),
+        hasEnd: !!ministry.endTime,
         completed: ministry.isCompleted,
         sub: ministry.location ?? ministry.notes ?? "",
       })),
   ];
 
-  // Done: completed timed items whose start has passed — the two
-  // most recent, in the day's order.
-  const dones = raw
-    .filter((item) => item.completed && item.startMinutes <= nowMin)
-    .sort((a, b) => a.startMinutes - b.startMinutes)
-    .slice(-2);
+  // Current: the uncompleted timed item running right now. When
+  // several overlap, the latest start wins; a tie keeps the
+  // day's own order (the stable sort never reorders equals, and
+  // the raw list is built todos → events → ministries, the same
+  // pool order the group builder reads).
+  const current =
+    raw
+      .filter((item) => !item.completed && item.startMinutes <= nowMin && nowMin < item.endMinutes)
+      .sort((a, b) => b.startMinutes - a.startMinutes)[0] ?? null;
 
-  // Past (v443): the most recent timed item that has already
-  // started and was never completed — the last thing above the
-  // hero. It belongs to neither bucket around it (dones are
-  // completed, the sequence is strictly future), so without this
-  // the rail jumps from the done rows straight to the hero and
-  // the thing he just did — his 10:00 AM Feed, right before the
-  // 12:00 Lunch — never appears at all. One row only; completed
-  // items are dones, never past, so it can't duplicate one.
-  const past = raw
-    .filter((item) => !item.completed && item.startMinutes <= nowMin)
-    .sort((a, b) => a.startMinutes - b.startMinutes)
-    .slice(-1);
-
-  // Ahead: uncompleted, strictly in the future — the same pool
-  // the Up Next group draws from, so the hero leads it.
+  // Next: uncompleted, strictly in the future — the same pool
+  // the Up Next group draws from, so the hero leads it and the
+  // sequence behind it is the day's remaining count.
   const ahead = raw
     .filter((item) => !item.completed && item.startMinutes > nowMin)
     .sort((a, b) => a.startMinutes - b.startMinutes);
-  const heroIndex = ahead.findIndex((item) => item.id === heroId);
-  if (heroIndex < 0) return { state: "none" };
-  const sequence = ahead.slice(heroIndex);
+  const heroIndex = heroId ? ahead.findIndex((item) => item.id === heroId) : -1;
+  const sequence = heroIndex >= 0 ? ahead.slice(heroIndex) : [];
+  const next1 = sequence[0] ?? null;
+  const next2 = sequence[1] ?? null;
 
-  const entries: UpNextDayEntry[] = dones.map((item) => ({
-    kind: "done" as const,
-    title: item.title,
-    timeLabel: minutesToWidgetTime(item.startMinutes),
-  }));
-  for (const item of past) {
+  // Nothing running and nothing ahead: the quiet face, even
+  // when a last exists — the day is over, not upcoming.
+  if (!current && !next1) return { state: "none" };
+
+  // Last: the most recent timed item that is over, excluding
+  // whatever was chosen as current/next. "Over" and "most
+  // recent" both read on the item's own clock: the stored end
+  // when it has one, its start when it doesn't.
+  const chosen = new Set(
+    [current?.id, next1?.id, next2?.id].filter((id): id is string => !!id),
+  );
+  const overAt = (item: RawDayItem) => (item.hasEnd ? item.endMinutes : item.startMinutes);
+  const last =
+    raw
+      .filter((item) => !chosen.has(item.id) && overAt(item) <= nowMin)
+      .sort((a, b) => overAt(b) - overAt(a) || b.startMinutes - a.startMinutes)[0] ?? null;
+
+  const entries: UpNextDayEntry[] = [];
+  if (last) {
     entries.push({
-      kind: "past" as const,
-      title: item.title,
-      ...(item.sub ? { sub: item.sub } : {}),
-      timeLabel: minutesToWidgetTime(item.startMinutes),
+      kind: "last",
+      title: last.title,
+      ...(last.sub ? { sub: last.sub } : {}),
+      timeLabel: minutesToWidgetTime(last.startMinutes),
+      completed: last.completed,
     });
   }
-  sequence.forEach((item, index) => {
-    if (entries.length >= 10) return;
-    if (index > 0) {
-      const gapMinutes = item.startMinutes - sequence[index - 1].endMinutes;
-      if (gapMinutes >= 15 && entries.length < 10) {
-        entries.push({ kind: "gap", text: `${formatOpenDuration(gapMinutes)} open` });
-      }
-    }
-    if (entries.length >= 10) return;
+  if (current) {
     entries.push({
-      kind: "item",
-      title: item.title,
-      ...(item.sub ? { sub: item.sub } : {}),
-      timeLabel: minutesToWidgetTime(item.startMinutes),
-      startMinutes: item.startMinutes,
-      ...(index === 0 ? { isHero: true } : {}),
+      kind: "current",
+      title: current.title,
+      ...(current.sub ? { sub: current.sub } : {}),
+      timeLabel: minutesToWidgetTime(current.startMinutes),
     });
-  });
+  }
+  if (next1) {
+    entries.push({
+      kind: "next",
+      title: next1.title,
+      ...(next1.sub ? { sub: next1.sub } : {}),
+      timeLabel: minutesToWidgetTime(next1.startMinutes),
+      startMinutes: next1.startMinutes,
+      isHero: true,
+    });
+  }
+  if (next1 && next2) {
+    const gapMinutes = next2.startMinutes - next1.endMinutes;
+    if (gapMinutes >= 15) {
+      entries.push({ kind: "gap", text: `${formatOpenDuration(gapMinutes)} open` });
+    }
+    entries.push({
+      kind: "next",
+      title: next2.title,
+      ...(next2.sub ? { sub: next2.sub } : {}),
+      timeLabel: minutesToWidgetTime(next2.startMinutes),
+      startMinutes: next2.startMinutes,
+    });
+  }
 
-  const last = sequence[sequence.length - 1];
+  const lastAhead = sequence[sequence.length - 1];
   return {
     state: "next",
     entries,
     leftCount: sequence.length,
-    endNote: last ? `Nothing after ${minutesToWidgetTime(last.endMinutes)}` : null,
+    endNote: lastAhead ? `Nothing after ${minutesToWidgetTime(lastAhead.endMinutes)}` : null,
   };
 }
 
@@ -651,6 +699,13 @@ export type StudyWidgetSnapshot =
        * it never derives from the palette). Same value as
        * colorPrimary, carried under the drawing's name. */
       bookColor: string;
+      /** v444: the book's ROYGBIV primary in its TRUE (light-set)
+       * form. bookColor/colorPrimary ride the dark-appearance
+       * set (the primary mixed toward white for dark fields) —
+       * right for Your Study's dress, but the Reading strip's
+       * tile is pinned to the solid primary in every state
+       * (ST-2, Jonathan Nov 5), so the true value rides too. */
+      bookPrimary: string;
       /** The book's ROYGBIV set (dark appearance — widgets sit on
        * the home screen's dark field in his dress). */
       colorPrimary: string;
@@ -721,10 +776,12 @@ export function buildStudySnapshot(
     lastWrittenChapter != null ? countChapterNotes(resolveChapter(book, lastWrittenChapter)) : null;
   const restudy = restudyQueueSummary(studyState);
   const colors = bookColorsFor(book, true);
+  const solidColors = bookColorsFor(book, false);
   return {
     state: "active",
     book,
     bookColor: colors?.primary ?? "#A78BFA",
+    bookPrimary: solidColors?.primary ?? colors?.primary ?? "#A78BFA",
     colorPrimary: colors?.primary ?? "#A78BFA",
     colorDeep: colors?.deep ?? "#7C5CD6",
     colorTint: colors?.tintA ?? "#332A55",

@@ -291,16 +291,24 @@ describe("v443 Reading Strip (ST-2)", () => {
     // is progress-only now. The negative pins are scoped to
     // renderReadingStrip's own body so Your Study's legitimate
     // restudy use elsewhere in the renderer cannot trip them.
+    // v444 amendment: fully written no longer stands the glyph
+    // in the tile — the tile stands the LAST WRITTEN chapter's
+    // number, in the book's solid primary (bookPrimary) — and
+    // the line is "Fully written" with no tail. The deep pins
+    // live in widgets-v444.test.ts; the slice widens to 8000
+    // for the grown function body.
     const at = renderer.indexOf("private fun renderReadingStrip");
     expect(at).toBeGreaterThan(-1);
-    const body = renderer.slice(at, at + 6000);
+    const body = renderer.slice(at, at + 8000);
     expect(body).not.toContain("restudyBook");
     expect(body).not.toContain("↻");
     expect(body).toContain('"$nextChapter of $totalChapters"');
     expect(body).toContain("of $totalChapters");
-    // Fully written: the snapshot's own words, and the glyph in
-    // the tile instead of a number.
+    // Fully written: just those words now (v444), and the tile
+    // number comes from nextChapter ?: lastWrittenChapter.
     expect(body).toContain("Fully written");
+    expect(body).not.toContain("Last written · Chapter");
+    expect(body).toContain("val tileChapter = nextChapter ?: lastChapter");
     expect(body).toContain("bookBitmap()");
     // Your Study's own deep link, same chapter rule.
     expect(body).toContain("bible-chapter?book=");

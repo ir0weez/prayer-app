@@ -974,8 +974,10 @@ object WidgetRenderer {
   // ─── 6. Up Next (v442, W-6 Option A — the day rail) ───────────────────────
 
   /** One row on the rail as the renderer walks it: the snapshot's
-   * entries (done / past / item / gap, the hero flagged), plus the
-   * NOW row the renderer seats itself from the device clock. */
+   * entries mapped onto the rail's dresses (last → done / past by
+   * its completed flag, current, next → hero / item, gap), plus
+   * the bare NOW row the renderer seats itself from the device
+   * clock when nothing is current. */
   private class RailRow(
     val kind: String,
     val timeLabel: String,
@@ -1020,16 +1022,16 @@ object WidgetRenderer {
   }
 
   private fun renderUpNext(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette, minHeightDp: Int): RemoteViews {
-    // Tall placements walk the whole rail; short ones carry the
-    // compact face (hero, its gap, the next item). v443: the bar
-    // drops from 190 to 160 — the providers now feed this the
-    // placement's robust height signal (see WidgetProviders), and
-    // his large top slot clears 160 with room to spare.
+    // v444: the snapshot's list is short by construction (last?,
+    // current?, next hero, gap?, next — five at most), and BOTH
+    // height bands render through the full layout's slot
+    // machinery. The bar is the v443 one — 160 on the providers'
+    // robust height signal: at or above it the tall row set
+    // stands (last, current-or-NOW, hero, gap, next); below it
+    // only current-or-NOW and the hero. The compact layout is
+    // never selected any more (its file stays in res, unused).
     val full = minHeightDp >= 160
-    val views = RemoteViews(
-      context.packageName,
-      if (full) R.layout.widget_up_next else R.layout.widget_up_next_compact,
-    )
+    val views = RemoteViews(context.packageName, R.layout.widget_up_next)
     val base = 500
     views.setInt(R.id.next_bg, "setColorFilter", pal.surface)
     views.setInt(R.id.next_dot, "setColorFilter", pal.primary)
@@ -1043,12 +1045,8 @@ object WidgetRenderer {
     if (snap == null || snap.optString("state") != "next") {
       views.setViewVisibility(R.id.next_msg, View.VISIBLE)
       views.setViewVisibility(R.id.next_chip, View.GONE)
-      if (full) {
-        views.setViewVisibility(R.id.next_rail, View.GONE)
-        views.setViewVisibility(R.id.next_footer, View.GONE)
-      } else {
-        views.setViewVisibility(R.id.nc_rows, View.GONE)
-      }
+      views.setViewVisibility(R.id.next_rail, View.GONE)
+      views.setViewVisibility(R.id.next_footer, View.GONE)
       return views
     }
     views.setViewVisibility(R.id.next_msg, View.GONE)
@@ -1062,10 +1060,22 @@ object WidgetRenderer {
       for (i in 0 until arr.length()) {
         val e = arr.optJSONObject(i) ?: continue
         when (e.optString("kind")) {
-          "done" -> entries.add(RailRow("done", e.optString("timeLabel"), e.optString("title"), "", 0, ""))
-          "past" -> entries.add(RailRow("past", e.optString("timeLabel"), e.optString("title"), e.optString("sub"), 0, ""))
+          // The snapshot's "last" maps onto the two muted dresses
+          // the rail already knows: struck + checked when it was
+          // completed, plain muted when it was not.
+          "last" -> entries.add(
+            RailRow(
+              if (e.optBoolean("completed")) "done" else "past",
+              e.optString("timeLabel"),
+              e.optString("title"),
+              e.optString("sub"),
+              0,
+              "",
+            ),
+          )
+          "current" -> entries.add(RailRow("current", e.optString("timeLabel"), e.optString("title"), e.optString("sub"), 0, ""))
           "gap" -> entries.add(RailRow("gap", "", "", "", 0, e.optString("text")))
-          "item" -> entries.add(
+          "next" -> entries.add(
             RailRow(
               if (e.optBoolean("isHero")) "hero" else "item",
               e.optString("timeLabel"),
@@ -1078,26 +1088,38 @@ object WidgetRenderer {
         }
       }
     }
-    if (full) {
-      fillRailFull(context, views, entries, snap, pal)
-    } else {
-      fillRailCompact(views, entries, snap.optInt("leftCount"), pal)
-    }
+    fillRailFull(context, views, entries, snap, pal, full)
     return views
   }
 
-  private fun fillRailFull(context: Context, views: RemoteViews, entries: List<RailRow>, snap: JSONObject, pal: WidgetPalette) {
-    // The display list: the done rows and the past row, then the
-    // renderer's own NOW row (device clock — after what is past,
-    // before what is next), then the hero and what follows it.
+  private fun fillRailFull(context: Context, views: RemoteViews, entries: List<RailRow>, snap: JSONObject, pal: WidgetPalette, tall: Boolean) {
+    // The display list. Tall: the snapshot's rows in order — the
+    // last row, then the current row (which carries its own NOW
+    // label) or, when nothing is current, the renderer's bare
+    // NOW row seated after what is past and before what is next
+    // — then the hero, the gap, the second next. Short: only the
+    // current-or-NOW row and the hero. Row order IS priority
+    // order: the hero can never again be the row a short rail
+    // starves (the v443 empty band — a ten-row walk measured
+    // into a ~105dp rail, the band collapsing to a sliver).
+    val hasCurrent = entries.any { it.kind == "current" }
     val rows = mutableListOf<RailRow>()
-    var nowPlaced = false
-    for (entry in entries) {
-      if (entry.kind != "done" && entry.kind != "past" && !nowPlaced) {
-        rows.add(RailRow("now", nowTimeLabel(), "NOW", "", 0, ""))
-        nowPlaced = true
+    if (tall) {
+      var nowPlaced = false
+      for (entry in entries) {
+        if (!hasCurrent && entry.kind != "done" && entry.kind != "past" && !nowPlaced) {
+          rows.add(RailRow("now", nowTimeLabel(), "NOW", "", 0, ""))
+          nowPlaced = true
+        }
+        rows.add(entry)
       }
-      rows.add(entry)
+    } else {
+      if (hasCurrent) {
+        rows.add(entries.first { it.kind == "current" })
+      } else {
+        rows.add(RailRow("now", nowTimeLabel(), "NOW", "", 0, ""))
+      }
+      entries.firstOrNull { it.kind == "hero" }?.let { rows.add(it) }
     }
     views.setViewVisibility(R.id.next_rail, View.VISIBLE)
     for (slot in 0 until 9) {
@@ -1136,6 +1158,7 @@ object WidgetRenderer {
     views.setViewVisibility(id("gap"), View.GONE)
     views.setViewVisibility(id("band"), View.GONE)
     views.setViewVisibility(id("check"), View.GONE)
+    views.setViewVisibility(id("now"), View.GONE)
     views.setViewVisibility(id("ring"), View.GONE)
     views.setViewVisibility(id("dot_small"), View.GONE)
     views.setViewVisibility(id("dot"), View.VISIBLE)
@@ -1167,6 +1190,31 @@ object WidgetRenderer {
         views.setTextViewTextSize(id("title"), TypedValue.COMPLEX_UNIT_SP, 11f)
         views.setTextViewText(id("sub"), "")
         views.setViewVisibility(id("sub"), View.GONE)
+      }
+      "current" -> {
+        // The thing running right now (v444): a plain item's
+        // dress, except its rail dot wears the NOW ring and a
+        // primary NOW label stands at the row's trailing edge,
+        // in the seat the done check occupies on its own row.
+        // This row IS the now row — no bare NOW row is seated
+        // when a current exists.
+        views.setTextColor(id("time"), pal.muted)
+        views.setViewVisibility(id("ring"), View.VISIBLE)
+        views.setInt(id("ring"), "setColorFilter", pal.container)
+        views.setInt(id("dot"), "setColorFilter", pal.primary)
+        views.setViewVisibility(id("line"), View.VISIBLE)
+        views.setTextViewText(id("title"), row.title)
+        views.setTextColor(id("title"), pal.ink)
+        if (row.sub.isBlank()) {
+          views.setViewVisibility(id("sub"), View.GONE)
+        } else {
+          views.setViewVisibility(id("sub"), View.VISIBLE)
+          views.setTextViewText(id("sub"), row.sub)
+          views.setTextColor(id("sub"), pal.muted)
+        }
+        views.setViewVisibility(id("now"), View.VISIBLE)
+        views.setTextViewText(id("now"), "NOW")
+        views.setTextColor(id("now"), pal.primary)
       }
       "past" -> {
         // The last thing that started before now and was never
@@ -1228,71 +1276,6 @@ object WidgetRenderer {
           views.setTextViewText(id("sub"), row.sub)
           views.setTextColor(id("sub"), pal.muted)
         }
-      }
-    }
-  }
-
-  /** The compact rail: header, the hero band, the gap after it,
-   *  and the next item carrying the "· then N more" count (N =
-   *  what is left after the hero, this item included — the
-   *  drawing's own arithmetic). No done / NOW rows, no footer. */
-  private fun fillRailCompact(views: RemoteViews, entries: List<RailRow>, leftCount: Int, pal: WidgetPalette) {
-    val heroIndex = entries.indexOfFirst { it.kind == "hero" }
-    val hero = entries.getOrNull(heroIndex)
-    if (hero == null) {
-      views.setViewVisibility(R.id.nc_rows, View.GONE)
-      return
-    }
-    views.setViewVisibility(R.id.nc_rows, View.VISIBLE)
-    val after = entries.drop(heroIndex + 1)
-    val gapAfter = after.firstOrNull()?.takeIf { it.kind == "gap" }
-    val nextItem = after.firstOrNull { it.kind == "item" }
-    views.setTextViewText(R.id.nc_time_h, hero.timeLabel)
-    views.setTextColor(R.id.nc_time_h, pal.onContainer)
-    views.setInt(R.id.nc_dot_h, "setColorFilter", pal.primary)
-    views.setInt(R.id.nc_seg_h, "setColorFilter", pal.track)
-    views.setViewVisibility(R.id.nc_seg_h, if (gapAfter != null || nextItem != null) View.VISIBLE else View.GONE)
-    views.setInt(R.id.nc_band_img, "setColorFilter", pal.container)
-    views.setTextViewText(R.id.nc_htitle, hero.title)
-    views.setTextColor(R.id.nc_htitle, pal.ink)
-    if (hero.sub.isBlank()) {
-      views.setViewVisibility(R.id.nc_hsub, View.GONE)
-    } else {
-      views.setViewVisibility(R.id.nc_hsub, View.VISIBLE)
-      views.setTextViewText(R.id.nc_hsub, "· ${hero.sub}")
-      views.setTextColor(R.id.nc_hsub, pal.body)
-    }
-    views.setInt(R.id.nc_hchip_img, "setColorFilter", pal.surface)
-    views.setTextViewText(R.id.nc_hcount, countdownText(hero.startMinutes, nowMinutes()))
-    views.setTextColor(R.id.nc_hcount, pal.primary)
-    if (gapAfter == null) {
-      views.setViewVisibility(R.id.nc_row_gap, View.GONE)
-    } else {
-      views.setViewVisibility(R.id.nc_row_gap, View.VISIBLE)
-      views.setInt(R.id.nc_dot_g, "setColorFilter", pal.chip)
-      views.setInt(R.id.nc_seg_g_top, "setColorFilter", pal.track)
-      views.setInt(R.id.nc_seg_g_bot, "setColorFilter", pal.track)
-      views.setViewVisibility(R.id.nc_seg_g_bot, if (nextItem != null) View.VISIBLE else View.GONE)
-      views.setTextViewText(R.id.nc_gap, gapAfter.gapText)
-      views.setTextColor(R.id.nc_gap, pal.muted)
-    }
-    if (nextItem == null) {
-      views.setViewVisibility(R.id.nc_row_item, View.GONE)
-    } else {
-      views.setViewVisibility(R.id.nc_row_item, View.VISIBLE)
-      views.setTextViewText(R.id.nc_time_i, nextItem.timeLabel)
-      views.setTextColor(R.id.nc_time_i, pal.muted)
-      views.setInt(R.id.nc_dot_i, "setColorFilter", blend(pal.primary, pal.surface, 0.6f))
-      views.setInt(R.id.nc_seg_i_top, "setColorFilter", pal.track)
-      views.setTextViewText(R.id.nc_title_i, nextItem.title)
-      views.setTextColor(R.id.nc_title_i, pal.ink)
-      val more = leftCount - 1
-      if (more >= 1) {
-        views.setViewVisibility(R.id.nc_sub_i, View.VISIBLE)
-        views.setTextViewText(R.id.nc_sub_i, "· then $more more")
-        views.setTextColor(R.id.nc_sub_i, pal.muted)
-      } else {
-        views.setViewVisibility(R.id.nc_sub_i, View.GONE)
       }
     }
   }
@@ -1519,6 +1502,7 @@ object WidgetRenderer {
   private val ES_M_NAMES = intArrayOf(R.id.es_m_name_1, R.id.es_m_name_2)
   private val ES_M_LINES = intArrayOf(R.id.es_m_line_1, R.id.es_m_line_2)
   private val ES_M_PILLS = intArrayOf(R.id.es_m_pill_1, R.id.es_m_pill_2)
+  private val ES_M_PILL_IMGS = intArrayOf(R.id.es_m_pill_img_1, R.id.es_m_pill_img_2)
 
   /** ES-1 · Face first, at 2×1: the emergency snapshot in a wide,
    * short card. The red is the main widget's own gradient at the
@@ -1575,13 +1559,26 @@ object WidgetRenderer {
       applyFace(context, views, R.id.es_s_img, R.id.es_s_text, row, SEED, 40)
       views.setTextColor(R.id.es_s_text, Color.WHITE)
       views.setTextViewText(R.id.es_s_name, row.optString("name"))
-      val title = row.optString("title")
-      views.setTextViewText(R.id.es_s_title, if (title.isNotBlank()) title else row.optString("note"))
+      // The strip's one line is the emergency's NEED sentence —
+      // the note, the quick sentence the main widget prints
+      // under its headline — falling back to the title when the
+      // emergency carries no sentence. (v443 printed the title
+      // first; for his dad's emergency that surfaced the item's
+      // short label, "Dad", where the need belongs.)
+      val note = row.optString("note")
+      views.setTextViewText(R.id.es_s_title, if (note.isNotBlank()) note else row.optString("title"))
       val expires = row.optLong("expiresAtMillis", 0L)
       views.setTextViewText(
         R.id.es_s_left,
         if (expires > 0L) emergencyStripLeftText(expires, now) else row.optString("leftText"),
       )
+      // The Pray now pill's white ground, set explicitly: v443
+      // left it to the layout alone and on his phone the pill
+      // never painted (red text straight on the card) — the
+      // pill frame now also carries a fixed height like the
+      // main widget's, and the image is stood up here.
+      views.setViewVisibility(R.id.es_s_pill_img, View.VISIBLE)
+      views.setImageViewResource(R.id.es_s_pill_img, R.drawable.widget_pill_white)
       views.setOnClickPendingIntent(R.id.es_s_pill, leadTap)
       return views
     }
@@ -1594,9 +1591,15 @@ object WidgetRenderer {
       views.setTextViewText(ES_M_NAMES[slot], row.optString("name"))
       val expires = row.optLong("expiresAtMillis", 0L)
       val left = if (expires > 0L) emergencyShortLeftText(expires, now) else row.optString("leftText")
-      var line = "${row.optString("title")} · $left"
+      // The need sentence first, exactly as the single face:
+      // the note when the emergency carries one, else its title.
+      val note = row.optString("note")
+      val need = if (note.isNotBlank()) note else row.optString("title")
+      var line = "$need · $left"
       if (slot == 1 && live.size > 2) line += " · +${live.size - 2} more"
       views.setTextViewText(ES_M_LINES[slot], line)
+      views.setViewVisibility(ES_M_PILL_IMGS[slot], View.VISIBLE)
+      views.setImageViewResource(ES_M_PILL_IMGS[slot], R.drawable.widget_pill_white)
       if (scheme != null) {
         val tap = uriPendingIntent(context, prayUri(scheme, row.optString("personId"), "emergency"), base + 1 + slot)
         views.setOnClickPendingIntent(ES_M_PILLS[slot], tap)
@@ -1608,14 +1611,16 @@ object WidgetRenderer {
   // ─── 11. Reading Strip (v443, ST-2) ───────────────────────────────────────
 
   /** ST-2 · Chapter in the tile, at 2×1: the study snapshot as a
-   * wide, short card. The tile wears the book's ROYGBIV colour
-   * (a meaning hue) with the NEXT chapter's number standing in
-   * it — or the book glyph when the book is fully written. One
-   * muted line under the book's name: "{next} of {total}" — the
-   * current book only (v443 part 3: the restudy segment was
-   * removed at Jonathan's word; restudy is its own concern, not
-   * this strip's). The root tap is Your Study's own deep link,
-   * to the same chapter. */
+   * wide, short card. The tile wears the book's ROYGBIV primary
+   * (a meaning hue) with a chapter number standing in it — the
+   * next chapter while the book is underway, the last written
+   * chapter once it is fully written (v444); the book glyph
+   * remains only when no chapter has been written at all. One
+   * muted line under the book's name: "{next} of {total}", or
+   * "Fully written" — the current book only (v443 part 3: the
+   * restudy segment was removed at Jonathan's word; restudy is
+   * its own concern, not this strip's). The root tap is Your
+   * Study's own deep link, to the same chapter. */
   private fun renderReadingStrip(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
     val views = RemoteViews(context.packageName, R.layout.widget_reading_strip)
     val base = 1100
@@ -1627,10 +1632,16 @@ object WidgetRenderer {
       views.setOnClickPendingIntent(R.id.rs_root, launchPendingIntent(context, base))
       return views
     }
-    // The book's own colour, resolved exactly as renderYourStudy
-    // resolves it (bookColor, its pre-v442 name as fallback).
+    // The book's PRIMARY colour (v444): the snapshot's
+    // bookPrimary — the true ROYGBIV primary. bookColor stays
+    // the fallback for snapshots pushed before it rode (it is
+    // the dark-appearance set — the primary mixed toward white
+    // — which is why v443's tile read as a pale tint on his
+    // phone instead of the book's solid red).
     val bookColor = colorOr(
-      snap.optString("bookColor").takeIf { it.isNotBlank() } ?: snap.optString("colorPrimary"),
+      snap.optString("bookPrimary").takeIf { it.isNotBlank() }
+        ?: snap.optString("bookColor").takeIf { it.isNotBlank() }
+        ?: snap.optString("colorPrimary"),
       pal.primary,
     )
     val book = snap.optString("book")
@@ -1640,9 +1651,15 @@ object WidgetRenderer {
     views.setViewVisibility(R.id.rs_msg, View.GONE)
     views.setViewVisibility(R.id.rs_main, View.VISIBLE)
     views.setInt(R.id.rs_tile, "setColorFilter", bookColor)
-    if (nextChapter != null) {
+    // The chapter number stands in the tile in EVERY state
+    // (v444): the next chapter while the book is underway, the
+    // LAST WRITTEN chapter once it is fully written — the
+    // number was always supposed to be in the box. The glyph
+    // remains only for a book with no written chapter at all.
+    val tileChapter = nextChapter ?: lastChapter
+    if (tileChapter != null) {
       views.setViewVisibility(R.id.rs_tile_num, View.VISIBLE)
-      views.setTextViewText(R.id.rs_tile_num, nextChapter.toString())
+      views.setTextViewText(R.id.rs_tile_num, tileChapter.toString())
       views.setViewVisibility(R.id.rs_tile_glyph, View.GONE)
     } else {
       views.setViewVisibility(R.id.rs_tile_num, View.GONE)
@@ -1655,9 +1672,10 @@ object WidgetRenderer {
     val line = if (nextChapter != null) {
       "$nextChapter of $totalChapters"
     } else {
-      // Fully written — the study snapshot's own words (Your
-      // Study's "Fully written", its last-written chapter).
-      "Fully written" + (lastChapter?.let { " · Last written · Chapter $it" } ?: "")
+      // Fully written — just those words (v444: the "· Last
+      // written · Chapter N" tail is gone; it overflowed the
+      // strip's one line, and the number lives in the tile now).
+      "Fully written"
     }
     views.setTextViewText(R.id.rs_line, line)
     views.setTextColor(R.id.rs_line, pal.muted)

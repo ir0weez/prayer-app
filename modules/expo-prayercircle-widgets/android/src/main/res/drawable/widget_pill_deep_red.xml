@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Emergency strip's hours-left chip field (v444): an
+     OPAQUE deep red — the card gradient's own deep end (#7F1D1D)
+     — so white text on it reads at full contrast. (v443 dressed
+     the chip as a translucent-white image under white text; on
+     his phone it rendered as a solid pale pill and the hours
+     vanished into it.) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="#7F1D1D" />
+  <corners android:radius="100dp" />
+</shape>

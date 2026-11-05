@@ -6,10 +6,17 @@
      One active: face + name/need column, then an hours chip and
      the white Pray now pill on their own row — at 190dp wide the
      pill cannot share the face's row and leave the name readable,
-     so the chip and pill sit under it (every element of the
-     drawing survives; nothing wraps, nothing clips but the
-     chip's own tail, bounded by its weighted frame). Two or more:
-     two slim rows, soonest first, each with its own pill.
+     so the chip and pill sit under it. Two or more: two slim
+     rows, soonest first, each with its own pill.
+     v444 fixes, from his phone: the hours chip is now a TextView
+     wearing the opaque deep-red pill (widget_pill_deep_red) as
+     its background — the main widget's proven chip construction
+     — where v443's translucent-white image under white text
+     rendered as a solid pale pill and the hours vanished into
+     it; and the Pray now pill frames carry FIXED heights (30dp
+     single, 26dp rows) like the main widget's 40dp pill, whose
+     absence left v443's match_parent pill image with no height
+     to fill — it never painted, leaving red text on the card.
      XML defaults are the quiet face. Vanilla subset only. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/es_root"
@@ -153,6 +160,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
+            android:singleLine="true"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold" />
@@ -176,40 +184,31 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
+        <TextView
+          android:id="@+id/es_s_left"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:background="@drawable/widget_pill_deep_red"
+          android:ellipsize="end"
+          android:gravity="center"
+          android:maxLines="1"
+          android:paddingStart="8dp"
+          android:paddingTop="3dp"
+          android:paddingEnd="8dp"
+          android:paddingBottom="3dp"
+          android:textColor="#FFFFFF"
+          android:textSize="10.5sp"
+          android:textStyle="bold" />
+
         <FrameLayout
           android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1">
-
-          <ImageView
-            android:id="@+id/es_s_chip_img"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="@null"
-            android:scaleType="fitXY"
-            android:src="@drawable/widget_pill_white"
-            android:tint="#38FFFFFF" />
-
-          <TextView
-            android:id="@+id/es_s_left"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:paddingStart="8dp"
-            android:paddingTop="3dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="3dp"
-            android:textColor="#FFFFFF"
-            android:textSize="10.5sp"
-            android:textStyle="bold" />
-        </FrameLayout>
+          android:layout_height="1dp"
+          android:layout_weight="1" />
 
         <FrameLayout
           android:id="@+id/es_s_pill"
           android:layout_width="wrap_content"
-          android:layout_height="wrap_content"
+          android:layout_height="30dp"
           android:layout_marginStart="8dp">
 
           <ImageView
@@ -223,12 +222,10 @@
           <TextView
             android:id="@+id/es_s_pill_text"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:gravity="center"
             android:paddingStart="13dp"
-            android:paddingTop="4dp"
             android:paddingEnd="13dp"
-            android:paddingBottom="4dp"
             android:text="Pray now"
             android:textColor="#B91C1C"
             android:textSize="13.5sp"
@@ -305,7 +302,7 @@
         <FrameLayout
           android:id="@+id/es_m_pill_1"
           android:layout_width="wrap_content"
-          android:layout_height="wrap_content"
+          android:layout_height="26dp"
           android:layout_marginStart="8dp">
 
           <ImageView
@@ -319,12 +316,10 @@
           <TextView
             android:id="@+id/es_m_pill_text_1"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:gravity="center"
             android:paddingStart="10dp"
-            android:paddingTop="4dp"
             android:paddingEnd="10dp"
-            android:paddingBottom="4dp"
             android:text="Pray now"
             android:textColor="#B91C1C"
             android:textSize="12sp"
@@ -398,7 +393,7 @@
         <FrameLayout
           android:id="@+id/es_m_pill_2"
           android:layout_width="wrap_content"
-          android:layout_height="wrap_content"
+          android:layout_height="26dp"
           android:layout_marginStart="8dp">
 
           <ImageView
@@ -412,12 +407,10 @@
           <TextView
             android:id="@+id/es_m_pill_text_2"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:gravity="center"
             android:paddingStart="10dp"
-            android:paddingTop="4dp"
             android:paddingEnd="10dp"
-            android:paddingBottom="4dp"
             android:text="Pray now"
             android:textColor="#B91C1C"
             android:textSize="12sp"

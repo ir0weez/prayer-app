@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Reading Strip (v443, ST-2 · Chapter in the tile) — the study
      snapshot in a true 2×1 cell (~190×82dp): the book's tile in
-     its ROYGBIV colour (a meaning hue) with the NEXT chapter's
-     number standing in it, the book's name, and ONE muted line —
-     "{next} of {total}" plus the restudy book when one is queued.
+     its ROYGBIV primary colour (a meaning hue) with a chapter
+     number standing in it, the book's name, and ONE muted line.
      No chips: at this size two chips were the mock's one lie, and
-     he picked ST-2 on the condition the information fits. When
-     the book is fully written the tile carries the book glyph
-     instead of a number. XML defaults are the quiet face in
-     Classic-light values. Vanilla subset only. -->
+     he picked ST-2 on the condition the information fits.
+     v444: the tile's number is the next chapter while the book
+     is underway and the LAST WRITTEN chapter once it is fully
+     written (the glyph stands only when nothing is written
+     yet), the tile always wears the book's solid primary, and
+     the line is "{next} of {total}" or just "Fully written".
+     XML defaults are the quiet face in Classic-light values.
+     Vanilla subset only. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/rs_root"
   android:layout_width="match_parent"

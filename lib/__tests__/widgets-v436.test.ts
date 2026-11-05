@@ -221,6 +221,11 @@ describe("v436 Reach Out snapshot", () => {
 // plus leftCount and endNote. The behaviour pinned here carries
 // over in the new shape; the deep rail pins live in
 // widgets-v442.test.ts.
+// v444 amendment: the rail model is replaced by Jonathan's
+// corrected spec — last / current / next / gap. The completed
+// morning item below is now the "last" entry (carrying its
+// completed flag), the hero and its follower are "next"
+// entries; the deep model pins live in widgets-v444.test.ts.
 
 describe("v436 Up Next snapshot", () => {
   const FIXED = new Date(2026, 10, 5, 10, 0, 0); // Nov 5 2026, 10:00 local
@@ -251,10 +256,11 @@ describe("v436 Up Next snapshot", () => {
     expect(hero?.title).toBe("Reflection session");
     expect(hero?.timeLabel).toBe("2:00 PM");
     expect(hero?.sub).toBe("The booth");
-    // The completed morning item rides as a done entry, and the
-    // 2.5 hours between the hero's end and Dinner are the gap.
-    expect(snapshot.entries[0]).toMatchObject({ kind: "done", title: "Morning thing" });
-    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["done", "item", "gap", "item"]);
+    // The completed morning item rides as the last entry, and
+    // the 2.5 hours between the hero's end and Dinner are the
+    // gap (v444 re-pin: kinds done/item are now last/next).
+    expect(snapshot.entries[0]).toMatchObject({ kind: "last", title: "Morning thing", completed: true });
+    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["last", "next", "gap", "next"]);
     expect(snapshot.entries[2].text).toBe("2 hours 30 minutes open");
     expect(snapshot.leftCount).toBe(2);
     expect(snapshot.endNote).toBe("Nothing after 6:30 PM");

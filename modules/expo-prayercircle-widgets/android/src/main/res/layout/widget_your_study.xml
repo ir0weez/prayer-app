@@ -3,9 +3,17 @@
      effective palette's surface; the BOOK's ROYGBIV colour (a
      meaning hue, from the snapshot — never the palette) survives
      on the header dot, the book tile and the progress bar. The
-     bar is an ImageView drawn in-process (barBitmap). The tile
-     is the squarer 16dp-radius shape (Expressive steer). XML
-     defaults are the quiet face in the Classic-light values. -->
+     tile is the squarer 16dp-radius shape (Expressive steer).
+     XML defaults are the quiet face in the Classic-light values.
+     v446: the card renders the READING track when the snapshot
+     carries it (the writing dress is the fallback) — the tile
+     stands SOLID in the reading book's primary with the
+     reading chapter in white bold (study_tile_num, the Reading
+     strip's tile language; the book glyph shows only when no
+     reading chapter exists), and the progress line is the
+     Material-style WAVY indicator drawn in-process
+     (waveProgressBitmap) at a 12dp seat so the wave has room
+     to breathe. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/study_root"
   android:layout_width="match_parent"
@@ -88,6 +96,16 @@
           android:layout_height="24dp"
           android:layout_gravity="center"
           android:contentDescription="@null" />
+
+        <TextView
+          android:id="@+id/study_tile_num"
+          android:layout_width="match_parent"
+          android:layout_height="match_parent"
+          android:gravity="center"
+          android:textColor="#FFFFFF"
+          android:textSize="24sp"
+          android:textStyle="bold"
+          android:visibility="gone" />
       </FrameLayout>
 
       <LinearLayout
@@ -191,7 +209,7 @@
       <ImageView
         android:id="@+id/study_bar"
         android:layout_width="0dp"
-        android:layout_height="6dp"
+        android:layout_height="12dp"
         android:layout_marginStart="14dp"
         android:layout_weight="1"
         android:contentDescription="@null"

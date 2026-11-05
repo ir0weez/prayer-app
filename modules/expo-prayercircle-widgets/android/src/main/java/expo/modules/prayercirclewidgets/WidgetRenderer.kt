@@ -430,6 +430,75 @@ object WidgetRenderer {
     return bitmap
   }
 
+  // ─── Wavy progress (v446, Your Study only) ────────────────────────────────
+  //
+  // Material 3 Expressive's wavy linear indicator, drawn
+  // in-process like every other progress shape here — the real
+  // component cannot live inside a RemoteViews layout. A sine
+  // wave runs the bar's full width: the run up to the fraction
+  // in the active colour, the remainder in the track colour,
+  // and the indicator's small round stop dot at the far end in
+  // the track colour. Jonathan, looking at the flat line:
+  // "We can't make that line a material design wave or
+  // anything?" — this is that wave.
+
+  private val waveCache = HashMap<String, Bitmap>()
+
+  private fun waveProgressBitmap(fraction: Float, trackColor: Int, fillColor: Int): Bitmap {
+    val frac = fraction.coerceIn(0f, 1f)
+    val key = "wave|$fillColor|$trackColor|${(frac * 100).toInt()}"
+    waveCache[key]?.let { return it }
+    // The seat is ~12dp tall and the bitmap draws at 6px per
+    // dp, so the M3 shape's own numbers carry straight over:
+    // amplitude ~3dp, wavelength ~40dp, stroke ~3dp, round caps.
+    val w = 720
+    val h = 72
+    val amplitudePx = 3f * 6
+    val wavelengthPx = 40f * 6
+    val strokePx = 3f * 6
+    val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val midY = h / 2f
+    fun waveY(x: Float): Float =
+      midY + amplitudePx * kotlin.math.sin(2.0 * kotlin.math.PI * x / wavelengthPx).toFloat()
+    fun wavePath(toX: Float): Path {
+      val path = Path()
+      path.moveTo(0f, waveY(0f))
+      var x = 0f
+      while (x < toX) {
+        x = minOf(x + 4f, toX)
+        path.lineTo(x, waveY(x))
+      }
+      return path
+    }
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.STROKE
+      strokeCap = Paint.Cap.ROUND
+      strokeJoin = Paint.Join.ROUND
+      strokeWidth = strokePx
+    }
+    // Track wave across the full width, its stop dot at the far
+    // end, then the active run over the top up to the fraction.
+    paint.color = trackColor
+    canvas.drawPath(wavePath(w.toFloat()), paint)
+    if (frac < 1f) {
+      val dotR = strokePx * 0.85f
+      val dotX = w - dotR - 1f
+      val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = trackColor
+      }
+      canvas.drawCircle(dotX, waveY(dotX), dotR, dotPaint)
+    }
+    if (frac > 0f) {
+      paint.color = fillColor
+      canvas.drawPath(wavePath(frac * w), paint)
+    }
+    if (waveCache.size > 24) waveCache.clear()
+    waveCache[key] = bitmap
+    return bitmap
+  }
+
   private var checkCache: Pair<Int, Bitmap>? = null
 
   /** The rail's done check — the W-6 drawing's bold check path,
@@ -885,6 +954,20 @@ object WidgetRenderer {
 
   // ─── 5. Your Study (v442, W-4 D-6) ────────────────────────────────────────
 
+  /** "2026-10-24" → "Oct 24" — the app's own short-date voice
+   * (the Personal Study card's "Last read … · Oct 24"). Null
+   * for anything that is not an ISO calendar date. */
+  private fun shortDateLabel(iso: String?): String? {
+    if (iso.isNullOrBlank()) return null
+    val parts = iso.trim().split("-")
+    if (parts.size != 3) return null
+    val month = parts[1].toIntOrNull() ?: return null
+    val day = parts[2].toIntOrNull() ?: return null
+    val months = arrayOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    if (month !in 1..12 || day !in 1..31) return null
+    return "${months[month - 1]} $day"
+  }
+
   private fun renderYourStudy(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
     val views = RemoteViews(context.packageName, R.layout.widget_your_study)
     val base = 600
@@ -912,6 +995,87 @@ object WidgetRenderer {
     views.setViewVisibility(R.id.study_main, View.VISIBLE)
     views.setImageViewBitmap(R.id.study_book_glyph, bookBitmap())
     views.setViewVisibility(R.id.study_footer, View.VISIBLE)
+    // v446: the READING dress, when the snapshot carries the
+    // reading position — the same D-6 composition, every value
+    // from the reading track (v445 gave the Reading strip the
+    // position; this big widget still rendered the WRITING
+    // track: a pale tile with a glyph, "Fully written", "50 of
+    // 50 chapters written"). The tile stands SOLID in the
+    // reading book's primary with the reading chapter in white
+    // bold — the strip's tile language — and the progress line
+    // is the wavy indicator in the reading fraction.
+    val readingBook = snap.optString("readingBook").takeIf { it.isNotBlank() }
+    val readingChapter = if (snap.isNull("readingChapter")) null else snap.optInt("readingChapter")
+    if (readingBook != null && readingChapter != null) {
+      val readingColor = colorOr(
+        snap.optString("readingBookPrimary").takeIf { it.isNotBlank() } ?: snap.optString("bookPrimary"),
+        pal.primary,
+      )
+      val readingTotal = if (snap.isNull("readingTotalChapters")) null else snap.optInt("readingTotalChapters")
+      val chaptersRead = if (snap.isNull("readingChaptersRead")) null else snap.optInt("readingChaptersRead")
+      views.setInt(R.id.study_dot, "setColorFilter", readingColor)
+      views.setInt(R.id.study_tile, "setColorFilter", readingColor)
+      views.setViewVisibility(R.id.study_book_glyph, View.GONE)
+      views.setViewVisibility(R.id.study_tile_num, View.VISIBLE)
+      views.setTextViewText(R.id.study_tile_num, readingChapter.toString())
+      views.setTextViewText(R.id.study_book, readingBook)
+      views.setTextColor(R.id.study_book, pal.ink)
+      views.setTextViewText(
+        R.id.study_next,
+        if (readingTotal != null) "Chapter $readingChapter of $readingTotal" else "Chapter $readingChapter",
+      )
+      views.setTextColor(R.id.study_next, pal.body)
+      views.setTextViewText(
+        R.id.study_prog,
+        if (chaptersRead != null && readingTotal != null) "$chaptersRead of $readingTotal" else "",
+      )
+      views.setTextColor(R.id.study_prog, pal.ink)
+      views.setTextViewText(R.id.study_prog_sub, "chapters read")
+      views.setTextColor(R.id.study_prog_sub, pal.muted)
+      val lastRead = snap.optJSONObject("readingLastRead")
+      if (lastRead == null) {
+        views.setViewVisibility(R.id.study_last, View.GONE)
+      } else {
+        views.setViewVisibility(R.id.study_last, View.VISIBLE)
+        val date = shortDateLabel(lastRead.optString("date"))
+        views.setTextViewText(
+          R.id.study_last,
+          "Last read · ${lastRead.optString("book")} ${lastRead.optInt("chapter")}" +
+            if (date != null) " · $date" else "",
+        )
+        views.setTextColor(R.id.study_last, pal.body)
+      }
+      views.setInt(R.id.study_pill_img, "setColorFilter", pal.container)
+      views.setTextColor(R.id.study_pill_text, pal.onContainer)
+      views.setImageViewBitmap(
+        R.id.study_bar,
+        waveProgressBitmap(
+          if (readingTotal != null && readingTotal > 0 && chaptersRead != null) {
+            chaptersRead.toFloat() / readingTotal
+          } else {
+            0f
+          },
+          colorOr(snap.optString("readingBookTint"), pal.track),
+          readingColor,
+        ),
+      )
+      val tap = if (scheme != null) {
+        uriPendingIntent(context, "$scheme://bible-chapter?book=${Uri.encode(readingBook)}&chapter=$readingChapter", base + 1)
+      } else {
+        launchPendingIntent(context, base)
+      }
+      views.setOnClickPendingIntent(R.id.study_root, tap)
+      views.setOnClickPendingIntent(R.id.study_pill, tap)
+      return views
+    }
+    // Fallback (snapshots pushed before the reading fields
+    // rode): the writing dress, exactly as it was — except its
+    // flat bar is the wavy line now too (v446), in its own
+    // written fraction and colours. The tile resets come first:
+    // a placed view keeps a prior render's faces, so the number
+    // a reading render stood in the tile must be stood down.
+    views.setViewVisibility(R.id.study_tile_num, View.GONE)
+    views.setViewVisibility(R.id.study_book_glyph, View.VISIBLE)
     val nextChapter = if (snap.isNull("nextChapter")) null else snap.optInt("nextChapter")
     val book = snap.optString("book")
     views.setTextViewText(R.id.study_book, book)
@@ -943,7 +1107,11 @@ object WidgetRenderer {
     views.setTextColor(R.id.study_pill_text, pal.onContainer)
     views.setImageViewBitmap(
       R.id.study_bar,
-      barBitmap(bookColor, pal.track, if (totalChapters > 0) written.toFloat() / totalChapters else 0f),
+      waveProgressBitmap(
+        if (totalChapters > 0) written.toFloat() / totalChapters else 0f,
+        pal.track,
+        bookColor,
+      ),
     )
     val openChapter = nextChapter ?: lastChapter ?: 1
     val tap = if (scheme != null) {
@@ -1719,7 +1887,13 @@ object WidgetRenderer {
    * expiresAtMillis exactly as renderEmergency's do. One active
    * fills the strip; two or more split it into two slim rows,
    * soonest first, the second row's line carrying "· +N more"
-   * when more are running. */
+   * when more are running.
+   *
+   * v446: the single face is recomposed — the avatar stands
+   * 54dp at the left (decoded at 50, the image view's size)
+   * and the name gets its own full-width line in the column
+   * beside it (Jonathan: "make the avatar a bit bigger. I
+   * also want the name to fit."). The rows are unchanged. */
   private fun renderEmergencyStrip(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
     val views = RemoteViews(context.packageName, R.layout.widget_emergency_strip)
     val base = 1000
@@ -1763,7 +1937,7 @@ object WidgetRenderer {
       views.setViewVisibility(R.id.es_single, View.VISIBLE)
       val row = live[0]
       views.setInt(R.id.es_s_ring, "setColorFilter", Color.WHITE)
-      applyFace(context, views, R.id.es_s_img, R.id.es_s_text, row, SEED, 36)
+      applyFace(context, views, R.id.es_s_img, R.id.es_s_text, row, SEED, 50)
       views.setTextColor(R.id.es_s_text, Color.WHITE)
       views.setTextViewText(R.id.es_s_name, row.optString("name"))
       // The strip's one line is the emergency's NEED sentence —

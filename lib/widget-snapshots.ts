@@ -789,10 +789,11 @@ export type StudyWidgetSnapshot =
        * reading position (lib/bible-v205/position —
        * getReadingPosition): where he IS reading, as opposed to
        * the writing fields above (nextChapter / lastWritten are
-       * the WRITING track, the big Your Study widget's dress).
-       * The Reading strip reads these; his words: "I don't need
-       * to know how many I've written. I need to know where I'm
-       * at reading." Null when the position names nothing. */
+       * the WRITING track). The Reading strip reads these since
+       * v445, the big Your Study widget since v446; his words:
+       * "I don't need to know how many I've written. I need to
+       * know where I'm at reading." Null when the position
+       * names nothing. */
       readingBook: string | null;
       /** The chapter he reads next (the position's target), or
        * the last chapter read when the target rests. */
@@ -802,6 +803,22 @@ export type StudyWidgetSnapshot =
       readingTotalChapters: number | null;
       /** readingBook's true (light-set) ROYGBIV primary. */
       readingBookPrimary: string | null;
+      /** v446: how many of readingBook's chapters are covered
+       * by reading evidence — its read marks UNION every
+       * chapter at or below the position stamp's floor when
+       * the stamp names this book (position.ts's coverage
+       * rule, mirrored). The big Your Study widget's "chapters
+       * read" count and its progress fraction. Null when no
+       * reading book is named. */
+      readingChaptersRead: number | null;
+      /** v446: the furthest chapter he has marked READ
+       * (position.lastRead), with its date — the big widget's
+       * "Last read" line. Null when nothing has been read. */
+      readingLastRead: { book: string; chapter: number; date: string } | null;
+      /** v446: readingBook's ROYGBIV tint (the dark-appearance
+       * set's tintA) — the wavy progress line's track colour in
+       * the big widget's reading dress. */
+      readingBookTint: string | null;
     };
 
 export function buildStudySnapshot(
@@ -861,6 +878,34 @@ export function buildStudySnapshot(
   const readingTotalRaw = readingBook ? chapterCountFor(readingBook) : null;
   const readingTotalChapters = readingTotalRaw ? readingTotalRaw : null;
   const readingBookPrimary = readingBook ? (bookColorsFor(readingBook, false)?.primary ?? null) : null;
+  // v446: the reading evidence over the reading book — read
+  // marks union the stamp floor, position.ts's coverage rule —
+  // and the last-read mark itself, for the big Your Study
+  // widget's reading dress (v445 gave the strip the position;
+  // the big widget still rendered the writing track).
+  let readingChaptersRead: number | null = null;
+  if (readingBook && readingTotalChapters) {
+    const covered = new Set<number>();
+    for (const [key] of Object.entries(studyState.reads ?? {})) {
+      const cut = key.lastIndexOf("|");
+      if (cut <= 0) continue;
+      if (key.slice(0, cut) !== readingBook) continue;
+      const chapter = Number(key.slice(cut + 1));
+      if (Number.isInteger(chapter) && chapter >= 1 && chapter <= readingTotalChapters) {
+        covered.add(chapter);
+      }
+    }
+    const stamp = studyState.lastRead;
+    if (stamp && stamp.book === readingBook) {
+      const floor = Math.min(stamp.chapter, readingTotalChapters);
+      for (let chapter = 1; chapter <= floor; chapter += 1) covered.add(chapter);
+    }
+    readingChaptersRead = covered.size;
+  }
+  const readingLastRead = position.lastRead
+    ? { book: position.lastRead.book, chapter: position.lastRead.chapter, date: position.lastRead.date ?? "" }
+    : null;
+  const readingBookTint = readingBook ? (bookColorsFor(readingBook, true)?.tintA ?? null) : null;
   return {
     state: "active",
     book,
@@ -882,6 +927,9 @@ export function buildStudySnapshot(
     readingFromTarget,
     readingTotalChapters,
     readingBookPrimary,
+    readingChaptersRead,
+    readingLastRead,
+    readingBookTint,
   };
 }
 

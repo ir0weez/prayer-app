@@ -474,13 +474,19 @@ describe("v442 renderer", () => {
     expect(providers).toContain("WidgetRenderer.render(context, kind, heightSignal)");
   });
 
-  it("draws the three progress bars as bitmaps (day, fast, study)", () => {
+  it("draws the day and fast bars as bitmaps; the study bar is the wavy line", () => {
     expect(renderer).toContain("private fun barBitmap(");
     expect(renderer).toContain("R.id.pt_daybar");
     expect(renderer).toContain("barBitmap(pal.primary, pal.track");
     expect(renderer).toContain("R.id.fast_daybar");
     expect(renderer).toContain("R.id.study_bar");
-    expect(renderer).toContain("barBitmap(bookColor, pal.track");
+    // v446 re-pin: the study bar left the flat barBitmap — it
+    // is the Material-style wavy indicator now
+    // (waveProgressBitmap, pinned in widgets-v446.test.ts), in
+    // both of the study widget's dresses. Pray Today and Your
+    // Fast keep the flat bar above.
+    expect(renderer).toContain("waveProgressBitmap(");
+    expect(renderer).not.toContain("barBitmap(bookColor, pal.track");
   });
 
   it("toggles the Emergency single/multi groups by the LIVE row count", () => {

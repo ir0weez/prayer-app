@@ -324,9 +324,15 @@ describe("v445 Emergency Strip", () => {
     expect(renderer).toContain("fun emergencyLeftText");
   });
 
-  it("the Pray now pill sits in the BOTTOM row, after the face row", () => {
+  it("the Pray now pill sits in a bottom row, after the need line", () => {
+    // v446 re-pin: the pill row moved INSIDE the name column
+    // (marginTop 4dp, below the need line) when the single face
+    // was recomposed around the 54dp avatar — it is no longer a
+    // full-width row under a separate face row. The invariant
+    // this test guards stands: the need line first, then the
+    // pill's own row, then the pill, at its fixed 26dp height.
     const titleAt = strip.indexOf("@+id/es_s_title");
-    const bottomRowAt = strip.indexOf('android:layout_marginTop="3dp"');
+    const bottomRowAt = strip.indexOf('android:layout_marginTop="4dp"');
     const pillAt = strip.indexOf("@+id/es_s_pill");
     expect(titleAt).toBeGreaterThan(-1);
     expect(bottomRowAt).toBeGreaterThan(titleAt);
@@ -338,12 +344,15 @@ describe("v445 Emergency Strip", () => {
     expect(tagWithId(strip, "es_s_pill_text")).toContain('android:paddingEnd="11dp"');
   });
 
-  it("the single face is tightened: root padding 10/5, face 40/36, name 15sp, need 12sp", () => {
+  it("the single face fits its cell: root padding 10/4, need 12sp", () => {
+    // v446 re-pin: the face and name sizes moved when the
+    // single face was recomposed (avatar 40/36 → 54/50, name
+    // 15sp → 15.5sp, root vertical padding 5 → 4 for the fit
+    // audit); those values are pinned in widgets-v446.test.ts.
+    // What remains pinned here: the root's 10dp sides and the
+    // need line's 12sp.
     expect(strip).toContain('android:paddingStart="10dp"');
-    expect(strip).toContain('android:paddingTop="5dp"');
-    expect(tagWithId(strip, "es_s_ring")).toContain('android:layout_width="40dp"');
-    expect(tagWithId(strip, "es_s_img")).toContain('android:layout_width="36dp"');
-    expect(tagWithId(strip, "es_s_name")).toContain('android:textSize="15sp"');
+    expect(strip).toContain('android:paddingTop="4dp"');
     expect(tagWithId(strip, "es_s_title")).toContain('android:textSize="12sp"');
   });
 

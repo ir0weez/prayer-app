@@ -3,7 +3,9 @@ package expo.modules.prayercirclewidgets
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
+import android.util.SizeF
 
 /**
  * The providers — one thin AppWidgetProvider per widget, all
@@ -28,9 +30,25 @@ abstract class PrayerCircleWidgetProvider(private val kind: WidgetKind) : AppWid
   }
 
   private fun updateOne(context: Context, manager: AppWidgetManager, id: Int) {
-    val minHeight = manager.getAppWidgetOptions(id)
-      .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
-    manager.updateAppWidget(id, WidgetRenderer.render(context, kind, minHeight))
+    val options = manager.getAppWidgetOptions(id)
+    // v443: the placement's height signal is the MAX of every
+    // figure the launcher offers. MIN_HEIGHT alone under-reported
+    // on his Pixel — a tall Up Next placement came back under the
+    // full-rail threshold and rendered the compact face in a tall
+    // card — so MAX_HEIGHT and, on API 31+, the largest height in
+    // the SIZES list (the sizes the launcher itself offers for
+    // this instance) all get a vote.
+    var heightSignal = maxOf(
+      options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0),
+      options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0),
+    )
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      @Suppress("DEPRECATION")
+      val sizes = options.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)
+      val largest = sizes?.maxByOrNull { it.height }?.height?.toInt() ?: 0
+      if (largest > heightSignal) heightSignal = largest
+    }
+    manager.updateAppWidget(id, WidgetRenderer.render(context, kind, heightSignal))
   }
 }
 

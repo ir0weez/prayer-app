@@ -944,8 +944,8 @@ object WidgetRenderer {
   // ─── 6. Up Next (v442, W-6 Option A — the day rail) ───────────────────────
 
   /** One row on the rail as the renderer walks it: the snapshot's
-   * entries (done / item / gap, the hero flagged), plus the NOW
-   * row the renderer seats itself from the device clock. */
+   * entries (done / past / item / gap, the hero flagged), plus the
+   * NOW row the renderer seats itself from the device clock. */
   private class RailRow(
     val kind: String,
     val timeLabel: String,
@@ -991,8 +991,11 @@ object WidgetRenderer {
 
   private fun renderUpNext(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette, minHeightDp: Int): RemoteViews {
     // Tall placements walk the whole rail; short ones carry the
-    // compact face (hero, its gap, the next item).
-    val full = minHeightDp >= 190
+    // compact face (hero, its gap, the next item). v443: the bar
+    // drops from 190 to 160 — the providers now feed this the
+    // placement's robust height signal (see WidgetProviders), and
+    // his large top slot clears 160 with room to spare.
+    val full = minHeightDp >= 160
     val views = RemoteViews(
       context.packageName,
       if (full) R.layout.widget_up_next else R.layout.widget_up_next_compact,
@@ -1030,6 +1033,7 @@ object WidgetRenderer {
         val e = arr.optJSONObject(i) ?: continue
         when (e.optString("kind")) {
           "done" -> entries.add(RailRow("done", e.optString("timeLabel"), e.optString("title"), "", 0, ""))
+          "past" -> entries.add(RailRow("past", e.optString("timeLabel"), e.optString("title"), e.optString("sub"), 0, ""))
           "gap" -> entries.add(RailRow("gap", "", "", "", 0, e.optString("text")))
           "item" -> entries.add(
             RailRow(
@@ -1053,13 +1057,13 @@ object WidgetRenderer {
   }
 
   private fun fillRailFull(context: Context, views: RemoteViews, entries: List<RailRow>, snap: JSONObject, pal: WidgetPalette) {
-    // The display list: the done rows, then the renderer's own
-    // NOW row (device clock — after what is done, before what is
-    // next), then the hero and what follows it.
+    // The display list: the done rows and the past row, then the
+    // renderer's own NOW row (device clock — after what is past,
+    // before what is next), then the hero and what follows it.
     val rows = mutableListOf<RailRow>()
     var nowPlaced = false
     for (entry in entries) {
-      if (entry.kind != "done" && !nowPlaced) {
+      if (entry.kind != "done" && entry.kind != "past" && !nowPlaced) {
         rows.add(RailRow("now", nowTimeLabel(), "NOW", "", 0, ""))
         nowPlaced = true
       }
@@ -1133,6 +1137,25 @@ object WidgetRenderer {
         views.setTextViewTextSize(id("title"), TypedValue.COMPLEX_UNIT_SP, 11f)
         views.setTextViewText(id("sub"), "")
         views.setViewVisibility(id("sub"), View.GONE)
+      }
+      "past" -> {
+        // The last thing that started before now and was never
+        // checked off: present, but muted — chip dot, body title,
+        // no strike, no check. It is not done; it just isn't next.
+        // (The slot reset above has already cleared any strike or
+        // check a previous row left on this slot.)
+        views.setTextColor(id("time"), pal.muted)
+        views.setInt(id("dot"), "setColorFilter", pal.chip)
+        views.setViewVisibility(id("line"), View.VISIBLE)
+        views.setTextViewText(id("title"), row.title)
+        views.setTextColor(id("title"), pal.body)
+        if (row.sub.isBlank()) {
+          views.setViewVisibility(id("sub"), View.GONE)
+        } else {
+          views.setViewVisibility(id("sub"), View.VISIBLE)
+          views.setTextViewText(id("sub"), row.sub)
+          views.setTextColor(id("sub"), pal.muted)
+        }
       }
       "hero" -> {
         views.setTextColor(id("time"), pal.onContainer)

@@ -400,17 +400,21 @@ export function formatOpenDuration(totalMinutes: number): string {
 
 /** v442 (W-6, Option A — the day rail): one entry on the rail.
  * The renderer walks these in order, seats its own NOW row after
- * the done entries, and dresses the hero entry as the tinted
- * band. Order is the day's order: done entries first (behind
- * now), then the hero and what follows it. */
+ * the done and past entries, and dresses the hero entry as the
+ * tinted band. Order is the day's order: done entries first
+ * (behind now), then the one past entry when there is one, then
+ * the hero and what follows it. v443 adds "past": the most recent
+ * timed item that already started and was never completed — it
+ * sat in neither the done bucket (completed only) nor the ahead
+ * bucket (future only) and simply vanished from the rail. */
 export interface UpNextDayEntry {
-  kind: "done" | "item" | "gap";
-  /** done / item: the item's title. */
+  kind: "done" | "past" | "item" | "gap";
+  /** done / past / item: the item's title. */
   title?: string;
-  /** item: the sub line (the event's location/notes, the same
-   * line the pre-v442 widget composed for its lead). */
+  /** past / item: the sub line (the event's location/notes, the
+   * same line the pre-v442 widget composed for its lead). */
   sub?: string;
-  /** done / item: "9:00 AM". */
+  /** done / past / item: "9:00 AM". */
   timeLabel?: string;
   /** item: minutes since midnight — the renderer counts the
    * hero's "IN 44 MIN" down from it at render time. */
@@ -425,8 +429,10 @@ export type UpNextWidgetSnapshot =
   | { state: "none" }
   | {
       state: "next";
-      /** The rail, in day order (done ≤ 2, hero, following items
-       * with their gaps interleaved; capped at 8 entries). */
+      /** The rail, in day order (done ≤ 2, past ≤ 1, hero,
+       * following items with their gaps interleaved; capped at
+       * 10 entries — the renderer truncates at its 9 slots plus
+       * its own NOW row). */
       entries: UpNextDayEntry[];
       /** Timed items still ahead today, hero included — the
        * header's "{leftCount} LEFT". */
@@ -550,6 +556,19 @@ export function buildUpNextSnapshot(
     .sort((a, b) => a.startMinutes - b.startMinutes)
     .slice(-2);
 
+  // Past (v443): the most recent timed item that has already
+  // started and was never completed — the last thing above the
+  // hero. It belongs to neither bucket around it (dones are
+  // completed, the sequence is strictly future), so without this
+  // the rail jumps from the done rows straight to the hero and
+  // the thing he just did — his 10:00 AM Feed, right before the
+  // 12:00 Lunch — never appears at all. One row only; completed
+  // items are dones, never past, so it can't duplicate one.
+  const past = raw
+    .filter((item) => !item.completed && item.startMinutes <= nowMin)
+    .sort((a, b) => a.startMinutes - b.startMinutes)
+    .slice(-1);
+
   // Ahead: uncompleted, strictly in the future — the same pool
   // the Up Next group draws from, so the hero leads it.
   const ahead = raw
@@ -564,15 +583,23 @@ export function buildUpNextSnapshot(
     title: item.title,
     timeLabel: minutesToWidgetTime(item.startMinutes),
   }));
+  for (const item of past) {
+    entries.push({
+      kind: "past" as const,
+      title: item.title,
+      ...(item.sub ? { sub: item.sub } : {}),
+      timeLabel: minutesToWidgetTime(item.startMinutes),
+    });
+  }
   sequence.forEach((item, index) => {
-    if (entries.length >= 8) return;
+    if (entries.length >= 10) return;
     if (index > 0) {
       const gapMinutes = item.startMinutes - sequence[index - 1].endMinutes;
-      if (gapMinutes >= 15 && entries.length < 8) {
+      if (gapMinutes >= 15 && entries.length < 10) {
         entries.push({ kind: "gap", text: `${formatOpenDuration(gapMinutes)} open` });
       }
     }
-    if (entries.length >= 8) return;
+    if (entries.length >= 10) return;
     entries.push({
       kind: "item",
       title: item.title,

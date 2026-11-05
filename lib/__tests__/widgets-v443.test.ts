@@ -1,0 +1,262 @@
+/**
+ * v443 part 1 — the Up Next rail fixes, from his phone (Nov 5,
+ * 10:51): the widget sat in his large top slot but rendered the
+ * COMPACT face — hero, one following row, then a large empty card
+ * bottom — with no done row at all. Three causes, three fixes:
+ *
+ * A. The providers read ONLY OPTION_APPWIDGET_MIN_HEIGHT, and on
+ *    his Pixel that figure came back under the 190dp full-rail
+ *    threshold despite the tall placement. The providers now pass
+ *    a robust heightSignal — the max of MIN_HEIGHT, MAX_HEIGHT,
+ *    and (API 31+) the largest height in the SIZES list — and the
+ *    rail's full threshold drops to 160. Emergency's tall bar
+ *    stays at 190, fed by the same signal.
+ * B. The snapshot's buckets skipped a started-but-uncompleted
+ *    item entirely (dones are completed only, the sequence is
+ *    strictly future): his 10:00 AM Feed, the last thing above
+ *    the 12:00 Lunch, vanished. ONE "past" entry now rides the
+ *    rail after the dones, before the hero, and the entries cap
+ *    rises from 8 to 10.
+ * C/D. The renderer maps "past" to a muted row (chip dot, body
+ *    title, no strike, no check) and seats its NOW row after the
+ *    done AND past rows; the time column widens 54dp → 64dp in
+ *    both rail layouts so "12:00 PM" never ellipsizes again.
+ */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+import type { ScheduleEvent, ScheduleTodo } from "../schedule-data";
+import { buildUpNextSnapshot } from "../widget-snapshots";
+
+const root = join(__dirname, "..", "..");
+const read = (rel: string) => readFileSync(join(root, rel), "utf8");
+
+const MODULE = "modules/expo-prayercircle-widgets";
+const MODULE_ANDROID = `${MODULE}/android/src/main`;
+const MODULE_KOTLIN = `${MODULE_ANDROID}/java/expo/modules/prayercirclewidgets`;
+const MODULE_RES = `${MODULE_ANDROID}/res`;
+
+const layout = (name: string) => read(`${MODULE_RES}/layout/${name}.xml`);
+const renderer = read(`${MODULE_KOTLIN}/WidgetRenderer.kt`);
+const providers = read(`${MODULE_KOTLIN}/WidgetProviders.kt`);
+
+/** The full text of the opening tag that carries the given id. */
+function tagWithId(xml: string, id: string): string {
+  const at = xml.indexOf(`@+id/${id}"`);
+  expect(at, `id ${id} present`).toBeGreaterThan(-1);
+  const start = xml.lastIndexOf("<", at);
+  const end = xml.indexOf(">", at);
+  return xml.slice(start, end + 1);
+}
+
+// ─── 1. The past entry ──────────────────────────────────────────────────────
+
+describe("v443 Up Next past entry", () => {
+  const FIXED = new Date(2026, 10, 5, 10, 30, 0); // Nov 5 2026, 10:30 local
+  const DAY = "2026-11-05";
+  const event = (overrides: Partial<ScheduleEvent> = {}): ScheduleEvent => ({
+    id: `ev-${Math.random()}`,
+    title: "Event",
+    date: DAY,
+    isCompleted: false,
+    ...overrides,
+  });
+  const todo = (overrides: Partial<ScheduleTodo> = {}): ScheduleTodo => ({
+    id: `td-${Math.random()}`,
+    title: "Todo",
+    date: DAY,
+    isCompleted: false,
+    order: 0,
+    ...overrides,
+  });
+
+  it("the started, uncompleted item rides as the past entry — after the dones, before the hero", () => {
+    // His Thursday, as the widget saw it at 10:51: Rest done in
+    // the garden, the 10:00 Feed (Aaron) started and never
+    // checked off, Lunch at noon as the hero.
+    const snapshot = buildUpNextSnapshot(
+      [
+        event({ title: "Rest", startTime: "08:00", endTime: "09:00", isCompleted: true, location: "Garden" }),
+        event({ title: "Lunch", startTime: "12:00", endTime: "13:00", location: "Home" }),
+      ],
+      [todo({ title: "Feed", startTime: "10:00", notes: "Aaron" })],
+      [],
+      DAY,
+      FIXED,
+    );
+    expect(snapshot.state).toBe("next");
+    if (snapshot.state !== "next") return;
+    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["done", "past", "item"]);
+    const past = snapshot.entries[1];
+    expect(past.title).toBe("Feed");
+    expect(past.timeLabel).toBe("10:00 AM");
+    // The past entry carries its sub by the same rule as items
+    // (a todo's notes).
+    expect(past.sub).toBe("Aaron");
+    const hero = snapshot.entries[2];
+    expect(hero.isHero).toBe(true);
+    expect(hero.title).toBe("Lunch");
+    // The past row is not "left" — leftCount still counts only
+    // what is ahead, hero included.
+    expect(snapshot.leftCount).toBe(1);
+    expect(snapshot.endNote).toBe("Nothing after 1:00 PM");
+  });
+
+  it("a completed past item stays a done — it never duplicates as the past entry", () => {
+    const snapshot = buildUpNextSnapshot(
+      [
+        event({ title: "Done thing", startTime: "09:00", endTime: "09:30", isCompleted: true }),
+        event({ title: "Left hanging", startTime: "09:45", endTime: "10:15" }),
+        event({ title: "Lunch", startTime: "12:00", endTime: "13:00" }),
+      ],
+      [],
+      [],
+      DAY,
+      FIXED,
+    );
+    expect(snapshot.state).toBe("next");
+    if (snapshot.state !== "next") return;
+    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["done", "past", "item"]);
+    const doneThing = snapshot.entries.filter((entry) => entry.title === "Done thing");
+    expect(doneThing).toHaveLength(1);
+    expect(doneThing[0].kind).toBe("done");
+    expect(snapshot.entries[1].title).toBe("Left hanging");
+  });
+
+  it("only the MOST RECENT uncompleted past item rides — earlier ones stay off the rail", () => {
+    const snapshot = buildUpNextSnapshot(
+      [
+        event({ title: "Earlier", startTime: "09:00", endTime: "09:30" }),
+        event({ title: "Feed", startTime: "10:00", endTime: "10:30" }),
+        event({ title: "Lunch", startTime: "12:00", endTime: "13:00" }),
+      ],
+      [],
+      [],
+      DAY,
+      FIXED,
+    );
+    expect(snapshot.state).toBe("next");
+    if (snapshot.state !== "next") return;
+    const pasts = snapshot.entries.filter((entry) => entry.kind === "past");
+    expect(pasts).toHaveLength(1);
+    expect(pasts[0].title).toBe("Feed");
+    expect(snapshot.entries.some((entry) => entry.title === "Earlier")).toBe(false);
+  });
+
+  it("no past entry when the hero is the day's first timed item", () => {
+    const snapshot = buildUpNextSnapshot(
+      [
+        event({ title: "Hero", startTime: "11:00", endTime: "11:30" }),
+        event({ title: "After", startTime: "11:30", endTime: "12:00" }),
+      ],
+      [],
+      [],
+      DAY,
+      FIXED,
+    );
+    expect(snapshot.state).toBe("next");
+    if (snapshot.state !== "next") return;
+    expect(snapshot.entries.some((entry) => entry.kind === "past")).toBe(false);
+    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["item", "item"]);
+  });
+
+  it("the cap counts dones and past against the same 10 — the sequence fills what is left", () => {
+    const hours = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+    const snapshot = buildUpNextSnapshot(
+      [
+        event({ title: "Done one", startTime: "07:00", endTime: "07:30", isCompleted: true }),
+        event({ title: "Done two", startTime: "08:00", endTime: "08:30", isCompleted: true }),
+        event({ title: "Feed", startTime: "10:00", endTime: "10:30" }),
+        ...hours.map((h) =>
+          event({
+            title: `Item ${h}`,
+            startTime: `${String(h).padStart(2, "0")}:00`,
+            endTime: `${String(h + 1).padStart(2, "0")}:00`,
+          }),
+        ),
+      ],
+      [],
+      [],
+      DAY,
+      FIXED,
+    );
+    expect(snapshot.state).toBe("next");
+    if (snapshot.state !== "next") return;
+    expect(snapshot.entries.length).toBe(10);
+    expect(snapshot.entries.map((entry) => entry.kind).slice(0, 3)).toEqual(["done", "done", "past"]);
+    expect(snapshot.entries[3].isHero).toBe(true);
+    expect(snapshot.entries[snapshot.entries.length - 1].kind).toBe("item");
+    expect(snapshot.leftCount).toBe(12);
+    expect(snapshot.endNote).toBe("Nothing after 11:00 PM");
+  });
+});
+
+// ─── 2. The height signal + thresholds (source pins) ────────────────────────
+
+describe("v443 height signal", () => {
+  it("the providers compose the signal from every height figure the launcher offers", () => {
+    expect(providers).toContain("OPTION_APPWIDGET_MIN_HEIGHT");
+    expect(providers).toContain("OPTION_APPWIDGET_MAX_HEIGHT");
+    expect(providers).toContain("OPTION_APPWIDGET_SIZES");
+    // The SIZES read is gated on API 31 (the list exists from S).
+    expect(providers).toContain("Build.VERSION_CODES.S");
+    expect(providers).toContain("var heightSignal = maxOf(");
+    expect(providers).toContain("WidgetRenderer.render(context, kind, heightSignal)");
+  });
+
+  it("the rail's full threshold drops to 160; Emergency's tall bar stays at 190", () => {
+    expect(renderer).toContain("val full = minHeightDp >= 160");
+    expect(renderer).toContain("val tall = minHeightDp >= 190");
+    // The 160 belongs to renderUpNext, the 190 to renderEmergency.
+    const upNextAt = renderer.indexOf("private fun renderUpNext");
+    const fullAt = renderer.indexOf("val full = minHeightDp >= 160");
+    const emergencyAt = renderer.indexOf("private fun renderEmergency");
+    const tallAt = renderer.indexOf("val tall = minHeightDp >= 190");
+    expect(fullAt).toBeGreaterThan(upNextAt);
+    expect(tallAt).toBeGreaterThan(emergencyAt);
+    expect(tallAt).toBeLessThan(upNextAt);
+  });
+});
+
+// ─── 3. The past row's dress + the NOW seat (source pins) ───────────────────
+
+describe("v443 past row rendering", () => {
+  it("the renderer maps the snapshot's past kind onto its own rail row", () => {
+    expect(renderer).toContain('"past" -> entries.add(RailRow("past"');
+  });
+
+  it("the NOW row seats after the done AND past rows", () => {
+    expect(renderer).toContain('entry.kind != "done" && entry.kind != "past"');
+  });
+
+  it("the past slot dress is muted — chip dot, body title — with no strike and no check", () => {
+    const pastAt = renderer.indexOf('"past" -> {');
+    expect(pastAt).toBeGreaterThan(-1);
+    const pastBody = renderer.slice(pastAt, pastAt + 1400);
+    expect(pastBody).toContain("pal.chip");
+    expect(pastBody).toContain("pal.body");
+    expect(pastBody).toContain("pal.muted");
+    expect(pastBody).not.toContain("STRIKE_THRU");
+    expect(pastBody).not.toContain("checkBitmap");
+  });
+});
+
+// ─── 4. The time column (layout pins) ───────────────────────────────────────
+
+describe("v443 time column", () => {
+  it("the full layout's time cells are 64dp wide — \"12:00 PM\" fits at 11.5sp", () => {
+    const full = layout("widget_up_next");
+    for (const slot of [1, 5, 9]) {
+      expect(tagWithId(full, `nx_time_${slot}`)).toContain('android:layout_width="64dp"');
+    }
+    expect(full).not.toContain("54dp");
+  });
+
+  it("the compact layout's time cells are 64dp wide too", () => {
+    const compact = layout("widget_up_next_compact");
+    expect(tagWithId(compact, "nc_time_h")).toContain('android:layout_width="64dp"');
+    expect(tagWithId(compact, "nc_time_i")).toContain('android:layout_width="64dp"');
+    expect(compact).not.toContain("54dp");
+  });
+});

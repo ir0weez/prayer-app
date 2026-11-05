@@ -231,8 +231,11 @@ describe("v442 Up Next rail entries", () => {
     expect(snapshot.endNote).toBe("Nothing after 6:00 PM");
   });
 
-  it("caps the rail at 8 entries and never ends it on a gap", () => {
-    const hours = [11, 12, 13, 14, 15, 16, 17, 18, 19];
+  it("caps the rail at 10 entries and never ends it on a gap", () => {
+    // v443 re-pin: the cap rose from 8 to 10 (the past row rides
+    // the rail now, and tall placements have the room) — the day
+    // below carries twelve ahead items so the cap still binds.
+    const hours = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
     const events = hours.map((h) =>
       event({
         title: `Item ${h}`,
@@ -243,10 +246,10 @@ describe("v442 Up Next rail entries", () => {
     const snapshot = buildUpNextSnapshot(events, [], [], DAY, FIXED);
     expect(snapshot.state).toBe("next");
     if (snapshot.state !== "next") return;
-    expect(snapshot.entries.length).toBe(8);
+    expect(snapshot.entries.length).toBe(10);
     expect(snapshot.entries[snapshot.entries.length - 1].kind).toBe("item");
-    expect(snapshot.leftCount).toBe(9);
-    expect(snapshot.endNote).toBe("Nothing after 8:00 PM");
+    expect(snapshot.leftCount).toBe(12);
+    expect(snapshot.endNote).toBe("Nothing after 11:00 PM");
   });
 
   it("holidays never enter the rail", () => {
@@ -434,9 +437,12 @@ describe("v442 renderer", () => {
     expect(renderer).toContain("R.layout.widget_up_next_compact");
     // The height itself arrives from the providers, which read it
     // from the AppWidgetManager options on every update/resize.
+    // (v443 re-pin: the providers now pass a robust heightSignal —
+    // the max of the options' height figures — under that name;
+    // the v443 test file pins the signal's composition.)
     const providers = read(`${MODULE_KOTLIN}/WidgetProviders.kt`);
     expect(providers).toContain("OPTION_APPWIDGET_MIN_HEIGHT");
-    expect(providers).toContain("WidgetRenderer.render(context, kind, minHeight)");
+    expect(providers).toContain("WidgetRenderer.render(context, kind, heightSignal)");
   });
 
   it("draws the three progress bars as bitmaps (day, fast, study)", () => {

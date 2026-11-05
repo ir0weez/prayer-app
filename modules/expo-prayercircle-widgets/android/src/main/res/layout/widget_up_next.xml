@@ -117,7 +117,7 @@
         <LinearLayout
           android:layout_width="26dp"
           android:layout_height="match_parent"
-          android:layout_marginStart="54dp"
+          android:layout_marginStart="64dp"
           android:orientation="vertical">
 
           <ImageView
@@ -177,7 +177,7 @@
 
           <TextView
             android:id="@+id/nx_time_1"
-            android:layout_width="54dp"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:ellipsize="end"
@@ -336,7 +336,7 @@
         <LinearLayout
           android:layout_width="26dp"
           android:layout_height="match_parent"
-          android:layout_marginStart="54dp"
+          android:layout_marginStart="64dp"
           android:orientation="vertical">
 
           <ImageView
@@ -396,7 +396,7 @@
 
           <TextView
             android:id="@+id/nx_time_2"
-            android:layout_width="54dp"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:ellipsize="end"
@@ -555,7 +555,7 @@
         <LinearLayout
           android:layout_width="26dp"
           android:layout_height="match_parent"
-          android:layout_marginStart="54dp"
+          android:layout_marginStart="64dp"
           android:orientation="vertical">
 
           <ImageView
@@ -615,7 +615,7 @@
 
           <TextView
             android:id="@+id/nx_time_3"
-            android:layout_width="54dp"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:ellipsize="end"
@@ -774,7 +774,7 @@
         <LinearLayout
           android:layout_width="26dp"
           android:layout_height="match_parent"
-          android:layout_marginStart="54dp"
+          android:layout_marginStart="64dp"
           android:orientation="vertical">
 
           <ImageView
@@ -834,7 +834,7 @@
 
           <TextView
             android:id="@+id/nx_time_4"
-            android:layout_width="54dp"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:ellipsize="end"
@@ -993,7 +993,7 @@
         <LinearLayout
           android:layout_width="26dp"
           android:layout_height="match_parent"
-          android:layout_marginStart="54dp"
+          android:layout_marginStart="64dp"
           android:orientation="vertical">
 
           <ImageView
@@ -1053,7 +1053,7 @@
 
           <TextView
             android:id="@+id/nx_time_5"
-            android:layout_width="54dp"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:ellipsize="end"
@@ -1212,7 +1212,7 @@
         <LinearLayout
           android:layout_width="26dp"
           android:layout_height="match_parent"
-          android:layout_marginStart="54dp"
+          android:layout_marginStart="64dp"
           android:orientation="vertical">
 
           <ImageView
@@ -1272,7 +1272,7 @@
 
           <TextView
             android:id="@+id/nx_time_6"
-            android:layout_width="54dp"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:ellipsize="end"
@@ -1431,7 +1431,7 @@
         <LinearLayout
           android:layout_width="26dp"
           android:layout_height="match_parent"
-          android:layout_marginStart="54dp"
+          android:layout_marginStart="64dp"
           android:orientation="vertical">
 
           <ImageView
@@ -1491,7 +1491,7 @@
 
           <TextView
             android:id="@+id/nx_time_7"
-            android:layout_width="54dp"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:ellipsize="end"
@@ -1650,7 +1650,7 @@
         <LinearLayout
           android:layout_width="26dp"
           android:layout_height="match_parent"
-          android:layout_marginStart="54dp"
+          android:layout_marginStart="64dp"
           android:orientation="vertical">
 
           <ImageView
@@ -1710,7 +1710,7 @@
 
           <TextView
             android:id="@+id/nx_time_8"
-            android:layout_width="54dp"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:ellipsize="end"
@@ -1869,7 +1869,7 @@
         <LinearLayout
           android:layout_width="26dp"
           android:layout_height="match_parent"
-          android:layout_marginStart="54dp"
+          android:layout_marginStart="64dp"
           android:orientation="vertical">
 
           <ImageView
@@ -1929,7 +1929,7 @@
 
           <TextView
             android:id="@+id/nx_time_9"
-            android:layout_width="54dp"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:ellipsize="end"

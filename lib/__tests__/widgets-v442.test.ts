@@ -387,7 +387,12 @@ describe("v442 layouts", () => {
     // v444 re-pin: the hero title slimmed 21sp → 18sp (with the
     // band's padding) so the short list's core rows fit the rail
     // a tall placement actually offers.
-    expect(tagWithId(full, "nx_htitle_1")).toContain('android:textSize="18sp"');
+    // v445 re-pin: the hero band is back to the approved
+    // mockup's proportions — title 20sp, band padding 10dp —
+    // because the v444 slimming still clipped the countdown
+    // pill on his phone; the height budget (selectRailRows)
+    // is what keeps the rail fitting now, not smaller type.
+    expect(tagWithId(full, "nx_htitle_1")).toContain('android:textSize="20sp"');
     const compact = layout("widget_up_next_compact");
     expect(compact).toContain("@+id/nc_rows");
     expect(compact).toContain("@+id/nc_row_gap");

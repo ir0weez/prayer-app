@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Up Next — the rail layout. v444 (Jonathan's corrected spec):
+<!-- Up Next — the rail layout. v445: every nx_now_N label now
+     sits INSIDE its nx_row_N, as the last child of the row's
+     horizontal layout (in v444 it stood outside the row frame
+     and rendered as a stray NOW line of its own), and the hero
+     band is back to the mockup's proportions (inner padding
+     10dp top/bottom, hero title 20sp).
+     v444 (Jonathan's corrected spec):
      the list is short — the last thing (muted; struck + green
      check when it was completed), the current thing (plain,
      its rail dot ringed, a NOW label at its trailing edge), the
@@ -264,9 +270,9 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingStart="12dp"
-                android:paddingTop="6dp"
+                android:paddingTop="10dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="10dp">
 
                 <LinearLayout
                   android:layout_width="0dp"
@@ -281,7 +287,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="#221A3E"
-                    android:textSize="18sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                   <TextView
@@ -331,10 +337,7 @@
             android:layout_marginStart="8dp"
             android:contentDescription="@null"
             android:visibility="gone" />
-        </LinearLayout>
-      </FrameLayout>
-
-          <TextView
+            <TextView
             android:id="@+id/nx_now_1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -344,6 +347,9 @@
             android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
 
       <FrameLayout
         android:id="@+id/nx_row_2"
@@ -494,9 +500,9 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingStart="12dp"
-                android:paddingTop="6dp"
+                android:paddingTop="10dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="10dp">
 
                 <LinearLayout
                   android:layout_width="0dp"
@@ -511,7 +517,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="#221A3E"
-                    android:textSize="18sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                   <TextView
@@ -561,10 +567,7 @@
             android:layout_marginStart="8dp"
             android:contentDescription="@null"
             android:visibility="gone" />
-        </LinearLayout>
-      </FrameLayout>
-
-          <TextView
+            <TextView
             android:id="@+id/nx_now_2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -574,6 +577,9 @@
             android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
 
       <FrameLayout
         android:id="@+id/nx_row_3"
@@ -724,9 +730,9 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingStart="12dp"
-                android:paddingTop="6dp"
+                android:paddingTop="10dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="10dp">
 
                 <LinearLayout
                   android:layout_width="0dp"
@@ -741,7 +747,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="#221A3E"
-                    android:textSize="18sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                   <TextView
@@ -791,10 +797,7 @@
             android:layout_marginStart="8dp"
             android:contentDescription="@null"
             android:visibility="gone" />
-        </LinearLayout>
-      </FrameLayout>
-
-          <TextView
+            <TextView
             android:id="@+id/nx_now_3"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -804,6 +807,9 @@
             android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
 
       <FrameLayout
         android:id="@+id/nx_row_4"
@@ -954,9 +960,9 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingStart="12dp"
-                android:paddingTop="6dp"
+                android:paddingTop="10dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="10dp">
 
                 <LinearLayout
                   android:layout_width="0dp"
@@ -971,7 +977,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="#221A3E"
-                    android:textSize="18sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                   <TextView
@@ -1021,10 +1027,7 @@
             android:layout_marginStart="8dp"
             android:contentDescription="@null"
             android:visibility="gone" />
-        </LinearLayout>
-      </FrameLayout>
-
-          <TextView
+            <TextView
             android:id="@+id/nx_now_4"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -1034,6 +1037,9 @@
             android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
 
       <FrameLayout
         android:id="@+id/nx_row_5"
@@ -1184,9 +1190,9 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingStart="12dp"
-                android:paddingTop="6dp"
+                android:paddingTop="10dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="10dp">
 
                 <LinearLayout
                   android:layout_width="0dp"
@@ -1201,7 +1207,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="#221A3E"
-                    android:textSize="18sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                   <TextView
@@ -1251,10 +1257,7 @@
             android:layout_marginStart="8dp"
             android:contentDescription="@null"
             android:visibility="gone" />
-        </LinearLayout>
-      </FrameLayout>
-
-          <TextView
+            <TextView
             android:id="@+id/nx_now_5"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -1264,6 +1267,9 @@
             android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
 
       <FrameLayout
         android:id="@+id/nx_row_6"
@@ -1414,9 +1420,9 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingStart="12dp"
-                android:paddingTop="6dp"
+                android:paddingTop="10dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="10dp">
 
                 <LinearLayout
                   android:layout_width="0dp"
@@ -1431,7 +1437,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="#221A3E"
-                    android:textSize="18sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                   <TextView
@@ -1481,10 +1487,7 @@
             android:layout_marginStart="8dp"
             android:contentDescription="@null"
             android:visibility="gone" />
-        </LinearLayout>
-      </FrameLayout>
-
-          <TextView
+            <TextView
             android:id="@+id/nx_now_6"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -1494,6 +1497,9 @@
             android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
 
       <FrameLayout
         android:id="@+id/nx_row_7"
@@ -1644,9 +1650,9 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingStart="12dp"
-                android:paddingTop="6dp"
+                android:paddingTop="10dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="10dp">
 
                 <LinearLayout
                   android:layout_width="0dp"
@@ -1661,7 +1667,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="#221A3E"
-                    android:textSize="18sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                   <TextView
@@ -1711,10 +1717,7 @@
             android:layout_marginStart="8dp"
             android:contentDescription="@null"
             android:visibility="gone" />
-        </LinearLayout>
-      </FrameLayout>
-
-          <TextView
+            <TextView
             android:id="@+id/nx_now_7"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -1724,6 +1727,9 @@
             android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
 
       <FrameLayout
         android:id="@+id/nx_row_8"
@@ -1874,9 +1880,9 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingStart="12dp"
-                android:paddingTop="6dp"
+                android:paddingTop="10dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="10dp">
 
                 <LinearLayout
                   android:layout_width="0dp"
@@ -1891,7 +1897,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="#221A3E"
-                    android:textSize="18sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                   <TextView
@@ -1941,10 +1947,7 @@
             android:layout_marginStart="8dp"
             android:contentDescription="@null"
             android:visibility="gone" />
-        </LinearLayout>
-      </FrameLayout>
-
-          <TextView
+            <TextView
             android:id="@+id/nx_now_8"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -1954,6 +1957,9 @@
             android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
 
       <FrameLayout
         android:id="@+id/nx_row_9"
@@ -2104,9 +2110,9 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingStart="12dp"
-                android:paddingTop="6dp"
+                android:paddingTop="10dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="10dp">
 
                 <LinearLayout
                   android:layout_width="0dp"
@@ -2121,7 +2127,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="#221A3E"
-                    android:textSize="18sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                   <TextView
@@ -2171,10 +2177,7 @@
             android:layout_marginStart="8dp"
             android:contentDescription="@null"
             android:visibility="gone" />
-        </LinearLayout>
-      </FrameLayout>
-
-          <TextView
+            <TextView
             android:id="@+id/nx_now_9"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -2184,6 +2187,9 @@
             android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
 
     </LinearLayout>
 

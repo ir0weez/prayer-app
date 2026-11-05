@@ -3,18 +3,34 @@
      snapshot in a true 2×1 cell (~190×82dp): the main widget's
      red (widget_bg_emergency_24 — the meaning hue, never tinted)
      when something is burning, the pale palette surface when not.
-     One active: face + name/need column, then an hours chip and
-     the white Pray now pill on their own row — at 190dp wide the
-     pill cannot share the face's row and leave the name readable,
-     so the chip and pill sit under it. Two or more: two slim
-     rows, soonest first, each with its own pill.
-     v444 fixes, from his phone: the hours chip is now a TextView
-     wearing the opaque deep-red pill (widget_pill_deep_red) as
-     its background — the main widget's proven chip construction
+     v445 (his rulings, Nov 5): the strip is face + name + need
+     + Pray now ONLY — the hours-left chip is REMOVED from the
+     strip entirely ("it doesn't need the little hours left
+     chip. Not in the widget anyway." The in-app emergency card
+     and the big Emergency widget keep their hours text; this
+     is the strip only.) His other verdict on v444 — "obviously
+     that everything doesn't fit," the white Pray now pill
+     clipped at the card's right edge — goes with the chip: the
+     bottom row held two rigid items (chip + pill) and
+     overflowed; with the chip gone the pill stays in the
+     bottom row as ES-1 drew it (elastic spacer + pill at the
+     right), the row's only rigid item. Sizes tightened
+     throughout: root padding 10/5, face 40 (ring 40, image
+     36), name 15sp, need 12sp, pill 26 high at 12.5sp — face
+     row 40 + 3 margin + pill 26 + padding 10 ≈ 79dp inside
+     the ~82dp cell. Two or more: two slim rows, soonest
+     first, each with its own pill, their lines the need alone
+     (the "· {hours} left" suffix is gone with the chip); their
+     pills are tightened the same way (11.5sp, 9dp padding).
+     v444 fixes, from his phone (the chip itself was removed
+     in v445, above): the hours chip became a TextView wearing
+     the opaque deep-red pill (widget_pill_deep_red) as its
+     background — the main widget's proven chip construction
      — where v443's translucent-white image under white text
      rendered as a solid pale pill and the hours vanished into
-     it; and the Pray now pill frames carry FIXED heights (30dp
-     single, 26dp rows) like the main widget's 40dp pill, whose
+     it; and the Pray now pill frames carry FIXED heights (26dp
+     single since v445, 26dp rows) like the main widget's 40dp
+     pill, whose
      absence left v443's match_parent pill image with no height
      to fill — it never painted, leaving red text on the card.
      XML defaults are the quiet face. Vanilla subset only. -->
@@ -44,10 +60,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:paddingStart="12dp"
-    android:paddingTop="6dp"
-    android:paddingEnd="12dp"
-    android:paddingBottom="6dp">
+    android:paddingStart="10dp"
+    android:paddingTop="5dp"
+    android:paddingEnd="10dp"
+    android:paddingBottom="5dp">
 
     <!-- Quiet face -->
     <LinearLayout
@@ -118,21 +134,21 @@
         android:orientation="horizontal">
 
         <FrameLayout
-          android:layout_width="44dp"
-          android:layout_height="44dp">
+          android:layout_width="40dp"
+          android:layout_height="40dp">
 
           <ImageView
             android:id="@+id/es_s_ring"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:contentDescription="@null"
             android:src="@drawable/widget_circle_white"
             android:tint="#FFFFFF" />
 
           <ImageView
             android:id="@+id/es_s_img"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_gravity="center"
             android:contentDescription="@null"
             android:src="@drawable/widget_circle_white" />
@@ -150,7 +166,7 @@
         <LinearLayout
           android:layout_width="0dp"
           android:layout_height="wrap_content"
-          android:layout_marginStart="10dp"
+          android:layout_marginStart="8dp"
           android:layout_weight="1"
           android:orientation="vertical">
 
@@ -162,7 +178,7 @@
             android:maxLines="1"
             android:singleLine="true"
             android:textColor="#FFFFFF"
-            android:textSize="16sp"
+            android:textSize="15sp"
             android:textStyle="bold" />
 
           <TextView
@@ -173,32 +189,16 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="#E0FFFFFF"
-            android:textSize="12.5sp" />
+            android:textSize="12sp" />
         </LinearLayout>
       </LinearLayout>
 
       <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="3dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
-
-        <TextView
-          android:id="@+id/es_s_left"
-          android:layout_width="wrap_content"
-          android:layout_height="wrap_content"
-          android:background="@drawable/widget_pill_deep_red"
-          android:ellipsize="end"
-          android:gravity="center"
-          android:maxLines="1"
-          android:paddingStart="8dp"
-          android:paddingTop="3dp"
-          android:paddingEnd="8dp"
-          android:paddingBottom="3dp"
-          android:textColor="#FFFFFF"
-          android:textSize="10.5sp"
-          android:textStyle="bold" />
 
         <FrameLayout
           android:layout_width="0dp"
@@ -208,7 +208,7 @@
         <FrameLayout
           android:id="@+id/es_s_pill"
           android:layout_width="wrap_content"
-          android:layout_height="30dp"
+          android:layout_height="26dp"
           android:layout_marginStart="8dp">
 
           <ImageView
@@ -224,13 +224,14 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:paddingStart="13dp"
-            android:paddingEnd="13dp"
+            android:paddingStart="11dp"
+            android:paddingEnd="11dp"
             android:text="Pray now"
             android:textColor="#B91C1C"
-            android:textSize="13.5sp"
+            android:textSize="12.5sp"
             android:textStyle="bold" />
         </FrameLayout>
+
       </LinearLayout>
     </LinearLayout>
 
@@ -318,11 +319,11 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
+            android:paddingStart="9dp"
+            android:paddingEnd="9dp"
             android:text="Pray now"
             android:textColor="#B91C1C"
-            android:textSize="12sp"
+            android:textSize="11.5sp"
             android:textStyle="bold" />
         </FrameLayout>
       </LinearLayout>
@@ -409,11 +410,11 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
+            android:paddingStart="9dp"
+            android:paddingEnd="9dp"
             android:text="Pray now"
             android:textColor="#B91C1C"
-            android:textSize="12sp"
+            android:textSize="11.5sp"
             android:textStyle="bold" />
         </FrameLayout>
       </LinearLayout>

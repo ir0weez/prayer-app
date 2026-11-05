@@ -45,6 +45,7 @@ import {
 import type { StudyState } from "./bible-v205/study";
 import type { StudioImportsMap } from "./bible-v205/studio-import";
 import type { V205ChapterData } from "./bible-v205/types";
+import { getReadingPosition } from "./bible-v205/position";
 import { formatDateLocal } from "./date-utils";
 import { sortQueueFaces } from "./people-queue";
 import {
@@ -453,6 +454,22 @@ export interface UpNextDayEntry {
   text?: string;
 }
 
+/** v445: one timed item of the day, carried whole so the native
+ * renderer can recompute last / current / next AT RENDER TIME
+ * from the device clock (the v444 snapshot's entries froze the
+ * app-open moment — and a stale pre-v444 snapshot in the old
+ * entry kinds rendered as gaps alone on his phone). */
+export interface UpNextDayItem {
+  title: string;
+  sub: string;
+  startMinutes: number;
+  endMinutes: number;
+  /** Whether a stored end existed (a point item counts as over
+   * once it has started; an item with an end, once it passes). */
+  hasEnd: boolean;
+  completed: boolean;
+}
+
 export type UpNextWidgetSnapshot =
   | { state: "none" }
   | {
@@ -466,6 +483,14 @@ export type UpNextWidgetSnapshot =
       /** "Nothing after 3:00 PM", from the last ahead item's
        * end; null when nothing is ahead to state it from. */
       endNote: string | null;
+      /** v445: the day this snapshot describes (todayIso) — the
+       * renderer only recomputes from dayItems when it equals
+       * the device's current local date. */
+      dateIso: string;
+      /** v445: EVERY timed item of the day (todos → events →
+       * ministries, stable day order), for the render-time
+       * recompute. */
+      dayItems: UpNextDayItem[];
     };
 
 /** The rail's per-kind end rule, shared with the pre-v442 lead
@@ -487,6 +512,7 @@ export function buildUpNextSnapshot(
   ministries: ScheduleMinistry[],
   todayIso: string,
   now: Date,
+  people: Person[] = [],
 ): UpNextWidgetSnapshot {
   const dayEvents = getEventsForDate(events, todayIso);
   const dayTodos = getTodosForDate(todos, todayIso);
@@ -545,6 +571,25 @@ export function buildUpNextSnapshot(
     completed: boolean;
     sub: string;
   }
+  // v445: the sub line's last resort is the item's linked
+  // people — their first names, joined ", " — used only when
+  // the item's own fields (location / notes) are empty. Feed
+  // carries Aaron this way in the approved mockup: the todo's
+  // linked person, not a note.
+  const linkedNames = (ids: string[] | undefined): string => {
+    if (!ids || ids.length === 0) return "";
+    return ids
+      .map((id) => people.find((person) => person.id === id))
+      .filter((person): person is Person => !!person)
+      .map((person) => firstNameOf(person.name))
+      .join(", ");
+  };
+  const composeSub = (fields: Array<string | undefined>, ids: string[] | undefined): string => {
+    for (const field of fields) {
+      if (field && field.trim()) return field;
+    }
+    return linkedNames(ids);
+  };
   const raw: RawDayItem[] = [
     ...dayTodos
       .filter((todo) => todo.startTime)
@@ -556,7 +601,7 @@ export function buildUpNextSnapshot(
         endMinutes: upNextEndMinutes("todo", todo.startTime as string, todo.endTime),
         hasEnd: !!todo.endTime,
         completed: todo.isCompleted,
-        sub: todo.notes ?? "",
+        sub: composeSub([todo.notes], todo.linkedPeopleIds),
       })),
     ...dayEvents
       .filter((event) => event.startTime && !event.isHoliday)
@@ -568,7 +613,7 @@ export function buildUpNextSnapshot(
         endMinutes: upNextEndMinutes("event", event.startTime as string, event.endTime),
         hasEnd: !!event.endTime,
         completed: event.isCompleted,
-        sub: event.location ?? event.notes ?? "",
+        sub: composeSub([event.location, event.notes], event.linkedPeopleIds),
       })),
     ...dayMinistries
       .filter((ministry) => ministry.startTime)
@@ -580,7 +625,7 @@ export function buildUpNextSnapshot(
         endMinutes: upNextEndMinutes("ministry", ministry.startTime as string, ministry.endTime),
         hasEnd: !!ministry.endTime,
         completed: ministry.isCompleted,
-        sub: ministry.location ?? ministry.notes ?? "",
+        sub: composeSub([ministry.location, ministry.notes], ministry.linkedPeopleIds),
       })),
   ];
 
@@ -670,6 +715,18 @@ export function buildUpNextSnapshot(
     entries,
     leftCount: sequence.length,
     endNote: lastAhead ? `Nothing after ${minutesToWidgetTime(lastAhead.endMinutes)}` : null,
+    dateIso: todayIso,
+    // v445: the whole day in its own order (raw is built todos
+    // → events → ministries and never re-sorted), so the
+    // renderer can recompute the rows from the device clock.
+    dayItems: raw.map((item) => ({
+      title: item.title,
+      sub: item.sub,
+      startMinutes: item.startMinutes,
+      endMinutes: item.endMinutes,
+      hasEnd: item.hasEnd,
+      completed: item.completed,
+    })),
   };
 }
 
@@ -728,6 +785,23 @@ export type StudyWidgetSnapshot =
       restudyLine: string | null;
       chaptersWritten: number;
       totalChapters: number;
+      /** v445: the READING track, from the app's authoritative
+       * reading position (lib/bible-v205/position —
+       * getReadingPosition): where he IS reading, as opposed to
+       * the writing fields above (nextChapter / lastWritten are
+       * the WRITING track, the big Your Study widget's dress).
+       * The Reading strip reads these; his words: "I don't need
+       * to know how many I've written. I need to know where I'm
+       * at reading." Null when the position names nothing. */
+      readingBook: string | null;
+      /** The chapter he reads next (the position's target), or
+       * the last chapter read when the target rests. */
+      readingChapter: number | null;
+      /** True when readingChapter came from the target. */
+      readingFromTarget: boolean;
+      readingTotalChapters: number | null;
+      /** readingBook's true (light-set) ROYGBIV primary. */
+      readingBookPrimary: string | null;
     };
 
 export function buildStudySnapshot(
@@ -777,6 +851,16 @@ export function buildStudySnapshot(
   const restudy = restudyQueueSummary(studyState);
   const colors = bookColorsFor(book, true);
   const solidColors = bookColorsFor(book, false);
+  // v445: the reading position rides alongside the writing
+  // fields — computed from the same study store through the
+  // app's own resolver, never derived from the writing track.
+  const position = getReadingPosition(studyState);
+  const readingBook = position.target?.book ?? position.lastRead?.book ?? null;
+  const readingChapter = position.target?.chapter ?? position.lastRead?.chapter ?? null;
+  const readingFromTarget = position.target != null;
+  const readingTotalRaw = readingBook ? chapterCountFor(readingBook) : null;
+  const readingTotalChapters = readingTotalRaw ? readingTotalRaw : null;
+  const readingBookPrimary = readingBook ? (bookColorsFor(readingBook, false)?.primary ?? null) : null;
   return {
     state: "active",
     book,
@@ -793,6 +877,11 @@ export function buildStudySnapshot(
     restudyLine: restudy?.line ?? null,
     chaptersWritten,
     totalChapters,
+    readingBook,
+    readingChapter,
+    readingFromTarget,
+    readingTotalChapters,
+    readingBookPrimary,
   };
 }
 
@@ -830,7 +919,7 @@ export function buildAllWidgetSnapshots(input: WidgetSnapshotInputs): AllWidgetS
     emergency: buildEmergencySnapshot(input.people, input.now),
     fast: buildFastSnapshot(input.fasts, input.xpRaw, todayIso),
     reachOut: buildReachOutSnapshot(input.people, input.now),
-    upNext: buildUpNextSnapshot(input.events, input.todos, input.ministries, todayIso, input.now),
+    upNext: buildUpNextSnapshot(input.events, input.todos, input.ministries, todayIso, input.now, input.people),
     study: buildStudySnapshot(input.studyState, input.imports, input.resolveChapter),
   };
 }

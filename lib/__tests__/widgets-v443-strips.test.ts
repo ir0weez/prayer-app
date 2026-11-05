@@ -218,7 +218,10 @@ describe("v443 Emergency Strip (ES-1)", () => {
       "es_s_img",
       "es_s_name",
       "es_s_title",
-      "es_s_left",
+      // v445 re-pin: "es_s_left" (the hours chip) is gone from
+      // this list — Jonathan removed the chip from the strip
+      // entirely ("Not in the widget anyway."); the absence is
+      // pinned in widgets-v445.test.ts.
       "es_s_pill",
       "es_multi",
       "es_row_1",
@@ -251,12 +254,19 @@ describe("v443 Emergency Strip (ES-1)", () => {
   });
 
   it("the renderer re-filters rows by expiry and words the strip countdowns from the same math", () => {
+    // v445 re-pin: the strip countdown wording is gone —
+    // Jonathan removed the hours chip and the hours suffix
+    // from the strip entirely, and the strip countdown helpers
+    // were deleted with them. What survives of this test's
+    // original intent: rows still re-filter by expiry at
+    // render time, the +N fold still rides the second row,
+    // and each row's pill still prays for its own person.
     const at = renderer.indexOf("private fun renderEmergencyStrip");
     expect(at).toBeGreaterThan(-1);
     const body = renderer.slice(at, at + 7500);
     expect(body).toContain("expiresAtMillis");
-    expect(body).toContain("emergencyStripLeftText(expires, now)");
-    expect(body).toContain("emergencyShortLeftText(expires, now)");
+    expect(body).not.toContain("emergencyStripLeftText(expires, now)");
+    expect(body).not.toContain("emergencyShortLeftText(expires, now)");
     // The third-and-beyond emergencies fold into the second
     // row's line, as the drawing rules.
     expect(body).toContain("· +${live.size - 2} more");
@@ -297,6 +307,12 @@ describe("v443 Reading Strip (ST-2)", () => {
     // the line is "Fully written" with no tail. The deep pins
     // live in widgets-v444.test.ts; the slice widens to 8000
     // for the grown function body.
+    // v445 amendment: those writing-field pins now describe
+    // the FALLBACK path — when the snapshot carries the
+    // reading fields, the strip stands the reading chapter
+    // and composes "Chapter {n} of {total}" instead (pinned
+    // in widgets-v445.test.ts). The strings below still live
+    // in the fallback half of the same function body.
     const at = renderer.indexOf("private fun renderReadingStrip");
     expect(at).toBeGreaterThan(-1);
     const body = renderer.slice(at, at + 8000);

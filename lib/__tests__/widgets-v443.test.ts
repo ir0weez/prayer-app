@@ -227,14 +227,18 @@ describe("v443 height signal", () => {
   });
 
   it("the rail's full threshold drops to 160; Emergency's tall bar stays at 190", () => {
-    expect(renderer).toContain("val full = minHeightDp >= 160");
+    // v445 re-pin: the rail's 160 threshold is gone — the
+    // tall/short branch was replaced by the height-budgeted
+    // selection (rail budget = heightSignal − 96 in
+    // selectRailRows), because both thresholds still starved
+    // rows on his phone. Emergency's tall bar at 190 stands.
+    expect(renderer).not.toContain("val full = minHeightDp >= 160");
     expect(renderer).toContain("val tall = minHeightDp >= 190");
-    // The 160 belongs to renderUpNext, the 190 to renderEmergency.
+    expect(renderer).toContain("val railBudget = heightSignal - 96");
+    // The 190 belongs to renderEmergency, before renderUpNext.
     const upNextAt = renderer.indexOf("private fun renderUpNext");
-    const fullAt = renderer.indexOf("val full = minHeightDp >= 160");
     const emergencyAt = renderer.indexOf("private fun renderEmergency");
     const tallAt = renderer.indexOf("val tall = minHeightDp >= 190");
-    expect(fullAt).toBeGreaterThan(upNextAt);
     expect(tallAt).toBeGreaterThan(emergencyAt);
     expect(tallAt).toBeLessThan(upNextAt);
   });
@@ -253,7 +257,23 @@ describe("v443 past row rendering", () => {
   });
 
   it("the NOW row seats after the done AND past rows", () => {
-    expect(renderer).toContain('entry.kind != "done" && entry.kind != "past"');
+    // v445 re-pin: the seat is no longer found by scanning the
+    // entries walk (that loop is gone) — selectRailRows builds
+    // the display list in chronological order, and the NOW row
+    // is added after last and current, before the hero. The
+    // display-order adds in selectRailRows are the pin.
+    expect(renderer).not.toContain('entry.kind != "done" && entry.kind != "past"');
+    const selAt = renderer.indexOf("private fun selectRailRows");
+    expect(selAt).toBeGreaterThan(-1);
+    const sel = renderer.slice(selAt, selAt + 3500);
+    const lastAdd = sel.indexOf("display.add(last)");
+    const currentAdd = sel.indexOf("display.add(current)");
+    const nowAdd = sel.indexOf("display.add(nowRow)");
+    const heroAdd = sel.indexOf("display.add(hero)");
+    expect(lastAdd).toBeGreaterThan(-1);
+    expect(nowAdd).toBeGreaterThan(lastAdd);
+    expect(nowAdd).toBeGreaterThan(currentAdd);
+    expect(heroAdd).toBeGreaterThan(nowAdd);
   });
 
   it("the past slot dress is muted — chip dot, body title — with no strike and no check", () => {

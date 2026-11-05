@@ -606,27 +606,12 @@ object WidgetRenderer {
     return raw.replaceFirstChar { it.uppercase(Locale.US) } + " of 24"
   }
 
-  /** v443: the strip forms of the same countdown, from the same
-   * math (expiresAtMillis, the <55-minute rule, the rounded
-   * hour). The single-active chip carries the mock's own words —
-   * "14 hours left"; the two-row lines carry the compact form —
-   * "14h left". The full "…of 24" sentence fits neither at
-   * 190dp wide, and fit is the strips' headline rule. */
-  fun emergencyStripLeftText(expiresAtMillis: Long, nowMillis: Long): String {
-    val ms = expiresAtMillis - nowMillis
-    if (ms <= 0) return "ending now"
-    if (ms / 60000.0 < 55) return "under 1h left"
-    val hours = (ms / 3600000.0).roundToLong()
-    return if (hours <= 1) "1 hour left" else "$hours hours left"
-  }
-
-  fun emergencyShortLeftText(expiresAtMillis: Long, nowMillis: Long): String {
-    val ms = expiresAtMillis - nowMillis
-    if (ms <= 0) return "ending now"
-    if (ms / 60000.0 < 55) return "under 1h left"
-    val hours = (ms / 3600000.0).roundToLong()
-    return if (hours <= 1) "1h left" else "${hours}h left"
-  }
+  // v445: the Emergency strip's own countdown helpers
+  // (emergencyStripLeftText / emergencyShortLeftText, v443)
+  // are deleted — Jonathan ruled the strip carries no hours
+  // chip and no hours suffix at all ("Not in the widget
+  // anyway."). The big Emergency widget above keeps its own
+  // countdown (emergencyLeftText) untouched.
 
   private val EM_ROWS = intArrayOf(R.id.em_row_1, R.id.em_row_2)
   private val EM_AVATAR_IMGS = intArrayOf(R.id.em_avatar_img_1, R.id.em_avatar_img_2)
@@ -987,6 +972,17 @@ object WidgetRenderer {
     val gapText: String,
   )
 
+  /** v445: one dayItems entry as parsed from the snapshot —
+   * the render-time Up Next recompute reads these. */
+  private class DayItem(
+    val title: String,
+    val sub: String,
+    val startMinutes: Int,
+    val endMinutes: Int,
+    val hasEnd: Boolean,
+    val completed: Boolean,
+  )
+
   private val railIdCache = HashMap<String, Int>()
 
   /** The rail's nine slots resolve their ids by name — the slots
@@ -1022,15 +1018,18 @@ object WidgetRenderer {
   }
 
   private fun renderUpNext(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette, minHeightDp: Int): RemoteViews {
-    // v444: the snapshot's list is short by construction (last?,
-    // current?, next hero, gap?, next — five at most), and BOTH
-    // height bands render through the full layout's slot
-    // machinery. The bar is the v443 one — 160 on the providers'
-    // robust height signal: at or above it the tall row set
-    // stands (last, current-or-NOW, hero, gap, next); below it
-    // only current-or-NOW and the hero. The compact layout is
-    // never selected any more (its file stays in res, unused).
-    val full = minHeightDp >= 160
+    // v445: the rows are computed AT RENDER TIME. When the
+    // snapshot carries dayItems for the device's current date,
+    // last / current / next are recomputed here from the device
+    // clock — the v444 entries froze the moment the app last
+    // opened, so the widget went stale between opens. The
+    // snapshot's entries remain as the fallback (below) for a
+    // snapshot whose day has rolled over or that predates
+    // dayItems. Both paths build one common row list (last,
+    // current, hero, gap, next2) and run it through the same
+    // height-budgeted selection (selectRailRows) before a slot
+    // is filled.
+    val heightSignal = minHeightDp
     val views = RemoteViews(context.packageName, R.layout.widget_up_next)
     val base = 500
     views.setInt(R.id.next_bg, "setColorFilter", pal.surface)
@@ -1049,78 +1048,289 @@ object WidgetRenderer {
       views.setViewVisibility(R.id.next_footer, View.GONE)
       return views
     }
+
+    var leftCount = snap.optInt("leftCount")
+    var endNote = snap.optString("endNote")
+    val rows: List<RailRow>
+    val dayArr = snap.optJSONArray("dayItems")
+    if (dayArr != null && dayArr.length() > 0 && snap.optString("dateIso") == deviceDateIso()) {
+      // ── The render-time path: recompute from dayItems + the
+      // device clock. ──
+      val dayItems = mutableListOf<DayItem>()
+      for (i in 0 until dayArr.length()) {
+        val d = dayArr.optJSONObject(i) ?: continue
+        dayItems.add(
+          DayItem(
+            d.optString("title"),
+            d.optString("sub"),
+            d.optInt("startMinutes"),
+            d.optInt("endMinutes"),
+            d.optBoolean("hasEnd"),
+            d.optBoolean("completed"),
+          ),
+        )
+      }
+      val nowMin = nowMinutes()
+      // Ahead: uncompleted, strictly future, chronological —
+      // the sort is stable, so ties keep the day's own order.
+      val aheadIdx = dayItems.indices
+        .filter { !dayItems[it].completed && dayItems[it].startMinutes > nowMin }
+        .sortedBy { dayItems[it].startMinutes }
+      // Current: uncompleted, running now; latest start wins.
+      val currentIdx = dayItems.indices
+        .filter { !dayItems[it].completed && dayItems[it].startMinutes <= nowMin && nowMin < dayItems[it].endMinutes }
+        .sortedByDescending { dayItems[it].startMinutes }
+        .firstOrNull()
+      val next1Idx = aheadIdx.getOrNull(0)
+      val next2Idx = aheadIdx.getOrNull(1)
+      if (currentIdx == null && next1Idx == null) {
+        // Nothing running and nothing ahead: the quiet face.
+        views.setViewVisibility(R.id.next_msg, View.VISIBLE)
+        views.setViewVisibility(R.id.next_chip, View.GONE)
+        views.setViewVisibility(R.id.next_rail, View.GONE)
+        views.setViewVisibility(R.id.next_footer, View.GONE)
+        return views
+      }
+      val chosenIdx = setOfNotNull(currentIdx, next1Idx, next2Idx)
+      val overAt = { item: DayItem -> if (item.hasEnd) item.endMinutes else item.startMinutes }
+      val lastIdx = dayItems.indices
+        .filter { it !in chosenIdx && overAt(dayItems[it]) <= nowMin }
+        .sortedWith(compareByDescending<Int> { overAt(dayItems[it]) }.thenByDescending { dayItems[it].startMinutes })
+        .firstOrNull()
+      val lastRow = lastIdx?.let {
+        val item = dayItems[it]
+        RailRow(if (item.completed) "done" else "past", minutesToTimeLabel(item.startMinutes), item.title, item.sub, 0, "")
+      }
+      val currentRow = currentIdx?.let {
+        val item = dayItems[it]
+        RailRow("current", minutesToTimeLabel(item.startMinutes), item.title, item.sub, 0, "")
+      }
+      val heroRow = next1Idx?.let {
+        val item = dayItems[it]
+        RailRow("hero", minutesToTimeLabel(item.startMinutes), item.title, item.sub, item.startMinutes, "")
+      }
+      var gapRow: RailRow? = null
+      var next2Row: RailRow? = null
+      if (next1Idx != null && next2Idx != null) {
+        val next1 = dayItems[next1Idx]
+        val next2 = dayItems[next2Idx]
+        val gapMinutes = next2.startMinutes - next1.endMinutes
+        if (gapMinutes >= 15) {
+          gapRow = RailRow("gap", "", "", "", 0, openDurationText(gapMinutes))
+        }
+        next2Row = RailRow("item", minutesToTimeLabel(next2.startMinutes), next2.title, next2.sub, next2.startMinutes, "")
+      }
+      leftCount = aheadIdx.size
+      endNote = if (aheadIdx.isNotEmpty()) {
+        "Nothing after ${minutesToTimeLabel(dayItems[aheadIdx.last()].endMinutes)}"
+      } else {
+        ""
+      }
+      rows = selectRailRows(lastRow, currentRow, heroRow, gapRow, next2Row, heightSignal)
+    } else {
+      // ── The fallback: the snapshot's entries walk (v444),
+      // extended with the legacy pre-v444 kinds so a stale
+      // stored snapshot still renders its items instead of
+      // silently dropping them (his first v444 screenshot:
+      // only gap rows survived, because "done" / "past" /
+      // "item" mapped to nothing). ──
+      val entries = mutableListOf<RailRow>()
+      val arr = snap.optJSONArray("entries")
+      if (arr != null) {
+        for (i in 0 until arr.length()) {
+          val e = arr.optJSONObject(i) ?: continue
+          when (e.optString("kind")) {
+            // The snapshot's "last" maps onto the two muted dresses
+            // the rail already knows: struck + checked when it was
+            // completed, plain muted when it was not.
+            "last" -> entries.add(
+              RailRow(
+                if (e.optBoolean("completed")) "done" else "past",
+                e.optString("timeLabel"),
+                e.optString("title"),
+                e.optString("sub"),
+                0,
+                "",
+              ),
+            )
+            "current" -> entries.add(RailRow("current", e.optString("timeLabel"), e.optString("title"), e.optString("sub"), 0, ""))
+            "gap" -> entries.add(RailRow("gap", "", "", "", 0, e.optString("text")))
+            "next" -> entries.add(
+              RailRow(
+                if (e.optBoolean("isHero")) "hero" else "item",
+                e.optString("timeLabel"),
+                e.optString("title"),
+                e.optString("sub"),
+                e.optInt("startMinutes"),
+                "",
+              ),
+            )
+            // Legacy kinds (pre-v444 snapshots still in storage):
+            "done" -> entries.add(RailRow("done", e.optString("timeLabel"), e.optString("title"), e.optString("sub"), 0, ""))
+            "past" -> entries.add(RailRow("past", e.optString("timeLabel"), e.optString("title"), e.optString("sub"), 0, ""))
+            "item" -> entries.add(
+              RailRow(
+                if (e.optBoolean("isHero")) "hero" else "item",
+                e.optString("timeLabel"),
+                e.optString("title"),
+                e.optString("sub"),
+                e.optInt("startMinutes"),
+                "",
+              ),
+            )
+          }
+        }
+      }
+      // Gap-only guard: a list with no item-bearing row is not
+      // a rail — render the quiet face instead of gap rows
+      // standing alone.
+      if (entries.none { it.kind != "gap" }) {
+        views.setViewVisibility(R.id.next_msg, View.VISIBLE)
+        views.setViewVisibility(R.id.next_chip, View.GONE)
+        views.setViewVisibility(R.id.next_rail, View.GONE)
+        views.setViewVisibility(R.id.next_footer, View.GONE)
+        return views
+      }
+      val lastRow = entries.firstOrNull { it.kind == "done" || it.kind == "past" }
+      val currentRow = entries.firstOrNull { it.kind == "current" }
+      val heroRow = entries.firstOrNull { it.kind == "hero" }
+      val gapRow = entries.firstOrNull { it.kind == "gap" }
+      val next2Row = entries.firstOrNull { it.kind == "item" }
+      rows = selectRailRows(lastRow, currentRow, heroRow, gapRow, next2Row, heightSignal)
+    }
+
     views.setViewVisibility(R.id.next_msg, View.GONE)
     views.setViewVisibility(R.id.next_chip, View.VISIBLE)
     views.setInt(R.id.next_chip_img, "setColorFilter", pal.chip)
-    views.setTextViewText(R.id.next_left, "${snap.optInt("leftCount")} LEFT")
+    views.setTextViewText(R.id.next_left, "${leftCount} LEFT")
     views.setTextColor(R.id.next_left, pal.onContainer)
-    val entries = mutableListOf<RailRow>()
-    val arr = snap.optJSONArray("entries")
-    if (arr != null) {
-      for (i in 0 until arr.length()) {
-        val e = arr.optJSONObject(i) ?: continue
-        when (e.optString("kind")) {
-          // The snapshot's "last" maps onto the two muted dresses
-          // the rail already knows: struck + checked when it was
-          // completed, plain muted when it was not.
-          "last" -> entries.add(
-            RailRow(
-              if (e.optBoolean("completed")) "done" else "past",
-              e.optString("timeLabel"),
-              e.optString("title"),
-              e.optString("sub"),
-              0,
-              "",
-            ),
-          )
-          "current" -> entries.add(RailRow("current", e.optString("timeLabel"), e.optString("title"), e.optString("sub"), 0, ""))
-          "gap" -> entries.add(RailRow("gap", "", "", "", 0, e.optString("text")))
-          "next" -> entries.add(
-            RailRow(
-              if (e.optBoolean("isHero")) "hero" else "item",
-              e.optString("timeLabel"),
-              e.optString("title"),
-              e.optString("sub"),
-              e.optInt("startMinutes"),
-              "",
-            ),
-          )
-        }
-      }
-    }
-    fillRailFull(context, views, entries, snap, pal, full)
+    fillRailFull(context, views, rows, endNote, pal)
     return views
   }
 
-  private fun fillRailFull(context: Context, views: RemoteViews, entries: List<RailRow>, snap: JSONObject, pal: WidgetPalette, tall: Boolean) {
-    // The display list. Tall: the snapshot's rows in order — the
-    // last row, then the current row (which carries its own NOW
-    // label) or, when nothing is current, the renderer's bare
-    // NOW row seated after what is past and before what is next
-    // — then the hero, the gap, the second next. Short: only the
-    // current-or-NOW row and the hero. Row order IS priority
-    // order: the hero can never again be the row a short rail
-    // starves (the v443 empty band — a ten-row walk measured
-    // into a ~105dp rail, the band collapsing to a sliver).
-    val hasCurrent = entries.any { it.kind == "current" }
-    val rows = mutableListOf<RailRow>()
-    if (tall) {
-      var nowPlaced = false
-      for (entry in entries) {
-        if (!hasCurrent && entry.kind != "done" && entry.kind != "past" && !nowPlaced) {
-          rows.add(RailRow("now", nowTimeLabel(), "NOW", "", 0, ""))
-          nowPlaced = true
-        }
-        rows.add(entry)
-      }
-    } else {
-      if (hasCurrent) {
-        rows.add(entries.first { it.kind == "current" })
-      } else {
-        rows.add(RailRow("now", nowTimeLabel(), "NOW", "", 0, ""))
-      }
-      entries.firstOrNull { it.kind == "hero" }?.let { rows.add(it) }
+  /** The device's current local date, "yyyy-MM-dd" — the shape
+   * the snapshot's dateIso carries (formatDateLocal on the JS
+   * side). */
+  private fun deviceDateIso(): String {
+    val cal = Calendar.getInstance()
+    return String.format(
+      Locale.US,
+      "%04d-%02d-%02d",
+      cal.get(Calendar.YEAR),
+      cal.get(Calendar.MONTH) + 1,
+      cal.get(Calendar.DAY_OF_MONTH),
+    )
+  }
+
+  /** Minutes since midnight → "2:00 PM" (nowTimeLabel's voice,
+   * for an arbitrary minute). */
+  private fun minutesToTimeLabel(totalMinutes: Int): String {
+    val h24 = (totalMinutes / 60) % 24
+    val minute = totalMinutes % 60
+    val suffix = if (h24 >= 12) "PM" else "AM"
+    val h12 = if (h24 % 12 == 0) 12 else h24 % 12
+    return "$h12:${minute.toString().padStart(2, '0')} $suffix"
+  }
+
+  /** 90 → "1 hour 30 minutes open" — the JS formatOpenDuration's
+   * wording, plus the gap row's trailing "open". */
+  private fun openDurationText(totalMinutes: Int): String {
+    val minutes = maxOf(0, totalMinutes)
+    val hours = minutes / 60
+    val rest = minutes % 60
+    val body = when {
+      hours == 0 -> "$rest minute${if (rest == 1) "" else "s"}"
+      rest == 0 -> "$hours hour${if (hours == 1) "" else "s"}"
+      else -> "$hours hour${if (hours == 1) "" else "s"} $rest minute${if (rest == 1) "" else "s"}"
     }
+    return "$body open"
+  }
+
+  /** v445: the height-budgeted row selection — the ONE selection
+   * both the render-time path and the entries fallback run.
+   * The tall/short branch is gone: the rail budget is the
+   * height signal minus the card's fixed chrome (header +
+   * footer + padding ≈ 96), and rows are chosen in priority
+   * order against conservative costs — plain row (last /
+   * current / following) 34, NOW row 30, hero 64, gap 26:
+   *   (1) the hero, (2) the current row — or the NOW row when
+   *   nothing is current, (3) the last row, (4) the following
+   *   item, together with its gap when the gap also fits and
+   *   alone when it does not, (5) the NOW row when a current
+   *   exists (it was not already chosen at (2)).
+   * A row is chosen only when its cost fits what remains of
+   * the budget, EXCEPT (1) and (2), which are always chosen —
+   * the hero and the now-anchor can never be starved out of
+   * the rail again (the v443/v444 measurement starvation).
+   * The chosen rows display in chronological order: last,
+   * current, NOW, hero, gap, next2. The NOW row is always the
+   * proper rail row (its own time, ringed dot, NOW title) —
+   * seated after last and current, before the hero. */
+  private fun selectRailRows(
+    last: RailRow?,
+    current: RailRow?,
+    hero: RailRow?,
+    gap: RailRow?,
+    next2: RailRow?,
+    heightSignal: Int,
+  ): List<RailRow> {
+    val railBudget = heightSignal - 96
+    var remaining = railBudget
+    val nowRow = RailRow("now", nowTimeLabel(), "NOW", "", 0, "")
+    var lastChosen = false
+    var currentChosen = false
+    var nowChosen = false
+    var heroChosen = false
+    var gapChosen = false
+    var next2Chosen = false
+    // (1) hero — always chosen.
+    if (hero != null) {
+      heroChosen = true
+      remaining -= 64
+    }
+    // (2) current if present, else the NOW row — always chosen.
+    if (current != null) {
+      currentChosen = true
+      remaining -= 34
+    } else {
+      nowChosen = true
+      remaining -= 30
+    }
+    // (3) last — when it fits.
+    if (last != null && 34 <= remaining) {
+      lastChosen = true
+      remaining -= 34
+    }
+    // (4) next2 — with its gap when both fit, else alone.
+    if (next2 != null) {
+      if (gap != null && 34 + 26 <= remaining) {
+        next2Chosen = true
+        gapChosen = true
+        remaining -= 34 + 26
+      } else if (34 <= remaining) {
+        next2Chosen = true
+        remaining -= 34
+      }
+    }
+    // (5) the NOW row when a current exists — when it fits.
+    if (current != null && !nowChosen && 30 <= remaining) {
+      nowChosen = true
+      remaining -= 30
+    }
+    val display = mutableListOf<RailRow>()
+    if (lastChosen && last != null) display.add(last)
+    if (currentChosen && current != null) display.add(current)
+    if (nowChosen) display.add(nowRow)
+    if (heroChosen && hero != null) display.add(hero)
+    if (gapChosen && gap != null) display.add(gap)
+    if (next2Chosen && next2 != null) display.add(next2)
+    return display
+  }
+
+  private fun fillRailFull(context: Context, views: RemoteViews, rows: List<RailRow>, endNote: String, pal: WidgetPalette) {
+    // v445: rows arrive already selected by the height budget
+    // (selectRailRows) — this walk only fills the slots in
+    // display order and stands the footer up.
     views.setViewVisibility(R.id.next_rail, View.VISIBLE)
     for (slot in 0 until 9) {
       val rowId = railId(context, "nx_row_${slot + 1}")
@@ -1133,7 +1343,6 @@ object WidgetRenderer {
     views.setViewVisibility(R.id.next_footer, View.VISIBLE)
     views.setInt(R.id.next_foot_line, "setBackgroundColor", pal.track)
     views.setTextColor(R.id.next_open, pal.primary)
-    val endNote = snap.optString("endNote")
     if (endNote.isBlank()) {
       views.setViewVisibility(R.id.next_endnote, View.GONE)
     } else {
@@ -1192,12 +1401,13 @@ object WidgetRenderer {
         views.setViewVisibility(id("sub"), View.GONE)
       }
       "current" -> {
-        // The thing running right now (v444): a plain item's
-        // dress, except its rail dot wears the NOW ring and a
-        // primary NOW label stands at the row's trailing edge,
-        // in the seat the done check occupies on its own row.
-        // This row IS the now row — no bare NOW row is seated
-        // when a current exists.
+        // The thing running right now (v445): a plain item's
+        // dress, except its rail dot wears the NOW ring. The
+        // NOW marker is its OWN rail row now (the "now" dress,
+        // seated after this row by the selection) — this branch
+        // never stands the trailing nx_now label up: in v444
+        // that label lived outside the row frame and rendered
+        // as a stray NOW line under the row on his phone.
         views.setTextColor(id("time"), pal.muted)
         views.setViewVisibility(id("ring"), View.VISIBLE)
         views.setInt(id("ring"), "setColorFilter", pal.container)
@@ -1212,9 +1422,6 @@ object WidgetRenderer {
           views.setTextViewText(id("sub"), row.sub)
           views.setTextColor(id("sub"), pal.muted)
         }
-        views.setViewVisibility(id("now"), View.VISIBLE)
-        views.setTextViewText(id("now"), "NOW")
-        views.setTextColor(id("now"), pal.primary)
       }
       "past" -> {
         // The last thing that started before now and was never
@@ -1556,7 +1763,7 @@ object WidgetRenderer {
       views.setViewVisibility(R.id.es_single, View.VISIBLE)
       val row = live[0]
       views.setInt(R.id.es_s_ring, "setColorFilter", Color.WHITE)
-      applyFace(context, views, R.id.es_s_img, R.id.es_s_text, row, SEED, 40)
+      applyFace(context, views, R.id.es_s_img, R.id.es_s_text, row, SEED, 36)
       views.setTextColor(R.id.es_s_text, Color.WHITE)
       views.setTextViewText(R.id.es_s_name, row.optString("name"))
       // The strip's one line is the emergency's NEED sentence —
@@ -1565,13 +1772,10 @@ object WidgetRenderer {
       // emergency carries no sentence. (v443 printed the title
       // first; for his dad's emergency that surfaced the item's
       // short label, "Dad", where the need belongs.)
+      // v445: no hours chip stands under it any more — the
+      // strip is face + name + need + Pray now, by his ruling.
       val note = row.optString("note")
       views.setTextViewText(R.id.es_s_title, if (note.isNotBlank()) note else row.optString("title"))
-      val expires = row.optLong("expiresAtMillis", 0L)
-      views.setTextViewText(
-        R.id.es_s_left,
-        if (expires > 0L) emergencyStripLeftText(expires, now) else row.optString("leftText"),
-      )
       // The Pray now pill's white ground, set explicitly: v443
       // left it to the layout alone and on his phone the pill
       // never painted (red text straight on the card) — the
@@ -1589,13 +1793,15 @@ object WidgetRenderer {
       applyFace(context, views, ES_M_IMGS[slot], ES_M_TEXTS[slot], row, SEED, 28)
       views.setTextColor(ES_M_TEXTS[slot], Color.WHITE)
       views.setTextViewText(ES_M_NAMES[slot], row.optString("name"))
-      val expires = row.optLong("expiresAtMillis", 0L)
-      val left = if (expires > 0L) emergencyShortLeftText(expires, now) else row.optString("leftText")
-      // The need sentence first, exactly as the single face:
-      // the note when the emergency carries one, else its title.
+      // The need sentence, exactly as the single face: the note
+      // when the emergency carries one, else its title. v445:
+      // the line is the need ALONE — the "· {hours} left"
+      // suffix is gone with the strip's hours chip (his ruling:
+      // no hours in this widget). Only the +N fold for further
+      // emergencies still rides the second row's line.
       val note = row.optString("note")
       val need = if (note.isNotBlank()) note else row.optString("title")
-      var line = "$need · $left"
+      var line = need
       if (slot == 1 && live.size > 2) line += " · +${live.size - 2} more"
       views.setTextViewText(ES_M_LINES[slot], line)
       views.setViewVisibility(ES_M_PILL_IMGS[slot], View.VISIBLE)
@@ -1611,16 +1817,21 @@ object WidgetRenderer {
   // ─── 11. Reading Strip (v443, ST-2) ───────────────────────────────────────
 
   /** ST-2 · Chapter in the tile, at 2×1: the study snapshot as a
-   * wide, short card. The tile wears the book's ROYGBIV primary
-   * (a meaning hue) with a chapter number standing in it — the
-   * next chapter while the book is underway, the last written
-   * chapter once it is fully written (v444); the book glyph
-   * remains only when no chapter has been written at all. One
-   * muted line under the book's name: "{next} of {total}", or
-   * "Fully written" — the current book only (v443 part 3: the
-   * restudy segment was removed at Jonathan's word; restudy is
-   * its own concern, not this strip's). The root tap is Your
-   * Study's own deep link, to the same chapter. */
+   * wide, short card. v445: the strip reads the READING track —
+   * the snapshot's readingBook / readingChapter (from the app's
+   * reading position: the next chapter he reads, or the last
+   * chapter read) in readingBookPrimary, kicker "CURRENTLY
+   * READING", the line "Chapter {n} of {total}" (or "Last read
+   * · Chapter {n} of {total}"). His words: "I don't need to
+   * know how many I've written. I need to know where I'm at
+   * reading." The v444 writing-track behaviour below (next
+   * chapter to write / last written, "Fully written") is now
+   * only the fallback for snapshots pushed before the reading
+   * fields rode — the big Your Study widget keeps the writing
+   * dress. (v443 part 3: the restudy segment was removed at
+   * Jonathan's word; restudy is its own concern, not this
+   * strip's.) The root tap is Your Study's own deep link, to
+   * the chapter the tile stands. */
   private fun renderReadingStrip(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
     val views = RemoteViews(context.packageName, R.layout.widget_reading_strip)
     val base = 1100
@@ -1632,6 +1843,48 @@ object WidgetRenderer {
       views.setOnClickPendingIntent(R.id.rs_root, launchPendingIntent(context, base))
       return views
     }
+    // v445: the READING track, when the snapshot carries it —
+    // the tile stands the chapter he reads next (or last read)
+    // in that book's own primary, and the line names the
+    // chapter plainly. The writing fields are not consulted.
+    val readingBook = snap.optString("readingBook").takeIf { it.isNotBlank() }
+    val readingChapter = if (snap.isNull("readingChapter")) null else snap.optInt("readingChapter")
+    if (readingBook != null && readingChapter != null) {
+      val readingTotalChapters = if (snap.isNull("readingTotalChapters")) null else snap.optInt("readingTotalChapters")
+      val readingFromTarget = snap.optBoolean("readingFromTarget")
+      val readingColor = colorOr(
+        snap.optString("readingBookPrimary").takeIf { it.isNotBlank() }
+          ?: snap.optString("bookPrimary").takeIf { it.isNotBlank() }
+          ?: snap.optString("bookColor"),
+        pal.primary,
+      )
+      views.setViewVisibility(R.id.rs_msg, View.GONE)
+      views.setViewVisibility(R.id.rs_main, View.VISIBLE)
+      views.setInt(R.id.rs_tile, "setColorFilter", readingColor)
+      views.setViewVisibility(R.id.rs_tile_num, View.VISIBLE)
+      views.setTextViewText(R.id.rs_tile_num, readingChapter.toString())
+      views.setViewVisibility(R.id.rs_tile_glyph, View.GONE)
+      views.setTextColor(R.id.rs_kicker, pal.muted)
+      views.setTextViewText(R.id.rs_kicker, "CURRENTLY READING")
+      views.setTextViewText(R.id.rs_book, readingBook)
+      views.setTextColor(R.id.rs_book, pal.ink)
+      val line = if (readingFromTarget) {
+        "Chapter $readingChapter of $readingTotalChapters"
+      } else {
+        "Last read · Chapter $readingChapter of $readingTotalChapters"
+      }
+      views.setTextViewText(R.id.rs_line, line)
+      views.setTextColor(R.id.rs_line, pal.muted)
+      val tap = if (scheme != null) {
+        uriPendingIntent(context, "$scheme://bible-chapter?book=${Uri.encode(readingBook)}&chapter=$readingChapter", base + 1)
+      } else {
+        launchPendingIntent(context, base)
+      }
+      views.setOnClickPendingIntent(R.id.rs_root, tap)
+      return views
+    }
+    // Fallback (snapshots pushed before v445): the v444
+    // writing-track behaviour, exactly as it was.
     // The book's PRIMARY colour (v444): the snapshot's
     // bookPrimary — the true ROYGBIV primary. bookColor stays
     // the fallback for snapshots pushed before it rode (it is

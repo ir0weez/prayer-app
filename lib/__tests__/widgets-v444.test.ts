@@ -348,12 +348,26 @@ describe("v444 Up Next renderer", () => {
   });
 
   it("the short band keeps only the current-or-NOW row and the hero", () => {
-    const body = rendererFn("fillRailFull");
-    expect(body).toContain('entries.firstOrNull { it.kind == "hero" }');
+    // v445 re-pin: the short/tall branch inside fillRailFull is
+    // gone — the height-budgeted selection (selectRailRows)
+    // does this now: at a short rail's budget the hero and the
+    // current-or-NOW row are ALWAYS chosen (steps 1–2) and
+    // nothing else fits, which is the same outcome by budget
+    // instead of by branch. The pins move to selectRailRows.
+    const body = rendererFn("selectRailRows");
+    expect(body).toContain("val railBudget = heightSignal - 96");
     expect(body).toContain('RailRow("now", nowTimeLabel(), "NOW", "", 0, "")');
+    expect(body).toContain("heroChosen = true");
+    expect(body).toContain("currentChosen = true");
+    expect(body).toContain("nowChosen = true");
   });
 
   it("the current row wears the NOW ring and the trailing NOW label; the slot reset clears it", () => {
+    // v445 re-pin: the trailing NOW label is GONE from the
+    // current row — on his phone it rendered as a stray NOW
+    // line under the row (the label lived outside the row
+    // frame in the layout). NOW is its own rail row now. The
+    // ring stays; the branch must never stand the label up.
     const body = rendererFn("fillRailSlot");
     expect(body).toContain('views.setViewVisibility(id("now"), View.GONE)');
     const at = body.indexOf('"current" -> {');
@@ -361,8 +375,8 @@ describe("v444 Up Next renderer", () => {
     const branch = body.slice(at, at + 1600);
     expect(branch).toContain('views.setViewVisibility(id("ring"), View.VISIBLE)');
     expect(branch).toContain('views.setInt(id("dot"), "setColorFilter", pal.primary)');
-    expect(branch).toContain('views.setViewVisibility(id("now"), View.VISIBLE)');
-    expect(branch).toContain('views.setTextViewText(id("now"), "NOW")');
+    expect(branch).not.toContain('views.setViewVisibility(id("now"), View.VISIBLE)');
+    expect(branch).not.toContain('views.setTextViewText(id("now"), "NOW")');
     expect(branch).toContain("pal.primary");
   });
 
@@ -403,18 +417,27 @@ describe("v444 Emergency Strip", () => {
   });
 
   it("the pill frames carry fixed heights, like the main widget's 40dp pill", () => {
+    // v445 re-pin: the single pill is 26dp now (was 30dp) —
+    // shaved with the rest of the strip tightening so the
+    // recomposed single face fits its cell.
     const strip = layout("widget_emergency_strip");
-    expect(tagWithId(strip, "es_s_pill")).toContain('android:layout_height="30dp"');
+    expect(tagWithId(strip, "es_s_pill")).toContain('android:layout_height="26dp"');
     expect(tagWithId(strip, "es_m_pill_1")).toContain('android:layout_height="26dp"');
     expect(tagWithId(strip, "es_m_pill_2")).toContain('android:layout_height="26dp"');
   });
 
   it("the hours chip is an opaque deep-red pill worn as the text's own background", () => {
+    // v445 re-pin: the hours chip is REMOVED from the strip
+    // entirely (Jonathan's ruling — "Not in the widget
+    // anyway."), so this test's subject no longer exists: the
+    // chip view is absent from the layout and nothing in the
+    // strip renderer writes it. The deep-red pill drawable
+    // itself stays in res (the strip no longer references it).
     const strip = layout("widget_emergency_strip");
-    expect(tagWithId(strip, "es_s_left")).toContain('android:background="@drawable/widget_pill_deep_red"');
-    expect(tagWithId(strip, "es_s_left")).toContain('android:textColor="#FFFFFF"');
-    // The v443 image-under-text chip construction is gone.
+    expect(strip).not.toContain("es_s_left");
     expect(strip).not.toContain("es_s_chip_img");
+    const body = rendererFn("renderEmergencyStrip");
+    expect(body).not.toContain("es_s_left");
     const deep = read(`${MODULE_RES}/drawable/widget_pill_deep_red.xml`);
     expect(deep).toContain('<solid android:color="#7F1D1D" />');
   });
@@ -453,6 +476,12 @@ describe("v444 Reading Strip", () => {
   });
 
   it("the tile resolves bookPrimary first and stands it in every state", () => {
+    // v445 amendment: this pins the FALLBACK path only — when
+    // the snapshot carries reading fields, the strip stands
+    // the READING book/chapter in readingBookPrimary instead
+    // (pinned in widgets-v445.test.ts). The writing-field
+    // behaviour below survives verbatim as the fallback for
+    // older snapshots.
     const body = rendererFn("renderReadingStrip");
     expect(body).toContain('snap.optString("bookPrimary")');
     expect(body).toContain('views.setInt(R.id.rs_tile, "setColorFilter", bookColor)');
@@ -463,6 +492,8 @@ describe("v444 Reading Strip", () => {
   });
 
   it("a fully written book: the line is \"Fully written\" only — no last-written tail", () => {
+    // v445 amendment: fallback path only, as above — a
+    // snapshot with reading fields never reaches this line.
     const body = rendererFn("renderReadingStrip");
     expect(body).toContain('"Fully written"');
     expect(body).not.toContain("Last written · Chapter");

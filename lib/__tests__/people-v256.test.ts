@@ -272,7 +272,13 @@ describe("v256 source pins — the banner and praise card page (index.tsx)", () 
   const index = read("app/(tabs)/index.tsx");
 
   it("both cards render through FrontDoorCarousel, one page per live entry", () => {
-    expect(index).toContain("<FrontDoorCarousel count={emergencies.length}");
+    // v435 amendment: the emergency card no longer renders through
+    // FrontDoorCarousel — it is one card of rows (Concept 2, his
+    // Nov 4 pick; people-v435.test.ts pins the rows banner). The
+    // praise card still pages through the carousel, one page per
+    // live entry, exactly as this test has always pinned.
+    expect(index).not.toContain("<FrontDoorCarousel count={emergencies.length}");
+    expect(index).toContain("EMERGENCY · {emergencies.length} ACTIVE");
     expect(index).toContain("<FrontDoorCarousel count={praises.length}");
     expect(index).toContain("people.filter((person) => hasActivePraise(person))");
   });
@@ -299,7 +305,10 @@ describe("v256 source pins — the banner and praise card page (index.tsx)", () 
     const carousel = read("components/front-door-carousel.tsx");
     expect(carousel).toContain("if (count <= 1) return null");
     expect(carousel).toContain("shouldAutoAdvance({ count, focused, reducedMotion })");
-    expect(index).toContain("<CarouselDots count={emergencies.length}");
+    // v435 amendment: the emergency card has no dots — no pages
+    // remain on it (people-v435.test.ts pins their absence). The
+    // praise card's dots and the CarouselDots self-hide rule stand.
+    expect(index).not.toContain("<CarouselDots count={emergencies.length}");
     expect(index).toContain("<CarouselDots count={praises.length}");
   });
 });

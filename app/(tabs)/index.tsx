@@ -50,6 +50,7 @@ import { PeopleStreakCard } from "@/components/people-streak-card";
 import { WavyProgress } from "@/components/wavy-progress";
 import { getPraiseDisplay, getPraiseJournalText } from "@/lib/praise-display";
 import { formatHoursLeft } from "@/lib/bell-header";
+import { EMERGENCY_ROW_MOTION_MS, emergencyRowKey, reconcileEmergencyRows, type EmergencyEntry } from "@/lib/emergency-rows";
 import { getDueReachOut, reachOutCardSubline } from "@/lib/reach-out";
 import { getWhatsNext, type WhatsNextItem } from "@/lib/whats-next";
 import { paperKeywordSceneFor } from "@/components/paper-keyword-scenes";
@@ -3144,74 +3145,236 @@ export default function HomeScreen() {
     );
   };
 
+  // v435 — the emergency banner's row motion (EC-4, his Nov 4
+  // pick): a row opens or closes on ONE 300ms timing over
+  // PEOPLE_ENTRANCE_EASING as an emergency arrives or expires —
+  // no other motion — and reduced motion swaps the set instantly.
+  // The bookkeeping mirrors the v262 tray's arrangement: values
+  // and measurements in refs, the rendered row set in state. The
+  // active set itself is recomputed from `people` on every render
+  // (the read the v256 banner always made, soonest-expiring
+  // first); a closing row keeps its last entry in a ref so the
+  // close never renders a hole.
+  const [emergencyRowsReducedMotion, setEmergencyRowsReducedMotion] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((value) => { if (live) setEmergencyRowsReducedMotion(value); })
+      .catch(() => undefined);
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setEmergencyRowsReducedMotion);
+    return () => { live = false; subscription.remove(); };
+  }, []);
+  const activeEmergencyEntries = getAllActiveEmergencyPrayers(people)
+    .slice()
+    .sort((a, b) => new Date(a.item.emergencyExpiresAt ?? 0).getTime() - new Date(b.item.emergencyExpiresAt ?? 0).getTime());
+  const activeEmergencyKeys = activeEmergencyEntries.map((entry) => emergencyRowKey(entry)).join("|");
+  const [emergencyRenderedKeys, setEmergencyRenderedKeys] = useState<string[]>([]);
+  const [emergencyRowPhases, setEmergencyRowPhases] = useState<Record<string, "entering" | "leaving">>({});
+  const emergencyRenderedKeysRef = useRef<string[]>([]);
+  const emergencyRowPhasesRef = useRef<Record<string, "entering" | "leaving">>({});
+  const emergencyRowDataRef = useRef(new Map<string, EmergencyEntry>());
+  const emergencyRowHeightRef = useRef(new Map<string, Animated.Value>());
+  const emergencyRowOpacityRef = useRef(new Map<string, Animated.Value>());
+  const emergencyRowNaturalRef = useRef(new Map<string, number>());
+  const emergencyRowAnimRef = useRef(new Map<string, Animated.CompositeAnimation>());
+  const emergencyRowStartedRef = useRef(new Set<string>());
+  activeEmergencyEntries.forEach((entry) => {
+    emergencyRowDataRef.current.set(emergencyRowKey(entry), entry);
+  });
+  const setEmergencyRowPhase = (key: string, phase: "entering" | "leaving" | undefined) => {
+    if (phase) emergencyRowPhasesRef.current[key] = phase;
+    else delete emergencyRowPhasesRef.current[key];
+    setEmergencyRowPhases({ ...emergencyRowPhasesRef.current });
+  };
+  const emergencyRowValues = (key: string, fromHeight: number) => {
+    let height = emergencyRowHeightRef.current.get(key);
+    if (!height) {
+      height = new Animated.Value(fromHeight);
+      emergencyRowHeightRef.current.set(key, height);
+    }
+    let opacity = emergencyRowOpacityRef.current.get(key);
+    if (!opacity) {
+      opacity = new Animated.Value(fromHeight === 0 ? 0 : 1);
+      emergencyRowOpacityRef.current.set(key, opacity);
+    }
+    return { height, opacity };
+  };
+  const startEmergencyRowOpen = (key: string) => {
+    if (emergencyRowStartedRef.current.has(key)) return;
+    const natural = emergencyRowNaturalRef.current.get(key);
+    if (!natural) return;
+    emergencyRowStartedRef.current.add(key);
+    emergencyRowAnimRef.current.get(key)?.stop();
+    const { height, opacity } = emergencyRowValues(key, 0);
+    const anim = Animated.parallel([
+      Animated.timing(height, { toValue: natural, duration: EMERGENCY_ROW_MOTION_MS, easing: RnEasing.bezier(...PEOPLE_ENTRANCE_EASING), useNativeDriver: false }),
+      Animated.timing(opacity, { toValue: 1, duration: EMERGENCY_ROW_MOTION_MS, easing: RnEasing.bezier(...PEOPLE_ENTRANCE_EASING), useNativeDriver: false }),
+    ]);
+    emergencyRowAnimRef.current.set(key, anim);
+    anim.start(({ finished }) => {
+      if (emergencyRowAnimRef.current.get(key) === anim) emergencyRowAnimRef.current.delete(key);
+      emergencyRowStartedRef.current.delete(key);
+      if (finished && emergencyRowPhasesRef.current[key] === "entering") setEmergencyRowPhase(key, undefined);
+    });
+  };
+  const startEmergencyRowClose = (key: string) => {
+    emergencyRowAnimRef.current.get(key)?.stop();
+    emergencyRowAnimRef.current.delete(key);
+    emergencyRowStartedRef.current.delete(key);
+    const natural = emergencyRowNaturalRef.current.get(key) ?? 0;
+    const { height, opacity } = emergencyRowValues(key, natural);
+    setEmergencyRowPhase(key, "leaving");
+    const anim = Animated.parallel([
+      Animated.timing(height, { toValue: 0, duration: EMERGENCY_ROW_MOTION_MS, easing: RnEasing.bezier(...PEOPLE_ENTRANCE_EASING), useNativeDriver: false }),
+      Animated.timing(opacity, { toValue: 0, duration: EMERGENCY_ROW_MOTION_MS, easing: RnEasing.bezier(...PEOPLE_ENTRANCE_EASING), useNativeDriver: false }),
+    ]);
+    emergencyRowAnimRef.current.set(key, anim);
+    anim.start(({ finished }) => {
+      if (emergencyRowAnimRef.current.get(key) === anim) emergencyRowAnimRef.current.delete(key);
+      if (!finished) return;
+      setEmergencyRowPhase(key, undefined);
+      emergencyRowDataRef.current.delete(key);
+      emergencyRowHeightRef.current.delete(key);
+      emergencyRowOpacityRef.current.delete(key);
+      emergencyRowNaturalRef.current.delete(key);
+      const next = emergencyRenderedKeysRef.current.filter((renderedKey) => renderedKey !== key);
+      emergencyRenderedKeysRef.current = next;
+      setEmergencyRenderedKeys(next);
+    });
+  };
+  const handleEmergencyRowLayout = (key: string, height: number) => {
+    if (height <= 0) return;
+    emergencyRowNaturalRef.current.set(key, height);
+    if (emergencyRowPhasesRef.current[key] === "entering") startEmergencyRowOpen(key);
+  };
+  useEffect(() => {
+    const activeKeys = activeEmergencyKeys === "" ? [] : activeEmergencyKeys.split("|");
+    const { keys, entering, leaving } = reconcileEmergencyRows(emergencyRenderedKeysRef.current, activeKeys);
+    emergencyRenderedKeysRef.current = keys;
+    setEmergencyRenderedKeys(keys);
+    if (emergencyRowsReducedMotion) {
+      // Instant settle: entering rows simply stand; leaving rows
+      // unmount now, their data released.
+      if (leaving.length > 0) {
+        const settled = keys.filter((key) => !leaving.includes(key));
+        emergencyRenderedKeysRef.current = settled;
+        setEmergencyRenderedKeys(settled);
+        leaving.forEach((key) => {
+          emergencyRowAnimRef.current.get(key)?.stop();
+          emergencyRowAnimRef.current.delete(key);
+          emergencyRowDataRef.current.delete(key);
+          setEmergencyRowPhase(key, undefined);
+        });
+      }
+      return;
+    }
+    leaving.forEach((key) => startEmergencyRowClose(key));
+    entering.forEach((key) => {
+      emergencyRowAnimRef.current.get(key)?.stop();
+      emergencyRowAnimRef.current.delete(key);
+      emergencyRowStartedRef.current.delete(key);
+      const { height, opacity } = emergencyRowValues(key, 0);
+      height.setValue(0);
+      opacity.setValue(0);
+      setEmergencyRowPhase(key, "entering");
+    });
+    // A row that came back mid-close reopens from where it stands.
+    keys.forEach((key) => {
+      if (!entering.includes(key) && !leaving.includes(key) && emergencyRowPhasesRef.current[key] === "leaving") {
+        setEmergencyRowPhase(key, "entering");
+        startEmergencyRowOpen(key);
+      }
+    });
+    // The row helpers above are render-scope closures over refs —
+    // they are stable in every way that matters here; the effect
+    // keys on the active set and the reduced-motion flag alone.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeEmergencyKeys, emergencyRowsReducedMotion]);
+
   const renderEmergencyBanner = () => {
-    const emergencies = getAllActiveEmergencyPrayers(people)
-      .slice()
-      .sort((a, b) => new Date(a.item.emergencyExpiresAt ?? 0).getTime() - new Date(b.item.emergencyExpiresAt ?? 0).getTime());
-    if (emergencies.length === 0) return null;
-    // v256 (his 21:21 addition): with several emergencies live the
-    // banner PAGES through all of them — swipe, or it cycles while
-    // the People screen is focused and untouched. Each page is one
-    // emergency: its person, its need, its OWN countdown, and a Pray
-    // now that starts the session at that person. One emergency =
-    // the static card exactly as drawn, no dots.
+    const emergencies = activeEmergencyEntries;
+    if (emergencyRenderedKeys.length === 0) return null;
+    // v435 (his Nov 4 pick — EC-3 Concept 2, EC-4 motion): the
+    // banner is ONE card and every active emergency stands in it
+    // as a row — avatar, person, need, its own countdown, its own
+    // Pray now — soonest-expiring first, the order the entries
+    // arrive in. The v256–v434 carousel is retired for this card
+    // (the praise banner below keeps the shell): with emergencies
+    // this few, everything urgent stays where he can see it, and
+    // nothing rotates. The card body was never a tap target under
+    // the carousel — only its Pray now acted — and the rows keep
+    // exactly that: row bodies are inert, each row's Pray now
+    // opens the focused session for that row's person. One active
+    // emergency = the same box with one row; none = no banner.
     const peopleFocused = activeTab === "people" || activeTab === "home";
     return (
       <PeopleEntrance index={0} emphasis>
-        <FrontDoorCarousel count={emergencies.length} focused={peopleFocused} style={{ marginHorizontal: 16 }}>
-          {(pageIndex, registerTouch) => {
-            const entry = emergencies[Math.min(pageIndex, emergencies.length - 1)];
-            const leftRaw = formatHoursLeft(entry.item.emergencyExpiresAt ?? "", new Date());
-            const leftText = `${leftRaw.charAt(0).toUpperCase()}${leftRaw.slice(1)} of 24`;
-            return (
-              <View style={{ borderRadius: 26, overflow: "hidden", shadowColor: "#991B1B", shadowOpacity: 0.32, shadowRadius: 13, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
-                <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
-                  <Defs>
-                    <LinearGradient id="v254EmergencyGrad" x1="0" y1="0" x2="1" y2="0">
-                      <Stop offset="0" stopColor="#B91C1C" />
-                      <Stop offset="0.55" stopColor="#991B1B" />
-                      <Stop offset="1" stopColor="#7F1D1D" />
-                    </LinearGradient>
-                  </Defs>
-                  <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254EmergencyGrad)" />
-                </Svg>
-                <View pointerEvents="none" style={{ position: "absolute", top: -46, right: -30, width: 150, height: 150, borderRadius: 75, backgroundColor: "rgba(255,255,255,0.10)" }} />
-                {/* v267: the card LIVES — a soft red edge glow
-                    breathing inside the clip, and the status dot
-                    pulsing in its halo (kit components; calm,
-                    native driver, static under reduced motion or
-                    when People isn't the focused tab). */}
-                <EmergencyBreathGlow active={peopleFocused} />
-                <View style={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 15 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "rgba(252,165,165,0.28)", alignItems: "center", justifyContent: "center" }}>
-                      <EmergencyLiveDot active={peopleFocused} />
-                    </View>
-                    <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: "#FFFFFF" }}>
-                      EMERGENCY · {entry.person.name.toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 11, marginTop: 10 }}>
-                    <AvatarImage id={entry.person.id} name={entry.person.name} gender={entry.person.gender} avatarAsset={entry.person.avatarAsset} photoUri={entry.person.photoUri} size={46} thumbnail fallbackColor={entry.person.accentColor} style={{ borderWidth: 2, borderColor: "rgba(255,255,255,0.75)", borderRadius: 23 }} />
+        <View style={{ marginHorizontal: 16 }}>
+          <View style={{ borderRadius: 26, overflow: "hidden", shadowColor: "#991B1B", shadowOpacity: 0.32, shadowRadius: 13, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
+            <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
+              <Defs>
+                <LinearGradient id="v254EmergencyGrad" x1="0" y1="0" x2="1" y2="0">
+                  <Stop offset="0" stopColor="#B91C1C" />
+                  <Stop offset="0.55" stopColor="#991B1B" />
+                  <Stop offset="1" stopColor="#7F1D1D" />
+                </LinearGradient>
+              </Defs>
+              <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254EmergencyGrad)" />
+            </Svg>
+            <View pointerEvents="none" style={{ position: "absolute", top: -46, right: -30, width: 150, height: 150, borderRadius: 75, backgroundColor: "rgba(255,255,255,0.10)" }} />
+            {/* v267: the card LIVES — a soft red edge glow
+                breathing inside the clip, and the status dot
+                pulsing in its halo (kit components; calm,
+                native driver, static under reduced motion or
+                when People isn't the focused tab). */}
+            <EmergencyBreathGlow active={peopleFocused} />
+            <View style={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 15 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "rgba(252,165,165,0.28)", alignItems: "center", justifyContent: "center" }}>
+                  <EmergencyLiveDot active={peopleFocused} />
+                </View>
+                <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: "#FFFFFF" }}>
+                  EMERGENCY · {emergencies.length} ACTIVE
+                </Text>
+              </View>
+              {emergencyRenderedKeys.map((key, rowIndex) => {
+                const entry = emergencyRowDataRef.current.get(key);
+                if (!entry) return null;
+                const phase = emergencyRowPhases[key];
+                const leftRaw = formatHoursLeft(entry.item.emergencyExpiresAt ?? "", new Date());
+                const leftText = `${leftRaw.charAt(0).toUpperCase()}${leftRaw.slice(1)} of 24`;
+                const rowBody = (
+                  <View
+                    onLayout={(event) => handleEmergencyRowLayout(key, event.nativeEvent.layout.height)}
+                    style={{ flexDirection: "row", gap: 11, paddingVertical: 11, borderTopWidth: rowIndex === 0 ? 0 : 1, borderTopColor: "rgba(255,255,255,0.22)" }}
+                  >
+                    <AvatarImage id={entry.person.id} name={entry.person.name} gender={entry.person.gender} avatarAsset={entry.person.avatarAsset} photoUri={entry.person.photoUri} size={44} thumbnail fallbackColor={entry.person.accentColor} style={{ borderWidth: 2, borderColor: "rgba(255,255,255,0.75)", borderRadius: 22 }} />
                     <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.1, color: "rgba(255,255,255,0.85)" }}>{entry.person.name.toUpperCase()}</Text>
                       <Text numberOfLines={2} style={{ fontSize: 16.5, fontWeight: "800", lineHeight: 21, color: "#FFFFFF" }}>{entry.item.title}</Text>
                       {!!entry.item.note && (
                         <Text numberOfLines={2} style={{ fontSize: 13, fontWeight: "600", lineHeight: 17, color: "#FEE2E2", marginTop: 2 }}>{entry.item.note}</Text>
                       )}
                       <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#FECACA", marginTop: 1 }}>{leftText}</Text>
                     </View>
-                  </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
-                    <CarouselDots count={emergencies.length} index={Math.min(pageIndex, emergencies.length - 1)} activeColor="#FFFFFF" inactiveColor="rgba(255,255,255,0.4)" />
-                    <Pressable onPressIn={registerTouch} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openFocusedPrayerSession(entry.person.id, "emergency"); }} style={({ pressed }) => [{ backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 }, pressed && { opacity: 0.85 }]}>
-                      <Text style={{ fontSize: 13.5, fontWeight: "800", color: "#991B1B" }}>Pray now</Text>
+                    <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openFocusedPrayerSession(entry.person.id, "emergency"); }} style={({ pressed }) => [{ alignSelf: "center", backgroundColor: "#FFFFFF", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 }, pressed && { opacity: 0.85 }]}>
+                      <Text style={{ fontSize: 12.5, fontWeight: "800", color: "#991B1B" }}>Pray now</Text>
                     </Pressable>
                   </View>
-                </View>
-              </View>
-            );
-          }}
-        </FrontDoorCarousel>
+                );
+                if (!phase) {
+                  return <View key={key}>{rowBody}</View>;
+                }
+                const { height, opacity } = emergencyRowValues(key, phase === "entering" ? 0 : (emergencyRowNaturalRef.current.get(key) ?? 0));
+                return (
+                  <Animated.View key={key} style={{ height, opacity, overflow: "hidden" }}>
+                    {rowBody}
+                  </Animated.View>
+                );
+              })}
+            </View>
+          </View>
+        </View>
       </PeopleEntrance>
     );
   };

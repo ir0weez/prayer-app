@@ -1,0 +1,454 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Emergency — tall placement, v442 redesign (W-5 one-active +
+     W-4 D-2 multi). The RED dress is the meaning colour and stays:
+     when rows are active the renderer swaps em_bg to the red
+     gradient drawable; quiet, the card wears the effective
+     palette's surface like the rest of the family. Two content
+     groups, toggled by the renderer on the live count:
+     em_single (one active — the row takes the full width, the
+     note gets its second line, the countdown chip sits under)
+     and em_multi (two rows split the card, hairline between,
+     countdown chip under each note). The standard height has its
+     own layout (widget_emergency) where the single rides a row. XML defaults are the quiet face. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/em_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent">
+
+  <ImageView
+    android:id="@+id/em_bg"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:contentDescription="@null"
+    android:scaleType="fitXY"
+    android:src="@drawable/widget_shape_white_28"
+    android:tint="#F7F3FE" />
+
+  <ImageView
+    android:id="@+id/em_bg_red"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:contentDescription="@null"
+    android:scaleType="fitXY"
+    android:src="@drawable/widget_bg_emergency"
+    android:visibility="gone" />
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:gravity="center_vertical"
+      android:orientation="horizontal">
+
+      <ImageView
+        android:id="@+id/em_dot"
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:contentDescription="@null"
+        android:src="@drawable/widget_circle_white"
+        android:tint="#FF8A75" />
+
+      <TextView
+        android:id="@+id/em_kicker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="7dp"
+        android:letterSpacing="0.14"
+        android:text="EMERGENCY"
+        android:textColor="#7A72A0"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+      <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1" />
+
+      <TextView
+        android:id="@+id/em_chip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/widget_pill_white18"
+        android:paddingStart="10dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="4dp"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+    </LinearLayout>
+
+    <TextView
+      android:id="@+id/em_msg_title"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="10dp"
+      android:text="No emergencies"
+      android:textColor="#221A3E"
+      android:textSize="17sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:id="@+id/em_msg_sub"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="2dp"
+      android:text="Nothing urgent right now."
+      android:textColor="#4A4270"
+      android:textSize="13sp" />
+
+    <!-- ONE active, tall placement (W-5): the single emergency
+         grows into the card — big face, the note in full, and
+         the countdown + Pray now along the bottom. -->
+    <LinearLayout
+      android:id="@+id/em_single"
+      android:layout_width="match_parent"
+      android:layout_height="0dp"
+      android:layout_weight="1"
+      android:orientation="vertical"
+      android:visibility="gone">
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <FrameLayout
+          android:layout_width="72dp"
+          android:layout_height="72dp">
+
+          <ImageView
+            android:id="@+id/emt_img"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <TextView
+            android:id="@+id/emt_text"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+
+        <TextView
+          android:id="@+id/emt_name"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="14dp"
+          android:ellipsize="end"
+          android:letterSpacing="0.12"
+          android:maxLines="1"
+          android:textColor="#B8FFFFFF"
+          android:textSize="11.5sp"
+          android:textStyle="bold" />
+
+        <TextView
+          android:id="@+id/emt_title"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="2dp"
+          android:ellipsize="end"
+          android:maxLines="1"
+          android:textColor="#FFFFFF"
+          android:textSize="27sp"
+          android:textStyle="bold" />
+
+        <TextView
+          android:id="@+id/emt_note"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="6dp"
+          android:ellipsize="end"
+          android:maxLines="3"
+          android:textColor="#E0FFFFFF"
+          android:textSize="15sp" />
+      </LinearLayout>
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+          android:id="@+id/emt_left"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:background="@drawable/widget_pill_white16"
+          android:paddingStart="11dp"
+          android:paddingTop="5dp"
+          android:paddingEnd="11dp"
+          android:paddingBottom="5dp"
+          android:textColor="#FFFFFF"
+          android:textSize="12sp"
+          android:textStyle="bold" />
+
+        <FrameLayout
+          android:layout_width="0dp"
+          android:layout_height="1dp"
+          android:layout_weight="1" />
+
+        <FrameLayout
+          android:id="@+id/emt_pill"
+          android:layout_width="wrap_content"
+          android:layout_height="40dp">
+
+          <ImageView
+            android:id="@+id/emt_pill_img"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_pill_white" />
+
+          <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:text="Pray now"
+            android:textColor="#8F1D16"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+      </LinearLayout>
+    </LinearLayout>
+
+    <!-- TWO OR MORE active (W-4 D-2): rows split the card. -->
+    <LinearLayout
+      android:id="@+id/em_multi"
+      android:layout_width="match_parent"
+      android:layout_height="0dp"
+      android:layout_weight="1"
+      android:orientation="vertical"
+      android:visibility="gone">
+
+      <LinearLayout
+        android:id="@+id/em_row_1"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+          android:layout_width="52dp"
+          android:layout_height="52dp">
+
+          <ImageView
+            android:id="@+id/em_avatar_img_1"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <TextView
+            android:id="@+id/em_avatar_text_1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+
+        <LinearLayout
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="11dp"
+          android:layout_weight="1"
+          android:orientation="vertical">
+
+          <TextView
+            android:id="@+id/em_name_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:letterSpacing="0.11"
+            android:maxLines="1"
+            android:textColor="#B8FFFFFF"
+            android:textSize="10.5sp"
+            android:textStyle="bold" />
+
+          <TextView
+            android:id="@+id/em_title_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FFFFFF"
+            android:textSize="19sp"
+            android:textStyle="bold" />
+
+          <TextView
+            android:id="@+id/em_note_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#E0FFFFFF"
+            android:textSize="13sp" />
+
+          <TextView
+            android:id="@+id/em_left_1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/widget_pill_white16"
+            android:paddingStart="10dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="4dp"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+          android:id="@+id/em_pill_1"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_gravity="center_vertical"
+          android:layout_marginStart="8dp"
+          android:background="@drawable/widget_pill_white"
+          android:paddingStart="20dp"
+          android:paddingTop="11dp"
+          android:paddingEnd="20dp"
+          android:paddingBottom="11dp"
+          android:text="Pray now"
+          android:textColor="#8F1D16"
+          android:textSize="14sp"
+          android:textStyle="bold" />
+      </LinearLayout>
+
+      <FrameLayout
+        android:id="@+id/em_hairline"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#38FFFFFF"
+        android:visibility="gone" />
+
+      <LinearLayout
+        android:id="@+id/em_row_2"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+          android:layout_width="52dp"
+          android:layout_height="52dp">
+
+          <ImageView
+            android:id="@+id/em_avatar_img_2"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <TextView
+            android:id="@+id/em_avatar_text_2"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+
+        <LinearLayout
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="11dp"
+          android:layout_weight="1"
+          android:orientation="vertical">
+
+          <TextView
+            android:id="@+id/em_name_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:letterSpacing="0.11"
+            android:maxLines="1"
+            android:textColor="#B8FFFFFF"
+            android:textSize="10.5sp"
+            android:textStyle="bold" />
+
+          <TextView
+            android:id="@+id/em_title_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FFFFFF"
+            android:textSize="19sp"
+            android:textStyle="bold" />
+
+          <TextView
+            android:id="@+id/em_note_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#E0FFFFFF"
+            android:textSize="13sp" />
+
+          <TextView
+            android:id="@+id/em_left_2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/widget_pill_white16"
+            android:paddingStart="10dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="4dp"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+          android:id="@+id/em_pill_2"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_gravity="center_vertical"
+          android:layout_marginStart="8dp"
+          android:background="@drawable/widget_pill_white"
+          android:paddingStart="20dp"
+          android:paddingTop="11dp"
+          android:paddingEnd="20dp"
+          android:paddingBottom="11dp"
+          android:text="Pray now"
+          android:textColor="#8F1D16"
+          android:textSize="14sp"
+          android:textStyle="bold" />
+      </LinearLayout>
+
+      <TextView
+        android:id="@+id/em_more"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="end"
+        android:textColor="#B3FFFFFF"
+        android:textSize="11.5sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+    </LinearLayout>
+  </LinearLayout>
+</FrameLayout>

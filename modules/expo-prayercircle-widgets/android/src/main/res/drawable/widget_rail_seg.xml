@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v442: the Up Next rail's line segment — a 2dp-wide white
+     rounded rect, painted per instance via setColorFilter with
+     the effective palette's track colour. Each rail row carries
+     a top and a bottom half; the renderer drops the outer half
+     on the first and last rows. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="#FFFFFF" />
+  <corners android:radius="2dp" />
+</shape>

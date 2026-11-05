@@ -214,7 +214,13 @@ describe("v436 Reach Out snapshot", () => {
   });
 });
 
-// ─── 5. Up Next — the schedule tab's builder + the open-time line ───────────
+// ─── 5. Up Next — the schedule tab's builder + the day rail ────────────────
+// v442 amendment: the snapshot's shape changed with the W-6 day
+// rail — the lead's flat fields (title / timeLabel / line /
+// thenOpenText) are now rail entries (done / hero / gap / item)
+// plus leftCount and endNote. The behaviour pinned here carries
+// over in the new shape; the deep rail pins live in
+// widgets-v442.test.ts.
 
 describe("v436 Up Next snapshot", () => {
   const FIXED = new Date(2026, 10, 5, 10, 0, 0); // Nov 5 2026, 10:00 local
@@ -227,7 +233,7 @@ describe("v436 Up Next snapshot", () => {
     ...overrides,
   });
 
-  it("names the next timed item and the open time that follows it", () => {
+  it("names the next timed item as the rail's hero, with the open time after it as a gap", () => {
     const snapshot = buildUpNextSnapshot(
       [
         event({ title: "Morning thing", startTime: "08:00", endTime: "09:00", isCompleted: true }),
@@ -241,10 +247,17 @@ describe("v436 Up Next snapshot", () => {
     );
     expect(snapshot.state).toBe("next");
     if (snapshot.state !== "next") return;
-    expect(snapshot.title).toBe("Reflection session");
-    expect(snapshot.timeLabel).toBe("2:00 PM");
-    expect(snapshot.line).toBe("The booth");
-    expect(snapshot.thenOpenText).toBe("Then 2 hours 30 minutes of open time");
+    const hero = snapshot.entries.find((entry) => entry.isHero);
+    expect(hero?.title).toBe("Reflection session");
+    expect(hero?.timeLabel).toBe("2:00 PM");
+    expect(hero?.sub).toBe("The booth");
+    // The completed morning item rides as a done entry, and the
+    // 2.5 hours between the hero's end and Dinner are the gap.
+    expect(snapshot.entries[0]).toMatchObject({ kind: "done", title: "Morning thing" });
+    expect(snapshot.entries.map((entry) => entry.kind)).toEqual(["done", "item", "gap", "item"]);
+    expect(snapshot.entries[2].text).toBe("2 hours 30 minutes open");
+    expect(snapshot.leftCount).toBe(2);
+    expect(snapshot.endNote).toBe("Nothing after 6:30 PM");
   });
 
   it("is quiet once nothing timed remains today", () => {

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v442: plain white rounded rect at the Material 3 Expressive
+     28dp outer radius — the six redesigned widgets' card field,
+     painted per instance via setColorFilter with the effective
+     palette's surface (the v441 rectangles keep the 26dp
+     widget_shape_white; their dress does not change). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="#FFFFFF" />
+  <corners android:radius="28dp" />
+</shape>

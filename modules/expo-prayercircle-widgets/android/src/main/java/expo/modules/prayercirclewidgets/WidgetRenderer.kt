@@ -11,16 +11,23 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import android.net.Uri
+import android.os.Build
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
-import org.json.JSONArray
-import org.json.JSONObject
+import java.util.Calendar
 import java.util.Locale
 import kotlin.math.roundToLong
+import org.json.JSONArray
+import org.json.JSONObject
 
 /** The widgets and the provider class + compiled layout each renders.
- * The first six are v438's; v441 adds the three rectangles (W-3). */
+ * The first six are v438's; v441 adds the three rectangles (W-3).
+ * v442: Emergency and Up Next pick a second compiled layout at
+ * render time by the widget's real height (the enum keeps the
+ * standard layout as the registration default). */
 enum class WidgetKind(
   val providerClass: Class<out AppWidgetProvider>,
   val layoutRes: Int,
@@ -48,32 +55,45 @@ enum class WidgetKind(
  * avatar colours; Study carries its book's ROYGBIV set) and are
  * painted onto white shape drawables via ImageView setColorFilter —
  * the mechanism RemoteViews actually supports for runtime colour.
+ *
+ * v442 — the dress. All nine widgets paint from an EFFECTIVE
+ * palette resolved per render: the DEVICE's Material You system
+ * colours first (API 31+, read in-process through the provider
+ * context; the system resources are night-qualified, so the values
+ * already follow the DEVICE's dark mode as resolved in this
+ * context — not the app's appearance setting). When the system
+ * colours are unavailable or any read fails, the snapshot
+ * "palette" (the app seed x appearance, lib/widget-palette.ts) is
+ * used whole, exactly as v441 built it. Meaning hues are never
+ * device-mapped: Emergency red, the ROYGBIV book colours, and the
+ * reached-green family — green and greenContainer always come
+ * from the snapshot palette.
  */
 object WidgetRenderer {
-  private val INK = Color.parseColor("#F4F1FD")
-  private val MUTED = Color.parseColor("#AAA2C6")
   private val SEED = Color.parseColor("#A78BFA")
   private val RING_OFF = Color.parseColor("#4A3D78")
-  private val STATE_PRAYED = Color.parseColor("#9D8CFF")
-  private val STATE_NEXT = Color.parseColor("#CFC8EE")
-  private val STATE_WAITING = Color.parseColor("#8D84B3")
 
   fun render(context: Context, kind: WidgetKind, minHeightDp: Int): RemoteViews {
     val root = WidgetSnapshotStore.read(context)
     val scheme = root?.optString("scheme")?.takeIf { it.isNotBlank() }
-    val views = RemoteViews(context.packageName, kind.layoutRes)
-    when (kind) {
-      WidgetKind.PRAY_TODAY -> renderPrayToday(context, views, root?.optJSONObject("prayToday"), scheme)
-      WidgetKind.EMERGENCY -> renderEmergency(context, views, root?.optJSONObject("emergency"), scheme)
-      WidgetKind.YOUR_FAST -> renderYourFast(context, views, root?.optJSONObject("fast"), scheme)
-      WidgetKind.REACH_OUT -> renderReachOut(context, views, root?.optJSONObject("reachOut"), scheme)
-      WidgetKind.UP_NEXT -> renderUpNext(context, views, root?.optJSONObject("upNext"), scheme)
-      WidgetKind.YOUR_STUDY -> renderYourStudy(context, views, root?.optJSONObject("study"), scheme, minHeightDp)
-      WidgetKind.PRAY_STRIP -> renderPrayStrip(context, views, root, scheme)
-      WidgetKind.PRAY_NEXT -> renderPrayNext(context, views, root, scheme)
-      WidgetKind.REACH_PAIR -> renderReachPair(context, views, root, scheme)
+    val pal = effectivePalette(context, root)
+    return when (kind) {
+      WidgetKind.PRAY_TODAY ->
+        renderPrayToday(context, root?.optJSONObject("prayToday"), scheme, pal)
+      WidgetKind.EMERGENCY ->
+        renderEmergency(context, root?.optJSONObject("emergency"), scheme, pal, minHeightDp)
+      WidgetKind.YOUR_FAST ->
+        renderYourFast(context, root?.optJSONObject("fast"), scheme, pal)
+      WidgetKind.REACH_OUT ->
+        renderReachOut(context, root?.optJSONObject("reachOut"), scheme, pal)
+      WidgetKind.UP_NEXT ->
+        renderUpNext(context, root?.optJSONObject("upNext"), scheme, pal, minHeightDp)
+      WidgetKind.YOUR_STUDY ->
+        renderYourStudy(context, root?.optJSONObject("study"), scheme, pal)
+      WidgetKind.PRAY_STRIP -> renderPrayStrip(context, root, scheme, pal)
+      WidgetKind.PRAY_NEXT -> renderPrayNext(context, root, scheme, pal)
+      WidgetKind.REACH_PAIR -> renderReachPair(context, root, scheme, pal)
     }
-    return views
   }
 
   // ─── Shared helpers ───────────────────────────────────────────────────────
@@ -224,38 +244,180 @@ object WidgetRenderer {
     }
   }
 
-  // ─── v441: the widget palette (the rectangles' dress) ─────────────────────
+  // ─── The palette (v441 dress, v442 effective resolution) ──────────────────
   //
-  // The three rectangles carry no dress colours of their own: the
-  // snapshot root's "palette" object (lib/widget-palette — the
-  // app's seed × appearance, derived on the JS side) paints their
-  // white shape drawables and text. An absent palette (a snapshot
-  // written before v441) falls back to the W-3 drawing's
-  // Classic-light values, which are also the layouts' XML defaults.
+  // The snapshot root's "palette" object (lib/widget-palette — the
+  // app's seed × appearance, derived on the JS side) is the dress
+  // of last resort: an absent palette (a snapshot written before
+  // v441) falls back to the W-3 drawing's Classic-light values,
+  // which are also the layouts' XML defaults. v442 resolves the
+  // EFFECTIVE palette per render — device Material You first (see
+  // devicePalette), this snapshot palette when the device cannot
+  // answer. The reached-green family is a meaning hue: it is read
+  // from the snapshot palette in both worlds.
 
-  private class WidgetPalette(root: JSONObject?) {
-    private val pal = root?.optJSONObject("palette")
-    private fun hex(key: String, fallback: String): Int =
-      colorOr(pal?.optString(key)?.takeIf { it.isNotBlank() } ?: fallback, Color.parseColor(fallback))
-
-    val surface = hex("surface", "#F7F3FE")
-    val surfaceAlt = hex("surfaceAlt", "#EFE9FB")
-    val ink = hex("ink", "#221A3E")
-    val body = hex("body", "#4A4270")
-    val muted = hex("muted", "#7A72A0")
-    val primary = hex("primary", "#6D4BD8")
-    val onPrimary = hex("onPrimary", "#FFFFFF")
-    val container = hex("container", "#E6DEF9")
-    val onContainer = hex("onContainer", "#2A1666")
-    val chip = hex("chip", "#E9E2FA")
-    val track = hex("track", "#E0D8F5")
-    val green = hex("green", "#2E7D46")
-    val greenContainer = hex("greenContainer", "#DFF0E4")
+  private class WidgetPalette private constructor(
+    val surface: Int,
+    val surfaceAlt: Int,
+    val ink: Int,
+    val body: Int,
+    val muted: Int,
+    val primary: Int,
+    val onPrimary: Int,
+    val container: Int,
+    val onContainer: Int,
+    val chip: Int,
+    val track: Int,
+    val green: Int,
+    val greenContainer: Int,
+  ) {
+    companion object {
+      /** The snapshot's own palette, Classic-light fallbacks. */
+      fun fromSnapshot(root: JSONObject?): WidgetPalette {
+        val pal = root?.optJSONObject("palette")
+        fun hex(key: String, fallback: String): Int =
+          colorOr(pal?.optString(key)?.takeIf { it.isNotBlank() } ?: fallback, Color.parseColor(fallback))
+        return WidgetPalette(
+          surface = hex("surface", "#F7F3FE"),
+          surfaceAlt = hex("surfaceAlt", "#EFE9FB"),
+          ink = hex("ink", "#221A3E"),
+          body = hex("body", "#4A4270"),
+          muted = hex("muted", "#7A72A0"),
+          primary = hex("primary", "#6D4BD8"),
+          onPrimary = hex("onPrimary", "#FFFFFF"),
+          container = hex("container", "#E6DEF9"),
+          onContainer = hex("onContainer", "#2A1666"),
+          chip = hex("chip", "#E9E2FA"),
+          track = hex("track", "#E0D8F5"),
+          green = hex("green", "#2E7D46"),
+          greenContainer = hex("greenContainer", "#DFF0E4"),
+        )
+      }
+    }
   }
 
-  private fun paletteOf(root: JSONObject?): WidgetPalette = WidgetPalette(root)
+  private fun paletteOf(root: JSONObject?): WidgetPalette = WidgetPalette.fromSnapshot(root)
 
-  // ─── 1. Pray Today ────────────────────────────────────────────────────────
+  /** The effective palette for one render: the device's Material
+   *  You colours when they can be read, the snapshot palette
+   *  (paletteOf) whole when they cannot — never a mix of the two,
+   *  except the greens, which are the snapshot's in both worlds. */
+  private fun effectivePalette(context: Context, root: JSONObject?): WidgetPalette {
+    val snapshot = paletteOf(root)
+    return devicePalette(context, snapshot) ?: snapshot
+  }
+
+  /** The device's Material You system colours mapped onto the
+   *  palette roles: accent1 600 is the primary; accent2's light
+   *  tones carry containers and chips, its 900 the ink on them;
+   *  neutral1 carries surface and ink, neutral2 the softer
+   *  surfaces, body/muted text and the track. The system
+   *  resources are night-qualified, so light/dark follows the
+   *  DEVICE's system dark mode as resolved in the widget
+   *  provider's context. Null on any failure (pre-31 device, a
+   *  missing tone) — the caller falls back whole. */
+  private fun devicePalette(context: Context, snapshot: WidgetPalette): WidgetPalette? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
+    return try {
+      val res = context.resources
+      fun sys(id: Int): Int = res.getColor(id, context.theme)
+      val primary = sys(android.R.color.system_accent1_600)
+      // White ink on the primary, unless the tone is light, where
+      // the near-black neutral reads better.
+      val onPrimary =
+        if (luminance(primary) > 0.72) sys(android.R.color.system_neutral1_900) else Color.WHITE
+      WidgetPalette(
+        surface = sys(android.R.color.system_neutral1_50),
+        surfaceAlt = sys(android.R.color.system_neutral2_100),
+        ink = sys(android.R.color.system_neutral1_900),
+        body = sys(android.R.color.system_neutral2_700),
+        muted = sys(android.R.color.system_neutral2_600),
+        primary = primary,
+        onPrimary = onPrimary,
+        container = sys(android.R.color.system_accent2_100),
+        onContainer = sys(android.R.color.system_accent2_900),
+        chip = sys(android.R.color.system_accent2_200),
+        track = sys(android.R.color.system_neutral2_200),
+        green = snapshot.green,
+        greenContainer = snapshot.greenContainer,
+      )
+    } catch (_: Exception) {
+      null
+    }
+  }
+
+  private fun luminance(color: Int): Double =
+    (0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color)) / 255.0
+
+  /** Blend two colours: fraction 0 = a, 1 = b. (The rail's resting
+   *  dots wear the primary softened toward the surface.) */
+  private fun blend(a: Int, b: Int, fraction: Float): Int {
+    val f = fraction.coerceIn(0f, 1f)
+    return Color.rgb(
+      kotlin.math.round(Color.red(a) + (Color.red(b) - Color.red(a)) * f).toInt(),
+      kotlin.math.round(Color.green(a) + (Color.green(b) - Color.green(a)) * f).toInt(),
+      kotlin.math.round(Color.blue(a) + (Color.blue(b) - Color.blue(a)) * f).toInt(),
+    )
+  }
+
+  // ─── Drawn bars and the rail check (v442) ─────────────────────────────────
+  //
+  // Progress in this widget subset is a bitmap drawn in THIS
+  // process (the v439 glyph pattern): a rounded track with a
+  // rounded fill, colours and fraction passed in per render.
+
+  private val barCache = HashMap<String, Bitmap>()
+
+  private fun barBitmap(fillColor: Int, trackColor: Int, fraction: Float): Bitmap {
+    val frac = fraction.coerceIn(0f, 1f)
+    val key = "$fillColor|$trackColor|${(frac * 100).toInt()}"
+    barCache[key]?.let { return it }
+    val w = 720
+    val h = 36
+    val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    paint.color = trackColor
+    canvas.drawRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), h / 2f, h / 2f, paint)
+    val fillW = frac * w
+    if (fillW > 0f) {
+      paint.color = fillColor
+      val fw = maxOf(fillW, h.toFloat())
+      canvas.drawRoundRect(RectF(0f, 0f, fw, h.toFloat()), h / 2f, h / 2f, paint)
+    }
+    if (barCache.size > 24) barCache.clear()
+    barCache[key] = bitmap
+    return bitmap
+  }
+
+  private var checkCache: Pair<Int, Bitmap>? = null
+
+  /** The rail's done check — the W-6 drawing's bold check path,
+   *  stroked round in the given colour. */
+  private fun checkBitmap(color: Int): Bitmap {
+    checkCache?.let { if (it.first == color) return it.second }
+    val size = 54
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.STROKE
+      this.color = color
+      strokeWidth = 6f
+      strokeCap = Paint.Cap.ROUND
+      strokeJoin = Paint.Join.ROUND
+    }
+    val s = size / 24f
+    val path = Path().apply {
+      moveTo(4.5f * s, 12.5f * s)
+      lineTo(9.5f * s, 17.5f * s)
+      lineTo(19.5f * s, 7f * s)
+    }
+    canvas.drawPath(path, paint)
+    checkCache = color to bitmap
+    return bitmap
+  }
+
+  // ─── 1. Pray Today (v442, W-4 D-1) ────────────────────────────────────────
 
   private val PT_SLOTS = intArrayOf(R.id.pt_face_1, R.id.pt_face_2, R.id.pt_face_3, R.id.pt_face_4, R.id.pt_face_5, R.id.pt_face_6)
   private val PT_RINGS = intArrayOf(R.id.pt_face_ring_1, R.id.pt_face_ring_2, R.id.pt_face_ring_3, R.id.pt_face_ring_4, R.id.pt_face_ring_5, R.id.pt_face_ring_6)
@@ -264,38 +426,70 @@ object WidgetRenderer {
   private val PT_NAMES = intArrayOf(R.id.pt_face_name_1, R.id.pt_face_name_2, R.id.pt_face_name_3, R.id.pt_face_name_4, R.id.pt_face_name_5, R.id.pt_face_name_6)
   private val PT_STATES = intArrayOf(R.id.pt_face_state_1, R.id.pt_face_state_2, R.id.pt_face_state_3, R.id.pt_face_state_4, R.id.pt_face_state_5, R.id.pt_face_state_6)
 
-  private fun renderPrayToday(context: Context, views: RemoteViews, snap: JSONObject?, scheme: String?) {
+  private fun renderPrayToday(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
+    val views = RemoteViews(context.packageName, R.layout.widget_pray_today)
     val base = 100
+    // The palette paints the chrome in every state, quiet included.
+    views.setInt(R.id.pt_bg, "setColorFilter", pal.surface)
+    views.setInt(R.id.pt_dot, "setColorFilter", pal.primary)
+    views.setTextColor(R.id.pt_kicker, pal.muted)
+    views.setTextColor(R.id.pt_count, pal.muted)
+    views.setTextColor(R.id.pt_msg_title, pal.ink)
+    views.setTextColor(R.id.pt_msg_sub, pal.body)
     val state = snap?.optString("state") ?: "no-queue"
     if (snap == null || state == "no-queue") {
-      // The layout defaults already say it; just wire the tap.
+      // The quiet face, restored whole — a busier render may have
+      // left its own texts and toggles on these views.
+      views.setTextViewText(R.id.pt_msg_title, "Open PrayerCircle")
+      views.setViewVisibility(R.id.pt_msg_title, View.VISIBLE)
+      views.setTextViewText(R.id.pt_msg_sub, "Today's prayer list will stand here.")
+      views.setViewVisibility(R.id.pt_msg_sub, View.VISIBLE)
+      views.setTextViewText(R.id.pt_count, "")
+      views.setViewVisibility(R.id.pt_hero, View.GONE)
+      views.setViewVisibility(R.id.pt_faces, View.GONE)
+      views.setViewVisibility(R.id.pt_daybar, View.GONE)
       views.setOnClickPendingIntent(R.id.pt_root, launchPendingIntent(context, base))
-      return
+      return views
     }
     val faces = snap.optJSONArray("faces") ?: JSONArray()
-    fillPrayFaces(context, views, faces, snap.optString("personId"), state == "next")
+    fillPrayFaces(context, views, faces, snap.optString("personId"), state == "next", pal)
     views.setTextViewText(R.id.pt_count, "${snap.optInt("prayed")} of ${snap.optInt("total")} prayed")
+    // The day bar along the bottom: prayed of total, drawn.
+    val total = snap.optInt("total")
+    views.setViewVisibility(R.id.pt_daybar, View.VISIBLE)
+    views.setImageViewBitmap(
+      R.id.pt_daybar,
+      barBitmap(pal.primary, pal.track, if (total > 0) snap.optInt("prayed").toFloat() / total else 0f),
+    )
     if (state == "complete") {
       views.setTextViewText(R.id.pt_msg_title, "Pray Today complete")
       views.setViewVisibility(R.id.pt_msg_title, View.VISIBLE)
       views.setViewVisibility(R.id.pt_msg_sub, View.GONE)
+      views.setViewVisibility(R.id.pt_hero, View.GONE)
       views.setViewVisibility(R.id.pt_faces, View.VISIBLE)
       views.setOnClickPendingIntent(R.id.pt_root, launchPendingIntent(context, base))
-      return
+      return views
     }
     // state == "next"
     views.setViewVisibility(R.id.pt_msg_title, View.GONE)
     views.setViewVisibility(R.id.pt_msg_sub, View.GONE)
     views.setViewVisibility(R.id.pt_hero, View.VISIBLE)
     views.setViewVisibility(R.id.pt_faces, View.VISIBLE)
-    applyFace(context, views, R.id.pt_avatar_img, R.id.pt_avatar_text, snap, SEED, 54)
+    views.setInt(R.id.pt_avatar_ring, "setColorFilter", pal.primary)
+    applyFace(context, views, R.id.pt_avatar_img, R.id.pt_avatar_text, snap, pal.primary, 54)
+    views.setTextColor(R.id.pt_avatar_text, Color.WHITE)
     views.setTextViewText(R.id.pt_who, "NEXT UP · ${snap.optString("name").uppercase(Locale.US)}")
+    views.setTextColor(R.id.pt_who, pal.primary)
     val needTitle = snap.optString("needTitle")
     views.setTextViewText(R.id.pt_need, needTitle)
+    views.setTextColor(R.id.pt_need, pal.ink)
     views.setViewVisibility(R.id.pt_need, if (needTitle.isBlank()) View.GONE else View.VISIBLE)
     val needLine = snap.optString("needLine")
     views.setTextViewText(R.id.pt_line, needLine)
+    views.setTextColor(R.id.pt_line, pal.body)
     views.setViewVisibility(R.id.pt_line, if (needLine.isBlank()) View.GONE else View.VISIBLE)
+    views.setInt(R.id.pt_pill_img, "setColorFilter", pal.primary)
+    views.setTextColor(R.id.pt_pill_text, pal.onPrimary)
     val tap = if (scheme != null) {
       uriPendingIntent(context, prayUri(scheme, snap.optString("personId"), "today"), base + 1)
     } else {
@@ -303,9 +497,10 @@ object WidgetRenderer {
     }
     views.setOnClickPendingIntent(R.id.pt_root, tap)
     views.setOnClickPendingIntent(R.id.pt_pill, tap)
+    return views
   }
 
-  private fun fillPrayFaces(context: Context, views: RemoteViews, faces: JSONArray, nextPersonId: String?, hasNext: Boolean) {
+  private fun fillPrayFaces(context: Context, views: RemoteViews, faces: JSONArray, nextPersonId: String?, hasNext: Boolean, pal: WidgetPalette) {
     val overflow = faces.length() > PT_SLOTS.size
     for (i in PT_SLOTS.indices) {
       if (i >= faces.length()) {
@@ -314,38 +509,43 @@ object WidgetRenderer {
       }
       views.setViewVisibility(PT_SLOTS[i], View.VISIBLE)
       if (overflow && i == PT_SLOTS.size - 1) {
-        // Slot 6 becomes the +N counter for the faces beyond it.
-        views.setInt(PT_RINGS[i], "setColorFilter", RING_OFF)
-        views.setInt(PT_IMGS[i], "setColorFilter", RING_OFF)
+        // Slot 6 becomes the +N counter for the faces beyond it,
+        // wearing the container tone (the rectangles' fold dress).
+        views.setInt(PT_RINGS[i], "setColorFilter", pal.container)
+        views.setImageViewResource(PT_IMGS[i], R.drawable.widget_circle_white)
+        views.setInt(PT_IMGS[i], "setColorFilter", pal.container)
         views.setTextViewText(PT_TEXTS[i], "+${faces.length() - (PT_SLOTS.size - 1)}")
+        views.setTextColor(PT_TEXTS[i], pal.onContainer)
         views.setTextViewText(PT_NAMES[i], "")
         views.setTextViewText(PT_STATES[i], "")
         continue
       }
       val face = faces.optJSONObject(i) ?: continue
       val prayed = face.optBoolean("prayed")
-      views.setInt(PT_RINGS[i], "setColorFilter", if (prayed) SEED else RING_OFF)
-      applyFace(context, views, PT_IMGS[i], PT_TEXTS[i], face, SEED, 28)
+      val isNext = hasNext && face.optString("personId") == nextPersonId
+      views.setInt(PT_RINGS[i], "setColorFilter", if (prayed || isNext) pal.primary else pal.track)
+      applyFace(context, views, PT_IMGS[i], PT_TEXTS[i], face, pal.primary, 40)
+      views.setTextColor(PT_TEXTS[i], Color.WHITE)
       views.setTextViewText(PT_NAMES[i], face.optString("firstName"))
-      views.setTextColor(PT_NAMES[i], if (prayed) SEED else MUTED)
+      views.setTextColor(PT_NAMES[i], if (prayed) pal.primary else pal.ink)
       when {
         prayed -> {
           views.setTextViewText(PT_STATES[i], "PRAYED")
-          views.setTextColor(PT_STATES[i], STATE_PRAYED)
+          views.setTextColor(PT_STATES[i], pal.primary)
         }
-        hasNext && face.optString("personId") == nextPersonId -> {
+        isNext -> {
           views.setTextViewText(PT_STATES[i], "NEXT")
-          views.setTextColor(PT_STATES[i], STATE_NEXT)
+          views.setTextColor(PT_STATES[i], pal.primary)
         }
         else -> {
           views.setTextViewText(PT_STATES[i], "WAITING")
-          views.setTextColor(PT_STATES[i], STATE_WAITING)
+          views.setTextColor(PT_STATES[i], pal.muted)
         }
       }
     }
   }
 
-  // ─── 2. Emergency ─────────────────────────────────────────────────────────
+  // ─── 2. Emergency (v442: W-5 one-active + W-4 D-2 rows) ───────────────────
 
   /**
    * The app's own countdown wording (lib/bell-header formatHoursLeft
@@ -375,7 +575,14 @@ object WidgetRenderer {
   private val EM_LEFTS = intArrayOf(R.id.em_left_1, R.id.em_left_2)
   private val EM_PILLS = intArrayOf(R.id.em_pill_1, R.id.em_pill_2)
 
-  private fun renderEmergency(context: Context, views: RemoteViews, snap: JSONObject?, scheme: String?) {
+  private fun renderEmergency(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette, minHeightDp: Int): RemoteViews {
+    // Tall placements get the W-5 composition (the single emergency
+    // grows into the card); standard height keeps the W-4 frame.
+    val tall = minHeightDp >= 190
+    val views = RemoteViews(
+      context.packageName,
+      if (tall) R.layout.widget_emergency_tall else R.layout.widget_emergency,
+    )
     val base = 200
     val now = System.currentTimeMillis()
     val all = mutableListOf<JSONObject>()
@@ -392,17 +599,79 @@ object WidgetRenderer {
       expires <= 0L || expires > now
     }
     if (live.isEmpty()) {
-      views.setInt(R.id.em_root, "setBackgroundResource", R.drawable.widget_bg)
+      // Quiet: the family card (palette surface), red only when
+      // something is actually burning. The red layer is separate
+      // and NEVER tinted — a colour filter left on a shared
+      // background would corrupt the gradient.
+      views.setViewVisibility(R.id.em_bg, View.VISIBLE)
+      views.setInt(R.id.em_bg, "setColorFilter", pal.surface)
+      views.setViewVisibility(R.id.em_bg_red, View.GONE)
+      views.setInt(R.id.em_dot, "setColorFilter", pal.muted)
       views.setTextViewText(R.id.em_kicker, "EMERGENCY")
-      views.setTextColor(R.id.em_kicker, MUTED)
+      views.setTextColor(R.id.em_kicker, pal.muted)
+      views.setTextColor(R.id.em_msg_title, pal.ink)
+      views.setTextColor(R.id.em_msg_sub, pal.body)
+      views.setViewVisibility(R.id.em_msg_title, View.VISIBLE)
+      views.setViewVisibility(R.id.em_msg_sub, View.VISIBLE)
+      views.setViewVisibility(R.id.em_chip, View.GONE)
+      views.setViewVisibility(R.id.em_single, View.GONE)
+      views.setViewVisibility(R.id.em_multi, View.GONE)
       views.setOnClickPendingIntent(R.id.em_root, launchPendingIntent(context, base))
-      return
+      return views
     }
-    views.setInt(R.id.em_root, "setBackgroundResource", R.drawable.widget_bg_emergency)
-    views.setTextViewText(R.id.em_kicker, "EMERGENCY · ${live.size} ACTIVE")
+    views.setViewVisibility(R.id.em_bg, View.GONE)
+    views.setViewVisibility(R.id.em_bg_red, View.VISIBLE)
+    views.setImageViewResource(R.id.em_bg_red, R.drawable.widget_bg_emergency)
+    views.setInt(R.id.em_dot, "setColorFilter", Color.parseColor("#FFB4A2"))
+    views.setTextViewText(R.id.em_kicker, "EMERGENCY")
     views.setTextColor(R.id.em_kicker, Color.parseColor("#FFD9D2"))
     views.setViewVisibility(R.id.em_msg_title, View.GONE)
     views.setViewVisibility(R.id.em_msg_sub, View.GONE)
+    views.setViewVisibility(R.id.em_chip, View.VISIBLE)
+    views.setTextViewText(R.id.em_chip, "${live.size} ACTIVE")
+    val firstTap = if (scheme != null) {
+      uriPendingIntent(context, prayUri(scheme, live[0].optString("personId"), "emergency"), base + 1)
+    } else {
+      launchPendingIntent(context, base)
+    }
+    views.setOnClickPendingIntent(R.id.em_root, firstTap)
+    if (live.size == 1) {
+      views.setViewVisibility(R.id.em_multi, View.GONE)
+      views.setViewVisibility(R.id.em_single, View.VISIBLE)
+      val row = live[0]
+      val expires = row.optLong("expiresAtMillis", 0L)
+      val left = if (expires > 0L) emergencyLeftText(expires, now) else row.optString("leftText")
+      if (tall) {
+        applyFace(context, views, R.id.emt_img, R.id.emt_text, row, SEED, 72)
+        views.setTextViewText(R.id.emt_name, row.optString("name").uppercase(Locale.US))
+        views.setTextViewText(R.id.emt_title, row.optString("title"))
+        val note = row.optString("note")
+        views.setTextViewText(R.id.emt_note, note)
+        views.setViewVisibility(R.id.emt_note, if (note.isBlank()) View.GONE else View.VISIBLE)
+        views.setTextViewText(R.id.emt_left, left)
+        views.setOnClickPendingIntent(R.id.emt_pill, firstTap)
+      } else {
+        applyFace(context, views, R.id.em_s_img, R.id.em_s_text, row, SEED, 58)
+        views.setTextViewText(R.id.em_s_name, row.optString("name").uppercase(Locale.US))
+        views.setTextViewText(R.id.em_s_title, row.optString("title"))
+        val note = row.optString("note")
+        views.setTextViewText(R.id.em_s_note, note)
+        views.setViewVisibility(R.id.em_s_note, if (note.isBlank()) View.GONE else View.VISIBLE)
+        views.setTextViewText(R.id.em_s_left, left)
+        views.setOnClickPendingIntent(R.id.em_s_pill, firstTap)
+      }
+      return views
+    }
+    fillEmergencyMulti(context, views, live, scheme, base, now)
+    return views
+  }
+
+  /** The 2+ composition (W-4 D-2): rows split the card, a
+   *  countdown chip under each note, a hairline between the rows,
+   *  "+N more" when the snapshot carries more than the two shown. */
+  private fun fillEmergencyMulti(context: Context, views: RemoteViews, live: List<JSONObject>, scheme: String?, base: Int, now: Long) {
+    views.setViewVisibility(R.id.em_single, View.GONE)
+    views.setViewVisibility(R.id.em_multi, View.VISIBLE)
     for (slot in EM_ROWS.indices) {
       if (slot >= live.size) {
         views.setViewVisibility(EM_ROWS[slot], View.GONE)
@@ -427,34 +696,60 @@ object WidgetRenderer {
         views.setOnClickPendingIntent(EM_PILLS[slot], tap)
       }
     }
-    val firstTap = if (scheme != null) {
-      uriPendingIntent(context, prayUri(scheme, live[0].optString("personId"), "emergency"), base + 1)
+    views.setViewVisibility(R.id.em_hairline, View.VISIBLE)
+    if (live.size > 2) {
+      views.setViewVisibility(R.id.em_more, View.VISIBLE)
+      views.setTextViewText(R.id.em_more, "+${live.size - 2} more")
     } else {
-      launchPendingIntent(context, base)
+      views.setViewVisibility(R.id.em_more, View.GONE)
     }
-    views.setOnClickPendingIntent(R.id.em_root, firstTap)
   }
 
-  // ─── 3. Your Fast ─────────────────────────────────────────────────────────
+  // ─── 3. Your Fast (v442, W-4 D-3) ─────────────────────────────────────────
 
   private val FAST_HEARTS = intArrayOf(R.id.fast_heart_1, R.id.fast_heart_2, R.id.fast_heart_3, R.id.fast_heart_4, R.id.fast_heart_5, R.id.fast_heart_6)
 
-  private fun renderYourFast(context: Context, views: RemoteViews, snap: JSONObject?, scheme: String?) {
+  private fun renderYourFast(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
+    val views = RemoteViews(context.packageName, R.layout.widget_your_fast)
     val base = 300
+    views.setInt(R.id.fast_bg, "setColorFilter", pal.surface)
+    views.setInt(R.id.fast_dot, "setColorFilter", pal.primary)
+    views.setTextColor(R.id.fast_kicker, pal.muted)
+    views.setTextColor(R.id.fast_msg, pal.ink)
     if (scheme != null) {
       views.setOnClickPendingIntent(R.id.fast_root, uriPendingIntent(context, "$scheme://fasting-tracker", base))
     } else {
       views.setOnClickPendingIntent(R.id.fast_root, launchPendingIntent(context, base))
     }
-    if (snap == null || snap.optString("state") != "active") return
+    if (snap == null || snap.optString("state") != "active") {
+      views.setViewVisibility(R.id.fast_msg, View.VISIBLE)
+      views.setViewVisibility(R.id.fast_day, View.GONE)
+      views.setViewVisibility(R.id.fast_name, View.GONE)
+      views.setViewVisibility(R.id.fast_of, View.GONE)
+      views.setViewVisibility(R.id.fast_hearts, View.GONE)
+      views.setViewVisibility(R.id.fast_daybar, View.GONE)
+      return views
+    }
     views.setViewVisibility(R.id.fast_msg, View.GONE)
     views.setViewVisibility(R.id.fast_day, View.VISIBLE)
     views.setViewVisibility(R.id.fast_name, View.VISIBLE)
+    views.setViewVisibility(R.id.fast_of, View.VISIBLE)
     views.setTextViewText(R.id.fast_day, "Day ${snap.optInt("dayNumber")}")
-    views.setTextViewText(R.id.fast_name, "${snap.optString("name")} · of ${snap.optInt("totalDays")}")
+    views.setTextColor(R.id.fast_day, pal.ink)
+    views.setTextViewText(R.id.fast_name, snap.optString("name"))
+    views.setTextColor(R.id.fast_name, pal.body)
+    val goalDays = snap.optInt("goalDays")
+    views.setTextViewText(R.id.fast_of, "of $goalDays · ${snap.optInt("daysLeft")} to go")
+    views.setTextColor(R.id.fast_of, pal.muted)
+    // The progress bar along the bottom: day of goalDays, drawn.
+    views.setViewVisibility(R.id.fast_daybar, View.VISIBLE)
+    views.setImageViewBitmap(
+      R.id.fast_daybar,
+      barBitmap(pal.primary, pal.track, if (goalDays > 0) snap.optInt("dayNumber").toFloat() / goalDays else 0f),
+    )
     if (snap.isNull("hearts") || snap.isNull("maxHearts")) {
       views.setViewVisibility(R.id.fast_hearts, View.GONE)
-      return
+      return views
     }
     val hearts = snap.optInt("hearts")
     val maxHearts = snap.optInt("maxHearts")
@@ -465,99 +760,126 @@ object WidgetRenderer {
         views.setViewVisibility(FAST_HEARTS[i], View.GONE)
       } else {
         views.setViewVisibility(FAST_HEARTS[i], View.VISIBLE)
-        views.setImageViewBitmap(FAST_HEARTS[i], heartBitmap(if (slot <= hearts) SEED else RING_OFF))
+        views.setImageViewBitmap(FAST_HEARTS[i], heartBitmap(if (slot <= hearts) pal.primary else pal.chip))
       }
     }
+    return views
   }
 
-  // ─── 4. Due to Reach Out ──────────────────────────────────────────────────
+  // ─── 4. Due to Reach Out (v442, W-4 D-4) ──────────────────────────────────
 
-  private fun renderReachOut(context: Context, views: RemoteViews, snap: JSONObject?, scheme: String?) {
+  private fun renderReachOut(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
+    val views = RemoteViews(context.packageName, R.layout.widget_reach_out)
     val base = 400
-    if (scheme != null) {
-      views.setOnClickPendingIntent(R.id.reach_root, uriPendingIntent(context, "$scheme://due-to-reach", base))
+    views.setInt(R.id.reach_bg, "setColorFilter", pal.surface)
+    views.setInt(R.id.reach_dot, "setColorFilter", pal.green)
+    views.setTextColor(R.id.reach_kicker, pal.muted)
+    views.setTextColor(R.id.reach_msg_title, pal.ink)
+    views.setTextColor(R.id.reach_msg_sub, pal.body)
+    val tap = if (scheme != null) {
+      uriPendingIntent(context, "$scheme://due-to-reach", base)
     } else {
-      views.setOnClickPendingIntent(R.id.reach_root, launchPendingIntent(context, base))
+      launchPendingIntent(context, base)
     }
-    if (snap == null || snap.optString("state") != "due") return
-    val lead = snap.optJSONObject("lead") ?: return
+    views.setOnClickPendingIntent(R.id.reach_root, tap)
+    if (snap == null || snap.optString("state") != "due") {
+      views.setViewVisibility(R.id.reach_msg_title, View.VISIBLE)
+      views.setViewVisibility(R.id.reach_msg_sub, View.VISIBLE)
+      views.setViewVisibility(R.id.reach_due_wrap, View.GONE)
+      views.setViewVisibility(R.id.reach_lead, View.GONE)
+      views.setViewVisibility(R.id.reach_hairline, View.GONE)
+      views.setViewVisibility(R.id.reach_second, View.GONE)
+      return views
+    }
+    val lead = snap.optJSONObject("lead") ?: return views
     views.setViewVisibility(R.id.reach_msg_title, View.GONE)
     views.setViewVisibility(R.id.reach_msg_sub, View.GONE)
+    views.setViewVisibility(R.id.reach_due_wrap, View.VISIBLE)
+    views.setInt(R.id.reach_due_img, "setColorFilter", pal.greenContainer)
+    val totalDue = snap.optInt("totalDue")
+    views.setTextViewText(R.id.reach_due, "$totalDue due")
+    views.setTextColor(R.id.reach_due, pal.green)
     views.setViewVisibility(R.id.reach_lead, View.VISIBLE)
-    applyFace(context, views, R.id.reach_avatar_img, R.id.reach_avatar_text, lead, SEED, 40)
-    views.setTextViewText(R.id.reach_days, "${lead.optInt("days")} days")
-    views.setTextViewText(R.id.reach_since, "since you reached ${lead.optString("firstName")}")
+    applyFace(context, views, R.id.reach_avatar_img, R.id.reach_avatar_text, lead, pal.green, 56)
+    views.setTextColor(R.id.reach_avatar_text, Color.WHITE)
+    views.setTextViewText(R.id.reach_name, lead.optString("name"))
+    views.setTextColor(R.id.reach_name, pal.ink)
+    // The lead's line arrives composed in the snapshot (v442) —
+    // printed verbatim, never re-worded here.
+    views.setTextViewText(R.id.reach_since, lead.optString("sinceLine"))
+    views.setTextColor(R.id.reach_since, pal.body)
+    views.setInt(R.id.reach_btn_img, "setColorFilter", pal.greenContainer)
+    views.setTextColor(R.id.reach_btn_text, pal.green)
+    views.setOnClickPendingIntent(R.id.reach_btn, tap)
+    views.setViewVisibility(R.id.reach_hairline, View.VISIBLE)
+    views.setInt(R.id.reach_hairline, "setBackgroundColor", pal.track)
     val second = snap.optJSONObject("second")
     if (second == null) {
       views.setViewVisibility(R.id.reach_second, View.GONE)
-      return
+      views.setViewVisibility(R.id.reach_more, View.GONE)
+      return views
     }
     views.setViewVisibility(R.id.reach_second, View.VISIBLE)
-    applyFace(context, views, R.id.reach_second_img, R.id.reach_second_text_init, second, SEED, 24)
-    views.setTextViewText(R.id.reach_second_text, "${second.optString("firstName")} · ${second.optInt("days")}d")
-    val totalDue = snap.optInt("totalDue")
-    views.setTextViewText(R.id.reach_more, if (totalDue > 2) "+${totalDue - 2} more due" else "")
+    applyFace(context, views, R.id.reach_second_img, R.id.reach_second_text_init, second, pal.green, 34)
+    views.setTextColor(R.id.reach_second_text_init, Color.WHITE)
+    views.setTextViewText(R.id.reach_second_name, second.optString("name"))
+    views.setTextColor(R.id.reach_second_name, pal.ink)
+    views.setTextViewText(R.id.reach_second_rest, "· ${second.optInt("days")} days")
+    views.setTextColor(R.id.reach_second_rest, pal.body)
+    if (totalDue > 2) {
+      views.setViewVisibility(R.id.reach_more, View.VISIBLE)
+      views.setTextViewText(R.id.reach_more, "+${totalDue - 2} more due")
+      views.setTextColor(R.id.reach_more, pal.muted)
+    } else {
+      views.setViewVisibility(R.id.reach_more, View.GONE)
+    }
+    return views
   }
 
-  // ─── 5. Up Next ───────────────────────────────────────────────────────────
+  // ─── 5. Your Study (v442, W-4 D-6) ────────────────────────────────────────
 
-  private fun renderUpNext(context: Context, views: RemoteViews, snap: JSONObject?, scheme: String?) {
-    val base = 500
-    if (scheme != null) {
-      views.setOnClickPendingIntent(R.id.next_root, uriPendingIntent(context, "$scheme:///?navTab=schedule", base))
-    } else {
-      views.setOnClickPendingIntent(R.id.next_root, launchPendingIntent(context, base))
-    }
-    if (snap == null || snap.optString("state") != "next") return
-    views.setViewVisibility(R.id.next_msg, View.GONE)
-    views.setViewVisibility(R.id.next_main, View.VISIBLE)
-    views.setTextViewText(R.id.next_time, snap.optString("timeLabel"))
-    views.setTextViewText(R.id.next_title, snap.optString("title"))
-    val line = snap.optString("line")
-    views.setTextViewText(R.id.next_line, line)
-    views.setViewVisibility(R.id.next_line, if (line.isBlank()) View.GONE else View.VISIBLE)
-    val then = snap.optString("thenOpenText")
-    if (then.isBlank()) {
-      views.setViewVisibility(R.id.next_divider, View.GONE)
-      views.setViewVisibility(R.id.next_then, View.GONE)
-    } else {
-      views.setViewVisibility(R.id.next_divider, View.VISIBLE)
-      views.setViewVisibility(R.id.next_then, View.VISIBLE)
-      views.setTextViewText(R.id.next_then, then)
-    }
-  }
-
-  // ─── 6. Your Study ────────────────────────────────────────────────────────
-
-  private fun renderYourStudy(context: Context, views: RemoteViews, snap: JSONObject?, scheme: String?, minHeightDp: Int) {
+  private fun renderYourStudy(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
+    val views = RemoteViews(context.packageName, R.layout.widget_your_study)
     val base = 600
+    views.setInt(R.id.study_bg_img, "setColorFilter", pal.surface)
+    views.setTextColor(R.id.study_kicker, pal.muted)
+    views.setTextColor(R.id.study_msg, pal.ink)
     if (snap == null || snap.optString("state") != "active") {
+      views.setViewVisibility(R.id.study_msg, View.VISIBLE)
+      views.setViewVisibility(R.id.study_main, View.GONE)
+      views.setViewVisibility(R.id.study_last, View.GONE)
+      views.setViewVisibility(R.id.study_footer, View.GONE)
       views.setOnClickPendingIntent(R.id.study_root, launchPendingIntent(context, base))
-      return
+      return views
     }
-    val primary = colorOr(snap.optString("colorPrimary"), SEED)
-    views.setInt(R.id.study_bg_img, "setColorFilter", colorOr(snap.optString("colorTint"), Color.parseColor("#2C2140")))
-    views.setInt(R.id.study_dot, "setColorFilter", primary)
-    views.setInt(R.id.study_tile, "setColorFilter", primary)
-    views.setInt(R.id.study_pill_img, "setColorFilter", primary)
+    // The book's own ROYGBIV colour — a meaning hue, never the
+    // palette's. bookColor is the v442 field; colorPrimary is its
+    // pre-v442 name and still answers for older snapshots.
+    val bookColor = colorOr(
+      snap.optString("bookColor").takeIf { it.isNotBlank() } ?: snap.optString("colorPrimary"),
+      pal.primary,
+    )
+    views.setInt(R.id.study_dot, "setColorFilter", bookColor)
+    views.setInt(R.id.study_tile, "setColorFilter", bookColor)
     views.setViewVisibility(R.id.study_msg, View.GONE)
     views.setViewVisibility(R.id.study_main, View.VISIBLE)
     views.setImageViewBitmap(R.id.study_book_glyph, bookBitmap())
     views.setViewVisibility(R.id.study_footer, View.VISIBLE)
     val nextChapter = if (snap.isNull("nextChapter")) null else snap.optInt("nextChapter")
     val book = snap.optString("book")
-    views.setTextViewText(R.id.study_book, if (nextChapter != null) "$book $nextChapter" else book)
-    views.setTextViewText(R.id.study_next, if (nextChapter != null) "Next to write" else "Fully written")
-    val verse = snap.optString("verseText")
-    // Short placements shed the verse first, then the restudy row —
-    // the chapter itself always stands.
-    if (verse.isBlank() || (minHeightDp in 1..199)) {
-      views.setViewVisibility(R.id.study_verse, View.GONE)
-    } else {
-      views.setViewVisibility(R.id.study_verse, View.VISIBLE)
-      val ref = snap.optString("verseRef")
-      views.setTextViewText(R.id.study_verse, if (ref.isBlank()) verse else "$verse — $ref")
-    }
+    views.setTextViewText(R.id.study_book, book)
+    views.setTextColor(R.id.study_book, pal.ink)
+    views.setTextViewText(
+      R.id.study_next,
+      if (nextChapter != null) "Next to write · Chapter $nextChapter" else "Fully written",
+    )
+    views.setTextColor(R.id.study_next, pal.body)
+    val written = snap.optInt("chaptersWritten")
+    val totalChapters = snap.optInt("totalChapters")
+    views.setTextViewText(R.id.study_prog, "$written of $totalChapters")
+    views.setTextColor(R.id.study_prog, pal.ink)
+    views.setTextViewText(R.id.study_prog_sub, "chapters written")
+    views.setTextColor(R.id.study_prog_sub, pal.muted)
     val lastChapter = if (snap.isNull("lastWrittenChapter")) null else snap.optInt("lastWrittenChapter")
     if (lastChapter == null) {
       views.setViewVisibility(R.id.study_last, View.GONE)
@@ -568,15 +890,14 @@ object WidgetRenderer {
         R.id.study_last,
         "Last written · Chapter $lastChapter" + if (notes != null) " · $notes notes" else "",
       )
+      views.setTextColor(R.id.study_last, pal.body)
     }
-    val restudy = snap.optString("restudyLine")
-    if (restudy.isBlank() || (minHeightDp in 1..214)) {
-      views.setViewVisibility(R.id.study_restudy, View.GONE)
-    } else {
-      views.setViewVisibility(R.id.study_restudy, View.VISIBLE)
-      views.setTextViewText(R.id.study_restudy, "Restudy · $restudy")
-    }
-    views.setTextViewText(R.id.study_prog, "${snap.optInt("chaptersWritten")} of ${snap.optInt("totalChapters")} written")
+    views.setInt(R.id.study_pill_img, "setColorFilter", pal.container)
+    views.setTextColor(R.id.study_pill_text, pal.onContainer)
+    views.setImageViewBitmap(
+      R.id.study_bar,
+      barBitmap(bookColor, pal.track, if (totalChapters > 0) written.toFloat() / totalChapters else 0f),
+    )
     val openChapter = nextChapter ?: lastChapter ?: 1
     val tap = if (scheme != null) {
       uriPendingIntent(context, "$scheme://bible-chapter?book=${Uri.encode(book)}&chapter=$openChapter", base + 1)
@@ -585,11 +906,317 @@ object WidgetRenderer {
     }
     views.setOnClickPendingIntent(R.id.study_root, tap)
     views.setOnClickPendingIntent(R.id.study_pill, tap)
-    views.setTextColor(R.id.study_prog, MUTED)
-    views.setTextColor(R.id.study_last, MUTED)
+    return views
+  }
+
+  // ─── 6. Up Next (v442, W-6 Option A — the day rail) ───────────────────────
+
+  /** One row on the rail as the renderer walks it: the snapshot's
+   * entries (done / item / gap, the hero flagged), plus the NOW
+   * row the renderer seats itself from the device clock. */
+  private class RailRow(
+    val kind: String,
+    val timeLabel: String,
+    val title: String,
+    val sub: String,
+    val startMinutes: Int,
+    val gapText: String,
+  )
+
+  private val railIdCache = HashMap<String, Int>()
+
+  /** The rail's nine slots resolve their ids by name — the slots
+   * are one stamped shape, so the renderer walks them uniformly
+   * instead of carrying nine copies of every slot array. */
+  private fun railId(context: Context, name: String): Int =
+    railIdCache.getOrPut(name) {
+      context.resources.getIdentifier(name, "id", context.packageName)
+    }
+
+  private fun nowMinutes(): Int {
+    val cal = Calendar.getInstance()
+    return cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+  }
+
+  private fun nowTimeLabel(): String {
+    val cal = Calendar.getInstance()
+    val h24 = cal.get(Calendar.HOUR_OF_DAY)
+    val minute = cal.get(Calendar.MINUTE)
+    val suffix = if (h24 >= 12) "PM" else "AM"
+    val h12 = if (h24 % 12 == 0) 12 else h24 % 12
+    return "$h12:${minute.toString().padStart(2, "0")} $suffix"
+  }
+
+  /** The hero band's countdown, in the W-6 drawing's voice. */
+  private fun countdownText(startMinutes: Int, fromMinutes: Int): String {
+    val diff = startMinutes - fromMinutes
+    if (diff <= 0) return "NOW"
+    if (diff < 60) return "IN $diff MIN"
+    val h = diff / 60
+    val m = diff % 60
+    return if (m == 0) "IN $h H" else "IN $h H $m MIN"
+  }
+
+  private fun renderUpNext(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette, minHeightDp: Int): RemoteViews {
+    // Tall placements walk the whole rail; short ones carry the
+    // compact face (hero, its gap, the next item).
+    val full = minHeightDp >= 190
+    val views = RemoteViews(
+      context.packageName,
+      if (full) R.layout.widget_up_next else R.layout.widget_up_next_compact,
+    )
+    val base = 500
+    views.setInt(R.id.next_bg, "setColorFilter", pal.surface)
+    views.setInt(R.id.next_dot, "setColorFilter", pal.primary)
+    views.setTextColor(R.id.next_kicker, pal.muted)
+    views.setTextColor(R.id.next_msg, pal.ink)
+    if (scheme != null) {
+      views.setOnClickPendingIntent(R.id.next_root, uriPendingIntent(context, "$scheme:///?navTab=schedule", base))
+    } else {
+      views.setOnClickPendingIntent(R.id.next_root, launchPendingIntent(context, base))
+    }
+    if (snap == null || snap.optString("state") != "next") {
+      views.setViewVisibility(R.id.next_msg, View.VISIBLE)
+      views.setViewVisibility(R.id.next_chip, View.GONE)
+      if (full) {
+        views.setViewVisibility(R.id.next_rail, View.GONE)
+        views.setViewVisibility(R.id.next_footer, View.GONE)
+      } else {
+        views.setViewVisibility(R.id.nc_rows, View.GONE)
+      }
+      return views
+    }
+    views.setViewVisibility(R.id.next_msg, View.GONE)
+    views.setViewVisibility(R.id.next_chip, View.VISIBLE)
+    views.setInt(R.id.next_chip_img, "setColorFilter", pal.chip)
+    views.setTextViewText(R.id.next_left, "${snap.optInt("leftCount")} LEFT")
+    views.setTextColor(R.id.next_left, pal.onContainer)
+    val entries = mutableListOf<RailRow>()
+    val arr = snap.optJSONArray("entries")
+    if (arr != null) {
+      for (i in 0 until arr.length()) {
+        val e = arr.optJSONObject(i) ?: continue
+        when (e.optString("kind")) {
+          "done" -> entries.add(RailRow("done", e.optString("timeLabel"), e.optString("title"), "", 0, ""))
+          "gap" -> entries.add(RailRow("gap", "", "", "", 0, e.optString("text")))
+          "item" -> entries.add(
+            RailRow(
+              if (e.optBoolean("isHero")) "hero" else "item",
+              e.optString("timeLabel"),
+              e.optString("title"),
+              e.optString("sub"),
+              e.optInt("startMinutes"),
+              "",
+            ),
+          )
+        }
+      }
+    }
+    if (full) {
+      fillRailFull(context, views, entries, snap, pal)
+    } else {
+      fillRailCompact(views, entries, snap.optInt("leftCount"), pal)
+    }
+    return views
+  }
+
+  private fun fillRailFull(context: Context, views: RemoteViews, entries: List<RailRow>, snap: JSONObject, pal: WidgetPalette) {
+    // The display list: the done rows, then the renderer's own
+    // NOW row (device clock — after what is done, before what is
+    // next), then the hero and what follows it.
+    val rows = mutableListOf<RailRow>()
+    var nowPlaced = false
+    for (entry in entries) {
+      if (entry.kind != "done" && !nowPlaced) {
+        rows.add(RailRow("now", nowTimeLabel(), "NOW", "", 0, ""))
+        nowPlaced = true
+      }
+      rows.add(entry)
+    }
+    views.setViewVisibility(R.id.next_rail, View.VISIBLE)
+    for (slot in 0 until 9) {
+      val rowId = railId(context, "nx_row_${slot + 1}")
+      if (slot >= rows.size) {
+        views.setViewVisibility(rowId, View.GONE)
+        continue
+      }
+      fillRailSlot(context, views, slot + 1, rows[slot], slot == 0, slot == rows.size - 1, pal)
+    }
+    views.setViewVisibility(R.id.next_footer, View.VISIBLE)
+    views.setInt(R.id.next_foot_line, "setBackgroundColor", pal.track)
+    views.setTextColor(R.id.next_open, pal.primary)
+    val endNote = snap.optString("endNote")
+    if (endNote.isBlank()) {
+      views.setViewVisibility(R.id.next_endnote, View.GONE)
+    } else {
+      views.setViewVisibility(R.id.next_endnote, View.VISIBLE)
+      views.setTextViewText(R.id.next_endnote, endNote)
+      views.setTextColor(R.id.next_endnote, pal.muted)
+    }
+  }
+
+  private fun fillRailSlot(context: Context, views: RemoteViews, n: Int, row: RailRow, isFirst: Boolean, isLast: Boolean, pal: WidgetPalette) {
+    fun id(name: String) = railId(context, "nx_${name}_$n")
+    views.setViewVisibility(id("row"), View.VISIBLE)
+    // The rail line runs through the slot: segments in the track
+    // colour, the outer half dropped at the ends of the walk.
+    views.setInt(id("seg_top"), "setColorFilter", pal.track)
+    views.setViewVisibility(id("seg_top"), if (isFirst) View.GONE else View.VISIBLE)
+    views.setInt(id("seg_bot"), "setColorFilter", pal.track)
+    views.setViewVisibility(id("seg_bot"), if (isLast) View.GONE else View.VISIBLE)
+    // Reset the slot's faces first — kinds move between slots
+    // across renders and RemoteViews reuses the placed views.
+    views.setViewVisibility(id("line"), View.GONE)
+    views.setViewVisibility(id("gap"), View.GONE)
+    views.setViewVisibility(id("band"), View.GONE)
+    views.setViewVisibility(id("check"), View.GONE)
+    views.setViewVisibility(id("ring"), View.GONE)
+    views.setViewVisibility(id("dot_small"), View.GONE)
+    views.setViewVisibility(id("dot"), View.VISIBLE)
+    views.setInt(id("title"), "setPaintFlags", Paint.ANTI_ALIAS_FLAG)
+    views.setTextViewTextSize(id("title"), TypedValue.COMPLEX_UNIT_SP, 14.5f)
+    views.setTextViewText(id("time"), row.timeLabel)
+    when (row.kind) {
+      "done" -> {
+        // Muted, struck through, checked in the reached green.
+        views.setTextColor(id("time"), pal.muted)
+        views.setInt(id("dot"), "setColorFilter", pal.greenContainer)
+        views.setViewVisibility(id("line"), View.VISIBLE)
+        views.setTextViewText(id("title"), row.title)
+        views.setTextColor(id("title"), pal.muted)
+        views.setInt(id("title"), "setPaintFlags", Paint.ANTI_ALIAS_FLAG or Paint.STRIKE_THRU_TEXT_FLAG)
+        views.setTextViewText(id("sub"), "")
+        views.setViewVisibility(id("sub"), View.GONE)
+        views.setViewVisibility(id("check"), View.VISIBLE)
+        views.setImageViewBitmap(id("check"), checkBitmap(pal.green))
+      }
+      "now" -> {
+        views.setTextColor(id("time"), pal.primary)
+        views.setViewVisibility(id("ring"), View.VISIBLE)
+        views.setInt(id("ring"), "setColorFilter", pal.container)
+        views.setInt(id("dot"), "setColorFilter", pal.primary)
+        views.setViewVisibility(id("line"), View.VISIBLE)
+        views.setTextViewText(id("title"), "NOW")
+        views.setTextColor(id("title"), pal.primary)
+        views.setTextViewTextSize(id("title"), TypedValue.COMPLEX_UNIT_SP, 11f)
+        views.setTextViewText(id("sub"), "")
+        views.setViewVisibility(id("sub"), View.GONE)
+      }
+      "hero" -> {
+        views.setTextColor(id("time"), pal.onContainer)
+        views.setInt(id("dot"), "setColorFilter", pal.primary)
+        views.setViewVisibility(id("band"), View.VISIBLE)
+        views.setInt(id("band_img"), "setColorFilter", pal.container)
+        views.setTextViewText(id("htitle"), row.title)
+        views.setTextColor(id("htitle"), pal.ink)
+        if (row.sub.isBlank()) {
+          views.setViewVisibility(id("hsub"), View.GONE)
+        } else {
+          views.setViewVisibility(id("hsub"), View.VISIBLE)
+          views.setTextViewText(id("hsub"), row.sub)
+          views.setTextColor(id("hsub"), pal.body)
+        }
+        views.setInt(id("hchip_img"), "setColorFilter", pal.surface)
+        views.setTextViewText(id("hcount"), countdownText(row.startMinutes, nowMinutes()))
+        views.setTextColor(id("hcount"), pal.primary)
+      }
+      "gap" -> {
+        views.setTextColor(id("time"), pal.muted)
+        views.setViewVisibility(id("dot"), View.GONE)
+        views.setViewVisibility(id("dot_small"), View.VISIBLE)
+        views.setInt(id("dot_small"), "setColorFilter", pal.chip)
+        views.setViewVisibility(id("gap"), View.VISIBLE)
+        views.setTextViewText(id("gap"), row.gapText)
+        views.setTextColor(id("gap"), pal.muted)
+      }
+      else -> {
+        // A following item, plain: time, softened dot, title, sub.
+        views.setTextColor(id("time"), pal.muted)
+        views.setInt(id("dot"), "setColorFilter", blend(pal.primary, pal.surface, 0.6f))
+        views.setViewVisibility(id("line"), View.VISIBLE)
+        views.setTextViewText(id("title"), row.title)
+        views.setTextColor(id("title"), pal.ink)
+        if (row.sub.isBlank()) {
+          views.setViewVisibility(id("sub"), View.GONE)
+        } else {
+          views.setViewVisibility(id("sub"), View.VISIBLE)
+          views.setTextViewText(id("sub"), row.sub)
+          views.setTextColor(id("sub"), pal.muted)
+        }
+      }
+    }
+  }
+
+  /** The compact rail: header, the hero band, the gap after it,
+   *  and the next item carrying the "· then N more" count (N =
+   *  what is left after the hero, this item included — the
+   *  drawing's own arithmetic). No done / NOW rows, no footer. */
+  private fun fillRailCompact(views: RemoteViews, entries: List<RailRow>, leftCount: Int, pal: WidgetPalette) {
+    val heroIndex = entries.indexOfFirst { it.kind == "hero" }
+    val hero = entries.getOrNull(heroIndex)
+    if (hero == null) {
+      views.setViewVisibility(R.id.nc_rows, View.GONE)
+      return
+    }
+    views.setViewVisibility(R.id.nc_rows, View.VISIBLE)
+    val after = entries.drop(heroIndex + 1)
+    val gapAfter = after.firstOrNull()?.takeIf { it.kind == "gap" }
+    val nextItem = after.firstOrNull { it.kind == "item" }
+    views.setTextViewText(R.id.nc_time_h, hero.timeLabel)
+    views.setTextColor(R.id.nc_time_h, pal.onContainer)
+    views.setInt(R.id.nc_dot_h, "setColorFilter", pal.primary)
+    views.setInt(R.id.nc_seg_h, "setColorFilter", pal.track)
+    views.setViewVisibility(R.id.nc_seg_h, if (gapAfter != null || nextItem != null) View.VISIBLE else View.GONE)
+    views.setInt(R.id.nc_band_img, "setColorFilter", pal.container)
+    views.setTextViewText(R.id.nc_htitle, hero.title)
+    views.setTextColor(R.id.nc_htitle, pal.ink)
+    if (hero.sub.isBlank()) {
+      views.setViewVisibility(R.id.nc_hsub, View.GONE)
+    } else {
+      views.setViewVisibility(R.id.nc_hsub, View.VISIBLE)
+      views.setTextViewText(R.id.nc_hsub, "· ${hero.sub}")
+      views.setTextColor(R.id.nc_hsub, pal.body)
+    }
+    views.setInt(R.id.nc_hchip_img, "setColorFilter", pal.surface)
+    views.setTextViewText(R.id.nc_hcount, countdownText(hero.startMinutes, nowMinutes()))
+    views.setTextColor(R.id.nc_hcount, pal.primary)
+    if (gapAfter == null) {
+      views.setViewVisibility(R.id.nc_row_gap, View.GONE)
+    } else {
+      views.setViewVisibility(R.id.nc_row_gap, View.VISIBLE)
+      views.setInt(R.id.nc_dot_g, "setColorFilter", pal.chip)
+      views.setInt(R.id.nc_seg_g_top, "setColorFilter", pal.track)
+      views.setInt(R.id.nc_seg_g_bot, "setColorFilter", pal.track)
+      views.setViewVisibility(R.id.nc_seg_g_bot, if (nextItem != null) View.VISIBLE else View.GONE)
+      views.setTextViewText(R.id.nc_gap, gapAfter.gapText)
+      views.setTextColor(R.id.nc_gap, pal.muted)
+    }
+    if (nextItem == null) {
+      views.setViewVisibility(R.id.nc_row_item, View.GONE)
+    } else {
+      views.setViewVisibility(R.id.nc_row_item, View.VISIBLE)
+      views.setTextViewText(R.id.nc_time_i, nextItem.timeLabel)
+      views.setTextColor(R.id.nc_time_i, pal.muted)
+      views.setInt(R.id.nc_dot_i, "setColorFilter", blend(pal.primary, pal.surface, 0.6f))
+      views.setInt(R.id.nc_seg_i_top, "setColorFilter", pal.track)
+      views.setTextViewText(R.id.nc_title_i, nextItem.title)
+      views.setTextColor(R.id.nc_title_i, pal.ink)
+      val more = leftCount - 1
+      if (more >= 1) {
+        views.setViewVisibility(R.id.nc_sub_i, View.VISIBLE)
+        views.setTextViewText(R.id.nc_sub_i, "· then $more more")
+        views.setTextColor(R.id.nc_sub_i, pal.muted)
+      } else {
+        views.setViewVisibility(R.id.nc_sub_i, View.GONE)
+      }
+    }
   }
 
   // ─── 7. Pray Strip (v441, W-3 R-1) ────────────────────────────────────────
+  //
+  // v442: the rectangles' bodies are unchanged — only their paint
+  // source moves, from the snapshot palette to the render's
+  // effective palette (device colours first, steer 2).
 
   private val PS_SLOTS = intArrayOf(R.id.ps_face_1, R.id.ps_face_2, R.id.ps_face_3, R.id.ps_face_4, R.id.ps_face_5, R.id.ps_face_6)
   private val PS_RINGS = intArrayOf(R.id.ps_face_ring_1, R.id.ps_face_ring_2, R.id.ps_face_ring_3, R.id.ps_face_ring_4, R.id.ps_face_ring_5, R.id.ps_face_ring_6)
@@ -602,9 +1229,9 @@ object WidgetRenderer {
    * order, same overflow rule — five faces stand and the rest fold
    * into the +N slot (the big widget fits six; the strip is
    * narrower, so its fold starts one earlier). */
-  private fun renderPrayStrip(context: Context, views: RemoteViews, root: JSONObject?, scheme: String?) {
+  private fun renderPrayStrip(context: Context, root: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
+    val views = RemoteViews(context.packageName, R.layout.widget_pray_strip)
     val base = 700
-    val pal = paletteOf(root)
     val snap = root?.optJSONObject("prayToday")
     // The palette paints the whole card, quiet face included.
     views.setInt(R.id.ps_bg, "setColorFilter", pal.surface)
@@ -616,7 +1243,7 @@ object WidgetRenderer {
     val state = snap?.optString("state") ?: "no-queue"
     if (snap == null || state == "no-queue") {
       views.setOnClickPendingIntent(R.id.ps_root, launchPendingIntent(context, base))
-      return
+      return views
     }
     views.setTextViewText(R.id.ps_count, "${snap.optInt("prayed")} of ${snap.optInt("total")} prayed")
     val faces = snap.optJSONArray("faces") ?: JSONArray()
@@ -627,7 +1254,7 @@ object WidgetRenderer {
       views.setViewVisibility(R.id.ps_msg_title, View.VISIBLE)
       views.setViewVisibility(R.id.ps_msg_sub, View.GONE)
       views.setOnClickPendingIntent(R.id.ps_root, launchPendingIntent(context, base))
-      return
+      return views
     }
     views.setViewVisibility(R.id.ps_msg_title, View.GONE)
     views.setViewVisibility(R.id.ps_msg_sub, View.GONE)
@@ -637,6 +1264,7 @@ object WidgetRenderer {
       launchPendingIntent(context, base)
     }
     views.setOnClickPendingIntent(R.id.ps_root, tap)
+    return views
   }
 
   private fun fillStripFaces(
@@ -697,9 +1325,9 @@ object WidgetRenderer {
    * next person, their need composed the way the big widget
    * composes it (title, else the note line), and the same pray
    * deep link on the pill (and the card). */
-  private fun renderPrayNext(context: Context, views: RemoteViews, root: JSONObject?, scheme: String?) {
+  private fun renderPrayNext(context: Context, root: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
+    val views = RemoteViews(context.packageName, R.layout.widget_pray_next)
     val base = 800
-    val pal = paletteOf(root)
     val snap = root?.optJSONObject("prayToday")
     views.setInt(R.id.pn_bg, "setColorFilter", pal.surface)
     views.setTextColor(R.id.pn_msg_title, pal.ink)
@@ -709,7 +1337,7 @@ object WidgetRenderer {
       // No next person (empty queue, or the day complete): the
       // quiet face stands — msg is the layout default.
       views.setOnClickPendingIntent(R.id.pn_root, launchPendingIntent(context, base))
-      return
+      return views
     }
     views.setViewVisibility(R.id.pn_msg, View.GONE)
     views.setViewVisibility(R.id.pn_hero, View.VISIBLE)
@@ -740,6 +1368,7 @@ object WidgetRenderer {
     }
     views.setOnClickPendingIntent(R.id.pn_root, tap)
     views.setOnClickPendingIntent(R.id.pn_pill, tap)
+    return views
   }
 
   // ─── 9. Reach Pair (v441, W-3 R-3) ────────────────────────────────────────
@@ -754,9 +1383,9 @@ object WidgetRenderer {
    * snapshot's lead + second), each with its "{days} days" chip in
    * the reached green's kind-tones. One due: the second column
    * hides and the spacers show, centring the lead. */
-  private fun renderReachPair(context: Context, views: RemoteViews, root: JSONObject?, scheme: String?) {
+  private fun renderReachPair(context: Context, root: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
+    val views = RemoteViews(context.packageName, R.layout.widget_reach_pair)
     val base = 900
-    val pal = paletteOf(root)
     val snap = root?.optJSONObject("reachOut")
     views.setInt(R.id.rp_bg, "setColorFilter", pal.surface)
     views.setInt(R.id.rp_dot, "setColorFilter", pal.green)
@@ -769,8 +1398,8 @@ object WidgetRenderer {
       launchPendingIntent(context, base)
     }
     views.setOnClickPendingIntent(R.id.rp_root, tap)
-    if (snap == null || snap.optString("state") != "due") return
-    val lead = snap.optJSONObject("lead") ?: return
+    if (snap == null || snap.optString("state") != "due") return views
+    val lead = snap.optJSONObject("lead") ?: return views
     views.setViewVisibility(R.id.rp_msg_title, View.GONE)
     views.setViewVisibility(R.id.rp_msg_sub, View.GONE)
     views.setViewVisibility(R.id.rp_pair, View.VISIBLE)
@@ -795,6 +1424,7 @@ object WidgetRenderer {
       views.setViewVisibility(R.id.rp_sp_1, View.VISIBLE)
       views.setViewVisibility(R.id.rp_sp_2, View.VISIBLE)
     }
+    return views
   }
 
   // ─── Runtime-drawn glyphs (v439) ──────────────────────────────────────────

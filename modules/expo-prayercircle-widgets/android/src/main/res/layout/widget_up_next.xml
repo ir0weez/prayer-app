@@ -1,114 +1,2128 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Up Next — wide. XML defaults are the quiet face ("Nothing left
-     today"). The time wears its pill as a TextView background (a
-     compiled drawable); the open-time line rides under a hairline. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Up Next — the DAY RAIL (W-6, Option A, his final pick), full
+     (tall) layout. The day itself on a rail: done entries (muted,
+     struck through, green check), the renderer's NOW row, the
+     hero in its container band with the countdown chip, the open
+     gaps, and what's still coming — over a footer with the
+     day's end note. Nine fixed row slots (the classic RemoteViews
+     pattern): the renderer composes its display list (snapshot
+     entries + the NOW row) into them in order, tinting each
+     row's rail segments from the effective palette's track —
+     first row loses its top half, last row its bottom half.
+     Short placements render widget_up_next_compact instead.
+     XML defaults are the quiet face in Classic-light values. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/next_root"
   android:layout_width="match_parent"
-  android:layout_height="match_parent"
-  android:background="@drawable/widget_bg"
-  android:orientation="vertical"
-  android:padding="16dp">
+  android:layout_height="match_parent">
+
+  <ImageView
+    android:id="@+id/next_bg"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:contentDescription="@null"
+    android:scaleType="fitXY"
+    android:src="@drawable/widget_shape_white_28"
+    android:tint="#F7F3FE" />
 
   <LinearLayout
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:gravity="center_vertical"
-    android:orientation="horizontal">
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
 
-    <ImageView
-      android:layout_width="8dp"
-      android:layout_height="8dp"
-      android:contentDescription="@null"
-      android:src="@drawable/widget_circle_white"
-      android:tint="#A78BFA" />
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:gravity="center_vertical"
+      android:orientation="horizontal">
+
+      <ImageView
+        android:id="@+id/next_dot"
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:contentDescription="@null"
+        android:src="@drawable/widget_circle_white"
+        android:tint="#6D4BD8" />
+
+      <TextView
+        android:id="@+id/next_kicker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="7dp"
+        android:letterSpacing="0.14"
+        android:text="UP NEXT · TODAY"
+        android:textColor="#7A72A0"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+      <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1" />
+
+      <FrameLayout
+        android:id="@+id/next_chip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <ImageView
+          android:id="@+id/next_chip_img"
+          android:layout_width="match_parent"
+          android:layout_height="match_parent"
+          android:contentDescription="@null"
+          android:scaleType="fitXY"
+          android:src="@drawable/widget_pill_white" />
+
+        <TextView
+          android:id="@+id/next_left"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:paddingStart="10dp"
+          android:paddingTop="4dp"
+          android:paddingEnd="10dp"
+          android:paddingBottom="4dp"
+          android:textColor="#2A1666"
+          android:textSize="12sp"
+          android:textStyle="bold" />
+      </FrameLayout>
+    </LinearLayout>
 
     <TextView
+      android:id="@+id/next_msg"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:layout_marginStart="7dp"
-      android:letterSpacing="0.14"
-      android:text="UP NEXT · TODAY"
-      android:textColor="#AAA2C6"
-      android:textSize="11sp"
-      android:textStyle="bold" />
-  </LinearLayout>
-
-  <TextView
-    android:id="@+id/next_msg"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="10dp"
-    android:text="Nothing left today"
-    android:textColor="#F4F1FD"
-    android:textSize="16sp"
-    android:textStyle="bold" />
-
-  <LinearLayout
-    android:id="@+id/next_main"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="10dp"
-    android:gravity="top"
-    android:orientation="horizontal"
-    android:visibility="gone">
-
-    <TextView
-      android:id="@+id/next_time"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:background="@drawable/widget_pill_deep"
-      android:paddingStart="11dp"
-      android:paddingTop="5dp"
-      android:paddingEnd="11dp"
-      android:paddingBottom="5dp"
-      android:textColor="#A78BFA"
-      android:textSize="12sp"
+      android:layout_marginTop="10dp"
+      android:text="Nothing left today"
+      android:textColor="#221A3E"
+      android:textSize="16sp"
       android:textStyle="bold" />
 
     <LinearLayout
-      android:layout_width="0dp"
-      android:layout_height="wrap_content"
-      android:layout_marginStart="12dp"
+      android:id="@+id/next_rail"
+      android:layout_width="match_parent"
+      android:layout_height="0dp"
+      android:layout_marginTop="6dp"
       android:layout_weight="1"
-      android:orientation="vertical">
+      android:orientation="vertical"
+      android:visibility="gone">
 
-      <TextView
-        android:id="@+id/next_title"
+      <FrameLayout
+        android:id="@+id/nx_row_1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:maxLines="2"
-        android:textColor="#F4F1FD"
-        android:textSize="17sp"
-        android:textStyle="bold" />
+        android:visibility="gone">
 
-      <TextView
-        android:id="@+id/next_line"
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="54dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/nx_seg_top_1"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/nx_ring_1"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/nx_dot_1"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+
+            <ImageView
+              android:id="@+id/nx_dot_small_1"
+              android:layout_width="7dp"
+              android:layout_height="7dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_seg_bot_1"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <TextView
+            android:id="@+id/nx_time_1"
+            android:layout_width="54dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="#7A72A0"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/nx_line_1"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center_vertical"
+              android:orientation="horizontal"
+              android:paddingTop="8dp"
+              android:paddingBottom="8dp">
+
+              <TextView
+                android:id="@+id/nx_title_1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#221A3E"
+                android:textSize="14.5sp"
+                android:textStyle="bold" />
+
+              <TextView
+                android:id="@+id/nx_sub_1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#7A72A0"
+                android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+              android:id="@+id/nx_gap_1"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:paddingTop="5dp"
+              android:paddingBottom="5dp"
+              android:textColor="#7A72A0"
+              android:textSize="12.5sp"
+              android:textStyle="bold"
+              android:visibility="gone" />
+
+            <FrameLayout
+              android:id="@+id/nx_band_1"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_band_img_1"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="11dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="11dp">
+
+                <LinearLayout
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:orientation="vertical">
+
+                  <TextView
+                    android:id="@+id/nx_htitle_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#221A3E"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+
+                  <TextView
+                    android:id="@+id/nx_hsub_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#4A4270"
+                    android:textSize="13sp" />
+                </LinearLayout>
+
+                <FrameLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginStart="10dp">
+
+                  <ImageView
+                    android:id="@+id/nx_hchip_img_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_pill_white" />
+
+                  <TextView
+                    android:id="@+id/nx_hcount_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="5dp"
+                    android:textColor="#6D4BD8"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+                </FrameLayout>
+              </LinearLayout>
+            </FrameLayout>
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_check_1"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
+      <FrameLayout
+        android:id="@+id/nx_row_2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:layout_marginTop="2dp"
-        android:maxLines="1"
-        android:textColor="#D8D2F2"
-        android:textSize="13sp" />
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="54dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/nx_seg_top_2"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/nx_ring_2"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/nx_dot_2"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+
+            <ImageView
+              android:id="@+id/nx_dot_small_2"
+              android:layout_width="7dp"
+              android:layout_height="7dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_seg_bot_2"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <TextView
+            android:id="@+id/nx_time_2"
+            android:layout_width="54dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="#7A72A0"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/nx_line_2"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center_vertical"
+              android:orientation="horizontal"
+              android:paddingTop="8dp"
+              android:paddingBottom="8dp">
+
+              <TextView
+                android:id="@+id/nx_title_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#221A3E"
+                android:textSize="14.5sp"
+                android:textStyle="bold" />
+
+              <TextView
+                android:id="@+id/nx_sub_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#7A72A0"
+                android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+              android:id="@+id/nx_gap_2"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:paddingTop="5dp"
+              android:paddingBottom="5dp"
+              android:textColor="#7A72A0"
+              android:textSize="12.5sp"
+              android:textStyle="bold"
+              android:visibility="gone" />
+
+            <FrameLayout
+              android:id="@+id/nx_band_2"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_band_img_2"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="11dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="11dp">
+
+                <LinearLayout
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:orientation="vertical">
+
+                  <TextView
+                    android:id="@+id/nx_htitle_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#221A3E"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+
+                  <TextView
+                    android:id="@+id/nx_hsub_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#4A4270"
+                    android:textSize="13sp" />
+                </LinearLayout>
+
+                <FrameLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginStart="10dp">
+
+                  <ImageView
+                    android:id="@+id/nx_hchip_img_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_pill_white" />
+
+                  <TextView
+                    android:id="@+id/nx_hcount_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="5dp"
+                    android:textColor="#6D4BD8"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+                </FrameLayout>
+              </LinearLayout>
+            </FrameLayout>
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_check_2"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
+      <FrameLayout
+        android:id="@+id/nx_row_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="54dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/nx_seg_top_3"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/nx_ring_3"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/nx_dot_3"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+
+            <ImageView
+              android:id="@+id/nx_dot_small_3"
+              android:layout_width="7dp"
+              android:layout_height="7dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_seg_bot_3"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <TextView
+            android:id="@+id/nx_time_3"
+            android:layout_width="54dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="#7A72A0"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/nx_line_3"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center_vertical"
+              android:orientation="horizontal"
+              android:paddingTop="8dp"
+              android:paddingBottom="8dp">
+
+              <TextView
+                android:id="@+id/nx_title_3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#221A3E"
+                android:textSize="14.5sp"
+                android:textStyle="bold" />
+
+              <TextView
+                android:id="@+id/nx_sub_3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#7A72A0"
+                android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+              android:id="@+id/nx_gap_3"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:paddingTop="5dp"
+              android:paddingBottom="5dp"
+              android:textColor="#7A72A0"
+              android:textSize="12.5sp"
+              android:textStyle="bold"
+              android:visibility="gone" />
+
+            <FrameLayout
+              android:id="@+id/nx_band_3"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_band_img_3"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="11dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="11dp">
+
+                <LinearLayout
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:orientation="vertical">
+
+                  <TextView
+                    android:id="@+id/nx_htitle_3"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#221A3E"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+
+                  <TextView
+                    android:id="@+id/nx_hsub_3"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#4A4270"
+                    android:textSize="13sp" />
+                </LinearLayout>
+
+                <FrameLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginStart="10dp">
+
+                  <ImageView
+                    android:id="@+id/nx_hchip_img_3"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_pill_white" />
+
+                  <TextView
+                    android:id="@+id/nx_hcount_3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="5dp"
+                    android:textColor="#6D4BD8"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+                </FrameLayout>
+              </LinearLayout>
+            </FrameLayout>
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_check_3"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
+      <FrameLayout
+        android:id="@+id/nx_row_4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="54dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/nx_seg_top_4"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/nx_ring_4"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/nx_dot_4"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+
+            <ImageView
+              android:id="@+id/nx_dot_small_4"
+              android:layout_width="7dp"
+              android:layout_height="7dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_seg_bot_4"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <TextView
+            android:id="@+id/nx_time_4"
+            android:layout_width="54dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="#7A72A0"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/nx_line_4"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center_vertical"
+              android:orientation="horizontal"
+              android:paddingTop="8dp"
+              android:paddingBottom="8dp">
+
+              <TextView
+                android:id="@+id/nx_title_4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#221A3E"
+                android:textSize="14.5sp"
+                android:textStyle="bold" />
+
+              <TextView
+                android:id="@+id/nx_sub_4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#7A72A0"
+                android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+              android:id="@+id/nx_gap_4"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:paddingTop="5dp"
+              android:paddingBottom="5dp"
+              android:textColor="#7A72A0"
+              android:textSize="12.5sp"
+              android:textStyle="bold"
+              android:visibility="gone" />
+
+            <FrameLayout
+              android:id="@+id/nx_band_4"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_band_img_4"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="11dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="11dp">
+
+                <LinearLayout
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:orientation="vertical">
+
+                  <TextView
+                    android:id="@+id/nx_htitle_4"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#221A3E"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+
+                  <TextView
+                    android:id="@+id/nx_hsub_4"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#4A4270"
+                    android:textSize="13sp" />
+                </LinearLayout>
+
+                <FrameLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginStart="10dp">
+
+                  <ImageView
+                    android:id="@+id/nx_hchip_img_4"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_pill_white" />
+
+                  <TextView
+                    android:id="@+id/nx_hcount_4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="5dp"
+                    android:textColor="#6D4BD8"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+                </FrameLayout>
+              </LinearLayout>
+            </FrameLayout>
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_check_4"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
+      <FrameLayout
+        android:id="@+id/nx_row_5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="54dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/nx_seg_top_5"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/nx_ring_5"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/nx_dot_5"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+
+            <ImageView
+              android:id="@+id/nx_dot_small_5"
+              android:layout_width="7dp"
+              android:layout_height="7dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_seg_bot_5"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <TextView
+            android:id="@+id/nx_time_5"
+            android:layout_width="54dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="#7A72A0"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/nx_line_5"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center_vertical"
+              android:orientation="horizontal"
+              android:paddingTop="8dp"
+              android:paddingBottom="8dp">
+
+              <TextView
+                android:id="@+id/nx_title_5"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#221A3E"
+                android:textSize="14.5sp"
+                android:textStyle="bold" />
+
+              <TextView
+                android:id="@+id/nx_sub_5"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#7A72A0"
+                android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+              android:id="@+id/nx_gap_5"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:paddingTop="5dp"
+              android:paddingBottom="5dp"
+              android:textColor="#7A72A0"
+              android:textSize="12.5sp"
+              android:textStyle="bold"
+              android:visibility="gone" />
+
+            <FrameLayout
+              android:id="@+id/nx_band_5"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_band_img_5"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="11dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="11dp">
+
+                <LinearLayout
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:orientation="vertical">
+
+                  <TextView
+                    android:id="@+id/nx_htitle_5"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#221A3E"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+
+                  <TextView
+                    android:id="@+id/nx_hsub_5"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#4A4270"
+                    android:textSize="13sp" />
+                </LinearLayout>
+
+                <FrameLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginStart="10dp">
+
+                  <ImageView
+                    android:id="@+id/nx_hchip_img_5"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_pill_white" />
+
+                  <TextView
+                    android:id="@+id/nx_hcount_5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="5dp"
+                    android:textColor="#6D4BD8"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+                </FrameLayout>
+              </LinearLayout>
+            </FrameLayout>
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_check_5"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
+      <FrameLayout
+        android:id="@+id/nx_row_6"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="54dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/nx_seg_top_6"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/nx_ring_6"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/nx_dot_6"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+
+            <ImageView
+              android:id="@+id/nx_dot_small_6"
+              android:layout_width="7dp"
+              android:layout_height="7dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_seg_bot_6"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <TextView
+            android:id="@+id/nx_time_6"
+            android:layout_width="54dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="#7A72A0"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/nx_line_6"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center_vertical"
+              android:orientation="horizontal"
+              android:paddingTop="8dp"
+              android:paddingBottom="8dp">
+
+              <TextView
+                android:id="@+id/nx_title_6"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#221A3E"
+                android:textSize="14.5sp"
+                android:textStyle="bold" />
+
+              <TextView
+                android:id="@+id/nx_sub_6"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#7A72A0"
+                android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+              android:id="@+id/nx_gap_6"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:paddingTop="5dp"
+              android:paddingBottom="5dp"
+              android:textColor="#7A72A0"
+              android:textSize="12.5sp"
+              android:textStyle="bold"
+              android:visibility="gone" />
+
+            <FrameLayout
+              android:id="@+id/nx_band_6"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_band_img_6"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="11dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="11dp">
+
+                <LinearLayout
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:orientation="vertical">
+
+                  <TextView
+                    android:id="@+id/nx_htitle_6"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#221A3E"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+
+                  <TextView
+                    android:id="@+id/nx_hsub_6"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#4A4270"
+                    android:textSize="13sp" />
+                </LinearLayout>
+
+                <FrameLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginStart="10dp">
+
+                  <ImageView
+                    android:id="@+id/nx_hchip_img_6"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_pill_white" />
+
+                  <TextView
+                    android:id="@+id/nx_hcount_6"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="5dp"
+                    android:textColor="#6D4BD8"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+                </FrameLayout>
+              </LinearLayout>
+            </FrameLayout>
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_check_6"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
+      <FrameLayout
+        android:id="@+id/nx_row_7"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="54dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/nx_seg_top_7"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/nx_ring_7"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/nx_dot_7"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+
+            <ImageView
+              android:id="@+id/nx_dot_small_7"
+              android:layout_width="7dp"
+              android:layout_height="7dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_seg_bot_7"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <TextView
+            android:id="@+id/nx_time_7"
+            android:layout_width="54dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="#7A72A0"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/nx_line_7"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center_vertical"
+              android:orientation="horizontal"
+              android:paddingTop="8dp"
+              android:paddingBottom="8dp">
+
+              <TextView
+                android:id="@+id/nx_title_7"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#221A3E"
+                android:textSize="14.5sp"
+                android:textStyle="bold" />
+
+              <TextView
+                android:id="@+id/nx_sub_7"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#7A72A0"
+                android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+              android:id="@+id/nx_gap_7"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:paddingTop="5dp"
+              android:paddingBottom="5dp"
+              android:textColor="#7A72A0"
+              android:textSize="12.5sp"
+              android:textStyle="bold"
+              android:visibility="gone" />
+
+            <FrameLayout
+              android:id="@+id/nx_band_7"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_band_img_7"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="11dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="11dp">
+
+                <LinearLayout
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:orientation="vertical">
+
+                  <TextView
+                    android:id="@+id/nx_htitle_7"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#221A3E"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+
+                  <TextView
+                    android:id="@+id/nx_hsub_7"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#4A4270"
+                    android:textSize="13sp" />
+                </LinearLayout>
+
+                <FrameLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginStart="10dp">
+
+                  <ImageView
+                    android:id="@+id/nx_hchip_img_7"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_pill_white" />
+
+                  <TextView
+                    android:id="@+id/nx_hcount_7"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="5dp"
+                    android:textColor="#6D4BD8"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+                </FrameLayout>
+              </LinearLayout>
+            </FrameLayout>
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_check_7"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
+      <FrameLayout
+        android:id="@+id/nx_row_8"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="54dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/nx_seg_top_8"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/nx_ring_8"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/nx_dot_8"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+
+            <ImageView
+              android:id="@+id/nx_dot_small_8"
+              android:layout_width="7dp"
+              android:layout_height="7dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_seg_bot_8"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <TextView
+            android:id="@+id/nx_time_8"
+            android:layout_width="54dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="#7A72A0"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/nx_line_8"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center_vertical"
+              android:orientation="horizontal"
+              android:paddingTop="8dp"
+              android:paddingBottom="8dp">
+
+              <TextView
+                android:id="@+id/nx_title_8"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#221A3E"
+                android:textSize="14.5sp"
+                android:textStyle="bold" />
+
+              <TextView
+                android:id="@+id/nx_sub_8"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#7A72A0"
+                android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+              android:id="@+id/nx_gap_8"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:paddingTop="5dp"
+              android:paddingBottom="5dp"
+              android:textColor="#7A72A0"
+              android:textSize="12.5sp"
+              android:textStyle="bold"
+              android:visibility="gone" />
+
+            <FrameLayout
+              android:id="@+id/nx_band_8"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_band_img_8"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="11dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="11dp">
+
+                <LinearLayout
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:orientation="vertical">
+
+                  <TextView
+                    android:id="@+id/nx_htitle_8"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#221A3E"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+
+                  <TextView
+                    android:id="@+id/nx_hsub_8"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#4A4270"
+                    android:textSize="13sp" />
+                </LinearLayout>
+
+                <FrameLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginStart="10dp">
+
+                  <ImageView
+                    android:id="@+id/nx_hchip_img_8"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_pill_white" />
+
+                  <TextView
+                    android:id="@+id/nx_hcount_8"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="5dp"
+                    android:textColor="#6D4BD8"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+                </FrameLayout>
+              </LinearLayout>
+            </FrameLayout>
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_check_8"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
+      <FrameLayout
+        android:id="@+id/nx_row_9"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="54dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/nx_seg_top_9"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/nx_ring_9"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/nx_dot_9"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+
+            <ImageView
+              android:id="@+id/nx_dot_small_9"
+              android:layout_width="7dp"
+              android:layout_height="7dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_seg_bot_9"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <TextView
+            android:id="@+id/nx_time_9"
+            android:layout_width="54dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="#7A72A0"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/nx_line_9"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center_vertical"
+              android:orientation="horizontal"
+              android:paddingTop="8dp"
+              android:paddingBottom="8dp">
+
+              <TextView
+                android:id="@+id/nx_title_9"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#221A3E"
+                android:textSize="14.5sp"
+                android:textStyle="bold" />
+
+              <TextView
+                android:id="@+id/nx_sub_9"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#7A72A0"
+                android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+              android:id="@+id/nx_gap_9"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:paddingTop="5dp"
+              android:paddingBottom="5dp"
+              android:textColor="#7A72A0"
+              android:textSize="12.5sp"
+              android:textStyle="bold"
+              android:visibility="gone" />
+
+            <FrameLayout
+              android:id="@+id/nx_band_9"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/nx_band_img_9"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="11dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="11dp">
+
+                <LinearLayout
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:orientation="vertical">
+
+                  <TextView
+                    android:id="@+id/nx_htitle_9"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#221A3E"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+
+                  <TextView
+                    android:id="@+id/nx_hsub_9"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#4A4270"
+                    android:textSize="13sp" />
+                </LinearLayout>
+
+                <FrameLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginStart="10dp">
+
+                  <ImageView
+                    android:id="@+id/nx_hchip_img_9"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_pill_white" />
+
+                  <TextView
+                    android:id="@+id/nx_hcount_9"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="5dp"
+                    android:textColor="#6D4BD8"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+                </FrameLayout>
+              </LinearLayout>
+            </FrameLayout>
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/nx_check_9"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+        </LinearLayout>
+      </FrameLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+      android:id="@+id/next_footer"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="vertical"
+      android:visibility="gone">
+
+      <FrameLayout
+        android:id="@+id/next_foot_line"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0D8F5" />
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+          android:id="@+id/next_open"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="Open schedule"
+          android:textColor="#6D4BD8"
+          android:textSize="13.5sp"
+          android:textStyle="bold" />
+
+        <FrameLayout
+          android:layout_width="0dp"
+          android:layout_height="1dp"
+          android:layout_weight="1" />
+
+        <TextView
+          android:id="@+id/next_endnote"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:textColor="#7A72A0"
+          android:textSize="12sp"
+          android:textStyle="bold" />
+      </LinearLayout>
     </LinearLayout>
   </LinearLayout>
-
-  <FrameLayout
-    android:id="@+id/next_divider"
-    android:layout_width="match_parent"
-    android:layout_height="1dp"
-    android:layout_marginTop="11dp"
-    android:background="#3A2F63"
-    android:visibility="gone" />
-
-  <TextView
-    android:id="@+id/next_then"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="9dp"
-    android:textColor="#AAA2C6"
-    android:textSize="12.5sp"
-    android:visibility="gone" />
-</LinearLayout>
+</FrameLayout>

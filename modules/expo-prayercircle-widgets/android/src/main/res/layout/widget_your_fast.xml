@@ -1,116 +1,158 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Your Fast — half-width. XML defaults are the quiet face ("No
-     fast running"). Six fixed heart slots, tinted lit/resting by
-     the provider; the whole row hides when the snapshot carries no
-     XP state (hearts are never faked). -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Your Fast — 2x2, v442 redesign (W-4 D-3, Expressive register).
+     The day number owns the card (38sp); the bottom is spent on
+     the hearts and the fast's progress bar (an ImageView the
+     renderer draws in-process — barBitmap — never a bar element).
+     Dress is the effective palette, painted at render over the
+     white card shape; XML defaults are the quiet face in the
+     Classic-light values. Hearts are runtime bitmaps too (v439),
+     tinted by the palette now: lit = primary, resting = chip. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/fast_root"
   android:layout_width="match_parent"
-  android:layout_height="match_parent"
-  android:background="@drawable/widget_bg"
-  android:orientation="vertical"
-  android:padding="14dp">
+  android:layout_height="match_parent">
+
+  <ImageView
+    android:id="@+id/fast_bg"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:contentDescription="@null"
+    android:scaleType="fitXY"
+    android:src="@drawable/widget_shape_white_28"
+    android:tint="#F7F3FE" />
 
   <LinearLayout
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:gravity="center_vertical"
-    android:orientation="horizontal">
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
 
-    <ImageView
-      android:layout_width="8dp"
-      android:layout_height="8dp"
-      android:contentDescription="@null"
-      android:src="@drawable/widget_circle_white"
-      android:tint="#A78BFA" />
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:gravity="center_vertical"
+      android:orientation="horizontal">
+
+      <ImageView
+        android:id="@+id/fast_dot"
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:contentDescription="@null"
+        android:src="@drawable/widget_circle_white"
+        android:tint="#6D4BD8" />
+
+      <TextView
+        android:id="@+id/fast_kicker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="7dp"
+        android:letterSpacing="0.14"
+        android:text="YOUR FAST"
+        android:textColor="#7A72A0"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+    </LinearLayout>
 
     <TextView
+      android:id="@+id/fast_msg"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:layout_marginStart="7dp"
-      android:letterSpacing="0.14"
-      android:text="YOUR FAST"
-      android:textColor="#AAA2C6"
-      android:textSize="11sp"
+      android:layout_marginTop="10dp"
+      android:text="No fast running"
+      android:textColor="#221A3E"
+      android:textSize="15sp"
       android:textStyle="bold" />
+
+    <TextView
+      android:id="@+id/fast_day"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="7dp"
+      android:textColor="#221A3E"
+      android:textSize="38sp"
+      android:textStyle="bold"
+      android:visibility="gone" />
+
+    <TextView
+      android:id="@+id/fast_name"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="2dp"
+      android:ellipsize="end"
+      android:maxLines="2"
+      android:textColor="#4A4270"
+      android:textSize="13sp"
+      android:visibility="gone" />
+
+    <TextView
+      android:id="@+id/fast_of"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:textColor="#7A72A0"
+      android:textSize="12.5sp"
+      android:visibility="gone" />
+
+    <FrameLayout
+      android:layout_width="match_parent"
+      android:layout_height="0dp"
+      android:layout_weight="1" />
+
+    <LinearLayout
+      android:id="@+id/fast_hearts"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:visibility="gone">
+
+      <ImageView
+        android:id="@+id/fast_heart_1"
+        android:layout_width="19dp"
+        android:layout_height="19dp"
+        android:layout_marginEnd="5dp"
+        android:contentDescription="@null" />
+
+      <ImageView
+        android:id="@+id/fast_heart_2"
+        android:layout_width="19dp"
+        android:layout_height="19dp"
+        android:layout_marginEnd="5dp"
+        android:contentDescription="@null" />
+
+      <ImageView
+        android:id="@+id/fast_heart_3"
+        android:layout_width="19dp"
+        android:layout_height="19dp"
+        android:layout_marginEnd="5dp"
+        android:contentDescription="@null" />
+
+      <ImageView
+        android:id="@+id/fast_heart_4"
+        android:layout_width="19dp"
+        android:layout_height="19dp"
+        android:layout_marginEnd="5dp"
+        android:contentDescription="@null" />
+
+      <ImageView
+        android:id="@+id/fast_heart_5"
+        android:layout_width="19dp"
+        android:layout_height="19dp"
+        android:layout_marginEnd="5dp"
+        android:contentDescription="@null" />
+
+      <ImageView
+        android:id="@+id/fast_heart_6"
+        android:layout_width="19dp"
+        android:layout_height="19dp"
+        android:contentDescription="@null" />
+    </LinearLayout>
+
+    <ImageView
+      android:id="@+id/fast_daybar"
+      android:layout_width="match_parent"
+      android:layout_height="6dp"
+      android:layout_marginTop="10dp"
+      android:contentDescription="@null"
+      android:scaleType="fitXY"
+      android:visibility="gone" />
   </LinearLayout>
-
-  <TextView
-    android:id="@+id/fast_msg"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="10dp"
-    android:text="No fast running"
-    android:textColor="#F4F1FD"
-    android:textSize="15sp"
-    android:textStyle="bold" />
-
-  <TextView
-    android:id="@+id/fast_day"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="7dp"
-    android:textColor="#F4F1FD"
-    android:textSize="32sp"
-    android:textStyle="bold"
-    android:visibility="gone" />
-
-  <TextView
-    android:id="@+id/fast_name"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="2dp"
-    android:ellipsize="end"
-    android:maxLines="2"
-    android:textColor="#AAA2C6"
-    android:textSize="12sp"
-    android:visibility="gone" />
-
-  <LinearLayout
-    android:id="@+id/fast_hearts"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="9dp"
-    android:orientation="horizontal"
-    android:visibility="gone">
-
-    <ImageView
-      android:id="@+id/fast_heart_1"
-      android:layout_width="16dp"
-      android:layout_height="16dp"
-      android:layout_marginEnd="4dp"
-      android:contentDescription="@null" />
-
-    <ImageView
-      android:id="@+id/fast_heart_2"
-      android:layout_width="16dp"
-      android:layout_height="16dp"
-      android:layout_marginEnd="4dp"
-      android:contentDescription="@null" />
-
-    <ImageView
-      android:id="@+id/fast_heart_3"
-      android:layout_width="16dp"
-      android:layout_height="16dp"
-      android:contentDescription="@null" />
-
-    <ImageView
-      android:id="@+id/fast_heart_4"
-      android:layout_width="16dp"
-      android:layout_height="16dp"
-      android:contentDescription="@null" />
-
-    <ImageView
-      android:id="@+id/fast_heart_5"
-      android:layout_width="16dp"
-      android:layout_height="16dp"
-      android:layout_marginEnd="4dp"
-      android:contentDescription="@null" />
-
-    <ImageView
-      android:id="@+id/fast_heart_6"
-      android:layout_width="16dp"
-      android:layout_height="16dp"
-      android:contentDescription="@null" />
-  </LinearLayout>
-</LinearLayout>
+</FrameLayout>

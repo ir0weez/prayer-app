@@ -184,7 +184,11 @@ describe("v438 native renderer", () => {
     expect(renderer).toContain('"setColorFilter"');
     // Study's book colour comes from the snapshot's ROYGBIV set.
     expect(renderer).toContain('optString("colorPrimary")');
-    expect(renderer).toContain('optString("colorTint")');
+    // v442 amendment: the card surface is palette-painted now, so
+    // the book tint no longer dresses it — the ROYGBIV hue survives
+    // on the tile and the progress bar via the snapshot's bookColor
+    // (colorPrimary remains the fallback read, pinned above).
+    expect(renderer).toContain('optString("bookColor")');
     // Emergency keeps its red family via the gradient background swap.
     expect(renderer).toContain("R.drawable.widget_bg_emergency");
     const emergencyBg = read(`${MODULE_RES}/drawable/widget_bg_emergency.xml`);

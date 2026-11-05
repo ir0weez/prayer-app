@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Your Study — wide, in the current book's colour. The root is a
-     tint layer: a white rounded-rect ImageView painted with the
-     book's dark tint via setColorFilter (default #2C2140 in XML),
-     the content over it. XML defaults are the quiet face ("No book
-     underway"). Rows beyond the verse (last written / restudy) are
-     fixed slots the provider hides when the snapshot carries none
-     — or when the placed height is too short to hold them. -->
+<!-- Your Study — v442 redesign (W-4 D-6). The card wears the
+     effective palette's surface; the BOOK's ROYGBIV colour (a
+     meaning hue, from the snapshot — never the palette) survives
+     on the header dot, the book tile and the progress bar. The
+     bar is an ImageView drawn in-process (barBitmap). The tile
+     is the squarer 16dp-radius shape (Expressive steer). XML
+     defaults are the quiet face in the Classic-light values. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/study_root"
   android:layout_width="match_parent"
@@ -17,14 +17,14 @@
     android:layout_height="match_parent"
     android:contentDescription="@null"
     android:scaleType="fitXY"
-    android:src="@drawable/widget_shape_white"
-    android:tint="#2C2140" />
+    android:src="@drawable/widget_shape_white_28"
+    android:tint="#F7F3FE" />
 
   <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="14dp">
+    android:padding="16dp">
 
     <LinearLayout
       android:layout_width="match_parent"
@@ -38,15 +38,16 @@
         android:layout_height="8dp"
         android:contentDescription="@null"
         android:src="@drawable/widget_circle_white"
-        android:tint="#A78BFA" />
+        android:tint="#C23B2E" />
 
       <TextView
+        android:id="@+id/study_kicker"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="7dp"
         android:letterSpacing="0.14"
         android:text="YOUR STUDY"
-        android:textColor="#DDD6F5"
+        android:textColor="#7A72A0"
         android:textSize="11sp"
         android:textStyle="bold" />
     </LinearLayout>
@@ -57,7 +58,7 @@
       android:layout_height="wrap_content"
       android:layout_marginTop="10dp"
       android:text="No book underway"
-      android:textColor="#F4F1FD"
+      android:textColor="#221A3E"
       android:textSize="16sp"
       android:textStyle="bold" />
 
@@ -65,21 +66,21 @@
       android:id="@+id/study_main"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:layout_marginTop="10dp"
-      android:gravity="top"
+      android:layout_marginTop="13dp"
+      android:gravity="center_vertical"
       android:orientation="horizontal"
       android:visibility="gone">
 
       <FrameLayout
-        android:layout_width="46dp"
-        android:layout_height="46dp">
+        android:layout_width="54dp"
+        android:layout_height="54dp">
 
         <ImageView
           android:id="@+id/study_tile"
-          android:layout_width="46dp"
-          android:layout_height="46dp"
+          android:layout_width="54dp"
+          android:layout_height="54dp"
           android:contentDescription="@null"
-          android:src="@drawable/widget_tile_white" />
+          android:src="@drawable/widget_rounded16" />
 
         <ImageView
           android:id="@+id/study_book_glyph"
@@ -92,7 +93,7 @@
       <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="14dp"
         android:layout_weight="1"
         android:orientation="vertical">
 
@@ -102,8 +103,8 @@
           android:layout_height="wrap_content"
           android:ellipsize="end"
           android:maxLines="1"
-          android:textColor="#F4F1FD"
-          android:textSize="18sp"
+          android:textColor="#221A3E"
+          android:textSize="23sp"
           android:textStyle="bold" />
 
         <TextView
@@ -111,50 +112,52 @@
           android:layout_width="match_parent"
           android:layout_height="wrap_content"
           android:layout_marginTop="1dp"
-          android:textColor="#DDD6F5"
-          android:textSize="13sp" />
+          android:textColor="#4A4270"
+          android:textSize="13.5sp" />
+      </LinearLayout>
+
+      <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="vertical">
+
+        <TextView
+          android:id="@+id/study_prog"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:gravity="end"
+          android:textColor="#221A3E"
+          android:textSize="16sp"
+          android:textStyle="bold" />
+
+        <TextView
+          android:id="@+id/study_prog_sub"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:gravity="end"
+          android:textColor="#7A72A0"
+          android:textSize="11sp"
+          android:textStyle="bold" />
       </LinearLayout>
     </LinearLayout>
-
-    <TextView
-      android:id="@+id/study_verse"
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:layout_marginTop="8dp"
-      android:ellipsize="end"
-      android:maxLines="2"
-      android:textColor="#EDE9FA"
-      android:textSize="13.5sp"
-      android:textStyle="italic"
-      android:visibility="gone" />
 
     <TextView
       android:id="@+id/study_last"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
       android:ellipsize="end"
-      android:layout_marginTop="6dp"
+      android:layout_marginTop="12dp"
       android:maxLines="1"
-      android:textColor="#AAA2C6"
-      android:textSize="12.5sp"
-      android:visibility="gone" />
-
-    <TextView
-      android:id="@+id/study_restudy"
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:ellipsize="end"
-      android:layout_marginTop="3dp"
-      android:maxLines="1"
-      android:textColor="#AAA2C6"
-      android:textSize="12.5sp"
+      android:textColor="#4A4270"
+      android:textSize="13.5sp"
       android:visibility="gone" />
 
     <LinearLayout
       android:id="@+id/study_footer"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:layout_marginTop="10dp"
+      android:layout_marginTop="13dp"
       android:gravity="center_vertical"
       android:orientation="horizontal"
       android:visibility="gone">
@@ -162,7 +165,7 @@
       <FrameLayout
         android:id="@+id/study_pill"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
+        android:layout_height="40dp">
 
         <ImageView
           android:id="@+id/study_pill_img"
@@ -173,30 +176,26 @@
           android:src="@drawable/widget_pill_white" />
 
         <TextView
+          android:id="@+id/study_pill_text"
           android:layout_width="wrap_content"
-          android:layout_height="wrap_content"
-          android:paddingStart="15dp"
-          android:paddingTop="8dp"
-          android:paddingEnd="15dp"
-          android:paddingBottom="8dp"
+          android:layout_height="match_parent"
+          android:gravity="center"
+          android:paddingStart="18dp"
+          android:paddingEnd="18dp"
           android:text="Open chapter"
-          android:textColor="#FFFFFF"
-          android:textSize="12.5sp"
+          android:textColor="#2A1666"
+          android:textSize="14sp"
           android:textStyle="bold" />
       </FrameLayout>
 
-      <FrameLayout
+      <ImageView
+        android:id="@+id/study_bar"
         android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:layout_weight="1" />
-
-      <TextView
-        android:id="@+id/study_prog"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="#AAA2C6"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        android:layout_height="6dp"
+        android:layout_marginStart="14dp"
+        android:layout_weight="1"
+        android:contentDescription="@null"
+        android:scaleType="fitXY" />
     </LinearLayout>
   </LinearLayout>
 </FrameLayout>

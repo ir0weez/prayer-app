@@ -14,7 +14,9 @@
 //               XP state was handed in, never guessed
 //   Reach Out   getDueReachOut (the v412 card's due set and order)
 //   Up Next     buildUpNextGroup (the schedule tab's own builder)
-//               + calculateWhites for the open-time line
+//               picks the hero; v442 carries the whole day around
+//               it as rail entries (done / item / gap) from the
+//               same three schedule stores
 //   Your Study  the study store (explicit currentBook mark first,
 //               the Books grouping's Current head as fallback),
 //               chapterIsWritten / bookWrittenCount (the v324 union
@@ -67,10 +69,8 @@ import {
   type ScheduleMinistry,
   type ScheduleTodo,
 } from "./schedule-data";
-import { timeToMinutes } from "./time-blocks";
 import { buildUpNextGroup, upNextMinutes, type UpNextCandidate, type UpNextItem } from "./up-next";
 import type { WidgetPalette } from "./widget-palette";
-import { calculateWhites, type WhiteSourceItem } from "./whites";
 import { maxHeartsForLevel, normalizeXPState } from "./xp-engine";
 
 /** The six widget names — since v438 these are the native providers'
@@ -288,6 +288,13 @@ export type FastWidgetSnapshot =
       state: "active";
       dayNumber: number;
       totalDays: number;
+      /** v442 (W-4 D-3): the fast's goal length and the days left
+       * after today, as numbers — the drawing's "of {goalDays} ·
+       * {daysLeft} to go" line and its progress bar compose from
+       * these, not from text. goalDays is the fast's own
+       * durationDays (totalDays under its drawing name). */
+      goalDays: number;
+      daysLeft: number;
       name: string;
       /** Null when no XP state was handed in — the widget then
        * shows day + name only rather than inventing hearts. */
@@ -316,6 +323,8 @@ export function buildFastSnapshot(
     state: "active",
     dayNumber: index + 1,
     totalDays: fast.durationDays,
+    goalDays: fast.durationDays,
+    daysLeft: fast.durationDays - (index + 1),
     name: fast.name,
     hearts,
     maxHearts,
@@ -331,6 +340,18 @@ export interface ReachWidgetPerson extends WidgetFace {
    * renders "{days} days" from the same number. The photo rides
    * the WidgetFace base (faceOf), like every other face. */
   days: number;
+  /** v442 (W-4 D-4): the lead's line, composed HERE — "{days}
+   * day(s) since you reached {her|him|them}", the pronoun from
+   * the person's own gender ("f" → her, "m" → him, unset →
+   * them). The native renderer prints it verbatim; it never
+   * composes wording of its own. */
+  sinceLine: string;
+}
+
+/** The D-4 lead line: "12 days since you reached her". */
+export function reachSinceLine(days: number, gender: Person["gender"]): string {
+  const pronoun = gender === "f" ? "her" : gender === "m" ? "him" : "them";
+  return `${days} day${days === 1 ? "" : "s"} since you reached ${pronoun}`;
 }
 
 export type ReachOutWidgetSnapshot =
@@ -344,6 +365,7 @@ export function buildReachOutSnapshot(people: Person[], now: Date): ReachOutWidg
     ...faceOf(entry.person),
     name: entry.person.name,
     days: entry.days,
+    sinceLine: reachSinceLine(entry.days, entry.person.gender),
   });
   return {
     state: "due",
@@ -376,17 +398,56 @@ export function formatOpenDuration(totalMinutes: number): string {
   return `${hours} hour${hours === 1 ? "" : "s"} ${rest} minute${rest === 1 ? "" : "s"}`;
 }
 
+/** v442 (W-6, Option A — the day rail): one entry on the rail.
+ * The renderer walks these in order, seats its own NOW row after
+ * the done entries, and dresses the hero entry as the tinted
+ * band. Order is the day's order: done entries first (behind
+ * now), then the hero and what follows it. */
+export interface UpNextDayEntry {
+  kind: "done" | "item" | "gap";
+  /** done / item: the item's title. */
+  title?: string;
+  /** item: the sub line (the event's location/notes, the same
+   * line the pre-v442 widget composed for its lead). */
+  sub?: string;
+  /** done / item: "9:00 AM". */
+  timeLabel?: string;
+  /** item: minutes since midnight — the renderer counts the
+   * hero's "IN 44 MIN" down from it at render time. */
+  startMinutes?: number;
+  /** item: true on the hero (the next thing — the band). */
+  isHero?: boolean;
+  /** gap: "1 hour 30 minutes open". */
+  text?: string;
+}
+
 export type UpNextWidgetSnapshot =
   | { state: "none" }
   | {
       state: "next";
-      title: string;
-      timeLabel: string;
-      line: string;
-      /** "Then 1 hour 30 minutes of open time" — null when no
-       * settled white block follows the item. */
-      thenOpenText: string | null;
+      /** The rail, in day order (done ≤ 2, hero, following items
+       * with their gaps interleaved; capped at 8 entries). */
+      entries: UpNextDayEntry[];
+      /** Timed items still ahead today, hero included — the
+       * header's "{leftCount} LEFT". */
+      leftCount: number;
+      /** "Nothing after 3:00 PM", from the last ahead item's
+       * end; null only when that end can't be stated. */
+      endNote: string | null;
     };
+
+/** The rail's per-kind end rule, shared with the pre-v442 lead
+ * math: a stored endTime wins; a todo without one runs 30
+ * minutes, everything else 60. */
+function upNextEndMinutes(kind: "todo" | "event" | "ministry", startTime: string, endTime?: string): number {
+  return endTime ? upNextMinutes(endTime) : upNextMinutes(startTime) + (kind === "todo" ? 30 : 60);
+}
+
+function minutesToWidgetTime(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return formatWidgetTime(`${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`);
+}
 
 export function buildUpNextSnapshot(
   events: ScheduleEvent[],
@@ -427,47 +488,107 @@ export function buildUpNextSnapshot(
       endTime: item.endTime,
     }));
   const nowMin = now.getHours() * 60 + now.getMinutes();
+  // The hero is the schedule tab's own pick (buildUpNextGroup's
+  // lead) — the rail is built around it, never a second opinion.
   const group = buildUpNextGroup(candidates, allTimed, nowMin);
   if (!group) return { state: "none" };
-  const lead = group.entries[0].item;
-  const rawEvent = dayEvents.find((event) => event.id === lead.id);
-  const rawTodo = dayTodos.find((todo) => todo.id === lead.id);
-  const rawMinistry = dayMinistries.find((ministry) => ministry.id === lead.id);
-  const line =
-    rawEvent?.location ?? rawEvent?.notes ?? rawMinistry?.location ?? rawMinistry?.notes ?? rawTodo?.notes ?? "";
+  const heroId = group.entries[0].item.id;
 
-  // The open time that follows: the day's settled white blocks
-  // (calculateWhites — the schedule's own rules), merged where
-  // they touch, the first span that starts when this item ends.
-  const whiteItems: WhiteSourceItem[] = [
-    ...dayEvents.map((event) => ({ startTime: event.startTime, endTime: event.endTime, isCompleted: event.isCompleted, kind: "event" as const })),
-    ...dayTodos.map((todo) => ({ startTime: todo.startTime, endTime: todo.endTime, isCompleted: todo.isCompleted, kind: "todo" as const })),
-    ...dayMinistries.map((ministry) => ({ startTime: ministry.startTime, endTime: ministry.endTime, isCompleted: ministry.isCompleted, kind: "ministry" as const })),
-  ];
-  const blocks = calculateWhites(whiteItems, { isToday: true, nowMinutes: nowMin });
-  const leadEnd = lead.endTime
-    ? upNextMinutes(lead.endTime)
-    : upNextMinutes(lead.startTime) + (group.entries[0].kind === "todo" ? 30 : 60);
-  let thenOpenText: string | null = null;
-  const following = blocks
-    .filter((block) => timeToMinutes(block.startTime) >= leadEnd)
-    .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
-  if (following.length > 0 && timeToMinutes(following[0].startTime) - leadEnd <= 1) {
-    let spanEnd = timeToMinutes(following[0].endTime);
-    for (let i = 1; i < following.length; i++) {
-      if (timeToMinutes(following[i].startTime) - spanEnd > 1) break;
-      spanEnd = Math.max(spanEnd, timeToMinutes(following[i].endTime));
-    }
-    const spanMinutes = spanEnd - timeToMinutes(following[0].startTime);
-    if (spanMinutes > 0) thenOpenText = `Then ${formatOpenDuration(spanMinutes)} of open time`;
+  // The day itself, unified from the same three stores the push
+  // layer loads — every timed item with its kind, its completion
+  // state and its sub line (location, else notes). Holidays are
+  // not items on his rail and never enter it.
+  interface RawDayItem {
+    id: string;
+    kind: "todo" | "event" | "ministry";
+    title: string;
+    startMinutes: number;
+    endMinutes: number;
+    completed: boolean;
+    sub: string;
   }
+  const raw: RawDayItem[] = [
+    ...dayTodos
+      .filter((todo) => todo.startTime)
+      .map((todo) => ({
+        id: todo.id,
+        kind: "todo" as const,
+        title: todo.title,
+        startMinutes: upNextMinutes(todo.startTime as string),
+        endMinutes: upNextEndMinutes("todo", todo.startTime as string, todo.endTime),
+        completed: todo.isCompleted,
+        sub: todo.notes ?? "",
+      })),
+    ...dayEvents
+      .filter((event) => event.startTime && !event.isHoliday)
+      .map((event) => ({
+        id: event.id,
+        kind: "event" as const,
+        title: event.title,
+        startMinutes: upNextMinutes(event.startTime as string),
+        endMinutes: upNextEndMinutes("event", event.startTime as string, event.endTime),
+        completed: event.isCompleted,
+        sub: event.location ?? event.notes ?? "",
+      })),
+    ...dayMinistries
+      .filter((ministry) => ministry.startTime)
+      .map((ministry) => ({
+        id: ministry.id,
+        kind: "ministry" as const,
+        title: ministry.title,
+        startMinutes: upNextMinutes(ministry.startTime as string),
+        endMinutes: upNextEndMinutes("ministry", ministry.startTime as string, ministry.endTime),
+        completed: ministry.isCompleted,
+        sub: ministry.location ?? ministry.notes ?? "",
+      })),
+  ];
 
+  // Done: completed timed items whose start has passed — the two
+  // most recent, in the day's order.
+  const dones = raw
+    .filter((item) => item.completed && item.startMinutes <= nowMin)
+    .sort((a, b) => a.startMinutes - b.startMinutes)
+    .slice(-2);
+
+  // Ahead: uncompleted, strictly in the future — the same pool
+  // the Up Next group draws from, so the hero leads it.
+  const ahead = raw
+    .filter((item) => !item.completed && item.startMinutes > nowMin)
+    .sort((a, b) => a.startMinutes - b.startMinutes);
+  const heroIndex = ahead.findIndex((item) => item.id === heroId);
+  if (heroIndex < 0) return { state: "none" };
+  const sequence = ahead.slice(heroIndex);
+
+  const entries: UpNextDayEntry[] = dones.map((item) => ({
+    kind: "done" as const,
+    title: item.title,
+    timeLabel: minutesToWidgetTime(item.startMinutes),
+  }));
+  sequence.forEach((item, index) => {
+    if (entries.length >= 8) return;
+    if (index > 0) {
+      const gapMinutes = item.startMinutes - sequence[index - 1].endMinutes;
+      if (gapMinutes >= 15 && entries.length < 8) {
+        entries.push({ kind: "gap", text: `${formatOpenDuration(gapMinutes)} open` });
+      }
+    }
+    if (entries.length >= 8) return;
+    entries.push({
+      kind: "item",
+      title: item.title,
+      ...(item.sub ? { sub: item.sub } : {}),
+      timeLabel: minutesToWidgetTime(item.startMinutes),
+      startMinutes: item.startMinutes,
+      ...(index === 0 ? { isHero: true } : {}),
+    });
+  });
+
+  const last = sequence[sequence.length - 1];
   return {
     state: "next",
-    title: lead.title,
-    timeLabel: formatWidgetTime(lead.startTime),
-    line,
-    thenOpenText,
+    entries,
+    leftCount: sequence.length,
+    endNote: last ? `Nothing after ${minutesToWidgetTime(last.endMinutes)}` : null,
   };
 }
 
@@ -492,6 +613,11 @@ export type StudyWidgetSnapshot =
   | {
       state: "active";
       book: string;
+      /** v442 (W-4 D-6): the book's own ROYGBIV colour as one hex
+       * — the tile and the progress bar wear it (a meaning hue:
+       * it never derives from the palette). Same value as
+       * colorPrimary, carried under the drawing's name. */
+      bookColor: string;
       /** The book's ROYGBIV set (dark appearance — widgets sit on
        * the home screen's dark field in his dress). */
       colorPrimary: string;
@@ -565,6 +691,7 @@ export function buildStudySnapshot(
   return {
     state: "active",
     book,
+    bookColor: colors?.primary ?? "#A78BFA",
     colorPrimary: colors?.primary ?? "#A78BFA",
     colorDeep: colors?.deep ?? "#7C5CD6",
     colorTint: colors?.tintA ?? "#332A55",
@@ -625,9 +752,11 @@ export function buildAllWidgetSnapshots(input: WidgetSnapshotInputs): AllWidgetS
  *
  * v441: the document also carries the widget palette
  * (lib/widget-palette — the app's seed × appearance, derived on
- * this side where the theme machinery lives). Only the three
- * rectangle widgets dress from it; the existing six keep their
- * compiled dress until their own redress. */
+ * this side where the theme machinery lives). v442: all nine
+ * widgets dress from the renderer's EFFECTIVE palette — the
+ * device's Material You system colours first (resolved in the
+ * native process), this snapshot palette as the fallback when
+ * the device offers none. */
 export function serializeWidgetSnapshots(
   snapshots: AllWidgetSnapshots,
   scheme: string,

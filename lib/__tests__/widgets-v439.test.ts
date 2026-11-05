@@ -76,7 +76,9 @@ describe("v439 widget res — vanilla subset only", () => {
       expect(layout(name), name).not.toMatch(/<View[\s>]/);
     }
     // The three former <View> spots, by id/shape:
-    expect(tagWithId(layout("widget_up_next"), "next_divider")).toContain("<FrameLayout");
+    // v442 amendment: the Up Next divider is the rail layout's
+    // footer hairline now (next_foot_line), still a FrameLayout.
+    expect(tagWithId(layout("widget_up_next"), "next_foot_line")).toContain("<FrameLayout");
     const study = layout("widget_your_study");
     expect(study).toContain("<FrameLayout");
     expect(layout("widget_pray_today")).toContain("<FrameLayout");
@@ -117,15 +119,21 @@ describe("v439 widget res — vanilla subset only", () => {
 // ─── Pills are TextViews wearing their background (the collapse fix) ───────
 
 describe("v439 pills — one TextView each, background drawable", () => {
-  it("Pray Today's pill wears the new seed pill drawable as its background", () => {
+  it("Pray Today's pill is the v441 fixed-dp stack at expressive height (v442 amendment)", () => {
+    // v442 amendment: the D-1 composition rebuilds the pill as the
+    // v441-proven fixed-dp FrameLayout stack — an ImageView wearing
+    // the white pill shape (the renderer tints it primary) under a
+    // 14sp bold label — at the expressive 40dp height. A bare
+    // wrap_content TextView pill is still not the shape here; the
+    // Emergency row pills below keep that form.
     const tag = tagWithId(layout("widget_pray_today"), "pt_pill");
-    expect(tag).toContain("<TextView");
-    expect(tag).toContain('android:background="@drawable/widget_pill_seed"');
-    expect(tag).toContain('android:textColor="#1D1430"');
-    const seed = read(`${MODULE_RES}/drawable/widget_pill_seed.xml`);
-    expect(seed).toContain("<shape");
-    expect(seed).toContain("#A78BFA");
-    expect(seed).toContain('android:radius="100dp"');
+    expect(tag).toContain("<FrameLayout");
+    expect(tag).toContain('android:layout_height="40dp"');
+    const img = tagWithId(layout("widget_pray_today"), "pt_pill_img");
+    expect(img).toContain('android:src="@drawable/widget_pill_white"');
+    const text = tagWithId(layout("widget_pray_today"), "pt_pill_text");
+    expect(text).toContain('android:textSize="14sp"');
+    expect(text).toContain('android:paddingStart="20dp"');
   });
 
   it("both Emergency pills are TextViews on the white pill shape", () => {
@@ -152,9 +160,12 @@ describe("v439 card fill", () => {
       expect(tag).toContain('android:gravity="center_vertical"');
     }
     // Bigger faces and type inside the stretched rows.
+    // v442 amendment: D-2's rows carry the title at the expressive
+    // 19sp and the note at ONE line (the drawing's row form; the
+    // full note belongs to the one-active composition).
     expect(tagWithId(emergency, "em_avatar_img_1")).toContain('android:layout_width="52dp"');
-    expect(tagWithId(emergency, "em_title_1")).toContain('android:textSize="17sp"');
-    expect(tagWithId(emergency, "em_note_1")).toContain('android:maxLines="2"');
+    expect(tagWithId(emergency, "em_title_1")).toContain('android:textSize="19sp"');
+    expect(tagWithId(emergency, "em_note_1")).toContain('android:maxLines="1"');
   });
 
   it("Pray Today's hero band stretches (0dp + weight) with a 54dp avatar", () => {
@@ -163,15 +174,21 @@ describe("v439 card fill", () => {
     expect(hero).toContain('android:layout_height="0dp"');
     expect(hero).toContain('android:layout_weight="1"');
     expect(tagWithId(prayToday, "pt_avatar_img")).toContain('android:layout_width="54dp"');
-    expect(tagWithId(prayToday, "pt_need")).toContain('android:textSize="18sp"');
-    // Face circles grew with the card: 34dp rings, 48dp slots.
-    expect(tagWithId(prayToday, "pt_face_ring_1")).toContain('android:layout_width="34dp"');
-    expect(tagWithId(prayToday, "pt_face_1")).toContain('android:layout_width="48dp"');
+    // v442 amendment: the expressive register grows the hero need
+    // to 23sp, the face rings to 46dp, and the slots ride the row
+    // at 0dp + weight instead of a fixed 48dp.
+    expect(tagWithId(prayToday, "pt_need")).toContain('android:textSize="23sp"');
+    expect(tagWithId(prayToday, "pt_face_ring_1")).toContain('android:layout_width="46dp"');
+    const slot = tagWithId(prayToday, "pt_face_1");
+    expect(slot).toContain('android:layout_width="0dp"');
+    expect(slot).toContain('android:layout_weight="1"');
   });
 
-  it("Your Fast's day number grew (32sp) and its hearts keep ids without a vector src", () => {
+  it("Your Fast's day number grew (38sp, v442) and its hearts keep ids without a vector src", () => {
     const fast = layout("widget_your_fast");
-    expect(tagWithId(fast, "fast_day")).toContain('android:textSize="32sp"');
+    // v442 amendment: the expressive register takes "Day {n}" to
+    // 38sp so it truly owns its 2x2 card (W-4 D-3 + the steer).
+    expect(tagWithId(fast, "fast_day")).toContain('android:textSize="38sp"');
     for (let slot = 1; slot <= 6; slot += 1) {
       const tag = tagWithId(fast, `fast_heart_${slot}`);
       expect(tag).toContain("<ImageView");

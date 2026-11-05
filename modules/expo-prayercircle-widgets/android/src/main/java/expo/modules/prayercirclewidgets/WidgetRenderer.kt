@@ -272,6 +272,38 @@ object WidgetRenderer {
     val greenContainer: Int,
   ) {
     companion object {
+      /** Full construction for callers outside the class (the
+       *  device-palette path); the constructor itself stays private. */
+      fun of(
+        surface: Int,
+        surfaceAlt: Int,
+        ink: Int,
+        body: Int,
+        muted: Int,
+        primary: Int,
+        onPrimary: Int,
+        container: Int,
+        onContainer: Int,
+        chip: Int,
+        track: Int,
+        green: Int,
+        greenContainer: Int,
+      ): WidgetPalette = WidgetPalette(
+        surface = surface,
+        surfaceAlt = surfaceAlt,
+        ink = ink,
+        body = body,
+        muted = muted,
+        primary = primary,
+        onPrimary = onPrimary,
+        container = container,
+        onContainer = onContainer,
+        chip = chip,
+        track = track,
+        green = green,
+        greenContainer = greenContainer,
+      )
+
       /** The snapshot's own palette, Classic-light fallbacks. */
       fun fromSnapshot(root: JSONObject?): WidgetPalette {
         val pal = root?.optJSONObject("palette")
@@ -326,7 +358,7 @@ object WidgetRenderer {
       // the near-black neutral reads better.
       val onPrimary =
         if (luminance(primary) > 0.72) sys(android.R.color.system_neutral1_900) else Color.WHITE
-      WidgetPalette(
+      WidgetPalette.of(
         surface = sys(android.R.color.system_neutral1_50),
         surfaceAlt = sys(android.R.color.system_neutral2_100),
         ink = sys(android.R.color.system_neutral1_900),
@@ -944,7 +976,7 @@ object WidgetRenderer {
     val minute = cal.get(Calendar.MINUTE)
     val suffix = if (h24 >= 12) "PM" else "AM"
     val h12 = if (h24 % 12 == 0) 12 else h24 % 12
-    return "$h12:${minute.toString().padStart(2, "0")} $suffix"
+    return "$h12:${minute.toString().padStart(2, '0')} $suffix"
   }
 
   /** The hero band's countdown, in the W-6 drawing's voice. */

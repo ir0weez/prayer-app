@@ -128,6 +128,23 @@ export async function loadWidgetStores(
   };
 }
 
+/** v437: the all-empty form of the stores — every builder turns
+ * these into the widgets' quiet states. The widget task handler
+ * renders from this when a headless store load FAILS, so a widget
+ * always draws something truthful ("nothing yet") instead of
+ * sitting blank on its transparent initial layout. Pure data —
+ * building it can never throw an IO error. */
+export const EMPTY_WIDGET_STORES: LoadedWidgetStores = {
+  people: [],
+  fasts: [],
+  xpRaw: null,
+  events: [],
+  todos: [],
+  ministries: [],
+  studyState: seedStudyState(),
+  imports: {},
+};
+
 export function snapshotsFromStores(stores: LoadedWidgetStores, now = new Date()): AllWidgetSnapshots {
   return buildAllWidgetSnapshots({
     people: stores.people,

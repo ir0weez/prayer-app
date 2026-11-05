@@ -1,8 +1,9 @@
 // ─── v436 — the home-screen widget faces ────────────────────────────────────
 // The six PrayerCircle widgets (react-native-android-widget),
 // drawn after the approved W-1 concepts as refined Nov 5: Pray
-// Today is the flagship LARGE widget for his top slot (queue face
-// row included), Your Study carries his study life (verse line,
+// Today is the flagship for his top slot (queue face row
+// included; 4×2 since v437 — the 4×3 was "way too big"), Your
+// Study carries his study life (verse line,
 // last written, restudy head), Fast + Reach Out are the half-width
 // pair, Emergency and Up Next stay wide. Dark dress, violet seed,
 // initials avatars — and NO emojis anywhere (hearts and the book
@@ -86,7 +87,34 @@ function Avatar({
   );
 }
 
-// ─── Pray Today — the flagship (large slot) ─────────────────────────────────
+// ─── v437 — the never-blank card ────────────────────────────────────────────
+// Rendered when there is no snapshot to draw at all (the task
+// handler's last-ditch fallback, and renderWidgetByName's default).
+// A widget must NEVER sit blank: its initialLayout is a transparent
+// empty frame, so any path that renders nothing leaves a hole on
+// the home screen. This card needs no data and opens the app.
+
+export function WidgetFallbackCard() {
+  return (
+    <FlexWidget
+      clickAction="OPEN_APP"
+      style={{
+        width: "match_parent",
+        height: "match_parent",
+        backgroundColor: CARD,
+        borderRadius: 26,
+        padding: 16,
+        flexDirection: "column",
+        flexGap: 8,
+      }}
+    >
+      <Kicker text="PRAYERCIRCLE" />
+      <TextWidget text="Open PrayerCircle" style={{ fontSize: 15, fontWeight: "800", color: INK }} />
+    </FlexWidget>
+  );
+}
+
+// ─── Pray Today — the flagship (his top slot; 4×2 since v437) ───────────────
 
 export function PrayTodayWidget({
   snapshot,
@@ -121,7 +149,11 @@ export function PrayTodayWidget({
     );
   }
 
-  const faceSize = compact ? 30 : 36;
+  // v437: Pray Today lives at 4×2 now (Jonathan: the 4×3 was "way
+  // too big"), so the compact face row shrinks to 26px faces —
+  // the whole composition is budgeted against the ~150dp canvas
+  // in the compact branch below.
+  const faceSize = compact ? 26 : 36;
   const faces = snapshot.faces.slice(0, compact ? 6 : 8);
   const faceRow = (
     <FlexWidget style={{ flexDirection: "row", flexGap: 10, marginTop: compact ? 8 : 12 }}>
@@ -182,7 +214,78 @@ export function PrayTodayWidget({
   }
 
   const prayUri = widgetPrayUri(scheme, snapshot.personId, "today");
-  const avatarSize = compact ? 48 : 64;
+
+  // v437 — the 4×2 composition. Budgeted against the ~150dp-tall
+  // canvas: kicker + count on one line, the next person (44px
+  // avatar, need title, the sentence fenced to ONE line), Pray now
+  // riding the same row, and the 26px queue faces under it.
+  // Nothing here may grow a second line or the row clips.
+  if (compact) {
+    return (
+      <FlexWidget
+        clickAction="OPEN_URI"
+        clickActionData={{ uri: prayUri }}
+        style={{
+          width: "match_parent",
+          height: "match_parent",
+          backgroundColor: CARD,
+          borderRadius: 26,
+          padding: 12,
+          flexDirection: "column",
+        }}
+      >
+        <FlexWidget style={{ flexDirection: "row", alignItems: "center" }}>
+          <Kicker text="PRAY TODAY" />
+          <FlexWidget style={{ flex: 1 }} />
+          <TextWidget
+            text={`${snapshot.prayed} of ${snapshot.total} prayed`}
+            style={{ fontSize: 11.5, fontWeight: "700", color: MUTED }}
+          />
+        </FlexWidget>
+        <FlexWidget
+          style={{ flexDirection: "row", alignItems: "center", flexGap: 10, marginTop: 8 }}
+        >
+          <Avatar face={snapshot} size={44} />
+          <FlexWidget style={{ flexDirection: "column", flex: 1 }}>
+            <TextWidget
+              text={`NEXT UP · ${snapshot.name.toUpperCase()}`}
+              maxLines={1}
+              style={{ fontSize: 10.5, fontWeight: "800", letterSpacing: 1.1, color: MUTED }}
+            />
+            {!!snapshot.needTitle && (
+              <TextWidget
+                text={snapshot.needTitle}
+                maxLines={1}
+                style={{ fontSize: 16, fontWeight: "800", color: INK, marginTop: 1 }}
+              />
+            )}
+            {!!snapshot.needLine && (
+              <TextWidget
+                text={snapshot.needLine}
+                maxLines={1}
+                style={{ fontSize: 12.5, color: "#D8D2F2", marginTop: 1 }}
+              />
+            )}
+          </FlexWidget>
+          <FlexWidget
+            clickAction="OPEN_URI"
+            clickActionData={{ uri: prayUri }}
+            style={{
+              backgroundColor: SEED,
+              borderRadius: 999,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+            }}
+          >
+            <TextWidget text="Pray now" style={{ fontSize: 12.5, fontWeight: "800", color: SEED_INK }} />
+          </FlexWidget>
+        </FlexWidget>
+        {faceRow}
+      </FlexWidget>
+    );
+  }
+
+  const avatarSize = 64;
   return (
     <FlexWidget
       clickAction="OPEN_URI"
@@ -716,13 +819,7 @@ export function renderWidgetByName(
     case "YourStudy":
       return <YourStudyWidget snapshot={snapshots.study} scheme={scheme} />;
     default:
-      return (
-        <FlexWidget
-          clickAction="OPEN_APP"
-          style={{ width: "match_parent", height: "match_parent", backgroundColor: CARD, borderRadius: 26, padding: 16 }}
-        >
-          <TextWidget text="Open PrayerCircle" style={{ fontSize: 15, fontWeight: "800", color: INK }} />
-        </FlexWidget>
-      );
+      // v437: the shared never-blank card (see WidgetFallbackCard).
+      return <WidgetFallbackCard />;
   }
 }

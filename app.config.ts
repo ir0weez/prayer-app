@@ -155,13 +155,16 @@ const config: ExpoConfig = {
       {
         widgets: [
           {
+            // v437: 4×2 (was 4×3 in v436 — Jonathan: "way too
+            // big"). The face in components/widgets/ was refit to
+            // the shorter canvas in the same pass.
             name: "PrayToday",
             label: "Pray Today",
             description: "Next up in today's prayer queue, with the day's faces",
             minWidth: "320dp",
-            minHeight: "230dp",
+            minHeight: "150dp",
             targetCellWidth: 4,
-            targetCellHeight: 3,
+            targetCellHeight: 2,
             resizeMode: "horizontal|vertical",
             updatePeriodMillis: 1800000,
           },

@@ -12,4 +12,10 @@
   <string name="widget_up_next_desc">The next thing on today\'s schedule</string>
   <string name="widget_your_study_label">Your Study</string>
   <string name="widget_your_study_desc">Your current book: next chapter to write, its first verse, your progress</string>
+  <string name="widget_pray_strip_label">Pray Strip</string>
+  <string name="widget_pray_strip_desc">Today\'s prayer queue as a strip of faces</string>
+  <string name="widget_pray_next_label">Pray Next</string>
+  <string name="widget_pray_next_desc">The next person to pray for, with their need</string>
+  <string name="widget_reach_pair_label">Reach Pair</string>
+  <string name="widget_reach_pair_desc">The two most overdue reach-outs, side by side</string>
 </resources>

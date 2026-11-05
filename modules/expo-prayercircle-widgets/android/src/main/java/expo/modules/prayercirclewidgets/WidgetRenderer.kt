@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
@@ -18,7 +19,8 @@ import org.json.JSONObject
 import java.util.Locale
 import kotlin.math.roundToLong
 
-/** The six widgets and the provider class + compiled layout each renders. */
+/** The widgets and the provider class + compiled layout each renders.
+ * The first six are v438's; v441 adds the three rectangles (W-3). */
 enum class WidgetKind(
   val providerClass: Class<out AppWidgetProvider>,
   val layoutRes: Int,
@@ -29,6 +31,9 @@ enum class WidgetKind(
   REACH_OUT(ReachOutWidgetProvider::class.java, R.layout.widget_reach_out),
   UP_NEXT(UpNextWidgetProvider::class.java, R.layout.widget_up_next),
   YOUR_STUDY(YourStudyWidgetProvider::class.java, R.layout.widget_your_study),
+  PRAY_STRIP(PrayStripWidgetProvider::class.java, R.layout.widget_pray_strip),
+  PRAY_NEXT(PrayNextWidgetProvider::class.java, R.layout.widget_pray_next),
+  REACH_PAIR(ReachPairWidgetProvider::class.java, R.layout.widget_reach_pair),
 }
 
 /**
@@ -64,6 +69,9 @@ object WidgetRenderer {
       WidgetKind.REACH_OUT -> renderReachOut(context, views, root?.optJSONObject("reachOut"), scheme)
       WidgetKind.UP_NEXT -> renderUpNext(context, views, root?.optJSONObject("upNext"), scheme)
       WidgetKind.YOUR_STUDY -> renderYourStudy(context, views, root?.optJSONObject("study"), scheme, minHeightDp)
+      WidgetKind.PRAY_STRIP -> renderPrayStrip(context, views, root, scheme)
+      WidgetKind.PRAY_NEXT -> renderPrayNext(context, views, root, scheme)
+      WidgetKind.REACH_PAIR -> renderReachPair(context, views, root, scheme)
     }
     return views
   }
@@ -105,6 +113,148 @@ object WidgetRenderer {
   private fun prayUri(scheme: String, personId: String, kind: String): String =
     "$scheme:///?widgetPrayPersonId=${Uri.encode(personId)}&widgetPrayKind=$kind"
 
+  // ─── v441: people's photos ────────────────────────────────────────────────
+  //
+  // A face in the snapshot may carry "photo": the person's photoUri
+  // — a file:// path in the APP's own storage (the same field the
+  // in-app AvatarImage renders). The providers run in the app's
+  // process, so the file is legitimately readable here. The bitmap
+  // is decoded small, centre-cropped square and circle-clipped in
+  // THIS process, then shipped to the launcher like the v439
+  // glyphs. ANY failure — a non-file URI (content://, http…), a
+  // missing file, a decode error — returns null and the caller
+  // renders the initials exactly as before v441. People whose face
+  // is a bundled avatarAsset carry no photo and keep initials.
+
+  private val photoCache = LinkedHashMap<String, Bitmap>()
+
+  private fun dpPx(context: Context, dp: Int): Int =
+    (dp * context.resources.displayMetrics.density).toInt().coerceIn(48, 256)
+
+  private fun photoBitmap(context: Context, rawPath: String?, sizePx: Int): Bitmap? {
+    val path = rawPath?.trim()?.takeIf { it.isNotBlank() } ?: return null
+    // Only plain local files the app itself wrote: file:// URIs
+    // and absolute paths. Anything else keeps the initials.
+    val filePath = when {
+      path.startsWith("file://") -> try {
+        Uri.parse(path).path
+      } catch (_: Exception) {
+        null
+      }
+      path.startsWith("/") -> path
+      else -> null
+    } ?: return null
+    val key = "$filePath@$sizePx"
+    synchronized(photoCache) { photoCache[key]?.let { return it } }
+    val bitmap = try {
+      val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+      BitmapFactory.decodeFile(filePath, bounds)
+      if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+      var sample = 1
+      while (bounds.outWidth / (sample * 2) >= sizePx && bounds.outHeight / (sample * 2) >= sizePx) {
+        sample *= 2
+      }
+      val decoded = BitmapFactory.decodeFile(
+        filePath,
+        BitmapFactory.Options().apply { inSampleSize = sample },
+      ) ?: return null
+      val side = minOf(decoded.width, decoded.height)
+      val square = Bitmap.createBitmap(
+        decoded,
+        (decoded.width - side) / 2,
+        (decoded.height - side) / 2,
+        side,
+        side,
+      )
+      val scaled = if (square.width != sizePx) {
+        Bitmap.createScaledBitmap(square, sizePx, sizePx, true)
+      } else {
+        square
+      }
+      val out = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+      val canvas = Canvas(out)
+      val clip = Path().apply {
+        addCircle(sizePx / 2f, sizePx / 2f, sizePx / 2f, Path.Direction.CW)
+      }
+      canvas.clipPath(clip)
+      canvas.drawBitmap(scaled, 0f, 0f, null)
+      out
+    } catch (_: Exception) {
+      null
+    } ?: return null
+    synchronized(photoCache) {
+      photoCache[key] = bitmap
+      // A small cache: faces repeat across widgets, and 24 small
+      // circles is plenty before the eldest can go.
+      while (photoCache.size > 24) {
+        photoCache.remove(photoCache.keys.first())
+      }
+    }
+    return bitmap
+  }
+
+  /**
+   * One avatar slot, photo-or-initials: where the face carries a
+   * photo that decodes, the image view takes the circle photo and
+   * the initials blank (and NO colour tint touches the photo —
+   * setImageViewBitmap replaces the tinted circle drawable whole).
+   * Otherwise the slot renders exactly as it did before v441: the
+   * person's colour as the circle's tint, their initials on top.
+   */
+  private fun applyFace(
+    context: Context,
+    views: RemoteViews,
+    imgId: Int,
+    textId: Int,
+    face: JSONObject,
+    fallbackColor: Int,
+    sizeDp: Int,
+  ) {
+    val photo = photoBitmap(context, face.optString("photo"), dpPx(context, sizeDp))
+    if (photo != null) {
+      views.setImageViewBitmap(imgId, photo)
+      views.setTextViewText(textId, "")
+    } else {
+      // Re-set the circle drawable too: RemoteViews reuses the
+      // placed view hierarchy across updates, so a photo bitmap
+      // from an earlier render must be replaced, not just tinted.
+      views.setImageViewResource(imgId, R.drawable.widget_circle_white)
+      views.setInt(imgId, "setColorFilter", colorOr(face.optString("color"), fallbackColor))
+      views.setTextViewText(textId, face.optString("initials"))
+    }
+  }
+
+  // ─── v441: the widget palette (the rectangles' dress) ─────────────────────
+  //
+  // The three rectangles carry no dress colours of their own: the
+  // snapshot root's "palette" object (lib/widget-palette — the
+  // app's seed × appearance, derived on the JS side) paints their
+  // white shape drawables and text. An absent palette (a snapshot
+  // written before v441) falls back to the W-3 drawing's
+  // Classic-light values, which are also the layouts' XML defaults.
+
+  private class WidgetPalette(root: JSONObject?) {
+    private val pal = root?.optJSONObject("palette")
+    private fun hex(key: String, fallback: String): Int =
+      colorOr(pal?.optString(key)?.takeIf { it.isNotBlank() } ?: fallback, Color.parseColor(fallback))
+
+    val surface = hex("surface", "#F7F3FE")
+    val surfaceAlt = hex("surfaceAlt", "#EFE9FB")
+    val ink = hex("ink", "#221A3E")
+    val body = hex("body", "#4A4270")
+    val muted = hex("muted", "#7A72A0")
+    val primary = hex("primary", "#6D4BD8")
+    val onPrimary = hex("onPrimary", "#FFFFFF")
+    val container = hex("container", "#E6DEF9")
+    val onContainer = hex("onContainer", "#2A1666")
+    val chip = hex("chip", "#E9E2FA")
+    val track = hex("track", "#E0D8F5")
+    val green = hex("green", "#2E7D46")
+    val greenContainer = hex("greenContainer", "#DFF0E4")
+  }
+
+  private fun paletteOf(root: JSONObject?): WidgetPalette = WidgetPalette(root)
+
   // ─── 1. Pray Today ────────────────────────────────────────────────────────
 
   private val PT_SLOTS = intArrayOf(R.id.pt_face_1, R.id.pt_face_2, R.id.pt_face_3, R.id.pt_face_4, R.id.pt_face_5, R.id.pt_face_6)
@@ -123,7 +273,7 @@ object WidgetRenderer {
       return
     }
     val faces = snap.optJSONArray("faces") ?: JSONArray()
-    fillPrayFaces(views, faces, snap.optString("personId"), state == "next")
+    fillPrayFaces(context, views, faces, snap.optString("personId"), state == "next")
     views.setTextViewText(R.id.pt_count, "${snap.optInt("prayed")} of ${snap.optInt("total")} prayed")
     if (state == "complete") {
       views.setTextViewText(R.id.pt_msg_title, "Pray Today complete")
@@ -138,8 +288,7 @@ object WidgetRenderer {
     views.setViewVisibility(R.id.pt_msg_sub, View.GONE)
     views.setViewVisibility(R.id.pt_hero, View.VISIBLE)
     views.setViewVisibility(R.id.pt_faces, View.VISIBLE)
-    views.setInt(R.id.pt_avatar_img, "setColorFilter", colorOr(snap.optString("color"), SEED))
-    views.setTextViewText(R.id.pt_avatar_text, snap.optString("initials"))
+    applyFace(context, views, R.id.pt_avatar_img, R.id.pt_avatar_text, snap, SEED, 54)
     views.setTextViewText(R.id.pt_who, "NEXT UP · ${snap.optString("name").uppercase(Locale.US)}")
     val needTitle = snap.optString("needTitle")
     views.setTextViewText(R.id.pt_need, needTitle)
@@ -156,7 +305,7 @@ object WidgetRenderer {
     views.setOnClickPendingIntent(R.id.pt_pill, tap)
   }
 
-  private fun fillPrayFaces(views: RemoteViews, faces: JSONArray, nextPersonId: String?, hasNext: Boolean) {
+  private fun fillPrayFaces(context: Context, views: RemoteViews, faces: JSONArray, nextPersonId: String?, hasNext: Boolean) {
     val overflow = faces.length() > PT_SLOTS.size
     for (i in PT_SLOTS.indices) {
       if (i >= faces.length()) {
@@ -176,8 +325,7 @@ object WidgetRenderer {
       val face = faces.optJSONObject(i) ?: continue
       val prayed = face.optBoolean("prayed")
       views.setInt(PT_RINGS[i], "setColorFilter", if (prayed) SEED else RING_OFF)
-      views.setInt(PT_IMGS[i], "setColorFilter", colorOr(face.optString("color"), SEED))
-      views.setTextViewText(PT_TEXTS[i], face.optString("initials"))
+      applyFace(context, views, PT_IMGS[i], PT_TEXTS[i], face, SEED, 28)
       views.setTextViewText(PT_NAMES[i], face.optString("firstName"))
       views.setTextColor(PT_NAMES[i], if (prayed) SEED else MUTED)
       when {
@@ -262,8 +410,7 @@ object WidgetRenderer {
       }
       val row = live[slot]
       views.setViewVisibility(EM_ROWS[slot], View.VISIBLE)
-      views.setInt(EM_AVATAR_IMGS[slot], "setColorFilter", colorOr(row.optString("color"), SEED))
-      views.setTextViewText(EM_AVATAR_TEXTS[slot], row.optString("initials"))
+      applyFace(context, views, EM_AVATAR_IMGS[slot], EM_AVATAR_TEXTS[slot], row, SEED, 52)
       views.setTextViewText(EM_NAMES[slot], row.optString("name").uppercase(Locale.US))
       views.setTextViewText(EM_TITLES[slot], row.optString("title"))
       val note = row.optString("note")
@@ -337,8 +484,7 @@ object WidgetRenderer {
     views.setViewVisibility(R.id.reach_msg_title, View.GONE)
     views.setViewVisibility(R.id.reach_msg_sub, View.GONE)
     views.setViewVisibility(R.id.reach_lead, View.VISIBLE)
-    views.setInt(R.id.reach_avatar_img, "setColorFilter", colorOr(lead.optString("color"), SEED))
-    views.setTextViewText(R.id.reach_avatar_text, lead.optString("initials"))
+    applyFace(context, views, R.id.reach_avatar_img, R.id.reach_avatar_text, lead, SEED, 40)
     views.setTextViewText(R.id.reach_days, "${lead.optInt("days")} days")
     views.setTextViewText(R.id.reach_since, "since you reached ${lead.optString("firstName")}")
     val second = snap.optJSONObject("second")
@@ -347,8 +493,7 @@ object WidgetRenderer {
       return
     }
     views.setViewVisibility(R.id.reach_second, View.VISIBLE)
-    views.setInt(R.id.reach_second_img, "setColorFilter", colorOr(second.optString("color"), SEED))
-    views.setTextViewText(R.id.reach_second_text_init, second.optString("initials"))
+    applyFace(context, views, R.id.reach_second_img, R.id.reach_second_text_init, second, SEED, 24)
     views.setTextViewText(R.id.reach_second_text, "${second.optString("firstName")} · ${second.optInt("days")}d")
     val totalDue = snap.optInt("totalDue")
     views.setTextViewText(R.id.reach_more, if (totalDue > 2) "+${totalDue - 2} more due" else "")
@@ -442,6 +587,214 @@ object WidgetRenderer {
     views.setOnClickPendingIntent(R.id.study_pill, tap)
     views.setTextColor(R.id.study_prog, MUTED)
     views.setTextColor(R.id.study_last, MUTED)
+  }
+
+  // ─── 7. Pray Strip (v441, W-3 R-1) ────────────────────────────────────────
+
+  private val PS_SLOTS = intArrayOf(R.id.ps_face_1, R.id.ps_face_2, R.id.ps_face_3, R.id.ps_face_4, R.id.ps_face_5, R.id.ps_face_6)
+  private val PS_RINGS = intArrayOf(R.id.ps_face_ring_1, R.id.ps_face_ring_2, R.id.ps_face_ring_3, R.id.ps_face_ring_4, R.id.ps_face_ring_5, R.id.ps_face_ring_6)
+  private val PS_IMGS = intArrayOf(R.id.ps_face_img_1, R.id.ps_face_img_2, R.id.ps_face_img_3, R.id.ps_face_img_4, R.id.ps_face_img_5, R.id.ps_face_img_6)
+  private val PS_TEXTS = intArrayOf(R.id.ps_face_text_1, R.id.ps_face_text_2, R.id.ps_face_text_3, R.id.ps_face_text_4, R.id.ps_face_text_5, R.id.ps_face_text_6)
+  private val PS_NAMES = intArrayOf(R.id.ps_face_name_1, R.id.ps_face_name_2, R.id.ps_face_name_3, R.id.ps_face_name_4, R.id.ps_face_name_5, R.id.ps_face_name_6)
+  private val PS_STATES = intArrayOf(R.id.ps_face_state_1, R.id.ps_face_state_2, R.id.ps_face_state_3, R.id.ps_face_state_4, R.id.ps_face_state_5, R.id.ps_face_state_6)
+
+  /** The rectangle form of Pray Today: same snapshot, same queue
+   * order, same overflow rule — five faces stand and the rest fold
+   * into the +N slot (the big widget fits six; the strip is
+   * narrower, so its fold starts one earlier). */
+  private fun renderPrayStrip(context: Context, views: RemoteViews, root: JSONObject?, scheme: String?) {
+    val base = 700
+    val pal = paletteOf(root)
+    val snap = root?.optJSONObject("prayToday")
+    // The palette paints the whole card, quiet face included.
+    views.setInt(R.id.ps_bg, "setColorFilter", pal.surface)
+    views.setInt(R.id.ps_dot, "setColorFilter", pal.primary)
+    views.setTextColor(R.id.ps_kicker, pal.muted)
+    views.setTextColor(R.id.ps_count, pal.muted)
+    views.setTextColor(R.id.ps_msg_title, pal.ink)
+    views.setTextColor(R.id.ps_msg_sub, pal.body)
+    val state = snap?.optString("state") ?: "no-queue"
+    if (snap == null || state == "no-queue") {
+      views.setOnClickPendingIntent(R.id.ps_root, launchPendingIntent(context, base))
+      return
+    }
+    views.setTextViewText(R.id.ps_count, "${snap.optInt("prayed")} of ${snap.optInt("total")} prayed")
+    val faces = snap.optJSONArray("faces") ?: JSONArray()
+    fillStripFaces(context, views, faces, snap.optString("personId"), state == "next", pal)
+    views.setViewVisibility(R.id.ps_faces, View.VISIBLE)
+    if (state == "complete") {
+      views.setTextViewText(R.id.ps_msg_title, "Pray Today complete")
+      views.setViewVisibility(R.id.ps_msg_title, View.VISIBLE)
+      views.setViewVisibility(R.id.ps_msg_sub, View.GONE)
+      views.setOnClickPendingIntent(R.id.ps_root, launchPendingIntent(context, base))
+      return
+    }
+    views.setViewVisibility(R.id.ps_msg_title, View.GONE)
+    views.setViewVisibility(R.id.ps_msg_sub, View.GONE)
+    val tap = if (scheme != null) {
+      uriPendingIntent(context, prayUri(scheme, snap.optString("personId"), "today"), base + 1)
+    } else {
+      launchPendingIntent(context, base)
+    }
+    views.setOnClickPendingIntent(R.id.ps_root, tap)
+  }
+
+  private fun fillStripFaces(
+    context: Context,
+    views: RemoteViews,
+    faces: JSONArray,
+    nextPersonId: String?,
+    hasNext: Boolean,
+    pal: WidgetPalette,
+  ) {
+    val visible = 5
+    val overflow = faces.length() > visible
+    for (i in PS_SLOTS.indices) {
+      if (i >= faces.length() || (overflow && i > visible)) {
+        views.setViewVisibility(PS_SLOTS[i], View.GONE)
+        continue
+      }
+      views.setViewVisibility(PS_SLOTS[i], View.VISIBLE)
+      if (overflow && i == visible) {
+        // The last slot becomes the +N counter (never a photo).
+        views.setInt(PS_RINGS[i], "setColorFilter", pal.container)
+        views.setImageViewResource(PS_IMGS[i], R.drawable.widget_circle_white)
+        views.setInt(PS_IMGS[i], "setColorFilter", pal.container)
+        views.setTextViewText(PS_TEXTS[i], "+${faces.length() - visible}")
+        views.setTextColor(PS_TEXTS[i], pal.onContainer)
+        views.setTextViewText(PS_NAMES[i], "")
+        views.setTextViewText(PS_STATES[i], "")
+        continue
+      }
+      val face = faces.optJSONObject(i) ?: continue
+      val prayed = face.optBoolean("prayed")
+      val isNext = hasNext && face.optString("personId") == nextPersonId
+      views.setInt(PS_RINGS[i], "setColorFilter", if (prayed || isNext) pal.primary else pal.container)
+      applyFace(context, views, PS_IMGS[i], PS_TEXTS[i], face, pal.primary, 40)
+      views.setTextColor(PS_TEXTS[i], Color.WHITE)
+      views.setTextViewText(PS_NAMES[i], face.optString("firstName"))
+      views.setTextColor(PS_NAMES[i], if (prayed) pal.primary else pal.ink)
+      when {
+        prayed -> {
+          views.setTextViewText(PS_STATES[i], "PRAYED")
+          views.setTextColor(PS_STATES[i], pal.primary)
+        }
+        isNext -> {
+          views.setTextViewText(PS_STATES[i], "NEXT")
+          views.setTextColor(PS_STATES[i], pal.primary)
+        }
+        else -> {
+          views.setTextViewText(PS_STATES[i], "WAITING")
+          views.setTextColor(PS_STATES[i], pal.muted)
+        }
+      }
+    }
+  }
+
+  // ─── 8. Pray Next (v441, W-3 R-2) ─────────────────────────────────────────
+
+  /** The rectangle given to one person: the prayToday snapshot's
+   * next person, their need composed the way the big widget
+   * composes it (title, else the note line), and the same pray
+   * deep link on the pill (and the card). */
+  private fun renderPrayNext(context: Context, views: RemoteViews, root: JSONObject?, scheme: String?) {
+    val base = 800
+    val pal = paletteOf(root)
+    val snap = root?.optJSONObject("prayToday")
+    views.setInt(R.id.pn_bg, "setColorFilter", pal.surface)
+    views.setTextColor(R.id.pn_msg_title, pal.ink)
+    views.setTextColor(R.id.pn_msg_sub, pal.body)
+    val state = snap?.optString("state") ?: "no-queue"
+    if (snap == null || state != "next") {
+      // No next person (empty queue, or the day complete): the
+      // quiet face stands — msg is the layout default.
+      views.setOnClickPendingIntent(R.id.pn_root, launchPendingIntent(context, base))
+      return
+    }
+    views.setViewVisibility(R.id.pn_msg, View.GONE)
+    views.setViewVisibility(R.id.pn_hero, View.VISIBLE)
+    views.setInt(R.id.pn_ring, "setColorFilter", pal.primary)
+    // The hero IS the next person: the snapshot's top-level face
+    // fields ride the same face shape applyFace reads.
+    applyFace(context, views, R.id.pn_img, R.id.pn_text, snap, pal.primary, 62)
+    views.setTextColor(R.id.pn_text, Color.WHITE)
+    views.setTextColor(R.id.pn_kicker, pal.primary)
+    views.setTextViewText(R.id.pn_name, snap.optString("firstName"))
+    views.setTextColor(R.id.pn_name, pal.ink)
+    val needTitle = snap.optString("needTitle")
+    val needLine = snap.optString("needLine")
+    val need = when {
+      needTitle.isNotBlank() && needLine.isNotBlank() -> "$needTitle — $needLine"
+      needTitle.isNotBlank() -> needTitle
+      else -> needLine
+    }
+    views.setTextViewText(R.id.pn_need, need)
+    views.setViewVisibility(R.id.pn_need, if (need.isBlank()) View.GONE else View.VISIBLE)
+    views.setTextColor(R.id.pn_need, pal.body)
+    views.setInt(R.id.pn_pill_img, "setColorFilter", pal.primary)
+    views.setTextColor(R.id.pn_pill, pal.onPrimary)
+    val tap = if (scheme != null) {
+      uriPendingIntent(context, prayUri(scheme, snap.optString("personId"), "today"), base + 1)
+    } else {
+      launchPendingIntent(context, base)
+    }
+    views.setOnClickPendingIntent(R.id.pn_root, tap)
+    views.setOnClickPendingIntent(R.id.pn_pill, tap)
+  }
+
+  // ─── 9. Reach Pair (v441, W-3 R-3) ────────────────────────────────────────
+
+  private val RP_IMGS = intArrayOf(R.id.rp_img_1, R.id.rp_img_2)
+  private val RP_TEXTS = intArrayOf(R.id.rp_text_1, R.id.rp_text_2)
+  private val RP_NAMES = intArrayOf(R.id.rp_name_1, R.id.rp_name_2)
+  private val RP_CHIP_IMGS = intArrayOf(R.id.rp_chip_img_1, R.id.rp_chip_img_2)
+  private val RP_CHIPS = intArrayOf(R.id.rp_chip_1, R.id.rp_chip_2)
+
+  /** The two most overdue people side by side (the reachOut
+   * snapshot's lead + second), each with its "{days} days" chip in
+   * the reached green's kind-tones. One due: the second column
+   * hides and the spacers show, centring the lead. */
+  private fun renderReachPair(context: Context, views: RemoteViews, root: JSONObject?, scheme: String?) {
+    val base = 900
+    val pal = paletteOf(root)
+    val snap = root?.optJSONObject("reachOut")
+    views.setInt(R.id.rp_bg, "setColorFilter", pal.surface)
+    views.setInt(R.id.rp_dot, "setColorFilter", pal.green)
+    views.setTextColor(R.id.rp_kicker, pal.muted)
+    views.setTextColor(R.id.rp_msg_title, pal.ink)
+    views.setTextColor(R.id.rp_msg_sub, pal.body)
+    val tap = if (scheme != null) {
+      uriPendingIntent(context, "$scheme://due-to-reach", base)
+    } else {
+      launchPendingIntent(context, base)
+    }
+    views.setOnClickPendingIntent(R.id.rp_root, tap)
+    if (snap == null || snap.optString("state") != "due") return
+    val lead = snap.optJSONObject("lead") ?: return
+    views.setViewVisibility(R.id.rp_msg_title, View.GONE)
+    views.setViewVisibility(R.id.rp_msg_sub, View.GONE)
+    views.setViewVisibility(R.id.rp_pair, View.VISIBLE)
+    views.setViewVisibility(R.id.rp_due_wrap, View.VISIBLE)
+    views.setInt(R.id.rp_due_img, "setColorFilter", pal.greenContainer)
+    views.setTextViewText(R.id.rp_due, "${snap.optInt("totalDue")} due")
+    views.setTextColor(R.id.rp_due, pal.green)
+    val people = listOf(lead, snap.optJSONObject("second"))
+    for (i in people.indices) {
+      val person = people[i]
+      if (person == null) continue
+      applyFace(context, views, RP_IMGS[i], RP_TEXTS[i], person, pal.green, 52)
+      views.setTextColor(RP_TEXTS[i], Color.WHITE)
+      views.setTextViewText(RP_NAMES[i], person.optString("firstName"))
+      views.setTextColor(RP_NAMES[i], pal.ink)
+      views.setInt(RP_CHIP_IMGS[i], "setColorFilter", pal.greenContainer)
+      views.setTextViewText(RP_CHIPS[i], "${person.optInt("days")} days")
+      views.setTextColor(RP_CHIPS[i], pal.green)
+    }
+    if (people[1] == null) {
+      views.setViewVisibility(R.id.rp_col_2, View.GONE)
+      views.setViewVisibility(R.id.rp_sp_1, View.VISIBLE)
+      views.setViewVisibility(R.id.rp_sp_2, View.VISIBLE)
+    }
   }
 
   // ─── Runtime-drawn glyphs (v439) ──────────────────────────────────────────

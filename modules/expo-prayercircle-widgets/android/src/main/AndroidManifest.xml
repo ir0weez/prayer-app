@@ -72,5 +72,40 @@
         android:name="android.appwidget.provider"
         android:resource="@xml/widgetprovider_yourstudy" />
     </receiver>
+    <!-- v441: the three rectangles (W-3) join the six — same module,
+         same merge, same snapshot. -->
+    <receiver
+      android:name="expo.modules.prayercirclewidgets.PrayStripWidgetProvider"
+      android:exported="true"
+      android:label="@string/widget_pray_strip_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widgetprovider_praystrip" />
+    </receiver>
+    <receiver
+      android:name="expo.modules.prayercirclewidgets.PrayNextWidgetProvider"
+      android:exported="true"
+      android:label="@string/widget_pray_next_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widgetprovider_praynext" />
+    </receiver>
+    <receiver
+      android:name="expo.modules.prayercirclewidgets.ReachPairWidgetProvider"
+      android:exported="true"
+      android:label="@string/widget_reach_pair_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widgetprovider_reachpair" />
+    </receiver>
   </application>
 </manifest>

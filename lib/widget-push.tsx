@@ -25,10 +25,16 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
-import { Platform } from "react-native";
+import { Appearance, Platform } from "react-native";
 
 import { loadStudyState, seedStudyState, type StudyState } from "@/lib/bible-v205/study";
 import { loadStudioImports, resolveChapterData, type StudioImportsMap } from "@/lib/bible-v205/studio-import";
+import {
+  DEFAULT_ACCENT_THEME,
+  normalizeAccentThemeId,
+  type AccentThemeId,
+  type ColorScheme,
+} from "@/lib/color-themes";
 import { formatDateLocal } from "@/lib/date-utils";
 import {
   normalizePeopleForStorage,
@@ -36,7 +42,10 @@ import {
   type Person,
 } from "@/lib/prayercircle-data";
 import { parseStoredFasts, type PersonalFast } from "@/lib/prayercircle-fasting";
-import { FASTS_STORAGE_KEY, PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { normalizeSkinThemeId } from "@/lib/skin-themes";
+import { normalizeAppearancePreference } from "@/lib/theme-provider";
+import { buildWidgetPalette, type WidgetPalette } from "@/lib/widget-palette";
 import {
   SCHEDULE_EVENTS_KEY,
   SCHEDULE_MINISTRIES_KEY,
@@ -168,15 +177,47 @@ export function snapshotsFromStores(stores: LoadedWidgetStores, now = new Date()
   });
 }
 
+/** v441: the widget palette, from the same settings values the
+ * app reads — the app-settings blob's colorTheme (the seed) and
+ * appearance, resolved exactly the way lib/theme-provider
+ * resolves them (system follows the device; the terminal skin
+ * holds dark), then derived by lib/widget-palette. Any failure
+ * leaves the app's own defaults standing (default seed, device
+ * scheme): a palette miss is a dress issue, never a data lie. */
+export async function loadWidgetPalette(): Promise<WidgetPalette> {
+  let scheme: ColorScheme = Appearance.getColorScheme() === "dark" ? "dark" : "light";
+  let themeId: AccentThemeId = DEFAULT_ACCENT_THEME;
+  try {
+    const raw = await AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as {
+        colorTheme?: unknown;
+        appearance?: unknown;
+        skinTheme?: unknown;
+      };
+      themeId = normalizeAccentThemeId(parsed.colorTheme);
+      const appearance = normalizeAppearancePreference(parsed.appearance);
+      const base: ColorScheme = appearance === "system" ? scheme : appearance;
+      scheme = normalizeSkinThemeId(parsed.skinTheme) === "terminal" ? "dark" : base;
+    }
+  } catch {
+    // Defaults stand.
+  }
+  return buildWidgetPalette(scheme, themeId);
+}
+
 let lastPushedSignature: string | null = null;
 
 /** Hand a built snapshot set to the native module, which stores it
  * and refreshes every placed widget. Identical sets are not
  * re-pushed (the signature rides the JSON), so state churn
  * elsewhere in the app doesn't churn the home screen. */
-export async function pushWidgetSnapshots(snapshots: AllWidgetSnapshots): Promise<void> {
+export async function pushWidgetSnapshots(
+  snapshots: AllWidgetSnapshots,
+  palette?: WidgetPalette,
+): Promise<void> {
   if (Platform.OS !== "android") return;
-  const json = serializeWidgetSnapshots(snapshots, widgetScheme());
+  const json = serializeWidgetSnapshots(snapshots, widgetScheme(), palette);
   if (json === lastPushedSignature) return;
   updateNativeWidgetSnapshot(json);
   // Only after the hand-off has run — a failed pass must not mark
@@ -192,7 +233,8 @@ export async function refreshAndPushWidgets(
 ): Promise<void> {
   try {
     const stores = await loadWidgetStores(overrides);
-    await pushWidgetSnapshots(snapshotsFromStores(stores));
+    const palette = await loadWidgetPalette().catch(() => undefined);
+    await pushWidgetSnapshots(snapshotsFromStores(stores), palette);
   } catch {
     // Best-effort — widgets never break the app.
   }

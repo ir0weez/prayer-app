@@ -102,8 +102,11 @@ describe("v438 native widget module", () => {
       expect(manifest).toContain(`expo.modules.prayercirclewidgets.${name}WidgetProvider`);
       expect(manifest).toContain(`@xml/${xml}`);
     }
-    expect(manifest.match(/android.appwidget.action.APPWIDGET_UPDATE/g)?.length).toBe(6);
-    expect(manifest.match(/android:exported="true"/g)?.length).toBe(6);
+    // v441 amendment: three rectangle receivers joined the six —
+    // the counts below are nine now (their own entries are pinned
+    // in widgets-v441.test.ts).
+    expect(manifest.match(/android.appwidget.action.APPWIDGET_UPDATE/g)?.length).toBe(9);
+    expect(manifest.match(/android:exported="true"/g)?.length).toBe(9);
   });
 
   it("carries a Kotlin provider class per widget, all rendering through one path", () => {

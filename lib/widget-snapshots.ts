@@ -69,6 +69,7 @@ import {
 } from "./schedule-data";
 import { timeToMinutes } from "./time-blocks";
 import { buildUpNextGroup, upNextMinutes, type UpNextCandidate, type UpNextItem } from "./up-next";
+import type { WidgetPalette } from "./widget-palette";
 import { calculateWhites, type WhiteSourceItem } from "./whites";
 import { maxHeartsForLevel, normalizeXPState } from "./xp-engine";
 
@@ -83,6 +84,10 @@ export const WIDGET_NAMES = {
   reachOut: "ReachOut",
   upNext: "UpNext",
   yourStudy: "YourStudy",
+  // v441: the three rectangles (W-3) — same data, smaller cards.
+  prayStrip: "PrayStrip",
+  prayNext: "PrayNext",
+  reachPair: "ReachPair",
 } as const;
 
 export type WidgetName = (typeof WIDGET_NAMES)[keyof typeof WIDGET_NAMES];
@@ -91,12 +96,23 @@ export type WidgetName = (typeof WIDGET_NAMES)[keyof typeof WIDGET_NAMES];
 
 /** One face in a widget row: initials on the person's own colour —
  * the same identity the in-app avatars carry (Person.initials /
- * Person.avatarColor are stored fields, read as-is). */
+ * Person.avatarColor are stored fields, read as-is).
+ *
+ * v441: `photo` rides along when the person has a real photo
+ * (Person.photoUri — a file:// path in the app's own storage, the
+ * same field the in-app AvatarImage renders). The snapshot carries
+ * the PATH only: no file is read and nothing is encoded on this
+ * side. The native renderer (which runs in the app's process)
+ * decodes, crops and circle-clips the file at render time, and
+ * falls back to these initials on any failure. People whose face
+ * is a bundled avatarAsset illustration carry no photo — they
+ * keep initials, exactly as before. */
 export interface WidgetFace {
   personId: string;
   firstName: string;
   initials: string;
   color: string;
+  photo?: string;
 }
 
 function firstNameOf(name: string): string {
@@ -105,11 +121,13 @@ function firstNameOf(name: string): string {
 }
 
 function faceOf(person: Person): WidgetFace {
+  const photo = person.photoUri?.trim();
   return {
     personId: person.id,
     firstName: firstNameOf(person.name),
     initials: person.initials || firstNameOf(person.name).slice(0, 1),
     color: person.avatarColor || person.accentColor,
+    ...(photo ? { photo } : {}),
   };
 }
 
@@ -137,6 +155,8 @@ export type PrayTodayWidgetSnapshot =
       firstName: string;
       initials: string;
       color: string;
+      /** v441: the hero's photo path, when the person has one. */
+      photo?: string;
       needTitle: string;
       needLine: string;
       prayed: number;
@@ -170,6 +190,7 @@ export function buildPrayTodaySnapshot(people: Person[], now: Date): PrayTodayWi
     };
   }
   const item = leadPrayerItem(nextPerson);
+  const heroPhoto = nextPerson.photoUri?.trim();
   return {
     state: "next",
     personId: nextPerson.id,
@@ -177,6 +198,7 @@ export function buildPrayTodaySnapshot(people: Person[], now: Date): PrayTodayWi
     firstName: firstNameOf(nextPerson.name),
     initials: nextPerson.initials || firstNameOf(nextPerson.name).slice(0, 1),
     color: nextPerson.avatarColor || nextPerson.accentColor,
+    ...(heroPhoto ? { photo: heroPhoto } : {}),
     needTitle: item?.title ?? "",
     needLine: item?.note ?? nextPerson.prayerNote ?? "",
     prayed: progress.prayed,
@@ -199,6 +221,8 @@ export interface EmergencyWidgetRow {
   name: string;
   initials: string;
   color: string;
+  /** v441: the person's photo path, when they have one. */
+  photo?: string;
   title: string;
   note: string;
   leftText: string;
@@ -235,11 +259,13 @@ export function buildEmergencySnapshot(people: Person[], now: Date): EmergencyWi
   if (entries.length === 0) return { state: "none" };
   const toRow = ({ person, item }: (typeof entries)[number]): EmergencyWidgetRow => {
     const expiryMs = new Date(item.emergencyExpiresAt ?? 0).getTime();
+    const photo = person.photoUri?.trim();
     return {
       personId: person.id,
       name: person.name,
       initials: person.initials || firstNameOf(person.name).slice(0, 1),
       color: person.avatarColor || person.accentColor,
+      ...(photo ? { photo } : {}),
       title: item.title,
       note: item.note ?? "",
       leftText: emergencyLeftText(item.emergencyExpiresAt ?? "", now),
@@ -300,6 +326,10 @@ export function buildFastSnapshot(
 
 export interface ReachWidgetPerson extends WidgetFace {
   name: string;
+  /** Days since the last reach, numeric — the big widget composes
+   * its "· {days}d" text from it, and v441's Reach Pair chip
+   * renders "{days} days" from the same number. The photo rides
+   * the WidgetFace base (faceOf), like every other face. */
   days: number;
 }
 
@@ -591,9 +621,19 @@ export function buildAllWidgetSnapshots(input: WidgetSnapshotInputs): AllWidgetS
 /** v438: the ONE JSON document the native providers read — the
  * scheme their tap intents are built from, plus the six snapshots
  * under their builder keys (WidgetRenderer.kt reads exactly
- * these). Pure: the push layer only adds the storage reads. */
-export function serializeWidgetSnapshots(snapshots: AllWidgetSnapshots, scheme: string): string {
-  return JSON.stringify({ scheme, ...snapshots });
+ * these). Pure: the push layer only adds the storage reads.
+ *
+ * v441: the document also carries the widget palette
+ * (lib/widget-palette — the app's seed × appearance, derived on
+ * this side where the theme machinery lives). Only the three
+ * rectangle widgets dress from it; the existing six keep their
+ * compiled dress until their own redress. */
+export function serializeWidgetSnapshots(
+  snapshots: AllWidgetSnapshots,
+  scheme: string,
+  palette?: WidgetPalette,
+): string {
+  return JSON.stringify({ scheme, ...(palette ? { palette } : {}), ...snapshots });
 }
 
 // ─── Deep links (open-to-act) ───────────────────────────────────────────────

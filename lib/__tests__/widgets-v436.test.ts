@@ -379,10 +379,13 @@ describe("v436 all snapshots", () => {
 // ─── 8. Registration — six widgets, the dependency, the wiring ──────────────
 
 describe("v436 widget registration (v438 amendment: native module)", () => {
-  it("stays six, distinct, and named — the native providers' identities", () => {
+  it("stays distinct and named — the native providers' identities (v441: nine)", () => {
+    // v441 amendment: the three rectangles (Pray Strip / Pray Next /
+    // Reach Pair) joined the original six — same amendment pattern
+    // as v438's re-pointing of these pins at the native module.
     const names = Object.values(WIDGET_NAMES);
-    expect(names).toHaveLength(6);
-    expect(new Set(names).size).toBe(6);
+    expect(names).toHaveLength(9);
+    expect(new Set(names).size).toBe(9);
     // The native module's provider classes are named for these
     // (PrayToday -> PrayTodayWidgetProvider, …) — widgets-v438
     // pins the manifest side.
@@ -393,6 +396,9 @@ describe("v436 widget registration (v438 amendment: native module)", () => {
       reachOut: "ReachOut",
       upNext: "UpNext",
       yourStudy: "YourStudy",
+      prayStrip: "PrayStrip",
+      prayNext: "PrayNext",
+      reachPair: "ReachPair",
     });
   });
 

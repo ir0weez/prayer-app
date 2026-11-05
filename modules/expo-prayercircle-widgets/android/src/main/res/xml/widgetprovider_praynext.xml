@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v441: provider info for the Pray Next rectangle (W-3 R-2).
+     Same registration shape as the six: the OS refresh sits at
+     Android's 30-minute floor, and initialLayout IS the first
+     render — the compiled layout's defaults are the quiet face in
+     the W-3 Classic-light values until the first push paints the
+     snapshot's palette over it. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+  android:minWidth="160dp"
+  android:minHeight="130dp"
+  android:targetCellWidth="2"
+  android:targetCellHeight="2"
+  android:updatePeriodMillis="1800000"
+  android:initialLayout="@layout/widget_pray_next"
+  android:previewLayout="@layout/widget_pray_next"
+  android:description="@string/widget_pray_next_desc"
+  android:resizeMode="horizontal|vertical"
+  android:widgetCategory="home_screen" />

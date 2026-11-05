@@ -13,6 +13,7 @@ import android.util.SizeF
  * AndroidManifest.xml (library manifests merge into the app's), so
  * the receivers exist in the shipped APK with no prebuild codegen.
  * v441 adds the three rectangles (W-3) to the original six.
+ * v443 adds the two 2×1 strips (Emergency ES-1, Reading ST-2).
  */
 abstract class PrayerCircleWidgetProvider(private val kind: WidgetKind) : AppWidgetProvider() {
   override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
@@ -69,3 +70,7 @@ class PrayStripWidgetProvider : PrayerCircleWidgetProvider(WidgetKind.PRAY_STRIP
 class PrayNextWidgetProvider : PrayerCircleWidgetProvider(WidgetKind.PRAY_NEXT)
 
 class ReachPairWidgetProvider : PrayerCircleWidgetProvider(WidgetKind.REACH_PAIR)
+
+class EmergencyStripWidgetProvider : PrayerCircleWidgetProvider(WidgetKind.EMERGENCY_STRIP)
+
+class ReadingStripWidgetProvider : PrayerCircleWidgetProvider(WidgetKind.READING_STRIP)

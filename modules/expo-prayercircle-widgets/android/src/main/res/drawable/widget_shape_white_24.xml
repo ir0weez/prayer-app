@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v443: plain white rounded rect at the strips' 24dp radius —
+     the 2×1 strip family's card field (Emergency Strip, Reading
+     Strip, and the three rectangles recomposed at 2×1), painted
+     per instance via setColorFilter with the effective palette's
+     surface. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="#FFFFFF" />
+  <corners android:radius="24dp" />
+</shape>

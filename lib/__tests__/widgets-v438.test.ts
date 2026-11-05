@@ -105,8 +105,10 @@ describe("v438 native widget module", () => {
     // v441 amendment: three rectangle receivers joined the six —
     // the counts below are nine now (their own entries are pinned
     // in widgets-v441.test.ts).
-    expect(manifest.match(/android.appwidget.action.APPWIDGET_UPDATE/g)?.length).toBe(9);
-    expect(manifest.match(/android:exported="true"/g)?.length).toBe(9);
+    // v443 amendment: the Emergency and Reading strips joined —
+    // eleven receivers now (pinned in widgets-v443-strips.test.ts).
+    expect(manifest.match(/android.appwidget.action.APPWIDGET_UPDATE/g)?.length).toBe(11);
+    expect(manifest.match(/android:exported="true"/g)?.length).toBe(11);
   });
 
   it("carries a Kotlin provider class per widget, all rendering through one path", () => {

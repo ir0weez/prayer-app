@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v443: provider info for the Reading Strip (ST-2) — a true
+     2×1 cell (~190×82dp on his grid): the study snapshot as a
+     wide, short card, the next chapter's number standing in the
+     book's tile. Same registration shape as the family: the OS
+     refresh sits at Android's 30-minute floor, and initialLayout
+     IS the first render — the compiled layout's defaults are the
+     quiet face until the first push. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+  android:minWidth="160dp"
+  android:minHeight="60dp"
+  android:targetCellWidth="2"
+  android:targetCellHeight="1"
+  android:updatePeriodMillis="1800000"
+  android:initialLayout="@layout/widget_reading_strip"
+  android:previewLayout="@layout/widget_reading_strip"
+  android:description="@string/widget_reading_strip_desc"
+  android:resizeMode="horizontal|vertical"
+  android:widgetCategory="home_screen" />

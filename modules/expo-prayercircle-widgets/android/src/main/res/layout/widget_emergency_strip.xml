@@ -1,0 +1,429 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Emergency Strip (v443, ES-1 · Face first) — the emergency
+     snapshot in a true 2×1 cell (~190×82dp): the main widget's
+     red (widget_bg_emergency_24 — the meaning hue, never tinted)
+     when something is burning, the pale palette surface when not.
+     One active: face + name/need column, then an hours chip and
+     the white Pray now pill on their own row — at 190dp wide the
+     pill cannot share the face's row and leave the name readable,
+     so the chip and pill sit under it (every element of the
+     drawing survives; nothing wraps, nothing clips but the
+     chip's own tail, bounded by its weighted frame). Two or more:
+     two slim rows, soonest first, each with its own pill.
+     XML defaults are the quiet face. Vanilla subset only. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/es_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent">
+
+  <ImageView
+    android:id="@+id/es_bg"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:contentDescription="@null"
+    android:scaleType="fitXY"
+    android:src="@drawable/widget_shape_white_24" />
+
+  <ImageView
+    android:id="@+id/es_bg_red"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:contentDescription="@null"
+    android:scaleType="fitXY"
+    android:src="@drawable/widget_bg_emergency_24"
+    android:visibility="gone" />
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingStart="12dp"
+    android:paddingTop="6dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="6dp">
+
+    <!-- Quiet face -->
+    <LinearLayout
+      android:id="@+id/es_quiet"
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:gravity="center_vertical"
+      android:orientation="vertical">
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+          android:id="@+id/es_q_dot"
+          android:layout_width="8dp"
+          android:layout_height="8dp"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white"
+          android:tint="#7A72A0" />
+
+        <TextView
+          android:id="@+id/es_q_kicker"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="7dp"
+          android:letterSpacing="0.14"
+          android:text="EMERGENCY"
+          android:textColor="#7A72A0"
+          android:textSize="10sp"
+          android:textStyle="bold" />
+      </LinearLayout>
+
+      <TextView
+        android:id="@+id/es_q_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:text="No emergencies"
+        android:textColor="#221A3E"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+      <TextView
+        android:id="@+id/es_q_sub"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:text="Nothing urgent right now."
+        android:textColor="#4A4270"
+        android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- One active -->
+    <LinearLayout
+      android:id="@+id/es_single"
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:orientation="vertical"
+      android:visibility="gone">
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+          android:layout_width="44dp"
+          android:layout_height="44dp">
+
+          <ImageView
+            android:id="@+id/es_s_ring"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white"
+            android:tint="#FFFFFF" />
+
+          <ImageView
+            android:id="@+id/es_s_img"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <TextView
+            android:id="@+id/es_s_text"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+
+        <LinearLayout
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="10dp"
+          android:layout_weight="1"
+          android:orientation="vertical">
+
+          <TextView
+            android:id="@+id/es_s_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+          <TextView
+            android:id="@+id/es_s_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#E0FFFFFF"
+            android:textSize="12.5sp" />
+        </LinearLayout>
+      </LinearLayout>
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_weight="1">
+
+          <ImageView
+            android:id="@+id/es_s_chip_img"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_pill_white"
+            android:tint="#38FFFFFF" />
+
+          <TextView
+            android:id="@+id/es_s_left"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingStart="8dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="3dp"
+            android:textColor="#FFFFFF"
+            android:textSize="10.5sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+
+        <FrameLayout
+          android:id="@+id/es_s_pill"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="8dp">
+
+          <ImageView
+            android:id="@+id/es_s_pill_img"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_pill_white" />
+
+          <TextView
+            android:id="@+id/es_s_pill_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingStart="13dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="13dp"
+            android:paddingBottom="4dp"
+            android:text="Pray now"
+            android:textColor="#B91C1C"
+            android:textSize="13.5sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+      </LinearLayout>
+    </LinearLayout>
+
+    <!-- Two or more active -->
+    <LinearLayout
+      android:id="@+id/es_multi"
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:orientation="vertical"
+      android:visibility="gone">
+
+      <LinearLayout
+        android:id="@+id/es_row_1"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+          android:layout_width="28dp"
+          android:layout_height="28dp">
+
+          <ImageView
+            android:id="@+id/es_m_img_1"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <TextView
+            android:id="@+id/es_m_text_1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+
+        <LinearLayout
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="8dp"
+          android:layout_weight="1"
+          android:orientation="vertical">
+
+          <TextView
+            android:id="@+id/es_m_name_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+          <TextView
+            android:id="@+id/es_m_line_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#E0FFFFFF"
+            android:textSize="11.5sp" />
+        </LinearLayout>
+
+        <FrameLayout
+          android:id="@+id/es_m_pill_1"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="8dp">
+
+          <ImageView
+            android:id="@+id/es_m_pill_img_1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_pill_white" />
+
+          <TextView
+            android:id="@+id/es_m_pill_text_1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingStart="10dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="4dp"
+            android:text="Pray now"
+            android:textColor="#B91C1C"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+      </LinearLayout>
+
+      <FrameLayout
+        android:id="@+id/es_hairline"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#2EFFFFFF" />
+
+      <LinearLayout
+        android:id="@+id/es_row_2"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+          android:layout_width="28dp"
+          android:layout_height="28dp">
+
+          <ImageView
+            android:id="@+id/es_m_img_2"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <TextView
+            android:id="@+id/es_m_text_2"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+
+        <LinearLayout
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="8dp"
+          android:layout_weight="1"
+          android:orientation="vertical">
+
+          <TextView
+            android:id="@+id/es_m_name_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+          <TextView
+            android:id="@+id/es_m_line_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#E0FFFFFF"
+            android:textSize="11.5sp" />
+        </LinearLayout>
+
+        <FrameLayout
+          android:id="@+id/es_m_pill_2"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="8dp">
+
+          <ImageView
+            android:id="@+id/es_m_pill_img_2"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_pill_white" />
+
+          <TextView
+            android:id="@+id/es_m_pill_text_2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingStart="10dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="4dp"
+            android:text="Pray now"
+            android:textColor="#B91C1C"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+      </LinearLayout>
+    </LinearLayout>
+  </LinearLayout>
+</FrameLayout>

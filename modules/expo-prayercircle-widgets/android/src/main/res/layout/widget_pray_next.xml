@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Pray Next (v441, W-3 R-2) — the rectangle given to one person:
-     their face big at the left (62dp, ringed in the seed), the
-     NEXT UP kicker, name and need, and a filled Pray now pill at
-     the right. The pill is a FIXED-size frame (96x38dp) holding a
-     tinted pill ImageView under a centred TextView — the text is a
-     constant, so the frame never depends on wrap_content measuring
-     a match_parent child (the v438 pill collapse). Dress arrives
-     in the snapshot's palette; XML defaults are the quiet face in
-     the W-3 Classic-light values. Vanilla subset only. -->
+<!-- Pray Next (v443, R-2 recomposed at 2×1; v441 W-3 before) —
+     the rectangle given to one person, in a true 2×1 cell
+     (~190×82dp): the next person's face (44dp, primary ring),
+     their name and a quiet status line, and the filled Pray now
+     pill. FIT is the composition's law: the name column is
+     layout_weight-constrained AHEAD of the pill and the pill is
+     wrap_content (a pill ImageView stretched over a wrap frame
+     by its padded label), so the pill can never run off the edge
+     the way the v441 fixed 96dp frame did at small sizes — the
+     name ellipsizes first. The v441 kicker and need line are
+     gone: at strip size the name + status carry the card.
+     XML defaults are the quiet face in Classic-light values.
+     Vanilla subset only. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/pn_root"
   android:layout_width="match_parent"
@@ -18,14 +22,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:contentDescription="@null"
-    android:src="@drawable/widget_shape_white" />
+    android:scaleType="fitXY"
+    android:src="@drawable/widget_shape_white_24" />
 
   <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="14dp">
+    android:padding="12dp">
 
     <LinearLayout
       android:id="@+id/pn_msg"
@@ -40,7 +45,7 @@
         android:layout_height="wrap_content"
         android:text="Open PrayerCircle"
         android:textColor="#221A3E"
-        android:textSize="16sp"
+        android:textSize="15sp"
         android:textStyle="bold" />
 
       <TextView
@@ -50,7 +55,7 @@
         android:layout_marginTop="2dp"
         android:text="Today's prayer list will stand here."
         android:textColor="#4A4270"
-        android:textSize="12.5sp" />
+        android:textSize="12sp" />
     </LinearLayout>
 
     <LinearLayout
@@ -63,21 +68,21 @@
       android:visibility="gone">
 
       <FrameLayout
-        android:layout_width="68dp"
-        android:layout_height="68dp">
+        android:layout_width="48dp"
+        android:layout_height="48dp">
 
         <ImageView
           android:id="@+id/pn_ring"
-          android:layout_width="68dp"
-          android:layout_height="68dp"
+          android:layout_width="48dp"
+          android:layout_height="48dp"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white"
           android:tint="#6D4BD8" />
 
         <ImageView
           android:id="@+id/pn_img"
-          android:layout_width="62dp"
-          android:layout_height="62dp"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
           android:layout_gravity="center"
           android:contentDescription="@null"
           android:src="@drawable/widget_circle_white" />
@@ -88,51 +93,43 @@
           android:layout_height="match_parent"
           android:gravity="center"
           android:textColor="#FFFFFF"
-          android:textSize="20sp"
+          android:textSize="16sp"
           android:textStyle="bold" />
       </FrameLayout>
 
       <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="10dp"
         android:layout_weight="1"
         android:orientation="vertical">
-
-        <TextView
-          android:id="@+id/pn_kicker"
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:letterSpacing="0.13"
-          android:text="NEXT UP"
-          android:textColor="#6D4BD8"
-          android:textSize="10.5sp"
-          android:textStyle="bold" />
 
         <TextView
           android:id="@+id/pn_name"
           android:layout_width="match_parent"
           android:layout_height="wrap_content"
-          android:layout_marginTop="1dp"
           android:ellipsize="end"
           android:maxLines="1"
           android:textColor="#221A3E"
-          android:textSize="20sp"
+          android:textSize="15.5sp"
           android:textStyle="bold" />
 
         <TextView
-          android:id="@+id/pn_need"
+          android:id="@+id/pn_status"
           android:layout_width="match_parent"
           android:layout_height="wrap_content"
+          android:layout_marginTop="2dp"
           android:ellipsize="end"
-          android:maxLines="2"
-          android:textColor="#4A4270"
-          android:textSize="13sp" />
+          android:maxLines="1"
+          android:text="Waiting"
+          android:textColor="#7A72A0"
+          android:textSize="11.5sp" />
       </LinearLayout>
 
       <FrameLayout
-        android:layout_width="96dp"
-        android:layout_height="38dp"
+        android:id="@+id/pn_pill_frame"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginStart="10dp">
 
         <ImageView
@@ -146,12 +143,16 @@
 
         <TextView
           android:id="@+id/pn_pill"
-          android:layout_width="match_parent"
-          android:layout_height="match_parent"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
           android:gravity="center"
+          android:paddingStart="15dp"
+          android:paddingTop="8dp"
+          android:paddingEnd="15dp"
+          android:paddingBottom="8dp"
           android:text="Pray now"
           android:textColor="#FFFFFF"
-          android:textSize="12.5sp"
+          android:textSize="13.5sp"
           android:textStyle="bold" />
       </FrameLayout>
     </LinearLayout>

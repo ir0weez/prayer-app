@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Reach Pair (v441, W-3 R-3) — the two most overdue people side
-     by side, closest to his contacts rectangle: face, name, and a
-     tonal-green "{days} days" chip under each. The chips are
-     FIXED-size frames (bounded text, centred) holding a tinted
-     pill ImageView under the label — no wrap_content frame ever
-     measures a match_parent child. When only one person is due,
-     the second column hides and the two spacer columns show, so
-     the lead stands in the middle half. Dress arrives in the
-     snapshot's palette (greens = the reached kind-tone); XML
-     defaults are the quiet face in the W-3 Classic-light values.
-     Vanilla subset only. -->
+<!-- Reach Pair (v443, R-3 recomposed at 2×1; v441 W-3 before) —
+     the two most overdue people side by side in a true 2×1 cell
+     (~190×82dp), split by a hairline: face (36dp), name, and the
+     tonal "{days} days" chip under the name. The v441 header row
+     (kicker + due count) and the centred columns are gone — at
+     strip size the two halves ARE the card. One person due: the
+     second half and the divider hide and the lead's half takes
+     the width. Quiet wording unchanged from v441. XML defaults
+     are the quiet face in Classic-light values. Vanilla subset
+     only. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/rp_root"
   android:layout_width="match_parent"
@@ -20,75 +19,23 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:contentDescription="@null"
-    android:src="@drawable/widget_shape_white" />
+    android:scaleType="fitXY"
+    android:src="@drawable/widget_shape_white_24" />
 
   <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:gravity="center_vertical"
     android:orientation="vertical"
-    android:padding="14dp">
-
-    <LinearLayout
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:gravity="center_vertical"
-      android:orientation="horizontal">
-
-      <ImageView
-        android:id="@+id/rp_dot"
-        android:layout_width="8dp"
-        android:layout_height="8dp"
-        android:contentDescription="@null"
-        android:src="@drawable/widget_circle_white"
-        android:tint="#2E7D46" />
-
-      <TextView
-        android:id="@+id/rp_kicker"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="7dp"
-        android:letterSpacing="0.14"
-        android:text="DUE TO REACH OUT"
-        android:textColor="#7A72A0"
-        android:textSize="11sp"
-        android:textStyle="bold" />
-
-      <FrameLayout
-        android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:layout_weight="1" />
-
-      <FrameLayout
-        android:id="@+id/rp_due_wrap"
-        android:layout_width="64dp"
-        android:layout_height="24dp"
-        android:visibility="gone">
-
-        <ImageView
-          android:id="@+id/rp_due_img"
-          android:layout_width="match_parent"
-          android:layout_height="match_parent"
-          android:contentDescription="@null"
-          android:scaleType="fitXY"
-          android:src="@drawable/widget_pill_white"
-          android:tint="#DFF0E4" />
-
-        <TextView
-          android:id="@+id/rp_due"
-          android:layout_width="match_parent"
-          android:layout_height="match_parent"
-          android:gravity="center"
-          android:textColor="#2E7D46"
-          android:textSize="11.5sp"
-          android:textStyle="bold" />
-      </FrameLayout>
-    </LinearLayout>
+    android:paddingStart="12dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="10dp">
 
     <TextView
       android:id="@+id/rp_msg_title"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:layout_marginTop="10dp"
       android:text="Nobody due"
       android:textColor="#221A3E"
       android:textSize="15sp"
@@ -106,36 +53,27 @@
     <LinearLayout
       android:id="@+id/rp_pair"
       android:layout_width="match_parent"
-      android:layout_height="0dp"
-      android:layout_marginTop="8dp"
-      android:layout_weight="1"
+      android:layout_height="wrap_content"
       android:gravity="center_vertical"
       android:orientation="horizontal"
       android:visibility="gone">
-
-      <FrameLayout
-        android:id="@+id/rp_sp_1"
-        android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:layout_weight="1"
-        android:visibility="gone" />
 
       <LinearLayout
         android:id="@+id/rp_col_1"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="2"
-        android:gravity="center_horizontal"
-        android:orientation="vertical">
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <FrameLayout
-          android:layout_width="52dp"
-          android:layout_height="52dp">
+          android:layout_width="36dp"
+          android:layout_height="36dp">
 
           <ImageView
             android:id="@+id/rp_img_1"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:contentDescription="@null"
             android:src="@drawable/widget_circle_white" />
 
@@ -145,64 +83,83 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:textColor="#FFFFFF"
-            android:textSize="15sp"
+            android:textSize="12sp"
             android:textStyle="bold" />
         </FrameLayout>
 
-        <TextView
-          android:id="@+id/rp_name_1"
-          android:layout_width="match_parent"
+        <LinearLayout
+          android:layout_width="0dp"
           android:layout_height="wrap_content"
-          android:layout_marginTop="5dp"
-          android:ellipsize="end"
-          android:gravity="center"
-          android:maxLines="1"
-          android:textColor="#221A3E"
-          android:textSize="14sp"
-          android:textStyle="bold" />
-
-        <FrameLayout
-          android:layout_width="84dp"
-          android:layout_height="24dp"
-          android:layout_gravity="center_horizontal"
-          android:layout_marginTop="5dp">
-
-          <ImageView
-            android:id="@+id/rp_chip_img_1"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="@null"
-            android:scaleType="fitXY"
-            android:src="@drawable/widget_pill_white"
-            android:tint="#DFF0E4" />
+          android:layout_marginStart="8dp"
+          android:layout_weight="1"
+          android:orientation="vertical">
 
           <TextView
-            android:id="@+id/rp_chip_1"
+            android:id="@+id/rp_name_1"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:textColor="#2E7D46"
-            android:textSize="11.5sp"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#221A3E"
+            android:textSize="13.5sp"
             android:textStyle="bold" />
-        </FrameLayout>
+
+          <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp">
+
+            <ImageView
+              android:id="@+id/rp_chip_img_1"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:contentDescription="@null"
+              android:scaleType="fitXY"
+              android:src="@drawable/widget_pill_white"
+              android:tint="#E6DEF9" />
+
+            <TextView
+              android:id="@+id/rp_chip_1"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:gravity="center"
+              android:paddingStart="7dp"
+              android:paddingTop="2dp"
+              android:paddingEnd="7dp"
+              android:paddingBottom="2dp"
+              android:textColor="#2A1666"
+              android:textSize="10.5sp"
+              android:textStyle="bold" />
+          </FrameLayout>
+        </LinearLayout>
       </LinearLayout>
+
+      <FrameLayout
+        android:id="@+id/rp_divider"
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="4dp"
+        android:background="#E0D8F5" />
 
       <LinearLayout
         android:id="@+id/rp_col_2"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="2"
-        android:gravity="center_horizontal"
-        android:orientation="vertical">
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <FrameLayout
-          android:layout_width="52dp"
-          android:layout_height="52dp">
+          android:layout_width="36dp"
+          android:layout_height="36dp">
 
           <ImageView
             android:id="@+id/rp_img_2"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:contentDescription="@null"
             android:src="@drawable/widget_circle_white" />
 
@@ -212,54 +169,56 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:textColor="#FFFFFF"
-            android:textSize="15sp"
+            android:textSize="12sp"
             android:textStyle="bold" />
         </FrameLayout>
 
-        <TextView
-          android:id="@+id/rp_name_2"
-          android:layout_width="match_parent"
+        <LinearLayout
+          android:layout_width="0dp"
           android:layout_height="wrap_content"
-          android:layout_marginTop="5dp"
-          android:ellipsize="end"
-          android:gravity="center"
-          android:maxLines="1"
-          android:textColor="#221A3E"
-          android:textSize="14sp"
-          android:textStyle="bold" />
-
-        <FrameLayout
-          android:layout_width="84dp"
-          android:layout_height="24dp"
-          android:layout_gravity="center_horizontal"
-          android:layout_marginTop="5dp">
-
-          <ImageView
-            android:id="@+id/rp_chip_img_2"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="@null"
-            android:scaleType="fitXY"
-            android:src="@drawable/widget_pill_white"
-            android:tint="#DFF0E4" />
+          android:layout_marginStart="8dp"
+          android:layout_weight="1"
+          android:orientation="vertical">
 
           <TextView
-            android:id="@+id/rp_chip_2"
+            android:id="@+id/rp_name_2"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:textColor="#2E7D46"
-            android:textSize="11.5sp"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#221A3E"
+            android:textSize="13.5sp"
             android:textStyle="bold" />
-        </FrameLayout>
-      </LinearLayout>
 
-      <FrameLayout
-        android:id="@+id/rp_sp_2"
-        android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:layout_weight="1"
-        android:visibility="gone" />
+          <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp">
+
+            <ImageView
+              android:id="@+id/rp_chip_img_2"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:contentDescription="@null"
+              android:scaleType="fitXY"
+              android:src="@drawable/widget_pill_white"
+              android:tint="#E6DEF9" />
+
+            <TextView
+              android:id="@+id/rp_chip_2"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:gravity="center"
+              android:paddingStart="7dp"
+              android:paddingTop="2dp"
+              android:paddingEnd="7dp"
+              android:paddingBottom="2dp"
+              android:textColor="#2A1666"
+              android:textSize="10.5sp"
+              android:textStyle="bold" />
+          </FrameLayout>
+        </LinearLayout>
+      </LinearLayout>
     </LinearLayout>
   </LinearLayout>
 </FrameLayout>

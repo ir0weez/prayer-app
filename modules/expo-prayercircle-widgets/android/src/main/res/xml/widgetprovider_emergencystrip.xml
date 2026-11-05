@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v443: provider info for the Emergency Strip (ES-1) — a true
+     2×1 cell (~190×82dp on his grid): the emergency snapshot in a
+     wide, short red card. Same registration shape as the family:
+     the OS refresh sits at Android's 30-minute floor, and
+     initialLayout IS the first render — the compiled layout's
+     defaults are the quiet face until the first push. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+  android:minWidth="160dp"
+  android:minHeight="60dp"
+  android:targetCellWidth="2"
+  android:targetCellHeight="1"
+  android:updatePeriodMillis="1800000"
+  android:initialLayout="@layout/widget_emergency_strip"
+  android:previewLayout="@layout/widget_emergency_strip"
+  android:description="@string/widget_emergency_strip_desc"
+  android:resizeMode="horizontal|vertical"
+  android:widgetCategory="home_screen" />

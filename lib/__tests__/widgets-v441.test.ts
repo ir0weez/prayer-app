@@ -221,13 +221,16 @@ describe("v441 rectangle registration", () => {
     }
   });
 
-  it("provider-info: 2×2 cells, 160×130dp floor, 30-minute refresh, layout as its own preview", () => {
+  it("provider-info: 2×1 cells, 160×60dp floor, 30-minute refresh, layout as its own preview", () => {
+    // v443 re-pin: the rectangles were recomposed as true 2×1
+    // strips (he rejected the squares outright) — target height
+    // 2 → 1 and the height floor 130dp → 60dp. Width stands.
     for (const { xml, layout } of RECTANGLES) {
       const info = read(`${MODULE_RES}/xml/${xml}.xml`);
       expect(info).toContain('android:targetCellWidth="2"');
-      expect(info).toContain('android:targetCellHeight="2"');
+      expect(info).toContain('android:targetCellHeight="1"');
       expect(info).toContain('android:minWidth="160dp"');
-      expect(info).toContain('android:minHeight="130dp"');
+      expect(info).toContain('android:minHeight="60dp"');
       expect(info).toContain('android:updatePeriodMillis="1800000"');
       expect(info).toContain('android:resizeMode="horizontal|vertical"');
       expect(info).toContain(`android:initialLayout="@layout/${layout}"`);

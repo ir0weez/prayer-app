@@ -73,7 +73,7 @@ import { buildUpNextGroup, upNextMinutes, type UpNextCandidate, type UpNextItem 
 import type { WidgetPalette } from "./widget-palette";
 import { maxHeartsForLevel, normalizeXPState } from "./xp-engine";
 
-/** The six widget names — since v438 these are the native providers'
+/** The widget names — since v438 these are the native providers'
  * identities (modules/expo-prayercircle-widgets: provider classes
  * PrayTodayWidgetProvider &c., named for these), pinned by the
  * widget tests. */
@@ -88,6 +88,12 @@ export const WIDGET_NAMES = {
   prayStrip: "PrayStrip",
   prayNext: "PrayNext",
   reachPair: "ReachPair",
+  // v443: the two 2×1 strips — the emergency snapshot in a wide,
+  // short card (ES-1), and the study snapshot as a reading strip
+  // (ST-2). Both read the EXISTING snapshot sections; no new
+  // snapshot document rides along.
+  emergencyStrip: "EmergencyStrip",
+  readingStrip: "ReadingStrip",
 } as const;
 
 export type WidgetName = (typeof WIDGET_NAMES)[keyof typeof WIDGET_NAMES];
@@ -665,6 +671,11 @@ export type StudyWidgetSnapshot =
       lastWrittenNotes: number | null;
       /** The restudy queue's head, in restudyQueueSummary's words. */
       restudyLine: string | null;
+      /** v443 (ST-2): the restudy queue head's BOOK alone, carried
+       * separately so the reading strip's one line can name it
+       * ("· ↻ Colossians") without parsing restudyLine's sentence.
+       * Null when the queue is empty. */
+      restudyBook: string | null;
       chaptersWritten: number;
       totalChapters: number;
     };
@@ -728,6 +739,7 @@ export function buildStudySnapshot(
     lastWrittenChapter,
     lastWrittenNotes,
     restudyLine: restudy?.line ?? null,
+    restudyBook: restudy?.next.book ?? null,
     chaptersWritten,
     totalChapters,
   };

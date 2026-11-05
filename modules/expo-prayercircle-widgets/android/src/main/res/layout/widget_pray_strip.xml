@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Pray Strip (v441, W-3 R-1) — the rectangle: today's prayer
-     queue as a strip of faces. Dress arrives in the snapshot's
-     palette (ps_bg is a white shape the renderer paints with the
-     palette surface; every text/dot/ring colour is set at render).
-     The XML defaults are the quiet face in the W-3 Classic-light
-     values, so a fresh placement reads right before any push.
-     Vanilla subset only (v439 rules): LinearLayout / FrameLayout /
-     ImageView / TextView + <shape> drawables. -->
+<!-- Pray Strip (v443, R-1 recomposed at 2x1; v441 W-3 before) —
+     today's prayer queue in a true 2x1 cell (~190x82dp): a header
+     row (PRAY TODAY; "{prayed} of {total} prayed · Next:" with the
+     next name in the primary) over a row of OVERLAPPING faces.
+     The v441 columns carried a name and a state under every face;
+     at strip size those wrapped into each other on his phone, so
+     they are gone — faces only, up to five at 40dp overlapping
+     -9dp, surface-coloured rings separating them, the next
+     person's ring in the primary, and the +N chip (tonal
+     container) when more remain. The header's count text is
+     weight-bounded and ellipsizes at the START, so the next
+     person's name — wrap_content, after it — can never be pushed
+     off the card. XML defaults are the quiet face in Classic-light
+     values. Vanilla subset only. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/ps_root"
   android:layout_width="match_parent"
@@ -17,13 +23,17 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:contentDescription="@null"
-    android:src="@drawable/widget_shape_white" />
+    android:scaleType="fitXY"
+    android:src="@drawable/widget_shape_white_24" />
 
   <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="14dp">
+    android:paddingStart="12dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="8dp">
 
     <LinearLayout
       android:layout_width="match_parent"
@@ -43,24 +53,33 @@
         android:id="@+id/ps_kicker"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="7dp"
-        android:letterSpacing="0.14"
+        android:layout_marginStart="6dp"
+        android:letterSpacing="0.12"
         android:text="PRAY TODAY"
         android:textColor="#7A72A0"
-        android:textSize="11sp"
+        android:textSize="9sp"
         android:textStyle="bold" />
-
-      <FrameLayout
-        android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:layout_weight="1" />
 
       <TextView
         android:id="@+id/ps_count"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:ellipsize="start"
+        android:gravity="end"
+        android:maxLines="1"
+        android:textColor="#7A72A0"
+        android:textSize="10.5sp" />
+
+      <TextView
+        android:id="@+id/ps_next_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#7A72A0"
-        android:textSize="11.5sp"
+        android:layout_marginStart="4dp"
+        android:maxLines="1"
+        android:textColor="#6D4BD8"
+        android:textSize="10.5sp"
         android:textStyle="bold" />
     </LinearLayout>
 
@@ -68,7 +87,7 @@
       android:id="@+id/ps_msg_title"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:layout_marginTop="10dp"
+      android:layout_marginTop="8dp"
       android:text="Open PrayerCircle"
       android:textColor="#221A3E"
       android:textSize="15sp"
@@ -86,382 +105,201 @@
     <LinearLayout
       android:id="@+id/ps_faces"
       android:layout_width="match_parent"
-      android:layout_height="0dp"
-      android:layout_marginTop="8dp"
-      android:layout_weight="1"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="6dp"
       android:gravity="center_vertical"
       android:orientation="horizontal"
       android:visibility="gone">
-
-      <!-- Five face slots + the +N overflow slot (the big widget's
-           rule: faces beyond the slots fold into the last one).
-           Ring, face, initials, name, state — generated per slot;
-           slot 1 is written out, slots 2-6 share its shape. -->
-      <LinearLayout
+      <FrameLayout
         android:id="@+id/ps_face_1"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:gravity="center_horizontal"
-        android:orientation="vertical">
+        android:layout_width="46dp"
+        android:layout_height="46dp">
 
-        <FrameLayout
+        <ImageView
+          android:id="@+id/ps_face_ring_1"
           android:layout_width="46dp"
-          android:layout_height="46dp">
+          android:layout_height="46dp"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white"
+          android:tint="#E6DEF9" />
 
-          <ImageView
-            android:id="@+id/ps_face_ring_1"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_circle_white"
-            android:tint="#E6DEF9" />
-
-          <ImageView
-            android:id="@+id/ps_face_img_1"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_circle_white" />
-
-          <TextView
-            android:id="@+id/ps_face_text_1"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-        </FrameLayout>
+        <ImageView
+          android:id="@+id/ps_face_img_1"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:layout_gravity="center"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white" />
 
         <TextView
-          android:id="@+id/ps_face_name_1"
+          android:id="@+id/ps_face_text_1"
           android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:layout_marginTop="4dp"
-          android:ellipsize="end"
+          android:layout_height="match_parent"
           android:gravity="center"
-          android:maxLines="1"
-          android:textColor="#221A3E"
-          android:textSize="10.5sp"
+          android:textColor="#FFFFFF"
+          android:textSize="11sp"
           android:textStyle="bold" />
+      </FrameLayout>
 
-        <TextView
-          android:id="@+id/ps_face_state_1"
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:gravity="center"
-          android:letterSpacing="0.06"
-          android:textColor="#7A72A0"
-          android:textSize="8sp"
-          android:textStyle="bold" />
-      </LinearLayout>
-
-      <LinearLayout
+      <FrameLayout
         android:id="@+id/ps_face_2"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:gravity="center_horizontal"
-        android:orientation="vertical">
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:layout_marginStart="-9dp">
 
-        <FrameLayout
+        <ImageView
+          android:id="@+id/ps_face_ring_2"
           android:layout_width="46dp"
-          android:layout_height="46dp">
+          android:layout_height="46dp"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white"
+          android:tint="#E6DEF9" />
 
-          <ImageView
-            android:id="@+id/ps_face_ring_2"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_circle_white"
-            android:tint="#E6DEF9" />
-
-          <ImageView
-            android:id="@+id/ps_face_img_2"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_circle_white" />
-
-          <TextView
-            android:id="@+id/ps_face_text_2"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-        </FrameLayout>
+        <ImageView
+          android:id="@+id/ps_face_img_2"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:layout_gravity="center"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white" />
 
         <TextView
-          android:id="@+id/ps_face_name_2"
+          android:id="@+id/ps_face_text_2"
           android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:layout_marginTop="4dp"
-          android:ellipsize="end"
+          android:layout_height="match_parent"
           android:gravity="center"
-          android:maxLines="1"
-          android:textColor="#221A3E"
-          android:textSize="10.5sp"
+          android:textColor="#FFFFFF"
+          android:textSize="11sp"
           android:textStyle="bold" />
+      </FrameLayout>
 
-        <TextView
-          android:id="@+id/ps_face_state_2"
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:gravity="center"
-          android:letterSpacing="0.06"
-          android:textColor="#7A72A0"
-          android:textSize="8sp"
-          android:textStyle="bold" />
-      </LinearLayout>
-
-      <LinearLayout
+      <FrameLayout
         android:id="@+id/ps_face_3"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:gravity="center_horizontal"
-        android:orientation="vertical">
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:layout_marginStart="-9dp">
 
-        <FrameLayout
+        <ImageView
+          android:id="@+id/ps_face_ring_3"
           android:layout_width="46dp"
-          android:layout_height="46dp">
+          android:layout_height="46dp"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white"
+          android:tint="#E6DEF9" />
 
-          <ImageView
-            android:id="@+id/ps_face_ring_3"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_circle_white"
-            android:tint="#E6DEF9" />
-
-          <ImageView
-            android:id="@+id/ps_face_img_3"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_circle_white" />
-
-          <TextView
-            android:id="@+id/ps_face_text_3"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-        </FrameLayout>
+        <ImageView
+          android:id="@+id/ps_face_img_3"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:layout_gravity="center"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white" />
 
         <TextView
-          android:id="@+id/ps_face_name_3"
+          android:id="@+id/ps_face_text_3"
           android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:layout_marginTop="4dp"
-          android:ellipsize="end"
+          android:layout_height="match_parent"
           android:gravity="center"
-          android:maxLines="1"
-          android:textColor="#221A3E"
-          android:textSize="10.5sp"
+          android:textColor="#FFFFFF"
+          android:textSize="11sp"
           android:textStyle="bold" />
+      </FrameLayout>
 
-        <TextView
-          android:id="@+id/ps_face_state_3"
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:gravity="center"
-          android:letterSpacing="0.06"
-          android:textColor="#7A72A0"
-          android:textSize="8sp"
-          android:textStyle="bold" />
-      </LinearLayout>
-
-      <LinearLayout
+      <FrameLayout
         android:id="@+id/ps_face_4"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:gravity="center_horizontal"
-        android:orientation="vertical">
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:layout_marginStart="-9dp">
 
-        <FrameLayout
+        <ImageView
+          android:id="@+id/ps_face_ring_4"
           android:layout_width="46dp"
-          android:layout_height="46dp">
+          android:layout_height="46dp"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white"
+          android:tint="#E6DEF9" />
 
-          <ImageView
-            android:id="@+id/ps_face_ring_4"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_circle_white"
-            android:tint="#E6DEF9" />
-
-          <ImageView
-            android:id="@+id/ps_face_img_4"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_circle_white" />
-
-          <TextView
-            android:id="@+id/ps_face_text_4"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-        </FrameLayout>
+        <ImageView
+          android:id="@+id/ps_face_img_4"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:layout_gravity="center"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white" />
 
         <TextView
-          android:id="@+id/ps_face_name_4"
+          android:id="@+id/ps_face_text_4"
           android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:layout_marginTop="4dp"
-          android:ellipsize="end"
+          android:layout_height="match_parent"
           android:gravity="center"
-          android:maxLines="1"
-          android:textColor="#221A3E"
-          android:textSize="10.5sp"
+          android:textColor="#FFFFFF"
+          android:textSize="11sp"
           android:textStyle="bold" />
+      </FrameLayout>
 
-        <TextView
-          android:id="@+id/ps_face_state_4"
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:gravity="center"
-          android:letterSpacing="0.06"
-          android:textColor="#7A72A0"
-          android:textSize="8sp"
-          android:textStyle="bold" />
-      </LinearLayout>
-
-      <LinearLayout
+      <FrameLayout
         android:id="@+id/ps_face_5"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:gravity="center_horizontal"
-        android:orientation="vertical">
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:layout_marginStart="-9dp">
 
-        <FrameLayout
+        <ImageView
+          android:id="@+id/ps_face_ring_5"
           android:layout_width="46dp"
-          android:layout_height="46dp">
+          android:layout_height="46dp"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white"
+          android:tint="#E6DEF9" />
 
-          <ImageView
-            android:id="@+id/ps_face_ring_5"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_circle_white"
-            android:tint="#E6DEF9" />
-
-          <ImageView
-            android:id="@+id/ps_face_img_5"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_circle_white" />
-
-          <TextView
-            android:id="@+id/ps_face_text_5"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-        </FrameLayout>
+        <ImageView
+          android:id="@+id/ps_face_img_5"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:layout_gravity="center"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white" />
 
         <TextView
-          android:id="@+id/ps_face_name_5"
+          android:id="@+id/ps_face_text_5"
           android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:layout_marginTop="4dp"
-          android:ellipsize="end"
+          android:layout_height="match_parent"
           android:gravity="center"
-          android:maxLines="1"
-          android:textColor="#221A3E"
-          android:textSize="10.5sp"
+          android:textColor="#FFFFFF"
+          android:textSize="11sp"
           android:textStyle="bold" />
+      </FrameLayout>
 
-        <TextView
-          android:id="@+id/ps_face_state_5"
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:gravity="center"
-          android:letterSpacing="0.06"
-          android:textColor="#7A72A0"
-          android:textSize="8sp"
-          android:textStyle="bold" />
-      </LinearLayout>
-
-      <LinearLayout
+      <FrameLayout
         android:id="@+id/ps_face_6"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:gravity="center_horizontal"
-        android:orientation="vertical">
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:layout_marginStart="-9dp">
 
-        <FrameLayout
+        <ImageView
+          android:id="@+id/ps_face_ring_6"
           android:layout_width="46dp"
-          android:layout_height="46dp">
+          android:layout_height="46dp"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white"
+          android:tint="#E6DEF9" />
 
-          <ImageView
-            android:id="@+id/ps_face_ring_6"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_circle_white"
-            android:tint="#E6DEF9" />
-
-          <ImageView
-            android:id="@+id/ps_face_img_6"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_circle_white" />
-
-          <TextView
-            android:id="@+id/ps_face_text_6"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:textColor="#2A1666"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-        </FrameLayout>
+        <ImageView
+          android:id="@+id/ps_face_img_6"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:layout_gravity="center"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white" />
 
         <TextView
-          android:id="@+id/ps_face_name_6"
+          android:id="@+id/ps_face_text_6"
           android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:layout_marginTop="4dp"
-          android:ellipsize="end"
+          android:layout_height="match_parent"
           android:gravity="center"
-          android:maxLines="1"
-          android:textColor="#221A3E"
-          android:textSize="10.5sp"
+          android:textColor="#FFFFFF"
+          android:textSize="11sp"
           android:textStyle="bold" />
-
-        <TextView
-          android:id="@+id/ps_face_state_6"
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:gravity="center"
-          android:letterSpacing="0.06"
-          android:textColor="#7A72A0"
-          android:textSize="8sp"
-          android:textStyle="bold" />
-      </LinearLayout>
+      </FrameLayout>
     </LinearLayout>
   </LinearLayout>
 </FrameLayout>

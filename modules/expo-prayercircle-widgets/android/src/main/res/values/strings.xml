@@ -18,4 +18,8 @@
   <string name="widget_pray_next_desc">The next person to pray for, with their need</string>
   <string name="widget_reach_pair_label">Reach Pair</string>
   <string name="widget_reach_pair_desc">The two most overdue reach-outs, side by side</string>
+  <string name="widget_emergency_strip_label">Emergency Strip</string>
+  <string name="widget_emergency_strip_desc">Active emergency prayers in a small strip, soonest first</string>
+  <string name="widget_reading_strip_label">Currently Reading</string>
+  <string name="widget_reading_strip_desc">The book you are in, and the chapter you write next</string>
 </resources>

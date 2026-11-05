@@ -7,9 +7,9 @@
      snapshot's palette over it. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
   android:minWidth="160dp"
-  android:minHeight="130dp"
+  android:minHeight="60dp"
   android:targetCellWidth="2"
-  android:targetCellHeight="2"
+  android:targetCellHeight="1"
   android:updatePeriodMillis="1800000"
   android:initialLayout="@layout/widget_pray_strip"
   android:previewLayout="@layout/widget_pray_strip"

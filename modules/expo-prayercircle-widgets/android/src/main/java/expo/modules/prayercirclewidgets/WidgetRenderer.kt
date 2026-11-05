@@ -27,7 +27,9 @@ import org.json.JSONObject
  * The first six are v438's; v441 adds the three rectangles (W-3).
  * v442: Emergency and Up Next pick a second compiled layout at
  * render time by the widget's real height (the enum keeps the
- * standard layout as the registration default). */
+ * standard layout as the registration default). v443 adds the
+ * two 2×1 strips (Emergency ES-1, Reading ST-2) and recomposes
+ * the three rectangles at 2×1 in the same layouts. */
 enum class WidgetKind(
   val providerClass: Class<out AppWidgetProvider>,
   val layoutRes: Int,
@@ -41,6 +43,8 @@ enum class WidgetKind(
   PRAY_STRIP(PrayStripWidgetProvider::class.java, R.layout.widget_pray_strip),
   PRAY_NEXT(PrayNextWidgetProvider::class.java, R.layout.widget_pray_next),
   REACH_PAIR(ReachPairWidgetProvider::class.java, R.layout.widget_reach_pair),
+  EMERGENCY_STRIP(EmergencyStripWidgetProvider::class.java, R.layout.widget_emergency_strip),
+  READING_STRIP(ReadingStripWidgetProvider::class.java, R.layout.widget_reading_strip),
 }
 
 /**
@@ -93,6 +97,10 @@ object WidgetRenderer {
       WidgetKind.PRAY_STRIP -> renderPrayStrip(context, root, scheme, pal)
       WidgetKind.PRAY_NEXT -> renderPrayNext(context, root, scheme, pal)
       WidgetKind.REACH_PAIR -> renderReachPair(context, root, scheme, pal)
+      WidgetKind.EMERGENCY_STRIP ->
+        renderEmergencyStrip(context, root?.optJSONObject("emergency"), scheme, pal)
+      WidgetKind.READING_STRIP ->
+        renderReadingStrip(context, root?.optJSONObject("study"), scheme, pal)
     }
   }
 
@@ -596,6 +604,28 @@ object WidgetRenderer {
       }
     }
     return raw.replaceFirstChar { it.uppercase(Locale.US) } + " of 24"
+  }
+
+  /** v443: the strip forms of the same countdown, from the same
+   * math (expiresAtMillis, the <55-minute rule, the rounded
+   * hour). The single-active chip carries the mock's own words —
+   * "14 hours left"; the two-row lines carry the compact form —
+   * "14h left". The full "…of 24" sentence fits neither at
+   * 190dp wide, and fit is the strips' headline rule. */
+  fun emergencyStripLeftText(expiresAtMillis: Long, nowMillis: Long): String {
+    val ms = expiresAtMillis - nowMillis
+    if (ms <= 0) return "ending now"
+    if (ms / 60000.0 < 55) return "under 1h left"
+    val hours = (ms / 3600000.0).roundToLong()
+    return if (hours <= 1) "1 hour left" else "$hours hours left"
+  }
+
+  fun emergencyShortLeftText(expiresAtMillis: Long, nowMillis: Long): String {
+    val ms = expiresAtMillis - nowMillis
+    if (ms <= 0) return "ending now"
+    if (ms / 60000.0 < 55) return "under 1h left"
+    val hours = (ms / 3600000.0).roundToLong()
+    return if (hours <= 1) "1h left" else "${hours}h left"
   }
 
   private val EM_ROWS = intArrayOf(R.id.em_row_1, R.id.em_row_2)
@@ -1267,23 +1297,25 @@ object WidgetRenderer {
     }
   }
 
-  // ─── 7. Pray Strip (v441, W-3 R-1) ────────────────────────────────────────
+  // ─── 7. Pray Strip (v443 R-1 at 2×1; v441 W-3 before) ─────────────────────
   //
-  // v442: the rectangles' bodies are unchanged — only their paint
-  // source moves, from the snapshot palette to the render's
-  // effective palette (device colours first, steer 2).
+  // v442: the rectangles' paint source moved to the render's
+  // effective palette (device colours first, steer 2). v443
+  // recomposes the strip itself for the 2×1 cell: header counts
+  // and an overlapping faces row — no names under faces.
 
   private val PS_SLOTS = intArrayOf(R.id.ps_face_1, R.id.ps_face_2, R.id.ps_face_3, R.id.ps_face_4, R.id.ps_face_5, R.id.ps_face_6)
   private val PS_RINGS = intArrayOf(R.id.ps_face_ring_1, R.id.ps_face_ring_2, R.id.ps_face_ring_3, R.id.ps_face_ring_4, R.id.ps_face_ring_5, R.id.ps_face_ring_6)
   private val PS_IMGS = intArrayOf(R.id.ps_face_img_1, R.id.ps_face_img_2, R.id.ps_face_img_3, R.id.ps_face_img_4, R.id.ps_face_img_5, R.id.ps_face_img_6)
   private val PS_TEXTS = intArrayOf(R.id.ps_face_text_1, R.id.ps_face_text_2, R.id.ps_face_text_3, R.id.ps_face_text_4, R.id.ps_face_text_5, R.id.ps_face_text_6)
-  private val PS_NAMES = intArrayOf(R.id.ps_face_name_1, R.id.ps_face_name_2, R.id.ps_face_name_3, R.id.ps_face_name_4, R.id.ps_face_name_5, R.id.ps_face_name_6)
-  private val PS_STATES = intArrayOf(R.id.ps_face_state_1, R.id.ps_face_state_2, R.id.ps_face_state_3, R.id.ps_face_state_4, R.id.ps_face_state_5, R.id.ps_face_state_6)
 
-  /** The rectangle form of Pray Today: same snapshot, same queue
-   * order, same overflow rule — five faces stand and the rest fold
-   * into the +N slot (the big widget fits six; the strip is
-   * narrower, so its fold starts one earlier). */
+  /** The strip form of Pray Today: same snapshot, same queue
+   * order. The header carries the day's count and the next name
+   * (the snapshot already rides prayed/total and, in the next
+   * state, the hero's firstName — nothing new had to be added);
+   * the faces overlap below it, five standing and the rest
+   * folded into the +N chip. Root tap = the next person's pray
+   * link, exactly as the big widget's. */
   private fun renderPrayStrip(context: Context, root: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
     val views = RemoteViews(context.packageName, R.layout.widget_pray_strip)
     val base = 700
@@ -1293,26 +1325,37 @@ object WidgetRenderer {
     views.setInt(R.id.ps_dot, "setColorFilter", pal.primary)
     views.setTextColor(R.id.ps_kicker, pal.muted)
     views.setTextColor(R.id.ps_count, pal.muted)
+    views.setTextColor(R.id.ps_next_name, pal.primary)
     views.setTextColor(R.id.ps_msg_title, pal.ink)
     views.setTextColor(R.id.ps_msg_sub, pal.body)
     val state = snap?.optString("state") ?: "no-queue"
     if (snap == null || state == "no-queue") {
+      views.setTextViewText(R.id.ps_count, "")
+      views.setTextViewText(R.id.ps_next_name, "")
+      views.setViewVisibility(R.id.ps_faces, View.GONE)
+      views.setViewVisibility(R.id.ps_msg_title, View.VISIBLE)
+      views.setViewVisibility(R.id.ps_msg_sub, View.VISIBLE)
       views.setOnClickPendingIntent(R.id.ps_root, launchPendingIntent(context, base))
       return views
     }
-    views.setTextViewText(R.id.ps_count, "${snap.optInt("prayed")} of ${snap.optInt("total")} prayed")
     val faces = snap.optJSONArray("faces") ?: JSONArray()
     fillStripFaces(context, views, faces, snap.optString("personId"), state == "next", pal)
     views.setViewVisibility(R.id.ps_faces, View.VISIBLE)
+    views.setViewVisibility(R.id.ps_msg_title, View.GONE)
+    views.setViewVisibility(R.id.ps_msg_sub, View.GONE)
     if (state == "complete") {
-      views.setTextViewText(R.id.ps_msg_title, "Pray Today complete")
-      views.setViewVisibility(R.id.ps_msg_title, View.VISIBLE)
-      views.setViewVisibility(R.id.ps_msg_sub, View.GONE)
+      // The day is done: the header carries the full count and
+      // no Next name stands.
+      views.setTextViewText(R.id.ps_count, "${snap.optInt("prayed")} of ${snap.optInt("total")} prayed")
+      views.setTextViewText(R.id.ps_next_name, "")
       views.setOnClickPendingIntent(R.id.ps_root, launchPendingIntent(context, base))
       return views
     }
-    views.setViewVisibility(R.id.ps_msg_title, View.GONE)
-    views.setViewVisibility(R.id.ps_msg_sub, View.GONE)
+    views.setTextViewText(
+      R.id.ps_count,
+      "${snap.optInt("prayed")} of ${snap.optInt("total")} prayed · Next:",
+    )
+    views.setTextViewText(R.id.ps_next_name, snap.optString("firstName"))
     val tap = if (scheme != null) {
       uriPendingIntent(context, prayUri(scheme, snap.optString("personId"), "today"), base + 1)
     } else {
@@ -1322,6 +1365,11 @@ object WidgetRenderer {
     return views
   }
 
+  /** The overlapping faces row: five faces at 40dp with
+   * surface-coloured rings (the ring is what separates one face
+   * from the next in the overlap), the next person's ring in the
+   * primary, and — when the queue runs past five — the +N chip
+   * in the tonal container as the sixth slot. */
   private fun fillStripFaces(
     context: Context,
     views: RemoteViews,
@@ -1340,46 +1388,29 @@ object WidgetRenderer {
       views.setViewVisibility(PS_SLOTS[i], View.VISIBLE)
       if (overflow && i == visible) {
         // The last slot becomes the +N counter (never a photo).
-        views.setInt(PS_RINGS[i], "setColorFilter", pal.container)
+        views.setInt(PS_RINGS[i], "setColorFilter", pal.surface)
         views.setImageViewResource(PS_IMGS[i], R.drawable.widget_circle_white)
         views.setInt(PS_IMGS[i], "setColorFilter", pal.container)
         views.setTextViewText(PS_TEXTS[i], "+${faces.length() - visible}")
         views.setTextColor(PS_TEXTS[i], pal.onContainer)
-        views.setTextViewText(PS_NAMES[i], "")
-        views.setTextViewText(PS_STATES[i], "")
         continue
       }
       val face = faces.optJSONObject(i) ?: continue
-      val prayed = face.optBoolean("prayed")
       val isNext = hasNext && face.optString("personId") == nextPersonId
-      views.setInt(PS_RINGS[i], "setColorFilter", if (prayed || isNext) pal.primary else pal.container)
+      views.setInt(PS_RINGS[i], "setColorFilter", if (isNext) pal.primary else pal.surface)
       applyFace(context, views, PS_IMGS[i], PS_TEXTS[i], face, pal.primary, 40)
       views.setTextColor(PS_TEXTS[i], Color.WHITE)
-      views.setTextViewText(PS_NAMES[i], face.optString("firstName"))
-      views.setTextColor(PS_NAMES[i], if (prayed) pal.primary else pal.ink)
-      when {
-        prayed -> {
-          views.setTextViewText(PS_STATES[i], "PRAYED")
-          views.setTextColor(PS_STATES[i], pal.primary)
-        }
-        isNext -> {
-          views.setTextViewText(PS_STATES[i], "NEXT")
-          views.setTextColor(PS_STATES[i], pal.primary)
-        }
-        else -> {
-          views.setTextViewText(PS_STATES[i], "WAITING")
-          views.setTextColor(PS_STATES[i], pal.muted)
-        }
-      }
     }
   }
 
-  // ─── 8. Pray Next (v441, W-3 R-2) ─────────────────────────────────────────
+  // ─── 8. Pray Next (v443 R-2 at 2×1; v441 W-3 before) ──────────────────────
 
-  /** The rectangle given to one person: the prayToday snapshot's
-   * next person, their need composed the way the big widget
-   * composes it (title, else the note line), and the same pray
-   * deep link on the pill (and the card). */
+  /** The strip given to one person: the prayToday snapshot's next
+   * person — face, first name, and their standing in the day's
+   * queue ("Waiting": on the list, not yet prayed — the same
+   * state word the strip faces used). The pill is wrap_content
+   * behind the weight-constrained name column, so it always
+   * fits; the same pray deep link rides the pill and the card. */
   private fun renderPrayNext(context: Context, root: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
     val views = RemoteViews(context.packageName, R.layout.widget_pray_next)
     val base = 800
@@ -1390,7 +1421,9 @@ object WidgetRenderer {
     val state = snap?.optString("state") ?: "no-queue"
     if (snap == null || state != "next") {
       // No next person (empty queue, or the day complete): the
-      // quiet face stands — msg is the layout default.
+      // quiet face stands.
+      views.setViewVisibility(R.id.pn_hero, View.GONE)
+      views.setViewVisibility(R.id.pn_msg, View.VISIBLE)
       views.setOnClickPendingIntent(R.id.pn_root, launchPendingIntent(context, base))
       return views
     }
@@ -1399,21 +1432,12 @@ object WidgetRenderer {
     views.setInt(R.id.pn_ring, "setColorFilter", pal.primary)
     // The hero IS the next person: the snapshot's top-level face
     // fields ride the same face shape applyFace reads.
-    applyFace(context, views, R.id.pn_img, R.id.pn_text, snap, pal.primary, 62)
+    applyFace(context, views, R.id.pn_img, R.id.pn_text, snap, pal.primary, 44)
     views.setTextColor(R.id.pn_text, Color.WHITE)
-    views.setTextColor(R.id.pn_kicker, pal.primary)
     views.setTextViewText(R.id.pn_name, snap.optString("firstName"))
     views.setTextColor(R.id.pn_name, pal.ink)
-    val needTitle = snap.optString("needTitle")
-    val needLine = snap.optString("needLine")
-    val need = when {
-      needTitle.isNotBlank() && needLine.isNotBlank() -> "$needTitle — $needLine"
-      needTitle.isNotBlank() -> needTitle
-      else -> needLine
-    }
-    views.setTextViewText(R.id.pn_need, need)
-    views.setViewVisibility(R.id.pn_need, if (need.isBlank()) View.GONE else View.VISIBLE)
-    views.setTextColor(R.id.pn_need, pal.body)
+    views.setTextViewText(R.id.pn_status, "Waiting")
+    views.setTextColor(R.id.pn_status, pal.muted)
     views.setInt(R.id.pn_pill_img, "setColorFilter", pal.primary)
     views.setTextColor(R.id.pn_pill, pal.onPrimary)
     val tap = if (scheme != null) {
@@ -1426,25 +1450,27 @@ object WidgetRenderer {
     return views
   }
 
-  // ─── 9. Reach Pair (v441, W-3 R-3) ────────────────────────────────────────
+  // ─── 9. Reach Pair (v443 R-3 at 2×1; v441 W-3 before) ─────────────────────
 
   private val RP_IMGS = intArrayOf(R.id.rp_img_1, R.id.rp_img_2)
   private val RP_TEXTS = intArrayOf(R.id.rp_text_1, R.id.rp_text_2)
   private val RP_NAMES = intArrayOf(R.id.rp_name_1, R.id.rp_name_2)
   private val RP_CHIP_IMGS = intArrayOf(R.id.rp_chip_img_1, R.id.rp_chip_img_2)
   private val RP_CHIPS = intArrayOf(R.id.rp_chip_1, R.id.rp_chip_2)
+  private val RP_COLS = intArrayOf(R.id.rp_col_1, R.id.rp_col_2)
 
   /** The two most overdue people side by side (the reachOut
-   * snapshot's lead + second), each with its "{days} days" chip in
-   * the reached green's kind-tones. One due: the second column
-   * hides and the spacers show, centring the lead. */
+   * snapshot's lead + second), split by a hairline, each with its
+   * "{days} days" chip in the palette's tonal container (the R-3
+   * drawing's chip dress). One due: the second half and the
+   * divider hide and the lead's half takes the width. The header
+   * row the rectangle carried at 2×2 (kicker + due count) does
+   * not survive the strip — the halves are the card. */
   private fun renderReachPair(context: Context, root: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
     val views = RemoteViews(context.packageName, R.layout.widget_reach_pair)
     val base = 900
     val snap = root?.optJSONObject("reachOut")
     views.setInt(R.id.rp_bg, "setColorFilter", pal.surface)
-    views.setInt(R.id.rp_dot, "setColorFilter", pal.green)
-    views.setTextColor(R.id.rp_kicker, pal.muted)
     views.setTextColor(R.id.rp_msg_title, pal.ink)
     views.setTextColor(R.id.rp_msg_sub, pal.body)
     val tap = if (scheme != null) {
@@ -1453,32 +1479,196 @@ object WidgetRenderer {
       launchPendingIntent(context, base)
     }
     views.setOnClickPendingIntent(R.id.rp_root, tap)
-    if (snap == null || snap.optString("state") != "due") return views
+    if (snap == null || snap.optString("state") != "due") {
+      views.setViewVisibility(R.id.rp_pair, View.GONE)
+      views.setViewVisibility(R.id.rp_msg_title, View.VISIBLE)
+      views.setViewVisibility(R.id.rp_msg_sub, View.VISIBLE)
+      return views
+    }
     val lead = snap.optJSONObject("lead") ?: return views
     views.setViewVisibility(R.id.rp_msg_title, View.GONE)
     views.setViewVisibility(R.id.rp_msg_sub, View.GONE)
     views.setViewVisibility(R.id.rp_pair, View.VISIBLE)
-    views.setViewVisibility(R.id.rp_due_wrap, View.VISIBLE)
-    views.setInt(R.id.rp_due_img, "setColorFilter", pal.greenContainer)
-    views.setTextViewText(R.id.rp_due, "${snap.optInt("totalDue")} due")
-    views.setTextColor(R.id.rp_due, pal.green)
+    views.setInt(R.id.rp_divider, "setBackgroundColor", pal.track)
     val people = listOf(lead, snap.optJSONObject("second"))
     for (i in people.indices) {
       val person = people[i]
       if (person == null) continue
-      applyFace(context, views, RP_IMGS[i], RP_TEXTS[i], person, pal.green, 52)
+      views.setViewVisibility(RP_COLS[i], View.VISIBLE)
+      applyFace(context, views, RP_IMGS[i], RP_TEXTS[i], person, pal.green, 36)
       views.setTextColor(RP_TEXTS[i], Color.WHITE)
       views.setTextViewText(RP_NAMES[i], person.optString("firstName"))
       views.setTextColor(RP_NAMES[i], pal.ink)
-      views.setInt(RP_CHIP_IMGS[i], "setColorFilter", pal.greenContainer)
+      views.setInt(RP_CHIP_IMGS[i], "setColorFilter", pal.container)
       views.setTextViewText(RP_CHIPS[i], "${person.optInt("days")} days")
-      views.setTextColor(RP_CHIPS[i], pal.green)
+      views.setTextColor(RP_CHIPS[i], pal.onContainer)
     }
     if (people[1] == null) {
       views.setViewVisibility(R.id.rp_col_2, View.GONE)
-      views.setViewVisibility(R.id.rp_sp_1, View.VISIBLE)
-      views.setViewVisibility(R.id.rp_sp_2, View.VISIBLE)
+      views.setViewVisibility(R.id.rp_divider, View.GONE)
+    } else {
+      views.setViewVisibility(R.id.rp_divider, View.VISIBLE)
     }
+    return views
+  }
+
+  // ─── 10. Emergency Strip (v443, ES-1) ─────────────────────────────────────
+
+  private val ES_M_IMGS = intArrayOf(R.id.es_m_img_1, R.id.es_m_img_2)
+  private val ES_M_TEXTS = intArrayOf(R.id.es_m_text_1, R.id.es_m_text_2)
+  private val ES_M_NAMES = intArrayOf(R.id.es_m_name_1, R.id.es_m_name_2)
+  private val ES_M_LINES = intArrayOf(R.id.es_m_line_1, R.id.es_m_line_2)
+  private val ES_M_PILLS = intArrayOf(R.id.es_m_pill_1, R.id.es_m_pill_2)
+
+  /** ES-1 · Face first, at 2×1: the emergency snapshot in a wide,
+   * short card. The red is the main widget's own gradient at the
+   * strip radius (widget_bg_emergency_24) — a meaning hue, set
+   * as a resource and NEVER tinted; the quiet face wears the
+   * palette surface like its big sibling. Rows re-filter by
+   * expiresAtMillis exactly as renderEmergency's do. One active
+   * fills the strip; two or more split it into two slim rows,
+   * soonest first, the second row's line carrying "· +N more"
+   * when more are running. */
+  private fun renderEmergencyStrip(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
+    val views = RemoteViews(context.packageName, R.layout.widget_emergency_strip)
+    val base = 1000
+    val now = System.currentTimeMillis()
+    val all = mutableListOf<JSONObject>()
+    if (snap != null && snap.optString("state") == "active") {
+      for (key in listOf("rows", "extraRows")) {
+        val arr = snap.optJSONArray(key) ?: continue
+        for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { all.add(it) }
+      }
+    }
+    val live = all.filter { row ->
+      val expires = row.optLong("expiresAtMillis", 0L)
+      expires <= 0L || expires > now
+    }
+    if (live.isEmpty()) {
+      views.setViewVisibility(R.id.es_bg, View.VISIBLE)
+      views.setInt(R.id.es_bg, "setColorFilter", pal.surface)
+      views.setViewVisibility(R.id.es_bg_red, View.GONE)
+      views.setViewVisibility(R.id.es_quiet, View.VISIBLE)
+      views.setViewVisibility(R.id.es_single, View.GONE)
+      views.setViewVisibility(R.id.es_multi, View.GONE)
+      views.setInt(R.id.es_q_dot, "setColorFilter", pal.muted)
+      views.setTextColor(R.id.es_q_kicker, pal.muted)
+      views.setTextColor(R.id.es_q_title, pal.ink)
+      views.setTextColor(R.id.es_q_sub, pal.body)
+      views.setOnClickPendingIntent(R.id.es_root, launchPendingIntent(context, base))
+      return views
+    }
+    views.setViewVisibility(R.id.es_bg, View.GONE)
+    views.setViewVisibility(R.id.es_bg_red, View.VISIBLE)
+    views.setViewVisibility(R.id.es_quiet, View.GONE)
+    val leadTap = if (scheme != null) {
+      uriPendingIntent(context, prayUri(scheme, live[0].optString("personId"), "emergency"), base + 1)
+    } else {
+      launchPendingIntent(context, base)
+    }
+    views.setOnClickPendingIntent(R.id.es_root, leadTap)
+    if (live.size == 1) {
+      views.setViewVisibility(R.id.es_multi, View.GONE)
+      views.setViewVisibility(R.id.es_single, View.VISIBLE)
+      val row = live[0]
+      views.setInt(R.id.es_s_ring, "setColorFilter", Color.WHITE)
+      applyFace(context, views, R.id.es_s_img, R.id.es_s_text, row, SEED, 40)
+      views.setTextColor(R.id.es_s_text, Color.WHITE)
+      views.setTextViewText(R.id.es_s_name, row.optString("name"))
+      val title = row.optString("title")
+      views.setTextViewText(R.id.es_s_title, if (title.isNotBlank()) title else row.optString("note"))
+      val expires = row.optLong("expiresAtMillis", 0L)
+      views.setTextViewText(
+        R.id.es_s_left,
+        if (expires > 0L) emergencyStripLeftText(expires, now) else row.optString("leftText"),
+      )
+      views.setOnClickPendingIntent(R.id.es_s_pill, leadTap)
+      return views
+    }
+    views.setViewVisibility(R.id.es_single, View.GONE)
+    views.setViewVisibility(R.id.es_multi, View.VISIBLE)
+    for (slot in 0 until 2) {
+      val row = live[slot]
+      applyFace(context, views, ES_M_IMGS[slot], ES_M_TEXTS[slot], row, SEED, 28)
+      views.setTextColor(ES_M_TEXTS[slot], Color.WHITE)
+      views.setTextViewText(ES_M_NAMES[slot], row.optString("name"))
+      val expires = row.optLong("expiresAtMillis", 0L)
+      val left = if (expires > 0L) emergencyShortLeftText(expires, now) else row.optString("leftText")
+      var line = "${row.optString("title")} · $left"
+      if (slot == 1 && live.size > 2) line += " · +${live.size - 2} more"
+      views.setTextViewText(ES_M_LINES[slot], line)
+      if (scheme != null) {
+        val tap = uriPendingIntent(context, prayUri(scheme, row.optString("personId"), "emergency"), base + 1 + slot)
+        views.setOnClickPendingIntent(ES_M_PILLS[slot], tap)
+      }
+    }
+    return views
+  }
+
+  // ─── 11. Reading Strip (v443, ST-2) ───────────────────────────────────────
+
+  /** ST-2 · Chapter in the tile, at 2×1: the study snapshot as a
+   * wide, short card. The tile wears the book's ROYGBIV colour
+   * (a meaning hue) with the NEXT chapter's number standing in
+   * it — or the book glyph when the book is fully written. One
+   * muted line under the book's name: "{next} of {total}", plus
+   * "· ↻ {restudy book}" when a restudy is queued (the book's
+   * name rides the snapshot as restudyBook — the renderer never
+   * parses restudyLine's sentence). The root tap is Your Study's
+   * own deep link, to the same chapter. */
+  private fun renderReadingStrip(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
+    val views = RemoteViews(context.packageName, R.layout.widget_reading_strip)
+    val base = 1100
+    views.setInt(R.id.rs_bg, "setColorFilter", pal.surface)
+    views.setTextColor(R.id.rs_msg, pal.ink)
+    if (snap == null || snap.optString("state") != "active") {
+      views.setViewVisibility(R.id.rs_msg, View.VISIBLE)
+      views.setViewVisibility(R.id.rs_main, View.GONE)
+      views.setOnClickPendingIntent(R.id.rs_root, launchPendingIntent(context, base))
+      return views
+    }
+    // The book's own colour, resolved exactly as renderYourStudy
+    // resolves it (bookColor, its pre-v442 name as fallback).
+    val bookColor = colorOr(
+      snap.optString("bookColor").takeIf { it.isNotBlank() } ?: snap.optString("colorPrimary"),
+      pal.primary,
+    )
+    val book = snap.optString("book")
+    val nextChapter = if (snap.isNull("nextChapter")) null else snap.optInt("nextChapter")
+    val lastChapter = if (snap.isNull("lastWrittenChapter")) null else snap.optInt("lastWrittenChapter")
+    val totalChapters = snap.optInt("totalChapters")
+    views.setViewVisibility(R.id.rs_msg, View.GONE)
+    views.setViewVisibility(R.id.rs_main, View.VISIBLE)
+    views.setInt(R.id.rs_tile, "setColorFilter", bookColor)
+    if (nextChapter != null) {
+      views.setViewVisibility(R.id.rs_tile_num, View.VISIBLE)
+      views.setTextViewText(R.id.rs_tile_num, nextChapter.toString())
+      views.setViewVisibility(R.id.rs_tile_glyph, View.GONE)
+    } else {
+      views.setViewVisibility(R.id.rs_tile_num, View.GONE)
+      views.setViewVisibility(R.id.rs_tile_glyph, View.VISIBLE)
+      views.setImageViewBitmap(R.id.rs_tile_glyph, bookBitmap())
+    }
+    views.setTextColor(R.id.rs_kicker, pal.muted)
+    views.setTextViewText(R.id.rs_book, book)
+    views.setTextColor(R.id.rs_book, pal.ink)
+    val restudyBook = snap.optString("restudyBook").takeIf { it.isNotBlank() }
+    val line = if (nextChapter != null) {
+      "$nextChapter of $totalChapters" + (restudyBook?.let { " · ↻ $it" } ?: "")
+    } else {
+      // Fully written — the study snapshot's own words (Your
+      // Study's "Fully written", its last-written chapter).
+      "Fully written" + (lastChapter?.let { " · Last written · Chapter $it" } ?: "")
+    }
+    views.setTextViewText(R.id.rs_line, line)
+    views.setTextColor(R.id.rs_line, pal.muted)
+    val openChapter = nextChapter ?: lastChapter ?: 1
+    val tap = if (scheme != null) {
+      uriPendingIntent(context, "$scheme://bible-chapter?book=${Uri.encode(book)}&chapter=$openChapter", base + 1)
+    } else {
+      launchPendingIntent(context, base)
+    }
+    views.setOnClickPendingIntent(R.id.rs_root, tap)
     return views
   }
 

@@ -15,11 +15,14 @@
  * and clipped; that class of failure is designed out here).
  *
  * Snapshot deltas: NONE for the strips' data — Emergency and
- * Pray Today already carried everything. The one extension is
- * the study snapshot's restudyBook (the queue head's book name,
- * carried separately so the Reading strip never parses
- * restudyLine's sentence). PrayStrip's header derives from the
- * prayed/total/firstName the Pray Today snapshot already rides.
+ * Pray Today already carried everything. (Part 2 briefly added
+ * a restudyBook field to the study snapshot for the Reading
+ * strip's line; v443 part 3 removed it again at Jonathan's word
+ * — "Just what you are currently reading. Restudy can be it's
+ * own widget if anything" — so the strip shows the current book
+ * only and the snapshot is back to its part-1 shape.)
+ * PrayStrip's header derives from the prayed/total/firstName the
+ * Pray Today snapshot already rides.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -72,11 +75,13 @@ describe("v443 strips snapshot deltas", () => {
     expect(WIDGET_NAMES.readingStrip).toBe("ReadingStrip");
   });
 
-  it("Study carries restudyBook — the queue head's book name, unparsed", () => {
-    // The v436 fixture's shape: Colossians underway (chapters
-    // 1–2 marked complete), Genesis heading the restudy queue —
-    // the two books differ, so the strip's "· ↻ Genesis" can
-    // only have come from the queue, not the current book.
+  it("Study carries NO restudyBook — restudyLine still rides whole for the big widget", () => {
+    // v443 part 3 amendment: this test pinned the part-2
+    // restudyBook extension ("Genesis"); Jonathan removed the
+    // restudy segment from the strip, so the field is gone and
+    // the pin flips — while restudyLine (Your Study's own data)
+    // is untouched. The fixture keeps a non-empty queue so the
+    // absence is proven against data that would have filled it.
     const snapshot = buildStudySnapshot(
       {
         overrides: { "Colossians|1": "complete", "Colossians|2": "complete" },
@@ -91,14 +96,17 @@ describe("v443 strips snapshot deltas", () => {
     );
     expect(snapshot.state).toBe("active");
     if (snapshot.state !== "active") return;
-    expect(snapshot.restudyBook).toBe("Genesis");
+    expect("restudyBook" in snapshot).toBe(false);
     // The sentence still rides whole for the big widget.
     expect(snapshot.restudyLine).toBe("Genesis · Chapter 1 is next — 1 book waiting");
     expect(snapshot.nextChapter).toBe(3);
     expect(snapshot.totalChapters).toBe(4);
   });
 
-  it("restudyBook is null when the restudy queue is empty", () => {
+  it("no restudyBook either when the restudy queue is empty", () => {
+    // v443 part 3 amendment: was "restudyBook is null when the
+    // restudy queue is empty" — the field no longer exists in
+    // any state; restudyLine still nulls as before.
     const snapshot = buildStudySnapshot(
       {
         overrides: {},
@@ -113,7 +121,7 @@ describe("v443 strips snapshot deltas", () => {
     );
     expect(snapshot.state).toBe("active");
     if (snapshot.state !== "active") return;
-    expect(snapshot.restudyBook).toBeNull();
+    expect("restudyBook" in snapshot).toBe(false);
     expect(snapshot.restudyLine).toBeNull();
   });
 
@@ -278,12 +286,17 @@ describe("v443 Reading Strip (ST-2)", () => {
     expect(strip).toContain("No book underway");
   });
 
-  it("the renderer composes the one line from the snapshot's numbers and restudyBook", () => {
+  it("the renderer composes the one line from the snapshot's numbers only — no restudy segment", () => {
+    // v443 part 3 amendment: was "...and restudyBook" — the line
+    // is progress-only now. The negative pins are scoped to
+    // renderReadingStrip's own body so Your Study's legitimate
+    // restudy use elsewhere in the renderer cannot trip them.
     const at = renderer.indexOf("private fun renderReadingStrip");
     expect(at).toBeGreaterThan(-1);
     const body = renderer.slice(at, at + 6000);
-    expect(body).toContain('optString("restudyBook")');
-    expect(body).toContain("· ↻ $it");
+    expect(body).not.toContain("restudyBook");
+    expect(body).not.toContain("↻");
+    expect(body).toContain('"$nextChapter of $totalChapters"');
     expect(body).toContain("of $totalChapters");
     // Fully written: the snapshot's own words, and the glyph in
     // the tile instead of a number.

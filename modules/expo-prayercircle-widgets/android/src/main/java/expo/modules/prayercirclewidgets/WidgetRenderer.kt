@@ -1611,11 +1611,11 @@ object WidgetRenderer {
    * wide, short card. The tile wears the book's ROYGBIV colour
    * (a meaning hue) with the NEXT chapter's number standing in
    * it — or the book glyph when the book is fully written. One
-   * muted line under the book's name: "{next} of {total}", plus
-   * "· ↻ {restudy book}" when a restudy is queued (the book's
-   * name rides the snapshot as restudyBook — the renderer never
-   * parses restudyLine's sentence). The root tap is Your Study's
-   * own deep link, to the same chapter. */
+   * muted line under the book's name: "{next} of {total}" — the
+   * current book only (v443 part 3: the restudy segment was
+   * removed at Jonathan's word; restudy is its own concern, not
+   * this strip's). The root tap is Your Study's own deep link,
+   * to the same chapter. */
   private fun renderReadingStrip(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette): RemoteViews {
     val views = RemoteViews(context.packageName, R.layout.widget_reading_strip)
     val base = 1100
@@ -1652,9 +1652,8 @@ object WidgetRenderer {
     views.setTextColor(R.id.rs_kicker, pal.muted)
     views.setTextViewText(R.id.rs_book, book)
     views.setTextColor(R.id.rs_book, pal.ink)
-    val restudyBook = snap.optString("restudyBook").takeIf { it.isNotBlank() }
     val line = if (nextChapter != null) {
-      "$nextChapter of $totalChapters" + (restudyBook?.let { " · ↻ $it" } ?: "")
+      "$nextChapter of $totalChapters"
     } else {
       // Fully written — the study snapshot's own words (Your
       // Study's "Fully written", its last-written chapter).

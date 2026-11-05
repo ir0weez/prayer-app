@@ -671,11 +671,6 @@ export type StudyWidgetSnapshot =
       lastWrittenNotes: number | null;
       /** The restudy queue's head, in restudyQueueSummary's words. */
       restudyLine: string | null;
-      /** v443 (ST-2): the restudy queue head's BOOK alone, carried
-       * separately so the reading strip's one line can name it
-       * ("· ↻ Colossians") without parsing restudyLine's sentence.
-       * Null when the queue is empty. */
-      restudyBook: string | null;
       chaptersWritten: number;
       totalChapters: number;
     };
@@ -739,7 +734,6 @@ export function buildStudySnapshot(
     lastWrittenChapter,
     lastWrittenNotes,
     restudyLine: restudy?.line ?? null,
-    restudyBook: restudy?.next.book ?? null,
     chaptersWritten,
     totalChapters,
   };

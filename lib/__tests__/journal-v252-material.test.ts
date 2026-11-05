@@ -133,8 +133,11 @@ describe("v252 — the derivation sweep (every palette × scheme)", () => {
     // meaning hues the green already represented, and the white
     // the Answered banner's ink walks toward. Same rule: meaning
     // constants only, each mixed over the card and ink-walked.
+    // v440 re-base: the reached line's green joins on the same
+    // terms — the approved drawing's dot hue, carried as a kind
+    // meaning constant and ink-walked like the rest.
     expect([...new Set(literals)]).toEqual([
-      "#F59E0B", "#22C55E", "#3B82F6", "#EC4899", "#7C3AED", "#DB2777", "#D97706", "#DC2626", "#FFFFFF",
+      "#F59E0B", "#22C55E", "#3B82F6", "#EC4899", "#7C3AED", "#DB2777", "#D97706", "#DC2626", "#2E7D46", "#FFFFFF",
     ]);
   });
 });

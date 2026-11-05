@@ -254,7 +254,7 @@ import {
 import { syncAutoExportRegistration } from "@/lib/bible-v205/auto-export-task";
 import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from "@/lib/schedule-data";
 import { getReadingPosition, readingPositionDisplay } from "@/lib/bible-v205/position";
-import { createPrayerJournalEntry, normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
+import { createPrayerJournalEntry, normalizePrayerJournalEntries, reconcileReachedJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
 import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/monuments";
 import { COINS_STORAGE_KEY, parseCoins, applyCoinsDelta } from "@/lib/hometown";
@@ -2412,6 +2412,23 @@ export default function HomeScreen() {
     });
     setReachedStamps(nextStamps);
   }, [awardExperience, reachedStamps, revokeExperience]);
+
+  // v440: the Journal's reached lines mirror the stamps. Every
+  // stamp write lands in this one state — the in-shell doors
+  // through setReachedStamps / handleReachedStampsChange above,
+  // the routed doors (person page, Due page) through the focus
+  // re-read of the stamps key — so the sync reconciles against
+  // the last-seen stamps here, the same convergence the XP door
+  // diffs. The baseline arms on the first sight after hydration
+  // and changes nothing then: stamps already standing were
+  // written before the sync existed, and they get no lines.
+  const reachedJournalBaselineRef = useRef<Map<string, string> | null>(null);
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    const result = reconcileReachedJournalEntries(journal, reachedStamps, people, reachedJournalBaselineRef.current);
+    reachedJournalBaselineRef.current = result.baseline;
+    if (result.entries !== journal) setJournal(result.entries);
+  }, [hasHydratedPeople, journal, people, reachedStamps]);
 
   const handlePraise = (personId: string, note = "") => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

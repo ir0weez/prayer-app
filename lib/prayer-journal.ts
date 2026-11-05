@@ -1,4 +1,5 @@
 import type { Person, PrayerItem } from "./prayercircle-data";
+import type { ReachedStamp } from "./reached-stamps";
 
 export type PrayerJournalTaggedPerson = Pick<
   Person,
@@ -37,6 +38,10 @@ export type PrayerJournalReply = {
 // week's question, riding in `question`) — and "entry", the plain
 // moment named explicitly when the composer files it. Absence
 // still reads as the plain moment it has always been.
+// v440: the set grows once more — "reached", the quiet line a
+// reached stamp leaves in the day's flow (Concept 3, his Nov 5
+// pick). It is never composed; the stamp sync at the bottom of
+// this file writes it, one per person per stamp date.
 export type PrayerJournalEntryKind =
   | "praise"
   | "answered"
@@ -44,7 +49,8 @@ export type PrayerJournalEntryKind =
   | "prayer"
   | "gratitude"
   | "verse"
-  | "answer";
+  | "answer"
+  | "reached";
 
 /** v411: a verse post's reference — the book by its reader name
  *  ("Isaiah"), chapter and verse numbers, and the verse's own
@@ -74,6 +80,7 @@ const PRAYER_JOURNAL_ENTRY_KINDS: readonly PrayerJournalEntryKind[] = [
   "gratitude",
   "verse",
   "answer",
+  "reached",
 ];
 
 function normalizeVerseRef(value: unknown): PrayerJournalVerseRef | undefined {
@@ -316,7 +323,10 @@ export function createPrayerJournalEntry(
 ): PrayerJournalEntry[] {
   const body = input.body.trim();
   const photos = normalizePhotos(input.photos);
-  if (!body && !hasStandaloneContent({ mood: input.mood, photos })) return entries;
+  // v440: a reached entry may carry no words at all — a quick-tap
+  // mark has no note; the reach itself (person + stamp date) is
+  // the content, the same standing the v194 note gives a mood.
+  if (!body && !hasStandaloneContent({ mood: input.mood, photos }) && input.kind !== "reached") return entries;
   const createdAt = now.toISOString();
   const fallbackDate = formatLocalIsoDate(now);
   const entry: PrayerJournalEntry = {
@@ -511,7 +521,9 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
         : undefined;
     // v194: mood-only and photo-only entries (no words) are real
     // entries now — they survive normalization alongside text ones.
-    if (!body && !candidateMood && !candidatePhotos) return [];
+    // v440: a reached line survives on the same standing — a
+    // quick-tap mark carries no words, and the line is the record.
+    if (!body && !candidateMood && !candidatePhotos && candidate.kind !== "reached") return [];
     const date = normalizeDate(candidate.date, fallbackDate);
     const createdAt =
       typeof candidate.createdAt === "string" && !Number.isNaN(new Date(candidate.createdAt).getTime())
@@ -645,4 +657,238 @@ export function addAnsweredPrayerJournalEntry(
     id,
     now,
   );
+}
+
+// ─── v440: the reached line — a stamp's quiet post in the Journal ─────────
+
+/** The stable Journal id for a reached stamp's line — one line
+ *  per person per stamp date, ever (the answered discipline). */
+export function reachedJournalId(personId: string, date: string): string {
+  return `journal-reached-${personId}-${date}`;
+}
+
+/**
+ * Lowercase a text's first letter ONLY when it opens with a plain
+ * capitalized word — all letters, capital first, the rest lower —
+ * and what follows doesn't argue: no second word, or a second word
+ * that starts lowercase. So a sentence written standing alone
+ * ("Called to check in on him.", "His house") settles into the
+ * line's flow ("called to check in on him", "his house"), while a
+ * name or a brand keeps its shape: "Met John at…" (John is
+ * capitalized) and "McDonald's" / "In-N-Out" (not plain words)
+ * pass through untouched — and "I" never lowercases.
+ */
+export function firstLetterLowerIfPlain(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return trimmed;
+  const words = trimmed.split(/\s+/);
+  const first = words[0];
+  if (first === "I") return trimmed;
+  if (!/^[A-Za-z]+$/.test(first)) return trimmed;
+  if (!/^[A-Z][a-z]*$/.test(first)) return trimmed;
+  const second = words[1];
+  if (second !== undefined && !/^[a-z]/.test(second)) return trimmed;
+  return trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
+}
+
+export type ReachedLineParts = {
+  /** The reached person's name — the line's one bold run. */
+  name: string;
+  /** Everything after the name: " — note, at place", ", at
+   *  place", " — note", or "" when the stamp carries neither. */
+  tail: string;
+};
+
+/**
+ * The quiet line's words (Concept 3, the approved drawing):
+ * "You reached Dad — called to check in on him, at his house".
+ * The stamp's note rides verbatim minus its trailing period,
+ * settled by the plain-word rule above; the stamp's location
+ * appends as ", at …" under the same rule.
+ */
+export function reachedLineParts(input: {
+  personName: string;
+  note?: string;
+  location?: string;
+}): ReachedLineParts {
+  const noteText = (input.note ?? "").trim().replace(/\.$/, "");
+  const note = noteText ? firstLetterLowerIfPlain(noteText) : "";
+  const locationText = (input.location ?? "").trim();
+  const location = locationText ? firstLetterLowerIfPlain(locationText) : "";
+  let tail = "";
+  if (note) tail += ` — ${note}`;
+  if (location) tail += `, at ${location}`;
+  return { name: input.personName, tail };
+}
+
+/** The line as one string — the parts above, joined for tests
+ *  and any surface that needs the words whole. */
+export function formatReachedLine(input: {
+  personName: string;
+  note?: string;
+  location?: string;
+}): string {
+  const parts = reachedLineParts(input);
+  return `You reached ${parts.name}${parts.tail}`;
+}
+
+function upsertReachedJournalEntry(
+  entries: PrayerJournalEntry[],
+  tagged: PrayerJournalTaggedPerson,
+  stamp: ReachedStamp,
+  now: Date,
+): PrayerJournalEntry[] {
+  const id = reachedJournalId(stamp.personId, stamp.date);
+  const body = stamp.note?.trim() ?? "";
+  const location = stamp.location?.trim() || undefined;
+  const existing = entries.find((entry) => entry.id === id);
+  if (existing) {
+    if (
+      existing.body === body &&
+      existing.location === location &&
+      existing.taggedPeople[0]?.id === tagged.id &&
+      existing.taggedPeople[0]?.name === tagged.name
+    ) {
+      return entries;
+    }
+    // Re-marking or editing the stamp refreshes the same line —
+    // its replies, bookmark and first-written time stand.
+    return entries.map((entry) =>
+      entry.id === id
+        ? { ...entry, body, location, taggedPeople: [tagged], kind: "reached" as const, date: stamp.date, updatedAt: now.toISOString() }
+        : entry,
+    );
+  }
+  const createdAt = now.toISOString();
+  const entry: PrayerJournalEntry = {
+    id,
+    body,
+    kind: "reached",
+    date: stamp.date,
+    taggedPeople: [tagged],
+    isBookmarked: false,
+    replies: [],
+    createdAt,
+    updatedAt: createdAt,
+    ...(location ? { location } : {}),
+  };
+  return sortPrayerJournalEntries([entry, ...entries]);
+}
+
+/**
+ * The reached write-in (his Nov 5 ruling: marking someone reached
+ * should leave a line in the Journal, the way answering a prayer
+ * leaves its post). One line per person per stamp date: the first
+ * mark creates it under the STAMP's date — a backdated stamp's
+ * line belongs to the day the reach happened, not the day it was
+ * typed — and every later save of that stamp (a re-mark, the
+ * editor's note/location) refreshes the same line in place. The
+ * stamp's note rides as the entry's body and its location as the
+ * entry's location, so the line renders from the record exactly
+ * as the answered post renders its prayer's words.
+ */
+export function addReachedJournalEntry(
+  entries: PrayerJournalEntry[],
+  person: Person,
+  stamp: ReachedStamp,
+  now = new Date(),
+): PrayerJournalEntry[] {
+  return upsertReachedJournalEntry(entries, snapshotPerson(person), stamp, now);
+}
+
+/** A stamp's line goes when the stamp goes. Absence is a no-op —
+ *  the same array comes back, so callers can diff by reference. */
+export function removeReachedJournalEntry(
+  entries: PrayerJournalEntry[],
+  stamp: ReachedStamp,
+): PrayerJournalEntry[] {
+  return removeReachedJournalEntryByKey(entries, stamp.personId, stamp.date);
+}
+
+export function removeReachedJournalEntryByKey(
+  entries: PrayerJournalEntry[],
+  personId: string,
+  date: string,
+): PrayerJournalEntry[] {
+  const id = reachedJournalId(personId, date);
+  if (!entries.some((entry) => entry.id === id)) return entries;
+  return entries.filter((entry) => entry.id !== id);
+}
+
+/** What the sync remembers of a stamp: everything the line is
+ *  made of, so a change to any of it re-reads as a changed stamp. */
+export function reachedStampFingerprint(stamp: ReachedStamp): string {
+  return JSON.stringify([stamp.personId, stamp.personName, stamp.date, stamp.note ?? "", stamp.location ?? ""]);
+}
+
+function taggedPersonForStamp(stamp: ReachedStamp, people: Person[]): PrayerJournalTaggedPerson {
+  const person = people.find((candidate) => candidate.id === stamp.personId);
+  if (person) return snapshotPerson(person);
+  // The person left the list after the stamp was written — the
+  // stamp's own record still names them (the legacy derivation).
+  return {
+    id: stamp.personId,
+    name: stamp.personName,
+    initials: stamp.personName
+      .split(/\s+/)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2),
+    avatarColor: "#E9DDF8",
+    accentColor: "#7C5CFF",
+  };
+}
+
+/**
+ * The stamp→journal sync. Every stamp write — the person page's
+ * button and editor, the Due page, the People card, the stamp
+ * row's note edit and delete — converges on the one reachedStamps
+ * record the Desk shell holds (its own state for the in-shell
+ * doors, re-read from storage on focus for the routed ones, the
+ * same convergence the XP door already diffs), so the sync is a
+ * reconcile against the last-seen stamps, not a hook in every
+ * door:
+ *
+ * - baseline === null (first sight after hydration): remember
+ *   the stamps, change NOTHING. Stamps that already stand were
+ *   written before the sync existed — no backfill, ever.
+ * - a stamp new since the baseline, or changed in any finger-
+ *   printed field (a re-mark, a note/location edit): its line is
+ *   created or refreshed in place.
+ * - a stamp gone since the baseline: its line goes with it (a
+ *   baseline stamp that never had a line is a harmless no-op).
+ *
+ * Returns the entries (the SAME array when nothing moved, so the
+ * caller can set state by reference diff) and the new baseline.
+ */
+export function reconcileReachedJournalEntries(
+  entries: PrayerJournalEntry[],
+  stamps: ReachedStamp[],
+  people: Person[],
+  baseline: ReadonlyMap<string, string> | null,
+  now = new Date(),
+): { entries: PrayerJournalEntry[]; baseline: Map<string, string> } {
+  const nextBaseline = new Map<string, string>(
+    stamps.map((stamp) => [stamp.id, reachedStampFingerprint(stamp)] as const),
+  );
+  if (baseline === null) return { entries, baseline: nextBaseline };
+  let next = entries;
+  for (const stamp of stamps) {
+    if (baseline.get(stamp.id) === nextBaseline.get(stamp.id)) continue;
+    next = upsertReachedJournalEntry(next, taggedPersonForStamp(stamp, people), stamp, now);
+  }
+  for (const [stampId, fingerprint] of baseline) {
+    if (nextBaseline.has(stampId)) continue;
+    try {
+      const parsed = JSON.parse(fingerprint) as unknown;
+      if (Array.isArray(parsed) && typeof parsed[0] === "string" && typeof parsed[2] === "string") {
+        next = removeReachedJournalEntryByKey(next, parsed[0], parsed[2]);
+      }
+    } catch {
+      // A fingerprint that doesn't parse carries no key to remove
+      // by — the line, if any, simply stands.
+    }
+  }
+  return { entries: next, baseline: nextBaseline };
 }

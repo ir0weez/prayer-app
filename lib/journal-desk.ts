@@ -91,7 +91,7 @@ export function rankedTaggedPeopleIds(entries: PrayerJournalEntry[], limit = 5):
  *  entries never reach this — the feed groups them into the day's
  *  log (deskFeedItems). Absence of kind is the plain Entry, as it
  *  has been since v281. */
-export type DeskEntryFormat = "entry" | "prayer" | "gratitude" | "verse" | "answered" | "praise" | "answer";
+export type DeskEntryFormat = "entry" | "prayer" | "gratitude" | "verse" | "answered" | "praise" | "answer" | "reached";
 
 export function deskEntryFormat(entry: PrayerJournalEntry): DeskEntryFormat {
   switch (entry.kind) {
@@ -101,6 +101,7 @@ export function deskEntryFormat(entry: PrayerJournalEntry): DeskEntryFormat {
     case "answered":
     case "praise":
     case "answer":
+    case "reached":
       return entry.kind;
     default:
       return "entry";
@@ -351,6 +352,7 @@ export function memoryFor(
 export type DeskFeedItem =
   | { type: "todayLabel"; key: string }
   | { type: "post"; key: string; entry: PrayerJournalEntry }
+  | { type: "reachedGroup"; key: string; date: string; entries: PrayerJournalEntry[] }
   | { type: "fastLog"; key: string; date: string; fast: PersonalFast; dayNumber: number; entries: PrayerJournalEntry[] }
   | { type: "carried"; key: string; people: PrayerJournalTaggedPerson[] }
   | { type: "memory"; key: string; memory: DeskMemory }
@@ -364,7 +366,11 @@ function dayItemsFor(
 ): DeskFeedItem[] {
   const dayEntries = entries.filter((entry) => entry.date === date);
   const fastEntries = dayEntries.filter((entry) => entry.fastDay);
-  const plainEntries = dayEntries.filter((entry) => !entry.fastDay);
+  // v440: the day's reached lines stand together as one quiet
+  // group (Concept 3), the way the day's fast entries stand as
+  // one log — never scattered among the cards.
+  const reachedEntries = dayEntries.filter((entry) => !entry.fastDay && entry.kind === "reached");
+  const plainEntries = dayEntries.filter((entry) => !entry.fastDay && entry.kind !== "reached");
 
   // Group the day's fast entries by fast — one log per fast per day.
   const fastGroups = new Map<string, PrayerJournalEntry[]>();
@@ -379,6 +385,14 @@ function dayItemsFor(
   const stamped: Stamped[] = [];
   for (const entry of plainEntries) {
     stamped.push({ stamp: entry.createdAt, item: { type: "post", key: entry.id, entry } });
+  }
+  if (reachedEntries.length > 0) {
+    // The group takes the newest line's place in the day's order;
+    // inside it the lines read newest first, as the feed reads.
+    stamped.push({
+      stamp: reachedEntries[0].createdAt,
+      item: { type: "reachedGroup", key: `reached-${date}`, date, entries: reachedEntries },
+    });
   }
   for (const [fastId, group] of fastGroups) {
     const fast = fasts.find((candidate) => candidate.id === fastId);

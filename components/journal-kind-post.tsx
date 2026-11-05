@@ -12,7 +12,7 @@ import { FAST_DAY_ENTRY_KIND_LABELS, type FastDayEntryKind } from "@/lib/fast-da
 import type { JournalMaterialFamily } from "@/lib/journal-material";
 import { deskEntryFormat } from "@/lib/journal-desk";
 import { addDaysToIso, entryTags, formatClock, isoDateOf } from "@/lib/journal-moments";
-import { formatPrayerJournalDate, type PrayerJournalEntry } from "@/lib/prayer-journal";
+import { formatPrayerJournalDate, reachedLineParts, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import type { PersonalFast } from "@/lib/prayercircle-fasting";
 
 // v411 — the Desk's per-kind feed formats (approved drawing:
@@ -28,6 +28,10 @@ import type { PersonalFast } from "@/lib/prayercircle-fasting";
 //               chunky filled numeral badge, OPEN IN BIBLE pill
 //   Answer    — a linked pair: the week's question card + the
 //               answer card offset under it
+//   Reached   — no card at all: a quiet line (green dot, the
+//               words, the time), and in the feed the day's lines
+//               group together (ReachedLinesGroup below), the
+//               way the fast entries group into their log
 //   Fast      — never a single post: the day's entries group into
 //               ONE log (FastLogCard below)
 // Surfaces derive from the Journal family (seed × appearance);
@@ -125,6 +129,63 @@ function KindReplies({
         >
           <Text style={[styles.replyDate, { color: faint }]}>{formatPrayerJournalDate(reply.date)}</Text>
           <Text style={[styles.replyBody, { color: ink }]}>{reply.body}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+/** v440 — the reached line's content: the green dot in its pale
+ *  ring, the line's words with the name standing in ink, and the
+ *  time at the right. Shared by the single-line seat (search,
+ *  Memories) and the day's group in the feed. */
+function ReachedLineContent({ entry, jm }: { entry: PrayerJournalEntry; jm: JournalMaterialFamily }) {
+  const person = entry.taggedPeople[0];
+  const parts = reachedLineParts({
+    personName: person?.name ?? "someone",
+    note: entry.body || undefined,
+    location: entry.location,
+  });
+  return (
+    <>
+      <View style={[styles.reachedDotRing, { backgroundColor: jm.reachedTint }]}>
+        <View style={[styles.reachedDot, { backgroundColor: jm.reachedDeep }]} />
+      </View>
+      <Text style={[styles.reachedText, { color: jm.inkSoft }]}>
+        You reached <Text style={{ color: jm.ink, fontWeight: "800" }}>{parts.name}</Text>
+        {parts.tail}
+      </Text>
+      <Text style={[styles.tm, { color: jm.inkSoft }]}>{timeLabel12(entry.createdAt)}</Text>
+    </>
+  );
+}
+
+/** v440 — the day's reached lines as one quiet group (Concept 3):
+ *  no card around them, a hairline between lines, each line
+ *  long-pressable into its actions like every other post. */
+export function ReachedLinesGroup({
+  entries,
+  jm,
+  onShowActions,
+}: {
+  entries: PrayerJournalEntry[];
+  jm: JournalMaterialFamily;
+  onShowActions: (entry: PrayerJournalEntry) => void;
+}) {
+  return (
+    <View style={styles.reachedGroup}>
+      {entries.map((entry, index) => (
+        <Pressable
+          key={entry.id}
+          delayLongPress={500}
+          onLongPress={() => onShowActions(entry)}
+          style={({ pressed }) => [
+            styles.reachedRow,
+            index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: jm.line },
+            pressed && styles.pressed,
+          ]}
+        >
+          <ReachedLineContent entry={entry} jm={jm} />
         </Pressable>
       ))}
     </View>
@@ -318,6 +379,21 @@ export function JournalKindPost({ entry, jm, bare, ...callbacks }: KindPostProps
           <KindReplies entry={entry} ink={jm.ink} faint={jm.inkSoft} onReplyLongPress={callbacks.onReplyLongPress} />
         </View>
       </View>,
+    );
+  }
+
+  if (format === "reached") {
+    // The quiet line on its own (the feed groups a day's lines
+    // into ReachedLinesGroup instead) — no card, no footer; the
+    // long-press keeps the entry's actions, as everywhere.
+    return (
+      <Pressable
+        delayLongPress={500}
+        onLongPress={() => callbacks.onShowActions(entry)}
+        style={({ pressed }) => [styles.reachedRow, styles.reachedStandalone, bare && styles.cardWrapBare, pressed && styles.pressed]}
+      >
+        <ReachedLineContent entry={entry} jm={jm} />
+      </Pressable>
     );
   }
 
@@ -614,6 +690,22 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
   },
+
+  // Reached (v440) — the quiet line: the drawing's measures
+  // (9px dot in a 3px ring, 9px gaps, 9px line padding).
+  reachedGroup: { marginHorizontal: 14, marginTop: 10, paddingHorizontal: 4 },
+  reachedStandalone: { marginHorizontal: 18, marginTop: 10 },
+  reachedRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 9 },
+  reachedDotRing: {
+    width: 15,
+    height: 15,
+    borderRadius: 7.5,
+    marginTop: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reachedDot: { width: 9, height: 9, borderRadius: 4.5 },
+  reachedText: { flex: 1, fontSize: 13.5, lineHeight: 19, marginLeft: 9, marginRight: 9 },
 
   // Fast log
   fastLog: { borderRadius: 28, paddingHorizontal: 15, paddingTop: 14, paddingBottom: 12 },

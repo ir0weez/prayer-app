@@ -51,6 +51,10 @@ export const JOURNAL_KIND_HUES = {
   fastLog: "#22C55E",
   closeCall: "#D97706",
   fell: "#DC2626",
+  // v440: the reached line's green — the approved drawing's dot
+  // (#2E7D46) as the meaning hue; its ring and ink derive below
+  // by the same kind-tone method as every other kind.
+  reached: "#2E7D46",
 } as const;
 
 export type JournalPaletteTokens = {
@@ -116,6 +120,12 @@ export interface JournalMaterialFamily {
   fastTint: string;
   fastInk: string;
   fastDeep: string;
+  /** v440: the reached line's tones — the pale green the dot
+   *  rings itself with, and the green walked to ink on it (the
+   *  dot itself). The line carries no card; these two tones are
+   *  its whole dress. */
+  reachedTint: string;
+  reachedDeep: string;
   /** The fast log's state dots: the meaning hues themselves,
    *  deepened until they read on the fast tint. */
   heldDot: string;
@@ -177,6 +187,7 @@ export function deriveJournalMaterial(primary: string, tokens: JournalPaletteTok
   const prayerTone = kindTone(JOURNAL_KIND_HUES.prayer);
   const gratitudeTone = kindTone(JOURNAL_KIND_HUES.gratitude);
   const fastTone = kindTone(JOURNAL_KIND_HUES.fastLog);
+  const reachedTone = kindTone(JOURNAL_KIND_HUES.reached);
   const verseContainer = mix(card, primary, dark ? 0.34 : 0.26);
   return {
     // v281 (D1): the ground step deepens — v252's 4% wash left
@@ -215,6 +226,8 @@ export function deriveJournalMaterial(primary: string, tokens: JournalPaletteTok
     fastTint: fastTone.tint,
     fastInk: fastTone.ink,
     fastDeep: fastTone.deep,
+    reachedTint: reachedTone.tint,
+    reachedDeep: reachedTone.deep,
     heldDot: bibleAccentInk(JOURNAL_KIND_HUES.fastLog, fastTone.tint),
     closeCallDot: bibleAccentInk(JOURNAL_KIND_HUES.closeCall, fastTone.tint),
     fellDot: bibleAccentInk(JOURNAL_KIND_HUES.fell, fastTone.tint),

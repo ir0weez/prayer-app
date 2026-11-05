@@ -23,7 +23,7 @@ import {
   addShieldOccupyListener,
   consumeShieldOccupyRequest,
 } from "@/modules/expo-stay-busy-shield/src/index";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider, useThemeContext } from "@/lib/theme-provider";
 import {
@@ -41,6 +41,12 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 // import is the side effect; the sync call below keeps the OS
 // registration in step with his switch.
 import { syncAutoExportRegistration } from "@/lib/bible-v205/auto-export-task";
+// v436: the home-screen widgets' task handler registers at module
+// scope (the OS wakes a headless JS context for widget refreshes
+// and must find the handler registered — the v408 reasoning above).
+// The named import is the side effect.
+import "@/lib/widget-task-handler";
+import { refreshAndPushWidgets } from "@/lib/widget-push";
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 import { refreshGearBoostCache } from "@/lib/gear";
@@ -108,6 +114,11 @@ function RootLayoutContent() {
     refreshGearBoostCache().catch(() => {});
     // Warm the character stat boost cache too.
     refreshStatBoostCache().catch(() => {});
+    // v436: push fresh widget snapshots on cold start, and again
+    // whenever the app returns to the foreground — the home screen
+    // should never show yesterday's queue (the People screen also
+    // pushes with its live state as it settles).
+    void refreshAndPushWidgets();
     // If the prayer timer's End button relaunched the app while JS was dead,
     // clear the orphaned notification now.
     try {
@@ -117,6 +128,17 @@ function RootLayoutContent() {
     } catch {
       // Best-effort
     }
+  }, []);
+
+  // v436: foreground returns refresh the widgets too (the mount
+  // effect above covers cold starts; a widget tap that lands on an
+  // already-running app still leaves fresh snapshots behind it).
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void refreshAndPushWidgets();
+    });
+    return () => subscription.remove();
   }, []);
 
   // v401: the Stay Busy Shield's "Occupy me" brings the app

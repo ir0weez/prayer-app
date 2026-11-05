@@ -189,6 +189,8 @@ import {
   upsertFastDayStatus,
 } from "@/lib/prayercircle-fasting";
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, LAST_EXPORT_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { refreshAndPushWidgets } from "@/lib/widget-push";
+import { parseWidgetPrayParams } from "@/lib/widget-snapshots";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { loadStudyState, saveStudyState } from "@/lib/bible-v205/study";
 import { applyStudioStatesReads } from "@/lib/bible-v205/studio-states";
@@ -821,11 +823,15 @@ export default function HomeScreen() {
     verifiedPopPlayer.play();
   };
   const router = useRouter();
-  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[]; notificationPersonId?: string | string[]; notificationAction?: string | string[]; notificationScheduleAction?: string | string[]; notificationScheduleKind?: string | string[]; notificationScheduleId?: string | string[]; navTab?: string | string[]; bibleTarget?: string | string[]; bibleBook?: string | string[]; bibleChapter?: string | string[]; bibleStories?: string | string[]; bibleOpenNav?: string | string[]; servePersonId?: string | string[] }>();
+  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[]; notificationPersonId?: string | string[]; notificationAction?: string | string[]; notificationScheduleAction?: string | string[]; notificationScheduleKind?: string | string[]; notificationScheduleId?: string | string[]; navTab?: string | string[]; bibleTarget?: string | string[]; bibleBook?: string | string[]; bibleChapter?: string | string[]; bibleStories?: string | string[]; bibleOpenNav?: string | string[]; servePersonId?: string | string[]; widgetPrayPersonId?: string | string[]; widgetPrayKind?: string | string[] }>();
   const editPersonIdParam = Array.isArray(routeParams.editPersonId) ? routeParams.editPersonId[0] : routeParams.editPersonId;
   const notificationPersonIdParam = Array.isArray(routeParams.notificationPersonId) ? routeParams.notificationPersonId[0] : routeParams.notificationPersonId;
   // v343: the café board's SERVE lands here (serveRouteForTicket).
   const servePersonIdParam = Array.isArray(routeParams.servePersonId) ? routeParams.servePersonId[0] : routeParams.servePersonId;
+  // v436: the home-screen widgets' pray intent (lib/widget-snapshots'
+  // widgetPrayUri lands here carrying the person + kind).
+  const widgetPrayPersonIdParam = Array.isArray(routeParams.widgetPrayPersonId) ? routeParams.widgetPrayPersonId[0] : routeParams.widgetPrayPersonId;
+  const widgetPrayKindParam = Array.isArray(routeParams.widgetPrayKind) ? routeParams.widgetPrayKind[0] : routeParams.widgetPrayKind;
   const notificationActionParam = Array.isArray(routeParams.notificationAction) ? routeParams.notificationAction[0] : routeParams.notificationAction;
   const notificationScheduleActionParam = Array.isArray(routeParams.notificationScheduleAction) ? routeParams.notificationScheduleAction[0] : routeParams.notificationScheduleAction;
   const notificationScheduleKindParam = Array.isArray(routeParams.notificationScheduleKind) ? routeParams.notificationScheduleKind[0] : routeParams.notificationScheduleKind;
@@ -1191,6 +1197,14 @@ export default function HomeScreen() {
   const [draftStatusText, setDraftStatusText] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
+  // v436: the home-screen widgets mirror this screen's live state —
+  // whenever people/fasts settle after hydration, push fresh
+  // snapshots built from them (lib/widget-push dedupes identical
+  // sets, so unrelated re-renders don't churn the home screen).
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    void refreshAndPushWidgets({ people, fasts });
+  }, [fasts, hasHydratedPeople, people]);
   useEffect(() => {
     if (!hasHydratedPeople) return;
     let active = true;
@@ -2572,6 +2586,40 @@ export default function HomeScreen() {
     setPrayerSessionStartId(person.id);
     setShowPrayerSession(true);
   }, [hasHydratedPeople, servePersonIdParam, people, router, todayDayOfWeek, todayDayOfMonth]);
+
+  // v436 — the home-screen widgets' Pray now lands here (an
+  // OPEN_URI deep link carrying widgetPrayPersonId/widgetPrayKind,
+  // built by lib/widget-snapshots' widgetPrayUri). Open-to-act
+  // only: an emergency tap opens that person's focused session
+  // (the v435 banner rows' own action); a Pray Today tap opens the
+  // session starting with them, the serve door's plumbing. The
+  // params are consumed and cleared either way, so a stale widget
+  // link can never re-fire.
+  useEffect(() => {
+    if (!hasHydratedPeople || !widgetPrayPersonIdParam) return;
+    const intent = parseWidgetPrayParams({
+      widgetPrayPersonId: widgetPrayPersonIdParam,
+      widgetPrayKind: widgetPrayKindParam,
+    });
+    router.setParams({ widgetPrayPersonId: undefined, widgetPrayKind: undefined });
+    if (!intent) return;
+    const person = people.find((candidate) => candidate.id === intent.personId);
+    if (!person) return;
+    setActiveTab("people");
+    setShowAddPerson(false);
+    if (intent.kind === "emergency") {
+      openFocusedPrayerSession(person.id, "emergency");
+    } else if (
+      getPrayTodayList(people, todayDayOfWeek, todayDayOfMonth).some((p) => p.id === person.id)
+    ) {
+      // The serve door's guard, kept: a Pray Today widget tap only
+      // opens the session for someone actually on today's list —
+      // a stale widget can land him on People, never strand the
+      // session on someone not prayable today.
+      setPrayerSessionStartId(person.id);
+      setShowPrayerSession(true);
+    }
+  }, [hasHydratedPeople, widgetPrayPersonIdParam, widgetPrayKindParam, people, router, openFocusedPrayerSession, todayDayOfWeek, todayDayOfMonth]);
 
   // v259: the Bible section's tab bar sends the shell home carrying
   // the destination it should open on — consumed once and cleared,

@@ -493,9 +493,17 @@ describe("v455 Up Next — no vanishing: the rescue (source)", () => {
     expect(body.split('RailRow("whitebox"').length - 1).toBe(1);
   });
 
-  it("the selection is untouched: same signature, same budget, boxIsNow in place", () => {
+  it("the selection is untouched: same signature, same budget, boxIsNow in place (v457: the budget's prices are honest now)", () => {
     const sel = rendererFn("selectRailRows");
-    expect(sel).toContain("val railBudget = heightSignal - 56 - 16");
+    // v457 amendment: v455 indeed never touched the
+    // selection — but v457 repriced it (honest costs:
+    // the padded line box ≈1.36× for Roboto; chrome
+    // 64; a 20dp bottom buffer), after the v455 tall
+    // render seated a last extension row whose title
+    // clipped at the card's bottom edge. The
+    // signature, the gates and boxIsNow stand as
+    // v455 left them; only the numbers moved.
+    expect(sel).toContain("val railBudget = heightSignal - 64 - 20");
     expect(sel).toContain("boxIsNow: Boolean,");
     expect(sel).toContain("if (afterChosen) {");
   });

@@ -401,10 +401,14 @@ describe("v456 Up Next — no NOW row in the selection (source)", () => {
     expect(sel).not.toContain("nowChosen");
     // The 30 it cost returns to the budget pool — the
     // other decrements are the source's, unchanged.
+    // v457 amendment: the decrements themselves were
+    // repriced in v457 (honest costs — the padded
+    // line box, ≈1.36× for Roboto): hero 66, plain
+    // 36, gap 33. The NOW row's 30 stays retired.
     expect(sel).not.toContain("remaining -= 30");
-    expect(sel).toContain("remaining -= 64");
-    expect(sel).toContain("remaining -= 34");
-    expect(sel).toContain("remaining -= 32");
+    expect(sel).toContain("remaining -= 66");
+    expect(sel).toContain("remaining -= 36");
+    expect(sel).toContain("remaining -= 33");
   });
 
   it("the whole renderer builds no NOW row and stands no NOW dress — either path", () => {
@@ -422,7 +426,11 @@ describe("v456 Up Next — no NOW row in the selection (source)", () => {
     expect(sel).toContain(
       "last: RailRow?,\n    current: RailRow?,\n    hero: RailRow?,\n    gap: RailRow?,\n    after: RailRow?,\n    next: RailRow?,\n    boxIsNow: Boolean,\n    extension: List<RailRow>,",
     );
-    expect(sel).toContain("val railBudget = heightSignal - 56 - 16");
+    // v457 amendment: the budget line's prices moved
+    // (honest chrome 64 + a 20dp bottom buffer); the
+    // signature and the extension gate stand as
+    // v456 left them.
+    expect(sel).toContain("val railBudget = heightSignal - 64 - 20");
     expect(sel).toContain("if (afterChosen) {");
     expect(sel).toContain("if (display.size >= 9) break");
   });

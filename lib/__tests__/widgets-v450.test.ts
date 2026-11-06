@@ -188,8 +188,14 @@ describe("v450 Up Next — the fixed composition in the renderer source", () => 
     expect(body).toContain("afterRow = RailRow(\"item\"");
   });
 
-  it("the budget carries the safety margin: heightSignal − 56 − 16", () => {
-    expect(sel).toContain("val railBudget = heightSignal - 56 - 16");
+  it("the budget carries the safety margin: heightSignal − 64 − 20 (v457: honest chrome, bottom buffer 20)", () => {
+    // v457 amendment: the allowance is the honest
+    // chrome now (64: card padding 32 + the header at
+    // its tallest 25 + the rail's top margin 6 + 1 of
+    // rounding) and the margin is a 20dp bottom buffer
+    // — the old − 56 − 16 seated the v455 tall rail's
+    // last extension row and its title clipped.
+    expect(sel).toContain("val railBudget = heightSignal - 64 - 20");
   });
 
   it("both paths run the one selection with the after row", () => {
@@ -221,9 +227,13 @@ describe("v450 Up Next — the fixed composition in the renderer source", () => 
 describe("v450 Up Next — mirror ties to the Kotlin source", () => {
   const sel = rendererFn("selectRailRows");
 
-  it("the costs are the source's: hero 64, plain 34, gap 32 (v456: the NOW row's 30 is retired)", () => {
-    expect(sel).toContain("remaining -= 64");
-    expect(sel).toContain("remaining -= 34");
+  it("the costs are the source's: hero 66, plain 36, gap 33 (v456: the NOW row's 30 is retired; v457: honest costs)", () => {
+    // v457 amendment: every price is the layout's own
+    // measurement now — a line of text measures its
+    // font's padded line box (≈1.36× for Roboto), not
+    // the ≈1.2× the old figures priced it at.
+    expect(sel).toContain("remaining -= 66");
+    expect(sel).toContain("remaining -= 36");
     // v456 amendment: the NOW row is removed in every
     // state (the box IS now — Jonathan, on the v455
     // render: "That little 'now' thing is stupid!
@@ -231,14 +241,14 @@ describe("v450 Up Next — mirror ties to the Kotlin source", () => {
     // from the selection; the freed height returns to
     // the budget pool.
     expect(sel).not.toContain("remaining -= 30");
-    expect(sel).toContain("remaining -= 32");
-    expect(sel).toContain("last != null && 34 <= remaining");
-    expect(sel).toContain("after != null && 34 <= remaining");
+    expect(sel).toContain("remaining -= 33");
+    expect(sel).toContain("last != null && 36 <= remaining");
+    expect(sel).toContain("after != null && 36 <= remaining");
     // v454 amendment (Ruling 2): the nowGap cost pin is
     // retired with the candidate itself — no gap is costed
     // before the box; the under-box gap keeps its 32.
     expect(sel).not.toContain("nowGap");
-    expect(sel).toContain("gap != null && 32 <= remaining");
+    expect(sel).toContain("gap != null && 33 <= remaining");
   });
 
   it("the step order is the source's: items in priority order, then the under-box gap", () => {

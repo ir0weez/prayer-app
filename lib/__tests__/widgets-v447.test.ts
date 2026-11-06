@@ -164,7 +164,11 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
     // footer's − 56, but a 16dp safety margin now rides on
     // top (heightSignal − 56 − 16) — the signal overestimated
     // the placed height again in v449 and a row clipped.
-    expect(sel).toContain("val railBudget = heightSignal - 56 - 16");
+    // v457 re-pin: − 64 − 20 now — honest chrome (64)
+    // and the safety margin grown to a 20dp bottom
+    // buffer, on the same evidence, one round worse:
+    // the v455 tall render's last row lost its title.
+    expect(sel).toContain("val railBudget = heightSignal - 64 - 20");
     expect(sel).not.toContain("heightSignal - 96");
   });
 
@@ -189,7 +193,7 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
     expect(slot).toContain('setViewVisibility(id("gapbox"), View.GONE)');
   });
 
-  it("the gap costs 32 in the budget now, box included", () => {
+  it("the gap costs 33 in the budget now, box included (v457: honest costs)", () => {
     // v450 re-pin: the gap is no longer coupled to the
     // following item ("34 + 32" together or alone) — gaps
     // are seated last, each on its own, from the budget the
@@ -200,8 +204,14 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
     // candidate is gone from the selection entirely — the
     // under-box gap is the only gap left in the core.
     expect(sel).not.toContain("nowGap");
-    expect(sel).toContain("gap != null && 32 <= remaining");
-    expect(sel).toContain("remaining -= 32");
+    // v457 amendment: the gap costs 33 now — its text's
+    // padded line box (12.5sp → 17) + in-box padding
+    // (6 + 6) + margins (2 + 2). The old 32 undercharged
+    // it by the same line-box error (≈1.2× priced,
+    // ≈1.36× real) that cost the v455 tall rail its
+    // last row's title.
+    expect(sel).toContain("gap != null && 33 <= remaining");
+    expect(sel).toContain("remaining -= 33");
     expect(sel).not.toContain("34 + 32");
     expect(sel).not.toContain("34 + 26");
   });

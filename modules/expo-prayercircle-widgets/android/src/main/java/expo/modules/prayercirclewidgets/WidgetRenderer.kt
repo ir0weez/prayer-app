@@ -1904,7 +1904,57 @@ object WidgetRenderer {
    * small placement, so be it — a dropped row is acceptable;
    * a clipped row is the failure this fixes.
    * The gap cost is 32 since v447 (the white box's in-box
-   * padding plus margins stand ≈ 33 tall). */
+   * padding plus margins stand ≈ 33 tall).
+   * v457: the costs themselves were the lie (Jonathan,
+   * Nov 6, on the v455 TALL render: the last extension
+   * row — 1:30 PM, a ministry titled "Edit" — painted its
+   * time label and its rail dot but NO title; he confirmed
+   * the title is missing on his screen, not just in the
+   * screenshot: "There's not a lot of space down there").
+   * The fill sets every seated row's title and the nine
+   * slots are perfect stamps of one another (both
+   * verified), and the snapshot parses every title the
+   * same way — the row was seated by a budget that swore
+   * it fit, and the card's real bottom took the title.
+   * v456's render confirmed the mechanism from the other
+   * side (Nov 6, 12:01 PM): with the NOW row gone and
+   * its 30 freed, the rail seated one row MORE — Edit
+   * painted WITH its title — and a third 2:00 PM row at
+   * the very bottom lost its title instead. The error
+   * is cumulative; it always lands on the last seated
+   * row, whatever composition sits above it.
+   * The old figures priced a line of text at ≈1.2× its
+   * size; a line on Android measures its font's padded
+   * line box, ≈1.36× for Roboto, and the device had
+   * already testified to the difference — v449's seated
+   * row sliced at 232 with the ledger showing room to
+   * spare, and the signal has overestimated the placed
+   * height three rounds running. So the costs are now
+   * the layout's own, measured honestly from
+   * widget_up_next.xml: a plain row is its line padding
+   * (8 + 8) plus the 14.5sp title's line box (20) = 36;
+   * the hero band is its padding (10 + 10) plus the
+   * 20sp title's line box (28) plus the 13sp sub's (18)
+   * = 66 (the white box's band is shorter in truth — no
+   * sub, a 14.5sp title — but the box keeps the one
+   * cost, which only ever over-charges it); a gap row
+   * is its text's line box (12.5sp → 17) plus the
+   * in-box padding (6 + 6) plus its margins (2 + 2)
+   * = 33. The chrome allowance is honest too: 64 = the
+   * card's padding (16 + 16) + the header at its
+   * tallest (the LEFT chip stands: its 12sp line box
+   * 17 + its 4 + 4 padding = 25, in place of the
+   * kicker's 15) + the rail's top margin (6) + 1 of
+   * rounding. And the safety margin grows 16 → 20 —
+   * the bottom buffer, absorbing what the ledger still
+   * cannot see (per-view dp→px rounding across up to
+   * nine rows, density and font growth, the signal's
+   * remaining optimism), so a row is seated only when
+   * it fits WHOLE inside the card with room to paint,
+   * and otherwise drops whole — his standing law since
+   * v450. The composition, the priorities, the gates
+   * and the nine-slot cap are untouched; at his
+   * standard 232 the seatings are v456's exactly. */
   private fun selectRailRows(
     last: RailRow?,
     current: RailRow?,
@@ -1916,7 +1966,7 @@ object WidgetRenderer {
     extension: List<RailRow>,
     heightSignal: Int,
   ): List<RailRow> {
-    val railBudget = heightSignal - 56 - 16
+    val railBudget = heightSignal - 64 - 20
     var remaining = railBudget
     var lastChosen = false
     var currentChosen = false
@@ -1928,7 +1978,7 @@ object WidgetRenderer {
     // (1) hero — always chosen.
     if (hero != null) {
       heroChosen = true
-      remaining -= 64
+      remaining -= 66
     }
     // (2) current — always chosen when present. v456:
     // no NOW row seats in its place any more (the box is
@@ -1936,26 +1986,26 @@ object WidgetRenderer {
     // when nothing is current.
     if (current != null) {
       currentChosen = true
-      remaining -= 34
+      remaining -= 36
     }
     // (3) last — when it fits.
-    if (last != null && 34 <= remaining) {
+    if (last != null && 36 <= remaining) {
       lastChosen = true
-      remaining -= 34
+      remaining -= 36
     }
     // (4) next — v451: the item directly under the box
     // (a running event's box in v451; the struck holder's
     // and the white box's in v454), when it fits. (Null in
     // the v450 arrangement, where the hero itself is the
     // next up.)
-    if (next != null && 34 <= remaining) {
+    if (next != null && 36 <= remaining) {
       nextChosen = true
-      remaining -= 34
+      remaining -= 36
     }
     // (5) after — when it fits.
-    if (after != null && 34 <= remaining) {
+    if (after != null && 36 <= remaining) {
       afterChosen = true
-      remaining -= 34
+      remaining -= 36
     }
     // (No step (6): the trailing NOW row that used to seat
     // here when a current exists is gone — v456, the box
@@ -1964,9 +2014,9 @@ object WidgetRenderer {
     // over, whole or not at all. v454: the under-box gap
     // is the ONLY gap candidate — no gap stands before
     // the box any more (Ruling 2). ──
-    if (gap != null && 32 <= remaining) {
+    if (gap != null && 33 <= remaining) {
       gapChosen = true
-      remaining -= 32
+      remaining -= 33
     }
     val display = mutableListOf<RailRow>()
     if (lastChosen && last != null) display.add(last)
@@ -1983,7 +2033,7 @@ object WidgetRenderer {
     if (afterChosen) {
       for (row in extension) {
         if (display.size >= 9) break
-        val cost = if (row.kind == "gap") 32 else 34
+        val cost = if (row.kind == "gap") 33 else 36
         if (cost > remaining) break
         display.add(row)
         remaining -= cost

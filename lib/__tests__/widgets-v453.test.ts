@@ -277,8 +277,13 @@ describe("v453 Up Next — mirror ties to the Kotlin source", () => {
     );
   });
 
-  it("the budget constant is the core's — the extension plans against the same heightSignal − 56 − 16", () => {
-    expect(sel).toContain("val railBudget = heightSignal - 56 - 16");
+  it("the budget constant is the core's — the extension plans against the same heightSignal − 64 − 20 (v457: honest costs)", () => {
+    // v457 amendment: the constant moved for both —
+    // honest chrome (64) and a 20dp bottom buffer.
+    // The bug was the extension's own: its last row
+    // (Edit, 1:30 PM) seated on the old prices and
+    // lost its title at the card's bottom edge.
+    expect(sel).toContain("val railBudget = heightSignal - 64 - 20");
   });
 
   it("the walk is gated on the whole core standing: the after row seated", () => {
@@ -286,8 +291,8 @@ describe("v453 Up Next — mirror ties to the Kotlin source", () => {
     expect(sel).toContain("for (row in extension) {");
   });
 
-  it("the walk's costs are the core's own: gap 32, item 34, drawn on the same remaining budget", () => {
-    expect(sel).toContain('val cost = if (row.kind == "gap") 32 else 34');
+  it("the walk's costs are the core's own: gap 33, item 36, drawn on the same remaining budget (v457: honest costs)", () => {
+    expect(sel).toContain('val cost = if (row.kind == "gap") 33 else 36');
     expect(sel).toContain("if (cost > remaining) break");
     expect(sel).toContain("remaining -= cost");
   });

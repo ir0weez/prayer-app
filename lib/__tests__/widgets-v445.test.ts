@@ -273,15 +273,21 @@ describe("v445 Up Next renderer", () => {
     // row is chosen as an item row on its own, and gaps are
     // seated afterwards from whatever budget is left over.
     const body = rendererFn("selectRailRows");
-    expect(body).toContain("val railBudget = heightSignal - 56 - 16");
-    // Hero 64, plain 34, gap 32 — as decrements.
+    expect(body).toContain("val railBudget = heightSignal - 64 - 20");
+    // Hero 66, plain 36, gap 33 — as decrements.
+    // v457 amendment: the prices are the layout's own
+    // measurements now (a line of text = its font's
+    // padded line box, ≈1.36× for Roboto, not ≈1.2×),
+    // the chrome is honestly 64, and the margin is a
+    // 20dp bottom buffer — the old figures seated the
+    // v455 tall rail's last row and its title clipped.
     // v456 amendment: the NOW row is gone in every state
     // (the box IS now — Jonathan, on the v455 render:
     // "That little 'now' thing is stupid! Shouldn't the
     // box be NOW?"), so its 30 decrement is retired; the
     // freed height returns to the budget pool.
-    expect(body).toContain("remaining -= 64");
-    expect(body).toContain("remaining -= 34");
+    expect(body).toContain("remaining -= 66");
+    expect(body).toContain("remaining -= 36");
     expect(body).not.toContain("remaining -= 30");
     expect(body).not.toContain("34 + 32 <= remaining");
   });

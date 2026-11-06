@@ -241,7 +241,14 @@ describe("v443 height signal", () => {
     // fourth row stood half-clipped at the card's edge.
     expect(renderer).not.toContain("val full = minHeightDp >= 160");
     expect(renderer).toContain("val tall = minHeightDp >= 190");
-    expect(renderer).toContain("val railBudget = heightSignal - 56 - 16");
+    // v457 re-pin: the budget is − 64 − 20 now — the
+    // costs were re-measured honestly (a line of text
+    // measures its font's padded line box, ≈1.36× for
+    // Roboto): chrome 64, and the safety margin grown
+    // to a 20dp bottom buffer, after the v455 tall
+    // render seated a last extension row whose title
+    // the card's bottom edge took.
+    expect(renderer).toContain("val railBudget = heightSignal - 64 - 20");
     // The 190 belongs to renderEmergency, before renderUpNext.
     const upNextAt = renderer.indexOf("private fun renderUpNext");
     const emergencyAt = renderer.indexOf("private fun renderEmergency");

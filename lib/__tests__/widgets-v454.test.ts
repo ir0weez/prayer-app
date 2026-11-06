@@ -472,19 +472,25 @@ describe("v454 Up Next — mirror ties to the Kotlin source", () => {
     );
   });
 
-  it("the budget and the core cap are unchanged: heightSignal − 56 − 16, hero 64, plain 34, gap 32 (v456: the NOW 30 is retired)", () => {
-    expect(sel).toContain("val railBudget = heightSignal - 56 - 16");
-    expect(sel).toContain("remaining -= 64");
-    expect(sel).toContain("remaining -= 34");
+  it("the budget and the core cap are unchanged: heightSignal − 64 − 20, hero 66, plain 36, gap 33 (v456: the NOW 30 is retired; v457: honest costs)", () => {
+    // v457 amendment: the cap stands; the prices are
+    // the layout's own measurements (the padded line
+    // box, ≈1.36× for Roboto), the chrome 64, the
+    // margin a 20dp bottom buffer.
+    expect(sel).toContain("val railBudget = heightSignal - 64 - 20");
+    expect(sel).toContain("remaining -= 66");
+    expect(sel).toContain("remaining -= 36");
     // v456 amendment: the NOW row is removed in every
     // state (the box IS now), so its 30 cost is gone.
     expect(sel).not.toContain("remaining -= 30");
-    expect(sel).toContain("remaining -= 32");
+    expect(sel).toContain("remaining -= 33");
   });
 
   it("the selection holds no nowGap step, no nowGap display — the gap step is the under-box gap alone", () => {
     expect(sel).not.toContain("nowGap");
-    expect(sel).toContain("if (gap != null && 32 <= remaining)");
+    // v457 amendment: the under-box gap's price is
+    // the honest 33 now (see the budget test above).
+    expect(sel).toContain("if (gap != null && 33 <= remaining)");
   });
 
   it("there is no NOW row to gate (v456) — boxIsNow seats nothing now", () => {

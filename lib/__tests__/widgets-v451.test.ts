@@ -261,15 +261,21 @@ describe("v451 Up Next — the band's pill (source)", () => {
 describe("v451 Up Next — mirror ties to the Kotlin source", () => {
   const sel = rendererFn("selectRailRows");
 
-  it("the budget and the four-item cap are unchanged: heightSignal − 56 − 16, hero 64, plain 34, gap 32 (v456: the NOW 30 is retired)", () => {
-    expect(sel).toContain("val railBudget = heightSignal - 56 - 16");
-    expect(sel).toContain("next != null && 34 <= remaining");
-    expect(sel).toContain("remaining -= 64");
-    expect(sel).toContain("remaining -= 34");
+  it("the budget and the four-item cap are unchanged: heightSignal − 64 − 20, hero 66, plain 36, gap 33 (v456: the NOW 30 is retired; v457: honest costs)", () => {
+    // v457 amendment: the cap is unchanged; the prices
+    // are honest measurements now (a line of text =
+    // its font's padded line box, ≈1.36× for Roboto),
+    // the chrome is 64 and the margin a 20dp bottom
+    // buffer — the old ledger seated the v455 tall
+    // rail's last row and its title clipped.
+    expect(sel).toContain("val railBudget = heightSignal - 64 - 20");
+    expect(sel).toContain("next != null && 36 <= remaining");
+    expect(sel).toContain("remaining -= 66");
+    expect(sel).toContain("remaining -= 36");
     // v456 amendment: the NOW row is removed in every
     // state (the box IS now), so its 30 cost is gone.
     expect(sel).not.toContain("remaining -= 30");
-    expect(sel).toContain("remaining -= 32");
+    expect(sel).toContain("remaining -= 33");
   });
 
   it("there is no NOW row to gate (v456) — neither the anchor gate nor the trailing step stands", () => {

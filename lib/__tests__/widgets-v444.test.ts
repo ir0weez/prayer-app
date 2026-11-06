@@ -369,7 +369,12 @@ describe("v444 Up Next renderer", () => {
     // the hero and the current row, so the short band's
     // outcome is the same.
     const body = rendererFn("selectRailRows");
-    expect(body).toContain("val railBudget = heightSignal - 56 - 16");
+    // v457 amendment: the budget line moved — honest
+    // costs (the padded line box, ≈1.36× for Roboto):
+    // chrome 64 + a 20dp bottom buffer, after the v455
+    // tall render seated a last row its title clipped
+    // off. Steps 1–2 are still always chosen.
+    expect(body).toContain("val railBudget = heightSignal - 64 - 20");
     expect(body).not.toContain('RailRow("now"');
     expect(body).toContain("heroChosen = true");
     expect(body).toContain("currentChosen = true");

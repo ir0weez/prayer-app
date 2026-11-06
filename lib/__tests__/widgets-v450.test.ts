@@ -142,7 +142,12 @@ describe("v450 Up Next — the fixed composition in the renderer source", () => 
   const sel = rendererFn("selectRailRows");
   const body = rendererFn("renderUpNext");
 
-  it("there is no next2 anywhere in the renderer — nothing past the after is a candidate", () => {
+  it("there is no next2 anywhere in the renderer — nothing past the after is a CORE candidate", () => {
+    // v453 amendment: the identifier stays gone — Jonathan's
+    // Nov 6 pick ("Tall size shows more of the day again")
+    // re-admits the items past the after only as a separate
+    // extension list seated under the core at tall heights,
+    // never as a core candidate under the old name.
     expect(renderer).not.toContain("next2");
   });
 
@@ -159,10 +164,20 @@ describe("v450 Up Next — the fixed composition in the renderer source", () => 
     );
   });
 
-  it("the render-time path names hero = ahead[0] and after = ahead[1], and never reads ahead[2]", () => {
+  it("the render-time path names hero = ahead[0] and after = ahead[1]; ahead[2..] is read only by the extension walk", () => {
+    // v453 re-pin: v450's rule was that nothing past the
+    // after is ever read. Jonathan's Nov 6 pick — "Tall
+    // size shows more of the day again" — re-admits the
+    // items past the after, but ONLY as extension
+    // candidates in the render-time path's walk (index
+    // access, never a getOrNull(2) core pick): they seat
+    // solely at tall heights, under the fully seated core.
+    // The core's own picks are still exactly ahead[0] and
+    // ahead[1].
     expect(body).toContain("val next1Idx = aheadIdx.getOrNull(0)");
     expect(body).toContain("val afterIdx = aheadIdx.getOrNull(1)");
     expect(body).not.toContain("aheadIdx.getOrNull(2)");
+    expect(body).toContain("val item = dayItems[aheadIdx[k]]");
     expect(body).toContain("afterRow = RailRow(\"item\"");
   });
 
@@ -175,11 +190,16 @@ describe("v450 Up Next — the fixed composition in the renderer source", () => 
     // (the render-time path hands over its next row and the
     // running flag; the fallback hands over neither — its
     // frozen walk keeps the v450 behaviour).
+    // v453 re-pin: both call sites pass the extension list
+    // as well — Jonathan's Nov 6 pick, "Tall size shows
+    // more of the day again". The render-time path hands
+    // over the rest of the day past the after item; the
+    // fallback hands over an empty list.
     expect(body).toContain(
-      "selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, heightSignal)",
+      "selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, extensionRows, heightSignal)",
     );
     expect(body).toContain(
-      "selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, heightSignal)",
+      "selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, emptyList(), heightSignal)",
     );
   });
 });

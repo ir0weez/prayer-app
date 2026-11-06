@@ -1175,6 +1175,16 @@ object WidgetRenderer {
     // end — a todo without one) never takes the box; it keeps
     // the plain current row, the arrangement he approved on
     // the 18:01 render (Feed plain, Dinner boxed as next).
+    // v453: the TALL size shows more of the day again
+    // (Jonathan, Nov 6, asking after "the XL version of the
+    // schedule widget", picked it in one tap over keeping
+    // four rows at every size). The fixed composition is
+    // the core and seats first, exactly as v451 has it; the
+    // render-time path also hands the selection the rest of
+    // the day past the after item as extension candidates
+    // (below), and at a tall placement they seat under the
+    // core from the leftover height. A standard-height
+    // render is v451's, row for row.
     val heightSignal = minHeightDp
     val views = RemoteViews(context.packageName, R.layout.widget_up_next)
     val base = 500
@@ -1330,8 +1340,32 @@ object WidgetRenderer {
           nowGapRow = RailRow("gap", "", "", "", 0, openDurationText(openMinutes))
         }
       }
+      // v453: the extension candidates — the rest of the
+      // day past the core's after item, walked in the day's
+      // own order: each item a plain row, with the open
+      // stretch before it (≥ 15 minutes, measured from the
+      // previous item's end, the core's own between-items
+      // rule) as a white-box gap row ahead of it. These are
+      // candidates only: selectRailRows seats them solely
+      // from the budget the seated core leaves over, and
+      // only when the core itself fully seated. The walk
+      // reads the ahead list only — the past side never
+      // extends, and the last row stays one.
+      val extensionRows = mutableListOf<RailRow>()
+      if (afterIdx != null) {
+        var prevEnd = dayItems[afterIdx].endMinutes
+        for (k in 2 until aheadIdx.size) {
+          val item = dayItems[aheadIdx[k]]
+          val extGapMinutes = item.startMinutes - prevEnd
+          if (extGapMinutes >= 15) {
+            extensionRows.add(RailRow("gap", "", "", "", 0, openDurationText(extGapMinutes)))
+          }
+          extensionRows.add(RailRow("item", minutesToTimeLabel(item.startMinutes), item.title, item.sub, item.startMinutes, ""))
+          prevEnd = item.endMinutes
+        }
+      }
       leftCount = aheadIdx.size
-      rows = selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, heightSignal)
+      rows = selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, extensionRows, heightSignal)
     } else {
       // ── The fallback: the snapshot's entries walk (v444),
       // extended with the legacy pre-v444 kinds so a stale
@@ -1405,8 +1439,11 @@ object WidgetRenderer {
       // nowGap is a render-time computation only). It also
       // seats no running box (v451): the running check lives
       // in the render-time recomputation above, so this
-      // frozen walk keeps its v450 behaviour exactly.
-      rows = selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, heightSignal)
+      // frozen walk keeps its v450 behaviour exactly. It
+      // likewise seats no tall extension (v453): the
+      // extension candidates are a render-time computation
+      // too, and the fallback hands over an empty list.
+      rows = selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, emptyList(), heightSignal)
     }
 
     views.setViewVisibility(R.id.next_msg, View.GONE)
@@ -1500,6 +1537,25 @@ object WidgetRenderer {
    * NOW row trailing the box is the exact stray his 8:01 PM
    * screenshot showed under Dinner. The four-item-row cap
    * stands: last, the box, next, after.
+   * v453: past the core, the TALL extension (Jonathan's
+   * Nov 6 pick — "Tall size shows more of the day again").
+   * The four above are the CORE and always seat first,
+   * exactly as v450/v451 seat them; the "no fifth row"
+   * sentence above now holds for the core only. When the
+   * whole core stands (the after row seated — which, given
+   * the priority order, means every core item row that
+   * exists is in), the render-time path's `extension` list
+   * (the rest of the day past the after item, plain rows
+   * and their gap boxes in rail order) walks from whatever
+   * budget the core left over: strict rail order, each
+   * element whole or not at all at the core's own costs
+   * (item 34, gap box 32), STOPPING at the first element
+   * that does not fit — a later, smaller element is never
+   * seated past the hole. The rail's nine slots cap the
+   * walk too. The extension never displaces a core row or
+   * a core gap, and if the core could not fully seat there
+   * is no extension. At a standard height the core takes
+   * the whole budget and the walk seats nothing.
    *
    * The budget: v447 set the chrome allowance at 56 (the
    * footer's ~40 went to the rail when the footer was
@@ -1522,6 +1578,7 @@ object WidgetRenderer {
     after: RailRow?,
     next: RailRow?,
     heroRunning: Boolean,
+    extension: List<RailRow>,
     heightSignal: Int,
   ): List<RailRow> {
     val railBudget = heightSignal - 56 - 16
@@ -1595,6 +1652,20 @@ object WidgetRenderer {
     if (gapChosen && gap != null) display.add(gap)
     if (nextChosen && next != null) display.add(next)
     if (afterChosen && after != null) display.add(after)
+    // ── v453: the tall extension — the rest of the day,
+    // walked from the core's leftover, only once the whole
+    // core stands. Strict rail order, whole or not at all,
+    // stop at the first element that does not fit; the
+    // rail's nine slots cap the walk as well. ──
+    if (afterChosen) {
+      for (row in extension) {
+        if (display.size >= 9) break
+        val cost = if (row.kind == "gap") 32 else 34
+        if (cost > remaining) break
+        display.add(row)
+        remaining -= cost
+      }
+    }
     return display
   }
 

@@ -208,14 +208,22 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
     expect(body).toContain('nowGapRow = RailRow("gap", "", "", "", 0, openDurationText(openMinutes))');
     // v450 re-pin: the following item is the "after" row now
     // (next2Row renamed) — the fixed composition seats one
-    // after and nothing past it.
+    // after in the core.
     // v451 re-pin: both call sites pass the two new arguments
     // — the render-time path hands over its next row (the
     // item under a running event's box) and the running flag;
     // the fallback hands over neither.
-    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, heightSignal)");
+    // v453 re-pin: both call sites pass one more argument,
+    // the extension list — Jonathan's Nov 6 pick, "Tall size
+    // shows more of the day again". The render-time path
+    // hands over the rest of the day past the after item as
+    // extension candidates (seated only at tall heights,
+    // under the seated core); the fallback hands over an
+    // empty list, so past the core's after it still seats
+    // nothing.
+    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, extensionRows, heightSignal)");
     // The entries fallback seats none — its gaps come from the snapshot.
-    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, heightSignal)");
+    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, emptyList(), heightSignal)");
   });
 
   it("the NOW→next gap displays between the NOW row and the hero", () => {

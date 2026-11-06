@@ -212,11 +212,16 @@ describe("v451 Up Next — the running event takes the box (source)", () => {
   });
 
   it("the fallback path passes no running box — its v450 behaviour cannot regress", () => {
+    // v453 re-pin: both call sites also pass the extension
+    // list (Jonathan's Nov 6 pick, "Tall size shows more of
+    // the day again") — the fallback hands over an empty
+    // list, so it gains neither the running box nor the
+    // tall extension.
     expect(body).toContain(
-      "selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, heightSignal)",
+      "selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, emptyList(), heightSignal)",
     );
     expect(body).toContain(
-      "selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, heightSignal)",
+      "selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, extensionRows, heightSignal)",
     );
   });
 });

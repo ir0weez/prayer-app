@@ -27,6 +27,12 @@
  * can't make that line a material design wave or anything?")
  * it is the Material-style wavy indicator, drawn in-process
  * (waveProgressBitmap).
+ *
+ * v449 amendment: the wave did not survive his verdict on
+ * the render (Nov 5, 17:16): "Change the line back to a
+ * regular line." The wave assertions below are re-pinned to
+ * the flat bar with amendment comments; the reading-dress
+ * assertions stand exactly as they were.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -245,7 +251,7 @@ describe("v446 Your Study — reading track", () => {
   });
 });
 
-describe("v446 Your Study — renderer reading dress + wave", () => {
+describe("v446 Your Study — renderer reading dress (line re-pinned in v449)", () => {
   const study = layout("widget_your_study");
 
   it("the layout gains the tile number and a 12dp seat for the wave", () => {
@@ -253,7 +259,11 @@ describe("v446 Your Study — renderer reading dress + wave", () => {
     expect(tagWithId(study, "study_tile_num")).toContain('android:textSize="24sp"');
     expect(tagWithId(study, "study_tile_num")).toContain('android:textStyle="bold"');
     expect(tagWithId(study, "study_tile_num")).toContain('android:visibility="gone"');
-    expect(tagWithId(study, "study_bar")).toContain('android:layout_height="12dp"');
+    // v449 re-pin: the seat was 12dp so the wave had room to
+    // breathe. His ruling (Nov 5, 17:16): "Change the line
+    // back to a regular line" — the flat bar's 6dp seat
+    // returns with it.
+    expect(tagWithId(study, "study_bar")).toContain('android:layout_height="6dp"');
   });
 
   it("renderYourStudy prefers the reading fields when the snapshot carries them", () => {
@@ -289,25 +299,31 @@ describe("v446 Your Study — renderer reading dress + wave", () => {
   });
 
   it("the wave factory exists, with the M3 shape's constants", () => {
-    expect(renderer).toContain("private fun waveProgressBitmap(fraction: Float, trackColor: Int, fillColor: Int): Bitmap");
-    expect(renderer).toContain("val amplitudePx = 3f * 6");
-    expect(renderer).toContain("val wavelengthPx = 40f * 6");
-    expect(renderer).toContain("val strokePx = 3f * 6");
-    expect(renderer).toContain("strokeCap = Paint.Cap.ROUND");
-    // The end stop: a filled dot near the far end, in the
-    // track colour (drawn by the factory).
-    const waveAt = renderer.indexOf("private fun waveProgressBitmap");
-    const waveBody = renderer.slice(waveAt, renderer.indexOf("\n  private fun ", waveAt + 10));
-    expect(waveBody).toContain("canvas.drawCircle(");
-    expect(waveBody).toContain("frac < 1f");
+    // v449 re-pin: this test pinned waveProgressBitmap, its
+    // M3 constants (amplitude/wavelength/stroke at 6px per
+    // dp, round caps) and its end stop dot. His ruling on
+    // the v446 render (Nov 5, 17:16): "Change the line back
+    // to a regular line." The factory is removed outright —
+    // no dead code — and the assertions pin its absence.
+    expect(renderer).not.toContain("waveProgressBitmap");
+    expect(renderer).not.toContain("waveCache");
+    expect(renderer).toContain("private fun barBitmap(fillColor: Int, trackColor: Int, fraction: Float): Bitmap");
   });
 
   it("renderYourStudy sets the WAVE on the bar in both dresses — the flat bar is gone there", () => {
+    // v449 re-pin: was the wave in both dresses, no barBitmap
+    // anywhere in renderYourStudy. His ruling (Nov 5, 17:16):
+    // "Change the line back to a regular line." Both dresses
+    // draw the flat bar again — the reading dress in its
+    // v446 colours and fraction (fill = reading primary,
+    // track = the reading book's tint), the writing fallback
+    // in its own, exactly as v446 wired them.
     const body = rendererFn("renderYourStudy");
-    expect(body).toContain("waveProgressBitmap(");
+    expect(body).not.toContain("waveProgressBitmap(");
+    expect((body.match(/barBitmap\(/g) ?? []).length).toBe(2);
     expect(body).toContain("chaptersRead.toFloat() / readingTotal");
     expect(body).toContain('colorOr(snap.optString("readingBookTint"), pal.track)');
-    expect(body).not.toContain("barBitmap(");
+    expect(body).toContain("written.toFloat() / totalChapters");
     // The flat bar still serves the widgets that keep it.
     expect(renderer).toContain("barBitmap(pal.primary, pal.track");
   });

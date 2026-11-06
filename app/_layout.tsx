@@ -132,10 +132,16 @@ function RootLayoutContent() {
   // v436: foreground returns refresh the widgets too (the mount
   // effect above covers cold starts; a widget tap that lands on an
   // already-running app still leaves fresh snapshots behind it).
+  // v449: leaving refreshes too — the push reloads every store
+  // fresh from storage, so anything he changed in the app
+  // (chapters checked off, prayers, schedule edits) reaches the
+  // home-screen widgets as he leaves, instead of lagging until
+  // his next visit.
   useEffect(() => {
     if (Platform.OS !== "android") return;
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") void refreshAndPushWidgets();
+      if (state === "background") void refreshAndPushWidgets();
     });
     return () => subscription.remove();
   }, []);

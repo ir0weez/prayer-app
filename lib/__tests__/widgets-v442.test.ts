@@ -480,18 +480,20 @@ describe("v442 renderer", () => {
   });
 
   it("draws the day and fast bars as bitmaps; the study bar is the wavy line", () => {
+    // v449 re-pin: the v446 amendment sent the study bar to
+    // the wavy indicator (waveProgressBitmap). His ruling on
+    // that render (Nov 5, 17:16): "Change the line back to a
+    // regular line." The study bar is the flat barBitmap
+    // again — this test's original three-flat-bars shape is
+    // restored, and the wave factory is gone from the
+    // renderer entirely.
     expect(renderer).toContain("private fun barBitmap(");
     expect(renderer).toContain("R.id.pt_daybar");
     expect(renderer).toContain("barBitmap(pal.primary, pal.track");
     expect(renderer).toContain("R.id.fast_daybar");
     expect(renderer).toContain("R.id.study_bar");
-    // v446 re-pin: the study bar left the flat barBitmap — it
-    // is the Material-style wavy indicator now
-    // (waveProgressBitmap, pinned in widgets-v446.test.ts), in
-    // both of the study widget's dresses. Pray Today and Your
-    // Fast keep the flat bar above.
-    expect(renderer).toContain("waveProgressBitmap(");
-    expect(renderer).not.toContain("barBitmap(bookColor, pal.track");
+    expect(renderer).toContain("written.toFloat() / totalChapters");
+    expect(renderer).not.toContain("waveProgressBitmap");
   });
 
   it("toggles the Emergency single/multi groups by the LIVE row count", () => {

@@ -430,75 +430,6 @@ object WidgetRenderer {
     return bitmap
   }
 
-  // ─── Wavy progress (v446, Your Study only) ────────────────────────────────
-  //
-  // Material 3 Expressive's wavy linear indicator, drawn
-  // in-process like every other progress shape here — the real
-  // component cannot live inside a RemoteViews layout. A sine
-  // wave runs the bar's full width: the run up to the fraction
-  // in the active colour, the remainder in the track colour,
-  // and the indicator's small round stop dot at the far end in
-  // the track colour. Jonathan, looking at the flat line:
-  // "We can't make that line a material design wave or
-  // anything?" — this is that wave.
-
-  private val waveCache = HashMap<String, Bitmap>()
-
-  private fun waveProgressBitmap(fraction: Float, trackColor: Int, fillColor: Int): Bitmap {
-    val frac = fraction.coerceIn(0f, 1f)
-    val key = "wave|$fillColor|$trackColor|${(frac * 100).toInt()}"
-    waveCache[key]?.let { return it }
-    // The seat is ~12dp tall and the bitmap draws at 6px per
-    // dp, so the M3 shape's own numbers carry straight over:
-    // amplitude ~3dp, wavelength ~40dp, stroke ~3dp, round caps.
-    val w = 720
-    val h = 72
-    val amplitudePx = 3f * 6
-    val wavelengthPx = 40f * 6
-    val strokePx = 3f * 6
-    val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-    val midY = h / 2f
-    fun waveY(x: Float): Float =
-      midY + amplitudePx * kotlin.math.sin(2.0 * kotlin.math.PI * x / wavelengthPx).toFloat()
-    fun wavePath(toX: Float): Path {
-      val path = Path()
-      path.moveTo(0f, waveY(0f))
-      var x = 0f
-      while (x < toX) {
-        x = minOf(x + 4f, toX)
-        path.lineTo(x, waveY(x))
-      }
-      return path
-    }
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-      style = Paint.Style.STROKE
-      strokeCap = Paint.Cap.ROUND
-      strokeJoin = Paint.Join.ROUND
-      strokeWidth = strokePx
-    }
-    // Track wave across the full width, its stop dot at the far
-    // end, then the active run over the top up to the fraction.
-    paint.color = trackColor
-    canvas.drawPath(wavePath(w.toFloat()), paint)
-    if (frac < 1f) {
-      val dotR = strokePx * 0.85f
-      val dotX = w - dotR - 1f
-      val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = trackColor
-      }
-      canvas.drawCircle(dotX, waveY(dotX), dotR, dotPaint)
-    }
-    if (frac > 0f) {
-      paint.color = fillColor
-      canvas.drawPath(wavePath(frac * w), paint)
-    }
-    if (waveCache.size > 24) waveCache.clear()
-    waveCache[key] = bitmap
-    return bitmap
-  }
-
   private var checkCache: Pair<Int, Bitmap>? = null
 
   /** The rail's done check — the W-6 drawing's bold check path,
@@ -1003,7 +934,8 @@ object WidgetRenderer {
     // 50 chapters written"). The tile stands SOLID in the
     // reading book's primary with the reading chapter in white
     // bold — the strip's tile language — and the progress line
-    // is the wavy indicator in the reading fraction.
+    // is the flat bar in the reading fraction (v449: the v446
+    // wavy line reverted at his word, in both dresses).
     val readingBook = snap.optString("readingBook").takeIf { it.isNotBlank() }
     val readingChapter = if (snap.isNull("readingChapter")) null else snap.optInt("readingChapter")
     if (readingBook != null && readingChapter != null) {
@@ -1049,14 +981,14 @@ object WidgetRenderer {
       views.setTextColor(R.id.study_pill_text, pal.onContainer)
       views.setImageViewBitmap(
         R.id.study_bar,
-        waveProgressBitmap(
+        barBitmap(
+          readingColor,
+          colorOr(snap.optString("readingBookTint"), pal.track),
           if (readingTotal != null && readingTotal > 0 && chaptersRead != null) {
             chaptersRead.toFloat() / readingTotal
           } else {
             0f
           },
-          colorOr(snap.optString("readingBookTint"), pal.track),
-          readingColor,
         ),
       )
       val tap = if (scheme != null) {
@@ -1069,9 +1001,10 @@ object WidgetRenderer {
       return views
     }
     // Fallback (snapshots pushed before the reading fields
-    // rode): the writing dress, exactly as it was — except its
-    // flat bar is the wavy line now too (v446), in its own
-    // written fraction and colours. The tile resets come first:
+    // rode): the writing dress, exactly as it was — its flat
+    // bar in its own written fraction and colours. (The v446
+    // wave briefly stood on this bar too; v449 reverted it in
+    // both dresses.) The tile resets come first:
     // a placed view keeps a prior render's faces, so the number
     // a reading render stood in the tile must be stood down.
     views.setViewVisibility(R.id.study_tile_num, View.GONE)
@@ -1107,10 +1040,10 @@ object WidgetRenderer {
     views.setTextColor(R.id.study_pill_text, pal.onContainer)
     views.setImageViewBitmap(
       R.id.study_bar,
-      waveProgressBitmap(
-        if (totalChapters > 0) written.toFloat() / totalChapters else 0f,
-        pal.track,
+      barBitmap(
         bookColor,
+        pal.track,
+        if (totalChapters > 0) written.toFloat() / totalChapters else 0f,
       ),
     )
     val openChapter = nextChapter ?: lastChapter ?: 1

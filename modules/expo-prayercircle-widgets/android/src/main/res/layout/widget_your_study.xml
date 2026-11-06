@@ -10,10 +10,11 @@
      stands SOLID in the reading book's primary with the
      reading chapter in white bold (study_tile_num, the Reading
      strip's tile language; the book glyph shows only when no
-     reading chapter exists), and the progress line is the
-     Material-style WAVY indicator drawn in-process
-     (waveProgressBitmap) at a 12dp seat so the wave has room
-     to breathe. -->
+     reading chapter exists), and the progress line runs the
+     reading fraction. v449: the progress line is the flat bar
+     again (barBitmap, 6dp seat) — the v446 wavy line reverted
+     in both dresses at his word (Nov 5, 17:16): "Change the
+     line back to a regular line." -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/study_root"
   android:layout_width="match_parent"
@@ -209,7 +210,7 @@
       <ImageView
         android:id="@+id/study_bar"
         android:layout_width="0dp"
-        android:layout_height="12dp"
+        android:layout_height="6dp"
         android:layout_marginStart="14dp"
         android:layout_weight="1"
         android:contentDescription="@null"

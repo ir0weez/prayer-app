@@ -228,11 +228,17 @@ describe("v453 Up Next — the extension candidates (source)", () => {
   });
 
   it("both paths hand the selection their extension: the day's walk, or an empty list from the fallback", () => {
+    // v454 amendment (Rulings 1 and 2): the nowGap argument
+    // is gone from both call sites and the running flag
+    // widened into boxIsNow (a running event's box, or the
+    // white box). The extension hand-off itself is exactly
+    // as this round built it — the walk still rides behind
+    // the core, under the new boxes too.
     expect(body).toContain(
-      "selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, extensionRows, heightSignal)",
+      "selectRailRows(lastRow, currentRow, heroRow, gapRow, afterRow, nextRow, boxIsNow, extensionRows, heightSignal)",
     );
     expect(body).toContain(
-      "selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, emptyList(), heightSignal)",
+      "selectRailRows(lastRow, currentRow, heroRow, gapRow, afterRow, null, false, emptyList(), heightSignal)",
     );
   });
 
@@ -248,9 +254,15 @@ describe("v453 Up Next — mirror ties to the Kotlin source", () => {
 
   it("the selection takes the extension list alongside the fixed core set", () => {
     expect(sel).toContain("extension: List<RailRow>,");
-    // The v450/v451 signature stands ahead of it, unchanged.
+    // The core signature stands ahead of it — as amended by
+    // v454 (Rulings 1 and 2): no nowGap parameter (no gap
+    // candidate exists before the box), and the flag is
+    // boxIsNow (a running event's box, or the white box).
+    // The mirror above keeps this round's own signature
+    // shape as its historical record; the extension's walk
+    // in it is unchanged.
     expect(sel).toContain(
-      "last: RailRow?,\n    current: RailRow?,\n    hero: RailRow?,\n    nowGap: RailRow?,\n    gap: RailRow?,\n    after: RailRow?,\n    next: RailRow?,\n    heroRunning: Boolean,",
+      "last: RailRow?,\n    current: RailRow?,\n    hero: RailRow?,\n    gap: RailRow?,\n    after: RailRow?,\n    next: RailRow?,\n    boxIsNow: Boolean,",
     );
   });
 

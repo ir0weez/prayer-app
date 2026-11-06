@@ -151,7 +151,7 @@ describe("v450 Up Next — the fixed composition in the renderer source", () => 
     expect(renderer).not.toContain("next2");
   });
 
-  it("the selection takes exactly the fixed set: last, current, hero, nowGap, gap, after", () => {
+  it("the selection takes exactly the fixed set: last, current, hero, gap, after", () => {
     // v451 re-pin: the selection also takes `next` (the item
     // directly under a running event's box) and `heroRunning`
     // (the box-ownership flag) — Jonathan's ruling on the
@@ -159,8 +159,15 @@ describe("v450 Up Next — the fixed composition in the renderer source", () => 
     // until that event is over. It should have the box around
     // it with what's coming up right under it." The fixed
     // four-item set itself is unchanged.
+    // v454 amendment (Ruling 2 — white space only after the
+    // box or IN the box): the nowGap parameter is gone from
+    // the signature — no gap candidate exists before the box
+    // any more — and the flag is boxIsNow now (true for a
+    // running event's box and for the white box; false under
+    // a struck holder). The fixed four-item set itself is
+    // still unchanged.
     expect(sel).toContain(
-      "last: RailRow?,\n    current: RailRow?,\n    hero: RailRow?,\n    nowGap: RailRow?,\n    gap: RailRow?,\n    after: RailRow?,\n    next: RailRow?,\n    heroRunning: Boolean,",
+      "last: RailRow?,\n    current: RailRow?,\n    hero: RailRow?,\n    gap: RailRow?,\n    after: RailRow?,\n    next: RailRow?,\n    boxIsNow: Boolean,",
     );
   });
 
@@ -195,11 +202,16 @@ describe("v450 Up Next — the fixed composition in the renderer source", () => 
     // more of the day again". The render-time path hands
     // over the rest of the day past the after item; the
     // fallback hands over an empty list.
+    // v454 amendment (Rulings 1 and 2): the nowGap argument
+    // is gone from both call sites, and the running flag
+    // widened into boxIsNow (a running event's box, or the
+    // white box). The fallback hands over neither new box,
+    // as before.
     expect(body).toContain(
-      "selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, extensionRows, heightSignal)",
+      "selectRailRows(lastRow, currentRow, heroRow, gapRow, afterRow, nextRow, boxIsNow, extensionRows, heightSignal)",
     );
     expect(body).toContain(
-      "selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, emptyList(), heightSignal)",
+      "selectRailRows(lastRow, currentRow, heroRow, gapRow, afterRow, null, false, emptyList(), heightSignal)",
     );
   });
 });
@@ -216,35 +228,42 @@ describe("v450 Up Next — mirror ties to the Kotlin source", () => {
     expect(sel).toContain("remaining -= 32");
     expect(sel).toContain("last != null && 34 <= remaining");
     expect(sel).toContain("after != null && 34 <= remaining");
-    expect(sel).toContain("nowGap != null && 32 <= remaining");
+    // v454 amendment (Ruling 2): the nowGap cost pin is
+    // retired with the candidate itself — no gap is costed
+    // before the box; the under-box gap keeps its 32.
+    expect(sel).not.toContain("nowGap");
     expect(sel).toContain("gap != null && 32 <= remaining");
   });
 
-  it("the step order is the source's: items in priority order, then gaps in rail order", () => {
+  it("the step order is the source's: items in priority order, then the under-box gap", () => {
+    // v454 amendment (Ruling 2): the mirror's own order in
+    // §3 below stays this round's historical record; the
+    // source's step order lost the nowGap step when the
+    // candidate was removed — the gap step (the under-box
+    // gap) now follows the trailing NOW step directly.
     const heroAt = sel.indexOf("heroChosen = true");
     const currentAt = sel.indexOf("currentChosen = true", heroAt);
     const lastAt = sel.indexOf("lastChosen = true", currentAt);
     const afterAt = sel.indexOf("afterChosen = true", lastAt);
     const nowExtraAt = sel.indexOf("nowChosen = true", afterAt);
-    const nowGapAt = sel.indexOf("nowGapChosen = true", nowExtraAt);
-    const gapAt = sel.indexOf("gapChosen = true", nowGapAt);
-    for (const at of [heroAt, currentAt, lastAt, afterAt, nowExtraAt, nowGapAt, gapAt]) {
+    const gapAt = sel.indexOf("gapChosen = true", nowExtraAt);
+    for (const at of [heroAt, currentAt, lastAt, afterAt, nowExtraAt, gapAt]) {
       expect(at).toBeGreaterThan(-1);
     }
     expect(heroAt).toBeLessThan(currentAt);
     expect(currentAt).toBeLessThan(lastAt);
     expect(lastAt).toBeLessThan(afterAt);
     expect(afterAt).toBeLessThan(nowExtraAt);
-    expect(nowExtraAt).toBeLessThan(nowGapAt);
-    expect(nowGapAt).toBeLessThan(gapAt);
+    expect(nowExtraAt).toBeLessThan(gapAt);
   });
 
-  it("the display order is the source's: last, current, NOW, nowGap, hero, gap, after", () => {
+  it("the display order is the source's: last, current, NOW, hero, gap, after", () => {
+    // v454 amendment (Ruling 2): the nowGap add is gone —
+    // the NOW row now stands directly before the hero.
     const adds = [
       "display.add(last)",
       "display.add(current)",
       "display.add(nowRow)",
-      "display.add(nowGap)",
       "display.add(hero)",
       "display.add(gap)",
       "display.add(after)",

@@ -217,11 +217,16 @@ describe("v451 Up Next — the running event takes the box (source)", () => {
     // the day again") — the fallback hands over an empty
     // list, so it gains neither the running box nor the
     // tall extension.
+    // v454 amendment (Rulings 1 and 2): the nowGap argument
+    // is gone from both call sites, and the running flag
+    // widened into boxIsNow (a running event's box, or the
+    // white box). The fallback passes false for it and
+    // gains neither new box — its behaviour is unchanged.
     expect(body).toContain(
-      "selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, emptyList(), heightSignal)",
+      "selectRailRows(lastRow, currentRow, heroRow, gapRow, afterRow, null, false, emptyList(), heightSignal)",
     );
     expect(body).toContain(
-      "selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, extensionRows, heightSignal)",
+      "selectRailRows(lastRow, currentRow, heroRow, gapRow, afterRow, nextRow, boxIsNow, extensionRows, heightSignal)",
     );
   });
 });
@@ -266,20 +271,30 @@ describe("v451 Up Next — mirror ties to the Kotlin source", () => {
   });
 
   it("the NOW row is gated on the box being free — at the anchor step and at the trailing step", () => {
-    expect(sel).toContain("} else if (!heroRunning) {");
-    expect(sel).toContain("if (current != null && !nowChosen && !heroRunning && 30 <= remaining)");
+    // v454 amendment (Rulings 1 and 2): the gate is boxIsNow
+    // now, not heroRunning — true when the box IS now (a
+    // running event, or the white space), false under a
+    // struck holder or the plain next up, so the NOW row
+    // keeps standing before a struck box and stands down
+    // when the box carries the moment itself. The mirror in
+    // §4 below keeps this round's own heroRunning form as
+    // its historical record.
+    expect(sel).toContain("} else if (!boxIsNow) {");
+    expect(sel).toContain("if (current != null && !nowChosen && !boxIsNow && 30 <= remaining)");
   });
 
-  it("the step order is the source's: hero, current-anchor, last, next, after, trailing NOW, gaps", () => {
+  it("the step order is the source's: hero, current-anchor, last, next, after, trailing NOW, gap", () => {
+    // v454 amendment (Ruling 2): the nowGap step is gone
+    // with its candidate — the under-box gap step follows
+    // the trailing NOW step directly.
     const heroAt = sel.indexOf("heroChosen = true");
     const currentAt = sel.indexOf("currentChosen = true", heroAt);
     const lastAt = sel.indexOf("lastChosen = true", currentAt);
     const nextAt = sel.indexOf("nextChosen = true", lastAt);
     const afterAt = sel.indexOf("afterChosen = true", nextAt);
     const nowExtraAt = sel.indexOf("nowChosen = true", afterAt);
-    const nowGapAt = sel.indexOf("nowGapChosen = true", nowExtraAt);
-    const gapAt = sel.indexOf("gapChosen = true", nowGapAt);
-    for (const at of [heroAt, currentAt, lastAt, nextAt, afterAt, nowExtraAt, nowGapAt, gapAt]) {
+    const gapAt = sel.indexOf("gapChosen = true", nowExtraAt);
+    for (const at of [heroAt, currentAt, lastAt, nextAt, afterAt, nowExtraAt, gapAt]) {
       expect(at).toBeGreaterThan(-1);
     }
     expect(heroAt).toBeLessThan(currentAt);
@@ -287,16 +302,16 @@ describe("v451 Up Next — mirror ties to the Kotlin source", () => {
     expect(lastAt).toBeLessThan(nextAt);
     expect(nextAt).toBeLessThan(afterAt);
     expect(afterAt).toBeLessThan(nowExtraAt);
-    expect(nowExtraAt).toBeLessThan(nowGapAt);
-    expect(nowGapAt).toBeLessThan(gapAt);
+    expect(nowExtraAt).toBeLessThan(gapAt);
   });
 
-  it("the display order is the source's: last, current, NOW, nowGap, hero, gap, next, after", () => {
+  it("the display order is the source's: last, current, NOW, hero, gap, next, after", () => {
+    // v454 amendment (Ruling 2): the nowGap add is gone —
+    // the NOW row now stands directly before the hero.
     const adds = [
       "display.add(last)",
       "display.add(current)",
       "display.add(nowRow)",
-      "display.add(nowGap)",
       "display.add(hero)",
       "display.add(gap)",
       "display.add(next)",

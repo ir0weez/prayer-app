@@ -194,18 +194,35 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
     // following item ("34 + 32" together or alone) — gaps
     // are seated last, each on its own, from the budget the
     // item rows left over. The 32 cost itself stands.
-    expect(sel).toContain("nowGap != null && 32 <= remaining");
+    // v454 amendment (Ruling 2 — "The white space should
+    // only show up after the boxed event, or IN the boxed
+    // event when it's a white space time"): the nowGap
+    // candidate is gone from the selection entirely — the
+    // under-box gap is the only gap left in the core.
+    expect(sel).not.toContain("nowGap");
     expect(sel).toContain("gap != null && 32 <= remaining");
     expect(sel).toContain("remaining -= 32");
     expect(sel).not.toContain("34 + 32");
     expect(sel).not.toContain("34 + 26");
   });
 
-  it("a NOW→next gap is computed at render time when nothing is running", () => {
+  it("the NOW→next open stretch is still measured at render time when nothing is running — and since v454 it measures the white box, not a gap row", () => {
     expect(body).toContain("if (currentIdx == null && next1Idx != null)");
-    expect(body).toContain("val openMinutes = dayItems[next1Idx].startMinutes - maxOf(nowMin, prevEnd)");
+    expect(body).toContain("val prevEnd = lastIdx?.let { overAt(dayItems[it]) } ?: nowMin");
+    expect(body).toContain("openMinutes = dayItems[next1Idx].startMinutes - maxOf(nowMin, prevEnd)");
     expect(body).toContain("if (openMinutes >= 15)");
-    expect(body).toContain('nowGapRow = RailRow("gap", "", "", "", 0, openDurationText(openMinutes))');
+    // v454 amendment (Ruling 2): the measurement survives
+    // verbatim, but its product changed — a ≥ 15-minute
+    // stretch standing open now becomes the box itself (the
+    // "whitebox" row, gated on nothing running and no
+    // struck holder), never a gap row before the box. The
+    // nowGapRow construction is gone from the renderer.
+    expect(body).toContain("heroWhite = runningIdx == null && struckIdx == null");
+    expect(body).toContain(
+      'RailRow("whitebox", nowTimeLabel(), "", "", dayItems[next1Idx].startMinutes, openDurationText(openMinutes))',
+    );
+    expect(body).not.toContain("nowGapRow");
+    expect(body).not.toContain('RailRow("gap", "", "", "", 0, openDurationText(openMinutes))');
     // v450 re-pin: the following item is the "after" row now
     // (next2Row renamed) — the fixed composition seats one
     // after in the core.
@@ -221,18 +238,23 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
     // under the seated core); the fallback hands over an
     // empty list, so past the core's after it still seats
     // nothing.
-    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, extensionRows, heightSignal)");
-    // The entries fallback seats none — its gaps come from the snapshot.
-    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, emptyList(), heightSignal)");
+    // v454 amendment (Rulings 1 and 2): the nowGap argument
+    // is gone from both call sites, and the running flag
+    // widened into boxIsNow — true for a running event's
+    // box and for the white box alike, false under a struck
+    // holder, so the NOW row keeps its anchor in front of
+    // the struck box and stands down when the box IS now.
+    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, gapRow, afterRow, nextRow, boxIsNow, extensionRows, heightSignal)");
+    // The entries fallback seats neither new box — its gaps come from the snapshot.
+    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, gapRow, afterRow, null, false, emptyList(), heightSignal)");
   });
 
-  it("the NOW→next gap displays between the NOW row and the hero", () => {
+  it("the NOW row displays directly before the hero now — no gap row can stand between them (v454, Ruling 2)", () => {
     const nowAt = sel.indexOf("display.add(nowRow)");
-    const gapAt = sel.indexOf("display.add(nowGap)");
     const heroAt = sel.indexOf("display.add(hero)");
     expect(nowAt).toBeGreaterThan(-1);
-    expect(gapAt).toBeGreaterThan(nowAt);
-    expect(heroAt).toBeGreaterThan(gapAt);
+    expect(heroAt).toBeGreaterThan(nowAt);
+    expect(sel).not.toContain("display.add(nowGap)");
   });
 
   it("between-items gaps are computed exactly as before", () => {

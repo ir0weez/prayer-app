@@ -2063,10 +2063,20 @@ object WidgetRenderer {
     views.setViewVisibility(id("row"), View.VISIBLE)
     // The rail line runs through the slot: segments in the track
     // colour, the outer half dropped at the ends of the walk.
+    // v458: the dropped half is INVISIBLE, never GONE — the two
+    // segments are the weighted (0dp, weight 1) pair around the
+    // fixed 20dp dot cell in the slot's rail column, and their
+    // even split of the leftover height is what centres the dot
+    // on the row's text line. A GONE segment is excluded from
+    // the column's measure entirely, so the surviving segment
+    // took the whole leftover and pushed the end rows' dots to
+    // the row's edge (the last row's dot sat ~8dp low on his
+    // phone, Nov 6). INVISIBLE keeps the share; the line just
+    // doesn't draw.
     views.setInt(id("seg_top"), "setColorFilter", pal.track)
-    views.setViewVisibility(id("seg_top"), if (isFirst) View.GONE else View.VISIBLE)
+    views.setViewVisibility(id("seg_top"), if (isFirst) View.INVISIBLE else View.VISIBLE)
     views.setInt(id("seg_bot"), "setColorFilter", pal.track)
-    views.setViewVisibility(id("seg_bot"), if (isLast) View.GONE else View.VISIBLE)
+    views.setViewVisibility(id("seg_bot"), if (isLast) View.INVISIBLE else View.VISIBLE)
     // Reset the slot's faces first — kinds move between slots
     // across renders and RemoteViews reuses the placed views.
     // (The gap TEXT is not reset: it lives inside the gap box,

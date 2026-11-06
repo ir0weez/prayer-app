@@ -201,8 +201,16 @@ describe("v453 Up Next — the extension candidates (source)", () => {
 
   it("the walk runs over the ahead items past the after item, in the day's order", () => {
     expect(blockAt).toBeGreaterThan(-1);
-    expect(block).toContain("if (afterIdx != null) {");
-    expect(block).toContain("for (k in 2 until aheadIdx.size) {");
+    // v455 amendment (fix 2): the walk seeds from the after
+    // SEAT — under a struck box the core can seat the first
+    // standing item as its after row (the under row took a
+    // finished successor instead), so the gate reads the
+    // seat and the loop starts past the seat's position in
+    // the ahead list. For every other box the seat is the
+    // after item itself (position 1, loop from 2) and the
+    // walk is this round's exactly.
+    expect(block).toContain("if (afterSeatIdx != null) {");
+    expect(block).toContain("for (k in aheadIdx.indexOf(afterSeatIdx) + 1 until aheadIdx.size) {");
     expect(block).toContain("val item = dayItems[aheadIdx[k]]");
     // Each extension item is a plain row in the core's
     // plain-item dress.
@@ -212,7 +220,10 @@ describe("v453 Up Next — the extension candidates (source)", () => {
   });
 
   it("each item's open stretch (≥ 15 min from the previous item's end) rides ahead of it as a gap box", () => {
-    expect(block).toContain("var prevEnd = dayItems[afterIdx].endMinutes");
+    // v455 amendment (fix 2): the seed is the after SEAT's
+    // end (see the walk test above) — the after item's own
+    // end whenever the seat is the after item.
+    expect(block).toContain("var prevEnd = dayItems[afterSeatIdx].endMinutes");
     expect(block).toContain("val extGapMinutes = item.startMinutes - prevEnd");
     expect(block).toContain("if (extGapMinutes >= 15) {");
     expect(block).toContain(

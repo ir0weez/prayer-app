@@ -1224,6 +1224,38 @@ object WidgetRenderer {
     // and the next item as the plain row directly under it.
     // Box priority, unified: running event → struck-held
     // completed item → the white space → the next up.
+    // v455: the correction Jonathan's Nov 6 verdict on v454
+    // forced (10:01 AM render: News struck as the last row,
+    // a NOW row, and Write — 11 AM, checked off EARLY — in
+    // the box struck with DONE, while Feed Aaron, the 10 AM
+    // todo he had just checked off AT ITS TIME, appeared
+    // nowhere): "It should be on 'feed Aaron' or something
+    // right now... I checked it off and now the widget
+    // doesn't show it. Just like I literally said I didn't
+    // want to happen." The v454 candidacy let the
+    // early-checked next up claim the box, and the item
+    // whose window contained now was eligible for no seat
+    // at all — not the box (Write took it), not the last
+    // row (its window had not passed). Three fixes:
+    // (1) the box belongs to the item whose window is NOW:
+    // a completed item standing inside its own window
+    // (start ≤ now < its window end — the stored end, a
+    // todo's rule-made +30 included) holds the box struck
+    // ahead of any early-checked holder; latest start wins
+    // among the in-window finished.
+    // (2) When a struck item holds the box and the item
+    // after it is itself finished, that item still seats
+    // directly under the box, struck through — it waits
+    // there like any next item, just struck (Write under
+    // Feed Aaron), instead of vanishing.
+    // (3) No vanishing, generally: a finished item that
+    // lost the box to the struck holder — the earlier of
+    // two overlapping in-window finishes, the earlier of
+    // two checked early — seats as the last row, struck,
+    // even though its window has not fully passed.
+    // Box priority, restated: running event → in-window
+    // struck → early-checked struck (v454) → the white
+    // space → the next up.
     val heightSignal = minHeightDp
     val views = RemoteViews(context.packageName, R.layout.widget_up_next)
     val base = 500
@@ -1290,6 +1322,15 @@ object WidgetRenderer {
       // "Over" reads on the item's own clock: the stored end
       // when it has one, its start when it doesn't.
       val overAt = { item: DayItem -> if (item.hasEnd) item.endMinutes else item.startMinutes }
+      // v455: the item's WINDOW end, for the in-window test
+      // and the under-box gap — the stored endMinutes as the
+      // snapshot bakes it, a todo's rule-made +30 included
+      // (that half hour is the window he checked the todo
+      // inside), falling back to the start for a point item
+      // whose stored end is its start. overAt above stays
+      // the "over" clock for the last pick and the v454
+      // candidacy, exactly as those rounds defined it.
+      val winEnd = { item: DayItem -> if (item.endMinutes > item.startMinutes) item.endMinutes else item.startMinutes }
       // v454 (Ruling 1): the struck holder — the completed
       // item that would be holding the box if it weren't
       // finished. The candidacy runs in the day's
@@ -1327,6 +1368,26 @@ object WidgetRenderer {
           }
         }
       }
+      // v455 (fix 1): the in-window holder outranks the
+      // early-checked holder above — the box belongs to the
+      // item whose window is NOW. A completed item standing
+      // inside its own window (start ≤ now < its window
+      // end) takes the box struck even when an early-checked
+      // item also qualifies; among the in-window finished,
+      // the latest start wins, the running pick's own
+      // tie-break. No successor condition: a successor that
+      // has started is either running (and outranks this
+      // outright), current (it keeps its own row above the
+      // box), or itself in-window finished with a later
+      // start (and so holds instead). A running event still
+      // outranks both candidacies.
+      if (runningIdx == null) {
+        val inWindowIdx = dayItems.indices
+          .filter { dayItems[it].completed && dayItems[it].startMinutes <= nowMin && nowMin < winEnd(dayItems[it]) }
+          .sortedByDescending { dayItems[it].startMinutes }
+          .firstOrNull()
+        if (inWindowIdx != null) struckIdx = inWindowIdx
+      }
       val struckItem = struckIdx?.let { dayItems[it] }
       if (currentIdx == null && next1Idx == null && struckIdx == null) {
         // Nothing running, nothing ahead, nothing holding
@@ -1336,11 +1397,68 @@ object WidgetRenderer {
         views.setViewVisibility(R.id.next_rail, View.GONE)
         return views
       }
-      val chosenIdx = setOfNotNull(currentIdx, runningIdx, next1Idx, afterIdx)
-      val lastIdx = dayItems.indices
+      // v455 (fix 2): the item that waits directly under a
+      // struck box — the first item after the holder in the
+      // day's order that is not already seated and is not
+      // itself over (an over item keeps its last-pick
+      // eligibility instead). The current row keeps its own
+      // seat above the box, so it is skipped here. The item
+      // may itself be finished — Write, checked early,
+      // waiting behind Feed Aaron in the box — and seats
+      // under the box struck rather than vanishing.
+      val underIdx = if (struckIdx != null) {
+        val holderPos = chronoIdx.indexOf(struckIdx)
+        var found: Int? = null
+        for (p in holderPos + 1 until chronoIdx.size) {
+          val idx = chronoIdx[p]
+          if (idx != currentIdx && overAt(dayItems[idx]) > nowMin) {
+            found = idx
+            break
+          }
+        }
+        found
+      } else {
+        null
+      }
+      val underItem = underIdx?.let { dayItems[it] }
+      // v455: the holder and the under-box item join the
+      // chosen set. An in-window TODO holder's overAt is its
+      // start — already past — so without the holder here
+      // the last pick below would seat it a second time; the
+      // under-box item is excluded for the same reason.
+      val chosenIdx = setOfNotNull(currentIdx, runningIdx, next1Idx, afterIdx, struckIdx, underIdx)
+      var lastIdx = dayItems.indices
         .filter { it !in chosenIdx && overAt(dayItems[it]) <= nowMin }
         .sortedWith(compareByDescending<Int> { overAt(dayItems[it]) }.thenByDescending { dayItems[it].startMinutes })
         .firstOrNull()
+      // v455 (fix 3): no vanishing. A finished item that
+      // lost the box to the struck holder — the earlier of
+      // two overlapping in-window finishes, the earlier of
+      // two checked early in a row — still seats, as the
+      // last row, struck, even though its window has not
+      // fully passed. The rescue candidate is the nearest
+      // finished item before the holder in the day's order
+      // that appears nowhere else; it takes the seat when
+      // the passed pick above found nothing, or when it
+      // stands nearer the holder than that pick does.
+      // Passed items keep the seat in every other case —
+      // their eligibility above is v454's, unchanged.
+      if (struckIdx != null) {
+        val holderPos = chronoIdx.indexOf(struckIdx)
+        var rescueIdx: Int? = null
+        for (p in holderPos - 1 downTo 0) {
+          val idx = chronoIdx[p]
+          if (dayItems[idx].completed && idx != lastIdx && idx != underIdx) {
+            rescueIdx = idx
+            break
+          }
+        }
+        if (rescueIdx != null) {
+          val rescuePos = chronoIdx.indexOf(rescueIdx)
+          val ordinaryPos = lastIdx?.let { chronoIdx.indexOf(it) } ?: -1
+          if (rescuePos > ordinaryPos) lastIdx = rescueIdx
+        }
+      }
       val lastRow = lastIdx?.let {
         val item = dayItems[it]
         RailRow(if (item.completed) "done" else "past", minutesToTimeLabel(item.startMinutes), item.title, item.sub, 0, "")
@@ -1414,6 +1532,13 @@ object WidgetRenderer {
           RailRow("hero", minutesToTimeLabel(item.startMinutes), item.title, item.sub, item.startMinutes, "")
         }
       }
+      // The after seat, read once — the branches below and
+      // the extension walk both take it from here. For every
+      // box but the struck one it is the after item itself;
+      // under a struck box the under row can take a finished
+      // successor instead of the first standing item, and
+      // then that standing item is the after seat (v455).
+      val afterSeatIdx = if (struckItem != null) aheadIdx.firstOrNull { it != underIdx } else afterIdx
       var gapRow: RailRow? = null
       var nextRow: RailRow? = null
       var afterRow: RailRow? = null
@@ -1439,25 +1564,36 @@ object WidgetRenderer {
         }
       } else if (struckItem != null) {
         // v454 (Ruling 1): what's coming up waits directly
-        // under the struck box — the next item as a plain
-        // row, then the after row — and the gap candidate is
-        // the open stretch between the holder's end and that
-        // item's start (≥ 15 minutes), seated under the box
-        // in rail order, downstream of the box as Ruling 2
-        // requires. (His composition check: Dinner, 8–9 PM,
-        // checked off at 8:30 with the next item at 10 —
-        // struck Dinner in the box, the 9-to-10 white box
-        // under it, then the 10 PM row.)
-        if (next1Idx != null) {
-          val next1 = dayItems[next1Idx]
-          nextRow = RailRow("item", minutesToTimeLabel(next1.startMinutes), next1.title, next1.sub, next1.startMinutes, "")
-          val struckGapMinutes = next1.startMinutes - overAt(struckItem)
+        // under the struck box, then the after row — and the
+        // gap candidate is the open stretch between the
+        // holder's end and that item's start (≥ 15 minutes),
+        // seated under the box in rail order, downstream of
+        // the box as Ruling 2 requires. (His composition
+        // check: Dinner, 8–9 PM, checked off at 8:30 with
+        // the next item at 10 — struck Dinner in the box, the
+        // 9-to-10 white box under it, then the 10 PM row.)
+        // v455 (fix 2): the row under the box is the holder's
+        // successor in the day (underItem), not necessarily
+        // the next standing item — when the successor is
+        // itself finished it seats in the done dress, struck
+        // through (Write under Feed Aaron); the after row is
+        // the after seat, the first standing item the under
+        // row did not take. The gap runs from the holder's
+        // WINDOW end: for a todo holder that is its +30 end,
+        // not its start, so the stretch it names is the open
+        // time after the holder's window actually closes.
+        if (underItem != null) {
+          nextRow = RailRow(
+            if (underItem.completed) "done" else "item",
+            minutesToTimeLabel(underItem.startMinutes), underItem.title, underItem.sub, underItem.startMinutes, "",
+          )
+          val struckGapMinutes = underItem.startMinutes - winEnd(struckItem)
           if (struckGapMinutes >= 15) {
             gapRow = RailRow("gap", "", "", "", 0, openDurationText(struckGapMinutes))
           }
         }
-        if (afterIdx != null) {
-          val after = dayItems[afterIdx]
+        if (afterSeatIdx != null) {
+          val after = dayItems[afterSeatIdx]
           afterRow = RailRow("item", minutesToTimeLabel(after.startMinutes), after.title, after.sub, after.startMinutes, "")
         }
       } else if (heroWhite) {
@@ -1494,10 +1630,16 @@ object WidgetRenderer {
       // only when the core itself fully seated. The walk
       // reads the ahead list only — the past side never
       // extends, and the last row stays one.
+      // v455: the walk seeds from the after SEAT (above),
+      // not from a fixed position — under a struck box the
+      // core can seat the first standing item as its after
+      // row, and the walk must start past it, not past the
+      // second standing item. For every other box the seat
+      // is the after item and the walk is v453's exactly.
       val extensionRows = mutableListOf<RailRow>()
-      if (afterIdx != null) {
-        var prevEnd = dayItems[afterIdx].endMinutes
-        for (k in 2 until aheadIdx.size) {
+      if (afterSeatIdx != null) {
+        var prevEnd = dayItems[afterSeatIdx].endMinutes
+        for (k in aheadIdx.indexOf(afterSeatIdx) + 1 until aheadIdx.size) {
           val item = dayItems[aheadIdx[k]]
           val extGapMinutes = item.startMinutes - prevEnd
           if (extGapMinutes >= 15) {

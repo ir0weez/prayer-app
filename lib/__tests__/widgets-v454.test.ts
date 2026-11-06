@@ -385,7 +385,14 @@ describe("v454 Up Next — the box as the white space (source)", () => {
   });
 
   it("the under-box gap for a struck holder runs from the holder's end to the next item's start", () => {
-    expect(body).toContain("val struckGapMinutes = next1.startMinutes - overAt(struckItem)");
+    // v455 amendment (fix 2): the row under the box is the
+    // holder's successor in the day (underItem), which can
+    // be a finished item, not only the next standing one —
+    // and the gap runs from the holder's WINDOW end
+    // (winEnd: for a todo holder its +30 end, not its
+    // start) to that successor's start. Dinner's numbers
+    // are unchanged: an event's window end is its end.
+    expect(body).toContain("val struckGapMinutes = underItem.startMinutes - winEnd(struckItem)");
     expect(body).toContain("if (struckGapMinutes >= 15)");
     expect(body).toContain('gapRow = RailRow("gap", "", "", "", 0, openDurationText(struckGapMinutes))');
   });

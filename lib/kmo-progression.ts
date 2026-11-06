@@ -62,6 +62,9 @@ export const KMO_DEFAULT_UNLOCKED: readonly KmoItemId[] = [
  * v400 ("Add all 12 if you can") weaves six puzzles between the
  * prices and climbs six action games past Slide 2048 to Order Up
  * at 250,000 — thirty-one games deep and still not done.
+ * v448 climbs four CHANCE games past Order Up in his pick
+ * order — Coin Call at 300,000, Higher or Lower at 350,000,
+ * Scratch Card at 400,000, Three Reels at 450,000.
  */
 export const KMO_UNLOCK_PRICES: Partial<Record<KmoItemId, number>> = {
   runner: 2000,
@@ -96,6 +99,11 @@ export const KMO_UNLOCK_PRICES: Partial<Record<KmoItemId, number>> = {
   "paper-toss": 160000,
   "first-cast": 200000,
   "order-up": 250000,
+  // v448: the chance four climb past Order Up, in pick order.
+  "coin-call": 300000,
+  "higher-or-lower": 350000,
+  "scratch-card": 400000,
+  "three-reels": 450000,
 };
 
 const GAME_IDS: readonly KmoItemId[] = [
@@ -104,6 +112,7 @@ const GAME_IDS: readonly KmoItemId[] = [
   "plinko-drop", "cave-flyer", "colour-rush", "rockfall", "mole-patrol", "slide-2048",
   "knife-log", "bubble-pop", "tile-tap", "paper-toss", "first-cast", "order-up",
   "pipe-dreams", "block-fit", "lights-out", "flood-it", "picross-mini", "mines-mini",
+  "coin-call", "higher-or-lower", "scratch-card", "three-reels",
 ];
 
 export function parseKmoProgression(value: unknown): KmoProgression {

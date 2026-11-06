@@ -131,6 +131,9 @@ describe("v398 the ladder", () => {
     // all — six puzzles woven between the action prices and six
     // action games above Slide 2048, pinned in full in the v400
     // tests); the v398 nine still keep their prices exactly:
+    // v448 note: four chance games climbed past Order Up
+    // (thirty-one priced doors in all, pinned in full in the
+    // v448 tests); the table now reads:
     expect(KMO_UNLOCK_PRICES).toEqual({
       runner: 2000,
       backbeat: 3000,
@@ -159,6 +162,10 @@ describe("v398 the ladder", () => {
       "paper-toss": 160000,
       "first-cast": 200000,
       "order-up": 250000,
+      "coin-call": 300000,
+      "higher-or-lower": 350000,
+      "scratch-card": 400000,
+      "three-reels": 450000,
     });
     expect(unlockPrice("runner")).toBe(2000);
     expect(unlockPrice("crossroads")).toBe(12500);
@@ -179,6 +186,7 @@ describe("v398 the ladder", () => {
       "snake", "crossroads", "breakout", "lights-out", "drop-match",
       "plinko-drop", "cave-flyer", "colour-rush", "flood-it", "rockfall", "mole-patrol", "slide-2048",
       "picross-mini", "knife-log", "bubble-pop", "mines-mini", "tile-tap", "paper-toss", "first-cast", "order-up",
+      "coin-call", "higher-or-lower", "scratch-card", "three-reels",
       "word-dig", "chapter",
     ]);
     for (const id of NEW_GAMES) {

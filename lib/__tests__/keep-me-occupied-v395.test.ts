@@ -168,14 +168,17 @@ describe("v395 the deal", () => {
     // original five games keep their approved relative order
     // (echo, sort, stack before backbeat before tend); the full
     // 32-item roster is pinned in the v400 tests.
+    // v448 note: four chance games (Coin Call, Higher or Lower,
+    // Scratch Card, Three Reels) climbed past Order Up; the full
+    // 36-item roster is pinned in the v448 tests.
     const ids = KMO_POOL.map((i) => i.id);
     expect(ids.slice(0, 3)).toEqual(["echo-lights", "sort-it-out", "stack"]);
     const originals = ["echo-lights", "sort-it-out", "stack", "backbeat", "tend"] as const;
     const positions = originals.map((id) => ids.indexOf(id));
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
     expect(ids.slice(-2)).toEqual(["word-dig", "chapter"]);
-    expect(KMO_POOL).toHaveLength(32);
-    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(30);
+    expect(KMO_POOL).toHaveLength(36);
+    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(34);
   });
 });
 

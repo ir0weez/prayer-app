@@ -216,6 +216,10 @@ const FULL_LADDER = {
   "paper-toss": 160000,
   "first-cast": 200000,
   "order-up": 250000,
+  "coin-call": 300000,
+  "higher-or-lower": 350000,
+  "scratch-card": 400000,
+  "three-reels": 450000,
 };
 
 beforeEach(() => {
@@ -227,8 +231,12 @@ beforeEach(() => {
 
 describe("v400 the ladder", () => {
   it("thirty-one games: twenty-seven priced doors woven and climbing to Order Up at 250,000", () => {
+    // v448 note: four chance games climbed past Order Up
+    // (thirty-one priced doors in all, pinned in full in the
+    // v448 tests); the v400 twenty-seven keep their prices
+    // exactly, and FULL_LADDER above now carries the four.
     expect(KMO_UNLOCK_PRICES).toEqual(FULL_LADDER);
-    expect(Object.keys(KMO_UNLOCK_PRICES)).toHaveLength(27);
+    expect(Object.keys(KMO_UNLOCK_PRICES)).toHaveLength(31);
     expect(unlockPrice("order-up")).toBe(250000);
     expect(unlockPrice("pipe-dreams")).toBe(4500);
     expect(unlockPrice("block-fit")).toBe(8500);
@@ -242,15 +250,16 @@ describe("v400 the ladder", () => {
       "snake", "crossroads", "breakout", "lights-out", "drop-match",
       "plinko-drop", "cave-flyer", "colour-rush", "flood-it", "rockfall", "mole-patrol", "slide-2048",
       "picross-mini", "knife-log", "bubble-pop", "mines-mini", "tile-tap", "paper-toss", "first-cast", "order-up",
+      "coin-call", "higher-or-lower", "scratch-card", "three-reels",
       "word-dig", "chapter",
     ]);
-    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(30);
+    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(34);
     // Shelf order IS ladder order: priced games climb monotonically.
     const prices = KMO_POOL
       .filter((i) => i.kind === "game")
       .map((i) => unlockPrice(i.id))
       .filter((p): p is number => p != null);
-    expect(prices).toHaveLength(27);
+    expect(prices).toHaveLength(31);
     expect(prices).toEqual([...prices].sort((a, b) => a - b));
     for (const id of NEW_GAMES) {
       const item = KMO_POOL.find((i) => i.id === id)!;

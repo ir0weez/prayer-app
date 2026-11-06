@@ -127,6 +127,9 @@ describe("v399 the ladder", () => {
     // v400 note: twelve more priced doors joined — twenty-seven
     // in all, the full table pinned in the v400 tests; the v399
     // fifteen keep their prices exactly, and the table now reads:
+    // v448 note: four chance games climbed past Order Up —
+    // thirty-one priced doors in all, pinned in full in the
+    // v448 tests; the table now reads:
     expect(KMO_UNLOCK_PRICES).toEqual({
       runner: 2000,
       backbeat: 3000,
@@ -155,8 +158,12 @@ describe("v399 the ladder", () => {
       "paper-toss": 160000,
       "first-cast": 200000,
       "order-up": 250000,
+      "coin-call": 300000,
+      "higher-or-lower": 350000,
+      "scratch-card": 400000,
+      "three-reels": 450000,
     });
-    expect(Object.keys(KMO_UNLOCK_PRICES)).toHaveLength(27);
+    expect(Object.keys(KMO_UNLOCK_PRICES)).toHaveLength(31);
     expect(unlockPrice("plinko-drop")).toBe(30000);
     expect(unlockPrice("slide-2048")).toBe(75000);
   });
@@ -172,9 +179,10 @@ describe("v399 the ladder", () => {
       "snake", "crossroads", "breakout", "lights-out", "drop-match",
       "plinko-drop", "cave-flyer", "colour-rush", "flood-it", "rockfall", "mole-patrol", "slide-2048",
       "picross-mini", "knife-log", "bubble-pop", "mines-mini", "tile-tap", "paper-toss", "first-cast", "order-up",
+      "coin-call", "higher-or-lower", "scratch-card", "three-reels",
       "word-dig", "chapter",
     ]);
-    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(30);
+    expect(KMO_POOL.filter((i) => i.kind === "game")).toHaveLength(34);
     for (const id of NEW_GAMES) {
       const item = KMO_POOL.find((i) => i.id === id)!;
       expect(item.kind).toBe("game");

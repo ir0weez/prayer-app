@@ -38,6 +38,7 @@ import { BlockFitGame } from "@/components/keep-me-occupied/block-fit";
 import { BreakoutGame } from "@/components/keep-me-occupied/breakout";
 import { BubblePopGame } from "@/components/keep-me-occupied/bubble-pop";
 import { CaveFlyerGame } from "@/components/keep-me-occupied/cave-flyer";
+import { CoinCallGame } from "@/components/keep-me-occupied/coin-call";
 import { ChapterDealCard } from "@/components/keep-me-occupied/chapter-deal";
 import { ColourRushGame } from "@/components/keep-me-occupied/colour-rush";
 import { CrossroadsGame } from "@/components/keep-me-occupied/crossroads";
@@ -47,6 +48,7 @@ import { FirstCastGame } from "@/components/keep-me-occupied/first-cast";
 import { FloodItGame } from "@/components/keep-me-occupied/flood-it";
 import { GamesShelf } from "@/components/keep-me-occupied/games-shelf";
 import { GlideGame } from "@/components/keep-me-occupied/glide";
+import { HigherOrLowerGame } from "@/components/keep-me-occupied/higher-or-lower";
 import { JumperGame } from "@/components/keep-me-occupied/jumper";
 import { KnifeLogGame } from "@/components/keep-me-occupied/knife-log";
 import { LightsOutGame } from "@/components/keep-me-occupied/lights-out";
@@ -59,11 +61,13 @@ import { PipeDreamsGame } from "@/components/keep-me-occupied/pipe-dreams";
 import { PlinkoDropGame } from "@/components/keep-me-occupied/plinko-drop";
 import { RockfallGame } from "@/components/keep-me-occupied/rockfall";
 import { RunnerGame } from "@/components/keep-me-occupied/runner";
+import { ScratchCardGame } from "@/components/keep-me-occupied/scratch-card";
 import { Slide2048Game } from "@/components/keep-me-occupied/slide-2048";
 import { SnakeGame } from "@/components/keep-me-occupied/snake";
 import { SortItOutGame } from "@/components/keep-me-occupied/sort-it-out";
 import { StackGame } from "@/components/keep-me-occupied/stack-game";
 import { TendGame } from "@/components/keep-me-occupied/tend-game";
+import { ThreeReelsGame } from "@/components/keep-me-occupied/three-reels";
 import { TileTapGame } from "@/components/keep-me-occupied/tile-tap";
 import { WaveCheck } from "@/components/keep-me-occupied/wave-check";
 import { WordDigGame } from "@/components/keep-me-occupied/word-dig";
@@ -570,6 +574,14 @@ function gameSub(id: KmoPoolItem["id"]): string {
       return "The clues draw a picture. Three mistakes end it.";
     case "mines-mini":
       return "Ten mines in the field. First tap is always safe.";
+    case "coin-call":
+      return "Call the flip, climb the ladder. Bank before it turns.";
+    case "higher-or-lower":
+      return "Higher or lower than the card showing? Aces are wild.";
+    case "scratch-card":
+      return "Scratch the panels — match three of a kind to win.";
+    case "three-reels":
+      return "Three pulls a run. Three coins is the jackpot.";
     case "word-dig":
       return "A word buried in a verse. Six digs, and the verse is the hint.";
     default:
@@ -587,6 +599,9 @@ const RUN_GAME_IDS: readonly KmoItemId[] = [
   // the page either.
   "knife-log", "bubble-pop", "tile-tap", "paper-toss", "first-cast", "order-up",
   "pipe-dreams", "block-fit", "lights-out", "flood-it", "picross-mini", "mines-mini",
+  // v448: the chance games ride along too — Three Reels ends
+  // runs, and Scratch Card's grid shouldn't fight the page.
+  "coin-call", "higher-or-lower", "scratch-card", "three-reels",
 ];
 
 function renderDealContent(
@@ -659,6 +674,14 @@ function renderDealContent(
       return <PicrossMiniGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
     case "mines-mini":
       return <MinesMiniGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "coin-call":
+      return <CoinCallGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "higher-or-lower":
+      return <HigherOrLowerGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
+    case "scratch-card":
+      return <ScratchCardGame m={m} onScore={onScore} />;
+    case "three-reels":
+      return <ThreeReelsGame m={m} onScore={onScore} onRunEnd={onRunEnd} onRunExit={onRunExit} />;
     case "word-dig":
       return (
         <WordDigGame

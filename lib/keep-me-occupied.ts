@@ -71,6 +71,10 @@ export type KmoItemId =
   | "flood-it"
   | "picross-mini"
   | "mines-mini"
+  | "coin-call"
+  | "higher-or-lower"
+  | "scratch-card"
+  | "three-reels"
   | "word-dig"
   | "chapter";
 
@@ -136,6 +140,19 @@ export const KMO_POOL: readonly KmoPoolItem[] = [
   { id: "paper-toss", kind: "game", title: "Paper Toss", chip: "DEALT · A GAME", verb: "tossed paper" },
   { id: "first-cast", kind: "game", title: "First Cast", chip: "DEALT · A GAME", verb: "fished the lake" },
   { id: "order-up", kind: "game", title: "Order Up", chip: "DEALT · A GAME", verb: "worked the line" },
+  // v448 — four CHANCE games (Jonathan picked Concepts 1 and 4
+  // from the chance-games drawings, then two more from the
+  // follow-up list): Coin Call, Higher or Lower, Scratch Card,
+  // Three Reels. They climb past Order Up on the ladder in pick
+  // order (300,000 / 350,000 / 400,000 / 450,000). The first two
+  // are press-your-luck runs: the pot built inside the round is
+  // the only thing ever at risk — the purse is never touched —
+  // and banking is always his call. Scratch Card is a session
+  // score game; Three Reels is a three-pull run.
+  { id: "coin-call", kind: "game", title: "Coin Call", chip: "DEALT · A GAME", verb: "called the coin" },
+  { id: "higher-or-lower", kind: "game", title: "Higher or Lower", chip: "DEALT · A GAME", verb: "played Higher or Lower" },
+  { id: "scratch-card", kind: "game", title: "Scratch Card", chip: "DEALT · A GAME", verb: "scratched the card" },
+  { id: "three-reels", kind: "game", title: "Three Reels", chip: "DEALT · A GAME", verb: "pulled the reels" },
   { id: "word-dig", kind: "dig", title: "Word Dig", chip: "DEALT · THE DIG", verb: "dug in the Word" },
   { id: "chapter", kind: "chapter", title: "A Chapter", chip: "DEALT · A CHAPTER", verb: "read" },
 ];
@@ -3260,5 +3277,533 @@ export function minesFlag(state: MinesState, index: number): MinesState {
 }
 
 export function minesScore(state: MinesState): number {
+  return state.score;
+}
+
+// ─── v448 — four chance games ────────────────────────────────────────────────
+// (First two) Coin Call and Higher or Lower: pure press-your-luck. Both hold
+// their pot INSIDE the round's state — the standing rule from the
+// approved drawings is that a game can never touch the coins
+// already in his purse; only the pot built in the round is ever
+// at risk, and he can bank it whenever he wants. So, unlike the
+// other run games, these report NOTHING while the round is live:
+// the score is reported once, when the round resolves — the pot
+// on a bank (the payout IS the score, which the v397 conversion
+// credits 1:1 as coins), or a small consolation on a bust.
+//
+// XP note: KMO has exactly one credit path — the v397 conversion
+// (coins = score, XP = ceil(score / 2)) — so credited XP rides
+// that conversion like every other game. The drawings' per-call
+// XP figures (18 a call / +30 on a bank; 15 / +25) live on here
+// as each round's XP tally, and the tally is what a bust pays as
+// its consolation score: a busted round still lands something,
+// never the pot.
+
+// ─── Coin Call ───────────────────────────────────────────────────────────────
+
+export type CoinSide = "heads" | "tails";
+
+/** The multiplier ladder, in climb order: ×1, ×2, ×3, ×5, ×8. */
+export const COIN_MULTIPLIERS = [1, 2, 3, 5, 8] as const;
+/** A correct call pays this many coins times the rung's multiplier. */
+export const COIN_CALL_BASE = 60;
+/** Banking the whole ladder (the ×8 call lands) adds this bonus. */
+export const COIN_TOP_BONUS = 100;
+/** The XP tally: per correct call, and the bonus on any bank. */
+export const COIN_XP_PER_CALL = 18;
+export const COIN_XP_BANK_BONUS = 30;
+
+/** Coins a correct call at a ladder step pays (step is 0-based). */
+export function coinAwardForStep(step: number): number {
+  const i = Math.min(COIN_MULTIPLIERS.length - 1, Math.max(0, Math.floor(step)));
+  return COIN_CALL_BASE * COIN_MULTIPLIERS[i];
+}
+
+export interface CoinCallState {
+  over: boolean;
+  /** How the round ended; null while the coin is still live. */
+  outcome: "banked" | "busted" | null;
+  /** True when the ×8 call landed and the top-out auto-bank fired. */
+  topped: boolean;
+  /** His standing call — changeable any time before a flip. */
+  pick: CoinSide;
+  /** Correct calls so far (0–5). */
+  step: number;
+  /** Coins standing in the pot. Lost on a bust; the purse never is. */
+  pot: number;
+  /** The round's XP tally (18 a correct call, +30 on a bank). */
+  xp: number;
+  lastFlip: CoinSide | null;
+  lastRight: boolean | null;
+  flips: number;
+}
+
+export function coinStart(): CoinCallState {
+  return {
+    over: false,
+    outcome: null,
+    topped: false,
+    pick: "heads",
+    step: 0,
+    pot: 0,
+    xp: 0,
+    lastFlip: null,
+    lastRight: null,
+    flips: 0,
+  };
+}
+
+/** Change the standing call. Only while the round is live. */
+export function coinPick(state: CoinCallState, side: CoinSide): CoinCallState {
+  if (state.over || state.pick === side) return state;
+  return { ...state, pick: side };
+}
+
+/**
+ * Flip the coin against his standing call. A right call banks
+ * 60 × the rung's multiplier into the pot and climbs; landing
+ * the ×8 call tops the ladder out — the pot auto-banks with a
+ * +100 bonus. A wrong call ends the round and the pot is gone.
+ */
+export function coinFlip(state: CoinCallState, rng: Rng): CoinCallState {
+  if (state.over) return state;
+  const landed: CoinSide = rng() < 0.5 ? "heads" : "tails";
+  const flips = state.flips + 1;
+  if (landed !== state.pick) {
+    return { ...state, over: true, outcome: "busted", lastFlip: landed, lastRight: false, flips };
+  }
+  const step = state.step + 1;
+  const pot = state.pot + coinAwardForStep(state.step);
+  const xp = state.xp + COIN_XP_PER_CALL;
+  if (step >= COIN_MULTIPLIERS.length) {
+    return {
+      ...state,
+      over: true,
+      outcome: "banked",
+      topped: true,
+      step,
+      pot: pot + COIN_TOP_BONUS,
+      xp: xp + COIN_XP_BANK_BONUS,
+      lastFlip: landed,
+      lastRight: true,
+      flips,
+    };
+  }
+  return { ...state, step, pot, xp, lastFlip: landed, lastRight: true, flips };
+}
+
+/** Bank the pot and end the round. Only after at least one correct call. */
+export function coinBank(state: CoinCallState): CoinCallState {
+  if (state.over || state.step < 1) return state;
+  return { ...state, over: true, outcome: "banked", xp: state.xp + COIN_XP_BANK_BONUS };
+}
+
+/**
+ * What the round reports as its score when it ends: the pot on a
+ * bank (top-out bonus included), the XP tally as consolation on
+ * a bust, and nothing while the coin is still live.
+ */
+export function coinPayout(state: CoinCallState): number {
+  if (!state.over) return 0;
+  return state.outcome === "banked" ? state.pot : state.xp;
+}
+
+export function coinScore(state: CoinCallState): number {
+  return coinPayout(state);
+}
+
+// ─── Higher or Lower ─────────────────────────────────────────────────────────
+
+export type HlSuit = "spades" | "hearts" | "diamonds" | "clubs";
+export type HlCall = "higher" | "lower";
+
+export interface HlCard {
+  /** 2–14: 11 J, 12 Q, 13 K, 14 A. */
+  rank: number;
+  suit: HlSuit;
+}
+
+export const HL_SUITS: readonly HlSuit[] = ["spades", "hearts", "diamonds", "clubs"];
+
+export function hlRankLabel(rank: number): string {
+  if (rank === 11) return "J";
+  if (rank === 12) return "Q";
+  if (rank === 13) return "K";
+  if (rank === 14) return "A";
+  return String(Math.min(10, Math.max(2, Math.floor(rank))));
+}
+
+export function hlSuitGlyph(suit: HlSuit): string {
+  switch (suit) {
+    case "hearts":
+      return "♥";
+    case "diamonds":
+      return "♦";
+    case "clubs":
+      return "♣";
+    default:
+      return "♠";
+  }
+}
+
+export function hlSuitIsRed(suit: HlSuit): boolean {
+  return suit === "hearts" || suit === "diamonds";
+}
+
+/** A name for messages: "Q of hearts", "7 of spades". */
+export function hlCardName(card: HlCard): string {
+  return `${hlRankLabel(card.rank)} of ${card.suit}`;
+}
+
+/**
+ * A correct call pays 40 + 10 per streak step already standing,
+ * capped at 80: the streak's 1st call pays 40, then 50, 60, 70,
+ * 80, 80… — pass the streak AFTER the call lands (1-based).
+ */
+export function hlAwardForStreak(streakAfter: number): number {
+  const n = Math.max(1, Math.floor(streakAfter));
+  return Math.min(80, 40 + 10 * (n - 1));
+}
+
+/** The XP tally: per correct call, and the bonus on a bank. */
+export const HL_XP_PER_CALL = 15;
+export const HL_XP_BANK_BONUS = 25;
+
+/** A fresh shuffled 52 (Fisher–Yates over the passed rng). */
+export function hlNewDeck(rng: Rng): HlCard[] {
+  const deck: HlCard[] = [];
+  for (const suit of HL_SUITS) {
+    for (let rank = 2; rank <= 14; rank++) deck.push({ rank, suit });
+  }
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.min(i, Math.max(0, Math.floor(rng() * (i + 1))));
+    const tmp = deck[i];
+    deck[i] = deck[j];
+    deck[j] = tmp;
+  }
+  return deck;
+}
+
+export interface HlState {
+  over: boolean;
+  /** How the round ended; null while the deck is still live. */
+  outcome: "banked" | "busted" | null;
+  /** The remaining draw pile — cards draw off the end. */
+  deck: HlCard[];
+  /** The card showing. */
+  current: HlCard;
+  lastDrawn: HlCard | null;
+  lastResult: "right" | "push" | "wrong" | null;
+  /** Coins the last call paid (0 on a push or a miss). */
+  lastAward: number;
+  /** Consecutive correct calls standing (a push holds it). */
+  streak: number;
+  /** Correct calls all round — the bank gate and the consolation count. */
+  correct: number;
+  pot: number;
+  xp: number;
+}
+
+export function hlStart(rng: Rng): HlState {
+  const deck = hlNewDeck(rng);
+  const current = deck[deck.length - 1];
+  return {
+    over: false,
+    outcome: null,
+    deck: deck.slice(0, -1),
+    current,
+    lastDrawn: null,
+    lastResult: null,
+    lastAward: 0,
+    streak: 0,
+    correct: 0,
+    pot: 0,
+    xp: 0,
+  };
+}
+
+/**
+ * Call higher or lower on the next card. A drawn ACE is wild —
+ * always a right call, paying double. A tie is a push: the new
+ * card becomes the showing card, no pay, the streak holds. A
+ * wrong call ends the round and the pot is gone. The pile draws
+ * without replacement; if it ever runs out mid-round it is
+ * silently reshuffled — rounds are short, so this is a formality,
+ * but a hot streak should never die of an empty deck.
+ */
+export function hlCall(state: HlState, call: HlCall, rng: Rng): HlState {
+  if (state.over) return state;
+  const pile = state.deck.length > 0 ? state.deck : hlNewDeck(rng);
+  const drawn = pile[pile.length - 1];
+  const deck = pile.slice(0, -1);
+  if (drawn.rank === 14) {
+    const streak = state.streak + 1;
+    const award = 2 * hlAwardForStreak(streak);
+    return {
+      ...state,
+      deck,
+      current: drawn,
+      lastDrawn: drawn,
+      lastResult: "right",
+      lastAward: award,
+      streak,
+      correct: state.correct + 1,
+      pot: state.pot + award,
+      xp: state.xp + HL_XP_PER_CALL,
+    };
+  }
+  if (drawn.rank === state.current.rank) {
+    return { ...state, deck, current: drawn, lastDrawn: drawn, lastResult: "push", lastAward: 0 };
+  }
+  const right = call === "higher" ? drawn.rank > state.current.rank : drawn.rank < state.current.rank;
+  if (!right) {
+    return {
+      ...state,
+      deck,
+      current: drawn,
+      lastDrawn: drawn,
+      lastResult: "wrong",
+      lastAward: 0,
+      over: true,
+      outcome: "busted",
+    };
+  }
+  const streak = state.streak + 1;
+  const award = hlAwardForStreak(streak);
+  return {
+    ...state,
+    deck,
+    current: drawn,
+    lastDrawn: drawn,
+    lastResult: "right",
+    lastAward: award,
+    streak,
+    correct: state.correct + 1,
+    pot: state.pot + award,
+    xp: state.xp + HL_XP_PER_CALL,
+  };
+}
+
+/** Bank the pot and end the round. Only after at least one correct call. */
+export function hlBank(state: HlState): HlState {
+  if (state.over || state.correct < 1) return state;
+  return { ...state, over: true, outcome: "banked", xp: state.xp + HL_XP_BANK_BONUS };
+}
+
+/** The same payout law as Coin Call: pot on a bank, the XP tally as consolation on a bust, nothing live. */
+export function hlPayout(state: HlState): number {
+  if (!state.over) return 0;
+  return state.outcome === "banked" ? state.pot : state.xp;
+}
+
+export function hlScore(state: HlState): number {
+  return hlPayout(state);
+}
+
+// ─── v448, second pair — Scratch Card and Three Reels ────────────────────────
+// Scratch Card is a SESSION score game (Pipe Dreams / Lights Out
+// treatment): cards resolve one by one inside the deal, the score
+// accumulates across cards, and the session settles on the
+// deal-away through the standard v397 conversion. Three Reels is
+// a RUN game: three pulls, then the run ends through the shared
+// run-end path. Same standing rule as the first pair — the purse
+// is never at risk; these two can't lose anything at all, they
+// only ever pay or don't.
+
+// ─── Scratch Card ────────────────────────────────────────────────────────────
+
+export const SCRATCH_VALUES = [25, 50, 100, 250, 1000] as const;
+export const SCRATCH_PANELS = 9;
+/** Share of dealt cards that are duds — no trio anywhere on them. */
+export const SCRATCH_DUD_SHARE = 0.3;
+/**
+ * Trio weights among WINNING cards, aligned with SCRATCH_VALUES:
+ * 25 and 50 carry most winners, 100 is uncommon, 250 rare, and
+ * 1000 lands on about 1 card in 25 overall (0.7 × 6%).
+ */
+export const SCRATCH_TRIO_WEIGHTS = [34, 32, 18, 10, 6] as const;
+
+function scratchPickTrio(rng: Rng): number {
+  const total = SCRATCH_TRIO_WEIGHTS.reduce((a, b) => a + b, 0);
+  let roll = rng() * total;
+  for (let i = 0; i < SCRATCH_VALUES.length; i++) {
+    roll -= SCRATCH_TRIO_WEIGHTS[i];
+    if (roll < 0) return SCRATCH_VALUES[i];
+  }
+  return SCRATCH_VALUES[SCRATCH_VALUES.length - 1];
+}
+
+/**
+ * Deal one card's hidden layout. A winning card holds its trio
+ * value exactly three times; every other value is capped at two
+ * panels, so a second trio can never form. A dud caps EVERY value
+ * at two — with five values that's ten slots for nine panels, so
+ * a dud always fits. The nine panels are shuffled before dealing.
+ */
+export function scratchLayout(rng: Rng): number[] {
+  const trio = rng() < SCRATCH_DUD_SHARE ? null : scratchPickTrio(rng);
+  const counts = new Map<number, number>();
+  const panels: number[] = [];
+  if (trio != null) {
+    panels.push(trio, trio, trio);
+    counts.set(trio, 3);
+  }
+  let guard = 0;
+  while (panels.length < SCRATCH_PANELS && guard++ < 500) {
+    const v = SCRATCH_VALUES[Math.min(SCRATCH_VALUES.length - 1, Math.floor(rng() * SCRATCH_VALUES.length))];
+    if (v === trio) continue;
+    const c = counts.get(v) ?? 0;
+    if (c >= 2) continue;
+    counts.set(v, c + 1);
+    panels.push(v);
+  }
+  for (let i = panels.length - 1; i > 0; i--) {
+    const j = Math.min(i, Math.max(0, Math.floor(rng() * (i + 1))));
+    const tmp = panels[i];
+    panels[i] = panels[j];
+    panels[j] = tmp;
+  }
+  return panels;
+}
+
+/**
+ * The trio among a set of values: the highest value appearing
+ * three or more times, else null. Layouts are built so two trios
+ * can't happen, but if one ever did, the higher pays — this is
+ * the guard, and the win check runs it over the revealed panels.
+ */
+export function scratchTrioIn(values: readonly number[]): number | null {
+  const counts = new Map<number, number>();
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+  let best: number | null = null;
+  for (const [v, c] of counts) {
+    if (c >= 3 && (best == null || v > best)) best = v;
+  }
+  return best;
+}
+
+export interface ScratchState {
+  layout: number[];
+  revealed: boolean[];
+  /** True once the card has paid (trio found) or fully opened dud. */
+  resolved: boolean;
+  /** The trio value this card paid; null on a dud and while live. */
+  won: number | null;
+  /** Score accumulated across every card this session. */
+  score: number;
+  /** Cards dealt so far this session, this one included. */
+  cards: number;
+}
+
+export function scratchFromLayout(layout: number[], score = 0, cards = 1): ScratchState {
+  return {
+    layout: [...layout],
+    revealed: Array(layout.length).fill(false),
+    resolved: false,
+    won: null,
+    score,
+    cards,
+  };
+}
+
+export function scratchStart(rng: Rng): ScratchState {
+  return scratchFromLayout(scratchLayout(rng));
+}
+
+/**
+ * Reveal one panel. The card resolves the moment the third
+ * matching panel is uncovered — the trio pays its value into the
+ * session score — or when the ninth panel opens with no trio
+ * (a dud, pays nothing).
+ */
+export function scratchReveal(state: ScratchState, index: number): ScratchState {
+  if (state.resolved || state.revealed[index]) return state;
+  const revealed = [...state.revealed];
+  revealed[index] = true;
+  const open = state.layout.filter((_, i) => revealed[i]);
+  const trio = scratchTrioIn(open);
+  if (trio != null) {
+    return { ...state, revealed, resolved: true, won: trio, score: state.score + trio };
+  }
+  if (revealed.every(Boolean)) {
+    return { ...state, revealed, resolved: true, won: null };
+  }
+  return { ...state, revealed };
+}
+
+/** Deal the next card into the same session. Only once this one has resolved. */
+export function scratchNext(state: ScratchState, rng: Rng): ScratchState {
+  if (!state.resolved) return state;
+  return scratchFromLayout(scratchLayout(rng), state.score, state.cards + 1);
+}
+
+export function scratchScore(state: ScratchState): number {
+  return state.score;
+}
+
+// ─── Three Reels ─────────────────────────────────────────────────────────────
+
+export type ReelMark = "coin" | "heart" | "star" | "bell";
+
+export const REEL_MARKS: readonly ReelMark[] = ["coin", "heart", "star", "bell"];
+export const REELS_PULLS_PER_RUN = 3;
+export const REELS_PAIR_POINTS = 30;
+/** Three of a kind pays by the mark; three coins is the jackpot. */
+export const REELS_TRIPLE_POINTS: Record<ReelMark, number> = {
+  heart: 150,
+  star: 250,
+  bell: 400,
+  coin: 1000,
+};
+
+/** What one stopped pull pays: a triple by the table, any exact pair 30, else nothing. */
+export function reelsPayout(marks: readonly ReelMark[]): number {
+  if (marks.length !== 3) return 0;
+  const [a, b, c] = marks;
+  if (a === b && b === c) return REELS_TRIPLE_POINTS[a];
+  if (a === b || b === c || a === c) return REELS_PAIR_POINTS;
+  return 0;
+}
+
+/** Draw the three marks a pull will stop on (each reel uniform over the four marks). */
+export function reelsDraw(rng: Rng): ReelMark[] {
+  return [0, 1, 2].map(() => REEL_MARKS[Math.min(REEL_MARKS.length - 1, Math.floor(rng() * REEL_MARKS.length))]);
+}
+
+export interface ReelsState {
+  over: boolean;
+  pulls: number;
+  score: number;
+  lastMarks: ReelMark[] | null;
+  lastPayout: number;
+  /** Any pull this run landed three coins. */
+  jackpot: boolean;
+}
+
+export function reelsStart(): ReelsState {
+  return { over: false, pulls: 0, score: 0, lastMarks: null, lastPayout: 0, jackpot: false };
+}
+
+/**
+ * Settle one stopped pull into the run. The third pull ends the
+ * run; a settled run takes no more pulls. (The component draws
+ * the marks first and animates toward them — what lands is
+ * decided here, the spin is just the telling.)
+ */
+export function reelsSettlePull(state: ReelsState, marks: readonly ReelMark[]): ReelsState {
+  if (state.over) return state;
+  const payout = reelsPayout(marks);
+  const pulls = state.pulls + 1;
+  return {
+    over: pulls >= REELS_PULLS_PER_RUN,
+    pulls,
+    score: state.score + payout,
+    lastMarks: [...marks],
+    lastPayout: payout,
+    jackpot: state.jackpot || (marks.length === 3 && marks.every((mark) => mark === "coin")),
+  };
+}
+
+export function reelsScore(state: ReelsState): number {
   return state.score;
 }

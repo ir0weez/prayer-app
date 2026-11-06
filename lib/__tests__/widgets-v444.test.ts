@@ -357,8 +357,12 @@ describe("v444 Up Next renderer", () => {
     // v447 re-pin: the budget allowance is − 56 now — the
     // footer was removed at Jonathan's ruling and its ~40dp
     // went to the rail; steps 1–2 are unchanged.
+    // v450 re-pin: the budget is − 56 − 16 now — a 16dp
+    // safety margin, after the height signal overestimated
+    // the placed height again in v449 (a fourth row stood
+    // half-clipped); steps 1–2 are still always chosen.
     const body = rendererFn("selectRailRows");
-    expect(body).toContain("val railBudget = heightSignal - 56");
+    expect(body).toContain("val railBudget = heightSignal - 56 - 16");
     expect(body).toContain('RailRow("now", nowTimeLabel(), "NOW", "", 0, "")');
     expect(body).toContain("heroChosen = true");
     expect(body).toContain("currentChosen = true");

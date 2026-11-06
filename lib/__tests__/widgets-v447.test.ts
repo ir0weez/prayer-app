@@ -160,7 +160,11 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
   });
 
   it("the budget allowance follows the footer out: heightSignal − 56, not − 96", () => {
-    expect(sel).toContain("val railBudget = heightSignal - 56");
+    // v450 re-pin: the allowance still starts from the
+    // footer's − 56, but a 16dp safety margin now rides on
+    // top (heightSignal − 56 − 16) — the signal overestimated
+    // the placed height again in v449 and a row clipped.
+    expect(sel).toContain("val railBudget = heightSignal - 56 - 16");
     expect(sel).not.toContain("heightSignal - 96");
   });
 
@@ -186,8 +190,14 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
   });
 
   it("the gap costs 32 in the budget now, box included", () => {
-    expect(sel).toContain("34 + 32 <= remaining");
+    // v450 re-pin: the gap is no longer coupled to the
+    // following item ("34 + 32" together or alone) — gaps
+    // are seated last, each on its own, from the budget the
+    // item rows left over. The 32 cost itself stands.
+    expect(sel).toContain("nowGap != null && 32 <= remaining");
+    expect(sel).toContain("gap != null && 32 <= remaining");
     expect(sel).toContain("remaining -= 32");
+    expect(sel).not.toContain("34 + 32");
     expect(sel).not.toContain("34 + 26");
   });
 
@@ -196,9 +206,12 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
     expect(body).toContain("val openMinutes = dayItems[next1Idx].startMinutes - maxOf(nowMin, prevEnd)");
     expect(body).toContain("if (openMinutes >= 15)");
     expect(body).toContain('nowGapRow = RailRow("gap", "", "", "", 0, openDurationText(openMinutes))');
-    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, next2Row, heightSignal)");
+    // v450 re-pin: the following item is the "after" row now
+    // (next2Row renamed) — the fixed composition seats one
+    // after and nothing past it.
+    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, heightSignal)");
     // The entries fallback seats none — its gaps come from the snapshot.
-    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, null, gapRow, next2Row, heightSignal)");
+    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, heightSignal)");
   });
 
   it("the NOW→next gap displays between the NOW row and the hero", () => {
@@ -211,7 +224,11 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
   });
 
   it("between-items gaps are computed exactly as before", () => {
-    expect(body).toContain("val gapMinutes = next2.startMinutes - next1.endMinutes");
+    // v450 re-pin: the computation is unchanged (the hero's
+    // end to the following item's start, ≥ 15 minutes) —
+    // only the following item's local name changed (next2 →
+    // after) with the fixed composition.
+    expect(body).toContain("val gapMinutes = after.startMinutes - next1.endMinutes");
     expect(body).toContain("if (gapMinutes >= 15)");
     expect(body).toContain('gapRow = RailRow("gap", "", "", "", 0, openDurationText(gapMinutes))');
   });

@@ -235,9 +235,13 @@ describe("v443 height signal", () => {
     // v447 re-pin: the budget allowance is − 56 now — the
     // footer was removed from the card at Jonathan's ruling
     // and its ~40dp went to the rail.
+    // v450 re-pin: the budget plans against − 56 − 16 — a
+    // 16dp safety margin on top, because the height signal
+    // overestimated the placed height again in v449 and a
+    // fourth row stood half-clipped at the card's edge.
     expect(renderer).not.toContain("val full = minHeightDp >= 160");
     expect(renderer).toContain("val tall = minHeightDp >= 190");
-    expect(renderer).toContain("val railBudget = heightSignal - 56");
+    expect(renderer).toContain("val railBudget = heightSignal - 56 - 16");
     // The 190 belongs to renderEmergency, before renderUpNext.
     const upNextAt = renderer.indexOf("private fun renderUpNext");
     const emergencyAt = renderer.indexOf("private fun renderEmergency");

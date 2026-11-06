@@ -1126,10 +1126,17 @@ object WidgetRenderer {
     // opened, so the widget went stale between opens. The
     // snapshot's entries remain as the fallback (below) for a
     // snapshot whose day has rolled over or that predates
-    // dayItems. Both paths build one common row list (last,
-    // current, hero, nowGap, gap, next2) and run it through
-    // the same height-budgeted selection (selectRailRows)
-    // before a slot is filled.
+    // dayItems. Both paths build one common row set (last,
+    // current, hero, after, plus the nowGap and gap rows)
+    // and run it through the same height-budgeted selection
+    // (selectRailRows) before a slot is filled.
+    // v450: the composition is FIXED — one past, one current
+    // (or NOW), the next up in its box, one after, and the
+    // white spaces only where they fit (Jonathan, on the
+    // v449 render: a fourth item row stood half-clipped at
+    // the card's bottom edge). Nothing past the after item
+    // is ever a candidate, and the selection seats the item
+    // rows first and gives gaps only what is left over.
     // v447: there is no footer any more (Jonathan: the Open
     // schedule / end-note bar was dead weight — "Why do we
     // need that?"), so nothing here reads or writes an end
@@ -1187,7 +1194,7 @@ object WidgetRenderer {
         .sortedByDescending { dayItems[it].startMinutes }
         .firstOrNull()
       val next1Idx = aheadIdx.getOrNull(0)
-      val next2Idx = aheadIdx.getOrNull(1)
+      val afterIdx = aheadIdx.getOrNull(1)
       if (currentIdx == null && next1Idx == null) {
         // Nothing running and nothing ahead: the quiet face.
         views.setViewVisibility(R.id.next_msg, View.VISIBLE)
@@ -1195,7 +1202,7 @@ object WidgetRenderer {
         views.setViewVisibility(R.id.next_rail, View.GONE)
         return views
       }
-      val chosenIdx = setOfNotNull(currentIdx, next1Idx, next2Idx)
+      val chosenIdx = setOfNotNull(currentIdx, next1Idx, afterIdx)
       val overAt = { item: DayItem -> if (item.hasEnd) item.endMinutes else item.startMinutes }
       val lastIdx = dayItems.indices
         .filter { it !in chosenIdx && overAt(dayItems[it]) <= nowMin }
@@ -1214,15 +1221,15 @@ object WidgetRenderer {
         RailRow("hero", minutesToTimeLabel(item.startMinutes), item.title, item.sub, item.startMinutes, "")
       }
       var gapRow: RailRow? = null
-      var next2Row: RailRow? = null
-      if (next1Idx != null && next2Idx != null) {
+      var afterRow: RailRow? = null
+      if (next1Idx != null && afterIdx != null) {
         val next1 = dayItems[next1Idx]
-        val next2 = dayItems[next2Idx]
-        val gapMinutes = next2.startMinutes - next1.endMinutes
+        val after = dayItems[afterIdx]
+        val gapMinutes = after.startMinutes - next1.endMinutes
         if (gapMinutes >= 15) {
           gapRow = RailRow("gap", "", "", "", 0, openDurationText(gapMinutes))
         }
-        next2Row = RailRow("item", minutesToTimeLabel(next2.startMinutes), next2.title, next2.sub, next2.startMinutes, "")
+        afterRow = RailRow("item", minutesToTimeLabel(after.startMinutes), after.title, after.sub, after.startMinutes, "")
       }
       // v447: the open stretch he is standing in. When nothing
       // is running, the time between NOW and the next thing is
@@ -1242,7 +1249,7 @@ object WidgetRenderer {
         }
       }
       leftCount = aheadIdx.size
-      rows = selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, next2Row, heightSignal)
+      rows = selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, heightSignal)
     } else {
       // ── The fallback: the snapshot's entries walk (v444),
       // extended with the legacy pre-v444 kinds so a stale
@@ -1310,11 +1317,11 @@ object WidgetRenderer {
       val currentRow = entries.firstOrNull { it.kind == "current" }
       val heroRow = entries.firstOrNull { it.kind == "hero" }
       val gapRow = entries.firstOrNull { it.kind == "gap" }
-      val next2Row = entries.firstOrNull { it.kind == "item" }
+      val afterRow = entries.firstOrNull { it.kind == "item" }
       // The fallback seats no NOW→next gap: its entries come
       // from the snapshot as stored, gaps and all (v447's
       // nowGap is a render-time computation only).
-      rows = selectRailRows(lastRow, currentRow, heroRow, null, gapRow, next2Row, heightSignal)
+      rows = selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, heightSignal)
     }
 
     views.setViewVisibility(R.id.next_msg, View.GONE)
@@ -1366,53 +1373,71 @@ object WidgetRenderer {
 
   /** v445: the height-budgeted row selection — the ONE selection
    * both the render-time path and the entries fallback run.
-   * The tall/short branch is gone: the rail budget is the
-   * height signal minus the card's fixed chrome, and rows are
-   * chosen in priority order against conservative costs —
-   * plain row (last / current / following) 34, NOW row 30,
-   * hero 64, gap 32:
+   * v450: the composition is FIXED (Jonathan, on the v449
+   * render: "Shouldn't there just be one past event, and one
+   * after event, then the next up in the box (centered), and
+   * the white spaces wherever they fit?"). At most FOUR item
+   * rows are ever seated — one last, one current (or the NOW
+   * row when nothing is running), the hero in its band at the
+   * stack's centre, and one after — plus the trailing NOW row
+   * when a current exists. There is no fifth item row: the
+   * item after the after is never even a candidate.
+   *
+   * Rows are chosen in two passes. The ITEM rows go first, in
+   * priority order, against conservative costs — hero 64,
+   * plain row (last / current / after) 34, NOW row 30:
    *   (1) the hero, (2) the current row — or the NOW row when
-   *   nothing is current, (2½) the NOW→next gap (v447: the
-   *   open stretch he is standing in, between the NOW row and
-   *   the hero), (3) the last row, (4) the following item,
-   *   together with its gap when the gap also fits and alone
-   *   when it does not, (5) the NOW row when a current exists
-   *   (it was not already chosen at (2)).
+   *   nothing is current, (3) the last row, (4) the after
+   *   row, (5) the NOW row when a current exists (it was not
+   *   already chosen at (2)).
+   * The GAP rows (32 each, the v447 white box) go LAST, in
+   * rail order — the NOW→next stretch (the open time he is
+   * standing in, between the NOW row and the hero), then the
+   * between-items gap (between the hero and the after) — and
+   * each is seated only with budget the item rows left over.
+   * A gap never displaces an item row; a row is seated whole
+   * or not at all.
    * A row is chosen only when its cost fits what remains of
    * the budget, EXCEPT (1) and (2), which are always chosen —
    * the hero and the now-anchor can never be starved out of
    * the rail again (the v443/v444 measurement starvation).
    * The chosen rows display in chronological order: last,
-   * current, NOW, nowGap, hero, gap, next2. The NOW row is
+   * current, NOW, nowGap, hero, gap, after. The NOW row is
    * always the proper rail row (its own time, ringed dot, NOW
    * title) — seated after last and current, before the hero.
    *
-   * v447 chrome: the allowance is 56, not 96 — the footer
-   * (divider + margins + its row ≈ 40) is REMOVED from the
-   * layout entirely at Jonathan's ruling, and its space went
-   * to the rail, so the budget honestly follows: header +
-   * padding ≈ 56. The gap cost rose 26 → 32 with the white
-   * box (the text's in-box padding plus the box's margins
-   * stand ≈ 33 tall where the bare line stood ≈ 27). */
+   * The budget: v447 set the chrome allowance at 56 (the
+   * footer's ~40 went to the rail when the footer was
+   * removed). v450 subtracts a further 16 of SAFETY MARGIN:
+   * the height signal has overestimated the placed height
+   * three rounds running (v443, v444, and v449's half-clipped
+   * fourth row), so the selection now plans against
+   * heightSignal − 56 − 16 and the seated total fits with
+   * room to spare. If the margin costs the after row at a
+   * small placement, so be it — a dropped row is acceptable;
+   * a clipped row is the failure this fixes.
+   * The gap cost is 32 since v447 (the white box's in-box
+   * padding plus margins stand ≈ 33 tall). */
   private fun selectRailRows(
     last: RailRow?,
     current: RailRow?,
     hero: RailRow?,
     nowGap: RailRow?,
     gap: RailRow?,
-    next2: RailRow?,
+    after: RailRow?,
     heightSignal: Int,
   ): List<RailRow> {
-    val railBudget = heightSignal - 56
+    val railBudget = heightSignal - 56 - 16
     var remaining = railBudget
     val nowRow = RailRow("now", nowTimeLabel(), "NOW", "", 0, "")
     var lastChosen = false
     var currentChosen = false
     var nowChosen = false
     var heroChosen = false
+    var afterChosen = false
     var nowGapChosen = false
     var gapChosen = false
-    var next2Chosen = false
+    // ── Item rows first, in priority order. ──
     // (1) hero — always chosen.
     if (hero != null) {
       heroChosen = true
@@ -1426,33 +1451,30 @@ object WidgetRenderer {
       nowChosen = true
       remaining -= 30
     }
-    // (2½) the NOW→next gap — when it fits. It exists only
-    // when nothing is current (the render-time path computes
-    // it so), seated between the NOW row and the hero.
-    if (nowGap != null && 32 <= remaining) {
-      nowGapChosen = true
-      remaining -= 32
-    }
     // (3) last — when it fits.
     if (last != null && 34 <= remaining) {
       lastChosen = true
       remaining -= 34
     }
-    // (4) next2 — with its gap when both fit, else alone.
-    if (next2 != null) {
-      if (gap != null && 34 + 32 <= remaining) {
-        next2Chosen = true
-        gapChosen = true
-        remaining -= 34 + 32
-      } else if (34 <= remaining) {
-        next2Chosen = true
-        remaining -= 34
-      }
+    // (4) after — when it fits.
+    if (after != null && 34 <= remaining) {
+      afterChosen = true
+      remaining -= 34
     }
     // (5) the NOW row when a current exists — when it fits.
     if (current != null && !nowChosen && 30 <= remaining) {
       nowChosen = true
       remaining -= 30
+    }
+    // ── Gap rows last: only what the item rows left over,
+    // in rail order, each whole or not at all. ──
+    if (nowGap != null && 32 <= remaining) {
+      nowGapChosen = true
+      remaining -= 32
+    }
+    if (gap != null && 32 <= remaining) {
+      gapChosen = true
+      remaining -= 32
     }
     val display = mutableListOf<RailRow>()
     if (lastChosen && last != null) display.add(last)
@@ -1461,7 +1483,7 @@ object WidgetRenderer {
     if (nowGapChosen && nowGap != null) display.add(nowGap)
     if (heroChosen && hero != null) display.add(hero)
     if (gapChosen && gap != null) display.add(gap)
-    if (next2Chosen && next2 != null) display.add(next2)
+    if (afterChosen && after != null) display.add(after)
     return display
   }
 

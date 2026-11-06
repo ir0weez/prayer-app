@@ -258,21 +258,27 @@ describe("v445 Up Next renderer", () => {
     expect(after).toContain("R.id.next_rail, View.GONE");
   });
 
-  it("the selection is height-budgeted: budget = heightSignal − 56, with the stated costs", () => {
+  it("the selection is height-budgeted: budget = heightSignal − 56 − 16, with the stated costs", () => {
     // v447 re-pin: the allowance was − 96 while the card
     // carried a footer; Jonathan removed the footer ("Why do
     // we need that?") and its ~40dp went to the rail, so the
     // allowance is − 56 now. The gap cost rose 26 → 32 in the
     // same build: the gap wears a white box (in-box padding
     // + box margins) where the bare line stood shorter.
+    // v450 re-pin: a 16dp safety margin rides on top of the
+    // − 56 (the height signal overestimated the placed
+    // height again in v449 — a fourth row stood half-clipped
+    // at the card's edge), and the old "next2 rides with its
+    // gap only when both fit" coupling is gone: the after
+    // row is chosen as an item row on its own, and gaps are
+    // seated afterwards from whatever budget is left over.
     const body = rendererFn("selectRailRows");
-    expect(body).toContain("val railBudget = heightSignal - 56");
+    expect(body).toContain("val railBudget = heightSignal - 56 - 16");
     // Hero 64, plain 34, NOW 30, gap 32 — as decrements.
     expect(body).toContain("remaining -= 64");
     expect(body).toContain("remaining -= 34");
     expect(body).toContain("remaining -= 30");
-    // next2 rides with its gap only when both fit.
-    expect(body).toContain("34 + 32 <= remaining");
+    expect(body).not.toContain("34 + 32 <= remaining");
   });
 
   it("NOW is always its own rail row, and the current branch never stands the trailing label up", () => {

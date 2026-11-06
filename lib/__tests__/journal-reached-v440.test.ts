@@ -12,9 +12,14 @@
  *      trailing period, the plain-word lowercase rule ("His
  *      house" → "his house", "McDonald's" and name-led notes
  *      untouched);
- *  (d) the stamp→journal reconcile — no backfill on first sight,
- *      new/changed stamps grow or refresh lines, a deleted stamp
- *      takes its line with it;
+ *  (d) the stamp→journal reconcile — v452: an idempotent ensure
+ *      (every standing stamp has its line, whenever it was
+ *      written; a deleted stamp's line is pruned). This pin was
+ *      rewritten: v440 asserted the opposite — a first-sight
+ *      baseline with no backfill, lines only for changed stamps —
+ *      and that behaviour lost Novalee's line on Nov 5 (her stamp
+ *      predated the v440 install; the baseline swallowed it and
+ *      her identical re-mark could never grow the line);
  *  (e) the feed — reached entries count in the day's post count
  *      and group into one reachedGroup item per day;
  *  (f) dress pins (source, v411-style) — the kind-post reached
@@ -236,50 +241,132 @@ describe("v440 (c) — the line's words", () => {
   });
 });
 
-describe("v440 (d) — the reconcile: stamps in, lines in step, no backfill", () => {
+describe("v452 (d) — the reconcile: every standing stamp has its line", () => {
+  // v452 amendment (Nov 5) — this section replaces v440's baseline
+  // pins. v440 asserted that first sight "arms the baseline and
+  // changes NOTHING" and that lines grew only for stamps changed
+  // since the baseline. That is the exact behaviour that lost
+  // Novalee's line: her 2026-11-05 stamp was written that morning
+  // before the v440 update landed, the baseline swallowed it at
+  // first sight, and his evening re-mark produced an identical
+  // fingerprint — no change, no line, ever. The reconcile is now
+  // an idempotent ensure over the record: no baseline, no
+  // change-watching; a standing stamp has its line, period.
   const oldStamp = stamp({ personId: "p-dad", date: "2026-10-26", note: "Called." });
 
-  it("first sight arms the baseline and changes NOTHING", () => {
-    const before: PrayerJournalEntry[] = [];
-    const result = reconcileReachedJournalEntries(before, [oldStamp], PEOPLE, null, NOW);
-    expect(result.entries).toBe(before);
-    expect(result.entries.filter((item) => item.kind === "reached")).toHaveLength(0);
-    expect(result.baseline.get(oldStamp.id)).toBeDefined();
+  it("a pre-existing stamp gets its line on the FIRST reconcile — the Novalee case", () => {
+    // Her stamp stands from before the feature existed; the
+    // journal has never heard of it; one reconcile must surface
+    // the line, filed under the stamp's date.
+    const novalee = person("p-novalee", "Novalee");
+    const herStamp = stamp({ personId: "p-novalee", personName: "Novalee", date: TODAY });
+    const result = reconcileReachedJournalEntries([], [herStamp], [novalee], NOW);
+    const lines = result.filter((item) => item.kind === "reached");
+    expect(lines).toHaveLength(1);
+    expect(lines[0].id).toBe("journal-reached-p-novalee-2026-11-05");
+    expect(lines[0].date).toBe(TODAY);
+    expect(lines[0].taggedPeople[0].id).toBe("p-novalee");
+    expect(lines[0].taggedPeople[0].name).toBe("Novalee");
   });
 
-  it("a stamp marked after the baseline grows its line", () => {
-    const armed = reconcileReachedJournalEntries([], [oldStamp], PEOPLE, null, NOW);
+  it("an identical re-mark still yields the line when it is missing", () => {
+    // The v440-era settled state: an ordinary post stands, the
+    // stamp stands, its line was never grown. The stamp is
+    // byte-identical to what the old sync last saw — the ensure
+    // grows the line anyway, because it works from the record.
+    const settled: PrayerJournalEntry[] = [entry({ id: "post-1", body: "An ordinary post." })];
+    const result = reconcileReachedJournalEntries(settled, [oldStamp], PEOPLE, NOW);
+    const lines = result.filter((item) => item.kind === "reached");
+    expect(lines).toHaveLength(1);
+    expect(lines[0].id).toBe("journal-reached-p-dad-2026-10-26");
+    expect(lines[0].date).toBe("2026-10-26");
+    expect(result).toContain(settled[0]);
+  });
+
+  it("the ensure is idempotent — the second run returns the same array, no duplicates", () => {
     const fresh = stamp({ personId: "p-cody", date: TODAY, note: "Texted" });
-    const result = reconcileReachedJournalEntries(armed.entries, [oldStamp, fresh], PEOPLE, armed.baseline, NOW);
-    const lines = result.entries.filter((item) => item.kind === "reached");
+    const first = reconcileReachedJournalEntries([], [oldStamp, fresh], PEOPLE, NOW);
+    expect(first.filter((item) => item.kind === "reached")).toHaveLength(2);
+    const second = reconcileReachedJournalEntries(first, [oldStamp, fresh], PEOPLE, new Date("2026-11-05T09:00:00.000Z"));
+    expect(second).toBe(first);
+    expect(second.filter((item) => item.kind === "reached")).toHaveLength(2);
+  });
+
+  it("a deleted stamp's line is pruned, and only its line", () => {
+    const fresh = stamp({ personId: "p-cody", date: TODAY });
+    const grown = reconcileReachedJournalEntries(
+      [entry({ id: "post-1", body: "An ordinary post." })],
+      [oldStamp, fresh],
+      PEOPLE,
+      NOW,
+    );
+    expect(grown.filter((item) => item.kind === "reached")).toHaveLength(2);
+    // Dad's stamp is deleted (his personId carries dashes — the
+    // prune keys off the live stamp set, never off parsing).
+    const pruned = reconcileReachedJournalEntries(grown, [fresh], PEOPLE, NOW);
+    const lines = pruned.filter((item) => item.kind === "reached");
     expect(lines).toHaveLength(1);
     expect(lines[0].id).toBe("journal-reached-p-cody-2026-11-05");
-    expect(lines[0].date).toBe(TODAY);
+    expect(pruned.some((item) => item.id === "post-1")).toBe(true);
+    const settled = reconcileReachedJournalEntries(pruned, [fresh], PEOPLE, NOW);
+    expect(settled).toBe(pruned);
   });
 
-  it("an old stamp edited after the baseline grows its line then", () => {
-    const armed = reconcileReachedJournalEntries([], [oldStamp], PEOPLE, null, NOW);
+  it("a note edit refreshes the line in place — createdAt and replies stand", () => {
+    const grown = reconcileReachedJournalEntries([], [oldStamp], PEOPLE, NOW);
+    const withReply: PrayerJournalEntry[] = grown.map((item) =>
+      item.kind === "reached"
+        ? { ...item, replies: [{ id: "r1", body: "Amen.", date: "2026-10-26", createdAt: "2026-10-26T15:00:00.000Z" }] }
+        : item,
+    );
     const edited = { ...oldStamp, note: "Called to check in on him.", location: "His house" };
-    const result = reconcileReachedJournalEntries(armed.entries, [edited], PEOPLE, armed.baseline, NOW);
-    const lines = result.entries.filter((item) => item.kind === "reached");
+    const later = new Date("2026-11-05T09:00:00.000Z");
+    const result = reconcileReachedJournalEntries(withReply, [edited], PEOPLE, later);
+    const lines = result.filter((item) => item.kind === "reached");
     expect(lines).toHaveLength(1);
+    expect(lines[0].id).toBe("journal-reached-p-dad-2026-10-26");
     expect(lines[0].date).toBe("2026-10-26");
     expect(lines[0].body).toBe("Called to check in on him.");
+    expect(lines[0].location).toBe("His house");
+    expect(lines[0].createdAt).toBe(grown[0].createdAt);
+    expect(lines[0].replies).toHaveLength(1);
+    expect(lines[0].updatedAt).toBe(later.toISOString());
   });
 
-  it("a deleted stamp takes its line with it", () => {
-    const fresh = stamp({ personId: "p-cody", date: TODAY });
-    const armed = reconcileReachedJournalEntries([], [], PEOPLE, null, NOW);
-    const grown = reconcileReachedJournalEntries(armed.entries, [fresh], PEOPLE, armed.baseline, NOW);
-    expect(grown.entries.filter((item) => item.kind === "reached")).toHaveLength(1);
-    const pruned = reconcileReachedJournalEntries(grown.entries, [], PEOPLE, grown.baseline, NOW);
-    expect(pruned.entries.filter((item) => item.kind === "reached")).toHaveLength(0);
+  it("stamps across dates each get their line under their own date", () => {
+    const stamps = [
+      oldStamp,
+      stamp({ personId: "p-dad", date: TODAY, note: "Dropped by." }),
+      stamp({ personId: "p-cody", date: "2026-11-01" }),
+    ];
+    const result = reconcileReachedJournalEntries([], stamps, PEOPLE, NOW);
+    const lines = result.filter((item) => item.kind === "reached");
+    expect(lines.map((item) => item.id).sort()).toEqual([
+      "journal-reached-p-cody-2026-11-01",
+      "journal-reached-p-dad-2026-10-26",
+      "journal-reached-p-dad-2026-11-05",
+    ]);
+    expect(lines.find((item) => item.id === "journal-reached-p-cody-2026-11-01")?.date).toBe("2026-11-01");
+    expect(lines.find((item) => item.id === "journal-reached-p-dad-2026-11-05")?.date).toBe(TODAY);
   });
 
-  it("unchanged stamps move nothing — the same array comes back", () => {
-    const armed = reconcileReachedJournalEntries([], [oldStamp], PEOPLE, null, NOW);
-    const settled = reconcileReachedJournalEntries(armed.entries, [oldStamp], PEOPLE, armed.baseline, NOW);
-    expect(settled.entries).toBe(armed.entries);
+  it("a reached entry with no stamp-shaped id is never pruned", () => {
+    // A reached entry the composer made by hand (no
+    // journal-reached- id, no stamp behind it) is not the sync's
+    // to remove — only stamp-shaped orphans are pruned.
+    const handmade = entry({ id: "x1", kind: "reached", date: TODAY });
+    const result = reconcileReachedJournalEntries([handmade], [], PEOPLE, NOW);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(handmade);
+  });
+
+  it("a stamp whose person left the roster still grows its line, named by the stamp", () => {
+    const gone = stamp({ personId: "p-gone", personName: "Uncle Ray", date: TODAY, note: "Called." });
+    const result = reconcileReachedJournalEntries([], [gone], PEOPLE, NOW);
+    const lines = result.filter((item) => item.kind === "reached");
+    expect(lines).toHaveLength(1);
+    expect(lines[0].taggedPeople[0].id).toBe("p-gone");
+    expect(lines[0].taggedPeople[0].name).toBe("Uncle Ray");
   });
 });
 
@@ -363,6 +450,10 @@ describe("v440 (f) — the dress (source pins)", () => {
 
   it("the shell reconciles the journal against the stamps", () => {
     expect(shell).toContain("reconcileReachedJournalEntries");
-    expect(shell).toContain("reachedJournalBaselineRef");
+    // v452 amendment (Nov 5): v440 pinned "reachedJournalBaselineRef"
+    // here — the first-sight baseline that swallowed Novalee's
+    // pre-existing stamp and lost her line. The ensure needs no
+    // baseline; its absence is now the pin.
+    expect(shell).not.toContain("reachedJournalBaselineRef");
   });
 });

@@ -815,12 +815,6 @@ export function removeReachedJournalEntryByKey(
   return entries.filter((entry) => entry.id !== id);
 }
 
-/** What the sync remembers of a stamp: everything the line is
- *  made of, so a change to any of it re-reads as a changed stamp. */
-export function reachedStampFingerprint(stamp: ReachedStamp): string {
-  return JSON.stringify([stamp.personId, stamp.personName, stamp.date, stamp.note ?? "", stamp.location ?? ""]);
-}
-
 function taggedPersonForStamp(stamp: ReachedStamp, people: Person[]): PrayerJournalTaggedPerson {
   const person = people.find((candidate) => candidate.id === stamp.personId);
   if (person) return snapshotPerson(person);
@@ -847,48 +841,51 @@ function taggedPersonForStamp(stamp: ReachedStamp, people: Person[]): PrayerJour
  * record the Desk shell holds (its own state for the in-shell
  * doors, re-read from storage on focus for the routed ones, the
  * same convergence the XP door already diffs), so the sync is a
- * reconcile against the last-seen stamps, not a hook in every
- * door:
+ * reconcile over the record, not a hook in every door.
  *
- * - baseline === null (first sight after hydration): remember
- *   the stamps, change NOTHING. Stamps that already stand were
- *   written before the sync existed — no backfill, ever.
- * - a stamp new since the baseline, or changed in any finger-
- *   printed field (a re-mark, a note/location edit): its line is
- *   created or refreshed in place.
- * - a stamp gone since the baseline: its line goes with it (a
- *   baseline stamp that never had a line is a harmless no-op).
+ * v452: the reconcile is an IDEMPOTENT ENSURE, not a change-watch.
+ * v440 diffed stamps against an in-memory baseline that armed at
+ * first sight after hydration and changed nothing then — so any
+ * stamp written before the feature existed (or before the
+ * baseline armed) was invisible to the sync forever, and an
+ * identical re-mark could never grow its missing line. On Nov 5
+ * that swallowed Novalee's 2026-11-05 stamp (written that morning
+ * before the v440 update landed): her page said "Reached today"
+ * and the Journal stayed silent. His standing expectation is that
+ * the Journal brings up who he has reached — so the sync now
+ * works from the record itself:
  *
- * Returns the entries (the SAME array when nothing moved, so the
- * caller can set state by reference diff) and the new baseline.
+ * - EVERY standing stamp has its line: created when missing,
+ *   refreshed in place when the stamp's note/location/name moved
+ *   (the upsert leaves a matching line untouched).
+ * - a reached line whose stamp is GONE is pruned — only entries
+ *   of kind "reached" carrying a journal-reached- id whose key
+ *   has no standing stamp; every other entry stands.
+ * - nothing moved → the SAME array comes back, so the caller can
+ *   set state by reference diff and no save churns.
  */
 export function reconcileReachedJournalEntries(
   entries: PrayerJournalEntry[],
   stamps: ReachedStamp[],
   people: Person[],
-  baseline: ReadonlyMap<string, string> | null,
   now = new Date(),
-): { entries: PrayerJournalEntry[]; baseline: Map<string, string> } {
-  const nextBaseline = new Map<string, string>(
-    stamps.map((stamp) => [stamp.id, reachedStampFingerprint(stamp)] as const),
-  );
-  if (baseline === null) return { entries, baseline: nextBaseline };
+): PrayerJournalEntry[] {
   let next = entries;
   for (const stamp of stamps) {
-    if (baseline.get(stamp.id) === nextBaseline.get(stamp.id)) continue;
     next = upsertReachedJournalEntry(next, taggedPersonForStamp(stamp, people), stamp, now);
   }
-  for (const [stampId, fingerprint] of baseline) {
-    if (nextBaseline.has(stampId)) continue;
-    try {
-      const parsed = JSON.parse(fingerprint) as unknown;
-      if (Array.isArray(parsed) && typeof parsed[0] === "string" && typeof parsed[2] === "string") {
-        next = removeReachedJournalEntryByKey(next, parsed[0], parsed[2]);
-      }
-    } catch {
-      // A fingerprint that doesn't parse carries no key to remove
-      // by — the line, if any, simply stands.
-    }
+  // The live keys, built from the stamps themselves — a line's
+  // fate is decided by membership in this set, never by parsing
+  // its id apart (personIds may themselves contain dashes; only
+  // the trailing YYYY-MM-DD is fixed-shape).
+  const liveLineIds = new Set(stamps.map((stamp) => reachedJournalId(stamp.personId, stamp.date)));
+  const hasOrphan = next.some(
+    (entry) => entry.kind === "reached" && entry.id.startsWith("journal-reached-") && !liveLineIds.has(entry.id),
+  );
+  if (hasOrphan) {
+    next = next.filter(
+      (entry) => !(entry.kind === "reached" && entry.id.startsWith("journal-reached-") && !liveLineIds.has(entry.id)),
+    );
   }
-  return { entries: next, baseline: nextBaseline };
+  return next;
 }

@@ -2417,17 +2417,17 @@ export default function HomeScreen() {
   // stamp write lands in this one state — the in-shell doors
   // through setReachedStamps / handleReachedStampsChange above,
   // the routed doors (person page, Due page) through the focus
-  // re-read of the stamps key — so the sync reconciles against
-  // the last-seen stamps here, the same convergence the XP door
-  // diffs. The baseline arms on the first sight after hydration
-  // and changes nothing then: stamps already standing were
-  // written before the sync existed, and they get no lines.
-  const reachedJournalBaselineRef = useRef<Map<string, string> | null>(null);
+  // re-read of the stamps key — so the sync reconciles over the
+  // record here, the same convergence the XP door already diffs.
+  // v452: the reconcile is an ensure, not a change-watch — v440's
+  // first-sight baseline swallowed every stamp that predated the
+  // feature (Novalee's Nov 5 stamp among them: reached that
+  // morning, invisible to the Journal all day), so now every
+  // standing stamp simply has its line, whenever it was written.
   useEffect(() => {
     if (!hasHydratedPeople) return;
-    const result = reconcileReachedJournalEntries(journal, reachedStamps, people, reachedJournalBaselineRef.current);
-    reachedJournalBaselineRef.current = result.baseline;
-    if (result.entries !== journal) setJournal(result.entries);
+    const next = reconcileReachedJournalEntries(journal, reachedStamps, people);
+    if (next !== journal) setJournal(next);
   }, [hasHydratedPeople, journal, people, reachedStamps]);
 
   const handlePraise = (personId: string, note = "") => {

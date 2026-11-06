@@ -1061,9 +1061,10 @@ object WidgetRenderer {
 
   /** One row on the rail as the renderer walks it: the snapshot's
    * entries mapped onto the rail's dresses (last → done / past by
-   * its completed flag, current, next → hero / item, gap), plus
-   * the bare NOW row the renderer seats itself from the device
-   * clock when nothing is current.
+   * its completed flag, current, next → hero / item, gap).
+   * v456: the bare NOW row the renderer used to seat itself
+   * from the device clock is gone — the box is the now marker
+   * in every state, and its rail dot carries the now dot.
    * v451: heroLeft marks a hero band worn by a RUNNING event —
    * the band's startMinutes slot then carries the event's END
    * and its pill counts the time LEFT in the event instead of
@@ -1256,6 +1257,21 @@ object WidgetRenderer {
     // Box priority, restated: running event → in-window
     // struck → early-checked struck (v454) → the white
     // space → the next up.
+    // v456: the NOW marker row is removed in every state
+    // (Jonathan, on the v455 render — Nov 6, 11:13 AM:
+    // Morning Meeting struck as the last row, a bare NOW
+    // row floating at 11:12 AM between it and the box,
+    // Write boxed under it with DONE): "That little 'now'
+    // thing is stupid! Shouldn't the box be NOW? ... That
+    // way it shows what is before, and what is coming
+    // after what is currently in the box!" The box IS the
+    // now marker now: the selection seats no NOW row
+    // beside any box — running, struck, white, or next
+    // up — and the box's rail dot carries the filled blue
+    // now dot (fillRailSlot). Rows above the box are what
+    // is before; rows below it are what is coming after.
+    // A current todo's plain row is untouched — it never
+    // took the box, and it still doesn't.
     val heightSignal = minHeightDp
     val views = RemoteViews(context.packageName, R.layout.widget_up_next)
     val base = 500
@@ -1517,6 +1533,11 @@ object WidgetRenderer {
       // while either holds the box (v451's rule for the
       // running event; Ruling 2's for the white space: "the
       // box IS now").
+      // v456: that stand-down is now every state's — the
+      // selection draws no NOW row beside ANY box. boxIsNow
+      // still names the two holders that ARE now and rides
+      // to the selection as that record; it seats nothing
+      // there any more.
       val heroRunning = runningIdx != null
       val boxIsNow = heroRunning || heroWhite
       val heroRow = if (runningIdx != null) {
@@ -1852,6 +1873,26 @@ object WidgetRenderer {
    * is no extension. At a standard height the core takes
    * the whole budget and the walk seats nothing.
    *
+   * v456: the NOW marker row is REMOVED — in every state
+   * (Jonathan, on the v455 render: "That little 'now'
+   * thing is stupid! Shouldn't the box be NOW? ... That
+   * way it shows what is before, and what is coming after
+   * what is currently in the box!"). The box IS now: no
+   * separate NOW row stands beside a running box, a struck
+   * box, the white box, or a next-up box, so the step list
+   * loses both NOW steps — (2) is the current row alone,
+   * always chosen when present, and there is no trailing
+   * step (6) — and the display order loses the NOW add:
+   * last, current, hero, gap, next, after. The 30 the NOW
+   * row cost returns to the budget pool; every other cost
+   * and rule (whole or not at all, the gap last, the
+   * extension behind the after gate, the nine-slot cap)
+   * is unchanged. boxIsNow stays in the signature — both
+   * paths still hand it over, and it still names which
+   * holders ARE now — but it seats nothing: there is no
+   * NOW row left for it to stand down. The box's rail dot
+   * carries the filled blue now dot instead (fillRailSlot).
+   *
    * The budget: v447 set the chrome allowance at 56 (the
    * footer's ~40 went to the rail when the footer was
    * removed). v450 subtracts a further 16 of SAFETY MARGIN:
@@ -1877,10 +1918,8 @@ object WidgetRenderer {
   ): List<RailRow> {
     val railBudget = heightSignal - 56 - 16
     var remaining = railBudget
-    val nowRow = RailRow("now", nowTimeLabel(), "NOW", "", 0, "")
     var lastChosen = false
     var currentChosen = false
-    var nowChosen = false
     var heroChosen = false
     var afterChosen = false
     var nextChosen = false
@@ -1891,17 +1930,13 @@ object WidgetRenderer {
       heroChosen = true
       remaining -= 64
     }
-    // (2) current if present, else the NOW row — always
-    // chosen. v451/v454: while the box IS now (a running
-    // event holds it, or it is the white space) there
-    // is no NOW row to anchor — the box itself is the anchor,
-    // already chosen at (1).
+    // (2) current — always chosen when present. v456:
+    // no NOW row seats in its place any more (the box is
+    // the now marker), and nothing stands at this step
+    // when nothing is current.
     if (current != null) {
       currentChosen = true
       remaining -= 34
-    } else if (!boxIsNow) {
-      nowChosen = true
-      remaining -= 30
     }
     // (3) last — when it fits.
     if (last != null && 34 <= remaining) {
@@ -1922,13 +1957,9 @@ object WidgetRenderer {
       afterChosen = true
       remaining -= 34
     }
-    // (6) the NOW row when a current exists — when it fits,
-    // and never while the box IS now (v451/v454: the box
-    // is the anchor then).
-    if (current != null && !nowChosen && !boxIsNow && 30 <= remaining) {
-      nowChosen = true
-      remaining -= 30
-    }
+    // (No step (6): the trailing NOW row that used to seat
+    // here when a current exists is gone — v456, the box
+    // is now.)
     // ── The gap row last: only what the item rows left
     // over, whole or not at all. v454: the under-box gap
     // is the ONLY gap candidate — no gap stands before
@@ -1940,7 +1971,6 @@ object WidgetRenderer {
     val display = mutableListOf<RailRow>()
     if (lastChosen && last != null) display.add(last)
     if (currentChosen && current != null) display.add(current)
-    if (nowChosen) display.add(nowRow)
     if (heroChosen && hero != null) display.add(hero)
     if (gapChosen && gap != null) display.add(gap)
     if (nextChosen && next != null) display.add(next)
@@ -2016,26 +2046,13 @@ object WidgetRenderer {
         views.setViewVisibility(id("check"), View.VISIBLE)
         views.setImageViewBitmap(id("check"), checkBitmap(pal.green))
       }
-      "now" -> {
-        views.setTextColor(id("time"), pal.primary)
-        views.setViewVisibility(id("ring"), View.VISIBLE)
-        views.setInt(id("ring"), "setColorFilter", pal.container)
-        views.setInt(id("dot"), "setColorFilter", pal.primary)
-        views.setViewVisibility(id("line"), View.VISIBLE)
-        views.setTextViewText(id("title"), "NOW")
-        views.setTextColor(id("title"), pal.primary)
-        views.setTextViewTextSize(id("title"), TypedValue.COMPLEX_UNIT_SP, 11f)
-        views.setTextViewText(id("sub"), "")
-        views.setViewVisibility(id("sub"), View.GONE)
-      }
       "current" -> {
         // The thing running right now (v445): a plain item's
         // dress, except its rail dot wears the NOW ring. The
-        // NOW marker is its OWN rail row now (the "now" dress,
-        // seated after this row by the selection) — this branch
-        // never stands the trailing nx_now label up: in v444
-        // that label lived outside the row frame and rendered
-        // as a stray NOW line under the row on his phone.
+        // separate NOW marker row that used to seat after
+        // this row is gone (v456 — the box is now); this
+        // branch still never stands the trailing nx_now
+        // label up (v444's stray-line lesson).
         views.setTextColor(id("time"), pal.muted)
         views.setViewVisibility(id("ring"), View.VISIBLE)
         views.setInt(id("ring"), "setColorFilter", pal.container)
@@ -2096,6 +2113,12 @@ object WidgetRenderer {
           if (row.heroLeft) remainingText(row.startMinutes, nowMinutes()) else countdownText(row.startMinutes, nowMinutes()),
         )
         views.setTextColor(id("hcount"), pal.primary)
+        // v456: the box IS now — the filled blue now dot
+        // (the ring + primary dot the removed NOW row used
+        // to wear; the dot above already stands primary)
+        // rides the box's rail position.
+        views.setViewVisibility(id("ring"), View.VISIBLE)
+        views.setInt(id("ring"), "setColorFilter", pal.container)
       }
       "heroDone" -> {
         // v454 (Ruling 1): the box, held by a finished item.
@@ -2106,7 +2129,13 @@ object WidgetRenderer {
         // reached green, and the green check at the row's
         // right edge, the same check the done row carries.
         views.setTextColor(id("time"), pal.muted)
-        views.setInt(id("dot"), "setColorFilter", pal.greenContainer)
+        // v456: the box IS now even while a finished item
+        // holds it — the rail dot is the filled blue now
+        // dot (ring + primary), not the done family's
+        // green; the done dress lives inside the band.
+        views.setViewVisibility(id("ring"), View.VISIBLE)
+        views.setInt(id("ring"), "setColorFilter", pal.container)
+        views.setInt(id("dot"), "setColorFilter", pal.primary)
         views.setViewVisibility(id("band"), View.VISIBLE)
         views.setInt(id("band_img"), "setColorFilter", pal.container)
         views.setTextViewText(id("htitle"), row.title)
@@ -2132,16 +2161,20 @@ object WidgetRenderer {
         // the gap box's dress at box scale) and carries the
         // open stretch's wording in the gap text's quiet
         // voice — set smaller than the hero title, since the
-        // wording is a sentence, not a name. The rail keeps
-        // the gap family's small softened dot. The pill
+        // wording is a sentence, not a name. The pill
         // counts down to the next item (its start rides the
         // row's startMinutes slot) in the hero pill's IN
         // voice, and there is no sub: the stretch is the
         // whole content.
+        // v456: the box IS now, so its rail dot is the
+        // filled blue now dot (ring + primary) — the small
+        // softened dot it wore as a gap-family member is
+        // gone. (The slot reset has already stood the dot
+        // up and the small dot down.)
         views.setTextColor(id("time"), pal.muted)
-        views.setViewVisibility(id("dot"), View.GONE)
-        views.setViewVisibility(id("dot_small"), View.VISIBLE)
-        views.setInt(id("dot_small"), "setColorFilter", pal.chip)
+        views.setViewVisibility(id("ring"), View.VISIBLE)
+        views.setInt(id("ring"), "setColorFilter", pal.container)
+        views.setInt(id("dot"), "setColorFilter", pal.primary)
         views.setViewVisibility(id("band"), View.VISIBLE)
         views.setInt(id("band_img"), "setColorFilter", pal.surfaceAlt)
         views.setTextViewText(id("htitle"), row.gapText)

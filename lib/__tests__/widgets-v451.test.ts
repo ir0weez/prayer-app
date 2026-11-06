@@ -261,57 +261,65 @@ describe("v451 Up Next — the band's pill (source)", () => {
 describe("v451 Up Next — mirror ties to the Kotlin source", () => {
   const sel = rendererFn("selectRailRows");
 
-  it("the budget and the four-item cap are unchanged: heightSignal − 56 − 16, hero 64, plain 34, NOW 30, gap 32", () => {
+  it("the budget and the four-item cap are unchanged: heightSignal − 56 − 16, hero 64, plain 34, gap 32 (v456: the NOW 30 is retired)", () => {
     expect(sel).toContain("val railBudget = heightSignal - 56 - 16");
     expect(sel).toContain("next != null && 34 <= remaining");
     expect(sel).toContain("remaining -= 64");
     expect(sel).toContain("remaining -= 34");
-    expect(sel).toContain("remaining -= 30");
+    // v456 amendment: the NOW row is removed in every
+    // state (the box IS now), so its 30 cost is gone.
+    expect(sel).not.toContain("remaining -= 30");
     expect(sel).toContain("remaining -= 32");
   });
 
-  it("the NOW row is gated on the box being free — at the anchor step and at the trailing step", () => {
-    // v454 amendment (Rulings 1 and 2): the gate is boxIsNow
-    // now, not heroRunning — true when the box IS now (a
-    // running event, or the white space), false under a
-    // struck holder or the plain next up, so the NOW row
-    // keeps standing before a struck box and stands down
-    // when the box carries the moment itself. The mirror in
-    // §4 below keeps this round's own heroRunning form as
-    // its historical record.
-    expect(sel).toContain("} else if (!boxIsNow) {");
-    expect(sel).toContain("if (current != null && !nowChosen && !boxIsNow && 30 <= remaining)");
+  it("there is no NOW row to gate (v456) — neither the anchor gate nor the trailing step stands", () => {
+    // Was (through v454): the NOW row was gated on
+    // boxIsNow — standing before a struck box, standing
+    // down when the box carried the moment itself.
+    // v456 amendment (Jonathan, on the v455 render: "That
+    // little 'now' thing is stupid! Shouldn't the box be
+    // NOW?"): there is no NOW row in ANY state now — the
+    // box IS the now marker — so both gates are gone with
+    // the row they gated. boxIsNow stays in the signature
+    // as the callers' record of box ownership and seats
+    // nothing. The mirror in §4 below keeps this round's
+    // own heroRunning form as its historical record.
+    expect(sel).not.toContain("else if (!boxIsNow)");
+    expect(sel).not.toContain("nowChosen");
+    expect(sel).not.toContain('RailRow("now"');
   });
 
-  it("the step order is the source's: hero, current-anchor, last, next, after, trailing NOW, gap", () => {
+  it("the step order is the source's: hero, current-anchor, last, next, after, gap (v456: no trailing NOW step)", () => {
     // v454 amendment (Ruling 2): the nowGap step is gone
     // with its candidate — the under-box gap step follows
     // the trailing NOW step directly.
+    // v456 amendment: the trailing NOW step is gone too
+    // (the box IS now, in every state) — the gap step
+    // follows the after step directly.
     const heroAt = sel.indexOf("heroChosen = true");
     const currentAt = sel.indexOf("currentChosen = true", heroAt);
     const lastAt = sel.indexOf("lastChosen = true", currentAt);
     const nextAt = sel.indexOf("nextChosen = true", lastAt);
     const afterAt = sel.indexOf("afterChosen = true", nextAt);
-    const nowExtraAt = sel.indexOf("nowChosen = true", afterAt);
-    const gapAt = sel.indexOf("gapChosen = true", nowExtraAt);
-    for (const at of [heroAt, currentAt, lastAt, nextAt, afterAt, nowExtraAt, gapAt]) {
+    const gapAt = sel.indexOf("gapChosen = true", afterAt);
+    for (const at of [heroAt, currentAt, lastAt, nextAt, afterAt, gapAt]) {
       expect(at).toBeGreaterThan(-1);
     }
     expect(heroAt).toBeLessThan(currentAt);
     expect(currentAt).toBeLessThan(lastAt);
     expect(lastAt).toBeLessThan(nextAt);
     expect(nextAt).toBeLessThan(afterAt);
-    expect(afterAt).toBeLessThan(nowExtraAt);
-    expect(nowExtraAt).toBeLessThan(gapAt);
+    expect(afterAt).toBeLessThan(gapAt);
   });
 
-  it("the display order is the source's: last, current, NOW, hero, gap, next, after", () => {
+  it("the display order is the source's: last, current, hero, gap, next, after (v456: no NOW add)", () => {
     // v454 amendment (Ruling 2): the nowGap add is gone —
     // the NOW row now stands directly before the hero.
+    // v456 amendment: the NOW add itself is gone — the
+    // box IS now in every state.
     const adds = [
       "display.add(last)",
       "display.add(current)",
-      "display.add(nowRow)",
       "display.add(hero)",
       "display.add(gap)",
       "display.add(next)",

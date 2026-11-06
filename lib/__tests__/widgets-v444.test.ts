@@ -347,7 +347,7 @@ describe("v444 Up Next renderer", () => {
     expect(body).toContain('if (e.optBoolean("isHero")) "hero" else "item"');
   });
 
-  it("the short band keeps only the current-or-NOW row and the hero", () => {
+  it("the short band keeps only the current row and the hero (v456: no NOW row)", () => {
     // v445 re-pin: the short/tall branch inside fillRailFull is
     // gone — the height-budgeted selection (selectRailRows)
     // does this now: at a short rail's budget the hero and the
@@ -361,12 +361,19 @@ describe("v444 Up Next renderer", () => {
     // safety margin, after the height signal overestimated
     // the placed height again in v449 (a fourth row stood
     // half-clipped); steps 1–2 are still always chosen.
+    // v456 amendment (Jonathan, on the v455 render: "That
+    // little 'now' thing is stupid! Shouldn't the box be
+    // NOW?"): the NOW row is removed in every state — the
+    // selection builds no NOW row and chooses none; the
+    // box is the now marker. Steps 1–2 still always choose
+    // the hero and the current row, so the short band's
+    // outcome is the same.
     const body = rendererFn("selectRailRows");
     expect(body).toContain("val railBudget = heightSignal - 56 - 16");
-    expect(body).toContain('RailRow("now", nowTimeLabel(), "NOW", "", 0, "")');
+    expect(body).not.toContain('RailRow("now"');
     expect(body).toContain("heroChosen = true");
     expect(body).toContain("currentChosen = true");
-    expect(body).toContain("nowChosen = true");
+    expect(body).not.toContain("nowChosen");
   });
 
   it("the current row wears the NOW ring and the trailing NOW label; the slot reset clears it", () => {

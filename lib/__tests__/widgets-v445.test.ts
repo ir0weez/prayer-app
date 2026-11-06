@@ -274,18 +274,23 @@ describe("v445 Up Next renderer", () => {
     // seated afterwards from whatever budget is left over.
     const body = rendererFn("selectRailRows");
     expect(body).toContain("val railBudget = heightSignal - 56 - 16");
-    // Hero 64, plain 34, NOW 30, gap 32 — as decrements.
+    // Hero 64, plain 34, gap 32 — as decrements.
+    // v456 amendment: the NOW row is gone in every state
+    // (the box IS now — Jonathan, on the v455 render:
+    // "That little 'now' thing is stupid! Shouldn't the
+    // box be NOW?"), so its 30 decrement is retired; the
+    // freed height returns to the budget pool.
     expect(body).toContain("remaining -= 64");
     expect(body).toContain("remaining -= 34");
-    expect(body).toContain("remaining -= 30");
+    expect(body).not.toContain("remaining -= 30");
     expect(body).not.toContain("34 + 32 <= remaining");
   });
 
-  it("NOW is always its own rail row, and the current branch never stands the trailing label up", () => {
+  it("there is no NOW rail row and no NOW dress (v456); the current branch never stands the trailing label up", () => {
     const sel = rendererFn("selectRailRows");
-    expect(sel).toContain('RailRow("now", nowTimeLabel(), "NOW", "", 0, "")');
+    expect(sel).not.toContain('RailRow("now"');
     const slot = rendererFn("fillRailSlot");
-    expect(slot).toContain('"now" -> {');
+    expect(slot).not.toContain('"now" -> {');
     const at = slot.indexOf('"current" -> {');
     expect(at).toBeGreaterThan(-1);
     const branch = slot.slice(at, at + 1600);

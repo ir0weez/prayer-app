@@ -249,11 +249,21 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
     expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, gapRow, afterRow, null, false, emptyList(), heightSignal)");
   });
 
-  it("the NOW row displays directly before the hero now — no gap row can stand between them (v454, Ruling 2)", () => {
-    const nowAt = sel.indexOf("display.add(nowRow)");
+  it("no NOW row stands in the display at all (v456) — the hero follows the anchors directly, and no gap row can stand before it", () => {
+    // Was (v454, Ruling 2): the NOW row displays directly
+    // before the hero, no gap row between them.
+    // v456 amendment (Jonathan, on the v455 render: "That
+    // little 'now' thing is stupid! Shouldn't the box be
+    // NOW?"): the NOW row is removed in every state — the
+    // box IS the now marker — so the display holds no
+    // nowRow add at all; the hero follows the current
+    // directly. Ruling 2's other half stands: no gap row
+    // before the box either.
+    expect(sel).not.toContain("display.add(nowRow)");
+    const currentAt = sel.indexOf("display.add(current)");
     const heroAt = sel.indexOf("display.add(hero)");
-    expect(nowAt).toBeGreaterThan(-1);
-    expect(heroAt).toBeGreaterThan(nowAt);
+    expect(currentAt).toBeGreaterThan(-1);
+    expect(heroAt).toBeGreaterThan(currentAt);
     expect(sel).not.toContain("display.add(nowGap)");
   });
 

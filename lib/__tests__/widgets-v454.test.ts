@@ -472,11 +472,13 @@ describe("v454 Up Next — mirror ties to the Kotlin source", () => {
     );
   });
 
-  it("the budget and the core cap are unchanged: heightSignal − 56 − 16, hero 64, plain 34, NOW 30, gap 32", () => {
+  it("the budget and the core cap are unchanged: heightSignal − 56 − 16, hero 64, plain 34, gap 32 (v456: the NOW 30 is retired)", () => {
     expect(sel).toContain("val railBudget = heightSignal - 56 - 16");
     expect(sel).toContain("remaining -= 64");
     expect(sel).toContain("remaining -= 34");
-    expect(sel).toContain("remaining -= 30");
+    // v456 amendment: the NOW row is removed in every
+    // state (the box IS now), so its 30 cost is gone.
+    expect(sel).not.toContain("remaining -= 30");
     expect(sel).toContain("remaining -= 32");
   });
 
@@ -485,37 +487,52 @@ describe("v454 Up Next — mirror ties to the Kotlin source", () => {
     expect(sel).toContain("if (gap != null && 32 <= remaining)");
   });
 
-  it("the NOW row is gated on boxIsNow — at the anchor step and at the trailing step", () => {
-    expect(sel).toContain("} else if (!boxIsNow) {");
-    expect(sel).toContain("if (current != null && !nowChosen && !boxIsNow && 30 <= remaining)");
+  it("there is no NOW row to gate (v456) — boxIsNow seats nothing now", () => {
+    // Was (v454): the NOW row was gated on boxIsNow at
+    // the anchor step and at the trailing step — standing
+    // before a struck box, standing down when the box
+    // carried the moment itself.
+    // v456 amendment (Jonathan, on the v455 render: "That
+    // little 'now' thing is stupid! Shouldn't the box be
+    // NOW?"): the NOW row is removed in EVERY state — the
+    // box IS the now marker — so both gates are gone with
+    // the row they gated. boxIsNow stays in the signature
+    // (the pin above stands) as the callers' record of
+    // box ownership; it seats nothing.
+    expect(sel).not.toContain("else if (!boxIsNow)");
+    expect(sel).not.toContain("nowChosen");
+    expect(sel).not.toContain('RailRow("now"');
   });
 
-  it("the step order is the source's: hero, current-anchor, last, next, after, trailing NOW, gap, extension", () => {
+  it("the step order is the source's: hero, current-anchor, last, next, after, gap, extension (v456: no trailing NOW step)", () => {
+    // v456 amendment: the trailing NOW step is gone (the
+    // box IS now, in every state) — the gap step follows
+    // the after step directly, the extension walk after it.
     const heroAt = sel.indexOf("heroChosen = true");
     const currentAt = sel.indexOf("currentChosen = true", heroAt);
     const lastAt = sel.indexOf("lastChosen = true", currentAt);
     const nextAt = sel.indexOf("nextChosen = true", lastAt);
     const afterAt = sel.indexOf("afterChosen = true", nextAt);
-    const nowExtraAt = sel.indexOf("nowChosen = true", afterAt);
-    const gapAt = sel.indexOf("gapChosen = true", nowExtraAt);
+    const gapAt = sel.indexOf("gapChosen = true", afterAt);
     const walkAt = sel.indexOf("for (row in extension) {", gapAt);
-    for (const at of [heroAt, currentAt, lastAt, nextAt, afterAt, nowExtraAt, gapAt, walkAt]) {
+    for (const at of [heroAt, currentAt, lastAt, nextAt, afterAt, gapAt, walkAt]) {
       expect(at).toBeGreaterThan(-1);
     }
     expect(heroAt).toBeLessThan(currentAt);
     expect(currentAt).toBeLessThan(lastAt);
     expect(lastAt).toBeLessThan(nextAt);
     expect(nextAt).toBeLessThan(afterAt);
-    expect(afterAt).toBeLessThan(nowExtraAt);
-    expect(nowExtraAt).toBeLessThan(gapAt);
+    expect(afterAt).toBeLessThan(gapAt);
     expect(gapAt).toBeLessThan(walkAt);
   });
 
-  it("the display order is the source's: last, current, NOW, hero, gap, next, after — no row before the hero but the anchors", () => {
+  it("the display order is the source's: last, current, hero, gap, next, after — the box follows the anchors directly (v456: no NOW add)", () => {
+    // v456 amendment: the NOW add is gone — the box IS
+    // now in every state, so only the last and current
+    // anchors stand before the hero.
     const adds = [
       "display.add(last)",
       "display.add(current)",
-      "display.add(nowRow)",
       "display.add(hero)",
       "display.add(gap)",
       "display.add(next)",

@@ -263,24 +263,28 @@ describe("v443 past row rendering", () => {
     expect(renderer).toContain('if (e.optBoolean("completed")) "done" else "past"');
   });
 
-  it("the NOW row seats after the done AND past rows", () => {
+  it("no NOW row seats anywhere — the display order is last, current, hero (v456)", () => {
     // v445 re-pin: the seat is no longer found by scanning the
     // entries walk (that loop is gone) — selectRailRows builds
-    // the display list in chronological order, and the NOW row
-    // is added after last and current, before the hero. The
+    // the display list in chronological order. The
     // display-order adds in selectRailRows are the pin.
+    // v456 amendment (Jonathan, on the v455 render: "That
+    // little 'now' thing is stupid! Shouldn't the box be
+    // NOW?"): the NOW row is removed in every state — the
+    // box IS the now marker — so no nowRow add stands in
+    // the display list at all; the hero follows the current
+    // directly.
     expect(renderer).not.toContain('entry.kind != "done" && entry.kind != "past"');
     const selAt = renderer.indexOf("private fun selectRailRows");
     expect(selAt).toBeGreaterThan(-1);
     const sel = renderer.slice(selAt, selAt + 3500);
     const lastAdd = sel.indexOf("display.add(last)");
     const currentAdd = sel.indexOf("display.add(current)");
-    const nowAdd = sel.indexOf("display.add(nowRow)");
     const heroAdd = sel.indexOf("display.add(hero)");
     expect(lastAdd).toBeGreaterThan(-1);
-    expect(nowAdd).toBeGreaterThan(lastAdd);
-    expect(nowAdd).toBeGreaterThan(currentAdd);
-    expect(heroAdd).toBeGreaterThan(nowAdd);
+    expect(sel).not.toContain("display.add(nowRow)");
+    expect(currentAdd).toBeGreaterThan(lastAdd);
+    expect(heroAdd).toBeGreaterThan(currentAdd);
   });
 
   it("the past slot dress is muted — chip dot, body title — with no strike and no check", () => {

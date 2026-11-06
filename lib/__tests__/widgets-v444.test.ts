@@ -394,7 +394,13 @@ describe("v444 Up Next renderer", () => {
     const branch = body.slice(at, at + 1400);
     expect(branch).toContain('views.setViewVisibility(id("band"), View.VISIBLE)');
     expect(branch).toContain('views.setTextViewText(id("htitle"), row.title)');
-    expect(branch).toContain('views.setTextViewText(id("hcount"), countdownText(row.startMinutes, nowMinutes()))');
+    // v451 re-pin: the pill dispatches on the band's owner —
+    // a running event's box (heroLeft) counts the time LEFT
+    // in it via remainingText; a next-up box keeps the
+    // countdownText call exactly as pinned before.
+    expect(branch).toContain(
+      "if (row.heroLeft) remainingText(row.startMinutes, nowMinutes()) else countdownText(row.startMinutes, nowMinutes())",
+    );
   });
 
   it("every slot carries the trailing NOW label view, gone by default", () => {

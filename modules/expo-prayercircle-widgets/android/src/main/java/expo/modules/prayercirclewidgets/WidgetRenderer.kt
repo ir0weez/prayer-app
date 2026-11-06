@@ -1063,7 +1063,11 @@ object WidgetRenderer {
    * entries mapped onto the rail's dresses (last → done / past by
    * its completed flag, current, next → hero / item, gap), plus
    * the bare NOW row the renderer seats itself from the device
-   * clock when nothing is current. */
+   * clock when nothing is current.
+   * v451: heroLeft marks a hero band worn by a RUNNING event —
+   * the band's startMinutes slot then carries the event's END
+   * and its pill counts the time LEFT in the event instead of
+   * the time until it starts. */
   private class RailRow(
     val kind: String,
     val timeLabel: String,
@@ -1071,6 +1075,7 @@ object WidgetRenderer {
     val sub: String,
     val startMinutes: Int,
     val gapText: String,
+    val heroLeft: Boolean = false,
   )
 
   /** v445: one dayItems entry as parsed from the snapshot —
@@ -1118,6 +1123,19 @@ object WidgetRenderer {
     return if (m == 0) "IN $h H" else "IN $h H $m MIN"
   }
 
+  /** v451: the running box's pill — countdownText's voice with
+   * the direction flipped: the time LEFT in the event that
+   * holds the box ("59 MIN LEFT", "1 H LEFT", "1 H 5 MIN
+   * LEFT"). */
+  private fun remainingText(endMinutes: Int, fromMinutes: Int): String {
+    val diff = endMinutes - fromMinutes
+    if (diff <= 0) return "NOW"
+    if (diff < 60) return "$diff MIN LEFT"
+    val h = diff / 60
+    val m = diff % 60
+    return if (m == 0) "$h H LEFT" else "$h H $m MIN LEFT"
+  }
+
   private fun renderUpNext(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette, minHeightDp: Int): RemoteViews {
     // v445: the rows are computed AT RENDER TIME. When the
     // snapshot carries dayItems for the device's current date,
@@ -1143,6 +1161,20 @@ object WidgetRenderer {
     // note; the snapshot still carries one, unread. And the
     // render-time path adds the NOW→next open stretch as its
     // own gap row (nowGap), below.
+    // v451: the box belongs to the CURRENT event. Jonathan,
+    // on the v450 render (Nov 5, 20:01 — Dinner, an 8:00–9:00
+    // PM event, standing as a plain row at 8:01 PM with a
+    // stray NOW row trailing under it and no box anywhere):
+    // "I want 'Now' to be the current event until that event
+    // is over. It should have the box around it with what's
+    // coming up right under it." So a running timed event
+    // (a stored end, start ≤ now < end) IS Now: it takes the
+    // box, its pill counts the time LEFT in it, no NOW marker
+    // row is drawn while it holds the box, and what's coming
+    // up sits directly under the box. A point item (no stored
+    // end — a todo without one) never takes the box; it keeps
+    // the plain current row, the arrangement he approved on
+    // the 18:01 render (Feed plain, Dinner boxed as next).
     val heightSignal = minHeightDp
     val views = RemoteViews(context.packageName, R.layout.widget_up_next)
     val base = 500
@@ -1193,6 +1225,17 @@ object WidgetRenderer {
         .filter { !dayItems[it].completed && dayItems[it].startMinutes <= nowMin && nowMin < dayItems[it].endMinutes }
         .sortedByDescending { dayItems[it].startMinutes }
         .firstOrNull()
+      // v451: the RUNNING event — uncompleted, carrying a
+      // stored end (hasEnd), start ≤ now < end; latest start
+      // wins, the current pick's own tie-break. This is the
+      // event that IS Now and takes the box. The hasEnd gate
+      // is the whole distinction: a point item's endMinutes
+      // is a rule-made default (+30/+60), not an end the day
+      // actually holds, so it can be current but never boxed.
+      val runningIdx = dayItems.indices
+        .filter { !dayItems[it].completed && dayItems[it].hasEnd && dayItems[it].startMinutes <= nowMin && nowMin < dayItems[it].endMinutes }
+        .sortedByDescending { dayItems[it].startMinutes }
+        .firstOrNull()
       val next1Idx = aheadIdx.getOrNull(0)
       val afterIdx = aheadIdx.getOrNull(1)
       if (currentIdx == null && next1Idx == null) {
@@ -1202,7 +1245,7 @@ object WidgetRenderer {
         views.setViewVisibility(R.id.next_rail, View.GONE)
         return views
       }
-      val chosenIdx = setOfNotNull(currentIdx, next1Idx, afterIdx)
+      val chosenIdx = setOfNotNull(currentIdx, runningIdx, next1Idx, afterIdx)
       val overAt = { item: DayItem -> if (item.hasEnd) item.endMinutes else item.startMinutes }
       val lastIdx = dayItems.indices
         .filter { it !in chosenIdx && overAt(dayItems[it]) <= nowMin }
@@ -1212,17 +1255,56 @@ object WidgetRenderer {
         val item = dayItems[it]
         RailRow(if (item.completed) "done" else "past", minutesToTimeLabel(item.startMinutes), item.title, item.sub, 0, "")
       }
-      val currentRow = currentIdx?.let {
-        val item = dayItems[it]
+      // v451: when the running event IS the current, the box
+      // replaces the plain current row — the event gets one
+      // row, the boxed one. A DIFFERENT point item caught
+      // mid-window alongside it (started later, no stored
+      // end) keeps its plain current row above the box.
+      val currentRow = if (currentIdx != null && currentIdx != runningIdx) {
+        val item = dayItems[currentIdx]
         RailRow("current", minutesToTimeLabel(item.startMinutes), item.title, item.sub, 0, "")
+      } else {
+        null
       }
-      val heroRow = next1Idx?.let {
-        val item = dayItems[it]
-        RailRow("hero", minutesToTimeLabel(item.startMinutes), item.title, item.sub, item.startMinutes, "")
+      // v451: the box is the running event's while one runs
+      // (heroLeft — its startMinutes slot carries the event's
+      // END, and the band's pill counts the time LEFT in it).
+      // Otherwise the box goes to the next up, exactly as
+      // v450 had it.
+      val heroRunning = runningIdx != null
+      val heroRow = if (runningIdx != null) {
+        val item = dayItems[runningIdx]
+        RailRow("hero", minutesToTimeLabel(item.startMinutes), item.title, item.sub, item.endMinutes, "", heroLeft = true)
+      } else {
+        next1Idx?.let {
+          val item = dayItems[it]
+          RailRow("hero", minutesToTimeLabel(item.startMinutes), item.title, item.sub, item.startMinutes, "")
+        }
       }
       var gapRow: RailRow? = null
+      var nextRow: RailRow? = null
       var afterRow: RailRow? = null
-      if (next1Idx != null && afterIdx != null) {
+      if (runningIdx != null) {
+        // v451: what's coming up sits directly under the box
+        // — the next item as a plain row — and the gap
+        // candidate is the open stretch between the running
+        // event's END and that item's start (≥ 15 minutes),
+        // seated under the box in rail order, where that open
+        // time actually sits in the day.
+        val running = dayItems[runningIdx]
+        if (next1Idx != null) {
+          val next1 = dayItems[next1Idx]
+          nextRow = RailRow("item", minutesToTimeLabel(next1.startMinutes), next1.title, next1.sub, next1.startMinutes, "")
+          val boxGapMinutes = next1.startMinutes - running.endMinutes
+          if (boxGapMinutes >= 15) {
+            gapRow = RailRow("gap", "", "", "", 0, openDurationText(boxGapMinutes))
+          }
+        }
+        if (afterIdx != null) {
+          val after = dayItems[afterIdx]
+          afterRow = RailRow("item", minutesToTimeLabel(after.startMinutes), after.title, after.sub, after.startMinutes, "")
+        }
+      } else if (next1Idx != null && afterIdx != null) {
         val next1 = dayItems[next1Idx]
         val after = dayItems[afterIdx]
         val gapMinutes = after.startMinutes - next1.endMinutes
@@ -1249,7 +1331,7 @@ object WidgetRenderer {
         }
       }
       leftCount = aheadIdx.size
-      rows = selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, heightSignal)
+      rows = selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, heightSignal)
     } else {
       // ── The fallback: the snapshot's entries walk (v444),
       // extended with the legacy pre-v444 kinds so a stale
@@ -1320,8 +1402,11 @@ object WidgetRenderer {
       val afterRow = entries.firstOrNull { it.kind == "item" }
       // The fallback seats no NOW→next gap: its entries come
       // from the snapshot as stored, gaps and all (v447's
-      // nowGap is a render-time computation only).
-      rows = selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, heightSignal)
+      // nowGap is a render-time computation only). It also
+      // seats no running box (v451): the running check lives
+      // in the render-time recomputation above, so this
+      // frozen walk keeps its v450 behaviour exactly.
+      rows = selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, heightSignal)
     }
 
     views.setViewVisibility(R.id.next_msg, View.GONE)
@@ -1385,26 +1470,36 @@ object WidgetRenderer {
    *
    * Rows are chosen in two passes. The ITEM rows go first, in
    * priority order, against conservative costs — hero 64,
-   * plain row (last / current / after) 34, NOW row 30:
+   * plain row (last / current / next / after) 34, NOW row 30:
    *   (1) the hero, (2) the current row — or the NOW row when
-   *   nothing is current, (3) the last row, (4) the after
-   *   row, (5) the NOW row when a current exists (it was not
-   *   already chosen at (2)).
+   *   nothing is current, (3) the last row, (4) the next row,
+   *   (5) the after row, (6) the NOW row when a current exists
+   *   (it was not already chosen at (2)).
    * The GAP rows (32 each, the v447 white box) go LAST, in
    * rail order — the NOW→next stretch (the open time he is
    * standing in, between the NOW row and the hero), then the
-   * between-items gap (between the hero and the after) — and
-   * each is seated only with budget the item rows left over.
-   * A gap never displaces an item row; a row is seated whole
-   * or not at all.
+   * under-box / between-items gap (between the hero and what
+   * follows it) — and each is seated only with budget the
+   * item rows left over. A gap never displaces an item row;
+   * a row is seated whole or not at all.
    * A row is chosen only when its cost fits what remains of
    * the budget, EXCEPT (1) and (2), which are always chosen —
    * the hero and the now-anchor can never be starved out of
    * the rail again (the v443/v444 measurement starvation).
    * The chosen rows display in chronological order: last,
-   * current, NOW, nowGap, hero, gap, after. The NOW row is
-   * always the proper rail row (its own time, ringed dot, NOW
-   * title) — seated after last and current, before the hero.
+   * current, NOW, nowGap, hero, gap, next, after. The NOW row
+   * is always the proper rail row (its own time, ringed dot,
+   * NOW title) — seated after last and current, before the
+   * hero.
+   * v451: the `next` row and the heroRunning flag carry the
+   * box-ownership ruling. When a running event holds the box,
+   * the item directly under it rides `next` (in the v450
+   * arrangement next is null and the hero itself is the next
+   * up), and the NOW marker row is NEVER chosen — neither at
+   * (2) nor at (6) — because the boxed event IS Now; a second
+   * NOW row trailing the box is the exact stray his 8:01 PM
+   * screenshot showed under Dinner. The four-item-row cap
+   * stands: last, the box, next, after.
    *
    * The budget: v447 set the chrome allowance at 56 (the
    * footer's ~40 went to the rail when the footer was
@@ -1425,6 +1520,8 @@ object WidgetRenderer {
     nowGap: RailRow?,
     gap: RailRow?,
     after: RailRow?,
+    next: RailRow?,
+    heroRunning: Boolean,
     heightSignal: Int,
   ): List<RailRow> {
     val railBudget = heightSignal - 56 - 16
@@ -1435,6 +1532,7 @@ object WidgetRenderer {
     var nowChosen = false
     var heroChosen = false
     var afterChosen = false
+    var nextChosen = false
     var nowGapChosen = false
     var gapChosen = false
     // ── Item rows first, in priority order. ──
@@ -1443,11 +1541,14 @@ object WidgetRenderer {
       heroChosen = true
       remaining -= 64
     }
-    // (2) current if present, else the NOW row — always chosen.
+    // (2) current if present, else the NOW row — always
+    // chosen. v451: while a running event holds the box there
+    // is no NOW row to anchor — the box itself is the anchor,
+    // already chosen at (1).
     if (current != null) {
       currentChosen = true
       remaining -= 34
-    } else {
+    } else if (!heroRunning) {
       nowChosen = true
       remaining -= 30
     }
@@ -1456,13 +1557,22 @@ object WidgetRenderer {
       lastChosen = true
       remaining -= 34
     }
-    // (4) after — when it fits.
+    // (4) next — v451: the item directly under a running
+    // box, when it fits. (Null in the v450 arrangement, where
+    // the hero itself is the next up.)
+    if (next != null && 34 <= remaining) {
+      nextChosen = true
+      remaining -= 34
+    }
+    // (5) after — when it fits.
     if (after != null && 34 <= remaining) {
       afterChosen = true
       remaining -= 34
     }
-    // (5) the NOW row when a current exists — when it fits.
-    if (current != null && !nowChosen && 30 <= remaining) {
+    // (6) the NOW row when a current exists — when it fits,
+    // and never while a running event holds the box (v451:
+    // the box IS Now then).
+    if (current != null && !nowChosen && !heroRunning && 30 <= remaining) {
       nowChosen = true
       remaining -= 30
     }
@@ -1483,6 +1593,7 @@ object WidgetRenderer {
     if (nowGapChosen && nowGap != null) display.add(nowGap)
     if (heroChosen && hero != null) display.add(hero)
     if (gapChosen && gap != null) display.add(gap)
+    if (nextChosen && next != null) display.add(next)
     if (afterChosen && after != null) display.add(after)
     return display
   }
@@ -1610,7 +1721,14 @@ object WidgetRenderer {
           views.setTextColor(id("hsub"), pal.body)
         }
         views.setInt(id("hchip_img"), "setColorFilter", pal.surface)
-        views.setTextViewText(id("hcount"), countdownText(row.startMinutes, nowMinutes()))
+        // v451: a running box counts the time LEFT in the
+        // event (its startMinutes slot carries the event's
+        // end); a next-up box counts down to its start,
+        // exactly as before.
+        views.setTextViewText(
+          id("hcount"),
+          if (row.heroLeft) remainingText(row.startMinutes, nowMinutes()) else countdownText(row.startMinutes, nowMinutes()),
+        )
         views.setTextColor(id("hcount"), pal.primary)
       }
       "gap" -> {

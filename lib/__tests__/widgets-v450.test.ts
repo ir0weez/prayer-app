@@ -147,8 +147,15 @@ describe("v450 Up Next — the fixed composition in the renderer source", () => 
   });
 
   it("the selection takes exactly the fixed set: last, current, hero, nowGap, gap, after", () => {
+    // v451 re-pin: the selection also takes `next` (the item
+    // directly under a running event's box) and `heroRunning`
+    // (the box-ownership flag) — Jonathan's ruling on the
+    // v450 render: "I want 'Now' to be the current event
+    // until that event is over. It should have the box around
+    // it with what's coming up right under it." The fixed
+    // four-item set itself is unchanged.
     expect(sel).toContain(
-      "last: RailRow?,\n    current: RailRow?,\n    hero: RailRow?,\n    nowGap: RailRow?,\n    gap: RailRow?,\n    after: RailRow?,",
+      "last: RailRow?,\n    current: RailRow?,\n    hero: RailRow?,\n    nowGap: RailRow?,\n    gap: RailRow?,\n    after: RailRow?,\n    next: RailRow?,\n    heroRunning: Boolean,",
     );
   });
 
@@ -164,11 +171,15 @@ describe("v450 Up Next — the fixed composition in the renderer source", () => 
   });
 
   it("both paths run the one selection with the after row", () => {
+    // v451 re-pin: both call sites pass the two new arguments
+    // (the render-time path hands over its next row and the
+    // running flag; the fallback hands over neither — its
+    // frozen walk keeps the v450 behaviour).
     expect(body).toContain(
-      "selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, heightSignal)",
+      "selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, heightSignal)",
     );
     expect(body).toContain(
-      "selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, heightSignal)",
+      "selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, heightSignal)",
     );
   });
 });

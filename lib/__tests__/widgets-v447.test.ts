@@ -209,9 +209,13 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
     // v450 re-pin: the following item is the "after" row now
     // (next2Row renamed) — the fixed composition seats one
     // after and nothing past it.
-    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, heightSignal)");
+    // v451 re-pin: both call sites pass the two new arguments
+    // — the render-time path hands over its next row (the
+    // item under a running event's box) and the running flag;
+    // the fallback hands over neither.
+    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, nowGapRow, gapRow, afterRow, nextRow, heroRunning, heightSignal)");
     // The entries fallback seats none — its gaps come from the snapshot.
-    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, heightSignal)");
+    expect(body).toContain("selectRailRows(lastRow, currentRow, heroRow, null, gapRow, afterRow, null, false, heightSignal)");
   });
 
   it("the NOW→next gap displays between the NOW row and the hero", () => {

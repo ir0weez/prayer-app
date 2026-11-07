@@ -22,4 +22,6 @@
   <string name="widget_emergency_strip_desc">Active emergency prayers in a small strip, soonest first</string>
   <string name="widget_reading_strip_label">Currently Reading</string>
   <string name="widget_reading_strip_desc">The book you are in, and the chapter you write next</string>
+  <string name="widget_daily_breakdown_label">Daily Breakdown</string>
+  <string name="widget_daily_breakdown_desc">Your day in one list: who to pray for, who to reach, what is next, and your fast</string>
 </resources>

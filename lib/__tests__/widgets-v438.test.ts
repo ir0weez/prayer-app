@@ -107,8 +107,9 @@ describe("v438 native widget module", () => {
     // in widgets-v441.test.ts).
     // v443 amendment: the Emergency and Reading strips joined —
     // eleven receivers now (pinned in widgets-v443-strips.test.ts).
-    expect(manifest.match(/android.appwidget.action.APPWIDGET_UPDATE/g)?.length).toBe(11);
-    expect(manifest.match(/android:exported="true"/g)?.length).toBe(11);
+    // v462: twelve receivers — the Daily Breakdown joins.
+    expect(manifest.match(/android.appwidget.action.APPWIDGET_UPDATE/g)?.length).toBe(12);
+    expect(manifest.match(/android:exported="true"/g)?.length).toBe(12);
   });
 
   it("carries a Kotlin provider class per widget, all rendering through one path", () => {
@@ -238,6 +239,8 @@ describe("v438 JS hand-off", () => {
     const snapshots = buildAllWidgetSnapshots(EMPTY_INPUTS);
     const parsed = JSON.parse(serializeWidgetSnapshots(snapshots, "testscheme")) as Record<string, unknown>;
     expect(Object.keys(parsed).sort()).toEqual([
+      // v462: the dailyBreakdown section joins the document.
+      "dailyBreakdown",
       "emergency",
       "fast",
       "prayToday",

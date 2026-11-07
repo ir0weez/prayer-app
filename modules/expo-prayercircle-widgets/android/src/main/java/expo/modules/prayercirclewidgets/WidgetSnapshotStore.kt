@@ -8,8 +8,9 @@ import org.json.JSONObject
 /**
  * The one snapshot the widgets read: a single JSON document in a
  * SharedPreferences file this module owns. JS (lib/widget-push.tsx)
- * serializes lib/widget-snapshots' six snapshots plus the deep-link
- * scheme into it via ExpoPrayerCircleWidgetsModule; the providers
+ * serializes lib/widget-snapshots' snapshots (seven sections
+ * since v462's Daily Breakdown) plus the deep-link scheme into
+ * it via ExpoPrayerCircleWidgetsModule; the providers
  * parse it with org.json at render time. Absent or unparseable =
  * every provider draws its quiet face — the layouts' defaults.
  */

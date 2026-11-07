@@ -45,6 +45,7 @@ enum class WidgetKind(
   REACH_PAIR(ReachPairWidgetProvider::class.java, R.layout.widget_reach_pair),
   EMERGENCY_STRIP(EmergencyStripWidgetProvider::class.java, R.layout.widget_emergency_strip),
   READING_STRIP(ReadingStripWidgetProvider::class.java, R.layout.widget_reading_strip),
+  DAILY_BREAKDOWN(DailyBreakdownWidgetProvider::class.java, R.layout.widget_daily_breakdown),
 }
 
 /**
@@ -101,6 +102,8 @@ object WidgetRenderer {
         renderEmergencyStrip(context, root?.optJSONObject("emergency"), scheme, pal)
       WidgetKind.READING_STRIP ->
         renderReadingStrip(context, root?.optJSONObject("study"), scheme, pal)
+      WidgetKind.DAILY_BREAKDOWN ->
+        renderDailyBreakdown(context, root?.optJSONObject("dailyBreakdown"), scheme, pal, minHeightDp)
     }
   }
 
@@ -2723,6 +2726,260 @@ object WidgetRenderer {
     return views
   }
 
+  // ─── 12. Daily Breakdown (v462, DB-9 — the Brief List) ────────────────────
+  //
+  // One card, an open list of rows — PRAY (a face stack), REACH
+  // (present only when someone is due), SCHEDULE (a clock glyph
+  // in a tonal square), FAST (a flame glyph in a tonal square) —
+  // hairlines between seated rows, no inner boxes, every row its
+  // own door (request codes 1200–1204). The garden row's seat
+  // stays empty between SCHEDULE and FAST until a weather feed
+  // lands; there is no garden row in this build.
+  //
+  // The EVENING turn (the companion drawing, "After the Day
+  // Ends") is computed HERE, at render time, from the snapshot's
+  // dayItems and the device clock — the Up Next pattern: when
+  // every item's effective window has passed, PRAY and REACH
+  // drop and the SCHEDULE row names tomorrow's first thing. The
+  // turn is trusted only when the snapshot's schedule dateIso is
+  // the device's today; a stale snapshot renders its standing
+  // rows instead of turning (the Up Next fallback grain).
+
+  private val DB_SLOTS = intArrayOf(R.id.db_face_slot_1, R.id.db_face_slot_2, R.id.db_face_slot_3)
+  private val DB_RINGS = intArrayOf(R.id.db_ring_1, R.id.db_ring_2, R.id.db_ring_3)
+  private val DB_IMGS = intArrayOf(R.id.db_img_1, R.id.db_img_2, R.id.db_img_3)
+  private val DB_TEXTS = intArrayOf(R.id.db_initials_1, R.id.db_initials_2, R.id.db_initials_3)
+
+  /** A breakdown day item's effective window end — the v455
+   *  convention: the baked endMinutes when it runs past the
+   *  start (a stored end, or the per-kind +30/+60 default the
+   *  builder already folded in), else the start itself. Mirrors
+   *  renderUpNext's winEnd. */
+  private fun breakdownWinEnd(item: JSONObject): Int {
+    val start = item.optInt("startMinutes")
+    val end = item.optInt("endMinutes")
+    return if (end > start) end else start
+  }
+
+  /** The evening turn's test: the day held at least one timed
+   *  item and every item's window has passed. */
+  private fun breakdownEvening(schedule: JSONObject?, nowMin: Int): Boolean {
+    val items = schedule?.optJSONArray("dayItems") ?: return false
+    if (items.length() == 0) return false
+    for (i in 0 until items.length()) {
+      val item = items.optJSONObject(i) ?: continue
+      if (breakdownWinEnd(item) > nowMin) return false
+    }
+    return true
+  }
+
+  private fun renderDailyBreakdown(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette, minHeightDp: Int): RemoteViews {
+    val views = RemoteViews(context.packageName, R.layout.widget_daily_breakdown)
+    val base = 1200
+    // The palette paints the chrome in every state, quiet included.
+    views.setInt(R.id.db_bg, "setColorFilter", pal.surface)
+    views.setTextColor(R.id.db_msg_title, pal.ink)
+    views.setTextColor(R.id.db_msg_sub, pal.body)
+    views.setOnClickPendingIntent(R.id.db_root, launchPendingIntent(context, base))
+    if (snap == null || snap.optString("state") != "day") return views
+
+    val nowMin = nowMinutes()
+    val schedule = snap.optJSONObject("schedule")
+    // The evening turn is trusted only for today's own snapshot.
+    val fresh = schedule != null && schedule.optString("dateIso") == deviceDateIso()
+    val evening = fresh && breakdownEvening(schedule, nowMin)
+    val pray = if (evening) null else snap.optJSONObject("pray")
+    val reach = if (evening) null else snap.optJSONObject("reach")
+    val fast = snap.optJSONObject("fast")
+
+    // ── Fill each row that stands. ──
+    if (pray != null) {
+      views.setTextViewText(R.id.db_pray_title, pray.optString("title"))
+      views.setTextColor(R.id.db_pray_title, pal.ink)
+      val sub = pray.optString("sub")
+      views.setViewVisibility(R.id.db_pray_sub, if (sub.isBlank()) View.GONE else View.VISIBLE)
+      if (sub.isNotBlank()) {
+        views.setTextViewText(R.id.db_pray_sub, sub)
+        views.setTextColor(R.id.db_pray_sub, pal.body)
+      }
+      views.setTextColor(R.id.db_pray_chev, pal.muted)
+      val faces = pray.optJSONArray("faces")
+      for (i in DB_SLOTS.indices) {
+        val face = faces?.optJSONObject(i)
+        if (face == null) {
+          views.setViewVisibility(DB_SLOTS[i], View.GONE)
+        } else {
+          views.setViewVisibility(DB_SLOTS[i], View.VISIBLE)
+          // The ring is the card's own surface — it separates the
+          // overlapping faces (the strips' idiom).
+          views.setInt(DB_RINGS[i], "setColorFilter", pal.surface)
+          applyFace(context, views, DB_IMGS[i], DB_TEXTS[i], face, pal.primary, 40)
+        }
+      }
+      val personId = pray.optString("personId")
+      val kind = pray.optString("kind")
+      if (scheme != null && personId.isNotBlank() && kind.isNotBlank()) {
+        views.setOnClickPendingIntent(
+          R.id.db_row_pray,
+          uriPendingIntent(context, prayUri(scheme, personId, kind), base + 1),
+        )
+      }
+    }
+    if (reach != null) {
+      applyFace(context, views, R.id.db_reach_img, R.id.db_reach_initials, reach, pal.green, 44)
+      views.setTextViewText(R.id.db_reach_title, reach.optString("title"))
+      views.setTextColor(R.id.db_reach_title, pal.ink)
+      views.setTextViewText(R.id.db_reach_sub, reach.optString("sub"))
+      views.setTextColor(R.id.db_reach_sub, pal.body)
+      views.setTextColor(R.id.db_reach_chev, pal.muted)
+      if (scheme != null) {
+        views.setOnClickPendingIntent(
+          R.id.db_row_reach,
+          uriPendingIntent(context, "$scheme://due-to-reach", base + 2),
+        )
+      }
+    }
+    // The garden row seats here one day — between SCHEDULE and
+    // FAST — when a weather feed lands. Not in this build.
+    if (schedule != null) {
+      views.setInt(R.id.db_sched_tile, "setColorFilter", pal.container)
+      views.setImageViewBitmap(R.id.db_sched_glyph, clockBitmap(pal.primary))
+      views.setTextColor(R.id.db_sched_title, pal.ink)
+      views.setTextColor(R.id.db_sched_sub, pal.body)
+      views.setTextColor(R.id.db_sched_chev, pal.muted)
+      // The pick: the earliest uncompleted item whose window has
+      // not passed — a running item qualifies (its window
+      // contains now), the same reading Up Next gives the day.
+      val items = schedule.optJSONArray("dayItems")
+      var pick: JSONObject? = null
+      var pickStart = Int.MAX_VALUE
+      if (items != null) {
+        for (i in 0 until items.length()) {
+          val item = items.optJSONObject(i) ?: continue
+          if (item.optBoolean("completed")) continue
+          if (breakdownWinEnd(item) <= nowMin) continue
+          val start = item.optInt("startMinutes")
+          if (start < pickStart) {
+            pickStart = start
+            pick = item
+          }
+        }
+      }
+      val title: String
+      val sub: String
+      if (pick != null && !evening) {
+        title = "${pick.optString("title")} at ${minutesToTimeLabel(pickStart)}"
+        val parts = mutableListOf<String>()
+        if (items != null) {
+          val following = mutableListOf<JSONObject>()
+          for (i in 0 until items.length()) {
+            val item = items.optJSONObject(i) ?: continue
+            if (item.optBoolean("completed")) continue
+            if (item.optInt("startMinutes") > pickStart) following.add(item)
+          }
+          following.sortBy { it.optInt("startMinutes") }
+          for (item in following.take(2)) {
+            parts.add("${item.optString("title")} ${minutesToTimeLabel(item.optInt("startMinutes"))}")
+          }
+        }
+        val reading = schedule.optString("reading")
+        if (reading.isNotBlank()) parts.add("$reading to read")
+        sub = parts.joinToString(" · ")
+      } else {
+        // The day is spent (or holds nothing left): the row
+        // turns to tomorrow — the companion drawing.
+        val tomorrowFirst = schedule.optJSONObject("tomorrowFirst")
+        if (tomorrowFirst != null) {
+          title = "Tomorrow · ${tomorrowFirst.optString("title")}"
+          sub = "First thing — ${tomorrowFirst.optString("timeLabel")}"
+        } else {
+          title = "Tomorrow is clear"
+          sub = ""
+        }
+      }
+      views.setTextViewText(R.id.db_sched_title, title)
+      views.setViewVisibility(R.id.db_sched_sub, if (sub.isBlank()) View.GONE else View.VISIBLE)
+      if (sub.isNotBlank()) views.setTextViewText(R.id.db_sched_sub, sub)
+      if (scheme != null) {
+        views.setOnClickPendingIntent(
+          R.id.db_row_schedule,
+          uriPendingIntent(context, "$scheme:///?navTab=schedule", base + 3),
+        )
+      }
+    }
+    if (fast != null) {
+      views.setInt(R.id.db_fast_tile, "setColorFilter", pal.container)
+      views.setImageViewBitmap(R.id.db_fast_glyph, flameBitmap(pal.primary))
+      views.setTextViewText(R.id.db_fast_title, "Day ${fast.optInt("dayNumber")} of ${fast.optInt("totalDays")}")
+      views.setTextColor(R.id.db_fast_title, pal.ink)
+      views.setTextViewText(R.id.db_fast_sub, "${fast.optString("name")} · ${fast.optInt("daysLeft")} to go")
+      views.setTextColor(R.id.db_fast_sub, pal.body)
+      views.setTextColor(R.id.db_fast_chev, pal.muted)
+      if (scheme != null) {
+        views.setOnClickPendingIntent(
+          R.id.db_row_fast,
+          uriPendingIntent(context, "$scheme://fasting-tracker", base + 4),
+        )
+      }
+    }
+
+    // ── Seat the rows whole or not at all. ──
+    // Budget (the Up Next idiom): ROW_COST 64 = a row's 44dp
+    // lead plus its 10+10 padding; CHROME 20 = the list's 10+10
+    // card padding; SAFETY 16 covers the hairlines and rounding.
+    // budget = height − 36. Rows seat in the drawing's order;
+    // when one cannot seat, the rows below it do not either —
+    // EXCEPT fast, the anchor row, which is always attempted
+    // against whatever budget remains after schedule. At the
+    // 4x3 placement (~300dp) all four seat (4 × 64 = 256 ≤ 264).
+    val present = mutableListOf<String>()
+    if (pray != null) present.add("pray")
+    if (reach != null) present.add("reach")
+    if (schedule != null) present.add("schedule")
+    if (fast != null) present.add("fast")
+    var remaining = minHeightDp - 36
+    val seated = mutableSetOf<String>()
+    var stopped = false
+    for (key in present) {
+      if (key == "fast") {
+        if (remaining >= 64) {
+          seated.add("fast")
+          remaining -= 64
+        }
+      } else if (!stopped) {
+        if (remaining >= 64) {
+          seated.add(key)
+          remaining -= 64
+        } else {
+          stopped = true
+        }
+      }
+    }
+    if (seated.isEmpty()) return views
+    views.setViewVisibility(R.id.db_msg, View.GONE)
+    views.setViewVisibility(R.id.db_list, View.VISIBLE)
+    views.setViewVisibility(R.id.db_row_pray, if ("pray" in seated) View.VISIBLE else View.GONE)
+    views.setViewVisibility(R.id.db_row_reach, if ("reach" in seated) View.VISIBLE else View.GONE)
+    views.setViewVisibility(R.id.db_row_schedule, if ("schedule" in seated) View.VISIBLE else View.GONE)
+    views.setViewVisibility(R.id.db_row_fast, if ("fast" in seated) View.VISIBLE else View.GONE)
+    // A hairline stands between each pair of seated neighbours:
+    // the hairline slot directly above every seated row after
+    // the first (hair_1 above reach, hair_2 above schedule,
+    // hair_3 above fast).
+    val orderedSeated = present.filter { it in seated }
+    for ((index, key) in orderedSeated.withIndex()) {
+      if (index == 0) continue
+      val hairId = when (key) {
+        "reach" -> R.id.db_hair_1
+        "schedule" -> R.id.db_hair_2
+        else -> R.id.db_hair_3
+      }
+      views.setViewVisibility(hairId, View.VISIBLE)
+      views.setInt(hairId, "setBackgroundColor", pal.track)
+    }
+    return views
+  }
+
   // ─── Runtime-drawn glyphs (v439) ──────────────────────────────────────────
   //
   // v438 shipped the fast hearts and the Study book as <vector>
@@ -2748,6 +3005,62 @@ object WidgetRenderer {
 
   /** The Study tile's book glyph (white outline, drawn once, cached). */
   private fun bookBitmap(): Bitmap = bookGlyphBitmap
+
+  private var clockCache: Pair<Int, Bitmap>? = null
+
+  /** The breakdown schedule row's clock (v462) — a ring with two
+   *  hands, stroked round in the given colour (the checkBitmap
+   *  idiom, cached per colour). */
+  private fun clockBitmap(color: Int): Bitmap {
+    clockCache?.let { if (it.first == color) return it.second }
+    val size = 96
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.STROKE
+      this.color = color
+      strokeCap = Paint.Cap.ROUND
+    }
+    paint.strokeWidth = 7f
+    canvas.drawCircle(48f, 48f, 33f, paint)
+    paint.strokeWidth = 8f
+    // The hands: to twelve, and to four.
+    canvas.drawLine(48f, 48f, 48f, 27f, paint)
+    canvas.drawLine(48f, 48f, 63f, 59f, paint)
+    clockCache = color to bitmap
+    return bitmap
+  }
+
+  private var flameCache: Pair<Int, Bitmap>? = null
+
+  /** The breakdown fast row's flame (v462) — a solid silhouette
+   *  on the heart factory's 24-unit grid: a teardrop body with
+   *  the inner curl rising at its left shoulder. */
+  private fun flameBitmap(color: Int): Bitmap {
+    flameCache?.let { if (it.first == color) return it.second }
+    val size = 64
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val path = Path().apply {
+      moveTo(12f, 1.5f)
+      cubicTo(15.5f, 6f, 20f, 9.5f, 20f, 14.5f)
+      cubicTo(20f, 19.5f, 16.5f, 23f, 12f, 23f)
+      cubicTo(7.5f, 23f, 4f, 19.5f, 4f, 14.5f)
+      cubicTo(4f, 10.5f, 6.5f, 7.5f, 8.5f, 4.5f)
+      cubicTo(9.2f, 7f, 10f, 8.5f, 11.2f, 9.7f)
+      cubicTo(10.5f, 6.5f, 10.7f, 3.8f, 12f, 1.5f)
+      close()
+    }
+    val matrix = Matrix().apply { setScale(size / 24f, size / 24f) }
+    path.transform(matrix)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.FILL
+      this.color = color
+    }
+    canvas.drawPath(path, paint)
+    flameCache = color to bitmap
+    return bitmap
+  }
 
   /**
    * The fast heart, drawn with the same path geometry the deleted

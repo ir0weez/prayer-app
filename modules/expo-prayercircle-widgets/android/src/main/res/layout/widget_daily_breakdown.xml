@@ -1,0 +1,456 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Daily Breakdown (v462, DB-9 — "The Brief List, Complete";
+  daily-breakdown-widget-concepts-v3). One card holding an open
+  list of rows in the drawing's order — PRAY (a face stack),
+  REACH (someone due; the row is absent when nobody is),
+  SCHEDULE (a clock glyph in a tonal square), FAST (a flame
+  glyph in a tonal square) — separated by hairlines, NO inner
+  boxes, each row its own tap door. The row order leaves the
+  garden row's seat between SCHEDULE and FAST for the day a
+  weather feed lands; there is NO garden row in this build.
+  A second drawing state lives in the renderer, not here: after
+  the day ends the pray and reach rows drop and the schedule
+  row names tomorrow's first thing.
+
+  Standing defaults are the QUIET face (the layout IS the
+  widget's never-blank floor, the v439 rule): the message shows
+  until the renderer seats the list. Rows are 44dp content +
+  10dp padding above and below = 64dp — the renderer's
+  ROW_COST; the card's list padding is 10dp top and bottom —
+  its CHROME. Vanilla-subset layouts only (the v439 rule):
+  LinearLayout / FrameLayout / ImageView / TextView.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/db_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent">
+
+  <ImageView
+    android:id="@+id/db_bg"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:src="@drawable/widget_shape_white_28"
+    android:contentDescription="@null" />
+
+  <!-- The quiet face: no snapshot, state "none", or no row
+       seats under the height budget. -->
+  <LinearLayout
+    android:id="@+id/db_msg"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:paddingStart="22dp"
+    android:paddingEnd="22dp">
+
+    <TextView
+      android:id="@+id/db_msg_title"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="Open PrayerCircle"
+      android:textSize="17sp"
+      android:textStyle="bold"
+      android:textColor="#1D1B20" />
+
+    <TextView
+      android:id="@+id/db_msg_sub"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="3dp"
+      android:text="Your day will stand here — who to pray for, who to reach, what is next, and your fast."
+      android:textSize="13sp"
+      android:textColor="#49454F" />
+  </LinearLayout>
+
+  <!-- The list: rows seat whole or not at all (renderer). -->
+  <LinearLayout
+    android:id="@+id/db_list"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:visibility="gone">
+
+    <!-- PRAY: the face stack, then title + sub, then the door chevron. -->
+    <LinearLayout
+      android:id="@+id/db_row_pray"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:gravity="center_vertical"
+      android:paddingTop="10dp"
+      android:paddingBottom="10dp"
+      android:visibility="gone">
+
+      <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="44dp"
+        android:orientation="horizontal">
+
+        <FrameLayout
+          android:id="@+id/db_face_slot_1"
+          android:layout_width="44dp"
+          android:layout_height="44dp">
+
+          <ImageView
+            android:id="@+id/db_ring_1"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:src="@drawable/widget_circle_white"
+            android:contentDescription="@null" />
+
+          <ImageView
+            android:id="@+id/db_img_1"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:src="@drawable/widget_circle_white"
+            android:contentDescription="@null" />
+
+          <TextView
+            android:id="@+id/db_initials_1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+        </FrameLayout>
+
+        <FrameLayout
+          android:id="@+id/db_face_slot_2"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:layout_marginStart="-13dp">
+
+          <ImageView
+            android:id="@+id/db_ring_2"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:src="@drawable/widget_circle_white"
+            android:contentDescription="@null" />
+
+          <ImageView
+            android:id="@+id/db_img_2"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:src="@drawable/widget_circle_white"
+            android:contentDescription="@null" />
+
+          <TextView
+            android:id="@+id/db_initials_2"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+        </FrameLayout>
+
+        <FrameLayout
+          android:id="@+id/db_face_slot_3"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:layout_marginStart="-13dp">
+
+          <ImageView
+            android:id="@+id/db_ring_3"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:src="@drawable/widget_circle_white"
+            android:contentDescription="@null" />
+
+          <ImageView
+            android:id="@+id/db_img_3"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:src="@drawable/widget_circle_white"
+            android:contentDescription="@null" />
+
+          <TextView
+            android:id="@+id/db_initials_3"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+        </FrameLayout>
+      </LinearLayout>
+
+      <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="14dp"
+        android:orientation="vertical">
+
+        <TextView
+          android:id="@+id/db_pray_title"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:singleLine="true"
+          android:ellipsize="end"
+          android:textSize="16sp"
+          android:textStyle="bold"
+          android:textColor="#1D1B20" />
+
+        <TextView
+          android:id="@+id/db_pray_sub"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="2dp"
+          android:singleLine="true"
+          android:ellipsize="end"
+          android:textSize="12.5sp"
+          android:textColor="#49454F" />
+      </LinearLayout>
+
+      <TextView
+        android:id="@+id/db_pray_chev"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:text="›"
+        android:textSize="22sp"
+        android:textColor="#79747E" />
+    </LinearLayout>
+
+    <FrameLayout
+      android:id="@+id/db_hair_1"
+      android:layout_width="match_parent"
+      android:layout_height="1dp"
+      android:background="#E0D8F5"
+      android:visibility="gone" />
+
+    <!-- REACH: one face on the reached green, then title + sub. -->
+    <LinearLayout
+      android:id="@+id/db_row_reach"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:gravity="center_vertical"
+      android:paddingTop="10dp"
+      android:paddingBottom="10dp"
+      android:visibility="gone">
+
+      <FrameLayout
+        android:layout_width="44dp"
+        android:layout_height="44dp">
+
+        <ImageView
+          android:id="@+id/db_reach_img"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:src="@drawable/widget_circle_white"
+          android:contentDescription="@null" />
+
+        <TextView
+          android:id="@+id/db_reach_initials"
+          android:layout_width="match_parent"
+          android:layout_height="match_parent"
+          android:gravity="center"
+          android:textSize="14sp"
+          android:textStyle="bold"
+          android:textColor="#FFFFFF" />
+      </FrameLayout>
+
+      <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="14dp"
+        android:orientation="vertical">
+
+        <TextView
+          android:id="@+id/db_reach_title"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:singleLine="true"
+          android:ellipsize="end"
+          android:textSize="16sp"
+          android:textStyle="bold"
+          android:textColor="#1D1B20" />
+
+        <TextView
+          android:id="@+id/db_reach_sub"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="2dp"
+          android:singleLine="true"
+          android:ellipsize="end"
+          android:textSize="12.5sp"
+          android:textColor="#49454F" />
+      </LinearLayout>
+
+      <TextView
+        android:id="@+id/db_reach_chev"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:text="›"
+        android:textSize="22sp"
+        android:textColor="#79747E" />
+    </LinearLayout>
+
+    <FrameLayout
+      android:id="@+id/db_hair_2"
+      android:layout_width="match_parent"
+      android:layout_height="1dp"
+      android:background="#E0D8F5"
+      android:visibility="gone" />
+
+    <!-- SCHEDULE: a clock glyph in a tonal square. -->
+    <LinearLayout
+      android:id="@+id/db_row_schedule"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:gravity="center_vertical"
+      android:paddingTop="10dp"
+      android:paddingBottom="10dp"
+      android:visibility="gone">
+
+      <FrameLayout
+        android:layout_width="44dp"
+        android:layout_height="44dp">
+
+        <ImageView
+          android:id="@+id/db_sched_tile"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:src="@drawable/widget_tile_white"
+          android:contentDescription="@null" />
+
+        <ImageView
+          android:id="@+id/db_sched_glyph"
+          android:layout_width="22dp"
+          android:layout_height="22dp"
+          android:layout_gravity="center"
+          android:contentDescription="@null" />
+      </FrameLayout>
+
+      <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="14dp"
+        android:orientation="vertical">
+
+        <TextView
+          android:id="@+id/db_sched_title"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:singleLine="true"
+          android:ellipsize="end"
+          android:textSize="16sp"
+          android:textStyle="bold"
+          android:textColor="#1D1B20" />
+
+        <TextView
+          android:id="@+id/db_sched_sub"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="2dp"
+          android:singleLine="true"
+          android:ellipsize="end"
+          android:textSize="12.5sp"
+          android:textColor="#49454F" />
+      </LinearLayout>
+
+      <TextView
+        android:id="@+id/db_sched_chev"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:text="›"
+        android:textSize="22sp"
+        android:textColor="#79747E" />
+    </LinearLayout>
+
+    <FrameLayout
+      android:id="@+id/db_hair_3"
+      android:layout_width="match_parent"
+      android:layout_height="1dp"
+      android:background="#E0D8F5"
+      android:visibility="gone" />
+
+    <!-- (The garden row seats here — between SCHEDULE and FAST —
+         when a weather feed lands. Not in this build.) -->
+
+    <!-- FAST: a flame glyph in a tonal square. -->
+    <LinearLayout
+      android:id="@+id/db_row_fast"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:gravity="center_vertical"
+      android:paddingTop="10dp"
+      android:paddingBottom="10dp"
+      android:visibility="gone">
+
+      <FrameLayout
+        android:layout_width="44dp"
+        android:layout_height="44dp">
+
+        <ImageView
+          android:id="@+id/db_fast_tile"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:src="@drawable/widget_tile_white"
+          android:contentDescription="@null" />
+
+        <ImageView
+          android:id="@+id/db_fast_glyph"
+          android:layout_width="22dp"
+          android:layout_height="22dp"
+          android:layout_gravity="center"
+          android:contentDescription="@null" />
+      </FrameLayout>
+
+      <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="14dp"
+        android:orientation="vertical">
+
+        <TextView
+          android:id="@+id/db_fast_title"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:singleLine="true"
+          android:ellipsize="end"
+          android:textSize="16sp"
+          android:textStyle="bold"
+          android:textColor="#1D1B20" />
+
+        <TextView
+          android:id="@+id/db_fast_sub"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="2dp"
+          android:singleLine="true"
+          android:ellipsize="end"
+          android:textSize="12.5sp"
+          android:textColor="#49454F" />
+      </LinearLayout>
+
+      <TextView
+        android:id="@+id/db_fast_chev"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:text="›"
+        android:textSize="22sp"
+        android:textColor="#79747E" />
+    </LinearLayout>
+  </LinearLayout>
+</FrameLayout>

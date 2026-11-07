@@ -389,7 +389,8 @@ describe("v436 all snapshots", () => {
       resolveChapter: () => null,
       now: NOW,
     });
-    expect(Object.keys(snapshots).sort()).toEqual(["emergency", "fast", "prayToday", "reachOut", "study", "upNext"]);
+    // v462: "dailyBreakdown" joins the builder keys.
+    expect(Object.keys(snapshots).sort()).toEqual(["dailyBreakdown", "emergency", "fast", "prayToday", "reachOut", "study", "upNext"]);
     expect(snapshots.prayToday.state).toBe("next");
     expect(snapshots.emergency.state).toBe("none");
   });
@@ -403,9 +404,10 @@ describe("v436 widget registration (v438 amendment: native module)", () => {
     // Reach Pair) joined the original six — same amendment pattern
     // as v438's re-pointing of these pins at the native module.
     // v443 amendment: the Emergency and Reading strips joined.
+    // v462 amendment: the Daily Breakdown joined — twelve.
     const names = Object.values(WIDGET_NAMES);
-    expect(names).toHaveLength(11);
-    expect(new Set(names).size).toBe(11);
+    expect(names).toHaveLength(12);
+    expect(new Set(names).size).toBe(12);
     // The native module's provider classes are named for these
     // (PrayToday -> PrayTodayWidgetProvider, …) — widgets-v438
     // pins the manifest side.
@@ -421,6 +423,7 @@ describe("v436 widget registration (v438 amendment: native module)", () => {
       reachPair: "ReachPair",
       emergencyStrip: "EmergencyStrip",
       readingStrip: "ReadingStrip",
+      dailyBreakdown: "DailyBreakdown",
     });
   });
 

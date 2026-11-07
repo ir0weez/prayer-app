@@ -14,6 +14,7 @@ import android.util.SizeF
  * the receivers exist in the shipped APK with no prebuild codegen.
  * v441 adds the three rectangles (W-3) to the original six.
  * v443 adds the two 2×1 strips (Emergency ES-1, Reading ST-2).
+ * v462 adds the twelfth: the Daily Breakdown (DB-9).
  */
 abstract class PrayerCircleWidgetProvider(private val kind: WidgetKind) : AppWidgetProvider() {
   override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
@@ -74,3 +75,5 @@ class ReachPairWidgetProvider : PrayerCircleWidgetProvider(WidgetKind.REACH_PAIR
 class EmergencyStripWidgetProvider : PrayerCircleWidgetProvider(WidgetKind.EMERGENCY_STRIP)
 
 class ReadingStripWidgetProvider : PrayerCircleWidgetProvider(WidgetKind.READING_STRIP)
+
+class DailyBreakdownWidgetProvider : PrayerCircleWidgetProvider(WidgetKind.DAILY_BREAKDOWN)

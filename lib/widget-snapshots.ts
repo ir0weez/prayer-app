@@ -21,6 +21,10 @@
 //               the Books grouping's Current head as fallback),
 //               chapterIsWritten / bookWrittenCount (the v324 union
 //               rule), restudyQueueSummary, bookColorsFor (ROYGBIV)
+//   Daily Breakdown (v462) DB-9's merge of the rows above:
+//               pray + reach + the day whole (collectDayItems)
+//               + fast, with tomorrow's first item carried for
+//               the renderer's evening turn
 //
 // A chapter's first-verse line comes from the resolved chapter data's
 // embedded KJV verses (V205ChapterData.verses — present only where
@@ -47,6 +51,7 @@ import type { StudioImportsMap } from "./bible-v205/studio-import";
 import type { V205ChapterData } from "./bible-v205/types";
 import { getReadingPosition } from "./bible-v205/position";
 import { formatDateLocal } from "./date-utils";
+import { JOURNAL_KIND_HUES } from "./journal-material";
 import { sortQueueFaces } from "./people-queue";
 import {
   getActiveFast,
@@ -95,6 +100,10 @@ export const WIDGET_NAMES = {
   // snapshot document rides along.
   emergencyStrip: "EmergencyStrip",
   readingStrip: "ReadingStrip",
+  // v462: the twelfth widget — the Daily Breakdown (DB-9, the
+  // Brief List): one card, an open list of rows — pray, reach,
+  // schedule, fast — each row its own door.
+  dailyBreakdown: "DailyBreakdown",
 } as const;
 
 export type WidgetName = (typeof WIDGET_NAMES)[keyof typeof WIDGET_NAMES];
@@ -506,6 +515,99 @@ function minutesToWidgetTime(totalMinutes: number): string {
   return formatWidgetTime(`${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`);
 }
 
+/** One timed item of a day, unified from the three schedule
+ * stores — every timed item with its kind, its completion state
+ * and its sub line (location, else notes). Holidays are not
+ * items on his list and never enter it. `hasEnd` keeps the
+ * stored end distinct from the rule's default (+30/+60): a
+ * point item (no stored end) counts as "over" once it has
+ * started, an item with a stored end only once that end has
+ * passed.
+ *
+ * (This collection was buildUpNextSnapshot's inline `raw` list
+ * through v461 — hoisted in v462 so the Daily Breakdown builder
+ * reads the very same day, and tomorrow's, from the one
+ * construction. The outputs are unchanged.) */
+interface RawDayItem {
+  id: string;
+  kind: "todo" | "event" | "ministry";
+  title: string;
+  startMinutes: number;
+  endMinutes: number;
+  hasEnd: boolean;
+  completed: boolean;
+  sub: string;
+}
+
+function collectDayItems(
+  events: ScheduleEvent[],
+  todos: ScheduleTodo[],
+  ministries: ScheduleMinistry[],
+  dateIso: string,
+  people: Person[],
+): RawDayItem[] {
+  const dayEvents = getEventsForDate(events, dateIso);
+  const dayTodos = getTodosForDate(todos, dateIso);
+  const dayMinistries = getMinistriesForDate(ministries, dateIso);
+  // v445: the sub line's last resort is the item's linked
+  // people — their first names, joined ", " — used only when
+  // the item's own fields (location / notes) are empty. Feed
+  // carries Aaron this way in the approved mockup: the todo's
+  // linked person, not a note.
+  const linkedNames = (ids: string[] | undefined): string => {
+    if (!ids || ids.length === 0) return "";
+    return ids
+      .map((id) => people.find((person) => person.id === id))
+      .filter((person): person is Person => !!person)
+      .map((person) => firstNameOf(person.name))
+      .join(", ");
+  };
+  const composeSub = (fields: Array<string | undefined>, ids: string[] | undefined): string => {
+    for (const field of fields) {
+      if (field && field.trim()) return field;
+    }
+    return linkedNames(ids);
+  };
+  return [
+    ...dayTodos
+      .filter((todo) => todo.startTime)
+      .map((todo) => ({
+        id: todo.id,
+        kind: "todo" as const,
+        title: todo.title,
+        startMinutes: upNextMinutes(todo.startTime as string),
+        endMinutes: upNextEndMinutes("todo", todo.startTime as string, todo.endTime),
+        hasEnd: !!todo.endTime,
+        completed: todo.isCompleted,
+        sub: composeSub([todo.notes], todo.linkedPeopleIds),
+      })),
+    ...dayEvents
+      .filter((event) => event.startTime && !event.isHoliday)
+      .map((event) => ({
+        id: event.id,
+        kind: "event" as const,
+        title: event.title,
+        startMinutes: upNextMinutes(event.startTime as string),
+        endMinutes: upNextEndMinutes("event", event.startTime as string, event.endTime),
+        hasEnd: !!event.endTime,
+        completed: event.isCompleted,
+        sub: composeSub([event.location, event.notes], event.linkedPeopleIds),
+      })),
+    ...dayMinistries
+      .filter((ministry) => ministry.startTime)
+      .map((ministry) => ({
+        id: ministry.id,
+        kind: "ministry" as const,
+        title: ministry.title,
+        startMinutes: upNextMinutes(ministry.startTime as string),
+        endMinutes: upNextEndMinutes("ministry", ministry.startTime as string, ministry.endTime),
+        hasEnd: !!ministry.endTime,
+        completed: ministry.isCompleted,
+        sub: composeSub([ministry.location, ministry.notes], ministry.linkedPeopleIds),
+      })),
+  ];
+}
+
 export function buildUpNextSnapshot(
   events: ScheduleEvent[],
   todos: ScheduleTodo[],
@@ -553,81 +655,7 @@ export function buildUpNextSnapshot(
   const group = buildUpNextGroup(candidates, allTimed, nowMin);
   const heroId = group ? group.entries[0].item.id : null;
 
-  // The day itself, unified from the same three stores the push
-  // layer loads — every timed item with its kind, its completion
-  // state and its sub line (location, else notes). Holidays are
-  // not items on his list and never enter it. `hasEnd` keeps the
-  // stored end distinct from the rule's default (+30/+60): a
-  // point item (no stored end) counts as "over" once it has
-  // started, an item with a stored end only once that end has
-  // passed.
-  interface RawDayItem {
-    id: string;
-    kind: "todo" | "event" | "ministry";
-    title: string;
-    startMinutes: number;
-    endMinutes: number;
-    hasEnd: boolean;
-    completed: boolean;
-    sub: string;
-  }
-  // v445: the sub line's last resort is the item's linked
-  // people — their first names, joined ", " — used only when
-  // the item's own fields (location / notes) are empty. Feed
-  // carries Aaron this way in the approved mockup: the todo's
-  // linked person, not a note.
-  const linkedNames = (ids: string[] | undefined): string => {
-    if (!ids || ids.length === 0) return "";
-    return ids
-      .map((id) => people.find((person) => person.id === id))
-      .filter((person): person is Person => !!person)
-      .map((person) => firstNameOf(person.name))
-      .join(", ");
-  };
-  const composeSub = (fields: Array<string | undefined>, ids: string[] | undefined): string => {
-    for (const field of fields) {
-      if (field && field.trim()) return field;
-    }
-    return linkedNames(ids);
-  };
-  const raw: RawDayItem[] = [
-    ...dayTodos
-      .filter((todo) => todo.startTime)
-      .map((todo) => ({
-        id: todo.id,
-        kind: "todo" as const,
-        title: todo.title,
-        startMinutes: upNextMinutes(todo.startTime as string),
-        endMinutes: upNextEndMinutes("todo", todo.startTime as string, todo.endTime),
-        hasEnd: !!todo.endTime,
-        completed: todo.isCompleted,
-        sub: composeSub([todo.notes], todo.linkedPeopleIds),
-      })),
-    ...dayEvents
-      .filter((event) => event.startTime && !event.isHoliday)
-      .map((event) => ({
-        id: event.id,
-        kind: "event" as const,
-        title: event.title,
-        startMinutes: upNextMinutes(event.startTime as string),
-        endMinutes: upNextEndMinutes("event", event.startTime as string, event.endTime),
-        hasEnd: !!event.endTime,
-        completed: event.isCompleted,
-        sub: composeSub([event.location, event.notes], event.linkedPeopleIds),
-      })),
-    ...dayMinistries
-      .filter((ministry) => ministry.startTime)
-      .map((ministry) => ({
-        id: ministry.id,
-        kind: "ministry" as const,
-        title: ministry.title,
-        startMinutes: upNextMinutes(ministry.startTime as string),
-        endMinutes: upNextEndMinutes("ministry", ministry.startTime as string, ministry.endTime),
-        hasEnd: !!ministry.endTime,
-        completed: ministry.isCompleted,
-        sub: composeSub([ministry.location, ministry.notes], ministry.linkedPeopleIds),
-      })),
-  ];
+  const raw: RawDayItem[] = collectDayItems(events, todos, ministries, todayIso, people);
 
   // Current: the uncompleted timed item running right now. When
   // several overlap, the latest start wins; a tie keeps the
@@ -933,6 +961,261 @@ export function buildStudySnapshot(
   };
 }
 
+// ─── 7. Daily Breakdown (v462, DB-9 — the Brief List) ───────────────────────
+//
+// The twelfth widget is a MERGE, not a new data source: one card,
+// an open list of rows — pray, reach, schedule, fast — each row
+// computed from the same selectors the sections above use, in
+// the approved drawing's order (daily-breakdown-widget-concepts
+// -v3.html: "DB-9 · The Brief List, Complete" and its companion
+// "DB-9 · After the Day Ends"). There is NO garden row: the app
+// carries no weather feed, and he knows that row lands a step
+// behind — the row order leaves its seat between the schedule
+// and the fast for when it does.
+//
+// Evening: the snapshot carries the day whole (dayItems, the
+// Up Next shape) plus tomorrow's first timed item, so the
+// renderer can turn the card on the system's own refresh —
+// when every one of today's windows has passed, pray and reach
+// drop and the schedule row names tomorrow's first thing.
+
+/** The Emergency red a face wears in the breakdown's stack —
+ * the v435 banner gradient's head red, the app's own emergency
+ * hue (widget_bg_emergency carries it). A meaning hue: it
+ * never derives from the palette. */
+export const BREAKDOWN_EMERGENCY_RED = "#B91C1C";
+
+/** One face in the breakdown's pray stack. `emergency` marks
+ * the lead seat — the live emergency's person, first in the
+ * stack, wearing the Emergency red above in place of their
+ * own colour. */
+export interface BreakdownFace extends WidgetFace {
+  emergency?: boolean;
+}
+
+export interface BreakdownPray {
+  /** The day's count, for the title — "Pray for {count} today"
+   * (or "Prayed for {count} today" once all are prayed). */
+  count: number;
+  title: string;
+  /** "{first} leads — emergency" / "{first} leads — {need}" /
+   * "" once the day is prayed. Composed here, printed verbatim
+   * by the renderer — the Reach Out rule. */
+  sub: string;
+  /** Up to three faces: the emergency's person first when one
+   * is live, then the queue's own order (sortQueueFaces). */
+  faces: BreakdownFace[];
+  /** The row's tap door: the emergency person's id when an
+   * emergency leads, else the next unprayed person's, else
+   * null (the day prayed — the row taps through to the app,
+   * the Pray Today widget's complete grain). */
+  personId: string | null;
+  kind: "emergency" | "today" | null;
+}
+
+export interface BreakdownReach extends WidgetFace {
+  name: string;
+  /** Days since the last reach — getDueReachOut's own figure,
+   * the Reach Out snapshot's `days`. */
+  days: number;
+  /** "Reach {firstName}" — composed here. */
+  title: string;
+  /** "Due — {days} day(s) since last reached" — composed here. */
+  sub: string;
+}
+
+export interface BreakdownSchedule {
+  /** The day this schedule describes (todayIso) — the renderer
+   * only trusts the evening turn when it equals the device's
+   * current local date. */
+  dateIso: string;
+  /** EVERY timed item of the day, the Up Next dayItems shape —
+   * the renderer picks the current/next item from these at
+   * render time and measures the evening turn from their
+   * windows (the baked endMinutes: stored end, else the
+   * per-kind +30/+60 rule — the v455 window convention). */
+  dayItems: UpNextDayItem[];
+  /** Tomorrow's first timed item; null when tomorrow holds
+   * none (the row then reads "Tomorrow is clear"). */
+  tomorrowFirst: { title: string; timeLabel: string } | null;
+  /** The current reading, "{Book} {chapter}" from the reading
+   * position (getReadingPosition — the Study section's
+   * authority) — the renderer appends it to the schedule
+   * row's sub as "{Book} {chapter} to read". Null when no
+   * reading position stands. */
+  reading: string | null;
+}
+
+export interface BreakdownFast {
+  dayNumber: number;
+  totalDays: number;
+  /** Days left after today (totalDays − dayNumber). */
+  daysLeft: number;
+  name: string;
+}
+
+export type DailyBreakdownWidgetSnapshot =
+  | { state: "none" }
+  | {
+      state: "day";
+      dateIso: string;
+      /** Null when the queue is empty and no emergency is live. */
+      pray: BreakdownPray | null;
+      /** Null when nobody is due to reach — the row is gone,
+       * never a placeholder. */
+      reach: BreakdownReach | null;
+      schedule: BreakdownSchedule;
+      /** Null when no fast is active (the Your Fast quiet grain:
+       * the row drops from the list). */
+      fast: BreakdownFast | null;
+    };
+
+export function buildDailyBreakdownSnapshot(
+  people: Person[],
+  events: ScheduleEvent[],
+  todos: ScheduleTodo[],
+  ministries: ScheduleMinistry[],
+  fasts: PersonalFast[],
+  studyState: StudyState,
+  now: Date,
+): DailyBreakdownWidgetSnapshot {
+  const todayIso = formatDateLocal(now);
+  const tomorrowIso = formatDateLocal(
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
+  );
+
+  // ── Pray: the queue's own sources, the emergency's lead. ──
+  const list = getPrayTodayList(people, now.getDay(), now.getDate());
+  const emergencies = getAllActiveEmergencyPrayers(people)
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.item.emergencyExpiresAt ?? 0).getTime() -
+        new Date(b.item.emergencyExpiresAt ?? 0).getTime(),
+    );
+  const leadEmergency = emergencies[0] ?? null;
+  let pray: BreakdownPray | null = null;
+  if (list.length > 0 || leadEmergency) {
+    const progress = getDailyPrayerProgress(list, now.getDay(), now.getDate());
+    const ordered = sortQueueFaces(list, todayIso);
+    const faces: BreakdownFace[] = [];
+    if (leadEmergency) {
+      // The emergency's person leads the stack, wearing the
+      // Emergency red — the drawing's first face.
+      faces.push({
+        ...faceOf(leadEmergency.person),
+        color: BREAKDOWN_EMERGENCY_RED,
+        emergency: true,
+      });
+    }
+    for (const person of ordered) {
+      if (faces.length >= 3) break;
+      if (leadEmergency && person.id === leadEmergency.person.id) continue;
+      faces.push(faceOf(person));
+    }
+    // The Pray Today count: the scheduled progress total when
+    // it stands, else the list itself (an emergency/praise-only
+    // day), never fewer than the faces that stood in it.
+    const count =
+      progress.total > 0 ? progress.total : Math.max(list.length, faces.length);
+    const nextPerson =
+      ordered.find((person) => !hasPersonCompletedPrayerToday(person, todayIso)) ?? null;
+    if (leadEmergency) {
+      pray = {
+        count,
+        title: `Pray for ${count} today`,
+        sub: `${firstNameOf(leadEmergency.person.name)} leads — emergency`,
+        faces,
+        personId: leadEmergency.person.id,
+        kind: "emergency",
+      };
+    } else if (nextPerson) {
+      const item = leadPrayerItem(nextPerson);
+      const first = firstNameOf(nextPerson.name);
+      pray = {
+        count,
+        title: `Pray for ${count} today`,
+        sub: item?.title ? `${first} leads — ${item.title}` : `${first} leads`,
+        faces,
+        personId: nextPerson.id,
+        kind: "today",
+      };
+    } else {
+      // The whole list prayed: the row stands in the past
+      // tense and its tap is the app itself.
+      pray = {
+        count,
+        title: `Prayed for ${count} today`,
+        sub: "",
+        faces,
+        personId: null,
+        kind: null,
+      };
+    }
+  }
+
+  // ── Reach: the due set's head, only when someone is due. ──
+  const due = getDueReachOut(people, now);
+  const leadDue = due[0] ?? null;
+  const reach: BreakdownReach | null = leadDue
+    ? {
+        ...faceOf(leadDue.person),
+        // The drawing's reach face stands on the reached green
+        // (JOURNAL_KIND_HUES.reached — the palette's green
+        // source), not the person's own colour.
+        color: JOURNAL_KIND_HUES.reached,
+        name: leadDue.person.name,
+        days: leadDue.days,
+        title: `Reach ${firstNameOf(leadDue.person.name)}`,
+        sub: `Due — ${leadDue.days} day${leadDue.days === 1 ? "" : "s"} since last reached`,
+      }
+    : null;
+
+  // ── Schedule: the day whole, tomorrow's first, the reading. ──
+  const toDayItem = (item: RawDayItem): UpNextDayItem => ({
+    title: item.title,
+    sub: item.sub,
+    startMinutes: item.startMinutes,
+    endMinutes: item.endMinutes,
+    hasEnd: item.hasEnd,
+    completed: item.completed,
+  });
+  const dayItems = collectDayItems(events, todos, ministries, todayIso, people).map(toDayItem);
+  const firstTomorrow =
+    collectDayItems(events, todos, ministries, tomorrowIso, people)
+      .slice()
+      .sort((a, b) => a.startMinutes - b.startMinutes)[0] ?? null;
+  const position = getReadingPosition(studyState);
+  const readingBook = position.target?.book ?? position.lastRead?.book ?? null;
+  const readingChapter = position.target?.chapter ?? position.lastRead?.chapter ?? null;
+  const schedule: BreakdownSchedule = {
+    dateIso: todayIso,
+    dayItems,
+    tomorrowFirst: firstTomorrow
+      ? { title: firstTomorrow.title, timeLabel: minutesToWidgetTime(firstTomorrow.startMinutes) }
+      : null,
+    reading:
+      readingBook && readingChapter != null ? `${readingBook} ${readingChapter}` : null,
+  };
+
+  // ── Fast: the Your Fast builder's own math, hearts aside. ──
+  const fastSnap = buildFastSnapshot(fasts, null, todayIso);
+  const fast: BreakdownFast | null =
+    fastSnap.state === "active"
+      ? {
+          dayNumber: fastSnap.dayNumber,
+          totalDays: fastSnap.totalDays,
+          daysLeft: fastSnap.daysLeft,
+          name: fastSnap.name,
+        }
+      : null;
+
+  if (!pray && !reach && !fast && dayItems.length === 0 && !schedule.tomorrowFirst) {
+    return { state: "none" };
+  }
+  return { state: "day", dateIso: todayIso, pray, reach, schedule, fast };
+}
+
 // ─── The whole set ──────────────────────────────────────────────────────────
 
 export interface AllWidgetSnapshots {
@@ -942,6 +1225,7 @@ export interface AllWidgetSnapshots {
   reachOut: ReachOutWidgetSnapshot;
   upNext: UpNextWidgetSnapshot;
   study: StudyWidgetSnapshot;
+  dailyBreakdown: DailyBreakdownWidgetSnapshot;
 }
 
 /** Every store the builders read, in one plain input — the push
@@ -969,11 +1253,20 @@ export function buildAllWidgetSnapshots(input: WidgetSnapshotInputs): AllWidgetS
     reachOut: buildReachOutSnapshot(input.people, input.now),
     upNext: buildUpNextSnapshot(input.events, input.todos, input.ministries, todayIso, input.now, input.people),
     study: buildStudySnapshot(input.studyState, input.imports, input.resolveChapter),
+    dailyBreakdown: buildDailyBreakdownSnapshot(
+      input.people,
+      input.events,
+      input.todos,
+      input.ministries,
+      input.fasts,
+      input.studyState,
+      input.now,
+    ),
   };
 }
 
 /** v438: the ONE JSON document the native providers read — the
- * scheme their tap intents are built from, plus the six snapshots
+ * scheme their tap intents are built from, plus the snapshots
  * under their builder keys (WidgetRenderer.kt reads exactly
  * these). Pure: the push layer only adds the storage reads.
  *

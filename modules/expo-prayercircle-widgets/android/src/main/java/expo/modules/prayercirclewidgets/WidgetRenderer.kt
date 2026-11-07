@@ -3315,11 +3315,46 @@ object WidgetRenderer {
   // turn is trusted only when the snapshot's schedule dateIso is
   // the device's today; a stale snapshot renders its standing
   // rows instead of turning (the Up Next fallback grain).
+  //
+  // v470 (DB-T3, "Mini Rail" — the tall-fill round's third
+  // card, his pick): at a TALL placement the four rows leave
+  // the card's bottom half standing empty, so the schedule
+  // section grows a mini rail under its row — the rest of
+  // today as stops on a line, a pale gap box for an open
+  // stretch of 15 minutes or more — and a TOMORROW row seats
+  // below FAST. Both are extras: they seat whole or not at
+  // all from the budget the core rows leave, the rail's walk
+  // reserving the fast anchor's own cost so an extra never
+  // eats a core row, and at the 4x3 budget neither seats at
+  // all — the widget is v462's exactly. While at least one
+  // rail stop stands, the schedule header wears the drawing's
+  // second dress ("Today, from here", the reading line
+  // alone); with no stop seated it keeps the v462 dress
+  // byte-for-byte. The rail and the Tomorrow row stand only
+  // on today's own snapshot and never under the evening turn
+  // (the schedule row already IS tomorrow then).
 
   private val DB_SLOTS = intArrayOf(R.id.db_face_slot_1, R.id.db_face_slot_2, R.id.db_face_slot_3)
   private val DB_RINGS = intArrayOf(R.id.db_ring_1, R.id.db_ring_2, R.id.db_ring_3)
   private val DB_IMGS = intArrayOf(R.id.db_img_1, R.id.db_img_2, R.id.db_img_3)
   private val DB_TEXTS = intArrayOf(R.id.db_initials_1, R.id.db_initials_2, R.id.db_initials_3)
+
+  /** One mini-rail element (v470): a STOP — an item of the
+   * day, its title and its time line in `sub`, `isNow` set on
+   * the first stop when its window holds the current minute —
+   * or a GAP block, the open stretch between two stops, its
+   * wording riding `sub`. */
+  private data class DbRailElement(val isGap: Boolean, val title: String, val sub: String, val isNow: Boolean)
+
+  /** v470: the rail's slot cap and its honest costs, measured
+   * from widget_daily_breakdown.xml the v457 way — a stop is
+   * its content padding (3 + 3) + the 13.5sp title's line
+   * box (19) + the sub's margin (1) + the 12sp sub's line
+   * box (16) = 42; a gap block is its margins (2 + 2) + the
+   * box's padding (5 + 5) + the 12sp line box (16) = 30. */
+  private val DB_RAIL_SLOTS = 7
+  private val DB_RAIL_STOP_COST = 42
+  private val DB_RAIL_GAP_COST = 30
 
   /** A breakdown day item's effective window end — the v455
    *  convention: the baked endMinutes when it runs past the
@@ -3362,6 +3397,20 @@ object WidgetRenderer {
     val pray = if (evening) null else snap.optJSONObject("pray")
     val reach = if (evening) null else snap.optJSONObject("reach")
     val fast = snap.optJSONObject("fast")
+    // v470: the Tomorrow row stands only on today's own
+    // snapshot, before the evening turn — after the turn the
+    // schedule row already IS tomorrow, and a stale snapshot
+    // never grows the row (or the rail).
+    val tomorrowStands = schedule != null && fresh && !evening
+    // v470: the schedule row's composed lines are HELD, not
+    // written, until the seating walk has run — while a rail
+    // stop stands, the header's dress switch (below) replaces
+    // them with the drawing's "Today, from here" dress.
+    var schedTitle = ""
+    var schedSub = ""
+    var schedReading = ""
+    var pickStands = false
+    var railSeated: List<DbRailElement> = emptyList()
 
     // ── Fill each row that stands. ──
     if (pray != null) {
@@ -3468,9 +3517,13 @@ object WidgetRenderer {
           sub = ""
         }
       }
-      views.setTextViewText(R.id.db_sched_title, title)
-      views.setViewVisibility(R.id.db_sched_sub, if (sub.isBlank()) View.GONE else View.VISIBLE)
-      if (sub.isNotBlank()) views.setTextViewText(R.id.db_sched_sub, sub)
+      // Held for the dress switch after the seating walk —
+      // the views are written below, once it is known whether
+      // a rail stop stands under this row.
+      schedTitle = title
+      schedSub = sub
+      schedReading = schedule.optString("reading")
+      pickStands = pick != null
       if (scheme != null) {
         views.setOnClickPendingIntent(
           R.id.db_row_schedule,
@@ -3478,6 +3531,19 @@ object WidgetRenderer {
         )
       }
     }
+    // v470: the mini rail's candidates — the rest of today,
+    // computed at render time from the day whole. They stand
+    // only on today's own snapshot, before the evening turn,
+    // and only while the schedule row keeps its standing-day
+    // dress (a pick stands): once nothing uncompleted is
+    // left ahead, the row has turned to tomorrow and a rail
+    // of today's finished items would fight it.
+    val railCandidates =
+      if (schedule != null && fresh && !evening && pickStands) {
+        breakdownRailElements(schedule, nowMin)
+      } else {
+        emptyList()
+      }
     if (fast != null) {
       views.setInt(R.id.db_fast_tile, "setColorFilter", pal.container)
       views.setImageViewBitmap(R.id.db_fast_glyph, flameBitmap(pal.primary))
@@ -3493,6 +3559,34 @@ object WidgetRenderer {
         )
       }
     }
+    // v470: the TOMORROW row's fill (its seating is decided
+    // below, after the fast anchor — the visibility is the
+    // gate, as with every row). The sub counts tomorrow from
+    // the snapshot: its first timed thing and the day's whole
+    // count, both from the one collection the builder read.
+    if (schedule != null) {
+      views.setInt(R.id.db_tomorrow_tile, "setColorFilter", pal.container)
+      views.setImageViewBitmap(R.id.db_tomorrow_glyph, moonBitmap(pal.primary))
+      views.setTextViewText(R.id.db_tomorrow_title, "Tomorrow")
+      views.setTextColor(R.id.db_tomorrow_title, pal.ink)
+      val tomorrowFirst = schedule.optJSONObject("tomorrowFirst")
+      val tomorrowCount = schedule.optInt("tomorrowCount")
+      val tomorrowSub = when {
+        tomorrowFirst != null ->
+          "First thing — ${tomorrowFirst.optString("title")} · ${tomorrowCountText(tomorrowCount)} all day"
+        tomorrowCount > 0 -> "${tomorrowCountText(tomorrowCount)} · nothing timed first"
+        else -> "Tomorrow is clear"
+      }
+      views.setTextViewText(R.id.db_tomorrow_sub, tomorrowSub)
+      views.setTextColor(R.id.db_tomorrow_sub, pal.body)
+      views.setTextColor(R.id.db_tomorrow_chev, pal.muted)
+      if (scheme != null) {
+        views.setOnClickPendingIntent(
+          R.id.db_row_tomorrow,
+          uriPendingIntent(context, "$scheme:///?navTab=schedule", base + 5),
+        )
+      }
+    }
 
     // ── Seat the rows whole or not at all. ──
     // Budget (the Up Next idiom): ROW_COST 64 = a row's 44dp
@@ -3503,11 +3597,21 @@ object WidgetRenderer {
     // EXCEPT fast, the anchor row, which is always attempted
     // against whatever budget remains after schedule. At the
     // 4x3 placement (~300dp) all four seat (4 × 64 = 256 ≤ 264).
+    // v470: the extras seat inside this same walk — the mini
+    // rail's elements walk the moment the schedule row seats
+    // (walkDbRail: day order, whole or not at all, the fast
+    // anchor's 64 reserved while a fast stands), and the
+    // Tomorrow row is attempted after the anchor against
+    // whatever remains, the anchor's own grain. At the 4x3
+    // budget the walk's reserve leaves the extras nothing
+    // (264 − 256 = 8), so neither the rail nor Tomorrow seats
+    // and the card is v462's exactly.
     val present = mutableListOf<String>()
     if (pray != null) present.add("pray")
     if (reach != null) present.add("reach")
     if (schedule != null) present.add("schedule")
     if (fast != null) present.add("fast")
+    if (tomorrowStands) present.add("tomorrow")
     var remaining = minHeightDp - 36
     val seated = mutableSetOf<String>()
     var stopped = false
@@ -3517,10 +3621,20 @@ object WidgetRenderer {
           seated.add("fast")
           remaining -= 64
         }
+      } else if (key == "tomorrow") {
+        if (remaining >= 64) {
+          seated.add("tomorrow")
+          remaining -= 64
+        }
       } else if (!stopped) {
         if (remaining >= 64) {
           seated.add(key)
           remaining -= 64
+          if (key == "schedule") {
+            val walked = walkDbRail(railCandidates, remaining, if (fast != null) 64 else 0)
+            railSeated = walked.first
+            remaining -= walked.second
+          }
         } else {
           stopped = true
         }
@@ -3529,26 +3643,255 @@ object WidgetRenderer {
     if (seated.isEmpty()) return views
     views.setViewVisibility(R.id.db_msg, View.GONE)
     views.setViewVisibility(R.id.db_list, View.VISIBLE)
+    // v470: the header dress switch — while at least one rail
+    // stop stands under the schedule row, the header wears
+    // the drawing's second dress: "Today, from here", and the
+    // reading line alone for its sub (the following-items
+    // line is the rail's job now). With no reading text the
+    // v462 sub stands as composed. Zero stops seated — the
+    // v462 dress, byte-for-byte.
+    if (schedule != null) {
+      if (railSeated.any { !it.isGap }) {
+        schedTitle = "Today, from here"
+        if (schedReading.isNotBlank()) schedSub = "$schedReading to read"
+      }
+      views.setTextViewText(R.id.db_sched_title, schedTitle)
+      views.setViewVisibility(R.id.db_sched_sub, if (schedSub.isBlank()) View.GONE else View.VISIBLE)
+      if (schedSub.isNotBlank()) views.setTextViewText(R.id.db_sched_sub, schedSub)
+    }
     views.setViewVisibility(R.id.db_row_pray, if ("pray" in seated) View.VISIBLE else View.GONE)
     views.setViewVisibility(R.id.db_row_reach, if ("reach" in seated) View.VISIBLE else View.GONE)
     views.setViewVisibility(R.id.db_row_schedule, if ("schedule" in seated) View.VISIBLE else View.GONE)
     views.setViewVisibility(R.id.db_row_fast, if ("fast" in seated) View.VISIBLE else View.GONE)
+    views.setViewVisibility(R.id.db_row_tomorrow, if ("tomorrow" in seated) View.VISIBLE else View.GONE)
+    fillDbRail(context, views, railSeated, pal)
     // A hairline stands between each pair of seated neighbours:
     // the hairline slot directly above every seated row after
     // the first (hair_1 above reach, hair_2 above schedule,
-    // hair_3 above fast).
+    // hair_3 above fast, hair_4 above tomorrow). The rail
+    // carries no hairline of its own — it hangs inside the
+    // schedule section, above hair_3.
     val orderedSeated = present.filter { it in seated }
     for ((index, key) in orderedSeated.withIndex()) {
       if (index == 0) continue
       val hairId = when (key) {
         "reach" -> R.id.db_hair_1
         "schedule" -> R.id.db_hair_2
-        else -> R.id.db_hair_3
+        "fast" -> R.id.db_hair_3
+        else -> R.id.db_hair_4
       }
       views.setViewVisibility(hairId, View.VISIBLE)
       views.setInt(hairId, "setBackgroundColor", pal.track)
     }
     return views
+  }
+
+  /** v470: the mini rail's candidates — today's items from
+   * the current/next one onward, in start order, a gap block
+   * between consecutive stops whose open stretch runs 15
+   * minutes or more (the Up Next white-block threshold).
+   * Computed at render time from the snapshot's dayItems and
+   * the device clock, the Up Next pattern: the snapshot
+   * carries the day whole and the renderer reads it against
+   * now.
+   *
+   * The first stop is where he is in the day. An item whose
+   * window has fully ended never stands. Among the items
+   * whose windows contain now, an uncompleted one leads (the
+   * running thing), the latest start among equals (the
+   * innermost current thing); a completed item whose window
+   * contains now still counts as the current stop when
+   * nothing uncompleted contains it — it is where he is in
+   * the day. With nothing containing now, the first stop is
+   * the earliest standing item. Standing items that contain
+   * now but lose that preference sit behind the current stop
+   * and are not stops at all. */
+  private fun breakdownRailElements(schedule: JSONObject, nowMin: Int): List<DbRailElement> {
+    val items = schedule.optJSONArray("dayItems") ?: return emptyList()
+    val standing = mutableListOf<JSONObject>()
+    for (i in 0 until items.length()) {
+      val item = items.optJSONObject(i) ?: continue
+      if (breakdownWinEnd(item) > nowMin) standing.add(item)
+    }
+    if (standing.isEmpty()) return emptyList()
+    standing.sortBy { it.optInt("startMinutes") }
+    var firstIdx = 0
+    var containIdx = -1
+    for ((idx, item) in standing.withIndex()) {
+      val start = item.optInt("startMinutes")
+      if (start <= nowMin && nowMin < breakdownWinEnd(item)) {
+        if (!item.optBoolean("completed")) {
+          containIdx = idx
+        } else if (containIdx < 0 || standing[containIdx].optBoolean("completed")) {
+          containIdx = idx
+        }
+      }
+    }
+    if (containIdx >= 0) firstIdx = containIdx
+    val elements = mutableListOf<DbRailElement>()
+    var prev: JSONObject? = null
+    for (idx in firstIdx until standing.size) {
+      val item = standing[idx]
+      val start = item.optInt("startMinutes")
+      val end = breakdownWinEnd(item)
+      if (prev != null) {
+        val gapMinutes = start - breakdownWinEnd(prev)
+        if (gapMinutes >= 15) {
+          elements.add(
+            DbRailElement(
+              true,
+              "",
+              "${minutesToTimeLabel(breakdownWinEnd(prev))} – ${minutesToTimeLabel(start)} · ${breakdownOpenText(gapMinutes)} open",
+              false,
+            ),
+          )
+        }
+      }
+      val isNow = idx == firstIdx && start <= nowMin && nowMin < end
+      val sub = when {
+        isNow -> "${minutesToTimeLabel(start)} — now"
+        end > start -> breakdownRangeLabel(start, end)
+        else -> minutesToTimeLabel(start)
+      }
+      elements.add(DbRailElement(false, item.optString("title"), sub, isNow))
+      prev = item
+    }
+    return elements
+  }
+
+  /** v470: seat the rail's extras from the budget the core
+   * rows left, in day order, whole or not at all. `reserve`
+   * is the fast anchor's own cost while a fast stands — an
+   * extra seats only when the anchor still fits after it,
+   * so the rail fills a tall card's surplus and never eats
+   * a core row. A stop that does not fit ends the walk; a
+   * gap seats only together with the stop behind it, and
+   * when the pair does not fit the stop is tried alone —
+   * an item always beats a gap for the same budget (the
+   * standing Up Next rule). The seven slots cap the walk.
+   * Returns the seated elements and the budget they took. */
+  private fun walkDbRail(candidates: List<DbRailElement>, budget: Int, reserve: Int): Pair<List<DbRailElement>, Int> {
+    val seated = mutableListOf<DbRailElement>()
+    var remaining = budget
+    var i = 0
+    while (i < candidates.size && seated.size < DB_RAIL_SLOTS) {
+      val element = candidates[i]
+      if (element.isGap) {
+        val next = candidates.getOrNull(i + 1) ?: break
+        if (seated.size + 2 <= DB_RAIL_SLOTS && remaining - DB_RAIL_GAP_COST - DB_RAIL_STOP_COST >= reserve) {
+          seated.add(element)
+          seated.add(next)
+          remaining -= DB_RAIL_GAP_COST + DB_RAIL_STOP_COST
+          i += 2
+        } else if (remaining - DB_RAIL_STOP_COST >= reserve) {
+          seated.add(next)
+          remaining -= DB_RAIL_STOP_COST
+          i += 2
+        } else {
+          break
+        }
+      } else {
+        if (remaining - DB_RAIL_STOP_COST >= reserve) {
+          seated.add(element)
+          remaining -= DB_RAIL_STOP_COST
+          i += 1
+        } else {
+          break
+        }
+      }
+    }
+    return seated to (budget - remaining)
+  }
+
+  /** A stop's time range in the drawing's voice — the start
+   * drops its meridiem when both ends share it ("4:00 –
+   * 4:30 PM"); across noon or midnight both ends keep
+   * theirs ("11:30 AM – 12:15 PM"). */
+  private fun breakdownRangeLabel(start: Int, end: Int): String {
+    val endLabel = minutesToTimeLabel(end)
+    val startLabel = minutesToTimeLabel(start)
+    val sharedMeridiem = ((start / 60) % 24 >= 12) == ((end / 60) % 24 >= 12)
+    val shortStart =
+      if (sharedMeridiem) startLabel.removeSuffix(" AM").removeSuffix(" PM") else startLabel
+    return "$shortStart – $endLabel"
+  }
+
+  /** The gap block's compact duration — "6 hrs", "1 hr 30
+   * min", "45 min" — the DB-T3 drawing's abbreviation (the
+   * Up Next openDurationText spells the words out; the
+   * drawing for this card shortens them). */
+  private fun breakdownOpenText(totalMinutes: Int): String {
+    val minutes = maxOf(0, totalMinutes)
+    val hours = minutes / 60
+    val rest = minutes % 60
+    return when {
+      hours == 0 -> "$rest min"
+      rest == 0 -> "$hours hr${if (hours == 1) "" else "s"}"
+      else -> "$hours hr${if (hours == 1) "" else "s"} $rest min"
+    }
+  }
+
+  /** "1 thing" / "N things" — the Tomorrow row's count voice. */
+  private fun tomorrowCountText(count: Int): String =
+    "$count thing${if (count == 1) "" else "s"}"
+
+  /** v470: fill the rail's seven slots in display order —
+   * the fillRailFull pattern: slots past the seated walk
+   * go GONE, and the container stands only while at least
+   * one element seated. */
+  private fun fillDbRail(context: Context, views: RemoteViews, elements: List<DbRailElement>, pal: WidgetPalette) {
+    views.setViewVisibility(R.id.db_rail, if (elements.isEmpty()) View.GONE else View.VISIBLE)
+    for (slot in 1..DB_RAIL_SLOTS) {
+      val rowId = railId(context, "db_rail_row_$slot")
+      if (slot > elements.size) {
+        views.setViewVisibility(rowId, View.GONE)
+        continue
+      }
+      fillDbRailSlot(context, views, slot, elements[slot - 1], slot == 1, slot == elements.size, pal)
+    }
+  }
+
+  /** One rail slot (v470): the Up Next rail's own structure —
+   * segments in the track colour running through the slot,
+   * the outer half INVISIBLE at the walk's ends (never GONE:
+   * the weighted segments' even split is what centres the
+   * dot on the stop's text — the v458 rule). A stop wears a
+   * ring dot (the now stop's dot filled with the palette
+   * primary, the current row's dress); a gap wears the pale
+   * box in surfaceAlt, the Up Next white-block dress, with
+   * the line passing behind it. */
+  private fun fillDbRailSlot(context: Context, views: RemoteViews, n: Int, element: DbRailElement, isFirst: Boolean, isLast: Boolean, pal: WidgetPalette) {
+    fun id(name: String) = railId(context, "db_${name}_$n")
+    views.setViewVisibility(id("rail_row"), View.VISIBLE)
+    views.setInt(id("seg_top"), "setColorFilter", pal.track)
+    views.setViewVisibility(id("seg_top"), if (isFirst) View.INVISIBLE else View.VISIBLE)
+    views.setInt(id("seg_bot"), "setColorFilter", pal.track)
+    views.setViewVisibility(id("seg_bot"), if (isLast) View.INVISIBLE else View.VISIBLE)
+    if (element.isGap) {
+      views.setViewVisibility(id("line"), View.GONE)
+      views.setViewVisibility(id("ring"), View.GONE)
+      views.setViewVisibility(id("dot"), View.GONE)
+      views.setViewVisibility(id("gapbox"), View.VISIBLE)
+      views.setInt(id("gap_img"), "setColorFilter", pal.surfaceAlt)
+      views.setTextViewText(id("gap"), element.sub)
+      views.setTextColor(id("gap"), pal.muted)
+    } else {
+      views.setViewVisibility(id("gapbox"), View.GONE)
+      views.setViewVisibility(id("line"), View.VISIBLE)
+      views.setTextViewText(id("title"), element.title)
+      views.setTextColor(id("title"), pal.ink)
+      views.setTextViewText(id("sub"), element.sub)
+      views.setTextColor(id("sub"), pal.body)
+      views.setViewVisibility(id("ring"), View.VISIBLE)
+      views.setViewVisibility(id("dot"), View.VISIBLE)
+      if (element.isNow) {
+        views.setInt(id("ring"), "setColorFilter", pal.container)
+        views.setInt(id("dot"), "setColorFilter", pal.primary)
+      } else {
+        views.setInt(id("ring"), "setColorFilter", pal.track)
+        views.setInt(id("dot"), "setColorFilter", pal.surface)
+      }
+    }
   }
 
   // ─── Runtime-drawn glyphs (v439) ──────────────────────────────────────────
@@ -3630,6 +3973,33 @@ object WidgetRenderer {
     }
     canvas.drawPath(path, paint)
     flameCache = color to bitmap
+    return bitmap
+  }
+
+  private var moonCache: Pair<Int, Bitmap>? = null
+
+  /** The breakdown Tomorrow row's moon (v470) — a crescent
+   *  on the factories' grid, drawn the glyph way (a Path and
+   *  a fill, no vector in res): two circles under EVEN_ODD,
+   *  the second — offset up and right — cutting the bite out
+   *  of the first, so the crescent's horns point up-right,
+   *  the drawing's moon. */
+  private fun moonBitmap(color: Int): Bitmap {
+    moonCache?.let { if (it.first == color) return it.second }
+    val size = 64
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val path = Path().apply {
+      fillType = Path.FillType.EVEN_ODD
+      addCircle(30f, 32f, 24f, Path.Direction.CW)
+      addCircle(43f, 23f, 19f, Path.Direction.CW)
+    }
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.FILL
+      this.color = color
+    }
+    canvas.drawPath(path, paint)
+    moonCache = color to bitmap
     return bitmap
   }
 

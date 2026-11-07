@@ -20,6 +20,19 @@
   ROW_COST; the card's list padding is 10dp top and bottom —
   its CHROME. Vanilla-subset layouts only (the v439 rule):
   LinearLayout / FrameLayout / ImageView / TextView.
+
+  v470 (DB-T3, "Mini Rail" — daily-breakdown-tall-concepts-v1,
+  the third card): two additions for the TALL placement, both
+  seated by the renderer from the budget the four rows leave
+  over, both absent whole at the 4x3 size. Under the SCHEDULE
+  row hangs the mini rail (db_rail): a vertical line in the
+  Up Next rail's own structure — segments around a fixed dot
+  cell per slot, seven fixed slots — carrying the rest of
+  today as stops (title + time line) with a pale gap box on
+  the line for an open stretch of 15 minutes or more. And
+  below FAST, past a fourth hairline, the TOMORROW row
+  (db_row_tomorrow): a moon glyph in a tonal square, the
+  fast row's own dress.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/db_root"
@@ -375,6 +388,900 @@
         android:textColor="#79747E" />
     </LinearLayout>
 
+    <!-- v470: the mini rail (DB-T3) — hangs under the SCHEDULE
+         row, inside its section (no hairline between the row
+         and its rail; hair_3 below still parts the section
+         from FAST). -->
+    <LinearLayout
+      android:id="@+id/db_rail"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="vertical"
+      android:visibility="gone">
+      <FrameLayout
+        android:id="@+id/db_rail_row_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="9dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/db_seg_top_1"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/db_ring_1"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/db_dot_1"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/db_seg_bot_1"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <FrameLayout
+            android:layout_width="35dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/db_line_1"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:orientation="vertical"
+              android:paddingTop="3dp"
+              android:paddingBottom="3dp">
+
+              <TextView
+                android:id="@+id/db_title_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="13.5sp"
+                android:textStyle="bold"
+                android:textColor="#1D1B20" />
+
+              <TextView
+                android:id="@+id/db_sub_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </LinearLayout>
+
+            <FrameLayout
+              android:id="@+id/db_gapbox_1"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/db_gap_img_1"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/db_gap_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="5dp"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </FrameLayout>
+          </FrameLayout>
+        </LinearLayout>
+      </FrameLayout>
+      <FrameLayout
+        android:id="@+id/db_rail_row_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="9dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/db_seg_top_2"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/db_ring_2"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/db_dot_2"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/db_seg_bot_2"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <FrameLayout
+            android:layout_width="35dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/db_line_2"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:orientation="vertical"
+              android:paddingTop="3dp"
+              android:paddingBottom="3dp">
+
+              <TextView
+                android:id="@+id/db_title_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="13.5sp"
+                android:textStyle="bold"
+                android:textColor="#1D1B20" />
+
+              <TextView
+                android:id="@+id/db_sub_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </LinearLayout>
+
+            <FrameLayout
+              android:id="@+id/db_gapbox_2"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/db_gap_img_2"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/db_gap_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="5dp"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </FrameLayout>
+          </FrameLayout>
+        </LinearLayout>
+      </FrameLayout>
+      <FrameLayout
+        android:id="@+id/db_rail_row_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="9dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/db_seg_top_3"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/db_ring_3"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/db_dot_3"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/db_seg_bot_3"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <FrameLayout
+            android:layout_width="35dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/db_line_3"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:orientation="vertical"
+              android:paddingTop="3dp"
+              android:paddingBottom="3dp">
+
+              <TextView
+                android:id="@+id/db_title_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="13.5sp"
+                android:textStyle="bold"
+                android:textColor="#1D1B20" />
+
+              <TextView
+                android:id="@+id/db_sub_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </LinearLayout>
+
+            <FrameLayout
+              android:id="@+id/db_gapbox_3"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/db_gap_img_3"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/db_gap_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="5dp"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </FrameLayout>
+          </FrameLayout>
+        </LinearLayout>
+      </FrameLayout>
+      <FrameLayout
+        android:id="@+id/db_rail_row_4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="9dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/db_seg_top_4"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/db_ring_4"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/db_dot_4"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/db_seg_bot_4"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <FrameLayout
+            android:layout_width="35dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/db_line_4"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:orientation="vertical"
+              android:paddingTop="3dp"
+              android:paddingBottom="3dp">
+
+              <TextView
+                android:id="@+id/db_title_4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="13.5sp"
+                android:textStyle="bold"
+                android:textColor="#1D1B20" />
+
+              <TextView
+                android:id="@+id/db_sub_4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </LinearLayout>
+
+            <FrameLayout
+              android:id="@+id/db_gapbox_4"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/db_gap_img_4"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/db_gap_4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="5dp"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </FrameLayout>
+          </FrameLayout>
+        </LinearLayout>
+      </FrameLayout>
+      <FrameLayout
+        android:id="@+id/db_rail_row_5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="9dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/db_seg_top_5"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/db_ring_5"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/db_dot_5"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/db_seg_bot_5"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <FrameLayout
+            android:layout_width="35dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/db_line_5"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:orientation="vertical"
+              android:paddingTop="3dp"
+              android:paddingBottom="3dp">
+
+              <TextView
+                android:id="@+id/db_title_5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="13.5sp"
+                android:textStyle="bold"
+                android:textColor="#1D1B20" />
+
+              <TextView
+                android:id="@+id/db_sub_5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </LinearLayout>
+
+            <FrameLayout
+              android:id="@+id/db_gapbox_5"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/db_gap_img_5"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/db_gap_5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="5dp"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </FrameLayout>
+          </FrameLayout>
+        </LinearLayout>
+      </FrameLayout>
+      <FrameLayout
+        android:id="@+id/db_rail_row_6"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="9dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/db_seg_top_6"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/db_ring_6"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/db_dot_6"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/db_seg_bot_6"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <FrameLayout
+            android:layout_width="35dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/db_line_6"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:orientation="vertical"
+              android:paddingTop="3dp"
+              android:paddingBottom="3dp">
+
+              <TextView
+                android:id="@+id/db_title_6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="13.5sp"
+                android:textStyle="bold"
+                android:textColor="#1D1B20" />
+
+              <TextView
+                android:id="@+id/db_sub_6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </LinearLayout>
+
+            <FrameLayout
+              android:id="@+id/db_gapbox_6"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/db_gap_img_6"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/db_gap_6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="5dp"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </FrameLayout>
+          </FrameLayout>
+        </LinearLayout>
+      </FrameLayout>
+      <FrameLayout
+        android:id="@+id/db_rail_row_7"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <LinearLayout
+          android:layout_width="26dp"
+          android:layout_height="match_parent"
+          android:layout_marginStart="9dp"
+          android:orientation="vertical">
+
+          <ImageView
+            android:id="@+id/db_seg_top_7"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+
+          <FrameLayout
+            android:layout_width="26dp"
+            android:layout_height="20dp">
+
+            <ImageView
+              android:id="@+id/db_ring_7"
+              android:layout_width="19dp"
+              android:layout_height="19dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white"
+              android:visibility="gone" />
+
+            <ImageView
+              android:id="@+id/db_dot_7"
+              android:layout_width="11dp"
+              android:layout_height="11dp"
+              android:layout_gravity="center"
+              android:contentDescription="@null"
+              android:src="@drawable/widget_circle_white" />
+          </FrameLayout>
+
+          <ImageView
+            android:id="@+id/db_seg_bot_7"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_rail_seg" />
+        </LinearLayout>
+
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal">
+
+          <FrameLayout
+            android:layout_width="35dp"
+            android:layout_height="1dp" />
+
+          <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+              android:id="@+id/db_line_7"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:orientation="vertical"
+              android:paddingTop="3dp"
+              android:paddingBottom="3dp">
+
+              <TextView
+                android:id="@+id/db_title_7"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="13.5sp"
+                android:textStyle="bold"
+                android:textColor="#1D1B20" />
+
+              <TextView
+                android:id="@+id/db_sub_7"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </LinearLayout>
+
+            <FrameLayout
+              android:id="@+id/db_gapbox_7"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="2dp"
+              android:layout_marginBottom="2dp"
+              android:visibility="gone">
+
+              <ImageView
+                android:id="@+id/db_gap_img_7"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_rounded16" />
+
+              <TextView
+                android:id="@+id/db_gap_7"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="5dp"
+                android:textSize="12sp"
+                android:textColor="#49454F" />
+            </FrameLayout>
+          </FrameLayout>
+        </LinearLayout>
+      </FrameLayout>
+    </LinearLayout>
+
     <FrameLayout
       android:id="@+id/db_hair_3"
       android:layout_width="match_parent"
@@ -445,6 +1352,82 @@
 
       <TextView
         android:id="@+id/db_fast_chev"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:text="›"
+        android:textSize="22sp"
+        android:textColor="#79747E" />
+    </LinearLayout>
+
+    <FrameLayout
+      android:id="@+id/db_hair_4"
+      android:layout_width="match_parent"
+      android:layout_height="1dp"
+      android:background="#E0D8F5"
+      android:visibility="gone" />
+
+    <!-- TOMORROW (v470, DB-T3): a moon glyph in a tonal square —
+         the fast row's dress, the drawing's bottom row. -->
+    <LinearLayout
+      android:id="@+id/db_row_tomorrow"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:gravity="center_vertical"
+      android:paddingTop="10dp"
+      android:paddingBottom="10dp"
+      android:visibility="gone">
+
+      <FrameLayout
+        android:layout_width="44dp"
+        android:layout_height="44dp">
+
+        <ImageView
+          android:id="@+id/db_tomorrow_tile"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:src="@drawable/widget_tile_white"
+          android:contentDescription="@null" />
+
+        <ImageView
+          android:id="@+id/db_tomorrow_glyph"
+          android:layout_width="22dp"
+          android:layout_height="22dp"
+          android:layout_gravity="center"
+          android:contentDescription="@null" />
+      </FrameLayout>
+
+      <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="14dp"
+        android:orientation="vertical">
+
+        <TextView
+          android:id="@+id/db_tomorrow_title"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:singleLine="true"
+          android:ellipsize="end"
+          android:textSize="16sp"
+          android:textStyle="bold"
+          android:textColor="#1D1B20" />
+
+        <TextView
+          android:id="@+id/db_tomorrow_sub"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="2dp"
+          android:singleLine="true"
+          android:ellipsize="end"
+          android:textSize="12.5sp"
+          android:textColor="#49454F" />
+      </LinearLayout>
+
+      <TextView
+        android:id="@+id/db_tomorrow_chev"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="6dp"

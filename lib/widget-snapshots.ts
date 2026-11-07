@@ -1250,6 +1250,14 @@ export interface BreakdownSchedule {
   /** Tomorrow's first timed item; null when tomorrow holds
    * none (the row then reads "Tomorrow is clear"). */
   tomorrowFirst: { title: string; timeLabel: string } | null;
+  /** v470: how many timed items tomorrow holds in all — the
+   * count of the very collection tomorrowFirst is drawn from
+   * (collectDayItems for tomorrow: events + todos +
+   * ministries, holidays never items). The renderer's
+   * Tomorrow row (DB-T3) counts the day from it ("· {N}
+   * things all day"); it is 0 exactly when tomorrowFirst is
+   * null, and positive exactly when it stands. */
+  tomorrowCount: number;
   /** The current reading, "{Book} {chapter}" from the reading
    * position (getReadingPosition — the Study section's
    * authority) — the renderer appends it to the schedule
@@ -1393,8 +1401,9 @@ export function buildDailyBreakdownSnapshot(
     completed: item.completed,
   });
   const dayItems = collectDayItems(events, todos, ministries, todayIso, people).map(toDayItem);
+  const tomorrowItems = collectDayItems(events, todos, ministries, tomorrowIso, people);
   const firstTomorrow =
-    collectDayItems(events, todos, ministries, tomorrowIso, people)
+    tomorrowItems
       .slice()
       .sort((a, b) => a.startMinutes - b.startMinutes)[0] ?? null;
   const position = getReadingPosition(studyState);
@@ -1406,6 +1415,7 @@ export function buildDailyBreakdownSnapshot(
     tomorrowFirst: firstTomorrow
       ? { title: firstTomorrow.title, timeLabel: minutesToWidgetTime(firstTomorrow.startMinutes) }
       : null,
+    tomorrowCount: tomorrowItems.length,
     reading:
       readingBook && readingChapter != null ? `${readingBook} ${readingChapter}` : null,
   };

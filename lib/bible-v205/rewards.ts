@@ -91,6 +91,19 @@ export function bookIsComplete(state: StudyState, book: string): boolean {
  * "16 of 16 written" is the same book that lands in Written. The
  * XP finish rules (bookIsFinished / bibleIsFinished) are NOT this
  * rule and stay untouched — this is display grouping only.
+ *
+ * v461 — HIS MODEL (2026-11-06): the pipeline is Write → Complete →
+ * ReStudy. A chapter in ReStudy has already passed Complete —
+ * ReStudy is a LATER stage, not a lesser one — so the status arm
+ * counts 'restudy' alongside 'complete'. chapterStatus already
+ * resolves both roads in (a stored override, or bare restudyQueue
+ * membership), so both count. The evidence that forced it:
+ * Ecclesiastes stood with all 12 chapters in restudy while only
+ * chapters 1–2 carry note entries in the app data, and the card
+ * read "2 of 12 written" for a book he had completed cover to
+ * cover. The XP finish rules still are NOT this rule: they never
+ * routed through here (bookIsComplete checks the literal
+ * 'complete' status itself) and stay untouched.
  */
 export function chapterIsWritten(
   state: StudyState,
@@ -98,8 +111,10 @@ export function chapterIsWritten(
   chapter: number,
   imports: StudioImportsMap = {},
 ): boolean {
+  const status = chapterStatus(state, book, chapter);
   return (
-    chapterStatus(state, book, chapter) === 'complete' ||
+    status === 'complete' ||
+    status === 'restudy' ||
     chapterHasNotes(book, chapter, imports)
   );
 }

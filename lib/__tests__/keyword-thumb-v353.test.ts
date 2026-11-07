@@ -102,7 +102,8 @@ describe("v353 — the Up Next-only thumb set is exact and self-consistent", () 
     // v376: 173 — td-mississippi-pot-roast joined the scene set.
     // v414: 174 — daily-brief joined the scene set (the Daily Brief door;
     // Jonathan approved daily-breakdown-concepts-v6, Nov 2).
-    expect(specKeysOf("KEYWORD_THUMB_SPECS").length).toBe(174);
+    // v468: 175 — tv-boardwalk-empire joined the scene set (Boardwalk Empire).
+    expect(specKeysOf("KEYWORD_THUMB_SPECS").length).toBe(175);
   });
 
   it("every thumb-only motion names a vocabulary kind inside the calm band", () => {

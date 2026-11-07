@@ -124,9 +124,11 @@ describe("v467 — the default path really yields paper scenes for real events",
 });
 
 describe("v467 — no scene registry lost an entry", () => {
-  it("all three registries still hold their 174 scenes", () => {
-    expect(registryKeyCount(read("components/paper-keyword-scenes.tsx"), "const PAPER_SCENE_REGISTRY")).toBe(174);
-    expect(registryKeyCount(read("components/pixel-keyword-scenes.tsx"), "const PIXEL_SCENE_REGISTRY")).toBe(174);
-    expect(registryKeyCount(read("components/terminal-keyword-scenes.tsx"), "const TERMINAL_SCENE_REGISTRY")).toBe(174);
+  it("all three registries still hold their scenes (v468: 175 — Boardwalk Empire joined)", () => {
+    // v468: each registry grew by one — "tv-boardwalk-empire" was
+    // registered in all three dialects; nothing was lost.
+    expect(registryKeyCount(read("components/paper-keyword-scenes.tsx"), "const PAPER_SCENE_REGISTRY")).toBe(175);
+    expect(registryKeyCount(read("components/pixel-keyword-scenes.tsx"), "const PIXEL_SCENE_REGISTRY")).toBe(175);
+    expect(registryKeyCount(read("components/terminal-keyword-scenes.tsx"), "const TERMINAL_SCENE_REGISTRY")).toBe(175);
   });
 });

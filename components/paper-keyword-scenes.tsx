@@ -3832,6 +3832,81 @@ export function PaperTvSopranosScene() {
   );
 }
 
+export function PaperTvBoardwalkEmpireScene() {
+  // Atlantic City at dusk, cut from paper: the 1920s skyline, the
+  // pier wheel with its gondolas swaying, boardwalk planks laid over
+  // layered paper waves. Classy, no mob imagery.
+  return (
+    <PaperSceneRoot base="#1F3A4D">
+      <PaperPulse left="90%" bottom={116} width={24} height={24} min={1} max={1.05} duration={5200}>
+        <PaperPiece style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: "#F5F0E6" }} />
+      </PaperPulse>
+      {/* the 1920s skyline, settling in along the shore */}
+      <SettleIn delay={40} style={{ position: "absolute", left: "48%", bottom: 46, width: 36, height: 62 }}>
+        <PaperPiece style={{ width: 36, height: 62, backgroundColor: "#152A3A" }} />
+        <PaperPiece style={{ position: "absolute", left: 7, bottom: 40, width: 6, height: 8, backgroundColor: "#FFD54F", opacity: 0.85 }} />
+        <PaperPiece style={{ position: "absolute", left: 21, bottom: 24, width: 6, height: 8, backgroundColor: "#FFD54F", opacity: 0.6 }} />
+      </SettleIn>
+      <SettleIn delay={110} style={{ position: "absolute", left: "57%", bottom: 46, width: 27, height: 84 }}>
+        <PaperPiece style={{ width: 27, height: 84, backgroundColor: "#132635" }} />
+        <PaperPiece style={{ position: "absolute", left: 10, bottom: 74, width: 9, height: 9, backgroundColor: "#132635", transform: [{ rotate: "45deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 5, bottom: 56, width: 6, height: 8, backgroundColor: "#FFE082", opacity: 0.8 }} />
+        <PaperPiece style={{ position: "absolute", left: 15, bottom: 34, width: 6, height: 8, backgroundColor: "#FFD54F", opacity: 0.55 }} />
+      </SettleIn>
+      <SettleIn delay={170} style={{ position: "absolute", left: "89%", bottom: 46, width: 42, height: 54 }}>
+        <PaperPiece style={{ width: 42, height: 54, backgroundColor: "#152A3A" }} />
+        <PaperPiece style={{ position: "absolute", left: 9, bottom: 30, width: 6, height: 8, backgroundColor: "#FFD54F", opacity: 0.7 }} />
+        <PaperPiece style={{ position: "absolute", left: 26, bottom: 14, width: 6, height: 8, backgroundColor: "#FFD54F", opacity: 0.55 }} />
+      </SettleIn>
+      {/* the pier wheel — paper ring and spokes, gondolas swaying */}
+      <SettleIn delay={230} style={{ position: "absolute", left: "66%", bottom: 34, width: 92, height: 118 }}>
+        <PaperPiece style={{ position: "absolute", left: 43, bottom: 0, width: 6, height: 34, borderRadius: 3, backgroundColor: "#0F2231", transform: [{ rotate: "0deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 24, bottom: 0, width: 6, height: 32, borderRadius: 3, backgroundColor: "#0F2231", opacity: 0.7, transform: [{ rotate: "18deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 62, bottom: 0, width: 6, height: 32, borderRadius: 3, backgroundColor: "#0F2231", opacity: 0.7, transform: [{ rotate: "-18deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 5, bottom: 28, width: 82, height: 82, borderRadius: 41, borderWidth: 5, borderColor: "#FFD54F", backgroundColor: "transparent" }} />
+        <PaperPiece style={{ position: "absolute", left: 44, bottom: 30, width: 4, height: 78, backgroundColor: "#FFD54F", opacity: 0.6 }} />
+        <PaperPiece style={{ position: "absolute", left: 8, bottom: 67, width: 78, height: 4, backgroundColor: "#FFD54F", opacity: 0.6 }} />
+        <PaperPiece style={{ position: "absolute", left: 39, bottom: 62, width: 14, height: 14, borderRadius: 7, backgroundColor: "#FFE082" }} />
+      </SettleIn>
+      <PaperBob left="70%" bottom={98} width={15} height={12} distance={2} duration={3600}>
+        <PaperPiece style={{ width: 15, height: 12, borderRadius: 4, backgroundColor: "#C0392B" }} />
+      </PaperBob>
+      <PaperBob left="84%" bottom={98} width={15} height={12} distance={2} duration={4200} delay={800}>
+        <PaperPiece style={{ width: 15, height: 12, borderRadius: 4, backgroundColor: "#2E6E8E" }} />
+      </PaperBob>
+      <PaperBob left="77%" bottom={40} width={15} height={12} distance={2} duration={3900} delay={400}>
+        <PaperPiece style={{ width: 15, height: 12, borderRadius: 4, backgroundColor: "#D8A04A" }} />
+      </PaperBob>
+      {/* the ocean — layered paper waves */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 36, backgroundColor: "#14586B" }} />
+      <View style={{ position: "absolute", left: "44%", right: 0, bottom: 30, height: 7, borderRadius: 3.5, backgroundColor: "#1D7288" }} />
+      <View style={{ position: "absolute", left: "52%", bottom: 20, width: 46, height: 4, borderRadius: 2, backgroundColor: "#7FC4C9", opacity: 0.5 }} />
+      <View style={{ position: "absolute", left: "72%", bottom: 11, width: 60, height: 4, borderRadius: 2, backgroundColor: "#7FC4C9", opacity: 0.35 }} />
+      <View style={{ position: "absolute", left: "58%", bottom: 4, width: 36, height: 4, borderRadius: 2, backgroundColor: "#7FC4C9", opacity: 0.45 }} />
+      {/* the boardwalk — a plank strip on pilings, lamps settling along the rail */}
+      <SettleIn delay={300} style={{ position: "absolute", left: "44%", right: 0, bottom: 32, height: 13 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 13, backgroundColor: "#8A6742" }} />
+        <PaperPiece style={{ position: "absolute", left: 0, right: 0, bottom: 10, height: 3, backgroundColor: "#A87F52" }} />
+        {[10, 26, 42, 58, 74, 90].map((x) => (
+          <PaperPiece key={x} style={{ position: "absolute", left: `${x}%` as `${number}%`, bottom: 0, width: 2, height: 13, backgroundColor: "#6E4F30", opacity: 0.7 }} />
+        ))}
+      </SettleIn>
+      <View style={{ position: "absolute", left: "50%", bottom: 20, width: 4, height: 12, backgroundColor: "#5D4028" }} />
+      <View style={{ position: "absolute", left: "72%", bottom: 20, width: 4, height: 12, backgroundColor: "#5D4028" }} />
+      <View style={{ position: "absolute", left: "93%", bottom: 20, width: 4, height: 12, backgroundColor: "#5D4028" }} />
+      {[
+        { left: "52%", delay: 420 },
+        { left: "63%", delay: 540 },
+        { left: "95%", delay: 660 },
+      ].map((l) => (
+        <SettleIn key={l.left} delay={l.delay} style={{ position: "absolute", left: l.left as `${number}%`, bottom: 47, width: 7, height: 7 }}>
+          <PaperPiece style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#FFE082" }} />
+        </SettleIn>
+      ))}
+    </PaperSceneRoot>
+  );
+}
+
 export function PaperTvSkinsScene() {
   // Bristol rooftops under a string of party lights.
   return (
@@ -5929,6 +6004,7 @@ const PAPER_SCENE_REGISTRY: Record<PaperSceneId, () => ReactNode> = {
   "tv-chosen": PaperTvChosenScene,
   "tv-bear": PaperTvBearScene,
   "tv-sopranos": PaperTvSopranosScene,
+  "tv-boardwalk-empire": PaperTvBoardwalkEmpireScene,
   "tv-skins": PaperTvSkinsScene,
   "tv-got": PaperTvGotScene,
   "tv-dbz": PaperTvDbzScene,

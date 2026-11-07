@@ -132,7 +132,8 @@ describe("v336 scenes", () => {
     // v376: 173 — td-mississippi-pot-roast joined the set after this pin was written.
     // v414: 174 — daily-brief joined the set (the Daily Brief door;
     // Jonathan approved daily-breakdown-concepts-v6, Nov 2).
-    expect(ids.length).toBe(174);
+    // v468: 175 — tv-boardwalk-empire joined the set (Boardwalk Empire).
+    expect(ids.length).toBe(175);
     expect(ids).toContain("news");
     expect(ids).toContain("email");
   });

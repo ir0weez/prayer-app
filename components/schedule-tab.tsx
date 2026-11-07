@@ -3390,6 +3390,70 @@ function SopranosScene() {
   );
 }
 
+/** Boardwalk Empire: Atlantic City at dusk — the boardwalk planks, the pier wheel turning over the ocean, 1920s rooftops behind. Classy, no mob imagery. */
+function BoardwalkEmpireScene() {
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 16000, easing: Easing.linear, useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [spin]);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  return (
+    <SceneRoot base="#1F3A4D">
+      <BreatheGlow color="#FFB74D" size={130} left="64%" bottom={26} min={0.12} max={0.26} duration={5200} />
+      {/* 1920s skyline along the shore */}
+      <View style={{ position: "absolute", left: "50%", bottom: 44, width: 34, height: 62, backgroundColor: "#152A3A" }} />
+      <View style={{ position: "absolute", left: "58%", bottom: 44, width: 26, height: 84, backgroundColor: "#132635" }} />
+      <View style={{ position: "absolute", left: "90%", bottom: 44, width: 40, height: 54, backgroundColor: "#152A3A" }} />
+      <View style={{ position: "absolute", left: "61.5%", bottom: 124, width: 10, height: 10, backgroundColor: "#132635", transform: [{ rotate: "45deg" }] }} />
+      {/* lit windows */}
+      <View style={{ position: "absolute", left: "53%", bottom: 84, width: 6, height: 8, backgroundColor: "#FFD54F", opacity: 0.85 }} />
+      <View style={{ position: "absolute", left: "53%", bottom: 62, width: 6, height: 8, backgroundColor: "#FFD54F", opacity: 0.6 }} />
+      <View style={{ position: "absolute", left: "62%", bottom: 100, width: 6, height: 8, backgroundColor: "#FFE082", opacity: 0.8 }} />
+      <View style={{ position: "absolute", left: "62%", bottom: 76, width: 6, height: 8, backgroundColor: "#FFD54F", opacity: 0.55 }} />
+      <View style={{ position: "absolute", left: "93%", bottom: 72, width: 6, height: 8, backgroundColor: "#FFD54F", opacity: 0.7 }} />
+      {/* the pier wheel, turning slow over the water */}
+      <View style={{ position: "absolute", left: "68%", bottom: 30, width: 96, height: 112 }}>
+        <View style={{ position: "absolute", left: 45, bottom: 0, width: 6, height: 56, backgroundColor: "#0F2231", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 26, bottom: 0, width: 5, height: 42, backgroundColor: "#0F2231", opacity: 0.6, transform: [{ rotate: "24deg" }] }} />
+        <View style={{ position: "absolute", left: 64, bottom: 0, width: 5, height: 42, backgroundColor: "#0F2231", opacity: 0.6, transform: [{ rotate: "-24deg" }] }} />
+        <Animated.View style={{ position: "absolute", left: 6, top: 0, width: 84, height: 84, transform: [{ rotate }] }}>
+          <View style={{ position: "absolute", left: 0, top: 0, width: 84, height: 84, borderRadius: 42, borderWidth: 4, borderColor: "#FFD54F", backgroundColor: "transparent" }} />
+          <View style={{ position: "absolute", left: 40, top: 3, width: 4, height: 78, backgroundColor: "#FFD54F", opacity: 0.55 }} />
+          <View style={{ position: "absolute", left: 3, top: 40, width: 78, height: 4, backgroundColor: "#FFD54F", opacity: 0.55 }} />
+          <View style={{ position: "absolute", left: 34, top: -4, width: 16, height: 11, borderRadius: 4, backgroundColor: "#C0392B" }} />
+          <View style={{ position: "absolute", left: 34, bottom: -4, width: 16, height: 11, borderRadius: 4, backgroundColor: "#2E6E8E" }} />
+          <View style={{ position: "absolute", left: -4, top: 36, width: 16, height: 11, borderRadius: 4, backgroundColor: "#D8A04A" }} />
+          <View style={{ position: "absolute", right: -4, top: 36, width: 16, height: 11, borderRadius: 4, backgroundColor: "#7A9B6D" }} />
+        </Animated.View>
+        <View style={{ position: "absolute", left: 44, top: 38, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFE082" }} />
+      </View>
+      {/* the ocean */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 34, backgroundColor: "#14586B" }} />
+      <View style={{ position: "absolute", left: "52%", bottom: 24, width: 44, height: 3, borderRadius: 1.5, backgroundColor: "#7FC4C9", opacity: 0.5 }} />
+      <View style={{ position: "absolute", left: "70%", bottom: 14, width: 58, height: 3, borderRadius: 1.5, backgroundColor: "#7FC4C9", opacity: 0.35 }} />
+      <View style={{ position: "absolute", left: "58%", bottom: 6, width: 34, height: 3, borderRadius: 1.5, backgroundColor: "#7FC4C9", opacity: 0.45 }} />
+      {/* the boardwalk — planks on pilings over the water's edge */}
+      <View style={{ position: "absolute", left: "46%", right: 0, bottom: 30, height: 12, backgroundColor: "#8A6742" }} />
+      <View style={{ position: "absolute", left: "46%", right: 0, bottom: 40, height: 3, backgroundColor: "#A87F52" }} />
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <View key={i} style={{ position: "absolute", left: `${52 + i * 8}%` as `${number}%`, bottom: 30, width: 2, height: 12, backgroundColor: "#6E4F30", opacity: 0.7 }} />
+      ))}
+      <View style={{ position: "absolute", left: "50%", bottom: 18, width: 4, height: 12, backgroundColor: "#5D4028" }} />
+      <View style={{ position: "absolute", left: "72%", bottom: 18, width: 4, height: 12, backgroundColor: "#5D4028" }} />
+      <View style={{ position: "absolute", left: "92%", bottom: 18, width: 4, height: 12, backgroundColor: "#5D4028" }} />
+      {/* boardwalk lamps along the rail */}
+      <PulseDot left="54%" bottom={47} size={6} color="#FFE082" delay={0} duration={2400} />
+      <PulseDot left="66%" bottom={47} size={6} color="#FFE082" delay={700} duration={2400} />
+      <PulseDot left="94%" bottom={47} size={6} color="#FFE082" delay={1400} duration={2400} />
+      <TwinkleField color="#FFE0B2" count={4} seed={57} />
+    </SceneRoot>
+  );
+}
+
 /** Skins: Bristol party night — string lights, rooftops, rising sparks. */
 function SkinsScene() {
   return (
@@ -7419,6 +7483,7 @@ function detectTVShowScene(notes: string | undefined | null, title: string | und
   if (has("the chosen")) return <ChosenScene />;
   if (has("the bear", "yes chef")) return <BearScene />;
   if (has("sopranos")) return <SopranosScene />;
+  if (has("boardwalk empire")) return <BoardwalkEmpireScene />;
   if (has("skins")) return <SkinsScene />;
   if (has("game of thrones", "winterfell", "westeros") || /\bgot\b/.test(text)) return <GOTScene />;
   if (has("dragon ball", "dbz")) return <DBZScene />;

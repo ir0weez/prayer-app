@@ -11,7 +11,7 @@
  * The literal poster fonts are mostly custom/trademarked lettering,
  * so each show gets a FREE lookalike (Google Fonts), subsetted to the
  * Latin alphabet + digits + show-name punctuation and bundled in
- * assets/fonts/show-*.ttf (29 files, 573,872 bytes total), registered
+ * assets/fonts/show-*.ttf (30 files, 593,864 bytes total), registered
  * in app/_layout.tsx the way the skin fonts are. A show with no
  * mapped font renders byte-identical to before — the segmented
  * sub-line path only engages when a font AND the name both match.
@@ -29,6 +29,7 @@
  *   The Chosen             Cinzel Bold              SIL OFL 1.1
  *   The Bear               Archivo ExtraBold        SIL OFL 1.1
  *   The Sopranos           Archivo Narrow Bold      SIL OFL 1.1
+ *   Boardwalk Empire       Limelight                SIL OFL 1.1
  *   Skins                  Nunito ExtraBold         SIL OFL 1.1
  *   Game of Thrones        Cinzel Decorative Bold   SIL OFL 1.1
  *   Dragon Ball Z          Passion One Black        SIL OFL 1.1
@@ -86,6 +87,7 @@ export const SHOW_FONTS: Record<string, ShowFontEntry> = {
   "the-chosen": { key: "the-chosen", displayName: "The Chosen", aliases: ["Chosen"], fontFamily: "ShowCinzel", file: "show-cinzel.ttf", lookalike: "Cinzel Bold", license: "SIL OFL 1.1" },
   "the-bear": { key: "the-bear", displayName: "The Bear", fontFamily: "ShowArchivo", file: "show-archivo.ttf", lookalike: "Archivo ExtraBold", license: "SIL OFL 1.1" },
   sopranos: { key: "sopranos", displayName: "The Sopranos", aliases: ["Sopranos"], fontFamily: "ShowArchivoNarrow", file: "show-archivo-narrow.ttf", lookalike: "Archivo Narrow Bold", license: "SIL OFL 1.1" },
+  "boardwalk-empire": { key: "boardwalk-empire", displayName: "Boardwalk Empire", fontFamily: "ShowLimelight", file: "show-limelight.ttf", lookalike: "Limelight", license: "SIL OFL 1.1" },
   skins: { key: "skins", displayName: "Skins", fontFamily: "ShowNunito", file: "show-nunito.ttf", lookalike: "Nunito ExtraBold", license: "SIL OFL 1.1" },
   "game-of-thrones": { key: "game-of-thrones", displayName: "Game of Thrones", fontFamily: "ShowCinzelDecorative", file: "show-cinzel-decorative.ttf", lookalike: "Cinzel Decorative Bold", license: "SIL OFL 1.1" },
   "dragon-ball-z": { key: "dragon-ball-z", displayName: "Dragon Ball Z", aliases: ["Dragon Ball"], fontFamily: "ShowPassionOne", file: "show-passion-one.ttf", lookalike: "Passion One Black", license: "SIL OFL 1.1" },
@@ -136,6 +138,7 @@ export function detectShowFont(notes: string | undefined | null, title: string |
   if (has("the chosen")) return SHOW_FONTS["the-chosen"];
   if (has("the bear", "yes chef")) return SHOW_FONTS["the-bear"];
   if (has("sopranos")) return SHOW_FONTS["sopranos"];
+  if (has("boardwalk empire")) return SHOW_FONTS["boardwalk-empire"];
   if (has("skins")) return SHOW_FONTS["skins"];
   if (has("game of thrones", "winterfell", "westeros") || /\bgot\b/.test(text)) return SHOW_FONTS["game-of-thrones"];
   if (has("dragon ball", "dbz")) return SHOW_FONTS["dragon-ball-z"];

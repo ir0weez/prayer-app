@@ -225,6 +225,7 @@ export const KEYWORD_THUMB_MOTIONS: Record<string, ThumbMotionSpec> = {
   "tv-bear": { kind: "shimmer", duration: 3600 },
   "tv-better-call-saul": { kind: "shimmer", duration: 3600 },
   "tv-bluey": { kind: "shimmer", duration: 3600 },
+  "tv-boardwalk-empire": { kind: "shimmer", duration: 3600 },
   "tv-boys": { kind: "flicker", duration: 2600 },
   "tv-breaking-bad": { kind: "shimmer", duration: 3600 },
   "tv-carrie": { kind: "shimmer", duration: 3600 },

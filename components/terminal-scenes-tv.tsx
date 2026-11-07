@@ -58,6 +58,57 @@ export function TermTvSopranosScene() {
   );
 }
 
+// Boardwalk Empire — Atlantic City at dusk: 1920s rooftops behind,
+// the pier wheel over the water, and the boardwalk drawn in planks
+// and pilings along the shore.
+export function TermTvBoardwalkEmpireScene() {
+  return (
+    <TermSceneRoot>
+      {/* 1920s skyline */}
+      <LR x={92} y={42} width={22} height={36} c={TERM_MID} w={1.7} />
+      <LR x={97} y={50} width={5} height={6} c={TERM_SOFT} w={1.3} />
+      <LR x={105} y={62} width={5} height={6} c={TERM_DIM} w={1.3} />
+      <LR x={118} y={30} width={16} height={48} c={TERM_MID} w={1.7} />
+      <LP d="M 122 30 L 126 22 L 130 30" c={TERM_MID} w={1.6} />
+      <LR x={123} y={40} width={5} height={6} c={TERM_SOFT} w={1.3} />
+      <LR x={123} y={58} width={5} height={6} c={TERM_DIM} w={1.3} />
+      {/* the pier wheel */}
+      <LC cx={166} cy={48} r={29} c={TERM_PHOS} w={2.2} />
+      <LC cx={166} cy={48} r={22} c={TERM_MID} w={1.3} />
+      <LL x1={166} y1={19} x2={166} y2={77} c={TERM_MID} w={1.5} />
+      <LL x1={137} y1={48} x2={195} y2={48} c={TERM_MID} w={1.5} />
+      <LL x1={145} y1={27} x2={187} y2={69} c={TERM_DIM} w={1.3} />
+      <LL x1={187} y1={27} x2={145} y2={69} c={TERM_DIM} w={1.3} />
+      <LDot cx={166} cy={48} r={2.2} c={TERM_PHOS} />
+      <LR x={160} y={14} width={12} height={9} c={TERM_SOFT} w={1.6} />
+      <LR x={160} y={73} width={12} height={9} c={TERM_SOFT} w={1.6} />
+      <LR x={132} y={44} width={11} height={9} c={TERM_SOFT} w={1.6} />
+      <LR x={189} y={44} width={11} height={9} c={TERM_SOFT} w={1.6} />
+      <LL x1={154} y1={106} x2={166} y2={77} c={TERM_MID} w={1.7} />
+      <LL x1={178} y1={106} x2={166} y2={77} c={TERM_MID} w={1.7} />
+      {/* the boardwalk — a plank line on pilings */}
+      <LL x1={84} y1={84} x2={200} y2={84} c={TERM_PHOS} w={2.1} />
+      <LL x1={84} y1={88} x2={200} y2={88} c={TERM_MID} w={1.4} />
+      <LL x1={100} y1={84} x2={100} y2={88} c={TERM_DIM} w={1.3} />
+      <LL x1={124} y1={84} x2={124} y2={88} c={TERM_DIM} w={1.3} />
+      <LL x1={148} y1={84} x2={148} y2={88} c={TERM_DIM} w={1.3} />
+      <LL x1={172} y1={84} x2={172} y2={88} c={TERM_DIM} w={1.3} />
+      <LL x1={92} y1={88} x2={92} y2={100} c={TERM_MID} w={1.5} />
+      <LL x1={136} y1={88} x2={136} y2={100} c={TERM_MID} w={1.5} />
+      <LL x1={184} y1={88} x2={184} y2={100} c={TERM_MID} w={1.5} />
+      {/* lamps on the rail */}
+      <LDot cx={108} cy={79} r={1.8} c={TERM_SOFT} />
+      <LL x1={108} y1={81} x2={108} y2={84} c={TERM_MID} w={1.3} />
+      <LDot cx={158} cy={79} r={1.8} c={TERM_SOFT} />
+      <LL x1={158} y1={81} x2={158} y2={84} c={TERM_MID} w={1.3} />
+      {/* the water */}
+      <LP d="M 96 104 L 128 104" c={TERM_MID} w={1.5} dash="6 4" />
+      <LP d="M 142 110 L 186 110" c={TERM_DIM} w={1.5} dash="6 4" />
+      <LP d="M 104 115 L 138 115" c={TERM_DIM} w={1.5} dash="6 4" />
+    </TermSceneRoot>
+  );
+}
+
 // Generic TV — a living room set: big set on its stand, rabbit-ear
 // aerial, and the couch that faces it.
 export function TermTvGenericScene() {

@@ -130,6 +130,7 @@ function tvSceneId(title: string, notes: string): PaperSceneId {
   if (has("the chosen")) return "tv-chosen";
   if (has("the bear", "yes chef")) return "tv-bear";
   if (has("sopranos")) return "tv-sopranos";
+  if (has("boardwalk empire")) return "tv-boardwalk-empire";
   if (has("skins")) return "tv-skins";
   if (has("game of thrones", "winterfell", "westeros") || /\bgot\b/.test(text)) return "tv-got";
   if (has("dragon ball", "dbz")) return "tv-dbz";
@@ -306,6 +307,7 @@ export function allPaperSceneIds(): PaperSceneId[] {
     "tv-chosen",
     "tv-bear",
     "tv-sopranos",
+    "tv-boardwalk-empire",
     "tv-skins",
     "tv-got",
     "tv-dbz",

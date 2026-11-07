@@ -211,13 +211,15 @@ describe("v308 midnight — the shared formatter tells the truth", () => {
 });
 
 describe("v308 show fonts — the registry is complete and bundled", () => {
-  it("covers every show detectTVShowScene recognises (38)", () => {
-    expect(Object.keys(SHOW_FONTS)).toHaveLength(38);
+  it("covers every show detectTVShowScene recognises (39)", () => {
+    // v468: 39 — Boardwalk Empire joined the registry (Limelight).
+    expect(Object.keys(SHOW_FONTS)).toHaveLength(39);
   });
 
   it("every entry's font file is bundled and its family registered in the layout", () => {
     const files = new Set(Object.values(SHOW_FONTS).map((e) => e.file));
-    expect(files.size).toBe(29);
+    // v468: 30 files — show-limelight.ttf joined the bundle.
+    expect(files.size).toBe(30);
     for (const e of Object.values(SHOW_FONTS)) {
       expect(existsSync(join(root, "assets/fonts", e.file)), e.file).toBe(true);
       expect(layout, e.fontFamily).toContain(`${e.fontFamily}: require("@/assets/fonts/${e.file}")`);

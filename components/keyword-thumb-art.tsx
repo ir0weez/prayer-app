@@ -683,6 +683,13 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
     { k: "c", x: 26, y: 14.5, r: 3.2, f: "#FFFFFF" },
     { k: "c", x: 28.6, y: 14.5, r: 1.1, f: "#FFB300" },
   ] },
+  "tv-boardwalk-empire": { g: "#1F3A4D", s: [
+    { k: "o", x: 20, y: 16.5, r: 9, f: "#FFD54F", bw: 1.6 },
+    { k: "r", x: 19.2, y: 8, w: 1.6, h: 17, f: "#FFD54F" },
+    { k: "r", x: 11.5, y: 15.7, w: 17, h: 1.6, f: "#FFD54F" },
+    { k: "c", x: 20, y: 16.5, r: 1.8, f: "#FFD54F" },
+    { k: "e", x: 5, y: 29.5, w: 30, h: 5, f: "#4FC3F7" },
+  ] },
   "tv-skins": { g: "#2A2440", icon: "tv", fg: "#CE93D8" },
   "tv-got": { g: "#2E3A4E", s: [
     { k: "r", x: 18.8, y: 7, w: 2.5, h: 17, f: "#CFD8DC", rad: 1 },

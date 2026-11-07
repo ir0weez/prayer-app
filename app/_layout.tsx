@@ -464,6 +464,7 @@ export default function RootLayout() {
     ShowBlackOps: require("@/assets/fonts/show-black-ops.ttf"),
     ShowImFell: require("@/assets/fonts/show-im-fell.ttf"),
     ShowGrenzeGotisch: require("@/assets/fonts/show-grenze-gotisch.ttf"),
+    ShowLimelight: require("@/assets/fonts/show-limelight.ttf"),
   });
   return (
     <ThemeProvider>

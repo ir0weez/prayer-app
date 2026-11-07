@@ -260,6 +260,65 @@ export function PixelTvSopranosScene() {
   );
 }
 
+export function PixelTvBoardwalkEmpireScene() {
+  return (
+    <PixelSceneRoot base="#1F3A4D">
+      <Px style={{ position: "absolute", left: "88%", bottom: 112, width: 20, height: 20, backgroundColor: "#F5F0E6" }} />
+      <StepIn delay={50} style={{ position: "absolute", left: "48%", bottom: 48, width: 36, height: 60 }}>
+        <Px style={{ position: "absolute", left: 0, bottom: 0, width: 36, height: 60, backgroundColor: "#152A3A" }} shadow />
+        <Px style={{ position: "absolute", left: 8, bottom: 40, width: 8, height: 8, backgroundColor: "#FFD54F" }} />
+        <Px style={{ position: "absolute", left: 20, bottom: 20, width: 8, height: 8, backgroundColor: "#FFD54F" }} />
+      </StepIn>
+      <StepIn delay={120} style={{ position: "absolute", left: "58%", bottom: 48, width: 28, height: 84 }}>
+        <Px style={{ position: "absolute", left: 0, bottom: 0, width: 28, height: 76, backgroundColor: "#132635" }} shadow />
+        <Px style={{ position: "absolute", left: 8, bottom: 76, width: 12, height: 8, backgroundColor: "#132635" }} />
+        <Px style={{ position: "absolute", left: 8, bottom: 52, width: 8, height: 8, backgroundColor: "#FFE082" }} />
+        <Px style={{ position: "absolute", left: 8, bottom: 28, width: 8, height: 8, backgroundColor: "#FFD54F" }} />
+      </StepIn>
+      <StepIn delay={170} style={{ position: "absolute", left: "90%", bottom: 48, width: 40, height: 52 }}>
+        <Px style={{ position: "absolute", left: 0, bottom: 0, width: 40, height: 52, backgroundColor: "#152A3A" }} />
+        <Px style={{ position: "absolute", left: 8, bottom: 28, width: 8, height: 8, backgroundColor: "#FFD54F" }} />
+        <Px style={{ position: "absolute", left: 24, bottom: 12, width: 8, height: 8, backgroundColor: "#FFD54F" }} />
+      </StepIn>
+      {/* the pier wheel — chunky ring and cross-spokes, gondolas on the rim */}
+      <StepIn delay={240} style={{ position: "absolute", left: "66%", bottom: 36, width: 96, height: 112 }}>
+        <Px style={{ position: "absolute", left: 44, bottom: 0, width: 8, height: 36, backgroundColor: "#0F2231" }} />
+        <Px style={{ position: "absolute", left: 24, bottom: 0, width: 8, height: 28, backgroundColor: "#0F2231" }} />
+        <Px style={{ position: "absolute", left: 64, bottom: 0, width: 8, height: 28, backgroundColor: "#0F2231" }} />
+        <Px style={{ position: "absolute", left: 8, bottom: 32, width: 80, height: 80, backgroundColor: "#FFD54F" }} />
+        <Px style={{ position: "absolute", left: 16, bottom: 40, width: 64, height: 64, backgroundColor: "#1F3A4D" }} />
+        <Px style={{ position: "absolute", left: 44, bottom: 36, width: 8, height: 72, backgroundColor: "#FFD54F" }} />
+        <Px style={{ position: "absolute", left: 12, bottom: 68, width: 72, height: 8, backgroundColor: "#FFD54F" }} />
+        <Px style={{ position: "absolute", left: 40, bottom: 64, width: 16, height: 16, backgroundColor: "#FFE082" }} />
+        <Px style={{ position: "absolute", left: 36, bottom: 104, width: 24, height: 12, backgroundColor: "#C0392B" }} />
+        <Px style={{ position: "absolute", left: 36, bottom: 24, width: 24, height: 12, backgroundColor: "#2E6E8E" }} />
+        <Px style={{ position: "absolute", left: 0, bottom: 64, width: 16, height: 12, backgroundColor: "#D8A04A" }} />
+        <Px style={{ position: "absolute", left: 80, bottom: 64, width: 16, height: 12, backgroundColor: "#7A9B6D" }} />
+      </StepIn>
+      {/* the ocean */}
+      <Px style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 36, backgroundColor: "#14586B" }} />
+      <Px style={{ position: "absolute", left: "52%", bottom: 24, width: 44, height: 4, backgroundColor: "#7FC4C9" }} />
+      <Px style={{ position: "absolute", left: "70%", bottom: 12, width: 56, height: 4, backgroundColor: "#7FC4C9" }} />
+      <Px style={{ position: "absolute", left: "58%", bottom: 4, width: 36, height: 4, backgroundColor: "#7FC4C9" }} />
+      {/* the boardwalk — chunky planks on pilings */}
+      <StepIn delay={300} style={{ position: "absolute", left: "44%", right: 0, bottom: 32, height: 12 }}>
+        <Px style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 12, backgroundColor: "#8A6742" }} shadow />
+        <Px style={{ position: "absolute", left: 0, right: 0, bottom: 8, height: 4, backgroundColor: "#A87F52" }} />
+        <Px style={{ position: "absolute", left: "12%", bottom: 0, width: 4, height: 12, backgroundColor: "#6E4F30" }} />
+        <Px style={{ position: "absolute", left: "38%", bottom: 0, width: 4, height: 12, backgroundColor: "#6E4F30" }} />
+        <Px style={{ position: "absolute", left: "64%", bottom: 0, width: 4, height: 12, backgroundColor: "#6E4F30" }} />
+        <Px style={{ position: "absolute", left: "88%", bottom: 0, width: 4, height: 12, backgroundColor: "#6E4F30" }} />
+      </StepIn>
+      <Px style={{ position: "absolute", left: "50%", bottom: 20, width: 4, height: 12, backgroundColor: "#5D4028" }} />
+      <Px style={{ position: "absolute", left: "72%", bottom: 20, width: 4, height: 12, backgroundColor: "#5D4028" }} />
+      <Px style={{ position: "absolute", left: "92%", bottom: 20, width: 4, height: 12, backgroundColor: "#5D4028" }} />
+      <StepBlink period={1000} style={{ position: "absolute", left: "52%", bottom: 48, width: 8, height: 8 }}><Px style={{ width: 8, height: 8, backgroundColor: "#FFE082" }} /></StepBlink>
+      <StepBlink period={1300} style={{ position: "absolute", left: "62%", bottom: 48, width: 8, height: 8 }}><Px style={{ width: 8, height: 8, backgroundColor: "#FFE082" }} /></StepBlink>
+      <StepBlink period={1600} style={{ position: "absolute", left: "94%", bottom: 48, width: 8, height: 8 }}><Px style={{ width: 8, height: 8, backgroundColor: "#FFE082" }} /></StepBlink>
+    </PixelSceneRoot>
+  );
+}
+
 export function PixelTvSkinsScene() {
   return (
     <PixelSceneRoot base="#2A2440">

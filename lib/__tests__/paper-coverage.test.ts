@@ -368,10 +368,16 @@ describe("Paper coverage — v202 animation pass", () => {
     // v465 re-pin: the Weekly Recap group joins the stack (his
     // Saturday auto-open setting) — five group cards now, seven
     // settles in order, the Warning door last at index 6.
+    // v469 re-pin: his ruling moves the recap rows into the
+    // Schedule & Alerts card — the counters measure settles and
+    // group cards, so losing the standalone group restores the
+    // v315 shape exactly (four group cards, six settles, the
+    // Warning door last at index 5) while the switch row itself
+    // stays, now inside card 2.
     const settingsSlice = shell.slice(shell.indexOf("const renderSettingsScreen"), shell.indexOf("const [bibleChapters"));
     expect(settingsSlice).toContain("<PaperSettle index={0}");
-    expect((settingsSlice.match(/<PaperSettle index=\{\d+\}/g) ?? []).length).toBe(7);
-    expect((settingsSlice.match(/style=\{\[styles\.settingsGroupCard,/g) ?? []).length).toBe(5);
+    expect((settingsSlice.match(/<PaperSettle index=\{\d+\}/g) ?? []).length).toBe(6);
+    expect((settingsSlice.match(/style=\{\[styles\.settingsGroupCard,/g) ?? []).length).toBe(4);
     // The five slide-up sheets fade under Paper.
     expect(count(shell, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(5);
     expect(shell).toContain("<PaperSettle style={styles.themeSheet}>");

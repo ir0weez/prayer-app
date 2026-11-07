@@ -135,7 +135,11 @@ describe("8-bit coverage — v203 animation pass", () => {
     // profile card + seven section cards.)
     // v465 re-pin: the Weekly Recap group joins the stack — five
     // group cards (1–5), the Warning door at 6: seven settles.
-    expect((shell.match(/<BitSettle index=\{\d+\}>/g) ?? []).length).toBe(7);
+    // v469 re-pin: the recap rows move into the Schedule & Alerts
+    // card and the standalone group leaves the stack — this count
+    // measures indexed BitSettles shell-wide, so it returns to
+    // the v315 six (hero 0, group cards 1–4, Warning door 5).
+    expect((shell.match(/<BitSettle index=\{\d+\}>/g) ?? []).length).toBe(6);
     // v216 gave the six slide-up sheets (profile editor, fast
     // creator, family actions, theme, skin, app icon) definite-
     // height boxes so they rise; v219 restored the flex:1

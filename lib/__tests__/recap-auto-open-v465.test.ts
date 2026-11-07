@@ -94,9 +94,24 @@ describe("v465 Part B — the time choices", () => {
 });
 
 describe("v465 Part B — the wiring (source pins)", () => {
-  it("Settings carries the Weekly Recap group: the switch row and the four times", () => {
+  it("Settings carries the recap rows: the switch row and the four times", () => {
     const tabs = read("app/(tabs)/index.tsx");
-    expect(tabs).toContain('groupLabel("WEEKLY RECAP")');
+    // v469 re-pin: v465 seated these rows in a standalone WEEKLY
+    // RECAP group between SCHEDULE & ALERTS and DATA & BACKUP;
+    // his ruling ("Shouldn't it be with the notifications
+    // settings? Why does it have its own area?") moves them into
+    // the SCHEDULE & ALERTS card, at its end — no Weekly Recap
+    // group header exists anywhere in the Settings surface, and
+    // both rows render inside that card after the Quiet hours
+    // row. The preference pins below stand unchanged.
+    expect(tabs).not.toContain('groupLabel("WEEKLY RECAP")');
+    const alertsCard = tabs.slice(tabs.indexOf('groupLabel("SCHEDULE & ALERTS")'), tabs.indexOf('groupLabel("DATA & BACKUP")'));
+    const quietAt = alertsCard.indexOf('title: "Quiet hours"');
+    const switchAt = alertsCard.indexOf("Open the week's recap on Saturday");
+    const opensAt = alertsCard.indexOf("Opens at");
+    expect(quietAt).toBeGreaterThan(-1);
+    expect(switchAt).toBeGreaterThan(quietAt);
+    expect(opensAt).toBeGreaterThan(switchAt);
     expect(tabs).toContain("Open the week's recap on Saturday");
     expect(tabs).toContain("RECAP_AUTO_OPEN_TIMES");
     expect(tabs).toContain('weeklyRecapAutoOpenTime: "9:00 AM"');

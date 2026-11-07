@@ -30,9 +30,11 @@ import {
   getFastWeeks,
   getFastWeeksForQuarter,
   isFinalRecapReady,
+  recapScheduleItemsFromStores,
   recapToJournalBody,
   type FastRecap,
 } from "@/lib/fast-tracker";
+import { consumeRecapSaturdayIfSaturday } from "@/lib/recap-auto-open";
 import { createPrayerJournalEntry, normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { migrateDailyNotesToJournalEntries, resolveFastDayNotes } from "@/lib/fast-day-entries";
 import { hasTypeScale, skinText } from "@/lib/skin-themes";
@@ -61,7 +63,14 @@ import {
   removeFastDayStatus,
 } from "@/lib/prayercircle-fasting";
 import { FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
-import { SCHEDULE_EVENTS_KEY, type ScheduleEvent } from "@/lib/schedule-data";
+import {
+  SCHEDULE_EVENTS_KEY,
+  SCHEDULE_MINISTRIES_KEY,
+  SCHEDULE_TODOS_KEY,
+  type ScheduleEvent,
+  type ScheduleMinistry,
+  type ScheduleTodo,
+} from "@/lib/schedule-data";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { awardXP, loseHeart, restoreHeart, revokeXP } from "@/lib/xp-engine";
 
@@ -155,7 +164,10 @@ export default function FastingTrackerScreen() {
   // v360: My Profile's Fast History door lands here with
   // ?section=history — the page scrolls to the history section
   // below, the same landing the combined page's anchor scroll gave.
-  const params = useLocalSearchParams<{ section?: string }>();
+  // v465: the Saturday auto-open lands here with ?autoRecap=1 (the
+  // trigger lives in app/_layout.tsx; the param is honored once
+  // below and cleared, so a refocus never re-opens it).
+  const params = useLocalSearchParams<{ section?: string; autoRecap?: string }>();
 
   useFocusEffect(
     useCallback(() => {
@@ -339,14 +351,20 @@ export default function FastingTrackerScreen() {
   // fasting page itself never needed them before.
   const [recapPeople, setRecapPeople] = useState<Person[]>([]);
   const [recapEvents, setRecapEvents] = useState<ScheduleEvent[]>([]);
+  // v465: the Week Ahead blend counts all three kinds — the todos
+  // and ministries load beside the events.
+  const [recapTodos, setRecapTodos] = useState<ScheduleTodo[]>([]);
+  const [recapMinistries, setRecapMinistries] = useState<ScheduleMinistry[]>([]);
   useEffect(() => {
     if (!recapTarget) return;
     let live = true;
     (async () => {
       try {
-        const [peopleRaw, eventsRaw] = await Promise.all([
+        const [peopleRaw, eventsRaw, todosRaw, ministriesRaw] = await Promise.all([
           AsyncStorage.getItem(PEOPLE_STORAGE_KEY),
           AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
+          AsyncStorage.getItem(SCHEDULE_TODOS_KEY),
+          AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY),
         ]);
         if (!live) return;
         if (peopleRaw) {
@@ -356,6 +374,14 @@ export default function FastingTrackerScreen() {
         if (eventsRaw) {
           const parsed = JSON.parse(eventsRaw) as ScheduleEvent[];
           if (Array.isArray(parsed)) setRecapEvents(parsed);
+        }
+        if (todosRaw) {
+          const parsed = JSON.parse(todosRaw) as ScheduleTodo[];
+          if (Array.isArray(parsed)) setRecapTodos(parsed);
+        }
+        if (ministriesRaw) {
+          const parsed = JSON.parse(ministriesRaw) as ScheduleMinistry[];
+          if (Array.isArray(parsed)) setRecapMinistries(parsed);
         }
       } catch {
         // A recap composes fine without them — fasting facts only.
@@ -373,17 +399,39 @@ export default function FastingTrackerScreen() {
     return week
       ? composeWeeklyRecap(selectedFast, week, {
           people: recapPeople,
-          scheduleItems: recapEvents.map((e) => ({
-            date: e.date,
-            title: e.title,
-            startTime: e.startTime,
-            endTime: e.endTime,
-          })),
+          // v465: events + todos + ministries, one mapping.
+          scheduleItems: recapScheduleItemsFromStores(recapEvents, recapTodos, recapMinistries),
           // v410: the recap quotes the day entries — the one record.
           entries: journalEntries,
         })
       : null;
-  }, [selectedFast, recapTarget, recapWeeks, recapPeople, recapEvents, journalEntries]);
+  }, [selectedFast, recapTarget, recapWeeks, recapPeople, recapEvents, recapTodos, recapMinistries, journalEntries]);
+
+  // v465: consumed means consumed — a weekly recap opening on a
+  // Saturday spends that Saturday's auto-open, whichever path
+  // opened it (the trigger's landing below, or his own tap in the
+  // Recaps card). The final recap does not spend it: the setting
+  // belongs to the weekly document.
+  useEffect(() => {
+    if (recapTarget?.kind !== "week") return;
+    void consumeRecapSaturdayIfSaturday(new Date());
+  }, [recapTarget]);
+
+  // v465: the auto-open landing — open the latest available week's
+  // document (the Recaps card's own latest row: on a Saturday, the
+  // week ending today, whose Week Ahead is the coming week), once,
+  // then clear the param so a refocus never re-fires it.
+  const autoRecapHandledRef = useRef(false);
+  useEffect(() => {
+    if (params.autoRecap !== "1" || autoRecapHandledRef.current) return;
+    if (!selectedFast) return;
+    const available = recapWeeks.filter((w) => w.available);
+    const latest = available[available.length - 1];
+    if (!latest) return;
+    autoRecapHandledRef.current = true;
+    setRecapTarget({ kind: "week", startDate: latest.startDate });
+    router.setParams({ autoRecap: undefined });
+  }, [params.autoRecap, selectedFast, recapWeeks, router]);
 
   const recapSavedKey = recapTarget
     ? recapTarget.kind === "week"

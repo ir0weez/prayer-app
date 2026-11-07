@@ -12,7 +12,7 @@ import { Stack, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import {
@@ -46,6 +46,29 @@ import { syncAutoExportRegistration } from "@/lib/bible-v205/auto-export-task";
 // is native (modules/expo-prayercircle-widgets), so the v436/v437
 // headless task handler is gone: nothing registers here any more.
 import { refreshAndPushWidgets } from "@/lib/widget-push";
+// v465: the Weekly Recap's Saturday auto-open (lib/recap-auto-open)
+// — checked on mount and on every foreground return, beside the
+// widget push. It routes to the fasting screen with ?autoRecap=1;
+// the screen opens the document and spends the Saturday there.
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  loadLastAutoRecapSaturday,
+  loadRecapAutoOpenPreference,
+  localIsoDate,
+  shouldAutoOpenRecap,
+} from "@/lib/recap-auto-open";
+import { FASTS_STORAGE_KEY, PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import {
+  SCHEDULE_EVENTS_KEY,
+  SCHEDULE_MINISTRIES_KEY,
+  SCHEDULE_TODOS_KEY,
+  type ScheduleEvent,
+  type ScheduleMinistry,
+  type ScheduleTodo,
+} from "@/lib/schedule-data";
+import { getActiveFast, parseStoredFasts } from "@/lib/prayercircle-fasting";
+import { getTodayISOString, type Person } from "@/lib/prayercircle-data";
+import { composeWeeklyRecap, getFastRecapWeeks, recapScheduleItemsFromStores } from "@/lib/fast-tracker";
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 import { refreshGearBoostCache } from "@/lib/gear";
@@ -129,6 +152,85 @@ function RootLayoutContent() {
     }
   }, []);
 
+  // v465: the Weekly Recap auto-open — once a week, on Saturday,
+  // at his Settings-chosen time (his ask, Nov 7; the annoyance he
+  // named — it reappearing after he closes the app — is designed
+  // out by the consumed marker in lib/recap-auto-open). The
+  // decision is pure (shouldAutoOpenRecap); this check adds the
+  // "a recap worth opening stands" half: an active fast whose
+  // latest available week composes a Week Ahead. The navigation
+  // latches per process + Saturday so the mount pass and the
+  // first foreground pass can't double-fire before the fasting
+  // screen writes the marker when the document opens.
+  const autoRecapLatchedFor = useRef<string | null>(null);
+  const checkRecapAutoOpen = useCallback(async () => {
+    try {
+      const now = new Date();
+      const todayIso = localIsoDate(now);
+      if (autoRecapLatchedFor.current === todayIso) return;
+      const [preference, lastSaturday] = await Promise.all([
+        loadRecapAutoOpenPreference(),
+        loadLastAutoRecapSaturday(),
+      ]);
+      if (
+        !shouldAutoOpenRecap({
+          enabled: preference.enabled,
+          time: preference.time,
+          lastAutoRecapSaturday: lastSaturday,
+          now,
+        })
+      ) {
+        return;
+      }
+      const [fastsRaw, peopleRaw, eventsRaw, todosRaw, ministriesRaw] = await Promise.all([
+        AsyncStorage.getItem(FASTS_STORAGE_KEY),
+        AsyncStorage.getItem(PEOPLE_STORAGE_KEY),
+        AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
+        AsyncStorage.getItem(SCHEDULE_TODOS_KEY),
+        AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY),
+      ]);
+      const fast = getActiveFast(parseStoredFasts(fastsRaw).fasts, getTodayISOString());
+      if (!fast) return;
+      const weeks = getFastRecapWeeks(fast, getTodayISOString());
+      const available = weeks.filter((w) => w.available);
+      const latest = available[available.length - 1];
+      if (!latest) return;
+      const parseList = <T,>(raw: string | null): T[] => {
+        try {
+          const parsed = raw ? (JSON.parse(raw) as T[]) : [];
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      };
+      const recap = composeWeeklyRecap(fast, latest, {
+        people: parseList<Person>(peopleRaw),
+        scheduleItems: recapScheduleItemsFromStores(
+          parseList<ScheduleEvent>(eventsRaw),
+          parseList<ScheduleTodo>(todosRaw),
+          parseList<ScheduleMinistry>(ministriesRaw),
+        ),
+      });
+      if (!recap.weekAhead) return;
+      autoRecapLatchedFor.current = todayIso;
+      router.push({ pathname: "/fasting-tracker", params: { autoRecap: "1" } });
+    } catch {
+      // Best-effort: a failed check simply means no auto-open.
+    }
+  }, [router]);
+
+  useEffect(() => {
+    void checkRecapAutoOpen();
+  }, [checkRecapAutoOpen]);
+
+  // Foreground returns re-check it too — folded into the v449
+  // AppState listener effect below (this file keeps ONE AppState
+  // listener): opening the app at 9:05 AM on Saturday is exactly
+  // the moment it exists for. The mount pass above covers cold
+  // starts on every platform; the listener rides Android, where
+  // the app lives (the check itself is platform-agnostic).
+
+  // v401: the Stay Busy Shield's "Occupy me" brings the app
   // v436: foreground returns refresh the widgets too (the mount
   // effect above covers cold starts; a widget tap that lands on an
   // already-running app still leaves fresh snapshots behind it).
@@ -142,11 +244,13 @@ function RootLayoutContent() {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") void refreshAndPushWidgets();
       if (state === "background") void refreshAndPushWidgets();
+      // v465: a foreground return also re-checks the Saturday
+      // recap auto-open (its own latch + marker keep it to once).
+      if (state === "active") void checkRecapAutoOpen();
     });
     return () => subscription.remove();
-  }, []);
+  }, [checkRecapAutoOpen]);
 
-  // v401: the Stay Busy Shield's "Occupy me" brings the app
   // forward pointed at the games. Warm, the module's event lands
   // here; cold, the pending flag is waiting to be consumed. The
   // two paths clear the same flag, so a tap lands him on Keep Me

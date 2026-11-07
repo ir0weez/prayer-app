@@ -211,9 +211,19 @@ describe("v342 Part A — the Week Ahead companion", () => {
     expect(ahead.fastLine).toBe("365-Day Growth Fast · Days 305–311");
     // Day 306 (Mon Nov 2) opens Millennium — the tenth twelfth ends.
     expect(ahead.heroLine).toBe("Millennium turns on Monday.");
-    const calendar = ahead.blocks.find((b) => b.title === "On the calendar")!;
-    const dateRows = calendar.rows.filter((r) => r.kind === "date") as { dayOfMonth: string }[];
-    expect(dateRows.map((r) => r.dayOfMonth)).toEqual(["2", "3"]); // era turn (Mon 2) before the event (Tue 3)
+    // AMENDED (v465): the flat "On the calendar" block is retired.
+    // The era turn and the stored event are both one-offs now —
+    // they seat as exceptions in date order (era turn Mon 2 before
+    // the event Tue 3), and `blocks` carries only Coming due.
+    expect(ahead.blocks.find((b) => b.title === "On the calendar")).toBeUndefined();
+    expect(ahead.exceptions.map((e) => e.date)).toEqual(["2026-11-02", "2026-11-03"]);
+    expect(ahead.exceptions[0].title).toContain("Millennium begins");
+    expect(ahead.exceptions[0].chipLabel).toBe("MON · NOV 2");
+    expect(ahead.exceptions[0].red).toBe(false);
+    expect(ahead.exceptions[1].title).toBe("iSUPPORT meeting");
+    expect(ahead.exceptions[1].timeLabel).toBe("3:00–4:00 PM");
+    expect(ahead.stats?.totalThings).toBe(1);
+    expect(ahead.repeats).toEqual([]);
     const due = ahead.blocks.find((b) => b.title === "Coming due")!;
     const dueText = due.rows.map((r) => (r.kind === "line" ? r.segments.map((s) => s.text).join("") : "")).join(" ");
     expect(dueText).toContain("Ruth Alvarez");

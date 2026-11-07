@@ -80,6 +80,11 @@ import {
   type QuietHoursRange,
 } from "@/lib/notification-scheduler";
 import { deriveSettingsMaterial } from "@/lib/settings-material";
+import {
+  RECAP_AUTO_OPEN_TIMES,
+  normalizeRecapAutoOpenTime,
+  type RecapAutoOpenTimeId,
+} from "@/lib/recap-auto-open";
 import { normalizeTextSizePreference, type TextSizePreference } from "@/lib/text-scale";
 import Constants from "expo-constants";
 import * as Linking from "expo-linking";
@@ -338,6 +343,13 @@ type AppSettings = {
   // provider; lib/text-scale.tsx applies the factor to every
   // Text in the app.
   textSize: TextSizePreference;
+  // v465: the Weekly Recap's Saturday auto-open (his ask, Nov 7:
+  // the recap opens itself once a week, and the time is a
+  // Settings choice, not a constant). Read by the trigger in
+  // app/_layout.tsx straight from this blob
+  // (lib/recap-auto-open.ts owns the decision + the marker).
+  weeklyRecapAutoOpen: boolean;
+  weeklyRecapAutoOpenTime: RecapAutoOpenTimeId;
 };
 
 type PersonalProfile = {
@@ -380,6 +392,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   quietHoursEnabled: false,
   quietHoursRange: "10-7",
   textSize: "default",
+  weeklyRecapAutoOpen: true,
+  weeklyRecapAutoOpenTime: "9:00 AM",
 };
 const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, avatarAsset: undefined, auraId: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined, statusColor: "#0A86B8", statusExpiresAt: null };
 
@@ -466,6 +480,8 @@ function parseStoredSettings(value: string | null): AppSettings {
       quietHoursEnabled: parsed.quietHoursEnabled === true,
       quietHoursRange: normalizeQuietHoursRange(parsed.quietHoursRange),
       textSize: normalizeTextSizePreference(parsed.textSize),
+      weeklyRecapAutoOpen: parsed.weeklyRecapAutoOpen !== false,
+      weeklyRecapAutoOpenTime: normalizeRecapAutoOpenTime(parsed.weeklyRecapAutoOpenTime),
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -5435,9 +5451,30 @@ export default function HomeScreen() {
         </BitSettle>
       </PaperSettle>
 
-      {groupLabel("DATA & BACKUP")}
-      <PaperSettle index={3} style={[styles.settingsGroupCard, groupCardStyle]}>
+      {groupLabel("WEEKLY RECAP")}
+      <PaperSettle index={3} style={[styles.settingsGroupCard, styles.settingsGroupCardSlim, groupCardStyle]}>
         <BitSettle index={3}>
+          {/* v465: the auto-open switch + its time. Once a week,
+              on Saturday, the recap opens itself — and only once:
+              opening it by hand that day spends it too
+              (lib/recap-auto-open.ts). */}
+          {slimSwitchRow({ title: "Open the week's recap on Saturday", value: settings.weeklyRecapAutoOpen, onChange: (weeklyRecapAutoOpen) => setSettings((previous) => ({ ...previous, weeklyRecapAutoOpen })), first: true })}
+          {settings.weeklyRecapAutoOpen ? (
+            <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, borderTopWidth: 1, borderTopColor: sm.line }}>
+              <Text style={{ fontSize: 15, fontWeight: "500", color: sm.ink, marginBottom: 9 }}>Opens at</Text>
+              {segRow({
+                options: RECAP_AUTO_OPEN_TIMES.map((t) => ({ value: t.id, label: t.label })),
+                selected: settings.weeklyRecapAutoOpenTime,
+                onSelect: (weeklyRecapAutoOpenTime) => setSettings((previous) => ({ ...previous, weeklyRecapAutoOpenTime })),
+              })}
+            </View>
+          ) : null}
+        </BitSettle>
+      </PaperSettle>
+
+      {groupLabel("DATA & BACKUP")}
+      <PaperSettle index={4} style={[styles.settingsGroupCard, groupCardStyle]}>
+        <BitSettle index={4}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 18 }}>
             {tile("cloud-upload")}
             <View style={{ flex: 1 }}>
@@ -5520,8 +5557,8 @@ export default function HomeScreen() {
       </PaperSettle>
 
       {groupLabel("APP")}
-      <PaperSettle index={4} style={[styles.settingsGroupCard, groupCardStyle]}>
-        <BitSettle index={4}>
+      <PaperSettle index={5} style={[styles.settingsGroupCard, groupCardStyle]}>
+        <BitSettle index={5}>
           <Pressable onPress={() => { void checkForUpdates(); }} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 18 }, pressed && { opacity: 0.7 }]}>
             {tile("system-update")}
             <View style={{ flex: 1 }}>
@@ -5541,8 +5578,8 @@ export default function HomeScreen() {
       {/* The Warning door — nothing destructive is visible until
           it opens, and each action still needs its second tap. */}
       <View style={{ marginTop: 30 }}>
-        <PaperSettle index={5}>
-          <BitSettle index={5}>
+        <PaperSettle index={6}>
+          <BitSettle index={6}>
             <View style={{ backgroundColor: sm.dangerWash, borderRadius: 24, borderWidth: 1, borderColor: sm.dangerLine, overflow: "hidden" }}>
               <Pressable onPress={() => { setWarningExpanded((prev) => !prev); setDangerArmed(null); }} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 15, paddingHorizontal: 18 }, pressed && { opacity: 0.75 }]}>
                 <MaterialIcons name="warning" size={21} color={sm.dangerInk} />

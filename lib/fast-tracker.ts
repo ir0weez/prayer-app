@@ -15,6 +15,7 @@ import {
   resolveFastDayNotes,
 } from "./fast-day-entries";
 import type { PrayerJournalEntry } from "./prayer-journal";
+import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from "./schedule-data";
 
 /**
  * v276 "The Fast, As a Tracker" — the pure model behind the tracker
@@ -320,12 +321,24 @@ export type RecapEncouragement = {
 };
 
 /** One stored schedule item, in the recap's own minimal shape —
- *  profile.tsx maps the schedule store's records onto it. */
+ *  app/fasting-tracker.tsx maps the schedule stores' records onto
+ *  it (recapScheduleItemsFromStores, below). v465: all three kinds
+ *  flow in — events, todos, ministries — each carrying its own
+ *  detail fields, because the Week Ahead blend speaks in counts,
+ *  places and notes, not in a flat list of events. */
+export type RecapScheduleKind = "event" | "todo" | "ministry";
+
 export type RecapScheduleItem = {
   date: string;
   title: string;
   startTime?: string;
   endTime?: string;
+  kind?: RecapScheduleKind;
+  location?: string;
+  notes?: string;
+  travelTimeMinutes?: number;
+  reminderMinutesBefore?: number;
+  color?: string;
 };
 
 /** The real-world facts a recap may draw on beyond the fast itself
@@ -345,6 +358,56 @@ export type RecapContext = {
   entries?: PrayerJournalEntry[];
 };
 
+/**
+ * v465: the one mapping from the three schedule stores onto the
+ * recap's item shape — every stored record 1:1 (a grouped todo's
+ * header is the item; its subtasks ride inside it, never counted
+ * separately), each kind carrying the detail fields its own
+ * record holds. Used by the fasting screen's recap assembly and
+ * by the Saturday auto-open trigger in app/_layout.tsx, so both
+ * compose the week ahead from the same items.
+ */
+export function recapScheduleItemsFromStores(
+  events: ScheduleEvent[],
+  todos: ScheduleTodo[],
+  ministries: ScheduleMinistry[],
+): RecapScheduleItem[] {
+  return [
+    ...events.map((e) => ({
+      date: e.date,
+      title: e.title,
+      startTime: e.startTime,
+      endTime: e.endTime,
+      kind: "event" as const,
+      location: e.location,
+      notes: e.notes,
+      travelTimeMinutes: e.travelTimeMinutes,
+      reminderMinutesBefore: e.reminderMinutesBefore,
+      color: e.color,
+    })),
+    ...todos.map((t) => ({
+      date: t.date,
+      title: t.title,
+      startTime: t.startTime,
+      endTime: t.endTime,
+      kind: "todo" as const,
+      notes: t.notes,
+      color: t.color,
+    })),
+    ...ministries.map((m) => ({
+      date: m.date,
+      title: m.title,
+      startTime: m.startTime,
+      endTime: m.endTime,
+      kind: "ministry" as const,
+      location: m.location,
+      notes: m.notes,
+      travelTimeMinutes: m.travelTimeMinutes,
+      color: m.color,
+    })),
+  ];
+}
+
 /** The Week Ahead companion (his ask, Oct 29): the next Sun–Sat,
  *  composed from the same real data — the fast's frame for those
  *  dates, an era turn if one falls inside, what's already on the
@@ -357,8 +420,53 @@ export type FastWeekAhead = {
   fastLine: string | null;
   heroLine: string | null;
   heroSub: string;
+  /** v465: the blend (WA-5) — the old flat "On the calendar" block
+   *  is gone; `blocks` now carries only the Coming due block. */
+  stats: WeekAheadStats | null;
+  exceptions: WeekAheadException[];
+  repeats: WeekAheadRepeat[];
+  footLine: string | null;
   blocks: RecapBlock[];
   encouragement: RecapEncouragement;
+};
+
+/** v465 — the Week Ahead blend's stats strip: everything planned
+ *  in the window (every kind), the timed hours, and the week's
+ *  fullest and lightest days (zero-count days included). */
+export type WeekAheadStats = {
+  totalThings: number;
+  clockMinutes: number;
+  /** "39½ hrs" — see formatWeekAheadClockLabel. */
+  clockLabel: string;
+  fullestDay: { date: string; weekday: string; count: number };
+  lightestDay: { date: string; weekday: string; count: number };
+};
+
+/** v465 — a one-off in the week ahead ("NOT THE ROUTINE"): a
+ *  group of exactly one item, or the era turn. `red` is keyed on
+ *  the item's stored colour (his Doctors Appointment carries the
+ *  palette red #EF4444), never on its title. */
+export type WeekAheadException = {
+  date: string;
+  /** "FRI · NOV 13" */
+  chipLabel: string;
+  title: string;
+  /** "3:00–4:00 PM" — "" when the item is untimed. */
+  timeLabel: string;
+  /** "At Dr. Gaw · Novalee & Aaron · 15 min travel · reminder 1 hr
+   *  before" — only the parts that exist, joined. "" when none. */
+  detail: string;
+  red: boolean;
+};
+
+/** v465 — a repeat in the week ahead ("THE WEEK IN REPEATS"): a
+ *  group of 2+ under one title. `sub` is the composed day pattern
+ *  + times + shared place ("Mon–Sat · 12:00, 2:00, 4:00 and
+ *  10:00 PM · at Garden"). */
+export type WeekAheadRepeat = {
+  title: string;
+  count: number;
+  sub: string;
 };
 
 export type FastRecap = {
@@ -920,6 +1028,9 @@ export function composeWeeklyRecap(
     paragraphs.push(`The week ahead — ${weekAhead.datesLabel}`);
     if (weekAhead.heroLine) paragraphs.push(weekAhead.heroLine);
     paragraphs.push(weekAhead.heroSub);
+    // v465: the blend as lines — the saved entry reads like the
+    // page (stats, exceptions, repeats, foot), then Coming due.
+    paragraphs.push(...weekAheadJournalLines(weekAhead));
     for (const block of weekAhead.blocks) paragraphs.push(...block.rows.map(blockRowToParagraph));
     paragraphs.push(...weekAhead.encouragement.paragraphs, `“${weekAhead.encouragement.verse.text}” — ${weekAhead.encouragement.verse.ref} (KJV)`);
   }
@@ -942,6 +1053,231 @@ export function composeWeeklyRecap(
     encouragement,
     weekAhead,
   };
+}
+
+// ─── v465: the Week Ahead blend (WA-5, his pick Nov 7 — a mix of
+// WA-1's multiplier rows and WA-3's shape) ───────────────────────
+// The flat chronological "On the calendar" list is retired: he
+// called it "just a list… long and kind of useless" twice (Oct 30
+// and Nov 7). The blend, in order: a stats strip (totals), the
+// exceptions with their detail ("NOT THE ROUTINE"), then the
+// repeats collapsed under their title with a count ("THE WEEK IN
+// REPEATS" — his example was Rest, which lands 21 times in his
+// real Nov 8–14 week), and a lightest-day foot line.
+
+/** "3:00–4:00 PM" — a range states a shared meridiem once, at
+ *  the end (the blend's specified form); a range crossing noon
+ *  keeps both ("11:00 AM–12:00 PM"). */
+function formatTimeRange12(start: string, end: string): string {
+  const s = formatTime12(start);
+  const e = formatTime12(end);
+  return s.slice(-2) === e.slice(-2) ? `${s.slice(0, -3)}–${e}` : `${s}–${e}`;
+}
+
+function timeToMinutes(time: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(time);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** The stats strip's clock: whole hours, halves as ½, anything
+ *  else rounded to the nearest half ("39½ hrs"). */
+export function formatWeekAheadClockLabel(totalMinutes: number): string {
+  const halves = Math.round(totalMinutes / 30);
+  if (halves <= 0) return "0 hrs";
+  const whole = Math.floor(halves / 2);
+  const half = halves % 2 === 1;
+  if (whole === 0) return "½ hr";
+  return `${whole}${half ? "½" : ""} hr${whole === 1 && !half ? "" : "s"}`;
+}
+
+/** The red dress is keyed on the item's stored colour — the
+ *  palette red family (his Doctors Appointment stores #EF4444):
+ *  a strong red channel with green and blue well below it.
+ *  Orange (#F97316) fails on its green; the blues and purples
+ *  fail on red. Titles never enter into it. */
+function isRecapRedColor(color: string | undefined): boolean {
+  if (!color) return false;
+  const m = /^#?([0-9a-f]{6})$/i.exec(color.trim());
+  if (!m) return false;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return r >= 150 && g <= 110 && b <= 110 && r - g >= 60 && r - b >= 60;
+}
+
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+function weekAheadDayPattern(dates: string[]): string {
+  const days = [...new Set(dates.map((d) => parseIsoDay(d).getUTCDay()))].sort((a, b) => a - b);
+  if (days.length === 7) return "Every day";
+  // A contiguous run of days reads as a range (Mon–Fri, Mon–Sat…).
+  const contiguous = days.length >= 2 && days.every((d, i) => i === 0 || d === days[i - 1] + 1);
+  if (contiguous) return `${WEEKDAY_SHORT[days[0]]}–${WEEKDAY_SHORT[days[days.length - 1]]}`;
+  return days.map((d) => WEEKDAY_SHORT[d]).join(", ");
+}
+
+/** The time half of a repeat's sub-line: the one shared range
+ *  when every instance carries the same start–end; otherwise the
+ *  distinct starts ("12:00, 2:00, 4:00 and 10:00 PM" — a shared
+ *  meridiem is stated once, at the end); "" when nothing in the
+ *  group is timed. */
+function weekAheadTimeSummary(items: RecapScheduleItem[]): string {
+  const timed = items.filter((i) => i.startTime);
+  if (timed.length === 0) return "";
+  const pairs = new Set(timed.map((i) => `${i.startTime}|${i.endTime ?? ""}`));
+  if (pairs.size === 1 && timed.length === items.length) {
+    const only = timed[0];
+    return only.endTime
+      ? formatTimeRange12(only.startTime!, only.endTime)
+      : formatTime12(only.startTime!);
+  }
+  const labels = [...new Set(timed.map((i) => i.startTime!))].sort().map((s) => formatTime12(s));
+  if (labels.length === 1) return labels[0];
+  const meridiem = labels[labels.length - 1].slice(-2);
+  const stripped = labels.map((l, i) => (i < labels.length - 1 && l.endsWith(meridiem) ? l.slice(0, -3) : l));
+  return `${stripped.slice(0, -1).join(", ")} and ${stripped[stripped.length - 1]}`;
+}
+
+function weekAheadRepeatSub(items: RecapScheduleItem[]): string {
+  const parts: string[] = [weekAheadDayPattern(items.map((i) => i.date))];
+  const time = weekAheadTimeSummary(items);
+  if (time) parts.push(time);
+  const locations = new Set(items.map((i) => i.location?.trim()).filter(Boolean));
+  if (locations.size === 1 && items.every((i) => i.location?.trim())) {
+    parts.push(`at ${[...locations][0]}`);
+  }
+  return parts.join(" · ");
+}
+
+function weekAheadChipLabel(date: string): string {
+  const d = parseIsoDay(date);
+  return `${WEEKDAY_SHORT[d.getUTCDay()].toUpperCase()} · ${MONTH_NAMES[d.getUTCMonth()].toUpperCase()} ${d.getUTCDate()}`;
+}
+
+function weekAheadExceptionFor(item: RecapScheduleItem): WeekAheadException {
+  const detailParts: string[] = [];
+  if (item.location?.trim()) detailParts.push(`At ${item.location.trim()}`);
+  if (item.notes?.trim()) detailParts.push(item.notes.trim());
+  if (item.travelTimeMinutes && item.travelTimeMinutes > 0) {
+    detailParts.push(`${item.travelTimeMinutes} min travel`);
+  }
+  if (item.reminderMinutesBefore && item.reminderMinutesBefore > 0) {
+    detailParts.push(
+      item.reminderMinutesBefore >= 60 && item.reminderMinutesBefore % 60 === 0
+        ? `reminder ${item.reminderMinutesBefore / 60} hr before`
+        : `reminder ${item.reminderMinutesBefore} min before`,
+    );
+  }
+  return {
+    date: item.date,
+    chipLabel: weekAheadChipLabel(item.date),
+    title: item.title,
+    timeLabel: item.startTime
+      ? item.endTime
+        ? formatTimeRange12(item.startTime, item.endTime)
+        : formatTime12(item.startTime)
+      : "",
+    detail: detailParts.join(" · "),
+    red: isRecapRedColor(item.color),
+  };
+}
+
+function composeWeekAheadBlend(
+  items: RecapScheduleItem[],
+  aheadDates: string[],
+  eraTurn: { date: string; dayNumber: number; eraIndex: number } | undefined,
+): { stats: WeekAheadStats | null; exceptions: WeekAheadException[]; repeats: WeekAheadRepeat[]; footLine: string | null } {
+  // Group by the thing itself (his multiplier idea): the title,
+  // trimmed and exact. First occurrence in the week breaks ties.
+  const groups = new Map<string, { items: RecapScheduleItem[]; firstIndex: number }>();
+  items.forEach((item, index) => {
+    const key = item.title.trim();
+    const group = groups.get(key);
+    if (group) group.items.push(item);
+    else groups.set(key, { items: [item], firstIndex: index });
+  });
+
+  const exceptions: WeekAheadException[] = [];
+  const repeatRows: (WeekAheadRepeat & { firstIndex: number })[] = [];
+  for (const [title, group] of groups) {
+    if (group.items.length === 1) exceptions.push(weekAheadExceptionFor(group.items[0]));
+    else repeatRows.push({ title, count: group.items.length, sub: weekAheadRepeatSub(group.items), firstIndex: group.firstIndex });
+  }
+  repeatRows.sort((a, b) => b.count - a.count || a.firstIndex - b.firstIndex);
+  const repeats: WeekAheadRepeat[] = repeatRows.map(({ title, count, sub }) => ({ title, count, sub }));
+
+  // The era turn is an exception by nature: it takes its seat in
+  // date order among them, after any same-date items (the seat it
+  // held in the retired flat list), in its plain dress.
+  if (eraTurn) {
+    const era = ERA_DEFS[eraTurn.eraIndex];
+    const row: WeekAheadException = {
+      date: eraTurn.date,
+      chipLabel: weekAheadChipLabel(eraTurn.date),
+      title: `Day ${eraTurn.dayNumber} · ${era.name} begins.`,
+      timeLabel: "",
+      detail: "",
+      red: false,
+    };
+    const pos = exceptions.findIndex((e) => e.date > eraTurn.date);
+    if (pos === -1) exceptions.push(row);
+    else exceptions.splice(pos, 0, row);
+  }
+
+  let stats: WeekAheadStats | null = null;
+  let footLine: string | null = null;
+  if (items.length > 0) {
+    const perDay = new Map<string, number>(aheadDates.map((d) => [d, 0]));
+    for (const item of items) perDay.set(item.date, (perDay.get(item.date) ?? 0) + 1);
+    let clockMinutes = 0;
+    for (const item of items) {
+      if (!item.startTime || !item.endTime) continue;
+      const s = timeToMinutes(item.startTime);
+      const e = timeToMinutes(item.endTime);
+      if (s === null || e === null) continue;
+      clockMinutes += e > s ? e - s : e + 1440 - s;
+    }
+    let fullest = aheadDates[0];
+    let lightest = aheadDates[0];
+    for (const d of aheadDates) {
+      if ((perDay.get(d) ?? 0) > (perDay.get(fullest) ?? 0)) fullest = d;
+      if ((perDay.get(d) ?? 0) < (perDay.get(lightest) ?? 0)) lightest = d;
+    }
+    stats = {
+      totalThings: items.length,
+      clockMinutes,
+      clockLabel: formatWeekAheadClockLabel(clockMinutes),
+      fullestDay: { date: fullest, weekday: weekdayLong(fullest), count: perDay.get(fullest) ?? 0 },
+      lightestDay: { date: lightest, weekday: weekdayLong(lightest), count: perDay.get(lightest) ?? 0 },
+    };
+    if (stats.lightestDay.count < stats.fullestDay.count) {
+      footLine = `${stats.lightestDay.weekday} is your lightest day — ${stats.lightestDay.count} ${stats.lightestDay.count === 1 ? "thing" : "things"}.`;
+    }
+  }
+  return { stats, exceptions, repeats, footLine };
+}
+
+/** The blend as plain lines — the Save to Journal voice of the
+ *  week ahead (composeWeeklyRecap reads these between the heroSub
+ *  and the Coming due block, so the saved entry reads like the
+ *  page instead of the retired flat list). */
+export function weekAheadJournalLines(ahead: FastWeekAhead): string[] {
+  const lines: string[] = [];
+  if (ahead.stats) {
+    lines.push(
+      `${ahead.stats.totalThings} things planned · ${ahead.stats.clockLabel} on the clock · ${ahead.stats.fullestDay.weekday} fullest (${ahead.stats.fullestDay.count}).`,
+    );
+  }
+  for (const exc of ahead.exceptions) {
+    lines.push(
+      `${exc.title} (${exc.chipLabel}${exc.timeLabel ? `, ${exc.timeLabel}` : ""})${exc.detail ? ` — ${exc.detail}` : ""}`,
+    );
+  }
+  for (const rep of ahead.repeats) lines.push(`${rep.title} ×${rep.count} — ${rep.sub}`);
+  if (ahead.footLine) lines.push(ahead.footLine);
+  return lines;
 }
 
 /**
@@ -1028,39 +1364,12 @@ export function composeWeekAhead(
     heroSub = "The fast isn't in this week — what follows is the week's own shape.";
   }
 
+  // v465: the calendar's flat list becomes the blend — stats,
+  // exceptions, repeats, foot line (composeWeekAheadBlend). The
+  // era turn seats among the exceptions there. `blocks` keeps
+  // only what still speaks in block rows: Coming due.
+  const blend = composeWeekAheadBlend(events, aheadDates, eraTurn);
   const blocks: RecapBlock[] = [];
-  const shapes = ["arch", "square", "circle"] as const;
-  const dateRows: RecapBlockRow[] = [];
-  events.forEach((item, i) => {
-    const d = parseIsoDay(item.date);
-    const timeLabel = item.startTime
-      ? formatTime12(item.startTime) + (item.endTime ? `–${formatTime12(item.endTime)}` : "")
-      : "";
-    dateRows.push({
-      kind: "date",
-      dayOfMonth: `${d.getUTCDate()}`,
-      weekday: weekdayLong(item.date),
-      shape: shapes[i % shapes.length],
-      segments: [seg(item.title, true), ...(timeLabel ? [seg(` — ${timeLabel}`)] : [])],
-    });
-  });
-  if (eraTurn && era) {
-    const d = parseIsoDay(eraTurn.date);
-    const row: RecapBlockRow = {
-      kind: "date",
-      dayOfMonth: `${d.getUTCDate()}`,
-      weekday: weekdayLong(eraTurn.date),
-      shape: shapes[events.length % shapes.length],
-      segments: [seg(`Day ${eraTurn.dayNumber} · ${era.name} begins.`, true)],
-    };
-    // Date order: the turn takes its place among the week's rows.
-    const pos = events.findIndex((e) => e.date > eraTurn.date);
-    if (pos === -1) dateRows.push(row);
-    else dateRows.splice(pos, 0, row);
-  }
-  if (dateRows.length > 0) {
-    blocks.push({ title: "On the calendar", tone: "plain", marker: "circle", rows: dateRows });
-  }
   if (duePeople.length > 0) {
     const names = duePeople.map((p) => p.name);
     const shown = names.slice(0, 4);
@@ -1094,7 +1403,7 @@ export function composeWeekAhead(
   const aheadParts: string[] = [];
   if (eraTurn) aheadParts.push("a new era");
   if (events.length > 0) {
-    aheadParts.push(`${numberWord(events.length)} ${events.length === 1 ? "thing" : "things"} on the calendar`);
+    aheadParts.push(`${numberWord(events.length)} ${events.length === 1 ? "thing" : "things"} planned`);
   }
   if (duePeople.length > 0) aheadParts.push("people to reach for");
   const joinedParts =
@@ -1123,6 +1432,10 @@ export function composeWeekAhead(
         : null,
     heroLine,
     heroSub,
+    stats: blend.stats,
+    exceptions: blend.exceptions,
+    repeats: blend.repeats,
+    footLine: blend.footLine,
     blocks,
     encouragement,
   };

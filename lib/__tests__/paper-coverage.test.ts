@@ -365,10 +365,13 @@ describe("Paper coverage — v202 animation pass", () => {
     // seven section cards with the drawing's stack — hero band,
     // four group cards, Warning door — and all six still settle as
     // a Paper stack, in order, inside the settings screen.
+    // v465 re-pin: the Weekly Recap group joins the stack (his
+    // Saturday auto-open setting) — five group cards now, seven
+    // settles in order, the Warning door last at index 6.
     const settingsSlice = shell.slice(shell.indexOf("const renderSettingsScreen"), shell.indexOf("const [bibleChapters"));
     expect(settingsSlice).toContain("<PaperSettle index={0}");
-    expect((settingsSlice.match(/<PaperSettle index=\{\d+\}/g) ?? []).length).toBe(6);
-    expect((settingsSlice.match(/style=\{\[styles\.settingsGroupCard,/g) ?? []).length).toBe(4);
+    expect((settingsSlice.match(/<PaperSettle index=\{\d+\}/g) ?? []).length).toBe(7);
+    expect((settingsSlice.match(/style=\{\[styles\.settingsGroupCard,/g) ?? []).length).toBe(5);
     // The five slide-up sheets fade under Paper.
     expect(count(shell, 'animationType={skinTokens.isPaper ? "fade" : "slide"}')).toBe(5);
     expect(shell).toContain("<PaperSettle style={styles.themeSheet}>");

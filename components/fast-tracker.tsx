@@ -19,6 +19,7 @@ import {
   type FastRecap,
   type FastRecapWeek,
   type FastWeek,
+  type FastWeekAhead,
   type RecapBlock,
   type RecapBlockRow,
   type RecapEncouragement,
@@ -687,6 +688,137 @@ function RecapEncouragementView({ encouragement, family }: { encouragement: Reca
   );
 }
 
+// ─── v465: the Week Ahead blend (WA-5, his pick Nov 7) ─────────
+// The companion's body, composed in lib/fast-tracker.ts
+// (composeWeekAheadBlend): the stats strip, the NOT THE ROUTINE
+// exception cards (a stored red colour wears the missed-red wash
+// — the meaning hue, as the drawing drew the doctors appointment),
+// and THE WEEK IN REPEATS with its ×N tiles. Every other surface
+// derives from the seed family, like the rest of the document.
+function WeekAheadSectionLabel({ title, family }: { title: string; family: FastTrackerFamily }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 9, marginTop: 18, marginBottom: 10 }}>
+      <View style={{ width: 11, height: 11, borderRadius: 6, borderWidth: 2.5, borderColor: family.seed }} />
+      <Text style={{ color: family.washSub, fontSize: 11.5, fontWeight: "800", letterSpacing: 1.6 }}>{title}</Text>
+    </View>
+  );
+}
+
+function WeekAheadStatTile({ value, label, family }: { value: string; label: string; family: FastTrackerFamily }) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: family.container,
+        borderRadius: 18,
+        paddingVertical: 10,
+        paddingHorizontal: 6,
+      }}
+    >
+      <Text style={{ color: family.inkSeed, fontSize: 17, fontWeight: "800" }}>{value}</Text>
+      <Text style={{ color: family.washSub, fontSize: 10, fontWeight: "700", letterSpacing: 0.6, marginTop: 2, textAlign: "center" }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function WeekAheadBlendView({ ahead, family }: { ahead: FastWeekAhead; family: FastTrackerFamily }) {
+  const stats = ahead.stats;
+  return (
+    <View>
+      {stats ? (
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
+          <WeekAheadStatTile value={`${stats.totalThings}`} label="THINGS PLANNED" family={family} />
+          <WeekAheadStatTile value={stats.clockLabel} label="ON THE CLOCK" family={family} />
+          <WeekAheadStatTile value={stats.fullestDay.weekday} label={`FULLEST DAY · ${stats.fullestDay.count}`} family={family} />
+        </View>
+      ) : null}
+      {ahead.exceptions.length > 0 ? (
+        <View>
+          <WeekAheadSectionLabel title="NOT THE ROUTINE" family={family} />
+          {ahead.exceptions.map((exc, i) => (
+            <View
+              key={`${exc.date}-${exc.title}-${i}`}
+              style={{
+                backgroundColor: exc.red ? FAST_MISSED_WASH : family.card,
+                borderWidth: exc.red ? 0 : 1,
+                borderColor: family.line,
+                borderRadius: 22,
+                padding: 15,
+                marginTop: i === 0 ? 0 : 10,
+              }}
+            >
+              <View
+                style={{
+                  alignSelf: "flex-start",
+                  backgroundColor: exc.red ? "#FFFFFF" : family.container,
+                  borderRadius: 999,
+                  paddingVertical: 3,
+                  paddingHorizontal: 9,
+                  marginBottom: 7,
+                }}
+              >
+                <Text style={{ color: exc.red ? FAST_MISSED_DEEP : family.deep, fontSize: 11, fontWeight: "800", letterSpacing: 0.4 }}>
+                  {exc.chipLabel}
+                </Text>
+              </View>
+              <Text style={{ color: family.ink, fontSize: 15, fontWeight: "800" }}>
+                {exc.timeLabel ? `${exc.title} — ${exc.timeLabel}` : exc.title}
+              </Text>
+              {exc.detail ? (
+                <Text style={{ color: family.inkSoft, fontSize: 12.5, lineHeight: 19, marginTop: 3 }}>{exc.detail}</Text>
+              ) : null}
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {ahead.repeats.length > 0 ? (
+        <View>
+          <WeekAheadSectionLabel title="THE WEEK IN REPEATS" family={family} />
+          <View style={{ backgroundColor: family.card, borderWidth: 1, borderColor: family.line, borderRadius: 22, paddingHorizontal: 14 }}>
+            {ahead.repeats.map((rep, i) => (
+              <View
+                key={rep.title}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                  paddingVertical: 10,
+                  borderTopWidth: i === 0 ? 0 : 1,
+                  borderTopColor: family.line,
+                }}
+              >
+                <View
+                  style={{
+                    minWidth: 52,
+                    alignItems: "center",
+                    backgroundColor: family.container,
+                    borderRadius: 14,
+                    paddingVertical: 7,
+                    paddingHorizontal: 4,
+                  }}
+                >
+                  <Text style={{ color: family.deep, fontSize: 16, fontWeight: "800" }}>×{rep.count}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: family.ink, fontSize: 14.5, fontWeight: "700" }}>{rep.title}</Text>
+                  <Text style={{ color: family.inkSoft, fontSize: 12, lineHeight: 17, marginTop: 2 }}>{rep.sub}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+      {ahead.footLine ? (
+        <Text style={{ color: family.inkSoft, fontSize: 12.5, lineHeight: 18, marginTop: 12 }}>{ahead.footLine}</Text>
+      ) : null}
+    </View>
+  );
+}
+
 export function FastRecapDocument(props: {
   family: FastTrackerFamily;
   recap: FastRecap;
@@ -782,6 +914,9 @@ export function FastRecapDocument(props: {
             <Text style={{ color: family.inkSeed, fontSize: 19, lineHeight: 25, fontWeight: "800", marginTop: 14 }}>{ahead.heroLine}</Text>
           ) : null}
           <Text style={{ color: family.deep, fontSize: 13.5, lineHeight: 20, marginTop: ahead.heroLine ? 5 : 12 }}>{ahead.heroSub}</Text>
+          {/* v465: the blend — stats, exceptions, repeats, foot.
+              `blocks` now carries only Coming due, below it. */}
+          <WeekAheadBlendView ahead={ahead} family={family} />
           {ahead.blocks.map((block) => (
             <RecapBlockView key={block.title} block={block} family={family} />
           ))}

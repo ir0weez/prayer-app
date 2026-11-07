@@ -133,7 +133,9 @@ describe("8-bit coverage — v203 animation pass", () => {
     // four group cards (1–4) + the Warning door (5) — six settles,
     // still a cascade in the bit dialect too. (Was 8: the old
     // profile card + seven section cards.)
-    expect((shell.match(/<BitSettle index=\{\d+\}>/g) ?? []).length).toBe(6);
+    // v465 re-pin: the Weekly Recap group joins the stack — five
+    // group cards (1–5), the Warning door at 6: seven settles.
+    expect((shell.match(/<BitSettle index=\{\d+\}>/g) ?? []).length).toBe(7);
     // v216 gave the six slide-up sheets (profile editor, fast
     // creator, family actions, theme, skin, app icon) definite-
     // height boxes so they rise; v219 restored the flex:1

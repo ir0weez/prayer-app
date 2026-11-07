@@ -361,10 +361,17 @@ describe("v454 Up Next — the box as the white space (source)", () => {
   const body = rendererFn("renderUpNext");
 
   it("the open stretch is measured exactly as v447 measured it — from max(now, the previous item's end)", () => {
-    expect(body).toContain("if (currentIdx == null && next1Idx != null)");
+    // v466 amendment (Fix 1): the measurement is v447's
+    // unchanged — max(now, the previous item's end) — but
+    // the boundary it runs to is now the first one that
+    // closes the stretch: an early-checked item's start
+    // when one stands (the box hands over to it at its
+    // window), otherwise the next up's start, as before.
+    expect(body).toContain("val openBoundaryIdx = earlyIdx ?: next1Idx");
+    expect(body).toContain("if (currentIdx == null && openBoundaryIdx != null)");
     expect(body).toContain("val prevEnd = lastIdx?.let { overAt(dayItems[it]) } ?: nowMin");
     expect(body).toContain(
-      "openMinutes = dayItems[next1Idx].startMinutes - maxOf(nowMin, prevEnd)",
+      "openMinutes = dayItems[openBoundaryIdx].startMinutes - maxOf(nowMin, prevEnd)",
     );
     expect(body).toContain("if (openMinutes >= 15)");
   });
@@ -374,8 +381,13 @@ describe("v454 Up Next — the box as the white space (source)", () => {
   });
 
   it("the white row carries the stretch's wording and the next item's start, for the pill", () => {
+    // v466 amendment (Fix 1): the pill counts down to the
+    // boundary that closes the stretch — the early-checked
+    // item's start when one stands (Sat Nov 7: 25 minutes
+    // to Rest's 9:00 window, not 55 to Brush Teeth),
+    // otherwise the next item's start, as before.
     expect(body).toContain(
-      'RailRow("whitebox", nowTimeLabel(), "", "", dayItems[next1Idx].startMinutes, openDurationText(openMinutes))',
+      'RailRow("whitebox", nowTimeLabel(), "", "", dayItems[openBoundaryIdx].startMinutes, openDurationText(openMinutes))',
     );
   });
 
@@ -392,7 +404,14 @@ describe("v454 Up Next — the box as the white space (source)", () => {
     // (winEnd: for a todo holder its +30 end, not its
     // start) to that successor's start. Dinner's numbers
     // are unchanged: an event's window end is its end.
-    expect(body).toContain("val struckGapMinutes = underItem.startMinutes - winEnd(struckItem)");
+    // v466 amendment (Fix 1): the holder is read through
+    // boxStruckItem — the candidacy's item as re-read
+    // after the white box's yield. Whenever a struck box
+    // stands the two are the same item, so the gap's
+    // numbers are unchanged; the name moved because the
+    // blended struckItem is no longer the box's holder in
+    // every state.
+    expect(body).toContain("val struckGapMinutes = underItem.startMinutes - winEnd(boxStruckItem)");
     expect(body).toContain("if (struckGapMinutes >= 15)");
     expect(body).toContain('gapRow = RailRow("gap", "", "", "", 0, openDurationText(struckGapMinutes))');
   });
@@ -413,8 +432,14 @@ describe("v454 Up Next — the box binding and its dresses (source)", () => {
     expect(struckAt).toBeGreaterThan(runningAt);
     expect(whiteAt).toBeGreaterThan(struckAt);
     expect(nextAt).toBeGreaterThan(whiteAt);
+    // v466 amendment (Fix 1): the priority's struck step
+    // is now two species (in-window, then early-checked —
+    // with the white space between them), and the band is
+    // built from boxStruckItem, the holder read after the
+    // yield. The construction order — running, struck,
+    // white, next up — stands as this test found it.
     expect(body).toContain(
-      'RailRow("heroDone", minutesToTimeLabel(struckItem.startMinutes), struckItem.title, struckItem.sub, 0, "")',
+      'RailRow("heroDone", minutesToTimeLabel(boxStruckItem.startMinutes), boxStruckItem.title, boxStruckItem.sub, 0, "")',
     );
   });
 

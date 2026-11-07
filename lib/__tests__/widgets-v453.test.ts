@@ -287,7 +287,13 @@ describe("v453 Up Next — mirror ties to the Kotlin source", () => {
   });
 
   it("the walk is gated on the whole core standing: the after row seated", () => {
-    expect(sel).toContain("if (afterChosen) {");
+    // v466 amendment (Fix 3): the gate is the core
+    // standing whole — an after row seated, or no after
+    // row in the composition at all (the only extension
+    // candidate then is v466's trailing block). An after
+    // row that exists but did not fit still keeps the
+    // gate shut, exactly as v453 built it.
+    expect(sel).toContain("if (afterChosen || after == null) {");
     expect(sel).toContain("for (row in extension) {");
   });
 

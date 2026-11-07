@@ -430,8 +430,13 @@ describe("v456 Up Next — no NOW row in the selection (source)", () => {
     // (honest chrome 64 + a 20dp bottom buffer); the
     // signature and the extension gate stand as
     // v456 left them.
+    // v466 amendment (Fix 3): the gate gained one arm —
+    // it also opens when the composition has no after
+    // row at all, so the trailing white block can seat;
+    // the signature and the budget stand as v456/v457
+    // left them.
     expect(sel).toContain("val railBudget = heightSignal - 64 - 20");
-    expect(sel).toContain("if (afterChosen) {");
+    expect(sel).toContain("if (afterChosen || after == null) {");
     expect(sel).toContain("if (display.size >= 9) break");
   });
 

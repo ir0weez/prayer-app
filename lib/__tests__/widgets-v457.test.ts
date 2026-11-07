@@ -571,7 +571,14 @@ describe("v457 Up Next — honest costs and the bottom buffer (source)", () => {
   });
 
   it("the gates and the cap did not move: the extension still walks only behind a seated after row, nine slots still cap it", () => {
-    expect(sel).toContain("if (afterChosen) {");
+    // v466 amendment (Fix 3): the gate gained one arm —
+    // no after row in the composition at all (the core
+    // is then trivially whole, and the only extension
+    // candidate that can exist is the trailing white
+    // block). Behind an after row that exists but did
+    // not fit, the walk still does not start; the cap
+    // and the stop-at-the-first-hole rule stand.
+    expect(sel).toContain("if (afterChosen || after == null) {");
     expect(sel).toContain("if (display.size >= 9) break");
     expect(sel).toContain("if (cost > remaining) break");
   });

@@ -217,9 +217,15 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
   });
 
   it("the NOW→next open stretch is still measured at render time when nothing is running — and since v454 it measures the white box, not a gap row", () => {
-    expect(body).toContain("if (currentIdx == null && next1Idx != null)");
+    // v466 amendment (Fix 1): the measurement is v447's
+    // unchanged, but its boundary is now the first one
+    // that closes the stretch — an early-checked item's
+    // start when one stands, otherwise the next up's —
+    // read through openBoundaryIdx.
+    expect(body).toContain("val openBoundaryIdx = earlyIdx ?: next1Idx");
+    expect(body).toContain("if (currentIdx == null && openBoundaryIdx != null)");
     expect(body).toContain("val prevEnd = lastIdx?.let { overAt(dayItems[it]) } ?: nowMin");
-    expect(body).toContain("openMinutes = dayItems[next1Idx].startMinutes - maxOf(nowMin, prevEnd)");
+    expect(body).toContain("openMinutes = dayItems[openBoundaryIdx].startMinutes - maxOf(nowMin, prevEnd)");
     expect(body).toContain("if (openMinutes >= 15)");
     // v454 amendment (Ruling 2): the measurement survives
     // verbatim, but its product changed — a ≥ 15-minute
@@ -229,7 +235,7 @@ describe("v447 Up Next — footer removed, gap boxes, NOW→next gap", () => {
     // nowGapRow construction is gone from the renderer.
     expect(body).toContain("heroWhite = runningIdx == null && struckIdx == null");
     expect(body).toContain(
-      'RailRow("whitebox", nowTimeLabel(), "", "", dayItems[next1Idx].startMinutes, openDurationText(openMinutes))',
+      'RailRow("whitebox", nowTimeLabel(), "", "", dayItems[openBoundaryIdx].startMinutes, openDurationText(openMinutes))',
     );
     expect(body).not.toContain("nowGapRow");
     expect(body).not.toContain('RailRow("gap", "", "", "", 0, openDurationText(openMinutes))');

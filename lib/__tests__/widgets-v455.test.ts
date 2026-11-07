@@ -445,14 +445,28 @@ describe("v455 Up Next — the item under a struck box (source)", () => {
   });
 
   it("the under-box gap runs from the holder's window end to the under item's start", () => {
-    expect(body).toContain("val struckGapMinutes = underItem.startMinutes - winEnd(struckItem)");
+    // v466 amendment (Fix 1): the holder is read through
+    // boxStruckItem (the candidacy's item, re-read after
+    // the white box's yield); whenever a struck box
+    // stands it is the same item, so the gap's numbers
+    // are unchanged — only the name moved.
+    expect(body).toContain("val struckGapMinutes = underItem.startMinutes - winEnd(boxStruckItem)");
     expect(body).toContain("if (struckGapMinutes >= 15)");
   });
 
   it("the after seat is read once: the first standing item the under row did not take, else the after item", () => {
-    expect(body).toContain(
-      "val afterSeatIdx = if (struckItem != null) aheadIdx.firstOrNull { it != underIdx } else afterIdx",
-    );
+    // v466 amendment (Fix 1): the seat's first arm reads
+    // the box's holder through boxStruckItem, and a third
+    // arm seats the next standing item itself while the
+    // white box stands over an early-checked item (the
+    // early item rides the next row, struck; the standing
+    // item takes the after row, and the walk starts past
+    // it like any other after seat). The v455 arm — the
+    // first standing item the under row did not take —
+    // stands verbatim inside the new shape.
+    expect(body).toContain("val afterSeatIdx = if (boxStruckItem != null) {");
+    expect(body).toContain("aheadIdx.firstOrNull { it != underIdx }");
+    expect(body).toContain("} else if (heroWhite && earlyIdx != null) {");
     expect(body).toContain("val after = dayItems[afterSeatIdx]");
   });
 
@@ -505,7 +519,14 @@ describe("v455 Up Next — no vanishing: the rescue (source)", () => {
     // v455 left them; only the numbers moved.
     expect(sel).toContain("val railBudget = heightSignal - 64 - 20");
     expect(sel).toContain("boxIsNow: Boolean,");
-    expect(sel).toContain("if (afterChosen) {");
+    // v466 amendment (Fix 3): the extension gate widened
+    // by one arm — it also opens when the composition has
+    // no after row at all, so the trailing white block
+    // (the only extension candidate that can exist then)
+    // can seat. The signature, the budget and boxIsNow
+    // stand; an after row that exists but did not fit
+    // keeps the gate shut, as v455/v453 left it.
+    expect(sel).toContain("if (afterChosen || after == null) {");
   });
 });
 

@@ -1159,6 +1159,12 @@ object WidgetRenderer {
     val startMinutes: Int,
     val gapText: String,
     val heroLeft: Boolean = false,
+    // v466 (Fix 2): a core gap naming the stretch between
+    // the under-box row and the after row displays BELOW
+    // the next row, where its stretch actually sits in the
+    // day — the gap slot's standing place (directly under
+    // the box) belongs to the box→next stretch alone.
+    val gapBelowNext: Boolean = false,
   )
 
   /** v445: one dayItems entry as parsed from the snapshot —
@@ -1563,6 +1569,26 @@ object WidgetRenderer {
         val item = dayItems[it]
         RailRow(if (item.completed) "done" else "past", minutesToTimeLabel(item.startMinutes), item.title, item.sub, 0, "")
       }
+      // v466 (Fix 1): the struck candidacy above blends two
+      // species — the item checked off INSIDE its window
+      // (the v455 holder: its window contains now) and the
+      // item checked off EARLY, whose window has not started
+      // (startMinutes > now). They are told apart here, by
+      // that one test: an item whose window has opened is
+      // never the early species (the in-window override has
+      // already claimed any finished item standing inside
+      // its window). The under pick, the chosen set, the
+      // last pick and its rescue above all ran on the
+      // blended candidacy exactly as v454/v455 built them —
+      // the species split decides only who holds the BOX,
+      // in the priority restated at the hero below: running
+      // → in-window struck → the white space he is standing
+      // in → early-checked struck → the next up. (His words,
+      // Sat Nov 7, 8:35 AM, standing in open time before a
+      // 9:00 AM Rest he had checked off early: "Well
+      // wouldn't right now be open time?")
+      val earlyIdx: Int? =
+        if (struckIdx != null && dayItems[struckIdx].startMinutes > nowMin) struckIdx else null
       // v454 (Ruling 2): the open stretch he is standing in.
       // When nothing is current, the time between NOW and
       // the next thing is open — v447 showed it as a gap box
@@ -1579,17 +1605,38 @@ object WidgetRenderer {
       // box itself (heroWhite, below). Under 15 minutes the
       // next item is imminent and the box is the next up's,
       // exactly as v451 had it.
+      // v466 (Fix 1): the stretch is measured to the first
+      // boundary that closes it — the early-checked item's
+      // start when one stands (at its window the box hands
+      // over to it, struck in-window, so the open time ends
+      // there, not at the next standing item), otherwise
+      // the next up's start, exactly as v454 measured it.
+      val openBoundaryIdx = earlyIdx ?: next1Idx
       var openMinutes = 0
-      if (currentIdx == null && next1Idx != null) {
+      if (currentIdx == null && openBoundaryIdx != null) {
         val prevEnd = lastIdx?.let { overAt(dayItems[it]) } ?: nowMin
-        openMinutes = dayItems[next1Idx].startMinutes - maxOf(nowMin, prevEnd)
+        openMinutes = dayItems[openBoundaryIdx].startMinutes - maxOf(nowMin, prevEnd)
+      }
+      // v466 (Fix 1): when the stretch stands (≥ 15) the
+      // white box outranks the early-checked species — the
+      // candidacy yields here, before the v454 test below
+      // reads it, so that test stands as written: with the
+      // early item yielded, no struck holder owns the box
+      // and the stretch becomes the box. Under 15 minutes
+      // the yield never happens and the early-checked item
+      // holds the box exactly as v454/v455 had it. (The
+      // struckItem val above was materialised from the
+      // blended candidacy; boxStruckItem, at the hero,
+      // re-reads the box's holder after this yield.)
+      if (openMinutes >= 15 && runningIdx == null && earlyIdx != null) {
+        struckIdx = null
       }
       var heroWhite = false
       if (openMinutes >= 15) {
         heroWhite = runningIdx == null && struckIdx == null
       }
-      val whiteRow = if (heroWhite && next1Idx != null) {
-        RailRow("whitebox", nowTimeLabel(), "", "", dayItems[next1Idx].startMinutes, openDurationText(openMinutes))
+      val whiteRow = if (heroWhite && openBoundaryIdx != null) {
+        RailRow("whitebox", nowTimeLabel(), "", "", dayItems[openBoundaryIdx].startMinutes, openDurationText(openMinutes))
       } else {
         null
       }
@@ -1622,13 +1669,30 @@ object WidgetRenderer {
       // still names the two holders that ARE now and rides
       // to the selection as that record; it seats nothing
       // there any more.
+      // v466 (Fix 1): the priority is restated — running
+      // event → in-window struck → the white space → the
+      // early-checked struck → the next up. The v454 order
+      // (struck holder, then white space) survives only
+      // inside the struck species: an in-window holder
+      // still outranks the white space, an early-checked
+      // one no longer does.
       val heroRunning = runningIdx != null
       val boxIsNow = heroRunning || heroWhite
+      // v466 (Fix 1): the box's struck holder, read after
+      // the yield above — while the white box stands over an
+      // early-checked item, no struck item holds the box
+      // (the early item seats under it instead, in the white
+      // branch below); in every other state this is the
+      // struckItem the candidacy produced. (When heroWhite
+      // stands, struckItem can only be the early species or
+      // nothing — an in-window holder vetoes the white box
+      // in the yield's own terms.)
+      val boxStruckItem = if (heroWhite) null else struckItem
       val heroRow = if (runningIdx != null) {
         val item = dayItems[runningIdx]
         RailRow("hero", minutesToTimeLabel(item.startMinutes), item.title, item.sub, item.endMinutes, "", heroLeft = true)
-      } else if (struckItem != null) {
-        RailRow("heroDone", minutesToTimeLabel(struckItem.startMinutes), struckItem.title, struckItem.sub, 0, "")
+      } else if (boxStruckItem != null) {
+        RailRow("heroDone", minutesToTimeLabel(boxStruckItem.startMinutes), boxStruckItem.title, boxStruckItem.sub, 0, "")
       } else if (whiteRow != null) {
         whiteRow
       } else {
@@ -1643,7 +1707,18 @@ object WidgetRenderer {
       // under a struck box the under row can take a finished
       // successor instead of the first standing item, and
       // then that standing item is the after seat (v455).
-      val afterSeatIdx = if (struckItem != null) aheadIdx.firstOrNull { it != underIdx } else afterIdx
+      // v466 (Fix 1): while the white box stands over an
+      // early-checked item, the seat is the next standing
+      // item itself — it seats as the after row (the early
+      // item rides the next row, struck), and the walk
+      // starts past it like any other after seat.
+      val afterSeatIdx = if (boxStruckItem != null) {
+        aheadIdx.firstOrNull { it != underIdx }
+      } else if (heroWhite && earlyIdx != null) {
+        next1Idx
+      } else {
+        afterIdx
+      }
       var gapRow: RailRow? = null
       var nextRow: RailRow? = null
       var afterRow: RailRow? = null
@@ -1662,12 +1737,25 @@ object WidgetRenderer {
           if (boxGapMinutes >= 15) {
             gapRow = RailRow("gap", "", "", "", 0, openDurationText(boxGapMinutes))
           }
+          // v466 (Fix 2): the core's gap candidates are the
+          // open stretches between consecutive seated core
+          // rows downstream of the box, in chronological
+          // order — box→next above, then next→after here.
+          // The first qualifying stretch takes the core's
+          // single gap slot; this one displays below the
+          // next row (gapBelowNext), where its stretch sits.
+          if (gapRow == null && afterIdx != null) {
+            val afterGapMinutes = dayItems[afterIdx].startMinutes - next1.endMinutes
+            if (afterGapMinutes >= 15) {
+              gapRow = RailRow("gap", "", "", "", 0, openDurationText(afterGapMinutes), gapBelowNext = true)
+            }
+          }
         }
         if (afterIdx != null) {
           val after = dayItems[afterIdx]
           afterRow = RailRow("item", minutesToTimeLabel(after.startMinutes), after.title, after.sub, after.startMinutes, "")
         }
-      } else if (struckItem != null) {
+      } else if (boxStruckItem != null) {
         // v454 (Ruling 1): what's coming up waits directly
         // under the struck box, then the after row — and the
         // gap candidate is the open stretch between the
@@ -1692,9 +1780,24 @@ object WidgetRenderer {
             if (underItem.completed) "done" else "item",
             minutesToTimeLabel(underItem.startMinutes), underItem.title, underItem.sub, underItem.startMinutes, "",
           )
-          val struckGapMinutes = underItem.startMinutes - winEnd(struckItem)
+          val struckGapMinutes = underItem.startMinutes - winEnd(boxStruckItem)
           if (struckGapMinutes >= 15) {
             gapRow = RailRow("gap", "", "", "", 0, openDurationText(struckGapMinutes))
+          }
+          // v466 (Fix 2): the second stretch — the under
+          // row's end to the after seat's start. On the
+          // ruling render (Sat Nov 7: Rest struck in the
+          // box, Brush Teeth under it done at 10:00,
+          // Gardening at 4:00 PM) this is the six open
+          // hours that had no white block: the struck
+          // branch's only candidate was holder→successor,
+          // and that stretch is negative there.
+          if (gapRow == null && afterSeatIdx != null) {
+            val afterItem = dayItems[afterSeatIdx]
+            val underGapMinutes = afterItem.startMinutes - underItem.endMinutes
+            if (underGapMinutes >= 15) {
+              gapRow = RailRow("gap", "", "", "", 0, openDurationText(underGapMinutes), gapBelowNext = true)
+            }
           }
         }
         if (afterSeatIdx != null) {
@@ -1702,18 +1805,55 @@ object WidgetRenderer {
           afterRow = RailRow("item", minutesToTimeLabel(after.startMinutes), after.title, after.sub, after.startMinutes, "")
         }
       } else if (heroWhite) {
-        // v454 (Ruling 2): the next item sits directly under
-        // the white box and the after row under it — and
-        // there is no gap row: the open stretch is the box
-        // itself, and the next stretch downstream belongs to
-        // the extension walk, past the after row, as before.
-        if (next1Idx != null) {
-          val next1 = dayItems[next1Idx]
-          nextRow = RailRow("item", minutesToTimeLabel(next1.startMinutes), next1.title, next1.sub, next1.startMinutes, "")
-        }
-        if (afterIdx != null) {
-          val after = dayItems[afterIdx]
-          afterRow = RailRow("item", minutesToTimeLabel(after.startMinutes), after.title, after.sub, after.startMinutes, "")
+        if (earlyIdx != null) {
+          // v466 (Fix 1): the white box stands over an
+          // early-checked item — the item seats directly
+          // under the box in the done dress, struck, ahead
+          // of the standing rows (it is the would-be next
+          // thing in the day's order; the candidacy anchored
+          // it before the next standing item). The standing
+          // next item takes the after row. At the item's
+          // window the box hands over to it as the in-window
+          // struck holder, exactly as v455 built.
+          val early = dayItems[earlyIdx]
+          nextRow = RailRow("done", minutesToTimeLabel(early.startMinutes), early.title, early.sub, early.startMinutes, "")
+          if (next1Idx != null) {
+            val next1 = dayItems[next1Idx]
+            afterRow = RailRow("item", minutesToTimeLabel(next1.startMinutes), next1.title, next1.sub, next1.startMinutes, "")
+            // v466 (Fix 2): the stretch between the early
+            // item's end and the after row's start is this
+            // branch's next→after candidate — negative on
+            // the ruling render (Rest ends 10:00, Brush
+            // Teeth starts 9:30), real when the early item
+            // closes before the next thing begins.
+            val earlyGapMinutes = next1.startMinutes - early.endMinutes
+            if (earlyGapMinutes >= 15) {
+              gapRow = RailRow("gap", "", "", "", 0, openDurationText(earlyGapMinutes), gapBelowNext = true)
+            }
+          }
+        } else {
+          // v454 (Ruling 2): the next item sits directly
+          // under the white box and the after row under it —
+          // and there is no gap row from the box itself: the
+          // open stretch is the box, and its box→next
+          // stretch is zero by construction (the box ends
+          // where the next item starts). v466 (Fix 2): the
+          // next→after stretch is a candidate here like
+          // every other branch's.
+          if (next1Idx != null) {
+            val next1 = dayItems[next1Idx]
+            nextRow = RailRow("item", minutesToTimeLabel(next1.startMinutes), next1.title, next1.sub, next1.startMinutes, "")
+            if (afterIdx != null) {
+              val whiteGapMinutes = dayItems[afterIdx].startMinutes - next1.endMinutes
+              if (whiteGapMinutes >= 15) {
+                gapRow = RailRow("gap", "", "", "", 0, openDurationText(whiteGapMinutes), gapBelowNext = true)
+              }
+            }
+          }
+          if (afterIdx != null) {
+            val after = dayItems[afterIdx]
+            afterRow = RailRow("item", minutesToTimeLabel(after.startMinutes), after.title, after.sub, after.startMinutes, "")
+          }
         }
       } else if (next1Idx != null && afterIdx != null) {
         val next1 = dayItems[next1Idx]
@@ -1753,6 +1893,48 @@ object WidgetRenderer {
           extensionRows.add(RailRow("item", minutesToTimeLabel(item.startMinutes), item.title, item.sub, item.startMinutes, ""))
           prevEnd = item.endMinutes
         }
+      }
+      // v466 (Fix 3): the trailing white block — on a
+      // sparse day at a tall placement the rail otherwise
+      // ends early and the card stands half blank (his
+      // standing complaint about empty space, Sat Nov 7:
+      // three rows seated, the rest of the card empty).
+      // When the candidate chain — core seats plus the
+      // extension walk — reaches the day's LAST standing
+      // item, the stretch from that item's end to midnight
+      // (1440, the schedule's day-window edge) is a final
+      // extension candidate, priced like every gap and
+      // seated whole-or-nothing from whatever budget
+      // remains after everything else. Because it rides
+      // last in the extension list, the walk's
+      // stop-at-the-first-hole discipline carries the
+      // absences with it: if an item ahead of it does not
+      // seat (budget or the nine-slot cap), the block
+      // behind it never seats either — a to-midnight block
+      // over unseated items would be a lie — and if the
+      // day's last seated element is itself a gap whose
+      // item didn't fit, the walk has already stopped
+      // before reaching this far. The chain's end is read
+      // per arrangement: past an after seat the walk covers
+      // the ahead list to its end; with no standing items
+      // at all the box's own holder is the day's last item
+      // (its window end for a struck holder, its end for a
+      // running event); otherwise the core's standing seats
+      // must be the whole ahead list — the under row under
+      // a struck box, or the next up everywhere else.
+      val boxHolderIdx = runningIdx ?: struckIdx
+      val chainLastIdx: Int? = when {
+        afterSeatIdx != null -> aheadIdx.lastOrNull()
+        aheadIdx.isEmpty() -> boxHolderIdx ?: earlyIdx
+        boxStruckItem != null -> if (aheadIdx.all { it == underIdx }) underIdx else null
+        else -> if (aheadIdx.all { it == next1Idx }) next1Idx else null
+      }
+      val chainEndMinutes = chainLastIdx?.let { idx ->
+        val item = dayItems[idx]
+        if (idx == boxHolderIdx && runningIdx == null) winEnd(item) else item.endMinutes
+      }
+      if (chainEndMinutes != null && 1440 - chainEndMinutes >= 15) {
+        extensionRows.add(RailRow("gap", "", "", "", 0, openDurationText(1440 - chainEndMinutes)))
       }
       leftCount = aheadIdx.size
       rows = selectRailRows(lastRow, currentRow, heroRow, gapRow, afterRow, nextRow, boxIsNow, extensionRows, heightSignal)
@@ -2400,15 +2582,29 @@ object WidgetRenderer {
     if (lastChosen && last != null) display.add(last)
     if (currentChosen && current != null) display.add(current)
     if (heroChosen && hero != null) display.add(hero)
-    if (gapChosen && gap != null) display.add(gap)
+    // v466 (Fix 2): the gap displays where its stretch
+    // sits — a box→next gap directly under the box (the
+    // standing place), a next→after gap below the next
+    // row. When the next row itself did not seat, a
+    // below-next gap falls back to the standing place
+    // rather than floating past the after row.
+    if (gapChosen && gap != null && (!gap.gapBelowNext || !nextChosen)) display.add(gap)
     if (nextChosen && next != null) display.add(next)
+    if (gapChosen && gap != null && gap.gapBelowNext && nextChosen) display.add(gap)
     if (afterChosen && after != null) display.add(after)
     // ── v453: the tall extension — the rest of the day,
     // walked from the core's leftover, only once the whole
     // core stands. Strict rail order, whole or not at all,
     // stop at the first element that does not fit; the
     // rail's nine slots cap the walk as well. ──
-    if (afterChosen) {
+    // v466 (Fix 3): the gate is the core standing whole —
+    // an after row that was seated, or no after row in the
+    // composition at all (the core is then trivially
+    // whole, and the only extension candidate that can
+    // exist is the trailing block, which must still be
+    // allowed to seat). An after row that exists but did
+    // not fit keeps the gate shut, exactly as v453 left it.
+    if (afterChosen || after == null) {
       for (row in extension) {
         if (display.size >= 9) break
         val cost = if (row.kind == "gap") 33 else 36

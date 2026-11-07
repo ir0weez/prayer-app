@@ -16,6 +16,12 @@
 //   4. Best scores persist as arcade stats in the progression
 //      store — whose record carries ONLY unlocked + best.
 //   5. The shelf does not launch games (source pin).
+//      v460 amendment: the shelf gained a launch DOOR — an owned
+//      game's card hands the screen an id through onPlay, and the
+//      screen launches it via the shared applyDeal. What this pin
+//      still holds is the shelf's own shape: it imports no game
+//      component and pushes no route. The launch behaviour itself
+//      is pinned in kmo-v460-shelf-pick.test.tsx.
 //   6. Wave data is STILL never persisted: every storage write the
 //      layer makes lands on a whitelisted key (the shared coin/XP
 //      keys or the progression key), and nothing rating/minute/
@@ -286,6 +292,10 @@ describe("v397 best scores", () => {
 });
 
 // ─── 5. The shelf does not launch ────────────────────────────────────────────
+// v460: the shelf launches through a callback now (see the header
+// note) — these assertions pin what did NOT change: the shelf
+// itself still imports no game and pushes no route; launching is
+// the screen's applyDeal, reached through onPlay.
 
 describe("v397 the shelf", () => {
   it("shows bests and prices but imports no game and pushes no route", () => {

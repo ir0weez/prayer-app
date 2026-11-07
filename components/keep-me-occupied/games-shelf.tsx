@@ -11,28 +11,38 @@ import {
 
 /**
  * v397 "All games" — the quiet shelf. It stands OFF the wave path:
- * dealing stays random and choice-free, so a game here can be
- * looked at, its best score read, and a locked one bought — but
- * never launched. The shelf is a shop window, not a menu.
+ * best scores to read and locked games to buy.
+ *
+ * v460 — the shelf is a door now too (Jonathan wanted to choose
+ * what to play). A game he OWNS launches straight from its card:
+ * the card hands the screen an id through onPlay, and the screen
+ * drives it through the very same applyDeal a dealt game walks,
+ * so a picked game earns, settles, and records bests identically.
+ * The deal itself is untouched — it still chooses at random — and
+ * this shelf still imports no game and pushes no route. The
+ * chapter and the Word Dig are never shelf picks; locked cards
+ * start nothing (their only action is the Unlock button).
  */
 export function GamesShelf({
   m,
   progression,
   balance,
   onUnlock,
+  onPlay,
   onBack,
 }: {
   m: KeepMeOccupiedMaterialFamily;
   progression: KmoProgression;
   balance: number;
   onUnlock: (id: KmoItemId) => void;
+  onPlay: (id: KmoItemId) => void;
   onBack: () => void;
 }) {
   return (
     <View>
       <Text style={[styles.title, { color: m.ink }]}>All games</Text>
       <Text style={[styles.sub, { color: m.inkSoft }]}>
-        The deal still chooses — this shelf is only for looking, best scores, and unlocking.
+        Tap a game you own to play it — the deal still chooses when you head back.
       </Text>
       {/* v400 addendum: the purse stands at the TOP of the shelf —
           the same balance the dealt screen's readout shows (both
@@ -45,8 +55,12 @@ export function GamesShelf({
           const price = unlockPrice(item.id);
           const best = progression.best[item.id];
           const affordable = price != null && balance >= price;
-          return (
-            <View key={item.id} style={[styles.row, { backgroundColor: m.card, borderColor: m.line }]}>
+          // v460: only a game he owns is a play door. The chapter
+          // and the dig are never picks, and a locked card stays a
+          // plain card — tapping it starts nothing.
+          const playable = owned && item.kind === "game";
+          const inner = (
+            <>
               <View style={styles.rowCopy}>
                 <Text style={[styles.rowTitle, { color: m.ink }]}>{item.title}</Text>
                 <Text style={[styles.rowSub, { color: m.inkSoft }]}>
@@ -59,6 +73,11 @@ export function GamesShelf({
                       : `Locked · ${formatCoins(price ?? 0)} coins`}
                 </Text>
               </View>
+              {playable ? (
+                <View style={[styles.play, { backgroundColor: m.tonal }]}>
+                  <Text style={[styles.playText, { color: m.tonalInk }]}>Play</Text>
+                </View>
+              ) : null}
               {!owned && price != null ? (
                 <Pressable
                   onPress={() => onUnlock(item.id)}
@@ -78,6 +97,25 @@ export function GamesShelf({
               ) : owned && best != null && item.id !== "chapter" ? (
                 <Text style={[styles.best, { color: m.deep }]}>Best {best}</Text>
               ) : null}
+            </>
+          );
+          return playable ? (
+            <Pressable
+              key={item.id}
+              onPress={() => onPlay(item.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`Play ${item.title}`}
+              style={({ pressed }) => [
+                styles.row,
+                { backgroundColor: m.card, borderColor: m.line },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              {inner}
+            </Pressable>
+          ) : (
+            <View key={item.id} style={[styles.row, { backgroundColor: m.card, borderColor: m.line }]}>
+              {inner}
             </View>
           );
         })}
@@ -116,6 +154,8 @@ const styles = StyleSheet.create({
   rowSub: { fontSize: 12, marginTop: 2, lineHeight: 16 },
   unlock: { borderRadius: 999, paddingVertical: 9, paddingHorizontal: 13 },
   unlockText: { fontSize: 12.5, fontWeight: "800" },
+  play: { borderRadius: 999, paddingVertical: 9, paddingHorizontal: 13 },
+  playText: { fontSize: 12.5, fontWeight: "800" },
   best: { fontSize: 13, fontWeight: "800" },
   balanceTop: { fontSize: 14, marginTop: 10, fontWeight: "900" },
   back: { marginTop: 12, borderRadius: 999, paddingVertical: 13, alignItems: "center", borderWidth: 1.5 },

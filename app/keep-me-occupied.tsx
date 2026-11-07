@@ -26,6 +26,13 @@
  * the game; the wave check keeps the single strength question.
  * With no "before" there is no before→now read: the wave check
  * shows the one rating and the earnings line, nothing invented.
+ *
+ * v460 — the shelf can start a game now (Jonathan wanted to
+ * choose what to play). A pick walks the deal's own road — settle
+ * whatever is on the table, then applyDeal — so a picked game is
+ * indistinguishable from a dealt one downstream: same session,
+ * same token lock, same settle, same best-score record. The deal
+ * itself still chooses at random, exactly as it always has.
  */
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
@@ -77,6 +84,7 @@ import {
   dealItem,
   digChapterCandidates,
   pickDigTarget,
+  poolItem,
   sessionLine,
   startSession,
   type ChapterDeal,
@@ -360,6 +368,21 @@ export default function KeepMeOccupiedScreen() {
     });
   }, []);
 
+  /**
+   * v460: a pick from the shelf — dealAgain's shape with a chosen
+   * item instead of a dealt one. Settle whatever is on the table
+   * first (the same first step a re-deal takes), then applyDeal,
+   * the one launch path. Only games he owns ever reach this; the
+   * shelf gates the door.
+   */
+  const pickGame = useCallback(
+    (id: KmoItemId) => {
+      void settleSession();
+      applyDeal(poolItem(id));
+    },
+    [applyDeal, settleSession],
+  );
+
   const goWave = useCallback(async () => {
     await settleSession();
     setPhase("wave");
@@ -429,6 +452,7 @@ export default function KeepMeOccupiedScreen() {
             progression={progression}
             balance={balance}
             onUnlock={onUnlock}
+            onPlay={pickGame}
             onBack={() => setPhase("dealt")}
           />
         ) : deal ? (

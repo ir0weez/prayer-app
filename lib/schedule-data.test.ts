@@ -209,6 +209,84 @@ describe("schedule-data", () => {
       });
     });
 
+    it("counts a checked-off group as fully completed, open subtasks included (v463)", () => {
+      const completedGroup = {
+        ...createScheduleTodo({
+          title: "Evening routine",
+          date: "2026-05-30",
+          subtasks: [
+            { id: "dishes", title: "Dishes", isCompleted: true },
+            { id: "ukulele", title: "Ukulele", isCompleted: false },
+            { id: "permission", title: "External Permission", isCompleted: false },
+          ],
+        }, 0),
+        isCompleted: true,
+      };
+      expect(getTodoSummaryCounts([completedGroup])).toEqual({
+        completed: 3,
+        total: 3,
+        remaining: 0,
+      });
+    });
+
+    it("matches the list on a finished day whose group closed with subtasks still open (v463)", () => {
+      // His Nov 6 shape: the day list held no open todo rows, yet the old
+      // counter still held the unchecked subtasks inside the checked-off
+      // evening Self-Care group ("External Permission", "Ukulele").
+      const eveningSelfCare = {
+        ...createScheduleTodo({
+          title: "Self-Care",
+          date: "2026-11-06",
+          subtasks: [
+            { id: "external-permission", title: "External Permission", isCompleted: false },
+            { id: "ukulele", title: "Ukulele", isCompleted: false },
+          ],
+        }, 0),
+        isCompleted: true,
+      };
+      const feedAaron = {
+        ...createScheduleTodo({ title: "Feed (Aaron)", date: "2026-11-06" }, 1),
+        isCompleted: true,
+      };
+      const writeChapter = {
+        ...createScheduleTodo({ title: "Write", date: "2026-11-06" }, 2),
+        isCompleted: true,
+      };
+      expect(getTodoSummaryCounts([eveningSelfCare, feedAaron, writeChapter])).toEqual({
+        completed: 4,
+        total: 4,
+        remaining: 0,
+      });
+    });
+
+    it("takes remaining only from the group whose header still stands open (v463)", () => {
+      const closedGroup = {
+        ...createScheduleTodo({
+          title: "Morning routine",
+          date: "2026-05-30",
+          subtasks: [
+            { id: "a", title: "A", isCompleted: false },
+            { id: "b", title: "B", isCompleted: false },
+          ],
+        }, 0),
+        isCompleted: true,
+      };
+      const openGroup = createScheduleTodo({
+        title: "Schoolwork",
+        date: "2026-05-30",
+        subtasks: [
+          { id: "english", title: "English", isCompleted: true },
+          { id: "math", title: "Math", isCompleted: false },
+          { id: "science", title: "Science", isCompleted: false },
+        ],
+      }, 1);
+      expect(getTodoSummaryCounts([closedGroup, openGroup])).toEqual({
+        completed: 3,
+        total: 5,
+        remaining: 2,
+      });
+    });
+
     it("preserves notes on grouped todos for the expanded card", () => {
       const todo = createScheduleTodo({
         title: "Schoolwork",

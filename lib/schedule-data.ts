@@ -355,6 +355,20 @@ export function getSubtaskProgress(todo: ScheduleTodo): { completed: number; tot
  * Counts the actionable todo units for the Schedule summary. A grouped todo is
  * represented by its subtasks rather than also counting the group header as a
  * separate todo, while ordinary todos continue to count as one unit.
+ *
+ * v463: the counter matches the list. partitionGroupedTodosForSchedule files
+ * a group whose header is checked off as one finished row at the bottom of
+ * the day, whatever its subtasks say — so here a checked-off group counts ALL
+ * of its subtasks as completed (the total still counts the subtasks; only the
+ * completed side moves). A group whose header stands open still counts its
+ * subtasks individually, exactly as before. His Nov 6 ruling, from his own
+ * evening screenshot: at 10:18 PM the summary sentence said "4 todos" and the
+ * progress bar read 24 of 28, yet the day list held no open todo rows — the
+ * 4 remaining units were unchecked subtasks inside checked-off groups (the
+ * evening Self-Care group's "External Permission" and "Ukulele" among them;
+ * the day's totals cross-check: 17 todo units + 11 events = 28). The
+ * expanded group card keeps showing the real subtask state via
+ * getSubtaskProgress; only this summary count follows the header.
  */
 export function getTodoSummaryCounts(todos: ScheduleTodo[]): { completed: number; total: number; remaining: number } {
   const counts = todos.reduce(
@@ -362,7 +376,9 @@ export function getTodoSummaryCounts(todos: ScheduleTodo[]): { completed: number
       const subtasks = todo.subtasks ?? [];
       if (subtasks.length > 0) {
         counts.total += subtasks.length;
-        counts.completed += subtasks.filter((subtask) => subtask.isCompleted).length;
+        counts.completed += todo.isCompleted
+          ? subtasks.length
+          : subtasks.filter((subtask) => subtask.isCompleted).length;
       } else {
         counts.total += 1;
         if (todo.isCompleted) counts.completed += 1;

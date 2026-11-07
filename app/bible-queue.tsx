@@ -9,8 +9,17 @@
 // teal), band heads with the count in a white pill, rows at radius
 // 16 carrying a small plum bookmark when the chapter is read, and
 // the explanatory note box + count paragraph retired (no captions).
+// v459 (Jonathan, Nov 6): the rows gain a mark-done control — a
+// quiet check circle at the row's right, its own Pressable, so a
+// chapter can be marked Complete straight off the list instead of
+// only through the book page's editor. Both families walk the one
+// door (rewards.transitionChapterStatus → 'complete'): a To Write
+// chapter marked done is written; a To Re-Study chapter marked
+// done is re-studied. setChapterStatus pulls the chapter off both
+// queues, so adopting the returned state takes the row off the
+// list at once, no reload.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -21,6 +30,7 @@ import { PaperSettle } from '@/components/paper-motion';
 import { BitSettle } from '@/components/bit-motion';
 import type { QueueItem } from '@/lib/bible-v205/types';
 import { chapterReadDate, loadStudyState, type StudyState } from '@/lib/bible-v205/study';
+import { transitionChapterStatus } from '@/lib/bible-v205/rewards';
 import { useBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
@@ -81,6 +91,27 @@ export default function BibleQueueScreen(props: { pane?: BibleQueuePaneProps } =
     else router.back();
   };
 
+  // v459: the reload's `live` flag in the shape an event handler
+  // can hold — a ref the unmount cleanup drops, checked before the
+  // mark-done door's returned state is adopted.
+  const liveRef = useRef(true);
+  useEffect(() => {
+    liveRef.current = true;
+    return () => {
+      liveRef.current = false;
+    };
+  }, []);
+
+  const markDone = async (item: QueueItem) => {
+    // v459: the one door — the same call the book page's editor
+    // makes (defaults for position/imports; this screen has no
+    // equivalent to pass). 'complete' for both families: the
+    // write is written, the re-study is re-studied.
+    if (!studyState) return;
+    const result = await transitionChapterStatus(studyState, item.book, item.chapter, 'complete');
+    if (liveRef.current) setStudyState(result.state);
+  };
+
   const renderItem = (item: QueueItem, kind: 'write' | 'restudy') => {
     // v311: a queued chapter that is also READ carries the read
     // channel's small plum bookmark before its name (the drawing's
@@ -96,6 +127,25 @@ export default function BibleQueueScreen(props: { pane?: BibleQueuePaneProps } =
         <Text style={[styles.qname, { color: palette.ink }]}>
           {item.book} {item.chapter}
         </Text>
+        {/* v459: the mark-done control — its own Pressable, seated
+            in the row's family colour, so tapping it marks the
+            chapter Complete and never opens it; the rest of the
+            row still opens, exactly as before. */}
+        <Pressable
+          onPress={() => markDone(item)}
+          hitSlop={8}
+          style={[
+            styles.qdone,
+            { backgroundColor: kind === 'restudy' ? palette.accentTeal.bg : palette.raspTint },
+          ]}
+          accessibilityLabel={`Mark ${item.book} ${item.chapter} done`}
+        >
+          <MaterialIcons
+            name="check"
+            size={16}
+            color={kind === 'restudy' ? palette.accentTeal.deep : palette.raspDeep}
+          />
+        </Pressable>
         <Text style={[styles.qopen, { color: palette.rasp }]}>Open ›</Text>
       </Pressable>
     );
@@ -223,6 +273,7 @@ const styles = StyleSheet.create({
   bandCount: { fontSize: 13.5, fontWeight: '700' },
   qitem: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 16, paddingHorizontal: 16, marginBottom: 10 },
   qname: { fontSize: 16, fontWeight: '600', flex: 1 },
+  qdone: { width: 30, height: 30, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   qopen: { fontSize: 14, fontWeight: '600' },
   empty: { fontSize: 13.5, fontStyle: 'italic', paddingVertical: 6 },
 });

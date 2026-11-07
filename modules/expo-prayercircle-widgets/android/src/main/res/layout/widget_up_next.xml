@@ -126,6 +126,50 @@
       android:textSize="16sp"
       android:textStyle="bold" />
 
+    <!-- v464 (UN-T5): the day-done turn's closed line — the
+         green check disc (reached green family: the disc wears
+         greenContainer, the check the green, both bitmaps drawn
+         in the renderer) and the closing tally. Stands between
+         the message and the rail; gone in every standing face. -->
+    <LinearLayout
+      android:id="@+id/nx_t5_closed"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="10dp"
+      android:gravity="center_vertical"
+      android:orientation="horizontal"
+      android:visibility="gone">
+
+      <FrameLayout
+        android:layout_width="26dp"
+        android:layout_height="26dp">
+
+        <ImageView
+          android:id="@+id/nx_t5_closed_disc"
+          android:layout_width="26dp"
+          android:layout_height="26dp"
+          android:contentDescription="@null"
+          android:src="@drawable/widget_circle_white" />
+
+        <ImageView
+          android:id="@+id/nx_t5_closed_check"
+          android:layout_width="26dp"
+          android:layout_height="26dp"
+          android:contentDescription="@null" />
+      </FrameLayout>
+
+      <TextView
+        android:id="@+id/nx_t5_closed_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#221A3E"
+        android:textSize="14.5sp"
+        android:textStyle="bold" />
+    </LinearLayout>
+
     <LinearLayout
       android:id="@+id/next_rail"
       android:layout_width="match_parent"
@@ -2366,6 +2410,299 @@
         </LinearLayout>
       </FrameLayout>
 
+      <!-- v464 (UN-T5): the turn's own rows, seated inside the
+           rail under the nine slots (gone slots collapse, so
+           these stand directly under the last seated row).
+           Study rows wear a seed tile with the white book
+           glyph; the prayers row mirrors the Daily Breakdown's
+           face slots (44dp slot, 40dp face, −13dp overlap);
+           the spacer pushes the fast foot to the rail's foot. -->
+
+      <LinearLayout
+        android:id="@+id/nx_t5_study1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"
+        android:visibility="gone">
+
+        <FrameLayout
+          android:layout_width="30dp"
+          android:layout_height="30dp">
+
+          <ImageView
+            android:id="@+id/nx_t5_study1_tile"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_rounded16" />
+
+          <ImageView
+            android:id="@+id/nx_t5_study1_glyph"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:contentDescription="@null" />
+        </FrameLayout>
+
+        <TextView
+          android:id="@+id/nx_t5_study1_title"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="10dp"
+          android:ellipsize="end"
+          android:maxLines="1"
+          android:textColor="#221A3E"
+          android:textSize="14sp"
+          android:textStyle="bold" />
+
+        <TextView
+          android:id="@+id/nx_t5_study1_sub"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="5dp"
+          android:ellipsize="end"
+          android:maxLines="1"
+          android:textColor="#7A72A0"
+          android:textSize="12.5sp" />
+      </LinearLayout>
+
+      <LinearLayout
+        android:id="@+id/nx_t5_study2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"
+        android:visibility="gone">
+
+        <FrameLayout
+          android:layout_width="30dp"
+          android:layout_height="30dp">
+
+          <ImageView
+            android:id="@+id/nx_t5_study2_tile"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_rounded16" />
+
+          <ImageView
+            android:id="@+id/nx_t5_study2_glyph"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:contentDescription="@null" />
+        </FrameLayout>
+
+        <TextView
+          android:id="@+id/nx_t5_study2_title"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="10dp"
+          android:ellipsize="end"
+          android:maxLines="1"
+          android:textColor="#221A3E"
+          android:textSize="14sp"
+          android:textStyle="bold" />
+
+        <TextView
+          android:id="@+id/nx_t5_study2_sub"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="5dp"
+          android:ellipsize="end"
+          android:maxLines="1"
+          android:textColor="#7A72A0"
+          android:textSize="12.5sp" />
+      </LinearLayout>
+
+      <LinearLayout
+        android:id="@+id/nx_t5_pray"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:visibility="gone">
+
+        <FrameLayout
+          android:id="@+id/nx_t5_face_slot_1"
+          android:layout_width="44dp"
+          android:layout_height="44dp">
+
+          <ImageView
+            android:id="@+id/nx_t5_ring_1"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <ImageView
+            android:id="@+id/nx_t5_face_1"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <TextView
+            android:id="@+id/nx_t5_face_text_1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+
+        <FrameLayout
+          android:id="@+id/nx_t5_face_slot_2"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:layout_marginStart="-13dp">
+
+          <ImageView
+            android:id="@+id/nx_t5_ring_2"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <ImageView
+            android:id="@+id/nx_t5_face_2"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <TextView
+            android:id="@+id/nx_t5_face_text_2"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+
+        <FrameLayout
+          android:id="@+id/nx_t5_face_slot_3"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:layout_marginStart="-13dp">
+
+          <ImageView
+            android:id="@+id/nx_t5_ring_3"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <ImageView
+            android:id="@+id/nx_t5_face_3"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <TextView
+            android:id="@+id/nx_t5_face_text_3"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+
+        <FrameLayout
+          android:id="@+id/nx_t5_face_more"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:layout_marginStart="-13dp"
+          android:visibility="gone">
+
+          <ImageView
+            android:id="@+id/nx_t5_face_more_img"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_circle_white" />
+
+          <TextView
+            android:id="@+id/nx_t5_face_more_text"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+        </FrameLayout>
+
+        <LinearLayout
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="10dp"
+          android:layout_weight="1"
+          android:orientation="vertical">
+
+          <TextView
+            android:id="@+id/nx_t5_pray_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#221A3E"
+            android:textSize="14.5sp"
+            android:textStyle="bold" />
+
+          <TextView
+            android:id="@+id/nx_t5_pray_sub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#4A4270"
+            android:textSize="12.5sp" />
+        </LinearLayout>
+      </LinearLayout>
+
+      <FrameLayout
+        android:id="@+id/nx_t5_spacer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+      <LinearLayout
+        android:id="@+id/nx_t5_fastwrap"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <FrameLayout
+          android:id="@+id/nx_t5_fastline"
+          android:layout_width="match_parent"
+          android:layout_height="1dp" />
+
+        <TextView
+          android:id="@+id/nx_t5_fast"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:ellipsize="end"
+          android:maxLines="1"
+          android:paddingTop="7dp"
+          android:textColor="#4A4270"
+          android:textSize="12.5sp"
+          android:textStyle="bold" />
+      </LinearLayout>
 
     </LinearLayout>
   </LinearLayout>

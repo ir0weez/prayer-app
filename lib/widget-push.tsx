@@ -184,7 +184,10 @@ export function snapshotsFromStores(stores: LoadedWidgetStores, now = new Date()
  * holds dark), then derived by lib/widget-palette. Any failure
  * leaves the app's own defaults standing (default seed, device
  * scheme): a palette miss is a dress issue, never a data lie. */
-export async function loadWidgetPalette(): Promise<WidgetPalette> {
+/** The palette inputs, resolved once for both appearances:
+ * the seed (themeId) and the app's own scheme, exactly as
+ * loadWidgetPalette has resolved them since v441. */
+async function resolveWidgetPaletteInputs(): Promise<{ scheme: ColorScheme; themeId: AccentThemeId }> {
   let scheme: ColorScheme = Appearance.getColorScheme() === "dark" ? "dark" : "light";
   let themeId: AccentThemeId = DEFAULT_ACCENT_THEME;
   try {
@@ -203,7 +206,24 @@ export async function loadWidgetPalette(): Promise<WidgetPalette> {
   } catch {
     // Defaults stand.
   }
+  return { scheme, themeId };
+}
+
+export async function loadWidgetPalette(): Promise<WidgetPalette> {
+  const { scheme, themeId } = await resolveWidgetPaletteInputs();
   return buildWidgetPalette(scheme, themeId);
+}
+
+/** v464: the SAME seed derived in dark, always — the snapshot
+ * carries both appearances so the renderer can follow the
+ * DEVICE's mode at render time (the app's own appearance
+ * setting must not pin the widgets: his app can stand in
+ * light while his phone stands in dark, and the widgets are
+ * the phone's furniture). Same failure grain as the standing
+ * palette: the default seed's dark derivation. */
+export async function loadWidgetPaletteDark(): Promise<WidgetPalette> {
+  const { themeId } = await resolveWidgetPaletteInputs();
+  return buildWidgetPalette("dark", themeId);
 }
 
 let lastPushedSignature: string | null = null;
@@ -215,9 +235,10 @@ let lastPushedSignature: string | null = null;
 export async function pushWidgetSnapshots(
   snapshots: AllWidgetSnapshots,
   palette?: WidgetPalette,
+  paletteDark?: WidgetPalette,
 ): Promise<void> {
   if (Platform.OS !== "android") return;
-  const json = serializeWidgetSnapshots(snapshots, widgetScheme(), palette);
+  const json = serializeWidgetSnapshots(snapshots, widgetScheme(), palette, paletteDark);
   if (json === lastPushedSignature) return;
   updateNativeWidgetSnapshot(json);
   // Only after the hand-off has run — a failed pass must not mark
@@ -234,7 +255,8 @@ export async function refreshAndPushWidgets(
   try {
     const stores = await loadWidgetStores(overrides);
     const palette = await loadWidgetPalette().catch(() => undefined);
-    await pushWidgetSnapshots(snapshotsFromStores(stores), palette);
+    const paletteDark = await loadWidgetPaletteDark().catch(() => undefined);
+    await pushWidgetSnapshots(snapshotsFromStores(stores), palette, paletteDark);
   } catch {
     // Best-effort — widgets never break the app.
   }

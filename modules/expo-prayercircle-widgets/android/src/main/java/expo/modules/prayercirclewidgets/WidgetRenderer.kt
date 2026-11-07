@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -336,51 +337,122 @@ object WidgetRenderer {
           greenContainer = hex("greenContainer", "#DFF0E4"),
         )
       }
+
+      /** v464: the snapshot's seed × DARK palette — the
+       * "paletteDark" key the push layer rides beside "palette"
+       * since v464 (lib/widget-palette's dark derivation of the
+       * same Settings seed, built push-side where the theme
+       * machinery lives). Null when the stored snapshot predates
+       * it. Per-field fallbacks are the standing palette's own
+       * values, never a second set of constants. */
+      fun darkFromSnapshot(root: JSONObject?, snapshot: WidgetPalette): WidgetPalette? {
+        val pal = root?.optJSONObject("paletteDark") ?: return null
+        fun hex(key: String, fallbackColor: Int): Int {
+          val raw = pal.optString(key)?.takeIf { it.isNotBlank() } ?: return fallbackColor
+          return colorOr(raw, fallbackColor)
+        }
+        return WidgetPalette(
+          surface = hex("surface", snapshot.surface),
+          surfaceAlt = hex("surfaceAlt", snapshot.surfaceAlt),
+          ink = hex("ink", snapshot.ink),
+          body = hex("body", snapshot.body),
+          muted = hex("muted", snapshot.muted),
+          primary = hex("primary", snapshot.primary),
+          onPrimary = hex("onPrimary", snapshot.onPrimary),
+          container = hex("container", snapshot.container),
+          onContainer = hex("onContainer", snapshot.onContainer),
+          chip = hex("chip", snapshot.chip),
+          track = hex("track", snapshot.track),
+          green = hex("green", snapshot.green),
+          greenContainer = hex("greenContainer", snapshot.greenContainer),
+        )
+      }
     }
   }
 
   private fun paletteOf(root: JSONObject?): WidgetPalette = WidgetPalette.fromSnapshot(root)
 
-  /** The effective palette for one render: the device's Material
-   *  You colours when they can be read, the snapshot palette
-   *  (paletteOf) whole when they cannot — never a mix of the two,
-   *  except the greens, which are the snapshot's in both worlds. */
+  /** v464: is the DEVICE in night mode, per the provider
+   * context's own configuration? The widgets follow the DEVICE
+   * — never the app's appearance setting (his app can stand in
+   * light while his phone stands in dark; the home screen is
+   * the phone's furniture). */
+  private fun deviceIsNight(context: Context): Boolean =
+    (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+      Configuration.UI_MODE_NIGHT_YES
+
+  /** The effective palette for one render — v464: the choice
+   * is made by the DEVICE's mode first, then by source, and a
+   * palette is always taken whole (never a mix of two, except
+   * the greens, which are the snapshot's in both worlds).
+   *
+   * Light (exactly as v442 shipped): the device's Material You
+   * colours when they can be read, the snapshot palette whole
+   * when they cannot.
+   *
+   * Night (new): the snapshot's seed × dark palette first —
+   * the app's own dark derivation of his Settings seed, the
+   * same values his in-app dark surfaces wear — then the
+   * device's dark tones (devicePalette's night assignment),
+   * then the standing snapshot palette. The app's appearance
+   * setting cannot pin the widgets light against the device:
+   * "palette" may itself be a light derivation (appearance
+   * set light), and at night it is only the last resort. */
   private fun effectivePalette(context: Context, root: JSONObject?): WidgetPalette {
     val snapshot = paletteOf(root)
-    return devicePalette(context, snapshot) ?: snapshot
+    if (deviceIsNight(context)) {
+      WidgetPalette.darkFromSnapshot(root, snapshot)?.let { return it }
+      devicePalette(context, snapshot, night = true)?.let { return it }
+      return snapshot
+    }
+    return devicePalette(context, snapshot, night = false) ?: snapshot
   }
 
   /** The device's Material You system colours mapped onto the
-   *  palette roles: accent1 600 is the primary; accent2's light
-   *  tones carry containers and chips, its 900 the ink on them;
-   *  neutral1 carries surface and ink, neutral2 the softer
-   *  surfaces, body/muted text and the track. The system
-   *  resources are night-qualified, so light/dark follows the
-   *  DEVICE's system dark mode as resolved in the widget
-   *  provider's context. Null on any failure (pre-31 device, a
-   *  missing tone) — the caller falls back whole. */
-  private fun devicePalette(context: Context, snapshot: WidgetPalette): WidgetPalette? {
+   *  palette roles — with the mode's own assignment (v464).
+   *
+   *  The v442 build claimed "the system resources are
+   *  night-qualified" and read ONE assignment — the LIGHT
+   *  assignment — in both modes. That claim was the bug: the
+   *  system_* resources are raw tonal RAMPS (neutral1_50 is
+   *  tone 95, a near-white, on every device in every mode);
+   *  dark mode does not change the tones, it REASSIGNS them
+   *  to roles — a dark surface is neutral1_900, not _50. The
+   *  old mapping named light tones for every role (50 surface,
+   *  900 ink, 100 container), and because the read SUCCEEDS
+   *  on any API 31+ device, the snapshot fallback — the one
+   *  path that could ever be dark — was never reached. His
+   *  widgets were light in dark mode because the device path
+   *  is a light-only path.
+   *
+   *  The night assignment below is Material You's own dark
+   *  role map over the same ramps (primary = accent1 tone 80,
+   *  surface = neutral1 tone 10, container = accent2 tone 30,
+   *  ink on container = accent2 tone 90, text tones mirrored).
+   *  Null on any failure (pre-31 device, a missing tone) — the
+   *  caller falls back whole. */
+  private fun devicePalette(context: Context, snapshot: WidgetPalette, night: Boolean): WidgetPalette? {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
     return try {
       val res = context.resources
       fun sys(id: Int): Int = res.getColor(id, context.theme)
-      val primary = sys(android.R.color.system_accent1_600)
+      val primary = sys(if (night) android.R.color.system_accent1_200 else android.R.color.system_accent1_600)
       // White ink on the primary, unless the tone is light, where
       // the near-black neutral reads better.
       val onPrimary =
         if (luminance(primary) > 0.72) sys(android.R.color.system_neutral1_900) else Color.WHITE
       WidgetPalette.of(
-        surface = sys(android.R.color.system_neutral1_50),
-        surfaceAlt = sys(android.R.color.system_neutral2_100),
-        ink = sys(android.R.color.system_neutral1_900),
-        body = sys(android.R.color.system_neutral2_700),
-        muted = sys(android.R.color.system_neutral2_600),
+        surface = sys(if (night) android.R.color.system_neutral1_900 else android.R.color.system_neutral1_50),
+        surfaceAlt = sys(if (night) android.R.color.system_neutral2_700 else android.R.color.system_neutral2_100),
+        ink = sys(if (night) android.R.color.system_neutral1_50 else android.R.color.system_neutral1_900),
+        body = sys(if (night) android.R.color.system_neutral2_200 else android.R.color.system_neutral2_700),
+        muted = sys(if (night) android.R.color.system_neutral2_400 else android.R.color.system_neutral2_600),
         primary = primary,
         onPrimary = onPrimary,
-        container = sys(android.R.color.system_accent2_100),
-        onContainer = sys(android.R.color.system_accent2_900),
-        chip = sys(android.R.color.system_accent2_200),
-        track = sys(android.R.color.system_neutral2_200),
+        container = sys(if (night) android.R.color.system_accent2_700 else android.R.color.system_accent2_100),
+        onContainer = sys(if (night) android.R.color.system_accent2_100 else android.R.color.system_accent2_900),
+        chip = sys(if (night) android.R.color.system_accent2_600 else android.R.color.system_accent2_200),
+        track = sys(if (night) android.R.color.system_neutral2_700 else android.R.color.system_neutral2_200),
         green = snapshot.green,
         greenContainer = snapshot.greenContainer,
       )
@@ -1287,7 +1359,16 @@ object WidgetRenderer {
     } else {
       views.setOnClickPendingIntent(R.id.next_root, launchPendingIntent(context, base))
     }
+    // v464: every render starts from the standing face (the
+    // T5 reset) — the turn below re-seats what it shows.
+    hideUpNextTomorrow(views)
     if (snap == null || snap.optString("state") != "next") {
+      // v464: the quiet face is the day-done turn's first
+      // door — a spent day turns to tomorrow (UN-T5) instead
+      // of standing sad. The turn declines (stale, unspent,
+      // nothing to show) → the standing face, exactly as
+      // before.
+      if (snap != null && renderUpNextTomorrow(context, views, snap, pal, heightSignal)) return views
       views.setViewVisibility(R.id.next_msg, View.VISIBLE)
       views.setViewVisibility(R.id.next_chip, View.GONE)
       views.setViewVisibility(R.id.next_rail, View.GONE)
@@ -1675,6 +1756,11 @@ object WidgetRenderer {
       }
       leftCount = aheadIdx.size
       rows = selectRailRows(lastRow, currentRow, heroRow, gapRow, afterRow, nextRow, boxIsNow, extensionRows, heightSignal)
+      // v464: an empty selection on this fresh snapshot is
+      // this path's quiet face — the day-done turn's second
+      // door (the day spent under a "next" snapshot: every
+      // item checked off or past, nothing seated).
+      if (rows.isEmpty() && renderUpNextTomorrow(context, views, snap, pal, heightSignal)) return views
     } else {
       // ── The fallback: the snapshot's entries walk (v444),
       // extended with the legacy pre-v444 kinds so a stale
@@ -1733,6 +1819,13 @@ object WidgetRenderer {
       // a rail — render the quiet face instead of gap rows
       // standing alone.
       if (entries.none { it.kind != "gap" }) {
+        // v464: the fallback's quiet face is the turn's third
+        // door — it is also where a FRESH snapshot lands when
+        // today holds no timed items at all (an empty dayItems
+        // never enters the recompute), and an empty today is
+        // spent by construction. A stale snapshot's turn
+        // declines on its freshness gates, as always.
+        if (renderUpNextTomorrow(context, views, snap, pal, heightSignal)) return views
         views.setViewVisibility(R.id.next_msg, View.VISIBLE)
         views.setViewVisibility(R.id.next_chip, View.GONE)
         views.setViewVisibility(R.id.next_rail, View.GONE)
@@ -1778,6 +1871,288 @@ object WidgetRenderer {
       cal.get(Calendar.MONTH) + 1,
       cal.get(Calendar.DAY_OF_MONTH),
     )
+  }
+
+  /** v464: the device's tomorrow, "yyyy-MM-dd" — deviceDateIso's
+   * shape, one day on. */
+  private fun deviceTomorrowIso(): String {
+    val cal = Calendar.getInstance()
+    cal.add(Calendar.DAY_OF_YEAR, 1)
+    return String.format(
+      Locale.US,
+      "%04d-%02d-%02d",
+      cal.get(Calendar.YEAR),
+      cal.get(Calendar.MONTH) + 1,
+      cal.get(Calendar.DAY_OF_MONTH),
+    )
+  }
+
+  /** v464: tomorrow's short chip label — "SAT 7". */
+  private fun tomorrowChipLabel(): String {
+    val cal = Calendar.getInstance()
+    cal.add(Calendar.DAY_OF_YEAR, 1)
+    val dow = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT, Locale.US) ?: ""
+    return "${dow.uppercase(Locale.US)} ${cal.get(Calendar.DAY_OF_MONTH)}"
+  }
+
+  private val T5_FACE_SLOTS = intArrayOf(R.id.nx_t5_face_slot_1, R.id.nx_t5_face_slot_2, R.id.nx_t5_face_slot_3)
+  private val T5_RINGS = intArrayOf(R.id.nx_t5_ring_1, R.id.nx_t5_ring_2, R.id.nx_t5_ring_3)
+  private val T5_IMGS = intArrayOf(R.id.nx_t5_face_1, R.id.nx_t5_face_2, R.id.nx_t5_face_3)
+  private val T5_TEXTS = intArrayOf(R.id.nx_t5_face_text_1, R.id.nx_t5_face_text_2, R.id.nx_t5_face_text_3)
+
+  // v464: the day-done turn's honest row costs, priced from the
+  // layouts the v457 way — a padded two-line item row stands
+  // 36 (the rail's own plain-row cost), a gap box 33 (the
+  // rail's gap cost), the study rows 34 (30dp tile + padding),
+  // the prayers row 56 (the Daily Breakdown face slot's 44dp +
+  // its padding), the closed line 44 (26dp disc + the header's
+  // margins around it), the fast foot 31 (hairline + one line).
+  private val T5_COST_CLOSED = 44
+  private val T5_COST_ROW = 36
+  private val T5_COST_GAP = 33
+  private val T5_COST_STUDY = 34
+  private val T5_COST_PRAY = 56
+  private val T5_COST_FAST = 31
+
+  /** v464: every Up Next render starts from the standing face —
+   * the turn's views hidden, the kicker back to TODAY — because
+   * RemoteViews reuses the placed hierarchy across renders: a
+   * T5 render followed by a normal one would otherwise keep
+   * the flipped header and the turn's rows standing. The turn
+   * re-seats what it shows. */
+  private fun hideUpNextTomorrow(views: RemoteViews) {
+    views.setTextViewText(R.id.next_kicker, "UP NEXT · TODAY")
+    views.setViewVisibility(R.id.nx_t5_closed, View.GONE)
+    views.setViewVisibility(R.id.nx_t5_study1, View.GONE)
+    views.setViewVisibility(R.id.nx_t5_study2, View.GONE)
+    views.setViewVisibility(R.id.nx_t5_pray, View.GONE)
+    views.setViewVisibility(R.id.nx_t5_fastwrap, View.GONE)
+  }
+
+  /** v464 (UN-T5, "Tomorrow, Whole" — Jonathan's pick, Nov 6):
+   * the Up Next day-done turn. His words on the standing face
+   * at 10:20 PM — a huge white card saying only "Nothing left
+   * today": "This looks sad when it's empty... Can it change
+   * into something else?" When today is spent and the core
+   * selection would otherwise show that quiet face, the card
+   * turns to tomorrow instead: the header flips, one closed
+   * line receipts today, tomorrow's rail seats in day order
+   * with its own white gap boxes, then the Study rows,
+   * tomorrow's prayers, and the fast foot.
+   *
+   * Called ONLY from the standing quiet face's exits; returns
+   * false — having painted nothing — when any gate declines,
+   * and the caller paints the standing face exactly as before.
+   * The gates are the Daily Breakdown evening pattern: the
+   * snapshot must describe the device's today, its tomorrow
+   * must be the device's tomorrow (a day-old snapshot never
+   * turns on stale tomorrow data), and today must be spent —
+   * every item completed or its window end passed (the baked
+   * endMinutes convention: end > start ? end : start; a today
+   * with no items is spent by construction). Seating runs
+   * under the v457 budget (heightSignal − 64 − 20) at the
+   * honest costs above, in composition order, whole or not at
+   * all, stopping at the first element that doesn't fit; the
+   * fast foot is attempted last against what remains (the
+   * breakdown's anchor exception). The fixed core rules do
+   * NOT apply here — this face seats in order. */
+  private fun renderUpNextTomorrow(
+    context: Context,
+    views: RemoteViews,
+    snap: JSONObject,
+    pal: WidgetPalette,
+    heightSignal: Int,
+  ): Boolean {
+    if (snap.optString("dateIso") != deviceDateIso()) return false
+    if (snap.optString("tomorrowDateIso") != deviceTomorrowIso()) return false
+    val nowMin = nowMinutes()
+    val todayArr = snap.optJSONArray("dayItems") ?: return false
+    for (i in 0 until todayArr.length()) {
+      val item = todayArr.optJSONObject(i) ?: continue
+      val start = item.optInt("startMinutes")
+      val end = item.optInt("endMinutes")
+      val winEnd = if (end > start) end else start
+      if (!item.optBoolean("completed") && winEnd > nowMin) return false
+    }
+    val tomorrowArr = snap.optJSONArray("tomorrowItems") ?: return false
+    val tomorrow = mutableListOf<DayItem>()
+    for (i in 0 until tomorrowArr.length()) {
+      val d = tomorrowArr.optJSONObject(i) ?: continue
+      tomorrow.add(
+        DayItem(
+          d.optString("title"),
+          d.optString("sub"),
+          d.optInt("startMinutes"),
+          d.optInt("endMinutes"),
+          d.optBoolean("hasEnd"),
+          d.optBoolean("completed"),
+        ),
+      )
+    }
+    // Day order — the sort is stable, so ties keep the
+    // snapshot's own order.
+    tomorrow.sortBy { it.startMinutes }
+    // The element walk: items in day order, each ≥15-minute
+    // open stretch before an item (measured from the previous
+    // item's end, the rail's own between-items rule) a white
+    // gap box in order ahead of it.
+    val elems = mutableListOf<RailRow>()
+    var prevEnd: Int? = null
+    for (item in tomorrow) {
+      val pe = prevEnd
+      if (pe != null && item.startMinutes - pe >= 15) {
+        elems.add(RailRow("gap", "", "", "", 0, openDurationText(item.startMinutes - pe)))
+      }
+      elems.add(RailRow("item", minutesToTimeLabel(item.startMinutes), item.title, item.sub, item.startMinutes, ""))
+      prevEnd = maxOf(pe ?: item.endMinutes, item.endMinutes)
+    }
+    // ── Seating, priced before anything is painted: if the
+    // whole face would stand empty, decline and let the
+    // standing quiet face render. ──
+    var remaining = heightSignal - 64 - 20
+    val closed = if (snap.isNull("closedToday")) null else snap.optJSONObject("closedToday")
+    val closedSeated = closed != null && T5_COST_CLOSED <= remaining
+    if (closedSeated) remaining -= T5_COST_CLOSED
+    var elemSeated = 0
+    while (elemSeated < elems.size && elemSeated < 9) {
+      val cost = if (elems[elemSeated].kind == "gap") T5_COST_GAP else T5_COST_ROW
+      if (cost > remaining) break
+      remaining -= cost
+      elemSeated++
+    }
+    val study = if (snap.isNull("tomorrowStudy")) null else snap.optJSONObject("tomorrowStudy")
+    val readingText = study?.optString("reading")?.takeIf { it.isNotBlank() }
+    val writeText = study?.optString("writeNext")?.takeIf { it.isNotBlank() }
+    val readingSeated = readingText != null && T5_COST_STUDY <= remaining
+    if (readingSeated) remaining -= T5_COST_STUDY
+    val writeSeated = writeText != null && T5_COST_STUDY <= remaining
+    if (writeSeated) remaining -= T5_COST_STUDY
+    val pray = if (snap.isNull("tomorrowPray")) null else snap.optJSONObject("tomorrowPray")
+    val praySeated = pray != null && T5_COST_PRAY <= remaining
+    if (praySeated) remaining -= T5_COST_PRAY
+    val fast = if (snap.isNull("tomorrowFast")) null else snap.optJSONObject("tomorrowFast")
+    val fastSeated = fast != null && T5_COST_FAST <= remaining
+    if (!closedSeated && elemSeated == 0 && !readingSeated && !writeSeated && !praySeated && !fastSeated) {
+      return false
+    }
+    // ── Paint: the header flips to tomorrow. ──
+    views.setTextViewText(R.id.next_kicker, "UP NEXT · TOMORROW")
+    views.setViewVisibility(R.id.next_chip, View.VISIBLE)
+    views.setInt(R.id.next_chip_img, "setColorFilter", pal.chip)
+    views.setTextViewText(R.id.next_left, tomorrowChipLabel())
+    views.setTextColor(R.id.next_left, pal.onContainer)
+    views.setViewVisibility(R.id.next_msg, View.GONE)
+    // The closed line: the reached-green disc and check (the
+    // green family is the palette's meaning hue; the disc is
+    // the container, the check the green itself — drawn by
+    // the checkBitmap factory like every rail check).
+    if (closedSeated && closed != null) {
+      views.setViewVisibility(R.id.nx_t5_closed, View.VISIBLE)
+      views.setInt(R.id.nx_t5_closed_disc, "setColorFilter", pal.greenContainer)
+      views.setImageViewBitmap(R.id.nx_t5_closed_check, checkBitmap(pal.green))
+      val fastDay = if (closed.isNull("fastDay")) null else closed.optInt("fastDay")
+      views.setTextViewText(
+        R.id.nx_t5_closed_text,
+        "Today closed — ${closed.optInt("done")} of ${closed.optInt("total")}" +
+          (if (fastDay != null) " · fast day $fastDay kept" else ""),
+      )
+      views.setTextColor(R.id.nx_t5_closed_text, pal.ink)
+    }
+    // Tomorrow's rail, in the rail's own slots and dress.
+    views.setViewVisibility(R.id.next_rail, View.VISIBLE)
+    for (slot in 0 until 9) {
+      val rowId = railId(context, "nx_row_${slot + 1}")
+      if (slot >= elemSeated) {
+        views.setViewVisibility(rowId, View.GONE)
+        continue
+      }
+      fillRailSlot(context, views, slot + 1, elems[slot], slot == 0, slot == elemSeated - 1, pal)
+    }
+    // The Study rows.
+    if (readingSeated && readingText != null) {
+      fillT5StudyRow(
+        views,
+        R.id.nx_t5_study1, R.id.nx_t5_study1_tile, R.id.nx_t5_study1_glyph,
+        R.id.nx_t5_study1_title, R.id.nx_t5_study1_sub,
+        readingText, "to read", pal,
+      )
+    }
+    if (writeSeated && writeText != null) {
+      fillT5StudyRow(
+        views,
+        R.id.nx_t5_study2, R.id.nx_t5_study2_tile, R.id.nx_t5_study2_glyph,
+        R.id.nx_t5_study2_title, R.id.nx_t5_study2_sub,
+        writeText, "next to write", pal,
+      )
+    }
+    // Tomorrow's prayers: the breakdown's face stack (the
+    // emergency's person first, in the Emergency red the
+    // snapshot's face colour already carries).
+    if (praySeated && pray != null) {
+      views.setViewVisibility(R.id.nx_t5_pray, View.VISIBLE)
+      val faces = pray.optJSONArray("faces")
+      val faceCount = faces?.length() ?: 0
+      for (i in T5_FACE_SLOTS.indices) {
+        val face = if (i < faceCount) faces?.optJSONObject(i) else null
+        if (face != null) {
+          views.setViewVisibility(T5_FACE_SLOTS[i], View.VISIBLE)
+          // The ring is the card's own surface — it separates
+          // the overlapping faces (the breakdown's idiom).
+          views.setInt(T5_RINGS[i], "setColorFilter", pal.surface)
+          applyFace(context, views, T5_IMGS[i], T5_TEXTS[i], face, pal.primary, 40)
+        } else {
+          views.setViewVisibility(T5_FACE_SLOTS[i], View.GONE)
+        }
+      }
+      val count = pray.optInt("count")
+      if (count > 3) {
+        views.setViewVisibility(R.id.nx_t5_face_more, View.VISIBLE)
+        views.setInt(R.id.nx_t5_face_more_img, "setColorFilter", pal.chip)
+        views.setTextViewText(R.id.nx_t5_face_more_text, "+${count - 3}")
+        views.setTextColor(R.id.nx_t5_face_more_text, pal.onContainer)
+      } else {
+        views.setViewVisibility(R.id.nx_t5_face_more, View.GONE)
+      }
+      views.setTextViewText(R.id.nx_t5_pray_title, "Tomorrow's prayers")
+      views.setTextColor(R.id.nx_t5_pray_title, pal.ink)
+      val lead = pray.optString("leadFirstName")
+      views.setTextViewText(
+        R.id.nx_t5_pray_sub,
+        "$count · $lead leads" + (if (pray.optBoolean("leadEmergency")) " — emergency" else ""),
+      )
+      views.setTextColor(R.id.nx_t5_pray_sub, pal.body)
+    }
+    // The fast foot.
+    if (fastSeated && fast != null) {
+      views.setViewVisibility(R.id.nx_t5_fastwrap, View.VISIBLE)
+      views.setInt(R.id.nx_t5_fastline, "setBackgroundColor", pal.track)
+      views.setTextViewText(R.id.nx_t5_fast, "Your fast — day ${fast.optInt("dayNumber")} begins at sunrise")
+      views.setTextColor(R.id.nx_t5_fast, pal.body)
+    }
+    return true
+  }
+
+  /** One T5 Study row: the seed tile with the white book glyph
+   * (the Study widget's own glyph — white on a saturated tile
+   * in every appearance), the line, and its quiet sub. */
+  private fun fillT5StudyRow(
+    views: RemoteViews,
+    rowId: Int,
+    tileId: Int,
+    glyphId: Int,
+    titleId: Int,
+    subId: Int,
+    text: String,
+    sub: String,
+    pal: WidgetPalette,
+  ) {
+    views.setViewVisibility(rowId, View.VISIBLE)
+    views.setInt(tileId, "setColorFilter", pal.primary)
+    views.setImageViewBitmap(glyphId, bookBitmap())
+    views.setTextViewText(titleId, text)
+    views.setTextColor(titleId, pal.ink)
+    views.setTextViewText(subId, sub)
+    views.setTextColor(subId, pal.muted)
   }
 
   /** Minutes since midnight → "2:00 PM" (nowTimeLabel's voice,

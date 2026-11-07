@@ -222,9 +222,16 @@ describe("v445 Up Next snapshot — dayItems", () => {
   });
 
   it("buildAllWidgetSnapshots hands the people store to the Up Next builder", () => {
+    // v464 re-pin: the call gained the day-done turn's extras
+    // (fasts / studyState / imports) as a trailing argument —
+    // the people hand-off this pin guards stands unchanged as
+    // the sixth argument.
     expect(snapshotsSource).toContain(
-      "buildUpNextSnapshot(input.events, input.todos, input.ministries, todayIso, input.now, input.people)",
+      "buildUpNextSnapshot(input.events, input.todos, input.ministries, todayIso, input.now, input.people, {",
     );
+    expect(snapshotsSource).toContain("fasts: input.fasts,");
+    expect(snapshotsSource).toContain("studyState: input.studyState,");
+    expect(snapshotsSource).toContain("imports: input.imports,");
   });
 });
 
@@ -253,7 +260,12 @@ describe("v445 Up Next renderer", () => {
     const body = rendererFn("renderUpNext");
     expect(body).toContain('entries.none { it.kind != "gap" }');
     const guardAt = body.indexOf('entries.none { it.kind != "gap" }');
-    const after = body.slice(guardAt, guardAt + 600);
+    // v464 re-pin: the guard now consults the day-done turn
+    // (renderUpNextTomorrow) before painting the quiet face —
+    // the window widens to carry the gate line; the quiet
+    // face's own paints stand exactly as pinned.
+    const after = body.slice(guardAt, guardAt + 1100);
+    expect(after).toContain("renderUpNextTomorrow(context, views, snap, pal, heightSignal)");
     expect(after).toContain("R.id.next_msg, View.VISIBLE");
     expect(after).toContain("R.id.next_rail, View.GONE");
   });

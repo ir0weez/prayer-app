@@ -71,6 +71,7 @@ import {
   getEventsForDate,
   getMinistriesForDate,
   getTodosForDate,
+  getTodoSummaryCounts,
   type ScheduleEvent,
   type ScheduleMinistry,
   type ScheduleTodo,
@@ -479,9 +480,70 @@ export interface UpNextDayItem {
   completed: boolean;
 }
 
+/** v464 (UN-T5, "Tomorrow, Whole" — Jonathan's pick, Nov 6):
+ * the day-done turn's payload. When today is spent and the core
+ * selection would otherwise show the quiet "Nothing left today"
+ * face, the renderer turns the card to tomorrow instead — the
+ * fields below are everything that face reads. They ride BOTH
+ * snapshot states: the "none" state is exactly the state the
+ * turn fires from most evenings. */
+export interface UpNextTomorrowFields {
+  /** Tomorrow's local ISO date — the renderer fires the turn
+   * only when it is the snapshot date's next day (a day-old
+   * snapshot never turns on stale tomorrow data). */
+  tomorrowDateIso: string;
+  /** EVERY timed item of tomorrow, the dayItems shape — the
+   * renderer seats them in day order with tomorrow's own
+   * ≥15-minute open stretches as white gap boxes. */
+  tomorrowItems: UpNextDayItem[];
+  /** Today's closing tally, the Schedule summary bar's own
+   * arithmetic: todos counted by getTodoSummaryCounts (v463 —
+   * a header-completed group counts all its subtasks done)
+   * plus events (completed / total). Null when today had no
+   * tallyable items at all — the closed line then drops and
+   * tomorrow leads. `fastDay` is today's fast day number when
+   * a fast is active today (the closed line's "· fast day N
+   * kept"), else null. */
+  closedToday: { done: number; total: number; fastDay: number | null } | null;
+  /** The Study rows: the reading line ("{Book} {chapter}",
+   * from getReadingPosition — position.target, else
+   * position.lastRead, the Study section's own derivation)
+   * and the next-to-write line (buildStudySnapshot's writing
+   * derivation), either null when it stands empty. Null whole
+   * when neither stands (or when no study store was passed). */
+  tomorrowStudy: { reading: string | null; writeNext: string | null } | null;
+  /** Tomorrow's pray queue, the Daily Breakdown pray section's
+   * composition discipline against tomorrow's list: the count,
+   * up to three faces (a still-standing emergency's person
+   * first, wearing BREAKDOWN_EMERGENCY_RED), the lead's first
+   * name, and whether an emergency leads. Null when tomorrow's
+   * queue is empty and no emergency stands into tomorrow. */
+  tomorrowPray: {
+    count: number;
+    faces: BreakdownFace[];
+    leadFirstName: string;
+    leadEmergency: boolean;
+  } | null;
+  /** Tomorrow's fast day number when a fast is active AND
+   * tomorrow falls inside it; null past the fast's end (the
+   * fast foot then drops). */
+  tomorrowFast: { dayNumber: number } | null;
+}
+
 export type UpNextWidgetSnapshot =
-  | { state: "none" }
-  | {
+  | ({
+      state: "none";
+      /** v464: the day this snapshot describes, and the day
+       * whole — the same two fields the "next" state carries,
+       * so the renderer can measure the day-done turn from
+       * either state (the "none" state is the turn's home:
+       * nothing current and nothing ahead is most of what
+       * "spent" means). Pre-v464 snapshots in storage carry
+       * neither, and never turn. */
+      dateIso: string;
+      dayItems: UpNextDayItem[];
+    } & UpNextTomorrowFields)
+  | ({
       state: "next";
       /** The short list, in display order: last?, current?,
        * next (hero), gap?, next? — never more than five. */
@@ -500,7 +562,7 @@ export type UpNextWidgetSnapshot =
        * ministries, stable day order), for the render-time
        * recompute. */
       dayItems: UpNextDayItem[];
-    };
+    } & UpNextTomorrowFields);
 
 /** The rail's per-kind end rule, shared with the pre-v442 lead
  * math: a stored endTime wins; a todo without one runs 30
@@ -615,6 +677,15 @@ export function buildUpNextSnapshot(
   todayIso: string,
   now: Date,
   people: Person[] = [],
+  /** v464: the stores the day-done turn reads beyond the day
+   * itself — the fasts (the closed line's fast clause, the
+   * fast foot) and the study store + imports (the Study
+   * rows). Optional so the long-standing call shape stands;
+   * buildAllWidgetSnapshots passes the real stores. Without
+   * them the fast/study fields ride null and the rest of the
+   * turn (tomorrow's rail, the tally, tomorrow's prayers)
+   * still composes whole. */
+  extras?: { fasts?: PersonalFast[]; studyState?: StudyState; imports?: StudioImportsMap },
 ): UpNextWidgetSnapshot {
   const dayEvents = getEventsForDate(events, todayIso);
   const dayTodos = getTodosForDate(todos, todayIso);
@@ -657,6 +728,144 @@ export function buildUpNextSnapshot(
 
   const raw: RawDayItem[] = collectDayItems(events, todos, ministries, todayIso, people);
 
+  // ── v464: the day-done turn's payload (UN-T5) — computed on
+  // every build, spent or not; the RENDERER decides the turn
+  // from the device clock, exactly as the Daily Breakdown's
+  // evening turn rides its snapshot. ──
+  const toDayItem = (item: RawDayItem): UpNextDayItem => ({
+    title: item.title,
+    sub: item.sub,
+    startMinutes: item.startMinutes,
+    endMinutes: item.endMinutes,
+    hasEnd: item.hasEnd,
+    completed: item.completed,
+  });
+  const dayItems: UpNextDayItem[] = raw.map(toDayItem);
+  const tomorrowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const tomorrowIso = formatDateLocal(tomorrowDate);
+  const tomorrowItems: UpNextDayItem[] = collectDayItems(
+    events,
+    todos,
+    ministries,
+    tomorrowIso,
+    people,
+  ).map(toDayItem);
+  // The closed line's tally — the Schedule summary bar's own
+  // arithmetic (schedule-tab): the todo counts by
+  // getTodoSummaryCounts over today's todos, plus today's
+  // events whole (getEventsForDate — no holiday filter, the
+  // bar's own pool).
+  const todoCounts = getTodoSummaryCounts(dayTodos);
+  const closedTotal = todoCounts.total + dayEvents.length;
+  const closedDone =
+    todoCounts.completed + dayEvents.filter((event) => event.isCompleted).length;
+  const fasts = extras?.fasts ?? [];
+  const todayFastSnap = buildFastSnapshot(fasts, null, todayIso);
+  const closedToday: UpNextTomorrowFields["closedToday"] =
+    closedTotal > 0
+      ? {
+          done: closedDone,
+          total: closedTotal,
+          fastDay: todayFastSnap.state === "active" ? todayFastSnap.dayNumber : null,
+        }
+      : null;
+  const tomorrowFastSnap = buildFastSnapshot(fasts, null, tomorrowIso);
+  const tomorrowFast: UpNextTomorrowFields["tomorrowFast"] =
+    tomorrowFastSnap.state === "active" ? { dayNumber: tomorrowFastSnap.dayNumber } : null;
+  // The Study rows — the Study section's own derivations, read
+  // for tomorrow's face: the reading position (target, else
+  // last read) and the writing track's next unwritten chapter
+  // in the writing book (currentBook, else the grouped current
+  // head — buildStudySnapshot's book pick, verbatim).
+  let tomorrowStudy: UpNextTomorrowFields["tomorrowStudy"] = null;
+  if (extras?.studyState) {
+    const studyState = extras.studyState;
+    const imports = extras.imports ?? {};
+    const position = getReadingPosition(studyState);
+    const readingBook = position.target?.book ?? position.lastRead?.book ?? null;
+    const readingChapter = position.target?.chapter ?? position.lastRead?.chapter ?? null;
+    const reading =
+      readingBook && readingChapter != null ? `${readingBook} ${readingChapter}` : null;
+    let writeBook: string | null = studyState.currentBook;
+    if (!writeBook) {
+      const grouped = groupBooksByStudy(studyState, [...BIBLE_BOOKS], imports);
+      writeBook = grouped.current[0] ?? null;
+    }
+    let writeNext: string | null = null;
+    if (writeBook) {
+      const writeTotal = chapterCountFor(writeBook);
+      if (writeTotal) {
+        for (let chapter = 1; chapter <= writeTotal; chapter++) {
+          if (!chapterIsWritten(studyState, writeBook, chapter, imports)) {
+            writeNext = `${writeBook} ${chapter}`;
+            break;
+          }
+        }
+      }
+    }
+    if (reading || writeNext) tomorrowStudy = { reading, writeNext };
+  }
+  // Tomorrow's prayers — the Daily Breakdown pray composition
+  // against TOMORROW's queue: tomorrow's list, tomorrow's
+  // progress total, the emergency that still stands into
+  // tomorrow leading in the Emergency red.
+  let tomorrowPray: UpNextTomorrowFields["tomorrowPray"] = null;
+  {
+    const tList = getPrayTodayList(people, tomorrowDate.getDay(), tomorrowDate.getDate());
+    const tEmergencies = getAllActiveEmergencyPrayers(people)
+      .filter((entry) => {
+        const expiresAt = entry.item.emergencyExpiresAt;
+        return !expiresAt || new Date(expiresAt).getTime() > tomorrowDate.getTime();
+      })
+      .slice()
+      .sort(
+        (a, b) =>
+          new Date(a.item.emergencyExpiresAt ?? 0).getTime() -
+          new Date(b.item.emergencyExpiresAt ?? 0).getTime(),
+      );
+    const tLeadEmergency = tEmergencies[0] ?? null;
+    if (tList.length > 0 || tLeadEmergency) {
+      const progress = getDailyPrayerProgress(
+        tList,
+        tomorrowDate.getDay(),
+        tomorrowDate.getDate(),
+      );
+      const ordered = sortQueueFaces(tList, tomorrowIso);
+      const faces: BreakdownFace[] = [];
+      if (tLeadEmergency) {
+        faces.push({
+          ...faceOf(tLeadEmergency.person),
+          color: BREAKDOWN_EMERGENCY_RED,
+          emergency: true,
+        });
+      }
+      for (const person of ordered) {
+        if (faces.length >= 3) break;
+        if (tLeadEmergency && person.id === tLeadEmergency.person.id) continue;
+        faces.push(faceOf(person));
+      }
+      const count =
+        progress.total > 0 ? progress.total : Math.max(tList.length, faces.length);
+      const leadPerson = tLeadEmergency?.person ?? ordered[0] ?? null;
+      if (leadPerson) {
+        tomorrowPray = {
+          count,
+          faces,
+          leadFirstName: firstNameOf(leadPerson.name),
+          leadEmergency: !!tLeadEmergency,
+        };
+      }
+    }
+  }
+  const tomorrowFields: UpNextTomorrowFields = {
+    tomorrowDateIso: tomorrowIso,
+    tomorrowItems,
+    closedToday,
+    tomorrowStudy,
+    tomorrowPray,
+    tomorrowFast,
+  };
+
   // Current: the uncompleted timed item running right now. When
   // several overlap, the latest start wins; a tie keeps the
   // day's own order (the stable sort never reorders equals, and
@@ -680,7 +889,12 @@ export function buildUpNextSnapshot(
 
   // Nothing running and nothing ahead: the quiet face, even
   // when a last exists — the day is over, not upcoming.
-  if (!current && !next1) return { state: "none" };
+  // v464: the none state carries the day whole and the turn's
+  // payload — the renderer may still turn this face to
+  // tomorrow (UN-T5) once the device clock says spent.
+  if (!current && !next1) {
+    return { state: "none", dateIso: todayIso, dayItems, ...tomorrowFields };
+  }
 
   // Last: the most recent timed item that is over, excluding
   // whatever was chosen as current/next. "Over" and "most
@@ -747,14 +961,12 @@ export function buildUpNextSnapshot(
     // v445: the whole day in its own order (raw is built todos
     // → events → ministries and never re-sorted), so the
     // renderer can recompute the rows from the device clock.
-    dayItems: raw.map((item) => ({
-      title: item.title,
-      sub: item.sub,
-      startMinutes: item.startMinutes,
-      endMinutes: item.endMinutes,
-      hasEnd: item.hasEnd,
-      completed: item.completed,
-    })),
+    dayItems,
+    // v464: the day-done turn's payload rides the next state
+    // too — a day can be spent with a "next" snapshot standing
+    // (everything checked off early, say), and the turn reads
+    // the same fields from either state.
+    ...tomorrowFields,
   };
 }
 
@@ -1251,7 +1463,11 @@ export function buildAllWidgetSnapshots(input: WidgetSnapshotInputs): AllWidgetS
     emergency: buildEmergencySnapshot(input.people, input.now),
     fast: buildFastSnapshot(input.fasts, input.xpRaw, todayIso),
     reachOut: buildReachOutSnapshot(input.people, input.now),
-    upNext: buildUpNextSnapshot(input.events, input.todos, input.ministries, todayIso, input.now, input.people),
+    upNext: buildUpNextSnapshot(input.events, input.todos, input.ministries, todayIso, input.now, input.people, {
+      fasts: input.fasts,
+      studyState: input.studyState,
+      imports: input.imports,
+    }),
     study: buildStudySnapshot(input.studyState, input.imports, input.resolveChapter),
     dailyBreakdown: buildDailyBreakdownSnapshot(
       input.people,
@@ -1276,13 +1492,30 @@ export function buildAllWidgetSnapshots(input: WidgetSnapshotInputs): AllWidgetS
  * widgets dress from the renderer's EFFECTIVE palette — the
  * device's Material You system colours first (resolved in the
  * native process), this snapshot palette as the fallback when
- * the device offers none. */
+ * the device offers none. v464: the resolution is mode-aware —
+ * the device colours the v442 mapping read were the LIGHT
+ * assignment in both modes (the system_* resources are tonal
+ * ramps, not night-qualified roles), so the document now also
+ * carries paletteDark (the seed × dark derivation) and the
+ * renderer picks by the device's uiMode: in light the v442
+ * order stands; at night paletteDark leads. */
 export function serializeWidgetSnapshots(
   snapshots: AllWidgetSnapshots,
   scheme: string,
   palette?: WidgetPalette,
+  /** v464: the seed × dark derivation, riding beside the
+   * standing palette — the renderer picks between the two by
+   * the DEVICE's uiMode at render time, so the widgets follow
+   * the phone's dark mode even when the app's own appearance
+   * stands elsewhere. */
+  paletteDark?: WidgetPalette,
 ): string {
-  return JSON.stringify({ scheme, ...(palette ? { palette } : {}), ...snapshots });
+  return JSON.stringify({
+    scheme,
+    ...(palette ? { palette } : {}),
+    ...(paletteDark ? { paletteDark } : {}),
+    ...snapshots,
+  });
 }
 
 // ─── Deep links (open-to-act) ───────────────────────────────────────────────

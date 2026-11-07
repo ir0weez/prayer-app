@@ -414,7 +414,15 @@ describe("v442 layouts", () => {
 describe("v442 renderer", () => {
   it("resolves the effective palette device-first, snapshot whole as fallback", () => {
     expect(renderer).toContain("private fun effectivePalette");
-    expect(renderer).toContain("devicePalette(context, snapshot) ?: snapshot");
+    // v464 re-pin: the resolution is mode-aware now — the
+    // DEVICE's uiMode chooses first (deviceIsNight), then the
+    // source. In LIGHT the v442 order stands verbatim: the
+    // device attempt is the left side of the elvis and the
+    // snapshot only answers when the device returns null. At
+    // NIGHT the snapshot's seed × dark palette leads (the
+    // v464 test file pins that order); this pin keeps the
+    // light half and the device read's shape.
+    expect(renderer).toContain("devicePalette(context, snapshot, night = false) ?: snapshot");
     // The device read is gated on API 31 (Material You system
     // colours exist from S) and reads the system families.
     expect(renderer).toContain("Build.VERSION_CODES.S");
@@ -436,7 +444,7 @@ describe("v442 renderer", () => {
     // is the left side of the elvis — the snapshot only answers
     // when the device returns null.
     const effAt = renderer.indexOf("private fun effectivePalette");
-    const deviceAt = renderer.indexOf("devicePalette(context, snapshot)", effAt);
+    const deviceAt = renderer.indexOf("devicePalette(context, snapshot, night = false)", effAt);
     const fallbackAt = renderer.indexOf("?: snapshot", effAt);
     expect(deviceAt).toBeGreaterThan(effAt);
     expect(fallbackAt).toBeGreaterThan(deviceAt);

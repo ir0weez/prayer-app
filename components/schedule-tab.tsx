@@ -7521,13 +7521,25 @@ export function KeywordAmbientAnimation({ label, title = "", location = "", note
   // Paper skin (v174, completed v176): EVERY keyword scene has a
   // paper rendition — cut pieces with the kit's offset shadow,
   // settling on sine — routed by lib/paper-keywords.ts to mirror this
-  // dispatch exactly. Under Classic none of the branches run.
+  // dispatch exactly.
   // 8-bit skin (v183): the same routing ids resolve to bespoke pixel
   // renditions (chunky squares, stepped motion) instead.
   // Terminal skin (v186): the same ids resolve to bespoke Pip-Boy
   // line-art renditions (phosphor strokes on the tube) instead.
+  // v467 — the paper renditions are the DEFAULT path's event artwork
+  // too (Jonathan's ruling, Nov 7: "just the event artwork is
+  // paper... I want to use the paper one as the default (I like it
+  // the most, and it has the best artwork)"). Under Classic the
+  // event cards wear the paper scenes — the artwork and its paper
+  // animation only; the Classic skin itself (surfaces, chrome,
+  // fonts, every other motion) is untouched, and DEFAULT_SKIN_THEME
+  // stays "classic". 8-bit and Terminal keep their own artwork when
+  // their skin is active. The classic dispatch below still stands as
+  // the floor: it runs exactly where the paper router renders
+  // nothing, which is exactly where it renders nothing too.
   const { isPaper, isEightBit, isTerminal } = useSkin();
-  if (isPaper) {
+  const paperArtwork = isPaper || (!isEightBit && !isTerminal);
+  if (paperArtwork) {
     const paperScene = paperKeywordSceneFor(label, title, location, notes);
     if (paperScene) return paperScene;
   }
@@ -8378,7 +8390,8 @@ function EventCardInner({
           style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         >
           <View style={[eventStyles.illustratedCard, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : mc.bg, borderColor: skinTokens.isTerminal ? TERM_MID : mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}), ...(hasTypeScale(skinTokens) ? { paddingTop: 16 + skinTokens.type.padBoost, paddingLeft: 16 + skinTokens.type.padBoost, paddingRight: 16 + skinTokens.type.padBoost, marginBottom: 12 + skinTokens.type.gapBoost } : {}) }]}>
-            {isPaper ? (
+            {/* v467: the paper sky is the default path's Rest artwork too — Paper and Classic alike (see KeywordAmbientAnimation); the classic sky below stands as the floor. */}
+            {(isPaper || (!isEightBit && !skinTokens.isTerminal)) ? (
               <PaperRestSky mood={mood} bg={mc.bg} />
             ) : isEightBit ? (
               <PixelRestSky mood={mood} bg={mc.bg} />
@@ -10244,8 +10257,8 @@ function RestSquare({
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
       <View style={{ flex: 1, borderRadius: skinTokens.isTerminal ? 16 : 22, backgroundColor: skinTokens.isTerminal ? TERM_PANEL : mc.bg, borderWidth: 1.5, borderColor: skinTokens.isTerminal ? TERM_MID : mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center", ...(skinTokens.frame ?? paperCutFor(skinTokens)), ...(isSkinned ? skinTokens.cardShadow ?? {} : {}) }}>
-        {/* Animated sky background by time of day — paper cutouts under the Paper skin, pixels under 8-bit, phosphor line art under Terminal */}
-        {isPaper ? (
+        {/* Animated sky background by time of day — paper cutouts under the Paper skin AND on the default (Classic) path since v467, pixels under 8-bit, phosphor line art under Terminal; the classic sky below stands as the floor */}
+        {(isPaper || (!isEightBit && !skinTokens.isTerminal)) ? (
           <PaperRestSky mood={mood} bg={mc.bg} />
         ) : isEightBit ? (
           <PixelRestSky mood={mood} bg={mc.bg} />

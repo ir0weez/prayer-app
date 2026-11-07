@@ -2,8 +2,12 @@
 // the schedule's theme-adaptive keyword art. Under the Paper skin, the
 // schedule asks this module which paper rendition a card's keyword
 // gets; components/paper-keyword-scenes.tsx turns the id into
-// cut-paper artwork. Under Classic this is never consulted and the
-// original scenes render byte-for-byte as before.
+// cut-paper artwork.
+// v467: the default (Classic) path consults it too — the paper
+// renditions are the default EVENT ARTWORK (Jonathan's ruling,
+// Nov 7: "just the event artwork is paper"). The skin itself is
+// unchanged; only 8-bit and Terminal route to their own registries
+// ahead of this one.
 //
 // v176 completes the coverage v174 started: the routing below mirrors
 // KeywordAmbientAnimation's dispatch in schedule-tab.tsx EXACTLY —

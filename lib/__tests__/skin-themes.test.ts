@@ -412,10 +412,17 @@ describe("Classic stays byte-for-byte (source pins)", () => {
     expect(hook.toLowerCase()).not.toContain("bounce");
   });
 
-  it("the schedule dispatches paper keyword art ONLY under the Paper skin", () => {
+  it("the schedule dispatches paper keyword art under Paper and on the default path (v467)", () => {
+    // v467 re-pin: this pin used to read "ONLY under the Paper skin"
+    // and assert `if (isPaper)`. Jonathan's Nov 7 ruling ("just the
+    // event artwork is paper") made the paper renditions the default
+    // (Classic) path's event artwork too, so the branch now claims
+    // Paper + Classic via paperArtwork; 8-bit and Terminal still
+    // claim their own artwork below it.
     const schedule = read("components/schedule-tab.tsx");
     expect(schedule).toContain("paperKeywordSceneFor");
-    expect(schedule).toContain("if (isPaper)");
+    expect(schedule).toContain("const paperArtwork = isPaper || (!isEightBit && !isTerminal);");
+    expect(schedule).toContain("if (paperArtwork)");
     // The original dispatch is still there, untouched below the branch.
     expect(schedule).toContain("switch (label)");
     // Rest skies swap as one block: paper cutouts OR the originals.

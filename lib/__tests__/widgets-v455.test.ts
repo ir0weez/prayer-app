@@ -464,6 +464,11 @@ describe("v455 Up Next — the item under a struck box (source)", () => {
     // it like any other after seat). The v455 arm — the
     // first standing item the under row did not take —
     // stands verbatim inside the new shape.
+    // v471 amendment: the white arm seats the early
+    // chain's second item when a chain of two stands
+    // (chainIdx.getOrNull(1) ?: next1Idx) — the standing
+    // item then falls to the walk, seeded past the chain.
+    // The pins below read the shape, which is unchanged.
     expect(body).toContain("val afterSeatIdx = if (boxStruckItem != null) {");
     expect(body).toContain("aheadIdx.firstOrNull { it != underIdx }");
     expect(body).toContain("} else if (heroWhite && earlyIdx != null) {");

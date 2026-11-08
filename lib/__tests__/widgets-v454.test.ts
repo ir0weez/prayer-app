@@ -367,7 +367,14 @@ describe("v454 Up Next — the box as the white space (source)", () => {
     // closes the stretch: an early-checked item's start
     // when one stands (the box hands over to it at its
     // window), otherwise the next up's start, as before.
-    expect(body).toContain("val openBoundaryIdx = earlyIdx ?: next1Idx");
+    // v471 amendment: the boundary expression is read
+    // literally — the first item in the day's order whose
+    // window has not opened (with two checked early in a
+    // row, v466's named the later one). The measurement
+    // itself — max(now, the previous item's end) — stands.
+    expect(body).toContain(
+      "val openBoundaryIdx = chronoIdx.firstOrNull { dayItems[it].startMinutes > nowMin } ?: next1Idx",
+    );
     expect(body).toContain("if (currentIdx == null && openBoundaryIdx != null)");
     expect(body).toContain("val prevEnd = lastIdx?.let { overAt(dayItems[it]) } ?: nowMin");
     expect(body).toContain(

@@ -101,7 +101,16 @@ describe("v466 Up Next — Fix 1: the white space outranks an early-checked item
   });
 
   it("the stretch is measured to the first boundary that closes it", () => {
-    expect(body).toContain("val openBoundaryIdx = earlyIdx ?: next1Idx");
+    // v471 amendment: the boundary expression is read
+    // literally — the first item in the day's order whose
+    // window has not opened. v466's expression named the
+    // struck holder, which IS that item whenever a single
+    // early-checked item stands (every fixture in this
+    // file); with two checked early in a row it named the
+    // later one and the stretch closed at the wrong start.
+    expect(body).toContain(
+      "val openBoundaryIdx = chronoIdx.firstOrNull { dayItems[it].startMinutes > nowMin } ?: next1Idx",
+    );
     expect(body).toContain(
       "openMinutes = dayItems[openBoundaryIdx].startMinutes - maxOf(nowMin, prevEnd)",
     );
@@ -129,10 +138,17 @@ describe("v466 Up Next — Fix 1: the white space outranks an early-checked item
 
   it("under the white box the early item seats struck in the done dress, ahead of the standing rows", () => {
     expect(body).toContain('nextRow = RailRow("done", minutesToTimeLabel(early.startMinutes), early.title, early.sub, early.startMinutes, "")');
-    expect(body).toContain("val early = dayItems[earlyIdx]");
+    // v471 amendment: the item seated there is the early
+    // chain's head (chainIdx.first()) — the holder itself
+    // (earlyIdx) whenever the chain is one item, as in
+    // every fixture in this file.
+    expect(body).toContain("val early = dayItems[chainIdx.first()]");
   });
 
   it("the after seat under a white-over-early box is the next standing item itself", () => {
+    // v471 amendment: or the chain's second item when a
+    // chain stands (chainIdx.getOrNull(1) ?: next1Idx) —
+    // the condition line this pin reads is unchanged.
     expect(body).toContain("} else if (heroWhite && earlyIdx != null) {");
   });
 
@@ -163,7 +179,11 @@ describe("v466 Up Next — Fix 2: the mid-core stretch gets its candidate in eve
   it("the white branch computes its next→after candidate; the white-over-early branch its early→after", () => {
     expect(body).toContain("val whiteGapMinutes = dayItems[afterIdx].startMinutes - next1.endMinutes");
     expect(body).toContain('gapRow = RailRow("gap", "", "", "", 0, openDurationText(whiteGapMinutes), gapBelowNext = true)');
-    expect(body).toContain("val earlyGapMinutes = next1.startMinutes - early.endMinutes");
+    // v471 amendment: the candidate runs from the chain
+    // head's end to the AFTER SEAT's start — the next
+    // standing item when the chain is one (this file's
+    // fixtures), the chain's second item when it has two.
+    expect(body).toContain("val earlyGapMinutes = after.startMinutes - early.endMinutes");
     expect(body).toContain('gapRow = RailRow("gap", "", "", "", 0, openDurationText(earlyGapMinutes), gapBelowNext = true)');
   });
 

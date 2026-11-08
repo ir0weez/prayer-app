@@ -1353,6 +1353,33 @@ object WidgetRenderer {
     // is before; rows below it are what is coming after.
     // A current todo's plain row is untouched — it never
     // took the box, and it still doesn't.
+    // v471: the box-position ruling (Jonathan, Sun Nov 8,
+    // on the 9:21 AM render — Duolingo 5:00–5:30 PM and
+    // Gardening 6:00–7:00 PM both checked off early,
+    // Check-In 10:00 PM the one thing left): the widget
+    // seated Duolingo as the last row at the TOP, and the
+    // box as a white box naming the 30 minutes before
+    // Gardening, while his whole morning stood open.
+    // His words: "Why cant the now box be at the top when
+    // nothing's before it, and then it becomes second
+    // after the first event or todo or ministry is done?"
+    // Three changes, all in this render-time path: (1)
+    // the last row seats only an item whose window has
+    // STARTED (startMinutes ≤ now) — the v455 rescue is
+    // gated by that one test, so an early-checked item
+    // whose time has not come can never sit above the
+    // box; with nothing eligible the box is simply the
+    // first row. (2) The white box's boundary is the
+    // first item whose window has not opened — the open
+    // stretch he is standing in closes there (Duolingo's
+    // start on his Sunday), not at the struck holder's.
+    // (3) The white box stands over the whole early
+    // CHAIN — every early-checked item before the next
+    // standing one seats under it in the day's order
+    // (chain head in the next row, the holder in the
+    // after row when the chain has two), instead of the
+    // earlier one escaping to the last row and the box
+    // anchoring between the two.
     val heightSignal = minHeightDp
     val views = RemoteViews(context.packageName, R.layout.widget_up_next)
     val base = 500
@@ -1549,11 +1576,19 @@ object WidgetRenderer {
       // stands nearer the holder than that pick does.
       // Passed items keep the seat in every other case —
       // their eligibility above is v454's, unchanged.
+      // v471: the rescue runs inside the last row's gate —
+      // the seat above the box belongs to an item whose
+      // time has actually come, so the walk steps past a
+      // finished item whose window has not started (the
+      // earlier of two checked early in a row, on his
+      // Sunday) and rescues only a finished item behind
+      // now. The gate is the one test, startMinutes > now.
       if (struckIdx != null) {
         val holderPos = chronoIdx.indexOf(struckIdx)
         var rescueIdx: Int? = null
         for (p in holderPos - 1 downTo 0) {
           val idx = chronoIdx[p]
+          if (dayItems[idx].startMinutes > nowMin) continue
           if (dayItems[idx].completed && idx != lastIdx && idx != underIdx) {
             rescueIdx = idx
             break
@@ -1611,7 +1646,38 @@ object WidgetRenderer {
       // over to it, struck in-window, so the open time ends
       // there, not at the next standing item), otherwise
       // the next up's start, exactly as v454 measured it.
-      val openBoundaryIdx = earlyIdx ?: next1Idx
+      // v471: "the early-checked item" is the FIRST one.
+      // With two checked early in a row, v466's boundary
+      // (the struck holder — the LATER of the two) left
+      // the box measuring to Gardening's 6:00 PM start and
+      // naming the 30 minutes before it, while the open
+      // morning he stood in ran to Duolingo's 5:00 PM.
+      // The boundary is read literally now: the first
+      // item in the day's order whose window has not
+      // opened. On every day v466 knew it is the same
+      // item its expression named — the lone early item,
+      // or the next up when nothing stands earlier (the
+      // next up is then the first unopened window by
+      // construction, so the fallback never fires).
+      val openBoundaryIdx = chronoIdx.firstOrNull { dayItems[it].startMinutes > nowMin } ?: next1Idx
+      // v471: the early chain — every finished item from
+      // the boundary up to the next standing item, in the
+      // day's order. (The candidacy's range exactly: any
+      // uncompleted item in it would be the next up and
+      // end the range, so the filter is a formality.) The
+      // white box stands over the whole chain: its head
+      // closes the stretch (the boundary above) and the
+      // items seat under the box in their own places —
+      // the branch below reads the head for the next row
+      // and the second item for the after seat. In every
+      // v466 fixture the chain is the holder alone.
+      val chainIdx: List<Int> = if (earlyIdx != null && openBoundaryIdx != null) {
+        val boundaryPos = chronoIdx.indexOf(openBoundaryIdx)
+        val anchorPos = next1Idx?.let { chronoIdx.indexOf(it) } ?: chronoIdx.size
+        (boundaryPos until anchorPos).map { chronoIdx[it] }.filter { dayItems[it].completed }
+      } else {
+        emptyList()
+      }
       var openMinutes = 0
       if (currentIdx == null && openBoundaryIdx != null) {
         val prevEnd = lastIdx?.let { overAt(dayItems[it]) } ?: nowMin
@@ -1712,10 +1778,17 @@ object WidgetRenderer {
       // item itself — it seats as the after row (the early
       // item rides the next row, struck), and the walk
       // starts past it like any other after seat.
+      // v471: when the early chain has a second item, IT
+      // takes the after seat (struck, in its own place)
+      // and the next standing item falls to the extension
+      // walk, which seeds from this seat — not an ahead
+      // item, so the walk reads it at position −1 and
+      // starts from the head of the ahead list, its
+      // preceding stretch measured from this seat's end.
       val afterSeatIdx = if (boxStruckItem != null) {
         aheadIdx.firstOrNull { it != underIdx }
       } else if (heroWhite && earlyIdx != null) {
-        next1Idx
+        chainIdx.getOrNull(1) ?: next1Idx
       } else {
         afterIdx
       }
@@ -1815,18 +1888,34 @@ object WidgetRenderer {
           // next item takes the after row. At the item's
           // window the box hands over to it as the in-window
           // struck holder, exactly as v455 built.
-          val early = dayItems[earlyIdx]
+          // v471: the item under the box is the chain's
+          // HEAD — the first early-checked item, the one
+          // whose start closes the box's stretch — and the
+          // after seat is the chain's second item when the
+          // chain has one (the holder itself, struck in its
+          // own place), the standing next item otherwise,
+          // read from the after seat so the extension walk
+          // and this branch never disagree. The gap
+          // candidate runs from the head's end to the after
+          // seat's start: on his Sunday that is the 30
+          // minutes between Duolingo and Gardening, a gap
+          // box between their rows — never the hero box,
+          // while he stands in open time earlier in the day.
+          val early = dayItems[chainIdx.first()]
           nextRow = RailRow("done", minutesToTimeLabel(early.startMinutes), early.title, early.sub, early.startMinutes, "")
-          if (next1Idx != null) {
-            val next1 = dayItems[next1Idx]
-            afterRow = RailRow("item", minutesToTimeLabel(next1.startMinutes), next1.title, next1.sub, next1.startMinutes, "")
+          if (afterSeatIdx != null) {
+            val after = dayItems[afterSeatIdx]
+            afterRow = RailRow(
+              if (after.completed) "done" else "item",
+              minutesToTimeLabel(after.startMinutes), after.title, after.sub, after.startMinutes, "",
+            )
             // v466 (Fix 2): the stretch between the early
             // item's end and the after row's start is this
             // branch's next→after candidate — negative on
             // the ruling render (Rest ends 10:00, Brush
             // Teeth starts 9:30), real when the early item
             // closes before the next thing begins.
-            val earlyGapMinutes = next1.startMinutes - early.endMinutes
+            val earlyGapMinutes = after.startMinutes - early.endMinutes
             if (earlyGapMinutes >= 15) {
               gapRow = RailRow("gap", "", "", "", 0, openDurationText(earlyGapMinutes), gapBelowNext = true)
             }

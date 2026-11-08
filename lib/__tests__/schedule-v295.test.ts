@@ -146,7 +146,7 @@ describe("v295 event cards — band + body under Classic (RE-BASED in v296)", ()
 });
 
 describe("v295 summary — the saturated panel, complete", () => {
-  it("the Classic composition is the seed-deep panel with REACH and the fast clause", () => {
+  it("the Classic composition is the seed-deep panel with REACH and the closing clause", () => {
     // RE-BASED in v296: v295 mixed the panel down from
     // colors.primary — under dark appearance that is the LIGHTENED
     // step, so the panel rendered pale lavender on his phone. The
@@ -168,18 +168,28 @@ describe("v295 summary — the saturated panel, complete", () => {
     expect(summaryCard).toContain("schedulePanelStep(seedPrimary)");
     expect(summaryCard).toContain("export function SummaryReachRow");
     expect(summaryCard).not.toContain("REACH OUT — DUE TODAY");
-    expect(summaryCard).toContain("Your fast —");
+    // v472 (Jonathan, Nov 8): the closing clause is the
+    // temperature now — the fast clause ("Your fast — …") is
+    // OUT of the summary prose (weather-v472-summary.test.ts
+    // holds the clause's own pins).
+    expect(summaryCard).not.toContain("Your fast —");
+    expect(summaryCard).toContain("weatherLine");
     expect(summaryCard).toContain("borderRadius: 24");
   });
 
-  it("schedule-tab wires the due people, the Reach out action, and the fast line", () => {
+  it("schedule-tab wires the due people, the Reach out action, and the weather line", () => {
     // RE-BASED in v297: the Reach out action is the hoisted
     // handleSummaryReachOut (shared by the card's row and its live
     // overlay copy), no longer an inline closure.
     expect(scheduleTab).toContain("reachPeople={prayerCheckInPeople}");
     expect(scheduleTab).toContain("onReachOutPress={handleSummaryReachOut}");
-    expect(scheduleTab).toContain("calculateFastStreak(activeFast, selectedDate)");
-    expect(scheduleTab).toContain("getFastCalendarDays(activeFast)");
+    // v472: the fast-line wiring that stood here (the activeFast
+    // IIFE over getFastCalendarDays/calculateFastStreak) is gone
+    // with the clause it fed — the seat now composes the
+    // temperature clause from the weather snapshot.
+    expect(scheduleTab).not.toContain("calculateFastStreak(activeFast, selectedDate)");
+    expect(scheduleTab).not.toContain("getFastCalendarDays(activeFast)");
+    expect(scheduleTab).toContain("weatherLine={weatherSummaryClause(weatherSnapshot, selectedDate)}");
   });
 });
 

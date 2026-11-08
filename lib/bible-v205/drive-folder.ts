@@ -103,6 +103,7 @@ import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY } from '../prayercircle-storage
 import { storeGasSnapshotForwardOnly } from '../gas-prices';
 import { storeEmailDigestForwardOnly } from '../email-digest';
 import { storeNewsBriefingForwardOnly } from '../news-briefing';
+import { storeWeatherSnapshotForwardOnly } from '../weather-snapshot';
 import { chapterStatus, loadStudyState, saveStudyState } from './study';
 import { applyStudioStatesReads, type StudioStateEntry } from './studio-states';
 import { transitionChapterStatus } from './rewards';
@@ -800,6 +801,19 @@ export async function checkDriveFolder(): Promise<
       if (appliedNews) {
         appliedHere += 1;
         noteParts.push('News briefing — newest snapshot kept');
+      }
+    }
+    if (filePlan.weather) {
+      // v472: the weather snapshot rides this door too — its own
+      // key only (prayercircle.weather.v1), FORWARD-ONLY: a stale
+      // file in the folder can never rewind the temperature the
+      // Schedule summary's closing clause reads
+      // (lib/weather-snapshot.ts). An older snapshot changes
+      // nothing and notes nothing.
+      const appliedWeather = await storeWeatherSnapshotForwardOnly(filePlan.weather);
+      if (appliedWeather) {
+        appliedHere += 1;
+        noteParts.push('Weather — newest snapshot kept');
       }
     }
     if (plan.ministryLinks.length > 0) {

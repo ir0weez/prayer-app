@@ -46,8 +46,16 @@ interface DailySummaryCardProps {
   reachPeople?: Array<{ id: string; name: string; lastPrayedDate?: string | null; avatarColor?: string }>;
   /** v295: the Reach out button — opens the Reach Out event editor. */
   onReachOutPress?: () => void;
-  /** v295: the drawing's fast clause ("day 300 of 365 · streak 2"), when a fast is live. */
-  fastLine?: string | null;
+  /** v472: the prose's closing temperature clause ("It's 64° in
+      Lancaster" / "76° / 52° in Lancaster"), composed by Schedule
+      from the morning pack's weather snapshot
+      (lib/weather-snapshot.ts) when it covers the viewed day —
+      null (no clause) otherwise. It takes the seat the fast
+      clause held through v471 (the "Your fast" sentence —
+      day N of M, streak S): Jonathan's Nov 8 ruling removes the fast from
+      the summary; it still lives on the Fast page, the Your
+      Fast widget, and the Daily Breakdown's FAST row. */
+  weatherLine?: string | null;
   /** v297: when provided (Schedule does), the Classic panel carries the
       day-progress bar as its LAST row, per the drawing — the bar used to
       sit below the panel. The People tab passes neither and is unchanged. */
@@ -211,7 +219,7 @@ export function DailySummaryCard({
   prayerStreak = 0,
   reachPeople = [],
   onReachOutPress,
-  fastLine = null,
+  weatherLine = null,
   progressCompleted,
   progressTotal,
   onReachRect,
@@ -453,16 +461,19 @@ export function DailySummaryCard({
   // v295 (CLASSIC ONLY): the approved blend composition from the v32
   // drawing — the summary as ONE saturated card in the seed's deep
   // step: greeting with the name chip and streak badge, the prose
-  // paragraph (every fact the legacy layout carries, plus the fast
-  // clause), and the REACH row with the due people's faces. The
+  // paragraph (every fact the legacy layout carries; through v471
+  // it closed with the fast clause — v472: the closing clause is
+  // the temperature, the weatherLine prop), and the REACH row
+  // with the due people's faces. The
   // skins keep the legacy layout below, untouched.
   // v297: the branch is re-measured against the drawing (his Oct 27
   // verdict: "the summary doesn't match it either"): panel padding
   // 16/17/13 and a −6 side margin (the drawing's 14px page margin
   // against the strip's 20px), greeting 16px with the streak as the
   // drawing's red disc INSIDE the name chip, prose at the drawing's
-  // 15/24 with no-break joins in the time and fast clauses (his
-  // screenshot orphaned "2." onto its own line), the REACH row as
+  // 15/24 with no-break joins in the time and closing clauses (his
+  // screenshot orphaned "2." onto its own line — the fast clause
+  // then; v472's temperature clause keeps the same joins), the REACH row as
   // ONE rotating facechip per his Oct 25 ruling, and the progress
   // bar as the panel's last row. The reach row renders through
   // SummaryReachRow — v319: live in this panel, its only render
@@ -564,11 +575,11 @@ export function DailySummaryCard({
             <Text style={{ fontWeight: "800" }}>
               <MaterialIcons name="schedule" size={15} color={onPanel} /> {availableTimeString.replace(" ", "\u00A0")}
             </Text>{' '}available.
-            {fastLine ? (
+            {weatherLine ? (
               <Text>
-                {' '}Your fast —{' '}
+                {' '}
                 <Text style={{ fontWeight: "800" }}>
-                  <MaterialIcons name="local-fire-department" size={15} color={onPanel} /> {fastLine}
+                  <MaterialIcons name="thermostat" size={15} color={onPanel} /> {weatherLine}
                 </Text>.
               </Text>
             ) : null}

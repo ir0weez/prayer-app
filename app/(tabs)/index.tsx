@@ -219,6 +219,7 @@ import {
 import { storeEmailDigestForwardOnly } from "@/lib/email-digest";
 import { storeGasSnapshotForwardOnly } from "@/lib/gas-prices";
 import { storeNewsBriefingForwardOnly } from "@/lib/news-briefing";
+import { storeWeatherSnapshotForwardOnly } from "@/lib/weather-snapshot";
 import {
   applyStudioPeoplePack,
   loadStoredJournal,
@@ -4875,6 +4876,21 @@ export default function HomeScreen() {
           if (!plan.newsBriefing) return;
           const appliedNews = await storeNewsBriefingForwardOnly(plan.newsBriefing);
           if (appliedNews) counts.newsBriefing = 1;
+        });
+      }
+
+      // v472 — the weather snapshot's safe door, the fourth
+      // morning sibling: the section writes ONLY its own key
+      // (prayercircle.weather.v1), FORWARD-ONLY — an older
+      // snapshot arriving late never rewinds the temperature
+      // waiting for the Schedule summary's closing clause
+      // (lib/weather-snapshot.ts). The count follows what
+      // happened.
+      if (plan.weather) {
+        await attemptSection("Weather", async () => {
+          if (!plan.weather) return;
+          const appliedWeather = await storeWeatherSnapshotForwardOnly(plan.weather);
+          if (appliedWeather) counts.weather = 1;
         });
       }
 

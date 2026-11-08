@@ -238,7 +238,8 @@ import { WeeklyCalendarView } from "./weekly-calendar-view";
 import { getWeekStart, formatDateISO, formatDateLocal } from "@/lib/date-utils";
 import { MonthlyCalendarView } from "./monthly-calendar-view";
 import { format12HourTime, normalizeTimeFormat } from "@/lib/utils";
-import { calculateFastStreak, getActiveFast, getCurrentFastDay, getFastCalendarDays, type PersonalFast } from "@/lib/prayercircle-fasting";
+import { getCurrentFastDay, type PersonalFast } from "@/lib/prayercircle-fasting";
+import { loadWeatherSnapshot, weatherSummaryClause, type WeatherSnapshot } from "@/lib/weather-snapshot";
 import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worship-list";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 // v294: TimeOffCard retired from the day — the trip band (time-off-travel) is the day's time-off block now.
@@ -11112,6 +11113,11 @@ export function ScheduleTab({
     onRevokeXP?.("schedule-todo-event", id, position);
   };
   const [clockNow, setClockNow] = useState(() => new Date());
+  // v472: the summary's closing temperature clause reads the
+  // morning pack's weather snapshot (lib/weather-snapshot.ts) —
+  // loaded on focus below, like the stores the import doors
+  // write directly.
+  const [weatherSnapshot, setWeatherSnapshot] = useState<WeatherSnapshot | null>(null);
   const router = useRouter();
   const [bibleViewerVisible, setBibleViewerVisible] = useState(false);
   const [bibleBook, setBibleBook] = useState('1 Thessalonians');
@@ -12350,9 +12356,6 @@ export function ScheduleTab({
     }
   }, [activeMissedTodoId, missedTodos]);
 
-  // Fasting info for expandable card
-  const activeFast = useMemo(() => getActiveFast(fasts, selectedDate), [fasts, selectedDate]);
-
   // Current Bible book and full state from AsyncStorage
   const [currentBibleBook, setCurrentBibleBook] = useState<string | null>(null);
   const [bibleState, setBibleState] = useState<UnifiedBibleState | null>(null);
@@ -12605,6 +12608,13 @@ export function ScheduleTab({
           if (storedTodos) setTodos(JSON.parse(storedTodos));
           const storedMinistries = await AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY);
           if (storedMinistries) setMinistries(JSON.parse(storedMinistries));
+          // v472: the weather snapshot rides the same doors — a
+          // pack imported while this tab sat behind the People
+          // tab has already written it, so re-read it here too.
+          // A failed/absent read leaves the in-memory snapshot
+          // as it was, like the lists above.
+          const storedWeather = await loadWeatherSnapshot();
+          if (storedWeather) setWeatherSnapshot(storedWeather);
         } catch {
           // A failed reload leaves the in-memory lists as they were.
         }
@@ -14012,19 +14022,13 @@ export function ScheduleTab({
         onReachButtonRect={(rect) => {
           setClassicReachButtonRect((prev) => (prev && prev.x === rect.x && prev.y === rect.y && prev.width === rect.width && prev.height === rect.height ? prev : rect));
         }}
-        fastLine={(() => {
-          // v295: the drawing's fast clause — his fast's own numbers
-          // for the viewed day, from the fast record itself.
-          // v297: the clause's joins are non-breaking — his v296
-          // screenshot wrapped it so "2." orphaned onto its own
-          // line ("…· streak" / "2."); the clause now wraps whole
-          // or not at all.
-          if (!activeFast) return null;
-          const days = getFastCalendarDays(activeFast);
-          const idx = days.indexOf(selectedDate);
-          if (idx < 0) return null;
-          return `day ${idx + 1} of ${activeFast.durationDays}\u00A0·\u00A0streak\u00A0${calculateFastStreak(activeFast, selectedDate)}`;
-        })()}
+        // v472: the summary's closing clause is the temperature
+        // (Jonathan, Nov 8 — the v295 fast clause that sat here
+        // is out; the fast lives on its own page, widget, and
+        // breakdown row). Composed from the morning pack's
+        // weather snapshot; null — the prose just ends — when
+        // the snapshot covers nothing for the viewed day.
+        weatherLine={weatherSummaryClause(weatherSnapshot, selectedDate)}
       />
     );
   })()}

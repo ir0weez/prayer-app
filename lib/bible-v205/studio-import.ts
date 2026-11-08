@@ -78,6 +78,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { EmailDigest } from '@/lib/email-digest';
 import type { GasPriceSnapshot } from '@/lib/gas-prices';
 import type { NewsBriefingSnapshot, NewsBriefingItem } from '@/lib/news-briefing';
+import type { WeatherSnapshot } from '@/lib/weather-snapshot';
 import { NEWS_AREAS, type NewsArea } from '@/lib/news';
 import { CHAPTER_COUNTS, chapterCountFor, getChapterData } from './index';
 import {
@@ -1050,6 +1051,15 @@ export interface StudioFilePlan {
    *  key, FORWARD-ONLY by preparedAt. A pack carrying only a
    *  briefing changes nothing else in the app. */
   newsBriefing: NewsBriefingSnapshot | null;
+  /** v472 — the weather snapshot (the `weather` section). The
+   *  Daily Summary's temperature clause (lib/weather-snapshot.ts)
+   *  had no door at all: the summary prose could only ever speak
+   *  from stores a pack can write. This section is the safe door,
+   *  the fourth morning sibling: validated here, applied by
+   *  writing ONLY the prayercircle.weather.v1 key, FORWARD-ONLY
+   *  by preparedAt. A pack carrying only weather changes nothing
+   *  else in the app. */
+  weather: WeatherSnapshot | null;
   /** v417 — the mark-changes list (the `studioMarkChanges`
    *  section): desk-side highlight edits coming home. The ONE
    *  authorized exception to the marks layer's import immunity —
@@ -1062,7 +1072,7 @@ export interface StudioFilePlan {
 }
 
 export function emptyStudioFilePlan(): StudioFilePlan {
-  return { notes: null, states: null, schedule: null, people: null, ministries: null, emailDigest: null, gasPrices: null, newsBriefing: null, markChanges: null };
+  return { notes: null, states: null, schedule: null, people: null, ministries: null, emailDigest: null, gasPrices: null, newsBriefing: null, weather: null, markChanges: null };
 }
 
 export function studioFileHasSections(plan: StudioFilePlan): boolean {
@@ -1075,6 +1085,7 @@ export function studioFileHasSections(plan: StudioFilePlan): boolean {
     plan.emailDigest !== null ||
     plan.gasPrices !== null ||
     plan.newsBriefing !== null ||
+    plan.weather !== null ||
     plan.markChanges !== null
   );
 }
@@ -1108,6 +1119,12 @@ export function studioFileHasSections(plan: StudioFilePlan): boolean {
  * (the digest / gas / news doors above), each under its own key
  * with its own preparedAt inside the section:
  *     "emailDigest":  { … },  "gasPrices": { … },  "newsBriefing": { … }
+ * v472 — a FOURTH morning section rides the same way, under its
+ * own key with its own preparedAt:
+ *     "weather": { … }
+ * (the Daily Summary's temperature snapshot — see
+ * validateWeatherSection and lib/weather-snapshot.ts for the
+ * shape the producer emits).
  * so the morning transfer is ONE file too — one combined pack
  * out of Eva's prep, one import, each section landing on its
  * own page and nothing else. A section that omits its own
@@ -1368,6 +1385,88 @@ export function validateNewsBriefingSection(value: unknown, fallbackPreparedAt =
   return { preparedAt, briefing, more };
 }
 
+/**
+ * v472 — validate the `weather` section into the summary's
+ * snapshot shape (lib/weather-snapshot.ts). Eva's morning prep
+ * emits:
+ *   { preparedAt: ISO string,
+ *     location: string ("Lancaster"),
+ *     now: { date: "YYYY-MM-DD", tempF: number,
+ *            condition: string } | null,
+ *     days: [{ date: "YYYY-MM-DD", highF: number,
+ *              lowF: number, condition: string }] }
+ * — the current temperature for the pack morning plus ~5 days
+ * of high/low forecasts. Structural garbage fails the whole
+ * file, like every other section. A day entry with no readable
+ * date or no temperatures carries nothing and is dropped (a
+ * nameless gas station, a headline-less news item); a section
+ * left with neither a "now" nor any day is refused — writing
+ * it would clear the weather already waiting for the summary.
+ * preparedAt must read as a time: the apply is forward-only
+ * on that stamp.
+ */
+export function validateWeatherSection(value: unknown, fallbackPreparedAt = ''): WeatherSnapshot {
+  if (!isRecord(value)) fail('The weather section is not an object.');
+  // A section with no stamp of its own borrows the pack's.
+  const preparedAt =
+    typeof value.preparedAt === 'string'
+      ? value.preparedAt
+      : value.preparedAt === undefined
+        ? fallbackPreparedAt
+        : '';
+  if (!preparedAt || Number.isNaN(Date.parse(preparedAt))) {
+    fail('The weather section has no readable preparedAt time.');
+  }
+  if (value.location !== undefined && typeof value.location !== 'string') {
+    fail('The weather location is not a string.');
+  }
+  const location =
+    (typeof value.location === 'string' ? value.location : 'Lancaster').trim() || 'Lancaster';
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const leafCondition = (row: Record<string, unknown>, where: string): string => {
+    const v = row.condition;
+    if (v === undefined) return '';
+    if (typeof v !== 'string') fail(`The weather ${where} has a non-string condition.`);
+    return (v as string).trim();
+  };
+  let now: WeatherSnapshot['now'] = null;
+  if (value.now !== undefined && value.now !== null) {
+    if (!isRecord(value.now)) fail('The weather now entry is not an object.');
+    const date = typeof value.now.date === 'string' ? value.now.date : '';
+    if (!DATE_RE.test(date)) fail('The weather now entry has no readable date.');
+    const tempF = value.now.tempF;
+    if (typeof tempF !== 'number' || !Number.isFinite(tempF)) {
+      fail('The weather now entry has an unreadable tempF.');
+    }
+    now = { date, tempF: tempF as number, condition: leafCondition(value.now, 'now entry') };
+  }
+  const days: WeatherSnapshot['days'] = [];
+  if (value.days !== undefined) {
+    if (!Array.isArray(value.days)) fail('The weather days list is not a list.');
+    value.days.forEach((entry, i) => {
+      if (!isRecord(entry)) fail(`The weather day ${i} is not an object.`);
+      if (entry.date !== undefined && typeof entry.date !== 'string') {
+        fail(`The weather day ${i} has a non-string date.`);
+      }
+      const date = typeof entry.date === 'string' ? entry.date : '';
+      const highF = entry.highF;
+      const lowF = entry.lowF;
+      if (
+        (highF !== undefined && (typeof highF !== 'number' || !Number.isFinite(highF))) ||
+        (lowF !== undefined && (typeof lowF !== 'number' || !Number.isFinite(lowF)))
+      ) {
+        fail(`The weather day ${i} has an unreadable temperature.`);
+      }
+      // No readable date, or a missing high or low: the entry
+      // carries nothing — dropped, like a nameless station.
+      if (!DATE_RE.test(date) || typeof highF !== 'number' || typeof lowF !== 'number') return;
+      days.push({ date, highF, lowF, condition: leafCondition(entry, `day ${i}`) });
+    });
+  }
+  if (now === null && days.length === 0) fail('The weather section carries no weather.');
+  return { preparedAt, location, now, days };
+}
+
 export function parseStudioFileFull(parsed: unknown): StudioFilePlan {
   if (!isRecord(parsed)) fail('That file is not a studio pack (expected a JSON object).');
   const plan = emptyStudioFilePlan();
@@ -1390,6 +1489,12 @@ export function parseStudioFileFull(parsed: unknown): StudioFilePlan {
   // renders it instead of fetching live.
   if (parsed.newsBriefing !== undefined) {
     plan.newsBriefing = validateNewsBriefingSection(parsed.newsBriefing, packPreparedAt);
+  }
+  // The weather snapshot (v472): the fourth morning sibling —
+  // its own key (prayercircle.weather.v1), forward-only at apply
+  // time; the Daily Summary's closing clause reads it.
+  if (parsed.weather !== undefined) {
+    plan.weather = validateWeatherSection(parsed.weather, packPreparedAt);
   }
   // The two marks (v228): the studioStates section, wherever it rides.
   if (parsed.studioStates !== undefined) {
@@ -1511,6 +1616,10 @@ export interface StudioApplyCounts {
    *  the News page's store. Forward-only, like its siblings —
    *  an older briefing arriving late counts 0. */
   newsBriefing: number;
+  /** v472: 1 when the file's weather section was written to
+   *  the summary's weather store. Forward-only, like its
+   *  siblings — an older snapshot arriving late counts 0. */
+  weather: number;
   /** v417: mark changes applied to the marks layer — upserts that
    *  landed and removals that removed something (a removal naming
    *  a missing highlight is a no-op and counts neither). */
@@ -1540,6 +1649,7 @@ export function emptyStudioApplyCounts(): StudioApplyCounts {
     emailDigest: 0,
     gasPrices: 0,
     newsBriefing: 0,
+    weather: 0,
     markChangesUpserted: 0,
     markChangesRemoved: 0,
   };
@@ -1604,6 +1714,9 @@ export function formatStudioImportSummary(plan: StudioFilePlan, counts: StudioAp
   // v407: the news briefing, the third morning sibling — same
   // count-keyed honesty.
   if (plan.newsBriefing && counts.newsBriefing > 0) parts.push('News briefing: updated');
+  // v472: the weather snapshot, the fourth morning sibling —
+  // same count-keyed honesty.
+  if (plan.weather && counts.weather > 0) parts.push('Weather: updated');
   // v417: the mark changes — the segment names both directions and
   // only appears when the file carried the section.
   if (plan.markChanges) {

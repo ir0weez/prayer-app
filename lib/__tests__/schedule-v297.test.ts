@@ -195,7 +195,16 @@ describe("v297 summary — the drawing's composition", () => {
   it("prose at the drawing's 15/24, with no-break joins so clauses never orphan", () => {
     expect(summaryCard).toContain("fontSize: 15, lineHeight: 24");
     expect(summaryCard).toContain('availableTimeString.replace(" ", "\\u00A0")');
-    expect(scheduleTab).toContain("durationDays}\\u00A0·\\u00A0streak\\u00A0${calculateFastStreak");
+    // v472 (Jonathan, Nov 8): the fast-clause join string that
+    // stood here ("…durationDays} · streak ${calculateFastStreak…")
+    // is gone with the clause itself — the closing clause is the
+    // temperature now, and the no-orphan join discipline moved
+    // WITH the seat into the clause's composer
+    // (lib/weather-snapshot.ts weatherSummaryClause, whose own
+    // joins are pinned in weather-v472-summary.test.ts).
+    expect(scheduleTab).not.toContain("durationDays}\\u00A0·\\u00A0streak\\u00A0${calculateFastStreak");
+    const weatherSnapshotLib = read("lib/weather-snapshot.ts");
+    expect(weatherSnapshotLib).toContain("It's\\u00A0${Math.round(snapshot.now.tempF)}°\\u00A0in\\u00A0${place}");
   });
 
   it("the REACH row is ONE rotating facechip (his Oct 25 ruling), not a row of faces", () => {

@@ -26,6 +26,7 @@ import { AttentionBell } from "@/components/attention-bell";
 import { AppTabBar, useTabBarOccupiedHeight, type AppNavTab } from "@/components/app-tab-bar";
 import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { ScheduleFabHost } from "@/components/schedule-fab-host";
+import { ScheduleFab, useFabPageScale } from "@/components/schedule-fab";
 import { BiblePane } from "@/components/bible-pane";
 import {
   biblePanePop,
@@ -899,6 +900,10 @@ export default function HomeScreen() {
   const [journal, setJournal] = useState<PrayerJournalEntry[]>([]);
   const { setColorScheme } = useThemeContext();
   const [showAddPerson, setShowAddPerson] = useState(false);
+  // v473: the People FAB's open state (the Circle morph + spring
+  // menu — the page's one add door since Nov 8; it replaces the
+  // roster head's + and the Family head's New family pill).
+  const [peopleFabOpen, setPeopleFabOpen] = useState(false);
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
   const [newPersonName, setNewPersonName] = useState("");
   const [newPersonRelationship, setNewPersonRelationship] = useState<RelationshipType>("family" as RelationshipType);
@@ -2956,8 +2961,9 @@ export default function HomeScreen() {
   // editable name, created through groupIntoFamily (min 2 enforced
   // there and in the Create button's disabled state; one family per
   // person — people already grouped are disabled rows, as both
-  // existing grouping UIs do). Entry: the "New family" pill in the
-  // Family section head.
+  // existing grouping UIs do). Entry: the "New family" item in
+  // the People FAB's spring menu (v473 — the Family section
+  // head's pill it replaced is gone).
   const derivedFamilyName = (person: Person | undefined) => {
     if (!person) return "";
     const parts = person.name.trim().split(/\s+/);
@@ -3935,12 +3941,8 @@ export default function HomeScreen() {
     <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginHorizontal: 18, marginTop: 22, marginBottom: 2 }}>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
         <Text style={{ fontSize: 17, fontWeight: "800", color: pmf.ink }}>Your people</Text>
-        <Pressable
-          onPress={() => { setActiveTab("people"); setShowAddPerson(true); }}
-          style={({ pressed }) => [{ width: 30, height: 30, borderRadius: 15, backgroundColor: pmf.seed, alignItems: "center", justifyContent: "center", marginLeft: 8, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }, pressed && { opacity: 0.85 }]}
-        >
-          <MaterialIcons name="add" size={16} color="#FFFFFF" />
-        </Pressable>
+        {/* v473: the head's + is gone — Add Person's door is the
+            People FAB now (bottom right, the Circle morph). */}
       </View>
       <Text style={{ fontSize: 12.5, fontWeight: "700", color: pmf.inkSoft }}>{people.length} in the circle</Text>
     </View>
@@ -4066,20 +4068,13 @@ export default function HomeScreen() {
     {
       const accent = relationshipColors[item.section.title].accent;
       const sectionCount = item.section.people.length + (item.section.familyGroups ?? []).reduce((sum, group) => sum + group.length, 0);
-      const newFamilyPill = item.section.title === "Family" ? (
-        <Pressable
-          onPress={openGroupBuilder}
-          style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: pmf.wash, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginLeft: 8 }, pressed && { opacity: 0.75 }]}
-        >
-          <MaterialIcons name="group-add" size={14} color={pmf.deep} />
-          <Text style={{ fontSize: 11, fontWeight: "800", color: pmf.deep }}>New family</Text>
-        </Pressable>
-      ) : null;
+      // v473: the Family head's "New family" pill is gone — its
+      // door is the People FAB's New family item now (same
+      // openGroupBuilder, new seat).
       if (isSkinned) {
         return (
           <View style={[styles.sectionBlock, { flexDirection: "row", alignItems: "center" }]}>
             <Text style={[styles.relationshipTitle, { color: relationshipColors[item.section.title].accent }, skinTokens.isEightBit && skinTokens.displayFont ? { fontFamily: skinTokens.displayFont, fontSize: 11, lineHeight: 17 } : null]}>{item.section.title.toUpperCase()}</Text>
-            {newFamilyPill}
           </View>
         );
       }
@@ -4091,7 +4086,6 @@ export default function HomeScreen() {
             <Text style={{ fontSize: 11, fontWeight: "800", color: pmf.ink }}>{sectionCount}</Text>
           </View>
           <View style={{ flex: 1, height: 1.5, borderRadius: 1, backgroundColor: accent, opacity: 0.28 }} />
-          {newFamilyPill}
         </View>
       );
     }
@@ -6046,6 +6040,13 @@ export default function HomeScreen() {
     opacity: tabTransition.value,
   }));
 
+  // v473: the People FAB's menu never outlives its page, and
+  // while it is open the page scales to .975 behind the dim.
+  useEffect(() => {
+    if (activeTab !== "people" && activeTab !== "home") setPeopleFabOpen(false);
+  }, [activeTab]);
+  const peopleFabScaleStyle = useFabPageScale(peopleFabOpen);
+
   if (showAddPerson) {
     return (
       <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.addScreenRoot, { backgroundColor: (skinTokens.isEightBit) ? "transparent" : colors.background }]}>
@@ -6321,7 +6322,7 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" groundColor={shellGround} style={[styles.root, { backgroundColor: (skinTokens.isEightBit || skinTokens.isTerminal) ? "transparent" : colors.background }, null]}>
-      <ReAnimated.View style={[{ flex: 1 }, tabContentStyle]}>
+      <ReAnimated.View style={[{ flex: 1 }, tabContentStyle, peopleFabScaleStyle]}>
         {renderContent()}
       </ReAnimated.View>
 
@@ -6343,22 +6344,6 @@ export default function HomeScreen() {
 </PaperSettle>
         </View>
       </Modal>
-      {/* v255: under Classic the big round + is GONE — the mockup
-          draws no + button; Add Person's door on People is the
-          roster head's + , as drawn. The material skins keep their
-          FAB (their pages keep the v254 form). */}
-      {(activeTab === "people" || activeTab === "home") && !isClassicSkin ? (
-        <Pressable
-          onPress={() => {
-            setActiveTab("people");
-            setShowAddPerson(true);
-          }}
-          style={({ pressed }) => [styles.fab, { backgroundColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary }, skinTokens.frame, (skinTokens.isEightBit || skinTokens.isTerminal) ? skinTokens.cardShadow ?? {} : null, pressed && (skinTokens.isPaper ? [paperPressedLift(skinTokens, pressed, [{ scale: 0.96 }]), { opacity: 0.92 }] : skinTokens.isEightBit ? bitPressedSnap(skinTokens, pressed, [{ scale: 0.96 }]) : styles.fabPressed)]}
-        >
-          {<MaterialIcons name="add" size={44} color={skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF"} />}
-        </Pressable>
-      ) : null}
-
       <AppTabBar
         activeTab={navTab}
         hidden={journalComposing && activeTab === "journal"}
@@ -6371,6 +6356,35 @@ export default function HomeScreen() {
           registers its config through the bridge; the host renders
           nothing when the schedule tab isn't mounted. */}
       <ScheduleFabHost />
+
+      {/* v473: the People FAB — the same Circle morph + spring
+          menu as Schedule's, on EVERY skin (supersedes v255: the
+          Classic exclusion and the skins' plain + button are both
+          retired). It is the page's one add door: "Add person"
+          runs the roster head +'s exact action, "New family" the
+          Family pill's openGroupBuilder — same handlers, new seat.
+          The button keeps the shipped shell dress (panel/purple/
+          primary by skin, phosphor glyph under Terminal). */}
+      {(activeTab === "people" || activeTab === "home") ? (
+        <ScheduleFab
+          open={peopleFabOpen}
+          onToggle={() => setPeopleFabOpen(!peopleFabOpen)}
+          fabColor={skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary}
+          glyphColor={skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF"}
+          glyphVariant="person"
+          scrimTone={skinTokens.isTerminal || skinTokens.isEightBit ? "dark" : "violet"}
+          getFacePressedStyles={(pressed: boolean) => {
+            if (!pressed) return [];
+            if (skinTokens.isPaper) return [paperPressedLift(skinTokens, pressed, [{ scale: 0.96 }]), { opacity: 0.92 }];
+            if (skinTokens.isEightBit) return [bitPressedSnap(skinTokens, pressed, [{ scale: 0.96 }])];
+            return [{ transform: [{ scale: 0.96 }], opacity: 0.92 }];
+          }}
+          items={[
+            { key: "add-person", label: "Add person", icon: "person-add", color: colors.primary, onPress: () => { setPeopleFabOpen(false); setActiveTab("people"); setShowAddPerson(true); } },
+            { key: "new-family", label: "New family", icon: "group-add", color: "#7C5CFF", onPress: () => { setPeopleFabOpen(false); openGroupBuilder(); } },
+          ]}
+        />
+      ) : null}
 
       <Modal
         transparent

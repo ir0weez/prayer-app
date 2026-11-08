@@ -54,6 +54,7 @@ import { TerminalBackground } from "./terminal-background";
 import { TerminalRestSky, terminalKeywordSceneFor } from "./terminal-keyword-scenes";
 import { BIT_DUSK, BIT_GOLD, BIT_GOLD_INK, BIT_INK_HEX, BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_ON_DUSK_SOFT, BIT_PANEL, BIT_PURPLE, TERM_BG, TERM_DIM, TERM_FONT_FAMILY, TERM_MID, TERM_PANEL, TERM_PANEL_2, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, hasTypeScale, hexLuminance, paperCompletedTint, paperStockEdge, paperStockInk, paperStockInkSoft, paperStockTint, skinText, termButtonInk, termButtonStyle } from "@/lib/skin-themes";
 import { setScheduleFabConfig } from "@/lib/schedule-fab-bridge";
+import { useFabPageScale } from "@/components/schedule-fab";
 import { EDITOR_HEADER_CLOSE_HITSLOP, EDITOR_HEADER_SAVE_HITSLOP } from "@/lib/editor-header";
 import { scheduleRowKey } from "@/lib/schedule-row-key";
 import { scheduleMaterialTones, tonalRamp } from "@/lib/schedule-material";
@@ -13835,28 +13836,28 @@ export function ScheduleTab({
   // the button's lower half. This tab still owns the menu's state and
   // actions; it registers the live config with the bridge on every
   // render and clears it on unmount so the FAB leaves with the tab.
-  // Classic rows wear the v32 drawing's TONAL tiles (pale tile, deep
-  // glyph); skins keep v294's saturated tiles.
-  const fabTileDress = !isSkinned;
+  // v473: the FAB itself is the Circle morph + spring menu now
+  // (components/schedule-fab.tsx). The items keep their order,
+  // icons, colours and actions exactly; the v32 tonal tile dress
+  // left with the superseded container morph — the spring menu's
+  // circles wear the items' own saturated colours on every skin.
   useEffect(() => {
     setScheduleFabConfig({
       open: showAddModal,
       onToggle: () => setShowAddModal(!showAddModal),
       fabColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
-      menuSurface: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_DUSK : scheduleMaterialTones(colors.primary, colors.surface).primaryContainer,
-      labelColor: skinTokens.isTerminal ? TERM_SOFT : colors.foreground,
-      iconColorClosed: skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF",
-      iconColorOpen: skinTokens.isTerminal ? TERM_PHOS : mix(colors.primary, "#000000", 0.25),
+      glyphColor: skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF",
+      glyphVariant: "check",
       scrimTone: skinTokens.isTerminal || skinTokens.isEightBit ? "dark" : "violet",
       getFacePressedStyles: (pressed: boolean) => [
         paperPressedLift(skinTokens, pressed, [{ scale: 0.95 }]),
         bitPressedSnap(skinTokens, pressed, [{ scale: 0.95 }]),
       ],
       items: [
-        { key: "ministry", label: "Ministry", icon: "volunteer-activism", color: "#7C5CFF", ...(fabTileDress ? { tileColor: "#E0D8FF", glyphColor: "#5B3DF0" } : {}), onPress: () => { setAddType("ministry"); setShowAddModal(false); } },
-        { key: "event", label: "Event", icon: "event", color: "#3DAA78", ...(fabTileDress ? { tileColor: "#D7F0E3", glyphColor: "#1F7A54" } : {}), onPress: () => { openNewEventEditor(); } },
-        { key: "todo", label: "Todo", icon: "check-box", color: "#E3B341", ...(fabTileDress ? { tileColor: "#FAEECD", glyphColor: "#A87C14" } : {}), onPress: () => { setAddType("todo"); setShowAddModal(false); } },
-        { key: "worship", label: "Worship", icon: "music-note", color: "#9C27B0", ...(fabTileDress ? { tileColor: "#F3DFF7", glyphColor: "#7B1FA2" } : {}), onPress: () => { setAddType("worship"); setShowAddModal(false); } },
+        { key: "ministry", label: "Ministry", icon: "volunteer-activism", color: "#7C5CFF", onPress: () => { setAddType("ministry"); setShowAddModal(false); } },
+        { key: "event", label: "Event", icon: "event", color: "#3DAA78", onPress: () => { openNewEventEditor(); } },
+        { key: "todo", label: "Todo", icon: "check-box", color: "#E3B341", onPress: () => { setAddType("todo"); setShowAddModal(false); } },
+        { key: "worship", label: "Worship", icon: "music-note", color: "#9C27B0", onPress: () => { setAddType("worship"); setShowAddModal(false); } },
         { key: "timeoff", label: "Time Off", icon: "beach-access", color: "#E1F5FE", iconColor: "#01579B", onPress: () => { openTimeOffExperience(null); setShowAddModal(false); } },
       ],
     });
@@ -15238,8 +15239,12 @@ export function ScheduleTab({
     [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded, isWorshipExpanded, selectedWorshipDate, clockNow, renderDateHeaderCard, celebratedBook, bibleFullyComplete, isSkinned, skinTokens, timeOffList, openTimeOffExperience]
   );
 
+  // v473: while the FAB's spring menu is open, the page scales
+  // to .975 behind the dim (the approved mockups' scene settle).
+  const fabPageScaleStyle = useFabPageScale(showAddModal);
+
   return (
-    <View ref={rootViewRef} {...rootPanResponder.panHandlers} style={[scheduleStyles.container, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }]}>
+    <ReAnimated.View ref={rootViewRef} {...rootPanResponder.panHandlers} style={[scheduleStyles.container, { backgroundColor: isSkinned ? skinTokens.background ?? colors.background : colors.background }, fabPageScaleStyle]}>
       {/* The page itself is a sheet under Paper (flat — no texture since v179).
           Under 8-bit (v184) the page is the mockup's dusk world: the
           three-stop indigo gradient + checker dither, behind everything. */}
@@ -16988,7 +16993,7 @@ export function ScheduleTab({
         }}
       />
 
-    </View>
+    </ReAnimated.View>
   );
 }
 

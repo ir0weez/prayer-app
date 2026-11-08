@@ -235,8 +235,9 @@ describe("v256 source pins — tab bar = Concept 2, Expressive (v259: components
     expect(index).toContain("backgroundColor: isSkinned ? 'rgba(123, 92, 255, 0.85)' : pmf.seed");
   });
 
-  it("NO + button on the bar under Classic — the skins keep their v255 FAB", () => {
-    expect(index).toContain('(activeTab === "people" || activeTab === "home") && !isClassicSkin');
+  it("NO + button on the bar under Classic — SUPERSEDED by v473 (the Circle FAB stands on every skin)", () => {
+    expect(index).not.toContain('(activeTab === "people" || activeTab === "home") && !isClassicSkin');
+    expect(index).toContain('glyphVariant="person"');
   });
 });
 

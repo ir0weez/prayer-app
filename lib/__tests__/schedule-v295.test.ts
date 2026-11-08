@@ -80,15 +80,25 @@ describe("v295 FAB mount — the shell owns the paint layer", () => {
     expect(host).toContain("<ScheduleFab {...config} />");
   });
 
-  it("the morph target is the drawing's 218×276", () => {
-    expect(fab).toContain("[56, 218]");
-    expect(fab).toContain("[56, 276]");
+  it("the morph target is the drawing's 218×276 — SUPERSEDED by v473", () => {
+    // v473: no container morph — the button stays a 56dp
+    // circle (the Circle glyph draws inside it) and the menu
+    // is a separate spring speed-dial beside it.
+    // fab-v473-circle-morph.test.ts holds the new pins.
+    expect(fab).not.toContain("[56, 218]");
+    expect(fab).not.toContain("[56, 276]");
+    expect(fab).toContain("width: 56");
+    expect(fab).toContain("borderRadius: 28");
   });
 
-  it("Classic menu rows wear tonal tiles (pale tile, deep glyph)", () => {
-    expect(fab).toContain("item.tileColor ?? item.color");
-    expect(scheduleTab).toContain('tileColor: "#E0D8FF", glyphColor: "#5B3DF0"');
-    expect(scheduleTab).toContain('tileColor: "#FAEECD", glyphColor: "#A87C14"');
+  it("Classic menu rows wear tonal tiles (pale tile, deep glyph) — SUPERSEDED by v473", () => {
+    // v473: the spring menu's circles wear the items' own
+    // saturated colours with white icons on EVERY skin; the
+    // tonal tile dress left with the container morph.
+    expect(fab).toContain("backgroundColor: item.color");
+    expect(fab).not.toContain("item.tileColor ?? item.color");
+    expect(scheduleTab).not.toContain('tileColor: "#E0D8FF", glyphColor: "#5B3DF0"');
+    expect(scheduleTab).not.toContain('tileColor: "#FAEECD", glyphColor: "#A87C14"');
   });
 });
 

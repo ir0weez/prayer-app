@@ -36,25 +36,33 @@ const fab = readFileSync(join(__dirname, "..", "..", "components", "schedule-fab
 const bridge = readFileSync(join(__dirname, "..", "..", "lib", "schedule-fab-bridge.ts"), "utf8");
 
 describe("v362 — the FAB opens on the app's clock, all rows together", () => {
-  it("open 320ms, close 280ms, emphasized easings unchanged", () => {
-    expect(fab).toContain("duration: open ? 320 : 280");
-    // v362 amendment (Oct 30): the pin's literal is the source's own —
-    // schedule-fab writes Easing.bezier(0.05, 0.7, 0.1, 1); 1 and 1.0
-    // are the same easing value, and the pin now matches the source
-    // byte for byte.
-    expect(fab).toContain("Easing.bezier(0.05, 0.7, 0.1, 1)");
-    expect(fab).toContain("Easing.bezier(0.3, 0, 0.8, 0.15)");
+  // v473 SUPERSESSION (Jonathan's Nov 8 picks): the container
+  // morph this describe pinned is retired whole. The open is
+  // now the Circle choreography — the glyph's whip + ring
+  // draw in components/fab-circle-glyph.tsx — and FAB-2's
+  // spring menu, whose rows ride their OWN delayed springs.
+  // What v362 actually diagnosed stays retired with it: rows
+  // never again slice ONE shared progress (the shared-window
+  // slicing was the lag, not the stagger). The new motion
+  // pins live in fab-v473-circle-morph.test.ts.
+  it("open 320ms, close 280ms, emphasized easings unchanged — SUPERSEDED by v473", () => {
+    expect(fab).not.toContain("duration: open ? 320 : 280");
+    const glyph = readFileSync(join(__dirname, "..", "..", "components", "fab-circle-glyph.tsx"), "utf8");
+    expect(glyph).toContain("const RING_DELAY = 160");
+    expect(glyph).toContain("const RING_MS = 500");
+    expect(fab).toContain("430 + (count - 1 - index) * 55");
   });
 
-  it("the per-row stagger is gone — one shared window for every row", () => {
+  it("the per-row stagger is gone — one shared window for every row — SUPERSEDED by v473", () => {
     expect(fab).not.toContain("index * 0.07");
-    expect(fab).toContain("opacity: interpolate(progress.value, [0.3, 0.95], [0, 1])");
-    expect(fab).toContain("transform: [{ translateY: interpolate(progress.value, [0.3, 0.95], [8, 0]) }]");
+    expect(fab).not.toContain("interpolate(progress.value, [0.3, 0.95], [0, 1])");
+    // v473: each row springs on its own delayed timing instead.
+    expect(fab).toContain("withDelay(delay, withTiming(1, { duration: 420");
   });
 
-  it("rows no longer receive an index to stagger by", () => {
-    expect(fab).toContain("items.map((item) => (");
-    expect(fab).toContain("<FabRow key={item.key} item={item} progress={progress} labelColor={labelColor} />");
+  it("rows no longer receive an index to stagger by — SUPERSEDED by v473 (rows take index+count for their own spring delays)", () => {
+    expect(fab).toContain("items.map((item, index) => (");
+    expect(fab).toContain("<FabRow key={item.key} item={item} index={index} count={items.length} open={open} />");
   });
 });
 
@@ -63,7 +71,9 @@ describe("v362 — the bridge notifies on paint changes only", () => {
     expect(bridge).toContain("function fabRenderSignature(config: ScheduleFabConfig | null): string");
     expect(bridge).toContain("return JSON.stringify([");
     expect(bridge).toContain("config.open,");
-    expect(bridge).toContain("item.tileColor ?? null");
+    // v473: the signature's per-item dress field is the icon
+    // colour now — the tonal tileColor left with the morph menu.
+    expect(bridge).toContain("item.iconColor ?? null");
   });
 
   it("publishing stores the freshest config FIRST, then gates the notification — actions never go stale", () => {

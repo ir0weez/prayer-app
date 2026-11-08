@@ -222,8 +222,13 @@ describe("v255 source pins — tab bar as drawn (v259: components/app-tab-bar.ts
     expect(tabBar).toContain("(navWidth - 20) / 5");
   });
 
-  it("6 · NO + button under Classic — the FAB survives only for the material skins, and Add Person's drawn door (the roster head +) remains", () => {
-    expect(index).toContain('(activeTab === "people" || activeTab === "home") && !isClassicSkin');
+  it("6 · NO + button under Classic — SUPERSEDED by v473 (the Circle FAB is the door on every skin; the roster head + is retired)", () => {
+    // v473 (Nov 8): the People FAB — Circle morph + spring
+    // menu — renders on every skin, and the roster head's +
+    // it replaced is gone. fab-v473-circle-morph.test.ts
+    // holds the wiring pins.
+    expect(index).toContain('(activeTab === "people" || activeTab === "home") ? (');
+    expect(index).not.toContain('(activeTab === "people" || activeTab === "home") && !isClassicSkin');
     expect(index).toContain('setActiveTab("people"); setShowAddPerson(true);');
   });
 

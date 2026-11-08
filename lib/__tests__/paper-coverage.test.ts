@@ -295,8 +295,12 @@ describe("Paper coverage — v202 animation pass", () => {
     // 320ms, and the bridge no longer republishes the menu on
     // every schedule-tab render. The pin moves to the window.
     expect(read("components/schedule-fab.tsx")).not.toContain("index * 0.07");
-    expect(read("components/schedule-fab.tsx")).toContain("interpolate(progress.value, [0.3, 0.95], [0, 1])");
-    expect(read("components/schedule-fab.tsx")).toContain("duration: open ? 320 : 280");
+    // RE-BASED in v473 (Jonathan's Nov 8 picks): the morph is
+    // retired for the Circle morph + FAB-2 spring menu — rows
+    // spring on their own delays (the item nearest the FAB
+    // leads), and the pins move to the new choreography.
+    expect(read("components/schedule-fab.tsx")).toContain("430 + (count - 1 - index) * 55");
+    expect(read("components/fab-circle-glyph.tsx")).toContain("r={8.2}");
     // All six slide-over forms (event/todo/ministry/bible-study/
     // worship/album library) fade under Paper and their sheets are
     // PaperSettle sheets.

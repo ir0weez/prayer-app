@@ -324,10 +324,17 @@ describe("v294 FAB (source pins)", () => {
     expect(region).toMatch(/openTimeOffExperience\(null\)/);
   });
 
-  it("the morph uses the emphasized curves and the 135° turn", () => {
-    expect(fab).toMatch(/Easing\.bezier\(0\.05, 0\.7, 0\.1, 1\)/);
-    expect(fab).toMatch(/Easing\.bezier\(0\.3, 0, 0\.8, 0\.15\)/);
-    expect(fab).toMatch(/\[0, 135\]/);
+  it("the morph uses the emphasized curves and the 135° turn — SUPERSEDED by v473", () => {
+    // v473 (Jonathan's Nov 8 picks): the container morph is
+    // retired whole — no 135° turn, no ×. The button is the
+    // Circle morph (components/fab-circle-glyph.tsx): the +
+    // whips, a ring draws, a check lands inside; the menu is
+    // FAB-2's spring. fab-v473-circle-morph.test.ts holds the
+    // new motion pins.
+    expect(fab).not.toMatch(/\[0, 135\]/);
+    const glyph = read("components/fab-circle-glyph.tsx");
+    expect(glyph).toContain("r={8.2}");
+    expect(glyph).toContain("M8.3 12.5 L11.0 15.1 L15.7 9.6");
   });
 
   it("the letter wave is gone from the whites (his ruling)", () => {

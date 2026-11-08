@@ -37,13 +37,16 @@ function emit() {
  */
 function fabRenderSignature(config: ScheduleFabConfig | null): string {
   if (!config) return "null";
+  // v473: the signature follows the Circle FAB's paint inputs —
+  // the menu card's surface/label/open-glyph colours and the
+  // rows' tonal tile dress left with the superseded container
+  // morph; the glyph's colour + variant and the items' own
+  // colours are what paint now.
   return JSON.stringify([
     config.open,
     config.fabColor,
-    config.menuSurface,
-    config.labelColor,
-    config.iconColorClosed,
-    config.iconColorOpen,
+    config.glyphColor,
+    config.glyphVariant,
     config.scrimTone ?? null,
     config.items.map((item) => [
       item.key,
@@ -51,8 +54,6 @@ function fabRenderSignature(config: ScheduleFabConfig | null): string {
       item.icon,
       item.color,
       item.iconColor ?? null,
-      item.tileColor ?? null,
-      item.glyphColor ?? null,
     ]),
   ]);
 }
